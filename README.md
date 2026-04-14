@@ -39,13 +39,16 @@ The project is strictly divided into four operational phases. Kiro must contextu
 
 * **Goal:** Train a classical model to predict $\theta_{opt}$ from the Hamiltonian graph.
 * **Tools:** PyTorch (`torch.nn`).
-* **Strategy:** Map the physical interactions (edges) and qubit parameters (nodes) to the HVA angles. Optional fine-tuning using physics-informed loss (minimizing local energy).
+* **PoC Approach:** For the 1D TFIM with uniform $J$, the graph structure is fixed and only $h$ varies. A simple MLP ($h \to \theta_{pred}$) suffices as the PoC predictor. Upgrade to full GNN when extending to non-uniform couplings or 2D lattices.
+* **Training:** MSE loss on $\theta_{opt}$ with `ReduceLROnPlateau` scheduling. Physics validation callback every N epochs feeds $\theta_{pred}$ into `StatevectorEstimator` to verify predicted energies match exact diagonalization.
+* **Generalization:** Always validate on at least one interpolation point (unseen $h$ value) to verify the model generalizes between training grid points.
 
 ### PHASE 4: Deployment & Restricted Adaptive Refinement
 
 * **Goal:** Execute on real IBM Hardware (e.g., IBM Heron) using the trained GNN for inference.
 * **Workflow:** Unseen Hamiltonian -> GNN predicts $\theta_{pred}$ -> Initialize HVA (Warm-Start) -> Execute VQE.
-* **Adaptive Step:** If using `AdaptVQE`, strictly limit to `max_iterations=2` to prevent the circuit from growing into the noise-truncation regime.
+* **Adaptive Step:** If using `AdaptVQE`, strictly limit to `max_iterations=2` to prevent the circuit from growing into the noise-truncation regime. When the warm-start is near-optimal, AdaptVQE terminates at iteration 0 (all gradients below threshold) — this is the ideal outcome.
+* **Phase Characterization:** Measure local observables ($\langle X_i \rangle$, $\langle Z_i Z_{i+1} \rangle$) to classify the quantum phase. Use the observable crossover from Phase 1 exact data as the finite-size critical point, not the thermodynamic limit $h_c = 1.0$.
 
 ## 💻 Tech Stack & Code Practices (Qiskit 2.x Standard)
 
@@ -69,4 +72,9 @@ The project is strictly divided into four operational phases. Kiro must contextu
 
 ## 🚀 Quick Start (PoC)
 
-The current Proof of Concept (PoC V2.0) focuses on Phases 1 and 2 using the 1D Transverse Field Ising Model (TFIM) for $N=6$ qubits. Refer to the corresponding Jupyter Notebooks in the repository for the baseline implementation.
+The current Proof of Concept (PoC V2.0) implements all 4 phases using the 1D Transverse Field Ising Model (TFIM) for $N=6$ qubits:
+
+* **`poc_v2.ipynb`** — Phases 1-2: Exact diagonalization sweep + HVA warm-start VQE optimization over $h/J \in [0, 2]$.
+* **`poc_v2_phases3_4.ipynb`** — Phases 3-4: MLP predictor training (with physics validation callback) + AdaptVQE deployment on unseen $h=1.05$ near the critical point.
+
+Data flows between notebooks via `phase1_phase2_tfim_N6_p2.npz`. Run notebook 1 first to generate the dataset.
