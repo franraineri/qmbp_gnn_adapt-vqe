@@ -1,3 +1,4 @@
-*.kiro*
 *.venv*
 *.ipynb_*
+*.pt
+*.npz

@@ -70,11 +70,25 @@ The project is strictly divided into four operational phases. Kiro must contextu
 * If 2D Tensor Network simulations hit memory limits, fallback to quasi-1D cylindrical Spin Ladders.
 * If hardware noise is too high even for shallow HVAs, target Symmetry-Protected Topological (SPT) phases (which require constant-depth circuits) instead of pure QSLs.
 
+## 📊 Validation Metrics (Priority Order)
+
+Metrics are ordered by physical relevance. The top metrics are what matter on real hardware; the bottom ones are noiseless-only diagnostics.
+
+| Priority | Metric | What it tells you | Threshold | Hardware? |
+|----------|--------|-------------------|-----------|-----------|
+| **1** | **ΔE / gap** | Are we resolving the quantum phase? Energy error relative to the spectral gap determines if the pipeline can distinguish the ground state from the first excited state. | < 5% | ✅ |
+| **2** | **⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩** | Phase characterization via local observables. These are the order parameters that classify ferromagnetic vs paramagnetic. The ⟨X⟩ = ⟨ZZ⟩ crossover defines the finite-size critical point. | error < 1e-2 | ✅ |
+| **3** | **ΔE** | Absolute energy accuracy. Useful but less informative than ΔE/gap — a ΔE of 0.01 means nothing without knowing the gap scale. | < 1e-2 (aspirational for p=2) | ✅ |
+| **4** | **Fidelity** | Full state overlap with exact ground state. Powerful for noiseless validation but **forbidden on hardware** (global cost → barren plateaus under noise per Mele et al.). | ≥ 99.5% (noiseless only) | ❌ |
+| **5** | **ADAPT iterations** | Circuit depth compliance. Must stay ≤ 2 to respect the O(log n) noise-truncation bound. Termination at 0 iterations (AlgorithmError) is the ideal outcome. | ≤ 2 | ✅ |
+
+**Key insight from PoC:** The ΔE threshold (1e-2) is aspirational — it is bounded by the HVA expressibility ceiling at each h value. At h=1.5 with p=2, the VQE itself achieves ΔE≈1.9e-2, so the MLP+AdaptVQE pipeline cannot beat this. The ΔE/gap metric (1.3% at h=1.5) correctly shows the pipeline resolves the physics despite the absolute ΔE exceeding 1e-2.
+
 ## 🚀 Quick Start (PoC)
 
-The current Proof of Concept (PoC V2.0) implements all 4 phases using the 1D Transverse Field Ising Model (TFIM) for $N=6$ qubits:
+The current Proof of Concept (PoC V3.0) implements all 4 phases using the 1D Transverse Field Ising Model (TFIM) for $N=6$ qubits:
 
-* **`poc_v2.ipynb`** — Phases 1-2: Exact diagonalization sweep + HVA warm-start VQE optimization over $h/J \in [0, 2]$.
-* **`poc_v2_phases3_4.ipynb`** — Phases 3-4: MLP predictor training (with physics validation callback) + AdaptVQE deployment on unseen $h=1.05$ near the critical point.
+* **`poc_v3_phases1_2.ipynb`** — Phases 1-2: Exact diagonalization sweep + HVA warm-start VQE optimization (descending sweep h=2→0) over $h/J \in [0, 2]$.
+* **`poc_v3_phases3_4.ipynb`** — Phases 3-4: MLP predictor training (with fidelity-filtered data and physics validation callback) + AdaptVQE deployment on unseen $h=1.5$ in the paramagnetic regime.
 
 Data flows between notebooks via `phase1_phase2_tfim_N6_p2.npz`. Run notebook 1 first to generate the dataset.
