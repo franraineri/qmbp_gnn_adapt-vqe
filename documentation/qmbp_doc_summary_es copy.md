@@ -50,7 +50,9 @@ Cuando escalamos el triángulo a una red 2D masiva (como una red de Kagome), tod
 
 En lugar de congelarse, los espines se entrelazan a distancias macroscópicas formando un **estado de Enlace de Valencia Resonante (RVB)**. Un enlace de valencia es un singlete cuántico — un par de espines inextricablemente entrelazados:
 
-$$\frac{|\uparrow\downarrow\rangle - |\downarrow\uparrow\rangle}{\sqrt{2}}$$
+$$
+\frac{|\uparrow\downarrow\rangle - |\downarrow\uparrow\rangle}{\sqrt{2}}
+$$
 
 En un QSL, estos enlaces no se fijan en un patrón estático. El estado "resuena": el verdadero estado fundamental es una superposición cuántica masiva de *todos los posibles* emparejamientos de singletes en toda la red.
 
@@ -66,11 +68,11 @@ En un QSL, estos enlaces no se fijan en un patrón estático. El estado "resuena
 
 Para entender por qué simular un QSL es tan difícil, debemos mirar la matemática del **Espacio de Hilbert**.
 
-| Sistema | Amplitudes a rastrear | Memoria requerida |
-|---------|----------------------|-------------------|
-| 10 espines | 1.024 | ~16 KB |
-| 30 espines | ~1.000 millones | ~16 GB |
-| 50 espines | ~1,1 cuatrillones | ~18 PB |
+| Sistema    | Amplitudes a rastrear | Memoria requerida |
+| ---------- | --------------------- | ----------------- |
+| 10 espines | 1.024                 | ~16 KB            |
+| 30 espines | ~1.000 millones       | ~16 GB            |
+| 50 espines | ~1,1 cuatrillones     | ~18 PB            |
 
 En mecánica clásica, describir 50 monedas requiere 50 variables. En mecánica cuántica, 50 espines existen en superposición de todos los estados posibles simultáneamente, requiriendo $2^{50}$ amplitudes de probabilidad complejas.
 
@@ -80,7 +82,7 @@ Alrededor de 50 partículas cuánticas interactuantes, la capacidad de memoria d
 
 ## 4. El Golpe Fatal: El "Problema del Signo"
 
-Para esquivar la Maldición de la Dimensionalidad, los físicos usan métodos de muestreo estadístico como **Quantum Monte Carlo (QMC)**: en lugar de rastrear cada estado posible, QMC muestrea un subconjunto aleatorio y calcula el promedio.
+* [ ] Para esquivar la Maldición de la Dimensionalidad, los físicos usan métodos de muestreo estadístico como **Quantum Monte Carlo (QMC)**: en lugar de rastrear cada estado posible, QMC muestrea un subconjunto aleatorio y calcula el promedio.
 
 Sin embargo, QMC sufre un fallo catastrófico llamado **Problema del Signo** en sistemas frustrados (como los QSL):
 
@@ -120,9 +122,7 @@ Para sortear estas limitaciones del hardware, esta tesis propone una arquitectur
 ### Los tres pilares
 
 1. **Hamiltonian Variational Ansatz (HVA)**: Abandonamos circuitos cuánticos genéricos y profundos. Diseñamos un circuito estrictamente superficial ($p \leq 2$ capas) cuyas puertas derivan directamente de las ecuaciones físicas del material objetivo.
-
 2. **Graph Neural Network (GNN)**: Entrenamos una GNN clásica con datos generados por Redes Tensoriales avanzadas. La GNN aprende la topografía compleja del sistema cuántico.
-
 3. **"Warm-Start Inteligente"**: Ante un material nuevo de 40-50 qubits, la GNN predice instantáneamente los ángulos óptimos ($\theta_{opt}$) para las puertas cuánticas. Inyectamos estos ángulos directamente en el circuito HVA superficial en el hardware cuántico.
 
 ### ¿Por qué es innovador?
@@ -136,21 +136,25 @@ Para sortear estas limitaciones del hardware, esta tesis propone una arquitectur
 ## 7. Hoja de Ruta Operativa (4 Fases)
 
 ### Fase 1 — Generación de Ground Truth Clásico
+
 - **Objetivo**: Resolver Hamiltonianos parametrizados clásicamente.
 - **Herramientas**: Diagonalización Exacta ($N < 15$ para el PoC, actualmente $N=6$), DMRG/TeNPy (quasi-1D), NetKet (2D).
 - **Salida**: Dataset $(h, J) \to$ {estado fundamental $\psi$, energía, gap espectral, observables locales}.
 
 ### Fase 2 — Compilación y Optimización del Ansatz
+
 - **Objetivo**: Encontrar los parámetros óptimos $\theta_{opt}$ para el circuito HVA.
 - **Método**: VQE con warm-start descendente ($h=2 \to 0$), optimizador L-BFGS-B.
 - **Restricción**: HVA superficial ($p \leq 2$), estado inicial $|+\rangle^{\otimes N}$.
 
 ### Fase 3 — Entrenamiento del Modelo Predictivo (MLP/GNN)
+
 - **Objetivo**: Entrenar un modelo clásico para predecir $\theta_{opt}$ a partir de los parámetros del Hamiltoniano.
 - **PoC**: MLP simple ($h \to \theta_{pred}$) con filtro de fidelidad (≥96%) y validación energética.
 - **Escalado**: GNN completa para acoplamientos no uniformes o redes 2D.
 
 ### Fase 4 — Despliegue en Hardware
+
 - **Objetivo**: Ejecutar en hardware IBM real con inferencia de la GNN/MLP.
 - **Flujo**: Hamiltoniano no visto → GNN predice $\theta_{pred}$ → Warm-Start del HVA → AdaptVQE restringido (≤2 iteraciones).
 - **Validación**: Observables locales ($\langle X_i \rangle$, $\langle Z_i Z_{i+1} \rangle$) para clasificar la fase cuántica.
@@ -161,13 +165,13 @@ Para sortear estas limitaciones del hardware, esta tesis propone una arquitectur
 
 Las métricas están ordenadas por relevancia física. Las primeras son lo que importa en hardware real; las últimas son diagnósticos solo para simulación sin ruido.
 
-| Prioridad | Métrica | Qué nos dice | Umbral | ¿Hardware? |
-|-----------|---------|-------------|--------|------------|
-| **1** | **ΔE / gap** | ¿Resolvemos la física? El error energético relativo al gap espectral determina si el pipeline puede distinguir el estado fundamental del primer estado excitado. | < 5% | ✅ |
-| **2** | **⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩** | Caracterización de fase. Son los parámetros de orden que clasifican ferromagnético vs paramagnético. El cruce ⟨X⟩ = ⟨ZZ⟩ define el punto crítico de tamaño finito. | error < 1e-2 | ✅ |
-| **3** | **ΔE** | Precisión energética absoluta. Útil pero menos informativo que ΔE/gap — un ΔE de 0.01 no significa nada sin conocer la escala del gap. | < 1e-2 (aspiracional) | ✅ |
-| **4** | **Fidelidad** | Solapamiento total con el estado fundamental exacto. Potente para validación sin ruido pero **prohibido en hardware** (costo global → barren plateaus bajo ruido, Mele et al.). | ≥ 99.5% (solo noiseless) | ❌ |
-| **5** | **Iteraciones ADAPT** | Compliance de profundidad del circuito. Debe mantenerse ≤ 2 para respetar el límite de truncación por ruido $\mathcal{O}(\log n)$. Terminación en 0 iteraciones es el resultado ideal. | ≤ 2 | ✅ |
+| Prioridad   | Métrica                          | Qué nos dice                                                                                                                                                                               | Umbral                    | ¿Hardware? |
+| ----------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ----------- |
+| **1** | **ΔE / gap**               | ¿Resolvemos la física? El error energético relativo al gap espectral determina si el pipeline puede distinguir el estado fundamental del primer estado excitado.                         | < 5%                      | ✅          |
+| **2** | **⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩** | Caracterización de fase. Son los parámetros de orden que clasifican ferromagnético vs paramagnético. El cruce ⟨X⟩ = ⟨ZZ⟩ define el punto crítico de tamaño finito.                | error < 1e-2              | ✅          |
+| **3** | **ΔE**                     | Precisión energética absoluta. Útil pero menos informativo que ΔE/gap — un ΔE de 0.01 no significa nada sin conocer la escala del gap.                                                | < 1e-2 (aspiracional)     | ✅          |
+| **4** | **Fidelidad**               | Solapamiento total con el estado fundamental exacto. Potente para validación sin ruido pero**prohibido en hardware** (costo global → barren plateaus bajo ruido, Mele et al.).      | ≥ 99.5% (solo noiseless) | ❌          |
+| **5** | **Iteraciones ADAPT**       | Compliance de profundidad del circuito. Debe mantenerse ≤ 2 para respetar el límite de truncación por ruido$\mathcal{O}(\log n)$. Terminación en 0 iteraciones es el resultado ideal. | ≤ 2                      | ✅          |
 
 ### Nota sobre calibración de umbrales
 
@@ -179,12 +183,12 @@ El umbral ΔE < 1e-2 es **aspiracional** — está acotado por el techo de expre
 
 ## 9. Stack Tecnológico
 
-| Componente | Herramienta | Uso |
-|-----------|-------------|-----|
+| Componente          | Herramienta                          | Uso                                  |
+| ------------------- | ------------------------------------ | ------------------------------------ |
 | Framework cuántico | **Qiskit 2.x** (ecosistema V2) | Hamiltonianos, circuitos, ejecución |
-| Machine Learning | **PyTorch** (`torch.nn`) | MLP (PoC) y GNN (escalado) |
-| Solvers clásicos | **NumPy**, **SciPy** | Diagonalización exacta, L-BFGS-B |
-| Redes Tensoriales | **TeNPy**, **NetKet** | DMRG (quasi-1D), NQS (2D) |
+| Machine Learning    | **PyTorch** (`torch.nn`)     | MLP (PoC) y GNN (escalado)           |
+| Solvers clásicos   | **NumPy**, **SciPy**     | Diagonalización exacta, L-BFGS-B    |
+| Redes Tensoriales   | **TeNPy**, **NetKet**    | DMRG (quasi-1D), NQS (2D)            |
 
 **Regla estricta**: Módulos deprecados (`qiskit.opflow`, `PauliSumOp`, `qiskit.algorithms`) están prohibidos en el código.
 
@@ -193,12 +197,14 @@ El umbral ΔE < 1e-2 es **aspiracional** — está acotado por el techo de expre
 ## 10. Técnicas de Implementación por Fase
 
 ### Fase 1: Diagonalización Exacta
+
 - Usamos `np.linalg.eigh(H.to_matrix())` (densa, no sparse) para garantizar estabilidad numérica y obtener el **gap espectral** ($\Delta = E_1 - E_0$) directamente.
 - **Observables bulk**: Promediamos sobre todos los sitios ($\frac{1}{N} \sum \langle X_i \rangle$) para evitar artefactos de borde.
 
 ### Fase 2: Diseño del HVA y Optimización
 
 **Construcción del circuito:**
+
 - El HVA replica la estructura del Hamiltoniano: bloque de interacción ZZ → bloque de campo X por capa.
 - **Estado inicial obligatorio**: $|+\rangle^{\otimes N}$ (capa de Hadamard). A $\theta = 0$, el HVA produce el estado fundamental paramagnético ($h \to \infty$).
 - Factor $2\theta$ en las puertas: `qc.rzz(2 * theta, i, i+1)` para implementar correctamente $e^{-i\theta H}$.
@@ -206,12 +212,11 @@ El umbral ΔE < 1e-2 es **aspiracional** — está acotado por el techo de expre
 **Optimización (lecciones aprendidas del PoC):**
 
 1. **Punto silla en θ=0**: El estado $|+\rangle^{\otimes N}$ crea un punto silla protegido por simetría. El gradiente se anula ($\sim 10^{-6}$) y L-BFGS-B declara convergencia en iteración 0 sin moverse. **Solución**: Inicializar siempre con perturbación aleatoria pequeña: `np.random.uniform(-0.01, 0.01, n_params)`.
-
 2. **Dirección del sweep**: Barrer de $h=2.0$ (paramagnético) **descendiendo** hacia $h=0.0$. A $h \to \infty$, $|+\rangle^{\otimes N}$ ya es exacto, así que $\theta \approx 0$ es casi óptimo. El warm-start propaga la solución suavemente hacia $h=0$.
-
 3. **Límite de expresibilidad (hallazgo clave de la tesis)**: El HVA con $|+\rangle^{\otimes N}$ y $p=2$ **no puede alcanzar** el estado fundamental ferromagnético profundo ($h \to 0$, que es $|000...0\rangle$). La fidelidad degrada por debajo de $h \approx 1.0$ (ej: 22% a $h=0$ para $N=6$). Verificado con 50 restarts aleatorios sobre $[-\pi, \pi]$ — no es un fallo de optimización sino una limitación estructural. El pipeline se valida para el **régimen paramagnético** ($h \geq 1.0$, fidelidades > 96%). Este compromiso expresibilidad-profundidad es en sí mismo un hallazgo significativo que ilustra las consecuencias prácticas del teorema de truncación por ruido.
 
 **Optimización energética (compliance Mele et al.):**
+
 - La función de costo es la **energía física** vía `StatevectorEstimator`, nunca la fidelidad global.
 - La fidelidad se calcula como métrica de validación pasiva en simulaciones sin ruido, pero está estrictamente prohibida como función de costo y en paths de hardware.
 
