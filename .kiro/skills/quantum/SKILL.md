@@ -53,11 +53,22 @@ Forbidden: `qiskit.opflow`, `qiskit.algorithms` (old path), `PauliSumOp`, `Weigh
 3. Fidelity ≥ 99.5% (noiseless only, never hardware)
 4. ADAPT iterations ≤ 2
 
+## Literature Validation (Phase 3 Architecture)
+
+Our GNN/MLP warm-start approach is validated by three independent 2024-2026 papers:
+
+- **NN-VQE** (Miao et al., PRApplied 2024): MLP h→θ for parameterized spin Hamiltonians. 20 training points, dropout regularization, active learning. Directly validates our PoC MLP design.
+- **Qracle** (Zhang et al., 2025): GNN-based VQE parameter initializer. Unified Hamiltonian+ansatz graph encoding. Up to 64% fewer optimization steps. Validates our GNN scaling path.
+- **Flow-VQE** (Zou et al., npj QI 2026): Generative normalizing flows for warm-start. Up to 50x acceleration. Alternative approach — we chose deterministic mapping (simpler, sufficient for smooth TFIM landscape).
+
+Key takeaway: GNN-based initialization works best on physically structured Hamiltonians (spin systems), poorly on random circuits. Our spin-system focus is optimal.
+
 ## Current PoC
 
 - 1D TFIM, N=6, HVA p=2, |+⟩^N
 - Phases 1-2: `poc_v3_phases1_2.ipynb` / Phases 3-4: `poc_v3_phases3_4.ipynb`
-- MLP predictor with fidelity filter ≥96%
+- Non-uniform h-grid: Δh=0.05 near critical region h∈[0.8,1.4], Δh=0.1 elsewhere (27 points)
+- MLP predictor with fidelity filter ≥96% and dropout=0.1
 - **Known limit**: HVA p=2 + |+⟩^N cannot express ferromagnetic ground state (h<1.0). Validated for h≥1.0.
 
 ## IBM Connection Pattern

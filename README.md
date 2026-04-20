@@ -84,6 +84,15 @@ Metrics are ordered by physical relevance. The top metrics are what matter on re
 
 **Key insight from PoC:** The ΔE threshold (1e-2) is aspirational — it is bounded by the HVA expressibility ceiling at each h value. At h=1.5 with p=2, the VQE itself achieves ΔE≈1.9e-2, so the MLP+AdaptVQE pipeline cannot beat this. The ΔE/gap metric (1.3% at h=1.5) correctly shows the pipeline resolves the physics despite the absolute ΔE exceeding 1e-2.
 
+## 📚 Documentation
+
+Detailed technical documentation is available in the [`documentation/`](documentation/) directory:
+
+* **[Project Summary (English)](documentation/qmbp_doc_summary.md)** — Comprehensive overview of the physics problem, the classical bottleneck, the hybrid GNN-HVA solution, implementation techniques by phase, and full bibliography.
+* **[Project Summary (Español)](documentation/qmbp_doc_summary_es.md)** — Resumen completo del proyecto en español: problema físico, solución híbrida, hoja de ruta operativa, técnicas de implementación y bibliografía.
+* **[Architectural Document (ES/EN)](documentation/architectural_doc_es_en.md)** — Bilingual technical document covering the GNN data strategy, noise resilience justification, and the spin systems vs. quantum chemistry design rationale.
+* **[Bibliography](documentation/bibliography.md)** — Complete APA-formatted reference list: foundational physics, NISQ theory, VQE algorithms, ML parameter prediction, tensor networks, and software frameworks.
+
 ## 🚀 Quick Start (PoC)
 
 The current Proof of Concept (PoC V3.0) implements all 4 phases using the 1D Transverse Field Ising Model (TFIM) for $N=6$ qubits:
@@ -92,3 +101,111 @@ The current Proof of Concept (PoC V3.0) implements all 4 phases using the 1D Tra
 * **`poc_v3_phases3_4.ipynb`** — Phases 3-4: MLP predictor training (with fidelity-filtered data and physics validation callback) + AdaptVQE deployment on unseen $h=1.5$ in the paramagnetic regime.
 
 Data flows between notebooks via `phase1_phase2_tfim_N6_p2.npz`. Run notebook 1 first to generate the dataset.
+
+---
+
+# 🇪🇸 Versión en Español
+
+# Arquitectura Híbrida GNN-HVA para Caracterización de Fases Topológicas
+
+## 🔬 Descripción del Proyecto
+
+Este repositorio contiene el código y el marco teórico para un Trabajo Final de Máster (TFM) en Computación Cuántica y Física de la Materia Condensada. El proyecto busca acelerar los Variational Quantum Eigensolvers (VQE) para caracterizar Fases Cuánticas Topológicas (como los Líquidos de Espín Cuánticos) en sistemas frustrados de muchos cuerpos.
+
+Para superar las limitaciones de los dispositivos cuánticos ruidosos de escala intermedia (NISQ) — específicamente el problema de "barren plateaus" y la truncación inducida por ruido — abandonamos las Redes Neuronales Cuánticas (QCNN) puras y los VQE profundos estándar. En su lugar, proponemos una **arquitectura híbrida predictiva**: Una Red Neuronal de Grafos (GNN) clásica entrenada con datos de Redes Tensoriales actúa como un "Warm-Start Inteligente" para inicializar un circuito cuántico superficial e informado por la física (Hamiltonian Variational Ansatz - HVA).
+
+## 📄 Cambio de Paradigma Teórico (Contexto Crítico para Agentes IA)
+
+**ATENCIÓN KIRO (Agente IA):** Toda generación de código y decisión arquitectónica DEBE cumplir con los hallazgos de la literatura reciente:
+
+> *Mele, A. A., et al. "Noise-induced shallow circuits and the absence of barren plateaus" (Nature Physics, 2026).*
+
+**Conclusiones clave de este paper que dictan nuestro código:**
+
+1. **Truncamiento de Profundidad:** El ruido no unital trunca efectivamente los circuitos cuánticos a profundidad logarítmica $\mathcal{O}(\log n)$. Los circuitos profundos son clásicamente simulables y pierden la ventaja cuántica. **Regla:** Todos nuestros circuitos cuánticos (HVAs) DEBEN ser estrictamente superficiales (ej: $p=1$ o $p=2$ capas).
+2. **Solo Observables Locales:** Las funciones de costo globales aún sufren de barren plateaus bajo ruido. **Regla:** Debemos extraer y monitorear *observables locales* (ej: magnetización local $\langle X_i \rangle$, correlación local $\langle Z_i Z_{i+1} \rangle$) para caracterizar fases, en lugar de depender de la fidelidad global del estado en la ejecución en hardware cuántico.
+3. **Ausencia de Barren Plateaus para Costos Locales:** Al usar circuitos superficiales y observables locales, garantizamos gradientes estables. Nuestra GNN explota esto proporcionando la semilla de inicio perfecta, permitiendo convergencia instantánea antes de que el ruido destruya la señal.
+
+## 🗺️ Hoja de Ruta de 4 Fases
+
+El proyecto está estrictamente dividido en cuatro fases operativas:
+
+### FASE 1: Generación de Ground Truth Clásico
+
+* **Objetivo:** Resolver Hamiltonianos parametrizados (ej: Modelo de Ising 1D con Campo Transverso, Escaleras de Espín 2D) clásicamente.
+* **Herramientas:** Diagonalización Exacta (para PoC < 15 qubits), DMRG / TeNPy (para quasi-1D), NetKet (Estados Cuánticos Neuronales para 2D).
+* **Salida:** Dataset que mapea parámetros del Hamiltoniano (ej: $h, J$) a vectores de estado fundamental exactos y valores esperados de observables locales.
+
+### FASE 2: Ansatz con Simetría y Compilación
+
+* **Objetivo:** Traducir los estados fundamentales clásicos en parámetros óptimos ($\theta_{opt}$) para un circuito cuántico.
+* **Arquitectura:** Usar un **Hamiltonian Variational Ansatz (HVA)**. Nunca usar Hardware-Efficient Ansätze (HEA).
+* **Restricción:** El HVA debe ser superficial ($p \le 2$).
+* **Estrategia de Optimización:** Usar **Warm Start**. El $\theta$ optimizado para el Hamiltoniano $H_i$ debe usarse como estimación inicial para $H_{i+1}$ para asegurar continuidad física y convergencia rápida.
+
+### FASE 3: Modelo Predictivo con Red Neuronal de Grafos (GNN)
+
+* **Objetivo:** Entrenar un modelo clásico para predecir $\theta_{opt}$ a partir del grafo del Hamiltoniano.
+* **Herramientas:** PyTorch (`torch.nn`).
+* **Enfoque PoC:** Para el TFIM 1D con $J$ uniforme, la estructura del grafo es fija y solo varía $h$. Un MLP simple ($h \to \theta_{pred}$) es suficiente como predictor del PoC. Escalar a GNN completa al extender a acoplamientos no uniformes o redes 2D.
+* **Entrenamiento:** Pérdida MSE sobre $\theta_{opt}$ con scheduling `ReduceLROnPlateau`. Callback de validación física cada N épocas alimenta $\theta_{pred}$ al `StatevectorEstimator` para verificar que las energías predichas coincidan con la diagonalización exacta.
+* **Generalización:** Siempre validar en al menos un punto de interpolación (valor de $h$ no visto) para verificar que el modelo generaliza entre puntos de la grilla de entrenamiento.
+
+### FASE 4: Despliegue y Refinamiento Adaptativo Restringido
+
+* **Objetivo:** Ejecutar en hardware IBM real (ej: IBM Heron) usando la GNN entrenada para inferencia.
+* **Flujo de trabajo:** Hamiltoniano no visto -> GNN predice $\theta_{pred}$ -> Inicializar HVA (Warm-Start) -> Ejecutar VQE.
+* **Paso Adaptativo:** Si se usa `AdaptVQE`, limitar estrictamente a `max_iterations=2` para evitar que el circuito crezca hacia el régimen de truncación por ruido. Cuando el warm-start es casi óptimo, AdaptVQE termina en la iteración 0 (todos los gradientes bajo el umbral) — este es el resultado ideal.
+* **Caracterización de Fase:** Medir observables locales ($\langle X_i \rangle$, $\langle Z_i Z_{i+1} \rangle$) para clasificar la fase cuántica. Usar el cruce de observables de los datos exactos de Fase 1 como punto crítico de tamaño finito, no el límite termodinámico $h_c = 1.0$.
+
+## 💻 Stack Tecnológico y Prácticas de Código (Estándar Qiskit 2.x)
+
+**INSTRUCCIONES KIRO:** El código debe adherirse al **ecosistema Qiskit 2.x** (y 1.x moderno). La sintaxis deprecada de Qiskit 0.4x está estrictamente prohibida.
+
+### Reglas de Código Obligatorias:
+
+1. **Operadores:** SIEMPRE usar `qiskit.quantum_info.SparsePauliOp` para construir Hamiltonianos y observables. NUNCA usar `PauliSumOp` u `opflow` (están deprecados).
+   * *Correcto:* `SparsePauliOp.from_sparse_list([("ZZ", [0, 1], 1.0)], num_qubits=N)`
+2. **Ejecución/Primitivas:** SIEMPRE usar **Qiskit Primitives V2**.
+   * Usar `qiskit.primitives.StatevectorEstimator` para simulaciones locales exactas (PoC).
+   * Usar `qiskit_ibm_runtime.EstimatorV2` para ejecución en hardware.
+   * *Nunca* usar `qiskit.execute`, `Aer.get_backend()`, o Primitives V1.
+3. **Algoritmos:** Importar algoritmos del paquete independiente `qiskit_algorithms`, NO de `qiskit.algorithms` (deprecado).
+4. **Vinculación de Datos:** Usar `circuit.assign_parameters()` para vincular ángulos predichos antes de pasarlos al Estimator.
+
+## 🚧 Contingencias y Alcance
+
+* Si las simulaciones de Redes Tensoriales 2D alcanzan límites de memoria, recurrir a Escaleras de Espín cilíndricas quasi-1D.
+* Si el ruido del hardware es demasiado alto incluso para HVAs superficiales, apuntar a fases Topológicas Protegidas por Simetría (SPT) (que requieren circuitos de profundidad constante) en lugar de QSLs puros.
+
+## 📊 Métricas de Validación (Orden de Prioridad)
+
+Las métricas están ordenadas por relevancia física. Las primeras son lo que importa en hardware real; las últimas son diagnósticos solo para simulación sin ruido.
+
+| Prioridad | Métrica | Qué nos dice | Umbral | ¿Hardware? |
+|-----------|---------|--------------|--------|------------|
+| **1** | **ΔE / gap** | ¿Estamos resolviendo la fase cuántica? El error energético relativo al gap espectral determina si el pipeline puede distinguir el estado fundamental del primer estado excitado. | < 5% | ✅ |
+| **2** | **⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩** | Caracterización de fase vía observables locales. Son los parámetros de orden que clasifican ferromagnético vs paramagnético. El cruce ⟨X⟩ = ⟨ZZ⟩ define el punto crítico de tamaño finito. | error < 1e-2 | ✅ |
+| **3** | **ΔE** | Precisión energética absoluta. Útil pero menos informativo que ΔE/gap — un ΔE de 0.01 no significa nada sin conocer la escala del gap. | < 1e-2 (aspiracional para p=2) | ✅ |
+| **4** | **Fidelidad** | Solapamiento total con el estado fundamental exacto. Potente para validación sin ruido pero **prohibido en hardware** (costo global → barren plateaus bajo ruido según Mele et al.). | ≥ 99.5% (solo noiseless) | ❌ |
+| **5** | **Iteraciones ADAPT** | Cumplimiento de profundidad del circuito. Debe mantenerse ≤ 2 para respetar el límite de truncación por ruido O(log n). Terminación en 0 iteraciones (AlgorithmError) es el resultado ideal. | ≤ 2 | ✅ |
+
+**Hallazgo clave del PoC:** El umbral ΔE (1e-2) es aspiracional — está acotado por el techo de expresibilidad del HVA en cada valor de h. A h=1.5 con p=2, el VQE mismo alcanza ΔE≈1.9e-2, por lo que el pipeline MLP+AdaptVQE no puede superar esto. La métrica ΔE/gap (1.3% a h=1.5) muestra correctamente que el pipeline resuelve la física a pesar de que el ΔE absoluto exceda 1e-2.
+
+## 📚 Documentación
+
+La documentación técnica detallada está disponible en el directorio [`documentation/`](documentation/):
+
+* **[Resumen del Proyecto (English)](documentation/qmbp_doc_summary.md)** — Visión general completa del problema físico, el cuello de botella clásico, la solución híbrida GNN-HVA, técnicas de implementación por fase y bibliografía completa.
+* **[Resumen del Proyecto (Español)](documentation/qmbp_doc_summary_es.md)** — Resumen completo del proyecto en español: problema físico, solución híbrida, hoja de ruta operativa, técnicas de implementación y bibliografía.
+* **[Documento Arquitectónico (ES/EN)](documentation/architectural_doc_es_en.md)** — Documento técnico bilingüe que cubre la estrategia de datos de la GNN, la justificación de resiliencia al ruido y la fundamentación del diseño de sistemas de espines vs. química cuántica.
+* **[Bibliografía](documentation/bibliography.md)** — Lista completa de referencias en formato APA: física fundamental, teoría NISQ, algoritmos VQE, predicción de parámetros con ML, redes tensoriales y frameworks de software.
+
+## 🚀 Inicio Rápido (PoC)
+
+La Prueba de Concepto actual (PoC V3.0) implementa las 4 fases usando el Modelo de Ising 1D con Campo Transverso (TFIM) para $N=6$ qubits:
+
+* **`poc_v3_phases1_2.ipynb`** — Fases 1-2: Barrido de diagonalización exacta + optimización VQE con warm-start del HVA (barrido descendente h=2→0) sobre $h/J \in [0, 2]$.
+* **`poc_v3_phases3_4.ipynb`** — Fases 3-4: Entrenamiento del predictor MLP (con datos filtrados por fidelidad y callback de validación física) + despliegue de AdaptVQE en $h=1.5$ no visto en el régimen paramagnético.
+
+Los datos fluyen entre notebooks vía `phase1_phase2_tfim_N6_p2.npz`. Ejecutar el notebook 1 primero para generar el dataset.

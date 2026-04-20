@@ -44,12 +44,23 @@ Requires a differentiable quantum simulator backend (like TorchQuantum) or analy
 
 For 1D TFIM with uniform J, the graph structure is fixed and only h varies. Use a simple MLP (h → θ_pred) as the PoC predictor; upgrade to full GNN when extending to non-uniform couplings or 2D lattices.
 
+## Scaling: Qracle Unified Graph Encoding (Zhang et al., 2025)
+
+When upgrading from MLP to GNN, adopt Qracle's unified representation that encodes BOTH the Hamiltonian AND the ansatz circuit into a single graph:
+
+- **Current PoC**: Only Hamiltonian encoded (nodes=qubits, edges=couplings). Sufficient for fixed-topology TFIM.
+- **Scaling target**: Unified graph where Hamiltonian structure + ansatz gate topology are jointly encoded. This captures how the circuit structure interacts with the physical problem.
+- **Why it matters**: Qracle showed GNN with unified encoding outperforms MLP/diffusion methods by up to 64% fewer optimization steps and 26% lower SMAPE. The advantage is largest on physically structured Hamiltonians (spin systems) — exactly our domain.
+- **Architecture reference**: GCNConv (2 layers, dim=256) + GATConv (3 layers, dim=512) + MLP head (dim=1024). PyTorch Geometric.
+
 ## Training Best Practices
 
+- **Dropout (NN-VQE, Miao et al. 2024)**: Add `nn.Dropout(0.1)` after hidden layers. Proven to improve generalization on small datasets (≤30 training points). Current PoC uses dropout=0.1 after first hidden layer.
 - **Physics validation callback**: Every N epochs, feed θ_pred into StatevectorEstimator to compute E(θ_pred) and compare against exact ground energy. Ensures predicted angles retain physical meaning.
 - **LR scheduling**: Use ReduceLROnPlateau or CosineAnnealing to avoid oscillation on small datasets.
 - **Interpolation test**: Always validate on at least one h value not in the training set.
 - **Fidelity filter (critical)**: Only train on Phase 2 data points where fidelity ≥ 96%. Points below this threshold have θ_opt that don't represent the true ground state — training on them poisons the model.
+- **Active learning (future)**: NN-VQE showed that actively selecting training points near phase transitions (where θ_opt changes abruptly) can halve the required dataset size while maintaining accuracy.
 
 ## Data Management
 

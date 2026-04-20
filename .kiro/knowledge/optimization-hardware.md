@@ -11,7 +11,10 @@
 ## Warm-Start Protocol
 
 - Sweep DESCENDING: h=2→0 (|+⟩^N exact at h→∞)
-- Step size: Δh ≤ 0.1
+- **Non-uniform h-grid** (NN-VQE, Miao et al. 2024): θ_opt changes abruptly near the phase transition. Use denser sampling near the finite-size critical point:
+  - Δh=0.1 far from criticality (h∈[0,0.7] and h∈[1.5,2.0])
+  - Δh=0.05 in the critical region (h∈[0.8,1.4])
+  - Current PoC: 27 points total (was 21 uniform)
 - Init: `np.random.uniform(-0.01, 0.01, n_params)` — never zeros (symmetry saddle)
 - Convergence: |ΔE| < 1e-6 (statevector), |ΔE| < 1e-3 (hardware)
 
