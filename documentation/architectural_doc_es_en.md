@@ -86,4 +86,4 @@ Quantum chemistry demands extreme precision and complex orbital selection. Spin 
 
 ---
 
-> 📚 **Full bibliography / Bibliografía completa:** All references cited in this document are consolidated in [documentation/bibliography.md](bibliography.md).
+> **Full bibliography / Bibliografía completa:** All references cited in this document are consolidated in [documentation/bibliography.md](bibliography.md).
