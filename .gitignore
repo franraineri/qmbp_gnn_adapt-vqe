@@ -2,3 +2,6 @@
 *.ipynb_*
 *.pt
 *.npz
+*.kiro/specs/*
+*.DS_Store*
+*__pycache*

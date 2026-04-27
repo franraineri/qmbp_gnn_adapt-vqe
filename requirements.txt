@@ -13,6 +13,15 @@ pylatexenc>=2.10
 # PyTorch (MLP predictor - Phase 3)
 torch>=2.4
 
+# PyTorch Geometric (MPNN predictor - V6 Phase 3)
+torch_geometric>=2.5
+
+# TeNPy (DMRG solver - V6 Phase 1 scaling)
+physics-tenpy>=1.0
+
+# scikit-learn (QRC linear readout - V6 Phase 4 fallback)
+scikit-learn>=1.4
+
 # Jupyter
 jupyterlab>=4.2
 ipykernel>=7.0
