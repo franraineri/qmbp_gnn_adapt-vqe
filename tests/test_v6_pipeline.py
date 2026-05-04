@@ -4,18 +4,15 @@ import numpy as np
 import pytest
 
 from src.poc.v6 import (
-    HamiltonianBuilder,
-    make_lattice,
-    ClassicalSolver,
     HVACircuitBuilder,
-    VQEOptimizer,
     VQEConfig,
-    save_phase12_dataset,
+    VQEOptimizer,
     load_phase12_dataset,
+    make_lattice,
+    save_phase12_dataset,
 )
 from src.poc.v6.hardware_deployer import HardwareDeployer
 from src.poc.v6.pipeline_utils import assert_observable_locality
-
 
 # ── Phase 1: Hamiltonian & Ground Truth ──────────────────────────────────
 
@@ -44,7 +41,7 @@ class TestHamiltonianBuilder:
 
     def test_graph_data_symmetric(self, builder, chain_6):
         edge_idx, coord = builder.build_graph_data(chain_6)
-        edges = set(zip(edge_idx[0].tolist(), edge_idx[1].tolist()))
+        edges = set(zip(edge_idx[0].tolist(), edge_idx[1].tolist(), strict=False))
         assert all((j, i) in edges for i, j in edges)
         assert edge_idx.shape[1] == 2 * len(chain_6.edges)
 
@@ -84,8 +81,9 @@ class TestVQEOptimizer:
 
         config = VQEConfig(n_restarts=0, maxiter=50, enable_callbacks=True)
         opt = VQEOptimizer(config)
-        result = opt.optimize(H, qc, np.random.uniform(-0.01, 0.01, 4),
-                              exact.ground_energy, exact.ground_state)
+        result = opt.optimize(
+            H, qc, np.random.uniform(-0.01, 0.01, 4), exact.ground_energy, exact.ground_state
+        )
 
         assert result.trajectory is not None
         assert len(result.trajectory.energies) > 0
@@ -129,11 +127,18 @@ class TestPipelineIntegrity:
     def test_save_load_roundtrip(self, tmp_path):
         path = tmp_path / "test.npz"
         save_phase12_dataset(
-            path, h_values=np.array([1.0]), J=1.0, n_qubits=6, p_layers=2,
-            ground_energies=np.array([-7.3]), gaps=np.array([0.48]),
-            mag_x=np.array([0.77]), corr_zz=np.array([0.53]),
+            path,
+            h_values=np.array([1.0]),
+            J=1.0,
+            n_qubits=6,
+            p_layers=2,
+            ground_energies=np.array([-7.3]),
+            gaps=np.array([0.48]),
+            mag_x=np.array([0.77]),
+            corr_zz=np.array([0.53]),
             theta_opt=np.array([[0.1, 0.2, 0.3, 0.4]]),
-            vqe_energies=np.array([-7.2]), fidelities=np.array([0.99]),
+            vqe_energies=np.array([-7.2]),
+            fidelities=np.array([0.99]),
         )
         data = load_phase12_dataset(path)
         assert str(data["cost_function"]) == "energy"
@@ -151,6 +156,7 @@ class TestPipelineIntegrity:
 
     def test_nonlocal_observable_rejected(self, chain_6):
         from qiskit.quantum_info import SparsePauliOp
+
         bad = [SparsePauliOp.from_sparse_list([("ZZ", [0, 5], 1.0)], num_qubits=6)]
         with pytest.raises(ValueError, match="not adjacent"):
             assert_observable_locality(bad, chain_6.edges)

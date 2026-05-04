@@ -13,17 +13,20 @@ data (not hardcoded h_c=1.0).
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from qiskit.circuit import QuantumCircuit
-from qiskit.quantum_info import SparsePauliOp, Statevector, state_fidelity
 from qiskit.primitives import StatevectorEstimator
-from qiskit_algorithms import AdaptVQE, VQE
-from qiskit_algorithms.optimizers import L_BFGS_B
+from qiskit.quantum_info import SparsePauliOp, Statevector, state_fidelity
+from qiskit_algorithms import VQE, AdaptVQE
 from qiskit_algorithms.exceptions import AlgorithmError
+from qiskit_algorithms.optimizers import L_BFGS_B
 
 from .config import DeployResult, GroundTruthResult, LatticeConfig
+
+if TYPE_CHECKING:
+    from .qrc_pipeline import QRCPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +63,7 @@ class HardwareDeployer:
         gradient_threshold : float — AdaptVQE gradient threshold
         """
         from .hamiltonian_builder import HamiltonianBuilder
+
         builder = HamiltonianBuilder()
         n = lattice.n_qubits
 
@@ -89,44 +93,30 @@ class HardwareDeployer:
 
         # Task 8.2: handle AlgorithmError at iteration 0
         adapt_iterations = 0
-        converged_at_init = False
 
         try:
             adapt_result = adapt_vqe.compute_minimum_eigenvalue(hamiltonian)
             e_final = float(adapt_result.eigenvalue.real)
             adapt_iterations = int(adapt_result.num_iterations)
-            final_qc = adapt_result.optimal_circuit.assign_parameters(
-                adapt_result.optimal_point
-            )
-            logger.info(
-                f"AdaptVQE completed: {adapt_iterations} iterations, "
-                f"E={e_final:.6f}"
-            )
+            final_qc = adapt_result.optimal_circuit.assign_parameters(adapt_result.optimal_point)
+            logger.info(f"AdaptVQE completed: {adapt_iterations} iterations, E={e_final:.6f}")
         except AlgorithmError as e:
             if "convergence threshold" in str(e).lower() or "first iteration" in str(e).lower():
-                converged_at_init = True
                 adapt_iterations = 0
                 final_qc = initial_state
                 e_final = float(
-                    self._estimator.run(
-                        [(initial_state, hamiltonian)]
-                    ).result()[0].data.evs
+                    self._estimator.run([(initial_state, hamiltonian)]).result()[0].data.evs
                 )
                 logger.info(
-                    f"AdaptVQE converged at iteration 0 (ideal warm-start). "
-                    f"E={e_final:.6f}"
+                    f"AdaptVQE converged at iteration 0 (ideal warm-start). E={e_final:.6f}"
                 )
             else:
                 raise
 
         # Measure local observables
         sv_final = Statevector(final_qc)
-        mag_x_pred = float(np.mean([
-            sv_final.expectation_value(op).real for op in ops_x
-        ]))
-        corr_zz_pred = float(np.mean([
-            sv_final.expectation_value(op).real for op in ops_zz
-        ]))
+        mag_x_pred = float(np.mean([sv_final.expectation_value(op).real for op in ops_x]))
+        corr_zz_pred = float(np.mean([sv_final.expectation_value(op).real for op in ops_zz]))
 
         # Fidelity (noiseless only)
         fidelity = None
@@ -149,7 +139,7 @@ class HardwareDeployer:
 
     def deploy_qrc(
         self,
-        qrc_pipeline: "QRCPipeline",
+        qrc_pipeline: QRCPipeline,
         h_test: float,
         exact: GroundTruthResult,
     ) -> DeployResult:
@@ -192,7 +182,7 @@ class HardwareDeployer:
         exact: GroundTruthResult,
         mag_x_pred: float,
         corr_zz_pred: float,
-        fidelity: Optional[float],
+        fidelity: float | None,
         adapt_iterations: int,
     ) -> DeployResult:
         """Build DeployResult with all validation metrics and pass/fail checklist."""

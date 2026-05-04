@@ -15,10 +15,22 @@ include = ["src*"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
+force-exclude = true
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM"]
-ignore = ["E501"]  # line length handled by formatter
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "TID"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"scripts/*.py" = ["E402"]
+"src/poc/v6/smoke_test.py" = ["E402"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"qiskit.opflow".msg = "Deprecated: use qiskit.quantum_info.SparsePauliOp"
+"qiskit.algorithms".msg = "Deprecated: use qiskit_algorithms (standalone package)"
+"qiskit.utils.QuantumInstance".msg = "Deprecated: use Primitives V2"
+"qiskit.execute".msg = "Deprecated: use StatevectorEstimator or EstimatorV2"
 
 [tool.ruff.format]
 quote-style = "double"

@@ -24,31 +24,37 @@ EXPECTED_COST_FUNCTION = "energy"
 
 # ── Task 9.1: Dataset metadata ──────────────────────────────────────────
 
+
 def get_library_versions() -> dict[str, str]:
     """Collect current library versions for reproducibility metadata."""
     versions = {}
     try:
         import qiskit
+
         versions["qiskit"] = qiskit.__version__
     except Exception:
         versions["qiskit"] = "unknown"
     try:
         import numpy
+
         versions["numpy"] = numpy.__version__
     except Exception:
         versions["numpy"] = "unknown"
     try:
         import scipy
+
         versions["scipy"] = scipy.__version__
     except Exception:
         versions["scipy"] = "unknown"
     try:
         import torch
+
         versions["torch"] = torch.__version__
     except Exception:
         versions["torch"] = "unknown"
     try:
         import torch_geometric
+
         versions["torch_geometric"] = torch_geometric.__version__
     except Exception:
         versions["torch_geometric"] = "unknown"
@@ -107,10 +113,13 @@ def save_phase12_dataset(
         save_dict["per_bond_corr_zz"] = per_bond_corr_zz
 
     np.savez(filepath, **save_dict)
-    logger.info(f"Dataset saved: {filepath} (version={PIPELINE_VERSION}, cost={EXPECTED_COST_FUNCTION})")
+    logger.info(
+        f"Dataset saved: {filepath} (version={PIPELINE_VERSION}, cost={EXPECTED_COST_FUNCTION})"
+    )
 
 
 # ── Task 9.2: Phase 3 data loading validation ───────────────────────────
+
 
 def load_phase12_dataset(filepath: str | Path) -> dict:
     """Load Phase 1+2 dataset with cost_function validation.
@@ -133,13 +142,12 @@ def load_phase12_dataset(filepath: str | Path) -> dict:
         )
 
     version = str(data.get("version", "unknown"))
-    logger.info(
-        f"Dataset loaded: {filepath} (version={version}, cost={cost_fn})"
-    )
+    logger.info(f"Dataset loaded: {filepath} (version={version}, cost={cost_fn})")
     return data
 
 
 # ── Task 9.3: Observable locality assertion ──────────────────────────────
+
 
 def assert_observable_locality(
     observables: list[SparsePauliOp],
@@ -170,9 +178,7 @@ def assert_observable_locality(
         for label_obj in obs.paulis:
             label = str(label_obj)
             # Count non-identity positions
-            non_id_positions = [
-                i for i, c in enumerate(reversed(label)) if c != "I"
-            ]
+            non_id_positions = [i for i, c in enumerate(reversed(label)) if c != "I"]
             weight = len(non_id_positions)
 
             if weight > max_weight:

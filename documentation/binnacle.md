@@ -241,9 +241,9 @@ For V6: keep bidirectional sweep + pure energy cost, but replace `wrap_theta` wi
 
 
  Summary: Phase 2 is now clean (θ ∈ [-π, π], 7/27 valid), but Phase 3 still fails because wrap_theta creates discontinuities — θ jumping from +3.1 to -3.1 between adjacent h-points. The  
-  MLP can't learn that.                                                                                                                                                                     
-                                                                                                                                                                                            
-  The fix would be np.unwrap()-style continuity enforcement instead of simple modular wrapping. But honestly, V4's single descending sweep naturally avoids this problem because warm-start 
+  MLP can't learn that.  
+
+  The fix would be np.unwrap()-style continuity enforcement instead of simple modular wrapping. But honestly, V4's single descending sweep naturally avoids this problem because warm-start
   propagation keeps θ values close to the previous solution — no wrapping needed.  
 
 
@@ -474,3 +474,68 @@ Removes 2 more training points (h=0.9, 0.95), leaving only 15 graphs. Not enough
 | 1.5 | **5/6** | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
 
 The only metric that never passes is ΔE < 1e-2 — this is the HVA expressibility ceiling, not a pipeline deficiency. The pipeline correctly characterizes the quantum phase at all test points.
+
+---
+
+# Phase 2: Scaling Experiments (N > 6)
+
+> From this point forward, we test the V6 modular architecture at larger system
+> sizes to validate the lattice-agnostic claims and identify scaling bottlenecks.
+> All experiments use the best configuration from the N=6 hyperparameter sweep:
+> VQE 5 restarts, maxiter=1000, MPNN h=64 L=3 6000ep lr=1e-3, fid≥0.93.
+
+---
+## 2026-05-04 — V6.0 Benchmark — N=10 chain, best config, h=1.5
+
+### Configuration
+- System: 1D TFIM, N=10, p=2, 27 h-points, h_test=1.5
+- restarts=5, maxiter=1000, MPNN(h=64, L=3, ep=6000, lr=0.001, pat=150), fid≥0.93
+- Seeds: [42, 43, 44]
+
+### Per-Run Results (Adapt-VQE at h=1.5)
+
+| Run | Seed | ΔE/gap | ⟨X⟩ err | ⟨ZZ⟩ err | ΔE | Fidelity | ADAPT | Checklist | Time |
+|-----|------|--------|---------|----------|-----|----------|-------|-----------|------|
+| 1 | 42 | 2.95% ✅ | 1.38e-02 ❌ | 2.69e-02 ❌ | 3.44e-02 ❌ | 0.9909 ❌ | 2 | **2/6** | 50s |
+| 2 | 43 | 2.74% ✅ | 6.27e-03 ✅ | 1.40e-02 ❌ | 3.20e-02 ❌ | 0.9920 ❌ | 2 | **3/6** | 51s |
+| 3 | 44 | 2.68% ✅ | 9.06e-03 ✅ | 1.86e-02 ❌ | 3.12e-02 ❌ | 0.9921 ❌ | 2 | **3/6** | 53s |
+
+### Aggregate Statistics
+
+| Metric | Mean | Std | Min | Max |
+|--------|------|-----|-----|-----|
+| ΔE/gap | 2.79% | 0.12% | 2.68% | 2.95% |
+| ⟨X⟩ error | 9.72e-03 | 3.12e-03 | 6.27e-03 | 1.38e-02 |
+| ⟨ZZ⟩ error | 1.98e-02 | 5.33e-03 | 1.40e-02 | 2.69e-02 |
+| Fidelity | 0.9916 | 0.0005 | 0.9909 | 0.9921 |
+| Checklist | 2.7/6 | 0.5 | 2/6 | 3/6 |
+| Runtime | 51s | 1s | 50s | 53s |
+
+### Key Observations
+
+1. ΔE/gap (primary metric): all pass across 3 runs.
+2. Checklist range: 2/6 – 3/6.
+3. Results are stable across seeds (std=0.5).
+
+### Analysis: N=10 vs N=6
+
+| Metric | N=6 (h=1.5) | N=10 (h=1.5) | Change |
+|--------|-------------|--------------|--------|
+| ΔE/gap | 1.36% | 2.79% | +1.4pp (still passes) |
+| ⟨X⟩ error | 2.6e-03 | 9.7e-03 | ~4x worse (borderline) |
+| ⟨ZZ⟩ error | 5e-03 | 2.0e-02 | ~4x worse (fails) |
+| Fidelity | 0.997 | 0.992 | drops below 99.5% |
+| Checklist | 5/6 | 2–3/6 | regression |
+| Runtime | ~25s | ~51s | ~2x (expected: 2^10/2^6 = 16x matrix, but VQE dominates) |
+
+**Key findings:**
+1. The pipeline scales to N=10 without code changes — only a CLI parameter.
+2. ΔE/gap (primary metric) still passes comfortably (2.79% < 5%).
+3. Observable errors degrade ~4x from N=6 to N=10. This is expected: the MPNN trains on the same 17 h-points but must predict parameters for a 1024-dimensional Hilbert space (vs 64 for N=6).
+4. The MPNN architecture (h=64, L=3) may be undersized for N=10. The graph has 10 nodes and 9 edges (vs 6/5 for N=6), so the message passing has more information to aggregate.
+5. Runtime ~51s per full pipeline is acceptable for benchmarking.
+
+**Next steps for N=10:**
+- Try MPNN h=128 (was overfitting at N=6, but N=10 has more graph structure to learn)
+- Try more h-points in the training grid (40 instead of 27)
+- Test at h=1.25 to see if the critical-region degradation is worse at N=10

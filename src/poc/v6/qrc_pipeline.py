@@ -20,7 +20,6 @@ References
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 from qiskit.circuit import QuantumCircuit
@@ -37,11 +36,11 @@ class QRCPipeline:
 
     def __init__(self, seed: int = 42) -> None:
         self._seed = seed
-        self._reservoir_params: Optional[np.ndarray] = None
-        self._reservoir_circuit: Optional[QuantumCircuit] = None
-        self._readout_model: Optional[LinearRegression] = None
-        self._obs_x: Optional[list[SparsePauliOp]] = None
-        self._obs_zz: Optional[list[SparsePauliOp]] = None
+        self._reservoir_params: np.ndarray | None = None
+        self._reservoir_circuit: QuantumCircuit | None = None
+        self._readout_model: LinearRegression | None = None
+        self._obs_x: list[SparsePauliOp] | None = None
+        self._obs_zz: list[SparsePauliOp] | None = None
 
     # ── Task 7.1: build_reservoir() ──────────────────────────────────
 
@@ -63,8 +62,8 @@ class QRCPipeline:
         -------
         QuantumCircuit — reservoir circuit with bound (fixed) parameters.
         """
-        from .hva_builder import HVACircuitBuilder
         from .hamiltonian_builder import HamiltonianBuilder
+        from .hva_builder import HVACircuitBuilder
 
         hva_builder = HVACircuitBuilder()
         qc, theta = hva_builder.create(n_qubits, p_layers, lattice)
@@ -91,7 +90,7 @@ class QRCPipeline:
     def encode_and_measure(
         self,
         h_value: float,
-        reservoir: Optional[QuantumCircuit] = None,
+        reservoir: QuantumCircuit | None = None,
     ) -> np.ndarray:
         """Encode h via Rx(h) gates and measure local observables as features.
 

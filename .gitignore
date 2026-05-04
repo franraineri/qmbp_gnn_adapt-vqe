@@ -36,8 +36,9 @@ Thumbs.db
 # ── Kiro specs (local dev state) ─────────────────────────────
 .kiro/specs/
 
-# ── Benchmark results ────────────────────────────────────────
+# ── Benchmark & notebook results ─────────────────────────────
 scripts/benchmark_results/
+scripts/notebook_results/
 
 # ── Logs & temp ──────────────────────────────────────────────
 *.log

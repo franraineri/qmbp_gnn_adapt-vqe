@@ -20,7 +20,6 @@ References
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
 import torch
@@ -34,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── Task 6.1: MPNNPredictor ──────────────────────────────────────────────
+
 
 class MPNNPredictor(nn.Module):
     """Lattice-agnostic MPNN that maps graph-structured Hamiltonian data
@@ -108,7 +108,7 @@ class MPNNPredictor(nn.Module):
         else:
             batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
 
-        for conv, bn in zip(self.convs, self.bns):
+        for conv, bn in zip(self.convs, self.bns, strict=False):
             x = conv(x, edge_index)
             x = bn(x)
             x = torch.relu(x)
@@ -121,12 +121,13 @@ class MPNNPredictor(nn.Module):
 
 # ── Task 6.2: Graph data construction utility ────────────────────────────
 
+
 def build_graph_dataset(
     lattice: LatticeConfig,
     h_values: np.ndarray,
     theta_opt: np.ndarray,
     e_exact: np.ndarray,
-    fidelities: Optional[np.ndarray] = None,
+    fidelities: np.ndarray | None = None,
     fidelity_threshold: float = 0.93,
 ) -> list[Data]:
     """Convert LatticeConfig + θ_opt arrays into torch_geometric Data objects.
@@ -151,6 +152,7 @@ def build_graph_dataset(
     list[Data] — filtered graph dataset for MPNN training.
     """
     from .hamiltonian_builder import HamiltonianBuilder
+
     builder = HamiltonianBuilder()
     edge_index_np, coord = builder.build_graph_data(lattice)
     edge_index = torch.tensor(edge_index_np, dtype=torch.long)
@@ -183,6 +185,7 @@ def build_graph_dataset(
 
 # ── Task 6.3: Training loop ─────────────────────────────────────────────
 
+
 def train_mpnn(
     model: MPNNPredictor,
     dataset: list[Data],
@@ -190,7 +193,7 @@ def train_mpnn(
     lr: float = 1e-3,
     patience: int = 150,
     energy_val_interval: int = 50,
-    energy_val_fn: Optional[callable] = None,
+    energy_val_fn: callable | None = None,
     divergence_window: int = 5,
 ) -> dict:
     """Train the MPNN with MSE loss, ReduceLROnPlateau, and optional
@@ -254,8 +257,7 @@ def train_mpnn(
                     energy_val_history.append(mean_de)
                     if (epoch + 1) % (energy_val_interval * 4) == 0:
                         logger.info(
-                            f"  Epoch {epoch+1}: MSE={epoch_loss:.2e}, "
-                            f"ΔE_mean={mean_de:.2e}"
+                            f"  Epoch {epoch + 1}: MSE={epoch_loss:.2e}, ΔE_mean={mean_de:.2e}"
                         )
                     break  # single batch
             model.train()
@@ -263,15 +265,15 @@ def train_mpnn(
             # ── Task 6.5: divergence detection ───────────────────────
             if len(energy_val_history) >= divergence_window:
                 recent_de = energy_val_history[-divergence_window:]
-                recent_mse = mse_history[-divergence_window * energy_val_interval:]
+                recent_mse = mse_history[-divergence_window * energy_val_interval :]
                 mse_improving = recent_mse[-1] < recent_mse[0] * 0.99
                 de_stagnant = all(
-                    abs(recent_de[k] - recent_de[k-1]) < 0.01 * abs(recent_de[0])
+                    abs(recent_de[k] - recent_de[k - 1]) < 0.01 * abs(recent_de[0])
                     for k in range(1, len(recent_de))
                 )
                 if mse_improving and de_stagnant and mean_de > 0.01:
                     logger.warning(
-                        f"Training divergence detected at epoch {epoch+1}: "
+                        f"Training divergence detected at epoch {epoch + 1}: "
                         f"MSE converging but ΔE stagnant ({mean_de:.2e}). "
                         f"Check Phase 2 data quality."
                     )

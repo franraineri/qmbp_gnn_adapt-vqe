@@ -43,7 +43,7 @@ Forbidden: `qiskit.opflow`, `qiskit.algorithms` (old path), `PauliSumOp`, `Weigh
 |-------|------|--------|
 | 1 | Classical ground truth (Exact Diag / DMRG) | (h,J) → ψ, local observables |
 | 2 | HVA θ_opt via warm-start VQE | θ_opt dataset |
-| 3 | GNN/MLP predictor (h → θ_pred) | Trained model |
+| 3 | MPNN predictor (graph → θ_pred) | Trained model |
 | 4 | Hardware deployment (EstimatorV2) | Mitigated VQE results |
 
 ## Validation (pass/fail order)

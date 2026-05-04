@@ -15,27 +15,26 @@ References
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import numpy as np
+from qiskit.circuit import QuantumCircuit
+from qiskit.primitives import StatevectorEstimator
+from qiskit.quantum_info import SparsePauliOp, Statevector, state_fidelity
 from scipy.optimize import minimize
 
-from qiskit.circuit import QuantumCircuit
-from qiskit.quantum_info import SparsePauliOp, Statevector, state_fidelity
-from qiskit.primitives import StatevectorEstimator
-
 from .config import (
+    GroundTruthResult,
     LatticeConfig,
+    OptimizationTrajectory,
     VQEConfig,
     VQEResult,
-    OptimizationTrajectory,
-    GroundTruthResult,
 )
 
 logger = logging.getLogger(__name__)
 
 
 # ── Task 5.1: OptimizationCallback ───────────────────────────────────────
+
 
 class OptimizationCallback:
     """Logs energy, gradient norm, and parameter vector at every L-BFGS-B
@@ -83,12 +82,13 @@ class OptimizationCallback:
 
 # ── Task 5.2–5.5: VQEOptimizer ───────────────────────────────────────────
 
+
 class VQEOptimizer:
     """Optimize HVA parameters via multi-start L-BFGS-B with diagnostic
     callbacks and descending sweep orchestration.
     """
 
-    def __init__(self, config: Optional[VQEConfig] = None) -> None:
+    def __init__(self, config: VQEConfig | None = None) -> None:
         self.config = config or VQEConfig()
         self._estimator = StatevectorEstimator()
 
@@ -99,8 +99,8 @@ class VQEOptimizer:
         hamiltonian: SparsePauliOp,
         circuit: QuantumCircuit,
         initial_guess: np.ndarray,
-        exact_energy: Optional[float] = None,
-        exact_state: Optional[np.ndarray] = None,
+        exact_energy: float | None = None,
+        exact_state: np.ndarray | None = None,
     ) -> VQEResult:
         """Run multi-start L-BFGS-B VQE for a single h-point.
 
@@ -130,7 +130,8 @@ class VQEOptimizer:
 
         # Warm-start run
         best = minimize(
-            cost_fn, initial_guess,
+            cost_fn,
+            initial_guess,
             method="L-BFGS-B",
             bounds=bounds,
             callback=callback,
@@ -145,7 +146,8 @@ class VQEOptimizer:
             # Clip to bounds
             x0 = np.clip(x0, cfg.bounds[0], cfg.bounds[1])
             trial = minimize(
-                cost_fn, x0,
+                cost_fn,
+                x0,
                 method="L-BFGS-B",
                 bounds=bounds,
                 callback=callback,
@@ -187,7 +189,7 @@ class VQEOptimizer:
         n_params: int,
         h_value: float,
         config: VQEConfig,
-        previous_theta: Optional[np.ndarray] = None,
+        previous_theta: np.ndarray | None = None,
     ) -> np.ndarray:
         """Determine the initial guess for a given h-point.
 
@@ -219,8 +221,8 @@ class VQEOptimizer:
         self,
         h_values: np.ndarray,
         circuit: QuantumCircuit,
-        lattice: "LatticeConfig",
-        exact_data: Optional[list[GroundTruthResult]] = None,
+        lattice: LatticeConfig,
+        exact_data: list[GroundTruthResult] | None = None,
     ) -> list[VQEResult]:
         """Run VQE across h-values in descending order (h=2→0), propagating
         θ_opt as warm-start.
@@ -242,9 +244,7 @@ class VQEOptimizer:
         n_params = circuit.num_parameters
         results_dict: dict[int, VQEResult] = {}
 
-        current_guess = self.get_initial_guess(
-            n_params, h_values[-1], self.config
-        )
+        current_guess = self.get_initial_guess(n_params, h_values[-1], self.config)
 
         # Sweep descending: from highest h to lowest
         for idx in reversed(range(len(h_values))):
@@ -271,13 +271,14 @@ class VQEOptimizer:
                 exact_psi = exact_data[idx].ground_state
 
             # Task 5.3: warm-start seeding
-            current_guess = self.get_initial_guess(
-                n_params, h, self.config, current_guess
-            )
+            current_guess = self.get_initial_guess(n_params, h, self.config, current_guess)
 
             result = self.optimize(
-                H, circuit, current_guess,
-                exact_energy=exact_e, exact_state=exact_psi,
+                H,
+                circuit,
+                current_guess,
+                exact_energy=exact_e,
+                exact_state=exact_psi,
             )
             result.h_value = h
 

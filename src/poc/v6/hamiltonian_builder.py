@@ -15,10 +15,10 @@ from __future__ import annotations
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
-from .config import LatticeConfig, SUPPORTED_TOPOLOGIES
-
+from .config import SUPPORTED_TOPOLOGIES, LatticeConfig
 
 # ── Lattice generators ────────────────────────────────────────────────────
+
 
 def generate_chain_1d(n: int, periodic: bool = False) -> list[tuple[int, int]]:
     """Open or periodic 1D chain edges."""
@@ -146,6 +146,7 @@ def compute_coordination_numbers(n: int, edges: list[tuple[int, int]]) -> np.nda
 
 # ── Factory: build LatticeConfig from topology name ──────────────────────
 
+
 def make_lattice(
     topology: str,
     n_qubits: int,
@@ -165,9 +166,7 @@ def make_lattice(
     elif topology == "kagome":
         edges = generate_kagome(n_qubits)
     else:
-        raise ValueError(
-            f"Unknown topology '{topology}'. Supported: {SUPPORTED_TOPOLOGIES}"
-        )
+        raise ValueError(f"Unknown topology '{topology}'. Supported: {SUPPORTED_TOPOLOGIES}")
     coord = compute_coordination_numbers(n_qubits, edges)
     return LatticeConfig(
         topology=topology,
@@ -181,6 +180,7 @@ def make_lattice(
 
 
 # ── HamiltonianBuilder ───────────────────────────────────────────────────
+
 
 class HamiltonianBuilder:
     """Construct spin Hamiltonians for arbitrary lattice topologies.
@@ -208,20 +208,12 @@ class HamiltonianBuilder:
 
         # ZZ interaction terms on lattice edges
         for bond_idx, (i, j) in enumerate(lattice.edges):
-            j_val = (
-                lattice.J[bond_idx]
-                if isinstance(lattice.J, np.ndarray)
-                else lattice.J
-            )
+            j_val = lattice.J[bond_idx] if isinstance(lattice.J, np.ndarray) else lattice.J
             terms.append(("ZZ", [i, j], -j_val))
 
         # Transverse field X terms on all sites
         for site in range(n):
-            h_val = (
-                lattice.h[site]
-                if isinstance(lattice.h, np.ndarray)
-                else lattice.h
-            )
+            h_val = lattice.h[site] if isinstance(lattice.h, np.ndarray) else lattice.h
             terms.append(("X", [site], -h_val))
 
         H = SparsePauliOp.from_sparse_list(terms, num_qubits=n)
@@ -249,10 +241,7 @@ class HamiltonianBuilder:
             ops_ZZ : list of SparsePauliOp, one per bond in lattice.edges.
         """
         n = lattice.n_qubits
-        ops_x = [
-            SparsePauliOp.from_sparse_list([("X", [i], 1.0)], num_qubits=n)
-            for i in range(n)
-        ]
+        ops_x = [SparsePauliOp.from_sparse_list([("X", [i], 1.0)], num_qubits=n) for i in range(n)]
         ops_zz = [
             SparsePauliOp.from_sparse_list([("ZZ", [i, j], 1.0)], num_qubits=n)
             for i, j in lattice.edges
@@ -261,9 +250,7 @@ class HamiltonianBuilder:
 
     # ── Task 2.3: build_graph_data() ──────────────────────────────────
 
-    def build_graph_data(
-        self, lattice: LatticeConfig
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def build_graph_data(self, lattice: LatticeConfig) -> tuple[np.ndarray, np.ndarray]:
         """Return symmetric edge_index (COO) and coordination numbers for MPNN.
 
         Parameters
@@ -279,9 +266,7 @@ class HamiltonianBuilder:
         src = [i for i, j in lattice.edges]
         dst = [j for i, j in lattice.edges]
         # Make symmetric: add reverse edges
-        edge_index = np.array(
-            [src + dst, dst + src], dtype=np.int64
-        )
+        edge_index = np.array([src + dst, dst + src], dtype=np.int64)
         return edge_index, lattice.coordination_numbers.copy()
 
     # ── Task 2.4: validate() ─────────────────────────────────────────
@@ -299,9 +284,7 @@ class HamiltonianBuilder:
             If H is not Hermitian or has wrong dimensions.
         """
         if H.num_qubits != n_qubits:
-            raise ValueError(
-                f"Hamiltonian has {H.num_qubits} qubits, expected {n_qubits}."
-            )
+            raise ValueError(f"Hamiltonian has {H.num_qubits} qubits, expected {n_qubits}.")
         # Hermiticity: all coefficients must be real for Pauli operators
         # (Pauli strings are self-adjoint, so H = H† iff all coeffs are real)
         if not np.allclose(H.coeffs.imag, 0, atol=1e-12):

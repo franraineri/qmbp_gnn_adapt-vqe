@@ -9,10 +9,13 @@ Primitives V2, local observables, descending sweep h=2→0.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
+if TYPE_CHECKING:
+    import torch
+    import torch_geometric.data
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -27,6 +30,7 @@ DMRG_QUBIT_LIMIT = 40
 # ---------------------------------------------------------------------------
 # Model 1 — LatticeConfig
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class LatticeConfig:
@@ -61,8 +65,7 @@ class LatticeConfig:
     def __post_init__(self) -> None:
         if self.topology not in SUPPORTED_TOPOLOGIES:
             raise ValueError(
-                f"Unsupported topology '{self.topology}'. "
-                f"Must be one of {SUPPORTED_TOPOLOGIES}."
+                f"Unsupported topology '{self.topology}'. Must be one of {SUPPORTED_TOPOLOGIES}."
             )
         if self.n_qubits < 2:
             raise ValueError(f"n_qubits must be ≥ 2, got {self.n_qubits}.")
@@ -73,8 +76,7 @@ class LatticeConfig:
             )
         if isinstance(self.h, np.ndarray) and len(self.h) != self.n_qubits:
             raise ValueError(
-                f"Per-site h array length ({len(self.h)}) must match "
-                f"n_qubits ({self.n_qubits})."
+                f"Per-site h array length ({len(self.h)}) must match n_qubits ({self.n_qubits})."
             )
         if len(self.coordination_numbers) != self.n_qubits:
             raise ValueError(
@@ -86,6 +88,7 @@ class LatticeConfig:
 # ---------------------------------------------------------------------------
 # Model 2 — GroundTruthResult
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class GroundTruthResult:
@@ -114,7 +117,7 @@ class GroundTruthResult:
     h_value: float
     ground_energy: float
     gap: float
-    ground_state: Optional[np.ndarray]
+    ground_state: np.ndarray | None
     mag_x: float
     corr_zz: float
     per_site_mag_x: np.ndarray
@@ -128,6 +131,7 @@ class GroundTruthResult:
 # ---------------------------------------------------------------------------
 # Model 3 — VQEConfig
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class VQEConfig:
@@ -168,8 +172,7 @@ class VQEConfig:
     def __post_init__(self) -> None:
         if self.p_layers > MAX_P_LAYERS:
             raise ValueError(
-                f"p_layers must be ≤ {MAX_P_LAYERS} (Mele et al. constraint), "
-                f"got {self.p_layers}."
+                f"p_layers must be ≤ {MAX_P_LAYERS} (Mele et al. constraint), got {self.p_layers}."
             )
         if self.sweep_direction != "descending":
             raise ValueError(
@@ -181,6 +184,7 @@ class VQEConfig:
 # ---------------------------------------------------------------------------
 # Model 5 — OptimizationTrajectory (new in V6)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class OptimizationTrajectory:
@@ -211,6 +215,7 @@ class OptimizationTrajectory:
 # Model 4 — VQEResult
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class VQEResult:
     """Output of a single VQE optimization run.
@@ -239,7 +244,7 @@ class VQEResult:
     energy_error: float
     fidelity: float
     n_iterations: int
-    trajectory: Optional[OptimizationTrajectory] = None
+    trajectory: OptimizationTrajectory | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -251,12 +256,13 @@ class VQEResult:
 # installed (e.g. during Phase 1/2 work).
 # ---------------------------------------------------------------------------
 
+
 def make_graph_data(
-    x: "torch.Tensor",
-    edge_index: "torch.Tensor",
-    y: "torch.Tensor",
+    x: torch.Tensor,
+    edge_index: torch.Tensor,
+    y: torch.Tensor,
     e_exact: float,
-) -> "torch_geometric.data.Data":
+) -> torch_geometric.data.Data:
     """Create a ``torch_geometric.data.Data`` instance for MPNN training.
 
     Parameters
@@ -284,6 +290,7 @@ def make_graph_data(
 # ---------------------------------------------------------------------------
 # Model 7 — DeployResult
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DeployResult:
@@ -328,7 +335,7 @@ class DeployResult:
     corr_zz_pred: float
     mag_x_error: float
     corr_zz_error: float
-    fidelity: Optional[float]
+    fidelity: float | None
     adapt_iterations: int
     phase_label: str
     metrics_checklist: dict[str, bool]

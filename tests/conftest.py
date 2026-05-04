@@ -4,12 +4,11 @@ import numpy as np
 import pytest
 
 from src.poc.v6 import (
-    HamiltonianBuilder,
-    make_lattice,
     ClassicalSolver,
+    HamiltonianBuilder,
     HVACircuitBuilder,
     LatticeConfig,
-    GroundTruthResult,
+    make_lattice,
 )
 
 
@@ -19,6 +18,7 @@ def seed_rng():
     np.random.seed(42)
     try:
         import torch
+
         torch.manual_seed(42)
     except ImportError:
         pass

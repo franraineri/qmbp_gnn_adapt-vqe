@@ -18,6 +18,8 @@ Read `.kiro/knowledge/project-guide.md` first — it maps the entire repository 
 - `src/poc/v6/hva_builder.py` — HVA circuit construction
 - `src/poc/v6/pipeline_utils.py` — dataset save/load and integrity checks
 - `scripts/benchmark_v6.py` — benchmark runner
+- `scripts/smoke_test.py` — smoke test
+- `Makefile` — unified entry point
 
 ## Active Development Areas
 - `src/poc/v6/mpnn_predictor.py` — MPNN architecture (potential per-parameter heads)

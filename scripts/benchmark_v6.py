@@ -29,27 +29,28 @@ if str(_root) not in sys.path:
 
 import numpy as np
 import torch
-
-from src.poc.v6 import (
-    HamiltonianBuilder,
-    make_lattice,
-    ClassicalSolver,
-    HVACircuitBuilder,
-    VQEOptimizer,
-    HardwareDeployer,
-    VQEConfig,
-)
-from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
-from src.poc.v6.qrc_pipeline import QRCPipeline
-from src.poc.v6.pipeline_utils import assert_observable_locality
 from torch_geometric.data import Data
 
+from src.poc.v6 import (
+    ClassicalSolver,
+    HamiltonianBuilder,
+    HVACircuitBuilder,
+    VQEConfig,
+    VQEOptimizer,
+    make_lattice,
+)
+from src.poc.v6.hardware_deployer import HardwareDeployer
+from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
+from src.poc.v6.pipeline_utils import assert_observable_locality
+from src.poc.v6.qrc_pipeline import QRCPipeline
 
 # ── Single run ───────────────────────────────────────────────────────────
+
 
 def run_pipeline(
     seed: int,
     h_test: float = 1.25,
+    n_qubits: int = 6,
     n_restarts: int = 3,
     vqe_maxiter: int = 1000,
     mpnn_epochs: int = 4000,
@@ -63,7 +64,7 @@ def run_pipeline(
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    N, J, p = 6, 1.0, 2
+    N, J, p = n_qubits, 1.0, 2
     h_coarse = np.arange(0.0, 0.8, 0.1)
     h_dense = np.arange(0.8, 1.45, 0.05)
     h_coarse2 = np.arange(1.5, 2.05, 0.1)
@@ -86,11 +87,16 @@ def run_pipeline(
     # Phase 2
     t2 = time.time()
     config = VQEConfig(
-        n_restarts=n_restarts, maxiter=vqe_maxiter,
-        ftol=1e-14, enable_callbacks=False,
+        n_restarts=n_restarts,
+        maxiter=vqe_maxiter,
+        ftol=1e-14,
+        enable_callbacks=False,
     )
     vqe_results = VQEOptimizer(config).descending_sweep(
-        h_values, qc, base_lattice, exact_data,
+        h_values,
+        qc,
+        base_lattice,
+        exact_data,
     )
     fids = [r.fidelity for r in vqe_results]
     phase2_time = time.time() - t2
@@ -98,14 +104,19 @@ def run_pipeline(
     # Phase 3
     t3 = time.time()
     dataset = build_graph_dataset(
-        base_lattice, h_values,
+        base_lattice,
+        h_values,
         np.array([r.theta_opt for r in vqe_results]),
         np.array([d.ground_energy for d in exact_data]),
         fidelities=np.array(fids),
         fidelity_threshold=fid_threshold,
     )
-    model = MPNNPredictor(node_features=2, hidden_dim=mpnn_hidden, n_layers=mpnn_layers, output_dim=2 * p)
-    train_result = train_mpnn(model, dataset, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience)
+    model = MPNNPredictor(
+        node_features=2, hidden_dim=mpnn_hidden, n_layers=mpnn_layers, output_dim=2 * p
+    )
+    train_result = train_mpnn(
+        model, dataset, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience
+    )
     phase3_time = time.time() - t3
 
     # Phase 4 — Adapt-VQE
@@ -147,6 +158,7 @@ def run_pipeline(
         "seed": seed,
         "h_test": h_test,
         "config": {
+            "n_qubits": n_qubits,
             "n_restarts": n_restarts,
             "vqe_maxiter": vqe_maxiter,
             "mpnn_epochs": mpnn_epochs,
@@ -183,16 +195,19 @@ def run_pipeline(
 
 # ── Binnacle formatting ──────────────────────────────────────────────────
 
-def format_binnacle_entry(all_results: list[dict], h_test: float, n_runs: int, label: str = "") -> str:
+
+def format_binnacle_entry(
+    all_results: list[dict], h_test: float, n_runs: int, label: str = ""
+) -> str:
     """Format results as a binnacle markdown entry."""
     now = datetime.now().strftime("%Y-%m-%d")
 
     cfg = all_results[0].get("config", {})
     config_desc = (
-        f"restarts={cfg.get('n_restarts','?')}, maxiter={cfg.get('vqe_maxiter','?')}, "
-        f"MPNN(h={cfg.get('mpnn_hidden','?')}, L={cfg.get('mpnn_layers','?')}, "
-        f"ep={cfg.get('mpnn_epochs','?')}, lr={cfg.get('mpnn_lr','?')}, "
-        f"pat={cfg.get('mpnn_patience','?')}), fid≥{cfg.get('fid_threshold','?')}"
+        f"restarts={cfg.get('n_restarts', '?')}, maxiter={cfg.get('vqe_maxiter', '?')}, "
+        f"MPNN(h={cfg.get('mpnn_hidden', '?')}, L={cfg.get('mpnn_layers', '?')}, "
+        f"ep={cfg.get('mpnn_epochs', '?')}, lr={cfg.get('mpnn_lr', '?')}, "
+        f"pat={cfg.get('mpnn_patience', '?')}), fid≥{cfg.get('fid_threshold', '?')}"
     )
 
     # Aggregate stats
@@ -200,33 +215,32 @@ def format_binnacle_entry(all_results: list[dict], h_test: float, n_runs: int, l
     de_gaps = [r["adapt_delta_e_over_gap"] * 100 for r in all_results]
     mx_errs = [r["adapt_mag_x_error"] for r in all_results]
     zz_errs = [r["adapt_corr_zz_error"] for r in all_results]
-    des = [r["adapt_delta_e"] for r in all_results]
     fids = [r["adapt_fidelity"] for r in all_results]
     times = [r["time_total"] for r in all_results]
 
     title = f"V6.0 Benchmark — {label}" if label else f"V6.0 Benchmark ({n_runs} runs)"
 
     lines = [
-        f"\n---\n",
+        "\n---\n",
         f"## {now} — {title}\n\n",
-        f"### Configuration\n",
-        f"- System: 1D TFIM, N=6, p=2, 27 h-points, h_test={h_test}\n",
+        "### Configuration\n",
+        f"- System: 1D TFIM, N={cfg.get('n_qubits', '?')}, p=2, {all_results[0].get('n_h_points', '?')} h-points, h_test={h_test}\n",
         f"- {config_desc}\n",
         f"- Seeds: {[r['seed'] for r in all_results]}\n",
         f"\n### Per-Run Results (Adapt-VQE at h={h_test})\n\n",
-        f"| Run | Seed | ΔE/gap | ⟨X⟩ err | ⟨ZZ⟩ err | ΔE | Fidelity | ADAPT | Checklist | Time |\n",
-        f"|-----|------|--------|---------|----------|-----|----------|-------|-----------|------|\n",
+        "| Run | Seed | ΔE/gap | ⟨X⟩ err | ⟨ZZ⟩ err | ΔE | Fidelity | ADAPT | Checklist | Time |\n",
+        "|-----|------|--------|---------|----------|-----|----------|-------|-----------|------|\n",
     ]
 
     for i, r in enumerate(all_results):
-        de_gap_s = f"{r['adapt_delta_e_over_gap']*100:.2f}%"
+        de_gap_s = f"{r['adapt_delta_e_over_gap'] * 100:.2f}%"
         de_gap_ok = "✅" if r["adapt_delta_e_over_gap"] < 0.05 else "❌"
         mx_ok = "✅" if r["adapt_mag_x_error"] < 1e-2 else "❌"
         zz_ok = "✅" if r["adapt_corr_zz_error"] < 1e-2 else "❌"
         de_ok = "✅" if r["adapt_delta_e"] < 1e-2 else "❌"
         fid_ok = "✅" if r["adapt_fidelity"] is not None and r["adapt_fidelity"] >= 0.995 else "❌"
         lines.append(
-            f"| {i+1} | {r['seed']} | {de_gap_s} {de_gap_ok} | "
+            f"| {i + 1} | {r['seed']} | {de_gap_s} {de_gap_ok} | "
             f"{r['adapt_mag_x_error']:.2e} {mx_ok} | "
             f"{r['adapt_corr_zz_error']:.2e} {zz_ok} | "
             f"{r['adapt_delta_e']:.2e} {de_ok} | "
@@ -236,38 +250,58 @@ def format_binnacle_entry(all_results: list[dict], h_test: float, n_runs: int, l
             f"{r['time_total']:.0f}s |\n"
         )
 
-    lines.append(f"\n### Aggregate Statistics\n\n")
-    lines.append(f"| Metric | Mean | Std | Min | Max |\n")
-    lines.append(f"|--------|------|-----|-----|-----|\n")
-    lines.append(f"| ΔE/gap | {np.mean(de_gaps):.2f}% | {np.std(de_gaps):.2f}% | {np.min(de_gaps):.2f}% | {np.max(de_gaps):.2f}% |\n")
-    lines.append(f"| ⟨X⟩ error | {np.mean(mx_errs):.2e} | {np.std(mx_errs):.2e} | {np.min(mx_errs):.2e} | {np.max(mx_errs):.2e} |\n")
-    lines.append(f"| ⟨ZZ⟩ error | {np.mean(zz_errs):.2e} | {np.std(zz_errs):.2e} | {np.min(zz_errs):.2e} | {np.max(zz_errs):.2e} |\n")
-    lines.append(f"| Fidelity | {np.mean(fids):.4f} | {np.std(fids):.4f} | {np.min(fids):.4f} | {np.max(fids):.4f} |\n")
-    lines.append(f"| Checklist | {np.mean(checklists):.1f}/6 | {np.std(checklists):.1f} | {min(checklists)}/6 | {max(checklists)}/6 |\n")
-    lines.append(f"| Runtime | {np.mean(times):.0f}s | {np.std(times):.0f}s | {np.min(times):.0f}s | {np.max(times):.0f}s |\n")
+    lines.append("\n### Aggregate Statistics\n\n")
+    lines.append("| Metric | Mean | Std | Min | Max |\n")
+    lines.append("|--------|------|-----|-----|-----|\n")
+    lines.append(
+        f"| ΔE/gap | {np.mean(de_gaps):.2f}% | {np.std(de_gaps):.2f}% | {np.min(de_gaps):.2f}% | {np.max(de_gaps):.2f}% |\n"
+    )
+    lines.append(
+        f"| ⟨X⟩ error | {np.mean(mx_errs):.2e} | {np.std(mx_errs):.2e} | {np.min(mx_errs):.2e} | {np.max(mx_errs):.2e} |\n"
+    )
+    lines.append(
+        f"| ⟨ZZ⟩ error | {np.mean(zz_errs):.2e} | {np.std(zz_errs):.2e} | {np.min(zz_errs):.2e} | {np.max(zz_errs):.2e} |\n"
+    )
+    lines.append(
+        f"| Fidelity | {np.mean(fids):.4f} | {np.std(fids):.4f} | {np.min(fids):.4f} | {np.max(fids):.4f} |\n"
+    )
+    lines.append(
+        f"| Checklist | {np.mean(checklists):.1f}/6 | {np.std(checklists):.1f} | {min(checklists)}/6 | {max(checklists)}/6 |\n"
+    )
+    lines.append(
+        f"| Runtime | {np.mean(times):.0f}s | {np.std(times):.0f}s | {np.min(times):.0f}s | {np.max(times):.0f}s |\n"
+    )
 
-    lines.append(f"\n### Key Observations\n\n")
-    lines.append(f"1. ΔE/gap (primary metric): {'all pass' if all(d < 5 for d in de_gaps) else 'some fail'} across {n_runs} runs.\n")
+    lines.append("\n### Key Observations\n\n")
+    lines.append(
+        f"1. ΔE/gap (primary metric): {'all pass' if all(d < 5 for d in de_gaps) else 'some fail'} across {n_runs} runs.\n"
+    )
     lines.append(f"2. Checklist range: {min(checklists)}/6 – {max(checklists)}/6.\n")
-    lines.append(f"3. Results are {'stable' if np.std(checklists) < 1 else 'variable'} across seeds (std={np.std(checklists):.1f}).\n")
+    lines.append(
+        f"3. Results are {'stable' if np.std(checklists) < 1 else 'variable'} across seeds (std={np.std(checklists):.1f}).\n"
+    )
 
     return "".join(lines)
 
 
 # ── Main ─────────────────────────────────────────────────────────────────
 
+
 def main():
     parser = argparse.ArgumentParser(description="V6 multi-run benchmark")
     parser.add_argument("--runs", type=int, default=3, help="Number of runs")
     parser.add_argument("--h-test", type=float, default=1.25, help="Test h value")
-    parser.add_argument("--n-restarts", type=int, default=3, help="VQE restarts")
+    parser.add_argument("--n-qubits", type=int, default=6, help="Number of qubits")
+    parser.add_argument("--n-restarts", type=int, default=5, help="VQE restarts")
     parser.add_argument("--vqe-maxiter", type=int, default=1000, help="VQE max iterations")
     parser.add_argument("--mpnn-epochs", type=int, default=4000, help="MPNN training epochs")
     parser.add_argument("--mpnn-hidden", type=int, default=64, help="MPNN hidden dim")
     parser.add_argument("--mpnn-layers", type=int, default=3, help="MPNN GINConv layers")
     parser.add_argument("--mpnn-lr", type=float, default=1e-3, help="MPNN learning rate")
     parser.add_argument("--mpnn-patience", type=int, default=150, help="MPNN scheduler patience")
-    parser.add_argument("--fid-threshold", type=float, default=0.93, help="Fidelity filter threshold")
+    parser.add_argument(
+        "--fid-threshold", type=float, default=0.93, help="Fidelity filter threshold"
+    )
     parser.add_argument("--no-binnacle", action="store_true", help="Skip binnacle append")
     parser.add_argument("--label", type=str, default="", help="Custom label for this experiment")
     args = parser.parse_args()
@@ -279,19 +313,20 @@ def main():
     )
     label = args.label or config_str
 
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"  GNN-HVA v6.0 Benchmark — {args.runs} runs, h_test={args.h_test}")
     print(f"  Config: {config_str}")
-    print(f"{'='*60}\n")
+    print(f"{'=' * 60}\n")
 
     all_results = []
     for i in range(args.runs):
         seed = 42 + i
-        print(f"--- Run {i+1}/{args.runs} (seed={seed}) ---")
+        print(f"--- Run {i + 1}/{args.runs} (seed={seed}) ---")
         t0 = time.time()
         result = run_pipeline(
             seed=seed,
             h_test=args.h_test,
+            n_qubits=args.n_qubits,
             n_restarts=args.n_restarts,
             vqe_maxiter=args.vqe_maxiter,
             mpnn_epochs=args.mpnn_epochs,
@@ -305,7 +340,7 @@ def main():
         all_results.append(result)
         print(
             f"  Checklist: {result['adapt_checklist']}/6, "
-            f"ΔE/gap={result['adapt_delta_e_over_gap']*100:.2f}%, "
+            f"ΔE/gap={result['adapt_delta_e_over_gap'] * 100:.2f}%, "
             f"fid={result['adapt_fidelity']:.4f}, "
             f"time={elapsed:.0f}s\n"
         )
@@ -331,10 +366,12 @@ def main():
 
     # Summary
     checklists = [r["adapt_checklist"] for r in all_results]
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"  BENCHMARK COMPLETE — {args.runs} runs")
-    print(f"  Checklist: {min(checklists)}/6 – {max(checklists)}/6 (mean {np.mean(checklists):.1f})")
-    print(f"{'='*60}")
+    print(
+        f"  Checklist: {min(checklists)}/6 – {max(checklists)}/6 (mean {np.mean(checklists):.1f})"
+    )
+    print(f"{'=' * 60}")
 
     return 0
 

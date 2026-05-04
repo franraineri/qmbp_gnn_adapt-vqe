@@ -8,19 +8,19 @@ Modular architecture integrating:
   - Dual-route deployment: Adapt-VQE + QRC fallback (Phase 4)
 """
 
+from .classical_solver import ClassicalSolver
 from .config import (
-    LatticeConfig,
+    DeployResult,
     GroundTruthResult,
+    LatticeConfig,
+    OptimizationTrajectory,
     VQEConfig,
     VQEResult,
-    OptimizationTrajectory,
-    DeployResult,
 )
 from .hamiltonian_builder import HamiltonianBuilder, make_lattice
-from .classical_solver import ClassicalSolver
 from .hva_builder import HVACircuitBuilder
+from .pipeline_utils import load_phase12_dataset, save_phase12_dataset
 from .vqe_optimizer import VQEOptimizer
-from .pipeline_utils import save_phase12_dataset, load_phase12_dataset
 
 # HardwareDeployer imported lazily to avoid pulling in qiskit_algorithms
 # at package import time (not needed for Phase 1-3 work).

@@ -12,14 +12,13 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Optional
 
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp, Statevector
 
 from .config import (
-    EXACT_DIAG_QUBIT_LIMIT,
     DMRG_QUBIT_LIMIT,
+    EXACT_DIAG_QUBIT_LIMIT,
     GroundTruthResult,
     LatticeConfig,
 )
@@ -44,8 +43,8 @@ class ClassicalSolver:
         lattice: LatticeConfig,
         method: str = "auto",
         *,
-        obs_x: Optional[list[SparsePauliOp]] = None,
-        obs_zz: Optional[list[SparsePauliOp]] = None,
+        obs_x: list[SparsePauliOp] | None = None,
+        obs_zz: list[SparsePauliOp] | None = None,
     ) -> GroundTruthResult:
         """Solve for the ground state of *hamiltonian*.
 
@@ -74,6 +73,7 @@ class ClassicalSolver:
         # Build observables if not provided
         if obs_x is None or obs_zz is None:
             from .hamiltonian_builder import HamiltonianBuilder
+
             builder = HamiltonianBuilder()
             obs_x, obs_zz = builder.build_local_observables(lattice)
 
@@ -81,9 +81,7 @@ class ClassicalSolver:
             return self._solve_exact(hamiltonian, lattice, obs_x, obs_zz)
         elif method == "dmrg":
             if n > DMRG_QUBIT_LIMIT:
-                raise ValueError(
-                    f"DMRG supports up to {DMRG_QUBIT_LIMIT} qubits, got {n}."
-                )
+                raise ValueError(f"DMRG supports up to {DMRG_QUBIT_LIMIT} qubits, got {n}.")
             return self._solve_dmrg(hamiltonian, lattice, obs_x, obs_zz)
         else:
             raise ValueError(f"Unknown method '{method}'. Use 'exact', 'dmrg', or 'auto'.")
@@ -117,13 +115,9 @@ class ClassicalSolver:
         sv = Statevector(psi_gs)
 
         # Per-site ⟨Xᵢ⟩
-        per_site_mx = np.array(
-            [sv.expectation_value(op).real for op in obs_x]
-        )
+        per_site_mx = np.array([sv.expectation_value(op).real for op in obs_x])
         # Per-bond ⟨ZᵢZⱼ⟩
-        per_bond_zz = np.array(
-            [sv.expectation_value(op).real for op in obs_zz]
-        )
+        per_bond_zz = np.array([sv.expectation_value(op).real for op in obs_zz])
 
         return GroundTruthResult(
             h_value=h_val,
@@ -161,8 +155,8 @@ class ClassicalSolver:
         The ⟨ZZ⟩ correlations are reliable in either symmetry sector.
         """
         try:
-            from tenpy.models.tf_ising import TFIChain
             from tenpy.algorithms import dmrg as tenpy_dmrg
+            from tenpy.models.tf_ising import TFIChain
             from tenpy.networks.mps import MPS
         except ImportError as exc:
             raise ImportError(
@@ -221,9 +215,7 @@ class ClassicalSolver:
                     "Gap not available via DMRG for this system."
                 )
         except Exception:
-            logger.warning(
-                "Could not compute gap via DMRG excitation. Setting gap=0."
-            )
+            logger.warning("Could not compute gap via DMRG excitation. Setting gap=0.")
 
         # ── Local observables ─────────────────────────────────────────
         # Sigmax per site (array over all sites)
@@ -236,12 +228,12 @@ class ClassicalSolver:
         per_site_mx = np.abs(per_site_mx_raw)
 
         # ZZ correlations on lattice bonds
-        per_bond_zz = np.array([
-            float(np.real(
-                psi.expectation_value_term([("Sigmaz", i), ("Sigmaz", j)])
-            ))
-            for i, j in lattice.edges
-        ])
+        per_bond_zz = np.array(
+            [
+                float(np.real(psi.expectation_value_term([("Sigmaz", i), ("Sigmaz", j)])))
+                for i, j in lattice.edges
+            ]
+        )
 
         return GroundTruthResult(
             h_value=h_val,

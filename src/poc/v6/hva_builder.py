@@ -15,9 +15,9 @@ Gate convention (matching V4 PoC):
 
 from __future__ import annotations
 
-from qiskit.circuit import QuantumCircuit, ParameterVector
+from qiskit.circuit import ParameterVector, QuantumCircuit
 
-from .config import LatticeConfig, MAX_P_LAYERS
+from .config import MAX_P_LAYERS, LatticeConfig
 
 
 class HVACircuitBuilder:
@@ -62,8 +62,7 @@ class HVACircuitBuilder:
 
         if n_qubits != lattice.n_qubits:
             raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits="
-                f"{lattice.n_qubits}."
+                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
             )
 
         qc = QuantumCircuit(n_qubits)
