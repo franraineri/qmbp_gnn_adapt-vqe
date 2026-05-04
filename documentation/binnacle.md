@@ -245,3 +245,232 @@ For V6: keep bidirectional sweep + pure energy cost, but replace `wrap_theta` wi
                                                                                                                                                                                             
   The fix would be np.unwrap()-style continuity enforcement instead of simple modular wrapping. But honestly, V4's single descending sweep naturally avoids this problem because warm-start 
   propagation keeps θ values close to the previous solution — no wrapping needed.  
+
+
+---
+
+## 2026-05-04 — PoC V6.0 Architecture Upgrade
+
+### Context
+V4 remains the best end-to-end result (2/6 checklist, 4/6 on Py3.9). V5.x experiments proved that changing Phase 2's cost function without updating Phase 3 breaks the pipeline. V6 takes a different approach: keep V4's proven pure-energy descending sweep and focus structural improvements on Phase 3 (MLP→MPNN) and Phase 4 (dual-route deployment).
+
+### V6 Changes (from V4)
+
+**Architecture:**
+- Full modular rewrite: monolithic notebooks → 9 reusable Python modules under `src/poc/v6/`
+- Shared dataclasses in `config.py`: `LatticeConfig`, `VQEConfig`, `GroundTruthResult`, `VQEResult`, `OptimizationTrajectory`, `DeployResult`
+- New dependencies: `torch_geometric>=2.5`, `physics-tenpy>=1.0`, `scikit-learn>=1.4`
+
+**Phase 1 — Ground Truth:**
+- `HamiltonianBuilder`: supports chain_1d, ladder, triangular, Kagome topologies via `make_lattice()` factory
+- `ClassicalSolver`: auto method selection (exact diag N<15, DMRG/TeNPy N≥15), memory fallback for 2D lattices
+- Per-site and per-bond observables stored alongside bulk averages
+
+**Phase 2 — VQE:**
+- `OptimizationCallback`: logs energy + gradient proxy + parameters at every iteration
+- Expanded bounds [-π, π] (was ±0.1 in V3)
+- Warm-start seeding: θ=0 for h=0 (ferromagnetic phase)
+- Single descending sweep preserved (V4 lesson: no wrapping, no bidirectional)
+
+**Phase 3 — Predictor:**
+- MLP replaced by MPNN (`MPNNPredictor` via PyTorch Geometric GINConv + global_mean_pool)
+- Graph input: node features [h_i, coordination_number_i], edge_index from lattice topology
+- Lattice-agnostic: same model handles different graph sizes and topologies
+- Energy-driven validation callback every 50 epochs via StatevectorEstimator
+- Divergence detection: halts training when MSE converges but ΔE stagnates
+
+**Phase 4 — Deployment:**
+- Dual-route: Adapt-VQE (main) + QRC fallback (new)
+- QRC: fixed random HVA reservoir + Rx(h) encoding + linear regression readout — no barren plateaus
+- Phase classification via data-driven ⟨X⟩ = ⟨ZZ⟩ crossover (not hardcoded h_c=1.0)
+- `DeployResult` with full 6-metric checklist and pass/fail flags
+
+**Pipeline Integrity:**
+- Dataset metadata: `cost_function="energy"`, `version="v6.0"`, library versions
+- Phase 3 loading validation: rejects mismatched cost functions (prevents V5.x failure mode)
+- Observable locality assertion: all hardware-path operators ≤ 2 adjacent qubits
+
+### V6 End-to-End Validation (N=6 TFIM, reduced training)
+
+| Metric | V4 (Py3.12) | V6 (reduced) | Threshold | Status |
+|---|---|---|---|---|
+| ΔE/gap | < 5% | 2.86% | < 5% | ✅ |
+| ⟨X⟩ error | 1.28e-02 | 1.19e-02 | < 1e-2 | ❌ |
+| ⟨ZZ⟩ error | 2.66e-02 | 2.91e-02 | < 1e-2 | ❌ |
+| ΔE | ≥ 1e-2 | 3.83e-02 | < 1e-2 | ❌ |
+| Fidelity | < 99.5% | 0.9940 | ≥ 99.5% | ❌ |
+| ADAPT iters | 2 | 2 | ≤ 2 | ✅ |
+| **Checklist** | **2/6** | **2/6** | | |
+
+### Key Takeaways
+
+1. **Modular architecture works.** All 9 modules pass individual tests and the end-to-end pipeline produces all 5 validation metrics correctly.
+2. **V4 baseline matched** with reduced training (6 h-points, 500 MPNN epochs, 1 restart). Full 27-point / 4000-epoch runs expected to improve.
+3. **MPNN is lattice-agnostic** — verified: same model produces valid θ_pred for N=4 and N=6 graphs with different topologies.
+4. **QRC fallback functional** — R²=0.97 on 4 training points, correct phase classification.
+5. **Phase coupling safeguard works** — `load_phase12_dataset()` correctly rejects datasets with `cost_function != "energy"`.
+6. **Next step:** run full notebooks with 27 h-points and 4000 MPNN epochs to establish V6 performance ceiling, then test on ladder topology for lattice generalization.
+
+---
+## 2026-05-04 — V6.0 Benchmark (3 runs, h_test=1.25)
+### Configuration
+- System: 1D TFIM, N=6, p=2, 27 h-points
+- Predictor: MPNN (GINConv, hidden=64, 3 layers, 4000 epochs)
+- VQE: 3 restarts, maxiter=1000, ftol=1e-14
+- Seeds: [42, 43, 44]
+
+### Per-Run Results (Adapt-VQE at h=1.25)
+
+| Run | Seed | ΔE/gap | ⟨X⟩ err | ⟨ZZ⟩ err | ΔE | Fidelity | ADAPT | Checklist | Time |
+|-----|------|--------|---------|----------|-----|----------|-------|-----------|------|
+| 1 | 42 | 3.90% ✅ | 9.26e-03 ✅ | 2.08e-02 ❌ | 3.48e-02 ❌ | 0.9919 ❌ | 2 | **3/6** | 16s |
+| 2 | 43 | 3.37% ✅ | 1.64e-02 ❌ | 3.06e-02 ❌ | 3.00e-02 ❌ | 0.9906 ❌ | 2 | **2/6** | 17s |
+| 3 | 44 | 3.33% ✅ | 1.73e-02 ❌ | 3.19e-02 ❌ | 2.97e-02 ❌ | 0.9906 ❌ | 2 | **2/6** | 16s |
+
+### Aggregate Statistics
+
+| Metric | Mean | Std | Min | Max |
+|--------|------|-----|-----|-----|
+| ΔE/gap | 3.53% | 0.26% | 3.33% | 3.90% |
+| ⟨X⟩ error | 1.43e-02 | 3.60e-03 | 9.26e-03 | 1.73e-02 |
+| ⟨ZZ⟩ error | 2.78e-02 | 4.94e-03 | 2.08e-02 | 3.19e-02 |
+| Fidelity | 0.9910 | 0.0006 | 0.9906 | 0.9919 |
+| Checklist | 2.3/6 | 0.5 | 2/6 | 3/6 |
+| Runtime | 16s | 1s | 16s | 17s |
+
+### Key Observations
+
+1. ΔE/gap (primary metric): all pass across 3 runs.
+2. Checklist range: 2/6 – 3/6.
+3. Results are stable across seeds (std=0.5).
+
+
+---
+
+## 2026-05-04 — V6.0 Hyperparameter Sweep (7 experiments)
+
+### Methodology
+Systematic parameter sweep to identify the best V6 configuration. Each experiment runs 2 seeds (42, 43) on the full 27-point pipeline with h_test=1.25. Parameters varied: VQE restarts, MPNN architecture (hidden_dim, n_layers), MPNN training (epochs, lr, patience), and fidelity threshold.
+
+### Results Summary
+
+| Exp | Config | ΔE/gap (mean) | ⟨X⟩ err (mean) | ⟨ZZ⟩ err (mean) | Fidelity (mean) | Checklist | Notes |
+|-----|--------|---------------|-----------------|------------------|-----------------|-----------|-------|
+| 1 | **Baseline** (h=64, L=3, ep=4000, rst=3, fid≥0.93) | 3.63% ✅ | 1.28e-02 ❌ | 2.57e-02 ❌ | 0.9912 | 2–3/6 | Reference |
+| 2 | Larger MPNN (h=128, L=4) | 3.66% ✅ | 1.50e-02 ❌ | 2.91e-02 ❌ | 0.9913 | 2/6 | Overfitting — worse than baseline |
+| 3 | **More VQE restarts (5)** | 3.89% ✅ | **9.02e-03** ✅ | 2.05e-02 ❌ | 0.9909 | 2–3/6 | Best ⟨X⟩ error (one run: 2.08e-03) |
+| 4 | Lower fid threshold (0.90) | 3.89% ✅ | 1.57e-02 ❌ | 3.05e-02 ❌ | 0.9910 | 2/6 | More data hurts — noisy θ_opt |
+| 5 | Higher LR (3e-3, pat=80) | 4.94% ⚠️ | 1.15e-02 ❌ | 2.61e-02 ❌ | 0.9900 | 2/6 | ΔE/gap failed on one run (6.51%) |
+| 6 | Smaller MPNN (h=32, L=2) + 5 rst | 4.79% ⚠️ | 1.73e-02 ❌ | 2.34e-02 ❌ | 0.9897 | 1–2/6 | Underfitting — worst result |
+| 7 | **5 restarts + 6000 MPNN epochs** | 3.71% ✅ | **9.89e-03** ✅ | 2.15e-02 ❌ | 0.9911 | 2–3/6 | Best overall — ⟨X⟩ passes on avg |
+
+### Analysis
+
+**What helps:**
+1. **More VQE restarts (5 vs 3)** — the single most impactful change. Improves Phase 2 θ_opt quality, which propagates through the entire pipeline. ⟨X⟩ error drops from 1.28e-02 to 9.02e-03 (crosses the 1e-2 threshold on some seeds).
+2. **Longer MPNN training (6000 vs 4000 epochs)** — marginal improvement when combined with 5 restarts. Helps the MPNN converge more reliably.
+
+**What hurts:**
+1. **Larger MPNN (h=128, L=4)** — overfits on the small 17-point dataset. More parameters ≠ better for this data size.
+2. **Lower fidelity threshold (0.90)** — adds 2 more training points (h=0.8, 0.85) with fid ~90%. These have noisy θ_opt that poison the MPNN training.
+3. **Higher learning rate (3e-3)** — causes instability. ΔE/gap exceeded 5% on one run.
+4. **Smaller MPNN (h=32, L=2)** — underfits. Not enough capacity for the graph structure.
+
+**Recommended configuration:**
+- VQE: **5 restarts**, maxiter=1000, ftol=1e-14
+- MPNN: hidden=64, layers=3, **epochs=6000**, lr=1e-3, patience=150
+- Fidelity threshold: **0.93** (default — don't lower)
+
+This configuration achieves ⟨X⟩ error ≈ 1e-2 (borderline pass) and stable ΔE/gap < 4%. The remaining bottleneck is ⟨ZZ⟩ error (~2e-2) and fidelity (~0.991), both bounded by the HVA p=2 expressibility ceiling at h=1.25.
+
+### Next Steps
+1. Test at h_test=1.5 (easier point, further from critical region) to see if 4+/6 is achievable.
+2. Test on ladder topology to validate MPNN lattice generalization.
+3. Consider per-parameter θ prediction (separate θ_zz and θ_x heads) instead of global pooling.
+
+
+---
+
+## 2026-05-04 — Key Lessons Learned (V3→V6 Summary)
+
+### What Works
+1. **Pure energy cost + single descending sweep** — the only Phase 2 strategy that produces smooth θ landscapes learnable by Phase 3. Every deviation (hybrid cost, bidirectional sweep, angle wrapping) broke the pipeline.
+2. **More VQE restarts** — highest-impact single parameter. 3→5 restarts doubled the chance of ⟨X⟩ passing the 1e-2 threshold.
+3. **Fidelity filter at 0.93** — sweet spot. Lower (0.90) adds noisy training data that hurts. Higher (0.96) removes too many points.
+4. **MPNN hidden=64, layers=3** — right-sized for 17 training points. Larger overfits, smaller underfits.
+5. **ΔE/gap is the robust metric** — passes consistently (3–4%) across all seeds and configs. It correctly measures whether the pipeline resolves the physics.
+
+### What Doesn't Work
+1. **Changing Phase 2 cost without updating Phase 3** — the V5.x catastrophe. Pipeline phases are tightly coupled.
+2. **Angle wrapping** — creates discontinuities that the predictor can't learn. Warm-start propagation naturally avoids this.
+3. **Larger MPNN on small data** — h=128/L=4 overfits on 17 points. More parameters ≠ better.
+4. **Higher learning rate (3e-3)** — causes instability, ΔE/gap exceeded 5% on some seeds.
+5. **Lower fidelity threshold** — more data from the low-fidelity regime poisons training.
+
+### Structural Limits
+- **HVA p=2 + |+⟩^N** cannot express the ferromagnetic ground state (h<1.0). This is a physics limit, not a pipeline bug. Fidelity caps at ~97% for h=1.0 and drops to ~3.7% at h=0.
+- **ΔE < 1e-2 is aspirational** — bounded by the HVA expressibility ceiling. At h=1.25, VQE itself achieves ΔE≈3e-2.
+- **Fidelity ≥ 99.5%** — achievable for h≥1.4 but not at h=1.25 (0.991). Moving the test point to h≥1.4 would pass this metric.
+
+### Current Best Configuration
+VQE: 5 restarts, maxiter=1000 | MPNN: h=64, L=3, 6000 epochs, lr=1e-3 | fid≥0.93 | Checklist: 2–3/6 at h=1.25
+
+
+---
+
+## 2026-05-04 — V6.0 Hyperparameter Sweep Round 2 (7 experiments, 14 executions)
+
+### Experiment Design
+Building on Round 1 findings (5 restarts + 6000 epochs is best), this round explores: test point sensitivity (h=1.25 vs 1.4 vs 1.5), MPNN training duration, VQE budget, learning rate, and fidelity filter strictness. Each experiment: 2 seeds (42, 43).
+
+### Results
+
+| Exp | Config | h_test | ΔE/gap | ⟨X⟩ err | Fidelity | Checklist | Verdict |
+|-----|--------|--------|--------|---------|----------|-----------|---------|
+| A | 5 rst, 6000 ep | **1.5** | 1.36% ✅ | 2.62e-03 ✅ | 0.9965 ✅ | **5/6** | ⭐ Best overall |
+| B | 5 rst, 8000 ep | 1.25 | 3.83% ✅ | 9.24e-03 ✅ | 0.9910 ❌ | 2–3/6 | Marginal gain over 6000 |
+| C | 7 rst, 6000 ep | 1.25 | 3.57% ✅ | 1.05e-02 ❌ | 0.9913 ❌ | 2–3/6 | 7 rst ≈ 5 rst |
+| D | 5 rst, lr=5e-4 | 1.25 | 4.25% ⚠️ | 8.64e-03 ✅ | 0.9906 ❌ | 2–3/6 | ΔE/gap unstable |
+| E | 5 rst, fid≥0.95 | 1.25 | 4.57% ⚠️ | 8.37e-03 ✅ | 0.9901 ❌ | 2/6 | Too few training points |
+| F | 5 rst, 6000 ep | **1.4** | 1.92% ✅ | 5.14e-03 ✅ | 0.9951 ✅ | **4–5/6** | ⭐ Strong |
+| G | 5 rst, maxiter=1500 | 1.25 | 3.71% ✅ | 9.89e-03 ✅ | 0.9911 ❌ | 2–3/6 | maxiter=1500 ≈ 1000 |
+
+### Key Findings
+
+**1. Test point is the dominant variable, not hyperparameters.**
+At h=1.25 (near critical region), the best achievable is 2–3/6 regardless of config. At h=1.4, it jumps to 4–5/6. At h=1.5, it reaches 5/6 consistently. This is because the HVA p=2 expressibility ceiling is h-dependent: fidelity is 0.991 at h=1.25 but 0.995+ at h≥1.4.
+
+**2. The 5th and 6th metrics are physics-limited, not pipeline-limited.**
+- ΔE < 1e-2: bounded by HVA expressibility (VQE itself achieves ΔE≈3e-2 at h=1.25)
+- Fidelity ≥ 99.5%: achievable at h≥1.4 (0.995) but not at h=1.25 (0.991)
+
+**3. Diminishing returns on VQE restarts beyond 5.**
+7 restarts (Exp C) performed identically to 5 restarts. The extra compute doesn't find better minima.
+
+**4. MPNN training beyond 6000 epochs has marginal impact.**
+8000 epochs (Exp B) gave the same checklist as 6000. The MPNN converges by ~4000 epochs; extra epochs just oscillate.
+
+**5. Stricter fidelity filter (0.95) hurts.**
+Removes 2 more training points (h=0.9, 0.95), leaving only 15 graphs. Not enough data for the MPNN.
+
+### Recommended Configuration (Final)
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| VQE restarts | 5 | Optimal — 7 gives no improvement |
+| VQE maxiter | 1000 | 1500 gives no improvement |
+| MPNN hidden | 64 | Right-sized for 17 training points |
+| MPNN layers | 3 | Smaller underfits, larger overfits |
+| MPNN epochs | 6000 | Converged — 8000 is wasteful |
+| MPNN lr | 1e-3 | 5e-4 causes ΔE/gap instability |
+| Fid threshold | 0.93 | 0.95 removes too much data |
+
+### Expected Checklist by Test Point
+
+| h_test | Checklist | ΔE/gap | ⟨X⟩ | ⟨ZZ⟩ | ΔE | Fidelity | ADAPT |
+|--------|-----------|--------|-----|------|-----|----------|-------|
+| 1.25 | 2–3/6 | ✅ | ⚠️ | ❌ | ❌ | ❌ | ✅ |
+| 1.4 | 4–5/6 | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ |
+| 1.5 | **5/6** | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+
+The only metric that never passes is ΔE < 1e-2 — this is the HVA expressibility ceiling, not a pipeline deficiency. The pipeline correctly characterizes the quantum phase at all test points.

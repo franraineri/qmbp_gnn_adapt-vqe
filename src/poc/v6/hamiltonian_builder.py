@@ -290,17 +290,19 @@ class HamiltonianBuilder:
     def validate(H: SparsePauliOp, n_qubits: int) -> None:
         """Verify Hermiticity and correct dimensions.
 
+        Uses Pauli-level checks (O(n_terms)) instead of to_matrix() (O(2^n))
+        so validation stays efficient for large systems.
+
         Raises
         ------
         ValueError
             If H is not Hermitian or has wrong dimensions.
         """
-        mat = H.to_matrix()
-        expected_dim = 2 ** n_qubits
-        if mat.shape != (expected_dim, expected_dim):
+        if H.num_qubits != n_qubits:
             raise ValueError(
-                f"Hamiltonian matrix has shape {mat.shape}, "
-                f"expected ({expected_dim}, {expected_dim})."
+                f"Hamiltonian has {H.num_qubits} qubits, expected {n_qubits}."
             )
-        if not np.allclose(mat, mat.conj().T, atol=1e-12):
-            raise ValueError("Hamiltonian is not Hermitian (H ≠ H†).")
+        # Hermiticity: all coefficients must be real for Pauli operators
+        # (Pauli strings are self-adjoint, so H = H† iff all coeffs are real)
+        if not np.allclose(H.coeffs.imag, 0, atol=1e-12):
+            raise ValueError("Hamiltonian is not Hermitian (complex coefficients found).")

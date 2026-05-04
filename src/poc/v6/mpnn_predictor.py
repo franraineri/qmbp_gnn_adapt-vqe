@@ -103,7 +103,10 @@ class MPNNPredictor(nn.Module):
         torch.Tensor of shape [batch_size, output_dim]
         """
         x, edge_index = data.x, data.edge_index
-        batch = data.batch if hasattr(data, "batch") and data.batch is not None else torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+        if hasattr(data, "batch") and data.batch is not None:
+            batch = data.batch
+        else:
+            batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
 
         for conv, bn in zip(self.convs, self.bns):
             x = conv(x, edge_index)

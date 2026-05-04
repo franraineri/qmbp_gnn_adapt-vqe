@@ -63,13 +63,30 @@ Our GNN/MLP warm-start approach is validated by three independent 2024-2026 pape
 
 Key takeaway: GNN-based initialization works best on physically structured Hamiltonians (spin systems), poorly on random circuits. Our spin-system focus is optimal.
 
-## Current PoC
+## Current PoC (V6.0)
 
 - 1D TFIM, N=6, HVA p=2, |+⟩^N
-- Phases 1-2: `poc_v3_phases1_2.ipynb` / Phases 3-4: `poc_v3_phases3_4.ipynb`
+- **Modular architecture**: 9 Python modules under `src/poc/v6/`
+- Phases 1-2: `src/poc/v6/poc_v6_phases1_2.ipynb` / Phases 3-4: `src/poc/v6/poc_v6_phases3_4.ipynb`
 - Non-uniform h-grid: Δh=0.05 near critical region h∈[0.8,1.4], Δh=0.1 elsewhere (27 points)
-- MLP predictor with fidelity filter ≥96% and dropout=0.1
+- **MPNN predictor** (PyTorch Geometric GINConv + global_mean_pool) — replaces V4 MLP
+- Fidelity filter ≥ 0.93, dropout=0.1
+- **QRC fallback route**: fixed HVA reservoir + Rx(h) encoding + linear regression readout
+- Dataset metadata: `cost_function="energy"`, `version="v6.0"` (prevents V5.x phase coupling failure)
 - **Known limit**: HVA p=2 + |+⟩^N cannot express ferromagnetic ground state (h<1.0). Validated for h≥1.0.
+
+### V6 Module Imports
+
+```python
+from src.poc.v6 import (
+    HamiltonianBuilder, make_lattice, ClassicalSolver,
+    HVACircuitBuilder, VQEOptimizer, HardwareDeployer,
+    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult, DeployResult,
+    save_phase12_dataset, load_phase12_dataset,
+)
+from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
+from src.poc.v6.qrc_pipeline import QRCPipeline
+```
 
 ## IBM Connection Pattern
 

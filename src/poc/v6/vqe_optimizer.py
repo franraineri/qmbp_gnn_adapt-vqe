@@ -25,6 +25,7 @@ from qiskit.quantum_info import SparsePauliOp, Statevector, state_fidelity
 from qiskit.primitives import StatevectorEstimator
 
 from .config import (
+    LatticeConfig,
     VQEConfig,
     VQEResult,
     OptimizationTrajectory,
@@ -236,7 +237,6 @@ class VQEOptimizer:
         list[VQEResult] — results in ascending h order (matching h_values)
         """
         from .hamiltonian_builder import HamiltonianBuilder
-        import copy
 
         builder = HamiltonianBuilder()
         n_params = circuit.num_parameters
@@ -250,10 +250,17 @@ class VQEOptimizer:
         for idx in reversed(range(len(h_values))):
             h = float(h_values[idx])
 
-            # Build Hamiltonian for this h — use deep copy to avoid
-            # sharing mutable fields (edges, coordination_numbers)
-            lat_h = copy.deepcopy(lattice)
-            lat_h.h = h
+            # Build Hamiltonian for this h — reuse lattice structure,
+            # only update the scalar h field (avoids deepcopy overhead)
+            lat_h = LatticeConfig(
+                topology=lattice.topology,
+                n_qubits=lattice.n_qubits,
+                J=lattice.J,
+                h=h,
+                edges=lattice.edges,
+                coordination_numbers=lattice.coordination_numbers,
+                periodic=lattice.periodic,
+            )
             H = builder.build(lat_h)
 
             # Get exact reference if available

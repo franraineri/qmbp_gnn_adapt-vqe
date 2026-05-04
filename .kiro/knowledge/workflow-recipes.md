@@ -1,226 +1,120 @@
-# Workflow Recipes — Code Reference
+# Workflow Recipes — V6 Code Templates
 
-## Hamiltonian Builder (TFIM)
+> These are code templates for common operations. For rules and constraints, see SKILL.md.
+> For V6, prefer using the modular imports over inline code.
+
+## V6 Module Quick Reference
 
 ```python
-from qiskit.quantum_info import SparsePauliOp
-
-def build_tfim_hamiltonian(n_qubits: int, J: float, h: float) -> SparsePauliOp:
-    terms = []
-    for i in range(n_qubits - 1):
-        terms.append(("ZZ", [i, i + 1], -J))
-    for i in range(n_qubits):
-        terms.append(("X", [i], -h))
-    return SparsePauliOp.from_sparse_list(terms, num_qubits=n_qubits)
+# All core imports
+from src.poc.v6 import (
+    HamiltonianBuilder, make_lattice, ClassicalSolver,
+    HVACircuitBuilder, VQEOptimizer, HardwareDeployer,
+    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult, DeployResult,
+    save_phase12_dataset, load_phase12_dataset,
+)
+from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
+from src.poc.v6.qrc_pipeline import QRCPipeline
+from src.poc.v6.pipeline_utils import assert_observable_locality
 ```
 
-## SparsePauliOp Construction Patterns
+## Phase 1: Ground Truth (V6 pattern)
 
 ```python
-from qiskit.quantum_info import SparsePauliOp
+builder = HamiltonianBuilder()
+solver = ClassicalSolver()
 
-# Sparse list (preferred for parameterized Hamiltonians)
-H = SparsePauliOp.from_sparse_list([
-    ("ZZ", [i, i+1], -J) for i in range(n-1)
-] + [
-    ("X", [i], -h) for i in range(n)
-], num_qubits=n)
-
-# Local observables for phase characterization
-mag_x = [SparsePauliOp.from_sparse_list([("X", [i], 1.0)], num_qubits=n) for i in range(n)]
-corr_zz = [SparsePauliOp.from_sparse_list([("ZZ", [i, i+1], 1.0)], num_qubits=n) for i in range(n-1)]
-
-# Arithmetic
-H_total = H_interaction + H_field
-H_total.simplify()
-H_total.to_matrix()  # dense matrix for exact diag
+exact_data = []
+for h in h_values:
+    lat_h = make_lattice("chain_1d", N, J=J, h=h)
+    H = builder.build(lat_h)
+    exact_data.append(solver.solve(H, lat_h))
 ```
 
-## Phase 1: Exact Diagonalization Sweep
+## Phase 2: VQE Sweep (V6 pattern)
 
 ```python
-import numpy as np
-from qiskit.quantum_info import SparsePauliOp
+hva = HVACircuitBuilder()
+base_lattice = make_lattice("chain_1d", N, J=J, h=1.0)
+qc, theta = hva.create(N, p_layers, base_lattice)
 
-def sweep_ground_truth(n_qubits, J, h_values):
-    results = []
-    for h in h_values:
-        H = build_tfim_hamiltonian(n_qubits, J, h)
-        evals, evecs = np.linalg.eigh(H.to_matrix())
-        psi_gs = evecs[:, 0]
-        results.append({
-            "h": h, "J": J,
-            "ground_energy": evals[0],
-            "ground_state": psi_gs,
-            "gap": evals[1] - evals[0],
-            "mag_x": [psi_gs.conj() @ SparsePauliOp.from_sparse_list(
-                [("X", [i], 1.0)], num_qubits=n_qubits
-            ).to_matrix() @ psi_gs for i in range(n_qubits)],
-        })
-    return results
+config = VQEConfig(n_restarts=3, maxiter=1000, ftol=1e-14, enable_callbacks=True)
+optimizer = VQEOptimizer(config)
+vqe_results = optimizer.descending_sweep(h_values, qc, base_lattice, exact_data)
 ```
 
-## Phase 2: HVA Construction (TFIM)
+## Phase 3: MPNN Training (V6 pattern)
 
 ```python
-from qiskit.circuit import QuantumCircuit, Parameter
+import torch
 
-def build_tfim_hva(n_qubits, p_layers):
-    qc = QuantumCircuit(n_qubits)
-    # MANDATORY: |+⟩^N initial state (paramagnetic ground state at h→∞)
-    qc.h(range(n_qubits))
-    params = []
-    for layer in range(p_layers):
-        t_zz = Parameter(f"t_zz_{layer}")
-        params.append(t_zz)
-        for i in range(n_qubits - 1):
-            qc.rzz(2 * t_zz, i, i + 1)
-        t_x = Parameter(f"t_x_{layer}")
-        params.append(t_x)
-        for i in range(n_qubits):
-            qc.rx(2 * t_x, i)
-    return qc, params
+dataset = build_graph_dataset(
+    base_lattice, h_values,
+    np.array([r.theta_opt for r in vqe_results]),
+    np.array([d.ground_energy for d in exact_data]),
+    fidelities=np.array([r.fidelity for r in vqe_results]),
+    fidelity_threshold=0.93,
+)
+
+model = MPNNPredictor(node_features=2, hidden_dim=64, n_layers=3, output_dim=2*p_layers)
+result = train_mpnn(model, dataset, n_epochs=4000, lr=1e-3, patience=150)
 ```
 
-## Phase 2: Warm-Start VQE Sweep
+## Phase 4: Deployment (V6 pattern)
 
 ```python
-from qiskit.primitives import StatevectorEstimator
-from scipy.optimize import minimize
+# MPNN prediction for unseen h
+model.eval()
+edge_idx, coord = builder.build_graph_data(base_lattice)
+x_test = torch.tensor(
+    np.stack([np.full(N, h_test), coord.astype(float)], axis=1),
+    dtype=torch.float32,
+)
+from torch_geometric.data import Data
+test_graph = Data(x=x_test, edge_index=torch.tensor(edge_idx, dtype=torch.long))
+with torch.no_grad():
+    theta_pred = model(test_graph).numpy().flatten()
 
-def warm_start_sweep(hva_circuit, n_qubits, J, h_values, p_layers):
-    estimator = StatevectorEstimator()
-    # Small perturbation to escape the symmetry saddle point at θ=0
-    theta = np.random.uniform(-0.01, 0.01, 2 * p_layers)
-    results = []
-    # Sweep DESCENDING: h=2→0 (|+⟩^N is exact at h→∞, warm-start carries downward)
-    for h in reversed(h_values):
-        H = build_tfim_hamiltonian(n_qubits, J, h)
-        def cost(params):
-            bound = hva_circuit.assign_parameters(params)
-            return estimator.run([(bound, H)]).result()[0].data.evs
-        opt = minimize(cost, theta, method="L-BFGS-B",
-                       options={"maxiter": 500, "ftol": 1e-12})
-        theta = opt.x
-        results.append({"h": h, "theta_opt": opt.x.copy(), "energy": opt.fun})
-    results.reverse()  # reorder by ascending h for persistence
-    return results
+# Adapt-VQE route
+deployer = HardwareDeployer()
+result = deployer.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+
+# QRC fallback route
+qrc = QRCPipeline(seed=42)
+qrc.build_reservoir(N, p_layers, base_lattice)
+qrc.train_readout(h_values, mag_x_array, corr_zz_array)
+qrc_result = deployer.deploy_qrc(qrc, h_test, exact_test)
 ```
 
-## Primitives V2 Execution Patterns
+## Dataset Save/Load with Integrity
 
 ```python
-# LOCAL simulation (Phase 1-2)
+save_phase12_dataset(
+    "phase1_phase2_tfim_N6_p2_v6.npz",
+    h_values=h_values, J=J, n_qubits=N, p_layers=p_layers,
+    ground_energies=..., gaps=..., mag_x=..., corr_zz=...,
+    theta_opt=..., vqe_energies=..., fidelities=...,
+)
+
+# Loading validates cost_function="energy" (prevents V5.x failure)
+data = load_phase12_dataset("phase1_phase2_tfim_N6_p2_v6.npz")
+```
+
+## Primitives V2 Patterns
+
+```python
+# LOCAL simulation
 from qiskit.primitives import StatevectorEstimator
 estimator = StatevectorEstimator()
-bound_qc = hva_circuit.assign_parameters(theta)
-job = estimator.run([(bound_qc, hamiltonian)])
-energy = job.result()[0].data.evs
+bound_qc = circuit.assign_parameters(theta)
+energy = float(estimator.run([(bound_qc, hamiltonian)]).result()[0].data.evs)
 
-# HARDWARE execution (Phase 4)
-from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2
+# HARDWARE execution
+from qiskit_ibm_runtime import EstimatorV2
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-service = QiskitRuntimeService()
-backend = service.least_busy(min_num_qubits=n, operational=True)
 pm = generate_preset_pass_manager(backend=backend, optimization_level=2)
-isa_qc = pm.run(hva_circuit)
+isa_qc = pm.run(circuit)
 isa_obs = hamiltonian.apply_layout(isa_qc.layout)
 estimator = EstimatorV2(backend)
-job = estimator.run([(isa_qc, isa_obs)])
-energy = job.result()[0].data.evs
-```
-
-## Sampling
-
-```python
-from qiskit.primitives import StatevectorSampler
-sampler = StatevectorSampler()
-qc_measured = qc.copy()
-qc_measured.measure_all()
-job = sampler.run([qc_measured], shots=4096)
-counts = job.result()[0].data.meas.get_counts()
-```
-
-## Parameter Binding & Statevector Utilities
-
-```python
-from qiskit.circuit import Parameter, ParameterVector
-from qiskit.quantum_info import Statevector, state_fidelity
-
-theta = ParameterVector("θ", length=n_params)
-bound_qc = circuit.assign_parameters(dict(zip(theta, values)))
-
-sv = Statevector(bound_circuit)
-fidelity = state_fidelity(sv, target_state)
-expectation = sv.expectation_value(observable)
-```
-
-## Algorithms (standalone package)
-
-```python
-from qiskit_algorithms import NumPyMinimumEigensolver, VQE
-from qiskit_algorithms.optimizers import COBYLA, L_BFGS_B, SPSA
-```
-
-## Phase 4: AdaptVQE with Warm-Start
-
-```python
-from qiskit_algorithms import AdaptVQE, VQE
-from qiskit_algorithms.optimizers import L_BFGS_B
-from qiskit_algorithms.exceptions import AlgorithmError
-
-# Pauli pool: non-commuting terms of the Hamiltonian
-pauli_pool = [
-    SparsePauliOp.from_sparse_list([("ZZ", [i, i+1], 1.0)], num_qubits=n)
-    for i in range(n - 1)
-] + [
-    SparsePauliOp.from_sparse_list([("X", [i], 1.0)], num_qubits=n)
-    for i in range(n)
-]
-
-# Bound HVA circuit as initial state
-initial_state = hva_circuit.assign_parameters(theta_pred)
-
-vqe_solver = VQE(
-    estimator=StatevectorEstimator(),
-    ansatz=QuantumCircuit(n),  # placeholder, AdaptVQE overwrites
-    optimizer=L_BFGS_B(maxiter=100),
-)
-
-adapt_vqe = AdaptVQE(
-    vqe_solver,
-    operators=pauli_pool,
-    max_iterations=2,
-    gradient_threshold=1e-3,
-    initial_state=initial_state,
-)
-
-try:
-    result = adapt_vqe.compute_minimum_eigenvalue(hamiltonian)
-    energy = result.eigenvalue.real
-except AlgorithmError as e:
-    if "first iteration" in str(e):
-        # SUCCESS: warm-start already optimal, 0 layers added
-        energy = StatevectorEstimator().run(
-            [(initial_state, hamiltonian)]
-        ).result()[0].data.evs
-    else:
-        raise
-```
-
-## Phase 4: Hardware with GNN Warm-Start
-
-```python
-from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2, Session
-from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-
-def deploy_gnn_warmstart(gnn_model, hamiltonian_graph, hva_circuit, hamiltonian, backend):
-    theta_pred = gnn_model(hamiltonian_graph).detach().numpy()
-    pm = generate_preset_pass_manager(backend=backend, optimization_level=2)
-    isa_qc = pm.run(hva_circuit)
-    isa_obs = hamiltonian.apply_layout(isa_qc.layout)
-    estimator = EstimatorV2(backend)
-    bound = isa_qc.assign_parameters(theta_pred)
-    job = estimator.run([(bound, isa_obs)])
-    return job.result()[0].data.evs
+energy = float(estimator.run([(isa_qc, isa_obs)]).result()[0].data.evs)
 ```

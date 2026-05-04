@@ -1,7 +1,44 @@
-*.venv*
-*.ipynb_*
-*.pt
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# ── Virtual environment ──────────────────────────────────────
+.venv/
+
+# ── Jupyter ──────────────────────────────────────────────────
+.ipynb_checkpoints/
+*_executed.ipynb
+*_executed*.ipynb
+Untitled*.ipynb
+
+# ── Data artifacts (regenerable) ─────────────────────────────
 *.npz
-*.kiro/specs/*
-*.DS_Store*
-*__pycache*
+*.pt
+*.pth
+*.h5
+*.hdf5
+
+# ── OS files ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE / Editor ─────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Kiro specs (local dev state) ─────────────────────────────
+.kiro/specs/
+
+# ── Benchmark results ────────────────────────────────────────
+scripts/benchmark_results/
+
+# ── Logs & temp ──────────────────────────────────────────────
+*.log
+tmp/

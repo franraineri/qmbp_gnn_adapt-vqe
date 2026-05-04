@@ -157,7 +157,7 @@ class VQEConfig:
 
     p_layers: int = 2
     bounds: tuple[float, float] = (-np.pi, np.pi)
-    n_restarts: int = 3
+    n_restarts: int = 5
     restart_sigma: float = 0.1
     maxiter: int = 1000
     ftol: float = 1e-14
