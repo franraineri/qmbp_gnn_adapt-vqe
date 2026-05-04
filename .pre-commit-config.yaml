@@ -1,0 +1,56 @@
+# Pre-commit hooks for GNN-HVA thesis project
+# Install: pre-commit install
+# Run all: pre-commit run --all-files
+
+repos:
+  # ── Standard hooks ─────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: check-json
+      - id: detect-private-key
+
+  # ── Ruff (linting + formatting) ────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.12
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi]
+      - id: ruff-format
+        types_or: [python, pyi]
+
+  # ── Notebook output stripping ──────────────────────────────
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        files: '\.ipynb$'
+
+  # ── Spell check (documentation + comments) ─────────────────
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        args: [
+          --skip, '*.ipynb,*.npz,*.pt,.venv,*.lock,documentation/*_es.md',
+          --ignore-words-list, 'aer,fases,fase,ser,inicial,vectores,algoritmos,coo,te,potencial,simular,requiere,posible,amplitud,utiliza,doble,hace,barrer,hagas,raison'
+        ]
+        types_or: [python, markdown]
+
+  # ── Project-specific: HVA depth guard ──────────────────────
+  - repo: local
+    hooks:
+      - id: hva-depth-guard
+        name: HVA depth guard (p ≤ 2, Mele et al.)
+        entry: scripts/hooks/check_hva_depth.py
+        language: python
+        files: '\.py$'
+        pass_filenames: true
