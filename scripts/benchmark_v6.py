@@ -40,7 +40,13 @@ from src.poc.v6 import (
     make_lattice,
 )
 from src.poc.v6.hardware_deployer import HardwareDeployer
-from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
+from src.poc.v6.mpnn_predictor import (
+    GATPredictor,
+    MPNNPredictor,
+    augment_graph_dataset,
+    build_graph_dataset,
+    train_mpnn,
+)
 from src.poc.v6.pipeline_utils import assert_observable_locality
 from src.poc.v6.qrc_pipeline import QRCPipeline
 
@@ -52,6 +58,7 @@ def run_pipeline(
     h_test: float = 1.25,
     n_qubits: int = 6,
     n_restarts: int = 3,
+    restart_sigma: float = 0.1,
     vqe_maxiter: int = 1000,
     mpnn_epochs: int = 4000,
     mpnn_hidden: int = 64,
@@ -59,15 +66,33 @@ def run_pipeline(
     mpnn_lr: float = 1e-3,
     mpnn_patience: int = 150,
     fid_threshold: float = 0.93,
+    h_points: int = 27,
+    augment: bool = False,
+    model_type: str = "gin",
 ) -> dict:
     """Execute the full V6 pipeline once and return metrics."""
     np.random.seed(seed)
     torch.manual_seed(seed)
 
     N, J, p = n_qubits, 1.0, 2
-    h_coarse = np.arange(0.0, 0.8, 0.1)
-    h_dense = np.arange(0.8, 1.45, 0.05)
-    h_coarse2 = np.arange(1.5, 2.05, 0.1)
+
+    # Build h-grid with configurable density
+    # Denser near critical region h∈[0.8,1.4], coarser elsewhere
+    if h_points <= 27:
+        # Original grid: 27 points
+        h_coarse = np.arange(0.0, 0.8, 0.1)
+        h_dense = np.arange(0.8, 1.45, 0.05)
+        h_coarse2 = np.arange(1.5, 2.05, 0.1)
+    elif h_points <= 40:
+        # Denser grid: ~40 points (Δh=0.05 everywhere, Δh=0.025 near critical)
+        h_coarse = np.arange(0.0, 0.8, 0.05)
+        h_dense = np.arange(0.8, 1.45, 0.025)
+        h_coarse2 = np.arange(1.5, 2.05, 0.05)
+    else:
+        # Very dense: ~55 points (Δh=0.05 coarse, Δh=0.02 critical)
+        h_coarse = np.arange(0.0, 0.8, 0.05)
+        h_dense = np.arange(0.8, 1.45, 0.02)
+        h_coarse2 = np.arange(1.5, 2.05, 0.05)
     h_values = np.unique(np.concatenate([h_coarse, h_dense, h_coarse2]))
 
     builder = HamiltonianBuilder()
@@ -88,6 +113,7 @@ def run_pipeline(
     t2 = time.time()
     config = VQEConfig(
         n_restarts=n_restarts,
+        restart_sigma=restart_sigma,
         maxiter=vqe_maxiter,
         ftol=1e-14,
         enable_callbacks=False,
@@ -111,9 +137,26 @@ def run_pipeline(
         fidelities=np.array(fids),
         fidelity_threshold=fid_threshold,
     )
-    model = MPNNPredictor(
-        node_features=2, hidden_dim=mpnn_hidden, n_layers=mpnn_layers, output_dim=2 * p
-    )
+
+    # Data augmentation (interpolated θ between adjacent h-points)
+    if augment:
+        dataset = augment_graph_dataset(dataset)
+
+    # Model selection
+    if model_type == "gat":
+        model = GATPredictor(
+            node_features=2,
+            hidden_dim=mpnn_hidden,
+            n_layers=mpnn_layers,
+            output_dim=2 * p,
+        )
+    else:
+        model = MPNNPredictor(
+            node_features=2,
+            hidden_dim=mpnn_hidden,
+            n_layers=mpnn_layers,
+            output_dim=2 * p,
+        )
     train_result = train_mpnn(
         model, dataset, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience
     )
@@ -160,6 +203,7 @@ def run_pipeline(
         "config": {
             "n_qubits": n_qubits,
             "n_restarts": n_restarts,
+            "restart_sigma": restart_sigma,
             "vqe_maxiter": vqe_maxiter,
             "mpnn_epochs": mpnn_epochs,
             "mpnn_hidden": mpnn_hidden,
@@ -167,6 +211,9 @@ def run_pipeline(
             "mpnn_lr": mpnn_lr,
             "mpnn_patience": mpnn_patience,
             "fid_threshold": fid_threshold,
+            "h_points": h_points,
+            "augment": augment,
+            "model_type": model_type,
         },
         "n_h_points": len(h_values),
         "n_training_graphs": len(dataset),
@@ -293,12 +340,22 @@ def main():
     parser.add_argument("--h-test", type=float, default=1.25, help="Test h value")
     parser.add_argument("--n-qubits", type=int, default=6, help="Number of qubits")
     parser.add_argument("--n-restarts", type=int, default=5, help="VQE restarts")
+    parser.add_argument(
+        "--restart-sigma", type=float, default=0.1, help="VQE restart perturbation std"
+    )
     parser.add_argument("--vqe-maxiter", type=int, default=1000, help="VQE max iterations")
     parser.add_argument("--mpnn-epochs", type=int, default=4000, help="MPNN training epochs")
     parser.add_argument("--mpnn-hidden", type=int, default=64, help="MPNN hidden dim")
     parser.add_argument("--mpnn-layers", type=int, default=3, help="MPNN GINConv layers")
     parser.add_argument("--mpnn-lr", type=float, default=1e-3, help="MPNN learning rate")
     parser.add_argument("--mpnn-patience", type=int, default=150, help="MPNN scheduler patience")
+    parser.add_argument("--h-points", type=int, default=27, help="H-grid density (27, 40, or 55)")
+    parser.add_argument(
+        "--augment", action="store_true", help="Augment training data via θ interpolation"
+    )
+    parser.add_argument(
+        "--model", choices=["gin", "gat"], default="gin", help="MPNN architecture (gin or gat)"
+    )
     parser.add_argument(
         "--fid-threshold", type=float, default=0.93, help="Fidelity filter threshold"
     )
@@ -307,9 +364,11 @@ def main():
     args = parser.parse_args()
 
     config_str = (
-        f"restarts={args.n_restarts}, maxiter={args.vqe_maxiter}, "
+        f"N={args.n_qubits}, restarts={args.n_restarts}, σ={args.restart_sigma}, "
+        f"maxiter={args.vqe_maxiter}, "
         f"mpnn=[h={args.mpnn_hidden}, L={args.mpnn_layers}, ep={args.mpnn_epochs}, "
-        f"lr={args.mpnn_lr}, pat={args.mpnn_patience}], fid≥{args.fid_threshold}"
+        f"lr={args.mpnn_lr}, pat={args.mpnn_patience}], "
+        f"fid≥{args.fid_threshold}, h_pts={args.h_points}"
     )
     label = args.label or config_str
 
@@ -328,6 +387,7 @@ def main():
             h_test=args.h_test,
             n_qubits=args.n_qubits,
             n_restarts=args.n_restarts,
+            restart_sigma=args.restart_sigma,
             vqe_maxiter=args.vqe_maxiter,
             mpnn_epochs=args.mpnn_epochs,
             mpnn_hidden=args.mpnn_hidden,
@@ -335,6 +395,9 @@ def main():
             mpnn_lr=args.mpnn_lr,
             mpnn_patience=args.mpnn_patience,
             fid_threshold=args.fid_threshold,
+            h_points=args.h_points,
+            augment=args.augment,
+            model_type=args.model,
         )
         elapsed = time.time() - t0
         all_results.append(result)
@@ -359,7 +422,10 @@ def main():
     print(f"\n{entry}")
 
     if not args.no_binnacle:
-        binnacle_path = _root / "documentation" / "binnacle.md"
+        # Append to the correct binnacle based on N
+        n_qubits = all_results[0].get("config", {}).get("n_qubits", 6)
+        binnacle_name = "binnacle-N6.md" if n_qubits <= 6 else "binnacle-N10.md"
+        binnacle_path = _root / "documentation" / binnacle_name
         with open(binnacle_path, "a") as f:
             f.write(entry)
         print(f"Appended to: {binnacle_path}")

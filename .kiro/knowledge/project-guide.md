@@ -36,7 +36,8 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 │   └── test_v6_pipeline.py  ← 18 unit tests
 │
 ├── documentation/           ← Human-readable docs
-│   ├── binnacle.md          ← Chronological dev log with all results
+│   ├── binnacle-N6.md       ← Experiment log: N=6 (complete, 40+ experiments)
+│   ├── binnacle-N10.md      ← Experiment log: N=10 scaling (active)
 │   └── architectural_doc_es_en.md ← Architecture justification
 │
 ├── .kiro/                   ← AI agent configuration
@@ -79,7 +80,7 @@ The Makefile is the single entry point. Use `make` for everything.
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
 | Check numerical baselines | `.kiro/knowledge/poc-results.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
-| See full experiment history | `documentation/binnacle.md` |
+| See full experiment history | `documentation/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
 
 ## Key Workflow Rules
 1. Never modify stable modules (listed in `project-status.md`) without explicit request.

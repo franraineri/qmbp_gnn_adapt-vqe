@@ -133,7 +133,8 @@ Data flows between notebooks via `phase1_phase2_tfim_N6_p2_v6.npz`. Run Phase 1-
 * **[Architectural Document (ES/EN)](documentation/architectural_doc_es_en.md)** — GNN data strategy, noise resilience, spin systems rationale.
 * **[Bibliography](documentation/bibliography.md)** — Complete APA reference list.
 * **[V6 Changes](src/poc/v6/CHANGES_V6.md)** — What changed from V4/V5 and why.
-* **[Binnacle](documentation/binnacle.md)** — Experiment log with benchmark results.
+* **[Binnacle N=6](documentation/binnacle-N6.md)** — Complete N=6 experiment log (40+ runs, definitive).
+* **[Binnacle N=10](documentation/binnacle-N10.md)** — N=10 scaling experiments (active).
 
 ---
 
