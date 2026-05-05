@@ -41,7 +41,7 @@ repos:
       - id: codespell
         args: [
           --skip, '*.ipynb,*.npz,*.pt,.venv,*.lock,documentation/*_es.md',
-          --ignore-words-list, 'aer,fases,fase,ser,inicial,vectores,algoritmos,coo,te,potencial,simular,requiere,posible,amplitud,utiliza,doble,hace,barrer,hagas,raison,funcional'
+          --ignore-words-list, 'aer,fases,fase,ser,inicial,vectores,algoritmos,coo,te,potencial,simular,requiere,posible,amplitud,utiliza,doble,hace,barrer,hagas,raison,funcional,imposible,formen'
         ]
         types_or: [python, markdown]
 

@@ -240,3 +240,67 @@ El umbral ΔE < 1e-2 es **aspiracional** — está acotado por el techo de expre
 ---
 
 > 📚 **Bibliografía completa:** Todas las referencias citadas en este documento están consolidadas en [documentation/bibliography.md](bibliography.md).
+
+
+---
+
+## 6. Escalado Computacional: Del PoC a la Utilidad Cuántica
+
+### 6.1 Los Tres Regímenes Computacionales
+
+Nuestro pipeline opera en tres regímenes computacionales distintos, cada uno con capacidades y límites diferentes:
+
+| Régimen | Método | Rango de N | Qué nos da | Limitación |
+|---------|--------|-----------|------------|------------|
+| **Diagonalización exacta** | `np.linalg.eigh` | N ≤ 14 | Espectro completo, ψ_gs exacto, fidelidad | Memoria: O(4^N) — matriz 2^N × 2^N |
+| **Simulación statevector** | `StatevectorEstimator` | N ≤ 20–22 | Energía VQE, fidelidad de estado | Memoria: O(2^N) — solo un vector |
+| **Redes tensoriales (DMRG)** | TeNPy MPS | N ≤ 40–100 (1D) | Energía, gap, observables locales | Solo funciona para estados de bajo entrelazamiento |
+
+La idea clave: **la diagonalización exacta falla en N=15 porque almacena la matriz completa (8 GB), pero la simulación VQE funciona hasta N≈20 porque solo almacena un vector de estado (32 MB en N=15).** Más allá de N=20, incluso almacenar un solo estado cuántico se vuelve imposible clásicamente — aquí es donde el hardware cuántico se vuelve necesario.
+
+### 6.2 Por Qué la Dimensión Espacial lo Cambia Todo
+
+La dimensión del espacio de Hilbert (2^N) depende solo del número de qubits, no de su disposición espacial. Un sistema de 12 qubits tiene un espacio de Hilbert de dimensión 4096 ya sea que esos qubits formen una cadena 1D, una red triangular 2D o un cubo 3D.
+
+Sin embargo, **la dimensión espacial determina cuánto entrelazamiento contiene el estado fundamental**, lo que a su vez determina si los métodos clásicos de redes tensoriales (DMRG) pueden resolverlo:
+
+**Sistemas 1D (cadenas):** El entrelazamiento entre una región y su complemento está acotado por una constante (la "ley de área" en 1D — la frontera son solo dos puntos). Esto significa que el estado fundamental puede comprimirse en un Matrix Product State (MPS) con dimensión de enlace finita. DMRG explota esto para resolver cadenas 1D con N=40–100+ qubits eficientemente.
+
+**Sistemas 2D (triangular, Kagome):** El entrelazamiento escala como el perímetro de la región (ley de área en 2D — la frontera es una línea de longitud L). Para una red cuadrada de lado L, la dimensión de enlace del MPS necesaria crece como e^L — exponencialmente con el ancho del sistema. DMRG se vuelve impracticable para anchos > 4–6. Aquí es precisamente donde el hardware cuántico proporciona su ventaja: un procesador cuántico maneja naturalmente el entrelazamiento exponencial que derrota a los métodos clásicos.
+
+**La ventana de ventaja cuántica:** A medida que la dimensión espacial aumenta, los métodos clásicos fallan en N progresivamente más pequeños, mientras que el límite del QPU se mantiene constante (133 qubits en IBM Torino). Para redes 2D frustradas como Kagome con N > 16–20, ningún método clásico puede encontrar el estado fundamental — solo la simulación cuántica puede.
+
+### 6.3 Impacto en Nuestro Circuito HVA
+
+La dimensión espacial también afecta la complejidad del circuito cuántico a p=2 fijo:
+
+- **Cadena 1D (N=10):** 9 aristas → 18 compuertas RZZ en total. Compacto, bajo ruido.
+- **Escalera (N=10, 5×2):** 13 aristas → 26 compuertas RZZ. Moderado.
+- **Triangular (N=9, 3×3):** 18 aristas → 36 compuertas RZZ. Denso, más ruido.
+- **Kagome (N=12):** ~18 aristas → 36 compuertas RZZ. Denso + frustrado.
+
+Más aristas significa más compuertas de dos qubits por capa, lo que significa más acumulación de ruido en hardware incluso a la misma profundidad p=2. Por esto la restricción de circuito superficial de Mele et al. se vuelve progresivamente más estricta al pasar a 2D: la "profundidad efectiva" (en términos de ruido) aumenta con la conectividad aunque la "profundidad lógica" (p) se mantenga en 2.
+
+### 6.4 La Hoja de Ruta de Escalado
+
+Nuestro pipeline está diseñado para recorrer este paisaje sistemáticamente:
+
+1. **N=6, 10 cadena (completado):** Valida el pipeline de extremo a extremo con diagonalización exacta. Establece líneas base e hiperparámetros óptimos.
+2. **N=6, 10 escalera (siguiente):** Mismo número de qubits pero topología tipo 2D. Prueba la generalización de la MPNN a diferentes topologías sin aumentar el costo computacional.
+3. **N=14 cadena:** Empuja hasta el límite de diagonalización exacta. Prueba si la MPNN escala con N en 1D.
+4. **N=9 triangular, N=12 Kagome:** Redes 2D frustradas verdaderas, aún dentro de diagonalización exacta. Prueba si el pipeline maneja la frustración y mayor conectividad.
+5. **N=20+ escalera (DMRG):** Más allá de diagonalización exacta. La Fase 1 usa DMRG, la métrica de fidelidad deja de estar disponible. Prueba el pipeline en el régimen "real".
+6. **N=36 Kagome (solo QPU):** El objetivo de la tesis. Ningún método clásico puede resolver esto. Solo el pipeline QPU + MPNN warm-start puede caracterizar la fase. Aquí es donde se demuestra la utilidad cuántica.
+
+### 6.5 Qué Cambia en Cada Escala
+
+| Transición | Qué se rompe | Qué hacemos |
+|-----------|--------------|-------------|
+| N=6 → N=10 | La MPNN subajusta (h=64 muy pequeño) | Aumentar a h=128 |
+| N=14 → N=15 | Diag. exacta falla (matriz de 8 GB) | Cambiar Fase 1 a DMRG |
+| N=15 → N=20 | Métrica de fidelidad no disponible (DMRG no da ψ_gs exacto) | Depender solo de ΔE/gap + observables |
+| N=20 → N=22 | VQE statevector falla (RAM) | Fase 2 también debe usar DMRG o hardware |
+| 1D → 2D | DMRG tiene dificultades (entrelazamiento crece con el ancho) | Usar cilindros cuasi-1D o QPU |
+| N>16 2D | Ningún método clásico funciona | QPU es la única opción — utilidad cuántica |
+
+Esta progresión es la narrativa central de la tesis: comenzamos donde los métodos clásicos funcionan (para validar el pipeline), y luego empujamos sistemáticamente hacia regímenes donde solo el hardware cuántico puede proporcionar respuestas.

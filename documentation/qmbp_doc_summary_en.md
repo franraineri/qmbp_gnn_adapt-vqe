@@ -144,3 +144,67 @@ is challenging
 ---
 
 > 📚 **Full bibliography:** All references cited in this document are consolidated in [documentation/bibliography.md](bibliography.md).
+
+
+---
+
+## 6. Computational Scaling: From PoC to Quantum Utility
+
+### 6.1 The Three Computational Regimes
+
+Our pipeline operates across three distinct computational regimes, each with different capabilities and limits:
+
+| Regime | Method | N range | What it gives us | Limitation |
+|--------|--------|---------|-----------------|------------|
+| **Exact diagonalization** | `np.linalg.eigh` | N ≤ 14 | Full spectrum, exact ψ_gs, fidelity | Memory: O(4^N) — 2^N × 2^N matrix |
+| **Statevector simulation** | `StatevectorEstimator` | N ≤ 20–22 | VQE energy, state fidelity | Memory: O(2^N) — one vector only |
+| **Tensor networks (DMRG)** | TeNPy MPS | N ≤ 40–100 (1D) | Energy, gap, local observables | Only works for low-entanglement states |
+
+The key insight: **exact diag fails at N=15 because it stores the full matrix (8 GB), but VQE simulation works up to N≈20 because it only stores one state vector (32 MB at N=15).** Beyond N=20, even storing a single quantum state becomes impossible classically — this is where quantum hardware becomes necessary.
+
+### 6.2 Why Spatial Dimension Changes Everything
+
+The Hilbert space dimension (2^N) depends only on the number of qubits, not their spatial arrangement. A 12-qubit system has a 4096-dimensional Hilbert space whether those qubits form a 1D chain, a 2D triangular lattice, or a 3D cube.
+
+However, **spatial dimension determines how much entanglement the ground state contains**, which in turn determines whether classical tensor network methods (DMRG) can solve it:
+
+**1D systems (chains):** Entanglement between a region and its complement is bounded by a constant (the "area law" in 1D — the boundary is just two points). This means the ground state can be compressed into a Matrix Product State (MPS) with finite bond dimension. DMRG exploits this to solve 1D chains with N=40–100+ qubits efficiently.
+
+**2D systems (triangular, Kagome):** Entanglement scales as the perimeter of the region (area law in 2D — the boundary is a line of length L). For a square lattice of side L, the MPS bond dimension needed grows as e^L — exponentially with system width. DMRG becomes impractical for widths > 4–6. This is precisely where quantum hardware provides its advantage: a quantum processor naturally handles the exponential entanglement that defeats classical methods.
+
+**The quantum advantage window:** As spatial dimension increases, classical methods fail at progressively smaller N, while the QPU limit stays constant (133 qubits on IBM Torino). For 2D frustrated lattices like Kagome with N > 16–20, no classical method can find the ground state — only quantum simulation can.
+
+### 6.3 Impact on Our HVA Circuit
+
+Spatial dimension also affects the quantum circuit complexity at fixed p=2:
+
+- **1D chain (N=10):** 9 edges → 18 RZZ gates total. Compact, low noise.
+- **Ladder (N=10, 5×2):** 13 edges → 26 RZZ gates. Moderate.
+- **Triangular (N=9, 3×3):** 18 edges → 36 RZZ gates. Dense, more noise.
+- **Kagome (N=12):** ~18 edges → 36 RZZ gates. Dense + frustrated.
+
+More edges means more two-qubit gates per layer, which means more noise accumulation on hardware even at the same p=2 depth. This is why the Mele et al. shallow-circuit constraint becomes progressively tighter as we move to 2D: the "effective depth" (in terms of noise) increases with connectivity even though the "logical depth" (p) stays at 2.
+
+### 6.4 The Scaling Roadmap
+
+Our pipeline is designed to traverse this landscape systematically:
+
+1. **N=6, 10 chain (completed):** Validates the pipeline end-to-end with exact diag. Establishes baselines and optimal hyperparameters.
+2. **N=6, 10 ladder (next):** Same qubit count but 2D-like topology. Tests MPNN lattice generalization without increasing computational cost.
+3. **N=14 chain:** Pushes to the exact diag limit. Tests whether the MPNN scales with N in 1D.
+4. **N=9 triangular, N=12 Kagome:** True 2D frustrated lattices, still within exact diag. Tests whether the pipeline handles frustration and higher connectivity.
+5. **N=20+ ladder (DMRG):** Beyond exact diag. Phase 1 uses DMRG, fidelity metric becomes unavailable. Tests the pipeline in the "real" regime.
+6. **N=36 Kagome (QPU only):** The thesis target. No classical method can solve this. Only the QPU + MPNN warm-start pipeline can characterize the phase. This is where quantum utility is demonstrated.
+
+### 6.5 What Changes at Each Scale
+
+| Transition | What breaks | What we do |
+|-----------|-------------|------------|
+| N=6 → N=10 | MPNN underfits (h=64 too small) | Increase to h=128 |
+| N=14 → N=15 | Exact diag fails (8 GB matrix) | Switch Phase 1 to DMRG |
+| N=15 → N=20 | Fidelity metric unavailable (no exact ψ_gs from DMRG) | Rely on ΔE/gap + observables only |
+| N=20 → N=22 | Statevector VQE fails (RAM) | Phase 2 must also use DMRG or hardware |
+| 1D → 2D | DMRG struggles (entanglement grows with width) | Use quasi-1D cylinders or QPU |
+| N>16 2D | No classical method works | QPU is the only option — quantum utility |
+
+This progression is the core narrative of the thesis: we start where classical methods work (to validate the pipeline), then systematically push into regimes where only quantum hardware can provide answers.

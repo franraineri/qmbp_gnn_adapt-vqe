@@ -348,3 +348,181 @@ El circuito cuántico que aproxima el estado fundamental:
 ---
 
 > **Full bibliography / Bibliografía completa:** [documentation/bibliography.md](bibliography.md)
+
+
+---
+
+# Computational Scaling: System Size, Dimension, and Method Limits
+
+## 6. The Exponential Wall — Why Quantum Systems Are Hard (English)
+
+### 6.1 The Hilbert Space Explosion
+
+Every quantum system with N qubits (spins) lives in a Hilbert space of dimension 2^N. This means:
+
+| N (qubits) | Hilbert space dim | Matrix size (dense) | RAM needed | Feasible? |
+|------------|-------------------|--------------------:|------------|-----------|
+| 6 | 64 | 64 × 64 | ~32 KB | ✅ Instant |
+| 10 | 1,024 | 1K × 1K | ~8 MB | ✅ Fast |
+| 14 | 16,384 | 16K × 16K | ~2 GB | ✅ Minutes |
+| 15 | 32,768 | 32K × 32K | ~8 GB | ⚠️ Borderline |
+| 16 | 65,536 | 64K × 64K | ~32 GB | ❌ Most machines fail |
+| 20 | 1,048,576 | 1M × 1M | ~8 TB | ❌ Impossible |
+| 40 | ~10^12 | — | — | ❌ More atoms than in the universe |
+
+This is the fundamental reason quantum computing exists: a 40-qubit quantum processor naturally represents a 10^12-dimensional space that no classical computer can store.
+
+**Critical point:** The N=15 limit in our code (`EXACT_DIAG_QUBIT_LIMIT = 15`) is where `np.linalg.eigh()` — which needs the full 2^N × 2^N matrix in RAM — becomes impractical. This limit is **independent of spatial dimension** — it only depends on the total number of qubits.
+
+### 6.2 Exact Diagonalization vs. Statevector Simulation
+
+There's an important distinction between two operations:
+
+1. **Exact diagonalization** (`np.linalg.eigh`): stores the full 2^N × 2^N Hamiltonian matrix AND computes all eigenvalues/eigenvectors. Memory: O(2^{2N}). Limit: N ≈ 14–15.
+
+2. **Statevector simulation** (`StatevectorEstimator`): stores only ONE 2^N-dimensional vector and applies gates sequentially. Memory: O(2^N). Limit: N ≈ 20–22.
+
+This is why our Phase 2 VQE can still run at N=15–20 even though Phase 1 exact diag cannot: the VQE only needs to evaluate ⟨ψ(θ)|H|ψ(θ)⟩ for one state at a time, not diagonalize the entire matrix.
+
+| Operation | Memory | N limit | Used in |
+|-----------|--------|---------|---------|
+| Exact diag (full spectrum) | O(4^N) | ~14–15 | Phase 1 ground truth |
+| Statevector VQE (one state) | O(2^N) | ~20–22 | Phase 2 optimization |
+| DMRG (tensor network) | O(N × χ²) | ~40–100 (1D) | Phase 1 scaling |
+
+### 6.3 Spatial Dimension: Why It Matters for Classical Methods
+
+The N=15 limit applies equally to 1D chains, 2D lattices, and 3D cubes — the Hilbert space is always 2^N regardless of how the qubits are arranged in space. However, **spatial dimension dramatically affects which classical methods work beyond N=15:**
+
+#### 1D Systems (chains, rings)
+
+In one dimension, quantum entanglement obeys an **area law**: the entanglement between a region and its complement scales as the boundary area, which in 1D is just a constant (two cut points). This means:
+
+- The ground state can be efficiently represented as a **Matrix Product State (MPS)** with finite bond dimension χ.
+- DMRG exploits this structure to find ground states of 1D systems with N=40–100+ qubits in minutes.
+- **For our pipeline:** 1D chains of any length up to N≈40 are tractable via DMRG for Phase 1 ground truth.
+
+#### Quasi-1D Systems (ladders, cylinders)
+
+A two-leg ladder (width W=2) or a cylinder (width W=3–4) is topologically 1D — you can "unroll" it into a chain. The entanglement grows as O(W), which means:
+
+- DMRG still works, but needs larger bond dimension χ ∝ e^W.
+- Practical limit: width W ≤ 4–6, total N up to 40–60.
+- **For our pipeline:** ladders are the natural "stepping stone" from 1D to 2D. They have 2D-like physics (frustration, richer phase diagrams) but remain DMRG-tractable.
+
+#### True 2D Systems (triangular, Kagome, square)
+
+In two dimensions, entanglement scales as the **perimeter** of the region: S ∝ L. For a square lattice of side L, this means:
+
+- MPS bond dimension grows as χ ∝ e^L — exponentially with system width.
+- DMRG becomes impractical for widths > 4–6.
+- The correct tensor network for 2D is **PEPS** (Projected Entangled Pair States), but PEPS contraction is #P-hard (computationally intractable in general).
+- **For our pipeline:** true 2D systems with N > 12–16 cannot be solved exactly by any classical method. This is precisely where quantum hardware provides advantage.
+
+### 6.4 The Dimension-Dependent Scaling Table
+
+| System | Topology | N range (exact diag) | N range (DMRG) | N range (QPU) |
+|--------|----------|---------------------|----------------|---------------|
+| 1D chain | N sites in a line | N ≤ 14 | N ≤ 100 | N ≤ 133 (IBM Torino) |
+| Ladder | 2 × L | N ≤ 14 | N ≤ 40–60 | N ≤ 133 |
+| Triangular | √N × √N | N ≤ 14 | N ≤ 20–30 | N ≤ 133 |
+| Kagome | 3 sites/cell | N ≤ 12 | N ≤ 18–24 | N ≤ 133 |
+| 3D cubic | ∛N × ∛N × ∛N | N ≤ 14 | N ≤ 12–16 | N ≤ 133 |
+
+**Key insight:** As dimension increases, the classical methods fail at smaller N, while the QPU limit stays constant at 133 qubits. The "quantum advantage window" — where QPU can solve problems that classical methods cannot — opens wider in higher dimensions.
+
+### 6.5 Impact on Our HVA Circuit
+
+Spatial dimension also affects the quantum circuit:
+
+- **1D chain (N=10):** 9 edges → 9 RZZ gates per layer → 18 RZZ total at p=2
+- **Ladder (N=10, 5×2):** 13 edges → 13 RZZ gates per layer → 26 RZZ total
+- **Triangular (N=9, 3×3):** 18 edges → 18 RZZ gates per layer → 36 RZZ total
+- **Kagome (N=12):** ~18 edges → 18 RZZ gates per layer → 36 RZZ total
+
+More edges = more two-qubit gates = deeper effective circuit = more noise accumulation on hardware. This is why the Mele et al. p≤2 constraint becomes tighter in 2D: even at p=2, a Kagome lattice has 2x more gates than a 1D chain of the same N.
+
+### 6.6 Our Scaling Roadmap
+
+```
+N=6 chain (done)     → N=10 chain (done)     → N=14 chain (exact diag limit)
+     ↓                      ↓                        ↓
+N=6 ladder (next)    → N=10 ladder (next)    → N=20 ladder (DMRG)
+     ↓                      ↓                        ↓
+N=9 triangular       → N=12 Kagome           → N=36 Kagome (QPU only)
+(exact diag)           (exact diag limit)       (thesis target: quantum utility)
+```
+
+Each step tests a different aspect:
+- Horizontal (→): scaling N within the same topology
+- Vertical (↓): increasing dimension/frustration at the same N
+- The final target (N=36 Kagome) is where no classical method works — only the QPU + MPNN warm-start pipeline can characterize the phase.
+
+---
+
+## 6. La Pared Exponencial — Por Qué los Sistemas Cuánticos Son Difíciles (Español)
+
+### 6.1 La Explosión del Espacio de Hilbert
+
+Todo sistema cuántico con N qubits (espines) vive en un espacio de Hilbert de dimensión 2^N:
+
+| N (qubits) | Dimensión | Tamaño de matriz | RAM necesaria | ¿Factible? |
+|------------|-----------|-----------------|---------------|------------|
+| 6 | 64 | 64 × 64 | ~32 KB | ✅ Instantáneo |
+| 10 | 1,024 | 1K × 1K | ~8 MB | ✅ Rápido |
+| 14 | 16,384 | 16K × 16K | ~2 GB | ✅ Minutos |
+| 15 | 32,768 | 32K × 32K | ~8 GB | ⚠️ Límite |
+| 20 | 1,048,576 | 1M × 1M | ~8 TB | ❌ Imposible |
+
+El límite N=15 en nuestro código es donde `np.linalg.eigh()` se vuelve impracticable. Este límite es **independiente de la dimensión espacial** — solo depende del número total de qubits.
+
+### 6.2 Diagonalización Exacta vs. Simulación Statevector
+
+1. **Diagonalización exacta** (`np.linalg.eigh`): almacena la matriz completa 2^N × 2^N. Memoria: O(4^N). Límite: N ≈ 14–15.
+
+2. **Simulación statevector** (`StatevectorEstimator`): almacena UN solo vector de dimensión 2^N. Memoria: O(2^N). Límite: N ≈ 20–22.
+
+Por esto la Fase 2 (VQE) funciona hasta N=20 aunque la Fase 1 (diag. exacta) no pueda: el VQE solo necesita evaluar ⟨ψ(θ)|H|ψ(θ)⟩ para un estado a la vez.
+
+### 6.3 Dimensión Espacial: Por Qué Importa para Métodos Clásicos
+
+#### Sistemas 1D (cadenas)
+
+El entrelazamiento obedece una **ley de área**: en 1D, la frontera es constante (dos puntos de corte). El estado fundamental se representa eficientemente como un **Matrix Product State (MPS)**. DMRG explota esto para resolver cadenas de N=40–100+ qubits.
+
+#### Sistemas cuasi-1D (escaleras, cilindros)
+
+Una escalera de dos patas es topológicamente 1D. El entrelazamiento crece como O(W) con el ancho W. DMRG funciona hasta ancho W ≤ 4–6, N total hasta 40–60.
+
+#### Sistemas 2D verdaderos (triangular, Kagome)
+
+En 2D, el entrelazamiento escala como el **perímetro**: S ∝ L. La dimensión de enlace del MPS crece exponencialmente con el ancho del sistema. DMRG se vuelve impracticable para anchos > 4–6. La red tensorial correcta para 2D es **PEPS**, pero su contracción es #P-hard.
+
+**Para nuestro pipeline:** los sistemas 2D con N > 12–16 no pueden resolverse exactamente por ningún método clásico. Aquí es precisamente donde el hardware cuántico proporciona ventaja.
+
+### 6.4 Impacto en Nuestro Circuito HVA
+
+La dimensión espacial afecta el circuito cuántico:
+
+- **Cadena 1D (N=10):** 9 aristas → 9 compuertas RZZ por capa → 18 RZZ total a p=2
+- **Escalera (N=10, 5×2):** 13 aristas → 13 RZZ por capa → 26 RZZ total
+- **Triangular (N=9, 3×3):** 18 aristas → 18 RZZ por capa → 36 RZZ total
+
+Más aristas = más compuertas de dos qubits = circuito efectivamente más profundo = más acumulación de ruido en hardware. Por esto la restricción de Mele et al. (p≤2) se vuelve más estricta en 2D.
+
+### 6.5 Nuestra Hoja de Ruta de Escalado
+
+```
+N=6 cadena (hecho)   → N=10 cadena (hecho)   → N=14 cadena (límite diag. exacta)
+     ↓                      ↓                        ↓
+N=6 escalera (próx.) → N=10 escalera (próx.) → N=20 escalera (DMRG)
+     ↓                      ↓                        ↓
+N=9 triangular       → N=12 Kagome           → N=36 Kagome (solo QPU)
+(diag. exacta)         (límite diag. exacta)    (objetivo tesis: utilidad cuántica)
+```
+
+El objetivo final (N=36 Kagome) es donde ningún método clásico funciona — solo el pipeline QPU + MPNN warm-start puede caracterizar la fase.
+
+---
+
+> **Full bibliography / Bibliografía completa:** [documentation/bibliography.md](bibliography.md)
