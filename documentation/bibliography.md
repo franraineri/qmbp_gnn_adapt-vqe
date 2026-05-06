@@ -148,6 +148,8 @@ Vicentini, F., Hofmann, D., Szabó, A., Wu, D., Roth, C., Giuliani, C., Pescia, 
 
 Paszke, A., Gross, S., Massa, F., Lerer, A., Bradbury, J., Chanan, G., Killeen, T., Lin, Z., Gimelshein, N., Antiga, L., Desmaison, A., Köpf, A., Yang, E., DeVito, Z., Raison, M., Tejani, A., Chilamkurthy, S., Steiner, B., Fang, L., … Chintala, S. (2019). PyTorch: An imperative style, high-performance deep learning library. *Advances in Neural Information Processing Systems*, *32*.
 
+Fey, M., & Lenssen, J. E. (2019). Fast graph representation learning with PyTorch Geometric. *ICLR Workshop on Representation Learning on Graphs and Manifolds*. https://arxiv.org/abs/1903.02428 *(The framework used for our MPNN predictor. Provides GINConv, global_mean_pool, and Data abstractions.)*
+
 Zhang, S.-X., Allcock, J., Wan, Z.-Q., Liu, S., Sun, J., Yu, H., Yang, X.-H., Qiu, J., Ye, Z., Chen, Y.-Q., Lee, C.-K., Zheng, Y.-C., Jian, S.-K., Yao, H., Hsieh, C.-Y., & Zhang, S. (2023). TensorCircuit: A quantum software framework for the NISQ era. *Quantum*, *7*, 912. https://doi.org/10.22331/q-2023-02-02-912
 
 ---
@@ -229,3 +231,45 @@ Slavin, V. (2025). Graph neural network approach to predicting magnetization in 
 Xu, K., Hu, W., Leskovec, J., & Jegelka, S. (2019). How powerful are graph neural networks? *Proceedings of the 7th International Conference on Learning Representations (ICLR)*. https://arxiv.org/abs/1810.00826 *(Theoretical foundation for GINConv — proves GIN is as powerful as the Weisfeiler-Lehman test. Justifies our architectural choice of GINConv for the MPNN predictor.)*
 
 Gilmer, J., Schoenholz, S. S., Riley, P. F., Vinyals, O., & Dahl, G. E. (2017). Neural message passing for quantum chemistry. *Proceedings of the 34th International Conference on Machine Learning (ICML)*, *70*, 1263–1272. https://arxiv.org/abs/1704.01212 *(Foundational MPNN framework paper. Unifies GNN variants under message passing paradigm. Establishes the theoretical basis for our MPNN predictor architecture.)*
+
+Kochkov, D., Pfaff, T., Sanchez-Gonzalez, A., Battaglia, P., & Clark, B. K. (2021). Learning ground states of quantum Hamiltonians with graph networks. *arXiv preprint arXiv:2110.06390*. https://arxiv.org/abs/2110.06390 *(GNN as variational manifold for ground states of diverse Heisenberg Hamiltonians. Respects physical symmetries by construction and generalizes to larger systems. Validates graph-based approach for spin Hamiltonians.)*
+
+---
+
+## 21. GNN-Enhanced VQE Generalization
+
+Lee, J. et al. (2026). Improving generalization and trainability of quantum eigensolvers via graph neural encoding. *arXiv preprint arXiv:2602.19752*. https://arxiv.org/abs/2602.19752 *(Graph autoencoder + NN generates VQE parameters that generalize across Hamiltonian instances without instance-specific optimization. Demonstrates reduced gradient variance and improved trainability on 1- and 2-local Hamiltonians. Directly validates our MPNN-for-VQE paradigm.)*
+
+Huang, H.-Y., Kueng, R., Torlai, G., Albert, V. V., & Preskill, J. (2022). Provably efficient machine learning for quantum many-body problems. *Science*, *377*(6613), eabk3333. https://doi.org/10.1126/science.abk3333 *(Proves classical ML can efficiently predict ground-state properties of gapped Hamiltonians after learning from other Hamiltonians in the same phase. Theoretical foundation for our MPNN's ability to generalize across h-values within a phase.)*
+
+---
+
+## 22. IBM Hardware Benchmarks & Error Mitigation (Phase 4 References)
+
+Aharonov, D., Bairey, E., Lindner, N. H., et al. (2026). Reliable high-accuracy error mitigation for utility-scale quantum circuits. *arXiv preprint arXiv:2508.10997*. https://arxiv.org/abs/2508.10997 *(QESEM framework on IBM Heron — resolves ZNE vs PEC tradeoff. Tested on kicked TFIM. Achieves higher accuracy than ZNE with lower overhead than PEC. Directly applicable to our Phase 4 deployment.)*
+
+Kiiamov, A. G. et al. (2026). Simulating Wigner localisation with the IBM Heron 2 quantum processor: A proof-of-principle benchmarking study. *arXiv preprint arXiv:2601.01263*. https://arxiv.org/abs/2601.01263 *(6-qubit VQE on IBM Heron 2 achieving <7% relative error. Validates that current IBM hardware can produce meaningful VQE results for strongly correlated systems at our system size.)*
+
+Larrucea, J. et al. (2026). Accuracy-cost trade-offs for reference VQE calculations of H₂ on IBM Quantum hardware. *arXiv preprint arXiv:2604.11478*. https://arxiv.org/abs/2604.11478 *(Comprehensive benchmark of shot count, backend choice, optimization strategy on IBM processors in 2026. Finds circuit simplification provides most consistent accuracy gains; resilience level 1 improves accuracy at substantial cost. Practical guidance for our Phase 4 configuration.)*
+
+---
+
+## 23. VQE Optimization Techniques & Datasets
+
+Peng, Y. et al. (2025). TITAN: A trajectory-informed technique for adaptive parameter freezing in large-scale VQE. *NeurIPS 2025*. https://arxiv.org/abs/2509.15193 *(Deep learning identifies and freezes inactive VQE parameters at initialization. 3× faster convergence, 40-60% fewer circuit evaluations. Tested on TFIM and Heisenberg models up to 30 qubits. Could reduce our Phase 2 VQE cost.)*
+
+Chen, F. et al. (2025). VQEzy: An open-source dataset for parameter initialization in variational quantum eigensolvers. *arXiv preprint arXiv:2509.17322*. https://arxiv.org/abs/2509.17322 *(First large-scale VQE initialization dataset: 12,110 instances across 7 tasks with full optimization trajectories. Could provide pre-training data for our MPNN or serve as external validation benchmark.)*
+
+---
+
+## 24. Kagome Lattice & Frustrated Systems on Quantum Hardware
+
+Ahsan, M. et al. (2025). Utility-scale quantum computation of ground-state energy in a 100+ site planar Kagome antiferromagnet via Hamiltonian engineering. *arXiv preprint arXiv:2507.06361*. https://arxiv.org/abs/2507.06361 *(103-site Kagome VQE on IBM Heron r1/r2. Hybrid local-classical + global-quantum VQE split. Per-site energy -0.417J matches thermodynamic limit. Validates IBM Heron for utility-scale frustrated 2D systems — directly relevant to our Kagome scaling target.)*
+
+Weaving, T. et al. (2025). Simulating the antiferromagnetic Heisenberg model on a spin-frustrated Kagome lattice with the contextual subspace variational quantum eigensolver. *arXiv preprint arXiv:2506.12391*. https://arxiv.org/abs/2506.12391 *(Kagome VQE on NISQ with DMRG-biased contextual subspaces. Qubit reduction + REM + SV + ZNE achieves 0.01% energy error. Validates DMRG + VQE hybrid approach for frustrated systems.)*
+
+---
+
+## 25. VQE Optimizer Benchmarking
+
+Singh, M. et al. (2025). Statistical benchmarking of optimization methods for variational quantum eigensolver under quantum noise. *arXiv preprint arXiv:2510.08727*. https://arxiv.org/abs/2510.08727 *(Comprehensive benchmark: BFGS achieves most accurate energies with minimal evaluations, robust under moderate decoherence. COBYLA good for low-cost approximations. SLSQP unstable under noise. Validates our L-BFGS-B choice for noiseless Phase 2 and COBYLA recommendation for hardware Phase 4.)*

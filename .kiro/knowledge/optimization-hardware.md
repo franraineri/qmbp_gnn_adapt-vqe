@@ -47,35 +47,88 @@ HVA p=2 + |+⟩^N cannot reach ferromagnetic ground state (h→0 = |000...0⟩).
 
 ## Error Mitigation Strategy (Literature-Informed)
 
-### Standard ZNE (Gate Folding)
-- Insert identity-equivalent gate pairs to amplify noise: 1x, 2x, 3x
-- Extrapolate to 0x noise via linear/polynomial fit
-- Overhead: 3× circuit executions
+### Qiskit Runtime Resilience Levels (IBM Official)
 
-### Inhomogeneous ZNE (Uvarov et al. 2024) — PREFERRED
-- Exploit non-uniform error rates across IBM chip (different qubits have different T1/T2)
-- Transpile same circuit with different qubit mappings → different total Circuit Error Sum (CES)
-- Linear energy-CES extrapolation to zero CES
-- Advantage: no gate folding needed, uses natural hardware noise variation
-- Implementation: multiple calls to `generate_preset_pass_manager()` with different `initial_layout`
+| Level | Techniques Enabled | Overhead | Use Case |
+|-------|-------------------|----------|----------|
+| 0 | None | 1× | Debugging, raw noise characterization |
+| 1 | TREX (measurement mitigation) | ~1.5× | Baseline — always use at minimum |
+| 2 | TREX + ZNE + Pauli twirling | ~3× | **Recommended for our Phase 4** |
+| 3 | TREX + PEC | 10-100× | Unbiased but expensive — future work |
+
+### Recommended Configuration for Phase 4
+
+```python
+from qiskit_ibm_runtime import EstimatorV2, Options
+
+options = Options()
+# Error suppression (free)
+options.dynamical_decoupling.enable = True
+options.dynamical_decoupling.sequence_type = "XpXm"  # or "XY4"
+# Twirling (converts coherent → stochastic noise)
+options.twirling.enable_gates = True
+options.twirling.num_randomizations = 32
+options.twirling.shots_per_randomization = 256  # total = 32×256 = 8192 shots
+# Error mitigation
+options.resilience.measure_mitigation = True  # TREX
+options.resilience.zne_mitigation = True  # ZNE
+options.resilience.zne.noise_factors = [1, 2, 3]
+options.resilience.zne.extrapolator = "exponential"
+# For PEA (more accurate noise amplification):
+# options.resilience.pea = True  # requires noise learning phase
+```
+
+### IBM Heron r2 vs Eagle r3 (2026 Status)
+
+| Property | Eagle r3 (ibm_torino) | Heron r2 (ibm_kingston) |
+|----------|----------------------|------------------------|
+| Qubits | 133 | 156 |
+| Connectivity | Heavy-hex, fixed-frequency | Heavy-hex, tunable couplers |
+| 2Q gate error | ~0.3-0.5% | ~0.1-0.2% |
+| 2Q gate type | ECR | CZ (via tunable coupler) |
+| Crosstalk | Higher (fixed coupling) | Lower (tunable isolation) |
+| Best for | Larger circuits, more qubits | Higher fidelity, fewer qubits |
+
+**Recommendation**: If available, prefer Heron r2 for our N=6-10 circuits (fewer qubits needed, higher fidelity matters more). Use Eagle r3 for N=20+ scaling.
+
+### GADD: Learned Dynamical Decoupling (Qiskit Community Package)
+
+```bash
+pip install gadd  # Qiskit community package
+```
+
+```python
+from gadd import GADD
+# Optimize DD sequences for specific backend + circuit
+gadd = GADD(backend=backend)
+optimized_sequences = gadd.optimize(circuit, num_generations=50)
+```
+
+Alternative: use built-in sequences ("XX", "XpXm", "XY4") via `options.dynamical_decoupling.sequence_type`.
+
+### Inhomogeneous ZNE (Uvarov et al. 2024)
+- Transpile same circuit with different `initial_layout` values
+- Each layout maps to qubits with different error rates → different CES
+- Linear extrapolation of energy vs CES to zero
+- Implementation: multiple `generate_preset_pass_manager()` calls with `initial_layout=[...]`
 
 ### NN-Enhanced ZNE (Sun et al. 2025)
-- Replace linear/polynomial extrapolation with 2-layer MLP
-- Train on (noise_level, energy) pairs from multiple noise amplification runs
-- Constrains errors to O(10⁻²)–O(10⁻¹) vs O(10⁻¹) for standard ZNE
-- Implementation: after collecting ZNE data points, fit `MLPRegressor(hidden_layer_sizes=(16,8))` instead of `np.polyfit`
+- After collecting ZNE data at noise factors [1, 2, 3], fit MLP instead of polynomial
+- `sklearn.neural_network.MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=1000)`
+- Constrains errors to O(10⁻²) vs O(10⁻¹) for standard linear/exponential fit
 
-### Dynamical Decoupling (Pokharel et al. 2025)
-- Genetic algorithm finds device-specific DD sequences outperforming canonical XY4/CPMG
-- Scales to 100 qubits, generalizes from small sub-circuits
-- Free improvement (no extra shots, no extra circuit depth)
-- Implementation: use Qiskit `PadDynamicalDecoupling` pass with optimized sequences
+### QESEM Framework (Aharonov et al. 2026)
+- Resolves ZNE vs PEC tradeoff: quasi-probabilistic mitigation with reduced overhead
+- Tested on kicked TFIM on IBM Heron — directly applicable
+- Higher accuracy than ZNE, lower cost than PEC
+- Not yet in Qiskit Runtime — requires custom implementation or Classiq SDK
 
-### U-VQNHE Post-Processing (Kim et al. 2026)
-- Learnable diagonal reweighting of measurement outcomes
-- Variational safety guaranteed (never sub-variational)
-- Tested on TFIM — directly applicable
-- Implementation: classical post-processing of raw measurement counts
+### Utility-Scale Kagome Reference (Ahsan et al. 2025)
+- 103-site Kagome on IBM Heron r1/r2 with single-repetition HEA
+- Hybrid local(classical) + global(quantum) VQE split
+- Hamiltonian engineering to simplify ansatz
+- Per-site energy: -0.417J (matches thermodynamic limit after boundary corrections)
+- **Validates**: IBM Heron can handle frustrated 2D systems at utility scale
 
 ## Shot Noise Analysis (Sharma 2026)
 

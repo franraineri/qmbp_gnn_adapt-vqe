@@ -109,12 +109,48 @@ estimator = StatevectorEstimator()
 bound_qc = circuit.assign_parameters(theta)
 energy = float(estimator.run([(bound_qc, hamiltonian)]).result()[0].data.evs)
 
-# HARDWARE execution
-from qiskit_ibm_runtime import EstimatorV2
+# HARDWARE execution (Phase 4 — IBM Torino/Heron)
+from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+service = QiskitRuntimeService(channel="ibm_quantum_platform",
+                               token=os.environ["IBM_KEY"],
+                               instance=os.environ["IBM_INSTANCE_CRN"])
+backend = service.backend("ibm_torino")
+
+# Transpile
 pm = generate_preset_pass_manager(backend=backend, optimization_level=2)
-isa_qc = pm.run(circuit)
-isa_obs = hamiltonian.apply_layout(isa_qc.layout)
-estimator = EstimatorV2(backend)
-energy = float(estimator.run([(isa_qc, isa_obs)]).result()[0].data.evs)
+isa_qc = pm.run(circuit.assign_parameters(theta))
+isa_obs = [obs.apply_layout(isa_qc.layout) for obs in observables]
+
+# Configure error mitigation (resilience level 2 = TREX + ZNE + twirling)
+estimator = EstimatorV2(mode=backend)
+estimator.options.dynamical_decoupling.enable = True
+estimator.options.dynamical_decoupling.sequence_type = "XpXm"
+estimator.options.twirling.enable_gates = True
+estimator.options.twirling.num_randomizations = 32
+estimator.options.twirling.shots_per_randomization = 256  # 8192 total
+estimator.options.resilience.measure_mitigation = True  # TREX
+estimator.options.resilience.zne_mitigation = True
+estimator.options.resilience.zne.noise_factors = [1, 2, 3]
+estimator.options.resilience.zne.extrapolator = "exponential"
+
+# Execute
+job = estimator.run([(isa_qc, isa_obs)])
+result = job.result()
+energies = [r.data.evs for r in result]
+```
+
+## Phase 4: Observable Grouping (Shot Efficiency)
+
+```python
+# All ⟨X_i⟩ commute — single measurement basis
+x_obs = [SparsePauliOp.from_sparse_list([("X", [i], 1.0)], num_qubits=N) for i in range(N)]
+
+# All ⟨Z_iZ_{i+1}⟩ commute — single measurement basis
+zz_obs = [SparsePauliOp.from_sparse_list([("ZZ", [i, i+1], 1.0)], num_qubits=N) for i in range(N-1)]
+
+# Submit as grouped observables (Qiskit groups commuting automatically)
+all_obs = x_obs + zz_obs  # 2 measurement bases total, not N+N-1 circuits
+job = estimator.run([(isa_qc, all_obs)])
 ```

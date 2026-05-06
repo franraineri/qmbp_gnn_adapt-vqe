@@ -13,6 +13,40 @@
 
 - H = J_leg Σ ZᵢZⱼ (legs) + J_rung Σ ZᵢZⱼ (rungs) + h Σ Xᵢ
 - DMRG-friendly, MPS efficient. Fallback from full 2D.
+- Bond dimension scaling: χ ∝ e^W (W = ladder width). W=2: χ~50-100 sufficient. W=4: χ~500+.
+- TeNPy: use `Ladder` lattice class with `Lx` (length) and `Ly=2` (width)
+- Phase diagram richer than 1D chain: rung-singlet phase, Haldane-like phases possible
+- MPNN transfer: graph structure changes (degree 3 vs degree 2) — expect fine-tuning needed
+
+## Kagome Lattice (2D Frustrated)
+
+- Triangular arrangement with 3 sites per unit cell, coordination number z=4
+- Antiferromagnetic Heisenberg: ground state is candidate quantum spin liquid (QSL)
+- No local order parameter — characterized by topological entanglement entropy
+- DMRG: practical up to N~24-36 with χ~2000-4000 (Yan et al. 2011, Depenbrock et al. 2012)
+- **IBM Heron achievement** (Ahsan et al. 2025): 103-site Kagome VQE on Heron r1/r2
+  - Hybrid local(classical) + global(quantum) VQE split
+  - Single-repetition HEA with Hamiltonian engineering
+  - Per-site energy: -0.417J (matches thermodynamic limit)
+- **Contextual Subspace VQE** (Weaving et al. 2025): Kagome on NISQ with DMRG-biased subspaces
+  - Qubit reduction via contextual subspace methodology
+  - REM + SV + ZNE error mitigation → 0.01% energy error
+  - Validates: DMRG + VQE hybrid approach works for frustrated systems
+- Our scaling target: N=12 (exact diag limit) → N=36 (QPU only)
+
+## Scaling Roadmap (Updated with Literature)
+
+| System | N | Method | Status | Reference |
+|--------|---|--------|--------|-----------|
+| 1D chain | 6 | Exact diag + VQE | ✅ Done (5/6 at h=1.5) | Our binnacle |
+| 1D chain | 10 | Exact diag + VQE | ✅ Done (3/6 at h=1.5) | Our binnacle |
+| Ladder (2-leg) | 6 | Exact diag + VQE | 🔜 Next | — |
+| Ladder (2-leg) | 10 | Exact diag + VQE | 🔜 Planned | — |
+| 1D chain | 14 | Exact diag limit | Planned | — |
+| Ladder (2-leg) | 20 | DMRG + VQE | Future | — |
+| Kagome | 12 | Exact diag + VQE | Future | — |
+| Kagome | 36 | QPU only | Thesis target | Ahsan 2025 validates feasibility |
+| Kagome | 103 | QPU (Heron) | Literature | Ahsan et al. 2025 |
 
 ## Order Parameters
 

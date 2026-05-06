@@ -14,6 +14,14 @@ Nakaji, K., Kristensen, L. B., Kemmoku, R., Campos-Gonzalez-Angulo, J. A., Vakil
 
 ---
 
+### SpinGQE: Generative Eigensolver for Spin Hamiltonians
+
+Dade, N. O. O. et al. (2026). SpinGQE: A generative quantum eigensolver for spin Hamiltonians. *arXiv preprint arXiv:2603.24298*. https://arxiv.org/abs/2603.24298
+
+**Relevance:** Extends GQE specifically to spin Hamiltonians (our domain). Transformer decoder learns distributions over quantum circuits for low-energy states. Validated on 4-qubit Heisenberg model. Navigates energy landscapes without problem-specific symmetries. Open-source implementation available. Directly applicable alternative to our MPNN + VQE approach.
+
+---
+
 ### Tensor-Train Hypernetworks
 
 Nature Publishing Group. (2025). TensorHyper-VQC: A tensor-train-guided hypernetwork for robust and scalable variational quantum computing. *npj Quantum Information*. https://www.nature.com/articles/s41534-025-01157-z
@@ -173,11 +181,15 @@ arXiv:2603.18479. (2026). Barren plateaus beyond observable concentration. https
 | Technique | Paper | Potential Impact | Effort |
 |-----------|-------|-----------------|--------|
 | GQE (transformer circuit generation) | Nakaji et al. 2025 | High — paradigm shift from optimization to generation | High |
+| SpinGQE (spin-specific generative) | Dade et al. 2026 | High — directly targets our domain | Medium |
 | U-VQNHE (neural post-processing) | Kim et al. 2026 | Medium — improves hardware results | Low |
 | TN pre-optimization for 2D | Martin et al. 2026 | High — enables 2D scaling | Medium |
+| TITAN (parameter freezing) | Peng et al. 2025 | Medium — reduces VQE cost 40-60% | Low |
+| QESEM (utility-scale mitigation) | Aharonov et al. 2026 | High — better than ZNE on IBM Heron | Medium |
 | Shadow tomography + time-series ML | Ye et al. 2025 | Medium — alternative classification | Medium |
 | DTC quantum reservoir | Yin et al. 2025 | Medium — better reservoir dynamics | Medium |
 | Attention + VAE unsupervised | Li et al. 2026 | Low-Medium — complementary detection | Low |
+| VQEzy dataset | Chen et al. 2025 | Low — pre-training data / benchmark | Low |
 
 ---
 

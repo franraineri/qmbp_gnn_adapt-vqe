@@ -150,7 +150,8 @@ Data flows between notebooks via `phase1_phase2_tfim_N6_p2_v6.npz`. Run Phase 1-
 * **[Project Summary (English)](documentation/qmbp_doc_summary_en.md)** — Physics problem, hybrid solution, implementation by phase, bibliography.
 * **[Resumen del Proyecto (Español)](documentation/qmbp_doc_summary_es.md)** — Versión completa en español.
 * **[Architectural Document (ES/EN)](documentation/architectural_doc_es_en.md)** — GNN data strategy, noise resilience, spin systems rationale, QPU execution analysis, computational scaling.
-* **[Bibliography](documentation/bibliography.md)** — Complete APA reference list (20 sections, 60+ papers).
+* **[Thesis Structure Guide](documentation/thesis-structure-guide.md)** — Chapter outline, framing guidelines, reviewer Q&A.
+* **[Bibliography](documentation/bibliography.md)** — Complete APA reference list (24 sections, 70+ papers).
 * **[Alternative Bibliography](documentation/alternative_bibliography.md)** — Alternative techniques and methodologies to consider for future work.
 * **[V6 Changes](src/poc/v6/CHANGES_V6.md)** — What changed from V4/V5 and why.
 * **[Binnacle N=6](documentation/binnacle-N6.md)** — Complete N=6 experiment log (40+ runs, definitive).
