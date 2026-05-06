@@ -41,6 +41,52 @@ HVA p=2 + |+⟩^N cannot reach ferromagnetic ground state (h→0 = |000...0⟩).
 - [ ] Noise budget: p=1 (~12 2q gates) OK; p=2 (~24 2q gates) marginal
 - [ ] If ΔE > 5% of gap → fall back to p=1
 - [ ] Log: backend, calibration date, job ID, raw + mitigated results
+- [ ] Shot budget ≥ 8192 (shot noise ~1/√shots must be < ⟨X⟩ signal ~8e-3)
+- [ ] Learned DD sequences via Qiskit DD pass manager (Pokharel et al. 2025)
+- [ ] Inhomogeneous ZNE: multiple qubit mappings for natural noise scaling (Uvarov et al. 2024)
+
+## Error Mitigation Strategy (Literature-Informed)
+
+### Standard ZNE (Gate Folding)
+- Insert identity-equivalent gate pairs to amplify noise: 1x, 2x, 3x
+- Extrapolate to 0x noise via linear/polynomial fit
+- Overhead: 3× circuit executions
+
+### Inhomogeneous ZNE (Uvarov et al. 2024) — PREFERRED
+- Exploit non-uniform error rates across IBM chip (different qubits have different T1/T2)
+- Transpile same circuit with different qubit mappings → different total Circuit Error Sum (CES)
+- Linear energy-CES extrapolation to zero CES
+- Advantage: no gate folding needed, uses natural hardware noise variation
+- Implementation: multiple calls to `generate_preset_pass_manager()` with different `initial_layout`
+
+### NN-Enhanced ZNE (Sun et al. 2025)
+- Replace linear/polynomial extrapolation with 2-layer MLP
+- Train on (noise_level, energy) pairs from multiple noise amplification runs
+- Constrains errors to O(10⁻²)–O(10⁻¹) vs O(10⁻¹) for standard ZNE
+- Implementation: after collecting ZNE data points, fit `MLPRegressor(hidden_layer_sizes=(16,8))` instead of `np.polyfit`
+
+### Dynamical Decoupling (Pokharel et al. 2025)
+- Genetic algorithm finds device-specific DD sequences outperforming canonical XY4/CPMG
+- Scales to 100 qubits, generalizes from small sub-circuits
+- Free improvement (no extra shots, no extra circuit depth)
+- Implementation: use Qiskit `PadDynamicalDecoupling` pass with optimized sequences
+
+### U-VQNHE Post-Processing (Kim et al. 2026)
+- Learnable diagonal reweighting of measurement outcomes
+- Variational safety guaranteed (never sub-variational)
+- Tested on TFIM — directly applicable
+- Implementation: classical post-processing of raw measurement counts
+
+## Shot Noise Analysis (Sharma 2026)
+
+| Shots | Statistical uncertainty | Sufficient for ⟨X⟩ ~8e-3? |
+|-------|------------------------|---------------------------|
+| 1024 | ~3.1e-2 | ❌ Noise dominates signal |
+| 4096 | ~1.6e-2 | ❌ Noise ≈ signal |
+| 8192 | ~1.1e-2 | ⚠️ Borderline |
+| 16384 | ~7.8e-3 | ✅ Signal > noise |
+
+Recommendation: use 8192 shots minimum for Phase 4. Group commuting observables to reduce total circuit executions.
 
 ## Numerical Limits
 

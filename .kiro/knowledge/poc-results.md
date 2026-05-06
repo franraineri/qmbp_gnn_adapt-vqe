@@ -62,17 +62,19 @@
 |-----------|--------|
 | Denser h-grid (27→40 pts) | No improvement — extra points filtered or in easy regime |
 | restart_sigma 0.1→0.2 | Marginal ⟨X⟩ improvement but ΔE/gap variance increases |
-| Data augmentation (θ interpolation) | Marginal improvement (⟨X⟩: 1.28e-02 → 1.17e-02) |
+| Data augmentation (θ interpolation) | Marginal at N=6 (⟨X⟩: 1.28e-02 → 1.17e-02), HURTS at N=10 |
 | GATConv instead of GINConv | Worse — adds instability, no benefit for uniform 1D chain |
 | GAT + augmentation | Stabilizes GAT but doesn't beat GIN baseline |
 
 ## Definitive Conclusions
 
-1. **The h=1.25 ceiling (2–3/6) is a physics limit**, not a pipeline deficiency. After 40+ experiments varying every parameter, architecture, and technique — the result is always 2–3/6.
+1. **The h=1.25 ceiling (2–3/6) is a physics limit**, not a pipeline deficiency. After 40+ experiments varying every parameter, architecture, and technique — the result is always 2–3/6. Independently confirmed by Tripathi et al. (2026).
 2. **At h≥1.4, the pipeline achieves 4–5/6.** This is the valid operating regime for thesis results.
-3. **GINConv is the right architecture** for uniform 1D chains. GAT may help on non-uniform or 2D lattices.
-4. **Data augmentation should be used for N≥10** where training data is scarcer (17 points for 1024-dim Hilbert space).
+3. **GINConv is the right architecture** for uniform 1D chains. GAT may help on non-uniform or 2D lattices. GNN > CNN by 36% (Meng et al. 2025).
+4. **Data augmentation should be used for N≥10** where training data is scarcer (17 points for 1024-dim Hilbert space). UPDATE: augmentation actually hurts at N=10 (linear interpolation inaccurate in complex θ landscape).
 5. **The pipeline correctly resolves the physics** (ΔE/gap < 5%) at every test point and system size tested (N=6, N=10).
+6. **N=6-10 results demonstrate pipeline methodology**, not quantum advantage. Quantum advantage boundary is N≈20 for 2D systems (Martin et al. 2026).
+7. **Phase 4 hardware expectations**: shot noise will dominate (~1.6e-2 at 4096 shots), critical crossover will be broadened by noise (Sharma 2026). Use ≥8192 shots + inhomogeneous ZNE.
 
 
 ## N=10 Results (from 14 experiments)

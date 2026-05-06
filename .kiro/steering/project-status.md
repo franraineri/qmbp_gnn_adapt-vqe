@@ -5,9 +5,19 @@ V6.0 modular architecture is complete, validated, and exhaustively benchmarked. 
 
 ## Current Priority
 1. Test MPNN on **ladder topology** (N=6 ladder) to validate lattice-agnostic generalization.
-2. Scale to **N=10 with augmentation** (use `--augment` flag) to improve MPNN predictions.
+2. Scale to **N=10** — use `--mpnn-hidden 128` (augmentation hurts at N=10, confirmed by binnacle).
 3. Prepare thesis results chapter with the benchmark data.
 4. Hardware deployment on IBM Torino (Phase 4 with EstimatorV2 + ZNE).
+5. Implement **inhomogeneous ZNE** (Uvarov et al. 2024) — multiple qubit mappings for natural noise scaling.
+6. Add **learned DD sequences** (Pokharel et al. 2025) via Qiskit DD pass manager.
+
+## Literature-Informed Insights (see `.kiro/knowledge/literature-synthesis.md`)
+- h=1.25 ceiling confirmed as physics limit by Tripathi et al. 2026 (independent validation)
+- Hardware noise will broaden critical crossover (Sharma 2026) — expected, not a failure
+- GNN > CNN by 36% for circuit property prediction (Meng 2025) — validates GINConv
+- Shot noise (~1.6e-2 at 4096 shots) will dominate over gate errors on hardware
+- MPNN weights may encode phase transition info (Hernandes 2025) — analyze post-training
+- Consider NN-enhanced ZNE (Sun 2025) for better noise extrapolation on hardware
 
 ## Where to Start
 Read `.kiro/knowledge/project-guide.md` first — it maps the entire repository and explains where to find everything.
@@ -38,7 +48,7 @@ Read `.kiro/knowledge/project-guide.md` first — it maps the entire repository 
 ## Optimal Configuration (from 40+ benchmark runs)
 VQE: 5 restarts, σ=0.1, maxiter=1000 | MPNN: GINConv, h=64, L=3, 6000 epochs, lr=1e-3 | fid≥0.93
 - GATConv tested and rejected (adds instability for 1D chains)
-- Data augmentation: optional, recommended for N≥10
+- Data augmentation: tested and rejected for N=10 (hurts — linear interpolation inaccurate in complex θ landscape)
 - Denser h-grid: not needed (27 points sufficient)
 
 ## Validation Targets

@@ -5,6 +5,7 @@
 **Symptom**: MSE converges but ΔE stagnates or increases.
 **Root cause**: Phase 2 cost function changed (e.g., fidelity-weighted) without updating Phase 3 training target.
 **Fix**: Phase 2 MUST use pure energy cost. V6 enforces this via `cost_function="energy"` metadata in the .npz dataset. Phase 3 loading validates this field.
+**Literature confirmation**: Miao et al. (2024) and Karim et al. (2025) both use pure energy objectives for ML-VQE. The field consensus is that pipeline phases are tightly coupled — changing one objective without updating downstream is a known failure mode.
 
 ## Symmetry Saddle at θ=0
 
@@ -17,6 +18,21 @@
 **Symptom**: Fidelity < 50% for h < 0.8 (ferromagnetic regime).
 **Root cause**: HVA p=2 + |+⟩^N cannot express the ferromagnetic ground state |000...0⟩. Verified with 50 random restarts over [-π, π].
 **Fix**: This is a known limitation, not a bug. Pipeline is valid for h ≥ 1.0 (fid > 96%). Use fidelity filter ≥ 93% in Phase 3 to exclude bad training data.
+**Literature confirmation**: Tripathi et al. (2026) independently confirms HVA p=2 struggles with entanglement entropy at the critical point. Sumeet et al. (2025) shows N/2 layers needed for thermodynamic-limit convergence — for N=6 that's p=3, violating Mele et al.
+
+## Hardware Noise Broadening (Expected Phase 4 Behavior)
+
+**Symptom**: On hardware, phase transition appears "smeared" — observables change gradually instead of sharply near h_c.
+**Root cause**: Gate errors + shot noise + readout errors broaden the critical crossover region.
+**This is EXPECTED, not a failure.** Sharma (2026) independently confirms this on IQM Garnet: ground-state energies are reliably captured, but correlation-sensitive observables show significant noise broadening.
+**Correct interpretation**: The pipeline correctly classifies phases AWAY from h_c. The transition region is inherently harder on noisy hardware. Frame as "noise resilience of classification" not "failure at criticality."
+
+## Shot Noise Dominance on Hardware
+
+**Symptom**: Observable errors on hardware are ~1.6e-2 even with perfect gates.
+**Root cause**: Statistical uncertainty from finite measurements: σ ≈ 1/√(shots). At 4096 shots, σ ≈ 1.6e-2.
+**Fix**: Increase shot budget to ≥8192 (σ ≈ 1.1e-2). For N=10 where ⟨X⟩ signal is ~8.4e-3, need ≥16384 shots for signal > noise.
+**Literature source**: Sharma (2026), Ma et al. (2025).
 
 ## AdaptVQE AlgorithmError at Iteration 0
 

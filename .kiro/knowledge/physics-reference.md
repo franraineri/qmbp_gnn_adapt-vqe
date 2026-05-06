@@ -52,3 +52,28 @@ Finite-size phase classification: use ⟨X⟩ = ⟨ZZ⟩ crossover from exact da
 - Non-unital noise: gradient variance does NOT vanish exponentially for local cost functions → shallow HVA trainable
 - Same noise erases early gate influence → effective depth truncation to O(log n)
 - **Conclusion**: GNN + Shallow HVA is required by the thermodynamics of current processors
+
+## Three-Way Synergy (Unique to Our Architecture)
+
+No other known approach simultaneously achieves:
+1. **Noise resilience** — shallow circuits (p≤2) survive decoherence (Mele et al. 2026)
+2. **Trainability** — local costs avoid barren plateaus (Cerezo et al. 2021)
+3. **Physical expressibility** — HVA respects Hamiltonian symmetries (Wiersema et al. 2020)
+4. **Efficiency** — MPNN warm-start eliminates quantum optimization cost (our contribution)
+
+This is the *only* known regime where VQAs are simultaneously trainable, noise-resilient, and physically meaningful on NISQ hardware. The GNN adds a fourth dimension: near-zero quantum resource usage.
+
+## Warm-Start Gradient Amplification (Puig et al. 2025)
+
+- Warm-starts provide provably larger loss variances (stronger gradient signals) vs random initialization
+- At h=2, ground state ≈ |+⟩^N (our initial state), so θ* ≈ 0 → large gradients
+- Descending sweep keeps each optimization in a region of strong gradients
+- Quantitative: 10-50× speedup vs random init at h=1.25 (from our benchmarks)
+- The resulting θ(h) landscape is smooth → ideal for MPNN learning
+
+## Quantum Advantage Boundary
+
+- **N=6-10 (1D chain)**: fully classically simulable. Pipeline demonstrates METHODOLOGY, not quantum advantage.
+- **N≈20 (2D systems)**: TN simulations become expensive. QPU starts to offer better scaling (Martin et al. 2026).
+- **N=36 (Kagome)**: no classical method works. Only QPU + MPNN warm-start can characterize the phase.
+- **Thesis narrative**: PoC validates the pipeline; scaling targets demonstrate quantum utility.

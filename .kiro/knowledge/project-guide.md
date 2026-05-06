@@ -80,7 +80,10 @@ The Makefile is the single entry point. Use `make` for everything.
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
 | Check numerical baselines | `.kiro/knowledge/poc-results.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
+| See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` |
+| Review literature insights & improvements | `.kiro/knowledge/literature-synthesis.md` |
 | See full experiment history | `documentation/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
+| Find alternative techniques | `documentation/alternative_bibliography.md` |
 
 ## Key Workflow Rules
 1. Never modify stable modules (listed in `project-status.md`) without explicit request.

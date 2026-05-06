@@ -69,6 +69,25 @@ To overcome the limitations of Noisy Intermediate-Scale Quantum (NISQ) devices�
 | 4 | Fidelity | ≥ 99.5% (noiseless only) | ❌ |
 | 5 | ADAPT iterations | ≤ 2 | ✅ |
 
+### Achieved Results (40+ benchmark runs)
+
+| Test Point | N=6 Checklist | N=10 Checklist | Status |
+|------------|---------------|----------------|--------|
+| h = 1.5 | **5/6** | **3/6** | ✅ Valid operating regime |
+| h = 1.4 | 4–5/6 | 1–2/6 | ✅ N=6 valid, N=10 borderline |
+| h = 1.25 | 2–3/6 | 1/6 | ⚠️ Physics limit (HVA p=2 ceiling) |
+
+The h=1.25 ceiling is independently confirmed as a physics limit by Tripathi et al. (2026) — not a pipeline deficiency.
+
+## 🔬 Error Mitigation Strategy (Phase 4 — IBM Torino)
+
+| Technique | Method | Overhead | Source |
+|-----------|--------|----------|--------|
+| Inhomogeneous ZNE | Multiple qubit mappings → CES extrapolation | 3-5× circuits | Uvarov et al. 2024 |
+| Learned DD | Optimized pulse sequences via Qiskit DD pass | Free | Pokharel et al. 2025 |
+| TREX | Twirled readout error extinction | ~2× shots | IBM native |
+| NN-enhanced ZNE | MLP fit instead of polynomial extrapolation | Minimal | Sun et al. 2025 |
+
 ## 🏗️ Project Structure
 
 ```
@@ -130,8 +149,9 @@ Data flows between notebooks via `phase1_phase2_tfim_N6_p2_v6.npz`. Run Phase 1-
 
 * **[Project Summary (English)](documentation/qmbp_doc_summary_en.md)** — Physics problem, hybrid solution, implementation by phase, bibliography.
 * **[Resumen del Proyecto (Español)](documentation/qmbp_doc_summary_es.md)** — Versión completa en español.
-* **[Architectural Document (ES/EN)](documentation/architectural_doc_es_en.md)** — GNN data strategy, noise resilience, spin systems rationale.
-* **[Bibliography](documentation/bibliography.md)** — Complete APA reference list.
+* **[Architectural Document (ES/EN)](documentation/architectural_doc_es_en.md)** — GNN data strategy, noise resilience, spin systems rationale, QPU execution analysis, computational scaling.
+* **[Bibliography](documentation/bibliography.md)** — Complete APA reference list (20 sections, 60+ papers).
+* **[Alternative Bibliography](documentation/alternative_bibliography.md)** — Alternative techniques and methodologies to consider for future work.
 * **[V6 Changes](src/poc/v6/CHANGES_V6.md)** — What changed from V4/V5 and why.
 * **[Binnacle N=6](documentation/binnacle-N6.md)** — Complete N=6 experiment log (40+ runs, definitive).
 * **[Binnacle N=10](documentation/binnacle-N10.md)** — N=10 scaling experiments (active).

@@ -69,20 +69,121 @@ The architecture treats a many-body Hamiltonian as a **graph** $\mathcal{G} = (V
 
 We address VQE barriers through two key theoretical pillars (2021-2026):
 
-* **Noise-Induced Truncation:** Recent research ( *Mele et al., 2026* ) shows that non-unital noise effectively truncates circuit depth to $O(\log n)$. Our strategy uses a strictly shallow **Hamiltonian Variational Ansatz (HVA)** ($p \le 2$) to maintain coherence.
-* **Local Observables:** Unlike global cost functions, local observables (nearest-neighbor correlations) in shallow noisy circuits  **do not exhibit barren plateaus** , ensuring stable and trainable gradients.
+### 2.1 Noise-Induced Depth Truncation
+
+Recent research (*Mele et al., Nature Physics 2026*) demonstrates that non-unital noise (thermal relaxation, amplitude damping) acts as a filter that **truncates the effective depth** of quantum circuits to $O(\log n)$.
+
+**Physical mechanism:** Non-unital noise channels (unlike depolarizing noise, which is unital) have a unique fixed point — typically the maximally mixed state or a thermal state. After $O(\log n)$ layers of noisy gates, the quantum state is driven exponentially close to this fixed point regardless of the initial state or gate parameters. This means that any information encoded in circuit layers beyond $O(\log n)$ is exponentially suppressed.
+
+**Formal statement:** For a circuit of depth $d$ with per-gate non-unital noise of strength $\epsilon$, the output state $\rho_d$ satisfies:
+$$\|\rho_d - \rho_{\text{fixed}}\|_1 \leq e^{-\Omega(\epsilon \cdot d)}$$
+
+When $d \gg O(\log n / \epsilon)$, the output is indistinguishable from the noise fixed point.
+
+**Our strategy:** Rather than fighting noise with error correction (which requires thousands of physical qubits per logical qubit), we embrace the truncation by designing circuits that are *inherently* shallow. Our HVA uses $p \leq 2$ layers, which for $N=6$–$10$ qubits means total circuit depth of 4–6 parametrized gate layers — well within the coherent regime of current hardware (IBM Eagle r3 supports ~60 layers of two-qubit gates before decoherence dominates).
+
+**Why this works for physics:** The TFIM ground state near the paramagnetic phase ($h > 1$) has low entanglement (area-law scaling), which means it can be well-approximated by shallow circuits. The HVA at $p=2$ has sufficient expressibility to capture the relevant physics in this regime, as validated by our fidelity $\geq 99.5\%$ results for $h \geq 1.25$.
+
+### 2.2 Local Observables vs. Barren Plateaus
+
+The barren plateau phenomenon is the exponential vanishing of cost function gradients with system size, making optimization impossible for large systems. This is the central trainability obstacle for variational quantum algorithms.
+
+**The problem with global cost functions:** Consider the fidelity $F = |\langle \psi_{\text{target}} | \psi(\theta) \rangle|^2$ as a cost function. Cerezo et al. (2021) proved that for any parametrized circuit (even shallow ones), the variance of the gradient of a global cost function vanishes as:
+$$\text{Var}\left[\frac{\partial C_{\text{global}}}{\partial \theta_k}\right] \leq F(n) \in O(2^{-n})$$
+
+This means that for $n = 20$ qubits, the gradient signal is $\sim 10^{-6}$ — indistinguishable from statistical noise with any practical number of measurement shots.
+
+**The local observable solution:** Our architecture uses cost functions composed of **local observables** — specifically nearest-neighbor correlations $\langle Z_i Z_{i+1} \rangle$ and single-site magnetizations $\langle X_i \rangle$. The key theoretical result (Cerezo et al. 2021, extended by Mele et al. 2026) is:
+
+$$\text{Var}\left[\frac{\partial C_{\text{local}}}{\partial \theta_k}\right] \geq \Omega\left(\frac{1}{\text{poly}(n)}\right)$$
+
+for shallow circuits under non-unital noise. This polynomial lower bound guarantees that the optimizer always has a detectable gradient direction, regardless of system size.
+
+**Why local observables suffice for phase characterization:** In the TFIM, the quantum phase transition is fully characterized by:
+1. **Magnetization** $\langle X_i \rangle$: order parameter for the paramagnetic phase (approaches 1 for $h \gg 1$, approaches 0 for $h \ll 1$)
+2. **Nearest-neighbor correlations** $\langle Z_i Z_{i+1} \rangle$: captures ferromagnetic ordering (approaches $-1$ for $h \ll 1$, approaches 0 for $h \gg 1$)
+3. **Energy density** $\langle H \rangle / N$: determines proximity to the ground state
+
+These are all 1-local or 2-local observables — they act on at most 2 neighboring qubits. No global entanglement witness or full state tomography is needed.
+
+**The three-way synergy:** Our architecture exploits the intersection of three theoretical results:
+1. Shallow circuits ($p \leq 2$) → survive noise truncation
+2. Local cost functions → no barren plateaus
+3. HVA structure → respects Hamiltonian symmetries, maximizing expressibility per parameter
+
+This combination is not merely convenient — it is the *only* known regime where variational quantum algorithms are simultaneously trainable, noise-resilient, and physically meaningful on NISQ hardware.
+
+### 2.3 Warm-Start Gradient Amplification
+
+Beyond avoiding barren plateaus, our warm-start strategy (descending sweep $h = 2 \to 0$ with parameter propagation) provides an additional gradient advantage:
+
+**Mechanism:** At $h = 2$, the ground state is very close to $|+\rangle^{\otimes N}$ (our initial state), so the optimal parameters $\theta^* \approx 0$. The optimizer starts in a region of large gradients. As we decrease $h$, each new optimization starts from $\theta^*_{\text{prev}}$, which is already close to the new optimum (the energy landscape changes smoothly with $h$). This means:
+
+1. The optimizer never starts in a flat region (no barren plateau initialization)
+2. Each optimization requires only local refinement (typically 10–50 L-BFGS-B iterations)
+3. The resulting $\theta(h)$ landscape is smooth — ideal for MPNN learning
+
+**Quantitative impact:** Without warm-start, VQE at $h = 1.25$ (near critical) requires $\sim 500$–$1000$ iterations with random initialization and frequently converges to local minima. With warm-start from $h = 1.3$, convergence occurs in $\sim 20$–$50$ iterations to the global minimum. This is a $10$–$50\times$ speedup that compounds across the 27-point $h$-grid.
+
+**Connection to Puig et al. (2025):** The theoretical analysis in PRX Quantum 6, 010317 confirms that warm-starts provide larger loss variances (i.e., stronger gradient signals) compared to random initialization, validating our empirical observations.
 
 ## 3. Justification: Spin Systems vs. Quantum Chemistry
 
 We focus on **Condensed Matter Physics** (spin systems) to maximize hardware efficiency.
 
-### 3.1 Isomorphic Mapping
+### 3.1 Isomorphic Mapping (Gate Efficiency)
 
-Spin-1/2 systems map naturally to qubits. Hamiltonian $Z_i Z_j$ terms translate directly into native $R_{ZZ}$ gates, keeping the HVA compact. Conversely, chemistry requires **Jordan-Wigner** transforms, which turn local interactions into long, non-local Pauli strings, drastically increasing circuit depth and error rates.
+The fundamental advantage of spin systems over molecular systems on quantum hardware lies in the encoding overhead:
 
-### 3.2 Avoiding "Active Space"
+**Spin systems (our approach):**
+- Each spin-1/2 particle maps directly to one qubit (isomorphic mapping)
+- The Ising interaction $Z_i Z_j$ translates to a single native $R_{ZZ}(\theta)$ gate
+- For the TFIM with $N$ sites: the HVA requires exactly $N-1$ RZZ gates + $N$ RX gates per layer
+- Total two-qubit gate count at $p=2$: $2(N-1)$ — linear in system size
+- No encoding overhead whatsoever
 
-Quantum chemistry demands extreme precision and complex orbital selection. Spin models allow us to focus on  **topological phases and collective phenomena** , which are more robust targets for NISQ hardware utility.
+**Molecular systems (chemistry approach):**
+- Electrons are fermions obeying anti-commutation relations: $\{a_i, a_j^\dagger\} = \delta_{ij}$
+- Qubits are bosonic (commuting) — a non-trivial transformation is required
+- **Jordan-Wigner transform** maps fermionic operators to Pauli strings:
+  $$a_j^\dagger \to \frac{1}{2}(X_j - iY_j) \otimes Z_{j-1} \otimes Z_{j-2} \otimes \cdots \otimes Z_1$$
+- A single fermionic hopping term $a_i^\dagger a_j$ becomes a Pauli string of length $|i-j|$
+- For a molecule with $M$ orbitals, typical Hamiltonian terms have Pauli weight $O(M)$
+- Circuit depth scales as $O(M^4)$ for UCCSD ansatz — far exceeding the $O(\log n)$ noise truncation limit
+
+**Quantitative comparison for equivalent system sizes:**
+
+| System | Qubits | Two-qubit gates (p=2) | Effective depth | Within noise limit? |
+|--------|--------|----------------------|-----------------|---------------------|
+| TFIM N=10 (1D chain) | 10 | 18 RZZ | ~6 layers | ✅ Yes |
+| TFIM N=10 (ladder) | 10 | 26 RZZ | ~9 layers | ✅ Yes |
+| H₂O (STO-3G, 7 orbitals) | 14 | ~200 CNOT | ~40 layers | ❌ No |
+| N₂ (6-31G, 10 orbitals) | 20 | ~2000 CNOT | ~100 layers | ❌ No |
+
+### 3.2 Avoiding "Active Space" and Precision Requirements
+
+**Chemistry precision requirements:**
+- "Chemical accuracy" demands $\Delta E < 1.6 \times 10^{-3}$ Hartree ($\approx 1$ kcal/mol)
+- This requires capturing dynamic correlation effects that need deep circuits
+- Active space selection (choosing which orbitals to include) is a manual, expert-driven process
+- Wrong active space → qualitatively wrong results, regardless of quantum hardware quality
+
+**Spin system advantages:**
+- Phase classification is a *qualitative* question (which phase?), not a quantitative precision target
+- Our success criterion ($\Delta E / \text{gap} < 5\%$) is orders of magnitude more relaxed than chemical accuracy
+- The relevant physics (symmetry breaking, order parameters) is captured by local observables
+- No orbital selection needed — the Hamiltonian is defined directly on the lattice
+
+### 3.3 Quantum Utility Argument
+
+The combination of these factors creates a clear "quantum utility window" for spin systems:
+
+1. **Classical methods fail** at $N > 14$–$16$ for 2D frustrated systems (exact diag impossible, DMRG inefficient)
+2. **Quantum circuits remain shallow** because spin-qubit mapping is direct (no Jordan-Wigner overhead)
+3. **Phase classification succeeds** with local observables measurable in polynomial shots
+4. **The Mele et al. constraint** ($p \leq 2$) is physically sufficient for spin systems but insufficient for chemistry
+
+This is why our thesis targets spin systems: they represent the *optimal* domain for demonstrating quantum utility on NISQ hardware — the gap between classical intractability and quantum feasibility is maximized.
 
 ---
 

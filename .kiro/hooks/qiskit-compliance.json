@@ -1,10 +1,10 @@
 {
   "name": "Qiskit 2.x Compliance Check",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Auto-validates that saved Python files don't use deprecated Qiskit APIs (opflow, PauliSumOp, transpile(), Primitives V1, HEA, p>2).",
   "when": {
     "type": "fileEdited",
-    "patterns": ["src/**/*.py"]
+    "patterns": ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py"]
   },
   "then": {
     "type": "askAgent",

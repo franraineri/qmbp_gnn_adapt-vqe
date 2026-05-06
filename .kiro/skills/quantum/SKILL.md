@@ -63,6 +63,43 @@ Our GNN/MLP warm-start approach is validated by three independent 2024-2026 pape
 
 Key takeaway: GNN-based initialization works best on physically structured Hamiltonians (spin systems), poorly on random circuits. Our spin-system focus is optimal.
 
+## Extended Literature Validation (2025-2026)
+
+### Architecture Validation
+- **GNN > CNN by 36%** for circuit property prediction (Meng et al., 2025, arXiv:2504.00464). Validates GINConv choice.
+- **GINConv theoretical foundation** (Xu et al., ICLR 2019): GIN is as powerful as Weisfeiler-Lehman test — maximally expressive among MPNNs.
+- **GNN for Ising magnetization** (Slavin, 2025, arXiv:2507.17509): GNN predicts magnetic properties from lattice graph. Directly validates our graph→physical-property paradigm.
+- **HVA > HEA confirmed** (Tripathi et al., 2026, arXiv:2604.20961): Benchmarks on TFIM 1D/2D/3D up to 27 spins. HVA consistently outperforms EfficientSU2.
+
+### Physics Limits Validation
+- **h=1.25 ceiling is physics** (Tripathi et al., 2026): HVA p=2 struggles with entanglement entropy at criticality — independent confirmation of our 2-3/6 ceiling.
+- **N/2 layers needed for thermodynamic limit** (Sumeet et al., 2025, arXiv:2310.07600): For N=6, need p=3 — our p=2 constraint means we cannot reach thermodynamic-limit accuracy at criticality.
+- **Hardware noise broadens critical crossover** (Sharma, 2026, arXiv:2601.17515): IQM Garnet experiments show noise smears the phase transition. Expected behavior for our Phase 4.
+
+### Error Mitigation Validation
+- **Inhomogeneous ZNE** (Uvarov et al., 2024, arXiv:2307.11156): Linear energy-CES extrapolation using different qubit mappings. Applicable to IBM Torino.
+- **Learned DD on IBM** (Pokharel et al., 2025, arXiv:2403.02294): Genetic algorithm DD sequences on 100 qubits. Scalable, no retraining needed.
+- **NN-enhanced ZNE** (Sun et al., 2025, arXiv:2501.01646): MLP extrapolation constrains errors to O(10⁻²). Better than polynomial fit.
+- **Experimental VQE+ZNE on Ising** (Ma et al., 2025, arXiv:2504.06554): 4-spin Ising on superconducting processor with analog ZNE.
+
+### Hardware Deployment Expectations
+- **Shot noise dominates at 4096 shots** (~1.6e-2 per observable) — exceeds our ⟨X⟩ signal (~8e-3 at N=10). Use ≥8192 shots.
+- **Phase classification works despite noise** — Sharma (2026) shows ground-state energies are reliably captured even when observables are noisy.
+- **TN advantage boundary at N≈20 for 2D** (Martin et al., 2026, arXiv:2602.04676) — our N=6-10 results demonstrate pipeline methodology, not quantum advantage.
+
+## Improvement Opportunities (IBM Qiskit Compatible)
+
+### Phase 4 Enhancements (implement before hardware runs)
+1. **Inhomogeneous ZNE**: multiple `generate_preset_pass_manager()` calls with different `initial_layout` → different CES → linear extrapolation
+2. **Learned DD**: `PadDynamicalDecoupling` pass with optimized sequences (Qiskit native)
+3. **Shot budget**: increase to 8192 minimum (Qiskit `EstimatorV2` `precision` parameter)
+4. **Observable grouping**: group commuting Paulis to reduce circuit executions (Qiskit `ObservablesArray`)
+
+### Phase 3 Enhancements (optional)
+5. **MPNN weight analysis**: detect phase transitions from trained weight structure (zero QPU cost)
+6. **Active learning**: identify high-uncertainty h-regions, run targeted VQE, retrain
+7. **Noise-aware training**: train MPNN on `AerSimulator` noisy VQE data for hardware-optimized predictions
+
 ## Current PoC (V6.0)
 
 - 1D TFIM, N=6, HVA p=2, |+⟩^N
