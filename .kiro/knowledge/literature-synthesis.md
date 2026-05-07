@@ -37,6 +37,13 @@ Slavin demonstrated GNN predicting magnetization in quasi-1D Ising systems:
 - Martin et al. showed TN warm-starts access "enhanced gradient zones" that don't shrink exponentially
 - **Our advantage**: Descending sweep h=2→0 is a particularly effective warm-start because the landscape changes smoothly with h. This is validated by both theoretical and numerical evidence.
 
+The GNN-HVA pipeline is the right architecture for this thesis. The literature confirms every major design decision. The improvements available are all within the current architecture (better error mitigation, more shots, weight analysis) rather than requiring a redesign.
+
+The only scenario where you'd want to change architecture is if you were starting a new project targeting:
+
+Random/unstructured Hamiltonians → GQE would be better
+Chemistry problems → UCCSD + ADAPT-VQE would be necessary
+Fault-tolerant hardware → QPE would replace VQE entirely
 ---
 
 ## 2. Critical Weaknesses & Honest Assessment
@@ -255,3 +262,29 @@ The pipeline's key insight remains: minimize quantum resource usage by maximizin
 9. 2D TN pre-optimization for Kagome scaling
 10. Generative circuit design (GQE) as next-generation approach
 11. Noise-aware MPNN training for hardware-optimized predictions
+
+### The next high-value actions are:
+
+Ladder topology validation (tests GNN generalization)
+Phase 4 hardware deployment with the improved error mitigation stack
+MPNN weight analysis for unsupervised phase detection (novel contribution)
+
+
+### Where the literature suggests we COULD improve (without changing architecture)
+Improvement	| Effort |	Impact	| When
+Inhomogeneous ZNE for Phase 4	Low	High — better hardware results	Before hardware runs
+8192+ shots	Minimal	High — shot noise below signal	Before hardware runs
+Learned DD sequences (GADD)	Low	Medium — free error suppression	Before hardware runs
+MPNN weight analysis for phase detection	Low	Medium — novel result, zero QPU cost	Anytime
+NLCE + VQE for thermodynamic limit	Medium	High — extends to infinite N	Future work
+GATConv for ladders/2D (non-uniform edges)	Low	Medium — may help when edges differ	When testing ladders
+
+
+### The one legitimate concern: is VQE itself the right quantum algorithm?
+This is the most interesting question from the literature. Three alternatives exist:
+
+1. Generative Quantum Eigensolver (GQE/SpinGQE) — generates circuits rather than optimizing parameters. Eliminates VQE entirely. But: only validated on 4 qubits, requires transformer training, and loses the physics-informed HVA structure. Verdict: too immature for a thesis, excellent future work.
+
+2. Quantum Subspace Expansion (QSE) — uses VQE as initial state, then expands classically. Weaving et al. (2025) achieved 0.01% error on Kagome this way. Verdict: complementary to our approach, not a replacement. Could be added as Phase 4.5.
+
+3. DMRG-biased contextual subspaces — reduces qubit count before VQE. Verdict: useful for scaling to Kagome, but requires significant new infrastructure. Future work.

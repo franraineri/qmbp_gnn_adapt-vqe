@@ -154,8 +154,8 @@ Data flows between notebooks via `phase1_phase2_tfim_N6_p2_v6.npz`. Run Phase 1-
 * **[Bibliography](documentation/bibliography.md)** — Complete APA reference list (24 sections, 70+ papers).
 * **[Alternative Bibliography](documentation/alternative_bibliography.md)** — Alternative techniques and methodologies to consider for future work.
 * **[V6 Changes](src/poc/v6/CHANGES_V6.md)** — What changed from V4/V5 and why.
-* **[Binnacle N=6](documentation/binnacle-N6.md)** — Complete N=6 experiment log (40+ runs, definitive).
-* **[Binnacle N=10](documentation/binnacle-N10.md)** — N=10 scaling experiments (active).
+* **[Binnacle N=6](documentation/binnacles/binnacle-N6.md)** — Complete N=6 experiment log (40+ runs, definitive).
+* **[Binnacle N=10](documentation/binnacles/binnacle-N10.md)** — N=10 scaling experiments (active).
 
 ---
 

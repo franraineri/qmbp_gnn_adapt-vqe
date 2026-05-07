@@ -169,3 +169,9 @@ The pipeline has two ways to get more training data:
 **The real bottleneck is not data quantity — it's VQE quality in the critical region.** The 17 training points we have (h∈[0.9, 2.0] after fidelity filter) are all high-quality (fid≥93%). Adding more points in this range would help marginally, but the MPNN's prediction error is dominated by the difficulty of the test point (h=1.5 at N=10), not by insufficient training data.
 
 **Conclusion:** For this pipeline, neither augmentation nor denser grids are the right approach. The correct path to better N=10 results is either (a) a more expressive circuit (p>2, which violates Mele et al.) or (b) a better MPNN architecture that captures the non-linear θ landscape more accurately (which h=128 partially achieves).
+
+The next high-value actions are:
+
+Ladder topology validation (tests GNN generalization)
+Phase 4 hardware deployment with the improved error mitigation stack
+MPNN weight analysis for unsupervised phase detection (novel contribution)

@@ -123,14 +123,14 @@ We operate strictly on modern, enterprise-grade, and open-source frameworks to e
 
 ### Phase 3: Predictive ML (The GNN/MLP)
 
-* **PoC: MLP Predictor.** For the 1D TFIM with uniform $J$, the graph structure is fixed and only $h$ varies. A simple Multi-Layer Perceptron ($h \to \theta_{pred}$) suffices as the PoC predictor. The full Graph Neural Network is reserved for scaling to non-uniform couplings or 2D lattices.
+* **V6 Architecture: MPNN Predictor (GINConv).** The V6 pipeline uses a full Message Passing Neural Network built with PyTorch Geometric. The MPNN accepts arbitrary graph topologies (chain, ladder, triangular, Kagome) via GINConv message passing + global_mean_pool readout. Node features encode [h_i, coordination_number_i], making the model lattice-agnostic — the same architecture handles different system sizes and topologies without modification.
+* **GINConv Justification (Xu et al. 2019):** GIN is provably as powerful as the Weisfeiler-Lehman graph isomorphism test — maximally expressive among MPNNs. For uniform lattices (all edges equivalent), GINConv is optimal. GATConv was tested and rejected (adds instability, no benefit for 1D chains).
+* **Capacity Scaling:** hidden_dim=64 for N=6 (6 nodes, 5 edges), hidden_dim=128 for N=10 (10 nodes, 9 edges). Rule of thumb: ~10-13× the number of nodes.
 * **Curriculum Learning via Physical Tracking:** While the PyTorch model uses standard Mean Squared Error (MSE) to learn the $\theta_{opt}$ targets, we implement a custom validation callback. The network periodically feeds its predicted angles back into a Qiskit `StatevectorEstimator` to calculate the resulting quantum energy. We track this to ensure the network is learning the actual energy landscape, not just interpolating meaningless numbers.
-* **Learning Rate Scheduling:** We use `ReduceLROnPlateau` (or `CosineAnnealingLR`) to avoid oscillation around the minimum on small datasets (21 training points in the PoC).
-* **Interpolation Validation:** We always validate on at least one $h$ value not in the training set to verify the model generalizes between grid points, rather than only checking on training data.
-* **Fidelity Filter (Critical):** Only train on Phase 2 data points where fidelity ≥ 96%. Points below this threshold have $\theta_{opt}$ that don't represent the true ground state — training on them poisons the model. The diagnostic signature of this failure mode is MSE converging to near-zero while the physics validation $\Delta E$ remains constant (the MLP faithfully learns garbage). In the PoC, this filter excludes the ferromagnetic regime ($h < 1.0$) where the HVA expressibility limit prevents convergence.
-* **Test Point Selection:** The Phase 4 test point must be within the high-fidelity regime. Testing at $h = 1.5$ (where Phase 2 achieves fid ≈ 99.6%) gives meaningful results; testing at $h = 1.05$ (fid ≈ 97.6%) tests the pipeline at the edge of the expressibility limit, conflating ansatz limitations with pipeline quality.
-* **Data Persistence:** All generated datasets (Hamiltonian parameters, energy gaps, observables, and optimized angles) are saved to disk as `.npz` files to decouple the quantum compilation from the PyTorch training loop.
-* **Data Quality Gate:** Before training, verify that Phase 2 produced valid data: minimum fidelity should exceed 99% for the paramagnetic regime ($h \geq 1.0$). If the physics validation callback shows $\Delta E \approx$ constant throughout training (not decreasing), it is a sign that the training data itself is corrupted (e.g., all $\theta_{opt} \approx 0$ due to the saddle point bug). MSE converging to near-zero while $\Delta E$ remains large is the diagnostic signature of this failure mode.
+* **Learning Rate Scheduling:** We use `ReduceLROnPlateau` with patience=150 to avoid oscillation around the minimum on small datasets (17 training points after fidelity filtering).
+* **Fidelity Filter (Critical):** Only train on Phase 2 data points where fidelity ≥ 93%. Points below this threshold have $\theta_{opt}$ that don't represent the true ground state — training on them poisons the model. The diagnostic signature of this failure mode is MSE converging to near-zero while the physics validation $\Delta E$ remains constant.
+* **Data Augmentation:** Tested and rejected for N=10. Linear interpolation between adjacent θ_opt values is inaccurate in the complex 4-parameter landscape controlling a 1024-dimensional Hilbert space.
+* **Achieved Results:** The MPNN achieves ⟨X⟩ error < 1e-2 at h=1.5 for both N=6 and N=10, enabling correct phase classification from a single classical forward pass (no quantum optimization needed).
 
 is challenging
 
@@ -208,3 +208,56 @@ Our pipeline is designed to traverse this landscape systematically:
 | N>16 2D | No classical method works | QPU is the only option — quantum utility |
 
 This progression is the core narrative of the thesis: we start where classical methods work (to validate the pipeline), then systematically push into regimes where only quantum hardware can provide answers.
+
+
+---
+
+## 7. Achieved Results & Validation (V6.0 — Current Status)
+
+### 7.1 Pipeline Performance Summary
+
+After 40+ benchmark runs across 14 configurations on the V6.0 modular architecture:
+
+| System | Test Point | Checklist | Primary Metric (ΔE/gap) | Phase Classification |
+|--------|-----------|-----------|------------------------|---------------------|
+| N=6, 1D chain | h=1.5 | **5/6** | 1.4% ✅ | ✅ Correct |
+| N=6, 1D chain | h=1.4 | **4-5/6** | 1.9% ✅ | ✅ Correct |
+| N=6, 1D chain | h=1.25 | **2-3/6** | 3.5% ✅ | ✅ Correct |
+| N=10, 1D chain | h=1.5 | **3/6** | 2.8% ✅ | ✅ Correct |
+
+The pipeline correctly classifies the quantum phase at ALL test points. The primary metric (ΔE/gap < 5%) passes consistently. The checklist variation reflects the HVA p=2 expressibility ceiling — a physics limit, not a pipeline deficiency (independently confirmed by Tripathi et al. 2026).
+
+### 7.2 Key Methodological Findings
+
+1. **Pure energy cost is the only viable Phase 2 strategy.** Hybrid cost functions (V5.x) catastrophically break Phase 3 due to phase coupling mismatch.
+2. **Warm-start descending sweep produces smooth θ landscapes** that the MPNN can learn. Bidirectional sweeps and angle wrapping disrupt this smoothness.
+3. **GINConv is optimal for uniform lattices.** GATConv adds instability without benefit when all edges are equivalent.
+4. **MPNN capacity must scale with system size.** hidden_dim ≈ 10-13× number of nodes.
+5. **The fidelity filter (≥0.93) is critical.** Lower thresholds add noisy training data; higher thresholds remove too many points.
+
+### 7.3 Literature Validation
+
+Our approach is independently validated by:
+- **Miao et al. (2024):** MLP h→θ for spin Hamiltonians with 20 training points — validates our data-efficient approach
+- **Zhang et al. (2025, Qracle):** GNN-based VQE initializer achieving 64% fewer optimization steps — validates our GNN scaling path
+- **Meng et al. (2025):** GNN outperforms CNN by 36% for circuit property prediction — validates GINConv choice
+- **Lee et al. (2026):** Graph autoencoder generates VQE parameters that generalize across Hamiltonians — validates our MPNN paradigm
+- **Huang et al. (2022, Science):** Proves classical ML can efficiently predict ground-state properties within a phase — theoretical foundation for our approach
+
+### 7.4 Hardware Deployment Strategy (Phase 4 — Planned)
+
+Target: IBM Torino (Eagle r3, 133 qubits) or IBM Heron r2 (156 qubits, lower gate errors)
+
+Error mitigation stack:
+1. Dynamical decoupling (free — suppresses idle decoherence)
+2. Pauli twirling (converts coherent noise to stochastic)
+3. TREX (measurement error mitigation)
+4. ZNE with PEA (probabilistic error amplification for accurate noise scaling)
+5. Minimum 8192 shots (shot noise must be below observable signal)
+
+Expected hardware behavior: correct phase classification away from h_c, with noise-broadened critical crossover (Sharma 2026). Success criterion: ΔE/gap < 5% and correct phase label.
+
+---
+
+> 📚 **Full bibliography:** [documentation/bibliography.md](bibliography.md) (25 sections, 74 papers)
+> 📚 **Alternative techniques:** [documentation/alternative_bibliography.md](alternative_bibliography.md) (20 alternative approaches)

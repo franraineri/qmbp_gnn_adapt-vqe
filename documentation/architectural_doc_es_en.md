@@ -627,3 +627,122 @@ El objetivo final (N=36 Kagome) es donde ningún método clásico funciona — s
 ---
 
 > **Full bibliography / Bibliografía completa:** [documentation/bibliography.md](bibliography.md)
+
+
+---
+
+# Experimental Validation & Achieved Results
+
+## 7. Pipeline Performance — Empirical Evidence (English)
+
+### 7.1 Exhaustive Hyperparameter Exploration (N=6)
+
+The V6 pipeline was validated through **40+ benchmark runs across 14 configurations**, systematically varying:
+- VQE restarts (3, 5, 7), restart sigma (0.1, 0.2), maxiter (1000, 1500)
+- MPNN architecture (GINConv vs GATConv), hidden dimension (32, 64, 128), layers (2, 3, 4)
+- Training duration (4000, 6000, 8000 epochs), learning rate (5e-4, 1e-3, 3e-3)
+- Fidelity threshold (0.90, 0.93, 0.95), h-grid density (27, 40 points)
+- Data augmentation (on/off)
+
+**Key findings:**
+1. **VQE restarts (5) is the single highest-impact parameter** — going from 3→5 improved ⟨X⟩ error by 30%. Beyond 5, diminishing returns.
+2. **GINConv is optimal for uniform 1D chains** — GATConv adds instability because all edges are equivalent (attention has nothing to attend to).
+3. **The h=1.25 ceiling (2-3/6 checklist) is unbreakable** — no combination of hyperparameters, architectures, or techniques crosses this boundary. It is the HVA p=2 expressibility limit, independently confirmed by Tripathi et al. (2026).
+4. **Data augmentation provides marginal improvement at N=6** but hurts at N=10 (linear interpolation inaccurate in complex θ landscape).
+
+### 7.2 Achieved Results
+
+| System | Test Point | Best Checklist | ΔE/gap | ⟨X⟩ error | Fidelity |
+|--------|-----------|---------------|--------|-----------|----------|
+| N=6, 1D chain | h=1.5 | **5/6** | 1.4% ✅ | 2.6e-3 ✅ | 0.997 ✅ |
+| N=6, 1D chain | h=1.4 | **4-5/6** | 1.9% ✅ | 5e-3 ✅ | 0.995 ✅ |
+| N=6, 1D chain | h=1.25 | **2-3/6** | 3.5% ✅ | ~1e-2 ⚠️ | 0.991 ❌ |
+| N=10, 1D chain | h=1.5 | **3/6** | 2.8% ✅ | 8.4e-3 ✅ | 0.992 ❌ |
+| N=10, 1D chain | h=1.25 | **1/6** | 10.5% ❌ | 3.1e-2 ❌ | 0.973 ❌ |
+
+### 7.3 Scaling Behavior (N=6 → N=10)
+
+Observable errors degrade ~3-4× from N=6 to N=10 at the same test point. This is expected: the same 4 HVA parameters must control a 1024-dimensional Hilbert space (N=10) vs 64-dimensional (N=6). The MPNN capacity must scale accordingly (hidden_dim: 64→128).
+
+The primary metric (ΔE/gap) remains robust: 2.8% at N=10 vs 1.4% at N=6. The pipeline correctly resolves the physics at both scales.
+
+### 7.4 The V5.x Lesson: Phase Coupling
+
+A critical methodological finding: changing the Phase 2 cost function (from pure energy to hybrid energy+observables) without updating Phase 3 training targets causes catastrophic failure (checklist drops from 2-3/6 to 1/6). This is because:
+- Phase 2 with hybrid cost produces θ_opt that minimize a mixed objective
+- Phase 3 MPNN trains on MSE(θ_pred, θ_opt) but validates against pure energy
+- The objectives are misaligned → MPNN learns to match hybrid-cost θ perfectly, but these θ don't minimize energy
+
+**Design principle:** Pipeline phases are tightly coupled. The Phase 2 cost function defines what θ_opt means. Phase 3 must train on targets consistent with that definition. V6 enforces this via metadata validation (`cost_function="energy"` in the .npz dataset).
+
+### 7.5 Optimal Configuration (Final)
+
+| Parameter | Value | Validated by |
+|-----------|-------|-------------|
+| VQE restarts | 5 | 7 gives no improvement (Exp C) |
+| VQE sigma | 0.1 | 0.2 increases ΔE/gap variance |
+| VQE maxiter | 1000 | 1500 gives no improvement (Exp G) |
+| MPNN model | GINConv | GATConv adds instability |
+| MPNN hidden | 64 (N=6), 128 (N=10) | 128 overfits at N=6, 64 underfits at N=10 |
+| MPNN layers | 3 | 4 overfits, 2 underfits |
+| MPNN epochs | 6000 | 8000 is wasteful |
+| MPNN lr | 1e-3 | 5e-4 unstable, 3e-3 diverges |
+| Fidelity filter | 0.93 | 0.90 adds noise, 0.95 removes too much |
+| H-grid | 27 points (non-uniform) | 40 is 9× slower with no gain |
+| Augmentation | OFF | Hurts at N=10 |
+
+---
+
+## 8. Literature Validation & Theoretical Grounding (English)
+
+### 8.1 Independent Confirmation of Our Results
+
+| Our Finding | Independent Confirmation | Source |
+|-------------|------------------------|--------|
+| HVA > HEA for TFIM | HVA outperforms EfficientSU2 on TFIM 1D/2D/3D up to 27 spins | Tripathi et al. 2026 |
+| h=1.25 ceiling is physics limit | HVA p=2 struggles with entanglement entropy at criticality | Tripathi et al. 2026 |
+| GNN > CNN for circuit prediction | GNN outperforms CNN by 36% on direct comparison tasks | Meng et al. 2025 |
+| Warm-start provides gradient advantage | Warm-starts give provably larger loss variances | Puig et al. 2025 |
+| 20 training points sufficient | NN-VQE achieves high precision with 20 points + dropout | Miao et al. 2024 |
+| GNN works for Ising magnetization | GNN predicts magnetic properties from lattice graph | Slavin 2025 |
+| Hardware noise broadens critical crossover | IQM Garnet shows noise smearing of phase transition | Sharma 2026 |
+
+### 8.2 The Three-Way Synergy (Unique Contribution)
+
+No other known approach simultaneously achieves all four properties:
+
+1. **Noise resilience** — shallow circuits (p≤2) survive decoherence (Mele et al. 2026)
+2. **Trainability** — local cost functions avoid barren plateaus (Cerezo et al. 2021)
+3. **Physical expressibility** — HVA respects Hamiltonian symmetries (Wiersema et al. 2020)
+4. **Efficiency** — MPNN warm-start eliminates quantum optimization cost (our contribution)
+
+This combination is the *only* known regime where variational quantum algorithms are simultaneously trainable, noise-resilient, physically meaningful, AND resource-efficient on NISQ hardware.
+
+### 8.3 Quantum Utility Boundary
+
+Martin et al. (2026) identifies the quantum advantage boundary:
+- **N=6-10 (1D chain):** fully classically simulable. Our results demonstrate pipeline METHODOLOGY.
+- **N≈20 (2D systems):** tensor network simulations become expensive. QPU starts to offer better scaling.
+- **N=36+ (Kagome):** no classical method works. Only QPU + MPNN warm-start can characterize the phase.
+
+Ahsan et al. (2025) demonstrated 103-site Kagome VQE on IBM Heron r1/r2, achieving per-site energy matching the thermodynamic limit. This validates that our scaling target (N=36 Kagome) is feasible on current IBM hardware.
+
+### 8.4 GINConv Theoretical Justification
+
+Our choice of GINConv (Graph Isomorphism Network) is theoretically grounded:
+- Xu et al. (ICLR 2019) proved GIN is as powerful as the Weisfeiler-Lehman graph isomorphism test — maximally expressive among message-passing GNNs
+- For uniform lattices (all edges equivalent), GINConv is optimal — attention mechanisms (GATConv) add parameters without information gain
+- For non-uniform lattices (different J values, mixed topologies), GATConv may provide benefit — attention can weight edges by coupling strength
+- Gilmer et al. (ICML 2017) established the MPNN framework that unifies all GNN variants under message passing
+
+### 8.5 Error Mitigation on IBM Hardware
+
+Our Phase 4 strategy is informed by:
+- **QESEM** (Aharonov et al. 2026): resolves ZNE vs PEC tradeoff on IBM Heron. Higher accuracy than ZNE, lower cost than PEC.
+- **Inhomogeneous ZNE** (Uvarov et al. 2024): exploits non-uniform error rates across IBM chip for natural noise scaling without gate folding.
+- **Learned DD** (Pokharel et al. 2025): genetic algorithm optimizes dynamical decoupling sequences for IBM processors. Scalable to 100 qubits.
+- **Shot noise analysis** (Sharma 2026): at 4096 shots, statistical uncertainty (~1.6e-2) exceeds our ⟨X⟩ signal (~8.4e-3 at N=10). Minimum 8192 shots required.
+
+---
+
+> **Full bibliography / Bibliografía completa:** [documentation/bibliography.md](bibliography.md)
