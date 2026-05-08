@@ -288,3 +288,30 @@ This is the most interesting question from the literature. Three alternatives ex
 2. Quantum Subspace Expansion (QSE) — uses VQE as initial state, then expands classically. Weaving et al. (2025) achieved 0.01% error on Kagome this way. Verdict: complementary to our approach, not a replacement. Could be added as Phase 4.5.
 
 3. DMRG-biased contextual subspaces — reduces qubit count before VQE. Verdict: useful for scaling to Kagome, but requires significant new infrastructure. Future work.
+
+
+---
+
+## 9. V6.1 Implementation Lessons
+
+Key learnings from implementing the V6.1 hardware deployment pipeline.
+
+### 9.1 EstimatorV2 Observable Behavior
+
+A single multi-term `SparsePauliOp` submitted to EstimatorV2 returns a **SCALAR** (the weighted sum of all terms' expectation values). A **LIST** of individual `SparsePauliOp` objects returns an **ARRAY** (one value per observable). This applies to both `StatevectorEstimator` and IBM Runtime `EstimatorV2`. For per-site/per-bond measurements (needed for phase classification), always submit observables as a list of single-term operators — never as a grouped multi-term operator.
+
+### 9.2 Inhomogeneous ZNE Implementation
+
+No existing library implements Uvarov et al. 2024's inhomogeneous ZNE approach. Mitiq uses gate folding (a fundamentally different paradigm — it amplifies noise uniformly by repeating gate sequences). Our implementation uses `generate_preset_pass_manager(initial_layout=[...])` to transpile the same logical circuit onto different physical qubit subsets, then `compute_ces(transpiled)` to measure the actual circuit CES for each layout, then linear regression to extrapolate observables to CES=0. The topology CES (used during layout *selection*) is a fast heuristic; the circuit CES (used for the ZNE *extrapolation axis*) is the true value from the transpiled circuit.
+
+### 9.3 NNConv Aggregation
+
+Use `aggr="add"` (not `"mean"`) for NNConv layers, for consistency with GINConv's WL-test equivalence (Xu et al. 2019, "How Powerful are Graph Neural Networks?"). Mean aggregation loses node degree information — two nodes with different numbers of neighbors but the same average neighbor features become indistinguishable. Sum aggregation preserves this structural information, which matters for distinguishing lattice sites with different coordination numbers (e.g., edge vs bulk sites in ladders).
+
+### 9.4 Calibration Freshness on Modern Backends
+
+Newer IBM backends using the Target API may not expose calibration timestamps via `backend.properties()`. The `properties()` method returns `None` on these backends. Rather than blocking inhomogeneous ZNE (which requires calibration error rates for layout selection), we default to assuming fresh calibration when the timestamp is unavailable. The error rates themselves are still accessible via `backend.target[op_name].get((q0, q1)).error`.
+
+### 9.5 No Reusable Libraries Found
+
+For our specific V6.1 components — inhomogeneous ZNE, layout selection on heavy-hex topology, and weight gradient analysis — no existing libraries or paper repositories provide reusable code. Mitiq handles gate-folding ZNE only. Qiskit Runtime handles DD/twirling/TREX natively via EstimatorV2 options (no custom implementation needed for those). The NN extrapolator (Sun et al. 2025) uses a standard `sklearn.MLPRegressor` — no specialized library required.

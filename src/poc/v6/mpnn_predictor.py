@@ -25,7 +25,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data
-from torch_geometric.nn import GINConv, global_mean_pool
+from torch_geometric.nn import GINConv, NNConv, global_mean_pool
 
 from .config import LatticeConfig
 
@@ -49,6 +49,15 @@ class MPNNPredictor(nn.Module):
         Number of GINConv message passing layers.
     output_dim : int
         Output dimension (2 * p_layers).
+    per_parameter_heads : bool
+        When True, use separate MLP heads for θ_zz and θ_x predictions
+        instead of a single head. Default False preserves V6.0 behavior.
+    use_edge_features : bool
+        When True, use NNConv layers (processes edge attributes) instead
+        of GINConv. Requires Data objects with ``edge_attr`` tensors.
+        Default False preserves V6.0 GINConv behavior.
+    edge_feature_dim : int
+        Dimension of edge features (default 1 for scalar J_ij).
     """
 
     def __init__(
@@ -57,38 +66,94 @@ class MPNNPredictor(nn.Module):
         hidden_dim: int = 64,
         n_layers: int = 3,
         output_dim: int = 4,
+        per_parameter_heads: bool = False,
+        use_edge_features: bool = False,
+        edge_feature_dim: int = 1,
     ) -> None:
         super().__init__()
+
+        from .config_v61 import NNCONV_EDGE_MLP_HIDDEN
+
+        # Store architecture attributes for checkpoint metadata
+        self.node_features = node_features
+        self.hidden_dim = hidden_dim
+        self.n_layers = n_layers
+        self.output_dim = output_dim
+        self.per_parameter_heads = per_parameter_heads
+        self.use_edge_features = use_edge_features
+        self.edge_feature_dim = edge_feature_dim
 
         self.convs = nn.ModuleList()
         self.bns = nn.ModuleList()
 
-        # First layer: node_features → hidden_dim
-        mlp0 = nn.Sequential(
-            nn.Linear(node_features, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-        )
-        self.convs.append(GINConv(mlp0))
-        self.bns.append(nn.BatchNorm1d(hidden_dim))
+        if use_edge_features:
+            # NNConv architecture: edge features processed through learned MLP
+            # Use sum aggregation (aggr="add") for consistency with GINConv's
+            # WL-test equivalence (Xu et al. 2019). Mean aggregation loses
+            # information about node degree.
+            # First layer: node_features → hidden_dim
+            edge_nn_0 = nn.Sequential(
+                nn.Linear(edge_feature_dim, NNCONV_EDGE_MLP_HIDDEN),
+                nn.ReLU(),
+                nn.Linear(NNCONV_EDGE_MLP_HIDDEN, node_features * hidden_dim),
+            )
+            self.convs.append(NNConv(node_features, hidden_dim, edge_nn_0, aggr="add"))
+            self.bns.append(nn.BatchNorm1d(hidden_dim))
 
-        # Subsequent layers: hidden_dim → hidden_dim
-        for _ in range(n_layers - 1):
-            mlp = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
+            # Subsequent layers: hidden_dim → hidden_dim
+            for _ in range(n_layers - 1):
+                edge_nn = nn.Sequential(
+                    nn.Linear(edge_feature_dim, NNCONV_EDGE_MLP_HIDDEN),
+                    nn.ReLU(),
+                    nn.Linear(NNCONV_EDGE_MLP_HIDDEN, hidden_dim * hidden_dim),
+                )
+                self.convs.append(NNConv(hidden_dim, hidden_dim, edge_nn, aggr="add"))
+                self.bns.append(nn.BatchNorm1d(hidden_dim))
+        else:
+            # GINConv architecture (V6.0 default)
+            # First layer: node_features → hidden_dim
+            mlp0 = nn.Sequential(
+                nn.Linear(node_features, hidden_dim),
                 nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
             )
-            self.convs.append(GINConv(mlp))
+            self.convs.append(GINConv(mlp0))
             self.bns.append(nn.BatchNorm1d(hidden_dim))
 
-        # Readout MLP: global pooled vector → θ_pred
-        self.head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_dim, output_dim),
-        )
+            # Subsequent layers: hidden_dim → hidden_dim
+            for _ in range(n_layers - 1):
+                mlp = nn.Sequential(
+                    nn.Linear(hidden_dim, hidden_dim),
+                    nn.ReLU(),
+                    nn.Linear(hidden_dim, hidden_dim),
+                )
+                self.convs.append(GINConv(mlp))
+                self.bns.append(nn.BatchNorm1d(hidden_dim))
+
+        # Readout head(s): global pooled vector → θ_pred
+        if per_parameter_heads:
+            # Separate heads for θ_zz and θ_x (physics-informed specialization)
+            self.head_zz = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, output_dim // 2),
+            )
+            self.head_x = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, output_dim // 2),
+            )
+            self.head = None  # Not used in per-parameter mode
+        else:
+            # Single head (V6.0 default, backward compatible)
+            self.head = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, output_dim),
+            )
 
     def forward(self, data: Data) -> torch.Tensor:
         """Predict θ_pred from graph-structured Hamiltonian data.
@@ -97,10 +162,16 @@ class MPNNPredictor(nn.Module):
         ----------
         data : torch_geometric.data.Data
             Must have ``x``, ``edge_index``, and ``batch`` attributes.
+            When ``use_edge_features=True``, must also have ``edge_attr``.
 
         Returns
         -------
         torch.Tensor of shape [batch_size, output_dim]
+
+        Raises
+        ------
+        RuntimeError
+            If NNConv mode is active but ``data.edge_attr`` is missing.
         """
         x, edge_index = data.x, data.edge_index
         if hasattr(data, "batch") and data.batch is not None:
@@ -108,14 +179,33 @@ class MPNNPredictor(nn.Module):
         else:
             batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
 
-        for conv, bn in zip(self.convs, self.bns, strict=False):
-            x = conv(x, edge_index)
-            x = bn(x)
-            x = torch.relu(x)
+        if self.use_edge_features:
+            # NNConv requires edge_attr
+            if not hasattr(data, "edge_attr") or data.edge_attr is None:
+                raise RuntimeError(
+                    "MPNNPredictor with use_edge_features=True requires "
+                    "Data objects with edge_attr tensors. Got Data without "
+                    "edge_attr. Ensure build_graph_dataset() was called with "
+                    "include_edge_features=True."
+                )
+            edge_attr = data.edge_attr
+            for conv, bn in zip(self.convs, self.bns, strict=False):
+                x = conv(x, edge_index, edge_attr)
+                x = bn(x)
+                x = torch.relu(x)
+        else:
+            for conv, bn in zip(self.convs, self.bns, strict=False):
+                x = conv(x, edge_index)
+                x = bn(x)
+                x = torch.relu(x)
 
         # Global mean pooling: lattice-agnostic fixed-size output
         x = global_mean_pool(x, batch)
 
+        if self.per_parameter_heads:
+            zz_out = self.head_zz(x)
+            x_out = self.head_x(x)
+            return torch.cat([zz_out, x_out], dim=-1)
         return self.head(x)
 
 
@@ -205,6 +295,7 @@ def build_graph_dataset(
     e_exact: np.ndarray,
     fidelities: np.ndarray | None = None,
     fidelity_threshold: float = 0.93,
+    include_edge_features: bool = False,
 ) -> list[Data]:
     """Convert LatticeConfig + θ_opt arrays into torch_geometric Data objects.
 
@@ -222,6 +313,13 @@ def build_graph_dataset(
         VQE fidelities for filtering.
     fidelity_threshold : float
         Minimum fidelity to include in dataset.
+    include_edge_features : bool
+        When True, add ``edge_attr`` tensors of shape ``[n_edges, 1]``
+        containing the coupling constant J_ij for each bond. For ladder
+        topologies with J_leg ≠ J_rung, distinct J values are assigned
+        to leg vs rung bonds. If LatticeConfig has scalar J (uniform),
+        a warning is logged and edge features are skipped (no information
+        gain from constant features).
 
     Returns
     -------
@@ -232,6 +330,26 @@ def build_graph_dataset(
     builder = HamiltonianBuilder()
     edge_index_np, coord = builder.build_graph_data(lattice)
     edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+
+    # ── Edge feature construction (Task 10.1) ────────────────────────
+    edge_attr: torch.Tensor | None = None
+    if include_edge_features:
+        if isinstance(lattice.J, np.ndarray):
+            # Per-bond J array: assign J_ij to each directed edge
+            # edge_index has shape [2, 2*n_bonds] (both directions)
+            # lattice.edges has n_bonds entries; edge_index_np has 2*n_bonds
+            # The builder creates edges as (i,j) + (j,i) for each bond
+            # J values for forward edges, then same for reverse edges
+            j_values = np.concatenate([lattice.J, lattice.J])
+            edge_attr = torch.tensor(j_values.reshape(-1, 1), dtype=torch.float32)
+        else:
+            # Scalar J: uniform coupling — no information gain
+            logger.warning(
+                "include_edge_features=True but LatticeConfig has scalar J "
+                f"(J={lattice.J}). Skipping edge features — uniform coupling "
+                "provides no information gain for the MPNN."
+            )
+            include_edge_features = False  # Disable for this dataset
 
     dataset: list[Data] = []
     for i, h in enumerate(h_values):
@@ -250,11 +368,17 @@ def build_graph_dataset(
         data = Data(x=x, edge_index=edge_index, y=y)
         data.e_exact = float(e_exact[i])
         data.h_value = float(h)
+
+        # Attach edge features if available
+        if include_edge_features and edge_attr is not None:
+            data.edge_attr = edge_attr
+
         dataset.append(data)
 
     logger.info(
         f"Built graph dataset: {len(dataset)}/{len(h_values)} points "
-        f"(fidelity threshold={fidelity_threshold})"
+        f"(fidelity threshold={fidelity_threshold}, "
+        f"edge_features={include_edge_features})"
     )
     return dataset
 
@@ -351,8 +475,11 @@ def train_mpnn(
     Returns
     -------
     dict with keys: 'mse_history', 'energy_val_history', 'final_mse',
-                    'stopped_early', 'stop_reason'
+                    'stopped_early', 'stop_reason',
+                    and optionally 'zz_head_loss_history', 'x_head_loss_history'
+                    when per_parameter_heads is enabled.
     """
+    import torch.nn.functional as F
     from torch_geometric.loader import DataLoader
 
     loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
@@ -362,8 +489,13 @@ def train_mpnn(
     )
     criterion = nn.MSELoss()
 
+    # Detect per-parameter heads mode
+    has_per_param_heads = hasattr(model, "per_parameter_heads") and model.per_parameter_heads
+
     mse_history: list[float] = []
     energy_val_history: list[float] = []
+    zz_head_loss_history: list[float] = []
+    x_head_loss_history: list[float] = []
     stopped_early = False
     stop_reason = "completed"
 
@@ -381,6 +513,25 @@ def train_mpnn(
 
         mse_history.append(epoch_loss)
         scheduler.step(epoch_loss)
+
+        # ── Per-head loss reporting (Task 9.2) ───────────────────────
+        if has_per_param_heads and (epoch + 1) % energy_val_interval == 0:
+            model.eval()
+            with torch.no_grad():
+                for batch in loader:
+                    pred = model(batch)
+                    target = batch.y.view(pred.shape)
+                    p = model.output_dim // 2
+                    loss_zz = F.mse_loss(pred[:, :p], target[:, :p]).item()
+                    loss_x = F.mse_loss(pred[:, p:], target[:, p:]).item()
+                    zz_head_loss_history.append(loss_zz)
+                    x_head_loss_history.append(loss_x)
+                    logger.info(
+                        f"  Epoch {epoch + 1}: MSE={epoch_loss:.2e}, "
+                        f"ZZ-head={loss_zz:.2e}, X-head={loss_x:.2e}"
+                    )
+                    break  # single batch
+            model.train()
 
         # ── Task 6.4: energy-driven validation callback ──────────────
         if energy_val_fn is not None and (epoch + 1) % energy_val_interval == 0:
@@ -417,10 +568,115 @@ def train_mpnn(
                     stop_reason = "divergence_detected"
                     break
 
-    return {
+    result = {
         "mse_history": mse_history,
         "energy_val_history": energy_val_history,
         "final_mse": mse_history[-1] if mse_history else float("inf"),
         "stopped_early": stopped_early,
         "stop_reason": stop_reason,
     }
+
+    if has_per_param_heads:
+        result["zz_head_loss_history"] = zz_head_loss_history
+        result["x_head_loss_history"] = x_head_loss_history
+
+    return result
+
+
+# ── Task 9.3: Model save/load with architecture metadata ────────────────
+
+
+def save_mpnn_checkpoint(
+    model: MPNNPredictor,
+    path: str,
+    training_metadata: dict | None = None,
+) -> None:
+    """Save model with architecture metadata for correct reconstruction.
+
+    Parameters
+    ----------
+    model : MPNNPredictor
+        Trained model to save.
+    path : str
+        File path for the checkpoint (.pt file).
+    training_metadata : dict | None
+        Optional training info (epoch, loss, dataset details).
+    """
+    from .config_v61 import MPNNCheckpoint
+
+    checkpoint = MPNNCheckpoint(
+        state_dict=model.state_dict(),
+        architecture="nnconv" if getattr(model, "use_edge_features", False) else "ginconv",
+        per_parameter_heads=getattr(model, "per_parameter_heads", False),
+        node_features=getattr(model, "node_features", 2),
+        hidden_dim=getattr(model, "hidden_dim", 64),
+        n_layers=getattr(model, "n_layers", 3),
+        output_dim=getattr(model, "output_dim", 4),
+        use_edge_features=getattr(model, "use_edge_features", False),
+        edge_feature_dim=getattr(model, "edge_feature_dim", 1),
+        training_metadata=training_metadata or {},
+    )
+
+    # Save as dict for torch.save compatibility
+    torch.save(
+        {
+            "state_dict": checkpoint.state_dict,
+            "architecture": checkpoint.architecture,
+            "per_parameter_heads": checkpoint.per_parameter_heads,
+            "node_features": checkpoint.node_features,
+            "hidden_dim": checkpoint.hidden_dim,
+            "n_layers": checkpoint.n_layers,
+            "output_dim": checkpoint.output_dim,
+            "use_edge_features": checkpoint.use_edge_features,
+            "edge_feature_dim": checkpoint.edge_feature_dim,
+            "training_metadata": checkpoint.training_metadata,
+        },
+        path,
+    )
+
+    logger.info(f"Saved MPNNCheckpoint to {path}")
+
+
+def load_mpnn_checkpoint(path: str) -> MPNNPredictor:
+    """Load model from checkpoint, reconstructing correct architecture.
+
+    Parameters
+    ----------
+    path : str
+        Path to the checkpoint file.
+
+    Returns
+    -------
+    MPNNPredictor
+        Reconstructed model with loaded weights.
+    """
+    data = torch.load(path, map_location="cpu", weights_only=False)
+
+    # Handle legacy checkpoints without metadata
+    if "state_dict" not in data:
+        # Assume it's a raw state_dict (V6.0 format)
+        logger.warning(
+            "Loading legacy checkpoint without architecture metadata. "
+            "Assuming single-head GINConv (V6.0 defaults)."
+        )
+        model = MPNNPredictor()
+        model.load_state_dict(data)
+        return model
+
+    # Reconstruct architecture from metadata
+    model = MPNNPredictor(
+        node_features=data.get("node_features", 2),
+        hidden_dim=data.get("hidden_dim", 64),
+        n_layers=data.get("n_layers", 3),
+        output_dim=data.get("output_dim", 4),
+        per_parameter_heads=data.get("per_parameter_heads", False),
+        use_edge_features=data.get("use_edge_features", False),
+        edge_feature_dim=data.get("edge_feature_dim", 1),
+    )
+    model.load_state_dict(data["state_dict"])
+    logger.info(
+        f"Loaded MPNNCheckpoint: arch={data['architecture']}, "
+        f"per_param_heads={data.get('per_parameter_heads', False)}, "
+        f"edge_features={data.get('use_edge_features', False)}"
+    )
+    return model

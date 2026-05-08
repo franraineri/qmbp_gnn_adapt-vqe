@@ -745,4 +745,69 @@ Our Phase 4 strategy is informed by:
 
 ---
 
+## 6. V6.1 Hardware Deployment Architecture / Arquitectura de Despliegue en Hardware V6.1
+
+### 6.1 Module Overview / Visión General de Módulos
+
+V6.1 introduces three modules that extend V6.0 without modifying stable code:
+
+| Module | Responsibility |
+|--------|---------------|
+| `config_v61.py` | Constants (shot budgets, ZNE thresholds, NN config) and dataclasses (`DeployResultV61`, `LayoutResult`, `GradientAnalysisResult`, `MPNNCheckpoint`) |
+| `hardware_deployer_v61.py` | Full deployment orchestrator: `HardwareDeployerV61`, `LayoutSelector`, `ObservableGrouper`, `NNExtrapolator`, shot budget logic, EstimatorV2 options builder |
+| `analysis_utils.py` | `WeightGradientAnalyzer` — purely classical post-training analysis for unsupervised phase detection (Hernandes et al. 2025) |
+
+La separación es intencional: `analysis_utils.py` no tiene dependencias cuánticas (no importa Qiskit), permitiendo análisis de pesos sin acceso a hardware.
+
+### 6.2 Error Mitigation Stack / Pila de Mitigación de Errores
+
+V6.1 applies five layers of error mitigation, ordered from hardware-level to post-processing:
+
+1. **Dynamical Decoupling (DD):** XpXm pulse sequences during idle periods. Suppresses T₂ decoherence. Zero shot overhead — configured via `EstimatorV2.options.dynamical_decoupling`.
+2. **Pauli Twirling:** Randomizes coherent gate errors into stochastic noise (easier to mitigate). 32 randomizations × 256 shots each. Configured via `EstimatorV2.options.twirling`.
+3. **TREX (Twirled Readout Error eXtinction):** Symmetrizes readout errors for statistical correction. Configured via `EstimatorV2.options.resilience.measure_mitigation`.
+4. **Inhomogeneous ZNE:** Multiple qubit layouts with diverse Circuit Error Sums (CES). Linear regression on (CES, observable) pairs extrapolates to CES=0. Implemented in `_run_inhomogeneous_zne()`.
+5. **NN Extrapolation (optional):** When ≥5 data points available (e.g., 3 layouts × 3 Runtime noise factors), an MLP replaces linear regression for non-linear noise-energy relationships (Sun et al. 2025).
+
+Capas 1–3 son nativas de Qiskit Runtime (configuración declarativa). Capas 4–5 son implementación propia — no existe biblioteca reutilizable para ZNE inhomogéneo.
+
+### 6.3 Key Design Decisions / Decisiones de Diseño Clave
+
+**Why inhomogeneous ZNE over gate folding (Uvarov et al. 2024):**
+Gate folding (Mitiq's approach) amplifies noise uniformly by repeating gate sequences — it assumes homogeneous error rates. IBM heavy-hex processors have highly non-uniform error rates (0.1%–2% across edges). Inhomogeneous ZNE exploits this natural variation: different qubit mappings produce different total CES values without modifying the circuit. This gives a more physically meaningful noise axis and avoids the circuit depth increase of gate folding.
+
+**Why COBYLA over L-BFGS-B on hardware:**
+L-BFGS-B requires gradient evaluations (2p finite-difference circuits per iteration). On hardware with shot noise, these gradients are unreliable. COBYLA is gradient-free and tolerates noisy function evaluations. However, with MPNN warm-start providing near-optimal parameters, the optimizer typically runs 0 iterations — the choice matters only if ADAPT refinement is needed.
+
+**Why "indeterminate" phase label near critical crossover (Sharma 2026):**
+When |⟨X⟩ - |⟨ZZ⟩|| ≤ σ (statistical uncertainty), the measurement cannot distinguish phases. Rather than forcing a potentially wrong classification, we report "indeterminate". This is physically honest: hardware noise broadens the critical crossover region, and claiming a definite phase within σ of the boundary would be misleading.
+
+**Why NNConv with `aggr="add"` for edge features:**
+For lattices with non-uniform couplings (ladders with J_leg ≠ J_rung), edge features encode the coupling strength J_ij. NNConv processes these via a learned MLP. Sum aggregation (`aggr="add"`) preserves node degree information (Xu et al. 2019, WL-test equivalence), which is critical for distinguishing bulk vs edge sites in non-uniform topologies.
+
+### 6.4 EstimatorV2 PUB Submission Patterns / Patrones de Envío PUB
+
+The EstimatorV2 primitive accepts PUBs (Primitive Unified Blocs) as `(circuit, observable)` tuples:
+
+```python
+# SCALAR result: single multi-term SparsePauliOp → weighted sum
+job = estimator.run([(circuit, hamiltonian)])  # result[0].data.evs → float
+
+# ARRAY result: list of single-term SparsePauliOps → one value per op
+x_obs_list = [SparsePauliOp.from_sparse_list([("X", [i], 1.0)], n) for i in range(n)]
+job = estimator.run([(circuit, x_obs_list)])  # result[0].data.evs → ndarray[n]
+```
+
+Para mediciones por sitio/enlace (clasificación de fase), siempre enviar como lista. Para energía total (donde solo importa la suma), enviar el Hamiltoniano completo como un solo `SparsePauliOp`.
+
+### 6.5 MPNN Enhancements / Mejoras al MPNN
+
+**Per-parameter heads (Task 9.2):** Separate MLP heads for θ_zz and θ_x predictions. Physics-informed: ZZ parameters control entanglement generation while X parameters control field alignment — different optimization landscapes justify specialized heads. Enabled via `per_parameter_heads=True`.
+
+**Edge features via NNConv (Task 10.1):** When `use_edge_features=True`, GINConv layers are replaced by NNConv. Each edge carries a scalar J_ij feature processed through a learned MLP that generates the message-passing weight matrix. Only activated for non-uniform couplings (uniform J provides no information gain).
+
+**Weight gradient analysis (Task 11):** `WeightGradientAnalyzer` computes ∂L/∂W across the h-sweep on the trained MPNN. Peaks in the gradient norm curve near h_c ∈ [0.8, 1.4] indicate phase transition signatures encoded in the network weights (Hernandes et al. 2025). Zero QPU cost — purely classical post-training analysis.
+
+---
+
 > **Full bibliography / Bibliografía completa:** [documentation/bibliography.md](bibliography.md)

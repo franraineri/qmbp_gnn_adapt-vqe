@@ -92,24 +92,28 @@ The h=1.25 ceiling is independently confirmed as a physics limit by Tripathi et 
 
 ```
 qmbp_gnn_adapt-vqe/
-├── src/poc/v6/                    # Active codebase (modular V6.0)
+├── src/poc/v6/                    # Active codebase (modular V6.x)
 │   ├── config.py                  # Shared dataclasses & constants
+│   ├── config_v61.py              # V6.1 constants & dataclasses (DeployResultV61, etc.)
 │   ├── hamiltonian_builder.py     # Lattice generators + SparsePauliOp construction
 │   ├── classical_solver.py        # Exact diag + DMRG/TeNPy
 │   ├── hva_builder.py             # HVA circuit construction (p ≤ 2 enforced)
 │   ├── vqe_optimizer.py           # Multi-start L-BFGS-B with callbacks
-│   ├── mpnn_predictor.py          # GINConv MPNN + training loop
+│   ├── mpnn_predictor.py          # GINConv/NNConv MPNN + per-param heads + training
 │   ├── qrc_pipeline.py            # Quantum Reservoir Computing fallback
-│   ├── hardware_deployer.py       # AdaptVQE + QRC dual-route deployment
+│   ├── hardware_deployer.py       # V6.0 AdaptVQE + QRC dual-route deployment
+│   ├── hardware_deployer_v61.py   # V6.1 production deployer (ZNE, DD, twirling, TREX)
+│   ├── analysis_utils.py          # Weight gradient analyzer (phase detection)
 │   ├── pipeline_utils.py          # Dataset save/load, metadata, locality checks
 │   ├── poc_v6_phases1_2.ipynb     # Notebook: Phase 1-2 orchestration
 │   └── poc_v6_phases3_4.ipynb     # Notebook: Phase 3-4 orchestration
 ├── scripts/                       # ALL executable scripts
-│   ├── smoke_test.py              # Quick end-to-end validation (~7s)
-│   ├── benchmark_v6.py            # Multi-run benchmark with binnacle logging
-│   ├── run_notebooks.py           # Automated notebook execution with validation
+│   ├── smoke_test.py              # V6.0 quick validation (~7s)
+│   ├── smoke_test_v61.py          # V6.1 full pipeline test (~16s)
+│   ├── benchmark_v6.py            # Multi-run benchmark (--deployer v6.0|v6.1)
+│   ├── run_notebooks.py           # Notebook executor with auto-registry + binnacle
 │   └── hooks/check_hva_depth.py   # Pre-commit: p ≤ 2 enforcement
-├── tests/                         # pytest suite (18 tests)
+├── tests/                         # pytest suite (33 tests)
 ├── documentation/                 # Thesis docs, binnacle, bibliography
 ├── .pre-commit-config.yaml        # 12 hooks (ruff, nbstripout, HVA guard, etc.)
 ├── pyproject.toml                 # Ruff config + banned Qiskit APIs
@@ -127,7 +131,7 @@ pip install -r requirements.txt
 pre-commit install
 
 # Verify everything works
-make check-full          # lint + 18 tests + smoke test
+make check-full          # lint + 33 tests + smoke test
 
 # Run the PoC pipeline
 make run-notebooks       # execute both notebooks with validation

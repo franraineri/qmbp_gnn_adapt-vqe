@@ -9,41 +9,46 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 ## Repository Map
 
 ```
-├── src/poc/v6/              ← ACTIVE CODE (9 Python modules + 2 notebooks)
+├── src/poc/v6/              ← ACTIVE CODE (12 Python modules + 2 notebooks)
 │   ├── config.py            ← Shared dataclasses (LatticeConfig, VQEConfig, etc.)
+│   ├── config_v61.py        ← V6.1 constants + dataclasses (DeployResultV61, LayoutResult, etc.)
 │   ├── hamiltonian_builder.py ← Phase 1: Hamiltonian + lattice generators
 │   ├── classical_solver.py  ← Phase 1: Exact diag + DMRG ground truth
 │   ├── hva_builder.py       ← Phase 2: HVA circuit construction
 │   ├── vqe_optimizer.py     ← Phase 2: Multi-start VQE + callbacks
-│   ├── mpnn_predictor.py    ← Phase 3: MPNN model + training loop
+│   ├── mpnn_predictor.py    ← Phase 3: MPNN model + training + checkpoint save/load
 │   ├── qrc_pipeline.py      ← Phase 4: QRC fallback route
-│   ├── hardware_deployer.py ← Phase 4: Adapt-VQE + QRC deployment
+│   ├── hardware_deployer.py ← Phase 4: V6.0 Adapt-VQE + QRC deployment (simulation)
+│   ├── hardware_deployer_v61.py ← Phase 4: V6.1 full hardware path (ZNE, DD, twirling)
+│   ├── analysis_utils.py    ← Post-training: WeightGradientAnalyzer (zero QPU cost)
 │   ├── pipeline_utils.py    ← Cross-phase: dataset save/load, integrity checks
 │   ├── poc_v6_phases1_2.ipynb ← Full Phase 1-2 notebook
 │   └── poc_v6_phases3_4.ipynb ← Full Phase 3-4 notebook
 │
 ├── scripts/                 ← ALL executable scripts (single location)
-│   ├── smoke_test.py        ← Quick end-to-end validation (~7s)
+│   ├── smoke_test.py        ← Quick V6.0 end-to-end validation (~7s)
+│   ├── smoke_test_v61.py    ← V6.1 smoke test: deployer + gradient analysis (~16s)
 │   ├── benchmark_v6.py      ← Multi-run benchmark with configurable params
-│   ├── run_notebooks.py     ← Notebook executor with validation
+│   ├── run_notebooks.py     ← Notebook executor with auto-registry + binnacle generation
 │   ├── hooks/               ← Pre-commit hook scripts
 │   │   └── check_hva_depth.py
 │   ├── benchmark_results/   ← Raw JSON results (gitignored)
-│   └── notebook_results/    ← Executed notebooks (gitignored)
+│   └── notebook_results/    ← Executed notebooks + JSON summaries (gitignored)
 │
 ├── tests/                   ← Pytest test suite
 │   ├── conftest.py          ← Shared fixtures
-│   └── test_v6_pipeline.py  ← 18 unit tests
+│   └── test_v6_pipeline.py  ← 33 tests (18 V6.0 + 15 V6.1)
 │
 ├── documentation/           ← Human-readable docs
-│   ├── binnacle-N6.md       ← Experiment log: N=6 (complete, 40+ experiments)
-│   ├── binnacle-N10.md      ← Experiment log: N=10 scaling (active)
+│   ├── binnacles/           ← Experiment logs (auto-populated by run_notebooks.py)
+│   │   ├── binnacle-N6.md   ← N=6 experiments (complete, 40+)
+│   │   └── binnacle-N10.md  ← N=10 scaling (active)
 │   └── architectural_doc_es_en.md ← Architecture justification
 │
 ├── .kiro/                   ← AI agent configuration
 │   ├── skills/quantum/SKILL.md    ← Core rules and constraints
-│   ├── knowledge/                 ← Domain knowledge (7 files)
-│   ├── steering/                  ← Active guidance (status + code style)
+│   ├── knowledge/                 ← Domain knowledge (8 files)
+│   ├── steering/                  ← Active guidance (status + code style + hardware)
 │   ├── hooks/                     ← Automated checks (Qiskit compliance)
 │   └── specs/                     ← V6 spec (requirements, design, tasks)
 │
@@ -59,15 +64,39 @@ The Makefile is the single entry point. Use `make` for everything.
 | Command | What it does | Time |
 |---------|-------------|------|
 | `make help` | Show all targets | instant |
-| `make test` | Pytest (18 tests) | ~5s |
-| `make smoke-test` | End-to-end pipeline | ~7s |
+| `make test` | Pytest (33 tests) | ~8s |
+| `make smoke-test` | V6.0 end-to-end pipeline | ~7s |
 | `make lint` | Ruff linter | ~1s |
 | `make check-full` | lint + test + smoke-test | ~15s |
 | `make benchmark` | 3-run benchmark (N=6) | ~50s |
 | `make benchmark ARGS="--n-qubits 10"` | Custom benchmark | varies |
 | `make benchmark-n10` | N=10 chain shortcut | ~2.5min |
-| `make run-notebooks` | Execute both notebooks | ~15min |
+| `make run-notebooks` | Execute both notebooks with auto-registry | ~15min |
 | `make check` | All pre-commit hooks | ~5s |
+
+### Direct Script Usage (beyond Makefile)
+
+**V6.1 Smoke Test** — validates deployer + gradient analysis:
+```bash
+python scripts/smoke_test_v61.py    # ~16s, exercises all V6.1 modules
+```
+
+**Notebook Executor** — full auto-registry with structured metrics:
+```bash
+python scripts/run_notebooks.py                         # both notebooks
+python scripts/run_notebooks.py --phase 1-2             # only phases 1-2
+python scripts/run_notebooks.py --phase 3-4             # only phases 3-4
+python scripts/run_notebooks.py --timeout 600           # 10 min wall-clock timeout
+python scripts/run_notebooks.py --binnacle             # append binnacle entry to docs
+python scripts/run_notebooks.py --label "N10 test"     # label for the run
+python scripts/run_notebooks.py --binnacle-file binnacle-N10.md  # explicit target
+python scripts/run_notebooks.py --dry-run              # pre-flight only, no execution
+python scripts/run_notebooks.py --keep-last 10         # prune old results
+```
+
+Exit codes: `0` = all pass, `1` = execution failure, `2` = validation failure, `3` = pre-flight failure.
+
+The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, phase label, gradient peaks, ZNE R², etc.) and generates binnacle-ready markdown with environment info, run-to-run comparison, and auto-generated observations.
 
 ## Where to Find What
 
@@ -80,10 +109,13 @@ The Makefile is the single entry point. Use `make` for everything.
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
 | Check numerical baselines | `.kiro/knowledge/poc-results.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
-| See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` |
+| See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` + `.kiro/steering/hardware-deployment.md` |
 | Review literature insights & improvements | `.kiro/knowledge/literature-synthesis.md` |
-| See full experiment history | `documentation/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
+| See full experiment history | `documentation/binnacles/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
 | Find alternative techniques | `documentation/alternative_bibliography.md` |
+| Understand V6.1 changes | `src/poc/v6/CHANGES_V6.md` |
+| Run notebooks with metrics | `scripts/run_notebooks.py --help` |
+| Validate V6.1 deployer | `scripts/smoke_test_v61.py` |
 
 ## Key Workflow Rules
 1. Never modify stable modules (listed in `project-status.md`) without explicit request.
@@ -92,17 +124,38 @@ The Makefile is the single entry point. Use `make` for everything.
 4. Document results in the binnacle with configuration, metrics, and analysis.
 5. Phase 2 MUST use pure energy cost (V5.x lesson).
 6. All scripts live in `scripts/` — never put executable scripts in `src/`.
+7. Use `run_notebooks.py --binnacle --label "description"` for automated experiment logging.
+8. V6.1 modules (`hardware_deployer_v61.py`, `config_v61.py`, `analysis_utils.py`) extend V6.0 — never modify V6.0 stable modules.
 
-## Current Best Configuration (from 28+ benchmark runs)
+## Current Best Configuration (from 40+ benchmark runs)
 
 | Parameter | Value |
 |-----------|-------|
 | VQE restarts | 5 |
 | VQE maxiter | 1000 |
+| VQE σ (restart) | 0.1 |
 | MPNN hidden | 64 |
 | MPNN layers | 3 |
 | MPNN epochs | 6000 |
 | MPNN lr | 1e-3 |
 | Fid threshold | 0.93 |
+| GINConv | yes (GATConv rejected) |
+| Data augmentation | no (hurts at N=10) |
 
 Expected: 5/6 at h=1.5 (N=6), 4-5/6 at h=1.4 (N=6), 2-3/6 at h=1.5 (N=10).
+
+## Auto-Extracted Metrics (from `run_notebooks.py`)
+
+The notebook executor automatically extracts these metrics from cell outputs:
+
+| Metric key | Source | Threshold |
+|------------|--------|-----------|
+| `avg_fidelity` | Phase 1-2 VQE | ≥93% |
+| `final_mse` | Phase 3 MPNN | <0.1 (warn), <0.005 (excellent) |
+| `delta_e_over_gap` | Phase 4 deploy | <5% pass, <10% marginal |
+| `checklist_pass/total` | Phase 4 validation | 5/6 at h=1.5 |
+| `critical_region_detected` | Gradient analysis | True = phase transition in weights |
+| `gradient_peak_h` | Gradient analysis | Expected near h≈1.0–1.2 |
+| `zne_r_squared` | Hardware ZNE | >0.8 (warn if lower) |
+| `shots` | Hardware deploy | ≥8192 for N≤6 |
+| `deploy_mode` | Hardware deploy | "simulation" or "hardware" |

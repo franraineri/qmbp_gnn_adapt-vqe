@@ -14,8 +14,13 @@ fileMatchPattern: "src/poc/v6/**/*.py"
 - Prefer package-level imports: `from src.poc.v6 import HamiltonianBuilder, make_lattice`
 - For MPNN/QRC/HardwareDeployer (not in `__all__` to avoid heavy imports at package level):
   `from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn`
+  `from src.poc.v6.mpnn_predictor import save_mpnn_checkpoint, load_mpnn_checkpoint`
   `from src.poc.v6.qrc_pipeline import QRCPipeline`
   `from src.poc.v6.hardware_deployer import HardwareDeployer`
+- V6.1 extensions (hardware + analysis):
+  `from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61`
+  `from src.poc.v6.analysis_utils import WeightGradientAnalyzer`
+  `from src.poc.v6.config_v61 import DeployResultV61, LayoutResult, GradientAnalysisResult`
 
 ## Qiskit Patterns
 - SparsePauliOp via `from_sparse_list()` only.

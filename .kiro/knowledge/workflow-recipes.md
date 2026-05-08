@@ -6,16 +6,28 @@
 ## V6 Module Quick Reference
 
 ```python
-# All core imports
+# All core imports (V6.0)
 from src.poc.v6 import (
     HamiltonianBuilder, make_lattice, ClassicalSolver,
-    HVACircuitBuilder, VQEOptimizer, HardwareDeployer,
+    HVACircuitBuilder, VQEOptimizer,
     LatticeConfig, VQEConfig, GroundTruthResult, VQEResult, DeployResult,
     save_phase12_dataset, load_phase12_dataset,
 )
 from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
+from src.poc.v6.mpnn_predictor import save_mpnn_checkpoint, load_mpnn_checkpoint
 from src.poc.v6.qrc_pipeline import QRCPipeline
 from src.poc.v6.pipeline_utils import assert_observable_locality
+
+# V6.1 extensions (hardware + analysis)
+from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
+from src.poc.v6.analysis_utils import WeightGradientAnalyzer
+from src.poc.v6.config_v61 import (
+    DeployResultV61, LayoutResult, GradientAnalysisResult, MPNNCheckpoint,
+    SHOT_BUDGET_SMALL, SHOT_BUDGET_MEDIUM, SHOT_BUDGET_LARGE,
+)
+
+# V6.0 deployer (simulation-only, lighter dependencies)
+from src.poc.v6.hardware_deployer import HardwareDeployer
 ```
 
 ## Phase 1: Ground Truth (V6 pattern)
@@ -75,15 +87,60 @@ test_graph = Data(x=x_test, edge_index=torch.tensor(edge_idx, dtype=torch.long))
 with torch.no_grad():
     theta_pred = model(test_graph).numpy().flatten()
 
-# Adapt-VQE route
+# Adapt-VQE route (V6.0 — simulation only)
+from src.poc.v6.hardware_deployer import HardwareDeployer
 deployer = HardwareDeployer()
 result = deployer.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
 
+# V6.1 Deployer — full hardware path (simulation or real)
+from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
+deployer_v61 = HardwareDeployerV61(mode="simulation")  # or mode="hardware"
+result_v61 = deployer_v61.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+# Returns DeployResultV61 with ZNE data, uncertainty, per-site observables
+
 # QRC fallback route
+from src.poc.v6.qrc_pipeline import QRCPipeline
 qrc = QRCPipeline(seed=42)
 qrc.build_reservoir(N, p_layers, base_lattice)
 qrc.train_readout(h_values, mag_x_array, corr_zz_array)
 qrc_result = deployer.deploy_qrc(qrc, h_test, exact_test)
+```
+
+## Weight Gradient Analysis (V6.1 — zero QPU cost)
+
+```python
+from src.poc.v6.analysis_utils import WeightGradientAnalyzer
+
+analyzer = WeightGradientAnalyzer(model)  # trained MPNN
+grad_result = analyzer.analyze(dataset)
+
+# grad_result.total_gradient_norms — array of ‖∂L/∂W‖₂ per h-value
+# grad_result.per_layer_gradient_norms — dict: {"ginconv_0": [...], "head": [...]}
+# grad_result.peak_h_values — h-values where peaks detected
+# grad_result.critical_region_detected — True if peaks in h ∈ [0.8, 1.4]
+```
+
+## MPNN Checkpoint Save/Load (V6.1)
+
+```python
+from src.poc.v6.mpnn_predictor import save_mpnn_checkpoint, load_mpnn_checkpoint
+
+# Save with metadata
+save_mpnn_checkpoint(model, "model.pt", {"epochs": 6000, "mse": 0.003})
+
+# Load reconstructs correct architecture from metadata
+loaded_model = load_mpnn_checkpoint("model.pt")
+```
+
+## Per-Parameter Heads (V6.1 — optional)
+
+```python
+model = MPNNPredictor(
+    node_features=2, hidden_dim=64, n_layers=3, output_dim=2*p,
+    per_parameter_heads=True,  # separate heads for θ_zz and θ_x
+)
+result = train_mpnn(model, dataset, n_epochs=6000, lr=1e-3)
+# result["zz_head_loss_history"] and result["x_head_loss_history"] available
 ```
 
 ## Dataset Save/Load with Integrity
@@ -153,4 +210,52 @@ zz_obs = [SparsePauliOp.from_sparse_list([("ZZ", [i, i+1], 1.0)], num_qubits=N) 
 # Submit as grouped observables (Qiskit groups commuting automatically)
 all_obs = x_obs + zz_obs  # 2 measurement bases total, not N+N-1 circuits
 job = estimator.run([(isa_qc, all_obs)])
+```
+
+## Experiment Logging with Auto-Registry
+
+```bash
+# Standard experiment run with binnacle logging
+python scripts/run_notebooks.py --binnacle --label "N6 baseline v6.1"
+
+# N=10 scaling experiment (auto-routes to binnacle-N10.md)
+python scripts/run_notebooks.py --binnacle --label "N10 hidden128" --timeout 900
+
+# Dry-run to verify pre-flight without executing
+python scripts/run_notebooks.py --dry-run
+
+# Prune old results (keep last 10 runs)
+python scripts/run_notebooks.py --keep-last 10 --phase all --binnacle --label "cleanup run"
+```
+
+The auto-registry produces:
+- `scripts/notebook_results/run_summary_<timestamp>_<hash>.json` — structured JSON with full metrics, environment, and cell outputs
+- Binnacle markdown entry (if `--binnacle`) — appended to `documentation/binnacles/` with auto-observations and run-to-run comparison
+
+### JSON Summary Structure
+
+```json
+{
+  "timestamp": "2026-05-08T...",
+  "run_id": "a1b2c3d4",
+  "label": "N6 baseline v6.1",
+  "phases": "all",
+  "environment": {"git_commit": "f52160d", "git_branch": "version_6.1", ...},
+  "results": [
+    {
+      "notebook": "poc_v6_phases1_2.ipynb",
+      "success": true,
+      "elapsed_seconds": 45.2,
+      "peak_memory_mb": 312.5,
+      "slowest_cell_seconds": 28.1,
+      "metrics": {
+        "dataset_avg_fidelity": 99.2,
+        "dataset_fid_ge_93pct": 25,
+        "dataset_n_points": 27
+      }
+    }
+  ],
+  "total_elapsed": 180.5,
+  "all_passed": true
+}
 ```

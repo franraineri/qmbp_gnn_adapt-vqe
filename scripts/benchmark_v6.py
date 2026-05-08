@@ -69,8 +69,19 @@ def run_pipeline(
     h_points: int = 27,
     augment: bool = False,
     model_type: str = "gin",
+    deployer_version: str = "v6.0",
+    per_parameter_heads: bool = False,
 ) -> dict:
-    """Execute the full V6 pipeline once and return metrics."""
+    """Execute the full V6 pipeline once and return metrics.
+
+    Parameters
+    ----------
+    deployer_version : str
+        "v6.0" for original deployer, "v6.1" for HardwareDeployerV61 with
+        full error mitigation stack (simulation mode).
+    per_parameter_heads : bool
+        When True and deployer_version="v6.1", use separate ZZ/X output heads.
+    """
     np.random.seed(seed)
     torch.manual_seed(seed)
 
@@ -156,6 +167,7 @@ def run_pipeline(
             hidden_dim=mpnn_hidden,
             n_layers=mpnn_layers,
             output_dim=2 * p,
+            per_parameter_heads=per_parameter_heads,
         )
     train_result = train_mpnn(
         model, dataset, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience
@@ -197,6 +209,39 @@ def run_pipeline(
 
     n_pass = sum(adapt.metrics_checklist.values())
 
+    # ── V6.1 deployer metrics (optional) ──
+    v61_metrics = {}
+    if deployer_version == "v6.1":
+        from src.poc.v6.analysis_utils import WeightGradientAnalyzer
+        from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
+
+        deployer_v61 = HardwareDeployerV61(mode="simulation")
+        result_v61 = deployer_v61.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+        v61_metrics = {
+            "v61_energy": result_v61.predicted_energy,
+            "v61_delta_e": result_v61.delta_e,
+            "v61_delta_e_over_gap": result_v61.delta_e_over_gap,
+            "v61_mag_x": result_v61.mag_x_pred,
+            "v61_corr_zz": result_v61.corr_zz_pred,
+            "v61_phase_label": result_v61.phase_label,
+            "v61_sigma": result_v61.sigma,
+            "v61_extrapolation_method": result_v61.extrapolation_method,
+        }
+
+        # Weight gradient analysis
+        analyzer = WeightGradientAnalyzer(model)
+        grad_result = analyzer.analyze(dataset)
+        v61_metrics["gradient_norm_min"] = float(grad_result.total_gradient_norms.min())
+        v61_metrics["gradient_norm_max"] = float(grad_result.total_gradient_norms.max())
+        v61_metrics["gradient_peaks"] = len(grad_result.peak_h_values)
+        v61_metrics["gradient_peak_h_values"] = grad_result.peak_h_values
+        v61_metrics["critical_region_detected"] = grad_result.critical_region_detected
+
+        # Per-parameter head losses (if enabled)
+        if per_parameter_heads and train_result.get("zz_head_loss_history"):
+            v61_metrics["zz_head_loss_final"] = train_result["zz_head_loss_history"][-1]
+            v61_metrics["x_head_loss_final"] = train_result["x_head_loss_history"][-1]
+
     return {
         "seed": seed,
         "h_test": h_test,
@@ -237,6 +282,9 @@ def run_pipeline(
         "time_phase3": phase3_time,
         "time_phase4": phase4_time,
         "time_total": phase1_time + phase2_time + phase3_time + phase4_time,
+        "deployer_version": deployer_version,
+        "per_parameter_heads": per_parameter_heads,
+        **v61_metrics,
     }
 
 
@@ -361,6 +409,17 @@ def main():
     )
     parser.add_argument("--no-binnacle", action="store_true", help="Skip binnacle append")
     parser.add_argument("--label", type=str, default="", help="Custom label for this experiment")
+    parser.add_argument(
+        "--deployer",
+        choices=["v6.0", "v6.1"],
+        default="v6.0",
+        help="Deployer version: v6.0 (original) or v6.1 (full mitigation stack, simulation mode)",
+    )
+    parser.add_argument(
+        "--per-param-heads",
+        action="store_true",
+        help="Use per-parameter output heads (V6.1 MPNN enhancement)",
+    )
     args = parser.parse_args()
 
     config_str = (
@@ -398,6 +457,8 @@ def main():
             h_points=args.h_points,
             augment=args.augment,
             model_type=args.model,
+            deployer_version=args.deployer,
+            per_parameter_heads=args.per_param_heads,
         )
         elapsed = time.time() - t0
         all_results.append(result)
