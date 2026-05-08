@@ -127,7 +127,9 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 7. Use `run_notebooks.py --binnacle --label "description"` for automated experiment logging.
 8. V6.1 modules (`hardware_deployer_v61.py`, `config_v61.py`, `analysis_utils.py`) extend V6.0 — never modify V6.0 stable modules.
 
-## Current Best Configuration (from 40+ benchmark runs)
+## Current Best Configuration (from 60+ benchmark runs)
+
+### N=6 (1D TFIM chain)
 
 | Parameter | Value |
 |-----------|-------|
@@ -138,11 +140,31 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 | MPNN layers | 3 |
 | MPNN epochs | 6000 |
 | MPNN lr | 1e-3 |
+| MPNN patience | 300 |
 | Fid threshold | 0.93 |
 | GINConv | yes (GATConv rejected) |
+| Data augmentation | no |
+
+Expected (V6.1 4-metric checklist): 4/4 at h=1.25, 4/4 at h=1.4, 4/4 at h=1.5.
+
+### N=10 (1D TFIM chain)
+
+| Parameter | Value |
+|-----------|-------|
+| VQE restarts | 5 |
+| VQE maxiter | 1000 |
+| VQE σ (restart) | 0.1 |
+| MPNN hidden | **128** |
+| MPNN layers | 3 |
+| MPNN epochs | 6000 |
+| MPNN lr | 1e-3 |
+| MPNN patience | **500** |
+| Fid threshold | 0.93 |
+| GINConv | yes |
+| Preferred seed | **43** (10x better MSE) |
 | Data augmentation | no (hurts at N=10) |
 
-Expected: 5/6 at h=1.5 (N=6), 4-5/6 at h=1.4 (N=6), 2-3/6 at h=1.5 (N=10).
+Expected (V6.1 4-metric checklist): 4/4 at h=1.5 (all seeds), 4/4 at h=1.4 (seeds 43/44), 3/4 at h=1.4 (seed 42).
 
 ## Auto-Extracted Metrics (from `run_notebooks.py`)
 

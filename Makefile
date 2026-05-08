@@ -59,8 +59,9 @@ run-nb-34:  ## Execute Phase 3-4 notebook only
 
 # ── Pre-commit ───────────────────────────────────────────────
 
-hooks-install:  ## Install pre-commit hooks
+hooks-install:  ## Install pre-commit hooks (including commit-msg)
 	pre-commit install
+	pre-commit install --hook-type commit-msg
 
 check:  ## Run all pre-commit hooks
 	pre-commit run --all-files

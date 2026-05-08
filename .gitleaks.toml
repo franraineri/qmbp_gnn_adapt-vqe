@@ -1,0 +1,41 @@
+# Gitleaks configuration for GNN-HVA thesis project
+# Docs: https://github.com/gitleaks/gitleaks#configuration
+
+title = "GNN-HVA Gitleaks Config"
+
+# ── Allowlist: paths and patterns that should never trigger ──
+[allowlist]
+  description = "Project-specific allowlist"
+  paths = [
+    # Benchmark/notebook results contain UUIDs and hashes
+    '''scripts/benchmark_results/''',
+    '''scripts/notebook_results/''',
+    # Model weights and data (binary, not secrets)
+    '''\.pt$''',
+    '''\.npz$''',
+    # Virtual environment
+    '''\.venv/''',
+    # Ruff cache
+    '''\.ruff_cache/''',
+    # Jupyter checkpoints
+    '''\.ipynb_checkpoints/''',
+    # Lock files
+    '''requirements\.lock$''',
+  ]
+  # Regex patterns to ignore (UUIDs in filenames, git SHAs in binnacles)
+  regexes = [
+    '''[a-f0-9]{7,8}\.json''',
+  ]
+
+# ── Custom rule: IBM Quantum API tokens ──────────────────────
+[[rules]]
+  id = "ibm-quantum-token"
+  description = "IBM Quantum API Token"
+  regex = '''(?i)(ibm[_-]?quantum[_-]?token|qiskit[_-]?token|ibm[_-]?api[_-]?key)\s*[=:]\s*['"]?([a-zA-Z0-9]{32,})['"]?'''
+  tags = ["key", "IBM"]
+
+[[rules]]
+  id = "ibm-quantum-instance-token"
+  description = "IBM Quantum service token (long alphanumeric)"
+  regex = '''QiskitRuntimeService\([^)]*token\s*=\s*['"]([a-zA-Z0-9_-]{40,})['"]'''
+  tags = ["key", "IBM"]

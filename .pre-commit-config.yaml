@@ -1,5 +1,5 @@
 # Pre-commit hooks for GNN-HVA thesis project
-# Install: pre-commit install
+# Install: pre-commit install && pre-commit install --hook-type commit-msg
 # Run all: pre-commit run --all-files
 
 repos:
@@ -16,6 +16,12 @@ repos:
         args: [--markdown-linebreak-ext=md]
       - id: check-json
       - id: detect-private-key
+
+  # ── Security: Secrets detection (IBM tokens, API keys) ─────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.22.1
+    hooks:
+      - id: gitleaks
 
   # ── Ruff (linting + formatting) ────────────────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -34,6 +40,13 @@ repos:
       - id: nbstripout
         files: '\.ipynb$'
 
+  # ── Notebook linting (same ruff rules as source) ───────────
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.9.1
+    hooks:
+      - id: nbqa-ruff
+        args: [--fix, --exit-non-zero-on-fix]
+
   # ── Spell check (documentation + comments) ─────────────────
   - repo: https://github.com/codespell-project/codespell
     rev: v2.4.1
@@ -45,6 +58,20 @@ repos:
         ]
         types_or: [python]
 
+  # ── Documentation: Markdown linting ────────────────────────
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.44.0
+    hooks:
+      - id: markdownlint
+        files: '^documentation/.*\.md$'
+
+  # ── Commit message: Conventional Commits ───────────────────
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.4.1
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
   # ── Project-specific: HVA depth guard ──────────────────────
   - repo: local
     hooks:
@@ -53,4 +80,37 @@ repos:
         entry: scripts/hooks/check_hva_depth.py
         language: python
         files: '\.py$'
+        pass_filenames: true
+
+  # ── Project-specific: No HEA circuits ─────────────────────
+  - repo: local
+    hooks:
+      - id: no-hea-guard
+        name: No HEA circuits (HVA only)
+        entry: scripts/hooks/check_no_hea.py
+        language: python
+        files: '\.py$'
+        exclude: '^scripts/hooks/'
+        pass_filenames: true
+
+  # ── Project-specific: Fidelity threshold ≥ 0.93 ───────────
+  - repo: local
+    hooks:
+      - id: fidelity-threshold-guard
+        name: Fidelity threshold ≥ 0.93
+        entry: scripts/hooks/check_fidelity_threshold.py
+        language: python
+        files: '\.py$'
+        exclude: '^scripts/hooks/'
+        pass_filenames: true
+
+  # ── Project-specific: Primitives V2 only ───────────────────
+  - repo: local
+    hooks:
+      - id: primitives-v2-guard
+        name: Primitives V2 only (no deprecated V1)
+        entry: scripts/hooks/check_primitives_v2.py
+        language: python
+        files: '\.py$'
+        exclude: '^scripts/hooks/'
         pass_filenames: true

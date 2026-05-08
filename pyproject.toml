@@ -25,6 +25,8 @@ ignore = ["E501"]
 "__init__.py" = ["F401"]
 "scripts/*.py" = ["E402"]
 "src/poc/v6/smoke_test.py" = ["E402"]
+# Notebooks: allow star imports, reimports, undefined names (magics), module-level imports
+"*.ipynb" = ["F401", "F403", "F405", "F811", "E402", "B018"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "qiskit.opflow".msg = "Deprecated: use qiskit.quantum_info.SparsePauliOp"
@@ -41,6 +43,16 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false  # gradual adoption
 ignore_missing_imports = true
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "6.1.0"
+tag_format = "v$version"
+# Conventional commits with optional scope
+# Recommended scopes: phase1, phase2, phase3, phase4, mpnn, hva, vqe,
+#   hamiltonian, hardware, analysis, pipeline, notebook, benchmark, thesis, config
+schema_pattern = "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.+\\))?!?:\\s.+"
+allowed_prefixes = ["Merge", "Revert", "WIP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
