@@ -1,0 +1,13 @@
+{
+  "name": "Documentation Sync Reminder",
+  "version": "1.0.0",
+  "description": "When source modules or scripts are edited, remind that documentation (binnacles, thesis tables, project-status) may need updating.",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/poc/v6/*.py", "scripts/run_*.py", "scripts/smoke_test*.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A pipeline source file was just modified. Check if any of these need updating: (1) `.kiro/steering/project-status.md` — if the change affects validation targets, optimal config, or active development areas. (2) `documentation/binnacles/` — if the change affects numerical results (suggest re-running `python scripts/run_v61_parametric.py` or `make smoke-test` to verify). (3) `.kiro/knowledge/poc-results.md` — if baseline numbers changed. (4) `README.md` — if the public interface or usage changed. Only mention items that are actually affected by this specific edit. If the edit is minor (formatting, comments, refactoring), respond '✅ No documentation impact'."
+  }
+}
