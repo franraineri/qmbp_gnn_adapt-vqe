@@ -58,19 +58,16 @@ repos:
         ]
         types_or: [python]
 
-  # ── Documentation: Markdown linting ────────────────────────
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.44.0
+  # ── Documentation: Markdown linting (pure Python, no node) ─
+  - repo: https://github.com/jackdewinter/pymarkdown
+    rev: v0.9.25
     hooks:
-      - id: markdownlint
+      - id: pymarkdown
+        args: [
+          --config, .pymarkdown.json,
+          scan
+        ]
         files: '^documentation/.*\.md$'
-
-  # ── Commit message: Conventional Commits ───────────────────
-  - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.4.1
-    hooks:
-      - id: commitizen
-        stages: [commit-msg]
 
   # ── Project-specific: HVA depth guard ──────────────────────
   - repo: local

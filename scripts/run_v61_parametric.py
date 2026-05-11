@@ -297,7 +297,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         "error": None,
     }
 
-    N, J, p = cfg.N, cfg.J, cfg.p_layers
+    N, _J, p = cfg.N, cfg.J, cfg.p_layers
 
     # Non-uniform h-grid selection
     if cfg.h_grid == "dense":
@@ -317,7 +317,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
     if cfg.J == "ladder_nonuniform":
         from src.poc.v6.hamiltonian_builder import generate_ladder
 
-        edges = generate_ladder(N)
+        _edges = generate_ladder(N)
         leg = N // 2
         n_leg_edges = 2 * (leg - 1)  # intra-leg edges (both legs)
         n_rung_edges = leg  # rung edges
