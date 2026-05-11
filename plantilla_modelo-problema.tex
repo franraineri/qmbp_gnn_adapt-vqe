@@ -32,7 +32,7 @@
 \renewcommand{\listtablename}{Índice de tablas}
 \renewcommand{\contentsname}{Índice de contenidos}
 \renewcommand{\figurename}{Figura}
-\renewcommand{\tablename}{Tabla} 
+\renewcommand{\tablename}{Tabla}
 
 \maketitle
 \frontmatter
@@ -46,7 +46,7 @@
 
 
 \vspace{0.5cm}
-{\bf Palabras clave:} 
+{\bf Palabras clave:}
 
 \chapter{Abstract}
 
@@ -77,9 +77,9 @@ Sin embargo, tres barreras fundamentales limitan la aplicabilidad práctica de V
 
 \begin{enumerate}
     \item \textbf{Barren Plateaus:} La optimización de circuitos cuánticos parametrizados sufre la desaparición exponencial de gradientes cuando se emplean funciones de costo globales o circuitos profundos aleatorios \citep{mcclean2018, cerezo2021}. Este fenómeno hace que el optimizador clásico no encuentre dirección de descenso válida, imposibilitando el entrenamiento.
-    
+
     \item \textbf{Truncamiento por Ruido:} Hallazgos recientes han demostrado rigurosamente que el ruido no unital inherente en el hardware actual (relajación térmica, amortiguamiento de amplitud) trunca la profundidad efectiva de cualquier circuito cuántico a $O(\log n)$ capas \citep{mele2026}. En la práctica, toda información codificada más allá de esta profundidad se pierde irremediablemente, independientemente de la estrategia de optimización empleada.
-    
+
     \item \textbf{Costo de Evaluación:} Un barrido VQE convencional requiere cientos a miles de evaluaciones de circuito por punto del espacio de parámetros. En hardware cuántico, cada evaluación consume tiempo de coherencia y presupuesto de shots, haciendo prohibitivo el mapeo completo de un diagrama de fases.
 \end{enumerate}
 
@@ -101,11 +101,11 @@ En su lugar, se propone el desarrollo de una \textbf{Arquitectura Predictiva Hí
 
 \begin{enumerate}
     \item \textbf{Fase 1 --- Ground Truth Clásico:} Se genera un conjunto de datos de referencia mediante diagonalización exacta y DMRG \citep{schollwock2011}, obteniendo estados fundamentales, energías y observables locales del TFIM para un barrido denso del parámetro de campo transversal $h$.
-    
+
     \item \textbf{Fase 2 --- Optimización VQE con Warm-Start:} Se construye un Ansatz Variacional Hamiltoniano (HVA) de profundidad $p \leq 2$ capas \citep{wiersema2020} y se optimizan sus parámetros mediante un barrido descendente $h = 2 \to 0$, donde cada punto hereda los parámetros óptimos del anterior como semilla inicial. Esta estrategia de warm-start reduce el costo de optimización en un factor $10$--$50\times$ respecto a la inicialización aleatoria \citep{puig2025, mele2022}.
-    
+
     \item \textbf{Fase 3 --- Predictor MPNN:} Se entrena una Red Neuronal de Grafos de Paso de Mensajes (MPNN) basada en GINConv \citep{xu2019} para aprender el mapeo directo desde la topología del Hamiltoniano (representado como grafo) hacia los parámetros óptimos $\theta^*$ del circuito HVA. Una vez entrenada, la red predice parámetros en una única pasada forward clásica, eliminando la necesidad de optimización cuántica iterativa.
-    
+
     \item \textbf{Fase 4 --- Despliegue en Hardware:} Los parámetros predichos por la MPNN se inyectan como semilla en el circuito HVA, que se ejecuta en hardware cuántico real (IBM Torino/Heron) con mitigación de errores: Zero Noise Extrapolation (ZNE) \citep{uvarov2024}, Dynamical Decoupling \citep{pokharel2025} y Twirled Readout Error eXtinction (TREX). El criterio de éxito es $\Delta E / \text{gap} < 5\%$ y clasificación correcta de fase mediante observables locales $\langle X_i \rangle$ y $\langle Z_i Z_{i+1} \rangle$.
 \end{enumerate}
 
@@ -117,13 +117,13 @@ Para abordar sistemáticamente los objetivos descritos y proporcionar una demost
 
 \begin{itemize}
     \item \textbf{Capítulo 2: Marco Teórico y Estado del Arte.} Este capítulo sienta las bases físicas y matemáticas de la investigación. Se introduce formalmente el Modelo de Ising en Campo Transversal (TFIM) y su transición de fase cuántica, el formalismo del Eigensolver Cuántico Variacional (VQE) y la construcción del Ansatz Variacional Hamiltoniano (HVA). Se realiza un análisis crítico del estado del arte, examinando las barreras teóricas de los \emph{barren plateaus} \citep{mcclean2018, cerezo2021}, el truncamiento de profundidad por ruido no unital \citep{mele2026}, y las aproximaciones recientes de inicialización mediante aprendizaje automático \citep{miao2024, zhang2025, zou2026}. Se introduce además la teoría de Redes Neuronales de Grafos y su aplicación a sistemas de espines \citep{xu2019, gilmer2017, kochkov2021}.
-    
+
     \item \textbf{Capítulo 3: Metodología.} Se describe la arquitectura completa del pipeline de cuatro fases: generación de ground truth clásico (diagonalización exacta + DMRG), optimización VQE con warm-start descendente, entrenamiento del predictor MPNN (GINConv, filtro de fidelidad $\geq 0.93$, validación física), y despliegue en hardware con mitigación de errores (ZNE inhomogéneo, DD, TREX). Se detalla el marco de validación de seis métricas con ordenamiento por prioridad y los criterios de éxito para clasificación de fases.
-    
+
     \item \textbf{Capítulo 4: Resultados.} Se presentan los resultados experimentales organizados por escala del sistema. Para $N=6$ (cadena 1D): optimización de hiperparámetros sobre 40+ experimentos y 14 configuraciones, alcanzando checklist 4/4 en $h \geq 1.25$. Para $N=10$: validación de escalabilidad con configuración óptima (MPNN $h_{\text{dim}}=128$, seed 43, patience 500), alcanzando $\Delta E/\text{gap} = 4.79\% \pm 0.50\%$ en $h=1.4$. Se incluye el análisis del límite físico en $h=1.25$ como frontera de expresividad del HVA $p=2$ ---confirmado independientemente por \citet{tripathi2026}--- y los resultados de despliegue en hardware con mitigación de errores.
-    
+
     \item \textbf{Capítulo 5: Discusión.} Se analiza críticamente la validación del pipeline, comparando con trabajos contemporáneos (Qracle \citep{zhang2025}, NN-VQE \citep{miao2024}, Flow-VQE \citep{zou2026}). Se discuten las limitaciones y fronteras físicas del enfoque, el argumento de utilidad cuántica, y las direcciones futuras incluyendo la extensión a redes de Kagomé y la incorporación de técnicas generativas.
-    
+
     \item \textbf{Capítulo 6: Conclusiones y Trabajo Futuro.} El capítulo final sintetiza las contribuciones de la investigación, evalúa el grado de cumplimiento de los objetivos, y propone líneas de investigación futuras para la extensión del pipeline a sistemas bidimensionales frustrados y hardware cuántico tolerante a fallos.
 \end{itemize}
 
@@ -344,7 +344,7 @@ Una decisión arquitectónica fundamental de este trabajo es la orientación hac
 
 \begin{itemize}
     \item \textbf{Espines:} Existe un isomorfismo natural entre un espín-1/2 y un qubit. Las interacciones $Z_i Z_j$ se traducen directamente en compuertas nativas $R_{ZZ}(\theta)$. Para el TFIM con $N$ sitios y HVA $p = 2$: el circuito requiere exactamente $2(N-1)$ compuertas de dos qubits ---lineal en el tamaño del sistema.
-    
+
     \item \textbf{Moléculas:} Los electrones son fermiones que obedecen relaciones de anticonmutación. La transformación de Jordan-Wigner mapea operadores fermiónicos locales a cadenas de Pauli de longitud $O(N)$, incrementando la profundidad del circuito a $O(N^4)$ para ansätze tipo UCCSD ---muy por encima del límite de truncamiento $O(\log n)$ de \citet{mele2026}.
 \end{itemize}
 
@@ -356,13 +356,13 @@ El análisis del estado del arte revela una convergencia teórica que habilita e
 
 \begin{enumerate}
     \item El truncamiento por ruido no unital \citep{mele2026} impone circuitos superficiales como \emph{requisito}, no como limitación. El HVA $p \leq 2$ opera dentro de este régimen por diseño.
-    
+
     \item Las funciones de costo locales garantizan gradientes detectables en circuitos superficiales \citep{cerezo2021}, eliminando los barren plateaus como obstáculo.
-    
+
     \item La transferibilidad de parámetros en el HVA \citep{mele2022, puig2025} y la capacidad demostrada de las GNN para predecir propiedades de estados fundamentales \citep{huang2022, zhang2025} fundamentan la viabilidad del predictor MPNN.
-    
+
     \item Los sistemas de espines ofrecen un mapeo isomórfico a qubits que mantiene los circuitos dentro del régimen coherente del hardware actual, a diferencia de la química cuántica.
-    
+
     \item La mitigación de errores (ZNE + DD + TREX) ha sido validada experimentalmente en hardware IBM a escalas comparables a nuestro sistema \citep{kiiamov2026, sharma2026}.
 \end{enumerate}
 
@@ -394,15 +394,15 @@ Este objetivo es:
 
 \begin{enumerate}
     \item \textbf{OE1 --- Analizar} el estado del arte en algoritmos cuánticos variacionales, identificando las barreras teóricas (barren plateaus, truncamiento por ruido) y las estrategias de inicialización inteligente propuestas en la literatura reciente (2022--2026), con énfasis en enfoques basados en redes neuronales de grafos.
-    
+
     \item \textbf{OE2 --- Desarrollar} un módulo de generación de ground truth clásico que produzca estados fundamentales exactos, energías y observables locales del TFIM 1D para $N = 6$ y $N = 10$ espines mediante diagonalización exacta y DMRG, con un barrido no uniforme del campo transversal $h \in [0, 2]$ (mayor densidad en la región crítica $h \in [0.8, 1.4]$).
-    
+
     \item \textbf{OE3 --- Implementar} un pipeline de optimización VQE con warm-start descendente ($h = 2 \to 0$) sobre un HVA de profundidad $p = 2$, alcanzando fidelidades $\geq 93\%$ respecto al estado fundamental exacto en al menos el 90\% de los puntos del barrido, con un máximo de 5 reinicios por punto.
-    
+
     \item \textbf{OE4 --- Diseñar y entrenar} un predictor MPNN basado en GINConv que, dado un grafo representando el Hamiltoniano del TFIM, prediga los parámetros óptimos $\theta^*$ del HVA con un error cuadrático medio (MSE) inferior a $5 \times 10^{-3}$ sobre el conjunto de validación, verificando que la energía resultante satisfaga $\Delta E/\text{gap} < 5\%$ para $h \geq 1.25$ ($N = 6$) y $h \geq 1.4$ ($N = 10$).
-    
+
     \item \textbf{OE5 --- Validar} el pipeline completo en simulación sin ruido para $N = 6$ (mínimo 40 experimentos, 14 configuraciones) y $N = 10$ (mínimo 15 experimentos, 3 semillas), documentando la reproducibilidad estadística y los límites físicos del enfoque (frontera de expresividad del HVA $p = 2$).
-    
+
     \item \textbf{OE6 --- Implementar} el módulo de despliegue en hardware con mitigación de errores (ZNE inhomogéneo, Dynamical Decoupling, TREX) y verificar que el criterio $\Delta E/\text{gap} < 5\%$ con clasificación correcta de fase se mantiene bajo condiciones de ruido realistas, utilizando simulación ruidosa y/o ejecución en procesadores IBM Torino/Heron.
 \end{enumerate}
 
