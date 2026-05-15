@@ -57,6 +57,9 @@ When results are thesis-relevant:
 - Accepts `--configs` flag for selecting which configurations to run
 - Produces per-config JSON + optional binnacle entry
 - Supports `--n-seeds 3` for multi-seed runs
+- Supports `--verbose` / `-v` for INFO logging + DiagnosticCollector + VQE callbacks
+- Supports `--debug` for DEBUG logging + all verbose features
+- In verbose mode, writes checkpoint files (`checkpoint_<run_id>_<phase>.json`) after each phase; deleted on success
 - Exit codes: 0=all pass, 1=some fail, 2=validation fail
 
 ### `run_thesis_results.py`
@@ -79,4 +82,38 @@ When results are thesis-relevant:
 | Modified `mpnn_predictor.py` | `make smoke-test` + full parametric (all configs) |
 | Modified `hardware_deployer_v61.py` | `scripts/smoke_test_v61.py` |
 | Modified `analysis_utils.py` | `scripts/smoke_test_v61.py` (includes gradient analysis) |
+| Modified `pipeline_core.py` | `make test` + `scripts/smoke_test_v61.py` |
 | New thesis results needed | `scripts/run_thesis_results.py` (~9min) |
+
+## ZNE Scaling Rules (Validated 2026-05-14)
+
+- **N=6, 3 layouts**: Works perfectly (R²>0.99, +40% gain). Linear E(CES) holds.
+- **N=10, 3 layouts**: Completely fails (R²<0.05, negative gain). Non-perturbative regime.
+- **Rule**: n_layouts must scale with system size. Use O(n) for n-qubit circuits.
+- **Literature**: Tsubouchi et al. (2023, PRL 131:210602) proves exp(depth×qubits) cost. Rabinovich et al. (2025, arXiv:2511.02901) proposes CLP-ZNE with O(n) cyclic permutations.
+- **Before running noisy sweeps at new N**: verify CES range is in perturbative regime (total CES < 0.5) or use sufficient layouts.
+
+## Experiment Value Checklist (Before Running)
+
+Ask these questions before starting any experiment:
+
+1. **What hypothesis does this test?** (If none, don't run it.)
+2. **What would I learn if it passes?** (If "nothing new," don't run it.)
+3. **What would I learn if it fails?** (If "nothing new," don't run it.)
+4. **Has this already been established?** (Check binnacle — if 3 seeds already confirm, don't re-run.)
+5. **Is this a physics limit or a tunable parameter?** (If physics limit confirmed, no hyperparameter will help.)
+
+## Known Physics Limits (Do NOT Try to Tune Past These)
+
+| Limit | Evidence | Implication |
+|-------|----------|-------------|
+| h=1.25 ceiling at N=6 (2-3/6 V6.0 checklist) | 40+ experiments, all configs | HVA p=2 expressibility |
+| h=1.4 fails with seed 42 at N=10 | Confirmed 3× | Seed-dependent MPNN convergence |
+| ZNE fails at N=10 with 3 layouts | R²<0.05, 6/6 losses | Exponential mitigation cost |
+| Ladder topology fails with HVA p=2 | ΔE/gap=203% | Coordination number 3 needs deeper circuits |
+| N=12 too slow for local iteration | 14+ min for Phase 1 alone | 2^12 exact diag on single core |
+| optimization_level=1 for noisy sim | Tested: 3× SLOWER (more gates = more noise channels) | Always use level 2 for noisy simulation |
+| DD on FakeTorino (XY4) | YGate not in basis — pass fails silently | DD only testable on real hardware via EstimatorV2 options |
+| More N=10 noisy simulation experiments | A, A', B all exhausted; R² never >0.08 | Go to real hardware — local sim cannot validate ZNE at N=10 |
+| MAX_CES_RATIO < 10 with 5+ layouts | Layout search becomes 45+ min (too expensive) | Keep MAX_CES_RATIO=10, accept outlier filtering at 3 layouts |
+| Gate folding locally (nf=3,5) | Folded circuits are 3-5× heavier to simulate | Only viable on real hardware via Runtime ZNE options |

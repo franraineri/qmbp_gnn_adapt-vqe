@@ -111,6 +111,13 @@ Alternative: use built-in sequences ("XX", "XpXm", "XY4") via `options.dynamical
 - Each layout maps to qubits with different error rates → different CES
 - Linear extrapolation of energy vs CES to zero
 - Implementation: multiple `generate_preset_pass_manager()` calls with `initial_layout=[...]`
+- **CRITICAL SCALING LIMITATION (validated 2026-05-14):** Linear E(CES) holds only in perturbative regime (low total CES). At N=10 on FakeTorino, R² drops to <0.05 with 3 layouts. Need O(n) layouts for n-qubit circuits.
+
+### CLP-ZNE: Cyclic Layout Permutations (Rabinovich et al. 2025, arXiv:2511.02901)
+- Uses O(n) cyclic permutations for 1D circuits (vs our 3 random layouts)
+- Validated on IBM Torino noise model at n=12 qubits
+- Achieves order-of-magnitude error reduction, outperforms standard unitary folding ZNE
+- **Next implementation target** for fixing N=10 ZNE failure
 
 ### NN-Enhanced ZNE (Sun et al. 2025)
 - After collecting ZNE data at noise factors [1, 2, 3], fit MLP instead of polynomial

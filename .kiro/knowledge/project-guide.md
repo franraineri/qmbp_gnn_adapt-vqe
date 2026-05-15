@@ -9,24 +9,30 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 ## Repository Map
 
 ```
-├── src/poc/v6/              ← ACTIVE CODE (12 Python modules + 2 notebooks)
-│   ├── config.py            ← Shared dataclasses (LatticeConfig, VQEConfig, etc.)
+├── src/poc/v6/              ← ACTIVE CODE (14 Python modules + 2 notebooks + experimental/)
+│   ├── __init__.py          ← Public API (core modules only, lazy-loads heavy deps)
+│   ├── config.py            ← Shared dataclasses (LatticeConfig, VQEConfig, etc.) [STABLE]
 │   ├── config_v61.py        ← V6.1 constants + dataclasses (DeployResultV61, LayoutResult, etc.)
-│   ├── hamiltonian_builder.py ← Phase 1: Hamiltonian + lattice generators
-│   ├── classical_solver.py  ← Phase 1: Exact diag + DMRG ground truth
-│   ├── hva_builder.py       ← Phase 2: HVA circuit construction
-│   ├── vqe_optimizer.py     ← Phase 2: Multi-start VQE + callbacks
+│   ├── hamiltonian_builder.py ← Phase 1: Hamiltonian + lattice generators [STABLE]
+│   ├── classical_solver.py  ← Phase 1: Exact diag + DMRG ground truth [STABLE]
+│   ├── hva_builder.py       ← Phase 2: HVA circuit construction [STABLE]
+│   ├── vqe_optimizer.py     ← Phase 2: Multi-start VQE + callbacks [STABLE]
 │   ├── mpnn_predictor.py    ← Phase 3: MPNN model + training + checkpoint save/load
+│   ├── pipeline_core.py     ← NEW: Shared 4-phase execution logic (single-source-of-truth)
+│   ├── pipeline_utils.py    ← Cross-phase: dataset save/load, integrity checks [STABLE]
 │   ├── qrc_pipeline.py      ← Phase 4: QRC fallback route
-│   ├── hardware_deployer.py ← Phase 4: V6.0 Adapt-VQE + QRC deployment (simulation)
+│   ├── hardware_deployer.py ← Phase 4: V6.0 legacy deployer (superseded by V6.1)
 │   ├── hardware_deployer_v61.py ← Phase 4: V6.1 full hardware path (ZNE, DD, twirling)
 │   ├── analysis_utils.py    ← Post-training: WeightGradientAnalyzer (zero QPU cost)
-│   ├── pipeline_utils.py    ← Cross-phase: dataset save/load, integrity checks
+│   ├── diagnostics.py       ← Pipeline observability (DiagnosticCollector, logging)
+│   ├── experimental/        ← NEW: Deprecated/rejected approaches (kept for reproducibility)
+│   │   ├── gat_predictor.py ← GATConv predictor (rejected: instability for 1D chains)
+│   │   └── augmentation.py  ← θ interpolation augmentation (rejected: hurts accuracy)
 │   ├── poc_v6_phases1_2.ipynb ← Full Phase 1-2 notebook
 │   └── poc_v6_phases3_4.ipynb ← Full Phase 3-4 notebook
 │
 ├── scripts/                 ← ALL executable scripts (single location)
-│   ├── smoke_test.py        ← Quick V6.0 end-to-end validation (~7s)
+│   ├── smoke_test.py        ← LEGACY V6.0 end-to-end (superseded by smoke_test_v61.py)
 │   ├── smoke_test_v61.py    ← V6.1 smoke test: deployer + gradient analysis (~16s)
 │   ├── benchmark_v6.py      ← Multi-run benchmark with configurable params
 │   ├── run_notebooks.py     ← Notebook executor with auto-registry + binnacle generation
@@ -108,12 +114,15 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 | Follow code conventions | `.kiro/steering/code-style.md` |
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
 | Check numerical baselines | `.kiro/knowledge/poc-results.md` |
+| Check validation targets & tables | `.kiro/knowledge/validation-targets.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
 | See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` + `.kiro/steering/hardware-deployment.md` |
 | Review literature insights & improvements | `.kiro/knowledge/literature-synthesis.md` |
 | See full experiment history | `documentation/binnacles/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
 | Find alternative techniques | `documentation/alternative_bibliography.md` |
 | Understand V6.1 changes | `src/poc/v6/CHANGES_V6.md` |
+| Use shared pipeline execution | `src/poc/v6/pipeline_core.py` |
+| Find deprecated approaches | `src/poc/v6/experimental/` (GATPredictor, augmentation) |
 | Run notebooks with metrics | `scripts/run_notebooks.py --help` |
 | Validate V6.1 deployer | `scripts/smoke_test_v61.py` |
 
@@ -126,6 +135,8 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 6. All scripts live in `scripts/` — never put executable scripts in `src/`.
 7. Use `run_notebooks.py --binnacle --label "description"` for automated experiment logging.
 8. V6.1 modules (`hardware_deployer_v61.py`, `config_v61.py`, `analysis_utils.py`) extend V6.0 — never modify V6.0 stable modules.
+9. Use `pipeline_core.py` for shared pipeline logic — do NOT duplicate Phase 1→4 patterns in scripts.
+10. Deprecated approaches belong in `src/poc/v6/experimental/` — never in main modules.
 
 ## Current Best Configuration (from 60+ benchmark runs)
 

@@ -1,5 +1,13 @@
 """
-QRC Pipeline — Quantum Reservoir Computing fallback route (no quantum training).
+LEGACY: QRC Pipeline — Quantum Reservoir Computing fallback route (no quantum training).
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  ABANDONED in V6.1 — the MPNN warm-start route proved sufficient.      ║
+║  Kept for backward compatibility with:                                  ║
+║    - scripts/smoke_test.py (V6.0 smoke test)                           ║
+║    - scripts/benchmark_v6.py (V6.0 benchmark)                          ║
+║  DO NOT use for new development.                                        ║
+╚══════════════════════════════════════════════════════════════════════════╝
 
 Uses a fixed (un-optimized) HVA circuit as a quantum reservoir.  The reservoir
 parameters are NEVER updated — only a classical linear readout is trained on

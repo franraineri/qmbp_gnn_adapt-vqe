@@ -36,8 +36,9 @@ DEFAULT_SHOTS_PER_RANDOMIZATION = 256
 # ---------------------------------------------------------------------------
 
 MIN_LAYOUTS = 3
-MAX_LAYOUTS = 5
-MIN_CES_RATIO = 2.0
+MAX_LAYOUTS = 10
+MIN_CES_RATIO = 1.5  # Minimum CES spread for meaningful extrapolation (lowered from 2.0 for small circuits on large backends)
+MAX_CES_RATIO = 10.0  # Maximum allowed CES ratio (max/min) to prevent outlier layouts
 ZNE_R_SQUARED_WARNING_THRESHOLD = 0.8
 
 # ---------------------------------------------------------------------------
@@ -236,3 +237,85 @@ class MPNNCheckpoint:
     use_edge_features: bool
     edge_feature_dim: int
     training_metadata: dict = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Noisy Simulation V6.1 — Data Models
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class NoisySweepResult:
+    """Result of a single h-point deployment across three noise modes.
+
+    Compares noiseless (StatevectorEstimator), noisy-raw (FakeTorino, 1 layout),
+    and ZNE-mitigated (FakeTorino, 3+ layouts) to quantify ZNE effectiveness.
+
+    Attributes
+    ----------
+    h_test : float
+        Transverse field value tested.
+    noiseless : DeployResultV61
+        Noiseless simulation result (baseline truth).
+    noisy_raw : DeployResultV61
+        Noisy simulation without ZNE (single layout, raw).
+    mitigated : DeployResultV61
+        Noisy simulation with inhomogeneous ZNE (multi-layout extrapolation).
+    zne_gain_energy : float
+        Relative ZNE improvement in ΔE/gap:
+        ``(noisy_raw.delta_e_over_gap - mitigated.delta_e_over_gap) / noisy_raw.delta_e_over_gap``
+    zne_gain_mag_x : float
+        Relative ZNE improvement in ⟨X⟩ error:
+        ``(noisy_raw.mag_x_error - mitigated.mag_x_error) / noisy_raw.mag_x_error``
+        Set to 0.0 if noisy_raw.mag_x_error == 0.
+    mitigated_better : bool
+        True iff ``mitigated.delta_e_over_gap < noisy_raw.delta_e_over_gap``.
+    """
+
+    h_test: float
+    noiseless: DeployResultV61
+    noisy_raw: DeployResultV61
+    mitigated: DeployResultV61
+    zne_gain_energy: float
+    zne_gain_mag_x: float
+    mitigated_better: bool
+
+
+@dataclass
+class SweepSummary:
+    """Aggregated summary of a multi-point noisy simulation sweep.
+
+    Collects results across all h-values and evaluates success criteria
+    for ZNE effectiveness validation.
+
+    Attributes
+    ----------
+    timestamp : str
+        ISO-8601 timestamp of the sweep execution.
+    n_qubits : int
+        Number of qubits (N) used in the sweep.
+    h_values : list[float]
+        List of h-values tested.
+    shots : int
+        Shot budget per noisy deployment.
+    n_layouts_mitigated : int
+        Number of layouts used for ZNE extrapolation.
+    results : list[NoisySweepResult]
+        Per-h-point results.
+    n_mitigated_wins : int
+        Count of h-points where ZNE mitigated ΔE/gap < noisy raw ΔE/gap.
+    n_good_r_squared : int
+        Count of h-points where ZNE R² > 0.8.
+    success_criteria_met : bool
+        True iff ``n_mitigated_wins >= 4 AND n_good_r_squared >= 3``.
+    """
+
+    timestamp: str
+    n_qubits: int
+    h_values: list[float]
+    shots: int
+    n_layouts_mitigated: int
+    results: list[NoisySweepResult]
+    n_mitigated_wins: int
+    n_good_r_squared: int
+    success_criteria_met: bool

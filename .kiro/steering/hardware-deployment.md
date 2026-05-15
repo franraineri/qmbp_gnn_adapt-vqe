@@ -111,3 +111,53 @@ fileMatchPattern: "**/hardware_deployer*"
 - Use `random.sample()` without a seed in layout selection
 - Use `aggr="mean"` in NNConv (use `"add"`)
 - Manually reconstruct energy from observables (submit Hamiltonian PUB instead)
+
+---
+
+## Noisy Simulation Mode (FakeTorino)
+
+### Overview
+`mode="noisy_simulation"` exercises the full inhomogeneous ZNE pipeline locally using `FakeTorino` + `BackendEstimatorV2`. No IBM credentials required. Validates that ZNE actually reduces errors before real QPU deployment.
+
+### Backend & Estimator
+- Backend: `FakeTorino` from `qiskit_ibm_runtime.fake_provider` (133 qubits, heavy-hex, real calibration data)
+- Estimator: `BackendEstimatorV2` from `qiskit.primitives` (NOT `qiskit_ibm_runtime.EstimatorV2`)
+- `BackendEstimatorV2` uses `default_precision` parameter, NOT `default_shots`
+
+### What's Included (same as hardware)
+- Layout selection via `LayoutSelector` (BFS on heavy-hex topology)
+- Transpilation with `generate_preset_pass_manager(optimization_level=2)`
+- Observable grouping (commuting Paulis)
+- Inhomogeneous ZNE extrapolation (energy vs CES, linear fit)
+
+### What's Excluded (isolates ZNE contribution)
+- No Dynamical Decoupling sequences
+- No Pauli Twirling
+- No TREX readout error mitigation
+- No NNExtrapolator (requires ≥5 layouts)
+
+### Seed Parameter
+- `HardwareDeployerV61(mode="noisy_simulation", seed=42)` — controls `LayoutSelector` randomness
+- Ensures reproducible qubit mappings across runs
+- Default: `seed=42`
+
+### Usage Pattern
+```python
+from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
+
+# Noisy raw (no ZNE — single layout)
+deployer_raw = HardwareDeployerV61(mode="noisy_simulation", n_layouts=1, seed=42)
+
+# ZNE mitigated (3 layouts for extrapolation)
+deployer_zne = HardwareDeployerV61(mode="noisy_simulation", n_layouts=3, seed=42)
+```
+
+### ZNE Layout Scaling (CRITICAL — Validated 2026-05-14)
+- **N=6, n_layouts=3**: Linear E(CES) holds. R²>0.99, ZNE gain +40%.
+- **N=10, n_layouts=3**: Linear E(CES) BREAKS. R²<0.05, ZNE makes things WORSE.
+- **Root cause**: At N=10, total CES exceeds perturbative regime. 3 random layouts produce energies with no linear correlation to their CES values.
+- **Fix options** (to be validated):
+  1. Increase to O(n) layouts — CLP-ZNE (Rabinovich et al. 2025) uses cyclic permutations
+  2. Add DD pre-mitigation to reduce effective CES back into linear regime
+  3. Use NN extrapolation (Sun et al. 2025) for non-linear E(CES) curves
+- **Rule**: When modifying n_layouts or adding new system sizes, always verify R² > 0.8 before trusting ZNE results.

@@ -40,6 +40,8 @@ BINNACLE_DIR = _project_root / "documentation" / "binnacles"
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 
+from src.poc.v6.diagnostics import DiagnosticCollector, configure_pipeline_logging  # noqa: I001, E402
+
 
 # ── Configuration presets ────────────────────────────────────────────────
 
@@ -210,7 +212,81 @@ CONFIGS_N10 = {
     ),
 }
 
-CONFIGS = {**CONFIGS_N6, **CONFIGS_N10}
+# N=12 configs — scaling from N=10 findings (h=128→160, patience=600, seed=43 optimal)
+CONFIGS_N12 = {
+    "n12_baseline": PipelineConfig(
+        name="n12_baseline",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=128,
+        mpnn_epochs=6000,
+        mpnn_patience=500,
+        h_test=1.5,
+        seed=43,
+    ),
+    "n12_h160": PipelineConfig(
+        name="n12_h160",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=160,
+        mpnn_epochs=6000,
+        mpnn_patience=600,
+        h_test=1.5,
+        seed=43,
+    ),
+    "n12_h1.4": PipelineConfig(
+        name="n12_h1.4",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=128,
+        mpnn_epochs=6000,
+        mpnn_patience=500,
+        h_test=1.4,
+        seed=43,
+    ),
+    "n12_h1.7": PipelineConfig(
+        name="n12_h1.7",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=128,
+        mpnn_epochs=6000,
+        mpnn_patience=500,
+        h_test=1.7,
+        seed=43,
+    ),
+    "n12_seed42": PipelineConfig(
+        name="n12_seed42",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=128,
+        mpnn_epochs=6000,
+        mpnn_patience=500,
+        h_test=1.5,
+        seed=42,
+    ),
+    "n12_seed44": PipelineConfig(
+        name="n12_seed44",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=128,
+        mpnn_epochs=6000,
+        mpnn_patience=500,
+        h_test=1.5,
+        seed=44,
+    ),
+    "n12_patience700": PipelineConfig(
+        name="n12_patience700",
+        N=12,
+        n_restarts=5,
+        mpnn_hidden=160,
+        mpnn_epochs=8000,
+        mpnn_patience=700,
+        h_test=1.5,
+        seed=43,
+    ),
+}
+
+CONFIGS = {**CONFIGS_N6, **CONFIGS_N10, **CONFIGS_N12}
 
 
 # ── Environment capture ──────────────────────────────────────────────────
@@ -254,7 +330,7 @@ def capture_environment() -> dict:
 # ── Pipeline execution ───────────────────────────────────────────────────
 
 
-def run_pipeline(cfg: PipelineConfig) -> dict:
+def run_pipeline(cfg: PipelineConfig, verbose: bool = False, debug: bool = False) -> dict:
     """Execute the full V6.1 pipeline with the given configuration."""
     import numpy as np
     import torch
@@ -271,6 +347,13 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
 
     np.random.seed(cfg.seed)
     torch.manual_seed(cfg.seed)
+
+    # ── Configure logging (verbose/debug control level only) ──
+    if verbose or debug:
+        configure_pipeline_logging(verbose=verbose, debug=debug)
+
+    # ── DiagnosticCollector is ALWAYS active (metrics always recorded) ──
+    collector = DiagnosticCollector(verbose=verbose or debug, save_dir=RESULTS_DIR)
 
     result = {
         "config_name": cfg.name,
@@ -296,6 +379,9 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         "success": True,
         "error": None,
     }
+
+    # Attach config to collector for checkpoint metadata
+    collector._config_dict = result["config"]
 
     N, _J, p = cfg.N, cfg.J, cfg.p_layers
 
@@ -354,6 +440,14 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
     }
     print(f"    Done in {phase1_time:.1f}s")
 
+    # ── Diagnostics: record Phase 1 ──
+    collector.record_phase1(
+        n_points=len(exact_data),
+        elapsed_s=phase1_time,
+        gap_min=min(d.gap for d in exact_data),
+    )
+    collector.save_checkpoint("phase1")
+
     # ── Phase 2: VQE descending sweep ──
     print(f"  Phase 2: VQE ({cfg.n_restarts} restarts, maxiter={cfg.maxiter})...")
     t2 = time.time()
@@ -361,7 +455,7 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         p_layers=p,
         n_restarts=cfg.n_restarts,
         maxiter=cfg.maxiter,
-        enable_callbacks=False,
+        enable_callbacks=(verbose or debug),
     )
     opt = VQEOptimizer(vqe_config)
     vqe_results = opt.descending_sweep(h_values, qc, base_lattice, exact_data)
@@ -381,6 +475,22 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         f"    Done in {phase2_time:.1f}s — avg fid={np.mean(fids) * 100:.1f}%, "
         f"≥93%: {n_above_threshold}/{len(fids)}, ≥99.5%: {n_above_995}/{len(fids)}"
     )
+
+    # ── Diagnostics: record Phase 2 per-h VQE data ──
+    per_h_time = phase2_time / len(vqe_results) if vqe_results else 0.0
+    for i, vqe_r in enumerate(vqe_results):
+        # Use n_iterations directly (always available, no callback dependency)
+        n_iters = vqe_r.n_iterations
+        # Restart energies not directly available from sweep; use empty list
+        restart_energies: list[float] = []
+        collector.record_vqe_point(
+            h=float(h_values[i]),
+            n_iters=n_iters,
+            restart_energies=restart_energies,
+            theta_opt=vqe_r.theta_opt,
+            elapsed_s=per_h_time,
+        )
+    collector.save_checkpoint("phase2")
 
     # ── Phase 3: MPNN training ──
     print(
@@ -428,6 +538,23 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         f"    Done in {phase3_time:.1f}s — MSE={train_result['final_mse']:.2e}, "
         f"graphs={len(dataset)}/{len(h_values)}"
     )
+
+    # ── Diagnostics: record Phase 3 per-h error ──
+    # Compute per-h MSE from model predictions vs actual theta values
+    model.eval()
+    per_h_mse_values = []
+    with torch.no_grad():
+        for graph in dataset:
+            pred = model(graph).numpy().flatten()
+            target = graph.y.numpy().flatten()
+            mse_val = float(np.mean((pred - target) ** 2))
+            per_h_mse_values.append(mse_val)
+    per_h_mse_arr = np.array(per_h_mse_values)
+    # Use h_values for the training points (filtered by fidelity)
+    # dataset may have fewer points than h_values due to fidelity filter
+    h_train = np.array([float(graph.x[0, 0]) for graph in dataset])
+    collector.record_mpnn_per_h_error(h_train, per_h_mse_arr)
+    collector.save_checkpoint("phase3")
 
     # ── Phase 4: V6.1 Deployment ──
     print(f"  Phase 4: Deploy h_test={cfg.h_test}...")
@@ -481,6 +608,26 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
         f"checklist={n_pass}/{len(checklist)}, phase={deploy_result.phase_label}"
     )
 
+    # ── Diagnostics: record Phase 4 deployment ──
+    # Build per_layout_data from deploy_result if available
+    per_layout_data = None
+    if (
+        hasattr(deploy_result, "energies_per_layout")
+        and deploy_result.energies_per_layout
+        and hasattr(deploy_result, "ces_values")
+        and deploy_result.ces_values
+    ):
+        per_layout_data = {
+            "energies": deploy_result.energies_per_layout,
+            "ces_values": deploy_result.ces_values,
+        }
+    collector.record_deployment(
+        h_test=cfg.h_test,
+        result=deploy_result,
+        per_layout_data=per_layout_data,
+    )
+    collector.save_checkpoint("phase4")
+
     # ── Gradient Analysis ──
     print("  Analysis: Weight gradients...")
     t5 = time.time()
@@ -504,6 +651,11 @@ def run_pipeline(cfg: PipelineConfig) -> dict:
     )
 
     result["total_elapsed_s"] = round(time.time() - t1 + phase1_time, 1)
+
+    # ── Diagnostics: always append to result and cleanup checkpoints ──
+    result["diagnostics"] = collector.to_dict()
+    collector.cleanup_checkpoints()
+
     return result
 
 
@@ -516,11 +668,24 @@ def main():
     parser = argparse.ArgumentParser(description="V6.1 Parametric Pipeline Runner")
     parser.add_argument(
         "--config",
-        choices=list(CONFIGS.keys()) + ["all", "n6", "n10"],
+        choices=list(CONFIGS.keys()) + ["all", "n6", "n10", "n12"],
         default="all",
-        help="Configuration preset to run (default: all). Use 'n6' or 'n10' for size-specific sets.",
+        help="Configuration preset to run (default: all). Use 'n6', 'n10', or 'n12' for size-specific sets.",
     )
     parser.add_argument("--binnacle", action="store_true", help="Append binnacle entry")
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        default=False,
+        help="Enable INFO logging, DiagnosticCollector, and VQE callbacks",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Enable DEBUG logging and all verbose features",
+    )
     args = parser.parse_args()
 
     if args.config == "all":
@@ -529,6 +694,8 @@ def main():
         configs_to_run = list(CONFIGS_N6.values())
     elif args.config == "n10":
         configs_to_run = list(CONFIGS_N10.values())
+    elif args.config == "n12":
+        configs_to_run = list(CONFIGS_N12.values())
     else:
         configs_to_run = [CONFIGS[args.config]]
 
@@ -555,7 +722,7 @@ def main():
         print(f"{'─' * 60}")
 
         try:
-            result = run_pipeline(cfg)
+            result = run_pipeline(cfg, verbose=args.verbose, debug=args.debug)
             all_results.append(result)
         except Exception as e:
             print(f"\n  ❌ Config '{cfg.name}' FAILED: {e}")

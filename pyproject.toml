@@ -57,3 +57,6 @@ allowed_prefixes = ["Merge", "Revert", "WIP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+]

@@ -1,12 +1,12 @@
 {
   "name": "Steering Context Injection",
-  "version": "1.0.0",
-  "description": "On every prompt, remind the agent of the current project priority and key constraints to maintain focus across long sessions.",
+  "version": "2.0.0",
+  "description": "On every prompt, remind the agent of the single most critical constraint: do not modify stable modules.",
   "when": {
     "type": "promptSubmit"
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Before responding, recall the current project state: (1) Priority #1 is hardware deployment on IBM Torino via HardwareDeployerV61 — code ready, needs credentials. (2) Key constraints: HVA only (never HEA), p≤2, SparsePauliOp, Primitives V2, fidelity≥0.93, descending sweep h=2→0. (3) Stable modules (config.py, hamiltonian_builder.py, classical_solver.py, hva_builder.py, pipeline_utils.py, vqe_optimizer.py) must NOT be modified unless explicitly asked. (4) Active areas: hardware_deployer_v61.py, mpnn_predictor.py, analysis_utils.py, scripts/run_*.py. (5) Validate changes with `make check-full` (~15s). Now proceed with the user's request."
+    "prompt": "Reminder: Do NOT modify stable modules (config.py, hamiltonian_builder.py, classical_solver.py, hva_builder.py, pipeline_utils.py, vqe_optimizer.py) unless explicitly asked. Use pipeline_core.py for shared execution logic. Proceed with the user's request."
   }
 }

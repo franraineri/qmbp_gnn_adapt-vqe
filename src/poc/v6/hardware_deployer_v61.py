@@ -25,6 +25,7 @@ from .config_v61 import (
     DEFAULT_NUM_RANDOMIZATIONS,
     DEFAULT_SHOTS_PER_RANDOMIZATION,
     MAX_ADAPT_ITERATIONS_HARDWARE,
+    MAX_CES_RATIO,
     MAX_LAYOUTS,
     MIN_CES_RATIO,
     MIN_LAYOUTS,
@@ -195,6 +196,10 @@ class LayoutSelector:
         self._rng = random.Random(seed)
         self._layout_cache: dict[tuple[int, int], list[LayoutResult]] = {}
 
+        # Detect fake backends (skip calibration freshness check)
+        backend_name = getattr(backend, "name", "")
+        self._is_fake_backend = "fake" in backend_name.lower()
+
         # Extract calibration data and build connectivity graph
         self._gate_errors: dict[tuple[int, int], float] = {}
         self._connectivity_graph: dict[int, list[int]] = {}
@@ -278,8 +283,48 @@ class LayoutSelector:
         -----
         Logs warning and returns single default layout if insufficient spread.
         """
-        # Clamp n_layouts to valid range
-        n_layouts = max(MIN_LAYOUTS, min(MAX_LAYOUTS, n_layouts))
+        # Clamp n_layouts to valid range for ZNE (3-5).
+        # If n_layouts < MIN_LAYOUTS, caller wants raw execution (no ZNE) —
+        # return a single best layout without diversity requirements.
+        if n_layouts < MIN_LAYOUTS:
+            # Single-layout mode: return the best (lowest CES) layout
+            # No diversity needed — this is for raw noisy baseline
+            cache_key = (n_qubits, n_layouts)
+            if cache_key in self._layout_cache:
+                return self._layout_cache[cache_key]
+
+            subsets = self._find_connected_subsets(n_qubits, self._connectivity_graph)
+            if not subsets:
+                default_layout = self._make_default_layout(n_qubits)
+                self._layout_cache[cache_key] = [default_layout]
+                return [default_layout]
+
+            # Find the subset with lowest topology CES
+            best_subset = None
+            best_ces = float("inf")
+            best_n2q = 0
+            for subset in subsets:
+                ces, n_2q = self._compute_subset_ces(subset)
+                if 0 < ces < best_ces:
+                    best_subset = subset
+                    best_ces = ces
+                    best_n2q = n_2q
+
+            if best_subset is None:
+                default_layout = self._make_default_layout(n_qubits)
+                self._layout_cache[cache_key] = [default_layout]
+                return [default_layout]
+
+            result = [
+                LayoutResult(
+                    initial_layout=best_subset, ces=best_ces, two_qubit_gate_count=best_n2q
+                )
+            ]
+            self._layout_cache[cache_key] = result
+            logger.debug("Single-layout mode: CES=%.4f, qubits=%s", best_ces, best_subset[:5])
+            return result
+
+        n_layouts = min(MAX_LAYOUTS, n_layouts)
 
         # Check cache
         cache_key = (n_qubits, n_layouts)
@@ -440,8 +485,9 @@ class LayoutSelector:
         if not all_nodes:
             return []
 
-        # For small graphs, try all starting nodes; for large ones, sample
-        max_starts = min(len(all_nodes), 40)
+        # For small graphs, try all starting nodes; for large ones, sample more
+        # Increased from 40 to 80 for better diversity on large backends (133 qubits)
+        max_starts = min(len(all_nodes), 80)
         if len(all_nodes) > max_starts:
             start_nodes = self._rng.sample(all_nodes, max_starts)
         else:
@@ -460,7 +506,7 @@ class LayoutSelector:
                     subsets.append(subset)
 
             # Stop if we have enough candidates
-            if len(subsets) >= 20:
+            if len(subsets) >= 40:
                 break
 
         return subsets
@@ -503,11 +549,19 @@ class LayoutSelector:
         Qiskit 2.x backends using Target API), assumes fresh calibration
         to avoid blocking inhomogeneous ZNE on modern backends.
 
+        For fake backends (FakeTorino, etc.), always returns True since
+        their calibration data is a static snapshot and the freshness
+        check is irrelevant.
+
         Returns
         -------
         bool
             True if calibration is fresh or timestamp is unavailable.
         """
+        # Fake backends have static calibration data — always "fresh"
+        if self._is_fake_backend:
+            return True
+
         if self._calibration_timestamp is None:
             # Modern backends may not expose timestamp via properties.
             # Assume fresh to avoid blocking ZNE on these backends.
@@ -568,10 +622,12 @@ class LayoutSelector:
         sorted_pairs: list[tuple[list[int], float, int]],
         n_layouts: int,
     ) -> list[tuple[list[int], float, int]]:
-        """Select n_layouts subsets that maximize CES spread.
+        """Select n_layouts subsets that maximize CES spread without extreme outliers.
 
-        Picks subsets evenly spaced across the CES range to ensure
-        good extrapolation coverage.
+        Strategy: first filter out extreme outliers (CES > MAX_CES_RATIO × min),
+        then pick evenly spaced layouts from the filtered set. This ensures all
+        selected layouts produce physically meaningful results while still
+        providing CES diversity for ZNE extrapolation.
 
         Parameters
         ----------
@@ -588,13 +644,34 @@ class LayoutSelector:
         if len(sorted_pairs) <= n_layouts:
             return sorted_pairs
 
-        # Select evenly spaced indices across the sorted list
-        n = len(sorted_pairs)
+        # Step 1: Filter out extreme outliers FIRST (before selection)
+        min_ces = sorted_pairs[0][1]  # sorted ascending, first is minimum
+        if min_ces > 0:
+            max_allowed_ces = MAX_CES_RATIO * min_ces
+            valid_pairs = [s for s in sorted_pairs if s[1] <= max_allowed_ces]
+
+            if len(valid_pairs) < len(sorted_pairs):
+                n_removed = len(sorted_pairs) - len(valid_pairs)
+                logger.info(
+                    "Pre-filtered %d layout(s) with CES > %.2f × min_CES (%.4f). "
+                    "%d candidates remain.",
+                    n_removed,
+                    MAX_CES_RATIO,
+                    min_ces,
+                    len(valid_pairs),
+                )
+        else:
+            valid_pairs = sorted_pairs
+
+        # Step 2: Select evenly spaced from the VALID set
+        if len(valid_pairs) <= n_layouts:
+            return valid_pairs
+
+        n = len(valid_pairs)
         indices = [int(round(i * (n - 1) / (n_layouts - 1))) for i in range(n_layouts)]
-        # Deduplicate indices
         indices = sorted(set(indices))
 
-        return [sorted_pairs[i] for i in indices]
+        return [valid_pairs[i] for i in indices]
 
     def _make_default_layout(self, n_qubits: int) -> LayoutResult:
         """Create a default layout using the first n_qubits connected nodes.
@@ -755,8 +832,10 @@ def compute_shot_budget(n_qubits: int, shots_override: int | None = None) -> int
 class HardwareDeployerV61:
     """Production-ready hardware deployer with full error mitigation stack.
 
-    Supports dual-mode: 'hardware' (IBM backend + mitigation) or
-    'simulation' (StatevectorEstimator, no mitigation).
+    Supports three modes:
+    - 'simulation': StatevectorEstimator (noiseless, exact)
+    - 'noisy_simulation': FakeTorino + BackendEstimatorV2 (local noisy, ZNE only)
+    - 'hardware': IBM Runtime EstimatorV2 (full mitigation: DD, twirling, TREX, ZNE)
     """
 
     def __init__(
@@ -766,6 +845,7 @@ class HardwareDeployerV61:
         nn_extrapolation: bool = False,
         shots: int | None = None,
         n_layouts: int = 3,
+        seed: int = 42,
     ) -> None:
         """Initialize the V6.1 deployer.
 
@@ -774,18 +854,21 @@ class HardwareDeployerV61:
         backend_name : str | None
             IBM backend name (e.g., "ibm_torino"). None → simulation mode.
         mode : str
-            "hardware" or "simulation" (default).
+            "hardware", "noisy_simulation", or "simulation" (default).
         nn_extrapolation : bool
             Enable NN-enhanced ZNE extrapolation (Sun et al. 2025).
         shots : int | None
             Override shot budget. Must be ≥ 4096 if specified.
         n_layouts : int
             Number of layouts for inhomogeneous ZNE (3-5).
+        seed : int
+            Random seed for reproducible layout selection (default: 42).
         """
         self._mode = mode
         self._nn_extrapolation = nn_extrapolation
         self._shots_override = shots
         self._n_layouts = n_layouts
+        self._seed = seed
         self._backend = None
         self._layout_selector: LayoutSelector | None = None
 
@@ -808,11 +891,25 @@ class HardwareDeployerV61:
                 instance=ibm_instance,
             )
             self._backend = service.backend(backend_name)
-            self._layout_selector = LayoutSelector(self._backend)
+            self._layout_selector = LayoutSelector(self._backend, seed=seed)
 
             logger.info(
                 "HardwareDeployerV61 initialized in hardware mode: backend=%s",
                 backend_name,
+            )
+        elif mode == "noisy_simulation":
+            try:
+                from qiskit_ibm_runtime.fake_provider import FakeTorino
+            except ImportError as e:
+                raise ImportError(
+                    "qiskit-ibm-runtime is required for noisy_simulation mode. "
+                    "Install with: pip install qiskit-ibm-runtime"
+                ) from e
+            self._backend = FakeTorino()
+            self._layout_selector = LayoutSelector(self._backend, seed=seed)
+            logger.info(
+                "HardwareDeployerV61 initialized in noisy_simulation mode (FakeTorino, seed=%d).",
+                seed,
             )
         else:
             logger.info("HardwareDeployerV61 initialized in simulation mode.")
@@ -877,7 +974,9 @@ class HardwareDeployerV61:
 
         # 1. Compute shot budget
         total_shots = compute_shot_budget(lattice.n_qubits, self._shots_override)
-        sigma = 1.0 / np.sqrt(total_shots)
+        # In simulation mode, StatevectorEstimator returns exact values (no shot noise).
+        # Use a negligible sigma to avoid false "indeterminate" classifications.
+        sigma = 1e-10 if self._mode == "simulation" else 1.0 / np.sqrt(total_shots)
 
         # 2. Bind predicted parameters to circuit
         bound_circuit = circuit.assign_parameters(theta_pred)
@@ -903,8 +1002,8 @@ class HardwareDeployerV61:
         execution_timestamp: str | None = None
         backend_name: str | None = None
 
-        if self._mode == "hardware":
-            # Hardware mode: inhomogeneous ZNE
+        if self._mode in ("hardware", "noisy_simulation"):
+            # Hardware / noisy_simulation mode: inhomogeneous ZNE
             assert self._layout_selector is not None
             backend_name = self._backend.name if self._backend else None
             execution_timestamp = datetime.now(UTC).isoformat()
@@ -919,6 +1018,7 @@ class HardwareDeployerV61:
                 ces_values,
                 energies_per_layout,
                 zne_r_squared,
+                extrapolated_energy,
             ) = self._run_inhomogeneous_zne(
                 bound_circuit, x_group, zz_group, hamiltonian, lattice, layouts
             )
@@ -927,13 +1027,38 @@ class HardwareDeployerV61:
             if energies_per_layout:
                 raw_energy = energies_per_layout[0]
 
-            # Energy comes from ZNE extrapolation of the full Hamiltonian
-            # expectation value (submitted as a PUB alongside observables)
-            h_val = lattice.h if isinstance(lattice.h, int | float) else np.mean(lattice.h)
-            J_val = lattice.J if isinstance(lattice.J, int | float) else np.mean(lattice.J)
-            energy = -J_val * np.sum(zz_values) - h_val * np.sum(x_values)
+            # Check if ZNE produced valid data
+            if not ces_values and not energies_per_layout:
+                # All layouts were filtered or no valid execution occurred.
+                # Log error and set energy to NaN to propagate failure clearly.
+                logger.error(
+                    "ZNE produced no valid results (all layouts filtered or execution failed). "
+                    "Setting energy=NaN. Check CES ratio filtering and backend calibration."
+                )
+                energy = float("nan")
+                extrapolation_method = "none"
+                zne_r_squared = None
+            elif extrapolated_energy is not None:
+                # Use ZNE-extrapolated Hamiltonian energy when available (from
+                # linear fit on per-layout Hamiltonian PUB results). This is more
+                # accurate than reconstructing from separately-extrapolated observables.
+                energy = extrapolated_energy
+            elif energies_per_layout:
+                # Single layout fallback: use the raw Hamiltonian PUB energy
+                energy = energies_per_layout[0]
+            else:
+                # Last resort: reconstruct from observables
+                h_val = lattice.h if isinstance(lattice.h, int | float) else np.mean(lattice.h)
+                J_val = lattice.J if isinstance(lattice.J, int | float) else np.mean(lattice.J)
+                energy = -J_val * np.sum(zz_values) - h_val * np.sum(x_values)
 
-            extrapolation_method = "linear"
+            # Determine extrapolation method based on actual layouts used
+            if len(ces_values) >= 2:
+                extrapolation_method = "linear"
+            else:
+                # Single layout: no extrapolation possible
+                extrapolation_method = "none"
+                zne_r_squared = None
 
             # NN extrapolation if enabled and enough data
             if self._nn_extrapolation and len(ces_values) >= NN_MIN_DATA_POINTS:
@@ -1061,7 +1186,7 @@ class HardwareDeployerV61:
         hamiltonian: SparsePauliOp,
         lattice: LatticeConfig,
         layouts: list[LayoutResult],
-    ) -> tuple[np.ndarray, np.ndarray, list[float], list[float], float]:
+    ) -> tuple[np.ndarray, np.ndarray, list[float], list[float], float, float | None]:
         """Execute circuit at multiple layouts and extrapolate to CES=0.
 
         For each layout, transpiles the circuit, applies the layout to
@@ -1089,51 +1214,94 @@ class HardwareDeployerV61:
 
         Returns
         -------
-        (extrapolated_x, extrapolated_zz, ces_values, energies, r_squared)
+        (extrapolated_x, extrapolated_zz, ces_values, energies, r_squared, extrapolated_energy)
             Extrapolated observable values, CES per layout, energy per layout,
-            and R² of the linear fit.
+            R² of the linear fit, and the ZNE-extrapolated energy (None if < 2 layouts).
         """
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-        from qiskit_ibm_runtime import EstimatorV2
 
-        estimator = EstimatorV2(backend=self._backend)
+        if self._mode == "noisy_simulation":
+            from qiskit.primitives import BackendEstimatorV2
 
-        # Apply hardware options
-        options = build_estimator_options(
-            shots=compute_shot_budget(bound_circuit.num_qubits, self._shots_override),
-        )
-        for key, value in options.items():
-            if isinstance(value, dict):
-                # Nested options (e.g., dynamical_decoupling, twirling, resilience)
-                sub_opts = getattr(estimator.options, key, None)
-                if sub_opts is not None:
-                    for sub_key, sub_value in value.items():
-                        setattr(sub_opts, sub_key, sub_value)
-            else:
-                setattr(estimator.options, key, value)
+            shots = compute_shot_budget(bound_circuit.num_qubits, self._shots_override)
+            # BackendEstimatorV2 uses default_precision = 1/√shots
+            precision = 1.0 / np.sqrt(shots)
+            estimator = BackendEstimatorV2(
+                backend=self._backend,
+                options={"default_precision": precision, "seed_simulator": self._seed},
+            )
+        else:
+            from qiskit_ibm_runtime import EstimatorV2
+
+            estimator = EstimatorV2(backend=self._backend)
+
+        if self._mode != "noisy_simulation":
+            # Apply hardware options (DD, twirling, TREX)
+            options = build_estimator_options(
+                shots=compute_shot_budget(bound_circuit.num_qubits, self._shots_override),
+            )
+            for key, value in options.items():
+                if isinstance(value, dict):
+                    # Nested options (e.g., dynamical_decoupling, twirling, resilience)
+                    sub_opts = getattr(estimator.options, key, None)
+                    if sub_opts is not None:
+                        for sub_key, sub_value in value.items():
+                            setattr(sub_opts, sub_key, sub_value)
+                else:
+                    setattr(estimator.options, key, value)
 
         ces_values: list[float] = []
         all_x_values: list[np.ndarray] = []
         all_zz_values: list[np.ndarray] = []
         energies: list[float] = []
 
+        # ── Prepare all layouts: transpile and filter ──
+        # Guard: if no layouts provided, return zeros immediately
+        if not layouts:
+            n_x = lattice.n_qubits
+            n_zz = len(lattice.edges)
+            logger.warning("No layouts provided to _run_inhomogeneous_zne. Returning zeros.")
+            return np.zeros(n_x), np.zeros(n_zz), [], [], 0.0, None
+
+        valid_layouts: list[tuple[QuantumCircuit, float]] = []
         for layout in layouts:
-            # Transpile with specific layout
             pm = generate_preset_pass_manager(
                 optimization_level=2,
                 backend=self._backend,
                 initial_layout=layout.initial_layout,
             )
             transpiled = pm.run(bound_circuit)
-
-            # Compute actual CES from transpiled circuit (not topology estimate)
             actual_ces = self._layout_selector.compute_ces(transpiled)
 
-            # Apply layout to individual observables.
-            # EstimatorV2 returns a scalar for a multi-term SparsePauliOp (the
-            # weighted sum), but returns an array when given a list of individual
-            # operators. We need per-term values for ZNE extrapolation of each
-            # observable independently, so we submit lists of single-term ops.
+            # Post-transpilation CES filter
+            if valid_layouts:
+                min_actual_ces = min(ces for _, ces in valid_layouts)
+                if min_actual_ces > 0 and actual_ces > MAX_CES_RATIO * min_actual_ces:
+                    logger.warning(
+                        "Skipping layout with actual CES=%.4f (> %.1f × min=%.4f). "
+                        "Likely excessive SWAP routing.",
+                        actual_ces,
+                        MAX_CES_RATIO,
+                        min_actual_ces,
+                    )
+                    continue
+
+            valid_layouts.append((transpiled, actual_ces))
+
+        # Guard: if all layouts were filtered out, return zeros
+        if not valid_layouts:
+            n_x = lattice.n_qubits
+            n_zz = len(lattice.edges)
+            logger.warning(
+                "All layouts filtered by post-transpilation CES ratio. "
+                "Returning unextrapolated zeros."
+            )
+            return np.zeros(n_x), np.zeros(n_zz), [], [], 0.0, None
+
+        # ── Batch all PUBs into a single estimator.run() call ──
+        all_pubs = []
+
+        for _layout_idx, (transpiled, _) in enumerate(valid_layouts):
             x_obs_individual = [
                 SparsePauliOp.from_sparse_list(
                     [("X", [i], 1.0)], num_qubits=lattice.n_qubits
@@ -1148,35 +1316,44 @@ class HardwareDeployerV61:
             ]
             h_mapped = hamiltonian.apply_layout(transpiled.layout)
 
-            # Submit 3 PUBs:
-            # - X observables as list → returns array of per-site ⟨X_i⟩
-            # - ZZ observables as list → returns array of per-bond ⟨Z_iZ_j⟩
-            # - Full Hamiltonian → returns scalar energy
-            job = estimator.run(
-                [
-                    (transpiled, x_obs_individual),
-                    (transpiled, zz_obs_individual),
-                    (transpiled, h_mapped),
-                ]
-            )
-            result = job.result()
+            all_pubs.append((transpiled, x_obs_individual))
+            all_pubs.append((transpiled, zz_obs_individual))
+            all_pubs.append((transpiled, h_mapped))
 
-            x_vals = np.asarray(result[0].data.evs, dtype=np.float64)
-            zz_vals = np.asarray(result[1].data.evs, dtype=np.float64)
-            e_layout = float(result[2].data.evs)
+        # Single batched execution
+        job = estimator.run(all_pubs)
+        result = job.result()
+
+        # ── Extract results per layout ──
+        for layout_idx, (_, actual_ces) in enumerate(valid_layouts):
+            base_pub_idx = layout_idx * 3
+            x_vals = np.asarray(result[base_pub_idx].data.evs, dtype=np.float64)
+            zz_vals = np.asarray(result[base_pub_idx + 1].data.evs, dtype=np.float64)
+            e_layout = float(result[base_pub_idx + 2].data.evs)
 
             all_x_values.append(x_vals)
             all_zz_values.append(zz_vals)
             ces_values.append(actual_ces)
             energies.append(e_layout)
 
+        # Log actual CES values used for extrapolation
+        if ces_values:
+            ces_ratio_actual = max(ces_values) / min(ces_values) if min(ces_values) > 0 else 0
+            logger.info(
+                "ZNE using %d layout(s) with actual CES: %s (ratio %.2f)",
+                len(ces_values),
+                [f"{c:.4f}" for c in ces_values],
+                ces_ratio_actual,
+            )
+
         # Perform linear regression on (CES, energy) to extrapolate to CES=0
         ces_arr = np.array(ces_values)
         energy_arr = np.array(energies)
+        extrapolated_energy: float | None = None
 
         if len(ces_values) >= 2:
             coeffs = np.polyfit(ces_arr, energy_arr, 1)
-            _extrapolated_energy = float(np.polyval(coeffs, 0.0))  # noqa: F841
+            extrapolated_energy = float(np.polyval(coeffs, 0.0))
 
             # Compute R²
             y_pred = np.polyval(coeffs, ces_arr)
@@ -1194,8 +1371,11 @@ class HardwareDeployerV61:
         else:
             r_squared = 0.0
 
-        # Extrapolate per-observable values using linear regression on CES
-        # For each observable index, fit (CES, value) and extrapolate to CES=0
+        # Extrapolate per-observable values using linear regression on CES.
+        # Note: Energy and observable extrapolations are independent fits.
+        # E_ZNE ≠ -J*sum(zz_extrapolated) - h*sum(x_extrapolated) in general.
+        # This is intentional: energy uses the Hamiltonian PUB (most accurate),
+        # observables use per-term fits (needed for phase classification).
         n_x = all_x_values[0].shape[0] if all_x_values else 0
         n_zz = all_zz_values[0].shape[0] if all_zz_values else 0
 
@@ -1217,7 +1397,7 @@ class HardwareDeployerV61:
             extrapolated_x = all_x_values[0]
             extrapolated_zz = all_zz_values[0]
 
-        return extrapolated_x, extrapolated_zz, ces_values, energies, r_squared
+        return extrapolated_x, extrapolated_zz, ces_values, energies, r_squared, extrapolated_energy
 
     def classify_phase(self, mag_x: float, corr_zz: float, sigma: float) -> str:
         """Data-driven phase classification with uncertainty awareness.

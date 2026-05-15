@@ -9,13 +9,8 @@ Primitives V2, local observables, descending sweep h=2→0.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 import numpy as np
-
-if TYPE_CHECKING:
-    import torch
-    import torch_geometric.data
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -248,47 +243,10 @@ class VQEResult:
 
 
 # ---------------------------------------------------------------------------
-# Model 6 — GraphData
+# Model 7 — DeployResult (LEGACY — used by V6.0 HardwareDeployer only)
 #
-# NOTE: This is a *factory helper* that produces torch_geometric.data.Data
-# objects.  We define a lightweight builder rather than subclassing Data so
-# that the config module stays import-safe when torch_geometric is not
-# installed (e.g. during Phase 1/2 work).
-# ---------------------------------------------------------------------------
-
-
-def make_graph_data(
-    x: torch.Tensor,
-    edge_index: torch.Tensor,
-    y: torch.Tensor,
-    e_exact: float,
-) -> torch_geometric.data.Data:
-    """Create a ``torch_geometric.data.Data`` instance for MPNN training.
-
-    Parameters
-    ----------
-    x : Tensor [n_qubits, 2]
-        Node features: (h_i, coordination_number_i).
-    edge_index : Tensor [2, n_edges]
-        Bond connectivity in COO format (must be symmetric / undirected).
-    y : Tensor [2p]
-        Target θ_opt.
-    e_exact : float
-        Exact ground state energy (for energy-driven validation).
-
-    Returns
-    -------
-    torch_geometric.data.Data
-    """
-    import torch_geometric.data as tgd  # noqa: F811 — lazy import
-
-    data = tgd.Data(x=x, edge_index=edge_index, y=y)
-    data.e_exact = e_exact
-    return data
-
-
-# ---------------------------------------------------------------------------
-# Model 7 — DeployResult
+# V6.1 uses DeployResultV61 from config_v61.py which is a strict superset.
+# Kept for backward compatibility with V6.0 smoke_test.py and benchmark_v6.py.
 # ---------------------------------------------------------------------------
 
 

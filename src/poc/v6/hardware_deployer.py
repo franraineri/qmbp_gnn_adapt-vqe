@@ -1,5 +1,14 @@
 """
-Hardware Deployer — Dual-route deployment: Adapt-VQE (main) + QRC (fallback).
+LEGACY: V6.0 Hardware Deployer — Dual-route deployment: Adapt-VQE + QRC fallback.
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  SUPERSEDED by hardware_deployer_v61.py (HardwareDeployerV61).         ║
+║  Kept for backward compatibility with:                                  ║
+║    - scripts/smoke_test.py (V6.0 smoke test)                           ║
+║    - scripts/benchmark_v6.py (V6.0 benchmark, 40+ historical runs)     ║
+║    - tests/test_v6_pipeline.py (V6.0 unit tests)                       ║
+║  DO NOT use for new development — use HardwareDeployerV61 instead.     ║
+╚══════════════════════════════════════════════════════════════════════════╝
 
 Main route: bind θ_pred to HVA → AdaptVQE (max_iterations=2) → measure local
 observables via EstimatorV2 (or StatevectorEstimator for noiseless simulation).

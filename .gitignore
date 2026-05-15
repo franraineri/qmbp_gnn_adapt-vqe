@@ -43,3 +43,4 @@ scripts/notebook_results/
 # ── Logs & temp ──────────────────────────────────────────────
 *.log
 tmp/
+*.tex

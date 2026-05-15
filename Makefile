@@ -32,7 +32,10 @@ format:  ## Auto-format with ruff
 
 # ── Testing ──────────────────────────────────────────────────
 
-test:  ## Run pytest suite (18 tests, ~5s)
+test:  ## Run fast tests only, excluding slow (FakeTorino) tests (~8s)
+	$(PYTHON) -m pytest tests/ -v --tb=short -m "not slow"
+
+test-full:  ## Run ALL tests including slow FakeTorino tests (~60s)
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 smoke-test:  ## Run end-to-end smoke test (~7s)

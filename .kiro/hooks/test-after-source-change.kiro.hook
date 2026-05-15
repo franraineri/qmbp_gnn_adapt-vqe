@@ -1,0 +1,13 @@
+{
+  "name": "Test After Source Change",
+  "version": "1.0.0",
+  "description": "Run fast tests after source module changes to catch regressions immediately.",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/poc/v6/*.py", "src/poc/v6/experimental/*.py"]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ".venv/bin/python -m pytest tests/ -x -q --tb=short -m 'not slow' 2>&1 | tail -5"
+  }
+}

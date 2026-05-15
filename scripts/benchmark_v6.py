@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 """
-GNN-HVA v6.0 — Multi-Run Benchmark
+LEGACY: GNN-HVA v6.0 — Multi-Run Benchmark
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  SUPERSEDED by scripts/run_v61_parametric.py for V6.1 benchmarking.    ║
+║  Kept for reproducibility of the 40+ V6.0 benchmark runs.              ║
+║  Uses deprecated HardwareDeployer, GATPredictor, augment_graph_dataset,║
+║  and QRCPipeline.                                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
 
 Executes the full 4-phase pipeline N times with different random seeds,
 collects per-run metrics, and appends a summary to the binnacle.

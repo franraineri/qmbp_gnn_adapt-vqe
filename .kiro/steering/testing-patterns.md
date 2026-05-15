@@ -14,8 +14,9 @@ Tests live in `tests/` and use pytest. Run with `make test` (~8s) or `python -m 
 - `builder` → `HamiltonianBuilder()` instance
 - `solver` → `ClassicalSolver()` instance
 - `hva` → `HVACircuitBuilder()` instance
-- `h_values_reduced` → 3-point h-grid for fast tests
-- `exact_data_reduced` → pre-computed ground truth for 3 points
+- `chain_6` → `LatticeConfig` for N=6 chain
+- `h_values_reduced` → 6-point h-grid for fast tests
+- `exact_data_reduced` → pre-computed ground truth for 6 points
 
 ### Test Classes
 
@@ -30,6 +31,9 @@ Tests live in `tests/` and use pytest. Run with `make test` (~8s) or `python -m 
 | `TestObservableGroupingIntegration` | Grouped vs individual observables | Phase 4 correctness |
 | `TestMPNNEdgeFeatures` | NNConv model, backward compat | Phase 3 architecture |
 | `TestWeightGradientAnalyzer` | Gradient output structure | Analysis correctness |
+| `TestDiagnosticsIntegration` | CLI flags, logging levels, diagnostics output | Observability correctness |
+| `TestSeedDeterminism` | Layout reproducibility with same seed | Noisy simulation correctness |
+| `TestZNEEdgeCases` | n_layouts=1 fallback, R²<0.8 warning | ZNE edge case handling |
 
 ## Conventions
 
@@ -37,8 +41,16 @@ Tests live in `tests/` and use pytest. Run with `make test` (~8s) or `python -m 
 - Test classes: `Test<Feature>`
 - Test methods: `test_<behavior>` — describe what's being verified, not how
 - Use `@pytest.mark.parametrize` for multi-config tests
+- Use `@pytest.mark.slow` for tests that depend on FakeTorino or take >10s (excluded by `make test`, included by `make test-full`)
 - Use `tmp_path` fixture for file I/O tests
 - Use `np.testing.assert_allclose(actual, expected, atol=1e-6)` for numerical comparisons
+
+### Test Speed Tiers
+
+| Command | Scope | Time |
+|---------|-------|------|
+| `make test` | Fast tests only (`-m "not slow"`) | ~12s |
+| `make test-full` | All tests including `@pytest.mark.slow` | ~60s |
 
 ## What to Assert
 
@@ -65,3 +77,16 @@ When adding a new feature to `src/poc/v6/`:
 2. If it's a new module, create `tests/test_<module>.py`
 3. Add integration coverage in `TestHardwareDeployerSimulation` if it affects the pipeline
 4. Run `make test` to verify, then `make check-full` for the complete gate
+
+## Module-to-Test Mapping
+
+| Module | Test file(s) |
+|--------|-------------|
+| `config.py`, `hamiltonian_builder.py`, `classical_solver.py` | `test_v6_pipeline.py` |
+| `vqe_optimizer.py`, `hva_builder.py` | `test_v6_pipeline.py` |
+| `hardware_deployer_v61.py` | `test_v61_integration.py`, `test_noisy_simulation.py` |
+| `analysis_utils.py` | `test_analysis_utils.py` |
+| `diagnostics.py` | `test_diagnostics_correctness.py`, `test_diagnostics_integration.py` |
+| `mpnn_predictor.py` | `test_v61_integration.py` (edge features, per-param heads) |
+| `pipeline_core.py` | (integration via scripts; add `test_pipeline_core.py` when stabilized) |
+| `experimental/` | Not tested directly (deprecated code, kept for reproducibility) |

@@ -209,80 +209,9 @@ class MPNNPredictor(nn.Module):
         return self.head(x)
 
 
-# ── GATConv variant ──────────────────────────────────────────────────────
-
-
-class GATPredictor(nn.Module):
-    """Attention-based GNN predictor using GATConv.
-
-    Uses multi-head attention to learn which neighbors are most informative
-    for parameter prediction. May perform better near phase transitions where
-    correlations are long-range.
-
-    Parameters
-    ----------
-    node_features : int
-        Number of input node features (default 2: h_i, coord_i).
-    hidden_dim : int
-        Hidden dimension per attention head.
-    n_layers : int
-        Number of GATConv layers.
-    n_heads : int
-        Number of attention heads per layer.
-    output_dim : int
-        Output dimension (2 * p_layers).
-    """
-
-    def __init__(
-        self,
-        node_features: int = 2,
-        hidden_dim: int = 64,
-        n_layers: int = 3,
-        n_heads: int = 4,
-        output_dim: int = 4,
-    ) -> None:
-        super().__init__()
-        from torch_geometric.nn import GATConv
-
-        self.convs = nn.ModuleList()
-        self.bns = nn.ModuleList()
-
-        # First layer: node_features → hidden_dim * n_heads
-        self.convs.append(GATConv(node_features, hidden_dim, heads=n_heads, concat=True))
-        self.bns.append(nn.BatchNorm1d(hidden_dim * n_heads))
-
-        # Middle layers: hidden_dim * n_heads → hidden_dim * n_heads
-        for _ in range(n_layers - 2):
-            self.convs.append(GATConv(hidden_dim * n_heads, hidden_dim, heads=n_heads, concat=True))
-            self.bns.append(nn.BatchNorm1d(hidden_dim * n_heads))
-
-        # Last conv: hidden_dim * n_heads → hidden_dim (concat=False, average heads)
-        self.convs.append(GATConv(hidden_dim * n_heads, hidden_dim, heads=1, concat=False))
-        self.bns.append(nn.BatchNorm1d(hidden_dim))
-
-        # Readout MLP
-        self.head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_dim, output_dim),
-        )
-
-    def forward(self, data: Data) -> torch.Tensor:
-        """Predict θ_pred from graph data using attention."""
-        x, edge_index = data.x, data.edge_index
-        if hasattr(data, "batch") and data.batch is not None:
-            batch = data.batch
-        else:
-            batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
-
-        for conv, bn in zip(self.convs, self.bns, strict=False):
-            x = conv(x, edge_index)
-            x = bn(x)
-            x = torch.relu(x)
-
-        x = global_mean_pool(x, batch)
-        return self.head(x)
+# ── DEPRECATED: GATPredictor moved to experimental/ ──────────────────────
+# Backward-compatible re-export for benchmark_v6.py
+from .experimental.gat_predictor import GATPredictor  # noqa: F401, E402, I001
 
 
 # ── Task 6.2: Graph data construction utility ────────────────────────────
@@ -383,64 +312,9 @@ def build_graph_dataset(
     return dataset
 
 
-# ── Data augmentation via θ interpolation ────────────────────────────────
-
-
-def augment_graph_dataset(
-    dataset: list[Data],
-    alphas: tuple[float, ...] = (0.25, 0.5, 0.75),
-) -> list[Data]:
-    """Augment training data by interpolating θ between adjacent h-points.
-
-    For each consecutive pair (h_i, h_{i+1}) in the dataset, creates
-    synthetic points at h_interp = (1-α)*h_i + α*h_{i+1} with
-    θ_interp = (1-α)*θ_i + α*θ_{i+1}.
-
-    This exploits the smooth θ landscape from the descending sweep to
-    multiply training data without extra VQE runs.
-
-    Parameters
-    ----------
-    dataset : list[Data] — original fidelity-filtered dataset (sorted by h)
-    alphas : tuple[float, ...] — interpolation fractions
-
-    Returns
-    -------
-    list[Data] — augmented dataset (original + interpolated points)
-    """
-    if len(dataset) < 2:
-        return dataset
-
-    # Sort by h_value
-    sorted_ds = sorted(dataset, key=lambda d: d.h_value)
-    augmented = list(sorted_ds)
-
-    for i in range(len(sorted_ds) - 1):
-        d1, d2 = sorted_ds[i], sorted_ds[i + 1]
-        h1, h2 = d1.h_value, d2.h_value
-        theta1, theta2 = d1.y, d2.y
-        e1, e2 = d1.e_exact, d2.e_exact
-
-        for alpha in alphas:
-            h_interp = (1 - alpha) * h1 + alpha * h2
-            theta_interp = (1 - alpha) * theta1 + alpha * theta2
-            e_interp = (1 - alpha) * e1 + alpha * e2
-
-            # Build node features with interpolated h
-            x_interp = d1.x.clone()
-            x_interp[:, 0] = h_interp  # update h feature
-
-            data = Data(
-                x=x_interp,
-                edge_index=d1.edge_index,
-                y=theta_interp,
-            )
-            data.e_exact = float(e_interp)
-            data.h_value = float(h_interp)
-            augmented.append(data)
-
-    logger.info(f"Augmented dataset: {len(sorted_ds)} → {len(augmented)} points (alphas={alphas})")
-    return augmented
+# ── DEPRECATED: augment_graph_dataset moved to experimental/ ─────────────
+# Backward-compatible re-export for benchmark_v6.py
+from .experimental.augmentation import augment_graph_dataset  # noqa: F401, E402, I001
 
 
 # ── Task 6.3: Training loop ─────────────────────────────────────────────

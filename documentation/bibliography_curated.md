@@ -144,15 +144,23 @@ Filtered for **high confidence** (verified source, accessible URL) and **direct 
 
 ✅ Uvarov, A. et al. (2024). Mitigating quantum gate errors for variational eigensolvers using hardware-inspired zero-noise extrapolation. *arXiv preprint arXiv:2307.11156v3*. https://arxiv.org/abs/2307.11156
 
-> Inhomogeneous ZNE using hardware error distribution. Directly applicable to Phase 4.
+> Inhomogeneous ZNE using hardware error distribution. Linear E(CES) approximation validated for small circuits. Our N=10 experiments (2026-05-14) confirm the applicability range is bounded — R² collapses at higher qubit counts where total CES exceeds the perturbative regime.
+
+🔑 Tsubouchi, K., Sagawa, T., & Takagi, K. (2023). Universal cost bound of quantum error mitigation based on quantum estimation theory. *Physical Review Letters*, *131*, 210602. https://arxiv.org/abs/2208.09385
+
+> Proves sampling cost of any unbiased error mitigation grows exponentially with circuit depth AND qubit count. For random circuits with local noise, cost grows exponentially also with qubit count. Directly explains our N=6→N=10 ZNE failure: 3 layouts cannot overcome the exponential cost at N=10.
+
+🔑 Rabinovich, D. et al. (2025). Zero-noise extrapolation via cyclic permutations of quantum circuit layouts. *arXiv preprint arXiv:2511.02901v2*. https://arxiv.org/abs/2511.02901
+
+> CLP-ZNE: uses O(n) cyclic layout permutations for n-qubit 1D circuits. Validated on IBM Torino noise model at n=12, achieving order-of-magnitude error reduction over standard ZNE. Directly addresses our N=10 failure — the fix is more layouts with systematic (not random) coverage of CES space.
 
 ✅ Sun, W. et al. (2025). Noise-mitigated variational quantum eigensolver with pre-training and zero-noise extrapolation. *arXiv preprint arXiv:2501.01646*. https://arxiv.org/abs/2501.01646
 
-> MPS pre-training + NN-enhanced ZNE. Validates our NNExtrapolator design.
+> MPS pre-training + NN-enhanced ZNE. Validates our NNExtrapolator design. When linear E(CES) breaks down, MLP extrapolation constrains errors to O(10⁻²).
 
 ✅ Pokharel, B. et al. (2025). Empirical learning of dynamical decoupling on quantum processors. *arXiv preprint arXiv:2403.02294v2*. https://arxiv.org/abs/2403.02294
 
-> Genetic algorithm DD optimization for IBM processors. Scalable to 100 qubits. Directly relevant to Phase 4 DD.
+> Genetic algorithm DD optimization for IBM processors. Scalable to 100 qubits. Directly relevant to Phase 4 DD. DD reduces effective CES, potentially restoring ZNE linearity at N=10.
 
 🔑 Aharonov, D., Bairey, E., Lindner, N. H., et al. (2026). Reliable high-accuracy error mitigation for utility-scale quantum circuits. *arXiv preprint arXiv:2508.10997*. https://arxiv.org/abs/2508.10997
 
@@ -272,7 +280,7 @@ Filtered for **high confidence** (verified source, accessible URL) and **direct 
 
 ---
 
-## 20. Alternative Approaches (Future Work)
+## 20. Alternative Approaches (For Future Work)
 
 📎 Nakaji, K. et al. (2025). The generative quantum eigensolver (GQE) and its application for ground state search. *arXiv preprint arXiv:2401.09253v2*. https://arxiv.org/abs/2401.09253
 
@@ -351,9 +359,9 @@ The following were excluded from the curated list:
 
 ## Summary Statistics
 
-- **Total papers in curated list:** 42
+- **Total papers in curated list:** 44
 - **Core (✅):** 17 — directly used or validated in the pipeline
-- **Key (🔑):** 12 — essential theoretical/methodological foundation
+- **Key (🔑):** 14 — essential theoretical/methodological foundation
 - **Supporting (📎):** 13 — validates decisions or provides context
 - **Removed:** 40+ papers (placeholder IDs, tangential, or superseded)
 

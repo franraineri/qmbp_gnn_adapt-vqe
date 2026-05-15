@@ -247,37 +247,47 @@ The pipeline's key insight remains: minimize quantum resource usage by maximizin
 ## 8. Priority Actions Based on Literature
 
 ### Immediate (before thesis submission)
-1. Cite Tripathi 2026 to validate h=1.25 ceiling as physics limit
-2. Cite Sharma 2026 to set expectations for hardware noise broadening
-3. Implement inhomogeneous ZNE (Uvarov) for Phase 4 — low effort, high narrative value
-4. Add Xu 2019 and Gilmer 2017 citations to justify GINConv architecture
+1. ~~Cite Tripathi 2026 to validate h=1.25 ceiling as physics limit~~ ✅ Done
+2. ~~Cite Sharma 2026 to set expectations for hardware noise broadening~~ ✅ Done
+3. ~~Implement inhomogeneous ZNE (Uvarov) for Phase 4~~ ✅ Done — works at N=6, FAILS at N=10
+4. ~~Add Xu 2019 and Gilmer 2017 citations to justify GINConv architecture~~ ✅ Done
 
-### Short-term (thesis improvements)
-5. Try NN-enhanced ZNE extrapolation (Sun 2025) on hardware data
-6. Implement learned DD (Pokharel 2025) via Qiskit DD pass manager
-7. Analyze MPNN weight structure across h-sweep (Hernandes 2025 insight)
+### Short-term (fix ZNE at N=10, then hardware)
+5. ~~**Fix ZNE scaling**: test n_layouts=7-10 or CLP-ZNE (Rabinovich et al. 2025) at N=10~~ ❌ Tested — R² plateaus at 0.08. Failure is fundamental.
+6. ~~**NN-enhanced ZNE** (Sun 2025): non-linear extrapolation when R² < 0.8~~ Skipped — no signal to learn (R²=0.08 means noise, not non-linear relationship)
+7. ~~**DD pre-mitigation** (Pokharel 2025): reduce effective CES before ZNE~~ ❌ Cannot test locally (YGate not in FakeTorino basis). Only on real hardware.
+8. ~~Analyze MPNN weight structure across h-sweep (Hernandes 2025)~~ ✅ Done — peaks detected at N=10 with seed 43
+
+### Hardware deployment (NEXT — local simulation exhausted)
+9. **N=6, h=2.0 first** (connection validation, easiest point)
+10. **N=6, h∈{1.5, 1.4, 1.25}** (thesis Table 4.4, full mitigation stack)
+11. **N=10, h∈{2.0, 1.5, 1.4}** (THE thesis question: does full stack rescue ZNE at N=10?)
 
 ### Future work section
-8. NLCE + VQE for thermodynamic limit extrapolation
-9. 2D TN pre-optimization for Kagome scaling
-10. Generative circuit design (GQE) as next-generation approach
-11. Noise-aware MPNN training for hardware-optimized predictions
+11. NLCE + VQE for thermodynamic limit extrapolation
+12. 2D TN pre-optimization for Kagome scaling
+13. Generative circuit design (GQE) as next-generation approach
+14. Noise-aware MPNN training for hardware-optimized predictions
 
 ### The next high-value actions are:
 
-Ladder topology validation (tests GNN generalization)
-Phase 4 hardware deployment with the improved error mitigation stack
-MPNN weight analysis for unsupervised phase detection (novel contribution)
+~~Ladder topology validation (tests GNN generalization)~~ ✅ Done — fails due to HVA p=2 physics limit
+~~Phase 4 hardware deployment with the improved error mitigation stack~~ Blocked by ZNE scaling failure at N=10
+~~MPNN weight analysis for unsupervised phase detection (novel contribution)~~ ✅ Done — peaks detected with seed 43
 
 
 ### Where the literature suggests we COULD improve (without changing architecture)
-Improvement	| Effort |	Impact	| When
-Inhomogeneous ZNE for Phase 4	Low	High — better hardware results	Before hardware runs
-8192+ shots	Minimal	High — shot noise below signal	Before hardware runs
-Learned DD sequences (GADD)	Low	Medium — free error suppression	Before hardware runs
-MPNN weight analysis for phase detection	Low	Medium — novel result, zero QPU cost	Anytime
-NLCE + VQE for thermodynamic limit	Medium	High — extends to infinite N	Future work
-GATConv for ladders/2D (non-uniform edges)	Low	Medium — may help when edges differ	When testing ladders
+
+| Improvement | Effort | Impact | Status |
+|-------------|--------|--------|--------|
+| Inhomogeneous ZNE for Phase 4 | Low | High | ✅ Done (works N=6, fails N=10 locally) |
+| 8192+ shots | Minimal | High | ✅ Already using 16384 in noisy sweeps |
+| Learned DD sequences (GADD) | Low | Medium | ❌ Cannot test locally; native on real hardware |
+| MPNN weight analysis for phase detection | Low | Medium | ✅ Done — peaks detected, 3 figures generated |
+| Fix ZNE at N=10 (O(n) layouts or DD) | Medium | **Critical** | ❌ Local sim exhausted — must test on real hardware |
+| NN-enhanced ZNE extrapolation | Low | High | Skipped — no signal at N=10 (R²=0.08) |
+| NLCE + VQE for thermodynamic limit | Medium | High | Future work |
+| GATConv for ladders/2D | Low | Low | ❌ Tested, no benefit (physics-limited) |
 
 
 ### The one legitimate concern: is VQE itself the right quantum algorithm?

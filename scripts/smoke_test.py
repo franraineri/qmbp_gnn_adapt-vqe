@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 """
-GNN-HVA v6.0 — Quick Smoke Test
+LEGACY: GNN-HVA v6.0 — Quick Smoke Test
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  SUPERSEDED by scripts/smoke_test_v61.py for V6.1 validation.          ║
+║  Kept for backward compatibility with `make smoke-test` and to         ║
+║  reproduce V6.0 baseline results.                                       ║
+║  Uses deprecated HardwareDeployer and QRCPipeline.                      ║
+╚══════════════════════════════════════════════════════════════════════════╝
 
 Runs a reduced end-to-end pipeline (6 h-points, 500 MPNN epochs) to verify
 all modules work correctly.  Expected runtime: ~7 seconds.
