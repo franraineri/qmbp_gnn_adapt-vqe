@@ -1,0 +1,150 @@
+{
+  "experiment_id": "3B",
+  "technique": 3,
+  "technique_name": "MPS simulation",
+  "description": "MPS accuracy validation (N=10)",
+  "timestamp": "20260518_204653",
+  "config": {
+    "N": 10,
+    "chi_values": [
+      64,
+      256
+    ],
+    "h_values": [
+      1.0,
+      1.5,
+      2.0
+    ]
+  },
+  "metrics": [
+    {
+      "energy": -12.175531264340488,
+      "energy_error": 0.2059587353142689,
+      "relative_error": 0.6890086892373463,
+      "fidelity": null,
+      "phase_label": "ferromagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0028841495513916016,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -12.175531264340488,
+      "energy_error": 0.2059587353142689,
+      "relative_error": 0.6890086892373463,
+      "fidelity": null,
+      "phase_label": "ferromagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0017230510711669922,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -16.49630261472093,
+      "energy_error": 0.03895233203822812,
+      "relative_error": 0.033371382818974886,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0015530586242675781,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -16.49630261472093,
+      "energy_error": 0.03895233203822812,
+      "relative_error": 0.033371382818974886,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0013709068298339844,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -21.128275677916534,
+      "energy_error": 0.011043437714672422,
+      "relative_error": 0.0051766748606911096,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0015549659729003906,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -21.128275677916534,
+      "energy_error": 0.011043437714672422,
+      "relative_error": 0.0051766748606911096,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0014910697937011719,
+      "n_evaluations": 1,
+      "seed": 42
+    }
+  ],
+  "summary": {
+    "n_validated": 6,
+    "total_tests": 6,
+    "detailed": [
+      {
+        "h": 1.0,
+        "chi": 64,
+        "energy_sv": -12.175531264340439,
+        "energy_mps": -12.175531264340488,
+        "diff_vs_sv": 4.973799150320701e-14,
+        "time_mps": 0.0028841495513916016,
+        "validated": true
+      },
+      {
+        "h": 1.0,
+        "chi": 256,
+        "energy_sv": -12.175531264340439,
+        "energy_mps": -12.175531264340488,
+        "diff_vs_sv": 4.973799150320701e-14,
+        "time_mps": 0.0017230510711669922,
+        "validated": true
+      },
+      {
+        "h": 1.5,
+        "chi": 64,
+        "energy_sv": -16.496302614720907,
+        "energy_mps": -16.49630261472093,
+        "diff_vs_sv": 2.1316282072803006e-14,
+        "time_mps": 0.0015530586242675781,
+        "validated": true
+      },
+      {
+        "h": 1.5,
+        "chi": 256,
+        "energy_sv": -16.496302614720907,
+        "energy_mps": -16.49630261472093,
+        "diff_vs_sv": 2.1316282072803006e-14,
+        "time_mps": 0.0013709068298339844,
+        "validated": true
+      },
+      {
+        "h": 2.0,
+        "chi": 64,
+        "energy_sv": -21.128275677916783,
+        "energy_mps": -21.128275677916534,
+        "diff_vs_sv": 2.4868995751603507e-13,
+        "time_mps": 0.0015549659729003906,
+        "validated": true
+      },
+      {
+        "h": 2.0,
+        "chi": 256,
+        "energy_sv": -21.128275677916783,
+        "energy_mps": -21.128275677916534,
+        "diff_vs_sv": 2.4868995751603507e-13,
+        "time_mps": 0.0014910697937011719,
+        "validated": true
+      }
+    ],
+    "conclusion": "6/6 validated at N=10"
+  },
+  "success": true,
+  "error": null
+}

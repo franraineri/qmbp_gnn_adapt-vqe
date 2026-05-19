@@ -273,3 +273,27 @@ Weaving, T. et al. (2025). Simulating the antiferromagnetic Heisenberg model on 
 ## 25. VQE Optimizer Benchmarking
 
 Singh, M. et al. (2025). Statistical benchmarking of optimization methods for variational quantum eigensolver under quantum noise. *arXiv preprint arXiv:2510.08727*. https://arxiv.org/abs/2510.08727 *(Comprehensive benchmark: BFGS achieves most accurate energies with minimal evaluations, robust under moderate decoherence. COBYLA good for low-cost approximations. SLSQP unstable under noise. Validates our L-BFGS-B choice for noiseless Phase 2 and COBYLA recommendation for hardware Phase 4.)*
+
+
+---
+
+## 26. Gradient-Free Optimization for Variational Quantum Algorithms
+
+Rapin, J., & Teytaud, O. (2018). Nevergrad — A gradient-free optimization platform. *Facebook AI Research*. https://facebookresearch.github.io/nevergrad/ *(Meta's gradient-free optimization library. Provides CMA-ES, differential evolution, PSO, and other evolutionary strategies. Relevant for VQE optimization in noisy settings where gradient estimation is unreliable.)*
+
+---
+
+## 27. Quantum Reservoir Computing
+
+Kutvonen, A., Fujii, K., & Sagawa, T. (2020). Optimizing a quantum reservoir computer for time series prediction. *Scientific Reports*, *10*, 14687. https://doi.org/10.1038/s41598-020-71673-9 *(Shows that variation in inter-spin interactions enhances QRC memory capacity. Identifies optimal timescales for reservoir dynamics. Relevant to reservoir design choices in our QRC fallback route.)*
+
+Mujal, P., Martínez-Peña, R., Giorgi, G. L., Soriano, M. C., & Zambrini, R. (2023). Quantum reservoir computing using the Jaynes-Cummings model. *arXiv preprint arXiv:2510.00171*. https://arxiv.org/abs/2510.00171 *(Investigates QRC using hybrid qubit-boson systems. High-dimensional Hilbert spaces and intrinsic nonlinear dynamics provide powerful substrates for temporal information processing. Validates QRC as a computational paradigm beyond spin-only reservoirs.)*
+
+---
+
+## 28. MPS Circuit Simulation
+
+Qiskit Development Team. (2024). Matrix product state simulation method — Qiskit Aer tutorials. https://qiskit.github.io/qiskit-aer/tutorials/7_matrix_product_state_method.html *(Tutorial for Qiskit Aer's MPS simulator. Enables simulation of circuits with hundreds of qubits when entanglement is bounded. Relevant for scaling VQE beyond statevector limits on 1D systems.)*
+
+
+Lavrijsen, W., Tudor, A., Müller, J., Iancu, C., & de Jong, W. (2020). Classical optimizers for noisy intermediate-scale quantum devices. *arXiv preprint arXiv:2004.03004*. https://arxiv.org/abs/2004.03004 *(Demonstrates that SPSA is the most robust optimizer for VQE under hardware noise. L-BFGS-B fails when shot noise corrupts gradient estimates. COBYLA is a viable alternative for low-cost approximations. Directly validates our Phase 4 optimizer choice.)*

@@ -113,7 +113,8 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 | Check what's stable vs active | `.kiro/steering/project-status.md` |
 | Follow code conventions | `.kiro/steering/code-style.md` |
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
-| Check numerical baselines | `.kiro/knowledge/poc-results.md` |
+| Check numerical baselines & tables | `.kiro/knowledge/validation-targets.md` (source of truth for numbers) |
+| See analysis & interpretation of results | `.kiro/knowledge/poc-results.md` |
 | Check validation targets & tables | `.kiro/knowledge/validation-targets.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
 | See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` + `.kiro/steering/hardware-deployment.md` |
@@ -125,6 +126,7 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 | Find deprecated approaches | `src/poc/v6/experimental/` (GATPredictor, augmentation) |
 | Run notebooks with metrics | `scripts/run_notebooks.py --help` |
 | Validate V6.1 deployer | `scripts/smoke_test_v61.py` |
+| Check knowledge freshness | `.kiro/knowledge/changelog.md` |
 
 ## Key Workflow Rules
 1. Never modify stable modules (listed in `project-status.md`) without explicit request.

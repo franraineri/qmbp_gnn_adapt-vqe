@@ -1,7 +1,9 @@
 # Validation Targets & Historical Results
 
-> Reference data moved from project-status.md. Consult when evaluating pipeline results
-> or writing thesis tables.
+> **Single source of truth** for numerical baselines and thesis-ready tables.
+> Use these numbers to evaluate whether a change improved or regressed the pipeline.
+> For analysis and interpretation of these numbers, see `poc-results.md`.
+> For experiment methodology and protocols, see `steering/experiment-protocol.md`.
 
 ## Validation Targets (V6.1, HardwareDeployerV61 4-metric checklist)
 

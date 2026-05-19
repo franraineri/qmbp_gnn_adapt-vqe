@@ -1,0 +1,156 @@
+{
+  "experiment_id": "3A",
+  "technique": 3,
+  "technique_name": "MPS simulation",
+  "description": "MPS accuracy validation (N=6, compare vs statevector)",
+  "timestamp": "20260518_204626",
+  "config": {
+    "N": 6,
+    "chi_values": [
+      64,
+      256
+    ],
+    "h_values": [
+      1.0,
+      1.5,
+      2.0
+    ]
+  },
+  "metrics": [
+    {
+      "energy": -7.203504894133842,
+      "energy_error": 0.09272491642491865,
+      "relative_error": 0.19231680395648967,
+      "fidelity": null,
+      "phase_label": "ferromagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0021009445190429688,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -7.203504894133842,
+      "energy_error": 0.09272491642491865,
+      "relative_error": 0.19231680395648967,
+      "fidelity": null,
+      "phase_label": "ferromagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0008981227874755859,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -9.828211581270873,
+      "energy_error": 0.019359889883723724,
+      "relative_error": 0.014415974656265903,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0008189678192138672,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -9.828211581270873,
+      "energy_error": 0.019359889883723724,
+      "relative_error": 0.014415974656265903,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0007510185241699219,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -12.62734740008549,
+      "energy_error": 0.0036168764074719917,
+      "relative_error": 0.0015771640686246837,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0008499622344970703,
+      "n_evaluations": 1,
+      "seed": 42
+    },
+    {
+      "energy": -12.62734740008549,
+      "energy_error": 0.0036168764074719917,
+      "relative_error": 0.0015771640686246837,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0007181167602539062,
+      "n_evaluations": 1,
+      "seed": 42
+    }
+  ],
+  "summary": {
+    "n_validated": 6,
+    "total_tests": 6,
+    "detailed": [
+      {
+        "h": 1.0,
+        "chi": 64,
+        "energy_sv": -7.2035048941338315,
+        "energy_mps": -7.203504894133842,
+        "diff_vs_sv": 1.0658141036401503e-14,
+        "error_mps": 0.09272491642491865,
+        "time_mps": 0.0021009445190429688,
+        "validated": true
+      },
+      {
+        "h": 1.0,
+        "chi": 256,
+        "energy_sv": -7.2035048941338315,
+        "energy_mps": -7.203504894133842,
+        "diff_vs_sv": 1.0658141036401503e-14,
+        "error_mps": 0.09272491642491865,
+        "time_mps": 0.0008981227874755859,
+        "validated": true
+      },
+      {
+        "h": 1.5,
+        "chi": 64,
+        "energy_sv": -9.828211581270844,
+        "energy_mps": -9.828211581270873,
+        "diff_vs_sv": 2.842170943040401e-14,
+        "error_mps": 0.019359889883723724,
+        "time_mps": 0.0008189678192138672,
+        "validated": true
+      },
+      {
+        "h": 1.5,
+        "chi": 256,
+        "energy_sv": -9.828211581270844,
+        "energy_mps": -9.828211581270873,
+        "diff_vs_sv": 2.842170943040401e-14,
+        "error_mps": 0.019359889883723724,
+        "time_mps": 0.0007510185241699219,
+        "validated": true
+      },
+      {
+        "h": 2.0,
+        "chi": 64,
+        "energy_sv": -12.627347400085428,
+        "energy_mps": -12.62734740008549,
+        "diff_vs_sv": 6.217248937900877e-14,
+        "error_mps": 0.0036168764074719917,
+        "time_mps": 0.0008499622344970703,
+        "validated": true
+      },
+      {
+        "h": 2.0,
+        "chi": 256,
+        "energy_sv": -12.627347400085428,
+        "energy_mps": -12.62734740008549,
+        "diff_vs_sv": 6.217248937900877e-14,
+        "error_mps": 0.0036168764074719917,
+        "time_mps": 0.0007181167602539062,
+        "validated": true
+      }
+    ],
+    "conclusion": "6/6 MPS results within 1e-3 of statevector (same-\u03b8 protocol)"
+  },
+  "success": true,
+  "error": null
+}

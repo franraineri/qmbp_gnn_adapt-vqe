@@ -4,16 +4,23 @@
 
 | File | Last Updated | Trigger |
 |------|-------------|---------|
+| optimization-hardware.md | 2026-05-18 | Added ZNE failure mechanism (per-site inhomogeneity, CES outlier, gain uniformity) |
+| poc-results.md | 2026-05-18 | Added "Phase 3 fully solved" conclusion, ZNE mechanistic detail, confidence tags |
+| changelog.md | 2026-05-18 | Updated all entries to reflect May 14-18 cross-analysis propagation |
 | project-guide.md | 2026-05-14 | Restructuring: added pipeline_core.py, experimental/, updated repo map |
 | validation-targets.md | 2026-05-14 | NEW: split from project-status.md (historical data + tables) |
 | literature-synthesis.md | 2026-05-08 | Added Slavin 2025, updated Section 9 (V6.1 lessons) |
 | error-patterns.md | 2026-05-04 | Added shot noise dominance pattern |
 | gnn-architecture.md | 2026-05-06 | Added NNConv, capacity scaling rule, transferability limits |
-| optimization-hardware.md | 2026-05-08 | Added Heron r2 comparison, QESEM, shot noise table |
 | physics-reference.md | 2026-05-06 | Added Kagome 103-site reference, quantum advantage boundary |
-| poc-results.md | 2026-05-05 | Added N=10 results section |
 | workflow-recipes.md | 2026-05-14 | Added pipeline_core patterns, experimental imports |
-| changelog.md | 2026-05-14 | NEW: created for maintenance hygiene |
+
+## Confidence Level Convention
+
+Knowledge claims use these tags:
+- **[VERIFIED]** — experimentally confirmed with ≥3 seeds or ≥3 independent experiments
+- **[PROJECTED]** — extrapolated from trends or single-seed results
+- **[LITERATURE]** — cited from papers but not reproduced in our pipeline
 
 ## Update Protocol
 
@@ -22,3 +29,4 @@ When modifying source code that changes behavior documented in knowledge:
 2. Update this changelog with date and trigger
 3. If the change affects numerical baselines, re-run `make test` first
 4. If the change affects the repository map, update `project-guide.md`
+5. Propagate binnacle findings to knowledge files within 48h of experiment completion

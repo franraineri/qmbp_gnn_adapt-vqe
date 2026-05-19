@@ -119,6 +119,43 @@ Alternative: use built-in sequences ("XX", "XpXm", "XY4") via `options.dynamical
 - Achieves order-of-magnitude error reduction, outperforms standard unitary folding ZNE
 - **Next implementation target** for fixing N=10 ZNE failure
 
+### ZNE Failure Mechanism at N=10 [VERIFIED, 2026-05-14/15]
+
+The inhomogeneous ZNE failure at N=10 has three mechanistic causes identified from cross-analysis:
+
+**1. CES Outlier Pattern (Leverage Point Problem)**
+```
+N=6 CES values: [0.068, 0.149, 0.643]  — all in perturbative regime (< 1.0)
+N=10 CES values: [6.292, 0.449, 1.080]  — one pathological outlier at 6.3
+```
+The primary layout (seed=42, first BFS result) consistently produces CES=6.29 due to excessive SWAP routing on the heavy-hex topology. This single outlier acts as a high-leverage point that dominates the linear fit while the other two layouts cluster at CES=0.4-1.1 with no meaningful spread. The fit has almost no leverage in the usable range.
+
+**2. Per-Site Observable Inhomogeneity**
+Under FakeTorino noise at N=10, sites 2 and 9 suffer catastrophic degradation:
+- Site 2: ⟨X⟩ drops from 0.89 (noiseless) to 0.34 (noisy) — **62% loss**
+- Site 9: ⟨X⟩ drops from 0.95 (noiseless) to 0.12 (noisy) — **87% loss**
+- Other sites: 10-20% loss (typical)
+
+These are layout-dependent — the qubits map to high-error positions on FakeTorino. Different layouts produce different "bad qubit" patterns, making the energy-vs-CES relationship non-monotonic.
+
+At N=6, degradation is uniform (max 24% loss, no catastrophic sites) because 6 qubits fit cleanly on a low-error region without long SWAP chains.
+
+**3. ZNE Gain is Uniform Across h-Values**
+| h_test | ZNE Gain (energy) |
+|--------|-------------------|
+| 1.00 | -14.0% |
+| 1.25 | -13.9% |
+| 1.50 | -12.4% |
+| 2.00 | -11.9% |
+
+The negative gain is constant (-12% to -14%) regardless of h. This confirms the failure is **circuit-depth dependent** (same circuit structure at all h), not physics-dependent (not related to proximity to the critical point).
+
+**Hardware Implications:**
+- Use per-qubit error filtering in `LayoutSelector` to avoid pathological positions
+- Use `MAX_CES_RATIO` filtering to exclude layouts with CES > 3× the median
+- On real hardware, DD+twirling reduce effective CES before ZNE is applied — may restore linearity
+- CLP-ZNE (Rabinovich et al. 2025) generates layouts with systematically varying CES via cyclic permutations, avoiding random outliers
+
 ### NN-Enhanced ZNE (Sun et al. 2025)
 - After collecting ZNE data at noise factors [1, 2, 3], fit MLP instead of polynomial
 - `sklearn.neural_network.MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=1000)`

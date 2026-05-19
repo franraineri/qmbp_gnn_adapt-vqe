@@ -25,6 +25,8 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **Conclusion: Local noisy simulation cannot validate ZNE at N=10. Go to real hardware where DD+twirling+TREX are native.**
 
 ## Key Constraints (always enforce)
+> Full constraint list with rationale in `.kiro/skills/quantum/SKILL.md`.
+> Summary for quick reference:
 - HVA only, never HEA. p ≤ 2 layers. |+⟩^N initial state.
 - Descending sweep h=2→0. No angle wrapping.
 - Pure energy cost in Phase 2. Never hybrid/observable cost.

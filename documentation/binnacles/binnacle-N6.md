@@ -850,3 +850,61 @@ This is NOT a relaxation — it's using the correct metrics for the deployment t
 ### N=6 is Complete
 
 No further N=6 experiments needed. The configuration is settled, results are reproducible across seeds, and the physics limits are well-characterized. All future work focuses on N=10 and hardware deployment.
+
+
+---
+
+## 2026-05-18 — Cross-Analysis: N=6 Noisy Sweep Contrast with N=10
+
+### Context
+
+Post-hoc analysis of the May 14 N=6 noisy sweep (`noisy_sweep_20260514_142206_9ca7c21c.json`) to extract quantitative contrasts with the N=10 failure documented in binnacle-N10.
+
+### Per-Site Observable Homogeneity at N=6
+
+Unlike N=10 (where sites 2 and 9 suffer 62-87% degradation), N=6 shows **uniform** per-site degradation:
+
+| Site | Noiseless ⟨X_i⟩ (h=1.5) | Noisy ⟨X_i⟩ | Degradation |
+|------|--------------------------|-------------|-------------|
+| 0 | 0.945 | 0.921 | -3% |
+| 1 | 0.894 | 0.677 | -24% |
+| 2 | 0.889 | 0.815 | -8% |
+| 3 | 0.889 | 0.842 | -5% |
+| 4 | 0.894 | 0.796 | -11% |
+| 5 | 0.945 | 0.850 | -10% |
+
+No site loses more than 24% (vs 87% at N=10). The 6-qubit circuit maps cleanly onto a low-error region of FakeTorino's heavy-hex topology without requiring long SWAP chains.
+
+### CES Values: Why ZNE Works at N=6
+
+```
+N=6 CES values: [0.068, 0.149, 0.643]
+N=10 CES values: [6.292, 0.449, 1.080]
+```
+
+Key differences:
+- **N=6 total CES range:** 0.07 – 0.64 (all in perturbative regime, CES < 1.0)
+- **N=10 total CES range:** 0.45 – 6.29 (one layout deep in non-perturbative regime)
+- **N=6 CES spread:** 9.5× between min and max (good leverage for linear fit)
+- **N=10 CES spread:** 14× but dominated by one outlier (bad leverage)
+
+The N=6 layouts all stay within the linear E(CES) regime (Uvarov et al. 2024 applicability range: CES < ~0.5-1.0). At N=10, the primary layout exceeds this by 6×.
+
+### ZNE Gain Comparison (Quantitative)
+
+| Metric | N=6 (mean) | N=10 (mean) | Ratio |
+|--------|-----------|------------|-------|
+| ZNE energy gain | +40.3% | -13.2% | — (opposite sign) |
+| ZNE ⟨X⟩ gain | +58.9% | -9.9% | — (opposite sign) |
+| R² | 0.994 | 0.035 | 28× worse |
+| CES Pearson r | 0.998 | ~0.19 | 5× worse |
+
+### Thesis Implication
+
+The N=6 vs N=10 contrast is the strongest evidence for the ZNE scaling limit. Same pipeline, same code, same FakeTorino backend — the only difference is system size. This makes a compelling thesis figure:
+
+**Proposed Figure 4.y:** Side-by-side E(CES) scatter plots for N=6 (linear, R²=0.994) and N=10 (no correlation, R²=0.035). Caption: "Inhomogeneous ZNE extrapolation at N=6 (left) and N=10 (right). The linear E(CES) relationship holds at N=6 but completely breaks down at N=10, consistent with the exponential mitigation cost bound of Tsubouchi et al. (2023)."
+
+### No New Experiments Needed
+
+N=6 noisy simulation is fully characterized. The data exists for the thesis figure — only plotting remains.

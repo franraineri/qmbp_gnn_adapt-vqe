@@ -85,6 +85,19 @@ When results are thesis-relevant:
 | Modified `pipeline_core.py` | `make test` + `scripts/smoke_test_v61.py` |
 | New thesis results needed | `scripts/run_thesis_results.py` (~9min) |
 
+## When to Escalate (Ask User vs. Proceed)
+
+| Situation | Action |
+|-----------|--------|
+| Test fails after source change | Fix if obvious (typo, import); ask user if architectural |
+| ΔE/gap > 10% on a run | Report immediately — likely a bug, not physics |
+| ΔE/gap 5-10% on a run | Proceed — this is the borderline regime, expected for some configs |
+| New experiment proposed | Ask user — state hypothesis first (experiment discipline rule) |
+| Modifying stable module needed | Always ask — explain why the stable module needs changing |
+| Hardware credentials required | Ask user — never attempt to read/expose credential values |
+| Run would take >5 min | Inform user of expected time before starting |
+| Result contradicts binnacle | Report the contradiction — may indicate a regression or new finding |
+
 ## ZNE Scaling Rules (Validated 2026-05-14)
 
 - **N=6, 3 layouts**: Works perfectly (R²>0.99, +40% gain). Linear E(CES) holds.
