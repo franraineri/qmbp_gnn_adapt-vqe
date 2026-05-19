@@ -330,7 +330,7 @@ def run_sub_experiment_2B(args) -> SubExperimentResult:
         theta_filtered,
         exact_energies,
         fidelities=data["fidelities"][mask],
-        fidelity_threshold=0.0,  # noqa — intentional: QRC uses pre-filtered mask, no double filtering
+        fidelity_threshold=0.0,
     )
     model = MPNNPredictor(
         node_features=2,
@@ -465,7 +465,7 @@ def run_sub_experiment_2C(args) -> SubExperimentResult:
             theta_filtered,
             exact_energies,
             fidelities=data["fidelities"][mask],
-            fidelity_threshold=0.0,  # noqa — intentional: QRC uses pre-filtered mask
+            fidelity_threshold=0.0,
         )
         model = MPNNPredictor(
             node_features=2,

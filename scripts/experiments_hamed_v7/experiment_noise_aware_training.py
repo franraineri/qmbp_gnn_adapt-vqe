@@ -203,7 +203,7 @@ def run_sub_experiment_5B(args) -> SubExperimentResult:
         clean_data["theta_opt"],
         clean_data["exact_energies"],
         fidelities=clean_data["fidelities"],
-        fidelity_threshold=0.0,  # noqa — intentional: no filtering for noise-aware comparison
+        fidelity_threshold=0.0,
     )
     model_clean = MPNNPredictor(
         node_features=2,
@@ -222,7 +222,7 @@ def run_sub_experiment_5B(args) -> SubExperimentResult:
         noisy_data["theta_opt"],
         noisy_data["exact_energies"],
         fidelities=np.ones(n_train),
-        fidelity_threshold=0.0,  # noqa — intentional: all noisy data included for comparison
+        fidelity_threshold=0.0,
     )
     model_noisy = MPNNPredictor(
         node_features=2,
@@ -384,7 +384,7 @@ def run_sub_experiment_5C(args) -> SubExperimentResult:
         theta_combined,
         energies_combined,
         fidelities=fid_combined,
-        fidelity_threshold=0.0,  # noqa — intentional: mixed dataset uses fidelity weighting instead
+        fidelity_threshold=0.0,
     )
     model_mixed = MPNNPredictor(
         node_features=2,
@@ -525,7 +525,7 @@ def run_sub_experiment_5E(args) -> SubExperimentResult:
             current_theta,
             clean_data["exact_energies"][: len(current_h)],
             fidelities=np.ones(len(current_h)),
-            fidelity_threshold=0.0,  # noqa — intentional: iterative refinement uses all data
+            fidelity_threshold=0.0,
         )
         model = MPNNPredictor(
             node_features=2,

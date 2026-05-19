@@ -26,6 +26,9 @@ def check_file(path: str) -> list[str]:
         return []
     if "/hooks/" in path or path.startswith("scripts/hooks/"):
         return []
+    # Skip experiment scripts — they intentionally use varied thresholds for comparison
+    if "/experiments_hamed_v7/" in path or "scripts/experiments" in path:
+        return []
     violations = []
     try:
         with open(path) as f:

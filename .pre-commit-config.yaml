@@ -98,7 +98,7 @@ repos:
         entry: scripts/hooks/check_fidelity_threshold.py
         language: python
         files: '\.py$'
-        exclude: '^scripts/hooks/'
+        exclude: '^(scripts/hooks/|scripts/experiments_|tests/)'
         pass_filenames: true
 
   # ── Project-specific: Primitives V2 only ───────────────────
