@@ -209,11 +209,6 @@ class MPNNPredictor(nn.Module):
         return self.head(x)
 
 
-# ── DEPRECATED: GATPredictor moved to experimental/ ──────────────────────
-# Backward-compatible re-export for benchmark_v6.py
-from .experimental.gat_predictor import GATPredictor  # noqa: F401, E402, I001
-
-
 # ── Task 6.2: Graph data construction utility ────────────────────────────
 
 
@@ -310,11 +305,6 @@ def build_graph_dataset(
         f"edge_features={include_edge_features})"
     )
     return dataset
-
-
-# ── DEPRECATED: augment_graph_dataset moved to experimental/ ─────────────
-# Backward-compatible re-export for benchmark_v6.py
-from .experimental.augmentation import augment_graph_dataset  # noqa: F401, E402, I001
 
 
 # ── Task 6.3: Training loop ─────────────────────────────────────────────

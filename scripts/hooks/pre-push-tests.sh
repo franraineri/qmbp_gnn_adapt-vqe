@@ -7,11 +7,19 @@
 
 set -e
 
+# Use project venv if available, otherwise system python3
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+if [ -x "$REPO_ROOT/.venv/bin/python" ]; then
+    PYTHON="$REPO_ROOT/.venv/bin/python"
+else
+    PYTHON="python3"
+fi
+
 echo "🧪 Running test suite before push..."
 echo ""
 
 # Run fast tests only (excludes @pytest.mark.slow)
-python -m pytest tests/ -x -q -m "not slow" --tb=short 2>&1
+$PYTHON -m pytest tests/ -x -q -m "not slow" --tb=short 2>&1
 
 EXIT_CODE=$?
 

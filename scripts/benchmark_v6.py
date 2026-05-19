@@ -48,12 +48,19 @@ from src.poc.v6 import (
 )
 from src.poc.v6.hardware_deployer import HardwareDeployer
 from src.poc.v6.mpnn_predictor import (
-    GATPredictor,
     MPNNPredictor,
-    augment_graph_dataset,
     build_graph_dataset,
     train_mpnn,
 )
+
+# DEPRECATED: GATPredictor and augment_graph_dataset were in experimental/ (now deleted).
+# benchmark_v6.py is kept for reference only; GAT model type will raise if selected.
+try:
+    from src.poc.v6.experimental.augmentation import augment_graph_dataset
+    from src.poc.v6.experimental.gat_predictor import GATPredictor
+except ImportError:
+    GATPredictor = None  # type: ignore[assignment,misc]
+    augment_graph_dataset = None  # type: ignore[assignment]
 from src.poc.v6.pipeline_utils import assert_observable_locality
 from src.poc.v6.qrc_pipeline import QRCPipeline
 
