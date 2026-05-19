@@ -1,0 +1,866 @@
+{
+  "experiment_id": "4C",
+  "technique": 4,
+  "technique_name": "SPSA hardware optimizer",
+  "description": "FakeTorino SPSA vs COBYLA (N=6)",
+  "timestamp": "20260518_214507",
+  "config": {
+    "N": 6,
+    "h_values": [
+      1.25,
+      1.5,
+      2.0
+    ],
+    "seeds": 10,
+    "n_shots": 8192
+  },
+  "metrics": [
+    {
+      "energy": -8.399085557319603,
+      "energy_error": 0.1254660662106275,
+      "relative_error": 0.14067938125893928,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.40369606018066406,
+      "n_evaluations": 402,
+      "seed": 42
+    },
+    {
+      "energy": -8.362350830948,
+      "energy_error": 0.1622007925822313,
+      "relative_error": 0.18186835555895542,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.08184218406677246,
+      "n_evaluations": 500,
+      "seed": 42
+    },
+    {
+      "energy": -8.405764082159918,
+      "energy_error": 0.11878754137031322,
+      "relative_error": 0.13319105576477241,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.40239906311035156,
+      "n_evaluations": 402,
+      "seed": 43
+    },
+    {
+      "energy": -8.36527752560666,
+      "energy_error": 0.1592740979235714,
+      "relative_error": 0.1785867862378696,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.08064889907836914,
+      "n_evaluations": 500,
+      "seed": 43
+    },
+    {
+      "energy": -8.406969856886718,
+      "energy_error": 0.11758176664351261,
+      "relative_error": 0.13183907552320484,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.39718198776245117,
+      "n_evaluations": 402,
+      "seed": 44
+    },
+    {
+      "energy": -8.400459139852163,
+      "energy_error": 0.12409248367806747,
+      "relative_error": 0.13913924577350661,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.06051898002624512,
+      "n_evaluations": 500,
+      "seed": 44
+    },
+    {
+      "energy": -8.38739430512116,
+      "energy_error": 0.13715731840906997,
+      "relative_error": 0.1537882494580746,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.3956780433654785,
+      "n_evaluations": 402,
+      "seed": 45
+    },
+    {
+      "energy": -8.378801837752995,
+      "energy_error": 0.14574978577723563,
+      "relative_error": 0.16342259147061455,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.049010276794433594,
+      "n_evaluations": 500,
+      "seed": 45
+    },
+    {
+      "energy": -8.399592332248199,
+      "energy_error": 0.12495929128203187,
+      "relative_error": 0.14011115763046675,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.40355706214904785,
+      "n_evaluations": 402,
+      "seed": 46
+    },
+    {
+      "energy": -8.382416378891966,
+      "energy_error": 0.14213524463826488,
+      "relative_error": 0.1593697712434166,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05408215522766113,
+      "n_evaluations": 500,
+      "seed": 46
+    },
+    {
+      "energy": -8.399610992438484,
+      "energy_error": 0.12494063109174647,
+      "relative_error": 0.14009023480963712,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4086489677429199,
+      "n_evaluations": 402,
+      "seed": 47
+    },
+    {
+      "energy": -7.501019188754672,
+      "energy_error": 1.023532434775559,
+      "relative_error": 1.147640266181269,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.04830527305603027,
+      "n_evaluations": 500,
+      "seed": 47
+    },
+    {
+      "energy": -8.403441963780804,
+      "energy_error": 0.12110965974942722,
+      "relative_error": 0.13579474126038174,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.39905595779418945,
+      "n_evaluations": 402,
+      "seed": 48
+    },
+    {
+      "energy": -7.544888680021224,
+      "energy_error": 0.9796629435090072,
+      "relative_error": 1.0984514052093912,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.06017923355102539,
+      "n_evaluations": 500,
+      "seed": 48
+    },
+    {
+      "energy": -8.399536395518783,
+      "energy_error": 0.12501522801144738,
+      "relative_error": 0.1401738769355465,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.41161322593688965,
+      "n_evaluations": 402,
+      "seed": 49
+    },
+    {
+      "energy": -8.370858268320447,
+      "energy_error": 0.1536933552097839,
+      "relative_error": 0.17232935380492018,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0664970874786377,
+      "n_evaluations": 500,
+      "seed": 49
+    },
+    {
+      "energy": -8.407309075182061,
+      "energy_error": 0.1172425483481696,
+      "relative_error": 0.13145872551031407,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.3998122215270996,
+      "n_evaluations": 402,
+      "seed": 50
+    },
+    {
+      "energy": -8.389293966037764,
+      "energy_error": 0.13525765749246688,
+      "relative_error": 0.1516582462594338,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05193614959716797,
+      "n_evaluations": 500,
+      "seed": 50
+    },
+    {
+      "energy": -8.459689848607098,
+      "energy_error": 0.06486177492313239,
+      "relative_error": 0.07272655180106337,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.3977510929107666,
+      "n_evaluations": 402,
+      "seed": 51
+    },
+    {
+      "energy": -8.382315070696913,
+      "energy_error": 0.14223655283331738,
+      "relative_error": 0.15948336350486936,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05277109146118164,
+      "n_evaluations": 500,
+      "seed": 51
+    },
+    {
+      "energy": -9.774624491958987,
+      "energy_error": 0.07294697919560988,
+      "relative_error": 0.054318583920209815,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.6324632167816162,
+      "n_evaluations": 402,
+      "seed": 42
+    },
+    {
+      "energy": -9.744027283023483,
+      "energy_error": 0.10354418813111366,
+      "relative_error": 0.0771022149850501,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.07070279121398926,
+      "n_evaluations": 500,
+      "seed": 42
+    },
+    {
+      "energy": -9.775241393781641,
+      "energy_error": 0.07233007737295516,
+      "relative_error": 0.0538592196834188,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.443356990814209,
+      "n_evaluations": 402,
+      "seed": 43
+    },
+    {
+      "energy": -9.747104726212878,
+      "energy_error": 0.10046674494171803,
+      "relative_error": 0.0748106553072379,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0795891284942627,
+      "n_evaluations": 500,
+      "seed": 43
+    },
+    {
+      "energy": -9.762652774875471,
+      "energy_error": 0.08491869627912507,
+      "relative_error": 0.06323309588822651,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.39754486083984375,
+      "n_evaluations": 402,
+      "seed": 44
+    },
+    {
+      "energy": -9.772597460154385,
+      "energy_error": 0.0749740110002115,
+      "relative_error": 0.055827974691442926,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05593395233154297,
+      "n_evaluations": 500,
+      "seed": 44
+    },
+    {
+      "energy": -9.77210350653237,
+      "energy_error": 0.07546796462222716,
+      "relative_error": 0.056195787883517694,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4033501148223877,
+      "n_evaluations": 402,
+      "seed": 45
+    },
+    {
+      "energy": -9.760635090250107,
+      "energy_error": 0.08693638090448985,
+      "relative_error": 0.06473552645979964,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.048684120178222656,
+      "n_evaluations": 500,
+      "seed": 45
+    },
+    {
+      "energy": -9.808556949902632,
+      "energy_error": 0.03901452125196414,
+      "relative_error": 0.029051422966383265,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.3937098979949951,
+      "n_evaluations": 402,
+      "seed": 46
+    },
+    {
+      "energy": -9.765552099038821,
+      "energy_error": 0.08201937211577537,
+      "relative_error": 0.0610741691634269,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0485990047454834,
+      "n_evaluations": 500,
+      "seed": 46
+    },
+    {
+      "energy": -9.758614515399646,
+      "energy_error": 0.08895695575495033,
+      "relative_error": 0.0662401091826495,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4476320743560791,
+      "n_evaluations": 402,
+      "seed": 47
+    },
+    {
+      "energy": -8.996990286343367,
+      "energy_error": 0.8505811848112295,
+      "relative_error": 0.6333691398546744,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.048211097717285156,
+      "n_evaluations": 500,
+      "seed": 47
+    },
+    {
+      "energy": -9.769363656286572,
+      "energy_error": 0.07820781486802453,
+      "relative_error": 0.058235965381561484,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4199028015136719,
+      "n_evaluations": 402,
+      "seed": 48
+    },
+    {
+      "energy": -9.042590654275955,
+      "energy_error": 0.8049808168786416,
+      "relative_error": 0.599413691121195,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.054991722106933594,
+      "n_evaluations": 500,
+      "seed": 48
+    },
+    {
+      "energy": -9.766082683385502,
+      "energy_error": 0.08148878776909463,
+      "relative_error": 0.06067907959728265,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.40234804153442383,
+      "n_evaluations": 402,
+      "seed": 49
+    },
+    {
+      "energy": -9.740967676019528,
+      "energy_error": 0.10660379513506868,
+      "relative_error": 0.07938049328580794,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.055242061614990234,
+      "n_evaluations": 500,
+      "seed": 49
+    },
+    {
+      "energy": -9.749866497418468,
+      "energy_error": 0.09770497373612841,
+      "relative_error": 0.07275415478242567,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.40401411056518555,
+      "n_evaluations": 402,
+      "seed": 50
+    },
+    {
+      "energy": -9.758608784895737,
+      "energy_error": 0.08896268625885995,
+      "relative_error": 0.06624437629365193,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05710411071777344,
+      "n_evaluations": 500,
+      "seed": 50
+    },
+    {
+      "energy": -9.810877495025826,
+      "energy_error": 0.036693976128770345,
+      "relative_error": 0.027323473071750457,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4061899185180664,
+      "n_evaluations": 402,
+      "seed": 51
+    },
+    {
+      "energy": -9.762190552717588,
+      "energy_error": 0.0853809184370089,
+      "relative_error": 0.0635772808476265,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05198407173156738,
+      "n_evaluations": 500,
+      "seed": 51
+    },
+    {
+      "energy": -12.577977775901319,
+      "energy_error": 0.05298650059164345,
+      "relative_error": 0.023105131456153505,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.39945006370544434,
+      "n_evaluations": 402,
+      "seed": 42
+    },
+    {
+      "energy": -12.545525771453475,
+      "energy_error": 0.08543850503948747,
+      "relative_error": 0.03725605330248821,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.04718613624572754,
+      "n_evaluations": 500,
+      "seed": 42
+    },
+    {
+      "energy": -12.586613738538352,
+      "energy_error": 0.0443505379546103,
+      "relative_error": 0.019339359990759735,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.5607249736785889,
+      "n_evaluations": 402,
+      "seed": 43
+    },
+    {
+      "energy": -11.996580306468383,
+      "energy_error": 0.6343839700245795,
+      "relative_error": 0.2766275345121792,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.04794192314147949,
+      "n_evaluations": 500,
+      "seed": 43
+    },
+    {
+      "energy": -12.572656688715279,
+      "energy_error": 0.05830758777768352,
+      "relative_error": 0.02542542846671886,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.5055680274963379,
+      "n_evaluations": 402,
+      "seed": 44
+    },
+    {
+      "energy": -12.584121116567287,
+      "energy_error": 0.04684315992567534,
+      "relative_error": 0.02042628510694748,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05579113960266113,
+      "n_evaluations": 500,
+      "seed": 44
+    },
+    {
+      "energy": -12.599117629926283,
+      "energy_error": 0.031846646566679127,
+      "relative_error": 0.0138869513393913,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.49225401878356934,
+      "n_evaluations": 402,
+      "seed": 45
+    },
+    {
+      "energy": -12.593255728986975,
+      "energy_error": 0.03770854750598751,
+      "relative_error": 0.016443073941815628,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.04873180389404297,
+      "n_evaluations": 500,
+      "seed": 45
+    },
+    {
+      "energy": -12.585150799769625,
+      "energy_error": 0.04581347672333713,
+      "relative_error": 0.019977284597712693,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4795708656311035,
+      "n_evaluations": 402,
+      "seed": 46
+    },
+    {
+      "energy": -12.59402260168652,
+      "energy_error": 0.03694167480644239,
+      "relative_error": 0.01610867377695704,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.052565813064575195,
+      "n_evaluations": 500,
+      "seed": 46
+    },
+    {
+      "energy": -12.587055878746648,
+      "energy_error": 0.043908397746314165,
+      "relative_error": 0.01914656168325376,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4759211540222168,
+      "n_evaluations": 402,
+      "seed": 47
+    },
+    {
+      "energy": -11.996745288732392,
+      "energy_error": 0.6342189877605708,
+      "relative_error": 0.2765555928505241,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.05095076560974121,
+      "n_evaluations": 500,
+      "seed": 47
+    },
+    {
+      "energy": -12.600317446276398,
+      "energy_error": 0.03064683021656478,
+      "relative_error": 0.013363763089873151,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4157412052154541,
+      "n_evaluations": 402,
+      "seed": 48
+    },
+    {
+      "energy": -12.580498452954355,
+      "energy_error": 0.05046582353860707,
+      "relative_error": 0.02200597272669213,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.07777690887451172,
+      "n_evaluations": 500,
+      "seed": 48
+    },
+    {
+      "energy": -12.57234882678831,
+      "energy_error": 0.05861544970465182,
+      "relative_error": 0.025559673797388407,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.4436981678009033,
+      "n_evaluations": 402,
+      "seed": 49
+    },
+    {
+      "energy": -12.591348527570325,
+      "energy_error": 0.039615748922637195,
+      "relative_error": 0.017274722360809406,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.11170077323913574,
+      "n_evaluations": 500,
+      "seed": 49
+    },
+    {
+      "energy": -12.596509137148708,
+      "energy_error": 0.034455139344254704,
+      "relative_error": 0.015024402725222503,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.45588016510009766,
+      "n_evaluations": 402,
+      "seed": 50
+    },
+    {
+      "energy": -12.590705563197702,
+      "energy_error": 0.04025871329526076,
+      "relative_error": 0.017555091439446648,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.0623936653137207,
+      "n_evaluations": 500,
+      "seed": 50
+    },
+    {
+      "energy": -12.593261904401075,
+      "energy_error": 0.037702372091887426,
+      "relative_error": 0.016440381109622797,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.446317195892334,
+      "n_evaluations": 402,
+      "seed": 51
+    },
+    {
+      "energy": -12.592617146829433,
+      "energy_error": 0.0383471296635296,
+      "relative_error": 0.016721532125141873,
+      "fidelity": null,
+      "phase_label": "paramagnetic",
+      "phase_correct": true,
+      "wall_time_s": 0.09011983871459961,
+      "n_evaluations": 500,
+      "seed": 51
+    }
+  ],
+  "summary": {
+    "detailed": [
+      {
+        "h": 1.25,
+        "seed": 42,
+        "spsa_error": 0.1254660662106275,
+        "cobyla_error": 0.1622007925822313
+      },
+      {
+        "h": 1.25,
+        "seed": 43,
+        "spsa_error": 0.11878754137031322,
+        "cobyla_error": 0.1592740979235714
+      },
+      {
+        "h": 1.25,
+        "seed": 44,
+        "spsa_error": 0.11758176664351261,
+        "cobyla_error": 0.12409248367806747
+      },
+      {
+        "h": 1.25,
+        "seed": 45,
+        "spsa_error": 0.13715731840906997,
+        "cobyla_error": 0.14574978577723563
+      },
+      {
+        "h": 1.25,
+        "seed": 46,
+        "spsa_error": 0.12495929128203187,
+        "cobyla_error": 0.14213524463826488
+      },
+      {
+        "h": 1.25,
+        "seed": 47,
+        "spsa_error": 0.12494063109174647,
+        "cobyla_error": 1.023532434775559
+      },
+      {
+        "h": 1.25,
+        "seed": 48,
+        "spsa_error": 0.12110965974942722,
+        "cobyla_error": 0.9796629435090072
+      },
+      {
+        "h": 1.25,
+        "seed": 49,
+        "spsa_error": 0.12501522801144738,
+        "cobyla_error": 0.1536933552097839
+      },
+      {
+        "h": 1.25,
+        "seed": 50,
+        "spsa_error": 0.1172425483481696,
+        "cobyla_error": 0.13525765749246688
+      },
+      {
+        "h": 1.25,
+        "seed": 51,
+        "spsa_error": 0.06486177492313239,
+        "cobyla_error": 0.14223655283331738
+      },
+      {
+        "h": 1.5,
+        "seed": 42,
+        "spsa_error": 0.07294697919560988,
+        "cobyla_error": 0.10354418813111366
+      },
+      {
+        "h": 1.5,
+        "seed": 43,
+        "spsa_error": 0.07233007737295516,
+        "cobyla_error": 0.10046674494171803
+      },
+      {
+        "h": 1.5,
+        "seed": 44,
+        "spsa_error": 0.08491869627912507,
+        "cobyla_error": 0.0749740110002115
+      },
+      {
+        "h": 1.5,
+        "seed": 45,
+        "spsa_error": 0.07546796462222716,
+        "cobyla_error": 0.08693638090448985
+      },
+      {
+        "h": 1.5,
+        "seed": 46,
+        "spsa_error": 0.03901452125196414,
+        "cobyla_error": 0.08201937211577537
+      },
+      {
+        "h": 1.5,
+        "seed": 47,
+        "spsa_error": 0.08895695575495033,
+        "cobyla_error": 0.8505811848112295
+      },
+      {
+        "h": 1.5,
+        "seed": 48,
+        "spsa_error": 0.07820781486802453,
+        "cobyla_error": 0.8049808168786416
+      },
+      {
+        "h": 1.5,
+        "seed": 49,
+        "spsa_error": 0.08148878776909463,
+        "cobyla_error": 0.10660379513506868
+      },
+      {
+        "h": 1.5,
+        "seed": 50,
+        "spsa_error": 0.09770497373612841,
+        "cobyla_error": 0.08896268625885995
+      },
+      {
+        "h": 1.5,
+        "seed": 51,
+        "spsa_error": 0.036693976128770345,
+        "cobyla_error": 0.0853809184370089
+      },
+      {
+        "h": 2.0,
+        "seed": 42,
+        "spsa_error": 0.05298650059164345,
+        "cobyla_error": 0.08543850503948747
+      },
+      {
+        "h": 2.0,
+        "seed": 43,
+        "spsa_error": 0.0443505379546103,
+        "cobyla_error": 0.6343839700245795
+      },
+      {
+        "h": 2.0,
+        "seed": 44,
+        "spsa_error": 0.05830758777768352,
+        "cobyla_error": 0.04684315992567534
+      },
+      {
+        "h": 2.0,
+        "seed": 45,
+        "spsa_error": 0.031846646566679127,
+        "cobyla_error": 0.03770854750598751
+      },
+      {
+        "h": 2.0,
+        "seed": 46,
+        "spsa_error": 0.04581347672333713,
+        "cobyla_error": 0.03694167480644239
+      },
+      {
+        "h": 2.0,
+        "seed": 47,
+        "spsa_error": 0.043908397746314165,
+        "cobyla_error": 0.6342189877605708
+      },
+      {
+        "h": 2.0,
+        "seed": 48,
+        "spsa_error": 0.03064683021656478,
+        "cobyla_error": 0.05046582353860707
+      },
+      {
+        "h": 2.0,
+        "seed": 49,
+        "spsa_error": 0.05861544970465182,
+        "cobyla_error": 0.039615748922637195
+      },
+      {
+        "h": 2.0,
+        "seed": 50,
+        "spsa_error": 0.034455139344254704,
+        "cobyla_error": 0.04025871329526076
+      },
+      {
+        "h": 2.0,
+        "seed": 51,
+        "spsa_error": 0.037702372091887426,
+        "cobyla_error": 0.0383471296635296
+      }
+    ],
+    "conclusion": "SPSA vs COBYLA under realistic noise"
+  },
+  "success": true,
+  "error": null
+}
