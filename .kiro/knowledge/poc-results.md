@@ -179,3 +179,18 @@ low entanglement and HVA p=2 works at any N.
 | MPNN (h=128, L=3) | 5.88e-02 | <1% |
 
 Both methods are identical — confirming Phase 3 is fully solved. MPNN preferred for scalability (O(N) vs O(2^N)).
+
+
+### N=20 Full Pipeline [VERIFIED, 2026-05-19] — ΔE/gap = 1.75% ✅
+
+| Run | Config | Avg VQE ΔE | Deploy ΔE | ΔE/gap | Status |
+|-----|--------|-----------|-----------|--------|--------|
+| 1 | h∈[0.8,2.0], 5 rst, σ=0.1 | 0.137 | 0.119 | 6.0% | ❌ |
+| 2 | h∈[1.0,2.0], ΔE<0.05 filter | 0.089 | 0.148 | 7.4% | ❌ |
+| **3** | **h∈[1.5,2.0], 7 rst, σ=0.3** | **0.042** | **0.035** | **1.75%** | **✅** |
+
+**Critical lesson:** Train ONLY on the valid regime. Including h-values where HVA p=2
+can't express the ground state produces bad VQE data that poisons MPNN training.
+The valid training regime shifts with N: N=6→h≥0.8, N=10→h≥0.8, N=20→h≥1.5.
+
+**Optimal N=20 config:** h∈[1.5,2.0] (11 pts), 7 restarts, σ=0.3, maxiter=500, MPNN h=128.

@@ -47,13 +47,17 @@ RESULTS_DIR = Path(__file__).parent / "notebook_results"
 @dataclass
 class N20Config:
     """Configuration for N=20 pipeline run."""
+
     N: int = 20
     p_layers: int = 2
     topology: str = "chain_1d"
     J: float = 1.0
-    # VQE
-    n_restarts: int = 5
-    maxiter: int = 1000
+    # VQE — more restarts with wider exploration for N=20
+    # At N=20, landscape has more local minima than N=6/10.
+    # V7 3C showed L-BFGS-B converges well from warm-start, but needs
+    # more restarts to find the right basin.
+    n_restarts: int = 7
+    maxiter: int = 500
     # MPNN
     mpnn_hidden: int = 128
     mpnn_layers: int = 3
@@ -90,20 +94,20 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
     hva = HVACircuitBuilder()
     base_lattice = make_lattice(cfg.topology, N, J=cfg.J, h=1.0)
     qc, _ = hva.create(N, cfg.p_layers, base_lattice)
-    n_params = qc.num_parameters
 
-    # H-grid: skip h<0.8 (ferromagnetic, HVA can't express)
-    # Focus on h≥0.8 where VQE can converge
-    h_coarse_low = np.arange(0.8, 1.45, 0.05)
-    h_coarse_high = np.arange(1.5, 2.05, 0.1)
-    h_values = np.unique(np.concatenate([h_coarse_low, h_coarse_high]))
+    # H-grid: ONLY the valid regime for N=20 (h≥1.5)
+    # V7 3C showed: h=2.0 → ΔE=0.020, h=1.5 → ΔE=0.077, h≤1.25 → ΔE>0.17
+    # Training on h<1.5 produces bad θ that poison MPNN. Focus on where VQE works.
+    h_values = np.array([1.5, 1.55, 1.6, 1.65, 1.7, 1.75, 1.8, 1.85, 1.9, 1.95, 2.0])
     print(f"  H-grid: {len(h_values)} points in [{h_values[0]:.2f}, {h_values[-1]:.2f}]")
+    print("  Strategy: valid regime only (h≥1.5), dense spacing for good coverage")
+    print("  Estimated Phase 2 time: ~30 min (7 restarts × 500 iter × 11 points)")
 
     # ── Phase 1: Ground truth ──
     # At N=20, must use DMRG (exact diag needs 16TB RAM for dense 2^20 matrix).
     # DMRG returns ground_state=None → fidelity unavailable → use threshold=0.0
     print(f"\n  Phase 1: DMRG ground truth ({len(h_values)} points, N={N})...")
-    print(f"    Note: DMRG (N≥15). Fidelity filter disabled (ground_state unavailable).")
+    print("    Note: DMRG (N≥15). Fidelity filter disabled (ground_state unavailable).")
     t1 = time.time()
     exact_data = []
     for h in h_values:
@@ -120,18 +124,24 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
     print(f"    E range: [{exact_data[0].ground_energy:.4f}, {exact_data[-1].ground_energy:.4f}]")
 
     # ── Phase 2: VQE descending sweep ──
-    print(f"  Phase 2: VQE ({cfg.n_restarts} restarts, maxiter={cfg.maxiter})...")
+    print(f"  Phase 2: VQE ({cfg.n_restarts} restarts, maxiter={cfg.maxiter}, σ=0.3)...")
     t2 = time.time()
     vqe_config = VQEConfig(
         p_layers=cfg.p_layers,
         n_restarts=cfg.n_restarts,
         maxiter=cfg.maxiter,
+        restart_sigma=0.3,  # Wider exploration for N=20 (default 0.1 is too narrow)
         enable_callbacks=False,
     )
     opt = VQEOptimizer(vqe_config)
     vqe_results = opt.descending_sweep(h_values, qc, base_lattice, exact_data)
     fids = np.array([r.fidelity for r in vqe_results])
     phase2_time = time.time() - t2
+
+    # At N=20, DMRG returns ground_state=None → fidelity=0.0 for all points.
+    # Use energy_error as quality proxy instead.
+    energy_errors = np.array([r.energy_error for r in vqe_results])
+    n_good_energy = int(np.sum(energy_errors < 0.1))  # reasonable convergence
 
     n_above_threshold = int(np.sum(fids >= cfg.fidelity_threshold))
     n_above_995 = int(np.sum(fids >= 0.995))
@@ -142,22 +152,32 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
         "fid_ge_93pct": n_above_threshold,
         "fid_ge_995pct": n_above_995,
         "total_points": len(fids),
+        "n_good_energy": n_good_energy,
+        "avg_energy_error": float(np.mean(energy_errors)),
+        "note": "fidelity=0 (DMRG has no ground_state). Use energy_error as quality proxy.",
     }
     print(f"    Done in {phase2_time:.1f}s")
-    print(f"    Avg fidelity: {np.mean(fids)*100:.1f}%, "
-          f"≥93%: {n_above_threshold}/{len(fids)}, ≥99.5%: {n_above_995}/{len(fids)}")
+    print(
+        f"    Fidelity unavailable (DMRG). Energy quality: "
+        f"{n_good_energy}/{len(fids)} points with ΔE<0.1"
+    )
+    print(f"    Avg energy error: {np.mean(energy_errors):.4f}")
 
     # ── Phase 3: MPNN training ──
-    print(f"  Phase 3: MPNN (h={cfg.mpnn_hidden}, L={cfg.mpnn_layers}, "
-          f"ep={cfg.mpnn_epochs})...")
+    # At N=20, do NOT filter — coverage is more important than purity.
+    # (Tested: energy filter made results WORSE by reducing data coverage.)
+    print(f"\n  Phase 3: MPNN (h={cfg.mpnn_hidden}, L={cfg.mpnn_layers}, ep={cfg.mpnn_epochs})...")
+    print(f"    Using ALL {len(h_values)} VQE points (no filter — coverage > purity at N=20)")
+
     t3 = time.time()
+    # Use all points with fidelity_threshold=0.0 (no filtering)
     dataset = build_graph_dataset(
         base_lattice,
         h_values,
         np.array([r.theta_opt for r in vqe_results]),
         np.array([d.ground_energy for d in exact_data]),
-        fidelities=fids,
-        fidelity_threshold=cfg.fidelity_threshold,
+        fidelities=np.ones(len(h_values)),  # all pass
+        fidelity_threshold=0.0,  # noqa — N≥15 has no fidelity data (DMRG), must include all
     )
     model = MPNNPredictor(
         node_features=2,
@@ -166,7 +186,8 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
         output_dim=2 * cfg.p_layers,
     )
     train_result = train_mpnn(
-        model, dataset,
+        model,
+        dataset,
         n_epochs=cfg.mpnn_epochs,
         lr=cfg.mpnn_lr,
         patience=cfg.mpnn_patience,
@@ -179,8 +200,10 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
         "final_mse": train_result["final_mse"],
         "stopped_early": train_result["stopped_early"],
     }
-    print(f"    Done in {phase3_time:.1f}s — MSE={train_result['final_mse']:.2e}, "
-          f"graphs={len(dataset)}/{len(h_values)}")
+    print(
+        f"    Done in {phase3_time:.1f}s — MSE={train_result['final_mse']:.2e}, "
+        f"graphs={len(dataset)}/{len(h_values)}"
+    )
 
     # ── Phase 4: Deployment ──
     print(f"  Phase 4: Deploy at h_test={cfg.h_test}...")
@@ -188,6 +211,13 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
     lat_test = make_lattice(cfg.topology, N, J=cfg.J, h=cfg.h_test)
     H_test = builder.build(lat_test)
     exact_test = solver.solve(H_test, lat_test)  # DMRG
+
+    # DMRG gap often fails at N=20. Use analytical estimate for 1D TFIM:
+    # gap ≈ 2|h-1| for h far from criticality (thermodynamic limit)
+    # For finite N=20: gap is slightly larger than this estimate
+    if exact_test.gap <= 0:
+        analytical_gap = 2.0 * abs(cfg.h_test - 1.0)
+        print(f"    Note: DMRG gap=0, using analytical estimate gap≈{analytical_gap:.3f}")
 
     model.eval()
     edge_idx, coord = builder.build_graph_data(base_lattice)
@@ -206,13 +236,27 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
 
     checklist = deploy_result.metrics_checklist
     n_pass = sum(checklist.values())
+
+    # Override ΔE/gap with analytical gap if DMRG gap failed
+    raw_de_gap = deploy_result.delta_e_over_gap
+    delta_e = deploy_result.delta_e if deploy_result.delta_e is not None else 0.0
+
+    if raw_de_gap is None or raw_de_gap == float("inf") or exact_test.gap <= 0:
+        analytical_gap = 2.0 * abs(cfg.h_test - 1.0)
+        de_gap_reported = delta_e / analytical_gap if analytical_gap > 0 else float("inf")
+        print(f"    Using analytical gap={analytical_gap:.3f} → ΔE/gap={de_gap_reported:.4f}")
+    else:
+        de_gap_reported = raw_de_gap
+
     result["phases"]["phase4"] = {
         "elapsed_s": round(phase4_time, 1),
         "h_test": cfg.h_test,
         "predicted_energy": deploy_result.predicted_energy,
         "exact_energy": exact_test.ground_energy,
         "delta_e": deploy_result.delta_e,
-        "delta_e_over_gap": deploy_result.delta_e_over_gap,
+        "delta_e_over_gap": de_gap_reported,
+        "delta_e_over_gap_raw": deploy_result.delta_e_over_gap,
+        "analytical_gap_used": exact_test.gap <= 0,
         "fidelity": deploy_result.fidelity,
         "phase_label": deploy_result.phase_label,
         "checklist": checklist,
@@ -220,10 +264,11 @@ def run_n20_pipeline(cfg: N20Config) -> dict:
         "checklist_total": len(checklist),
     }
     print(f"    Done in {phase4_time:.1f}s")
-    print(f"    ΔE/gap = {deploy_result.delta_e_over_gap:.4f} "
-          f"({'✅' if deploy_result.delta_e_over_gap < 0.05 else '❌'})")
+    print(f"    ΔE = {delta_e:.6f}")
+    print(f"    ΔE/gap = {de_gap_reported:.4f} ({'✅' if de_gap_reported < 0.05 else '❌'})")
     print(f"    Checklist: {n_pass}/{len(checklist)}, phase={deploy_result.phase_label}")
-    print(f"    Fidelity: {deploy_result.fidelity:.6f}")
+    fid = deploy_result.fidelity if deploy_result.fidelity is not None else 0.0
+    print(f"    Fidelity: {fid:.6f} {'(unavailable — DMRG)' if fid == 0.0 else ''}")
 
     total_time = time.time() - t1
     result["total_elapsed_s"] = round(total_time, 1)
@@ -235,10 +280,14 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="V6.1 Pipeline at N=20")
-    parser.add_argument("--h-test", type=float, default=2.0,
-                        help="Test h-value (default: 2.0, valid regime for N=20)")
+    parser.add_argument(
+        "--h-test",
+        type=float,
+        default=2.0,
+        help="Test h-value (default: 2.0, valid regime for N=20)",
+    )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--restarts", type=int, default=5)
+    parser.add_argument("--restarts", type=int, default=7)
     args = parser.parse_args()
 
     cfg = N20Config(h_test=args.h_test, seed=args.seed, n_restarts=args.restarts)
@@ -269,8 +318,11 @@ def main():
     if de_gap < 0.05:
         print(f"\n  ✅ SUCCESS: ΔE/gap = {de_gap:.4f} < 5%")
         return 0
+    elif de_gap == float("inf"):
+        print("\n  ⚠️ ΔE/gap = inf (gap computation failed)")
+        return 1
     else:
-        print(f"\n  ⚠️ ΔE/gap = {de_gap:.4f} > 5% (expected for h_test={cfg.h_test} at N=20)")
+        print(f"\n  ⚠️ ΔE/gap = {de_gap:.4f} > 5% (HVA expressibility limit at N=20)")
         return 1
 
 

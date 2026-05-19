@@ -139,16 +139,12 @@ higher density near the estimated boundary.
 **What:** Pre-train MPNN on N=6 data (cheap, many points), then fine-tune on N=10 data
 (expensive, fewer points). The graph structure changes but the physics is the same.
 
-**Why it helps:** At N=10, only 14 training points pass the fidelity filter.
-Transfer learning from N=6 (17+ points) provides a better initialization for the
-MPNN weights, potentially improving generalization with limited N=10 data.
+**Why it DOESN'T help:** [VERIFIED, 2026-05-18] Tested with 3 seeds. Baseline wins by 7%.
+N=6 and N=10 have different optimal θ landscapes — pre-training biases weights toward
+N=6 patterns that don't transfer. Combined training (N=6+N=10 together) is also 4% worse
+due to conflicting targets.
 
-**Expected impact:** Uncertain. GINConv is lattice-agnostic so the architecture supports it,
-but the optimal θ values are different at different N.
-
-**Implementation:** Train on N=6 dataset, then fine-tune on N=10 with lower learning rate.
-
-**Status:** Speculative. Worth a quick experiment but not high priority.
+**Status:** Definitively rejected. Do not revisit.
 
 ---
 

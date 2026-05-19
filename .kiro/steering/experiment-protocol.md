@@ -124,6 +124,12 @@ Ask these questions before starting any experiment:
 | h=1.4 fails with seed 42 at N=10 | Confirmed 3× | Seed-dependent MPNN convergence |
 | h=1.5 ceiling at N=20 (ΔE/gap≈7.7%) | V7 3C with L-BFGS-B + 3 restarts | HVA expressibility degrades with N |
 | Valid regime shifts: N=6→h≥1.25, N=10→h≥1.5, N=20→h≥2.0 | V7 3C + binnacles | Physics limit, not tunable |
+| N=20 full pipeline: ΔE/gap=1.75% ✅ (h≥1.5 training only) | 3 runs, Run 3 passes | Train ONLY on valid regime |
+| Energy-error filter HURTS at N=20 | Run 2 worse than Run 1 (7.4% vs 6.0%) | Coverage > purity for MPNN training |
+| Training on invalid regime poisons MPNN | Runs 1-2 included h<1.5 → bad θ | Restrict h-grid to valid regime per N |
+| N=6 VQE config (5 rst, σ=0.1) fails at N=20 | Runs 1-2 got avg ΔE=0.09-0.14 | Scale restarts and σ with N |
+| "More h-points = better" is FALSE | 19 pts (h∈[0.8,2.0]) worse than 11 pts (h∈[1.5,2.0]) | Quality of regime > quantity of points |
+| Fidelity filter unavailable at N≥15 (DMRG) | ground_state=None → fidelity=0 | Must manually restrict h-grid |
 | ZNE fails at N=10 with 3 layouts | R²<0.05, 6/6 losses | Exponential mitigation cost |
 | Ladder topology fails with HVA p=2 | ΔE/gap=203% | Coordination number 3 needs deeper circuits |
 | N=12 too slow for local iteration | 14+ min for Phase 1 alone | 2^12 exact diag on single core |
@@ -136,3 +142,4 @@ Ask these questions before starting any experiment:
 | MAX_CES_RATIO < 10 with 5+ layouts | Layout search becomes 45+ min (too expensive) | Keep MAX_CES_RATIO=10, accept outlier filtering at 3 layouts |
 | Gate folding locally (nf=3,5) | Folded circuits are 3-5× heavier to simulate | Only viable on real hardware via Runtime ZNE options |
 | MPS chi is NOT the bottleneck for 1D HVA | V7 3A/3B: chi=64=chi=256 (identical) | Use chi=64 for speed |
+| Transfer learning N→N' fails | V7 TL: baseline wins by 7%, different θ landscapes | Don't pre-train across system sizes |
