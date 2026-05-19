@@ -4,9 +4,9 @@
 
 | File | Last Updated | Trigger |
 |------|-------------|---------|
-| optimization-hardware.md | 2026-05-18 | Added ZNE failure mechanism (per-site inhomogeneity, CES outlier, gain uniformity) |
+| optimization-hardware.md | 2026-05-18 | Added V7 SPSA optimal config, warm-start rule, optimizer evidence table |
 | poc-results.md | 2026-05-18 | Added "Phase 3 fully solved" conclusion, ZNE mechanistic detail, confidence tags |
-| changelog.md | 2026-05-18 | Updated all entries to reflect May 14-18 cross-analysis propagation |
+| changelog.md | 2026-05-18 | Updated all entries to reflect V7 experiment results propagation |
 | project-guide.md | 2026-05-14 | Restructuring: added pipeline_core.py, experimental/, updated repo map |
 | validation-targets.md | 2026-05-14 | NEW: split from project-status.md (historical data + tables) |
 | literature-synthesis.md | 2026-05-08 | Added Slavin 2025, updated Section 9 (V6.1 lessons) |

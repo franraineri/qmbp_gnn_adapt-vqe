@@ -519,11 +519,19 @@ def run_sub_experiment_5E(args) -> SubExperimentResult:
 
         # Train MPNN on current data
         torch.manual_seed(seed + round_idx)
+
+        # Compute exact energies for all current h-values (including augmented ones)
+        current_exact_energies = []
+        for h_val in current_h:
+            sol = get_exact_solution(env["builder"], env["solver"], N, float(h_val))
+            current_exact_energies.append(sol["exact"].ground_energy)
+        current_exact_energies = np.array(current_exact_energies)
+
         dataset = build_graph_dataset(
             env["base_lattice"],
             current_h,
             current_theta,
-            clean_data["exact_energies"][: len(current_h)],
+            current_exact_energies,
             fidelities=np.ones(len(current_h)),
             fidelity_threshold=0.0,
         )

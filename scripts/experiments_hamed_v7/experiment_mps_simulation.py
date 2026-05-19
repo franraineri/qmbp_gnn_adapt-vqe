@@ -85,26 +85,43 @@ def evaluate_energy_mps(circuit, hamiltonian, params, backend):
     return float(sv.expectation_value(hamiltonian).real)
 
 
-def run_vqe_mps(circuit, hamiltonian, initial_guess, backend, maxiter=200):
-    """Run VQE using MPS simulator with COBYLA."""
+def run_vqe_mps(circuit, hamiltonian, initial_guess, backend, maxiter=200, n_restarts=3):
+    """Run VQE using MPS simulator with L-BFGS-B + restarts.
+
+    Since our MPS evaluation uses save_statevector (exact, no shot noise),
+    L-BFGS-B works correctly — finite-difference gradients are accurate.
+    Multi-restart escapes local minima (validated as highest-impact change in V6 binnacle).
+    """
     from scipy.optimize import minimize
 
     eval_count = [0]
+    n_params = len(initial_guess)
 
     def cost_fn(params):
         eval_count[0] += 1
         return evaluate_energy_mps(circuit, hamiltonian, params, backend)
 
     t0 = time.time()
-    result = minimize(
-        cost_fn,
-        initial_guess,
-        method="COBYLA",
-        options={"maxiter": maxiter, "rhobeg": 0.5},
-    )
+    best_energy = float("inf")
+    best_params = initial_guess.copy()
+
+    for restart in range(n_restarts + 1):
+        x0 = initial_guess if restart == 0 else best_params + np.random.normal(0, 0.1, n_params)
+        x0 = np.clip(x0, -np.pi, np.pi)
+        result = minimize(
+            cost_fn,
+            x0,
+            method="L-BFGS-B",
+            bounds=[(-np.pi, np.pi)] * n_params,
+            options={"maxiter": maxiter, "ftol": 1e-12},
+        )
+        if result.fun < best_energy:
+            best_energy = result.fun
+            best_params = result.x
+
     elapsed = time.time() - t0
 
-    return result.x, result.fun, eval_count[0], elapsed
+    return best_params, best_energy, eval_count[0], elapsed
 
 
 # ── Sub-experiment 3A ────────────────────────────────────────────────────────

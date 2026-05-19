@@ -12,17 +12,29 @@ Before running ANY experiment or notebook execution:
 ## Current Phase
 V6.1 complete and thesis-ready. All features validated at N=6 and N=10 (15 definitive runs).
 Pipeline observability (DiagnosticCollector) now always-on — every run captures full metrics.
+**V7 experiments complete** — all simulation-testable questions answered (12/22 experiments run, 10 skipped with justification).
 
 ## Active Priority
 1. **Hardware deployment on IBM Torino** — the only way to validate ZNE at N=10 (local simulation exhausted).
 2. Start with **N=6, h=1.5** (safest — ZNE works in simulation, expect it works on hardware).
 3. Then **N=10, h=1.5** with full mitigation stack (DD + twirling + TREX + ZNE via EstimatorV2 options).
+4. Use **SPSA (a=0.1, c=0.05, A=10)** for hardware VQE refinement — validated as 3× better than COBYLA under noise (V7 experiment 4C).
 
-## Critical Finding (2026-05-14/15)
+## Critical Findings (2026-05-14/15/18)
 Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completely fails at N=10** (R²<0.05, negative gain). This is predicted by Tsubouchi et al. (2023): mitigation cost grows exp(depth × qubits).
 - Experiment A: 7 layouts → R²=0.08 (still fails). Failure is fundamental, not statistical.
 - Experiment B: DD cannot be tested locally (YGate not in FakeTorino basis). Must test on real hardware.
 - **Conclusion: Local noisy simulation cannot validate ZNE at N=10. Go to real hardware where DD+twirling+TREX are native.**
+
+### V7 Key Results (2026-05-18)
+- **L-BFGS-B definitively optimal** for noiseless VQE (1A: wins by 31-95% over all Nevergrad methods)
+- **SPSA optimal config: a=0.1, c=0.05, A=10** (4A: grid search over 36 configs × 10 seeds)
+- **SPSA refinement HURTS warm-start** (4B: -146% at h=2.0) — don't refine good MPNN predictions
+- **QRC = MPNN at N=10** (2B: <1% difference, both ceiling-limited) — predictor is NOT the bottleneck
+- **MPS exact for 1D HVA** (3A/3B: |MPS-SV|=1e-14, chi=64 sufficient) — enables N=20 scaling
+- **MPS VQE at N=20 passes at h=2.0** (3C: ΔE/gap≈1%) — valid regime shifts with N
+- **Noise-aware training fails** under shot noise (5B: 6× worse) — only coherent errors could help
+- **Iterative refinement modest** (5E: 9% gain, saturates in 2 rounds)
 
 ## Key Constraints (always enforce)
 > Full constraint list with rationale in `.kiro/skills/quantum/SKILL.md`.
@@ -46,21 +58,37 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `Makefile` — unified entry point
 
 ## Active Development Areas
-- `src/poc/v6/pipeline_core.py` — shared 4-phase execution logic (PipelineCoreConfig, run_full_pipeline)
 - `src/poc/v6/hardware_deployer_v61.py` — hardware + noisy_simulation modes (**next: DD pass, n_layouts scaling**)
 - `src/poc/v6/mpnn_predictor.py` — MPNN architecture (per-parameter heads, edge features)
 - `src/poc/v6/analysis_utils.py` — weight gradient analysis + diagnostic metrics
 - `src/poc/v6/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on)
-- `src/poc/v6/experimental/` — isolated deprecated approaches (GATPredictor, augmentation)
 - `scripts/run_v61_parametric.py` — parametric pipeline runner (now with N=12 configs, always-on diagnostics)
 - `scripts/run_thesis_results.py` — thesis results consolidation
 - `scripts/run_v61_noisy.py` — noisy simulation sweep (now with always-on diagnostics)
 - `scripts/smoke_test_v61.py` — V6.1 integration smoke test
+- `scripts/experiments_hamed_v7/` — V7 full experiment suite (22 sub-experiments, master runner)
+
+## Dead Code (safe to remove after thesis)
+- `src/poc/v6/pipeline_core.py` — documented but zero imports anywhere in codebase
+- `src/poc/v6/experimental/` — GATPredictor + augmentation (both rejected, zero imports)
+- `src/poc/v6/hardware_deployer.py` — V6.0 legacy (only used by old benchmark/smoke_test)
 
 ## Optimal Config (quick reference)
 - **N=6**: GINConv h=64, L=3, 6000ep, lr=1e-3, 5 VQE restarts, fid≥0.93
 - **N=10**: GINConv **h=128**, L=3, 6000ep, lr=1e-3, **patience=500**, **seed=43**
+- **N=20 (MPS)**: chi=64 sufficient, L-BFGS-B + 3-5 restarts, descending warm-start, valid at h≥2.0
 - **N=12**: Too slow for iterative experimentation on local hardware (~30+ min per run)
+- **Hardware SPSA**: a=0.1, c=0.05, A=10, n_iterations=200 (from V7 4A grid search)
+
+## V7 Validated Decisions (2026-05-18)
+- **Optimizer (noiseless):** L-BFGS-B with 5 restarts. Nevergrad 31-95% worse (1A).
+- **Optimizer (hardware):** SPSA (a=0.1, c=0.05). 3× better than COBYLA under noise (4C).
+- **Warm-start refinement:** Do NOT apply SPSA after MPNN prediction in simulation (4B: hurts).
+- **Predictor:** MPNN = QRC at N=10 (2B). Predictor is NOT the bottleneck. Keep MPNN for scalability.
+- **MPS simulator:** Exact for 1D HVA (3A/3B). chi=64 sufficient. Enables N=20 VQE.
+- **Noise-aware training:** Fails under shot noise (5B: 6× worse). Only coherent errors could help.
+- **Iterative refinement:** Modest 9% gain, saturates in 2 rounds (5E). Not worth the complexity.
+- **Valid regime scales with N:** N=6 h≥1.25, N=10 h≥1.5, N=20 h≥2.0 (HVA expressibility limit).
 
 ## ZNE Scaling Rule (from experiments + literature)
 - N=6: 3 layouts sufficient (R²>0.99, linear regime)

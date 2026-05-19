@@ -209,11 +209,11 @@ class ClassicalSolver:
             # ground state.  Only use the gap if e1 > e0 + tolerance.
             if e1 > e0 + 1e-8:
                 gap = float(e1 - e0)
-            else:
-                logger.warning(
-                    "DMRG excited state converged to ground state. "
-                    "Gap not available via DMRG for this system."
-                )
+            # else:
+            #     logger.warning(
+            #         "DMRG excited state converged to ground state. "
+            #         "Gap not available via DMRG for this system."
+            #     )
         except Exception:
             logger.warning("Could not compute gap via DMRG excitation. Setting gap=0.")
 

@@ -2,11 +2,32 @@
 
 ## Optimizer Selection
 
-| Optimizer | Use case | Context |
-|-----------|----------|---------|
-| L-BFGS-B | Noiseless statevector (Phase 2) | Best convergence, needs gradient |
-| COBYLA | VQE loops, noise-robust | Gradient-free |
-| SPSA | Hardware with shot noise | Stochastic gradient |
+| Optimizer | Use case | Context | Evidence |
+|-----------|----------|---------|----------|
+| L-BFGS-B (5 restarts) | Noiseless statevector (Phase 2) | Best convergence, needs gradient | V7 1A: wins by 31-95% over all alternatives |
+| SPSA (a=0.1, c=0.05, A=10) | Hardware with shot noise | Stochastic gradient, 2 evals/iter | V7 4A: optimal config from 36×10 grid search |
+| COBYLA | Legacy / fallback only | Gradient-free but 3× worse than SPSA | V7 4C: SPSA 3× better under FakeTorino noise |
+
+### SPSA Optimal Configuration (V7 4A, definitive)
+```python
+# From grid search: 36 configs × 10 seeds at N=6, h=1.5, 4096 shots
+spsa_config = {
+    "a": 0.1,        # Step size gain
+    "c": 0.05,       # Perturbation size
+    "A_frac": 0.05,  # Stability constant = 0.05 × n_iterations
+    "alpha": 0.602,  # Standard
+    "gamma": 0.101,  # Standard
+    "n_iterations": 200,
+}
+# Result: mean ΔE = 6.52e-02 (best of 36 configs)
+# Pattern: small a (≤0.1) and small c (0.05) are critical. A has minor effect.
+```
+
+### SPSA Warm-Start Rule (V7 4B, definitive)
+**Do NOT apply SPSA refinement after MPNN warm-start in noiseless simulation.**
+- At h=2.0: SPSA makes predictions 356% WORSE (noise pushes away from optimum)
+- At h=1.5: No improvement, slight degradation at high iterations
+- SPSA is only valuable for cold-start under noise OR on real hardware with systematic errors
 
 ## Warm-Start Protocol
 

@@ -409,16 +409,19 @@ def vqe_descending_sweep(
             if energy_lb < energy:
                 theta_opt, energy = theta_lb, energy_lb
         else:
+            # Use SPSA (optimal config from 4A: a=0.1, c=0.05, A_frac=0.05)
+            # SPSA is 3-4× better than COBYLA under shot noise
             cost_fn, _ = noisy_cost_function(circuit, H, n_shots)
-            from scipy.optimize import minimize
-
-            result = minimize(
+            theta_opt, energy, _, _ = run_spsa(
                 cost_fn,
                 prev_theta,
-                method="COBYLA",
-                options={"maxiter": maxiter, "rhobeg": 0.3},
+                n_iterations=min(maxiter, 200),
+                a=0.1,
+                c=0.05,
+                A_frac=0.05,
             )
-            theta_opt, energy = result.x, result.fun
+            # Evaluate exact energy at the SPSA result (for accurate reporting)
+            energy = evaluate_energy_statevector(circuit, H, theta_opt)
 
         theta_results.append(theta_opt)
         energies.append(energy)

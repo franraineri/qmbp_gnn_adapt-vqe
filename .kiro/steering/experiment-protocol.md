@@ -122,11 +122,17 @@ Ask these questions before starting any experiment:
 |-------|----------|-------------|
 | h=1.25 ceiling at N=6 (2-3/6 V6.0 checklist) | 40+ experiments, all configs | HVA p=2 expressibility |
 | h=1.4 fails with seed 42 at N=10 | Confirmed 3× | Seed-dependent MPNN convergence |
+| h=1.5 ceiling at N=20 (ΔE/gap≈7.7%) | V7 3C with L-BFGS-B + 3 restarts | HVA expressibility degrades with N |
+| Valid regime shifts: N=6→h≥1.25, N=10→h≥1.5, N=20→h≥2.0 | V7 3C + binnacles | Physics limit, not tunable |
 | ZNE fails at N=10 with 3 layouts | R²<0.05, 6/6 losses | Exponential mitigation cost |
 | Ladder topology fails with HVA p=2 | ΔE/gap=203% | Coordination number 3 needs deeper circuits |
 | N=12 too slow for local iteration | 14+ min for Phase 1 alone | 2^12 exact diag on single core |
+| Predictor is NOT the bottleneck (N≥10) | V7 2B: QRC=MPNN, both ceiling-limited | No ML improvement possible |
+| Noise-aware training fails under shot noise | V7 5B: 6× worse than noiseless | Only coherent errors could help |
+| SPSA refinement hurts warm-start | V7 4B: -146% to -356% | Don't refine good predictions |
 | optimization_level=1 for noisy sim | Tested: 3× SLOWER (more gates = more noise channels) | Always use level 2 for noisy simulation |
 | DD on FakeTorino (XY4) | YGate not in basis — pass fails silently | DD only testable on real hardware via EstimatorV2 options |
 | More N=10 noisy simulation experiments | A, A', B all exhausted; R² never >0.08 | Go to real hardware — local sim cannot validate ZNE at N=10 |
 | MAX_CES_RATIO < 10 with 5+ layouts | Layout search becomes 45+ min (too expensive) | Keep MAX_CES_RATIO=10, accept outlier filtering at 3 layouts |
 | Gate folding locally (nf=3,5) | Folded circuits are 3-5× heavier to simulate | Only viable on real hardware via Runtime ZNE options |
+| MPS chi is NOT the bottleneck for 1D HVA | V7 3A/3B: chi=64=chi=256 (identical) | Use chi=64 for speed |
