@@ -111,3 +111,10 @@ repos:
         files: '\.py$'
         exclude: '^scripts/hooks/'
         pass_filenames: true
+
+  # ── Commit message: Conventional Commits ───────────────────
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.16.2
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]

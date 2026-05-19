@@ -62,9 +62,12 @@ run-nb-34:  ## Execute Phase 3-4 notebook only
 
 # ── Pre-commit ───────────────────────────────────────────────
 
-hooks-install:  ## Install pre-commit hooks (including commit-msg)
+hooks-install:  ## Install pre-commit hooks (including commit-msg) and pre-push
 	pre-commit install
 	pre-commit install --hook-type commit-msg
+	cp scripts/hooks/pre-push-tests.sh .git/hooks/pre-push
+	chmod +x .git/hooks/pre-push
+	@echo "✅ All hooks installed (pre-commit + commit-msg + pre-push)"
 
 check:  ## Run all pre-commit hooks
 	pre-commit run --all-files
