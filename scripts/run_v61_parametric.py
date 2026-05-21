@@ -330,7 +330,13 @@ def capture_environment() -> dict:
 # ── Pipeline execution ───────────────────────────────────────────────────
 
 
-def run_pipeline(cfg: PipelineConfig, verbose: bool = False, debug: bool = False) -> dict:
+def run_pipeline(
+    cfg: PipelineConfig,
+    verbose: bool = False,
+    debug: bool = False,
+    include_baseline: bool = True,
+    n_baseline_seeds: int = 5,
+) -> dict:
     """Execute the full V6.1 pipeline with the given configuration."""
     import numpy as np
     import torch
@@ -580,7 +586,18 @@ def run_pipeline(cfg: PipelineConfig, verbose: bool = False, debug: bool = False
         theta_pred = model(test_graph).numpy().flatten()
 
     deployer = HardwareDeployerV61(mode="simulation")
-    deploy_result = deployer.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+    if include_baseline:
+        deploy_result, baseline_comparison = deployer.deploy_with_baseline(
+            qc,
+            H_test,
+            theta_pred,
+            lat_test,
+            exact_test,
+            n_random_seeds=n_baseline_seeds,
+        )
+    else:
+        deploy_result = deployer.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+        baseline_comparison = None
     phase4_time = time.time() - t4
 
     checklist = deploy_result.metrics_checklist
@@ -603,10 +620,31 @@ def run_pipeline(cfg: PipelineConfig, verbose: bool = False, debug: bool = False
         "checklist_total": len(checklist),
         "zne_r_squared": getattr(deploy_result, "zne_r_squared", None),
     }
+    # Add baseline comparison if available
+    if baseline_comparison is not None:
+        result["phases"]["phase4"]["baseline_comparison"] = {
+            "n_random_seeds": baseline_comparison.n_random_seeds,
+            "random_seeds": baseline_comparison.random_seeds,
+            "gain_energy_pct": baseline_comparison.gain_energy_pct,
+            "gain_fidelity_abs": baseline_comparison.gain_fidelity_abs,
+            "warm_start_sufficient": baseline_comparison.warm_start_sufficient,
+            "cold_start_any_success": baseline_comparison.cold_start_any_success,
+            "cold_start_mean_delta_e_over_gap": baseline_comparison.cold_start_mean[
+                "delta_e_over_gap"
+            ],
+            "cold_start_std_delta_e_over_gap": baseline_comparison.cold_start_std[
+                "delta_e_over_gap"
+            ],
+        }
     print(
         f"    Done in {phase4_time:.1f}s — ΔE/gap={deploy_result.delta_e_over_gap:.4f}, "
         f"checklist={n_pass}/{len(checklist)}, phase={deploy_result.phase_label}"
     )
+    if baseline_comparison is not None:
+        print(
+            f"    Baseline: gain={baseline_comparison.gain_energy_pct:.1f}%, "
+            f"cold mean ΔE/gap={baseline_comparison.cold_start_mean['delta_e_over_gap']:.4f}"
+        )
 
     # ── Diagnostics: record Phase 4 deployment ──
     # Build per_layout_data from deploy_result if available
@@ -626,6 +664,8 @@ def run_pipeline(cfg: PipelineConfig, verbose: bool = False, debug: bool = False
         result=deploy_result,
         per_layout_data=per_layout_data,
     )
+    if baseline_comparison is not None:
+        collector.record_baseline(h_test=cfg.h_test, comparison=baseline_comparison)
     collector.save_checkpoint("phase4")
 
     # ── Gradient Analysis ──
@@ -686,6 +726,18 @@ def main():
         default=False,
         help="Enable DEBUG logging and all verbose features",
     )
+    parser.add_argument(
+        "--no-baseline",
+        action="store_true",
+        default=False,
+        help="Skip random baseline comparison in Phase 4 (faster, less informative)",
+    )
+    parser.add_argument(
+        "--baseline-seeds",
+        type=int,
+        default=5,
+        help="Number of random seeds for baseline comparison (default: 5)",
+    )
     args = parser.parse_args()
 
     if args.config == "all":
@@ -722,7 +774,13 @@ def main():
         print(f"{'─' * 60}")
 
         try:
-            result = run_pipeline(cfg, verbose=args.verbose, debug=args.debug)
+            result = run_pipeline(
+                cfg,
+                verbose=args.verbose,
+                debug=args.debug,
+                include_baseline=not args.no_baseline,
+                n_baseline_seeds=args.baseline_seeds,
+            )
             all_results.append(result)
         except Exception as e:
             print(f"\n  ❌ Config '{cfg.name}' FAILED: {e}")
@@ -759,8 +817,10 @@ def main():
     print(f"\n\n{'=' * 60}")
     print("  RESULTS SUMMARY")
     print(f"{'=' * 60}")
-    print(f"  {'Config':<12} {'ΔE/gap':<10} {'Checklist':<12} {'Phase':<14} {'MSE':<12} {'Time'}")
-    print(f"  {'─' * 72}")
+    print(
+        f"  {'Config':<12} {'ΔE/gap':<10} {'Checklist':<12} {'Phase':<14} {'MSE':<12} {'Gain':<8} {'Time'}"
+    )
+    print(f"  {'─' * 78}")
     for r in all_results:
         if not r.get("success", False):
             print(f"  {r['config_name']:<12} ❌ FAILED: {r.get('error', '?')[:40]}")
@@ -770,10 +830,13 @@ def main():
         de_gap = p4["delta_e_over_gap"]
         de_tag = "✅" if de_gap < 0.05 else "⚠️" if de_gap < 0.10 else "❌"
         total_t = sum(ph.get("elapsed_s", 0) for ph in r["phases"].values())
+        # Baseline gain
+        bl = p4.get("baseline_comparison")
+        gain_str = f"{bl['gain_energy_pct']:.0f}%" if bl else "—"
         print(
             f"  {r['config_name']:<12} {de_gap:.4f} {de_tag}  "
             f"{p4['checklist_pass']}/{p4['checklist_total']:<8} "
-            f"{p4['phase_label']:<14} {p3['final_mse']:.2e}   {total_t:.0f}s"
+            f"{p4['phase_label']:<14} {p3['final_mse']:.2e}   {gain_str:<8} {total_t:.0f}s"
         )
 
     print(f"\n  Total time: {time.time() - t_total:.0f}s")

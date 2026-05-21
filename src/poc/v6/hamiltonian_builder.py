@@ -269,6 +269,73 @@ class HamiltonianBuilder:
         edge_index = np.array([src + dst, dst + src], dtype=np.int64)
         return edge_index, lattice.coordination_numbers.copy()
 
+    # ── Heisenberg XXZ Hamiltonian ───────────────────────────────────
+
+    def build_heisenberg(self, lattice: LatticeConfig, delta: float = 1.0) -> SparsePauliOp:
+        """Build H = J Σ_{(i,j)} (X_iX_j + Y_iY_j + Δ·Z_iZ_j) - h Σ_i Z_i.
+
+        The Heisenberg XXZ model with external field in Z direction.
+        At Δ=1 (isotropic), this is the standard Heisenberg model.
+
+        Parameters
+        ----------
+        lattice : LatticeConfig
+            Lattice specification (topology, edges, couplings, field).
+        delta : float
+            Anisotropy parameter. Δ=1 is isotropic (XXX), Δ=0 is XY model.
+
+        Returns
+        -------
+        SparsePauliOp
+            The Heisenberg XXZ Hamiltonian.
+        """
+        n = lattice.n_qubits
+        terms: list[tuple[str, list[int], complex]] = []
+
+        # Exchange interaction terms on lattice edges: J(XX + YY + Δ·ZZ)
+        for bond_idx, (i, j) in enumerate(lattice.edges):
+            j_val = lattice.J[bond_idx] if isinstance(lattice.J, np.ndarray) else lattice.J
+            terms.append(("XX", [i, j], j_val))
+            terms.append(("YY", [i, j], j_val))
+            terms.append(("ZZ", [i, j], j_val * delta))
+
+        # External field in Z direction on all sites
+        for site in range(n):
+            h_val = lattice.h[site] if isinstance(lattice.h, np.ndarray) else lattice.h
+            terms.append(("Z", [site], -h_val))
+
+        H = SparsePauliOp.from_sparse_list(terms, num_qubits=n)
+        self.validate(H, n)
+        return H
+
+    # ── Heisenberg observables ───────────────────────────────────────
+
+    def build_heisenberg_observables(
+        self, lattice: LatticeConfig
+    ) -> tuple[list[SparsePauliOp], list[SparsePauliOp]]:
+        """Return per-site Z operators and per-bond S·S operators for Heisenberg.
+
+        Parameters
+        ----------
+        lattice : LatticeConfig
+
+        Returns
+        -------
+        (ops_Z, ops_SS)
+            ops_Z : list of SparsePauliOp, one Z_i per site (magnetization).
+            ops_SS : list of SparsePauliOp, one (XX+YY+ZZ)_{ij} per bond.
+        """
+        n = lattice.n_qubits
+        ops_z = [SparsePauliOp.from_sparse_list([("Z", [i], 1.0)], num_qubits=n) for i in range(n)]
+        ops_ss = [
+            SparsePauliOp.from_sparse_list(
+                [("XX", [i, j], 1.0), ("YY", [i, j], 1.0), ("ZZ", [i, j], 1.0)],
+                num_qubits=n,
+            )
+            for i, j in lattice.edges
+        ]
+        return ops_z, ops_ss
+
     # ── Task 2.4: validate() ─────────────────────────────────────────
 
     @staticmethod

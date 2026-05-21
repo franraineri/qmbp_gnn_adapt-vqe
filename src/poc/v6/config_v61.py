@@ -319,3 +319,86 @@ class SweepSummary:
     n_mitigated_wins: int
     n_good_r_squared: int
     success_criteria_met: bool
+
+
+# ---------------------------------------------------------------------------
+# Random Baseline Comparison — Data Models
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BaselineMetrics:
+    """Metrics for a single deployment attempt (warm-start or cold-start).
+
+    Attributes
+    ----------
+    theta_init : list[float]
+        Initial parameters used (serializable).
+    predicted_energy : float
+        Final energy after deployment.
+    delta_e : float
+        |E_pred - E_exact|.
+    delta_e_over_gap : float
+        ΔE / gap (primary metric).
+    fidelity : float | None
+        State fidelity (simulation only).
+    adapt_iterations : int
+        Number of AdaptVQE iterations used.
+    phase_label : str
+        Classified phase.
+    phase_correct : bool
+        Whether phase classification matches exact.
+    """
+
+    theta_init: list[float]
+    predicted_energy: float
+    delta_e: float
+    delta_e_over_gap: float
+    fidelity: float | None
+    adapt_iterations: int
+    phase_label: str
+    phase_correct: bool
+
+
+@dataclass
+class BaselineComparison:
+    """Comparison between MPNN warm-start and random cold-start deployment.
+
+    Quantifies the value of the MPNN warm-start by comparing against
+    random initialization. This is the core thesis metric: how much
+    does the GNN prediction improve over naive random search?
+
+    Attributes
+    ----------
+    n_random_seeds : int
+        Number of random initializations tested.
+    random_seeds : list[int]
+        Seeds used for reproducibility.
+    warm_start : BaselineMetrics
+        Metrics from MPNN-predicted θ.
+    cold_start_mean : dict
+        Mean metrics across random initializations.
+    cold_start_std : dict
+        Std of metrics across random initializations.
+    cold_start_per_seed : list[BaselineMetrics]
+        Per-seed breakdown (for debugging).
+    gain_energy_pct : float
+        (ΔE_cold - ΔE_warm) / ΔE_cold × 100. Positive = warm-start better.
+    gain_fidelity_abs : float | None
+        fid_warm - fid_cold (only in simulation mode). Positive = warm-start better.
+    warm_start_sufficient : bool
+        True if warm-start achieves ΔE/gap < 5% without refinement.
+    cold_start_any_success : bool
+        True if any cold-start seed achieves ΔE/gap < 5%.
+    """
+
+    n_random_seeds: int
+    random_seeds: list[int]
+    warm_start: BaselineMetrics
+    cold_start_mean: dict
+    cold_start_std: dict
+    cold_start_per_seed: list[BaselineMetrics]
+    gain_energy_pct: float
+    gain_fidelity_abs: float | None
+    warm_start_sufficient: bool
+    cold_start_any_success: bool

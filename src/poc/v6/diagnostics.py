@@ -148,6 +148,9 @@ class DiagnosticCollector:
         # Track completed phases
         self._completed_phases: list[str] = []
 
+        # Baseline comparison data
+        self._baseline_data: dict | None = None
+
     # ── Phase 1 recording ────────────────────────────────────────────────
 
     def record_phase1(
@@ -449,6 +452,53 @@ class DiagnosticCollector:
                 f"Phase 4 deployment h={h_test}: SNR(mag_x)={snr_mx_str}, SNR(corr_zz)={snr_cz_str}"
             )
 
+    # ── Baseline comparison recording ────────────────────────────────────
+
+    def record_baseline(
+        self,
+        h_test: float,
+        comparison,
+    ) -> None:
+        """Record baseline comparison diagnostics (warm-start vs cold-start).
+
+        Parameters
+        ----------
+        h_test : float
+            Test h-value.
+        comparison : BaselineComparison
+            Comparison object with warm vs cold metrics.
+        """
+        try:
+            self._baseline_data = {
+                "h_test": float(h_test),
+                "n_random_seeds": comparison.n_random_seeds,
+                "random_seeds": comparison.random_seeds,
+                "gain_energy_pct": float(comparison.gain_energy_pct),
+                "gain_fidelity_abs": (
+                    float(comparison.gain_fidelity_abs)
+                    if comparison.gain_fidelity_abs is not None
+                    else None
+                ),
+                "warm_start_sufficient": comparison.warm_start_sufficient,
+                "cold_start_any_success": comparison.cold_start_any_success,
+                "warm_delta_e_over_gap": float(comparison.warm_start.delta_e_over_gap),
+                "cold_mean_delta_e_over_gap": float(comparison.cold_start_mean["delta_e_over_gap"]),
+                "cold_std_delta_e_over_gap": float(comparison.cold_start_std["delta_e_over_gap"]),
+                "anomaly_detected": comparison.gain_energy_pct < 0,
+            }
+
+            if self.verbose:
+                self._log.info(
+                    f"Baseline h={h_test}: warm ΔE/gap="
+                    f"{comparison.warm_start.delta_e_over_gap:.4f}, "
+                    f"cold mean={comparison.cold_start_mean['delta_e_over_gap']:.4f}±"
+                    f"{comparison.cold_start_std['delta_e_over_gap']:.4f}, "
+                    f"gain={comparison.gain_energy_pct:.1f}%"
+                )
+        except Exception as e:
+            self._log.error(f"Error recording baseline comparison: {e}")
+            self._baseline_data = {"error": str(e)}
+
     # ── Serialization ────────────────────────────────────────────────────
 
     def to_dict(self) -> dict:
@@ -517,6 +567,7 @@ class DiagnosticCollector:
             "phase2": phase2,
             "phase3": phase3,
             "phase4": phase4,
+            "baseline_comparison": _to_json_safe(self._baseline_data),
         }
 
     # ── Checkpoint persistence ───────────────────────────────────────────

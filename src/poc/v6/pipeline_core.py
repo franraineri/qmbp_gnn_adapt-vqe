@@ -242,6 +242,8 @@ def run_phase4(
     model: object,
     *,
     mode: str = "simulation",
+    include_baseline: bool = True,
+    n_baseline_seeds: int = 5,
 ) -> tuple[object, np.ndarray, float]:
     """Phase 4: MPNN inference + deployment.
 
@@ -280,7 +282,20 @@ def run_phase4(
         theta_pred = model(test_graph).numpy().flatten()
 
     deployer = HardwareDeployerV61(mode=mode)
-    deploy_result = deployer.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+
+    if include_baseline:
+        deploy_result, baseline_comparison = deployer.deploy_with_baseline(
+            qc,
+            H_test,
+            theta_pred,
+            lat_test,
+            exact_test,
+            n_random_seeds=n_baseline_seeds,
+        )
+    else:
+        deploy_result = deployer.deploy_adapt_vqe(qc, H_test, theta_pred, lat_test, exact_test)
+        baseline_comparison = None
+
     elapsed = time.time() - t0
 
     logger.info(
@@ -289,6 +304,13 @@ def run_phase4(
         deploy_result.phase_label,
         elapsed,
     )
+    if baseline_comparison is not None:
+        logger.info(
+            "Phase 4 baseline: gain=%.1f%%, cold mean ΔE/gap=%.4f",
+            baseline_comparison.gain_energy_pct,
+            baseline_comparison.cold_start_mean["delta_e_over_gap"],
+        )
+
     return deploy_result, theta_pred, elapsed
 
 

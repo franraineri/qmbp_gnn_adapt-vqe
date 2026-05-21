@@ -37,6 +37,8 @@ from .config_v61 import (
     SHOT_BUDGET_MEDIUM,
     SHOT_BUDGET_SMALL,
     ZNE_R_SQUARED_WARNING_THRESHOLD,
+    BaselineComparison,
+    BaselineMetrics,
     DeployResultV61,
     LayoutResult,
 )
@@ -1437,6 +1439,192 @@ class HardwareDeployerV61:
             return "paramagnetic"
         else:
             return "ferromagnetic"
+
+    # ── Random Baseline Comparison ───────────────────────────────────────
+
+    def deploy_with_baseline(
+        self,
+        circuit: QuantumCircuit,
+        hamiltonian: SparsePauliOp,
+        theta_pred: np.ndarray,
+        lattice: LatticeConfig,
+        exact: GroundTruthResult,
+        *,
+        n_random_seeds: int = 5,
+        random_seed_base: int = 100,
+    ) -> tuple[DeployResultV61, BaselineComparison]:
+        """Deploy with MPNN warm-start AND random cold-start baseline.
+
+        Executes the standard warm-start deployment, then runs multiple
+        cold-start deployments with random θ ~ U(-π, π) to quantify the
+        value of the MPNN prediction.
+
+        Parameters
+        ----------
+        circuit : QuantumCircuit
+            Parameterized HVA circuit.
+        hamiltonian : SparsePauliOp
+            Full Hamiltonian.
+        theta_pred : np.ndarray
+            MPNN-predicted parameters (warm-start).
+        lattice : LatticeConfig
+            Lattice specification.
+        exact : GroundTruthResult
+            Exact solution for validation metrics.
+        n_random_seeds : int
+            Number of random initializations (default 5).
+        random_seed_base : int
+            Base seed for reproducible random θ generation.
+
+        Returns
+        -------
+        (warm_result, comparison)
+            The warm-start DeployResultV61 (unchanged behavior) plus
+            the BaselineComparison object with gain metrics.
+        """
+
+        # 1. Warm-start deployment (existing behavior, unchanged)
+        logger.info("Baseline: deploying warm-start (MPNN prediction)...")
+        warm_result = self.deploy_adapt_vqe(circuit, hamiltonian, theta_pred, lattice, exact)
+
+        # Determine correct phase for comparison
+        exact_phase = self.classify_phase(exact.mag_x, exact.corr_zz, 1e-10)
+
+        warm_metrics = BaselineMetrics(
+            theta_init=theta_pred.tolist(),
+            predicted_energy=warm_result.predicted_energy,
+            delta_e=warm_result.delta_e,
+            delta_e_over_gap=warm_result.delta_e_over_gap,
+            fidelity=warm_result.fidelity,
+            adapt_iterations=warm_result.adapt_iterations,
+            phase_label=warm_result.phase_label,
+            phase_correct=(warm_result.phase_label == exact_phase),
+        )
+
+        # 2. Cold-start deployments
+        cold_metrics_list: list[BaselineMetrics] = []
+        seeds_used: list[int] = []
+        n_params = len(theta_pred)
+
+        for i in range(n_random_seeds):
+            seed = random_seed_base + i
+            seeds_used.append(seed)
+            rng = np.random.default_rng(seed)
+            theta_random = rng.uniform(-np.pi, np.pi, n_params)
+
+            logger.debug(
+                "Baseline: cold-start seed=%d, θ_random[:3]=%s",
+                seed,
+                theta_random[:3].round(3),
+            )
+
+            cold_result = self.deploy_adapt_vqe(circuit, hamiltonian, theta_random, lattice, exact)
+
+            cold_metrics_list.append(
+                BaselineMetrics(
+                    theta_init=theta_random.tolist(),
+                    predicted_energy=cold_result.predicted_energy,
+                    delta_e=cold_result.delta_e,
+                    delta_e_over_gap=cold_result.delta_e_over_gap,
+                    fidelity=cold_result.fidelity,
+                    adapt_iterations=cold_result.adapt_iterations,
+                    phase_label=cold_result.phase_label,
+                    phase_correct=(cold_result.phase_label == exact_phase),
+                )
+            )
+
+        # 3. Compute comparison metrics
+        comparison = self._build_baseline_comparison(warm_metrics, cold_metrics_list, seeds_used)
+
+        # 4. Log summary
+        if comparison.gain_energy_pct < 0:
+            logger.warning(
+                "ANOMALY: warm-start ΔE/gap (%.4f) WORSE than cold-start mean (%.4f) "
+                "at h=%.2f. Possible causes: MPNN prediction in wrong basin, "
+                "VQE training data issue.",
+                warm_metrics.delta_e_over_gap,
+                comparison.cold_start_mean["delta_e_over_gap"],
+                exact.h_value,
+            )
+        else:
+            logger.info(
+                "Baseline h=%.2f: warm ΔE/gap=%.4f, cold mean=%.4f±%.4f, gain=%.1f%%",
+                exact.h_value,
+                warm_metrics.delta_e_over_gap,
+                comparison.cold_start_mean["delta_e_over_gap"],
+                comparison.cold_start_std["delta_e_over_gap"],
+                comparison.gain_energy_pct,
+            )
+
+        return warm_result, comparison
+
+    def _build_baseline_comparison(
+        self,
+        warm: BaselineMetrics,
+        cold_list: list[BaselineMetrics],
+        seeds: list[int],
+    ) -> BaselineComparison:
+        """Build BaselineComparison from warm and cold metrics.
+
+        Parameters
+        ----------
+        warm : BaselineMetrics
+            Warm-start metrics.
+        cold_list : list[BaselineMetrics]
+            Per-seed cold-start metrics.
+        seeds : list[int]
+            Seeds used for cold-start.
+
+        Returns
+        -------
+        BaselineComparison
+        """
+
+        # Compute mean and std of cold-start metrics
+        cold_de_gaps = [m.delta_e_over_gap for m in cold_list]
+        cold_energies = [m.predicted_energy for m in cold_list]
+        cold_fidelities = [m.fidelity for m in cold_list if m.fidelity is not None]
+
+        cold_mean = {
+            "delta_e_over_gap": float(np.mean(cold_de_gaps)),
+            "predicted_energy": float(np.mean(cold_energies)),
+            "fidelity": float(np.mean(cold_fidelities)) if cold_fidelities else None,
+            "adapt_iterations": float(np.mean([m.adapt_iterations for m in cold_list])),
+            "phase_correct_rate": float(np.mean([m.phase_correct for m in cold_list])),
+        }
+
+        cold_std = {
+            "delta_e_over_gap": float(np.std(cold_de_gaps)),
+            "predicted_energy": float(np.std(cold_energies)),
+            "fidelity": float(np.std(cold_fidelities)) if cold_fidelities else None,
+            "adapt_iterations": float(np.std([m.adapt_iterations for m in cold_list])),
+        }
+
+        # Gain: positive means warm-start is better
+        cold_mean_de_gap = cold_mean["delta_e_over_gap"]
+        if cold_mean_de_gap > 1e-10:
+            gain_energy_pct = (cold_mean_de_gap - warm.delta_e_over_gap) / cold_mean_de_gap * 100.0
+        else:
+            # Cold-start is perfect (unlikely) — no gain to report
+            gain_energy_pct = 0.0
+
+        # Fidelity gain (simulation only)
+        gain_fidelity_abs: float | None = None
+        if warm.fidelity is not None and cold_mean["fidelity"] is not None:
+            gain_fidelity_abs = warm.fidelity - cold_mean["fidelity"]
+
+        return BaselineComparison(
+            n_random_seeds=len(cold_list),
+            random_seeds=seeds,
+            warm_start=warm,
+            cold_start_mean=cold_mean,
+            cold_start_std=cold_std,
+            cold_start_per_seed=cold_list,
+            gain_energy_pct=float(gain_energy_pct),
+            gain_fidelity_abs=gain_fidelity_abs,
+            warm_start_sufficient=(warm.delta_e_over_gap < 0.05),
+            cold_start_any_success=any(m.delta_e_over_gap < 0.05 for m in cold_list),
+        )
 
 
 # ---------------------------------------------------------------------------

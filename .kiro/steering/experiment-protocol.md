@@ -132,6 +132,8 @@ Ask these questions before starting any experiment:
 | Fidelity filter unavailable at N≥15 (DMRG) | ground_state=None → fidelity=0 | Must manually restrict h-grid |
 | ZNE fails at N=10 with 3 layouts | R²<0.05, 6/6 losses | Exponential mitigation cost |
 | Ladder topology fails with HVA p=2 | ΔE/gap=203% | Coordination number 3 needs deeper circuits |
+| Heisenberg XXZ fails with HVA p=2 | Max fid=48% (Néel), 22% (|+⟩) | GS too entangled for 2 layers |
+| XY model (Δ=0) fails with HVA p=2 | Max fid=23% | Same — shallow circuits insufficient |
 | N=12 too slow for local iteration | 14+ min for Phase 1 alone | 2^12 exact diag on single core |
 | Predictor is NOT the bottleneck (N≥10) | V7 2B: QRC=MPNN, both ceiling-limited | No ML improvement possible |
 | Noise-aware training fails under shot noise | V7 5B: 6× worse than noiseless | Only coherent errors could help |
@@ -143,3 +145,8 @@ Ask these questions before starting any experiment:
 | Gate folding locally (nf=3,5) | Folded circuits are 3-5× heavier to simulate | Only viable on real hardware via Runtime ZNE options |
 | MPS chi is NOT the bottleneck for 1D HVA | V7 3A/3B: chi=64=chi=256 (identical) | Use chi=64 for speed |
 | Transfer learning N→N' fails | V7 TL: baseline wins by 7%, different θ landscapes | Don't pre-train across system sizes |
+| p=1 valid regime: N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 | Exp 6A/6B/6D (3 seeds) | Boundary shifts +0.25 to +0.40 vs p=2 |
+| p=1 seed-independent only at N≤10 | Exp 6A: identical across seeds; 6B: seed 44 fails at N=20 | N=20 needs better init (analytical guess) |
+| p=1 θ_x constant (±3π/8) at N=20 | Exp 6B: same |θ_x| across all h and seeds | Only θ_zz varies; Z₂ sign symmetry |
+| p=1 MPNN needs sign canonicalization | Exp 6B: seeds find ±θ → inconsistent targets | Enforce θ_x > 0 before training |
+| p=1 N=20 needs >6 training points | Exp 6B: only h=3.0 passes deployment | Use 15-20 pts in [2.25, 4.0] |

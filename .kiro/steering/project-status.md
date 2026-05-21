@@ -19,6 +19,8 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 2. Start with **N=6, h=1.5** (safest — ZNE works in simulation, expect it works on hardware).
 3. Then **N=10, h=1.5** with full mitigation stack (DD + twirling + TREX + ZNE via EstimatorV2 options).
 4. Use **SPSA (a=0.1, c=0.05, A=10)** for hardware VQE refinement — validated as 3× better than COBYLA under noise (V7 experiment 4C).
+5. **Random baseline comparison now default** — every Phase 4 run compares warm-start vs cold-start (gain metric). Use `--no-baseline` to skip.
+6. **Heisenberg model extension** — validate framework is model-agnostic (in progress).
 
 ## Critical Findings (2026-05-14/15/18)
 Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completely fails at N=10** (R²<0.05, negative gain). This is predicted by Tsubouchi et al. (2023): mitigation cost grows exp(depth × qubits).
@@ -58,15 +60,16 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `Makefile` — unified entry point
 
 ## Active Development Areas
-- `src/poc/v6/hardware_deployer_v61.py` — hardware + noisy_simulation modes (**next: DD pass, n_layouts scaling**)
+- `src/poc/v6/hardware_deployer_v61.py` — hardware + noisy_simulation modes + **deploy_with_baseline()** (**next: DD pass, n_layouts scaling**)
 - `src/poc/v6/mpnn_predictor.py` — MPNN architecture (per-parameter heads, edge features)
 - `src/poc/v6/analysis_utils.py` — weight gradient analysis + diagnostic metrics
-- `src/poc/v6/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on)
-- `scripts/run_v61_parametric.py` — parametric pipeline runner (now with N=12 configs, always-on diagnostics)
+- `src/poc/v6/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on, **+record_baseline()**)
+- `scripts/run_v61_parametric.py` — parametric pipeline runner (now with N=12 configs, always-on diagnostics, **+baseline comparison**)
 - `scripts/run_thesis_results.py` — thesis results consolidation
 - `scripts/run_v61_noisy.py` — noisy simulation sweep (now with always-on diagnostics)
 - `scripts/smoke_test_v61.py` — V6.1 integration smoke test
 - `scripts/experiments_hamed_v7/` — V7 full experiment suite (22 sub-experiments, master runner)
+- `scripts/experiments_hamed_v7/experiment_p1_scaling.py` — p=1 depth-scaling study (6A-6D)
 
 ## Dead Code (safe to remove after thesis)
 - `src/poc/v6/pipeline_core.py` — documented but zero imports anywhere in codebase
@@ -80,6 +83,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **N=20 (full pipeline)**: h∈[1.5,2.0] only (11 pts), 7 restarts σ=0.3, NO filter, MPNN h=128, **ΔE/gap=1.75% ✅**
 - **N=12**: Too slow for iterative experimentation on local hardware (~30+ min per run)
 - **Hardware SPSA**: a=0.1, c=0.05, A=10, n_iterations=200 (from V7 4A grid search)
+- **N=20 (p=1)**: 2 params, h∈[2.25,4.0], 5 restarts, StatevectorEstimator, MPNN h=128 (trivial mapping)
 
 ## V7 Validated Decisions (2026-05-18)
 - **Optimizer (noiseless):** L-BFGS-B with 5 restarts. Nevergrad 31-95% worse (1A).
@@ -90,6 +94,19 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **Noise-aware training:** Fails under shot noise (5B: 6× worse). Only coherent errors could help.
 - **Iterative refinement:** Modest 9% gain, saturates in 2 rounds (5E). Not worth the complexity.
 - **Valid regime scales with N:** N=6 h≥1.25, N=10 h≥1.5, N=20 h≥2.0 (HVA expressibility limit).
+
+## p=1 Scaling Results (2026-05-21)
+- **p=1 valid regime**: N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 (shift of +0.25 to +0.40 vs p=2)
+- **Shift decreases with N**: +0.35 at N=6, +0.40 at N=10, +0.25 at N=20
+- **Seed-independent at N≤10**: All 3 seeds give identical θ_opt (single global minimum)
+- **N=20 has Z₂ symmetry issue**: Seeds find equivalent minima with different sign conventions
+- **θ_x constant**: ±1.178 (= ±3π/8) for all h; only θ_zz varies → effectively 1D mapping
+- **CX reduction**: Exactly 50% at all N (p=1 N=20 = 38 CX ≈ p=2 N=10 = 36 CX)
+- **MPNN deployment at N=20**: Only h=3.0 passes (6 training points too few; sign canonicalization needed)
+- **Hardware candidate**: p=1 N=20 on IBM Torino (VQE validated, same CX budget as p=2 N=10)
+- **TODO**: Fix init at N=20 (analytical guess), canonicalize signs, increase training density
+- Binnacle: `documentation/binnacles/binnacle-p1-scaling.md`
+- Script: `scripts/experiments_hamed_v7/experiment_p1_scaling.py`
 
 ## ZNE Scaling Rule (from experiments + literature)
 - N=6: 3 layouts sufficient (R²>0.99, linear regime)
