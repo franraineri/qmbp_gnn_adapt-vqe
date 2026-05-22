@@ -91,7 +91,7 @@ class PipelineResult:
 # ── H-grid generation ────────────────────────────────────────────────────
 
 
-def generate_h_grid(grid_type: str = "standard") -> np.ndarray:
+def generate_h_grid(grid_type: str = "standard", **kwargs) -> np.ndarray:
     """Generate the h-value grid for the VQE sweep.
 
     Parameters
@@ -99,11 +99,27 @@ def generate_h_grid(grid_type: str = "standard") -> np.ndarray:
     grid_type : str
         "standard" — 27 points with Δh=0.05 near critical region.
         "dense" — 45 points with Δh=0.025 near critical region.
+        "custom" — user-specified range via kwargs.
+
+    Keyword Arguments (for grid_type="custom")
+    -------------------------------------------
+    h_min : float — minimum h value (default 0.5)
+    h_max : float — maximum h value (default 2.0)
+    n_points : int — number of points (default 20)
+    h_values : array-like — explicit h-values (overrides h_min/h_max/n_points)
 
     Returns
     -------
     np.ndarray — sorted unique h-values.
     """
+    if grid_type == "custom":
+        if "h_values" in kwargs and kwargs["h_values"] is not None:
+            return np.unique(np.asarray(kwargs["h_values"], dtype=float))
+        h_min = kwargs.get("h_min", 0.5)
+        h_max = kwargs.get("h_max", 2.0)
+        n_points = kwargs.get("n_points", 20)
+        return np.linspace(h_min, h_max, n_points)
+
     h_coarse = np.arange(0.0, 0.8, 0.1)
     h_coarse2 = np.arange(1.5, 2.05, 0.1)
     h_dense = np.arange(0.8, 1.45, 0.025) if grid_type == "dense" else np.arange(0.8, 1.45, 0.05)
@@ -175,13 +191,30 @@ def run_phase2(
     elapsed = time.time() - t0
 
     fidelities = np.array([r.fidelity for r in vqe_results])
+    n_valid = int(np.sum(fidelities >= cfg.fidelity_threshold))
     logger.info(
         "Phase 2: avg fid=%.1f%%, %d/%d above threshold, %.1fs",
         np.mean(fidelities) * 100,
-        np.sum(fidelities >= cfg.fidelity_threshold),
+        n_valid,
         len(fidelities),
         elapsed,
     )
+
+    # ── Inter-phase validation ────────────────────────────────────────
+    if n_valid == 0:
+        logger.error(
+            "Phase 2 produced 0 points above fidelity threshold (%.2f). "
+            "Phase 3 will fail. Adjust h-grid range or VQE config.",
+            cfg.fidelity_threshold,
+        )
+    elif n_valid < 5:
+        logger.warning(
+            "Phase 2: only %d/%d points above fidelity threshold. "
+            "MPNN training may be unreliable with so few points.",
+            n_valid,
+            len(fidelities),
+        )
+
     return vqe_results, fidelities, elapsed
 
 

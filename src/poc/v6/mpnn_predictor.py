@@ -319,6 +319,7 @@ def train_mpnn(
     energy_val_interval: int = 50,
     energy_val_fn: callable | None = None,
     divergence_window: int = 5,
+    divergence_threshold: float = 0.01,
 ) -> dict:
     """Train the MPNN with MSE loss, ReduceLROnPlateau, and optional
     energy-driven validation.
@@ -335,6 +336,8 @@ def train_mpnn(
         Function(theta_pred_batch, data_batch) -> list[float] of energy errors.
         If provided, enables energy-driven validation (Task 6.4).
     divergence_window : int — window for divergence detection (Task 6.5)
+    divergence_threshold : float — ΔE threshold for divergence detection.
+        Default 0.01. Use higher values for larger N (e.g., 0.05 for N=20).
 
     Returns
     -------
@@ -342,7 +345,30 @@ def train_mpnn(
                     'stopped_early', 'stop_reason',
                     and optionally 'zz_head_loss_history', 'x_head_loss_history'
                     when per_parameter_heads is enabled.
+
+    Raises
+    ------
+    ValueError
+        If dataset has fewer than 3 points (insufficient for training).
     """
+    # ── Dataset validation ────────────────────────────────────────────
+    if len(dataset) == 0:
+        raise ValueError(
+            "Empty dataset passed to train_mpnn(). "
+            "Check fidelity filter threshold or h-grid range — "
+            "all points may have been filtered out."
+        )
+    if len(dataset) < 3:
+        raise ValueError(
+            f"Dataset too small ({len(dataset)} points) for reliable MPNN training. "
+            f"Need at least 3 points. Consider widening the h-grid or "
+            f"lowering the fidelity threshold."
+        )
+    if len(dataset) < 10:
+        logger.warning(
+            f"Small dataset ({len(dataset)} points). MPNN predictions may be unreliable. "
+            f"Consider adding more training points in the valid regime."
+        )
     import torch.nn.functional as F
     from torch_geometric.loader import DataLoader
 
@@ -422,7 +448,7 @@ def train_mpnn(
                     abs(recent_de[k] - recent_de[k - 1]) < 0.01 * abs(recent_de[0])
                     for k in range(1, len(recent_de))
                 )
-                if mse_improving and de_stagnant and mean_de > 0.01:
+                if mse_improving and de_stagnant and mean_de > divergence_threshold:
                     logger.warning(
                         f"Training divergence detected at epoch {epoch + 1}: "
                         f"MSE converging but ΔE stagnant ({mean_de:.2e}). "

@@ -141,7 +141,7 @@ class VQEOptimizer:
         n_restarts_used = 0
 
         # Random restarts
-        for _ in range(cfg.n_restarts):
+        for restart_idx in range(cfg.n_restarts):
             x0 = best.x + np.random.normal(0, cfg.restart_sigma, len(best.x))
             # Clip to bounds
             x0 = np.clip(x0, cfg.bounds[0], cfg.bounds[1])
@@ -153,9 +153,21 @@ class VQEOptimizer:
                 callback=callback,
                 options={"maxiter": cfg.maxiter, "ftol": cfg.ftol},
             )
+            if not trial.success:
+                logger.debug(
+                    f"VQE restart {restart_idx + 1}/{cfg.n_restarts} did not converge: "
+                    f"{trial.message}"
+                )
             if trial.fun < best.fun:
                 best = trial
                 n_restarts_used += 1
+
+        # Log convergence status
+        if not best.success:
+            logger.warning(
+                f"VQE best result did not converge (nit={best.nit}, "
+                f"message='{best.message}'). Energy={best.fun:.6f}"
+            )
 
         # Compute validation metrics
         energy_error = 0.0

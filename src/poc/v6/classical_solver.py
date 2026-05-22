@@ -215,7 +215,19 @@ class ClassicalSolver:
             #         "Gap not available via DMRG for this system."
             #     )
         except Exception:
-            logger.warning("Could not compute gap via DMRG excitation. Setting gap=0.")
+            logger.warning("Could not compute gap via DMRG excitation.")
+
+        # ── Analytical gap fallback for 1D TFIM ──────────────────────
+        if gap == 0.0:
+            # Analytical approximation: gap = 2|J - h| (exact in thermodynamic limit)
+            # with finite-size floor: gap >= 2*pi/N (minimum gap from dispersion)
+            gap_analytical = max(2 * abs(j_val - h_val), 2 * np.pi / n)
+            gap = gap_analytical
+            logger.warning(
+                f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
+                f"Using analytical gap={gap:.4f} (valid for 1D TFIM, "
+                f"approximate near h_c=1.0)."
+            )
 
         # ── Local observables ─────────────────────────────────────────
         # Sigmax per site (array over all sites)

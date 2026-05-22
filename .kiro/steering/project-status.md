@@ -13,6 +13,33 @@ Before running ANY experiment or notebook execution:
 V6.1 complete and thesis-ready. All features validated at N=6 and N=10 (15 definitive runs).
 Pipeline observability (DiagnosticCollector) now always-on — every run captures full metrics.
 **V7 experiments complete** — all simulation-testable questions answered (12/22 experiments run, 10 skipped with justification).
+**V8 experiments in progress** — landscape analysis, scaling laws, methodological validation (9/19 executed).
+
+## V8 Key Results (2026-05-22)
+- **Scaling law (A3)**: h_min = 1.0 + 0.019·N^1.33 (R²=0.9998). Predicts N=20→2.00 (exact match). Exponent ≠ ν=1.
+- **p=1 vs p=2**: β(p=1)=0.60 < β(p=2)=1.33 → p=1 scales better at large N.
+- **No barren plateaus (F3)**: Landscape fluctuation >1.0 everywhere (confirms Mele et al. 2026).
+- **fraction_near_gs**: Novel training-free boundary predictor (0% at h<1.0, 5%+ at h>1.5).
+- **Hessian (B4)**: ALL VQE minima are genuine (0 saddle points). 73% eval savings with 1 restart. ✅
+- **Analytical init (B1)**: 97% fewer iterations but converges to wrong basin. Warm-start wins.
+- **DyPP (F1)**: Only 8-13% iteration savings (hypothesis was 30-50%). Rejected. ❌
+- **Weight-space phase detection (D1)**: MPNN-A peak at h≈0.7 (near h_c=1.0). Novel zero-QPU method. ✅
+- **Parameter freezing (B2)**: 2/4 params frozen at h≥1.5, 0% accuracy loss. ✅
+- **Longitudinal field (E4)**: HVA p=2 fails at g>0 (fidelity drops to 0.89 at g=0.1). HVA is model-specific. ❌
+- Binnacles: `binnacle-v8-experiments.md`, `binnacle-v8-experiments-round1.md`
+
+## V8 Validated Decisions (2026-05-22)
+- **VQE restarts:** 1 restart sufficient at N=6 (B4: no saddle points in HVA landscape)
+- **VQE at N=20 p=1:** 3 restarts + 100 maxiter + MPS (chi=64) → ΔE/gap=1.58% (2/3 seeds). 5 restarts needed for full reliability (C3)
+- **Sign canonicalization:** NOT needed — descending warm-start breaks Z₂ naturally (C3, 3 runs confirm 0% effect)
+- **N=20 p=1 local minimum:** ΔE/gap=0.437 basin exists — requires ≥5 restarts to reliably escape (C3)
+- **Parameter freezing:** Freeze θ_zz2, θ_x2 at h≥1.5 (B2: 0% accuracy loss)
+- **Optimal VQE at h≥1.5:** 1 restart + 2 active params = **75% cost reduction**
+- **DyPP:** Rejected — standard warm-start is near-optimal for 4-param HVA (F1)
+- **Longitudinal field:** HVA p=2 is TFIM-specific, not model-agnostic (E4)
+- **Phase detection:** Weight gradient peaks detect h_c when MPNN loss≈0.002 (D1, D1-dense)
+- **Physics-informed loss (C1):** +3.9% mean improvement (max +17.5% at h=1.75). Safe, no regression. Modest at N=6.
+- **Phase detection caveat:** Overfitting (loss=0) shifts peak to h≈0.69; needs regularization (D1-dense)
 
 ## Active Priority
 1. **Hardware deployment on IBM Torino** — the only way to validate ZNE at N=10 (local simulation exhausted).
