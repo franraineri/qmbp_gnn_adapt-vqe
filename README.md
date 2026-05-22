@@ -16,7 +16,7 @@ pre-commit hooks.
 
 - **V6.1 pipeline**: Complete and thesis-ready (N=6, N=10 validated)
 - **V7 experiments**: Complete (12/22 run, 10 skipped with justification)
-- **V8 experiments**: 10/19 executed — landscape analysis, scaling, methodology
+- **V8 experiments**: Complete — 13 runs across 10 experiments (landscape, scaling, methodology)
 - **Hardware**: Pending IBM Torino deployment (local simulation exhausted)
 
 ### Key Results
@@ -52,24 +52,27 @@ qmbp_gnn_adapt-vqe/
 │   └── pipeline_utils.py               # Dataset save/load
 │
 ├── scripts/
-│   ├── experiments_v8/                 # V8 experiment framework (ACTIVE)
+│   ├── experiments_v8/                 # V8 experiment framework (COMPLETE)
 │   │   ├── core/                       # BaseExperiment, config, metrics, logging
 │   │   ├── techniques/                 # Reusable: hessian, freezing, physics_loss...
 │   │   ├── experiments/                # 10 experiment scripts (A3-F3)
 │   │   ├── results/                    # JSON results (auto-generated)
 │   │   ├── run_experiment.py           # CLI: --exp A3 --verbose
+│   │   ├── run_b4_n10.py              # Standalone: Hessian at N=10
+│   │   ├── run_f3_p1.py              # Standalone: Landscape p=1 vs p=2
+│   │   ├── run_d1_regularized.py      # Standalone: D1 with dropout
+│   │   ├── run_c1_n10.py             # Standalone: Physics loss at N=10
 │   │   └── compare_results.py         # Cross-experiment comparison
 │   ├── experiments_hamed_v7/           # V7 experiments (complete)
-│   ├── experiments_v6.1_noisy/         # Noisy simulation scripts
 │   └── hooks/                          # Pre-commit hook scripts
 │
-├── tests/                              # pytest suite (122 tests)
+├── tests/                              # pytest suite (126 tests)
 │
 ├── documentation/
-│   ├── v8/                             # V8 plans + STATUS (source of truth)
-│   ├── v7/                             # V7 results summary
-│   ├── binnacles/                      # Experiment logs (N6, N10, V8 rounds)
-│   └── bibliography/                   # Curated references
+│   ├── v8/                             # V8 status + improvement techniques
+│   ├── v7/                             # V7 results summary + quantum utility plan
+│   ├── binnacles/                      # Experiment logs (11 files: N6, N10, V7, V8)
+│   └── bibliography/                   # Curated + full + alternative references
 │
 ├── .kiro/
 │   ├── steering/                       # AI agent guidance files
@@ -92,7 +95,7 @@ pip install -r requirements.txt
 pre-commit install
 
 # Verify
-make check-full              # lint + 122 tests + smoke test
+make check-full              # lint + 126 tests + smoke test
 
 # Run V8 experiments
 python scripts/experiments_v8/run_experiment.py --list
@@ -124,13 +127,16 @@ python scripts/experiments_v8/compare_results.py --all
 
 | Experiment | Finding | Thesis Impact |
 |-----------|---------|:---:|
-| B4 (Hessian) | HVA landscape has 0 saddle points; 1 restart sufficient | HIGH |
-| D1 (Weight-space) | MPNN gradient peaks detect h_c (novel zero-QPU method) | HIGH |
+| A3 (Scaling) | h_min = 1.0 + 0.020·N^1.31 (R²=1.00); p=1 scales better | HIGH |
+| B4 (Hessian) | HVA landscape has 0 saddle points at N=6 AND N=10 | HIGH |
+| D1 (Weight-space) | MPNN gradient peaks detect h_c; dropout=0.1 makes it robust | HIGH |
 | C3 (Sign canon.) | N=20 p=1 works; sign canonicalization unnecessary | HIGH |
 | B2 (Freezing) | 2/4 params frozen at h≥1.5, 0% accuracy loss | MEDIUM |
-| C1 (Physics loss) | +3.9% improvement, no regression | MEDIUM |
+| C1 (Physics loss) | +3.9% at N=6, -12.3% at N=10 (context-dependent) | MEDIUM |
 | E4 (Longitudinal) | HVA p=2 is TFIM-specific (g>0 fails) | MEDIUM |
+| F3 (Fluctuation) | No BPs; p=1 landscape simpler; fraction_near_gs predicts boundary | MEDIUM |
 | F1 (DyPP) | Rejected: only 8-13% savings | LOW |
+| B1 (Analytical) | Rejected: converges to wrong basin | LOW |
 
 ## Tech Stack
 
@@ -156,7 +162,7 @@ python scripts/experiments_v8/compare_results.py --all
 
 ## Documentation
 
-- **[V8 Status](documentation/v8/STATUS-V8.md)** — Single source of truth for experiments
+- **[V8 Status](documentation/v8/STATUS.md)** — Single source of truth for V8 experiments
 - **[V7 Results](documentation/v7/RESULTS_SUMMARY_V61_V7.md)** — Complete V6.1/V7 summary
 - **[Architecture](documentation/architectural_doc_es_en.md)** — System design (ES/EN)
 - **[Thesis Guide](documentation/thesis-structure-guide.md)** — Chapter outline

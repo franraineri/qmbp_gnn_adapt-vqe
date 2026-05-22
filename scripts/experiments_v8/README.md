@@ -28,11 +28,16 @@ scripts/experiments_v8/
 │   ├── exp_b1_analytical.py     # B1: Analytical init validation
 │   ├── exp_b2_freezing.py       # B2: Parameter freezing
 │   ├── exp_b4_hessian.py        # B4: Hessian restarts
+│   ├── exp_c1_physics_loss.py   # C1: Physics-informed MPNN loss
 │   ├── exp_c3_sign.py           # C3: Sign equivariance
 │   ├── exp_d1_weight_space.py   # D1: Weight space phase detection
 │   ├── exp_e4_longitudinal.py   # E4: TFIM + longitudinal field
 │   ├── exp_f1_dypp.py           # F1: DyPP extrapolation
 │   └── exp_f3_fluctuation.py    # F3: Landscape fluctuation
+├── run_b4_n10.py                # Standalone: B4 Hessian at N=10
+├── run_f3_p1.py                 # Standalone: F3 landscape p=1 vs p=2
+├── run_d1_regularized.py        # Standalone: D1 with dropout regularization
+├── run_c1_n10.py                # Standalone: C1 physics loss at N=10
 ├── results/                     # Auto-generated results (gitignored)
 ├── run_experiment.py            # Unified CLI runner
 └── compare_results.py           # Cross-experiment comparison tool
