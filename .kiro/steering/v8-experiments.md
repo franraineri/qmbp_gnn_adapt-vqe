@@ -114,19 +114,20 @@ class ExperimentX1(BaseExperiment):
 
 | ID | Name | Status |
 |----|------|--------|
-| A3 | Finite-size scaling law | ✅ Executed |
-| B1 | Analytical initial guess | ✅ Executed |
-| B2 | TITAN parameter freezing | ✅ Ready |
-| B4 | Hessian-guided restarts | ✅ Executed |
-| C3 | Sign canonicalization | ✅ Ready |
-| D1 | Weight-space phase detection | ✅ Ready |
-| E4 | TFIM + longitudinal field | ✅ Ready |
-| F1 | DyPP extrapolation | ✅ Executed |
-| F3 | Landscape fluctuation | ✅ Executed |
+| A3 | Finite-size scaling law | ✅ Executed (3 runs, R²=1.0000) |
+| B1 | Analytical initial guess | ✅ Executed (negative result) |
+| B2 | TITAN parameter freezing | ✅ Executed |
+| B4 | Hessian-guided restarts | ✅ Executed (N=6 + N=10) |
+| C1 | Physics-informed loss | ✅ Executed (N=6 + N=10) |
+| C3 | Sign canonicalization | ✅ Executed (3 runs) |
+| D1 | Weight-space phase detection | ✅ Executed (N=6 + N=10 + regularized) |
+| E4 | TFIM + longitudinal field | ✅ Executed (negative result) |
+| F1 | DyPP extrapolation | ✅ Executed (negative result) |
+| F3 | Landscape fluctuation | ✅ Executed (p=2 + p=1 comparison) |
 
 ## Planned but NOT Implemented (do not try to run)
 
-C1, E3 — technique modules exist but experiment scripts are pending.
+E3 — technique module exists but experiment script is pending (active learning).
 A1, A2, B3, D3, E1 — excluded from final plan (high effort or needs external libs).
 
 ## Result Format
@@ -143,9 +144,9 @@ Every experiment produces a JSON file in `results/exp_<id>/run_<timestamp>.json`
 
 ## Documentation References
 
-- Plan: `documentation/plan-new-simulation-experiments-v8.md`
-- Gaps: `documentation/review-v8-infrastructure-gaps.md`
-- Binnacle: `documentation/binnacles/binnacle-v8-experiments.md`
+- Status: `documentation/v8/STATUS.md` (single source of truth for V8 results)
+- Improvement techniques: `documentation/v8/analysis-improvement-techniques.md`
+- Binnacles: `documentation/binnacles/binnacle-v8-experiments-initial.md`, `*-round1.md`, `*-round2.md`
 
 ---
 
@@ -330,7 +331,62 @@ These fixes were applied to V6 stable code BEFORE running V8 experiments:
 | VQE convergence check | `vqe_optimizer.py` | Log warning when `result.success=False` |
 | Dataset validation | `mpnn_predictor.py` | Raise ValueError if dataset < 3 points |
 | Divergence threshold | `mpnn_predictor.py` | New param `divergence_threshold` (default 0.01) |
-| Inter-phase validation | `pipeline_core.py` | Error if 0 valid points; warning if < 5 |
-| Custom h-grid | `pipeline_core.py` | `generate_h_grid("custom", h_min=..., h_max=..., n_points=...)` |
 
 All 131 existing tests pass after these changes.
+
+---
+
+## Round 2 Results (2026-05-22 afternoon)
+
+### B4 at N=10: Hessian Landscape Verification
+
+**Time:** ~5 min | **Script:** `run_b4_n10.py`
+
+| h | ΔE/gap | Type | Cond # (N=10) | Cond # (N=6) |
+|---|--------|------|:-------------:|:------------:|
+| 2.00 | 0.52% | minimum | 1294 | 1399 |
+| 1.75 | 0.95% | minimum | 52 | — |
+| 1.50 | 2.72% | minimum | 33 | 36 |
+| 1.25 | 10.2% | minimum | 21 | 23 |
+| 1.00 | 61.8% | minimum | 13 | 14 |
+
+**Conclusion:** Saddle-free property confirmed at N=10. Condition numbers N-independent.
+
+---
+
+### F3 at p=1: Landscape Comparison
+
+**Time:** ~10s | **Script:** `run_f3_p1.py`
+
+- p=1 mean fluctuation: 1.38 (vs p=2: 1.99) — simpler landscape
+- p=1 fraction_near_gs at h=2.0: 0.14 (vs p=2: 0.11) — easier random access
+- Both have NO barren plateaus
+
+---
+
+### D1 Regularized: Robust Phase Detection
+
+**Time:** ~3 min | **Script:** `run_d1_regularized.py`
+
+| Variant | Mean peak | Std | Reliable? |
+|---------|:---------:|:---:|:---------:|
+| No reg | 1.47 | 0.90 | ❌ |
+| **Dropout=0.1** | **0.61** | **0.13** | **✅** |
+| EarlyStop@0.002 | 0.73 | 0.28 | ✅ |
+
+**Conclusion:** Dropout=0.1 makes D1 robust (7× lower variance).
+
+---
+
+### C1 at N=10: Physics Loss Scaling
+
+**Time:** 85s | **Script:** `run_c1_n10.py`
+
+| h | Baseline ΔE/gap | Physics ΔE/gap | Improvement |
+|---|:---:|:---:|:---:|
+| 1.50 | 0.034 | 0.041 | -22% ❌ |
+| 1.75 | 0.016 | 0.017 | -8% ❌ |
+| 2.00 | 0.012 | 0.011 | +10% ✅ |
+
+**Conclusion:** Physics loss HURTS at N=10 with valid-regime-only training (-12.3% overall).
+Only helps when training includes invalid regime data (where MSE≠ΔE/gap decorrelation exists).

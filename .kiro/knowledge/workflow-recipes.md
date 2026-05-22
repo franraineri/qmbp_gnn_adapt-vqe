@@ -18,13 +18,6 @@ from src.poc.v6.mpnn_predictor import save_mpnn_checkpoint, load_mpnn_checkpoint
 from src.poc.v6.qrc_pipeline import QRCPipeline
 from src.poc.v6.pipeline_utils import assert_observable_locality
 
-# Pipeline Core (shared execution logic — preferred for scripts)
-from src.poc.v6.pipeline_core import (
-    PipelineCoreConfig, PipelineResult,
-    generate_h_grid, run_phase1, run_phase2, run_phase3, run_phase4,
-    run_full_pipeline,
-)
-
 # V6.1 extensions (hardware + analysis)
 from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
 from src.poc.v6.analysis_utils import WeightGradientAnalyzer
@@ -32,12 +25,6 @@ from src.poc.v6.config_v61 import (
     DeployResultV61, LayoutResult, GradientAnalysisResult, MPNNCheckpoint,
     SHOT_BUDGET_SMALL, SHOT_BUDGET_MEDIUM, SHOT_BUDGET_LARGE,
 )
-
-# V6.0 deployer (simulation-only, lighter dependencies) — LEGACY
-from src.poc.v6.hardware_deployer import HardwareDeployer
-
-# Experimental (deprecated — only for benchmark reproducibility)
-from src.poc.v6.experimental import GATPredictor, augment_graph_dataset
 ```
 
 ## Phase 1: Ground Truth (V6 pattern)
@@ -51,43 +38,6 @@ for h in h_values:
     lat_h = make_lattice("chain_1d", N, J=J, h=h)
     H = builder.build(lat_h)
     exact_data.append(solver.solve(H, lat_h))
-```
-
-## Full Pipeline via pipeline_core (PREFERRED for scripts)
-
-```python
-from src.poc.v6.pipeline_core import PipelineCoreConfig, run_full_pipeline
-
-cfg = PipelineCoreConfig(
-    N=6, J=1.0, p_layers=2, topology="chain_1d",
-    n_restarts=5, maxiter=1000,
-    mpnn_hidden=64, mpnn_layers=3, mpnn_epochs=6000, mpnn_lr=1e-3, mpnn_patience=300,
-    h_test=1.25, fidelity_threshold=0.93, seed=42,
-    h_grid="standard",
-)
-
-result = run_full_pipeline(cfg, deploy_mode="simulation")
-# result.deploy_result.delta_e_over_gap → primary metric
-# result.model → trained MPNN for further analysis
-# result.total_time → wall-clock time
-```
-
-### Individual Phase Execution (when you need custom logic between phases)
-
-```python
-from src.poc.v6.pipeline_core import (
-    PipelineCoreConfig, generate_h_grid,
-    run_phase1, run_phase2, run_phase3, run_phase4,
-)
-
-cfg = PipelineCoreConfig(N=10, mpnn_hidden=128, mpnn_patience=500, seed=43)
-h_values = generate_h_grid(cfg.h_grid)
-
-exact_data, t1 = run_phase1(cfg, h_values)
-vqe_results, fidelities, t2 = run_phase2(cfg, h_values, exact_data)
-# ... custom logic here (e.g., diagnostics, checkpoints) ...
-dataset, model, train_result, t3 = run_phase3(cfg, h_values, vqe_results, exact_data, fidelities)
-deploy_result, theta_pred, t4 = run_phase4(cfg, model, mode="simulation")
 ```
 
 ## Phase 2: VQE Sweep (V6 pattern)

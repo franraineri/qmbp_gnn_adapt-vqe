@@ -13,23 +13,27 @@ Before running ANY experiment or notebook execution:
 V6.1 complete and thesis-ready. All features validated at N=6 and N=10 (15 definitive runs).
 Pipeline observability (DiagnosticCollector) now always-on — every run captures full metrics.
 **V7 experiments complete** — all simulation-testable questions answered (12/22 experiments run, 10 skipped with justification).
-**V8 experiments in progress** — landscape analysis, scaling laws, methodological validation (9/19 executed).
+**V8 experiments complete** — landscape analysis, scaling laws, methodological validation (13/19 executed, 6 skipped with justification).
 
 ## V8 Key Results (2026-05-22)
-- **Scaling law (A3)**: h_min = 1.0 + 0.019·N^1.33 (R²=0.9998). Predicts N=20→2.00 (exact match). Exponent ≠ ν=1.
+- **Scaling law (A3)**: h_min = 1.0 + 0.020·N^1.31 (R²=1.0000). Predicts N=20→2.00 (exact match). Exponent ≠ ν=1.
 - **p=1 vs p=2**: β(p=1)=0.60 < β(p=2)=1.33 → p=1 scales better at large N.
 - **No barren plateaus (F3)**: Landscape fluctuation >1.0 everywhere (confirms Mele et al. 2026).
+- **p=1 landscape simpler (F3@p=1)**: Lower fluctuation (1.38 vs 1.99), higher fraction_near_gs.
 - **fraction_near_gs**: Novel training-free boundary predictor (0% at h<1.0, 5%+ at h>1.5).
 - **Hessian (B4)**: ALL VQE minima are genuine (0 saddle points). 73% eval savings with 1 restart. ✅
+- **Hessian N=10 (B4@N=10)**: Saddle-free confirmed at N=10. Condition numbers N-independent. ✅
 - **Analytical init (B1)**: 97% fewer iterations but converges to wrong basin. Warm-start wins.
 - **DyPP (F1)**: Only 8-13% iteration savings (hypothesis was 30-50%). Rejected. ❌
 - **Weight-space phase detection (D1)**: MPNN-A peak at h≈0.7 (near h_c=1.0). Novel zero-QPU method. ✅
+- **D1 regularized**: Dropout=0.1 makes detection robust (std=0.13 vs 0.90). 5 seeds all consistent. ✅
 - **Parameter freezing (B2)**: 2/4 params frozen at h≥1.5, 0% accuracy loss. ✅
 - **Longitudinal field (E4)**: HVA p=2 fails at g>0 (fidelity drops to 0.89 at g=0.1). HVA is model-specific. ❌
 - Binnacles: `binnacle-v8-experiments.md`, `binnacle-v8-experiments-round1.md`
 
 ## V8 Validated Decisions (2026-05-22)
-- **VQE restarts:** 1 restart sufficient at N=6 (B4: no saddle points in HVA landscape)
+- **VQE restarts:** 1 restart sufficient at N=6 AND N=10 (B4: no saddle points in HVA landscape at either size)
+- **Landscape is N-independent:** Condition numbers at N=10 match N=6 within 10% (B4@N=10)
 - **VQE at N=20 p=1:** 3 restarts + 100 maxiter + MPS (chi=64) → ΔE/gap=1.58% (2/3 seeds). 5 restarts needed for full reliability (C3)
 - **Sign canonicalization:** NOT needed — descending warm-start breaks Z₂ naturally (C3, 3 runs confirm 0% effect)
 - **N=20 p=1 local minimum:** ΔE/gap=0.437 basin exists — requires ≥5 restarts to reliably escape (C3)
@@ -38,8 +42,11 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 - **DyPP:** Rejected — standard warm-start is near-optimal for 4-param HVA (F1)
 - **Longitudinal field:** HVA p=2 is TFIM-specific, not model-agnostic (E4)
 - **Phase detection:** Weight gradient peaks detect h_c when MPNN loss≈0.002 (D1, D1-dense)
+- **Phase detection robustness:** Dropout=0.1 → std=0.13 (vs 0.90 without). Reliable across 5 seeds (D1-reg)
 - **Physics-informed loss (C1):** +3.9% mean improvement (max +17.5% at h=1.75). Safe, no regression. Modest at N=6.
+- **Physics-informed loss (C1@N=10):** -12.3% (HURTS). Only helps with full h-range training, not valid-regime-only.
 - **Phase detection caveat:** Overfitting (loss=0) shifts peak to h≈0.69; needs regularization (D1-dense)
+- **p=1 landscape (F3@p=1):** Simpler (fluctuation 1.38 vs 1.99), higher random GS accessibility at h≥1.5
 
 ## Active Priority
 1. **Hardware deployment on IBM Torino** — the only way to validate ZNE at N=10 (local simulation exhausted).
@@ -98,10 +105,10 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `scripts/experiments_hamed_v7/` — V7 full experiment suite (22 sub-experiments, master runner)
 - `scripts/experiments_hamed_v7/experiment_p1_scaling.py` — p=1 depth-scaling study (6A-6D)
 
-## Dead Code (safe to remove after thesis)
-- `src/poc/v6/pipeline_core.py` — documented but zero imports anywhere in codebase
-- `src/poc/v6/experimental/` — GATPredictor + augmentation (both rejected, zero imports)
-- `src/poc/v6/hardware_deployer.py` — V6.0 legacy (only used by old benchmark/smoke_test)
+## Dead Code (removed 2026-05-22)
+- `src/poc/v6/pipeline_core.py` — documented but zero imports anywhere (DELETED)
+- `src/poc/v6/experimental/` — GATPredictor + augmentation (both rejected, never existed on disk)
+- `src/poc/v6/hardware_deployer.py` — V6.0 legacy (DELETED, superseded by V6.1)
 
 ## Optimal Config (quick reference)
 - **N=6**: GINConv h=64, L=3, 6000ep, lr=1e-3, 5 VQE restarts, fid≥0.93

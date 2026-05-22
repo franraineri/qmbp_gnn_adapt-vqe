@@ -84,9 +84,7 @@ When adding a new feature to `src/poc/v6/`:
 |--------|-------------|
 | `config.py`, `hamiltonian_builder.py`, `classical_solver.py` | `test_v6_pipeline.py` |
 | `vqe_optimizer.py`, `hva_builder.py` | `test_v6_pipeline.py` |
-| `hardware_deployer_v61.py` | `test_v61_integration.py`, `test_noisy_simulation.py` |
+| `hardware_deployer_v61.py` | `test_v6_pipeline.py`, `test_v61_integration.py`, `test_noisy_simulation.py` |
 | `analysis_utils.py` | `test_analysis_utils.py` |
 | `diagnostics.py` | `test_diagnostics_correctness.py`, `test_diagnostics_integration.py` |
 | `mpnn_predictor.py` | `test_v61_integration.py` (edge features, per-param heads) |
-| `pipeline_core.py` | (integration via scripts; add `test_pipeline_core.py` when stabilized) |
-| `experimental/` | Not tested directly (deprecated code, kept for reproducibility) |

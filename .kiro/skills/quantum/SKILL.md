@@ -112,8 +112,6 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 - **QRC fallback route**: fixed HVA reservoir + Rx(h) encoding + linear regression readout
 - Dataset metadata: `cost_function="energy"`, `version="v6.0"` (prevents V5.x phase coupling failure)
 - **Known limit**: HVA p=2 + |+⟩^N cannot express ferromagnetic ground state (h<1.0). Validated for h≥1.0.
-- **Pipeline Core** (`pipeline_core.py`): single-source-of-truth for Phase 1→4 execution pattern. Scripts delegate to `run_full_pipeline()` or individual `run_phaseN()` functions.
-- **Experimental subpackage** (`experimental/`): deprecated approaches (GATPredictor, augmentation) kept for benchmark reproducibility. NEVER use in new code.
 
 ### V6 Module Imports
 
@@ -126,7 +124,7 @@ from src.poc.v6 import (
 )
 from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
 from src.poc.v6.qrc_pipeline import QRCPipeline
-from src.poc.v6.pipeline_core import PipelineCoreConfig, run_full_pipeline  # preferred for scripts
+from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
 ```
 
 ## Pipeline Observability

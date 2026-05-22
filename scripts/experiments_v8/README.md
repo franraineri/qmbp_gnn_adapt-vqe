@@ -152,7 +152,7 @@ results/
 
 ## Related Documentation
 
-- Full experiment plan: `documentation/plan-new-simulation-experiments-v8.md`
-- Infrastructure gaps: `documentation/review-v8-infrastructure-gaps.md`
-- Final selection: `documentation/plan-v8-noiseless-experiments-final.md`
-- Status tracker: `documentation/STATUS-V8.md`
+- Status & results: `documentation/v8/STATUS.md`
+- Improvement techniques: `documentation/v8/analysis-improvement-techniques.md`
+- Binnacles: `documentation/binnacles/binnacle-v8-experiments-*.md`
+- Framework guide: `.kiro/steering/v8-experiments.md`

@@ -11,7 +11,7 @@ from src.poc.v6 import (
     make_lattice,
     save_phase12_dataset,
 )
-from src.poc.v6.hardware_deployer import HardwareDeployer
+from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
 from src.poc.v6.pipeline_utils import assert_observable_locality
 
 # ── Phase 1: Hamiltonian & Ground Truth ──────────────────────────────────
@@ -109,15 +109,10 @@ class TestVQEOptimizer:
 
 class TestHardwareDeployer:
     def test_phase_classification(self):
-        assert HardwareDeployer.classify_phase(0.9, 0.3) == "paramagnetic"
-        assert HardwareDeployer.classify_phase(0.3, 0.9) == "ferromagnetic"
-
-    def test_critical_point_interpolation(self):
-        h = np.array([0.5, 1.0, 1.5, 2.0])
-        mx = np.array([0.3, 0.6, 0.85, 0.95])
-        zz = np.array([0.9, 0.7, 0.4, 0.2])
-        h_c = HardwareDeployer.find_critical_point(h, mx, zz)
-        assert 0.5 < h_c < 2.0
+        deployer = HardwareDeployerV61(mode="simulation")
+        assert deployer.classify_phase(0.9, -0.3, 0.01) == "paramagnetic"
+        assert deployer.classify_phase(0.3, -0.9, 0.01) == "ferromagnetic"
+        assert deployer.classify_phase(0.5, -0.5, 0.1) == "indeterminate"
 
 
 # ── Pipeline Integrity ──────────────────────────────────────────────────

@@ -82,7 +82,6 @@ When results are thesis-relevant:
 | Modified `mpnn_predictor.py` | `make smoke-test` + full parametric (all configs) |
 | Modified `hardware_deployer_v61.py` | `scripts/smoke_test_v61.py` |
 | Modified `analysis_utils.py` | `scripts/smoke_test_v61.py` (includes gradient analysis) |
-| Modified `pipeline_core.py` | `make test` + `scripts/smoke_test_v61.py` |
 | New thesis results needed | `scripts/run_thesis_results.py` (~9min) |
 
 ## When to Escalate (Ask User vs. Proceed)
@@ -148,5 +147,5 @@ Ask these questions before starting any experiment:
 | p=1 valid regime: N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 | Exp 6A/6B/6D (3 seeds) | Boundary shifts +0.25 to +0.40 vs p=2 |
 | p=1 seed-independent only at N≤10 | Exp 6A: identical across seeds; 6B: seed 44 fails at N=20 | N=20 needs better init (analytical guess) |
 | p=1 θ_x constant (±3π/8) at N=20 | Exp 6B: same |θ_x| across all h and seeds | Only θ_zz varies; Z₂ sign symmetry |
-| p=1 MPNN needs sign canonicalization | Exp 6B: seeds find ±θ → inconsistent targets | Enforce θ_x > 0 before training |
+| p=1 MPNN needs sign canonicalization | Exp 6B: seeds find ±θ → inconsistent targets | NOT needed — C3 proved warm-start resolves this with 3 restarts |
 | p=1 N=20 needs >6 training points | Exp 6B: only h=3.0 passes deployment | Use 15-20 pts in [2.25, 4.0] |

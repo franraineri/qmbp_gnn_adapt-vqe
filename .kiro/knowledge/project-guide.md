@@ -18,16 +18,11 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 │   ├── hva_builder.py       ← Phase 2: HVA circuit construction [STABLE]
 │   ├── vqe_optimizer.py     ← Phase 2: Multi-start VQE + callbacks [STABLE]
 │   ├── mpnn_predictor.py    ← Phase 3: MPNN model + training + checkpoint save/load
-│   ├── pipeline_core.py     ← NEW: Shared 4-phase execution logic (single-source-of-truth)
 │   ├── pipeline_utils.py    ← Cross-phase: dataset save/load, integrity checks [STABLE]
 │   ├── qrc_pipeline.py      ← Phase 4: QRC fallback route
-│   ├── hardware_deployer.py ← Phase 4: V6.0 legacy deployer (superseded by V6.1)
 │   ├── hardware_deployer_v61.py ← Phase 4: V6.1 full hardware path (ZNE, DD, twirling)
 │   ├── analysis_utils.py    ← Post-training: WeightGradientAnalyzer (zero QPU cost)
 │   ├── diagnostics.py       ← Pipeline observability (DiagnosticCollector, logging)
-│   ├── experimental/        ← NEW: Deprecated/rejected approaches (kept for reproducibility)
-│   │   ├── gat_predictor.py ← GATConv predictor (rejected: instability for 1D chains)
-│   │   └── augmentation.py  ← θ interpolation augmentation (rejected: hurts accuracy)
 │   ├── poc_v6_phases1_2.ipynb ← Full Phase 1-2 notebook
 │   └── poc_v6_phases3_4.ipynb ← Full Phase 3-4 notebook
 │
@@ -36,6 +31,16 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 │   ├── smoke_test_v61.py    ← V6.1 smoke test: deployer + gradient analysis (~16s)
 │   ├── benchmark_v6.py      ← Multi-run benchmark with configurable params
 │   ├── run_notebooks.py     ← Notebook executor with auto-registry + binnacle generation
+│   ├── run_v61_parametric.py ← Parametric pipeline runner
+│   ├── run_v61_noisy.py     ← Noisy simulation sweep
+│   ├── experiments_hamed_v7/ ← V7 full experiment suite (22 sub-experiments)
+│   ├── experiments_v8/      ← V8 noiseless experiment framework (10 experiments)
+│   │   ├── core/            ← Infrastructure (base_experiment, config, metrics, landscape)
+│   │   ├── experiments/     ← One file per experiment (A3, B1, B2, B4, C1, C3, D1, E4, F1, F3)
+│   │   ├── techniques/      ← Reusable building blocks
+│   │   ├── results/         ← Auto-generated JSON results
+│   │   ├── run_experiment.py ← CLI entry point
+│   │   └── run_*.py         ← Standalone scripts (B4@N=10, F3@p=1, D1-reg, C1@N=10)
 │   ├── hooks/               ← Pre-commit hook scripts
 │   │   └── check_hva_depth.py
 │   ├── benchmark_results/   ← Raw JSON results (gitignored)
@@ -115,16 +120,16 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
 | Check numerical baselines & tables | `.kiro/knowledge/validation-targets.md` (source of truth for numbers) |
 | See analysis & interpretation of results | `.kiro/knowledge/poc-results.md` |
-| Check validation targets & tables | `.kiro/knowledge/validation-targets.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
 | See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` + `.kiro/steering/hardware-deployment.md` |
 | Review literature insights & improvements | `.kiro/knowledge/literature-synthesis.md` |
-| See full experiment history | `documentation/binnacles/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
-| Find alternative techniques | `documentation/alternative_bibliography.md` |
-| Understand V6.1 changes | `src/poc/v6/CHANGES_V6.md` |
-| Use shared pipeline execution | `src/poc/v6/pipeline_core.py` |
-| Find deprecated approaches | `src/poc/v6/experimental/` (GATPredictor, augmentation) |
-| Run notebooks with metrics | `scripts/run_notebooks.py --help` |
+| See V8 experiment results | `documentation/v8/STATUS.md` (master doc) |
+| See V8 experiment framework guide | `.kiro/steering/v8-experiments.md` |
+| See full experiment history | `documentation/binnacles/` (multiple binnacle files) |
+| Find alternative techniques | `documentation/bibliography/alternative_bibliography.md` |
+| Use shared pipeline execution | V8 framework: `scripts/experiments_v8/` |
+| Find deprecated approaches | Removed (GATPredictor, augmentation, pipeline_core — all deleted) |
+| Run V8 experiments | `scripts/experiments_v8/run_experiment.py --list` |
 | Validate V6.1 deployer | `scripts/smoke_test_v61.py` |
 | Check knowledge freshness | `.kiro/knowledge/changelog.md` |
 
@@ -136,9 +141,8 @@ The notebook executor auto-extracts metrics (fidelity, MSE, ΔE/gap, checklist, 
 5. Phase 2 MUST use pure energy cost (V5.x lesson).
 6. All scripts live in `scripts/` — never put executable scripts in `src/`.
 7. Use `run_notebooks.py --binnacle --label "description"` for automated experiment logging.
-8. V6.1 modules (`hardware_deployer_v61.py`, `config_v61.py`, `analysis_utils.py`) extend V6.0 — never modify V6.0 stable modules.
-9. Use `pipeline_core.py` for shared pipeline logic — do NOT duplicate Phase 1→4 patterns in scripts.
-10. Deprecated approaches belong in `src/poc/v6/experimental/` — never in main modules.
+8. V6.1 modules (`hardware_deployer_v61.py`, `config_v61.py`, `analysis_utils.py`) are the active Phase 4 code.
+9. All scripts live in `scripts/` — never put executable scripts in `src/`.
 
 ## Current Best Configuration (from 60+ benchmark runs)
 

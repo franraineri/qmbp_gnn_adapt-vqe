@@ -17,17 +17,11 @@ src/poc/v6/
 ├── hva_builder.py           ← Phase 2: HVA circuit (stable)
 ├── vqe_optimizer.py         ← Phase 2: Multi-start VQE (stable)
 ├── mpnn_predictor.py        ← Phase 3: MPNN model + training
-├── pipeline_core.py         ← Shared 4-phase execution logic (NEW)
 ├── pipeline_utils.py        ← Cross-phase: dataset save/load (stable)
-├── hardware_deployer.py     ← Phase 4: V6.0 legacy deployer
 ├── hardware_deployer_v61.py ← Phase 4: V6.1 full hardware path
 ├── qrc_pipeline.py          ← Phase 4: QRC fallback route
 ├── analysis_utils.py        ← Post-training: gradient analysis + metrics
-├── diagnostics.py           ← Pipeline observability
-└── experimental/            ← Deprecated/rejected approaches
-    ├── __init__.py
-    ├── gat_predictor.py     ← GATConv (rejected: instability for 1D)
-    └── augmentation.py      ← θ interpolation (rejected: hurts accuracy)
+└── diagnostics.py           ← Pipeline observability
 ```
 
 ## Lattice Construction
@@ -54,15 +48,6 @@ from src.poc.v6.mpnn_predictor import save_mpnn_checkpoint, load_mpnn_checkpoint
 from src.poc.v6.qrc_pipeline import QRCPipeline
 ```
 
-### Pipeline Core (shared execution logic)
-```python
-from src.poc.v6.pipeline_core import (
-    PipelineCoreConfig, PipelineResult,
-    generate_h_grid, run_phase1, run_phase2, run_phase3, run_phase4,
-    run_full_pipeline,
-)
-```
-
 ### V6.1 extensions (hardware + analysis)
 ```python
 from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
@@ -80,17 +65,6 @@ from src.poc.v6.analysis_utils import (
 )
 ```
 
-### Experimental (deprecated — only for benchmark reproducibility)
-```python
-from src.poc.v6.experimental import GATPredictor, augment_graph_dataset
-# WARNING: These are REJECTED approaches. Do NOT use in new code.
-```
-
-### V6.0 legacy deployer (use V6.1 instead)
-```python
-from src.poc.v6.hardware_deployer import HardwareDeployer  # LEGACY — prefer HardwareDeployerV61
-```
-
 ## Qiskit Patterns
 - SparsePauliOp via `from_sparse_list()` only.
 - Energy evaluation: `StatevectorEstimator().run([(bound_qc, H)]).result()[0].data.evs`
@@ -106,9 +80,3 @@ from src.poc.v6.hardware_deployer import HardwareDeployer  # LEGACY — prefer H
 - Raise `ValueError` for constraint violations (p>2, invalid topology, phase coupling mismatch).
 - Use `logging.warning()` for recoverable issues (DMRG fallback, gap computation failure).
 - Use `assert` only for invariant checks (QRC no-training invariant).
-
-## Pipeline Core Conventions
-- `pipeline_core.py` is the single-source-of-truth for the Phase 1→4 execution pattern.
-- Scripts should delegate to `run_full_pipeline()` or individual `run_phaseN()` functions.
-- Do NOT duplicate pipeline logic in scripts — if a script needs custom behavior, extend `PipelineCoreConfig` or wrap the phase functions.
-- `PipelineCoreConfig` contains all tunable parameters; scripts map their own CLI args to it.
