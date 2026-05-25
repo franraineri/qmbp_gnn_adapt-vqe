@@ -101,11 +101,11 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 6. **Active learning**: identify high-uncertainty h-regions, run targeted VQE, retrain
 7. **Noise-aware training**: train MPNN on `AerSimulator` noisy VQE data for hardware-optimized predictions
 
-## Current PoC (V6.0)
+## Current Package (`qmbp_simulation`)
 
 - 1D TFIM, N=6, HVA p=2, |+⟩^N
-- **Modular architecture**: 14 Python modules under `src/poc/v6/` + `experimental/` subpackage
-- Phases 1-2: `src/poc/v6/poc_v6_phases1_2.ipynb` / Phases 3-4: `src/poc/v6/poc_v6_phases3_4.ipynb`
+- **Installable package**: `src/qmbp_simulation/` with strict module dependency DAG
+- Phases 1-4 orchestrated by `PipelineRunner` or individual module calls
 - Non-uniform h-grid: Δh=0.05 near critical region h∈[0.8,1.4], Δh=0.1 elsewhere (27 points)
 - **MPNN predictor** (PyTorch Geometric GINConv + global_mean_pool) — replaces V4 MLP
 - Fidelity filter ≥ 0.93, dropout=0.1
@@ -113,30 +113,31 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 - Dataset metadata: `cost_function="energy"`, `version="v6.0"` (prevents V5.x phase coupling failure)
 - **Known limit**: HVA p=2 + |+⟩^N cannot express ferromagnetic ground state (h<1.0). Validated for h≥1.0.
 
-### V6 Module Imports
+### Package Imports
 
 ```python
-from src.poc.v6 import (
+from qmbp_simulation import (
     HamiltonianBuilder, make_lattice, ClassicalSolver,
     HVACircuitBuilder, VQEOptimizer, LatticeConfig, VQEConfig,
     GroundTruthResult, VQEResult, DeployResult,
     save_phase12_dataset, load_phase12_dataset,
 )
-from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
-from src.poc.v6.qrc_pipeline import QRCPipeline
-from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
+from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+from qmbp_simulation.pipeline import PipelineRunner
+from qmbp_simulation.execution import NoiselessBackend, NoisyBackend, HardwareBackend
+from qmbp_simulation.framework import BaseExperiment, ExperimentConfig, ExperimentMetrics
+from qmbp_simulation.analysis import WeightGradientAnalyzer, DiagnosticCollector
 ```
 
 ## Pipeline Observability
 
-The `DiagnosticCollector` (in `src/poc/v6/diagnostics.py`) instruments the pipeline when `--verbose` or `--debug` is passed to `run_v61_parametric.py`.
+The `DiagnosticCollector` (in `src/qmbp_simulation/analysis/diagnostics.py`) instruments the pipeline when `--verbose` or `--debug` is passed to experiment scripts.
 
 ### Usage Pattern
 ```python
-from src.poc.v6.diagnostics import DiagnosticCollector, configure_pipeline_logging
+from qmbp_simulation.analysis import DiagnosticCollector
 
-logger = configure_pipeline_logging(verbose=True)
-collector = DiagnosticCollector(verbose=True, save_dir=Path("scripts/notebook_results"))
+collector = DiagnosticCollector(verbose=True, save_dir=Path("results/experiments"))
 
 # Record after each phase; call save_checkpoint("phaseN") after each
 collector.record_vqe_point(h, n_iters, restart_energies, theta_opt, elapsed_s)
@@ -199,7 +200,8 @@ from qiskit.primitives import BackendEstimatorV2
 # FakeTorino provides real Torino calibration data (133 qubits, heavy-hex)
 # BackendEstimatorV2 executes circuits through the noise model locally
 # No DD/twirling/TREX — isolates ZNE contribution
-deployer = HardwareDeployerV61(mode="noisy_simulation", n_layouts=3, seed=42)
+from qmbp_simulation.execution import NoisyBackend
+backend = NoisyBackend(n_layouts=3, seed=42)
 ```
 
 ### Success Criteria
@@ -211,11 +213,14 @@ deployer = HardwareDeployerV61(mode="noisy_simulation", n_layouts=3, seed=42)
 ### Running the Sweep
 
 ```bash
-# Standard sweep (N=6, 6 h-values × 3 modes, ~5 min)
-python scripts/run_v61_noisy.py
+# Smoke test (N=4, p=1, 3 h-points, ~30s)
+python scripts/smoke_test.py
 
-# Thesis-grade sweep (N=10, ~10 min)
-python scripts/run_v61_noisy.py --n10
+# Run a specific experiment
+python scripts/run_experiment.py --exp A3 --verbose
+
+# Full pipeline (N=6, all phases)
+python scripts/run_pipeline.py --n 6 --p 2 --output results/experiments/
 ```
 
-Results saved as timestamped JSON in `scripts/notebook_results/`.
+Results saved as timestamped JSON in `results/experiments/`.

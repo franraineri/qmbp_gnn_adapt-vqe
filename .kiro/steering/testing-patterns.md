@@ -3,7 +3,7 @@ inclusion: fileMatch
 fileMatchPattern: "tests/**"
 ---
 
-# Testing Patterns — V6 Test Suite
+# Testing Patterns — qmbp_simulation Test Suite
 
 ## Test Structure
 
@@ -72,19 +72,27 @@ Tests live in `tests/` and use pytest. Run with `make test` (~8s) or `python -m 
 
 ## Adding New Tests
 
-When adding a new feature to `src/poc/v6/`:
-1. Add unit tests in the appropriate `Test<Feature>` class
-2. If it's a new module, create `tests/test_<module>.py`
-3. Add integration coverage in `TestHardwareDeployerSimulation` if it affects the pipeline
+When adding a new feature to `src/qmbp_simulation/`:
+1. Add unit tests in the appropriate `Test<Feature>` class in `tests/unit/`
+2. If it's a new module, create `tests/unit/test_<module>.py`
+3. Add integration coverage in `tests/integration/test_pipeline_e2e.py` if it affects the pipeline
 4. Run `make test` to verify, then `make check-full` for the complete gate
 
 ## Module-to-Test Mapping
 
-| Module | Test file(s) |
-|--------|-------------|
-| `config.py`, `hamiltonian_builder.py`, `classical_solver.py` | `test_v6_pipeline.py` |
-| `vqe_optimizer.py`, `hva_builder.py` | `test_v6_pipeline.py` |
-| `hardware_deployer_v61.py` | `test_v6_pipeline.py`, `test_v61_integration.py`, `test_noisy_simulation.py` |
-| `analysis_utils.py` | `test_analysis_utils.py` |
-| `diagnostics.py` | `test_diagnostics_correctness.py`, `test_diagnostics_integration.py` |
-| `mpnn_predictor.py` | `test_v61_integration.py` (edge features, per-param heads) |
+| Package module | Test file(s) |
+|----------------|-------------|
+| `qmbp_simulation.utils` | `tests/unit/test_utils.py` |
+| `qmbp_simulation.models` | `tests/unit/test_models.py` |
+| `qmbp_simulation.solvers` | `tests/unit/test_solvers.py` |
+| `qmbp_simulation.circuits` | `tests/unit/test_circuits.py` |
+| `qmbp_simulation.execution` | `tests/unit/test_execution.py` |
+| `qmbp_simulation.optimizers` | `tests/unit/test_optimizers.py` |
+| `qmbp_simulation.predictors` | `tests/unit/test_predictors.py` |
+| `qmbp_simulation.pipeline` | `tests/unit/test_pipeline.py` |
+| `qmbp_simulation.framework` | `tests/unit/test_framework.py` |
+| `qmbp_simulation.analysis` | `tests/unit/test_analysis.py` |
+| Import dependency order | `tests/unit/test_imports.py` |
+| Smoke test (all imports) | `tests/integration/test_smoke.py` |
+| End-to-end pipeline | `tests/integration/test_pipeline_e2e.py` |
+| Backward compatibility | `tests/integration/test_backward_compat.py` |

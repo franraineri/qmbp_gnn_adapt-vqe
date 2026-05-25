@@ -28,6 +28,9 @@ def check_file(path: str) -> list[str]:
         return []
     if "/hooks/" in path or path.startswith("scripts/hooks/"):
         return []
+    # Skip archived code — historical, not subject to current constraints
+    if "/archive/" in path or path.startswith("archive/"):
+        return []
     violations = []
     try:
         with open(path) as f:

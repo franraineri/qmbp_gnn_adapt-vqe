@@ -143,13 +143,13 @@ fileMatchPattern: "**/hardware_deployer*"
 
 ### Usage Pattern
 ```python
-from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
+from qmbp_simulation.execution import NoisyBackend, MitigationOptions
 
 # Noisy raw (no ZNE — single layout)
-deployer_raw = HardwareDeployerV61(mode="noisy_simulation", n_layouts=1, seed=42)
+backend_raw = NoisyBackend(n_layouts=1, seed=42)
 
 # ZNE mitigated (3 layouts for extrapolation)
-deployer_zne = HardwareDeployerV61(mode="noisy_simulation", n_layouts=3, seed=42)
+backend_zne = NoisyBackend(n_layouts=3, seed=42)
 ```
 
 ### ZNE Layout Scaling (CRITICAL — Validated 2026-05-14)

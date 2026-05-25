@@ -30,8 +30,10 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         types_or: [python, pyi]
+        exclude: '^archive/'
       - id: ruff-format
         types_or: [python, pyi]
+        exclude: '^archive/'
 
   # ── Notebook output stripping ──────────────────────────────
   - repo: https://github.com/kynan/nbstripout
@@ -39,6 +41,7 @@ repos:
     hooks:
       - id: nbstripout
         files: '\.ipynb$'
+        exclude: '^archive/'
 
   # ── Notebook linting (same ruff rules as source) ───────────
   - repo: https://github.com/nbQA-dev/nbQA
@@ -46,6 +49,7 @@ repos:
     hooks:
       - id: nbqa-ruff
         args: [--fix, --exit-non-zero-on-fix]
+        exclude: '^archive/'
 
   # ── Spell check (documentation + comments) ─────────────────
   - repo: https://github.com/codespell-project/codespell
@@ -57,6 +61,7 @@ repos:
           --ignore-words-list, 'aer,fases,fase,ser,inicial,vectores,algoritmos,coo,te,potencial,simular,requiere,posible,amplitud,utiliza,doble,hace,barrer,hagas,raison,funcional,imposible,formen'
         ]
         types_or: [python]
+        exclude: '^archive/'
 
   # ── Documentation: Markdown linting (pure Python, no node) ─
   - repo: https://github.com/jackdewinter/pymarkdown
@@ -77,6 +82,7 @@ repos:
         entry: scripts/hooks/check_hva_depth.py
         language: python
         files: '\.py$'
+        exclude: '^archive/'
         pass_filenames: true
 
   # ── Project-specific: No HEA circuits ─────────────────────
@@ -87,7 +93,7 @@ repos:
         entry: scripts/hooks/check_no_hea.py
         language: python
         files: '\.py$'
-        exclude: '^scripts/hooks/'
+        exclude: '^(scripts/hooks/|archive/)'
         pass_filenames: true
 
   # ── Project-specific: Fidelity threshold ≥ 0.93 ───────────
@@ -98,7 +104,7 @@ repos:
         entry: scripts/hooks/check_fidelity_threshold.py
         language: python
         files: '\.py$'
-        exclude: '^(scripts/hooks/|scripts/experiments_|tests/)'
+        exclude: '^(scripts/hooks/|scripts/experiments_|tests/|archive/)'
         pass_filenames: true
 
   # ── Project-specific: Primitives V2 only ───────────────────
@@ -109,7 +115,7 @@ repos:
         entry: scripts/hooks/check_primitives_v2.py
         language: python
         files: '\.py$'
-        exclude: '^scripts/hooks/'
+        exclude: '^(scripts/hooks/|archive/)'
         pass_filenames: true
 
   # ── Commit message: Conventional Commits ───────────────────

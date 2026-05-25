@@ -1,10 +1,10 @@
 {
   "name": "Documentation Sync Reminder",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "When source modules or scripts are edited, remind that documentation (binnacles, thesis tables, project-status) may need updating.",
   "when": {
     "type": "fileEdited",
-    "patterns": ["src/poc/v6/*.py", "src/poc/v6/experimental/*.py", "scripts/run_*.py", "scripts/smoke_test*.py"]
+    "patterns": ["src/qmbp_simulation/**/*.py", "scripts/run_*.py", "scripts/smoke_test*.py"]
   },
   "then": {
     "type": "askAgent",

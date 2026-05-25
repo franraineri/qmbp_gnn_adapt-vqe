@@ -1,6 +1,6 @@
 # Hybrid GNN-HVA Framework for Topological Phase Characterization
 
-## Project Overview
+## Overview
 
 Master's Thesis (TFM) in Quantum Computing and Condensed Matter Physics. The project
 accelerates Variational Quantum Eigensolvers (VQE) for quantum phase characterization
@@ -12,21 +12,88 @@ physics-informed quantum circuit (Hamiltonian Variational Ansatz - HVA).
 circuits to O(log n). All HVA circuits are shallow (p ≤ 2 layers), enforced by
 pre-commit hooks.
 
-## Current Status
+## Quick Start
 
-- **V6.1 pipeline**: Complete and thesis-ready (N=6, N=10 validated)
-- **V7 experiments**: Complete (12/22 run, 10 skipped with justification)
-- **V8 experiments**: Complete — 13 runs across 10 experiments (landscape, scaling, methodology)
-- **Hardware**: Pending IBM Torino deployment (local simulation exhausted)
+```bash
+# Clone and setup
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e .
 
-### Key Results
+# Verify installation
+python -c "from qmbp_simulation import HamiltonianBuilder, make_lattice; print('OK')"
 
-| System | ΔE/gap | Status |
-|--------|:------:|--------|
-| N=6, h≥1.25 | < 5% | ✅ Thesis-ready |
-| N=10, h≥1.5 | < 5% | ✅ Thesis-ready |
-| N=20 p=1, h≥2.25 | 1.58% | ✅ Validated (V8 C3) |
-| N=20 p=2, h≥2.0 | 1.75% | ✅ Validated (V7 3C, MPS) |
+# Run smoke test (N=4, p=1, <30s)
+python scripts/smoke_test.py
+
+# Run full test suite
+pytest tests/ -x
+```
+
+## Package Structure
+
+```
+project-root/
+├── src/
+│   └── qmbp_simulation/           # Installable package (Zone 1: Framework)
+│       ├── __init__.py             # Package-level re-exports
+│       ├── utils/                  # Seed, JSON, timing (no internal deps)
+│       ├── models/                 # LatticeConfig, Hamiltonians, data models
+│       ├── solvers/                # ExactDiag, DMRG
+│       ├── circuits/               # HVA builder
+│       ├── execution/              # Backend ABC + implementations
+│       ├── optimizers/             # VQE, SPSA
+│       ├── predictors/             # MPNN model, training, checkpoints
+│       ├── pipeline/               # Orchestration, dataset I/O
+│       ├── framework/              # BaseExperiment, config, metrics, logging
+│       └── analysis/               # Gradient analysis, diagnostics, comparison
+├── experiments/                    # Experiment scripts (Zone 2: Consumers)
+│   ├── optimization/               # VQE technique experiments
+│   ├── scaling/                    # Finite-size scaling
+│   ├── landscape/                  # Hessian, fluctuation
+│   ├── predictor/                  # MPNN enhancements
+│   ├── hardware/                   # Hardware deployment
+│   ├── generalization/             # Model-agnostic tests
+│   └── helpers/                    # DyPP, sign canon, freezing, etc.
+├── scripts/                        # CLI entry points (Zone 2: Consumers)
+│   ├── run_experiment.py           # Run experiments by ID
+│   ├── run_pipeline.py             # Full 4-phase pipeline
+│   ├── compare.py                  # Cross-experiment comparison
+│   ├── smoke_test.py               # Quick validation (<30s)
+│   └── benchmark.py                # Performance benchmarking
+├── tests/                          # pytest suite
+│   ├── unit/                       # Per-module unit tests
+│   ├── integration/                # End-to-end pipeline tests
+│   └── conftest.py                 # Shared fixtures
+├── archive/                        # Historical code (Zone 3: Archive)
+├── results/                        # Experiment outputs
+├── documentation/                  # Thesis docs, binnacles, bibliography
+└── pyproject.toml                  # Package config, Ruff, pytest
+```
+
+## Import Examples
+
+```python
+# Core imports (from package top-level)
+from qmbp_simulation import (
+    HamiltonianBuilder, make_lattice, ClassicalSolver,
+    HVACircuitBuilder, VQEOptimizer,
+    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult,
+    save_phase12_dataset, load_phase12_dataset,
+)
+
+# Submodule imports
+from qmbp_simulation.models import SUPPORTED_TOPOLOGIES, MAX_P_LAYERS
+from qmbp_simulation.execution import NoiselessBackend, NoisyBackend, MitigationOptions
+from qmbp_simulation.optimizers import SPSAOptimizer
+from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+from qmbp_simulation.framework import BaseExperiment, ExperimentConfig, ExperimentMetrics
+from qmbp_simulation.analysis import (
+    WeightGradientAnalyzer, DiagnosticCollector,
+    compute_snr, compute_hessian, landscape_fluctuation,
+)
+from qmbp_simulation.pipeline import PipelineRunner
+```
 
 ## The 4-Phase Pipeline
 
@@ -35,108 +102,52 @@ pre-commit hooks.
 3. **Phase 3 — MPNN Predictor**: GINConv + global pooling, fidelity-filtered data
 4. **Phase 4 — Deployment**: MPNN warm-start → hardware VQE with error mitigation
 
-## Project Structure
-
-```
-qmbp_gnn_adapt-vqe/
-├── src/poc/v6/                         # Core pipeline (STABLE — do not modify)
-│   ├── config.py                       # Shared dataclasses
-│   ├── hamiltonian_builder.py          # Lattice + SparsePauliOp construction
-│   ├── classical_solver.py             # Exact diag + DMRG
-│   ├── hva_builder.py                  # HVA circuit (p≤2 enforced)
-│   ├── vqe_optimizer.py                # Multi-start L-BFGS-B
-│   ├── mpnn_predictor.py               # GINConv MPNN + training
-│   ├── hardware_deployer_v61.py        # Production deployer (ZNE, DD, TREX)
-│   ├── analysis_utils.py               # Weight gradient analysis
-│   ├── diagnostics.py                  # Pipeline observability
-│   └── pipeline_utils.py               # Dataset save/load
-│
-├── scripts/
-│   ├── experiments_v8/                 # V8 experiment framework (COMPLETE)
-│   │   ├── core/                       # BaseExperiment, config, metrics, logging
-│   │   ├── techniques/                 # Reusable: hessian, freezing, physics_loss...
-│   │   ├── experiments/                # 10 experiment scripts (A3-F3)
-│   │   ├── results/                    # JSON results (auto-generated)
-│   │   ├── run_experiment.py           # CLI: --exp A3 --verbose
-│   │   ├── run_b4_n10.py              # Standalone: Hessian at N=10
-│   │   ├── run_f3_p1.py              # Standalone: Landscape p=1 vs p=2
-│   │   ├── run_d1_regularized.py      # Standalone: D1 with dropout
-│   │   ├── run_c1_n10.py             # Standalone: Physics loss at N=10
-│   │   └── compare_results.py         # Cross-experiment comparison
-│   ├── experiments_hamed_v7/           # V7 experiments (complete)
-│   └── hooks/                          # Pre-commit hook scripts
-│
-├── tests/                              # pytest suite (126 tests)
-│
-├── documentation/
-│   ├── v8/                             # V8 status + improvement techniques
-│   ├── v7/                             # V7 results summary + quantum utility plan
-│   ├── binnacles/                      # Experiment logs (11 files: N6, N10, V7, V8)
-│   └── bibliography/                   # Curated + full + alternative references
-│
-├── .kiro/
-│   ├── steering/                       # AI agent guidance files
-│   ├── skills/quantum/                 # Quantum computing skill context
-│   └── knowledge/                      # Project knowledge base
-│
-├── Makefile                            # Unified workflow targets
-├── pyproject.toml                      # Ruff config + project metadata
-├── .pre-commit-config.yaml             # 12 hooks (ruff, HVA guard, secrets...)
-└── requirements.txt                    # Dependencies
-```
-
-## Quick Start
+## Running Experiments
 
 ```bash
-# Setup
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pre-commit install
+# List available experiments
+python scripts/run_experiment.py --list
 
-# Verify
-make check-full              # lint + 126 tests + smoke test
+# Run a single experiment
+python scripts/run_experiment.py --exp B4 --verbose
 
-# Run V8 experiments
-python scripts/experiments_v8/run_experiment.py --list
-python scripts/experiments_v8/run_experiment.py --exp B4 --verbose
-python scripts/experiments_v8/compare_results.py --all
+# Run multiple experiments
+python scripts/run_experiment.py --exp B4 D1 F1
 
-# Run full pipeline (notebooks)
-make run-notebooks
+# Compare results against baseline
+python scripts/compare.py --all
+
+# Run full pipeline (N=6, default h-sweep)
+python scripts/run_pipeline.py --n-qubits 6 --p-layers 2
 ```
 
-## V8 Experiment Framework
-
-The V8 framework (`scripts/experiments_v8/`) provides a modular system for running
-noiseless simulation experiments with automatic logging, comparison, and reporting.
+## Running Tests
 
 ```bash
-# Available experiments
-python scripts/experiments_v8/run_experiment.py --list
+# Full test suite
+pytest tests/
 
-# Run single or multiple
-python scripts/experiments_v8/run_experiment.py --exp C1 --verbose
-python scripts/experiments_v8/run_experiment.py --exp B4 D1 F1
+# Unit tests only
+pytest tests/unit/
 
-# Compare against V6.1 baseline
-python scripts/experiments_v8/compare_results.py --all
+# Integration tests only
+pytest tests/integration/
+
+# With coverage
+pytest tests/ --cov=qmbp_simulation --cov-report=term-missing
+
+# Skip slow tests
+pytest tests/ -m "not slow"
 ```
 
-### V8 Key Findings
+## Key Results
 
-| Experiment | Finding | Thesis Impact |
-|-----------|---------|:---:|
-| A3 (Scaling) | h_min = 1.0 + 0.020·N^1.31 (R²=1.00); p=1 scales better | HIGH |
-| B4 (Hessian) | HVA landscape has 0 saddle points at N=6 AND N=10 | HIGH |
-| D1 (Weight-space) | MPNN gradient peaks detect h_c; dropout=0.1 makes it robust | HIGH |
-| C3 (Sign canon.) | N=20 p=1 works; sign canonicalization unnecessary | HIGH |
-| B2 (Freezing) | 2/4 params frozen at h≥1.5, 0% accuracy loss | MEDIUM |
-| C1 (Physics loss) | +3.9% at N=6, -12.3% at N=10 (context-dependent) | MEDIUM |
-| E4 (Longitudinal) | HVA p=2 is TFIM-specific (g>0 fails) | MEDIUM |
-| F3 (Fluctuation) | No BPs; p=1 landscape simpler; fraction_near_gs predicts boundary | MEDIUM |
-| F1 (DyPP) | Rejected: only 8-13% savings | LOW |
-| B1 (Analytical) | Rejected: converges to wrong basin | LOW |
+| System | ΔE/gap | Status |
+|--------|:------:|--------|
+| N=6, h≥1.25 | < 5% | ✅ Thesis-ready |
+| N=10, h≥1.5 | < 5% | ✅ Thesis-ready |
+| N=20 p=1, h≥2.25 | 1.58% | ✅ Validated |
+| N=20 p=2, h≥2.0 | 1.75% | ✅ Validated (MPS) |
 
 ## Tech Stack
 
@@ -148,17 +159,29 @@ python scripts/experiments_v8/compare_results.py --all
 | ML predictor | PyTorch + PyTorch Geometric | 2.11 + 2.7 |
 | Tensor networks | TeNPy | 1.1.x |
 | Linting | Ruff | 0.11.x |
-| Testing | pytest | 9.x |
+| Testing | pytest + Hypothesis | 9.x + 6.x |
 | Git hooks | pre-commit (12 hooks) | 4.2.x |
 
-## Validation Metrics
+## Repository Zones
 
-| Priority | Metric | Threshold | Hardware? |
-|----------|--------|-----------|:---------:|
-| 1 | ΔE / gap | < 5% | ✅ |
-| 2 | ⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩ errors | < 1e-2 | ✅ |
-| 3 | Fidelity | ≥ 99.5% (noiseless only) | ❌ |
-| 4 | ADAPT iterations | ≤ 2 | ✅ |
+The codebase is organized into three clearly separated zones:
+
+1. **Framework** (`src/qmbp_simulation/`) — The installable package. Primary development target.
+   Can grow and evolve freely. All reusable logic lives here.
+
+2. **Consumers** (`experiments/` + `scripts/`) — Use the framework via
+   `from qmbp_simulation import ...`. Not part of the installable package.
+
+3. **Archive** (`archive/*_BAK/`) — Historical code preserved for reference.
+   Never modify, import from, or reference. Excluded from all tooling.
+
+## Constraints (enforced by pre-commit)
+
+- HVA only, never HEA. p ≤ 2 layers.
+- Primitives V2 only (no deprecated Qiskit APIs)
+- Fidelity threshold ≥ 0.93 in training data
+- No secrets in commits (gitleaks)
+- Conventional commits (commitizen)
 
 ## Documentation
 
@@ -169,13 +192,22 @@ python scripts/experiments_v8/compare_results.py --all
 - **[Bibliography](documentation/bibliography/bibliography_curated.md)** — Curated references
 - **[Binnacles](documentation/binnacles/)** — All experiment logs
 
-## Constraints (enforced by pre-commit)
+## Development
 
-- HVA only, never HEA. p ≤ 2 layers.
-- Primitives V2 only (no deprecated Qiskit APIs)
-- Fidelity threshold ≥ 0.93 in training data
-- No secrets in commits (gitleaks)
-- Conventional commits (commitizen)
+```bash
+# Install with dev dependencies
+pip install -e ".[dev,test]"
+
+# Lint
+ruff check src/ experiments/ scripts/ tests/
+
+# Format
+ruff format src/ experiments/ scripts/ tests/
+
+# Pre-commit hooks
+pre-commit install
+pre-commit run --all-files
+```
 
 ---
 

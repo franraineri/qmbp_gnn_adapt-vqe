@@ -1,66 +1,86 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "scripts/experiments_v8/**"
+fileMatchPattern: "experiments/**"
 ---
 
-# V8 Experiment Framework — Agent Guide
+# Experiment Framework — Agent Guide
 
 ## Overview
 
-The V8 experiment framework (`scripts/experiments_v8/`) is a modular system for running
-noiseless quantum simulation experiments. It extends the V6.1 pipeline with new techniques
+The experiment framework (`src/qmbp_simulation/framework/` + `experiments/`) is a modular system for running
+noiseless quantum simulation experiments. It provides a `BaseExperiment` lifecycle with reusable techniques
 for VQE optimization, MPNN enhancement, landscape analysis, and scaling demonstrations.
 
 ## Architecture
 
 ```
-scripts/experiments_v8/
-├── core/           # Infrastructure (DO NOT modify without good reason)
-│   ├── base_experiment.py   # Abstract lifecycle: setup → run → analyze → report → save
-│   ├── config.py            # Typed configs with constraint validation
-│   ├── metrics.py           # V8Metrics, WarmColdComparison, ComparisonResult
-│   ├── result_store.py      # Result loading, baseline comparison
-│   └── landscape.py         # Hessian, fluctuation, trajectory analysis
-├── techniques/     # Reusable building blocks (import into experiments)
-├── experiments/    # One file per experiment (inherits BaseExperiment)
-├── results/        # Auto-generated JSON results
+src/qmbp_simulation/framework/    # Infrastructure (DO NOT modify without good reason)
+├── base.py              # Abstract lifecycle: setup → run → analyze → report → save
+├── config.py            # Typed configs with constraint validation
+├── metrics.py           # ExperimentMetrics, WarmColdComparison
+├── result_store.py      # Result loading, baseline comparison
+└── logging.py           # StructuredLogger
+
+experiments/             # Experiment scripts organized by category
+├── helpers/             # Reusable building blocks (import into experiments)
+│   ├── dypp.py, sign_equivariant.py, parameter_freezing.py
+│   ├── analytical_init.py, physics_loss.py, hessian_restart.py
+│   └── active_learning.py
+├── optimization/        # B1, B2, B4, C3
+├── scaling/             # A3
+├── landscape/           # F1, F3
+├── predictor/           # C1, D1, E3
+├── hardware/            # Hardware-specific experiments
+└── generalization/      # E4
+
+scripts/
 ├── run_experiment.py    # CLI entry point
-└── compare_results.py   # Cross-experiment comparison
+└── compare.py           # Cross-experiment comparison
+
+results/experiments/     # Auto-generated JSON results
 ```
 
 ## How to Run Experiments
 
 ```bash
 # Single experiment
-python scripts/experiments_v8/run_experiment.py --exp A3 --verbose
+python scripts/run_experiment.py --exp A3 --verbose
 
 # Multiple experiments
-python scripts/experiments_v8/run_experiment.py --exp B1 B4 F3
+python scripts/run_experiment.py --exp B1 B4 F3
 
 # List available
-python scripts/experiments_v8/run_experiment.py --list
+python scripts/run_experiment.py --list
 
 # Compare results
-python scripts/experiments_v8/compare_results.py --all
+python scripts/compare.py --all
 ```
 
 ## How to Create a New Experiment
 
-1. Create `experiments/exp_xx_name.py`:
-   - Inherit from `BaseExperiment`
+1. Create `experiments/<category>/exp_xx_name.py`:
+   - Inherit from `BaseExperiment` (from `qmbp_simulation.framework`)
    - Implement `default_config()` classmethod returning `ExperimentConfig`
-   - Implement `run_single(seed: int) -> list[V8Metrics]`
-2. Register in `experiments/__init__.py` EXPERIMENT_REGISTRY
-3. If using a new technique, add module to `techniques/`
+   - Implement `run_single(seed: int) -> list[ExperimentMetrics]`
+2. Register in `experiments/<category>/__init__.py` EXPERIMENT_REGISTRY
+3. If using a new technique, add module to `experiments/helpers/`
+
+## How to Add a New Technique
+
+1. Create `experiments/helpers/<technique_name>.py`
+2. Import from `qmbp_simulation` (models, solvers, circuits, etc.)
+3. Implement as a standalone function or class that can be called from any experiment
+4. Export from `experiments/helpers/__init__.py`
+5. Use in experiments via `from experiments.helpers import <technique>`
 
 ## Critical Constraints (ALWAYS ENFORCE)
 
-- **p_layers ≤ 2** — config.validate() raises ValueError if violated
+- **p_layers ≤ 2** — `ExperimentConfig.validate()` raises ValueError if violated
 - **Pure energy cost** — never hybrid/observable cost in VQE
 - **Descending h-sweep** — always sweep h from high to low (warm-start)
 - **N=12 is too slow** — use N=10 or N=14 instead
 - **Division by gap** — always use `max(gap, 1e-10)` to avoid division by zero
-- **No modification to V6 stable code** — use V6 modules via imports only
+- **No modification to stable code** — use `qmbp_simulation` modules via imports only
 
 ## Key Patterns
 
@@ -101,13 +121,17 @@ self.slog.stop_timer("vqe_point", event_type="vqe_complete", seed=seed, h_value=
 self.slog.log("vqe_failed", seed=seed, h_value=h, data={"reason": "maxiter reached"})
 ```
 
-### Auto-registering a new experiment (alternative to manual __init__.py edit):
+### Auto-registering a new experiment:
 ```python
-from scripts.experiments_v8.core import register_experiment, BaseExperiment
+from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
 
-@register_experiment("X1", category="X")
 class ExperimentX1(BaseExperiment):
-    ...
+    @classmethod
+    def default_config(cls) -> ExperimentConfig:
+        return ExperimentConfig(...)
+
+    def run_single(self, seed: int) -> list:
+        ...
 ```
 
 ## Currently Implemented Experiments
@@ -144,7 +168,7 @@ Every experiment produces a JSON file in `results/exp_<id>/run_<timestamp>.json`
 
 ## Documentation References
 
-- Status: `documentation/v8/STATUS.md` (single source of truth for V8 results)
+- Status: `.kiro/steering/project-status.md` (single source of truth for project state)
 - Improvement techniques: `documentation/v8/analysis-improvement-techniques.md`
 - Binnacles: `documentation/binnacles/binnacle-v8-experiments-initial.md`, `*-round1.md`, `*-round2.md`
 
@@ -312,25 +336,25 @@ exponent (not the TFIM critical exponent ν=1). p=1 scales better at large N.
 **Conclusion:** All minima genuine (no saddle points). Condition number grows
 100× from h=1.0 to h=2.0. Flat direction at large h explains analytical init failure.
 
-**Note:** B4-lite was run as standalone script (`scripts/experiments_v8/run_b4_lite.py`),
-not through the BaseExperiment framework. Results are in terminal output and this
-steering file only (no JSON artifact). The script is reproducible via:
+**Note:** B4-lite was originally run as standalone script (now archived at `archive/experiments_v8_BAK/run_b4_lite.py`).
+Results are in terminal output and this steering file only (no JSON artifact).
+To reproduce, use the framework:
 ```bash
-.venv/bin/python scripts/experiments_v8/run_b4_lite.py
+python scripts/run_experiment.py --exp B4 --verbose
 ```
 
 ---
 
 ## Infrastructure Fixes Applied (2026-05-22)
 
-These fixes were applied to V6 stable code BEFORE running V8 experiments:
+These fixes were applied to stable code BEFORE running the experiments (now in `src/qmbp_simulation/`):
 
-| Fix | File | Change |
-|-----|------|--------|
-| DMRG gap fallback | `classical_solver.py` | gap=0 → `max(2|J-h|, 2π/N)` with warning |
-| VQE convergence check | `vqe_optimizer.py` | Log warning when `result.success=False` |
-| Dataset validation | `mpnn_predictor.py` | Raise ValueError if dataset < 3 points |
-| Divergence threshold | `mpnn_predictor.py` | New param `divergence_threshold` (default 0.01) |
+| Fix | Module | Change |
+|-----|--------|--------|
+| DMRG gap fallback | `solvers/classical.py` | gap=0 → `max(2|J-h|, 2π/N)` with warning |
+| VQE convergence check | `optimizers/vqe.py` | Log warning when `result.success=False` |
+| Dataset validation | `predictors/mpnn.py` | Raise ValueError if dataset < 3 points |
+| Divergence threshold | `predictors/mpnn.py` | New param `divergence_threshold` (default 0.01) |
 
 All 131 existing tests pass after these changes.
 

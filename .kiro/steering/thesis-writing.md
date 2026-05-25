@@ -19,7 +19,7 @@ fileMatchPattern: "**/*.tex"
 | N=10 results (3 seeds × 2 h_test) | Table 4.3 | Results chapter |
 | Noisy simulation (3-mode comparison) | Section 4.5 | Hardware validation |
 | Gradient analysis peaks | Section 4.4 | MPNN analysis |
-| Source JSON data | `scripts/notebook_results/` | — |
+| Source JSON data | `results/thesis/` | — |
 
 ## Narrative Framing (literature-backed)
 - h=1.25 ceiling → "physics limit of HVA p=2" (cite Tripathi et al. 2026)

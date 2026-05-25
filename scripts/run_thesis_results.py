@@ -27,8 +27,6 @@ from pathlib import Path
 import numpy as np
 
 _project_root = Path(__file__).resolve().parents[1]
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
 
 RESULTS_DIR = _project_root / "scripts" / "notebook_results"
 BINNACLE_DIR = _project_root / "documentation" / "binnacles"
@@ -39,14 +37,17 @@ def run_single(N: int, h_test: float, seed: int, mpnn_hidden: int, patience: int
     import torch
     from torch_geometric.data import Data
 
-    from src.poc.v6.analysis_utils import WeightGradientAnalyzer
-    from src.poc.v6.classical_solver import ClassicalSolver
-    from src.poc.v6.config import VQEConfig
-    from src.poc.v6.hamiltonian_builder import HamiltonianBuilder, make_lattice
-    from src.poc.v6.hardware_deployer_v61 import HardwareDeployerV61
-    from src.poc.v6.hva_builder import HVACircuitBuilder
-    from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
-    from src.poc.v6.vqe_optimizer import VQEOptimizer
+    from qmbp_simulation import (
+        ClassicalSolver,
+        HamiltonianBuilder,
+        HVACircuitBuilder,
+        VQEOptimizer,
+        make_lattice,
+    )
+    from qmbp_simulation.analysis import WeightGradientAnalyzer
+    from qmbp_simulation.execution import HardwareDeployerV61
+    from qmbp_simulation.models import VQEConfig
+    from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
 
     np.random.seed(seed)
     torch.manual_seed(seed)

@@ -1,10 +1,10 @@
 {
   "name": "Test After Source Change",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Run fast tests after source module changes to catch regressions immediately.",
   "when": {
     "type": "fileEdited",
-    "patterns": ["src/poc/v6/*.py", "src/poc/v6/experimental/*.py"]
+    "patterns": ["src/qmbp_simulation/**/*.py"]
   },
   "then": {
     "type": "runCommand",

@@ -83,32 +83,31 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - Hardware success criterion: ΔE/gap < 5% AND correct phase label (not fidelity).
 
 ## Stable Code (do NOT modify unless explicitly asked)
-- `src/poc/v6/config.py` — shared dataclasses
-- `src/poc/v6/hamiltonian_builder.py` — lattice generators and Hamiltonian construction
-- `src/poc/v6/classical_solver.py` — exact diag + DMRG paths
-- `src/poc/v6/hva_builder.py` — HVA circuit construction
-- `src/poc/v6/pipeline_utils.py` — dataset save/load and integrity checks
-- `src/poc/v6/vqe_optimizer.py` — multi-start VQE with callbacks
-- `scripts/benchmark_v6.py` — benchmark runner
-- `scripts/smoke_test.py` — V6.0 legacy smoke test (superseded by smoke_test_v61.py)
+- `src/qmbp_simulation/models/` — data models, Hamiltonian builder, lattice construction, constants
+- `src/qmbp_simulation/solvers/` — exact diag + DMRG paths
+- `src/qmbp_simulation/circuits/` — HVA circuit construction (p≤2 enforced)
+- `src/qmbp_simulation/execution/` — backend ABC + noiseless/noisy/hardware implementations
+- `src/qmbp_simulation/optimizers/` — multi-start VQE + SPSA with warm-start
+- `src/qmbp_simulation/pipeline/` — dataset save/load, pipeline orchestration
+- `src/qmbp_simulation/utils/` — seed, JSON, timing utilities
+- `scripts/smoke_test.py` — package smoke test (N=4, p=1, <30s)
 - `Makefile` — unified entry point
 
 ## Active Development Areas
-- `src/poc/v6/hardware_deployer_v61.py` — hardware + noisy_simulation modes + **deploy_with_baseline()** (**next: DD pass, n_layouts scaling**)
-- `src/poc/v6/mpnn_predictor.py` — MPNN architecture (per-parameter heads, edge features)
-- `src/poc/v6/analysis_utils.py` — weight gradient analysis + diagnostic metrics
-- `src/poc/v6/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on, **+record_baseline()**)
-- `scripts/run_v61_parametric.py` — parametric pipeline runner (now with N=12 configs, always-on diagnostics, **+baseline comparison**)
-- `scripts/run_thesis_results.py` — thesis results consolidation
-- `scripts/run_v61_noisy.py` — noisy simulation sweep (now with always-on diagnostics)
-- `scripts/smoke_test_v61.py` — V6.1 integration smoke test
-- `scripts/experiments_hamed_v7/` — V7 full experiment suite (22 sub-experiments, master runner)
-- `scripts/experiments_hamed_v7/experiment_p1_scaling.py` — p=1 depth-scaling study (6A-6D)
+- `src/qmbp_simulation/predictors/mpnn.py` — MPNN architecture (per-parameter heads, edge features)
+- `src/qmbp_simulation/analysis/gradient.py` — weight gradient analysis + phase detection
+- `src/qmbp_simulation/analysis/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on)
+- `src/qmbp_simulation/analysis/metrics.py` — SNR, smoothness, energy decomposition
+- `src/qmbp_simulation/framework/base.py` — BaseExperiment lifecycle (setup → run → analyze → report)
+- `experiments/` — categorized experiment scripts (optimization, scaling, landscape, predictor, hardware, generalization)
+- `scripts/run_experiment.py` — unified CLI for running experiments by ID
+- `scripts/run_pipeline.py` — full 4-phase pipeline CLI
+- `scripts/compare.py` — cross-experiment result comparison
 
-## Dead Code (removed 2026-05-22)
-- `src/poc/v6/pipeline_core.py` — documented but zero imports anywhere (DELETED)
-- `src/poc/v6/experimental/` — GATPredictor + augmentation (both rejected, never existed on disk)
-- `src/poc/v6/hardware_deployer.py` — V6.0 legacy (DELETED, superseded by V6.1)
+## Dead Code (removed 2026-05-22, now in `archive/src_poc_v6_BAK/`)
+- `pipeline_core.py` — documented but zero imports anywhere (DELETED)
+- `experimental/` — GATPredictor + augmentation (both rejected, never existed on disk)
+- `hardware_deployer.py` — V6.0 legacy (DELETED, superseded by V6.1)
 
 ## Optimal Config (quick reference)
 - **N=6**: GINConv h=64, L=3, 6000ep, lr=1e-3, 5 VQE restarts, fid≥0.93
@@ -140,7 +139,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **Hardware candidate**: p=1 N=20 on IBM Torino (VQE validated, same CX budget as p=2 N=10)
 - **TODO**: Fix init at N=20 (analytical guess), canonicalize signs, increase training density
 - Binnacle: `documentation/binnacles/binnacle-p1-scaling.md`
-- Script: `scripts/experiments_hamed_v7/experiment_p1_scaling.py`
+- Script: `archive/experiments_hamed_v7_BAK/experiment_p1_scaling.py` (historical)
 
 ## ZNE Scaling Rule (from experiments + literature)
 - N=6: 3 layouts sufficient (R²>0.99, linear regime)
@@ -150,3 +149,66 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 
 ## Where to Start
 Read `.kiro/knowledge/project-guide.md` first.
+The installable package is at `src/qmbp_simulation/`. Use `from qmbp_simulation import ...` for all imports.
+See `README.md` for quick-start instructions and the full directory layout.
+
+---
+
+## How To: Create a New Experiment
+
+1. **Choose a category**: `experiments/optimization/`, `experiments/scaling/`, `experiments/landscape/`, `experiments/predictor/`, `experiments/hardware/`, or `experiments/generalization/`
+2. **Create the file**: `experiments/<category>/exp_<id>_<name>.py`
+3. **Inherit from BaseExperiment**:
+   ```python
+   from qmbp_simulation.framework import BaseExperiment, ExperimentConfig, ExperimentMetrics
+
+   class ExperimentX1(BaseExperiment):
+       @classmethod
+       def default_config(cls) -> ExperimentConfig:
+           return ExperimentConfig(
+               experiment_id="X1",
+               name="My New Experiment",
+               n_qubits=6, p_layers=2, j_coupling=1.0,
+               h_values=[1.25, 1.5, 1.75, 2.0],
+               seeds=[42, 43, 44],
+           )
+
+       def run_single(self, seed: int) -> list[ExperimentMetrics]:
+           # Your experiment logic here
+           ...
+   ```
+4. **Register** in `experiments/<category>/__init__.py`
+5. **Run**: `python scripts/run_experiment.py --exp X1 --verbose`
+
+## How To: Run the Pipeline
+
+```bash
+# Full 4-phase pipeline (N=6, p=2)
+python scripts/run_pipeline.py --n 6 --p 2 --output results/experiments/
+
+# Smoke test (N=4, p=1, <30s)
+python scripts/smoke_test.py
+
+# Run tests
+make test          # Fast tests (~12s)
+make test-full     # All tests including slow (~60s)
+```
+
+## How To: Add a New Technique to `experiments/helpers/`
+
+1. **Create** `experiments/helpers/<technique_name>.py`
+2. **Import from the package** (never from experiments or scripts):
+   ```python
+   from qmbp_simulation import HamiltonianBuilder, make_lattice, ClassicalSolver
+   from qmbp_simulation.optimizers import VQEOptimizer
+   from qmbp_simulation.execution import NoiselessBackend
+   ```
+3. **Implement** as a standalone function or class
+4. **Export** from `experiments/helpers/__init__.py`
+5. **Use** in experiments: `from experiments.helpers import <technique>`
+
+## What NOT to Touch
+
+- **`archive/`** — Historical code. NEVER modify, import from, or reference. Excluded from all tooling.
+- **Stable modules** (listed in "Stable Code" section above) — Only modify if explicitly asked.
+- **`results/thesis/`** — Committed definitive results. Do not overwrite.
