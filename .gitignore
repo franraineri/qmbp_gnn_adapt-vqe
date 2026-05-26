@@ -46,6 +46,5 @@ scripts/notebook_results/
 tmp/
 *.tex
 checkpoint*
-log*
 *.json
 *json
