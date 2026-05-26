@@ -183,3 +183,141 @@ def _json_default(obj: Any) -> Any:
     if isinstance(obj, np.bool_):
         return bool(obj)
     raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Progress Reporting
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ProgressReporter:
+    """Standardized progress reporting with phase tracking.
+
+    Provides consistent console output for multi-phase pipeline execution.
+    Tracks elapsed time per phase and produces a final summary.
+
+    Usage:
+        reporter = ProgressReporter("Pipeline N=6")
+        with reporter.phase(1, "Exact diagonalization") as p:
+            do_phase1()
+            p.detail("17 h-points computed")
+        with reporter.phase(2, "VQE optimization") as p:
+            do_phase2()
+            p.detail("mean fidelity = 0.98")
+        reporter.summary({"total_points": 17, "mean_de_gap": 0.014})
+    """
+
+    def __init__(self, title: str = "", width: int = 60) -> None:
+        self._title = title
+        self._width = width
+        self._phases: list[dict[str, Any]] = []
+        self._t0 = time.time()
+
+        if title:
+            print("=" * width)
+            print(f"  {title}")
+            print("=" * width)
+
+    def phase(self, phase_num: int, description: str) -> _PhaseContext:
+        """Start a named phase with timing.
+
+        Parameters
+        ----------
+        phase_num : int
+            Phase number (for display).
+        description : str
+            Human-readable phase description.
+
+        Returns
+        -------
+        _PhaseContext
+            Context manager that tracks elapsed time.
+        """
+        return _PhaseContext(self, phase_num, description)
+
+    def _record_phase(self, phase_num: int, description: str, elapsed_s: float) -> None:
+        """Record a completed phase (called by _PhaseContext)."""
+        self._phases.append(
+            {
+                "phase": phase_num,
+                "description": description,
+                "elapsed_s": elapsed_s,
+            }
+        )
+
+    def checkpoint(self, label: str, value: str = "") -> None:
+        """Print a checkpoint message.
+
+        Parameters
+        ----------
+        label : str
+            Checkpoint label.
+        value : str
+            Optional value to display.
+        """
+        if value:
+            print(f"    {label}: {value}")
+        else:
+            print(f"    {label}")
+
+    def summary(self, metrics: dict[str, Any] | None = None) -> None:
+        """Print final summary with timing breakdown.
+
+        Parameters
+        ----------
+        metrics : dict | None
+            Key metrics to display in the summary.
+        """
+        total_elapsed = time.time() - self._t0
+        print()
+        print("=" * self._width)
+        print(f"  Complete in {total_elapsed:.1f}s")
+        print("=" * self._width)
+
+        if self._phases:
+            for p in self._phases:
+                print(f"    Phase {p['phase']}: {p['description']} ({p['elapsed_s']:.1f}s)")
+
+        if metrics:
+            print()
+            for key, val in metrics.items():
+                if isinstance(val, float):
+                    print(f"    {key}: {val:.4f}")
+                else:
+                    print(f"    {key}: {val}")
+
+    @property
+    def total_elapsed_s(self) -> float:
+        """Total elapsed time since reporter creation."""
+        return time.time() - self._t0
+
+
+class _PhaseContext:
+    """Context manager for a single phase within ProgressReporter."""
+
+    def __init__(self, reporter: ProgressReporter, phase_num: int, description: str) -> None:
+        self._reporter = reporter
+        self._phase_num = phase_num
+        self._description = description
+        self._start: float = 0.0
+        self.elapsed_s: float = 0.0
+
+    def __enter__(self) -> _PhaseContext:
+        print(f"\n  Phase {self._phase_num}: {self._description}...")
+        self._start = time.time()
+        return self
+
+    def __exit__(self, *_exc: Any) -> None:
+        self.elapsed_s = time.time() - self._start
+        print(f"    Done in {self.elapsed_s:.1f}s")
+        self._reporter._record_phase(self._phase_num, self._description, self.elapsed_s)
+
+    def detail(self, message: str) -> None:
+        """Print a detail message within the phase.
+
+        Parameters
+        ----------
+        message : str
+            Detail to display (indented under the phase).
+        """
+        print(f"    {message}")

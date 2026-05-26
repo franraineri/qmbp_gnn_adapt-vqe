@@ -17,17 +17,21 @@ Phases:
 from __future__ import annotations
 
 import argparse
-import logging
 import time
-from pathlib import Path
-
-import numpy as np
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
+    from qmbp_simulation.framework.cli import (
+        add_mpnn_args,
+        add_output_args,
+        add_sweep_args,
+        add_system_args,
+        add_vqe_args,
+        create_base_parser,
+    )
+
+    parser = create_base_parser(
         description="Full 4-phase pipeline runner",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
     %(prog)s --n-qubits 6 --p 2
@@ -37,62 +41,23 @@ Examples:
         """,
     )
 
-    # Lattice configuration
-    parser.add_argument("--n-qubits", type=int, default=6, help="Number of qubits (default: 6)")
-    parser.add_argument(
-        "--topology", type=str, default="chain_1d", help="Lattice topology (default: chain_1d)"
-    )
-    parser.add_argument("--J", type=float, default=1.0, help="Coupling constant (default: 1.0)")
-    parser.add_argument("--periodic", action="store_true", help="Use periodic boundary conditions")
+    add_system_args(parser)
+    add_sweep_args(parser)
+    add_vqe_args(parser)
+    add_mpnn_args(parser)
+    add_output_args(parser)
 
-    # Sweep configuration
-    parser.add_argument(
-        "--h-values",
-        nargs="+",
-        type=float,
-        help="Transverse field values (descending). Default: linspace(2.0, 0.5, 31)",
-    )
-    parser.add_argument(
-        "--h-test",
-        nargs="+",
-        type=float,
-        default=[1.5],
-        help="Unseen h-value(s) for Phase 4 deployment (default: 1.5)",
-    )
-
-    # VQE configuration
-    parser.add_argument("--p", type=int, default=2, help="HVA layers (default: 2, max: 2)")
-    parser.add_argument("--n-restarts", type=int, default=5, help="VQE restarts (default: 5)")
-    parser.add_argument(
-        "--maxiter", type=int, default=1000, help="VQE max iterations (default: 1000)"
-    )
-
-    # MPNN configuration
-    parser.add_argument("--hidden-dim", type=int, default=64, help="MPNN hidden dim (default: 64)")
-    parser.add_argument(
-        "--n-epochs", type=int, default=4000, help="MPNN training epochs (default: 4000)"
-    )
-
-    # Phase control
-    parser.add_argument(
+    # Phase control (specific to this script)
+    phase_group = parser.add_argument_group("Phase control")
+    phase_group.add_argument(
         "--skip-phase1", action="store_true", help="Skip Phase 1 (load from checkpoint)"
     )
-    parser.add_argument(
+    phase_group.add_argument(
         "--skip-phase2", action="store_true", help="Skip Phase 2 (load from checkpoint)"
     )
-    parser.add_argument("--skip-phase3", action="store_true", help="Skip Phase 3")
-    parser.add_argument("--skip-phase4", action="store_true", help="Skip Phase 4")
-    parser.add_argument("--checkpoint", type=str, help="Checkpoint file for skip/resume")
-
-    # Output
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="results/pipeline",
-        help="Output directory (default: results/pipeline)",
-    )
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable INFO logging")
-    parser.add_argument("--debug", action="store_true", help="Enable DEBUG logging")
+    phase_group.add_argument("--skip-phase3", action="store_true", help="Skip Phase 3")
+    phase_group.add_argument("--skip-phase4", action="store_true", help="Skip Phase 4")
+    phase_group.add_argument("--checkpoint", type=str, help="Checkpoint file for skip/resume")
 
     return parser.parse_args()
 
@@ -100,9 +65,15 @@ Examples:
 def main() -> None:
     args = parse_args()
 
-    # Configure logging
-    level = logging.DEBUG if args.debug else (logging.INFO if args.verbose else logging.WARNING)
-    logging.basicConfig(level=level, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    from qmbp_simulation.framework.cli import (
+        build_mpnn_config_dict,
+        configure_logging,
+        resolve_output_dir,
+        validate_descending_sweep,
+    )
+    from qmbp_simulation.framework.result_io import save_pipeline_result
+
+    configure_logging(verbose=args.verbose, debug=args.debug)
 
     from qmbp_simulation import PipelineRunner, make_lattice
     from qmbp_simulation.models import VQEConfig
@@ -123,27 +94,24 @@ def main() -> None:
         maxiter=args.maxiter,
     )
 
-    # Determine h-values (must be descending)
-    if args.h_values:
-        h_values = np.array(sorted(args.h_values, reverse=True))
-    else:
-        h_values = np.linspace(2.0, 0.5, 31)
+    # Validate h-values (must be descending)
+    h_values = validate_descending_sweep(args.h_values)
 
     # Output directory
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = resolve_output_dir(args.output_dir)
 
     # MPNN config
-    mpnn_config = {
-        "hidden_dim": args.hidden_dim,
-        "n_epochs": args.n_epochs,
-    }
+    mpnn_config = build_mpnn_config_dict(args)
 
     print("Pipeline Configuration:")
     print(f"  Lattice: {args.topology}, N={args.n_qubits}, J={args.J}")
     print(f"  VQE: p={args.p}, restarts={args.n_restarts}, maxiter={args.maxiter}")
     print(f"  Sweep: {len(h_values)} h-values [{h_values[0]:.2f} → {h_values[-1]:.2f}]")
     print(f"  Test points: {args.h_test}")
+    print(
+        f"  MPNN: hidden={mpnn_config.get('hidden_dim', 128)}, "
+        f"epochs={mpnn_config.get('n_epochs', 6000)}"
+    )
     print(f"  Output: {output_dir}")
     print()
 
@@ -183,19 +151,14 @@ def main() -> None:
 
     # Save diagnostics
     if results.get("diagnostics"):
-        import json
+        from qmbp_simulation.utils.helpers import json_dump
 
         diag_path = output_dir / "diagnostics.json"
-        with open(diag_path, "w") as f:
-            json.dump(results["diagnostics"], f, indent=2)
+        json_dump(results["diagnostics"], diag_path)
         print(f"\n  Diagnostics saved to: {diag_path}")
 
     # Save full pipeline results
-    import json
-    from datetime import datetime
-
     run_output = {
-        "timestamp": datetime.now().isoformat(),
         "config": {
             "n_qubits": args.n_qubits,
             "topology": args.topology,
@@ -203,8 +166,7 @@ def main() -> None:
             "p_layers": args.p,
             "n_restarts": args.n_restarts,
             "maxiter": args.maxiter,
-            "hidden_dim": args.hidden_dim,
-            "n_epochs": args.n_epochs,
+            "mpnn": mpnn_config,
             "h_values": h_values.tolist(),
             "h_test": args.h_test,
         },
@@ -226,11 +188,9 @@ def main() -> None:
         ],
         "diagnostics": results.get("diagnostics"),
     }
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_path = output_dir / f"pipeline_run_{ts}.json"
-    with open(results_path, "w") as f:
-        json.dump(run_output, f, indent=2)
-    print(f"  Results saved to: {results_path}")
+
+    path = save_pipeline_result(run_output, output_dir=output_dir)
+    print(f"  Results saved to: {path}")
 
 
 if __name__ == "__main__":

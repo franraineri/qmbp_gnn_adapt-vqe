@@ -29,14 +29,17 @@ src/qmbp_simulation/
 │   └── mpnn.py
 ├── pipeline/                ← Orchestration, dataset I/O
 │   ├── dataset_io.py
-│   ├── runner.py
+│   ├── runner.py           ← PipelineRunner + run_exact_diag_sweep helper
 │   └── qrc.py
-├── framework/               ← BaseExperiment, config, metrics, logging
-│   ├── base.py
-│   ├── config.py
-│   ├── metrics.py
-│   ├── logging.py
-│   └── result_store.py
+├── framework/               ← Experiment engine, CLI, benchmarking, result I/O
+│   ├── base.py             ← BaseExperiment lifecycle
+│   ├── config.py           ← ExperimentConfig, SystemConfig, VQEConfig, MPNNConfig
+│   ├── metrics.py          ← ExperimentMetrics, WarmColdComparison
+│   ├── logging.py          ← StructuredLogger + ProgressReporter
+│   ├── cli.py             ← Shared CLI argument groups and validation
+│   ├── result_io.py       ← Standardized result saving/loading
+│   ├── result_store.py    ← Result querying, comparison, CATEGORY_MAP
+│   └── benchmarking.py    ← BenchmarkSuite, BenchmarkResult
 └── analysis/                ← Gradient analysis, diagnostics, comparison
     ├── gradient.py
     ├── diagnostics.py
@@ -57,8 +60,9 @@ src/qmbp_simulation/
 from qmbp_simulation import (
     HamiltonianBuilder, make_lattice, ClassicalSolver,
     HVACircuitBuilder, VQEOptimizer,
-    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult, DeployResult,
+    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult,
     save_phase12_dataset, load_phase12_dataset,
+    PipelineRunner,
 )
 ```
 
@@ -70,6 +74,15 @@ from qmbp_simulation.execution import (
 )
 ```
 
+### Noisy simulation utilities
+```python
+from qmbp_simulation.execution import (
+    NoisyEstimatorConfig, build_adjacency, find_layouts_bfs,
+    compute_circuit_ces, select_layouts_by_circuit_ces,
+    noisy_estimate, linear_zne,
+)
+```
+
 ### MPNN / Predictors (not in top-level to avoid heavy torch imports)
 ```python
 from qmbp_simulation.predictors import (
@@ -78,11 +91,24 @@ from qmbp_simulation.predictors import (
 )
 ```
 
-### Framework (experiment engine)
+### Framework (experiment engine + CLI + result I/O + benchmarking)
 ```python
 from qmbp_simulation.framework import (
+    # Experiment engine
     BaseExperiment, ExperimentConfig, ExperimentMetrics,
-    WarmColdComparison, StructuredLogger,
+    WarmColdComparison, StructuredLogger, ProgressReporter,
+    # CLI argument groups
+    create_base_parser, add_system_args, add_sweep_args,
+    add_vqe_args, add_mpnn_args, add_output_args,
+    validate_descending_sweep, validate_system_size,
+    configure_logging, build_mpnn_config_dict, resolve_output_dir,
+    # Result I/O
+    save_experiment_result, save_pipeline_result, save_benchmark_result,
+    build_result_envelope, load_result, generate_timestamp,
+    # Result store
+    ResultStore, CATEGORY_MAP,
+    # Benchmarking
+    BenchmarkSuite, BenchmarkResult,
 )
 ```
 
@@ -98,7 +124,7 @@ from qmbp_simulation.analysis import (
 
 ### Pipeline
 ```python
-from qmbp_simulation.pipeline import PipelineRunner
+from qmbp_simulation.pipeline import PipelineRunner, run_exact_diag_sweep
 ```
 
 ### NEVER use these patterns
@@ -112,6 +138,9 @@ from archive.src_poc_v6_BAK import ...
 
 # ❌ WRONG — importing from experiments inside the package
 from experiments.helpers import ...  # Only valid in other experiments/scripts
+
+# ❌ WRONG — duplicating noisy utilities in scripts
+def build_adjacency(backend): ...  # Use from qmbp_simulation.execution
 ```
 
 ## Module Dependency Order

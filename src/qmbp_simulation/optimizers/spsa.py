@@ -60,6 +60,10 @@ class SPSAOptimizer:
         Perturbation decay exponent (default 0.101).
     A_frac : float
         Stability constant as fraction of n_iterations (default 0.1).
+    bounds : tuple[float, float]
+        Parameter bounds for clipping (default (-π, π)).
+    seed : int | None
+        Random seed for reproducibility.
     """
 
     def __init__(
@@ -70,6 +74,8 @@ class SPSAOptimizer:
         alpha: float = 0.602,
         gamma: float = 0.101,
         A_frac: float = 0.1,
+        bounds: tuple[float, float] = (-np.pi, np.pi),
+        seed: int | None = None,
     ) -> None:
         self._backend = backend
         self.a = a
@@ -77,6 +83,8 @@ class SPSAOptimizer:
         self.alpha = alpha
         self.gamma = gamma
         self.A_frac = A_frac
+        self._bounds = bounds
+        self._rng = np.random.default_rng(seed)
 
     def optimize(
         self,
@@ -119,8 +127,8 @@ class SPSAOptimizer:
             a_k = self.a / (k + 1 + A) ** self.alpha
             c_k = self.c / (k + 1) ** self.gamma
 
-            # Bernoulli ±1 perturbation
-            delta = 2 * np.random.randint(0, 2, n_params) - 1
+            # Bernoulli ±1 perturbation (seeded RNG)
+            delta = 2 * self._rng.integers(0, 2, n_params) - 1
 
             # Two-sided function evaluations
             theta_plus = theta + c_k * delta
@@ -133,9 +141,9 @@ class SPSAOptimizer:
             # Gradient estimate
             g_hat = (y_plus - y_minus) / (2 * c_k * delta)
 
-            # Parameter update
+            # Parameter update with configurable bounds
             theta = theta - a_k * g_hat
-            theta = np.clip(theta, -np.pi, np.pi)
+            theta = np.clip(theta, self._bounds[0], self._bounds[1])
 
             # Track best energy found
             min_y = min(y_plus, y_minus)

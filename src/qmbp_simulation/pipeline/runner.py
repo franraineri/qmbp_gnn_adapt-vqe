@@ -41,6 +41,52 @@ from qmbp_simulation.solvers import ClassicalSolver
 logger = logging.getLogger(__name__)
 
 
+def run_exact_diag_sweep(
+    h_values: np.ndarray,
+    n_qubits: int,
+    topology: str = "chain_1d",
+    J: float = 1.0,
+    periodic: bool = False,
+) -> list[GroundTruthResult]:
+    """Run exact diagonalization across h-values (Phase 1 helper).
+
+    Convenience function for scripts that need Phase 1 results without
+    instantiating a full PipelineRunner.
+
+    Parameters
+    ----------
+    h_values : np.ndarray
+        Transverse field values (typically descending).
+    n_qubits : int
+        Number of qubits.
+    topology : str
+        Lattice topology (default: "chain_1d").
+    J : float
+        Coupling constant (default: 1.0).
+    periodic : bool
+        Whether to use periodic boundary conditions.
+
+    Returns
+    -------
+    list[GroundTruthResult]
+        Ground truth results for each h-value.
+    """
+    builder = HamiltonianBuilder()
+    solver = ClassicalSolver()
+    results = []
+    for h in h_values:
+        lattice_h = make_lattice(
+            topology=topology,
+            n_qubits=n_qubits,
+            J=J,
+            h=float(h),
+            periodic=periodic,
+        )
+        hamiltonian = builder.build(lattice_h)
+        results.append(solver.solve(hamiltonian, lattice_h))
+    return results
+
+
 class PipelineRunner:
     """Orchestrates the full 4-phase quantum simulation pipeline.
 
@@ -71,17 +117,19 @@ class PipelineRunner:
         checkpoint_dir: Path | None = None,
         *,
         verbose: bool = False,
+        seed: int | None = None,
         collector: "DiagnosticCollector | None" = None,  # noqa: F821, UP037
     ) -> None:
         self._lattice = lattice
         self._config = config
         self._backend = backend or NoiselessBackend()
         self._checkpoint_dir = checkpoint_dir
+        self._seed = seed
 
         # Internal state
         self._ham_builder = HamiltonianBuilder()
         self._solver = ClassicalSolver()
-        self._optimizer = VQEOptimizer(config=config, backend=self._backend)
+        self._optimizer = VQEOptimizer(config=config, backend=self._backend, seed=seed)
 
         # Diagnostics — always active, collects metrics passively.
         # Lazy import to respect module dependency DAG (pipeline → analysis
@@ -254,6 +302,7 @@ class PipelineRunner:
             n_epochs=cfg.get("n_epochs", 4000),
             lr=cfg.get("lr", 1e-3),
             patience=cfg.get("patience", 150),
+            seed=cfg.get("seed", self._seed if self._seed is not None else 42),
         )
 
         elapsed = time.time() - t0
@@ -335,15 +384,20 @@ class PipelineRunner:
 
         # Predict parameters with MPNN
         model.eval()
-        node_feat, edge_index = self._ham_builder.build_graph_data(lattice_test)
+        edge_index_np, coord = self._ham_builder.build_graph_data(lattice_test)
 
-        # Build graph input for prediction
+        # Build graph input for prediction — must mirror build_graph_dataset()
+        # Node features: [h_i, coordination_number_i] per site
         from torch_geometric.data import Data
 
-        graph = Data(
-            x=torch.tensor(node_feat, dtype=torch.float32),
-            edge_index=torch.tensor(edge_index, dtype=torch.long),
+        h_feat = np.full(lattice_test.n_qubits, float(h_test))
+        x = torch.tensor(
+            np.stack([h_feat, coord.astype(float)], axis=1),
+            dtype=torch.float32,
         )
+        edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+
+        graph = Data(x=x, edge_index=edge_index)
 
         with torch.no_grad():
             theta_pred = model(graph).numpy().flatten()
@@ -360,6 +414,7 @@ class PipelineRunner:
         corr_zz_pred = 0.0
         mag_x_error = 0.0
         corr_zz_error = 0.0
+        observables_computed = True
         try:
             from qiskit.quantum_info import SparsePauliOp, Statevector
 
@@ -385,7 +440,11 @@ class PipelineRunner:
             mag_x_error = abs(mag_x_pred - exact.mag_x)
             corr_zz_error = abs(corr_zz_pred - exact.corr_zz)
         except Exception as e:
-            logger.debug(f"Observable computation skipped: {e}")
+            logger.warning(
+                f"Observable computation FAILED at h_test={h_test}: {e}. "
+                f"Phase 4 metrics for observables are unavailable."
+            )
+            observables_computed = False
 
         # Compute metrics
         delta_e = abs(predicted_energy - exact.ground_energy)
@@ -404,8 +463,9 @@ class PipelineRunner:
         metrics_checklist = {
             "delta_e_over_gap_lt_5pct": delta_e_over_gap < 0.05,
             "correct_phase": phase_correct,
-            "mag_x_error_lt_1e2": mag_x_error < 0.01,
-            "corr_zz_error_lt_1e2": corr_zz_error < 0.01,
+            "mag_x_error_lt_1e2": mag_x_error < 0.01 if observables_computed else None,
+            "corr_zz_error_lt_1e2": corr_zz_error < 0.01 if observables_computed else None,
+            "observables_computed": observables_computed,
         }
 
         result = DeployResult(
@@ -482,12 +542,14 @@ class PipelineRunner:
         """
         # Validate h_values ordering
         h_values = np.asarray(h_values, dtype=float)
+        if len(h_values) == 0:
+            raise ValueError("h_values cannot be empty.")
         if len(h_values) >= 2 and h_values[0] < h_values[-1]:
-            logger.warning(
-                "h_values appear to be ascending — reversing to descending order. "
-                f"Got [{h_values[0]:.2f}, ..., {h_values[-1]:.2f}]"
+            raise ValueError(
+                "h_values must be in descending order (h=2→0). "
+                f"Got h_values[0]={h_values[0]:.2f}, h_values[-1]={h_values[-1]:.2f}. "
+                "Reverse the array before passing to run_full()."
             )
-            h_values = h_values[::-1]
 
         results: dict[str, Any] = {}
 

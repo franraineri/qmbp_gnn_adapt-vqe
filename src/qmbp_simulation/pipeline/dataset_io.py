@@ -181,6 +181,9 @@ def load_phase12_dataset(filepath: str | Path) -> dict:
             f"without updating Phase 3. Re-run Phase 2 with pure energy cost."
         )
 
+    # ── Dataset integrity validation ─────────────────────────────────
+    _validate_dataset_integrity(data, filepath)
+
     # Check schema version and emit deprecation warning for old versions
     version = str(data.get("version", "unknown"))
     if version in _LEGACY_VERSIONS:
@@ -195,3 +198,105 @@ def load_phase12_dataset(filepath: str | Path) -> dict:
 
     logger.info(f"Dataset loaded: {filepath} (version={version}, cost={cost_fn})")
     return data
+
+
+# ── Dataset integrity validation ─────────────────────────────────────────────
+
+
+def _validate_dataset_integrity(data: dict, filepath: str | Path) -> None:
+    """Validate dataset array shapes, NaN/Inf, and value ranges.
+
+    Raises ValueError on critical issues, emits warnings on non-critical ones.
+
+    Parameters
+    ----------
+    data : dict
+        Loaded dataset dictionary.
+    filepath : str | Path
+        Path for error messages.
+    """
+    h_values = data.get("h_values")
+    if h_values is None:
+        raise ValueError(f"Dataset at '{filepath}' is missing 'h_values' array.")
+
+    h_values = np.asarray(h_values)
+    n_points = len(h_values)
+
+    if n_points == 0:
+        raise ValueError(f"Dataset at '{filepath}' has empty h_values array.")
+
+    # Shape consistency checks
+    _required_arrays = {
+        "ground_energies": n_points,
+        "gaps": n_points,
+        "vqe_energies": n_points,
+        "fidelities": n_points,
+    }
+    for name, expected_len in _required_arrays.items():
+        arr = data.get(name)
+        if arr is None:
+            continue  # Optional arrays are OK to skip
+        arr = np.asarray(arr)
+        if len(arr) != expected_len:
+            raise ValueError(
+                f"Dataset at '{filepath}': array '{name}' has length {len(arr)}, "
+                f"expected {expected_len} (matching h_values)."
+            )
+
+    # theta_opt shape: [n_points, n_params]
+    theta_opt = data.get("theta_opt")
+    if theta_opt is not None:
+        theta_opt = np.asarray(theta_opt)
+        if theta_opt.ndim == 2 and theta_opt.shape[0] != n_points:
+            raise ValueError(
+                f"Dataset at '{filepath}': theta_opt has {theta_opt.shape[0]} rows, "
+                f"expected {n_points}."
+            )
+
+    # NaN/Inf checks on critical arrays
+    for name in ("ground_energies", "vqe_energies", "gaps"):
+        arr = data.get(name)
+        if arr is None:
+            continue
+        arr = np.asarray(arr, dtype=float)
+        n_bad = np.sum(~np.isfinite(arr))
+        if n_bad > 0:
+            raise ValueError(
+                f"Dataset at '{filepath}': array '{name}' contains "
+                f"{n_bad} NaN/Inf values. Dataset is corrupted."
+            )
+
+    # Fidelity range check [0, 1]
+    fidelities = data.get("fidelities")
+    if fidelities is not None:
+        fidelities = np.asarray(fidelities, dtype=float)
+        if np.any(fidelities < -0.01) or np.any(fidelities > 1.01):
+            warnings.warn(
+                f"Dataset at '{filepath}': fidelities contain values outside "
+                f"[0, 1] range (min={fidelities.min():.4f}, max={fidelities.max():.4f}). "
+                f"This may indicate corrupted VQE results.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+
+    # Gap non-negativity check
+    gaps = data.get("gaps")
+    if gaps is not None:
+        gaps = np.asarray(gaps, dtype=float)
+        if np.any(gaps < 0):
+            warnings.warn(
+                f"Dataset at '{filepath}': gaps contain negative values "
+                f"(min={gaps.min():.6f}). This violates spectral gap definition.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+
+    # Descending order check (warning only — some datasets may be ascending)
+    if n_points >= 2 and h_values[0] < h_values[-1]:
+        warnings.warn(
+            f"Dataset at '{filepath}': h_values are in ascending order "
+            f"(h[0]={h_values[0]:.2f}, h[-1]={h_values[-1]:.2f}). "
+            f"Pipeline expects descending order (h=2→0).",
+            RuntimeWarning,
+            stacklevel=3,
+        )

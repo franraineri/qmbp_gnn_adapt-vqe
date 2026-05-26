@@ -20,6 +20,16 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_RESULTS_ROOT = Path("results/experiments")
 
+# Experiment category mapping: category_name → list of experiment ID prefixes
+CATEGORY_MAP: dict[str, list[str]] = {
+    "optimization": ["B", "C3", "G4"],
+    "scaling": ["A", "G3"],
+    "landscape": ["F"],
+    "predictor": ["C1", "D", "E3", "G1", "G2", "G5"],
+    "hardware": [],
+    "generalization": ["E4"],
+}
+
 # Known reference baselines from validated V6.1 experiments (ΔE/gap)
 _KNOWN_BASELINES: dict[tuple[int, float], float] = {
     (6, 1.25): 0.030,
@@ -67,6 +77,48 @@ class ResultStore:
         self.root.mkdir(parents=True, exist_ok=True)
 
     # ── Discovery ────────────────────────────────────────────────────────
+
+    def list_categories(self) -> dict[str, list[str]]:
+        """List experiment categories and their ID prefixes.
+
+        Returns
+        -------
+        dict[str, list[str]]
+            Category name → list of experiment ID prefixes.
+        """
+        return dict(CATEGORY_MAP)
+
+    def resolve_category(
+        self,
+        category: str,
+        available: list[str] | None = None,
+    ) -> list[str]:
+        """Resolve a category name or letter to experiment IDs.
+
+        Parameters
+        ----------
+        category : str
+            Category name (e.g., "optimization") or letter prefix (e.g., "G").
+        available : list[str] | None
+            Available experiment IDs to filter against. If None, uses
+            list_experiments().
+
+        Returns
+        -------
+        list[str]
+            Matching experiment IDs.
+        """
+        if available is None:
+            available = self.list_experiments()
+
+        cat_lower = category.lower()
+        if cat_lower in CATEGORY_MAP:
+            prefixes = CATEGORY_MAP[cat_lower]
+            return [e for e in available if any(e.startswith(p) for p in prefixes)]
+
+        # Try as a letter prefix
+        prefix = category.upper()
+        return [e for e in available if e.startswith(prefix)]
 
     def list_experiments(self) -> list[str]:
         """List experiment IDs that have at least one run_*.json file."""

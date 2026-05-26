@@ -38,7 +38,7 @@ Thumbs.db
 .kiro/specs/
 
 # ── Benchmark & notebook results ─────────────────────────────
-scripts/benchmark_results/
+results/benchmarks/
 scripts/notebook_results/
 
 # ── Logs & temp ──────────────────────────────────────────────

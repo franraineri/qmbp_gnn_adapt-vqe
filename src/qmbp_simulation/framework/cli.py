@@ -1,0 +1,401 @@
+"""Shared CLI argument parsing for scripts and experiments.
+
+Provides reusable argument groups and validation functions that eliminate
+boilerplate across scripts/run_pipeline.py, scripts/benchmark.py,
+scripts/run_experiment.py, and other entry points.
+
+Usage:
+    from qmbp_simulation.framework.cli import (
+        create_base_parser,
+        add_system_args,
+        add_sweep_args,
+        add_vqe_args,
+        add_mpnn_args,
+        add_output_args,
+        validate_descending_sweep,
+    )
+
+    parser = create_base_parser("My Script", epilog="Examples: ...")
+    add_system_args(parser)
+    add_sweep_args(parser)
+    add_output_args(parser)
+    args = parser.parse_args()
+    h_values = validate_descending_sweep(args.h_values)
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+from pathlib import Path
+
+import numpy as np
+
+
+def create_base_parser(
+    description: str,
+    epilog: str = "",
+) -> argparse.ArgumentParser:
+    """Create a standardized ArgumentParser with consistent formatting.
+
+    Parameters
+    ----------
+    description : str
+        Script description shown in --help.
+    epilog : str
+        Examples section shown after arguments in --help.
+
+    Returns
+    -------
+    argparse.ArgumentParser
+        Configured parser with RawDescriptionHelpFormatter.
+    """
+    return argparse.ArgumentParser(
+        description=description,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=epilog,
+    )
+
+
+def add_system_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard system configuration arguments.
+
+    Adds: --n-qubits, --topology, --J, --periodic, --p
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group (for further customization if needed).
+    """
+    group = parser.add_argument_group("System configuration")
+    group.add_argument(
+        "--n-qubits",
+        type=int,
+        default=6,
+        help="Number of qubits (default: 6)",
+    )
+    group.add_argument(
+        "--topology",
+        type=str,
+        default="chain_1d",
+        help="Lattice topology (default: chain_1d)",
+    )
+    group.add_argument(
+        "--J",
+        type=float,
+        default=1.0,
+        help="Coupling constant (default: 1.0)",
+    )
+    group.add_argument(
+        "--periodic",
+        action="store_true",
+        help="Use periodic boundary conditions",
+    )
+    group.add_argument(
+        "--p",
+        type=int,
+        default=2,
+        help="HVA layers (default: 2, max: 2)",
+    )
+    return group
+
+
+def add_sweep_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard sweep configuration arguments.
+
+    Adds: --h-values, --h-test
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Sweep configuration")
+    group.add_argument(
+        "--h-values",
+        nargs="+",
+        type=float,
+        help="Transverse field values (descending). Default: linspace(2.0, 0.5, 31)",
+    )
+    group.add_argument(
+        "--h-test",
+        nargs="+",
+        type=float,
+        default=[1.5],
+        help="Unseen h-value(s) for deployment (default: 1.5)",
+    )
+    return group
+
+
+def add_vqe_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard VQE configuration arguments.
+
+    Adds: --n-restarts, --maxiter, --sigma
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("VQE configuration")
+    group.add_argument(
+        "--n-restarts",
+        type=int,
+        default=5,
+        help="VQE restarts (default: 5)",
+    )
+    group.add_argument(
+        "--maxiter",
+        type=int,
+        default=1000,
+        help="VQE max iterations (default: 1000)",
+    )
+    group.add_argument(
+        "--sigma",
+        type=float,
+        default=0.1,
+        help="Initial parameter spread for restarts (default: 0.1)",
+    )
+    return group
+
+
+def add_mpnn_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard MPNN configuration arguments.
+
+    Adds: --hidden-dim, --n-layers, --n-epochs, --lr, --patience
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("MPNN configuration")
+    group.add_argument(
+        "--hidden-dim",
+        type=int,
+        default=128,
+        help="MPNN hidden dimension (default: 128)",
+    )
+    group.add_argument(
+        "--n-layers",
+        type=int,
+        default=3,
+        help="MPNN message-passing layers (default: 3)",
+    )
+    group.add_argument(
+        "--n-epochs",
+        type=int,
+        default=6000,
+        help="MPNN training epochs (default: 6000)",
+    )
+    group.add_argument(
+        "--lr",
+        type=float,
+        default=1e-3,
+        help="MPNN learning rate (default: 1e-3)",
+    )
+    group.add_argument(
+        "--patience",
+        type=int,
+        default=500,
+        help="MPNN early stopping patience (default: 500)",
+    )
+    return group
+
+
+def add_output_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard output and logging arguments.
+
+    Adds: --output-dir, --verbose, --debug
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Output")
+    group.add_argument(
+        "--output-dir",
+        type=str,
+        default="results/pipeline",
+        help="Output directory (default: results/pipeline)",
+    )
+    group.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Enable INFO logging",
+    )
+    group.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable DEBUG logging",
+    )
+    return group
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Validation helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def validate_descending_sweep(
+    h_values: list[float] | None,
+    default_start: float = 2.0,
+    default_end: float = 0.5,
+    default_n: int = 31,
+) -> np.ndarray:
+    """Validate and normalize h-values to descending order.
+
+    If h_values is None, generates a default linspace.
+    If provided, sorts into descending order.
+
+    Parameters
+    ----------
+    h_values : list[float] | None
+        User-provided h-values, or None for default.
+    default_start : float
+        Start of default linspace (highest h).
+    default_end : float
+        End of default linspace (lowest h).
+    default_n : int
+        Number of points in default linspace.
+
+    Returns
+    -------
+    np.ndarray
+        h-values in descending order.
+
+    Raises
+    ------
+    ValueError
+        If h_values is empty after filtering.
+    """
+    if h_values is None:
+        return np.linspace(default_start, default_end, default_n)
+
+    arr = np.array(sorted(h_values, reverse=True), dtype=float)
+    if len(arr) == 0:
+        raise ValueError("h_values cannot be empty.")
+    return arr
+
+
+def validate_system_size(n_qubits: int, p_layers: int) -> list[str]:
+    """Validate system size against known constraints.
+
+    Parameters
+    ----------
+    n_qubits : int
+        Number of qubits.
+    p_layers : int
+        Number of HVA layers.
+
+    Returns
+    -------
+    list[str]
+        List of warnings (empty if all OK).
+
+    Raises
+    ------
+    ValueError
+        If p_layers > 2 (hard constraint).
+    """
+    if p_layers > 2:
+        raise ValueError(
+            "CONSTRAINT VIOLATION: p_layers > 2 is forbidden (Mele et al. 2022). "
+            "HVA depth is limited to p ≤ 2."
+        )
+
+    warnings: list[str] = []
+    if n_qubits == 12:
+        warnings.append("N=12 is very slow (>30 min per run). Consider N=10 or N=14.")
+    if n_qubits > 20:
+        warnings.append(f"N={n_qubits} may be infeasible for full VQE.")
+    return warnings
+
+
+def configure_logging(verbose: bool = False, debug: bool = False) -> None:
+    """Configure logging level based on CLI flags.
+
+    Parameters
+    ----------
+    verbose : bool
+        Enable INFO level logging.
+    debug : bool
+        Enable DEBUG level logging (overrides verbose).
+    """
+    level = logging.DEBUG if debug else (logging.INFO if verbose else logging.WARNING)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
+
+def build_mpnn_config_dict(args: argparse.Namespace) -> dict:
+    """Extract MPNN config from parsed args into a dict for PipelineRunner.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments (must have hidden_dim, n_layers, n_epochs, lr, patience).
+
+    Returns
+    -------
+    dict
+        MPNN configuration dictionary.
+    """
+    config = {}
+    if hasattr(args, "hidden_dim") and args.hidden_dim is not None:
+        config["hidden_dim"] = args.hidden_dim
+    if hasattr(args, "n_layers") and args.n_layers is not None:
+        config["n_layers"] = args.n_layers
+    if hasattr(args, "n_epochs") and args.n_epochs is not None:
+        config["n_epochs"] = args.n_epochs
+    if hasattr(args, "lr") and args.lr is not None:
+        config["lr"] = args.lr
+    if hasattr(args, "patience") and args.patience is not None:
+        config["patience"] = args.patience
+    return config
+
+
+def resolve_output_dir(path: str | Path) -> Path:
+    """Resolve and create output directory.
+
+    Parameters
+    ----------
+    path : str | Path
+        Output directory path.
+
+    Returns
+    -------
+    Path
+        Resolved Path object (directory is created if needed).
+    """
+    output_dir = Path(path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
