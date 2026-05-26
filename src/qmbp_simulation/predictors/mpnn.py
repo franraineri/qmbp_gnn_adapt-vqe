@@ -322,6 +322,7 @@ def train_mpnn(
     energy_val_fn: callable | None = None,
     divergence_window: int = 5,
     divergence_threshold: float = 0.01,
+    seed: int = 42,
 ) -> dict:
     """Train the MPNN with MSE loss, ReduceLROnPlateau, and optional
     energy-driven validation.
@@ -338,6 +339,7 @@ def train_mpnn(
         Function(theta_pred_batch, data_batch) -> list[float] of energy errors.
     divergence_window : int — window for divergence detection
     divergence_threshold : float — ΔE threshold for divergence detection.
+    seed : int — random seed for reproducibility (torch + DataLoader).
 
     Returns
     -------
@@ -373,7 +375,13 @@ def train_mpnn(
     import torch.nn.functional as F
     from torch_geometric.loader import DataLoader
 
-    loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
+    # Seed PyTorch for reproducible weight initialization and DataLoader shuffling
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+    _loader_generator = torch.Generator().manual_seed(seed)
+
+    loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True, generator=_loader_generator)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=patience, factor=0.5, min_lr=1e-6

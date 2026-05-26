@@ -59,7 +59,7 @@ class TestPipelineE2E:
         # ── Phase 3: MPNN training ──
         dataset = build_graph_dataset(lattice, h_train, theta_opt, e_exact, fidelities)
         model = MPNNPredictor(node_features=2, hidden_dim=32, n_layers=2, output_dim=2)
-        train_mpnn(model, dataset, n_epochs=200, lr=1e-3, patience=50)
+        train_mpnn(model, dataset, n_epochs=500, lr=1e-3, patience=100)
 
         # ── Phase 4: Deploy at test point ──
         import torch

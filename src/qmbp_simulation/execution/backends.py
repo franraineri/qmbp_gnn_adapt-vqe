@@ -85,9 +85,19 @@ class NoiselessBackend(ExecutionBackend):
         params: np.ndarray,
     ) -> float:
         """Evaluate expectation value using exact statevector simulation."""
+        if len(params) != circuit.num_parameters:
+            raise ValueError(
+                f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
+            )
         bound = circuit.assign_parameters(params)
         job = self._estimator.run([(bound, hamiltonian)])
-        return float(job.result()[0].data.evs)
+        energy = float(job.result()[0].data.evs)
+        if not np.isfinite(energy):
+            raise RuntimeError(
+                f"Non-finite energy returned from StatevectorEstimator: {energy}. "
+                f"Check circuit parameters for NaN/Inf."
+            )
+        return energy
 
     @property
     def name(self) -> str:
@@ -116,6 +126,9 @@ class NoisyBackend(ExecutionBackend):
         self._mitigation = mitigation or MitigationOptions()
         self._seed_simulator = seed_simulator
         self._noiseless = NoiselessBackend()
+        # Persistent RNG for Gaussian shot noise approximation — advances
+        # on each evaluate() call to produce realistic stochastic noise.
+        self._rng = np.random.default_rng(seed_simulator)
 
     def evaluate(
         self,
@@ -124,11 +137,14 @@ class NoisyBackend(ExecutionBackend):
         params: np.ndarray,
     ) -> float:
         """Evaluate expectation value with shot noise or full noise model."""
+        if len(params) != circuit.num_parameters:
+            raise ValueError(
+                f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
+            )
         if self._noise_model is None:
-            # Gaussian shot noise approximation
+            # Gaussian shot noise approximation — RNG advances each call
             exact_energy = self._noiseless.evaluate(circuit, hamiltonian, params)
-            rng = np.random.default_rng(self._seed_simulator)
-            noise = rng.normal(0.0, 1.0 / np.sqrt(self._shots))
+            noise = self._rng.normal(0.0, 1.0 / np.sqrt(self._shots))
             return exact_energy + noise
 
         # Full noise model simulation via AerSimulator
@@ -156,7 +172,13 @@ class NoisyBackend(ExecutionBackend):
 
         estimator = BackendEstimatorV2(backend=backend, options=options)
         job = estimator.run([(isa_circuit, hamiltonian)])
-        return float(job.result()[0].data.evs)
+        energy = float(job.result()[0].data.evs)
+        if not np.isfinite(energy):
+            raise RuntimeError(
+                f"Non-finite energy returned from noisy backend: {energy}. "
+                f"Check circuit depth and noise model compatibility."
+            )
+        return energy
 
     @property
     def name(self) -> str:

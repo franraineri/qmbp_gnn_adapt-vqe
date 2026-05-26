@@ -21,15 +21,6 @@ import json
 import sys
 from pathlib import Path
 
-_CATEGORY_MAP: dict[str, list[str]] = {
-    "optimization": ["B", "C3", "G4"],
-    "scaling": ["A", "G3"],
-    "landscape": ["F"],
-    "predictor": ["C1", "D", "E3", "G1", "G2", "G5"],
-    "hardware": [],
-    "generalization": ["E4"],
-}
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -61,16 +52,6 @@ Examples:
     parser.add_argument("--results-dir", type=str, default=None, help="Results directory")
 
     return parser.parse_args()
-
-
-def _resolve_category(category: str, available: list[str]) -> list[str]:
-    """Resolve category to experiment IDs."""
-    cat_lower = category.lower()
-    if cat_lower in _CATEGORY_MAP:
-        prefixes = _CATEGORY_MAP[cat_lower]
-        return [e for e in available if any(e.startswith(p) for p in prefixes)]
-    prefix = category.upper()
-    return [e for e in available if e.startswith(prefix)]
 
 
 def _run_experiment_comparison(store, exp_ids: list[str], args) -> None:
@@ -184,7 +165,7 @@ def main() -> None:
     if args.all:
         exp_ids = available
     elif args.category:
-        exp_ids = _resolve_category(args.category, available)
+        exp_ids = store.resolve_category(args.category, available)
     elif args.experiments:
         exp_ids = [e.upper() for e in args.experiments]
     else:

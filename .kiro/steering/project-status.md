@@ -109,16 +109,29 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `src/qmbp_simulation/analysis/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on)
 - `src/qmbp_simulation/analysis/metrics.py` — SNR, smoothness, energy decomposition
 - `src/qmbp_simulation/framework/base.py` — BaseExperiment lifecycle (setup → run → analyze → report)
+- `src/qmbp_simulation/framework/cli.py` — shared CLI argument groups and validation
+- `src/qmbp_simulation/framework/result_io.py` — standardized result saving/loading
+- `src/qmbp_simulation/framework/benchmarking.py` — BenchmarkSuite for performance regression
+- `src/qmbp_simulation/framework/logging.py` — StructuredLogger + ProgressReporter
+- `src/qmbp_simulation/framework/result_store.py` — result querying, comparison, CATEGORY_MAP
+- `src/qmbp_simulation/pipeline/runner.py` — PipelineRunner + run_exact_diag_sweep helper
 - `experiments/` — categorized experiment scripts (optimization, scaling, landscape, predictor, hardware, generalization)
 - `scripts/run_experiment.py` — unified CLI for running experiments by ID
-- `scripts/run_pipeline.py` — full 4-phase pipeline CLI
-- `scripts/compare.py` — cross-experiment result comparison
+- `scripts/run_pipeline.py` — full 4-phase pipeline CLI (uses framework/cli.py)
+- `scripts/compare.py` — cross-experiment result comparison (uses ResultStore)
+- `scripts/benchmark.py` — performance benchmarking (uses BenchmarkSuite)
 
-## Dead Code (removed 2026-05-22, deleted 2026-05-25)
+## Dead Code (removed 2026-05-22, deleted 2026-05-25/26)
 - `pipeline_core.py` — documented but zero imports anywhere (DELETED)
 - `experimental/` — GATPredictor + augmentation (both rejected, never existed on disk)
 - `hardware_deployer.py` — V6.0 legacy (DELETED, superseded by V6.1)
 - `archive/` — All _BAK directories removed in v8_clean branch
+- `scripts/run_v1_p1_noisy.py` — exploratory ZNE script (DELETED 2026-05-26, results in binnacles)
+- `scripts/run_noisy_v2_batch.py` — exploratory ZNE batch (DELETED 2026-05-26, code in noisy_utils.py)
+- `scripts/run_v2_extended.py` — exploratory analysis (DELETED 2026-05-26, results in binnacles)
+- `scripts/run_v2_nonlinear.py` — exploratory non-linear ZNE (DELETED 2026-05-26, results in binnacles)
+- `scripts/run_v3_per_obs_zne.py` — exploratory per-obs ZNE (DELETED 2026-05-26, results in binnacles)
+- `scripts/run_zne_robustness.py` — ZNE robustness validation (DELETED 2026-05-26, results in binnacles)
 
 ## Optimal Config (quick reference)
 - **N=6**: GINConv h=64, L=3, 6000ep, lr=1e-3, 5 VQE restarts, fid≥0.93
@@ -195,7 +208,13 @@ See `README.md` for quick-start instructions and the full directory layout.
 
 ```bash
 # Full 4-phase pipeline (N=6, p=2)
-python scripts/run_pipeline.py --n 6 --p 2 --output results/experiments/
+python scripts/run_pipeline.py --n-qubits 6 --p 2
+
+# With custom MPNN config
+python scripts/run_pipeline.py --n-qubits 10 --hidden-dim 128 --n-epochs 6000 --patience 500
+
+# Skip phases (resume from checkpoint)
+python scripts/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
 
 # Smoke test (N=4, p=1, <30s)
 python scripts/smoke_test.py
@@ -203,6 +222,73 @@ python scripts/smoke_test.py
 # Run tests
 make test          # Fast tests (~12s)
 make test-full     # All tests including slow (~60s)
+```
+
+## How To: Create a New Script
+
+Use the framework's CLI utilities to avoid boilerplate:
+
+```python
+#!/usr/bin/env python3
+"""My new script."""
+from qmbp_simulation.framework import (
+    create_base_parser, add_system_args, add_sweep_args, add_output_args,
+    validate_descending_sweep, configure_logging, resolve_output_dir,
+    save_experiment_result, build_result_envelope, ProgressReporter,
+)
+
+def main():
+    parser = create_base_parser("My Script", epilog="Examples: ...")
+    add_system_args(parser)
+    add_sweep_args(parser)
+    add_output_args(parser)
+    args = parser.parse_args()
+
+    configure_logging(verbose=args.verbose, debug=args.debug)
+    h_values = validate_descending_sweep(args.h_values)
+    output_dir = resolve_output_dir(args.output_dir)
+
+    reporter = ProgressReporter("My Script")
+    with reporter.phase(1, "Computing") as p:
+        # ... do work ...
+        p.detail("Done")
+    reporter.summary({"key_metric": 0.014})
+
+if __name__ == "__main__":
+    main()
+```
+
+## How To: Compare Results
+
+```bash
+# Compare all experiments
+python scripts/compare.py --all
+
+# Compare by category
+python scripts/compare.py --category optimization
+
+# Analyze noisy/ZNE results
+python scripts/compare.py --noisy --group-by n_layouts
+
+# Programmatic access
+from qmbp_simulation.framework import ResultStore
+store = ResultStore()
+comparisons = store.compare_experiments(store.list_experiments())
+```
+
+## How To: Benchmark Performance
+
+```bash
+# Run all benchmarks
+python scripts/benchmark.py
+
+# Specific components
+python scripts/benchmark.py --components solver vqe --n-qubits 4 6 8 10
+
+# Programmatic access
+from qmbp_simulation.framework import BenchmarkSuite
+suite = BenchmarkSuite(n_qubits=[4, 6, 8], n_repeats=5)
+results = suite.run(components=["solver", "vqe"])
 ```
 
 ## How To: Add a New Technique to `experiments/helpers/`

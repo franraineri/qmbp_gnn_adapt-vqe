@@ -60,10 +60,10 @@ class OptimizationCallback:
         self.energies.append(energy)
         self.param_vectors.append(xk.copy())
 
-        # Approximate gradient norm from energy change between iterations.
-        # We avoid finite-difference gradient here because it costs n_params
-        # extra circuit evaluations per iteration — too expensive for the
-        # 27-point sweep.  Instead, use the energy drop as a proxy.
+        # Approximate convergence rate from energy change between iterations.
+        # NOTE: This is |ΔE| (energy drop), NOT the true gradient norm.
+        # Used as a convergence proxy — true gradient would cost n_params
+        # extra circuit evaluations per iteration.
         if len(self.energies) >= 2:
             delta_e = abs(self.energies[-1] - self.energies[-2])
             self.grad_norms.append(delta_e)
@@ -100,9 +100,13 @@ class VQEOptimizer:
         self,
         config: VQEConfig | None = None,
         backend: ExecutionBackend | None = None,
+        seed: int | None = None,
     ) -> None:
         self.config = config or VQEConfig()
         self._backend = backend or NoiselessBackend()
+        # Seeded RNG for restart perturbations — ensures reproducibility
+        # independent of global numpy state.
+        self._rng = np.random.default_rng(seed)
 
     # ── optimize() ───────────────────────────────────────────────────
 
@@ -163,7 +167,7 @@ class VQEOptimizer:
 
         # Random restarts
         for restart_idx in range(cfg.n_restarts):
-            x0 = best.x + np.random.normal(0, cfg.restart_sigma, len(best.x))
+            x0 = best.x + self._rng.normal(0, cfg.restart_sigma, len(best.x))
             # Clip to bounds
             x0 = np.clip(x0, cfg.bounds[0], cfg.bounds[1])
             trial = minimize(
@@ -237,13 +241,14 @@ class VQEOptimizer:
         -------
         np.ndarray — initial parameter guess
         """
-        # Enforce θ=0 for h=0 when warm_start_seed_zeros=True
-        if config.warm_start_seed_zeros and abs(h_value) < 1e-12:
-            return np.zeros(n_params)
-
-        # Warm-start from previous h-point if available
+        # Warm-start from previous h-point if available (always preferred)
         if previous_theta is not None:
             return previous_theta.copy()
+
+        # Enforce θ=0 for h=0 when warm_start_seed_zeros=True and no
+        # previous theta is available (first point in sweep at h=0)
+        if config.warm_start_seed_zeros and abs(h_value) < 1e-12:
+            return np.zeros(n_params)
 
         # First point: small random perturbation
         return np.random.uniform(-0.01, 0.01, n_params)
@@ -278,6 +283,8 @@ class VQEOptimizer:
             ascending breaks θ smoothness).
         """
         # Validate descending order
+        if len(h_values) == 0:
+            raise ValueError("h_values cannot be empty.")
         if len(h_values) >= 2 and h_values[0] < h_values[-1]:
             raise ValueError(
                 "h_values must be in descending order (h=2→0). "
@@ -326,6 +333,14 @@ class VQEOptimizer:
                 exact_state=exact_psi,
             )
             result.h_value = h
+
+            # NaN detection: catch corrupted optimization early
+            if np.any(~np.isfinite(result.theta_opt)):
+                logger.error(
+                    f"NaN/Inf detected in θ_opt at h={h:.4f}. "
+                    f"Warm-start chain is corrupted. Resetting to random init."
+                )
+                result.theta_opt = np.random.uniform(-0.01, 0.01, n_params)
 
             status = "✅" if result.fidelity >= 0.995 else "⚠️"
             logger.info(
