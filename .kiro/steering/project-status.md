@@ -13,9 +13,9 @@ Before running ANY experiment or notebook execution:
 V6.1 complete and thesis-ready. All features validated at N=6 and N=10 (15 definitive runs).
 Pipeline observability (DiagnosticCollector) now always-on — every run captures full metrics.
 **V7 experiments complete** — all simulation-testable questions answered (12/22 experiments run, 10 skipped with justification).
-**V8 experiments complete** — landscape analysis, scaling laws, methodological validation (13/19 executed, 6 skipped with justification).
+**V8 experiments complete** — landscape analysis, scaling laws, methodological validation (18/19 executed, 1 skipped with justification).
 
-## V8 Key Results (2026-05-22)
+## V8 Key Results (2026-05-22/25)
 - **Scaling law (A3)**: h_min = 1.0 + 0.020·N^1.31 (R²=1.0000). Predicts N=20→2.00 (exact match). Exponent ≠ ν=1.
 - **p=1 vs p=2**: β(p=1)=0.60 < β(p=2)=1.33 → p=1 scales better at large N.
 - **No barren plateaus (F3)**: Landscape fluctuation >1.0 everywhere (confirms Mele et al. 2026).
@@ -29,7 +29,12 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 - **D1 regularized**: Dropout=0.1 makes detection robust (std=0.13 vs 0.90). 5 seeds all consistent. ✅
 - **Parameter freezing (B2)**: 2/4 params frozen at h≥1.5, 0% accuracy loss. ✅
 - **Longitudinal field (E4)**: HVA p=2 fails at g>0 (fidelity drops to 0.89 at g=0.1). HVA is model-specific. ❌
-- Binnacles: `binnacle-v8-experiments.md`, `binnacle-v8-experiments-round1.md`
+- **Data efficiency (G1)**: 9 points sufficient (47% reduction from 17). Seeds 43/44 pass with 5 points. ✅
+- **Cross-seed (G5)**: Pipeline is seed-independent (std=0.004, all seeds pass). ✅
+- **Condition number (G4)**: κ does NOT predict restart needs (r=-0.29). h-value is the real predictor. ❌
+- **Ensemble UQ (G2)**: Naive ensemble variance not calibrated (r=0.195). Needs bootstrap/MC-Dropout. ❌
+- **N=20 optimized (G3)**: 1 restart + freeze FAILS at N=20 (ΔE/gap=1.26). N=6 findings don't transfer. ❌
+- Binnacles: `binnacle-v8-experiments.md`, `binnacle-v8-experiments-round1.md`, `binnacle-v8-round2-pipeline-characterization.md`
 
 ## V8 Validated Decisions (2026-05-22)
 - **VQE restarts:** 1 restart sufficient at N=6 AND N=10 (B4: no saddle points in HVA landscape at either size)
@@ -47,6 +52,11 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 - **Physics-informed loss (C1@N=10):** -12.3% (HURTS). Only helps with full h-range training, not valid-regime-only.
 - **Phase detection caveat:** Overfitting (loss=0) shifts peak to h≈0.69; needs regularization (D1-dense)
 - **p=1 landscape (F3@p=1):** Simpler (fluctuation 1.38 vs 1.99), higher random GS accessibility at h≥1.5
+- **Data efficiency (G1):** 9 points sufficient for ΔE/gap < 5% (47% reduction from 17-point baseline)
+- **Cross-seed (G5):** Pipeline is seed-independent — all seeds produce ΔE/gap < 2.1% (std=0.004)
+- **N=20 p=2 (G3):** 1 restart + freeze FAILS. N=6 landscape findings do NOT transfer to N=20. Use 7 restarts, no freeze.
+- **Condition number (G4):** κ does NOT predict restart needs. Use h-value as difficulty proxy instead.
+- **Ensemble UQ (G2):** Naive ensemble (same data, different init) not calibrated. Need bootstrap for real UQ.
 
 ## Active Priority
 1. **Hardware deployment on IBM Torino** — the only way to validate ZNE at N=10 (local simulation exhausted).

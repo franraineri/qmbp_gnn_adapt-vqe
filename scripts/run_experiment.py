@@ -16,6 +16,12 @@ from __future__ import annotations
 import argparse
 import importlib
 import sys
+from pathlib import Path
+
+# Ensure project root is in path for experiment imports
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 # Experiment registry: ID → (module_path, class_name)
 EXPERIMENT_REGISTRY: dict[str, tuple[str, str]] = {
@@ -30,6 +36,11 @@ EXPERIMENT_REGISTRY: dict[str, tuple[str, str]] = {
     "E4": ("experiments.generalization.exp_e4_longitudinal", "ExperimentE4"),
     "F1": ("experiments.landscape.exp_f1_dypp", "ExperimentF1"),
     "F3": ("experiments.landscape.exp_f3_fluctuation", "ExperimentF3"),
+    "G1": ("experiments.predictor.exp_g1_data_efficiency", "ExperimentG1"),
+    "G2": ("experiments.predictor.exp_g2_ensemble_calibration", "ExperimentG2"),
+    "G3": ("experiments.scaling.exp_g3_n20_optimized", "ExperimentG3"),
+    "G4": ("experiments.optimization.exp_g4_condition_restarts", "ExperimentG4"),
+    "G5": ("experiments.predictor.exp_g5_cross_seed", "ExperimentG5"),
 }
 
 _PLANNED_NOT_IMPLEMENTED: dict[str, str] = {
@@ -113,6 +124,7 @@ def list_experiments() -> None:
         "D": "Landscape & Phase Transition Analysis",
         "E": "Scaling & Generalization",
         "F": "Novel Methodological Contributions",
+        "G": "Pipeline Characterization & Validation",
     }
 
     for cat in sorted(categories.keys()):

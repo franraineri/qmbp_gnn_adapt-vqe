@@ -109,10 +109,12 @@ class NoisyBackend(ExecutionBackend):
         shots: int = 8192,
         noise_model=None,
         mitigation: MitigationOptions | None = None,
+        seed_simulator: int | None = None,
     ) -> None:
         self._shots = shots
         self._noise_model = noise_model
         self._mitigation = mitigation or MitigationOptions()
+        self._seed_simulator = seed_simulator
         self._noiseless = NoiselessBackend()
 
     def evaluate(
@@ -125,7 +127,8 @@ class NoisyBackend(ExecutionBackend):
         if self._noise_model is None:
             # Gaussian shot noise approximation
             exact_energy = self._noiseless.evaluate(circuit, hamiltonian, params)
-            noise = np.random.normal(0.0, 1.0 / np.sqrt(self._shots))
+            rng = np.random.default_rng(self._seed_simulator)
+            noise = rng.normal(0.0, 1.0 / np.sqrt(self._shots))
             return exact_energy + noise
 
         # Full noise model simulation via AerSimulator
@@ -139,17 +142,19 @@ class NoisyBackend(ExecutionBackend):
             ) from e
 
         backend = AerSimulator(noise_model=self._noise_model)
-        from qiskit.primitives import StatevectorEstimator  # noqa: F401
+        from qiskit.primitives import BackendEstimatorV2
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
         pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
         bound = circuit.assign_parameters(params)
         isa_circuit = pm.run(bound)
 
-        from qiskit_aer.primitives import EstimatorV2 as AerEstimator
+        precision = 1.0 / np.sqrt(self._shots)
+        options = {"default_precision": precision}
+        if self._seed_simulator is not None:
+            options["seed_simulator"] = self._seed_simulator
 
-        estimator = AerEstimator.from_backend(backend)
-        estimator.options.default_shots = self._shots
+        estimator = BackendEstimatorV2(backend=backend, options=options)
         job = estimator.run([(isa_circuit, hamiltonian)])
         return float(job.result()[0].data.evs)
 

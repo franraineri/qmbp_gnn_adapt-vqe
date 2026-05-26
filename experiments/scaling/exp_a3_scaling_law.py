@@ -30,6 +30,8 @@ from qmbp_simulation.framework.metrics import ExperimentMetrics
 class ExperimentA3(BaseExperiment):
     """Finite-size scaling of the valid regime boundary."""
 
+    logger = logging.getLogger(__name__)
+
     @classmethod
     def default_config(cls) -> ExperimentConfig:
         return ExperimentConfig(
@@ -41,7 +43,7 @@ class ExperimentA3(BaseExperiment):
                 "(TFIM universality class, nu=1 in 1D)"
             ),
             system=SystemConfig(n_qubits=6, p_layers=2),
-            analysis=AnalysisConfig(scaling_n_values=[4, 6, 8, 10]),
+            analysis=AnalysisConfig(scaling_n_values=[4, 6, 8, 10, 14, 20]),
             seeds=[42, 43, 44],
             verbose=True,
         )
@@ -98,8 +100,10 @@ class ExperimentA3(BaseExperiment):
         return metrics
 
     def _find_boundary(self, N: int, p: int, seed: int) -> float | None:
-        """Binary search for h_min where DE/gap < 5%."""
-        from qiskit.primitives import StatevectorEstimator
+        """Binary search for h_min where DE/gap < 5%.
+
+        Uses StatevectorEstimator for N<=10, AerSimulator MPS for N>=14.
+        """
         from scipy.optimize import minimize
 
         from qmbp_simulation import HVACircuitBuilder, make_lattice
@@ -108,19 +112,44 @@ class ExperimentA3(BaseExperiment):
         base_lattice = make_lattice("chain_1d", N, J=1.0, h=1.0)
         qc, _ = hva.create(N, p, base_lattice)
         n_params = qc.num_parameters
-        estimator = StatevectorEstimator()
 
-        def cost_fn(params, H):
-            bound = qc.assign_parameters(params)
-            job = estimator.run([(bound, H)])
-            return float(job.result()[0].data.evs)
+        # Choose backend: MPS for N>=14, statevector for smaller
+        use_mps = N >= 14
+        if use_mps:
+            from qiskit.quantum_info import Statevector
+            from qiskit_aer import AerSimulator
 
-        # Optimized h-grid based on expected h_min
+            mps_sim = AerSimulator(
+                method="matrix_product_state",
+                matrix_product_state_max_bond_dimension=64,
+                matrix_product_state_truncation_threshold=1e-12,
+            )
+            self.logger.info(f"    N={N}: using MPS backend (chi=64)")
+
+            def cost_fn(params, H):
+                bound = qc.assign_parameters(params)
+                bound_save = bound.copy()
+                bound_save.save_statevector()
+                result = mps_sim.run(bound_save).result()
+                sv = Statevector(result.get_statevector())
+                return float(sv.expectation_value(H).real)
+        else:
+            from qiskit.primitives import StatevectorEstimator
+
+            estimator = StatevectorEstimator()
+
+            def cost_fn(params, H):
+                bound = qc.assign_parameters(params)
+                job = estimator.run([(bound, H)])
+                return float(job.result()[0].data.evs)
+
+        # Optimized h-grid: start above expected h_min, stop well below
         h_predicted = 1.0 + 0.019 * N**1.33
-        h_start = min(3.0, h_predicted + 0.8)
-        h_test_points = np.arange(h_start, 0.45, -0.05)
+        h_start = min(3.5, h_predicted + 0.8)
+        h_stop = max(0.45, h_predicted - 0.6)  # Don't scan far below expected boundary
+        h_test_points = np.arange(h_start, h_stop, -0.05)
         prev_theta = np.random.uniform(-0.01, 0.01, n_params)
-        n_restarts = 3
+        n_restarts = 5 if N >= 14 else 3  # More restarts for larger N
         boundary_h = None
 
         for h in h_test_points:
