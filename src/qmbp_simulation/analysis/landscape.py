@@ -84,6 +84,12 @@ def landscape_fluctuation(
     High fluctuation indicates a trainable landscape with meaningful gradients.
     Low fluctuation indicates a flat/barren landscape.
 
+    Note: When |E_mean| < 1e-10 (possible near criticality where the energy
+    landscape is symmetric around zero), the fluctuation is reported as
+    float('inf') to indicate that the normalized metric is undefined rather
+    than misleadingly returning 0.0. The raw variance is still meaningful
+    in this case.
+
     Parameters
     ----------
     cost_fn : callable
@@ -111,7 +117,13 @@ def landscape_fluctuation(
 
     e_mean = np.mean(energies)
     e_var = np.var(energies)
-    fluctuation = e_var / (e_mean**2) if abs(e_mean) > 1e-10 else 0.0
+
+    if abs(e_mean) > 1e-10:
+        fluctuation = e_var / (e_mean**2)
+    else:
+        # Mean near zero — normalized fluctuation is undefined.
+        # Use inf to signal this rather than a misleading 0.0.
+        fluctuation = float("inf") if e_var > 1e-15 else 0.0
 
     return {
         "fluctuation": float(fluctuation),

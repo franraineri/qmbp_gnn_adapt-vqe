@@ -152,6 +152,7 @@ def main() -> None:
         lattice=lattice,
         config=vqe_config,
         checkpoint_dir=output_dir / "checkpoints",
+        verbose=args.verbose or args.debug,
     )
 
     t0 = time.time()
@@ -179,6 +180,57 @@ def main() -> None:
                 f"ΔE/gap={deploy.delta_e_over_gap:.4f} "
                 f"({'PASS' if deploy.delta_e_over_gap < 0.05 else 'FAIL'})"
             )
+
+    # Save diagnostics
+    if results.get("diagnostics"):
+        import json
+
+        diag_path = output_dir / "diagnostics.json"
+        with open(diag_path, "w") as f:
+            json.dump(results["diagnostics"], f, indent=2)
+        print(f"\n  Diagnostics saved to: {diag_path}")
+
+    # Save full pipeline results
+    import json
+    from datetime import datetime
+
+    run_output = {
+        "timestamp": datetime.now().isoformat(),
+        "config": {
+            "n_qubits": args.n_qubits,
+            "topology": args.topology,
+            "J": args.J,
+            "p_layers": args.p,
+            "n_restarts": args.n_restarts,
+            "maxiter": args.maxiter,
+            "hidden_dim": args.hidden_dim,
+            "n_epochs": args.n_epochs,
+            "h_values": h_values.tolist(),
+            "h_test": args.h_test,
+        },
+        "elapsed_s": elapsed,
+        "phase4_results": [
+            {
+                "h_test": d.h_test,
+                "predicted_energy": d.predicted_energy,
+                "delta_e": d.delta_e,
+                "delta_e_over_gap": d.delta_e_over_gap,
+                "mag_x_pred": d.mag_x_pred,
+                "corr_zz_pred": d.corr_zz_pred,
+                "mag_x_error": d.mag_x_error,
+                "corr_zz_error": d.corr_zz_error,
+                "phase_label": d.phase_label,
+                "metrics_checklist": d.metrics_checklist,
+            }
+            for d in (results.get("phase4") or [])
+        ],
+        "diagnostics": results.get("diagnostics"),
+    }
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results_path = output_dir / f"pipeline_run_{ts}.json"
+    with open(results_path, "w") as f:
+        json.dump(run_output, f, indent=2)
+    print(f"  Results saved to: {results_path}")
 
 
 if __name__ == "__main__":

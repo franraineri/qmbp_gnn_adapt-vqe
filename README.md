@@ -90,6 +90,7 @@ from qmbp_simulation.framework import BaseExperiment, ExperimentConfig, Experime
 from qmbp_simulation.analysis import (
     WeightGradientAnalyzer, DiagnosticCollector,
     compute_snr, compute_hessian, landscape_fluctuation,
+    compute_fraction_near_gs, compute_theta_smoothness,
 )
 from qmbp_simulation.pipeline import PipelineRunner
 ```
@@ -100,6 +101,10 @@ from qmbp_simulation.pipeline import PipelineRunner
 2. **Phase 2 — HVA VQE**: Descending h-sweep with warm-start, L-BFGS-B, p≤2
 3. **Phase 3 — MPNN Predictor**: GINConv + global pooling, fidelity-filtered data
 4. **Phase 4 — Deployment**: MPNN warm-start → hardware VQE with error mitigation
+
+The `PipelineRunner` includes always-on diagnostics via `DiagnosticCollector` —
+every run captures timing, convergence, θ-smoothness, per-h MSE, and energy
+decomposition metrics automatically.
 
 ## Running Experiments
 
@@ -114,10 +119,12 @@ python scripts/run_experiment.py --exp B4 --verbose
 python scripts/run_experiment.py --exp B4 D1 F1
 
 # Compare results against baseline
-python scripts/compare.py --all
 
 # Run full pipeline (N=6, default h-sweep)
-python scripts/run_pipeline.py --n-qubits 6 --p-layers 2
+python scripts/run_pipeline.py --n-qubits 6 --p 2
+
+# Run full pipeline with diagnostics output
+python scripts/run_pipeline.py --n-qubits 6 --p 2 --verbose --output-dir results/my_run
 ```
 
 ## Running Tests

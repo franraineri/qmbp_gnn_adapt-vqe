@@ -121,7 +121,7 @@ Modules follow a strict DAG (no circular imports possible):
 ```
 utils → models → solvers, circuits → execution → optimizers
                   models → predictors
-         solvers, optimizers, predictors → pipeline
+         solvers, optimizers, predictors, analysis → pipeline
                   pipeline, analysis → framework
          models, predictors → analysis
 ```

@@ -27,7 +27,16 @@ DEPENDENCY_DAG: dict[str, set[str]] = {
     "optimizers": {"execution", "circuits", "models", "utils"},
     "predictors": {"models", "utils"},
     "analysis": {"predictors", "models", "utils"},
-    "pipeline": {"solvers", "optimizers", "predictors", "execution", "circuits", "models", "utils"},
+    "pipeline": {
+        "analysis",
+        "solvers",
+        "optimizers",
+        "predictors",
+        "execution",
+        "circuits",
+        "models",
+        "utils",
+    },
     "framework": {
         "pipeline",
         "analysis",

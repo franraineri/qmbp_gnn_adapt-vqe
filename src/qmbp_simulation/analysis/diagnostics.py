@@ -117,15 +117,18 @@ class DiagnosticCollector:
         self._phase2_timing: list[float] = []
         self._phase2_iterations: list[int] = []
         self._phase2_restart_spread: list[float] = []
+        self._phase2_converged: list[bool | None] = []
         self._theta_vectors: list[np.ndarray] = []
         self._phase2_h_values: list[float] = []
 
         # Phase 3 data
         self._loss_curve: list[dict[str, float]] = []
         self._phase3_data: dict | None = None
+        self._phase3_elapsed_s: float | None = None
 
         # Phase 4 data
         self._phase4_data: dict | None = None
+        self._phase4_elapsed_s: float | None = None
 
         # Config dict for checkpoints (set externally if needed)
         self._config_dict: dict = {}
@@ -175,6 +178,8 @@ class DiagnosticCollector:
         restart_energies: list[float],
         theta_opt: np.ndarray,
         elapsed_s: float,
+        *,
+        converged: bool | None = None,
     ) -> None:
         """Record VQE diagnostics for a single h-point.
 
@@ -190,6 +195,9 @@ class DiagnosticCollector:
             Optimal parameter vector, shape (2*p,).
         elapsed_s : float
             Wall-clock time for this h-point.
+        converged : bool | None
+            Whether the optimizer converged (hit tolerance) vs hit maxiter.
+            None if convergence status is unknown.
         """
         try:
             # NaN detection
@@ -207,6 +215,9 @@ class DiagnosticCollector:
                 spread = 0.0
             self._phase2_restart_spread.append(spread)
 
+            # Convergence tracking
+            self._phase2_converged.append(converged)
+
             # Accumulate theta vectors for smoothness computation
             self._theta_vectors.append(np.asarray(theta_opt).flatten())
 
@@ -215,12 +226,14 @@ class DiagnosticCollector:
                 self._completed_phases.append("phase2")
 
             if self.verbose:
+                conv_str = f", converged={converged}" if converged is not None else ""
                 self._log.debug(
-                    f"VQE h={h:.3f}: {n_iters} iters, spread={spread:.4f}, {elapsed_s:.2f}s"
+                    f"VQE h={h:.3f}: {n_iters} iters, spread={spread:.4f}, "
+                    f"{elapsed_s:.2f}s{conv_str}"
                 )
-        except Exception as e:
-            # Log error, set metric to None, do not propagate
-            self._log.error(f"Error recording VQE point at h={h}: {e}")
+        except Exception:
+            # Log error with traceback, do not propagate
+            self._log.exception(f"Error recording VQE point at h={h}")
 
     # ── Phase 3 recording ────────────────────────────────────────────────
 
@@ -250,6 +263,8 @@ class DiagnosticCollector:
         self,
         h_values: np.ndarray,
         per_h_mse: np.ndarray,
+        *,
+        elapsed_s: float | None = None,
     ) -> None:
         """Record per-h-point MPNN prediction error after training.
 
@@ -259,6 +274,8 @@ class DiagnosticCollector:
             Array of h-values.
         per_h_mse : np.ndarray
             Per-h-point MSE values (same length as h_values).
+        elapsed_s : float | None
+            Wall-clock time for Phase 3 training.
         """
         h_arr = np.asarray(h_values)
         mse_arr = np.asarray(per_h_mse)
@@ -289,7 +306,10 @@ class DiagnosticCollector:
             "theta_x_mse": theta_x_mse,
             "generalization_gap": generalization_gap,
             "loss_curve_last100": loss_curve_last100,
+            "elapsed_s": float(elapsed_s) if elapsed_s is not None else None,
         }
+        if elapsed_s is not None:
+            self._phase3_elapsed_s = float(elapsed_s)
         if "phase3" not in self._completed_phases:
             self._completed_phases.append("phase3")
 
@@ -306,6 +326,9 @@ class DiagnosticCollector:
         h_test: float,
         result,
         per_layout_data: dict | None = None,
+        *,
+        total_shots: int | None = None,
+        e_vqe_ceiling: float | None = None,
     ) -> None:
         """Record Phase 4 deployment diagnostics.
 
@@ -316,12 +339,19 @@ class DiagnosticCollector:
         ----------
         h_test : float
             Test h-value for deployment.
-        result : DeployResultV61
+        result : DeployResult
             Deployment result dataclass with predicted_energy, delta_e,
-            mag_x_pred, corr_zz_pred, total_shots, etc.
+            mag_x_pred, corr_zz_pred, etc.
         per_layout_data : dict | None
             Dict with keys 'energies' and 'ces_values' (lists of floats),
             or None if not available.
+        total_shots : int | None
+            Total measurement shots used. Required for SNR computation.
+            If None, SNR metrics will be None.
+        e_vqe_ceiling : float | None
+            Best achievable VQE energy E(θ_opt) for energy decomposition.
+            If None, energy decomposition uses predicted_energy as ceiling
+            (making error_from_mpnn = 0).
         """
         try:
             # Borderline metric warning
@@ -338,15 +368,22 @@ class DiagnosticCollector:
             ):
                 self._log.error(f"NaN detected in predicted energy at h_test={h_test}")
 
-            # SNR computation
-            shots = result.total_shots
-            snr_mag_x = compute_snr(result.mag_x_pred, shots)
-            snr_corr_zz = compute_snr(result.corr_zz_pred, shots)
+            # SNR computation (requires explicit total_shots)
+            shots = total_shots or getattr(result, "total_shots", None)
+            snr_mag_x: float | None = None
+            snr_corr_zz: float | None = None
+            classification_conf: float | None = None
 
-            # Classification confidence
-            classification_conf = compute_classification_confidence(
-                result.mag_x_pred, result.corr_zz_pred, shots
-            )
+            if shots is not None and shots > 0:
+                snr_mag_x = compute_snr(result.mag_x_pred, shots)
+                snr_corr_zz = compute_snr(result.corr_zz_pred, shots)
+                classification_conf = compute_classification_confidence(
+                    result.mag_x_pred, result.corr_zz_pred, shots
+                )
+            else:
+                self._log.debug(
+                    f"No shot count available for h_test={h_test}; SNR metrics skipped."
+                )
 
             # Per-layout data
             per_layout_energies: list[float] = []
@@ -373,11 +410,14 @@ class DiagnosticCollector:
             # Energy decomposition
             e_predicted = result.predicted_energy
             e_exact = e_predicted - result.delta_e
-            e_vqe_ceiling = result.raw_energy if result.raw_energy is not None else e_predicted
-            e_vqe_ceiling = max(e_exact, min(e_vqe_ceiling, e_predicted))
-            energy_decomp = compute_energy_decomposition(e_exact, e_vqe_ceiling, e_predicted)
+
+            # Use explicit ceiling if provided, otherwise fall back
+            ceiling = e_vqe_ceiling if e_vqe_ceiling is not None else e_predicted
+
+            energy_decomp = compute_energy_decomposition(e_exact, ceiling, e_predicted)
 
             self._phase4_data = {
+                "h_test": float(h_test),
                 "snr_mag_x": snr_mag_x,
                 "snr_corr_zz": snr_corr_zz,
                 "classification_confidence": classification_conf,
@@ -385,12 +425,14 @@ class DiagnosticCollector:
                 "per_layout_ces": per_layout_ces,
                 "ces_energy_pearson_r": ces_energy_pearson_r,
                 "energy_decomposition": energy_decomp,
+                "total_shots": shots,
             }
 
-        except Exception as e:
-            # Log error, set metric to None, do not propagate
-            self._log.error(f"Error computing Phase 4 diagnostics: {e}")
+        except Exception:
+            # Log error with traceback, set metrics to None, do not propagate
+            self._log.exception(f"Error computing Phase 4 diagnostics at h_test={h_test}")
             self._phase4_data = {
+                "h_test": float(h_test),
                 "snr_mag_x": None,
                 "snr_corr_zz": None,
                 "classification_confidence": None,
@@ -398,6 +440,7 @@ class DiagnosticCollector:
                 "per_layout_ces": [],
                 "ces_energy_pearson_r": None,
                 "energy_decomposition": None,
+                "total_shots": None,
             }
 
         if "phase4" not in self._completed_phases:
@@ -455,9 +498,9 @@ class DiagnosticCollector:
                     f"{comparison.cold_start_std['delta_e_over_gap']:.4f}, "
                     f"gain={comparison.gain_energy_pct:.1f}%"
                 )
-        except Exception as e:
-            self._log.error(f"Error recording baseline comparison: {e}")
-            self._baseline_data = {"error": str(e)}
+        except Exception:
+            self._log.exception(f"Error recording baseline comparison at h_test={h_test}")
+            self._baseline_data = {"error": "see logs for traceback"}
 
     # ── Serialization ────────────────────────────────────────────────────
 
@@ -488,8 +531,17 @@ class DiagnosticCollector:
             "per_h_timing_s": _to_json_safe(self._phase2_timing),
             "per_h_iterations": _to_json_safe(self._phase2_iterations),
             "per_h_restart_spread": _to_json_safe(self._phase2_restart_spread),
+            "per_h_converged": _to_json_safe(self._phase2_converged),
             "theta_smoothness": _to_json_safe(theta_smoothness),
             "worst_convergence_h": _to_json_safe(worst_convergence_h),
+            "total_elapsed_s": _to_json_safe(sum(self._phase2_timing))
+            if self._phase2_timing
+            else None,
+            "convergence_rate": _to_json_safe(
+                sum(1 for c in self._phase2_converged if c is True) / len(self._phase2_converged)
+            )
+            if self._phase2_converged and any(c is not None for c in self._phase2_converged)
+            else None,
         }
 
         # Phase 3

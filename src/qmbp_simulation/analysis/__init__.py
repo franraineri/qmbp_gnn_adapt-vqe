@@ -18,6 +18,7 @@ from qmbp_simulation.analysis.landscape import (
 from qmbp_simulation.analysis.metrics import (
     compute_classification_confidence,
     compute_energy_decomposition,
+    compute_fraction_near_gs,
     compute_snr,
     compute_theta_smoothness,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "WeightGradientAnalyzer",
     "compute_classification_confidence",
     "compute_energy_decomposition",
+    "compute_fraction_near_gs",
     "compute_hessian",
     "compute_snr",
     "compute_theta_smoothness",

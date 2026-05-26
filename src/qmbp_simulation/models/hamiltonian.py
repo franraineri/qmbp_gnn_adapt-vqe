@@ -158,6 +158,9 @@ def make_lattice(
     """Convenience factory that generates edges and coordination numbers
     automatically from the topology name.
     """
+    if not isinstance(n_qubits, int | np.integer) or n_qubits < 2:
+        raise ValueError(f"n_qubits must be an integer >= 2, got {n_qubits}")
+
     if topology == "chain_1d":
         edges = generate_chain_1d(n_qubits, periodic)
     elif topology == "ladder":

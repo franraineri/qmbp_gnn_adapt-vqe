@@ -140,6 +140,13 @@ class VQEOptimizer:
         # Set up callback if enabled
         callback = OptimizationCallback(cost_fn) if cfg.enable_callbacks else None
 
+        # Record initial energy in callback so trajectory is never empty
+        if callback is not None:
+            initial_energy = cost_fn(initial_guess)
+            callback.energies.append(float(initial_energy))
+            callback.param_vectors.append(initial_guess.copy())
+            callback.grad_norms.append(float("nan"))
+
         bounds = [cfg.bounds] * len(initial_guess)
 
         # Warm-start run
