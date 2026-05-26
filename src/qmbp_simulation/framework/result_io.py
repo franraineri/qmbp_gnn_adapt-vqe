@@ -246,3 +246,51 @@ def _json_default(obj: Any) -> Any:
         return obj.isoformat()
     # Fallback
     return json_serialize(obj)
+
+
+def collect_run_metadata(seed: int | None = None) -> dict[str, Any]:
+    """Collect standard run metadata for result files.
+
+    Parameters
+    ----------
+    seed : int | None
+        Random seed used for this run.
+
+    Returns
+    -------
+    dict
+        Metadata including timestamp, python version, package versions, and seed.
+    """
+    import platform
+
+    metadata: dict[str, Any] = {
+        "timestamp": datetime.now().isoformat(),
+        "python_version": platform.python_version(),
+        "platform": platform.platform(),
+    }
+
+    if seed is not None:
+        metadata["seed"] = seed
+
+    try:
+        import qiskit
+
+        metadata["qiskit_version"] = qiskit.__version__
+    except ImportError:
+        pass
+
+    try:
+        import torch
+
+        metadata["torch_version"] = torch.__version__
+    except ImportError:
+        pass
+
+    try:
+        import qiskit_aer
+
+        metadata["qiskit_aer_version"] = qiskit_aer.__version__
+    except ImportError:
+        pass
+
+    return metadata
