@@ -2,11 +2,32 @@
 
 ## Optimizer Selection
 
-| Optimizer | Use case | Context |
-|-----------|----------|---------|
-| L-BFGS-B | Noiseless statevector (Phase 2) | Best convergence, needs gradient |
-| COBYLA | VQE loops, noise-robust | Gradient-free |
-| SPSA | Hardware with shot noise | Stochastic gradient |
+| Optimizer | Use case | Context | Evidence |
+|-----------|----------|---------|----------|
+| L-BFGS-B (5 restarts) | Noiseless statevector (Phase 2) | Best convergence, needs gradient | V7 1A: wins by 31-95% over all alternatives |
+| SPSA (a=0.1, c=0.05, A=10) | Hardware with shot noise | Stochastic gradient, 2 evals/iter | V7 4A: optimal config from 36×10 grid search |
+| COBYLA | Legacy / fallback only | Gradient-free but 3× worse than SPSA | V7 4C: SPSA 3× better under FakeTorino noise |
+
+### SPSA Optimal Configuration (V7 4A, definitive)
+```python
+# From grid search: 36 configs × 10 seeds at N=6, h=1.5, 4096 shots
+spsa_config = {
+    "a": 0.1,        # Step size gain
+    "c": 0.05,       # Perturbation size
+    "A_frac": 0.05,  # Stability constant = 0.05 × n_iterations
+    "alpha": 0.602,  # Standard
+    "gamma": 0.101,  # Standard
+    "n_iterations": 200,
+}
+# Result: mean ΔE = 6.52e-02 (best of 36 configs)
+# Pattern: small a (≤0.1) and small c (0.05) are critical. A has minor effect.
+```
+
+### SPSA Warm-Start Rule (V7 4B, definitive)
+**Do NOT apply SPSA refinement after MPNN warm-start in noiseless simulation.**
+- At h=2.0: SPSA makes predictions 356% WORSE (noise pushes away from optimum)
+- At h=1.5: No improvement, slight degradation at high iterations
+- SPSA is only valuable for cold-start under noise OR on real hardware with systematic errors
 
 ## Warm-Start Protocol
 
@@ -111,6 +132,50 @@ Alternative: use built-in sequences ("XX", "XpXm", "XY4") via `options.dynamical
 - Each layout maps to qubits with different error rates → different CES
 - Linear extrapolation of energy vs CES to zero
 - Implementation: multiple `generate_preset_pass_manager()` calls with `initial_layout=[...]`
+- **CRITICAL SCALING LIMITATION (validated 2026-05-14):** Linear E(CES) holds only in perturbative regime (low total CES). At N=10 on FakeTorino, R² drops to <0.05 with 3 layouts. Need O(n) layouts for n-qubit circuits.
+
+### CLP-ZNE: Cyclic Layout Permutations (Rabinovich et al. 2025, arXiv:2511.02901)
+- Uses O(n) cyclic permutations for 1D circuits (vs our 3 random layouts)
+- Validated on IBM Torino noise model at n=12 qubits
+- Achieves order-of-magnitude error reduction, outperforms standard unitary folding ZNE
+- **Next implementation target** for fixing N=10 ZNE failure
+
+### ZNE Failure Mechanism at N=10 [VERIFIED, 2026-05-14/15]
+
+The inhomogeneous ZNE failure at N=10 has three mechanistic causes identified from cross-analysis:
+
+**1. CES Outlier Pattern (Leverage Point Problem)**
+```
+N=6 CES values: [0.068, 0.149, 0.643]  — all in perturbative regime (< 1.0)
+N=10 CES values: [6.292, 0.449, 1.080]  — one pathological outlier at 6.3
+```
+The primary layout (seed=42, first BFS result) consistently produces CES=6.29 due to excessive SWAP routing on the heavy-hex topology. This single outlier acts as a high-leverage point that dominates the linear fit while the other two layouts cluster at CES=0.4-1.1 with no meaningful spread. The fit has almost no leverage in the usable range.
+
+**2. Per-Site Observable Inhomogeneity**
+Under FakeTorino noise at N=10, sites 2 and 9 suffer catastrophic degradation:
+- Site 2: ⟨X⟩ drops from 0.89 (noiseless) to 0.34 (noisy) — **62% loss**
+- Site 9: ⟨X⟩ drops from 0.95 (noiseless) to 0.12 (noisy) — **87% loss**
+- Other sites: 10-20% loss (typical)
+
+These are layout-dependent — the qubits map to high-error positions on FakeTorino. Different layouts produce different "bad qubit" patterns, making the energy-vs-CES relationship non-monotonic.
+
+At N=6, degradation is uniform (max 24% loss, no catastrophic sites) because 6 qubits fit cleanly on a low-error region without long SWAP chains.
+
+**3. ZNE Gain is Uniform Across h-Values**
+| h_test | ZNE Gain (energy) |
+|--------|-------------------|
+| 1.00 | -14.0% |
+| 1.25 | -13.9% |
+| 1.50 | -12.4% |
+| 2.00 | -11.9% |
+
+The negative gain is constant (-12% to -14%) regardless of h. This confirms the failure is **circuit-depth dependent** (same circuit structure at all h), not physics-dependent (not related to proximity to the critical point).
+
+**Hardware Implications:**
+- Use per-qubit error filtering in `LayoutSelector` to avoid pathological positions
+- Use `MAX_CES_RATIO` filtering to exclude layouts with CES > 3× the median
+- On real hardware, DD+twirling reduce effective CES before ZNE is applied — may restore linearity
+- CLP-ZNE (Rabinovich et al. 2025) generates layouts with systematically varying CES via cyclic permutations, avoiding random outliers
 
 ### NN-Enhanced ZNE (Sun et al. 2025)
 - After collecting ZNE data at noise factors [1, 2, 3], fit MLP instead of polynomial

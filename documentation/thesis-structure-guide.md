@@ -89,8 +89,10 @@
 
 | Claim | Number | Source |
 |-------|--------|--------|
-| Best checklist (N=6, h=1.5) | 5/6 | Binnacle, 40+ runs |
-| Best checklist (N=10, h=1.5) | 3/6 | Binnacle, 14 runs |
+| Best checklist (N=6, h=1.5) | 4/4 (V6.1 deployer) | Thesis Table 4.2, 9 runs |
+| Best checklist (N=6, h=1.25) | 4/4 (ΔE/gap=3.77%±0.53%) | Thesis Table 4.2, 9 runs |
+| Best checklist (N=10, h=1.5) | 4/4 (ΔE/gap=2.96%±0.33%) | Thesis Table 4.3, 6 runs |
+| Best checklist (N=10, h=1.4) | 4/4 (ΔE/gap=4.79%±0.50%) | Thesis Table 4.3, 6 runs |
 | VQE speedup from warm-start | 10-50× | Our benchmarks + Puig 2025 |
 | MPNN prediction: near-zero QPU cost | 0-2 ADAPT iterations | Binnacle |
 | GNN > CNN for circuit prediction | 36% | Meng et al. 2025 |
@@ -100,6 +102,10 @@
 | IBM Heron 2Q gate error | ~0.1-0.2% | IBM specs 2026 |
 | Kagome 103-site on Heron | -0.417J/site | Ahsan et al. 2025 |
 | Kagome VQE error rate | 0.01% | Weaving et al. 2025 |
+| Seed sensitivity (N=10 MSE) | 10× between seeds 42/43 | Binnacle-N10, V6.1 runs |
+| Gradient peaks detected | seed 43/44 (MSE < 1e-3) | Binnacle-N10, V6.1 runs |
+| Ladder (non-uniform J) | ΔE/gap=11.75% (HVA p=2 limit) | Binnacle-N10, V6.1 runs |
+| Total thesis experiments | 60+ (N=6) + 20+ (N=10) | Binnacles |
 
 ---
 

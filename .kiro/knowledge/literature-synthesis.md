@@ -247,37 +247,47 @@ The pipeline's key insight remains: minimize quantum resource usage by maximizin
 ## 8. Priority Actions Based on Literature
 
 ### Immediate (before thesis submission)
-1. Cite Tripathi 2026 to validate h=1.25 ceiling as physics limit
-2. Cite Sharma 2026 to set expectations for hardware noise broadening
-3. Implement inhomogeneous ZNE (Uvarov) for Phase 4 — low effort, high narrative value
-4. Add Xu 2019 and Gilmer 2017 citations to justify GINConv architecture
+1. ~~Cite Tripathi 2026 to validate h=1.25 ceiling as physics limit~~ ✅ Done
+2. ~~Cite Sharma 2026 to set expectations for hardware noise broadening~~ ✅ Done
+3. ~~Implement inhomogeneous ZNE (Uvarov) for Phase 4~~ ✅ Done — works at N=6, FAILS at N=10
+4. ~~Add Xu 2019 and Gilmer 2017 citations to justify GINConv architecture~~ ✅ Done
 
-### Short-term (thesis improvements)
-5. Try NN-enhanced ZNE extrapolation (Sun 2025) on hardware data
-6. Implement learned DD (Pokharel 2025) via Qiskit DD pass manager
-7. Analyze MPNN weight structure across h-sweep (Hernandes 2025 insight)
+### Short-term (fix ZNE at N=10, then hardware)
+5. ~~**Fix ZNE scaling**: test n_layouts=7-10 or CLP-ZNE (Rabinovich et al. 2025) at N=10~~ ❌ Tested — R² plateaus at 0.08. Failure is fundamental.
+6. ~~**NN-enhanced ZNE** (Sun 2025): non-linear extrapolation when R² < 0.8~~ Skipped — no signal to learn (R²=0.08 means noise, not non-linear relationship)
+7. ~~**DD pre-mitigation** (Pokharel 2025): reduce effective CES before ZNE~~ ❌ Cannot test locally (YGate not in FakeTorino basis). Only on real hardware.
+8. ~~Analyze MPNN weight structure across h-sweep (Hernandes 2025)~~ ✅ Done — peaks detected at N=10 with seed 43
+
+### Hardware deployment (NEXT — local simulation exhausted)
+9. **N=6, h=2.0 first** (connection validation, easiest point)
+10. **N=6, h∈{1.5, 1.4, 1.25}** (thesis Table 4.4, full mitigation stack)
+11. **N=10, h∈{2.0, 1.5, 1.4}** (THE thesis question: does full stack rescue ZNE at N=10?)
 
 ### Future work section
-8. NLCE + VQE for thermodynamic limit extrapolation
-9. 2D TN pre-optimization for Kagome scaling
-10. Generative circuit design (GQE) as next-generation approach
-11. Noise-aware MPNN training for hardware-optimized predictions
+11. NLCE + VQE for thermodynamic limit extrapolation
+12. 2D TN pre-optimization for Kagome scaling
+13. Generative circuit design (GQE) as next-generation approach
+14. Noise-aware MPNN training for hardware-optimized predictions
 
 ### The next high-value actions are:
 
-Ladder topology validation (tests GNN generalization)
-Phase 4 hardware deployment with the improved error mitigation stack
-MPNN weight analysis for unsupervised phase detection (novel contribution)
+~~Ladder topology validation (tests GNN generalization)~~ ✅ Done — fails due to HVA p=2 physics limit
+~~Phase 4 hardware deployment with the improved error mitigation stack~~ Blocked by ZNE scaling failure at N=10
+~~MPNN weight analysis for unsupervised phase detection (novel contribution)~~ ✅ Done — peaks detected with seed 43
 
 
 ### Where the literature suggests we COULD improve (without changing architecture)
-Improvement	| Effort |	Impact	| When
-Inhomogeneous ZNE for Phase 4	Low	High — better hardware results	Before hardware runs
-8192+ shots	Minimal	High — shot noise below signal	Before hardware runs
-Learned DD sequences (GADD)	Low	Medium — free error suppression	Before hardware runs
-MPNN weight analysis for phase detection	Low	Medium — novel result, zero QPU cost	Anytime
-NLCE + VQE for thermodynamic limit	Medium	High — extends to infinite N	Future work
-GATConv for ladders/2D (non-uniform edges)	Low	Medium — may help when edges differ	When testing ladders
+
+| Improvement | Effort | Impact | Status |
+|-------------|--------|--------|--------|
+| Inhomogeneous ZNE for Phase 4 | Low | High | ✅ Done (works N=6, fails N=10 locally) |
+| 8192+ shots | Minimal | High | ✅ Already using 16384 in noisy sweeps |
+| Learned DD sequences (GADD) | Low | Medium | ❌ Cannot test locally; native on real hardware |
+| MPNN weight analysis for phase detection | Low | Medium | ✅ Done — peaks detected, 3 figures generated |
+| Fix ZNE at N=10 (O(n) layouts or DD) | Medium | **Critical** | ❌ Local sim exhausted — must test on real hardware |
+| NN-enhanced ZNE extrapolation | Low | High | Skipped — no signal at N=10 (R²=0.08) |
+| NLCE + VQE for thermodynamic limit | Medium | High | Future work |
+| GATConv for ladders/2D | Low | Low | ❌ Tested, no benefit (physics-limited) |
 
 
 ### The one legitimate concern: is VQE itself the right quantum algorithm?
@@ -288,3 +298,30 @@ This is the most interesting question from the literature. Three alternatives ex
 2. Quantum Subspace Expansion (QSE) — uses VQE as initial state, then expands classically. Weaving et al. (2025) achieved 0.01% error on Kagome this way. Verdict: complementary to our approach, not a replacement. Could be added as Phase 4.5.
 
 3. DMRG-biased contextual subspaces — reduces qubit count before VQE. Verdict: useful for scaling to Kagome, but requires significant new infrastructure. Future work.
+
+
+---
+
+## 9. V6.1 Implementation Lessons
+
+Key learnings from implementing the V6.1 hardware deployment pipeline.
+
+### 9.1 EstimatorV2 Observable Behavior
+
+A single multi-term `SparsePauliOp` submitted to EstimatorV2 returns a **SCALAR** (the weighted sum of all terms' expectation values). A **LIST** of individual `SparsePauliOp` objects returns an **ARRAY** (one value per observable). This applies to both `StatevectorEstimator` and IBM Runtime `EstimatorV2`. For per-site/per-bond measurements (needed for phase classification), always submit observables as a list of single-term operators — never as a grouped multi-term operator.
+
+### 9.2 Inhomogeneous ZNE Implementation
+
+No existing library implements Uvarov et al. 2024's inhomogeneous ZNE approach. Mitiq uses gate folding (a fundamentally different paradigm — it amplifies noise uniformly by repeating gate sequences). Our implementation uses `generate_preset_pass_manager(initial_layout=[...])` to transpile the same logical circuit onto different physical qubit subsets, then `compute_ces(transpiled)` to measure the actual circuit CES for each layout, then linear regression to extrapolate observables to CES=0. The topology CES (used during layout *selection*) is a fast heuristic; the circuit CES (used for the ZNE *extrapolation axis*) is the true value from the transpiled circuit.
+
+### 9.3 NNConv Aggregation
+
+Use `aggr="add"` (not `"mean"`) for NNConv layers, for consistency with GINConv's WL-test equivalence (Xu et al. 2019, "How Powerful are Graph Neural Networks?"). Mean aggregation loses node degree information — two nodes with different numbers of neighbors but the same average neighbor features become indistinguishable. Sum aggregation preserves this structural information, which matters for distinguishing lattice sites with different coordination numbers (e.g., edge vs bulk sites in ladders).
+
+### 9.4 Calibration Freshness on Modern Backends
+
+Newer IBM backends using the Target API may not expose calibration timestamps via `backend.properties()`. The `properties()` method returns `None` on these backends. Rather than blocking inhomogeneous ZNE (which requires calibration error rates for layout selection), we default to assuming fresh calibration when the timestamp is unavailable. The error rates themselves are still accessible via `backend.target[op_name].get((q0, q1)).error`.
+
+### 9.5 No Reusable Libraries Found
+
+For our specific V6.1 components — inhomogeneous ZNE, layout selection on heavy-hex topology, and weight gradient analysis — no existing libraries or paper repositories provide reusable code. Mitiq handles gate-folding ZNE only. Qiskit Runtime handles DD/twirling/TREX natively via EstimatorV2 options (no custom implementation needed for those). The NN extrapolator (Sun et al. 2025) uses a standard `sklearn.MLPRegressor` — no specialized library required.

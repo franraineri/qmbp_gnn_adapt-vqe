@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "qiskit-docs": {
+      "command": "uvx",
+      "args": ["qiskit-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": false,
+      "autoApprove": []
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"],
+      "disabled": false,
+      "autoApprove": ["resolve-library-id", "get-library-docs"]
+    }
+  }
+}

@@ -1,185 +1,217 @@
 # Hybrid GNN-HVA Framework for Topological Phase Characterization
 
-## 🔬 Project Overview
+## Overview
 
-This repository contains the codebase and theoretical framework for a Master's Thesis (TFM) in Quantum Computing and Condensed Matter Physics. The project aims to accelerate Variational Quantum Eigensolvers (VQE) to characterize Quantum Topological Phases (like Quantum Spin Liquids) in frustrated many-body systems.
+Master's Thesis (TFM) in Quantum Computing and Condensed Matter Physics. The project
+accelerates Variational Quantum Eigensolvers (VQE) for quantum phase characterization
+using a predictive hybrid architecture: a classical Graph Neural Network (GNN) trained
+on Tensor Network data provides "Intelligent Warm-Start" initialization for a shallow,
+physics-informed quantum circuit (Hamiltonian Variational Ansatz - HVA).
 
-To overcome the limitations of Noisy Intermediate-Scale Quantum (NISQ) devices—specifically the "barren plateau" problem and noise-induced truncation—we propose a **predictive hybrid architecture**: A classical Graph Neural Network (GNN) trained on Tensor Network data acts as an "Intelligent Warm-Start" to initialize a shallow, physics-informed quantum circuit (Hamiltonian Variational Ansatz - HVA).
+**Key constraint** (Mele et al., Nature Physics 2026): Non-unital noise truncates
+circuits to O(log n). All HVA circuits are shallow (p ≤ 2 layers), enforced by
+pre-commit hooks.
 
-## 📄 Theoretical Paradigm Shift
+## Quick Start
 
-> *Mele, A. A., et al. "Noise-induced shallow circuits and the absence of barren plateaus" (Nature Physics, 2026).*
+```bash
+# Clone and setup
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e .
 
-1. **Depth Truncation:** Non-unital noise truncates circuits to $\mathcal{O}(\log n)$. All HVA circuits MUST be shallow ($p \le 2$).
-2. **Local Observables Only:** Global cost functions suffer barren plateaus under noise. We use $\langle X_i \rangle$, $\langle Z_i Z_{i+1} \rangle$ for phase characterization.
-3. **Stable Gradients:** Shallow circuits + local costs = no barren plateaus. The GNN warm-start exploits this for instantaneous convergence.
+# Verify installation
+python -c "from qmbp_simulation import HamiltonianBuilder, make_lattice; print('OK')"
 
-## 🗺️ The 4-Phase Pipeline
+# Run smoke test (N=4, p=1, <30s)
+python scripts/smoke_test.py
 
-### Phase 1: Classical Ground Truth Generation
-- Exact Diagonalization (N < 15) or DMRG/TeNPy (N ≤ 40)
-- Supports arbitrary lattice topologies: chain_1d, ladder, triangular, Kagome
-- Output: $(h, J) \to \{\psi_{gs}, E_0, \text{gap}, \langle X_i \rangle, \langle Z_i Z_j \rangle\}$
+# Run full test suite
+pytest tests/ -x
+```
 
-### Phase 2: HVA Warm-Start VQE
-- Hamiltonian Variational Ansatz (HVA), never HEA. $p \le 2$ layers.
-- Descending sweep $h=2 \to 0$ with warm-start propagation
-- Multi-start L-BFGS-B with diagnostic callbacks and trajectory logging
+## Package Structure
 
-### Phase 3: MPNN Predictive Model
-- Message Passing Neural Network (GINConv + global pooling) via PyTorch Geometric
-- Lattice-agnostic: same model handles different topologies and system sizes
-- Fidelity-filtered training data (≥ 93%) with energy-driven validation callbacks
+```
+project-root/
+├── src/
+│   └── qmbp_simulation/           # Installable package (Zone 1: Framework)
+│       ├── __init__.py             # Package-level re-exports
+│       ├── utils/                  # Seed, JSON, timing (no internal deps)
+│       ├── models/                 # LatticeConfig, Hamiltonians, data models
+│       ├── solvers/                # ExactDiag, DMRG
+│       ├── circuits/               # HVA builder
+│       ├── execution/              # Backend ABC + implementations
+│       ├── optimizers/             # VQE, SPSA
+│       ├── predictors/             # MPNN model, training, checkpoints
+│       ├── pipeline/               # Orchestration, dataset I/O
+│       ├── framework/              # BaseExperiment, config, metrics, logging
+│       └── analysis/               # Gradient analysis, diagnostics, comparison
+├── experiments/                    # Experiment scripts (Zone 2: Consumers)
+│   ├── optimization/               # VQE technique experiments
+│   ├── scaling/                    # Finite-size scaling
+│   ├── landscape/                  # Hessian, fluctuation
+│   ├── predictor/                  # MPNN enhancements
+│   ├── hardware/                   # Hardware deployment
+│   ├── generalization/             # Model-agnostic tests
+│   └── helpers/                    # DyPP, sign canon, freezing, etc.
+├── scripts/                        # CLI entry points (Zone 2: Consumers)
+│   ├── run_experiment.py           # Run experiments by ID
+│   ├── run_pipeline.py             # Full 4-phase pipeline
+│   ├── compare.py                  # Cross-experiment comparison
+│   ├── smoke_test.py               # Quick validation (<30s)
+│   └── benchmark.py                # Performance benchmarking
+├── tests/                          # pytest suite
+│   ├── unit/                       # Per-module unit tests
+│   ├── integration/                # End-to-end pipeline tests
+│   └── conftest.py                 # Shared fixtures
+├── results/                        # Experiment outputs
+├── documentation/                  # Thesis docs, binnacles, bibliography
+└── pyproject.toml                  # Package config, Ruff, pytest
+```
 
-### Phase 4: Dual-Route Deployment
-- **Main route:** MPNN → θ_pred → HVA warm-start → AdaptVQE (max 2 iterations)
-- **Fallback route:** Quantum Reservoir Computing (QRC) — fixed random HVA as reservoir, classical linear readout
-- Phase classification via data-driven ⟨X⟩ = ⟨ZZ⟩ crossover (not hardcoded $h_c = 1.0$)
+## Import Examples
 
-## 💻 Tech Stack
+```python
+# Core imports (from package top-level)
+from qmbp_simulation import (
+    HamiltonianBuilder, make_lattice, ClassicalSolver,
+    HVACircuitBuilder, VQEOptimizer,
+    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult,
+    save_phase12_dataset, load_phase12_dataset,
+)
+
+# Submodule imports
+from qmbp_simulation.models import SUPPORTED_TOPOLOGIES, MAX_P_LAYERS
+from qmbp_simulation.execution import NoiselessBackend, NoisyBackend, MitigationOptions
+from qmbp_simulation.optimizers import SPSAOptimizer
+from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+from qmbp_simulation.framework import BaseExperiment, ExperimentConfig, ExperimentMetrics
+from qmbp_simulation.analysis import (
+    WeightGradientAnalyzer, DiagnosticCollector,
+    compute_snr, compute_hessian, landscape_fluctuation,
+    compute_fraction_near_gs, compute_theta_smoothness,
+)
+from qmbp_simulation.pipeline import PipelineRunner
+```
+
+## The 4-Phase Pipeline
+
+1. **Phase 1 — Classical Ground Truth**: Exact diag (N<15) or DMRG/TeNPy (N≤40)
+2. **Phase 2 — HVA VQE**: Descending h-sweep with warm-start, L-BFGS-B, p≤2
+3. **Phase 3 — MPNN Predictor**: GINConv + global pooling, fidelity-filtered data
+4. **Phase 4 — Deployment**: MPNN warm-start → hardware VQE with error mitigation
+
+The `PipelineRunner` includes always-on diagnostics via `DiagnosticCollector` —
+every run captures timing, convergence, θ-smoothness, per-h MSE, and energy
+decomposition metrics automatically.
+
+## Running Experiments
+
+```bash
+# List available experiments
+python scripts/run_experiment.py --list
+
+# Run a single experiment
+python scripts/run_experiment.py --exp B4 --verbose
+
+# Run multiple experiments
+python scripts/run_experiment.py --exp B4 D1 F1
+
+# Compare results against baseline
+
+# Run full pipeline (N=6, default h-sweep)
+python scripts/run_pipeline.py --n-qubits 6 --p 2
+
+# Run full pipeline with diagnostics output
+python scripts/run_pipeline.py --n-qubits 6 --p 2 --verbose --output-dir results/my_run
+```
+
+## Running Tests
+
+```bash
+# Full test suite
+pytest tests/
+
+# Unit tests only
+pytest tests/unit/
+
+# Integration tests only
+pytest tests/integration/
+
+# With coverage
+pytest tests/ --cov=qmbp_simulation --cov-report=term-missing
+
+# Skip slow tests
+pytest tests/ -m "not slow"
+```
+
+## Key Results
+
+| System | ΔE/gap | Status |
+|--------|:------:|--------|
+| N=6, h≥1.25 | < 5% | ✅ Thesis-ready |
+| N=10, h≥1.5 | < 5% | ✅ Thesis-ready |
+| N=20 p=1, h≥2.25 | 1.58% | ✅ Validated |
+| N=20 p=2, h≥2.0 | 1.75% | ✅ Validated (MPS) |
+
+## Tech Stack
 
 | Component | Tool | Version |
 |-----------|------|---------|
 | Quantum circuits | Qiskit | 2.4.x |
-| Algorithms | qiskit-algorithms | 0.4.x |
-| Hardware | qiskit-ibm-runtime | 0.46.x |
+| Hardware runtime | qiskit-ibm-runtime | 0.46.x |
+| Noisy simulation | qiskit-aer (MPS) | 0.17.x |
 | ML predictor | PyTorch + PyTorch Geometric | 2.11 + 2.7 |
 | Tensor networks | TeNPy | 1.1.x |
-| Classical ML | scikit-learn | 1.8.x |
 | Linting | Ruff | 0.11.x |
-| Testing | pytest | 9.x |
-| Git hooks | pre-commit | 4.2.x |
+| Testing | pytest + Hypothesis | 9.x + 6.x |
+| Git hooks | pre-commit (12 hooks) | 4.2.x |
 
-### Qiskit 2.x Rules (enforced by ruff + pre-commit)
+## Repository Zones
 
-| ✅ Do | ❌ Don't |
-|-------|---------|
-| `SparsePauliOp.from_sparse_list(...)` | `PauliSumOp`, `opflow` |
-| `StatevectorEstimator` / `EstimatorV2` | `qiskit.execute()`, `Aer.get_backend()` |
-| `from qiskit_algorithms import ...` | `from qiskit.algorithms import ...` |
-| `generate_preset_pass_manager()` | `transpile()` |
+The codebase is organized into three clearly separated zones:
 
-## 📊 Validation Metrics
+1. **Framework** (`src/qmbp_simulation/`) — The installable package. Primary development target.
+   Can grow and evolve freely. All reusable logic lives here.
 
-| Priority | Metric | Threshold | Hardware? |
-|----------|--------|-----------|-----------|
-| 1 | ΔE / gap | < 5% | ✅ |
-| 2 | ⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩ errors | < 1e-2 | ✅ |
-| 3 | ΔE | < 1e-2 (aspirational) | ✅ |
-| 4 | Fidelity | ≥ 99.5% (noiseless only) | ❌ |
-| 5 | ADAPT iterations | ≤ 2 | ✅ |
+2. **Consumers** (`experiments/` + `scripts/`) — Use the framework via
+   `from qmbp_simulation import ...`. Not part of the installable package.
 
-### Achieved Results (40+ benchmark runs)
+## Constraints (enforced by pre-commit)
 
-| Test Point | N=6 Checklist | N=10 Checklist | Status |
-|------------|---------------|----------------|--------|
-| h = 1.5 | **5/6** | **3/6** | ✅ Valid operating regime |
-| h = 1.4 | 4–5/6 | 1–2/6 | ✅ N=6 valid, N=10 borderline |
-| h = 1.25 | 2–3/6 | 1/6 | ⚠️ Physics limit (HVA p=2 ceiling) |
+- HVA only, never HEA. p ≤ 2 layers.
+- Primitives V2 only (no deprecated Qiskit APIs)
+- Fidelity threshold ≥ 0.93 in training data
+- No secrets in commits (gitleaks)
+- Conventional commits (commitizen)
 
-The h=1.25 ceiling is independently confirmed as a physics limit by Tripathi et al. (2026) — not a pipeline deficiency.
+## Documentation
 
-## 🔬 Error Mitigation Strategy (Phase 4 — IBM Torino)
+- **[V8 Status](documentation/v8/STATUS.md)** — Single source of truth for V8 experiments
+- **[V7 Results](documentation/v7/RESULTS_SUMMARY_V61_V7.md)** — Complete V6.1/V7 summary
+- **[Architecture](documentation/architectural_doc_es_en.md)** — System design (ES/EN)
+- **[Thesis Guide](documentation/thesis-structure-guide.md)** — Chapter outline
+- **[Bibliography](documentation/bibliography/bibliography_curated.md)** — Curated references
+- **[Binnacles](documentation/binnacles/)** — All experiment logs
 
-| Technique | Method | Overhead | Source |
-|-----------|--------|----------|--------|
-| Inhomogeneous ZNE | Multiple qubit mappings → CES extrapolation | 3-5× circuits | Uvarov et al. 2024 |
-| Learned DD | Optimized pulse sequences via Qiskit DD pass | Free | Pokharel et al. 2025 |
-| TREX | Twirled readout error extinction | ~2× shots | IBM native |
-| NN-enhanced ZNE | MLP fit instead of polynomial extrapolation | Minimal | Sun et al. 2025 |
-
-## 🏗️ Project Structure
-
-```
-qmbp_gnn_adapt-vqe/
-├── src/poc/v6/                    # Active codebase (modular V6.0)
-│   ├── config.py                  # Shared dataclasses & constants
-│   ├── hamiltonian_builder.py     # Lattice generators + SparsePauliOp construction
-│   ├── classical_solver.py        # Exact diag + DMRG/TeNPy
-│   ├── hva_builder.py             # HVA circuit construction (p ≤ 2 enforced)
-│   ├── vqe_optimizer.py           # Multi-start L-BFGS-B with callbacks
-│   ├── mpnn_predictor.py          # GINConv MPNN + training loop
-│   ├── qrc_pipeline.py            # Quantum Reservoir Computing fallback
-│   ├── hardware_deployer.py       # AdaptVQE + QRC dual-route deployment
-│   ├── pipeline_utils.py          # Dataset save/load, metadata, locality checks
-│   ├── poc_v6_phases1_2.ipynb     # Notebook: Phase 1-2 orchestration
-│   └── poc_v6_phases3_4.ipynb     # Notebook: Phase 3-4 orchestration
-├── scripts/                       # ALL executable scripts
-│   ├── smoke_test.py              # Quick end-to-end validation (~7s)
-│   ├── benchmark_v6.py            # Multi-run benchmark with binnacle logging
-│   ├── run_notebooks.py           # Automated notebook execution with validation
-│   └── hooks/check_hva_depth.py   # Pre-commit: p ≤ 2 enforcement
-├── tests/                         # pytest suite (18 tests)
-├── documentation/                 # Thesis docs, binnacle, bibliography
-├── .pre-commit-config.yaml        # 12 hooks (ruff, nbstripout, HVA guard, etc.)
-├── pyproject.toml                 # Ruff config + banned Qiskit APIs
-├── Makefile                       # Unified workflow targets
-└── requirements.txt               # Dependencies
-```
-
-## 🚀 Quick Start
+## Development
 
 ```bash
-# Setup
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+# Install with dev dependencies
+pip install -e ".[dev,test]"
+
+# Lint
+ruff check src/ experiments/ scripts/ tests/
+
+# Format
+ruff format src/ experiments/ scripts/ tests/
+
+# Pre-commit hooks
 pre-commit install
-
-# Verify everything works
-make check-full          # lint + 18 tests + smoke test
-
-# Run the PoC pipeline
-make run-notebooks       # execute both notebooks with validation
-
-# Or step by step:
-make run-nb-12           # Phase 1-2: exact diag + VQE sweep
-make run-nb-34           # Phase 3-4: MPNN training + deployment
-
-# Benchmark
-make benchmark           # 3 runs with different seeds
-
-# Other targets
-make help                # show all available targets
+pre-commit run --all-files
 ```
-
-Data flows between notebooks via `phase1_phase2_tfim_N6_p2_v6.npz`. Run Phase 1-2 first.
-
-## 📚 Documentation
-
-* **[Project Summary (English)](documentation/qmbp_doc_summary_en.md)** — Physics problem, hybrid solution, implementation by phase, bibliography.
-* **[Resumen del Proyecto (Español)](documentation/qmbp_doc_summary_es.md)** — Versión completa en español.
-* **[Architectural Document (ES/EN)](documentation/architectural_doc_es_en.md)** — GNN data strategy, noise resilience, spin systems rationale, QPU execution analysis, computational scaling.
-* **[Thesis Structure Guide](documentation/thesis-structure-guide.md)** — Chapter outline, framing guidelines, reviewer Q&A.
-* **[Bibliography](documentation/bibliography.md)** — Complete APA reference list (24 sections, 70+ papers).
-* **[Alternative Bibliography](documentation/alternative_bibliography.md)** — Alternative techniques and methodologies to consider for future work.
-* **[V6 Changes](src/poc/v6/CHANGES_V6.md)** — What changed from V4/V5 and why.
-* **[Binnacle N=6](documentation/binnacles/binnacle-N6.md)** — Complete N=6 experiment log (40+ runs, definitive).
-* **[Binnacle N=10](documentation/binnacles/binnacle-N10.md)** — N=10 scaling experiments (active).
 
 ---
 
-# 🇪🇸 Versión en Español
-
-## Descripción
-
-Arquitectura híbrida predictiva para caracterización de fases topológicas cuánticas. Una Red Neuronal de Paso de Mensajes (MPNN) clásica predice parámetros óptimos para un circuito cuántico superficial (HVA, $p \le 2$), permitiendo convergencia instantánea en dispositivos NISQ antes de que el ruido destruya la señal.
-
-## Inicio Rápido
-
-```bash
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt && pre-commit install
-make check-full          # lint + tests + smoke test
-make run-notebooks       # ejecutar notebooks con validación
-make benchmark           # benchmark multi-seed
-```
-
-## Estructura del Pipeline
-
-1. **Fase 1:** Diagonalización exacta / DMRG → ground truth clásico
-2. **Fase 2:** VQE con warm-start descendente → θ_opt dataset
-3. **Fase 3:** MPNN (PyTorch Geometric) → predictor h → θ_pred
-4. **Fase 4:** Despliegue dual: AdaptVQE (principal) + QRC (fallback)
-
-Documentación completa en [`documentation/`](documentation/).
+*Franco Raineri — Universidad de Buenos Aires, 2026*

@@ -42,9 +42,10 @@ Forbidden: `qiskit.opflow`, `qiskit.algorithms` (old path), `PauliSumOp`, `Weigh
 | Phase | Goal | Output |
 |-------|------|--------|
 | 1 | Classical ground truth (Exact Diag / DMRG) | (h,J) → ψ, local observables |
-| 2 | HVA θ_opt via warm-start VQE | θ_opt dataset |
-| 3 | MPNN predictor (graph → θ_pred) | Trained model |
-| 4 | Hardware deployment (EstimatorV2) | Mitigated VQE results |
+| 2 | HVA θ_opt via warm-start VQE | θ_opt dataset; diagnostic metrics (timing, θ smoothness) when verbose |
+| 3 | MPNN predictor (graph → θ_pred) | Trained model; per-h MSE, generalization gap when verbose |
+| 4 | Hardware deployment (EstimatorV2) | Mitigated VQE results; SNR, energy decomposition, CES correlation when verbose |
+| 4b | Noisy simulation (FakeTorino + BackendEstimatorV2) | Local ZNE validation; 3-mode comparison (noiseless/noisy-raw/ZNE-mitigated) |
 
 ## Validation (pass/fail order)
 
@@ -100,11 +101,11 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 6. **Active learning**: identify high-uncertainty h-regions, run targeted VQE, retrain
 7. **Noise-aware training**: train MPNN on `AerSimulator` noisy VQE data for hardware-optimized predictions
 
-## Current PoC (V6.0)
+## Current Package (`qmbp_simulation`)
 
 - 1D TFIM, N=6, HVA p=2, |+⟩^N
-- **Modular architecture**: 9 Python modules under `src/poc/v6/`
-- Phases 1-2: `src/poc/v6/poc_v6_phases1_2.ipynb` / Phases 3-4: `src/poc/v6/poc_v6_phases3_4.ipynb`
+- **Installable package**: `src/qmbp_simulation/` with strict module dependency DAG
+- Phases 1-4 orchestrated by `PipelineRunner` or individual module calls
 - Non-uniform h-grid: Δh=0.05 near critical region h∈[0.8,1.4], Δh=0.1 elsewhere (27 points)
 - **MPNN predictor** (PyTorch Geometric GINConv + global_mean_pool) — replaces V4 MLP
 - Fidelity filter ≥ 0.93, dropout=0.1
@@ -112,18 +113,57 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 - Dataset metadata: `cost_function="energy"`, `version="v6.0"` (prevents V5.x phase coupling failure)
 - **Known limit**: HVA p=2 + |+⟩^N cannot express ferromagnetic ground state (h<1.0). Validated for h≥1.0.
 
-### V6 Module Imports
+### Package Imports
 
 ```python
-from src.poc.v6 import (
+from qmbp_simulation import (
     HamiltonianBuilder, make_lattice, ClassicalSolver,
-    HVACircuitBuilder, VQEOptimizer, HardwareDeployer,
-    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult, DeployResult,
+    HVACircuitBuilder, VQEOptimizer, LatticeConfig, VQEConfig,
+    GroundTruthResult, VQEResult, DeployResult,
     save_phase12_dataset, load_phase12_dataset,
 )
-from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn
-from src.poc.v6.qrc_pipeline import QRCPipeline
+from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+from qmbp_simulation.pipeline import PipelineRunner
+from qmbp_simulation.execution import NoiselessBackend, NoisyBackend, HardwareBackend
+from qmbp_simulation.framework import BaseExperiment, ExperimentConfig, ExperimentMetrics
+from qmbp_simulation.analysis import WeightGradientAnalyzer, DiagnosticCollector
 ```
+
+## Pipeline Observability
+
+The `DiagnosticCollector` (in `src/qmbp_simulation/analysis/diagnostics.py`) instruments the pipeline when `--verbose` or `--debug` is passed to experiment scripts.
+
+### Usage Pattern
+```python
+from qmbp_simulation.analysis import DiagnosticCollector
+
+collector = DiagnosticCollector(verbose=True, save_dir=Path("results/experiments"))
+
+# Record after each phase; call save_checkpoint("phaseN") after each
+collector.record_vqe_point(h, n_iters, restart_energies, theta_opt, elapsed_s)
+collector.record_mpnn_per_h_error(h_values, per_h_mse)
+collector.record_deployment(h_test, result, per_layout_data)
+
+# Final output
+result["diagnostics"] = collector.to_dict()
+collector.cleanup_checkpoints()
+```
+
+### Key Metrics
+- **SNR**: `|⟨O⟩| * √shots` — measurement reliability (use ≥8192 shots for SNR > 1)
+- **θ smoothness**: `max_i ||θ(h_i) - θ(h_{i-1})||_∞` — MPNN learnability predictor
+- **Energy decomposition**: separates `error_from_circuit` (physics limit) from `error_from_mpnn` (ML error)
+- **Classification confidence**: `|⟨X⟩ - ⟨ZZ⟩| * √shots` — phase label reliability
+
+### CLI Flags
+- `--verbose` / `-v`: INFO logging + DiagnosticCollector + VQE callbacks + checkpoints
+- `--debug`: DEBUG logging + all verbose features (per-iteration detail)
+- Neither: WARNING only, no diagnostics, byte-identical output to baseline
+
+### Checkpoint Pattern
+- Files: `checkpoint_<run_id>_<phase>.json` in output directory
+- Written after each phase for crash recovery
+- Deleted on successful completion
 
 ## IBM Connection Pattern
 
@@ -139,3 +179,48 @@ backend_name = "ibm_torino"
 service = QiskitRuntimeService(channel="ibm_quantum_platform", token=ibm_token, instance=ibm_instance)
 catalog = QiskitFunctionsCatalog(instance=ibm_instance, token=ibm_token)
 ```
+
+
+## Noisy Simulation Workflow
+
+### 3-Mode Comparison Methodology
+
+The noisy simulation workflow validates ZNE effectiveness locally before real QPU deployment by comparing three execution modes at each h-value:
+
+1. **Noiseless** (`mode="simulation"`): StatevectorEstimator — exact baseline (ceiling)
+2. **Noisy raw** (`mode="noisy_simulation"`, `n_layouts=1`): FakeTorino noise, no ZNE — shows noise impact
+3. **ZNE mitigated** (`mode="noisy_simulation"`, `n_layouts=3`): FakeTorino noise + inhomogeneous ZNE — shows mitigation gain
+
+### Backend & Estimator Pattern
+
+```python
+from qiskit_ibm_runtime.fake_provider import FakeTorino
+from qiskit.primitives import BackendEstimatorV2
+
+# FakeTorino provides real Torino calibration data (133 qubits, heavy-hex)
+# BackendEstimatorV2 executes circuits through the noise model locally
+# No DD/twirling/TREX — isolates ZNE contribution
+from qmbp_simulation.execution import NoisyBackend
+backend = NoisyBackend(n_layouts=3, seed=42)
+```
+
+### Success Criteria
+
+- `n_mitigated_wins >= 4`: ZNE-mitigated ΔE/gap < noisy-raw ΔE/gap for at least 4 of 6 h-values
+- `n_good_r_squared >= 3`: ZNE linear fit R² > 0.8 for at least 3 of 6 h-values
+- Both must hold for `success_criteria_met = True`
+
+### Running the Sweep
+
+```bash
+# Smoke test (N=4, p=1, 3 h-points, ~30s)
+python scripts/smoke_test.py
+
+# Run a specific experiment
+python scripts/run_experiment.py --exp A3 --verbose
+
+# Full pipeline (N=6, all phases)
+python scripts/run_pipeline.py --n 6 --p 2 --output results/experiments/
+```
+
+Results saved as timestamped JSON in `results/experiments/`.

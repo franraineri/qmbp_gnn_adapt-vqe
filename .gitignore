@@ -11,6 +11,7 @@ build/
 
 # ── Jupyter ──────────────────────────────────────────────────
 .ipynb_checkpoints/
+*.ipynb
 *_executed.ipynb
 *_executed*.ipynb
 Untitled*.ipynb
@@ -43,3 +44,7 @@ scripts/notebook_results/
 # ── Logs & temp ──────────────────────────────────────────────
 *.log
 tmp/
+*.tex
+checkpoint*
+*.json
+*json

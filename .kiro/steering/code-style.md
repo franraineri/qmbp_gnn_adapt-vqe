@@ -1,21 +1,133 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "src/poc/v6/**/*.py"
+fileMatchPattern: "src/qmbp_simulation/**/*.py"
 ---
 
-# Code Style — V6 Modules
+# Code Style — qmbp_simulation Package
+
+## Package Structure
+
+```
+src/qmbp_simulation/
+├── __init__.py              ← Package-level re-exports
+├── utils/                   ← Seed, JSON, timing (no internal deps)
+│   └── helpers.py
+├── models/                  ← LatticeConfig, Hamiltonians, data models
+│   ├── data_models.py       ← Shared dataclasses
+│   ├── constants.py         ← Physics constants
+│   └── hamiltonian.py       ← HamiltonianBuilder, make_lattice
+├── solvers/                 ← ExactDiag, DMRG
+│   └── classical.py
+├── circuits/                ← HVA builder
+│   └── hva.py
+├── execution/               ← Backend ABC + implementations
+│   └── backends.py
+├── optimizers/              ← VQE, SPSA
+│   ├── vqe.py
+│   └── spsa.py
+├── predictors/              ← MPNN model, training, checkpoints
+│   └── mpnn.py
+├── pipeline/                ← Orchestration, dataset I/O
+│   ├── dataset_io.py
+│   ├── runner.py
+│   └── qrc.py
+├── framework/               ← BaseExperiment, config, metrics, logging
+│   ├── base.py
+│   ├── config.py
+│   ├── metrics.py
+│   ├── logging.py
+│   └── result_store.py
+└── analysis/                ← Gradient analysis, diagnostics, comparison
+    ├── gradient.py
+    ├── diagnostics.py
+    ├── metrics.py
+    ├── landscape.py
+    └── data_models.py
+```
 
 ## Lattice Construction
 - Always use `make_lattice()` to create LatticeConfig instances.
 - Never use `copy.copy()` or `copy.deepcopy()` on dataclasses to change `h`.
-- To vary h across a sweep, construct a new LatticeConfig per point via `make_lattice()` or the `LatticeConfig(...)` constructor directly.
+- To vary h across a sweep, construct a new LatticeConfig per point via `make_lattice()`.
 
 ## Imports
-- Prefer package-level imports: `from src.poc.v6 import HamiltonianBuilder, make_lattice`
-- For MPNN/QRC/HardwareDeployer (not in `__all__` to avoid heavy imports at package level):
-  `from src.poc.v6.mpnn_predictor import MPNNPredictor, build_graph_dataset, train_mpnn`
-  `from src.poc.v6.qrc_pipeline import QRCPipeline`
-  `from src.poc.v6.hardware_deployer import HardwareDeployer`
+
+### Core (from package top-level)
+```python
+from qmbp_simulation import (
+    HamiltonianBuilder, make_lattice, ClassicalSolver,
+    HVACircuitBuilder, VQEOptimizer,
+    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult, DeployResult,
+    save_phase12_dataset, load_phase12_dataset,
+)
+```
+
+### Execution backends
+```python
+from qmbp_simulation.execution import (
+    ExecutionBackend, NoiselessBackend, NoisyBackend,
+    HardwareBackend, MitigationOptions,
+)
+```
+
+### MPNN / Predictors (not in top-level to avoid heavy torch imports)
+```python
+from qmbp_simulation.predictors import (
+    MPNNPredictor, build_graph_dataset, train_mpnn,
+    save_mpnn_checkpoint, load_mpnn_checkpoint,
+)
+```
+
+### Framework (experiment engine)
+```python
+from qmbp_simulation.framework import (
+    BaseExperiment, ExperimentConfig, ExperimentMetrics,
+    WarmColdComparison, StructuredLogger,
+)
+```
+
+### Analysis and diagnostics
+```python
+from qmbp_simulation.analysis import (
+    WeightGradientAnalyzer, DiagnosticCollector,
+    compute_snr, compute_theta_smoothness,
+    compute_classification_confidence, compute_energy_decomposition,
+    compute_hessian, landscape_fluctuation,
+)
+```
+
+### Pipeline
+```python
+from qmbp_simulation.pipeline import PipelineRunner
+```
+
+### NEVER use these patterns
+```python
+# ❌ WRONG — legacy sys.path hacks
+import sys; sys.path.insert(0, ...)
+from src.poc.v6 import ...
+
+# ❌ WRONG — importing from archive
+from archive.src_poc_v6_BAK import ...
+
+# ❌ WRONG — importing from experiments inside the package
+from experiments.helpers import ...  # Only valid in other experiments/scripts
+```
+
+## Module Dependency Order
+
+Modules follow a strict DAG (no circular imports possible):
+
+```
+utils → models → solvers, circuits → execution → optimizers
+                  models → predictors
+         solvers, optimizers, predictors, analysis → pipeline
+                  pipeline, analysis → framework
+         models, predictors → analysis
+```
+
+- A module may only import from modules **above** it in this order.
+- No module in `src/qmbp_simulation/` imports from `experiments/` or `scripts/`.
 
 ## Qiskit Patterns
 - SparsePauliOp via `from_sparse_list()` only.
@@ -25,10 +137,13 @@ fileMatchPattern: "src/poc/v6/**/*.py"
 ## Naming
 - Functions: `snake_case`
 - Classes: `PascalCase`
-- Constants: `UPPER_SNAKE_CASE` (in config.py)
+- Constants: `UPPER_SNAKE_CASE` (in `models/constants.py`)
 - Parameters: match the physics notation where possible (h, J, theta, psi)
+- Modules: `snake_case.py`
+- Subpackages: `snake_case/`
 
 ## Error Handling
-- Raise `ValueError` for constraint violations (p>2, invalid topology, phase coupling mismatch).
+- Raise `ValueError` for constraint violations (p>2, invalid topology, ascending sweep).
 - Use `logging.warning()` for recoverable issues (DMRG fallback, gap computation failure).
 - Use `assert` only for invariant checks (QRC no-training invariant).
+- `HardwareBackend` raises `NotImplementedError` until IBM Runtime is configured.

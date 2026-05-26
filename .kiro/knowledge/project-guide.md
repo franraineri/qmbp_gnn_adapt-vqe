@@ -9,65 +9,83 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 ## Repository Map
 
 ```
-├── src/poc/v6/              ← ACTIVE CODE (9 Python modules + 2 notebooks)
-│   ├── config.py            ← Shared dataclasses (LatticeConfig, VQEConfig, etc.)
-│   ├── hamiltonian_builder.py ← Phase 1: Hamiltonian + lattice generators
-│   ├── classical_solver.py  ← Phase 1: Exact diag + DMRG ground truth
-│   ├── hva_builder.py       ← Phase 2: HVA circuit construction
-│   ├── vqe_optimizer.py     ← Phase 2: Multi-start VQE + callbacks
-│   ├── mpnn_predictor.py    ← Phase 3: MPNN model + training loop
-│   ├── qrc_pipeline.py      ← Phase 4: QRC fallback route
-│   ├── hardware_deployer.py ← Phase 4: Adapt-VQE + QRC deployment
-│   ├── pipeline_utils.py    ← Cross-phase: dataset save/load, integrity checks
-│   ├── poc_v6_phases1_2.ipynb ← Full Phase 1-2 notebook
-│   └── poc_v6_phases3_4.ipynb ← Full Phase 3-4 notebook
+├── src/qmbp_simulation/     ← INSTALLABLE PACKAGE (the framework)
+│   ├── __init__.py          ← Package-level re-exports
+│   ├── utils/               ← Seed, JSON, timing (no internal deps)
+│   ├── models/              ← LatticeConfig, Hamiltonians, data models, constants
+│   ├── solvers/             ← Exact diag + DMRG ground truth
+│   ├── circuits/            ← HVA circuit construction (p≤2 enforced)
+│   ├── execution/           ← Backend ABC + noiseless/noisy/hardware implementations
+│   ├── optimizers/          ← Multi-start VQE + SPSA with warm-start
+│   ├── predictors/          ← MPNN model, training, checkpoints
+│   ├── pipeline/            ← Dataset save/load, pipeline orchestration
+│   ├── framework/           ← BaseExperiment lifecycle, config, metrics, logging
+│   └── analysis/            ← Gradient analysis, diagnostics, landscape, metrics
 │
-├── scripts/                 ← ALL executable scripts (single location)
-│   ├── smoke_test.py        ← Quick end-to-end validation (~7s)
-│   ├── benchmark_v6.py      ← Multi-run benchmark with configurable params
-│   ├── run_notebooks.py     ← Notebook executor with validation
-│   ├── hooks/               ← Pre-commit hook scripts
-│   │   └── check_hva_depth.py
-│   ├── benchmark_results/   ← Raw JSON results (gitignored)
-│   └── notebook_results/    ← Executed notebooks (gitignored)
+├── experiments/              ← EXPERIMENT SCRIPTS (consumers of the package)
+│   ├── helpers/             ← Reusable technique modules (dypp, freezing, etc.)
+│   ├── optimization/        ← B1, B2, B4, C3
+│   ├── scaling/             ← A3
+│   ├── landscape/           ← F1, F3
+│   ├── predictor/           ← C1, D1, E3
+│   ├── hardware/            ← Hardware-specific experiments
+│   └── generalization/      ← E4
+│
+├── scripts/                 ← CLI ENTRY POINTS
+│   ├── run_experiment.py    ← Unified CLI for running experiments by ID
+│   ├── run_pipeline.py      ← Full 4-phase pipeline CLI
+│   ├── compare.py           ← Cross-experiment result comparison
+│   ├── smoke_test.py        ← Package smoke test (N=4, p=1, <30s)
+│   ├── benchmark.py         ← Performance benchmarking
+│   ├── run_thesis_results.py ← Thesis table generation
+│   └── hooks/               ← Pre-commit hook scripts
 │
 ├── tests/                   ← Pytest test suite
 │   ├── conftest.py          ← Shared fixtures
-│   └── test_v6_pipeline.py  ← 18 unit tests
+│   ├── unit/                ← Per-module unit + property tests
+│   └── integration/         ← Smoke, pipeline e2e, backward compat
+│
+├── results/                 ← Experiment outputs
+│   ├── experiments/         ← Auto-generated JSON results (gitignored)
+│   ├── benchmarks/          ← Benchmark results (gitignored)
+│   └── thesis/              ← Committed definitive results
 │
 ├── documentation/           ← Human-readable docs
-│   ├── binnacle-N6.md       ← Experiment log: N=6 (complete, 40+ experiments)
-│   ├── binnacle-N10.md      ← Experiment log: N=10 scaling (active)
-│   └── architectural_doc_es_en.md ← Architecture justification
+│   ├── binnacles/           ← Experiment logs
+│   └── bibliography/        ← Literature references
 │
 ├── .kiro/                   ← AI agent configuration
 │   ├── skills/quantum/SKILL.md    ← Core rules and constraints
-│   ├── knowledge/                 ← Domain knowledge (7 files)
-│   ├── steering/                  ← Active guidance (status + code style)
-│   ├── hooks/                     ← Automated checks (Qiskit compliance)
-│   └── specs/                     ← V6 spec (requirements, design, tasks)
+│   ├── knowledge/                 ← Domain knowledge
+│   ├── steering/                  ← Active guidance (status, code style, protocols)
+│   └── hooks/                     ← Automated checks
 │
 ├── Makefile                 ← SINGLE ENTRY POINT for all operations
-├── pyproject.toml           ← Build config, ruff, mypy, pytest
-└── requirements.txt         ← Python dependencies
+└── pyproject.toml           ← Build config, ruff, pytest
 ```
 
 ## How to Run Things
 
-The Makefile is the single entry point. Use `make` for everything.
-
 | Command | What it does | Time |
 |---------|-------------|------|
 | `make help` | Show all targets | instant |
-| `make test` | Pytest (18 tests) | ~5s |
-| `make smoke-test` | End-to-end pipeline | ~7s |
+| `make test` | Fast tests (`-m "not slow"`) | ~12s |
+| `make test-full` | All tests including slow | ~60s |
 | `make lint` | Ruff linter | ~1s |
 | `make check-full` | lint + test + smoke-test | ~15s |
-| `make benchmark` | 3-run benchmark (N=6) | ~50s |
-| `make benchmark ARGS="--n-qubits 10"` | Custom benchmark | varies |
-| `make benchmark-n10` | N=10 chain shortcut | ~2.5min |
-| `make run-notebooks` | Execute both notebooks | ~15min |
-| `make check` | All pre-commit hooks | ~5s |
+| `python scripts/smoke_test.py` | Package smoke test (N=4, p=1) | ~30s |
+| `python scripts/run_experiment.py --list` | List all experiments | instant |
+| `python scripts/run_experiment.py --exp A3` | Run experiment A3 | varies |
+| `python scripts/run_pipeline.py --n 6 --p 2` | Full pipeline | ~5min |
+| `python scripts/compare.py --all` | Compare all results | ~5s |
+
+### Installation
+
+```bash
+pip install -e .                    # Install package in editable mode
+python -c "import qmbp_simulation" # Verify import works
+python scripts/smoke_test.py       # Verify pipeline works
+```
 
 ## Where to Find What
 
@@ -78,31 +96,61 @@ The Makefile is the single entry point. Use `make` for everything.
 | Check what's stable vs active | `.kiro/steering/project-status.md` |
 | Follow code conventions | `.kiro/steering/code-style.md` |
 | See known failure modes | `.kiro/knowledge/error-patterns.md` |
-| Check numerical baselines | `.kiro/knowledge/poc-results.md` |
+| Check numerical baselines & tables | `.kiro/knowledge/validation-targets.md` |
+| See analysis & interpretation of results | `.kiro/knowledge/poc-results.md` |
 | Understand MPNN architecture | `.kiro/knowledge/gnn-architecture.md` |
-| See hardware deployment strategy | `.kiro/knowledge/optimization-hardware.md` |
-| Review literature insights & improvements | `.kiro/knowledge/literature-synthesis.md` |
-| See full experiment history | `documentation/binnacle-N6.md` (N=6) or `binnacle-N10.md` (N=10) |
-| Find alternative techniques | `documentation/alternative_bibliography.md` |
+| See hardware deployment strategy | `.kiro/steering/hardware-deployment.md` |
+| Review literature insights | `.kiro/knowledge/literature-synthesis.md` |
+| See experiment framework guide | `.kiro/steering/v8-experiments.md` |
+| See full experiment history | `documentation/binnacles/` |
+| Run experiments | `scripts/run_experiment.py --list` |
+| Validate package | `scripts/smoke_test.py` |
+| Check knowledge freshness | `.kiro/knowledge/changelog.md` |
+
+## Repository Zones (CRITICAL for AI agents)
+
+1. **Framework** (`src/qmbp_simulation/`) — The installable package. Primary development target.
+2. **Consumers** (`experiments/` + `scripts/`) — Use the framework via `from qmbp_simulation import ...`. Not part of the package.
 
 ## Key Workflow Rules
+
 1. Never modify stable modules (listed in `project-status.md`) without explicit request.
 2. Always use `make_lattice()` to create lattice configs — never `copy.copy()`.
-3. Always validate changes with `make check-full`.
+3. Always validate changes with `make test`.
 4. Document results in the binnacle with configuration, metrics, and analysis.
 5. Phase 2 MUST use pure energy cost (V5.x lesson).
 6. All scripts live in `scripts/` — never put executable scripts in `src/`.
+7. Use `from qmbp_simulation import ...` for all imports — never `sys.path` hacks.
+8. Experiments inherit from `BaseExperiment` and use `ExperimentMetrics` for results.
 
-## Current Best Configuration (from 28+ benchmark runs)
+## Current Best Configuration (from 60+ benchmark runs)
+
+### N=6 (1D TFIM chain)
 
 | Parameter | Value |
 |-----------|-------|
 | VQE restarts | 5 |
 | VQE maxiter | 1000 |
+| VQE σ (restart) | 0.1 |
 | MPNN hidden | 64 |
 | MPNN layers | 3 |
 | MPNN epochs | 6000 |
 | MPNN lr | 1e-3 |
+| MPNN patience | 300 |
 | Fid threshold | 0.93 |
+| GINConv | yes (GATConv rejected) |
 
-Expected: 5/6 at h=1.5 (N=6), 4-5/6 at h=1.4 (N=6), 2-3/6 at h=1.5 (N=10).
+### N=10 (1D TFIM chain)
+
+| Parameter | Value |
+|-----------|-------|
+| VQE restarts | 5 |
+| VQE maxiter | 1000 |
+| VQE σ (restart) | 0.1 |
+| MPNN hidden | **128** |
+| MPNN layers | 3 |
+| MPNN epochs | 6000 |
+| MPNN lr | 1e-3 |
+| MPNN patience | **500** |
+| Fid threshold | 0.93 |
+| Preferred seed | **43** (10x better MSE) |

@@ -1,0 +1,27 @@
+{
+  "mode": {
+    "strict-config": false
+  },
+  "plugins": {
+    "MD003": { "style": "atx" },
+    "MD004": { "enabled": false },
+    "MD007": { "indent": 2 },
+    "MD012": { "maximum": 5 },
+    "MD013": { "enabled": false },
+    "MD022": { "enabled": false },
+    "MD024": { "enabled": false },
+    "MD025": { "enabled": false },
+    "MD028": { "enabled": false },
+    "MD029": { "enabled": false },
+    "MD031": { "enabled": false },
+    "MD032": { "enabled": false },
+    "MD033": { "enabled": false },
+    "MD034": { "enabled": false },
+    "MD036": { "enabled": false },
+    "MD037": { "enabled": false },
+    "MD040": { "enabled": false },
+    "MD041": { "enabled": false },
+    "MD045": { "enabled": false },
+    "MD046": { "enabled": false }
+  }
+}

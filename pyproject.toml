@@ -1,30 +1,43 @@
 [project]
-name = "qmbp-gnn-hva"
-version = "6.0.0"
+name = "qmbp-simulation"
+version = "1.0.0"
 description = "Hybrid GNN-HVA Framework for Topological Phase Characterization"
 requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.26,<3",
+    "scipy>=1.12,<2",
+    "qiskit>=1.4,<2",
+    "torch>=2.2,<3",
+    "torch-geometric>=2.5,<3",
+    "physics-tenpy>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.11", "mypy>=1.8", "pre-commit>=3.6"]
+test = ["pytest>=8.0", "pytest-cov>=4.1", "hypothesis>=6.98"]
+hardware = ["qiskit-ibm-runtime>=0.20", "qiskit-aer>=0.14"]
 
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*"]
+where = ["src"]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
 force-exclude = true
+exclude = ["archive/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "TID"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]
+"__init__.py" = ["F401", "I001"]
+"experiments/**/*.py" = ["E402"]
 "scripts/*.py" = ["E402"]
-"src/poc/v6/smoke_test.py" = ["E402"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "qiskit.opflow".msg = "Deprecated: use qiskit.quantum_info.SparsePauliOp"
@@ -32,16 +45,18 @@ ignore = ["E501"]
 "qiskit.utils.QuantumInstance".msg = "Deprecated: use Primitives V2"
 "qiskit.execute".msg = "Deprecated: use StatevectorEstimator or EstimatorV2"
 
-[tool.ruff.format]
-quote-style = "double"
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m not slow')",
+    "integration: marks integration tests",
+]
 
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false  # gradual adoption
+disallow_untyped_defs = false
 ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
+exclude = ["archive/"]

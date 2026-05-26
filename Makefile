@@ -32,7 +32,10 @@ format:  ## Auto-format with ruff
 
 # ── Testing ──────────────────────────────────────────────────
 
-test:  ## Run pytest suite (18 tests, ~5s)
+test:  ## Run fast tests only, excluding slow (FakeTorino) tests (~8s)
+	$(PYTHON) -m pytest tests/ -v --tb=short -m "not slow"
+
+test-full:  ## Run ALL tests including slow FakeTorino tests (~60s)
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 smoke-test:  ## Run end-to-end smoke test (~7s)
@@ -59,8 +62,12 @@ run-nb-34:  ## Execute Phase 3-4 notebook only
 
 # ── Pre-commit ───────────────────────────────────────────────
 
-hooks-install:  ## Install pre-commit hooks
+hooks-install:  ## Install pre-commit hooks (including commit-msg) and pre-push
 	pre-commit install
+	pre-commit install --hook-type commit-msg
+	cp scripts/hooks/pre-push-tests.sh .git/hooks/pre-push
+	chmod +x .git/hooks/pre-push
+	@echo "✅ All hooks installed (pre-commit + commit-msg + pre-push)"
 
 check:  ## Run all pre-commit hooks
 	pre-commit run --all-files

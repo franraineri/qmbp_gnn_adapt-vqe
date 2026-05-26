@@ -19,7 +19,10 @@ PATTERNS = [
 
 def check_file(path: str) -> list[str]:
     # Skip test files — they intentionally test constraint violations
-    if "/test" in path or path.startswith("test"):
+    if "/tests/" in path or "/test_" in path or path.startswith("tests/"):
+        return []
+    # Skip archived code — historical, not subject to current constraints
+    if "/archive/" in path or path.startswith("archive/"):
         return []
     violations = []
     try:

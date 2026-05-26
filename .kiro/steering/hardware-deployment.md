@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "src/poc/v6/hardware_deployer.py"
+fileMatchPattern: "**/hardware_deployer*"
 ---
 
 # Hardware Deployment — Phase 4 Guidelines
@@ -19,12 +19,13 @@ fileMatchPattern: "src/poc/v6/hardware_deployer.py"
 
 ### Error Mitigation Stack (in order of application)
 1. **Dynamical Decoupling** — free, always apply. Use optimized sequences if available.
-2. **TREX** — twirled readout error extinction. Enable via EstimatorV2 options.
-3. **Inhomogeneous ZNE** — preferred over gate folding:
+2. **Pauli Twirling** — 32 randomizations × 256 shots. Converts coherent → stochastic noise.
+3. **TREX** — twirled readout error extinction. Enable via EstimatorV2 options.
+4. **Inhomogeneous ZNE** — preferred over gate folding:
    - Transpile same circuit with 3-5 different `initial_layout` values
    - Each layout produces different Circuit Error Sum (CES)
    - Linear extrapolation of energy vs CES to zero
-4. **NN-enhanced extrapolation** — optional improvement:
+5. **NN-enhanced extrapolation** — optional improvement:
    - After collecting ZNE data, fit 2-layer MLP instead of linear regression
    - `MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=1000)`
 
@@ -51,8 +52,112 @@ fileMatchPattern: "src/poc/v6/hardware_deployer.py"
 - Pauli pool: Hamiltonian terms only (ZZ bonds + X sites)
 - Use COBYLA or SPSA optimizer (gradient-free, noise-robust)
 
-### Do NOT
+---
+
+## CRITICAL PITFALLS (learned from V6.1 implementation)
+
+### EstimatorV2 Observable Return Types — NEVER FORGET
+- `(circuit, single_SparsePauliOp)` → returns **SCALAR** (the weighted sum)
+- `(circuit, [list_of_SparsePauliOps])` → returns **ARRAY** (one value per op)
+- For per-site ⟨X_i⟩ or per-bond ⟨Z_iZ_j⟩: ALWAYS submit as a LIST of individual single-term operators
+- For total energy: submit the full Hamiltonian as a single SparsePauliOp (scalar is what you want)
+- This applies to BOTH StatevectorEstimator AND IBM Runtime EstimatorV2
+
+### Energy Computation — Don't Reconstruct Manually
+- WRONG: `energy = -J * np.sum(zz_vals) - h * np.sum(x_vals)` (error-prone, ignores per-bond J)
+- RIGHT: Submit the full Hamiltonian as a PUB → get energy directly from Estimator
+- The Estimator handles the coefficient weighting correctly for any Hamiltonian structure
+
+### Inhomogeneous ZNE — Two Types of CES
+- **Topology CES** (`_compute_subset_ces`): sum of edge errors in the qubit subset's connectivity. Fast heuristic for RANKING candidate layouts. Does NOT account for routing overhead.
+- **Circuit CES** (`compute_ces(transpiled)`): sum of 2Q gate errors in the actual transpiled circuit. This is the TRUE noise axis for ZNE extrapolation.
+- Use topology CES for selection, circuit CES for extrapolation. Never mix them.
+
+### NNConv — Use Sum Aggregation
+- `aggr="add"` not `"mean"` — mean loses node degree information (Xu et al. 2019)
+- This matters for lattices where sites have different coordination numbers
+
+### Calibration Timestamp — May Be None
+- Modern IBM backends (Target API) don't always expose `backend.properties().last_update_date`
+- Default to assuming FRESH calibration when timestamp unavailable
+- The error rates themselves ARE accessible via `backend.target[op_name].get(qargs).error`
+
+### Phase Classification — Use Magnitudes
+- ⟨X⟩ ≥ 0 always for TFIM with |+⟩^N initial state
+- ⟨ZZ⟩ ≤ 0 for our convention (H = -J*ZZ - h*X)
+- Compare `|⟨X⟩|` vs `|⟨ZZ⟩|` for crossover criterion
+- Return "indeterminate" when difference < σ = 1/√shots
+
+### Layout Selection — Seed for Reproducibility
+- BFS-based subset search uses random starting nodes
+- Always use a seeded `random.Random(seed)` instance, not module-level `random.sample()`
+- This ensures reproducible layout selection across runs
+
+### No Libraries Exist For
+- Inhomogeneous ZNE (Uvarov 2024) — must implement ourselves
+- Layout selection on heavy-hex topology — must implement ourselves
+- Weight gradient analysis (Hernandes 2025) — must implement ourselves
+- Mitiq does gate-folding ZNE only (different paradigm, not applicable)
+- DD/twirling/TREX are native to Qiskit Runtime (just set options, no custom code)
+
+---
+
+## Do NOT
 - Measure global fidelity on hardware (requires exponential tomography)
 - Use more than p=2 total HVA layers (including ADAPT additions)
 - Use Primitives V1 or `backend.run()`
 - Hardcode h_c = 1.0 for phase classification (use data-driven crossover)
+- Submit multi-term SparsePauliOp when you need per-term values
+- Use `random.sample()` without a seed in layout selection
+- Use `aggr="mean"` in NNConv (use `"add"`)
+- Manually reconstruct energy from observables (submit Hamiltonian PUB instead)
+
+---
+
+## Noisy Simulation Mode (FakeTorino)
+
+### Overview
+`mode="noisy_simulation"` exercises the full inhomogeneous ZNE pipeline locally using `FakeTorino` + `BackendEstimatorV2`. No IBM credentials required. Validates that ZNE actually reduces errors before real QPU deployment.
+
+### Backend & Estimator
+- Backend: `FakeTorino` from `qiskit_ibm_runtime.fake_provider` (133 qubits, heavy-hex, real calibration data)
+- Estimator: `BackendEstimatorV2` from `qiskit.primitives` (NOT `qiskit_ibm_runtime.EstimatorV2`)
+- `BackendEstimatorV2` uses `default_precision` parameter, NOT `default_shots`
+
+### What's Included (same as hardware)
+- Layout selection via `LayoutSelector` (BFS on heavy-hex topology)
+- Transpilation with `generate_preset_pass_manager(optimization_level=2)`
+- Observable grouping (commuting Paulis)
+- Inhomogeneous ZNE extrapolation (energy vs CES, linear fit)
+
+### What's Excluded (isolates ZNE contribution)
+- No Dynamical Decoupling sequences
+- No Pauli Twirling
+- No TREX readout error mitigation
+- No NNExtrapolator (requires ≥5 layouts)
+
+### Seed Parameter
+- `HardwareDeployerV61(mode="noisy_simulation", seed=42)` — controls `LayoutSelector` randomness
+- Ensures reproducible qubit mappings across runs
+- Default: `seed=42`
+
+### Usage Pattern
+```python
+from qmbp_simulation.execution import NoisyBackend, MitigationOptions
+
+# Noisy raw (no ZNE — single layout)
+backend_raw = NoisyBackend(n_layouts=1, seed=42)
+
+# ZNE mitigated (3 layouts for extrapolation)
+backend_zne = NoisyBackend(n_layouts=3, seed=42)
+```
+
+### ZNE Layout Scaling (CRITICAL — Validated 2026-05-14)
+- **N=6, n_layouts=3**: Linear E(CES) holds. R²>0.99, ZNE gain +40%.
+- **N=10, n_layouts=3**: Linear E(CES) BREAKS. R²<0.05, ZNE makes things WORSE.
+- **Root cause**: At N=10, total CES exceeds perturbative regime. 3 random layouts produce energies with no linear correlation to their CES values.
+- **Fix options** (to be validated):
+  1. Increase to O(n) layouts — CLP-ZNE (Rabinovich et al. 2025) uses cyclic permutations
+  2. Add DD pre-mitigation to reduce effective CES back into linear regime
+  3. Use NN extrapolation (Sun et al. 2025) for non-linear E(CES) curves
+- **Rule**: When modifying n_layouts or adding new system sizes, always verify R² > 0.8 before trusting ZNE results.
