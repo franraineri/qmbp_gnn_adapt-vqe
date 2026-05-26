@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
-"""Cross-experiment result comparison CLI.
+"""Cross-experiment and pipeline result comparison CLI.
+
+Each experiment is evaluated against its own success criteria — not a
+blanket ΔE/gap baseline. Verdicts: confirmed (hypothesis holds),
+rejected (hypothesis disproved = valid finding), failed (unexpected).
 
 Usage:
-    python scripts/compare.py --exp B1 B4 F3
-    python scripts/compare.py --category optimization
-    python scripts/compare.py --category B
     python scripts/compare.py --all
-    python scripts/compare.py --all --format json
+    python scripts/compare.py --exp G1 G5
+    python scripts/compare.py --category G
+    python scripts/compare.py --noisy
+    python scripts/compare.py --noisy --group-by seed_layout
     python scripts/compare.py --all --json output.json
 """
 
@@ -15,13 +19,13 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
-# Mapping from directory category names to experiment ID prefixes
-_CATEGORY_PREFIX_MAP: dict[str, list[str]] = {
-    "optimization": ["B", "C3"],
-    "scaling": ["A"],
+_CATEGORY_MAP: dict[str, list[str]] = {
+    "optimization": ["B", "C3", "G4"],
+    "scaling": ["A", "G3"],
     "landscape": ["F"],
-    "predictor": ["C1", "D", "E3"],
+    "predictor": ["C1", "D", "E3", "G1", "G2", "G5"],
     "hardware": [],
     "generalization": ["E4"],
 }
@@ -29,85 +33,152 @@ _CATEGORY_PREFIX_MAP: dict[str, list[str]] = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Compare experiment results against V6.1 baseline",
+        description="Compare experiment results",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    %(prog)s --exp B1 B4 F3              # Compare specific experiments
-    %(prog)s --category B                # Compare all starting with B
-    %(prog)s --category optimization     # Compare all optimization experiments
-    %(prog)s --all                       # Compare all available results
-    %(prog)s --all --format json         # Output JSON to stdout
-    %(prog)s --all --json output.json    # Save structured JSON to file
+    %(prog)s --all                          Compare all experiments
+    %(prog)s --exp G1 G5 B4                 Compare specific experiments
+    %(prog)s --category G                   Compare by category letter
+    %(prog)s --noisy                        Analyze ZNE robustness results
+    %(prog)s --noisy --group-by n_layouts   Group noisy results by key
+    %(prog)s --all --json results.json      Save JSON output
         """,
     )
+
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--all", action="store_true", help="Compare all experiments")
+    mode.add_argument("--exp", nargs="+", dest="experiments", help="Experiment IDs")
+    mode.add_argument("--category", type=str, help="Category letter or name")
+    mode.add_argument("--noisy", action="store_true", help="Analyze noisy/ZNE results")
+
+    parser.add_argument("--group-by", type=str, help="Group noisy results by key")
+    parser.add_argument("--noisy-file", type=str, help="Specific noisy result file")
     parser.add_argument(
-        "--exp",
-        "--experiments",
-        nargs="+",
-        dest="experiments",
-        help="Experiment IDs to compare (e.g., B1 B4 F3)",
+        "--format", choices=["table", "json"], default="table", help="Output format"
     )
-    parser.add_argument(
-        "--category",
-        type=str,
-        help="Compare all in a category (A-F letter prefix, or name: optimization, scaling, landscape, predictor, hardware, generalization)",
-    )
-    parser.add_argument("--all", action="store_true", help="Compare all available results")
-    parser.add_argument(
-        "--format",
-        choices=["table", "json"],
-        default="table",
-        help="Output format (default: table)",
-    )
-    parser.add_argument(
-        "--json",
-        type=str,
-        metavar="FILE",
-        dest="json_file",
-        help="Save structured JSON output to file",
-    )
-    parser.add_argument(
-        "--results-dir",
-        type=str,
-        default=None,
-        help="Results directory (default: results/experiments)",
-    )
+    parser.add_argument("--json", type=str, metavar="FILE", dest="json_file", help="Save to file")
+    parser.add_argument("--results-dir", type=str, default=None, help="Results directory")
+
     return parser.parse_args()
 
 
 def _resolve_category(category: str, available: list[str]) -> list[str]:
-    """Resolve a category argument to a list of experiment IDs.
-
-    Supports both single-letter prefixes (e.g., 'B') and full category
-    names (e.g., 'optimization').
-    """
+    """Resolve category to experiment IDs."""
     cat_lower = category.lower()
-
-    # Check if it's a known category name
-    if cat_lower in _CATEGORY_PREFIX_MAP:
-        prefixes = _CATEGORY_PREFIX_MAP[cat_lower]
-        if not prefixes:
-            return []
-        return [eid for eid in available if any(eid.startswith(p) for p in prefixes)]
-
-    # Otherwise treat as a letter prefix (e.g., 'B', 'A')
+    if cat_lower in _CATEGORY_MAP:
+        prefixes = _CATEGORY_MAP[cat_lower]
+        return [e for e in available if any(e.startswith(p) for p in prefixes)]
     prefix = category.upper()
-    return [eid for eid in available if eid.startswith(prefix)]
+    return [e for e in available if e.startswith(prefix)]
+
+
+def _run_experiment_comparison(store, exp_ids: list[str], args) -> None:
+    """Run experiment comparison mode."""
+    comparisons = store.compare_experiments(exp_ids)
+    if not comparisons:
+        print("No comparable results found.")
+        return
+
+    if args.json_file:
+        _write_json(comparisons, args.json_file)
+        return
+    if args.format == "json":
+        print(json.dumps(comparisons, indent=2, default=str))
+        return
+
+    print("\nExperiment Results Summary")
+    print("=" * 80)
+    print(store.format_experiment_table(comparisons))
+    print()
+
+    confirmed = [c for c in comparisons if c["verdict"] == "confirmed"]
+    rejected = [c for c in comparisons if c["verdict"] == "rejected"]
+    failed = [c for c in comparisons if c["verdict"] == "failed"]
+    print(f"  {len(confirmed)} confirmed ✅  {len(rejected)} rejected ⚠️  {len(failed)} failed ❌")
+
+    if rejected:
+        print("\n  Rejected hypotheses (valid findings):")
+        for c in rejected:
+            print(f"    {c['experiment_id']}: {c['hypothesis'][:65]}")
+    if failed:
+        print("\n  Failed experiments:")
+        for c in failed:
+            print(f"    {c['experiment_id']}: {c['hypothesis'][:65]}")
+
+
+def _run_noisy_analysis(store, args) -> None:
+    """Run noisy/ZNE analysis mode."""
+    results = store.load_noisy_results(filename=args.noisy_file)
+    if not results:
+        print("No noisy experiment results found in exp_noisy_variants/")
+        return
+
+    if args.json_file:
+        output = {
+            "correlations": store.analyze_noisy_correlations(results),
+            "by_group": (
+                {args.group_by: store.analyze_noisy_by_group(results, args.group_by)}
+                if args.group_by
+                else {}
+            ),
+        }
+        _write_json(output, args.json_file)
+        return
+
+    if args.format == "json":
+        correlations = store.analyze_noisy_correlations(results)
+        print(json.dumps(correlations, indent=2))
+        return
+
+    # Table output
+    correlations = store.analyze_noisy_correlations(results)
+    n = int(correlations.get("n_evaluations", len(results)))
+    print(f"\nNoisy/ZNE Analysis ({n} evaluations)")
+    print("=" * 60)
+    print(f"  Mean R²:          {correlations.get('mean_r2', 0):.4f}")
+    print(f"  R² > 0.8:         {correlations.get('pct_r2_gt_08', 0):.1f}%")
+    print(f"  ZNE helps:        {correlations.get('pct_helps', 0):.1f}%")
+    print(f"  Mean gain:        {correlations.get('mean_gain_pct', 0):+.1f}%")
+    if "corr_r2_gain" in correlations:
+        print(f"  Corr(R², gain):   {correlations['corr_r2_gain']:.4f}")
+    if "corr_ces_ratio_r2" in correlations:
+        print(f"  Corr(CES ratio, R²): {correlations['corr_ces_ratio_r2']:.4f}")
+
+    # Group-by analysis
+    keys = [args.group_by] if args.group_by else ["seed_layout", "n_layouts", "h_test"]
+    for key in keys:
+        if not any(key in r for r in results):
+            continue
+        grouped = store.analyze_noisy_by_group(results, key)
+        if grouped:
+            print(f"\n  By {key}:")
+            print(store.format_noisy_table(grouped, key))
+
+
+def _write_json(data, filepath: str) -> None:
+    """Write data to JSON file."""
+    path = Path(filepath)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2, default=str)
+    n = len(data) if isinstance(data, list) else "structured"
+    print(f"Saved to {path} ({n} entries)")
 
 
 def main() -> None:
     args = parse_args()
 
-    from pathlib import Path
-
     from qmbp_simulation.framework import ResultStore
 
-    # Initialize result store
     results_dir = Path(args.results_dir) if args.results_dir else None
     store = ResultStore(results_root=results_dir)
 
-    # Determine which experiments to compare
+    if args.noisy:
+        _run_noisy_analysis(store, args)
+        return
+
+    # Determine experiment IDs
     available = store.list_experiments()
 
     if args.all:
@@ -117,53 +188,17 @@ def main() -> None:
     elif args.experiments:
         exp_ids = [e.upper() for e in args.experiments]
     else:
-        print("Specify --exp, --category, or --all")
+        print("Specify --all, --exp, --category, or --noisy")
         sys.exit(1)
 
-    # Filter to those with results (gracefully skip missing)
     exp_ids = [e for e in exp_ids if e in available]
-
     if not exp_ids:
-        print("No results found for specified experiments.")
+        print("No results found.")
         if available:
             print(f"Available: {', '.join(available)}")
-        else:
-            print("No experiment results found in results directory.")
         return
 
-    # Generate comparison (O(n) — one file load per experiment)
-    comparisons = store.compare_experiments(exp_ids)
-
-    if not comparisons:
-        print("No comparable results found (experiments may lack summary metrics).")
-        return
-
-    # Handle --json file output
-    if args.json_file:
-        output_path = Path(args.json_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
-            json.dump(comparisons, f, indent=2)
-        print(f"Comparison saved to {output_path} ({len(comparisons)} experiments)")
-        return
-
-    # Handle --format output
-    if args.format == "table":
-        print("\nExperiment Comparison vs V6.1 Baseline")
-        print("=" * 70)
-        print(store.generate_comparison_table(comparisons))
-        print()
-
-        # Summary
-        improvements = [c for c in comparisons if c["verdict"] == "improvement"]
-        regressions = [c for c in comparisons if c["verdict"] == "regression"]
-        neutral = len(comparisons) - len(improvements) - len(regressions)
-        print(
-            f"Summary: {len(improvements)} improvements, "
-            f"{len(regressions)} regressions, {neutral} neutral"
-        )
-    else:
-        print(json.dumps(comparisons, indent=2))
+    _run_experiment_comparison(store, exp_ids, args)
 
 
 if __name__ == "__main__":
