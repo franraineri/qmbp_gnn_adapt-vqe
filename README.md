@@ -65,7 +65,6 @@ project-root/
 │   ├── unit/                       # Per-module unit tests
 │   ├── integration/                # End-to-end pipeline tests
 │   └── conftest.py                 # Shared fixtures
-├── archive/                        # Historical code (Zone 3: Archive)
 ├── results/                        # Experiment outputs
 ├── documentation/                  # Thesis docs, binnacles, bibliography
 └── pyproject.toml                  # Package config, Ruff, pytest
@@ -171,9 +170,6 @@ The codebase is organized into three clearly separated zones:
 
 2. **Consumers** (`experiments/` + `scripts/`) — Use the framework via
    `from qmbp_simulation import ...`. Not part of the installable package.
-
-3. **Archive** (`archive/*_BAK/`) — Historical code preserved for reference.
-   Never modify, import from, or reference. Excluded from all tooling.
 
 ## Constraints (enforced by pre-commit)
 

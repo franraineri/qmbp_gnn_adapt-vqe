@@ -1,15 +1,19 @@
 """Analysis Metrics — Pure computation helpers for pipeline diagnostics.
 
 Provides signal-to-noise ratio, parameter smoothness, classification
-confidence, and energy decomposition computations. These are stateless
-functions with no side effects.
+confidence, energy decomposition, and fraction-near-ground-state
+computations. These are stateless functions with no side effects.
 
 This module has NO heavy imports (no Qiskit, no PyTorch).
 """
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def compute_snr(observable_value: float, shots: int) -> float:
@@ -62,11 +66,9 @@ def compute_theta_smoothness(theta_array: np.ndarray) -> float | None:
     if theta_array.shape[0] < 2:
         return None
 
-    max_diff = 0.0
-    for i in range(1, theta_array.shape[0]):
-        diff = float(np.max(np.abs(theta_array[i] - theta_array[i - 1])))
-        max_diff = max(max_diff, diff)
-    return max_diff
+    # Vectorized: compute all consecutive differences at once
+    diffs = np.abs(np.diff(theta_array, axis=0))
+    return float(np.max(diffs))
 
 
 def compute_classification_confidence(
@@ -142,4 +144,69 @@ def compute_energy_decomposition(
         "e_mpnn_predicted": float(e_predicted),
         "error_from_circuit": float(error_from_circuit),
         "error_from_mpnn": float(error_from_mpnn),
+    }
+
+
+def compute_fraction_near_gs(
+    cost_fn,
+    n_params: int,
+    n_samples: int = 200,
+    threshold: float = 0.05,
+    gap: float = 1.0,
+    e_exact: float = 0.0,
+    bounds: tuple[float, float] = (-np.pi, np.pi),
+    seed: int | None = None,
+) -> dict[str, float]:
+    """Fraction of random parameter initializations near the ground state.
+
+    A training-free metric that estimates how accessible the ground state
+    is from random starting points. Higher values indicate an easier
+    optimization landscape at a given h-value.
+
+    Parameters
+    ----------
+    cost_fn : callable
+        Energy function E(theta) -> float.
+    n_params : int
+        Number of variational parameters.
+    n_samples : int
+        Number of random samples to evaluate.
+    threshold : float
+        ΔE/gap threshold for "near ground state" (default 5%).
+    gap : float
+        Spectral gap for normalization.
+    e_exact : float
+        Exact ground state energy.
+    bounds : tuple[float, float]
+        Parameter bounds (default [-pi, pi]).
+    seed : int | None
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    dict[str, float]
+        Keys: fraction_near_gs, n_near, n_samples, threshold, mean_de_gap.
+    """
+    rng = np.random.default_rng(seed)
+    gap_safe = max(abs(gap), 1e-10)
+
+    n_near = 0
+    de_gaps = np.zeros(n_samples)
+
+    for i in range(n_samples):
+        theta = rng.uniform(bounds[0], bounds[1], n_params)
+        energy = cost_fn(theta)
+        de_gap = abs(energy - e_exact) / gap_safe
+        de_gaps[i] = de_gap
+        if de_gap < threshold:
+            n_near += 1
+
+    fraction = n_near / n_samples
+
+    return {
+        "fraction_near_gs": float(fraction),
+        "n_near": n_near,
+        "n_samples": n_samples,
+        "threshold": float(threshold),
+        "mean_de_gap": float(np.mean(de_gaps)),
     }

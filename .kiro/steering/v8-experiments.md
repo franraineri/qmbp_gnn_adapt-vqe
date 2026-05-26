@@ -336,7 +336,7 @@ exponent (not the TFIM critical exponent ν=1). p=1 scales better at large N.
 **Conclusion:** All minima genuine (no saddle points). Condition number grows
 100× from h=1.0 to h=2.0. Flat direction at large h explains analytical init failure.
 
-**Note:** B4-lite was originally run as standalone script (now archived at `archive/experiments_v8_BAK/run_b4_lite.py`).
+**Note:** B4-lite was originally run as standalone script (now removed with archive cleanup).
 Results are in terminal output and this steering file only (no JSON artifact).
 To reproduce, use the framework:
 ```bash

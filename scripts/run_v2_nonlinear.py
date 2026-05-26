@@ -19,10 +19,9 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from qmbp_simulation.execution import linear_zne
 
-ARCHIVE = PROJECT_ROOT / "archive" / "notebook_results_BAK"
 RESULTS_DIR = PROJECT_ROOT / "results" / "experiments" / "exp_noisy_variants"
 
-data_path = ARCHIVE / "noisy_sweep_20260514_141418_963d7c2e.json"
+data_path = RESULTS_DIR / "noisy_sweep_20260514_141418_963d7c2e.json"
 with open(data_path) as f:
     data = json.load(f)
 

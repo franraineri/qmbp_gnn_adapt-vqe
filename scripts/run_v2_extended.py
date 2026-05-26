@@ -17,7 +17,6 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from qmbp_simulation.execution import linear_zne
 
-ARCHIVE = PROJECT_ROOT / "archive" / "notebook_results_BAK"
 RESULTS_DIR = PROJECT_ROOT / "results" / "experiments" / "exp_noisy_variants"
 
 print("=" * 70)
@@ -25,11 +24,11 @@ print("  VARIANT 2 EXTENDED: Weighted fits + N=6 validation")
 print("=" * 70)
 
 # Load N=10 data
-with open(ARCHIVE / "noisy_sweep_20260514_141418_963d7c2e.json") as f:
+with open(RESULTS_DIR / "noisy_sweep_20260514_141418_963d7c2e.json") as f:
     data_n10 = json.load(f)
 
 # Load N=6 data for validation
-with open(ARCHIVE / "noisy_sweep_20260514_142206_9ca7c21c.json") as f:
+with open(RESULTS_DIR / "noisy_sweep_20260514_142206_9ca7c21c.json") as f:
     data_n6 = json.load(f)
 
 

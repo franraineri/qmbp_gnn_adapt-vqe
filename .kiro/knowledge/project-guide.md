@@ -50,12 +50,6 @@ A Master's thesis implementing a hybrid classical-quantum pipeline for character
 │   ├── benchmarks/          ← Benchmark results (gitignored)
 │   └── thesis/              ← Committed definitive results
 │
-├── archive/                 ← HISTORICAL CODE (NEVER modify or import from)
-│   ├── src_poc_v6_BAK/      ← Original V6 modules
-│   ├── experiments_hamed_v7_BAK/ ← V7 experiment scripts
-│   ├── experiments_v8_BAK/  ← V8 experiment framework
-│   └── experiments_v6.1_noisy_BAK/ ← Noisy simulation scripts
-│
 ├── documentation/           ← Human-readable docs
 │   ├── binnacles/           ← Experiment logs
 │   └── bibliography/        ← Literature references
@@ -117,7 +111,6 @@ python scripts/smoke_test.py       # Verify pipeline works
 
 1. **Framework** (`src/qmbp_simulation/`) — The installable package. Primary development target.
 2. **Consumers** (`experiments/` + `scripts/`) — Use the framework via `from qmbp_simulation import ...`. Not part of the package.
-3. **Archive** (`archive/*_BAK/`) — Historical code. NEVER modify, import from, or reference. Excluded from all tooling.
 
 ## Key Workflow Rules
 
@@ -128,8 +121,7 @@ python scripts/smoke_test.py       # Verify pipeline works
 5. Phase 2 MUST use pure energy cost (V5.x lesson).
 6. All scripts live in `scripts/` — never put executable scripts in `src/`.
 7. Use `from qmbp_simulation import ...` for all imports — never `sys.path` hacks.
-8. Never import from `archive/` — it exists only for historical reference.
-9. Experiments inherit from `BaseExperiment` and use `ExperimentMetrics` for results.
+8. Experiments inherit from `BaseExperiment` and use `ExperimentMetrics` for results.
 
 ## Current Best Configuration (from 60+ benchmark runs)
 

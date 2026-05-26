@@ -114,10 +114,11 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `scripts/run_pipeline.py` — full 4-phase pipeline CLI
 - `scripts/compare.py` — cross-experiment result comparison
 
-## Dead Code (removed 2026-05-22, now in `archive/src_poc_v6_BAK/`)
+## Dead Code (removed 2026-05-22, deleted 2026-05-25)
 - `pipeline_core.py` — documented but zero imports anywhere (DELETED)
 - `experimental/` — GATPredictor + augmentation (both rejected, never existed on disk)
 - `hardware_deployer.py` — V6.0 legacy (DELETED, superseded by V6.1)
+- `archive/` — All _BAK directories removed in v8_clean branch
 
 ## Optimal Config (quick reference)
 - **N=6**: GINConv h=64, L=3, 6000ep, lr=1e-3, 5 VQE restarts, fid≥0.93
@@ -149,7 +150,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **Hardware candidate**: p=1 N=20 on IBM Torino (VQE validated, same CX budget as p=2 N=10)
 - **TODO**: Fix init at N=20 (analytical guess), canonicalize signs, increase training density
 - Binnacle: `documentation/binnacles/binnacle-p1-scaling.md`
-- Script: `archive/experiments_hamed_v7_BAK/experiment_p1_scaling.py` (historical)
+- Script: historical (removed in v8_clean)
 
 ## ZNE Scaling Rule (from experiments + literature)
 - N=6: 3 layouts sufficient (R²>0.99, linear regime)
@@ -219,6 +220,5 @@ make test-full     # All tests including slow (~60s)
 
 ## What NOT to Touch
 
-- **`archive/`** — Historical code. NEVER modify, import from, or reference. Excluded from all tooling.
 - **Stable modules** (listed in "Stable Code" section above) — Only modify if explicitly asked.
 - **`results/thesis/`** — Committed definitive results. Do not overwrite.
