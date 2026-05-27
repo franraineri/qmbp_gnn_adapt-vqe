@@ -171,6 +171,12 @@ def add_vqe_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
         default=0.1,
         help="Initial parameter spread for restarts (default: 0.1)",
     )
+    group.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for VQE + MPNN reproducibility (default: None → non-deterministic)",
+    )
     return group
 
 

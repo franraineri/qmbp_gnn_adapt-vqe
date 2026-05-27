@@ -109,25 +109,28 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `src/qmbp_simulation/analysis/diagnostics.py` — pipeline observability (DiagnosticCollector, always-on)
 - `src/qmbp_simulation/analysis/metrics.py` — SNR, smoothness, energy decomposition
 - `src/qmbp_simulation/framework/base.py` — BaseExperiment lifecycle (setup → run → analyze → report)
-- `src/qmbp_simulation/framework/cli.py` — shared CLI argument groups and validation
+- `src/qmbp_simulation/framework/cli.py` — shared CLI argument groups and validation (includes `--seed`)
 - `src/qmbp_simulation/framework/result_io.py` — standardized result saving/loading
 - `src/qmbp_simulation/framework/benchmarking.py` — BenchmarkSuite for performance regression
 - `src/qmbp_simulation/framework/logging.py` — StructuredLogger + ProgressReporter
 - `src/qmbp_simulation/framework/result_store.py` — result querying, comparison, CATEGORY_MAP
+- `src/qmbp_simulation/framework/variant_runner.py` — shared variant runner (PipelineVariant, RunResult, VariantRunner, run_variant_script)
 - `src/qmbp_simulation/pipeline/runner.py` — PipelineRunner + run_exact_diag_sweep helper
 - `experiments/` — categorized experiment scripts (optimization, scaling, landscape, predictor, hardware, generalization)
 - `scripts/run_experiment.py` — unified CLI for running experiments by ID
-- `scripts/run_pipeline.py` — full 4-phase pipeline CLI (uses framework/cli.py)
+- `scripts/run_pipeline.py` — full 4-phase pipeline CLI (uses framework/cli.py, supports `--seed`)
+- `scripts/run_thesis_variants-*.py` — topology-specific variant runners (chain_1d, ladder, triangular) using framework/variant_runner.py
 - `scripts/compare.py` — cross-experiment result comparison (uses ResultStore)
 - `scripts/benchmark.py` — performance benchmarking (uses BenchmarkSuite)
 
-## Dead Code (removed 2026-05-22, deleted 2026-05-25/26)
+## Dead Code (removed 2026-05-22, deleted 2026-05-25/26/27)
 - `pipeline_core.py` — documented but zero imports anywhere (DELETED)
 - `experimental/` — GATPredictor + augmentation (both rejected, never existed on disk)
 - `hardware_deployer.py` — V6.0 legacy (DELETED, superseded by V6.1)
 - `archive/` — All _BAK directories removed in v8_clean branch
 - `scripts/run_v1_p1_noisy.py` — exploratory ZNE script (DELETED 2026-05-26, results in binnacles)
 - `scripts/run_noisy_v2_batch.py` — exploratory ZNE batch (DELETED 2026-05-26, code in noisy_utils.py)
+- Inline `RunResult`/`run_variant`/`main` in variant scripts — REMOVED 2026-05-27, replaced by `framework/variant_runner.py` (~650 lines eliminated)
 - `scripts/run_v2_extended.py` — exploratory analysis (DELETED 2026-05-26, results in binnacles)
 - `scripts/run_v2_nonlinear.py` — exploratory non-linear ZNE (DELETED 2026-05-26, results in binnacles)
 - `scripts/run_v3_per_obs_zne.py` — exploratory per-obs ZNE (DELETED 2026-05-26, results in binnacles)

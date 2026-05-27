@@ -64,7 +64,7 @@ class ExperimentA3(BaseExperiment):
                 "(TFIM universality class, nu=1 in 1D)"
             ),
             system=SystemConfig(n_qubits=6, p_layers=2),
-            analysis=AnalysisConfig(scaling_n_values=[4, 6, 8, 10, 12, 14]),
+            analysis=AnalysisConfig(scaling_n_values=[4, 6, 8, 10]),
             seeds=[42, 43, 44],
             verbose=True,
         )

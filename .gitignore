@@ -48,3 +48,6 @@ tmp/
 checkpoint*
 *.json
 *json
+
+digest_poc/*
+*_TEMP.py

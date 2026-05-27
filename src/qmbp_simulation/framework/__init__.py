@@ -33,6 +33,12 @@ from qmbp_simulation.framework.result_io import (
     save_pipeline_result,
 )
 from qmbp_simulation.framework.result_store import CATEGORY_MAP, ResultStore
+from qmbp_simulation.framework.variant_runner import (
+    PipelineVariant,
+    RunResult,
+    VariantRunner,
+    run_variant_script,
+)
 
 __all__ = [
     # Base
@@ -74,4 +80,9 @@ __all__ = [
     # Benchmarking
     "BenchmarkSuite",
     "BenchmarkResult",
+    # Variant runner
+    "PipelineVariant",
+    "RunResult",
+    "VariantRunner",
+    "run_variant_script",
 ]

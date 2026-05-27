@@ -123,6 +123,22 @@ python scripts/benchmark.py --n-qubits 4 6 8 10     # Custom sizes
 python scripts/benchmark.py --output bench.json      # Save results
 ```
 
+### `scripts/digest/` — Result Digest & Analysis
+
+Extracts key knowledge from all experiment results by kind (noiseless, noisy, experiment).
+Supports filtering, grouping, statistical analysis, outlier detection, and side-by-side
+comparison. Lightweight (no torch import). See [`scripts/digest/README.md`](scripts/digest/README.md)
+for full documentation.
+
+```bash
+python -m scripts.digest --kind noiseless --group-by topology
+python -m scripts.digest --kind noisy --group-by n_qubits
+python -m scripts.digest --kind experiment --sort verdict --verbose
+python -m scripts.digest --stats --topology ladder
+python -m scripts.digest --outliers
+python -m scripts.digest --compare variants_N10_ladder variants_N10_triangular
+```
+
 ### `scripts/smoke_test.py` — Quick Validation
 
 Imports all submodules and runs a minimal pipeline (N=4, p=1, 3 h-points).

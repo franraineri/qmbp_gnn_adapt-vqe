@@ -112,6 +112,7 @@ def main() -> None:
         f"  MPNN: hidden={mpnn_config.get('hidden_dim', 128)}, "
         f"epochs={mpnn_config.get('n_epochs', 6000)}"
     )
+    print(f"  Seed: {args.seed if args.seed is not None else 'None (non-deterministic)'}")
     print(f"  Output: {output_dir}")
     print()
 
@@ -121,6 +122,7 @@ def main() -> None:
         config=vqe_config,
         checkpoint_dir=output_dir / "checkpoints",
         verbose=args.verbose or args.debug,
+        seed=args.seed,
     )
 
     t0 = time.time()
@@ -170,6 +172,7 @@ def main() -> None:
             "p_layers": args.p,
             "n_restarts": args.n_restarts,
             "maxiter": args.maxiter,
+            "seed": args.seed,
             "mpnn": mpnn_config,
             "h_values": h_values.tolist(),
             "h_test": args.h_test,

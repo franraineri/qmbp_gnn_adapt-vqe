@@ -39,7 +39,8 @@ src/qmbp_simulation/
 │   ├── cli.py             ← Shared CLI argument groups and validation
 │   ├── result_io.py       ← Standardized result saving/loading
 │   ├── result_store.py    ← Result querying, comparison, CATEGORY_MAP
-│   └── benchmarking.py    ← BenchmarkSuite, BenchmarkResult
+│   ├── benchmarking.py    ← BenchmarkSuite, BenchmarkResult
+│   └── variant_runner.py  ← PipelineVariant, RunResult, VariantRunner, run_variant_script
 └── analysis/                ← Gradient analysis, diagnostics, comparison
     ├── gradient.py
     ├── diagnostics.py
@@ -109,6 +110,8 @@ from qmbp_simulation.framework import (
     ResultStore, CATEGORY_MAP,
     # Benchmarking
     BenchmarkSuite, BenchmarkResult,
+    # Variant runner (for topology variant scripts)
+    PipelineVariant, RunResult, VariantRunner, run_variant_script,
 )
 ```
 
