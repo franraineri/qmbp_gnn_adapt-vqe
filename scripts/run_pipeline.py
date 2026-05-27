@@ -148,6 +148,10 @@ def main() -> None:
                 f"ΔE/gap={deploy.delta_e_over_gap:.4f} "
                 f"({'PASS' if deploy.delta_e_over_gap < 0.05 else 'FAIL'})"
             )
+    elif not args.skip_phase4:
+        print("  ⚠️  Phase 4 skipped (Phase 3 MPNN training failed or was skipped)")
+        print("  Possible causes: insufficient training data, fidelity filter too strict,")
+        print("  or h-values outside the valid regime for this topology/N.")
 
     # Save diagnostics
     if results.get("diagnostics"):

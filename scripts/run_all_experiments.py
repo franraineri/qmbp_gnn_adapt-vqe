@@ -102,6 +102,46 @@ class ExperimentResult:
     error_msg: str = ""
     summary: dict | None = None
 
+    @property
+    def pass_rate(self) -> float | None:
+        """Extract pass_rate from summary if available."""
+        if self.summary and "pass_rate" in self.summary:
+            return self.summary["pass_rate"]
+        return None
+
+    @property
+    def mean_de_gap(self) -> float | None:
+        """Extract mean ΔE/gap from summary if available."""
+        if self.summary and "mean_de_gap" in self.summary:
+            return self.summary["mean_de_gap"]
+        return None
+
+    @property
+    def verdict(self) -> str:
+        """Human-readable verdict based on experiment outcome.
+
+        Uses pass_rate when available, but also checks for experiment-specific
+        success indicators in the summary (e.g., 'hypothesis_confirmed').
+        """
+        if not self.success:
+            return "ERROR"
+        if self.summary is None:
+            return "OK"
+        # Check for explicit hypothesis confirmation (set by some experiments)
+        if self.summary.get("hypothesis_confirmed") is True:
+            return "CONFIRMED"
+        if self.summary.get("hypothesis_confirmed") is False:
+            return "REJECTED"
+        # Fall back to pass_rate
+        pr = self.pass_rate
+        if pr is None:
+            return "OK"
+        if pr >= 0.9:
+            return "CONFIRMED"
+        if pr >= 0.5:
+            return "PARTIAL"
+        return "REJECTED"
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Core logic
@@ -167,15 +207,17 @@ def validate_imports(exp_ids: list[str]) -> list[str]:
 
 
 def _reset_logging() -> None:
-    """Reset root logger handlers between experiments.
+    """Reset root logger handlers and level between experiments.
 
     Each BaseExperiment.setup() calls logging.basicConfig() which
-    can accumulate handlers. This prevents duplicate log lines.
+    can accumulate handlers. This prevents duplicate log lines and
+    ensures one experiment's DEBUG level doesn't leak to the next.
     """
     root = logging.getLogger()
     for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
+    root.setLevel(logging.WARNING)
 
 
 def _sanitize_summary(summary: Any) -> dict | None:
@@ -217,6 +259,7 @@ def run_single_experiment(
     exp_id: str,
     n_qubits: int | None = None,
     p_layers: int | None = None,
+    topology: str | None = None,
     seeds: list[int] | None = None,
     verbose: bool = False,
 ) -> ExperimentResult:
@@ -230,6 +273,8 @@ def run_single_experiment(
         Override number of qubits.
     p_layers : int | None
         Override HVA layers.
+    topology : str | None
+        Override lattice topology.
     seeds : list[int] | None
         Override seeds.
     verbose : bool
@@ -255,6 +300,8 @@ def run_single_experiment(
             config.system.n_qubits = n_qubits
         if p_layers is not None:
             config.system.p_layers = p_layers
+        if topology is not None:
+            config.system.topology = topology
         if seeds is not None:
             config.seeds = seeds
         if verbose:
@@ -356,7 +403,15 @@ Available experiments: """
         "--p",
         type=int,
         default=None,
+        choices=[1, 2],
         help="Override p layers (must be ≤ 2)",
+    )
+    overrides.add_argument(
+        "--topology",
+        type=str,
+        default=None,
+        choices=["chain_1d", "ladder", "triangular", "kagome"],
+        help="Override topology for all experiments",
     )
     overrides.add_argument(
         "--seeds",
@@ -458,6 +513,8 @@ def main() -> None:
         print(f"  N override:   {args.n_qubits}")
     if args.p:
         print(f"  p override:   {args.p}")
+    if args.topology:
+        print(f"  Topology:     {args.topology}")
     if args.seeds:
         print(f"  Seeds:        {args.seeds}")
     if args.exclude:
@@ -492,12 +549,15 @@ def main() -> None:
     # Dry run mode
     if args.dry_run:
         print("  Experiments that would be executed:")
-        print(f"  {'ID':<6} {'Description'}")
+        print(f"  {'ID':<6} {'Cat':<4} {'Description'}")
         print(f"  {'-' * 64}")
         for eid in exp_ids:
             desc = get_experiment_description(eid)
-            print(f"  {eid:<6} {desc[:60]}")
+            cat = eid[0]
+            existing = "📁" if has_existing_results(eid) else "  "
+            print(f"  {eid:<6} [{cat}]  {existing} {desc[:55]}")
         print(f"\n  Total: {len(exp_ids)} experiments")
+        print("  📁 = has existing results (use --skip-existing to skip)")
         return
 
     # Execute
@@ -514,14 +574,30 @@ def main() -> None:
             exp_id,
             n_qubits=args.n_qubits,
             p_layers=args.p,
+            topology=args.topology,
             seeds=args.seeds,
             verbose=args.verbose,
         )
         results.append(result)
 
         status = "✅" if result.success else "❌"
-        print(f"\n  {status} {exp_id}: {result.elapsed_s:.1f}s")
-        if not result.success:
+        print(f"\n  {status} {exp_id}: {result.elapsed_s:.1f}s", end="")
+        if result.success and result.summary:
+            # Show key metrics inline
+            pr = result.pass_rate
+            de = result.mean_de_gap
+            parts = []
+            if pr is not None:
+                parts.append(f"pass_rate={pr:.0%}")
+            if de is not None:
+                parts.append(f"mean_ΔE/gap={de:.4f}")
+            if parts:
+                print(f"  ({', '.join(parts)})", end="")
+            print(f"  [{result.verdict}]")
+        elif result.success:
+            print(f"  [{result.verdict}]")
+        else:
+            print()
             print(f"     Error: {result.error_msg[:200]}")
 
         if not result.success and args.stop_on_failure:
@@ -532,23 +608,33 @@ def main() -> None:
     total_elapsed = time.time() - t_total
     n_pass = sum(1 for r in results if r.success)
     n_fail = sum(1 for r in results if not r.success)
+    n_confirmed = sum(1 for r in results if r.verdict == "CONFIRMED")
+    n_rejected = sum(1 for r in results if r.verdict == "REJECTED")
 
     print(f"\n{'=' * 70}")
     print("  FINAL SUMMARY")
     print(f"{'=' * 70}")
     print(f"\n  Total experiments: {len(results)}")
-    print(f"  Passed:            {n_pass} ✅")
-    print(f"  Failed:            {n_fail} ❌")
+    print(f"  Executed OK:       {n_pass} ✅")
+    print(f"  Execution errors:  {n_fail} ❌")
     print(f"  Total time:        {total_elapsed:.1f}s ({total_elapsed / 60:.1f} min)")
     print()
+    print("  Verdicts:")
+    print(f"    CONFIRMED (pass_rate ≥ 90%): {n_confirmed}")
+    print(f"    REJECTED  (pass_rate < 50%): {n_rejected}")
+    print(f"    PARTIAL/OK:                  {n_pass - n_confirmed - n_rejected}")
+    print()
 
-    # Per-experiment summary table
-    print(f"  {'ID':<6} {'Status':<8} {'Time':<10} {'Description'}")
-    print(f"  {'-' * 64}")
+    # Per-experiment summary table with metrics
+    print(f"  {'ID':<6} {'Verdict':<12} {'Time':<8} {'ΔE/gap':<10} {'Pass%':<8} {'Description'}")
+    print(f"  {'-' * 68}")
     for r in results:
-        status = "✅ PASS" if r.success else "❌ FAIL"
+        verdict = r.verdict
         time_str = f"{r.elapsed_s:.1f}s"
-        print(f"  {r.exp_id:<6} {status:<8} {time_str:<10} {r.description[:40]}")
+        de_str = f"{r.mean_de_gap:.4f}" if r.mean_de_gap is not None else "—"
+        pr_str = f"{r.pass_rate:.0%}" if r.pass_rate is not None else "—"
+        desc = r.description[:30]
+        print(f"  {r.exp_id:<6} {verdict:<12} {time_str:<8} {de_str:<10} {pr_str:<8} {desc}")
 
     if n_fail > 0:
         print("\n  FAILURES:")
@@ -567,12 +653,18 @@ def main() -> None:
     log_data = {
         "timestamp": timestamp,
         "total_experiments": len(results),
-        "passed": n_pass,
-        "failed": n_fail,
+        "executed_ok": n_pass,
+        "execution_errors": n_fail,
+        "verdicts": {
+            "confirmed": n_confirmed,
+            "rejected": n_rejected,
+            "partial_or_ok": n_pass - n_confirmed - n_rejected,
+        },
         "total_elapsed_s": round(total_elapsed, 2),
         "overrides": {
             "n_qubits": args.n_qubits,
             "p_layers": args.p,
+            "topology": args.topology,
             "seeds": args.seeds,
         },
         "excluded": [e.upper() for e in (args.exclude or [])],
@@ -581,7 +673,10 @@ def main() -> None:
                 "exp_id": r.exp_id,
                 "description": r.description,
                 "success": r.success,
+                "verdict": r.verdict,
                 "elapsed_s": round(r.elapsed_s, 2),
+                "mean_de_gap": r.mean_de_gap,
+                "pass_rate": r.pass_rate,
                 "error_msg": r.error_msg if not r.success else "",
                 "summary": r.summary if r.success else None,
             }

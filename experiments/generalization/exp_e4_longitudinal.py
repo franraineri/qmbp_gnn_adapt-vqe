@@ -120,18 +120,16 @@ class ExperimentE4(BaseExperiment):
 
         N = self.config.system.n_qubits
         p = self.config.system.p_layers
-        base_lattice = make_lattice("chain_1d", N, J=1.0, h=1.0)
+        base_lattice = make_lattice(self.config.system.topology, N, J=1.0, h=1.0)
         self.circuit, _ = self.hva.create(N, p, base_lattice)
         self.logger.info(f"E4 setup: N={N}, p={p}, model=TFIM+longitudinal")
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:
         """Run VQE across (h, g) grid."""
-        from qiskit.primitives import StatevectorEstimator
         from qiskit.quantum_info import Statevector, state_fidelity
         from scipy.optimize import minimize
 
         np.random.seed(seed)
-        estimator = StatevectorEstimator()
         N = self.config.system.n_qubits
         n_params = self.circuit.num_parameters
         h_values = self.config.system.h_values
@@ -148,9 +146,7 @@ class ExperimentE4(BaseExperiment):
                 exact_energy, gap = exact_diag_sparse(H)
 
                 def cost_fn(params, _H=H):
-                    bound = self.circuit.assign_parameters(params)
-                    job = estimator.run([(bound, _H)])
-                    return float(job.result()[0].data.evs)
+                    return self.evaluate_energy(params, _H)
 
                 best_energy = float("inf")
                 best_theta = prev_theta.copy()

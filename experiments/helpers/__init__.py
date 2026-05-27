@@ -8,6 +8,7 @@ These are building blocks imported by experiment scripts:
     - physics_loss: Physics-informed MPNN loss
     - hessian_restart: Hessian-guided adaptive restarts
     - active_learning: Ensemble-based active learning
+    - graph_utils: Topology-aware graph construction for MPNN
 """
 
 from experiments.helpers.active_learning import (
@@ -26,6 +27,11 @@ from experiments.helpers.dypp import (
     dypp_predict,
     dypp_quadratic,
     evaluate_dypp_quality,
+)
+from experiments.helpers.graph_utils import (
+    build_experiment_dataset,
+    predict_theta,
+    predict_theta_batch,
 )
 from experiments.helpers.hessian_restart import (
     hessian_guided_vqe,

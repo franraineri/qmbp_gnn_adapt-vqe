@@ -56,11 +56,10 @@ class ExperimentF1(BaseExperiment):
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:
         """Run descending sweep with 3 strategies: standard, DyPP-1, DyPP-2."""
-        from qiskit.primitives import StatevectorEstimator
         from scipy.optimize import minimize
 
-        np.random.seed(seed)
-        estimator = StatevectorEstimator()
+        np.random.seed(seed)  # For scipy L-BFGS-B reproducibility
+        rng = np.random.default_rng(seed)
         n_params = self.circuit.num_parameters
         h_values = self.config.system.h_values
         metrics = []
@@ -76,19 +75,19 @@ class ExperimentF1(BaseExperiment):
             H = sol["hamiltonian"]
             exact_energy = sol["exact"].ground_energy
             gap = (
-                sol["exact"].gap if sol["exact"].gap > 1e-10 else max(2 * abs(1 - h), 2 * np.pi / 6)
+                sol["exact"].gap
+                if sol["exact"].gap > 1e-10
+                else max(2 * abs(1 - h), 2 * np.pi / self.config.system.n_qubits)
             )
 
             def cost_fn(params, _H=H):
-                bound = self.circuit.assign_parameters(params)
-                job = estimator.run([(bound, _H)])
-                return float(job.result()[0].data.evs)
+                return self.evaluate_energy(params, _H)
 
             # Strategy 1: Standard warm-start
             if prev_theta is not None:
                 init_standard = prev_theta.copy()
             else:
-                init_standard = np.random.uniform(-0.01, 0.01, n_params)
+                init_standard = rng.uniform(-0.01, 0.01, n_params)
 
             res_standard = minimize(
                 cost_fn,

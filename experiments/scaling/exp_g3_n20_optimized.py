@@ -74,8 +74,10 @@ class ExperimentG3(BaseExperiment):
 
         N = self.config.system.n_qubits
         p = self.config.system.p_layers
-        base_lattice = make_lattice("chain_1d", N, J=1.0, h=1.0)
+        topology = self.config.system.topology
+        base_lattice = make_lattice(topology, N, J=1.0, h=1.0)
         self.circuit, _ = self.hva.create(N, p, base_lattice)
+        self._base_lattice = base_lattice  # Cache for graph construction
 
         # MPS backend for N=20 (validated exact for 1D HVA, V7 3A/3B)
         from qiskit_aer import AerSimulator
@@ -85,7 +87,7 @@ class ExperimentG3(BaseExperiment):
             matrix_product_state_max_bond_dimension=64,
             matrix_product_state_truncation_threshold=1e-12,
         )
-        logger.info(f"G3 setup: N={N}, p={p}, backend=MPS(chi=64)")
+        logger.info(f"G3 setup: N={N}, p={p}, topology={topology}, backend=MPS(chi=64)")
 
     def _evaluate_mps(self, params, H):
         """Evaluate energy via MPS (exact, no shot noise)."""
@@ -122,11 +124,9 @@ class ExperimentG3(BaseExperiment):
             H = sol["hamiltonian"]
 
             # Determine active params (freeze at h >= freeze_after_h)
-            active_mask = list(range(n_params))
             bounds = [(-np.pi, np.pi)] * n_params
             if self.config.vqe.freeze_params and h >= (self.config.vqe.freeze_after_h or 99):
                 frozen = self.config.vqe.freeze_params
-                active_mask = [i for i in range(n_params) if i not in frozen]
                 # Fix frozen params at current values
                 for fi in frozen:
                     bounds[fi] = (prev_theta[fi], prev_theta[fi])
@@ -212,27 +212,15 @@ class ExperimentG3(BaseExperiment):
         return metrics
 
     def _build_dataset(self, h_values, vqe_data, N):
-        from torch_geometric.data import Data as PyGData
+        """Build PyG dataset using the lattice's actual edges and coordination."""
+        from experiments.helpers.graph_utils import build_experiment_dataset
 
-        dataset = []
-        coord = 2 if N > 2 else 1
-        edges = [[i, i + 1] for i in range(N - 1)] + [[i + 1, i] for i in range(N - 1)]
-        edge_index = torch.tensor(edges, dtype=torch.long).t()
-        for h in sorted(h_values):
-            x = torch.tensor([[float(h), coord]] * N, dtype=torch.float32)
-            y = torch.tensor(vqe_data[float(h)], dtype=torch.float32)
-            dataset.append(PyGData(x=x, edge_index=edge_index, y=y))
-        return dataset
+        h_sorted = sorted(h_values)
+        theta_array = np.array([vqe_data[float(h)] for h in h_sorted])
+        return build_experiment_dataset(self, np.array(h_sorted), theta_array)
 
     def _predict(self, model, h, N):
-        from torch_geometric.data import Batch
-        from torch_geometric.data import Data as PyGData
+        """Predict θ at unseen h using the MPNN and lattice graph structure."""
+        from experiments.helpers.graph_utils import predict_theta
 
-        coord = 2 if N > 2 else 1
-        edges = [[i, i + 1] for i in range(N - 1)] + [[i + 1, i] for i in range(N - 1)]
-        edge_index = torch.tensor(edges, dtype=torch.long).t()
-        x = torch.tensor([[float(h), coord]] * N, dtype=torch.float32)
-        batch = Batch.from_data_list([PyGData(x=x, edge_index=edge_index)])
-        model.eval()
-        with torch.no_grad():
-            return model(batch).numpy().flatten()
+        return predict_theta(self, model, float(h))

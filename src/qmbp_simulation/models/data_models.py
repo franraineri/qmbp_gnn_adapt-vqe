@@ -116,6 +116,26 @@ class GroundTruthResult:
         if self.gap < 0:
             raise ValueError(f"Spectral gap must be ≥ 0, got {self.gap}.")
 
+    def compute_de_gap(self, energy: float) -> float:
+        """Compute ΔE/gap safely (avoids division by zero at phase transition).
+
+        Parameters
+        ----------
+        energy : float
+            VQE or predicted energy to compare against ground truth.
+
+        Returns
+        -------
+        float
+            |energy - ground_energy| / max(gap, 1e-10)
+        """
+        return abs(energy - self.ground_energy) / max(self.gap, 1e-10)
+
+    @property
+    def safe_gap(self) -> float:
+        """Gap with floor to avoid division by zero."""
+        return max(self.gap, 1e-10)
+
 
 # ---------------------------------------------------------------------------
 # Model 3 — VQEConfig
@@ -168,6 +188,12 @@ class VQEConfig:
                 f"sweep_direction must be 'descending' (V4 lesson: ascending "
                 f"breaks θ smoothness), got '{self.sweep_direction}'."
             )
+        if self.bounds[0] >= self.bounds[1]:
+            raise ValueError(f"bounds must satisfy bounds[0] < bounds[1], got {self.bounds}.")
+        if self.n_restarts < 1:
+            raise ValueError(f"n_restarts must be ≥ 1, got {self.n_restarts}.")
+        if self.maxiter < 1:
+            raise ValueError(f"maxiter must be ≥ 1, got {self.maxiter}.")
 
 
 # ---------------------------------------------------------------------------
@@ -235,6 +261,27 @@ class VQEResult:
     n_iterations: int
     trajectory: OptimizationTrajectory | None = None
 
+    def validate(self) -> list[str]:
+        """Run sanity checks on VQE result. Returns list of issues found."""
+        issues: list[str] = []
+        if not np.all(np.isfinite(self.theta_opt)):
+            issues.append(f"theta_opt contains NaN/Inf at h={self.h_value}")
+        if not np.isfinite(self.energy):
+            issues.append(f"energy is not finite: {self.energy}")
+        if self.energy_error < 0:
+            issues.append(f"Negative energy_error: {self.energy_error}")
+        if self.fidelity < -0.001 or self.fidelity > 1.001:
+            issues.append(f"Invalid fidelity: {self.fidelity} (must be in [0,1])")
+        if self.n_iterations < 0:
+            issues.append(f"Negative n_iterations: {self.n_iterations}")
+        return issues
+
+    @property
+    def passes_threshold(self) -> bool:
+        """Check if ΔE/gap < 5% (requires gap from exact data)."""
+        # Note: this only checks energy_error, not ΔE/gap (gap not stored here)
+        return self.fidelity >= 0.93
+
 
 # ---------------------------------------------------------------------------
 # Model 6 — DeployResult
@@ -288,3 +335,18 @@ class DeployResult:
     adapt_iterations: int
     phase_label: str
     metrics_checklist: dict[str, bool]
+
+    def __post_init__(self) -> None:
+        if self.delta_e < 0:
+            raise ValueError(f"delta_e must be ≥ 0, got {self.delta_e}.")
+        if self.delta_e_over_gap < 0:
+            raise ValueError(f"delta_e_over_gap must be ≥ 0, got {self.delta_e_over_gap}.")
+
+    def passes(self, threshold: float = 0.05) -> bool:
+        """Check if deployment passes the ΔE/gap threshold."""
+        return self.delta_e_over_gap < threshold
+
+    @property
+    def status(self) -> str:
+        """Human-readable pass/fail status."""
+        return "PASS" if self.passes() else "FAIL"

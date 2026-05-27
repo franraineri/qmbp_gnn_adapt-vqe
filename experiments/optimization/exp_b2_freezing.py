@@ -54,11 +54,9 @@ class ExperimentB2(BaseExperiment):
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:
         """Phase 1: Generate trajectory. Phase 2: Test freezing."""
-        from qiskit.primitives import StatevectorEstimator
         from scipy.optimize import minimize
 
         np.random.seed(seed)
-        estimator = StatevectorEstimator()
         n_params = self.circuit.num_parameters
         h_values = sorted(self.config.system.h_values, reverse=True)
         metrics = []
@@ -72,9 +70,7 @@ class ExperimentB2(BaseExperiment):
             H = sol["hamiltonian"]
 
             def cost_fn(params, _H=H):
-                bound = self.circuit.assign_parameters(params)
-                job = estimator.run([(bound, _H)])
-                return float(job.result()[0].data.evs)
+                return self.evaluate_energy(params, _H)
 
             best_energy = float("inf")
             best_theta = prev_theta.copy()
@@ -117,9 +113,7 @@ class ExperimentB2(BaseExperiment):
             )
 
             def cost_fn_full(params, _H=H):
-                bound = self.circuit.assign_parameters(params)
-                job = estimator.run([(bound, _H)])
-                return float(job.result()[0].data.evs)
+                return self.evaluate_energy(params, _H)
 
             # Full VQE (baseline)
             e_full = cost_fn_full(theta_trajectory[i])

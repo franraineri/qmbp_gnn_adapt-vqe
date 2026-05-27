@@ -201,16 +201,28 @@ class ClassicalSolver:
 
         # ── Analytical gap fallback for 1D TFIM ──────────────────────
         if gap == 0.0:
-            # Analytical approximation: gap = 2|J - h| (exact in thermodynamic limit)
-            # with finite-size floor: gap >= 2*pi/N (minimum gap from dispersion)
-            gap = max(2 * abs(j_val - h_val), 2 * np.pi / n)
-            warnings.warn(
-                f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
-                f"Using analytical gap={gap:.4f} (valid for 1D TFIM, "
-                f"approximate near h_c=1.0).",
-                RuntimeWarning,
-                stacklevel=2,
-            )
+            if lattice.topology == "chain_1d":
+                # Analytical approximation: gap = 2|J - h| (exact in thermodynamic limit)
+                # with finite-size floor: gap >= 2*pi/N (minimum gap from dispersion)
+                gap = max(2 * abs(j_val - h_val), 2 * np.pi / n)
+                warnings.warn(
+                    f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
+                    f"Using analytical gap={gap:.4f} (valid for 1D TFIM, "
+                    f"approximate near h_c=1.0).",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            else:
+                # For non-1D topologies, use a conservative finite-size floor only.
+                # The 2|J-h| formula is NOT valid for ladder/triangular/kagome.
+                gap = 2 * np.pi / n
+                warnings.warn(
+                    f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}, "
+                    f"topology={lattice.topology}). Using finite-size floor "
+                    f"gap={gap:.4f}. This is a lower bound only.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
         # ── Local observables ─────────────────────────────────────────
         # Sigmax per site (array over all sites)

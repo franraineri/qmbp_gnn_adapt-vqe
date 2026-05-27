@@ -69,7 +69,7 @@ class ExperimentE3(BaseExperiment):
 
         N = self.config.system.n_qubits
         p = self.config.system.p_layers
-        base_lattice = make_lattice("chain_1d", N, J=1.0, h=1.0)
+        base_lattice = make_lattice(self.config.system.topology, N, J=1.0, h=1.0)
         self.circuit, _ = self.hva.create(N, p, base_lattice)
         self.logger.info(f"E3 setup: N={N}, p={p}")
 

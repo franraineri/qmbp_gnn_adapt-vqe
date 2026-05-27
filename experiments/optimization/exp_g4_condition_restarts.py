@@ -92,7 +92,7 @@ class ExperimentG4(BaseExperiment):
             from experiments.helpers.hessian_restart import compute_hessian
 
             hess = compute_hessian(
-                lambda p: self.backend.evaluate(self.circuit, H, p),
+                lambda p, _H=H: self.backend.evaluate(self.circuit, _H, p),
                 best_theta,
             )
             eigvals = np.linalg.eigvalsh(hess)
@@ -105,9 +105,9 @@ class ExperimentG4(BaseExperiment):
 
             for n_restarts in restart_counts:
                 successes = 0
-                for trial in range(n_trials):
+                for _trial in range(n_trials):
                     trial_best_e = float("inf")
-                    for r in range(n_restarts):
+                    for _r in range(n_restarts):
                         x0 = np.random.uniform(-0.5, 0.5, n_params)
                         res = minimize(
                             lambda p, _H=H: self.backend.evaluate(self.circuit, _H, p),

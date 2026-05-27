@@ -150,30 +150,16 @@ class ExperimentG5(BaseExperiment):
         return vqe_data
 
     def _build_dataset(self, h_values, vqe_data, N):
-        from torch_geometric.data import Data as PyGData
+        from experiments.helpers.graph_utils import build_experiment_dataset
 
-        dataset = []
-        coord = 2 if N > 2 else 1
-        edges = [[i, i + 1] for i in range(N - 1)] + [[i + 1, i] for i in range(N - 1)]
-        edge_index = torch.tensor(edges, dtype=torch.long).t()
-        for h in sorted(h_values):
-            x = torch.tensor([[float(h), coord]] * N, dtype=torch.float32)
-            y = torch.tensor(vqe_data[float(h)], dtype=torch.float32)
-            dataset.append(PyGData(x=x, edge_index=edge_index, y=y))
-        return dataset
+        h_sorted = sorted(h_values)
+        theta_array = np.array([vqe_data[float(h)] for h in h_sorted])
+        return build_experiment_dataset(self, np.array(h_sorted), theta_array)
 
     def _predict(self, model, h, N):
-        from torch_geometric.data import Batch
-        from torch_geometric.data import Data as PyGData
+        from experiments.helpers.graph_utils import predict_theta
 
-        coord = 2 if N > 2 else 1
-        edges = [[i, i + 1] for i in range(N - 1)] + [[i + 1, i] for i in range(N - 1)]
-        edge_index = torch.tensor(edges, dtype=torch.long).t()
-        x = torch.tensor([[float(h), coord]] * N, dtype=torch.float32)
-        batch = Batch.from_data_list([PyGData(x=x, edge_index=edge_index)])
-        model.eval()
-        with torch.no_grad():
-            return model(batch).numpy().flatten()
+        return predict_theta(self, model, h)
 
     def analyze(self, results: dict[int, list[ExperimentMetrics]]) -> dict:
         analysis = super().analyze(results)

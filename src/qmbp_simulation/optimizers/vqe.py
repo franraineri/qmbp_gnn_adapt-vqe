@@ -338,9 +338,13 @@ class VQEOptimizer:
             if np.any(~np.isfinite(result.theta_opt)):
                 logger.error(
                     f"NaN/Inf detected in θ_opt at h={h:.4f}. "
-                    f"Warm-start chain is corrupted. Resetting to random init."
+                    f"Warm-start chain corrupted. Attempting recovery from previous good θ."
                 )
-                result.theta_opt = np.random.uniform(-0.01, 0.01, n_params)
+                # Recovery: use the last known good theta (current_guess before this iteration)
+                # rather than random init, to preserve warm-start continuity
+                result.theta_opt = current_guess.copy()
+                result.energy = float("inf")  # Mark as unreliable
+                result.fidelity = 0.0
 
             status = "✅" if result.fidelity >= 0.995 else "⚠️"
             logger.info(

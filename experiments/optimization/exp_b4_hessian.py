@@ -55,10 +55,7 @@ class ExperimentB4(BaseExperiment):
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:
         """Compare Hessian-guided vs standard multi-start at each h."""
-        from qiskit.primitives import StatevectorEstimator
-
         np.random.seed(seed)
-        estimator = StatevectorEstimator()
         n_params = self.circuit.num_parameters
         h_values = self.config.system.h_values
         metrics = []
@@ -76,9 +73,7 @@ class ExperimentB4(BaseExperiment):
             )
 
             def cost_fn(params, _H=H):
-                bound = self.circuit.assign_parameters(params)
-                job = estimator.run([(bound, _H)])
-                return float(job.result()[0].data.evs)
+                return self.evaluate_energy(params, _H)
 
             # --- Standard multi-start (baseline) ---
             result_standard = standard_multistart_vqe(

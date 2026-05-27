@@ -64,6 +64,12 @@ class HVACircuitBuilder:
                 f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
             )
 
+        if not lattice.edges:
+            raise ValueError(
+                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
+                f"Cannot build HVA circuit without ZZ interaction terms."
+            )
+
         qc = QuantumCircuit(n_qubits)
         theta = ParameterVector("θ", 2 * p_layers)
 

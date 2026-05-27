@@ -279,14 +279,50 @@ class PipelineRunner:
         e_exact = np.array([r.ground_energy for r in exact_data])
         fidelities = np.array([r.fidelity for r in vqe_results])
 
-        dataset = build_graph_dataset(
-            lattice=self._lattice,
-            h_values=h_values,
-            theta_opt=theta_opt,
-            e_exact=e_exact,
-            fidelities=fidelities,
-            fidelity_threshold=cfg.get("fidelity_threshold", 0.93),
-        )
+        # Attempt dataset construction with configured threshold.
+        # If too few points pass, retry with progressively lower thresholds.
+        # Hard floor: never train on data with fidelity < 0.80 (results would be meaningless).
+        fidelity_threshold = cfg.get("fidelity_threshold", 0.93)
+        FIDELITY_HARD_FLOOR = 0.80
+        fallback_thresholds = [fidelity_threshold, 0.90, 0.85, FIDELITY_HARD_FLOOR]  # noqa
+        dataset = None
+
+        for threshold in fallback_thresholds:
+            try:
+                dataset = build_graph_dataset(
+                    lattice=self._lattice,
+                    h_values=h_values,
+                    theta_opt=theta_opt,
+                    e_exact=e_exact,
+                    fidelities=fidelities,
+                    fidelity_threshold=threshold,  # noqa
+                )
+                if threshold < fidelity_threshold:
+                    original = fidelity_threshold
+                    logger.warning(
+                        f"Fidelity filter relaxed from {original:.2f} to "
+                        f"{threshold:.2f} to obtain {len(dataset)} training points. "
+                        f"MPNN predictions may be less reliable."
+                    )
+                break
+            except ValueError:
+                if threshold == FIDELITY_HARD_FLOOR:
+                    # Check how many points exist above the hard floor
+                    n_above_floor = int(np.sum(fidelities >= FIDELITY_HARD_FLOOR))
+                    max_fid = float(np.max(fidelities)) if len(fidelities) > 0 else 0.0
+                    raise ValueError(
+                        f"Phase 3 FAILED: Only {n_above_floor}/{len(fidelities)} VQE points "
+                        f"have fidelity >= {FIDELITY_HARD_FLOOR:.2f} (max fidelity: {max_fid:.4f}). "
+                        f"The HVA p={self._config.p_layers} ansatz cannot express the ground state "
+                        f"at these h-values for topology='{self._lattice.topology}' N={self._lattice.n_qubits}. "
+                        f"Solutions: (1) increase h-values to stay in the valid regime, "
+                        f"(2) use more VQE restarts, or (3) accept that this regime is unreachable."
+                    ) from None
+                next_idx = fallback_thresholds.index(threshold) + 1
+                logger.warning(
+                    f"Fidelity threshold {threshold:.2f} too strict "
+                    f"(fewer than 3 points pass). Trying {fallback_thresholds[next_idx]:.2f}..."
+                )
 
         n_params = self._config.p_layers * 2
         model = MPNNPredictor(
@@ -431,8 +467,8 @@ class PipelineRunner:
 
             # Compute <ZZ> = (1/n_bonds) * sum_<ij> <Z_i Z_j>
             zz_sum = 0.0
-            n_bonds = len(self._lattice.edges)
-            for i, j in self._lattice.edges:
+            n_bonds = len(lattice_test.edges)
+            for i, j in lattice_test.edges:
                 op_zz = SparsePauliOp.from_sparse_list([("ZZ", [i, j], 1.0)], num_qubits=n)
                 zz_sum += sv.expectation_value(op_zz).real
             corr_zz_pred = float(zz_sum / n_bonds) if n_bonds > 0 else 0.0
@@ -581,7 +617,11 @@ class PipelineRunner:
             logger.info("Phase 3 skipped")
             model = None
         else:
-            model = self.run_phase3(h_values, vqe_results, exact_data, mpnn_config=mpnn_config)
+            try:
+                model = self.run_phase3(h_values, vqe_results, exact_data, mpnn_config=mpnn_config)
+            except ValueError as e:
+                logger.error(f"Phase 3 FAILED: {e}")
+                model = None
         results["phase3"] = model
 
         # Phase 4: Deployment
@@ -590,6 +630,14 @@ class PipelineRunner:
             results["phase4"] = None
         else:
             h_tests = [h_test] if isinstance(h_test, int | float) else h_test
+            # Warn if h_test is outside the training range (extrapolation)
+            h_min_train, h_max_train = float(h_values[-1]), float(h_values[0])
+            for h_t in h_tests:
+                if h_t < h_min_train or h_t > h_max_train:
+                    logger.warning(
+                        f"h_test={h_t} is outside training range [{h_min_train}, {h_max_train}]. "
+                        f"MPNN is extrapolating — predictions may be unreliable."
+                    )
             deploy_results = [self.run_phase4(model, h) for h in h_tests]
             results["phase4"] = deploy_results
 

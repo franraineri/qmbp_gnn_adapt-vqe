@@ -172,42 +172,16 @@ class ExperimentG1(BaseExperiment):
         return vqe_data
 
     def _build_dataset(self, h_values, theta_array, N):
-        """Build PyG dataset from h-values and theta arrays."""
-        from torch_geometric.data import Data as PyGData
+        """Build PyG dataset using the experiment's lattice topology."""
+        from experiments.helpers.graph_utils import build_experiment_dataset
 
-        dataset = []
-        coord = 2 if N > 2 else 1
-        edges = []
-        for i in range(N - 1):
-            edges.append([i, i + 1])
-            edges.append([i + 1, i])
-        edge_index = torch.tensor(edges, dtype=torch.long).t()
-
-        for i, h in enumerate(h_values):
-            x = torch.tensor([[float(h), coord]] * N, dtype=torch.float32)
-            y = torch.tensor(theta_array[i], dtype=torch.float32)
-            dataset.append(PyGData(x=x, edge_index=edge_index, y=y))
-        return dataset
+        return build_experiment_dataset(self, h_values, theta_array)
 
     def _predict(self, model, h, N):
         """Predict theta at a single h-value."""
-        from torch_geometric.data import Batch
-        from torch_geometric.data import Data as PyGData
+        from experiments.helpers.graph_utils import predict_theta
 
-        coord = 2 if N > 2 else 1
-        edges = []
-        for i in range(N - 1):
-            edges.append([i, i + 1])
-            edges.append([i + 1, i])
-        edge_index = torch.tensor(edges, dtype=torch.long).t()
-        x = torch.tensor([[float(h), coord]] * N, dtype=torch.float32)
-        graph = PyGData(x=x, edge_index=edge_index)
-        batch = Batch.from_data_list([graph])
-
-        model.eval()
-        with torch.no_grad():
-            pred = model(batch).numpy().flatten()
-        return pred
+        return predict_theta(self, model, h)
 
     def analyze(self, results: dict[int, list[ExperimentMetrics]]) -> dict:
         analysis = super().analyze(results)

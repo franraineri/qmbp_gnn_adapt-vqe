@@ -67,7 +67,7 @@ class ExperimentD1(BaseExperiment):
 
         N = self.config.system.n_qubits
         p = self.config.system.p_layers
-        base_lattice = make_lattice("chain_1d", N, J=1.0, h=1.0)
+        base_lattice = make_lattice(self.config.system.topology, N, J=1.0, h=1.0)
         self.circuit, _ = self.hva.create(N, p, base_lattice)
         self.logger.info(f"D1 setup: N={N}, p={p}")
 
@@ -123,10 +123,8 @@ class ExperimentD1(BaseExperiment):
 
     def _generate_vqe_data(self, h_values: np.ndarray, seed: int) -> np.ndarray:
         """Run VQE descending sweep to generate training data."""
-        from qiskit.primitives import StatevectorEstimator
         from scipy.optimize import minimize
 
-        estimator = StatevectorEstimator()
         n_params = self.circuit.num_parameters
         theta_data = np.zeros((len(h_values), n_params))
 
@@ -139,9 +137,7 @@ class ExperimentD1(BaseExperiment):
             H = sol["hamiltonian"]
 
             def cost_fn(params, _H=H):
-                bound = self.circuit.assign_parameters(params)
-                job = estimator.run([(bound, _H)])
-                return float(job.result()[0].data.evs)
+                return self.evaluate_energy(params, _H)
 
             best_energy = float("inf")
             best_theta = prev_theta.copy()

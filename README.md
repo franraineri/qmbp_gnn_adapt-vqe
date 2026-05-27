@@ -762,6 +762,26 @@ print(f"Gain vs worst layout: {zne_result.energy_zne.gain:.4f}")
 The `experiments/helpers/` module provides reusable techniques. Each can be
 applied independently or combined within an experiment.
 
+#### Utility: Topology-Aware Graph Construction
+
+All experiments that build MPNN datasets or predict parameters should use
+the shared `graph_utils` module instead of hardcoding chain_1d edges:
+
+```python
+"""Build dataset and predict using any topology (chain_1d, ladder, triangular, kagome)."""
+from experiments.helpers.graph_utils import build_experiment_dataset, predict_theta
+
+# Build training dataset (topology-aware)
+dataset = build_experiment_dataset(self, h_values, theta_array)
+
+# Predict at a single h-value
+theta_pred = predict_theta(self, model, h_test)
+
+# Batch prediction (efficient single forward pass)
+from experiments.helpers.graph_utils import predict_theta_batch
+thetas = predict_theta_batch(self, model, [1.5, 1.75, 2.0])
+```
+
 #### Technique: Parameter Freezing (TITAN-style)
 
 Freeze insensitive parameters at large h to reduce optimization cost.

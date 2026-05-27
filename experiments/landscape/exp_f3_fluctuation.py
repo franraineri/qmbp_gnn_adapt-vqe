@@ -51,7 +51,7 @@ class ExperimentF3(BaseExperiment):
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:
         """Compute landscape fluctuation at each h-value."""
-        np.random.seed(seed)
+        np.random.seed(seed)  # For landscape_fluctuation() compatibility
         n_samples = self.config.analysis.fluctuation_n_samples
         n_params = self.circuit.num_parameters
         h_values = self.config.system.h_values

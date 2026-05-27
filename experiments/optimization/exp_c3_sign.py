@@ -73,9 +73,12 @@ class ExperimentC3(BaseExperiment):
 
         N = self.config.system.n_qubits
         p = self.config.system.p_layers
-        base_lattice = make_lattice("chain_1d", N, J=1.0, h=1.0)
+        topology = self.config.system.topology
+        base_lattice = make_lattice(topology, N, J=1.0, h=1.0)
         self.circuit, _ = self.hva.create(N, p, base_lattice)
-        self.logger.info(f"C3 setup: N={N}, p={p}, n_params={self.circuit.num_parameters}")
+        self.logger.info(
+            f"C3 setup: N={N}, p={p}, topology={topology}, n_params={self.circuit.num_parameters}"
+        )
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:
         """Run VQE sweep with MPS, then deploy with/without canonicalization."""
