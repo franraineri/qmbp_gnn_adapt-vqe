@@ -13,12 +13,12 @@ Key differences from chain_1d at N=10:
   - MPNN must learn from a different graph structure (edge features matter more)
 
 Usage:
-    python scripts/run_thesis_variants-N_10_ladder.py --list
-    python scripts/run_thesis_variants-N_10_ladder.py --dry-run
-    python scripts/run_thesis_variants-N_10_ladder.py
-    python scripts/run_thesis_variants-N_10_ladder.py --noiseless-only
-    python scripts/run_thesis_variants-N_10_ladder.py --extended-only
-    python scripts/run_thesis_variants-N_10_ladder.py --variant 0
+    python scripts/run_thesis_variants-ladder.py --list
+    python scripts/run_thesis_variants-ladder.py --dry-run
+    python scripts/run_thesis_variants-ladder.py
+    python scripts/run_thesis_variants-ladder.py --noiseless-only
+    python scripts/run_thesis_variants-ladder.py --extended-only
+    python scripts/run_thesis_variants-ladder.py --variant 0
 """
 
 from __future__ import annotations
@@ -171,9 +171,9 @@ def build_noiseless_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineV
     # ─── Group C: h-Grid Density (Ladder) ─────────────────────────────────
     # More bonds → steeper energy landscape → may need denser grid
     h_grids = {
-        "sparse3": ["2.0", "1.75", "1.5"],
-        "standard6": EXTENDED_H_VALUES,
-        "dense11": DENSE_H_VALUES,
+        "sparse5": BASE_H_VALUES,
+        "standard7": EXTENDED_H_VALUES,
+        "dense9": DENSE_H_VALUES,
     }
     for grid_name, h_vals in h_grids.items():
         variants.append(
@@ -792,6 +792,53 @@ class RunResult:
     elapsed_s: float
     return_code: int
     error_msg: str = ""
+    delta_e_over_gap: float | None = None
+    phase3_failed: bool = False
+
+    @property
+    def verdict(self) -> str:
+        """Human-readable verdict."""
+        if not self.success:
+            if self.phase3_failed:
+                return "SKIP-P3"
+            return "ERROR"
+        if self.delta_e_over_gap is None:
+            return "OK"
+        if self.delta_e_over_gap < 0.05:
+            return "PASS"
+        if self.delta_e_over_gap < 0.10:
+            return "MARGINAL"
+        return "FAIL"
+
+
+def _extract_metrics_from_output(output_dir: str) -> dict:
+    """Try to extract key metrics from the pipeline's JSON output.
+
+    Looks for the most recent pipeline_run_*.json in the output directory.
+    """
+    out_path = Path(output_dir)
+    if not out_path.exists():
+        return {}
+    json_files = sorted(out_path.glob("pipeline_run_*.json"), reverse=True)
+    if not json_files:
+        return {}
+    try:
+        with open(json_files[0]) as f:
+            data = json.load(f)
+        results = data.get("phase4_results", [])
+        if results:
+            # Use worst (max) ΔE/gap across test points
+            de_gaps = [
+                r["delta_e_over_gap"] for r in results if r.get("delta_e_over_gap") is not None
+            ]
+            if de_gaps:
+                return {"delta_e_over_gap": max(de_gaps), "n_test_points": len(de_gaps)}
+        # Check if Phase 3 failed (no phase4 results but pipeline completed)
+        if not results and data.get("elapsed_s", 0) > 0:
+            return {"phase3_failed": True}
+    except (json.JSONDecodeError, KeyError, OSError):
+        pass
+    return {}
 
 
 def run_variant(variant: PipelineVariant, dry_run: bool = False) -> RunResult:
@@ -814,14 +861,28 @@ def run_variant(variant: PipelineVariant, dry_run: bool = False) -> RunResult:
 
         if result.returncode != 0:
             stderr_lines = result.stderr.strip().split("\n")[-10:]
+            error_msg = "\n".join(stderr_lines)
+            # Check if it's a Phase 3 failure (pipeline still saves results)
+            phase3_failed = "Phase 3 FAILED" in error_msg or "fidelity" in error_msg.lower()
             return RunResult(
                 variant_id=variant.id,
                 success=False,
                 elapsed_s=elapsed,
                 return_code=result.returncode,
-                error_msg="\n".join(stderr_lines),
+                error_msg=error_msg,
+                phase3_failed=phase3_failed,
             )
-        return RunResult(variant_id=variant.id, success=True, elapsed_s=elapsed, return_code=0)
+
+        # Extract metrics from saved JSON output
+        metrics = _extract_metrics_from_output(variant.output_dir)
+        return RunResult(
+            variant_id=variant.id,
+            success=True,
+            elapsed_s=elapsed,
+            return_code=0,
+            delta_e_over_gap=metrics.get("delta_e_over_gap"),
+            phase3_failed=metrics.get("phase3_failed", False),
+        )
 
     except subprocess.TimeoutExpired:
         return RunResult(
@@ -829,7 +890,7 @@ def run_variant(variant: PipelineVariant, dry_run: bool = False) -> RunResult:
             success=False,
             elapsed_s=time.time() - t0,
             return_code=-1,
-            error_msg="TIMEOUT (>900s)",
+            error_msg="TIMEOUT (>1600s)",
         )
     except Exception as e:
         return RunResult(
@@ -912,9 +973,14 @@ def main() -> None:
         print()
         result = run_variant(v, dry_run=args.dry_run)
         status = "✅ PASS" if result.success else "❌ FAIL"
-        print(f"\n  {status} ({result.elapsed_s:.1f}s)")
-        if not result.success:
+        metric_str = ""
+        if result.delta_e_over_gap is not None:
+            metric_str = f"  ΔE/gap={result.delta_e_over_gap:.4f}"
+        print(f"\n  {status} ({result.elapsed_s:.1f}s){metric_str}  [{result.verdict}]")
+        if not result.success and not result.phase3_failed:
             print(f"  Error: {result.error_msg}")
+        elif result.phase3_failed:
+            print("  Phase 3 failed: fidelity too low for this h-range/topology")
         sys.exit(0 if result.success else 1)
 
     # Full run mode
@@ -947,8 +1013,13 @@ def main() -> None:
         results.append(result)
 
         status = "✅" if result.success else "❌"
-        print(f"  {status} {variant.id}: {result.elapsed_s:.1f}s")
-        if not result.success:
+        metric_str = ""
+        if result.delta_e_over_gap is not None:
+            metric_str = f"  ΔE/gap={result.delta_e_over_gap:.4f} [{result.verdict}]"
+        elif result.phase3_failed:
+            metric_str = "  [SKIP-P3: fidelity too low]"
+        print(f"  {status} {variant.id}: {result.elapsed_s:.1f}s{metric_str}")
+        if not result.success and not result.phase3_failed:
             print(f"     Error: {result.error_msg[:200]}")
 
     # Final Summary
@@ -967,11 +1038,24 @@ def main() -> None:
     print(f"  Total time:     {total_elapsed:.1f}s ({total_elapsed / 60:.1f} min)")
     print()
 
+    # Per-variant summary table
+    print(f"  {'#':<4} {'ID':<20} {'Verdict':<10} {'Time':<8} {'ΔE/gap':<10} {'Description'}")
+    print(f"  {'-' * 78}")
+    for i, r in enumerate(results):
+        variant_idx = args.start_from + i
+        desc = all_variants[variant_idx].description[:30] if variant_idx < len(all_variants) else ""
+        time_str = f"{r.elapsed_s:.1f}s"
+        de_str = f"{r.delta_e_over_gap:.4f}" if r.delta_e_over_gap is not None else "—"
+        print(
+            f"  {variant_idx:<4} {r.variant_id:<20} {r.verdict:<10} {time_str:<8} {de_str:<10} {desc}"
+        )
+
     if n_fail > 0:
-        print("  FAILURES:")
+        print("\n  FAILURES:")
         for r in results:
             if not r.success:
-                print(f"    ❌ {r.variant_id}: {r.error_msg[:100]}")
+                first_line = r.error_msg.split("\n")[-1][:80]
+                print(f"    ❌ {r.variant_id}: {first_line}")
         print()
 
     # Save execution log
@@ -988,11 +1072,20 @@ def main() -> None:
         "passed": n_pass,
         "failed": n_fail,
         "total_elapsed_s": total_elapsed,
+        "verdicts": {
+            "PASS": sum(1 for r in results if r.verdict == "PASS"),
+            "MARGINAL": sum(1 for r in results if r.verdict == "MARGINAL"),
+            "FAIL": sum(1 for r in results if r.verdict == "FAIL"),
+            "SKIP-P3": sum(1 for r in results if r.verdict == "SKIP-P3"),
+            "ERROR": sum(1 for r in results if r.verdict == "ERROR"),
+        },
         "results": [
             {
                 "variant_id": r.variant_id,
                 "success": r.success,
-                "elapsed_s": r.elapsed_s,
+                "verdict": r.verdict,
+                "elapsed_s": round(r.elapsed_s, 2),
+                "delta_e_over_gap": r.delta_e_over_gap,
                 "return_code": r.return_code,
                 "error_msg": r.error_msg if not r.success else "",
             }
