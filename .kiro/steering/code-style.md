@@ -80,6 +80,7 @@ from qmbp_simulation.execution import (
 from qmbp_simulation.execution import (
     NoisyEstimatorConfig, build_adjacency, find_layouts_bfs,
     compute_circuit_ces, select_layouts_by_circuit_ces,
+    select_layouts_low_ces,
     noisy_estimate, linear_zne,
 )
 ```

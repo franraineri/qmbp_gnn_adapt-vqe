@@ -34,6 +34,7 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 - **Condition number (G4)**: κ does NOT predict restart needs (r=-0.29). h-value is the real predictor. ❌
 - **Ensemble UQ (G2)**: Naive ensemble variance not calibrated (r=0.195). Needs bootstrap/MC-Dropout. ❌
 - **N=20 optimized (G3)**: 1 restart + freeze FAILS at N=20 (ΔE/gap=1.26). N=6 findings don't transfer. ❌
+- **p=1 ZNE at N=10 (analysis 1A)**: CONFIRMED. Mean gain=+49% (9 runs, 3 topos × 3 seeds). CX-budget hypothesis validated. ✅
 - Binnacles: `binnacle-v8-experiments.md`, `binnacle-v8-experiments-round1.md`, `binnacle-v8-round2-pipeline-characterization.md`
 
 ## V8 Validated Decisions (2026-05-22)
@@ -164,15 +165,19 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **CX reduction**: Exactly 50% at all N (p=1 N=20 = 38 CX ≈ p=2 N=10 = 36 CX)
 - **MPNN deployment at N=20**: Only h=3.0 passes (6 training points too few; sign canonicalization needed)
 - **Hardware candidate**: p=1 N=20 on IBM Torino (VQE validated, same CX budget as p=2 N=10)
+- **p=1 ZNE CONFIRMED (2026-05-28)**: 9 runs (3 topologies × 3 seeds), mean gain=+49%, topology-independent
 - **TODO**: Fix init at N=20 (analytical guess), canonicalize signs, increase training density
 - Binnacle: `documentation/binnacles/binnacle-p1-scaling.md`
 - Script: historical (removed in v8_clean)
 
 ## ZNE Scaling Rule (from experiments + literature)
 - N=6: 3 layouts sufficient (R²>0.99, linear regime)
-- N=10: 3 layouts fails (R²<0.05, non-perturbative regime). Need O(n) layouts or DD pre-mitigation.
-- General: n_layouts should scale with system size. CLP-ZNE (Rabinovich et al. 2025) uses O(n) cyclic permutations.
+- N=10 p=2: 3 layouts fails (R²>0.95 but gain=-14.4%, non-perturbative regime).
+- **N=10 p=1: 3 layouts WORKS (R²>0.99, gain=+49%, 9 runs confirmed cross-topology)**
+- General: ZNE effectiveness governed by CX gate count (~18 threshold), not N alone.
+- CX budget rule: p=1 N=10 ≈ p=2 N=6 ≈ 18 CX → ZNE works. p=2 N=10 ≈ 36 CX → ZNE fails.
 - N=12 take very long time and resources, do not execute this experiments
+- **p=1 + ZNE is the recommended strategy for hardware deployment at N≥10.**
 
 ## Where to Start
 Read `.kiro/knowledge/project-guide.md` first.

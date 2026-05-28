@@ -612,6 +612,24 @@ class PipelineRunner:
         if self._checkpoint_dir and not skip_phase1 and not skip_phase2:
             self._save_phase12_checkpoint(h_values, exact_data, vqe_results)
 
+        # ── Early-stopping check: theta_smoothness ──────────────────────
+        # If the warm-start chain broke (smoothness > 1.0), Phase 3+4 will
+        # likely fail. Warn the user but don't abort (they may want the data).
+        diag_so_far = self.collector.to_dict()
+        theta_smoothness = diag_so_far.get("phase2", {}).get("theta_smoothness")
+        if theta_smoothness is not None and theta_smoothness > 1.0:
+            logger.warning(
+                f"⚠️  WARM-START CHAIN BREAK DETECTED: θ_smoothness={theta_smoothness:.2f} "
+                f"(threshold: 1.0). The VQE found different basins at adjacent h-values. "
+                f"Phase 3 MPNN will struggle to learn the discontinuous θ(h) mapping. "
+                f"Consider: (1) reducing n_restarts, (2) increasing h-grid density, "
+                f"(3) restricting h-range to the valid regime."
+            )
+        elif theta_smoothness is not None and theta_smoothness > 0.10:
+            logger.info(
+                f"θ_smoothness={theta_smoothness:.4f} (elevated but below chain-break threshold)"
+            )
+
         # Phase 3: MPNN
         if skip_phase3:
             logger.info("Phase 3 skipped")
@@ -623,6 +641,23 @@ class PipelineRunner:
                 logger.error(f"Phase 3 FAILED: {e}")
                 model = None
         results["phase3"] = model
+
+        # ── Early-stopping check: generalization_gap ────────────────────
+        # If gen_gap > 1e-2, Phase 4 deployment will almost certainly fail
+        # (85% failure rate observed in 131 variants).
+        if model is not None:
+            diag_after_p3 = self.collector.to_dict()
+            gen_gap = diag_after_p3.get("phase3", {}).get("generalization_gap")
+            if gen_gap is not None and gen_gap > 0.01:
+                logger.warning(
+                    f"⚠️  HIGH GENERALIZATION GAP: gen_gap={gen_gap:.4f} (threshold: 0.01). "
+                    f"MPNN is overfitting — Phase 4 predictions will likely be inaccurate. "
+                    f"Historical data shows 85% failure rate when gen_gap > 1e-2. "
+                    f"Consider: (1) reducing epochs, (2) increasing training data, "
+                    f"(3) checking if θ_smoothness indicates a chain break."
+                )
+            elif gen_gap is not None and gen_gap > 0.001:
+                logger.info(f"gen_gap={gen_gap:.2e} (elevated, monitor Phase 4 result)")
 
         # Phase 4: Deployment
         if skip_phase4 or model is None:

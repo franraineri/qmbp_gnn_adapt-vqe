@@ -20,6 +20,7 @@ from qmbp_simulation.execution.noisy_utils import (
     noisy_estimate_batch,
     run_zne_deployment,
     select_layouts_by_circuit_ces,
+    select_layouts_low_ces,
 )
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "find_layouts_bfs",
     "compute_circuit_ces",
     "select_layouts_by_circuit_ces",
+    "select_layouts_low_ces",
     "noisy_estimate",
     "noisy_estimate_batch",
     "run_zne_deployment",

@@ -53,7 +53,7 @@ Primary question: "Does ZNE improve the noisy estimate?"
 | `mean_gain_pct` | >+30% | 0–30% | <0% | Error reduction from ZNE (negative = ZNE hurts) |
 | `n_mitigated_wins` | =n_total | >0 | 0 | How many h-points ZNE beats raw noisy |
 
-**Critical insight**: High R² + negative gain = ZNE fits well but extrapolates wrong direction. This happens at N=10 where the linear E(CES) assumption breaks down.
+**Critical insight**: High R² + negative gain = ZNE fits well but extrapolates wrong direction. This happens at N=10 p=2 where the linear E(CES) assumption breaks down. **Solution**: Use p=1 at N=10 (same CX budget as p=2 N=6) — confirmed with 9 runs, mean gain=+49%.
 
 ### Experiment (run_*.json in exp_<id>/)
 Primary question: "Was the hypothesis confirmed or disproved?"
@@ -104,8 +104,9 @@ python scripts/compare.py --all
 4. Check h_test value — if near h_c, it's a physics limit, not a bug
 
 **If ZNE gain is negative:**
-1. Check N — if N≥10, this is expected (known failure)
-2. Check n_layouts — more layouts doesn't help at N≥10
-3. Check topology — triangular has worst ZNE performance
+1. Check N and p — if N≥10 AND p=2, this is expected (known failure at ~36 CX gates)
+2. **Solution**: Use p=1 (reduces CX to ~18, recovers +49% gain)
+3. Check n_layouts — more layouts doesn't help at N≥10 p=2
+4. Check topology — triangular has worst ZNE performance but p=1 still works (+50%)
 
 For detailed JSON schemas, see #[[file:.kiro/knowledge/result-schemas.md]]

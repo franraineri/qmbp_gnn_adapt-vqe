@@ -63,6 +63,11 @@ project-root/
 │   └── benchmark.py                # Performance benchmarking
 ├── tests/                          # pytest suite
 ├── results/                        # Experiment outputs (gitignored)
+├── analysis/                       # Cross-experiment analysis & thesis figures
+│   ├── FINDINGS_INDEX.md           # Master index (36 findings with confidence)
+│   ├── thesis_chapter_results.md   # Draft results chapter (11 tables)
+│   ├── figures/                    # Thesis-quality PNG figures
+│   └── raw_data/                   # Parsed JSON for analysis scripts
 ├── documentation/                  # Thesis docs, binnacles, bibliography
 └── pyproject.toml                  # Package config, Ruff, pytest
 ```
@@ -753,6 +758,14 @@ layout_selection = select_layouts_by_circuit_ces(
 )
 print(f"Selected {len(layout_selection.layouts)} layouts")
 print(f"CES values: {layout_selection.ces_values}")
+
+# 2b. Alternative: select LOW-CES layouts for p=1 (perturbative regime)
+#     Use this for p=1 hardware deployment where ZNE works best with low CES.
+#     Validated: 8/9 seeds positive across chain_1d, ladder, triangular at N=10.
+from qmbp_simulation.execution import select_layouts_low_ces
+layout_selection_p1 = select_layouts_low_ces(
+    bound_circuit, fake_backend, candidates, n_select=3, max_ces=0.5
+)
 
 # 3. Run ZNE deployment (measures across layouts, extrapolates to CES=0)
 config = NoisyEstimatorConfig(shots=16384, seed_simulator=42)
