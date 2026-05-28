@@ -11,21 +11,23 @@ Cada claim fue verificado contra datos crudos (`verify_claims.py`).
 - `thesis_chapter_results.md` — **Draft del capítulo de resultados** (11 tablas)
 
 ### Análisis por eje
-- `01_cross_topology_table.md` — Tabla comparativa (referencia a datos corregidos)
 - `02_reproducibility_analysis.md` — Reproducibilidad cross-seed (Eje 1A)
 - `03_hyperparameter_sensitivity.md` — Sensibilidad de hiperparámetros (Eje 3)
 - `04_zne_failure_confirmation.md` — ZNE failure N=10 p=2 (Eje 4)
 - `05_negative_results_catalog.md` — Catálogo de rechazos + anomalías (Eje 5)
-- `06_implementation_metrics.md` — Métricas de implementación (Eje 6)
-- `07_methodology_validation.md` — Validación del criterio 5% + warm-start (Eje 1)
 
 ### Hallazgos profundos
 - `08_lessons_learned.md` — Lecciones, correcciones, next steps completados
 - `09_diagnostics_deep_dive.md` — **Correlaciones** (gen_gap, smoothness vs ΔE/gap)
 - `10_key_findings_corrected.md` — Hallazgos post-verificación (5 hallazgos clave)
 - `11_p1_zne_verification.md` — Multi-seed triangular (2/3 seeds)
-- `12_session_summary.md` — Resumen de sesión 2026-05-28
 - `13_p1_zne_all_topologies.md` — **p=1 ZNE cross-topology** (8/9 seeds positivos)
+
+### Worklog (archivos movidos — datos supersedidos o sesiones de trabajo)
+- `worklog/01_cross_topology_table_SUPERSEDED.md` — Reemplazado por `09_diagnostics_deep_dive.md`
+- `worklog/06_implementation_metrics_OLD120.md` — Datos de 120 variants (ahora son 131)
+- `worklog/07_methodology_validation_OLD120.md` — Datos de 120 variants (ahora son 131)
+- `worklog/12_session_summary_WORKLOG.md` — Log de sesión 2026-05-28
 
 ### Figuras
 - `figures/fig_01_gen_gap_vs_de_gap.png` — Scatter: predictor de failure

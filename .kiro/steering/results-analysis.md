@@ -1,9 +1,33 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "results/**,scripts/digest/**,scripts/compare*"
+fileMatchPattern: "results/**,scripts/digest/**,scripts/compare*,analysis/**,documentation/analysis/**"
 ---
 
 # Results Analysis — Interpretation & Decision Guide
+
+## Canonical Analysis Sources (ALWAYS USE THESE)
+
+When writing the thesis, citing analysis results, or making claims about the framework:
+
+| Purpose | Canonical File | Why |
+|---------|---------------|-----|
+| **Summary & thesis statements** | `documentation/analysis/08_summary.md` | Final corrected summary with all 14 studies |
+| **Definitive tables (5.1–5.6)** | `documentation/analysis/09_thesis_tables.md` | Top-15 per topology, cross-topology, ZNE boundary |
+| **Verified findings (131 variants)** | `analysis/10_key_findings_corrected.md` | Post-verification data with gen_gap/smoothness rules |
+| **p=1 ZNE confirmation** | `documentation/analysis/14_p1_zne_validation.md` | 9 runs, 3 topologies × 3 seeds |
+| **Cross-topology diagnostics** | `analysis/09_diagnostics_deep_dive.md` | Corrected table (131 variants), correlations |
+| **Findings master index** | `analysis/FINDINGS_INDEX.md` | All 35 findings with confidence levels |
+
+**DO NOT cite** files in `documentation/analysis/worklog/` or `analysis/worklog/` — these contain
+superseded data (old 120-variant counts, incorrect ladder N=6 pass rates) or session worklogs.
+
+**Key corrections applied** (why worklog files were moved):
+- Ladder N=6 pass rate: ~~23%~~ → **50%** (digest missed 9 variants)
+- Global pass rate: ~~59%~~ → **64%** (131 vs 120 variants)
+- "Hyperparams irrelevant" → only at N=10; h=128 critical at N=6
+- Triangular N=10 "seed-dependent" → outlier-driven (without outlier, std=0.003)
+
+---
 
 ## Where Results Live
 
