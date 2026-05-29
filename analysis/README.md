@@ -36,20 +36,29 @@ Cada claim fue verificado contra datos crudos (`verify_claims.py`).
 - `figures/fig_04_smoothness_vs_de_gap.png` — Threshold effect
 
 ### Scripts
+- `scan_coverage.py` — **Coverage scanner** (identifies gaps in p=1 vs p=2 data)
 - `run_analysis.py` — Generador principal (execution logs → tablas)
 - `09_diagnostics_deep_dive.py` — Scan directo de pipeline files (131 variants)
 - `verify_claims.py` — Verificación de robustez de claims
 - `generate_figures.py` — Generador de figuras thesis-quality
 - `run_p1_zne_multiseed.py` — Verificación experimental p=1 ZNE
+- `step1a_p1_zne_validation.py` — Validación p=1 ZNE single-topology
+- `step2a_error_decomposition.py` — Descomposición de error por topología
+- `step2c_smoothness_correlation.py` — Correlación θ-smoothness vs ΔE/gap
 
 ### Datos
 - `raw_data/all_variants.json` — 186 registros (execution logs)
 - `raw_data/all_diagnostics.json` — 131 registros (pipeline files, scan directo)
+- `raw_data/coverage.json` — Structured coverage data (all result types)
 - `verification/p1_zne_multiseed/` — Resultados multi-seed
 
 ## Generación
 
 ```bash
+# Coverage scan — identify what simulations are needed next
+python analysis/scan_coverage.py
+python analysis/scan_coverage.py --json analysis/raw_data/coverage.json
+
 # Análisis completo (execution logs)
 python analysis/run_analysis.py
 
