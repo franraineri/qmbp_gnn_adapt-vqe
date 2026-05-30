@@ -118,11 +118,15 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `src/qmbp_simulation/framework/variant_runner.py` — shared variant runner (PipelineVariant, RunResult, VariantRunner, run_variant_script)
 - `src/qmbp_simulation/pipeline/runner.py` — PipelineRunner + run_exact_diag_sweep helper
 - `experiments/` — categorized experiment scripts (optimization, scaling, landscape, predictor, hardware, generalization)
-- `scripts/run_experiment.py` — unified CLI for running experiments by ID
-- `scripts/run_pipeline.py` — full 4-phase pipeline CLI (uses framework/cli.py, supports `--seed`)
-- `scripts/run_thesis_variants-*.py` — topology-specific variant runners (chain_1d, ladder, triangular) using framework/variant_runner.py
+- `scripts/experiment_runners/run_experiment.py` — unified CLI for running experiments by ID (in experiment_run_helpers_CHECK/)
+- `scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py` — full 4-phase pipeline CLI
+- `scripts/experiment_runners/run_thesis_variants-*.py` — topology-specific variant runners (chain_1d, ladder, triangular)
+- `scripts/experiment_runners/run_p1_pipeline_variants.py` — p=1 multi-topology variants (R1)
+- `scripts/experiment_runners/run_p1_pipeline_variants_r2.py` — p=1 corrected + complementary (R2)
 - `scripts/compare.py` — cross-experiment result comparison (uses ResultStore)
 - `scripts/benchmark.py` — performance benchmarking (uses BenchmarkSuite)
+- `analysis/scan_coverage.py` — coverage scanner (inventario + gap analysis)
+- `analysis/diagnose.py` — automated failure root cause analysis
 
 ## Dead Code (removed 2026-05-22, deleted 2026-05-25/26/27)
 - `pipeline_core.py` — documented but zero imports anywhere (DELETED)
@@ -166,6 +170,10 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **MPNN deployment at N=20**: Only h=3.0 passes (6 training points too few; sign canonicalization needed)
 - **Hardware candidate**: p=1 N=20 on IBM Torino (VQE validated, same CX budget as p=2 N=10)
 - **p=1 ZNE CONFIRMED (2026-05-28)**: 9 runs (3 topologies × 3 seeds), mean gain=+49%, topology-independent
+- **p=1 pipeline CONFIRMED (2026-05-30)**: 9/9 PASS at N=10 (chain_1d 3/3, ladder 3/3, triangular 3/3) with correct h_test
+- **p=1 vs p=2 direct comparison (COMP-4)**: p=1 more consistent (std=0.002 vs 0.47 for p=2)
+- **N=16 p=1 scaling limit**: Phase 3 does not complete (fidelity filter rejects data). Needs MPS.
+- **Failure diagnosis (2026-05-30)**: 45% CHAIN_BREAK, 25% MPNN_OVERFIT, 14% BOUNDARY_EFFECT. 70% detectable pre-Phase 4.
 - **TODO**: Fix init at N=20 (analytical guess), canonicalize signs, increase training density
 - Binnacle: `documentation/binnacles/binnacle-p1-scaling.md`
 - Script: historical (removed in v8_clean)
@@ -216,13 +224,19 @@ See `README.md` for quick-start instructions and the full directory layout.
 
 ```bash
 # Full 4-phase pipeline (N=6, p=2)
-python scripts/run_pipeline.py --n-qubits 6 --p 2
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --p 2
 
 # With custom MPNN config
-python scripts/run_pipeline.py --n-qubits 10 --hidden-dim 128 --n-epochs 6000 --patience 500
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 10 --hidden-dim 128 --n-epochs 6000 --patience 500
 
 # Skip phases (resume from checkpoint)
-python scripts/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
+
+# p=1 multi-topology variants (9 runs, ~14 min)
+python scripts/experiment_runners/run_p1_pipeline_variants.py
+
+# p=1 corrected + complementary (13 runs, ~24 min)
+python scripts/experiment_runners/run_p1_pipeline_variants_r2.py
 
 # Smoke test (N=4, p=1, <30s)
 python scripts/smoke_test.py

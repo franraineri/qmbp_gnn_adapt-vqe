@@ -100,20 +100,19 @@ Primary question: "Was the hypothesis confirmed or disproved?"
 ## Diagnostic Tools
 
 ```bash
-# Quick overview of all results
-python -m scripts.digest
+# Coverage scan — what data exists, what's missing
+python analysis/scan_coverage.py
+python analysis/scan_coverage.py --discover --extended
+
+# Failure diagnosis — automated root cause analysis
+python analysis/diagnose.py --all
+python analysis/diagnose.py results/thesis/p1_variants_N10_r2 --severity fail
+
+# Quick overview of all results (digest)
+python scripts/digest/run_digest.py
 
 # Compare topologies
-python -m scripts.digest --kind noiseless --group-by topology
-
-# Find outliers
-python -m scripts.digest --kind noiseless --outliers
-
-# Statistical summary
-python -m scripts.digest --kind noiseless --stats --topology ladder
-
-# Compare two configurations
-python -m scripts.digest --compare variants_N10_ladder variants_N10_triangular
+python scripts/digest/run_digest.py --kind noiseless --group-by topology
 
 # Existing compare tool (experiment verdicts)
 python scripts/compare.py --all
