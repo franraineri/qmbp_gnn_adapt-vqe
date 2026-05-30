@@ -4,6 +4,15 @@ Scans results/experiments/ and results/thesis/ uniformly, classifying
 each JSON file by its kind (noiseless pipeline, noisy/ZNE, or experiment).
 
 No external dependencies — stdlib only.
+
+Fixes applied (2026-05-30):
+- Bug #1: Now reports worst-case ΔE/gap across ALL phase4_results points
+  (previously only read phase4[0], hiding failures at other h_test values).
+- Bug #4: Now parses ALL pipeline_run_*.json files per folder
+  (previously only took the latest, missing multi-seed runs in same dir).
+- Bug #2: Logs a warning instead of silently defaulting p_layers to 2.
+- Skips hidden directories (starting with '.') in recursive scan.
+- Handles UnicodeDecodeError in JSON loading.
 """
 
 from __future__ import annotations
@@ -26,6 +35,9 @@ logger = logging.getLogger(__name__)
 # Topologies we recognize from folder names
 _KNOWN_TOPOLOGIES = ("chain_1d", "ladder", "triangular", "kagome", "linnear")
 # "linnear" is a typo in the actual folder name (variants_N6_N10_1D_linnear)
+
+# Folders to skip during recursive scanning
+_SKIP_FOLDERS = frozenset({"checkpoints", "__pycache__", ".DS_Store"})
 
 
 class ResultScanner:
@@ -60,7 +72,11 @@ class ResultScanner:
         # Scan results/thesis/
         thesis_root = self.root / "thesis"
         if thesis_root.exists():
-            folders = [f for f in sorted(thesis_root.iterdir()) if f.is_dir()]
+            folders = [
+                f
+                for f in sorted(thesis_root.iterdir())
+                if f.is_dir() and not f.name.startswith(".")
+            ]
             logger.info("Scanning %d thesis folders...", len(folders))
             for folder in folders:
                 context = _infer_topology_from_name(folder.name)
@@ -124,18 +140,18 @@ class ResultScanner:
             Accumulator for noisy results (mutated in place).
         parent_context : str
             Topology inferred from parent folder name (used as fallback).
+
+        Fix #4: Now parses ALL pipeline_run files (not just the latest).
         """
-        # Direct files in this folder (latest only)
-        pipeline_here = sorted(root.glob("pipeline_run_*.json"), reverse=True)
-        if pipeline_here:
-            result = self._parse_pipeline_file(pipeline_here[0], root.name)
+        # Direct files in this folder — parse ALL (Fix #4)
+        for pf in sorted(root.glob("pipeline_run_*.json")):
+            result = self._parse_pipeline_file(pf, root.name)
             if result:
                 _apply_topology_fallback(result, parent_context)
                 noiseless.append(result)
 
-        noisy_here = sorted(root.glob("noisy_*.json"), reverse=True)
-        if noisy_here:
-            result = self._parse_noisy_file(noisy_here[0], root.name)
+        for nf in sorted(root.glob("noisy_*.json")):
+            result = self._parse_noisy_file(nf, root.name)
             if result:
                 _apply_topology_fallback(result, parent_context)
                 noisy.append(result)
@@ -144,19 +160,19 @@ class ResultScanner:
         for subfolder in sorted(root.iterdir()):
             if not subfolder.is_dir():
                 continue
-            if subfolder.name in ("checkpoints", "__pycache__"):
+            # Skip hidden dirs and known non-result dirs
+            if subfolder.name.startswith(".") or subfolder.name in _SKIP_FOLDERS:
                 continue
 
-            pipeline_files = sorted(subfolder.glob("pipeline_run_*.json"), reverse=True)
-            if pipeline_files:
-                result = self._parse_pipeline_file(pipeline_files[0], subfolder.name)
+            # Parse ALL pipeline_run files in subfolder (Fix #4)
+            for pf in sorted(subfolder.glob("pipeline_run_*.json")):
+                result = self._parse_pipeline_file(pf, subfolder.name)
                 if result:
                     _apply_topology_fallback(result, parent_context)
                     noiseless.append(result)
 
-            noisy_files = sorted(subfolder.glob("noisy_*.json"), reverse=True)
-            if noisy_files:
-                result = self._parse_noisy_file(noisy_files[0], subfolder.name)
+            for nf in sorted(subfolder.glob("noisy_*.json")):
+                result = self._parse_noisy_file(nf, subfolder.name)
                 if result:
                     _apply_topology_fallback(result, parent_context)
                     noisy.append(result)
@@ -164,7 +180,11 @@ class ResultScanner:
     # ── File parsers ─────────────────────────────────────────────────────
 
     def _parse_pipeline_file(self, path: Path, folder: str) -> NoiselessResult | None:
-        """Parse a pipeline_run_*.json into a NoiselessResult."""
+        """Parse a pipeline_run_*.json into a NoiselessResult.
+
+        Fix #1: Reports worst-case ΔE/gap across ALL phase4_results entries.
+        Previously only read phase4[0], which hid failures at other h_test values.
+        """
         data = _load_json(path)
         if not data:
             return None
@@ -175,7 +195,7 @@ class ResultScanner:
         diagnostics = data.get("diagnostics", {})
         phase4 = data.get("phase4_results", [])
 
-        # Phase 4 primary metric
+        # Phase 4 primary metric — use worst-case across all test points (Fix #1)
         delta_e = None
         phase_label = ""
         phase_correct = None
@@ -183,7 +203,17 @@ class ResultScanner:
         corr_zz_error = None
 
         if phase4:
-            p4 = phase4[0]
+            # Find the worst (highest) ΔE/gap across all test points
+            worst_idx = 0
+            worst_de = phase4[0].get("delta_e_over_gap")
+            for i, entry in enumerate(phase4):
+                de = entry.get("delta_e_over_gap")
+                if de is not None and (worst_de is None or de > worst_de):
+                    worst_de = de
+                    worst_idx = i
+
+            # Report the worst-case point as the primary metric
+            p4 = phase4[worst_idx]
             delta_e = p4.get("delta_e_over_gap")
             phase_label = p4.get("phase_label", "")
             checklist = p4.get("metrics_checklist", {})
@@ -194,11 +224,14 @@ class ResultScanner:
         phase2_diag = diagnostics.get("phase2", {})
         phase3_diag = diagnostics.get("phase3", {})
 
+        # Extract p_layers with warning (Fix #2)
+        p_layers = _extract_p_layers(config, system, path)
+
         return NoiselessResult(
             source_file=str(path),
             folder=folder,
             n_qubits=_get_int(config, "n_qubits") or _get_int(system, "n_qubits"),
-            p_layers=_get_int(config, "p_layers") or _get_int(system, "p_layers") or 2,
+            p_layers=p_layers,
             topology=config.get("topology") or system.get("topology", ""),
             n_restarts=config.get("n_restarts", 5),
             seed=config.get("seed"),
@@ -232,11 +265,14 @@ class ResultScanner:
         summary = data.get("summary", {})
         per_h = data.get("results_per_h", [])
 
+        # Extract p_layers with warning (Fix #2)
+        p_layers = _extract_p_layers(config, system, path)
+
         return NoisyResult(
             source_file=str(path),
             folder=folder,
             n_qubits=_get_int(config, "n_qubits") or _get_int(system, "n_qubits"),
-            p_layers=_get_int(config, "p_layers") or _get_int(system, "p_layers") or 2,
+            p_layers=p_layers,
             topology=config.get("topology") or system.get("topology", ""),
             seed=config.get("seed", 42),
             n_layouts=config.get("n_layouts", 3),
@@ -301,6 +337,10 @@ class ResultScanner:
         elif exp_id == "G1":
             extras["data_efficiency"] = analysis.get("data_efficiency", {})
 
+        # Extract p_layers (experiments use system dict)
+        p_layers_val = system.get("p_layers") or config.get("p_layers")
+        p_layers = int(p_layers_val) if p_layers_val is not None else 2
+
         return ExperimentResult(
             source_file=str(run_files[0]),
             folder=exp_dir.name,
@@ -309,7 +349,7 @@ class ResultScanner:
             hypothesis=config.get("hypothesis", ""),
             description=config.get("description", ""),
             n_qubits=system.get("n_qubits", 0),
-            p_layers=system.get("p_layers", 2),
+            p_layers=p_layers,
             topology=system.get("topology", ""),
             h_values=system.get("h_values", []),
             seeds=config.get("seeds", []),
@@ -334,7 +374,7 @@ def _load_json(path: Path) -> dict[str, Any] | None:
     try:
         with open(path) as f:
             return json.load(f)
-    except (json.JSONDecodeError, OSError) as e:
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
         logger.debug("Failed to load %s: %s", path, e)
         return None
 
@@ -343,6 +383,20 @@ def _get_int(d: dict, key: str) -> int:
     """Get an integer from a dict, returning 0 for None/missing."""
     val = d.get(key)
     return int(val) if val is not None else 0
+
+
+def _extract_p_layers(config: dict, system: dict, path: Path) -> int:
+    """Extract p_layers from config/system dicts.
+
+    Fix #2: Logs a warning instead of silently defaulting to 2.
+    Still returns 2 as default (for backward compat with NoiselessResult dataclass),
+    but the warning makes it visible in --verbose mode.
+    """
+    p = config.get("p_layers") or system.get("p_layers")
+    if p is not None:
+        return int(p)
+    logger.warning("p_layers not found in %s; defaulting to 2", path.name)
+    return 2
 
 
 def _infer_topology_from_name(name: str) -> str:
