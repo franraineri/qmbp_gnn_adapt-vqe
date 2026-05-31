@@ -1,9 +1,27 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "scripts/run_*,experiments/**"
+fileMatchPattern: "scripts/run_*,scripts/experiment_runners/*,experiments/**"
 ---
 
 # Experiment Protocol — Experiments & Result Logging
+
+## Preflight Validation (ALWAYS ENFORCE)
+
+Before executing ANY variant runner script (scripts that define `build_noiseless_variants`, `build_noisy_variants`, `build_extended_variants`, or a `VARIANTS` list):
+
+1. **Run preflight**: `.venv/bin/python scripts/preflight.py --from-script <path_to_script>`
+2. **If exit code = 1 (ERRORS)**: Do NOT execute. Report errors and suggest fixes.
+3. **If exit code = 0**: Safe to execute (note any warnings).
+
+This catches:
+- Data leakage (h_test in training set)
+- Valid regime violations (h_test below threshold)
+- Descending sweep violations (warm-start requires h=high→low)
+- Duplicate variant IDs
+- Output directory collisions
+- Missing pipeline scripts
+
+**When to skip**: Scripts that don't define variants (e.g., `scan_coverage.py`, `diagnose.py`, `compare.py`, standalone analysis scripts without PipelineVariant definitions).
 
 ## Seed Management
 
