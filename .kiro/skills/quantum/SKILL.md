@@ -206,9 +206,10 @@ backend = NoisyBackend(n_layouts=3, seed=42)
 
 ### Success Criteria
 
-- `n_mitigated_wins >= 4`: ZNE-mitigated ΔE/gap < noisy-raw ΔE/gap for at least 4 of 6 h-values
-- `n_good_r_squared >= 3`: ZNE linear fit R² > 0.8 for at least 3 of 6 h-values
+- `n_mitigated_wins >= 67% of n_total`: ZNE-mitigated ΔE/gap < noisy-raw ΔE/gap for at least 67% of h-values
+- `n_good_r_squared >= 50% of n_total`: ZNE linear fit R² > 0.8 for at least 50% of h-values
 - Both must hold for `success_criteria_met = True`
+- Note: Original threshold was hardcoded at ≥4/6 wins + ≥3/6 R². Generalized to proportional (2026-05-31) to support variable-length h-value sweeps.
 
 ### Running the Sweep
 

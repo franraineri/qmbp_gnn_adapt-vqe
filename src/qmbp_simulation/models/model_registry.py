@@ -126,7 +126,7 @@ def _register_builtins() -> None:
             hamiltonian_kwargs={"delta": 1.0},
             circuit_kwargs={"initial_state": "neel"},
             description="Heisenberg XXZ: H = J(XX+YY+Δ·ZZ) - h·Z (Δ=1.0)",
-            fidelity_threshold=0.60,  # Relaxed — HVA p=2 has limited expressibility
+            fidelity_threshold=0.60,  # noqa — Relaxed: HVA p=2 has limited expressibility for non-TFIM
             mpnn_hidden_dim=128,  # Larger output space (8 params) needs more capacity
         )
     )
@@ -144,7 +144,7 @@ def _register_builtins() -> None:
             hamiltonian_kwargs={"delta": 0.0},
             circuit_kwargs={"initial_state": "neel"},
             description="XY Model: H = J(XX+YY) - h·Z (Δ=0)",
-            fidelity_threshold=0.60,  # Relaxed — same expressibility limits as Heisenberg
+            fidelity_threshold=0.60,  # noqa — Relaxed: same expressibility limits as Heisenberg
             mpnn_hidden_dim=128,
         )
     )

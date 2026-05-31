@@ -94,7 +94,6 @@ def find_h_min(
         Minimum h where criterion is met, or None if no h qualifies.
     """
     seeds = list(fidelities_by_seed.keys())
-    n_h = len(h_values)
 
     for i, h in enumerate(h_values):
         passing_seeds = sum(

@@ -13,7 +13,7 @@ class TestModelSpec:
     def test_model_spec_frozen(self):
         """ModelSpec is immutable (frozen dataclass)."""
         spec = get_model_spec("tfim")
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(AttributeError):
             spec.name = "modified"
 
     def test_model_spec_total_params(self):

@@ -178,9 +178,8 @@ class EntanglementAnalyzer:
         """
         max_entropy = None
         for ent, fid in zip(entanglement_results, fidelities, strict=False):
-            if fid >= fidelity_threshold:
-                if max_entropy is None or ent.entropy > max_entropy:
-                    max_entropy = ent.entropy
+            if fid >= fidelity_threshold and (max_entropy is None or ent.entropy > max_entropy):
+                max_entropy = ent.entropy
 
         if max_entropy is not None:
             logger.info(

@@ -237,12 +237,17 @@ def main() -> None:
     n_good_r2 = sum(1 for r in results_per_h if r["good_r2"])
     n_total = len(results_per_h)
 
-    success = n_mitigated_wins >= 4 and n_good_r2 >= 3
+    # Success criteria: proportional to n_total (≥67% wins AND ≥50% good R²)
+    # Original: 4/6 wins + 3/6 good R² → 67% + 50%
+    # Generalized: works for any number of h-values
+    min_wins = max(1, int(n_total * 0.67))
+    min_r2 = max(1, int(n_total * 0.5))
+    success = n_mitigated_wins >= min_wins and n_good_r2 >= min_r2
 
     print("\n" + "=" * 60)
     print("  SUMMARY")
     print("=" * 60)
-    print(f"  ZNE wins: {n_mitigated_wins}/{n_total} (threshold: ≥4)")
+    print(f"  ZNE wins: {n_mitigated_wins}/{n_total} (threshold: ≥{min_wins})")
     print(f"  Good R²:  {n_good_r2}/{n_total} (threshold: ≥3)")
     print(f"  Overall:  {'PASS ✅' if success else 'FAIL ❌'}")
     print(f"  Elapsed:  {elapsed:.1f}s")

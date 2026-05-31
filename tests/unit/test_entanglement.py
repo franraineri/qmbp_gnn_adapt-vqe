@@ -42,7 +42,7 @@ class TestEntanglementAnalyzer:
         """GHZ state (|0000⟩ + |1111⟩)/√2 for N=4 has S=1.0 bit."""
         n_qubits = 4
         psi = np.zeros(2**n_qubits)
-        psi[0] = 1.0 / np.sqrt(2)   # |0000⟩
+        psi[0] = 1.0 / np.sqrt(2)  # |0000⟩
         psi[-1] = 1.0 / np.sqrt(2)  # |1111⟩
         entropy = analyzer.compute_half_chain_entropy(psi, n_qubits)
         assert_allclose(entropy, 1.0, atol=1e-10)
@@ -87,10 +87,22 @@ class TestEntanglementAnalyzer:
     def test_find_hva_capacity_no_qualifying_points(self, analyzer):
         """Returns None when no fidelity passes threshold."""
         results = [
-            EntanglementResult(h=1.0, entropy=0.5, n_qubits=4,
-                               partition_size=2, max_entropy=2.0, normalized_entropy=0.25),
-            EntanglementResult(h=1.5, entropy=0.8, n_qubits=4,
-                               partition_size=2, max_entropy=2.0, normalized_entropy=0.40),
+            EntanglementResult(
+                h=1.0,
+                entropy=0.5,
+                n_qubits=4,
+                partition_size=2,
+                max_entropy=2.0,
+                normalized_entropy=0.25,
+            ),
+            EntanglementResult(
+                h=1.5,
+                entropy=0.8,
+                n_qubits=4,
+                partition_size=2,
+                max_entropy=2.0,
+                normalized_entropy=0.40,
+            ),
         ]
         fidelities = [0.5, 0.6]  # All below default threshold 0.93
         capacity = analyzer.find_hva_capacity_threshold(results, fidelities)
@@ -99,12 +111,30 @@ class TestEntanglementAnalyzer:
     def test_find_hva_capacity_returns_max_entropy(self, analyzer):
         """Returns max entropy among qualifying points."""
         results = [
-            EntanglementResult(h=1.0, entropy=0.3, n_qubits=4,
-                               partition_size=2, max_entropy=2.0, normalized_entropy=0.15),
-            EntanglementResult(h=1.5, entropy=0.8, n_qubits=4,
-                               partition_size=2, max_entropy=2.0, normalized_entropy=0.40),
-            EntanglementResult(h=2.0, entropy=0.5, n_qubits=4,
-                               partition_size=2, max_entropy=2.0, normalized_entropy=0.25),
+            EntanglementResult(
+                h=1.0,
+                entropy=0.3,
+                n_qubits=4,
+                partition_size=2,
+                max_entropy=2.0,
+                normalized_entropy=0.15,
+            ),
+            EntanglementResult(
+                h=1.5,
+                entropy=0.8,
+                n_qubits=4,
+                partition_size=2,
+                max_entropy=2.0,
+                normalized_entropy=0.40,
+            ),
+            EntanglementResult(
+                h=2.0,
+                entropy=0.5,
+                n_qubits=4,
+                partition_size=2,
+                max_entropy=2.0,
+                normalized_entropy=0.25,
+            ),
         ]
         fidelities = [0.95, 0.90, 0.97]  # indices 0 and 2 pass
         capacity = analyzer.find_hva_capacity_threshold(results, fidelities)

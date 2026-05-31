@@ -267,6 +267,23 @@ y compatible con error mitigation (18 CX gates, at ZNE threshold).
 
 **Corrección al P1_VALID_REGIME**: `("heavy_hex", 10): 2.5` (estimado, h_test=3.25 pasa 3/3).
 
+### Heavy-Hex ZNE Confirmed (2026-05-31)
+
+| Seed | R² | Gain% | CX gates | Status |
+|------|-----|-------|----------|--------|
+| 42 | 0.998 | +76.4% | 18 | ✅ |
+| 43 | 0.998 | +34.7% | 18 | ✅ |
+| 44 | 0.998 | +76.9% | 18 | ✅ |
+| **Mean** | **0.998** | **+62.7%** | | **✅ CONFIRMED** |
+
+**Implicación**: La estrategia completa de hardware deployment está validada localmente:
+1. Pipeline noiseless: p=1 heavy-hex 3/3 PASS (ΔE/gap=0.56%)
+2. ZNE mitigation: 3/3 positive gain (mean +62.7%, R²=0.998)
+3. Zero SWAP overhead: HVA maps directly to IBM Torino coupling map
+4. Seed-independent: std=0.0003 (noiseless), all seeds positive (ZNE)
+
+**No quedan simulaciones locales pendientes. El siguiente paso es IBM Torino.**
+
 ---
 
 ## Next Steps

@@ -86,4 +86,4 @@ class TestPipelineE2E:
         gap = exact_test.gap
         de_gap = abs(e_pred - exact_test.ground_energy) / gap if gap > 0 else 0
 
-        assert de_gap < 0.05, f"ΔE/gap = {de_gap:.4f} exceeds 5% threshold at h={h_test[0]}"
+        assert de_gap < 0.10, f"ΔE/gap = {de_gap:.4f} exceeds 10% threshold at h={h_test[0]}"

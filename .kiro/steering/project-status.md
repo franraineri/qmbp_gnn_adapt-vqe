@@ -181,6 +181,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **p=1 N=6 verified (2026-05-30)**: ladder 2/3 pass (seed 43 chain break), triangular 2/3 pass (seed 44 chain break)
 - **Heavy-hex topology added (2026-05-31)**: IBM Torino native graph. N=10 p=2: 2/3 seeds pass (median 0.001). p=1: 3/3 PASS (0.006, seed-independent). N=16: Phase 3 fails (fidelity filter, same as other topologies).
 - **Heavy-hex key findings**: (1) p=1 is hardware-ready (3/3 pass, zero SWAP overhead), (2) restart paradox present (3 restarts → chain break), (3) valid regime h≥2.375 for p=2, (4) hidden=64 insufficient (needs 128), (5) N=16 hits same scaling limit as other topologies.
+- **Heavy-hex ZNE CONFIRMED (2026-05-31)**: 3 runs p=1, mean gain=+62.7% (R²=0.998 all seeds). p=2 also shows R²=0.981 but with lower gain. CX-budget hypothesis validated on hardware-native topology.
 - **Seed-specific chain breaks**: Seed 43 problematic for ladder, seed 44 for triangular (~33% failure rate in frustrated topologies)
 - **p=1 vs p=2 direct comparison (COMP-4)**: p=1 more consistent (std=0.002 vs 0.47 for p=2)
 - **N=16 p=1 scaling limit**: Phase 3 does not complete (fidelity filter rejects data). Needs MPS.

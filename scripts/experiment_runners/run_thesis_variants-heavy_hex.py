@@ -349,6 +349,9 @@ def build_noisy_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineVaria
                     str(seed_val),
                     "--output-dir",
                     f"{output_base}/ny_p1_zne_seed{seed_val}",
+                    "--verbose",
+                    "--n-restarts",
+                    "5",
                 ],
                 hypothesis=(
                     f"p=1 heavy_hex ZNE with seed={seed_val} achieves positive gain. "
@@ -391,6 +394,9 @@ def build_noisy_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineVaria
                 "42",
                 "--output-dir",
                 f"{output_base}/ny_p2_zne",
+                "--verbose",
+                "--n-restarts",
+                "5",
             ],
             hypothesis="p=2 heavy_hex ZNE fails (CX count > 18 threshold)",
             expected_outcome=(

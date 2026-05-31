@@ -235,6 +235,23 @@ critical advantage of zero SWAP routing overhead. The p=1 configuration is
 seed-independent (std=0.0003) and directly deployable on IBM Torino without
 circuit transpilation, making it the recommended hardware deployment strategy."
 
+### p=1 Heavy-Hex ZNE (Noisy Simulation, 2026-05-31)
+
+| Seed | R² | Gain% | Wins | Verdict |
+|------|-----|-------|------|---------|
+| 42 | 0.998 | +76.4% | ✅ | ZNE works |
+| 43 | 0.998 | +34.7% | ✅ | ZNE works |
+| 44 | 0.998 | +76.9% | ✅ | ZNE works |
+| **Mean** | **0.998** | **+62.7%** | **3/3** | **✅ CONFIRMED** |
+
+**p=2 Heavy-Hex ZNE**: R²=0.981, gain positive but lower. CX count = 36 (at boundary).
+
+**Thesis statement**: "ZNE error mitigation on the heavy-hex topology achieves
+mean gain=+62.7% at p=1 (R²=0.998, 3/3 seeds positive), confirming that the
+CX-budget hypothesis holds on IBM's native coupling map. Combined with zero SWAP
+overhead, this validates the complete hardware deployment strategy: p=1 HVA on
+heavy-hex with inhomogeneous ZNE."
+
 ---
 
 ## Table 5.8 — p=1 Scaling Limits (N=16, N=24 — Phase 2 only)
