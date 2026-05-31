@@ -1,16 +1,20 @@
 {
   "enabled": true,
   "name": "Preflight Before Script Run",
-  "description": "Before executing any Python script in scripts/experiment_runners/ or analysis/, run preflight validation to catch data leakage, regime violations, and configuration errors. Only applies to variant runner scripts that define build_noiseless_variants or VARIANTS.",
-  "version": "1",
+  "description": "When an experiment runner or analysis script is created or edited, automatically run preflight validation to catch data leakage, regime violations, descending sweep errors, and configuration issues before execution.",
+  "version": "3.0.0",
   "when": {
-    "type": "preToolUse",
-    "toolTypes": [
-      "shell"
+    "type": "fileEdited",
+    "patterns": [
+      "scripts/experiment_runners/run_*.py",
+      "scripts/experiment_runners/verify_*.py",
+      "analysis/run_*.py",
+      "analysis/step*.py",
+      "experiments/*/exp_*.py"
     ]
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Before executing this command, check if it runs a Python script from scripts/experiment_runners/ or analysis/ that defines pipeline variants (look for build_noiseless_variants, build_noisy_variants, build_extended_variants, or VARIANTS in the script). If it does, first run preflight validation: `.venv/bin/python scripts/preflight.py --from-script <path_to_script>`. If preflight reports ERRORS (exit code 1), do NOT proceed with the original command — report the errors to the user and suggest fixes. If preflight passes (exit code 0, possibly with warnings), proceed with the original command. If the command is NOT running a variant/experiment script (e.g., it's running pytest, ruff, a simple utility, or a script without variant definitions), skip preflight and proceed normally."
+    "prompt": "A script that may define experiment variants was just edited. Determine if it contains variant definitions by checking for: (1) build_noiseless_variants / build_noisy_variants / build_extended_variants functions (standard VariantRunner pattern), or (2) a VARIANTS list (legacy pattern), or (3) PipelineVariant imports. \n\nIf the script defines variants:\n  Run: `.venv/bin/python scripts/preflight.py --from-script <path_to_edited_file>`\n  - If exit code = 1 (ERRORS): Report the errors to the user. Do NOT execute the script until errors are resolved.\n  - If exit code = 0 (clean or warnings only): Note any warnings. The script is safe to execute when requested.\n\nIf the script does NOT define variants (e.g., it's a standalone analysis, a scan tool, or a diagnostic script without PipelineVariant definitions):\n  Skip preflight — it only validates variant configurations. Simply note that the file was edited and proceed normally.\n\nKey: preflight.py uses --from-script which dynamically imports the module and calls the build_*_variants() functions. It will fail gracefully if the script doesn't follow the variant runner pattern."
   }
 }

@@ -160,16 +160,21 @@ error_from_mpnn   = 0.000  (0% of total error — MPNN matches VQE ceiling exact
 
 ### Valid Regime Scaling Rule [VERIFIED]
 
-| N | Valid regime (ΔE/gap < 5%) | Evidence |
-|---|---------------------------|----------|
-| 6 | h ≥ 1.25 | 40+ experiments |
-| 10 | h ≥ 1.5 | 14 experiments |
-| 20 | h ≥ 2.0 | V7 3C (MPS) |
+| N | Valid regime p=2 (ΔE/gap < 5%) | Valid regime p=1 | Evidence |
+|---|---------------------------|------------------|----------|
+| 6 | h ≥ 1.25 | h ≥ 1.6 (chain), h ≥ 2.0 (ladder), h ≥ 4.0 (triangular) | 40+ experiments + verification R1 |
+| 10 | h ≥ 1.5 | h ≥ 1.9 (chain), h ≥ 3.0 (ladder), h ≥ 3.5 (triangular) | 14+ experiments + verification R1 |
+| 20 | h ≥ 2.0 | h ≥ 2.25 (chain only) | V7 3C (MPS) |
 
 Pattern: as N increases, the valid operating regime shifts to higher h. This is the HVA p=2
 expressibility limit — near the critical point (h≈1), entanglement grows with N and p=2
 layers cannot capture it. Deep in the paramagnetic phase (h>>1), the ground state has
 low entanglement and HVA p=2 works at any N.
+
+**p=1 additional shift**: +0.35 to +1.0 vs p=2, topology-dependent. Ladder has the
+largest shift (+1.0 at N=10) due to higher connectivity requiring more circuit depth.
+Recommendation: use h_test ≥ boundary + 0.5 for reliable results (avoids seed-dependent
+chain breaks at the boundary).
 
 ### QRC vs MPNN at N=10 [VERIFIED, 2026-05-18]
 

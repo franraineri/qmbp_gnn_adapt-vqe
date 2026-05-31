@@ -157,8 +157,11 @@ Ask these questions before starting any experiment:
 | Gate folding locally (nf=3,5) | Folded circuits are 3-5× heavier to simulate | Only viable on real hardware via Runtime ZNE options |
 | MPS chi is NOT the bottleneck for 1D HVA | V7 3A/3B: chi=64=chi=256 (identical) | Use chi=64 for speed |
 | Transfer learning N→N' fails | V7 TL: baseline wins by 7%, different θ landscapes | Don't pre-train across system sizes |
-| p=1 valid regime: N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 | Exp 6A/6B/6D (3 seeds) | Boundary shifts +0.25 to +0.40 vs p=2 |
+| p=1 valid regime (chain_1d): N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 | Exp 6A/6B/6D + Verification R1 | Boundary shifts +0.25 to +0.40 vs p=2 |
+| p=1 valid regime (ladder): N=6 h≥2.0, N=10 h≥3.0 (safe: h≥3.25) | Verification R1 (2026-05-30) | +1.0 shift vs p=2 at N=10 |
+| p=1 valid regime (triangular): N=6 h≥4.0, N=10 h≥3.5 (safe: h≥4.25) | Verification R1 (2026-05-30) | Largest shift at N=6 |
 | p=1 seed-independent only at N≤10 | Exp 6A: identical across seeds; 6B: seed 44 fails at N=20 | N=20 needs better init (analytical guess) |
+| p=1 frustrated topologies: ~33% chain break rate per seed | Verification R1 (2026-05-30) | Seed 43 → ladder breaks, seed 44 → triangular breaks |
 | p=1 θ_x constant (±3π/8) at N=20 | Exp 6B: same |θ_x| across all h and seeds | Only θ_zz varies; Z₂ sign symmetry |
 | p=1 MPNN needs sign canonicalization | Exp 6B: seeds find ±θ → inconsistent targets | NOT needed — C3 proved warm-start resolves this with 3 restarts |
 | p=1 N=20 needs >6 training points | Exp 6B: only h=3.0 passes deployment | Use 15-20 pts in [2.25, 4.0] |

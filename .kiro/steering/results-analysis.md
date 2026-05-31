@@ -44,7 +44,14 @@ results/
 │   ├── variants_N6_ladder/            # N=6 ladder
 │   ├── variants_N6_triangular/        # N=6 triangular
 │   ├── variants_N10_ladder/           # N=10 ladder
-│   └── variants_N10_triangular/       # N=10 triangular
+│   ├── variants_N10_triangular/       # N=10 triangular
+│   ├── p1_variants_N10/              # p=1 multi-topology (R1)
+│   ├── p1_variants_N10_r2/           # p=1 corrected h_test (R2)
+│   ├── p1_variants_N16_r2/           # p=1 N=16 scaling
+│   ├── p1_variants_N24_r2/           # p=1 N=24 scaling
+│   ├── verification_r1/              # Systematic verification (2026-05-30)
+│   ├── analysis_p1_zne/              # p=1 ZNE validation (9 runs)
+│   └── variants_N10_multi/           # Multi-topology batch runs
 │       └── <variant_name>/
 │           ├── pipeline_run_*.json    # Noiseless 4-phase result
 │           ├── noisy_*.json           # ZNE result
@@ -103,6 +110,7 @@ Primary question: "Was the hypothesis confirmed or disproved?"
 # Coverage scan — what data exists, what's missing
 python analysis/scan_coverage.py
 python analysis/scan_coverage.py --discover --extended
+python analysis/scan_coverage.py --topology ladder --p 1 --n-qubits 10
 
 # Failure diagnosis — automated root cause analysis
 python analysis/diagnose.py --all
@@ -110,12 +118,21 @@ python analysis/diagnose.py results/thesis/p1_variants_N10_r2 --severity fail
 
 # Quick overview of all results (digest)
 python scripts/digest/run_digest.py
+python scripts/digest/run_digest.py --kind noiseless --p-layers 1
 
 # Compare topologies
 python scripts/digest/run_digest.py --kind noiseless --group-by topology
 
+# Verification plan — systematic claim validation
+python scripts/experiment_runners/run_verification_plan.py --list
+python scripts/experiment_runners/run_verification_plan.py --noiseless-only  # Tier 1
+python scripts/experiment_runners/verify_results.py                          # Analyze results
+
 # Existing compare tool (experiment verdicts)
 python scripts/compare.py --all
+
+# Export coverage data
+python analysis/scan_coverage.py --discover --json coverage.json --csv coverage.csv --markdown coverage.md
 ```
 
 ## Decision Flowchart

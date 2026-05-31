@@ -4,10 +4,10 @@
 
 | File | Last Updated | Trigger |
 |------|-------------|---------|
-| changelog.md | 2026-05-27 | Framework robustness audit: topology support, fidelity fallback, experiment refactoring |
-| optimization-hardware.md | 2026-05-18 | Added V7 SPSA optimal config, warm-start rule, optimizer evidence table |
-| poc-results.md | 2026-05-18 | Added "Phase 3 fully solved" conclusion, ZNE mechanistic detail, confidence tags |
+| changelog.md | 2026-05-30 | Verification R1 results: p=1 valid regime corrected, new tools documented |
+| poc-results.md | 2026-05-30 | Added p=1 valid regime per topology (corrected ladder N=10 → h≥3.0, triangular N=6 → h≥4.0) |
 | project-guide.md | 2026-05-14 | Restructuring: added pipeline_core.py, experimental/, updated repo map |
+| optimization-hardware.md | 2026-05-18 | Added V7 SPSA optimal config, warm-start rule, optimizer evidence table |
 | validation-targets.md | 2026-05-14 | NEW: split from project-status.md (historical data + tables) |
 | literature-synthesis.md | 2026-05-08 | Added Slavin 2025, updated Section 9 (V6.1 lessons) |
 | error-patterns.md | 2026-05-04 | Added shot noise dominance pattern |
