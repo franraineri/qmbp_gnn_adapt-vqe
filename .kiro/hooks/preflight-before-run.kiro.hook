@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Preflight Before Script Run",
+  "description": "Before executing any Python script in scripts/experiment_runners/ or analysis/, run preflight validation to catch data leakage, regime violations, and configuration errors. Only applies to variant runner scripts that define build_noiseless_variants or VARIANTS.",
+  "version": "1",
+  "when": {
+    "type": "preToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Before executing this command, check if it runs a Python script from scripts/experiment_runners/ or analysis/ that defines pipeline variants (look for build_noiseless_variants, build_noisy_variants, build_extended_variants, or VARIANTS in the script). If it does, first run preflight validation: `.venv/bin/python scripts/preflight.py --from-script <path_to_script>`. If preflight reports ERRORS (exit code 1), do NOT proceed with the original command — report the errors to the user and suggest fixes. If preflight passes (exit code 0, possibly with warnings), proceed with the original command. If the command is NOT running a variant/experiment script (e.g., it's running pytest, ruff, a simple utility, or a script without variant definitions), skip preflight and proceed normally."
+  }
+}

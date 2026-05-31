@@ -83,6 +83,14 @@ freeze:  ## Pin dependency versions to requirements.lock
 	pip freeze > requirements.lock
 	@echo "✅ Frozen to requirements.lock"
 
+# ── Preflight ─────────────────────────────────────────────────
+
+preflight:  ## Run preflight checks on a variant script. Use SCRIPT=path/to/script.py
+	$(PYTHON) scripts/preflight.py --from-script $(SCRIPT)
+
+preflight-strict:  ## Preflight with strict mode (warnings = errors). Use SCRIPT=path/to/script.py
+	$(PYTHON) scripts/preflight.py --from-script $(SCRIPT) --strict
+
 # ── Full validation ──────────────────────────────────────────
 
 check-full: lint test smoke-test  ## Run lint + tests + smoke test

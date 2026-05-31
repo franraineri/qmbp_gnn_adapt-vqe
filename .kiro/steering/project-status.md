@@ -65,7 +65,7 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 3. Then **N=10, h=1.5** with full mitigation stack (DD + twirling + TREX + ZNE via EstimatorV2 options).
 4. Use **SPSA (a=0.1, c=0.05, A=10)** for hardware VQE refinement — validated as 3× better than COBYLA under noise (V7 experiment 4C).
 5. **Random baseline comparison now default** — every Phase 4 run compares warm-start vs cold-start (gain metric). Use `--no-baseline` to skip.
-6. **Heisenberg model extension** — validate framework is model-agnostic (in progress).
+6. **Heisenberg model extension** — deferred to future work (E4 confirmed HVA is TFIM-specific; extending requires new ansatz design).
 
 ## Critical Findings (2026-05-14/15/18)
 Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completely fails at N=10** (R²<0.05, negative gain). This is predicted by Tsubouchi et al. (2023): mitigation cost grows exp(depth × qubits).
@@ -116,6 +116,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `src/qmbp_simulation/framework/logging.py` — StructuredLogger + ProgressReporter
 - `src/qmbp_simulation/framework/result_store.py` — result querying, comparison, CATEGORY_MAP
 - `src/qmbp_simulation/framework/variant_runner.py` — shared variant runner (PipelineVariant, RunResult, VariantRunner, run_variant_script)
+- `src/qmbp_simulation/framework/preflight.py` — pre-flight validation (PreflightChecker, VariantSpec, valid regime dicts)
 - `src/qmbp_simulation/pipeline/runner.py` — PipelineRunner + run_exact_diag_sweep helper
 - `experiments/` — categorized experiment scripts (optimization, scaling, landscape, predictor, hardware, generalization)
 - `scripts/experiment_runners/run_experiment.py` — unified CLI for running experiments by ID (in experiment_run_helpers_CHECK/)
@@ -124,9 +125,13 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `scripts/experiment_runners/run_p1_pipeline_variants.py` — p=1 multi-topology variants (R1)
 - `scripts/experiment_runners/run_p1_pipeline_variants_r2.py` — p=1 corrected + complementary (R2)
 - `scripts/compare.py` — cross-experiment result comparison (uses ResultStore)
+- `scripts/preflight.py` — pre-flight validation CLI (validates variant configs before execution)
 - `scripts/benchmark.py` — performance benchmarking (uses BenchmarkSuite)
-- `analysis/scan_coverage.py` — coverage scanner (inventario + gap analysis)
+- `analysis/scan_coverage.py` — coverage scanner (inventario + gap analysis + extended analytics)
 - `analysis/diagnose.py` — automated failure root cause analysis
+- `scripts/digest/` — result digest tool (exploration, stats, outliers, comparison)
+- `scripts/experiment_runners/run_verification_plan.py` — systematic verification of thesis claims (3 tiers)
+- `scripts/experiment_runners/verify_results.py` — post-verification analysis (automated conclusions)
 
 ## Dead Code (removed 2026-05-22, deleted 2026-05-25/26/27)
 - `pipeline_core.py` — documented but zero imports anywhere (DELETED)
@@ -140,6 +145,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `scripts/run_v2_nonlinear.py` — exploratory non-linear ZNE (DELETED 2026-05-26, results in binnacles)
 - `scripts/run_v3_per_obs_zne.py` — exploratory per-obs ZNE (DELETED 2026-05-26, results in binnacles)
 - `scripts/run_zne_robustness.py` — ZNE robustness validation (DELETED 2026-05-26, results in binnacles)
+- `analysis/verify_p1_gaps.py` — DEPRECATED 2026-05-30, superseded by `scan_coverage.py --p 1 --extended` + `verify_results.py`
 
 ## Optimal Config (quick reference)
 - **N=6**: GINConv h=64, L=3, 6000ep, lr=1e-3, 5 VQE restarts, fid≥0.93
@@ -161,7 +167,8 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **Valid regime scales with N:** N=6 h≥1.25, N=10 h≥1.5, N=20 h≥2.0 (HVA expressibility limit).
 
 ## p=1 Scaling Results (2026-05-21)
-- **p=1 valid regime**: N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 (shift of +0.25 to +0.40 vs p=2)
+- **p=1 valid regime**: N=6 h≥1.6 (chain), h≥2.0 (ladder), h≥4.0 (triangular). N=10 h≥1.9 (chain), h≥3.0 (ladder), h≥3.5 (triangular). N=20 h≥2.25 (chain).
+- **Corrected boundaries (2026-05-30)**: ladder N=10 h≥3.0 (was 2.0, verified 2/3 pass at h=3.0, 3/3 at h=3.25). Triangular N=6 h≥4.0 (was 3.0, failure at h=4.0 but 2/3 pass at h=4.5).
 - **Shift decreases with N**: +0.35 at N=6, +0.40 at N=10, +0.25 at N=20
 - **Seed-independent at N≤10**: All 3 seeds give identical θ_opt (single global minimum)
 - **N=20 has Z₂ symmetry issue**: Seeds find equivalent minima with different sign conventions
@@ -170,7 +177,9 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - **MPNN deployment at N=20**: Only h=3.0 passes (6 training points too few; sign canonicalization needed)
 - **Hardware candidate**: p=1 N=20 on IBM Torino (VQE validated, same CX budget as p=2 N=10)
 - **p=1 ZNE CONFIRMED (2026-05-28)**: 9 runs (3 topologies × 3 seeds), mean gain=+49%, topology-independent
-- **p=1 pipeline CONFIRMED (2026-05-30)**: 9/9 PASS at N=10 (chain_1d 3/3, ladder 3/3, triangular 3/3) with correct h_test
+- **p=1 pipeline CONFIRMED (2026-05-30)**: N=10 all 3 topologies pass (chain 3/3, ladder 3/3 at h≥3.25, triangular 3/3)
+- **p=1 N=6 verified (2026-05-30)**: ladder 2/3 pass (seed 43 chain break), triangular 2/3 pass (seed 44 chain break)
+- **Seed-specific chain breaks**: Seed 43 problematic for ladder, seed 44 for triangular (~33% failure rate in frustrated topologies)
 - **p=1 vs p=2 direct comparison (COMP-4)**: p=1 more consistent (std=0.002 vs 0.47 for p=2)
 - **N=16 p=1 scaling limit**: Phase 3 does not complete (fidelity filter rejects data). Needs MPS.
 - **Failure diagnosis (2026-05-30)**: 45% CHAIN_BREAK, 25% MPNN_OVERFIT, 14% BOUNDARY_EFFECT. 70% detectable pre-Phase 4.
@@ -244,6 +253,49 @@ python scripts/smoke_test.py
 # Run tests
 make test          # Fast tests (~12s)
 make test-full     # All tests including slow (~60s)
+```
+
+## How To: Validate Before Running (Preflight)
+
+**Always run preflight before executing a variant runner script for the first time or after editing it.**
+A Kiro hook (`preflight-before-run`) enforces this automatically.
+
+```bash
+# Validate a variant runner script
+python scripts/preflight.py --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+
+# Strict mode (warnings = errors, for CI)
+python scripts/preflight.py --from-script my_script.py --strict
+
+# Via Makefile
+make preflight SCRIPT=scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+
+# Validate from JSON
+python scripts/preflight.py --from-json variants.json
+```
+
+**What it checks (9 validations):**
+1. Pipeline script exists on disk
+2. Minimum config present (h_values, h_test, topology, n_qubits)
+3. h_test NOT in training set (data leakage detection)
+4. h_test within valid regime for topology/N/p
+5. Training h_values within valid regime
+6. h_test is interpolation (not extrapolation)
+7. h_values in descending order (warm-start requirement)
+8. No duplicate variant IDs
+9. Output directories are fresh (no collision)
+
+**Programmatic usage:**
+```python
+from qmbp_simulation.framework import PreflightChecker, VariantSpec
+
+specs = [VariantSpec(id="V1", topology="chain_1d", n_qubits=10, p=1,
+                     h_values=[4.0, 3.5, 3.0], h_test=[2.75],
+                     output_dir="results/v1")]
+checker = PreflightChecker(specs)
+report = checker.run_all()
+if report.has_errors:
+    sys.exit(1)
 ```
 
 ## How To: Create a New Script

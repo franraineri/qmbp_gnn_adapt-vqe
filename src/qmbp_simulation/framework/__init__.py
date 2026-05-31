@@ -33,6 +33,18 @@ from qmbp_simulation.framework.result_io import (
     save_pipeline_result,
 )
 from qmbp_simulation.framework.result_store import CATEGORY_MAP, ResultStore
+from qmbp_simulation.framework.preflight import (
+    P1_VALID_REGIME,
+    P2_VALID_REGIME,
+    PreflightChecker,
+    PreflightReport,
+    VariantSpec,
+    get_regime_threshold,
+    get_valid_regime,
+    specs_from_json,
+    specs_from_pipeline_variants,
+    specs_from_variant_runner,
+)
 from qmbp_simulation.framework.variant_runner import (
     PipelineVariant,
     RunResult,
@@ -85,4 +97,15 @@ __all__ = [
     "RunResult",
     "VariantRunner",
     "run_variant_script",
+    # Preflight
+    "PreflightChecker",
+    "PreflightReport",
+    "VariantSpec",
+    "P1_VALID_REGIME",
+    "P2_VALID_REGIME",
+    "get_valid_regime",
+    "get_regime_threshold",
+    "specs_from_pipeline_variants",
+    "specs_from_json",
+    "specs_from_variant_runner",
 ]

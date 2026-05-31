@@ -347,6 +347,7 @@ data = load_phase12_dataset("phase12_N6_p2.npz")
 
 | I need to... | Use this | Example |
 |---|---|---|
+| Validate a script before running | `scripts/preflight.py` | `--from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py` |
 | Run a registered experiment | `scripts/run_experiment.py --exp <ID>` | `--exp B4 --verbose` |
 | Run the full 4-phase pipeline | `scripts/run_pipeline.py` | `--n-qubits 6 --p 2` |
 | Compare experiment results | `scripts/compare.py --all` | `--category optimization` |
@@ -370,6 +371,7 @@ Always follow this pattern:
 4. **Use `ProgressReporter`** for console output (not raw `print()`)
 5. **Use `build_result_envelope()` + `save_experiment_result()`** for saving
 6. **Never use `sys.path.insert()`** — the package is installed
+7. **Run preflight before first execution** — `python scripts/preflight.py --from-script <your_script>`
 
 ## When Writing a New Experiment
 
@@ -465,6 +467,73 @@ slog.start_timer("vqe_point")
 slog.stop_timer("vqe_point", event_type="vqe_complete", data={"energy": -5.2})
 slog.save(Path("results/experiments/exp_a3/log.json"))
 ```
+
+### `framework/preflight.py`
+```python
+from qmbp_simulation.framework import (
+    PreflightChecker,          # Main checker class
+    PreflightReport,           # Aggregated results
+    VariantSpec,               # Minimal variant specification
+    P1_VALID_REGIME,           # dict[(topo, N), threshold] for p=1
+    P2_VALID_REGIME,           # dict[(topo, N), threshold] for p=2
+    get_valid_regime,          # (p) → regime dict
+    get_regime_threshold,      # (topo, N, p) → float threshold
+    specs_from_pipeline_variants,  # list[PipelineVariant] → list[VariantSpec]
+    specs_from_json,           # Path → list[VariantSpec]
+    specs_from_variant_runner, # (build_fn, build_fn, build_fn, N) → list[VariantSpec]
+)
+
+# Programmatic usage
+specs = [VariantSpec(id="V1", topology="chain_1d", n_qubits=10, p=1,
+                     h_values=[4.0, 3.5, 3.0], h_test=[2.75],
+                     output_dir="results/v1")]
+checker = PreflightChecker(specs, project_root=Path("."))
+report = checker.run_all(verbose=True)
+# report.has_errors → bool
+# report.errors → list[Issue]
+# report.warnings → list[Issue]
+
+# From variant runner builders
+specs = specs_from_variant_runner(
+    build_noiseless_variants, build_noisy_variants,
+    build_extended_variants, n_qubits=10,
+)
+checker = PreflightChecker(specs, strict=True)  # warnings → errors
+report = checker.run_all()
+```
+
+**CLI usage:**
+```bash
+# Validate before running
+python scripts/preflight.py --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+
+# Strict mode (CI — warnings become errors)
+python scripts/preflight.py --from-script my_script.py --strict
+
+# Quiet mode (summary only)
+python scripts/preflight.py --from-script my_script.py --quiet
+
+# From JSON
+python scripts/preflight.py --from-json variants.json
+
+# Via Makefile
+make preflight SCRIPT=scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+```
+
+**Checks performed (9 total):**
+1. `script_exists` — Pipeline script referenced by variants exists
+2. `minimum_config` — h_values, h_test, topology, n_qubits are defined
+3. `h_test_unseen` — h_test NOT in training set (data leakage)
+4. `h_test_valid_regime` — h_test within valid regime for topology/N/p
+5. `h_values_valid_regime` — Training points within valid regime
+6. `interpolation` — h_test within training range (not extrapolation)
+7. `descending_sweep` — h_values in descending order (warm-start)
+8. `duplicate_ids` — No duplicate variant IDs
+9. `output_fresh` — Output directories don't already have results
+
+**Hook integration:** The `preflight-before-run` hook automatically triggers
+preflight validation before any shell command that executes a variant runner
+script. If errors are found, execution is blocked.
 
 ### `pipeline/runner.py`
 ```python
