@@ -136,6 +136,83 @@ def generate_kagome(n: int) -> list[tuple[int, int]]:
     return edges
 
 
+def generate_heavy_hex(n: int) -> list[tuple[int, int]]:
+    """Heavy-hex lattice — native topology of IBM Eagle/Heron/Torino processors.
+
+    The heavy-hex lattice is a degree-3 graph where hexagons are connected by
+    "bridge" qubits. Coordination number z=2 for bridge qubits and z=3 for
+    hexagon junction vertices.
+
+    This is the native coupling map of IBM quantum processors (127-qubit Eagle,
+    133-qubit Heron/Torino). Using this topology means the HVA circuit maps
+    directly to hardware without SWAP routing overhead.
+
+    Construction: We build a linear heavy-hex chain — a backbone of qubits
+    connected linearly, with "bridge" qubits branching off at regular intervals
+    (every 2nd backbone site). This matches the 1D slice of IBM's heavy-hex
+    coupling map.
+
+    For n qubits:
+    - Backbone: sites 0, 1, 2, ..., k-1 connected linearly
+    - Bridges: sites k, k+1, ... branching off backbone at every 2nd site
+    - Result: max degree 3 (backbone sites with bridge), degree 2 (others), degree 1 (bridge tips)
+
+    Parameters
+    ----------
+    n : int
+        Number of qubits (must be >= 4).
+
+    Returns
+    -------
+    list[tuple[int, int]]
+        Edge list for the heavy-hex lattice.
+    """
+    if n < 4:
+        raise ValueError("Heavy-hex lattice requires at least 4 sites.")
+
+    edges: list[tuple[int, int]] = []
+
+    # Strategy: allocate backbone sites first, then bridge sites
+    # Bridges branch off every 2 backbone sites (at positions 1, 3, 5, ...)
+    # Each bridge is a single qubit hanging off the backbone
+
+    # Determine how many backbone vs bridge sites we can fit
+    # For n sites: backbone_len + n_bridges = n
+    # n_bridges = backbone_len // 2 (one bridge per 2 backbone sites)
+    # So: backbone_len + backbone_len//2 = n → backbone_len ≈ 2n/3
+
+    backbone_len = max(3, (2 * n + 2) // 3)  # At least 3 backbone sites
+    n_bridges = n - backbone_len
+
+    # Clamp: can't have more bridges than available branch points
+    max_bridges = (backbone_len - 1) // 2
+    if n_bridges > max_bridges:
+        # Redistribute: extend backbone
+        backbone_len = n - max_bridges + (n - max_bridges - 1) // 2
+        backbone_len = min(backbone_len, n)
+        n_bridges = n - backbone_len
+
+    # Ensure we use exactly n sites
+    if backbone_len + n_bridges > n:
+        n_bridges = n - backbone_len
+    if backbone_len + n_bridges < n:
+        backbone_len = n - n_bridges
+
+    # Backbone edges (linear chain)
+    for i in range(backbone_len - 1):
+        edges.append((i, i + 1))
+
+    # Bridge edges: branch off backbone at odd-indexed sites (1, 3, 5, ...)
+    bridge_idx = backbone_len  # First bridge site index
+    for i in range(1, backbone_len, 2):
+        if bridge_idx >= n:
+            break
+        edges.append((i, bridge_idx))
+        bridge_idx += 1
+
+    return edges
+
+
 def compute_coordination_numbers(n: int, edges: list[tuple[int, int]]) -> np.ndarray:
     """Compute per-site degree from edge list."""
     coord = np.zeros(n, dtype=int)
@@ -169,6 +246,8 @@ def make_lattice(
         edges = generate_triangular(n_qubits)
     elif topology == "kagome":
         edges = generate_kagome(n_qubits)
+    elif topology == "heavy_hex":
+        edges = generate_heavy_hex(n_qubits)
     else:
         raise ValueError(f"Unknown topology '{topology}'. Supported: {SUPPORTED_TOPOLOGIES}")
     coord = compute_coordination_numbers(n_qubits, edges)

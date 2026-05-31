@@ -74,7 +74,9 @@ quantum hardware to classify quantum phases via local observable measurements.
 | `make test-full` | All tests including slow | ~60s |
 | `make lint` | Ruff linter | ~1s |
 | `make check-full` | lint + test + smoke-test | ~15s |
+| `make preflight SCRIPT=<path>` | Validate variant script before running | ~3s |
 | `python scripts/smoke_test.py` | Package smoke test (N=4, p=1) | ~30s |
+| `python scripts/preflight.py --from-script <path>` | Preflight validation | ~3s |
 | `python scripts/run_experiment.py --list` | List all experiments | instant |
 | `python scripts/run_experiment.py --exp A3` | Run experiment A3 | varies |
 | `python scripts/run_pipeline.py --n-qubits 6 --p 2` | Full pipeline | ~5min |
@@ -155,6 +157,29 @@ Eliminates argparse boilerplate across scripts. Provides:
 - `PipelineRunner` — Full Phase 1→2→3→4 orchestration with diagnostics
 - `run_exact_diag_sweep(h_values, n_qubits, ...)` — Standalone Phase 1 helper
 
+### `framework/preflight.py` — Pre-flight Validation
+
+Validates variant runner configurations before execution. Use **always** before running a variant script for the first time or after editing it.
+
+- `PreflightChecker(specs, project_root, strict)` — Main checker class
+  - `.run_all(verbose)` → `PreflightReport`
+  - `.check_h_test_unseen()` — Data leakage detection
+  - `.check_h_test_valid_regime()` — Regime violation detection
+  - `.check_descending_sweep()` — Warm-start order validation
+  - `.check_interpolation()` — Extrapolation risk detection
+  - `.check_output_fresh()` — Output collision detection
+- `VariantSpec` — Lightweight variant specification (decoupled from PipelineVariant)
+  - `.from_pipeline_variant(variant)` — Parse from PipelineVariant command
+  - `.from_dict(d)` — Parse from JSON dict
+- `specs_from_pipeline_variants(variants)` — Batch convert PipelineVariant → VariantSpec
+- `specs_from_variant_runner(build_fn, build_fn, build_fn, N)` — From builder functions
+- `specs_from_json(path)` — From JSON file
+- `P1_VALID_REGIME` / `P2_VALID_REGIME` — Canonical valid regime dicts
+- `get_regime_threshold(topology, n_qubits, p)` — Lookup threshold
+
+**CLI**: `python scripts/preflight.py --from-script <path> [--strict] [--quiet]`
+**Makefile**: `make preflight SCRIPT=<path>`
+
 ## Where to Find What
 
 | I need to... | Look at... |
@@ -172,6 +197,7 @@ Eliminates argparse boilerplate across scripts. Provides:
 | See experiment framework guide | `.kiro/steering/v8-experiments.md` |
 | See full experiment history | `documentation/binnacles/` |
 | Run experiments | `scripts/run_experiment.py --list` |
+| Validate a script before running | `scripts/preflight.py --from-script <path>` |
 | Validate package | `scripts/smoke_test.py` |
 | Check knowledge freshness | `.kiro/knowledge/changelog.md` |
 
@@ -195,6 +221,7 @@ Scripts are thin CLI wrappers that delegate to framework classes.
 8. Experiments inherit from `BaseExperiment` and use `ExperimentMetrics` for results.
 9. New scripts should use `framework/cli.py` for argument parsing.
 10. Result saving should use `framework/result_io.py` for consistent structure.
+11. **Always run preflight before executing variant runner scripts** — `python scripts/preflight.py --from-script <path>`.
 
 ## Current Best Configuration (from 60+ benchmark runs)
 

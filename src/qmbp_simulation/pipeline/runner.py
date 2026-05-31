@@ -22,6 +22,7 @@ from qmbp_simulation.models import (
     GroundTruthResult,
     HamiltonianBuilder,
     LatticeConfig,
+    ModelSpec,
     VQEConfig,
     VQEResult,
     make_lattice,
@@ -119,17 +120,32 @@ class PipelineRunner:
         verbose: bool = False,
         seed: int | None = None,
         collector: "DiagnosticCollector | None" = None,  # noqa: F821, UP037
+        model_spec: ModelSpec | None = None,
     ) -> None:
         self._lattice = lattice
         self._config = config
         self._backend = backend or NoiselessBackend()
         self._checkpoint_dir = checkpoint_dir
         self._seed = seed
+        self._model_spec = model_spec
 
         # Internal state
         self._ham_builder = HamiltonianBuilder()
         self._solver = ClassicalSolver()
         self._optimizer = VQEOptimizer(config=config, backend=self._backend, seed=seed)
+
+        # Log model configuration if model_spec is provided
+        if model_spec is not None:
+            logger.info(
+                "Pipeline model: %s | params_per_layer=%d | total_params(p=%d)=%d | "
+                "initial_state=%s | hamiltonian_kwargs=%s",
+                model_spec.name,
+                model_spec.params_per_layer,
+                config.p_layers if hasattr(config, "p_layers") else 2,
+                model_spec.total_params,
+                model_spec.initial_state,
+                model_spec.hamiltonian_kwargs,
+            )
 
         # Diagnostics — always active, collects metrics passively.
         # Lazy import to respect module dependency DAG (pipeline → analysis
@@ -143,6 +159,42 @@ class PipelineRunner:
                 verbose=verbose,
                 save_dir=checkpoint_dir,
             )
+
+    # ── Private helpers for model-aware dispatch ─────────────────────────
+
+    def _build_hamiltonian(self, lattice_h: LatticeConfig):
+        """Build Hamiltonian using model_spec if available, else TFIM default.
+
+        Centralizes model dispatch so Phase 1, 2, and 4 all use the same logic.
+        """
+        if self._model_spec is not None:
+            return self._model_spec.build_hamiltonian(
+                lattice_h, **self._model_spec.hamiltonian_kwargs
+            )
+        return self._ham_builder.build(lattice_h)
+
+    def _create_circuit(self):
+        """Create HVA circuit using model_spec if available, else TFIM default.
+
+        Returns (circuit, theta) tuple. Centralizes circuit dispatch.
+        """
+        if self._model_spec is not None:
+            return self._model_spec.create_circuit(
+                self._lattice.n_qubits,
+                self._config.p_layers,
+                self._lattice,
+                **self._model_spec.circuit_kwargs,
+            )
+        from qmbp_simulation.circuits import HVACircuitBuilder
+
+        hva_builder = HVACircuitBuilder()
+        return hva_builder.create(self._lattice.n_qubits, self._config.p_layers, self._lattice)
+
+    def _n_variational_params(self) -> int:
+        """Number of variational parameters for the active model and depth."""
+        if self._model_spec is not None:
+            return self._model_spec.total_params_for_p(self._config.p_layers)
+        return self._config.p_layers * 2
 
     def run_phase1(self, h_values: np.ndarray) -> list[GroundTruthResult]:
         """Phase 1: Compute classical ground truth for each h-value.
@@ -169,7 +221,7 @@ class PipelineRunner:
                 h=float(h),
                 periodic=self._lattice.periodic,
             )
-            hamiltonian = self._ham_builder.build(lattice_h)
+            hamiltonian = self._build_hamiltonian(lattice_h)
             result = self._solver.solve(hamiltonian, lattice_h)
             results.append(result)
 
@@ -204,14 +256,10 @@ class PipelineRunner:
         list[VQEResult]
             VQE results for each h-value.
         """
-        from qmbp_simulation.circuits import HVACircuitBuilder
 
         logger.info(f"Phase 2: VQE sweep over {len(h_values)} h-values")
 
-        hva_builder = HVACircuitBuilder()
-        circuit, theta = hva_builder.create(
-            self._lattice.n_qubits, self._config.p_layers, self._lattice
-        )
+        circuit, theta = self._create_circuit()
 
         results = self._optimizer.descending_sweep(
             h_values=h_values,
@@ -281,10 +329,28 @@ class PipelineRunner:
 
         # Attempt dataset construction with configured threshold.
         # If too few points pass, retry with progressively lower thresholds.
-        # Hard floor: never train on data with fidelity < 0.80 (results would be meaningless).
-        fidelity_threshold = cfg.get("fidelity_threshold", 0.93)
-        FIDELITY_HARD_FLOOR = 0.80
-        fallback_thresholds = [fidelity_threshold, 0.90, 0.85, FIDELITY_HARD_FLOOR]  # noqa
+        # Use model-specific threshold if available (e.g., Heisenberg uses 0.60).
+        if self._model_spec is not None:
+            default_threshold = self._model_spec.fidelity_threshold
+            hard_floor = min(0.80, default_threshold)
+        else:
+            default_threshold = 0.93
+            hard_floor = 0.80
+
+        fidelity_threshold = cfg.get("fidelity_threshold", default_threshold)
+        FIDELITY_HARD_FLOOR = hard_floor  # noqa
+        # Build fallback sequence from configured threshold down to hard floor
+        fallback_thresholds = sorted(
+            {fidelity_threshold, 0.90, 0.85, 0.80, 0.70, 0.60, FIDELITY_HARD_FLOOR}
+            & {
+                t
+                for t in [fidelity_threshold, 0.90, 0.85, 0.80, 0.70, 0.60, FIDELITY_HARD_FLOOR]
+                if t <= fidelity_threshold and t >= FIDELITY_HARD_FLOOR
+            },
+            reverse=True,
+        )
+        if not fallback_thresholds:
+            fallback_thresholds = [fidelity_threshold]
         dataset = None
 
         for threshold in fallback_thresholds:
@@ -324,10 +390,26 @@ class PipelineRunner:
                     f"(fewer than 3 points pass). Trying {fallback_thresholds[next_idx]:.2f}..."
                 )
 
-        n_params = self._config.p_layers * 2
+        # Determine output_dim based on model spec
+        n_params = self._n_variational_params()
+
+        # Validate output_dim if explicitly provided in config
+        cfg_output_dim = cfg.get("output_dim")
+        if cfg_output_dim is not None and cfg_output_dim != n_params:
+            raise ValueError(
+                f"output_dim mismatch: config specifies {cfg_output_dim} but "
+                f"model '{self._model_spec.name if self._model_spec else 'tfim'}' "
+                f"with p={self._config.p_layers} requires {n_params}."
+            )
+
+        # Use model-specific hidden_dim if not explicitly overridden
+        default_hidden_dim = 64
+        if self._model_spec is not None:
+            default_hidden_dim = self._model_spec.mpnn_hidden_dim
+
         model = MPNNPredictor(
             node_features=cfg.get("node_features", 2),
-            hidden_dim=cfg.get("hidden_dim", 64),
+            hidden_dim=cfg.get("hidden_dim", default_hidden_dim),
             n_layers=cfg.get("n_layers", 3),
             output_dim=n_params,
         )
@@ -402,8 +484,6 @@ class PipelineRunner:
         """
         import torch
 
-        from qmbp_simulation.circuits import HVACircuitBuilder
-
         logger.info(f"Phase 4: Deploying at h_test={h_test}")
         t0 = time.time()
 
@@ -415,7 +495,7 @@ class PipelineRunner:
             h=h_test,
             periodic=self._lattice.periodic,
         )
-        hamiltonian = self._ham_builder.build(lattice_test)
+        hamiltonian = self._build_hamiltonian(lattice_test)
         exact = self._solver.solve(hamiltonian, lattice_test)
 
         # Predict parameters with MPNN
@@ -438,11 +518,8 @@ class PipelineRunner:
         with torch.no_grad():
             theta_pred = model(graph).numpy().flatten()
 
-        # Evaluate predicted circuit
-        hva_builder = HVACircuitBuilder()
-        circuit, _ = hva_builder.create(
-            self._lattice.n_qubits, self._config.p_layers, self._lattice
-        )
+        # Evaluate predicted circuit — use model-aware dispatch
+        circuit, _ = self._create_circuit()
         predicted_energy = self._backend.evaluate(circuit, hamiltonian, theta_pred)
 
         # Compute observables from the predicted state (noiseless)

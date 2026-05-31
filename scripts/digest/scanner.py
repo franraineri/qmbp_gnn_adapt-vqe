@@ -33,7 +33,7 @@ from scripts.digest.models import (
 logger = logging.getLogger(__name__)
 
 # Topologies we recognize from folder names
-_KNOWN_TOPOLOGIES = ("chain_1d", "ladder", "triangular", "kagome", "linnear")
+_KNOWN_TOPOLOGIES = ("chain_1d", "heavy_hex", "ladder", "triangular", "kagome", "linnear")
 # "linnear" is a typo in the actual folder name (variants_N6_N10_1D_linnear)
 
 # Folders to skip during recursive scanning

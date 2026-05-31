@@ -25,10 +25,13 @@ class SystemConfig:
     g_longitudinal: float = 0.0
     boundary: str = "open"
     model: str = "tfim"
+    delta: float = 1.0  # Anisotropy parameter for XXZ (only relevant if model != "tfim")
 
     @property
     def n_params(self) -> int:
-        """Number of variational parameters (2 per HVA layer)."""
+        """Number of variational parameters per HVA layer × layers."""
+        if self.model in ("heisenberg", "xy"):
+            return 4 * self.p_layers
         return 2 * self.p_layers
 
 

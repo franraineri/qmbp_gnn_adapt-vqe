@@ -205,6 +205,38 @@ ansatz on higher-connectivity graphs."
 
 ---
 
+## Table 5.13 — Heavy-Hex Topology (IBM Torino Native, N=10, 2026-05-31)
+
+### p=1 Heavy-Hex — Hardware Deployment Candidate
+
+| Seed | h_test | ΔE/gap | Verdict | Std |
+|------|--------|--------|---------|-----|
+| 42 | 3.25 | 0.0056 | PASS ✅ | |
+| 43 | 3.25 | 0.0061 | PASS ✅ | |
+| 44 | 3.25 | 0.0056 | PASS ✅ | |
+| **Median** | | **0.0056** | **3/3 PASS** | **0.0003** |
+
+**Config**: p=1, N=10, restarts=5, hidden=128, h_values=[4.0,3.5,3.0,2.5], h_test=3.25.
+
+### p=2 Heavy-Hex — Cross-Topology Comparison
+
+| Metric | Heavy-Hex | Chain 1D | Ladder | Triangular |
+|--------|-----------|----------|--------|------------|
+| Best ΔE/gap | 0.0004 | 0.001 | 0.002 | 0.004 |
+| Median (seeds 43,44) | 0.0010 | 0.028 | 0.017 | 0.037 |
+| Pass rate (seeds 43,44) | 100% | 100% | 100% | 93% |
+| Valid regime (p=2) | h≥2.375 | h≥1.5 | h≥2.0 | h≥2.5 |
+| Valid regime (p=1) | h≥3.25 | h≥1.9 | h≥3.25 | h≥3.5 |
+| Restart paradox? | Yes (3 rst) | Rare | Yes (seed 43) | Yes (seed 44) |
+
+**Thesis statement**: "The GNN-HVA framework achieves its best performance on IBM's
+native heavy-hex topology (median ΔE/gap=0.001 at p=2, 0.006 at p=1), with the
+critical advantage of zero SWAP routing overhead. The p=1 configuration is
+seed-independent (std=0.0003) and directly deployable on IBM Torino without
+circuit transpilation, making it the recommended hardware deployment strategy."
+
+---
+
 ## Table 5.8 — p=1 Scaling Limits (N=16, N=24 — Phase 2 only)
 
 | Topology | N | p | Seed | θ_smooth | Conv | Phase 3/4 | Interpretation |

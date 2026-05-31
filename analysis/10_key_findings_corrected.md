@@ -242,6 +242,33 @@ y reportar la mediana.
 
 ---
 
+## Hallazgo #10: Heavy-hex topology — IBM hardware native (2026-05-31)
+
+| Config | Seeds | Median ΔE/gap | Pass Rate | Seed-independent? |
+|--------|-------|---------------|-----------|-------------------|
+| p=2, N=10 | 43, 44 | 0.001 | 2/3 (seed 42 fails) | ⚠️ |
+| **p=1, N=10** | **42, 43, 44** | **0.006** | **3/3 (100%)** | **✅ (std=0.0003)** |
+| p=1, N=16 | 42 | — | Phase 3 fails | Same scaling limit |
+
+**Hallazgos clave**:
+1. **p=1 heavy-hex es la mejor configuración para hardware**: 3/3 pass, std=0.0003,
+   zero SWAP overhead en IBM Torino.
+2. **Mejor performance absoluta**: median ΔE/gap=0.001 (p=2) y 0.006 (p=1) — mejor
+   que chain_1d (0.028), ladder (0.017), y triangular (0.037).
+3. **Restart paradox presente**: 3 restarts → chain break (ΔE/gap=6.45). 1 y 5 funcionan.
+4. **Valid regime p=2**: h≥2.375 (más amplio que triangular h≥2.5, similar a ladder h≥2.0).
+5. **hidden=64 insuficiente**: Necesita h=128 (consistente con N=10 en todas las topologías).
+6. **N=16 mismo límite**: Phase 3 no completa — confirma que el scaling law es topology-independent.
+
+**Implicación para la tesis**: Heavy-hex demuestra que el framework se adapta a la
+topología nativa del hardware real. La combinación p=1 + heavy-hex + ZNE es la
+estrategia óptima para deployment en IBM Torino: zero SWAP, seed-independent,
+y compatible con error mitigation (18 CX gates, at ZNE threshold).
+
+**Corrección al P1_VALID_REGIME**: `("heavy_hex", 10): 2.5` (estimado, h_test=3.25 pasa 3/3).
+
+---
+
 ## Next Steps
 
 ### Inmediato (implementar en el pipeline):

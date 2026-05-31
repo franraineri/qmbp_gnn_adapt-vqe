@@ -17,6 +17,7 @@ from __future__ import annotations
 
 SUPPORTED_TOPOLOGIES: tuple[str, ...] = (
     "chain_1d",
+    "heavy_hex",
     "kagome",
     "triangular",
     "ladder",

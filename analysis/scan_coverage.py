@@ -91,6 +91,9 @@ _TOPO_HINTS: dict[str, str] = {
     "ladder": "ladder",
     "triangular": "triangular",
     "tri": "triangular",
+    "heavy_hex": "heavy_hex",
+    "heavy-hex": "heavy_hex",
+    "hex": "heavy_hex",
     "1d": "chain_1d",
     "1D": "chain_1d",
     "linnear": "chain_1d",
@@ -129,6 +132,8 @@ P1_VALID_REGIME: dict[tuple[str, int], float] = {
     ("chain_1d", 6): 1.6,
     ("chain_1d", 10): 1.9,
     ("chain_1d", 20): 2.25,
+    ("heavy_hex", 6): 2.0,
+    ("heavy_hex", 10): 2.5,
     ("ladder", 6): 2.0,
     ("ladder", 10): 3.0,  # Corrected: was 2.0, verification shows failures at 2.75
     ("triangular", 6): 4.0,  # Corrected: was 3.0, failure at h=4.0 but pass at h=4.5
@@ -140,6 +145,8 @@ P2_VALID_REGIME: dict[tuple[str, int], float] = {
     ("chain_1d", 6): 1.25,
     ("chain_1d", 10): 1.5,
     ("chain_1d", 20): 2.0,
+    ("heavy_hex", 6): 1.5,
+    ("heavy_hex", 10): 1.5,
     ("ladder", 6): 1.5,
     ("ladder", 10): 2.0,
     ("triangular", 6): 2.0,
@@ -1385,7 +1392,7 @@ Examples:
         "--topology",
         type=str,
         default=None,
-        choices=["chain_1d", "ladder", "triangular", "kagome"],
+        choices=["chain_1d", "heavy_hex", "ladder", "triangular", "kagome"],
         help="Filter results to a specific topology",
     )
     filt_group.add_argument(
