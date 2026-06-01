@@ -199,3 +199,34 @@ can't express the ground state produces bad VQE data that poisons MPNN training.
 The valid training regime shifts with N: N=6→h≥0.8, N=10→h≥0.8, N=20→h≥1.5.
 
 **Optimal N=20 config:** h∈[1.5,2.0] (11 pts), 7 restarts, σ=0.3, maxiter=500, MPNN h=128.
+
+
+---
+
+## Heisenberg XXZ — Definitive Negative Result [VERIFIED, 2026-06-01]
+
+**30 variants, 0 errors, 25.8 min total execution.**
+
+| Model | Δ | Topology | Max Fidelity | ΔE/gap | Status |
+|-------|---|----------|:------------:|:------:|:------:|
+| Heisenberg | 0.0–2.0 | chain_1d | 0.0000 | — | ❌ negative_fundamental |
+| Heisenberg | 1.0 | ladder | 0.0067 | — | ❌ negative_fundamental |
+| Heisenberg | 1.0 | triangular | 0.0147 | — | ❌ negative_fundamental |
+| XY | 0.0 | ladder (seed=44) | 0.3143 | — | ❌ negative_expressibility |
+| **TFIM** | **N/A** | **chain_1d** | **0.9999** | **0.28%** | **✅ full_success** |
+
+**Root cause**: VQE converges to E≈-3 (local minimum) vs E_exact≈-19 (ground state).
+The Néel initial state + HVA rotations cannot access the ground state sector.
+
+**Key findings**:
+1. Failure is Δ-independent, seed-independent (std=0), restart-independent (5-20 identical)
+2. Entanglement: S≈1.0 bit (Heisenberg) vs S≈0 (TFIM at same h) — explains the gap
+3. TFIM baseline confirms pipeline correctness (same code, same h-range → 99.99% fidelity)
+4. CX budget: 30 gates (Heisenberg p=2) → ZNE not applicable (threshold ~18)
+
+**Thesis value**: Proves HVA p≤2 is TFIM-specific. Extending to Heisenberg requires
+new ansatz design (p≥4-6 or different circuit structure).
+
+**Full details**: `documentation/binnacles/binnacle-heisenberg-extension.md` (2026-06-01 entry).
+**Thesis tables**: `documentation/analysis/09_thesis_tables.md` (Tables 5.14, 5.15).
+**Results**: `results/thesis/variants_N6_heisenberg/` (30 subdirectories + execution log).

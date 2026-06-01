@@ -365,3 +365,42 @@ Remaining work is thesis writing (Chapter 5 compilation from the thesis statemen
 > that the pipeline's failure modes are predictable and diagnosable: the early-stopping
 > rules (θ > 1.0 → warn, gen_gap > 0.01 → abort) would prevent 69% of failures
 > without losing any passing run."
+
+
+---
+
+## 9. Heisenberg XXZ Model — Definitive Negative Result (2026-06-01)
+
+### Summary
+
+30 pipeline variants executed with the model-agnostic extension (ModelSpec + PipelineRunner).
+**Result**: HVA p≤2 fundamentally cannot express Heisenberg XXZ ground states at N=6.
+
+| Metric | Value |
+|--------|-------|
+| Variants executed | 30/30 (0 errors) |
+| Total time | 25.8 min |
+| Max fidelity (Heisenberg) | 0.0000 (28/30 variants) |
+| Max fidelity (XY on ladder) | 0.314 (best non-TFIM case) |
+| TFIM baseline (same h-range) | 0.9999 fidelity, ΔE/gap=0.28% |
+| Classification | 28 negative_fundamental, 1 negative_expressibility, 1 full_success (TFIM) |
+
+### Why It Fails
+
+The VQE converges (rate=1.0) but to E≈-3 while E_exact≈-19. The Néel initial state + HVA rotations (XX+YY+ZZ+Z) cannot access the ground state quantum number sector. This is NOT:
+- A convergence issue (all runs converge)
+- A restart issue (5/10/15/20 give identical results)
+- A seed issue (std=0 across seeds)
+- A topology issue (chain_1d/ladder/triangular all fail)
+- An anisotropy issue (Δ=0.0 to 2.0 all fail)
+
+### Thesis Value
+
+Definitive negative result proving HVA is TFIM-specific. Strengthens the thesis narrative:
+the TFIM success is due to the special structure of the paramagnetic phase (near-product
+state accessible from |+⟩^N), not a general property of shallow variational circuits.
+
+### Full Details
+
+See `documentation/binnacles/binnacle-heisenberg-extension.md` (entry 2026-06-01).
+Results in `results/thesis/variants_N6_heisenberg/` (30 subdirectories).

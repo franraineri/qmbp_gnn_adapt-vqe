@@ -318,3 +318,35 @@ y compatible con error mitigation (18 CX gates, at ZNE threshold).
 2. Figura: θ_smoothness histogram por topología (muestra chain breaks)
 3. Tabla: la cross-topología definitiva de arriba
 4. Discusión: "el bottleneck es MPNN, no HVA" (dentro del régimen válido)
+
+
+---
+
+## Hallazgo #11: HVA p≤2 es TFIM-específico — Heisenberg confirma (2026-06-01)
+
+**Evidencia**: 30 pipeline variants con Heisenberg XXZ (N=6, p=2).
+**Resultado**: Max fidelity ≈ 0% para TODOS los valores de Δ, topologías, seeds, y restarts.
+
+| Dimensión | Valores probados | Max Fidelity | Conclusión |
+|-----------|-----------------|:------------:|------------|
+| Anisotropía Δ | 0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0 | 0.0000 | Δ-independiente |
+| Seeds | 42, 43, 44 | 0.0000 (std=0) | Seed-independiente |
+| Restarts | 5, 10, 15, 20 | 0.0000 | Restart-independiente |
+| Topologías | chain_1d, ladder, triangular | 0.0000–0.015 | Topology-independiente |
+| TFIM baseline | mismo h-range | 0.9999 | Pipeline correcto |
+
+**Mecanismo**: El VQE converge (rate=1.0) pero a E≈-3 vs E_exact≈-19. El estado
+Néel + rotaciones HVA (XX+YY+ZZ+Z) no puede acceder al sector de números cuánticos
+del ground state en el régimen paramagnético.
+
+**Mejor caso no-TFIM**: XY (Δ=0) en ladder, seed=44, h=2.0 → 31.4% fidelidad.
+Único caso con fidelidad >5% en 30 runs.
+
+**Implicación para la tesis**: Resultado negativo definitivo que fortalece la
+narrativa: el éxito del TFIM se debe a la estructura especial de la fase
+paramagnética (estado casi-producto accesible desde |+⟩^N), no a una propiedad
+general de circuitos variacionales superficiales.
+
+**Detalles completos**: `documentation/binnacles/binnacle-heisenberg-extension.md`
+(entrada 2026-06-01). Tablas para tesis: `documentation/analysis/09_thesis_tables.md`
+(Tables 5.14, 5.15).

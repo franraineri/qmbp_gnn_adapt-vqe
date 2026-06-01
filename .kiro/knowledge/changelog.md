@@ -4,6 +4,7 @@
 
 | File | Last Updated | Trigger |
 |------|-------------|---------|
+| changelog.md | 2026-06-01 | Heisenberg V9 experiments: 30 variants executed, definitive negative result documented in binnacle + project-status |
 | changelog.md | 2026-05-31 | Heisenberg XXZ extension: ModelSpec, ModelRegistry, EntanglementAnalyzer, PipelineRunner model-aware dispatch |
 | changelog.md | 2026-05-30 | Verification R1 results: p=1 valid regime corrected, new tools documented |
 | poc-results.md | 2026-05-30 | Added p=1 valid regime per topology (corrected ladder N=10 → h≥3.0, triangular N=6 → h≥4.0) |

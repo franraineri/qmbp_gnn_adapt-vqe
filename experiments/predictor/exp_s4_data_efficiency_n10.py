@@ -102,7 +102,6 @@ class ExperimentS4(BaseExperiment):
         torch.manual_seed(seed)
 
         N = self.config.system.n_qubits
-        p = self.config.system.p_layers
         n_params = self.circuit.num_parameters
         h_test = self.config.system.h_test[0]
         metrics = []
