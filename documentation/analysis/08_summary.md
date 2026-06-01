@@ -227,10 +227,15 @@ h_min = 1.0 + 0.020·N^1.31 applies uniformly across all topologies.
 1. **p=1 is hardware-ready**: 3/3 seeds pass (ΔE/gap=0.56%, std=0.0003)
 2. **Zero SWAP overhead**: HVA maps directly to IBM Torino coupling map
 3. **Restart paradox present**: 3 restarts → chain break (same mechanism as other topologies)
-4. **Valid regime h≥2.375 for p=2**: Wider than expected (similar to chain_1d h≥1.5)
-5. **hidden=64 insufficient**: Needs h=128 (consistent with N=10 on all topologies)
-6. **Seed 42 problematic for p=2**: 0.159 (FAIL) — same seed-specific pattern
-7. **N=16 hits same scaling limit**: Framework behavior is topology-independent at scaling boundary
+4. **Valid regime h≥3.0 for p=1**: h=2.625 fails catastrophically (ΔE/gap=10.67). Confirmed boundary.
+5. **Valid regime h≥2.375 for p=2**: Wider than expected (similar to chain_1d h≥1.5)
+6. **hidden=64 insufficient**: Needs h=128 (consistent with N=10 on all topologies)
+7. **Seed 42 problematic for p=2**: 0.159 (FAIL) — same seed-specific pattern
+8. **N=16 hits same scaling limit**: Framework behavior is topology-independent at scaling boundary
+9. **1 restart sufficient for p=1**: ΔE/gap=0.006 with 1 restart (minimum VQE cost)
+10. **16k shots sufficient**: 32k gives identical results (noise is layout-dominated)
+11. **3 layouts sufficient**: 5 layouts gives only +3% marginal gain (not worth 67% more QPU)
+12. **p=2 unrescuable with more layouts**: 5 layouts still fails (gain=-27%, R²=0.79)
 
 Same config (h_values=[5.0,4.5,4.0,3.5], h_test=4.25, seeds 42-44):
 - p=1: median ΔE/gap = 0.033 (3/3 PASS)

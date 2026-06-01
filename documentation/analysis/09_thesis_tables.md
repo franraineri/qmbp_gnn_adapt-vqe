@@ -226,7 +226,7 @@ ansatz on higher-connectivity graphs."
 | Median (seeds 43,44) | 0.0010 | 0.028 | 0.017 | 0.037 |
 | Pass rate (seeds 43,44) | 100% | 100% | 100% | 93% |
 | Valid regime (p=2) | h≥2.375 | h≥1.5 | h≥2.0 | h≥2.5 |
-| Valid regime (p=1) | h≥3.25 | h≥1.9 | h≥3.25 | h≥3.5 |
+| Valid regime (p=1) | h≥3.0 | h≥1.9 | h≥3.25 | h≥3.5 |
 | Restart paradox? | Yes (3 rst) | Rare | Yes (seed 43) | Yes (seed 44) |
 
 **Thesis statement**: "The GNN-HVA framework achieves its best performance on IBM's
@@ -251,6 +251,23 @@ mean gain=+62.7% at p=1 (R²=0.998, 3/3 seeds positive), confirming that the
 CX-budget hypothesis holds on IBM's native coupling map. Combined with zero SWAP
 overhead, this validates the complete hardware deployment strategy: p=1 HVA on
 heavy-hex with inhomogeneous ZNE."
+
+### Pre-Hardware Parameter Optimization (2026-06-01)
+
+| Parameter | Baseline | Tested | Result | Recommendation |
+|-----------|----------|--------|--------|----------------|
+| Layouts | 3 | 5 | gain +79% vs +76% (marginal) | **3 sufficient** (saves 67% QPU time) |
+| Shots | 16384 | 32768 | gain +76% vs +76% (identical) | **16k sufficient** (halves QPU time) |
+| h_test boundary | 3.25 | 2.625 | FAIL (ΔE/gap=10.67) | **h≥3.0 required** |
+| VQE restarts (p=1) | 5 | 1 | PASS (ΔE/gap=0.006) | **1 restart sufficient** |
+| p=2 + 5 layouts | — | 5 layouts | FAIL (gain=-27%, R²=0.79) | **p=2 unrescuable** |
+
+**Thesis statement**: "Pre-hardware optimization on heavy-hex determines the minimum
+resource budget for IBM Torino deployment: p=1, 1 VQE restart, 3 transpilation layouts,
+16384 shots, h_test≥3.0. This configuration achieves ΔE/gap=0.56% (noiseless) with
++76% ZNE gain (noisy simulation), using the minimum possible QPU resources. Increasing
+shots to 32k or layouts to 5 provides no measurable improvement, confirming that the
+noise regime is layout-dominated (not shot-noise-dominated) at this circuit depth."
 
 ---
 

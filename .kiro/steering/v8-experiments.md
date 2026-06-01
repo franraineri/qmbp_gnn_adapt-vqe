@@ -78,7 +78,6 @@ python scripts/compare.py --all
 - **p_layers ≤ 2** — `ExperimentConfig.validate()` raises ValueError if violated
 - **Pure energy cost** — never hybrid/observable cost in VQE
 - **Descending h-sweep** — always sweep h from high to low (warm-start)
-- **N=12 is too slow** — use N=10 or N=14 instead
 - **Division by gap** — always use `max(gap, 1e-10)` to avoid division by zero
 - **No modification to stable code** — use `qmbp_simulation` modules via imports only
 

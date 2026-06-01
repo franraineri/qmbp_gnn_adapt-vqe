@@ -58,7 +58,7 @@ P1_VALID_REGIME: dict[tuple[str, int], float] = {
     ("chain_1d", 10): 1.9,
     ("chain_1d", 20): 2.25,
     ("heavy_hex", 6): 2.0,
-    ("heavy_hex", 10): 2.5,
+    ("heavy_hex", 10): 3.0,
     ("ladder", 6): 2.0,
     ("ladder", 10): 3.0,
     ("triangular", 6): 4.0,

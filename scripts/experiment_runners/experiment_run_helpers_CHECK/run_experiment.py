@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 # Ensure project root is in path for experiment imports
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -41,6 +41,12 @@ EXPERIMENT_REGISTRY: dict[str, tuple[str, str]] = {
     "G3": ("experiments.scaling.exp_g3_n20_optimized", "ExperimentG3"),
     "G4": ("experiments.optimization.exp_g4_condition_restarts", "ExperimentG4"),
     "G5": ("experiments.predictor.exp_g5_cross_seed", "ExperimentG5"),
+    "S1": ("experiments.scaling.exp_s1_entanglement_scaling", "ExperimentS1"),
+    "S2": ("experiments.predictor.exp_s2_cross_topology", "ExperimentS2"),
+    "S3": ("experiments.landscape.exp_s3_landscape_n20", "ExperimentS3"),
+    "S4": ("experiments.predictor.exp_s4_data_efficiency_n10", "ExperimentS4"),
+    "S5": ("experiments.scaling.exp_s5_n20_p1_pipeline", "ExperimentS5"),
+    "S6": ("experiments.predictor.exp_s6_mc_dropout_uq", "ExperimentS6"),
 }
 
 _PLANNED_NOT_IMPLEMENTED: dict[str, str] = {
@@ -125,6 +131,7 @@ def list_experiments() -> None:
         "E": "Scaling & Generalization",
         "F": "Novel Methodological Contributions",
         "G": "Pipeline Characterization & Validation",
+        "S": "Scalability Improvements (Simulation-Only)",
     }
 
     for cat in sorted(categories.keys()):

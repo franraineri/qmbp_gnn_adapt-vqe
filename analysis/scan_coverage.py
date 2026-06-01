@@ -133,7 +133,7 @@ P1_VALID_REGIME: dict[tuple[str, int], float] = {
     ("chain_1d", 10): 1.9,
     ("chain_1d", 20): 2.25,
     ("heavy_hex", 6): 2.0,
-    ("heavy_hex", 10): 2.5,
+    ("heavy_hex", 10): 3.0,  # Confirmed: h=2.625 fails (EXT-5, ΔE/gap=10.67)
     ("ladder", 6): 2.0,
     ("ladder", 10): 3.0,  # Corrected: was 2.0, verification shows failures at 2.75
     ("triangular", 6): 4.0,  # Corrected: was 3.0, failure at h=4.0 but pass at h=4.5

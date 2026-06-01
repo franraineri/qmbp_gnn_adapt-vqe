@@ -265,7 +265,7 @@ topología nativa del hardware real. La combinación p=1 + heavy-hex + ZNE es la
 estrategia óptima para deployment en IBM Torino: zero SWAP, seed-independent,
 y compatible con error mitigation (18 CX gates, at ZNE threshold).
 
-**Corrección al P1_VALID_REGIME**: `("heavy_hex", 10): 2.5` (estimado, h_test=3.25 pasa 3/3).
+**Corrección al P1_VALID_REGIME**: `("heavy_hex", 10): 3.0` (confirmado: h=2.625 falla con ΔE/gap=10.67).
 
 ### Heavy-Hex ZNE Confirmed (2026-05-31)
 
@@ -276,11 +276,30 @@ y compatible con error mitigation (18 CX gates, at ZNE threshold).
 | 44 | 0.998 | +76.9% | 18 | ✅ |
 | **Mean** | **0.998** | **+62.7%** | | **✅ CONFIRMED** |
 
+### Pre-Hardware Parameter Optimization (2026-06-01)
+
+| Test | Result | Decision |
+|------|--------|----------|
+| 5 layouts (vs 3) | gain +79% vs +76% | 3 layouts sufficient — marginal improvement not worth 67% more QPU |
+| 32k shots (vs 16k) | gain +76% vs +76% | 16k sufficient — identical results, noise is layout-dominated |
+| h_test=2.625 | FAIL (ΔE/gap=10.67) | Valid regime is h≥3.0 (not h≥2.5 as estimated) |
+| 1 restart (p=1) | PASS (ΔE/gap=0.006) | 1 restart sufficient — minimum VQE cost |
+| p=2 + 5 layouts | FAIL (gain=-27%) | p=2 unrescuable — failure is fundamental |
+
+**Optimal hardware config (final)**:
+- p=1, heavy_hex, N=10
+- h_test=3.25 (safe, unseen)
+- 1 VQE restart (minimum cost)
+- 3 layouts for ZNE
+- 16384 shots
+- SPSA (a=0.1, c=0.05, A=10) for hardware refinement
+
 **Implicación**: La estrategia completa de hardware deployment está validada localmente:
 1. Pipeline noiseless: p=1 heavy-hex 3/3 PASS (ΔE/gap=0.56%)
 2. ZNE mitigation: 3/3 positive gain (mean +62.7%, R²=0.998)
 3. Zero SWAP overhead: HVA maps directly to IBM Torino coupling map
 4. Seed-independent: std=0.0003 (noiseless), all seeds positive (ZNE)
+5. Minimum resources: 1 restart, 3 layouts, 16k shots
 
 **No quedan simulaciones locales pendientes. El siguiente paso es IBM Torino.**
 

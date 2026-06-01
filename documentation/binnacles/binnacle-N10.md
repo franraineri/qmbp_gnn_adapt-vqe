@@ -801,7 +801,6 @@ The project went through a clear progression of failures and insights:
 ### What NOT to Run
 
 - More N=6 parametric runs (fully characterized, 9 definitive runs exist)
-- N=12 on local hardware (too slow for iteration)
 - Different MPNN architectures at N=10 (GINConv h=128 is confirmed optimal)
 - More seeds beyond 42/43/44 (variance is well-characterized)
 - Augmentation experiments (proven counterproductive at N=10)
