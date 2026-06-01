@@ -61,7 +61,7 @@ class ExperimentS4(BaseExperiment):
                 p_layers=2,
                 topology="chain_1d",
                 h_values=FULL_H_GRID,
-                h_test=[1.5],
+                h_test=[1.55],
             ),
             vqe=VQEConfig(n_restarts=5, maxiter=1000, sigma=0.1),
             mpnn=MPNNConfig(hidden_dim=128, n_layers=3, n_epochs=6000, lr=1e-3, patience=500),

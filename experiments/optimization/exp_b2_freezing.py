@@ -45,7 +45,8 @@ class ExperimentB2(BaseExperiment):
             system=SystemConfig(
                 n_qubits=6,
                 p_layers=2,
-                h_values=[0.8, 1.0, 1.25, 1.5, 1.75, 2.0],
+                h_values=[2.0, 1.75, 1.5, 1.25, 1.0, 0.8],
+                h_test=[],  # B2 evaluates at all h_values (no MPNN deployment)
             ),
             vqe=VQEConfig(n_restarts=5, sigma=0.1),
             seeds=[42, 43, 44],

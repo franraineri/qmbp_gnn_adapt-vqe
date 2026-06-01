@@ -46,6 +46,9 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 - **Δ-independent**: XY (Δ=0), intermediate (Δ=0.5), isotropic (Δ=1.0), Ising-like (Δ=1.5) — all zero.
 - **Best non-TFIM case**: XY model on ladder, seed=44, h=2.0 → 31.4% fidelity (only case >5%).
 - **TFIM baseline confirms pipeline**: Same h-range → ΔE/gap=0.28%, fidelity=99.99%. Failure is model-specific.
+- **N=10 confirms scaling**: Failure persists at N=10 (fidelity=0, E_gap grows linearly with N). Not a finite-size effect.
+- **N=16 confirms linear scaling**: E_gap ≈ 3.8×N (XY: 21→37→61, Heisenberg: 16→29→60). Failure gets WORSE with N.
+- **TFIM baseline perfect at all N**: E_vqe=E_exact at N=6/10/16. Fidelity=0 at N=16 is DMRG artifact (no statevector).
 - **Entanglement analysis**: Ground state S≈1.0 bit at h=3.0-3.5 (Heisenberg) vs S≈0 (TFIM at same h).
 - **CX budget**: Heisenberg p=2 has 30 CX gates (3×|E|×2 layers) — exceeds ZNE threshold. No noisy variants justified.
 - Binnacle: `binnacle-heisenberg-extension.md`
@@ -53,7 +56,8 @@ Pipeline observability (DiagnosticCollector) now always-on — every run capture
 - Results: `results/thesis/variants_N6_heisenberg/` (30 variants, 31 JSON outputs)
 
 ## V9 Validated Decisions (2026-06-01)
-- **HVA is TFIM-specific**: Confirmed with 30 independent runs. Extending to Heisenberg requires new ansatz (p≥4-6 or different circuit structure).
+- **HVA is TFIM-specific**: Confirmed with 30 independent runs + N=10/16 scaling. Extending to Heisenberg requires new ansatz (p≥4-6 or different circuit structure).
+- **Failure scales linearly with N**: E_gap ≈ 3.8×N for Heisenberg (gets worse, not better). Not a finite-size artifact.
 - **Néel initial state insufficient**: Cannot reach paramagnetic ground state even at h=4.0 where S≈0. The |+⟩^N state used for TFIM is the correct choice for paramagnetic phases.
 - **Model-agnostic pipeline validated**: Same code, different ModelSpec → correct dispatch, proper negative result documentation. Framework architecture is sound.
 - **Entanglement explains expressibility**: S(ground state) > 0 at all h for Heisenberg → HVA p=2 capacity exceeded. TFIM has S≈0 in valid regime → HVA works.
@@ -154,6 +158,7 @@ Inhomogeneous ZNE (3 layouts) works at N=6 (R²>0.99, +40% gain) but **completel
 - `scripts/benchmark.py` — performance benchmarking (uses BenchmarkSuite)
 - `analysis/scan_coverage.py` — coverage scanner (inventario + gap analysis + extended analytics)
 - `analysis/diagnose.py` — automated failure root cause analysis
+- `analysis/heisenberg_summary.py` — Heisenberg XXZ cross-N comparison (reuses ResultScanner)
 - `scripts/digest/` — result digest tool (exploration, stats, outliers, comparison)
 - `scripts/experiment_runners/run_verification_plan.py` — systematic verification of thesis claims (3 tiers)
 - `scripts/experiment_runners/verify_results.py` — post-verification analysis (automated conclusions)

@@ -44,8 +44,8 @@ class ExperimentG3(BaseExperiment):
             system=SystemConfig(
                 n_qubits=20,
                 p_layers=2,
-                h_values=[1.5, 1.75, 2.0, 2.25, 2.5],
-                h_test=[1.75, 2.0, 2.25],
+                h_values=[2.5, 2.25, 2.0, 1.75, 1.5],
+                h_test=[2.125],  # Interpolation point not in training set
             ),
             vqe=VQEConfig(
                 n_restarts=1,  # B4: no saddle points

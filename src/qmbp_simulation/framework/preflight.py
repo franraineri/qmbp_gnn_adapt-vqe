@@ -1,4 +1,4 @@
-"""Reusable pre-flight validation for pipeline variant configurations.
+"""Reusable pre-flight validation for pipeline variant configurations AND experiments.
 
 Validates experiment configurations before execution to catch common errors:
 - Data leakage (h_test in training set)
@@ -6,22 +6,33 @@ Validates experiment configurations before execution to catch common errors:
 - Extrapolation risk (h_test outside training range)
 - Output directory collisions
 - Missing script dependencies
+- Constraint violations (p > 2, Heisenberg + HVA p≤2, N=12 slowness)
+- Missing hypothesis or experiment metadata
 
-Designed to work with any variant runner script or PipelineVariant list.
+Designed to work with:
+- Variant runner scripts (PipelineVariant pattern)
+- BaseExperiment subclasses (ExperimentConfig pattern)
 
 Usage (CLI):
     # Validate variants from a runner script
     python -m qmbp_simulation.framework.preflight \\
         --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
 
+    # Validate a BaseExperiment file
+    python -m qmbp_simulation.framework.preflight \\
+        --from-experiment experiments/predictor/exp_s4_data_efficiency_n10.py
+
+    # Auto-detect mode (tries variant runner first, then experiment)
+    python -m qmbp_simulation.framework.preflight \\
+        --from-script experiments/predictor/exp_s4_data_efficiency_n10.py
+
     # Validate a JSON variant file
     python -m qmbp_simulation.framework.preflight --from-json variants.json
 
-    # Validate with custom valid regime overrides
-    python -m qmbp_simulation.framework.preflight \\
-        --from-script my_script.py --strict
+    # Strict mode (warnings become errors)
+    python -m qmbp_simulation.framework.preflight --from-script my_script.py --strict
 
-Usage (programmatic):
+Usage (programmatic — variants):
     from qmbp_simulation.framework.preflight import (
         PreflightChecker, VariantSpec, PreflightReport,
     )
@@ -34,6 +45,13 @@ Usage (programmatic):
     report.print_summary()
     if report.has_errors:
         sys.exit(1)
+
+Usage (programmatic — experiments):
+    from qmbp_simulation.framework.preflight import ExperimentChecker
+
+    checker = ExperimentChecker.from_script("experiments/predictor/exp_s4_data_efficiency_n10.py")
+    report = checker.run_all()
+    report.print_summary()
 """
 
 from __future__ import annotations
@@ -575,6 +593,478 @@ class PreflightChecker:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Experiment Checker — validates BaseExperiment files
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Known-bad model+ansatz combinations (V9 definitive results)
+_FORBIDDEN_MODEL_ANSATZ: list[tuple[str, int, str]] = [
+    # (model, max_p, reason)
+    ("heisenberg", 2, "HVA p≤2 cannot express Heisenberg ground states (V9: 30 runs, 0% fidelity)"),
+    ("xy", 2, "XY model on HVA p≤2 achieves max 31% fidelity (V9: only ladder seed=44 partial)"),
+]
+
+
+@dataclass
+class ExperimentSpec:
+    """Extracted specification from a BaseExperiment's default_config().
+
+    Parallel to VariantSpec but tailored for experiment validation.
+    """
+
+    experiment_id: str
+    category: str
+    description: str
+    hypothesis: str
+    topology: str
+    n_qubits: int
+    p_layers: int
+    h_values: list[float]
+    h_test: list[float]
+    seeds: list[int]
+    model: str
+    n_restarts: int
+    hidden_dim: int
+    class_name: str  # For error messages
+    script_path: str  # Source file
+
+    @classmethod
+    def from_config(
+        cls, config: Any, *, class_name: str = "", script_path: str = ""
+    ) -> ExperimentSpec:
+        """Extract an ExperimentSpec from an ExperimentConfig instance."""
+        sys_cfg = config.system
+        return cls(
+            experiment_id=config.experiment_id,
+            category=config.category,
+            description=config.description,
+            hypothesis=config.hypothesis,
+            topology=sys_cfg.topology,
+            n_qubits=sys_cfg.n_qubits,
+            p_layers=sys_cfg.p_layers,
+            h_values=sys_cfg.h_values,
+            h_test=sys_cfg.h_test,
+            seeds=config.seeds,
+            model=getattr(sys_cfg, "model", "tfim"),
+            n_restarts=config.vqe.n_restarts,
+            hidden_dim=config.mpnn.hidden_dim,
+            class_name=class_name,
+            script_path=script_path,
+        )
+
+
+class ExperimentChecker:
+    """Validates BaseExperiment configurations before execution.
+
+    Checks experiment-specific constraints that go beyond what
+    ExperimentConfig.validate() catches (which only checks p≤2 and seeds).
+
+    Parameters
+    ----------
+    specs : list[ExperimentSpec]
+        Experiment specifications to validate.
+    project_root : Path | None
+        Project root for resolving relative paths.
+    strict : bool
+        If True, treat warnings as errors.
+    """
+
+    def __init__(
+        self,
+        specs: list[ExperimentSpec],
+        *,
+        project_root: Path | None = None,
+        strict: bool = False,
+    ) -> None:
+        self.specs = specs
+        self.root = project_root or Path.cwd()
+        self.strict = strict
+
+    @classmethod
+    def from_script(
+        cls,
+        script_path: str,
+        *,
+        project_root: Path | None = None,
+        strict: bool = False,
+    ) -> ExperimentChecker:
+        """Create an ExperimentChecker by loading experiments from a script.
+
+        Dynamically imports the script, finds BaseExperiment subclasses,
+        and extracts their default_config().
+        """
+        specs = _load_experiment_specs(script_path)
+        return cls(specs, project_root=project_root, strict=strict)
+
+    # ─── Individual checks ─────────────────────────────────────────────────
+
+    def check_p_layers(self) -> list[Issue]:
+        """Verify p_layers ≤ 2 (hard constraint)."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if spec.p_layers > 2:
+                issues.append(
+                    Issue(
+                        severity=Severity.ERROR,
+                        check_name="p_layers",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"p_layers={spec.p_layers} > 2 "
+                            f"(Mele et al. 2022: HVA depth limited to p≤2)"
+                        ),
+                    )
+                )
+        return issues
+
+    def check_model_ansatz_compatibility(self) -> list[Issue]:
+        """Check for known-bad model+ansatz combinations (V9 results)."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            for model, max_p, reason in _FORBIDDEN_MODEL_ANSATZ:
+                if spec.model == model and spec.p_layers <= max_p:
+                    # Only flag if the experiment is NOT explicitly testing this
+                    # (e.g., E4 longitudinal field experiment is designed to show failure)
+                    if spec.category in ("E", "V"):
+                        # Generalization/validation experiments may intentionally test limits
+                        issues.append(
+                            Issue(
+                                severity=Severity.INFO,
+                                check_name="model_ansatz",
+                                variant_id=spec.experiment_id,
+                                message=f"Known limit: {reason} (OK for validation experiment)",
+                            )
+                        )
+                    else:
+                        issues.append(
+                            Issue(
+                                severity=Severity.ERROR,
+                                check_name="model_ansatz",
+                                variant_id=spec.experiment_id,
+                                message=f"{reason}",
+                            )
+                        )
+        return issues
+
+    def check_hypothesis_present(self) -> list[Issue]:
+        """Verify experiment has a non-empty hypothesis (experiment discipline)."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if not spec.hypothesis or spec.hypothesis.strip() == "":
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="hypothesis",
+                        variant_id=spec.experiment_id,
+                        message="No hypothesis defined (experiment discipline requires one)",
+                    )
+                )
+        return issues
+
+    def check_h_test_unseen(self) -> list[Issue]:
+        """Verify h_test values are NOT in the training set (data leakage)."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            for ht in spec.h_test:
+                if _float_in_list(ht, spec.h_values):
+                    issues.append(
+                        Issue(
+                            severity=Severity.ERROR,
+                            check_name="h_test_unseen",
+                            variant_id=spec.experiment_id,
+                            message=(f"h_test={ht} IS in training h_values (data leakage!)"),
+                        )
+                    )
+        return issues
+
+    def check_h_test_valid_regime(self) -> list[Issue]:
+        """Verify h_test values are within the valid regime."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if spec.model != "tfim":
+                continue  # Valid regime only defined for TFIM
+            threshold = get_regime_threshold(spec.topology, spec.n_qubits, spec.p_layers)
+            if threshold == 0.0:
+                continue
+            for ht in spec.h_test:
+                if ht < threshold:
+                    issues.append(
+                        Issue(
+                            severity=Severity.ERROR,
+                            check_name="h_test_valid_regime",
+                            variant_id=spec.experiment_id,
+                            message=(
+                                f"h_test={ht} < {threshold} "
+                                f"(outside valid regime for {spec.topology} "
+                                f"N={spec.n_qubits} p={spec.p_layers})"
+                            ),
+                        )
+                    )
+        return issues
+
+    def check_h_values_valid_regime(self) -> list[Issue]:
+        """Warn if training h_values fall outside the valid regime."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if spec.model != "tfim":
+                continue
+            threshold = get_regime_threshold(spec.topology, spec.n_qubits, spec.p_layers)
+            if threshold == 0.0:
+                continue
+            below = [h for h in spec.h_values if h < threshold]
+            if below:
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="h_values_valid_regime",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"{len(below)}/{len(spec.h_values)} training h_values < {threshold} "
+                            f"(VQE may not converge at these points)"
+                        ),
+                    )
+                )
+        return issues
+
+    def check_descending_sweep(self) -> list[Issue]:
+        """Verify h_values are in descending order (warm-start requirement).
+
+        Skipped for experiments that don't use warm-start VQE:
+        - Landscape analysis (category F) — h_values are scan points
+        - Experiments with no h_test (no deployment phase)
+        """
+        issues: list[Issue] = []
+        # Categories that don't require descending sweep
+        _NO_SWEEP_CATEGORIES = {"F"}  # Landscape analysis
+
+        for spec in self.specs:
+            if len(spec.h_values) < 2:
+                continue
+            # Skip for landscape/analysis experiments that don't use warm-start
+            if spec.category in _NO_SWEEP_CATEGORIES:
+                continue
+            # Skip if no h_test defined (no deployment → likely a scan experiment)
+            if not spec.h_test:
+                continue
+            if spec.h_values != sorted(spec.h_values, reverse=True):
+                # Check if it's ascending (common mistake) vs random
+                if spec.h_values == sorted(spec.h_values):
+                    issues.append(
+                        Issue(
+                            severity=Severity.ERROR,
+                            check_name="descending_sweep",
+                            variant_id=spec.experiment_id,
+                            message=(
+                                "h_values are ASCENDING — must be descending "
+                                "(warm-start requires h=high→low)"
+                            ),
+                        )
+                    )
+                else:
+                    issues.append(
+                        Issue(
+                            severity=Severity.ERROR,
+                            check_name="descending_sweep",
+                            variant_id=spec.experiment_id,
+                            message=(
+                                "h_values not in descending order (warm-start requires h=high→low)"
+                            ),
+                        )
+                    )
+        return issues
+
+    def check_interpolation(self) -> list[Issue]:
+        """Warn if h_test falls outside the training range (extrapolation)."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if not spec.h_values or not spec.h_test:
+                continue
+            h_min = min(spec.h_values)
+            h_max = max(spec.h_values)
+            for ht in spec.h_test:
+                if not (h_min <= ht <= h_max):
+                    issues.append(
+                        Issue(
+                            severity=Severity.WARNING,
+                            check_name="interpolation",
+                            variant_id=spec.experiment_id,
+                            message=(
+                                f"h_test={ht} outside training range "
+                                f"[{h_min}, {h_max}] (extrapolation risk)"
+                            ),
+                        )
+                    )
+        return issues
+
+    def check_n_qubits_feasibility(self) -> list[Issue]:
+        """Warn about known slow/infeasible system sizes."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if spec.n_qubits == 12:
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="n_qubits_feasibility",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            "N=12 is very slow (>30 min per run). Consider N=10 or N=14 instead."
+                        ),
+                    )
+                )
+            if spec.n_qubits > 20 and spec.topology != "chain_1d":
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="n_qubits_feasibility",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"N={spec.n_qubits} with {spec.topology} may be infeasible "
+                            f"(only chain_1d supports N>20 via MPS)"
+                        ),
+                    )
+                )
+        return issues
+
+    def check_mpnn_capacity(self) -> list[Issue]:
+        """Warn if MPNN hidden_dim is insufficient for the system size."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if spec.n_qubits >= 10 and spec.hidden_dim < 128:
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="mpnn_capacity",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"hidden_dim={spec.hidden_dim} may be insufficient for N={spec.n_qubits} "
+                            f"(N≥10 requires hidden_dim≥128, validated in V7/V8)"
+                        ),
+                    )
+                )
+        return issues
+
+    def check_seeds(self) -> list[Issue]:
+        """Info about non-standard seed choices."""
+        issues: list[Issue] = []
+        standard_seeds = {42, 43, 44}
+        for spec in self.specs:
+            if not spec.seeds:
+                issues.append(
+                    Issue(
+                        severity=Severity.ERROR,
+                        check_name="seeds",
+                        variant_id=spec.experiment_id,
+                        message="No seeds defined (at least one required)",
+                    )
+                )
+            elif len(spec.seeds) < 3:
+                issues.append(
+                    Issue(
+                        severity=Severity.INFO,
+                        check_name="seeds",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"Only {len(spec.seeds)} seed(s) — "
+                            f"3 seeds recommended for statistical confidence"
+                        ),
+                    )
+                )
+            elif set(spec.seeds) != standard_seeds:
+                issues.append(
+                    Issue(
+                        severity=Severity.INFO,
+                        check_name="seeds",
+                        variant_id=spec.experiment_id,
+                        message=(f"Non-standard seeds {spec.seeds} (convention: [42, 43, 44])"),
+                    )
+                )
+        return issues
+
+    def check_restarts(self) -> list[Issue]:
+        """Warn about excessive or insufficient VQE restarts."""
+        issues: list[Issue] = []
+        for spec in self.specs:
+            if spec.n_restarts > 10:
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="restarts",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"n_restarts={spec.n_restarts} > 10 "
+                            f"(diminishing returns — B4 shows no saddle points in HVA)"
+                        ),
+                    )
+                )
+        return issues
+
+    # ─── Orchestration ─────────────────────────────────────────────────────
+
+    def run_all(self, *, verbose: bool = True) -> PreflightReport:
+        """Execute all experiment checks and return a consolidated report."""
+        report = PreflightReport(n_variants=len(self.specs))
+
+        checks = [
+            ("p_layers", self.check_p_layers),
+            ("model_ansatz", self.check_model_ansatz_compatibility),
+            ("hypothesis", self.check_hypothesis_present),
+            ("h_test_unseen", self.check_h_test_unseen),
+            ("h_test_valid_regime", self.check_h_test_valid_regime),
+            ("h_values_valid_regime", self.check_h_values_valid_regime),
+            ("descending_sweep", self.check_descending_sweep),
+            ("interpolation", self.check_interpolation),
+            ("n_qubits_feasibility", self.check_n_qubits_feasibility),
+            ("mpnn_capacity", self.check_mpnn_capacity),
+            ("seeds", self.check_seeds),
+            ("restarts", self.check_restarts),
+        ]
+
+        if verbose:
+            print("=" * 70)
+            print("  EXPERIMENT PRE-FLIGHT CHECKS")
+            print("=" * 70)
+            for spec in self.specs:
+                print(
+                    f"\n  Experiment: {spec.experiment_id} ({spec.class_name})"
+                    f"\n    {spec.topology} N={spec.n_qubits} p={spec.p_layers} "
+                    f"model={spec.model} seeds={spec.seeds}"
+                )
+
+        for i, (name, check_fn) in enumerate(checks, 1):
+            issues = check_fn()
+            report.checks_run.append(name)
+            report.issues.extend(issues)
+
+            if verbose:
+                n_err = sum(1 for x in issues if x.severity == Severity.ERROR)
+                n_warn = sum(1 for x in issues if x.severity == Severity.WARNING)
+                n_info = sum(1 for x in issues if x.severity == Severity.INFO)
+                if not issues:
+                    print(f"\n  [{i:2d}] {name}: ✅ all pass")
+                else:
+                    parts = []
+                    if n_err:
+                        parts.append(f"{n_err} errors")
+                    if n_warn:
+                        parts.append(f"{n_warn} warnings")
+                    if n_info:
+                        parts.append(f"{n_info} info")
+                    print(f"\n  [{i:2d}] {name}: {', '.join(parts)}")
+                    for issue in issues:
+                        if issue.severity != Severity.INFO:
+                            print(f"      {issue.icon} {issue.variant_id}: {issue.message}")
+
+        # In strict mode, promote warnings to errors
+        if self.strict:
+            for issue in report.issues:
+                if issue.severity == Severity.WARNING:
+                    issue.severity = Severity.ERROR
+
+        if verbose:
+            report.print_summary()
+
+        return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -676,6 +1166,7 @@ def _load_specs_from_script(script_path: str) -> list[VariantSpec]:
     Looks for build_noiseless_variants, build_noisy_variants,
     build_extended_variants functions (the standard pattern).
     Falls back to VARIANTS list if present (legacy pattern).
+    Returns None if no variant definitions found (caller should try experiment mode).
     """
     import importlib.util
 
@@ -729,18 +1220,176 @@ def _load_specs_from_script(script_path: str) -> list[VariantSpec]:
     sys.exit(1)
 
 
+def _load_experiment_specs(script_path: str) -> list[ExperimentSpec]:
+    """Dynamically import a script and find BaseExperiment subclasses.
+
+    For each subclass found, calls default_config() and extracts an ExperimentSpec.
+    Returns empty list if no experiments found.
+    """
+    import importlib.util
+    import inspect
+
+    path = Path(script_path).resolve()
+    if not path.exists():
+        print(f"  ❌ Script not found: {script_path}")
+        sys.exit(1)
+
+    spec = importlib.util.spec_from_file_location("_experiment_module", path)
+    if spec is None or spec.loader is None:
+        print(f"  ❌ Cannot load module from: {script_path}")
+        sys.exit(1)
+
+    module = importlib.util.module_from_spec(spec)
+
+    original_argv = sys.argv
+    sys.argv = [str(path)]
+
+    # Add project root to sys.path so `experiments.helpers` imports work
+    project_root = str(Path.cwd())
+    path_added = False
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+        path_added = True
+
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    except SystemExit:
+        pass
+    except Exception as e:
+        print(f"  ❌ Error loading script: {script_path}")
+        print(f"     {type(e).__name__}: {e}")
+        sys.exit(1)
+    finally:
+        sys.argv = original_argv
+        if path_added:
+            sys.path.remove(project_root)
+
+    # Find BaseExperiment subclasses defined in this module
+    from qmbp_simulation.framework.base import BaseExperiment
+
+    experiment_specs: list[ExperimentSpec] = []
+
+    for name, obj in inspect.getmembers(module, inspect.isclass):
+        # Only classes defined in this module (not imported base classes)
+        if not issubclass(obj, BaseExperiment):
+            continue
+        if obj is BaseExperiment:
+            continue
+        if obj.__module__ != module.__name__:
+            continue
+
+        # Try to get default_config
+        default_config_fn = getattr(obj, "default_config", None)
+        if default_config_fn is None:
+            continue
+
+        try:
+            config = default_config_fn()
+        except Exception as e:
+            print(f"  ⚠️  Could not call {name}.default_config(): {e}")
+            continue
+
+        experiment_specs.append(
+            ExperimentSpec.from_config(
+                config,
+                class_name=name,
+                script_path=script_path,
+            )
+        )
+
+    return experiment_specs
+
+
+def _try_load_as_experiment(script_path: str) -> list[ExperimentSpec] | None:
+    """Attempt to load a script as a BaseExperiment file.
+
+    Returns list of ExperimentSpecs if successful, None if no experiments found.
+    Does not call sys.exit() on failure — returns None instead.
+    """
+    import importlib.util
+    import inspect
+
+    path = Path(script_path).resolve()
+    if not path.exists():
+        return None
+
+    spec = importlib.util.spec_from_file_location("_experiment_module", path)
+    if spec is None or spec.loader is None:
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+
+    original_argv = sys.argv
+    sys.argv = [str(path)]
+
+    # Add project root to sys.path so `experiments.helpers` imports work
+    project_root = str(Path.cwd())
+    path_added = False
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+        path_added = True
+
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    except (SystemExit, Exception):
+        return None
+    finally:
+        sys.argv = original_argv
+        if path_added and project_root in sys.path:
+            sys.path.remove(project_root)
+
+    # Find BaseExperiment subclasses
+    try:
+        from qmbp_simulation.framework.base import BaseExperiment
+    except ImportError:
+        return None
+
+    experiment_specs: list[ExperimentSpec] = []
+
+    for name, obj in inspect.getmembers(module, inspect.isclass):
+        if not issubclass(obj, BaseExperiment):
+            continue
+        if obj is BaseExperiment:
+            continue
+        if obj.__module__ != module.__name__:
+            continue
+
+        default_config_fn = getattr(obj, "default_config", None)
+        if default_config_fn is None:
+            continue
+
+        try:
+            config = default_config_fn()
+        except Exception:
+            continue
+
+        experiment_specs.append(
+            ExperimentSpec.from_config(config, class_name=name, script_path=script_path)
+        )
+
+    return experiment_specs if experiment_specs else None
+
+
 def main() -> None:
     """CLI entry point for preflight checks."""
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Pre-flight validation for pipeline variant configurations",
+        description="Pre-flight validation for pipeline variants and experiments",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
   # Validate a variant runner script
   python -m qmbp_simulation.framework.preflight \\
       --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+
+  # Validate a BaseExperiment file
+  python -m qmbp_simulation.framework.preflight \\
+      --from-experiment experiments/predictor/exp_s4_data_efficiency_n10.py
+
+  # Auto-detect mode (tries variants first, then experiment)
+  python -m qmbp_simulation.framework.preflight \\
+      --from-script experiments/predictor/exp_s4_data_efficiency_n10.py
 
   # Validate a JSON file
   python -m qmbp_simulation.framework.preflight --from-json variants.json
@@ -753,7 +1402,15 @@ Examples:
     source.add_argument(
         "--from-script",
         metavar="PATH",
-        help="Path to a variant runner script (imports and extracts variants)",
+        help=(
+            "Path to a variant runner or experiment script. "
+            "Auto-detects: tries variant runner first, falls back to experiment mode."
+        ),
+    )
+    source.add_argument(
+        "--from-experiment",
+        metavar="PATH",
+        help="Path to a BaseExperiment file (validates ExperimentConfig)",
     )
     source.add_argument(
         "--from-json",
@@ -790,11 +1447,100 @@ Examples:
                 root = parent
                 break
 
-    # Load specs
+    # ── Explicit experiment mode ──────────────────────────────────────────
+    if args.from_experiment:
+        exp_specs = _load_experiment_specs(args.from_experiment)
+        if not exp_specs:
+            print(f"  ❌ No BaseExperiment subclasses found in: {args.from_experiment}")
+            sys.exit(1)
+
+        print(f"\n  Loaded {len(exp_specs)} experiment(s) from {args.from_experiment}")
+        print(f"  Project root: {root}")
+
+        checker = ExperimentChecker(exp_specs, project_root=root, strict=args.strict)
+        report = checker.run_all(verbose=not args.quiet)
+
+        if args.quiet:
+            report.print_summary()
+
+        sys.exit(1 if report.has_errors else 0)
+
+    # ── Variant / auto-detect mode ────────────────────────────────────────
     if args.from_script:
-        specs = _load_specs_from_script(args.from_script)
-    else:
-        specs = specs_from_json(args.from_json)
+        # First try as variant runner
+        import importlib.util
+
+        path = Path(args.from_script).resolve()
+        if not path.exists():
+            print(f"  ❌ Script not found: {args.from_script}")
+            sys.exit(1)
+
+        spec = importlib.util.spec_from_file_location("_probe_module", path)
+        if spec is None or spec.loader is None:
+            print(f"  ❌ Cannot load module from: {args.from_script}")
+            sys.exit(1)
+
+        module = importlib.util.module_from_spec(spec)
+        original_argv = sys.argv
+        sys.argv = [str(path)]
+
+        try:
+            spec.loader.exec_module(module)  # type: ignore[union-attr]
+        except (SystemExit, Exception):
+            pass
+        finally:
+            sys.argv = original_argv
+
+        # Check if it's a variant runner
+        has_variants = (
+            getattr(module, "build_noiseless_variants", None) is not None
+            or getattr(module, "VARIANTS", None) is not None
+        )
+
+        if has_variants:
+            # Standard variant runner path
+            specs = _load_specs_from_script(args.from_script)
+            if not specs:
+                print("  ❌ No variant specs loaded. Nothing to check.")
+                sys.exit(1)
+
+            print(f"\n  Loaded {len(specs)} variant specs")
+            print(f"  Project root: {root}")
+
+            checker = PreflightChecker(specs, project_root=root, strict=args.strict)
+            report = checker.run_all(verbose=not args.quiet)
+
+            if args.quiet:
+                report.print_summary()
+
+            sys.exit(1 if report.has_errors else 0)
+
+        # Fall back to experiment mode
+        exp_specs = _try_load_as_experiment(args.from_script)
+        if exp_specs:
+            print(f"\n  Auto-detected BaseExperiment in: {args.from_script}")
+            print(f"  Loaded {len(exp_specs)} experiment(s)")
+            print(f"  Project root: {root}")
+
+            checker = ExperimentChecker(exp_specs, project_root=root, strict=args.strict)
+            report = checker.run_all(verbose=not args.quiet)
+
+            if args.quiet:
+                report.print_summary()
+
+            sys.exit(1 if report.has_errors else 0)
+
+        # Neither variant runner nor experiment
+        print(
+            f"  ❌ No variant definitions or BaseExperiment subclasses found in: {args.from_script}"
+        )
+        print(
+            "     Expected: build_noiseless_variants(), VARIANTS list, or BaseExperiment subclass"
+        )
+        sys.exit(1)
+
+    # ── JSON mode ─────────────────────────────────────────────────────────
+    specs = specs_from_json(args.from_json)
 
     if not specs:
         print("  ❌ No variant specs loaded. Nothing to check.")
@@ -803,7 +1549,6 @@ Examples:
     print(f"\n  Loaded {len(specs)} variant specs")
     print(f"  Project root: {root}")
 
-    # Run checks
     checker = PreflightChecker(specs, project_root=root, strict=args.strict)
     report = checker.run_all(verbose=not args.quiet)
 

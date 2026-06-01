@@ -48,6 +48,7 @@ class ExperimentF1(BaseExperiment):
                 n_qubits=6,
                 p_layers=2,
                 h_values=[2.0, 1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8],
+                h_test=[],  # F1 evaluates at all h_values (no MPNN deployment)
             ),
             vqe=VQEConfig(use_dypp=True, dypp_order=2),
             seeds=[42, 43, 44],

@@ -1,20 +1,17 @@
 {
-  "enabled": true,
   "name": "Preflight Before Script Run",
-  "description": "When an experiment runner or analysis script is created or edited, automatically run preflight validation to catch data leakage, regime violations, descending sweep errors, and configuration issues before execution.",
-  "version": "3.0.0",
+  "version": "4.0.0",
+  "description": "When a variant runner or BaseExperiment script is edited, automatically run preflight validation to catch data leakage, regime violations, descending sweep errors, model-ansatz incompatibilities, and configuration issues before execution.",
   "when": {
     "type": "fileEdited",
     "patterns": [
       "scripts/experiment_runners/run_*.py",
       "scripts/experiment_runners/verify_*.py",
-      "analysis/run_*.py",
-      "analysis/step*.py",
       "experiments/*/exp_*.py"
     ]
   },
   "then": {
     "type": "askAgent",
-    "prompt": "A script that may define experiment variants was just edited. Determine if it contains variant definitions by checking for: (1) build_noiseless_variants / build_noisy_variants / build_extended_variants functions (standard VariantRunner pattern), or (2) a VARIANTS list (legacy pattern), or (3) PipelineVariant imports. \n\nIf the script defines variants:\n  Run: `.venv/bin/python scripts/preflight.py --from-script <path_to_edited_file>`\n  - If exit code = 1 (ERRORS): Report the errors to the user. Do NOT execute the script until errors are resolved.\n  - If exit code = 0 (clean or warnings only): Note any warnings. The script is safe to execute when requested.\n\nIf the script does NOT define variants (e.g., it's a standalone analysis, a scan tool, or a diagnostic script without PipelineVariant definitions):\n  Skip preflight — it only validates variant configurations. Simply note that the file was edited and proceed normally.\n\nKey: preflight.py uses --from-script which dynamically imports the module and calls the build_*_variants() functions. It will fail gracefully if the script doesn't follow the variant runner pattern."
+    "prompt": "A script that may define experiment variants or a BaseExperiment was just edited. The preflight tool now auto-detects the script type.\n\nRun: `.venv/bin/python scripts/preflight.py --from-script <path_to_edited_file>`\n\nThe tool will:\n- If the script has build_noiseless_variants() or VARIANTS list → run variant checks (9 validations)\n- If the script has a BaseExperiment subclass → run experiment checks (12 validations: p_layers, model_ansatz, hypothesis, h_test_unseen, h_test_valid_regime, h_values_valid_regime, descending_sweep, interpolation, n_qubits_feasibility, mpnn_capacity, seeds, restarts)\n- If neither pattern is found → report that the file doesn't match any known pattern and skip\n\nInterpret the result:\n- Exit code = 1 (ERRORS): Report the errors to the user. Do NOT execute the script until errors are resolved.\n- Exit code = 0 (clean or warnings only): Note any warnings. The script is safe to execute when requested.\n\nFor analysis scripts (analysis/run_*.py, analysis/step*.py) that don't define variants or experiments: skip preflight — it only validates variant/experiment configurations."
   }
 }

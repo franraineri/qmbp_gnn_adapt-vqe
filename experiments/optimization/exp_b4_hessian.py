@@ -46,7 +46,8 @@ class ExperimentB4(BaseExperiment):
             system=SystemConfig(
                 n_qubits=6,
                 p_layers=2,
-                h_values=[1.0, 1.25, 1.5, 2.0],
+                h_values=[2.0, 1.5, 1.25, 1.0],
+                h_test=[],  # No MPNN deployment — pure VQE comparison
             ),
             vqe=VQEConfig(n_restarts=5, use_hessian_check=True),
             seeds=[42, 43, 44],

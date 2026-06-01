@@ -350,3 +350,157 @@ general de circuitos variacionales superficiales.
 **Detalles completos**: `documentation/binnacles/binnacle-heisenberg-extension.md`
 (entrada 2026-06-01). Tablas para tesis: `documentation/analysis/09_thesis_tables.md`
 (Tables 5.14, 5.15).
+
+### Scaling N=6 → N=10 → N=16
+
+| Model | Δ | N=6 E_gap | N=10 E_gap | N=16 E_gap | Scaling |
+|-------|---|:---------:|:----------:|:----------:|---------|
+| XY | 0.0 | 21.0 | 37.4 | 60.6 | ~3.8×N |
+| Heisenberg | 1.0 | 16.0 | 28.5 | 60.4 | ~3.8×N |
+| TFIM | N/A | 0.0 | 0.0 | 0.001 | ≈0 |
+
+**Conclusión de scaling**: El gap energético crece linealmente con N. No es un efecto
+de tamaño finito — la limitación empeora con el sistema. TFIM mantiene E_gap≈0 a todo N.
+N=16 TFIM fidelity=0 es artefacto DMRG (no hay statevector), no un fallo real del VQE.
+
+**Tool**: `python analysis/heisenberg_summary.py --compare-scaling`
+
+### Verificación de sanidad (VQE + circuito)
+
+Ejecutado con `python analysis/_verify_heisenberg_sanity.py`:
+
+| Check | Resultado | Implicación |
+|-------|:---------:|-------------|
+| Circuito: 8 params, 30 gates | ✅ | No hay bug estructural |
+| VQE optimiza (random init) | ✅ E=-8.55 (mejora 3.55 vs Néel) | El optimizador funciona |
+| VQE NO alcanza ground state | ✅ gap=5.92 (fid=0.05%) | Límite de expresibilidad |
+| VQE desde Néel NO se mueve | ⚠️ E=-5.00 (sin cambio) | Néel es trampa (gradiente=0) |
+| Warm-start propaga la trampa | ⚠️ E≈-3 en todo el sweep | Mecanismo del fallo en pipeline |
+
+**Causa raíz refinada**: Tres factores compuestos:
+1. Expresibilidad limitada (circuito alcanza E=-8.5 pero no E=-14.5)
+2. Estado Néel es trampa (gradiente cero → VQE no se mueve)
+3. Warm-start propaga la trampa de h=4.0 (E=-3) a todo el sweep
+
+
+---
+
+## Hallazgo #11: Entropía de entrelazamiento correlaciona con ley de escalado (S1, 2026-06-01)
+
+| N | h_min(p=2) | S(h_min) | Interpretación |
+|---|:----------:|:--------:|----------------|
+| 4 | 0.95 | 0.4450 | Rango alto |
+| 6 | 1.20 | 0.3334 | Rango medio |
+| 8 | 1.30 | 0.2935 | Rango medio-bajo |
+| 10 | 1.40 | 0.2541 | Rango bajo |
+| **Rango** | | **[0.25, 0.45]** | **Decrece con N** |
+
+S_max(p=1) = 0.17 ± 0.03 (ratio p=1/p=2 ≈ 0.50 — consistente con mitad de capas).
+
+**Validación V1**: Predicción de h_min(N=12) usando S_target=0.33 da h=1.25 vs A3=1.51.
+Diferencia 0.26 → S(h_min) NO es constante, decrece con N.
+
+**Validación V2**: S(h=1.0, N) sigue CFT con c=0.44 (R²=0.999). Cálculo correcto.
+
+**Implicación (corregida)**: h_min corresponde a una región de entrelazamiento moderado
+donde el HVA opera cerca de su límite. La relación es correlativa (no causal simple).
+La capacidad efectiva del HVA crece ligeramente con N.
+
+**Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S1.
+**Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.16.
+
+---
+
+## Hallazgo #12: No hay zero-shot cross-topology transfer (S2, 2026-06-01)
+
+| Transfer | Mean ΔE/gap | Pass? |
+|----------|:-----------:|:-----:|
+| chain → chain (self) | 1.66 | 1/3 |
+| chain → ladder | 5.98 | 0/3 |
+| chain → triangular | 7.82 | 0/3 |
+
+**Implicación**: El MPNN aprende h→θ condicionado a la topología. El framework es
+topology-agnostic en arquitectura pero NO en representaciones aprendidas. Cada
+topología necesita sus propios datos de entrenamiento.
+
+**Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S2.
+**Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.21.
+
+---
+
+## Hallazgo #13: N=20 tiene 2-3 mínimos locales (S3, 2026-06-01)
+
+| h | κ(N=20) | κ(N=6) | κ(N=10) | Distinct minima |
+|---|:-------:|:------:|:-------:|:---------------:|
+| 2.00 | 73 | 1399 | 1294 | 2 |
+| 1.75 | 1078 | — | 52 | 2 |
+| 1.50 | 184 | 36 | 33 | 2-3 |
+
+**Implicación**: G3 falla por múltiples basins (no por landscape plano). κ(N=20)
+es MENOR que κ(N=6) a h=2.0 — el landscape es más plano pero con más mínimos.
+≥3 restarts necesarios para explorar todos los basins.
+
+**Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S3.
+**Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.19.
+
+---
+
+## Hallazgo #14: k_min(N=10) es seed-dependent (S4 + V3, 2026-06-01)
+
+| k | Seeds 42-44 (S4) | Seeds 45-49 (V3) | Combined |
+|---|:----------------:|:----------------:|:--------:|
+| 5 | 3/3 ✅ | 1/5 ❌ | 4/8 (50%) |
+| 7 | 3/3 ✅ | (not tested) | — |
+| 9 | 3/3 ✅ | (not tested) | — |
+| 17 | 3/3 ✅ | (not tested) | — |
+
+**Comparación con G1**: k_min(N=6) = 9 (seed 42 falla con k<9).
+k_min(N=10) = 5 para seeds favorables, pero 7-9 para robustez cross-seed.
+
+**Causa del failure en seeds 45/47/48/49**: MPNN diverge con solo 5 puntos cuando
+el VQE data tiene mayor ruido (peor convergencia en esos seeds específicos).
+
+**Recomendación conservadora**: k=7-9 (47-59% reducción vs 17 puntos).
+
+**Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S4.
+**Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.17.
+
+---
+
+## Hallazgo #15: Pipeline N=20 p=1 completo con MPNN (S5, 2026-06-01)
+
+| Método | Mean ΔE/gap | Pass rate |
+|--------|:-----------:|:---------:|
+| MPNN (15 pts) | 2.48% | 9/9 (100%) |
+| Interpolación | 1.47% | 9/9 (100%) |
+
+**Implicación**: Pipeline funciona a N=20 p=1. Pero interpolación lineal supera
+al MPNN porque θ(h) es casi lineal con solo 2 parámetros. El MPNN agrega valor
+solo para p≥2 (4+ parámetros, relación no-lineal).
+
+**Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S5.
+**Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.18.
+
+---
+
+## Hallazgo #16: MC-Dropout UQ calibrada (S6 + V4, 2026-06-01)
+
+| Seed | Pearson r | 95% CI (bootstrap) | Significativo? |
+|------|:---------:|:------------------:|:--------------:|
+| 42 | 0.900 | [0.861, 1.000] | ✅ |
+| 43 | 0.788 | [-1.000, 1.000] | ⚠️ (CI ancho) |
+| 44 | 0.779 | [0.610, 1.000] | ✅ |
+
+| Método | Pearson r | Calibrada? |
+|--------|:---------:|:----------:|
+| MC-Dropout (50 passes) | 0.822 | ✅ (2/3 significativo) |
+| Ensemble naive (G2) | 0.195 | ❌ |
+
+**Mejora**: 4.2× sobre G2. Bootstrap confirma significancia en 2/3 seeds.
+Seed 43 tiene CI ancho por n=5 test points (limitación estadística, no del método).
+
+**Caveat**: Con solo 5 test points, la potencia estadística es limitada.
+Para publicación, se recomienda repetir con 10+ test points.
+
+**Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S6.
+**Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.20.

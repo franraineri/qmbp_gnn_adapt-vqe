@@ -63,7 +63,12 @@ class ExperimentA3(BaseExperiment):
                 "h_min(N) = h_c + alpha * N^(beta) with beta ~ 0.5-1.0 "
                 "(TFIM universality class, nu=1 in 1D)"
             ),
-            system=SystemConfig(n_qubits=6, p_layers=2),
+            system=SystemConfig(
+                n_qubits=6,
+                p_layers=2,
+                h_values=[],  # A3 generates its own h-grid internally per N
+                h_test=[],  # No MPNN deployment — boundary search only
+            ),
             analysis=AnalysisConfig(scaling_n_values=[4, 6, 8, 10]),
             seeds=[42, 43, 44],
             verbose=True,

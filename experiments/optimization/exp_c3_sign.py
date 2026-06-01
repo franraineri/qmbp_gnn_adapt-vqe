@@ -48,8 +48,8 @@ class ExperimentC3(BaseExperiment):
             system=SystemConfig(
                 n_qubits=20,
                 p_layers=1,
-                h_values=[2.25, 2.5, 2.75, 3.0, 3.5, 4.0],
-                h_test=[2.5, 3.0, 3.5],
+                h_values=[4.0, 3.5, 3.0, 2.75, 2.5, 2.25],
+                h_test=[2.625, 3.25],  # Interpolation points not in training set
             ),
             vqe=VQEConfig(n_restarts=3, sigma=0.3, maxiter=100),
             seeds=[42, 43, 44],

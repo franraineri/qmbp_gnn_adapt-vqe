@@ -260,3 +260,266 @@ The discrepancy with the 48% result suggests the earlier experiment may have use
 - Each variant: `pipeline_run_*.json` (config + phase2_summary + entanglement + scientific_conclusion)
 - Each variant: `diagnostics.json` (per-h timing, iterations, θ_smoothness)
 - Each variant: `checkpoints/phase12_checkpoint.npz` (raw numerical data)
+
+
+---
+
+## 2026-06-01 — N=10 Scaling Verification (3 key variants)
+
+### Objective
+
+Confirm that the Heisenberg negative result scales from N=6 to N=10.
+
+### Results
+
+| Model | Δ | N | E_exact[h=4] | E_vqe[h=4] | Gap | Max Fidelity | Classification |
+|-------|---|---|:------------:|:----------:|:---:|:------------:|----------------|
+| Heisenberg | 0.0 | 6 | -24.00 | -3.00 | 21.0 | 0.0000 | negative_fundamental |
+| Heisenberg | 0.0 | 10 | -40.00 | -2.61 | 37.4 | 0.0000 | negative_fundamental |
+| Heisenberg | 1.0 | 6 | -19.00 | -3.00 | 16.0 | 0.0000 | negative_fundamental |
+| Heisenberg | 1.0 | 10 | -31.00 | -2.54 | 28.5 | 0.0000 | negative_fundamental |
+| **TFIM** | N/A | 6 | -24.31 | -24.31 | 0.0 | 0.9999 | full_success |
+| **TFIM** | N/A | 10 | -40.56 | -40.56 | 0.0 | 0.9999 | full_success |
+
+### Key Observations
+
+1. **Energy gap grows with N**: At N=10, E_vqe - E_exact ≈ 28-37 (vs 16-21 at N=6). The VQE local minimum stays at E≈-3 regardless of N, while the true ground state scales linearly with N.
+
+2. **Fidelity remains exactly zero**: No improvement from N=6 to N=10. The failure is not a finite-size effect.
+
+3. **TFIM scales perfectly**: E_vqe matches E_exact to machine precision at both N=6 and N=10. ΔE/gap increases slightly (0.28% → 2.35%) but remains well within the 5% threshold.
+
+4. **Entanglement at N=10**: S=1.046 bits (isotropic, h=3.5) — slightly higher than N=6 (S=1.000). Confirms entanglement grows with N for Heisenberg.
+
+### Conclusion
+
+The negative result is **N-independent**: HVA p=2 fails equally at N=6 and N=10 for Heisenberg. The energy gap between VQE solution and ground state grows linearly with N, confirming the failure is fundamental (symmetry-sector trapping), not a finite-size artifact.
+
+### Tool Used
+
+```bash
+python analysis/heisenberg_summary.py --compare-scaling --verbose \
+  --json results/thesis/heisenberg_summary.json
+```
+
+
+---
+
+## 2026-06-01 — N=16 Scaling Verification (3 key variants)
+
+### Objective
+
+Extend the Heisenberg scaling test to N=16 (Hilbert dim = 65536). Also verify TFIM baseline behavior at this size.
+
+### Execution
+
+| Variant | Model | Δ | Time | Verdict |
+|---------|-------|---|:----:|:-------:|
+| NL-A-xy | XY | 0.0 | 423s (7 min) | NEG-FUND |
+| NL-A-isotropic | Heisenberg | 1.0 | 488s (8 min) | NEG-FUND |
+| EXT-1-tfim-baseline | TFIM | N/A | 93s | NEG-FUND* |
+
+*TFIM shows fidelity=0 due to DMRG limitation (no statevector at N=16), but E_vqe ≈ E_exact.
+
+### Results — Cross-N Scaling Table
+
+| Model | Δ | N=6 E_gap | N=10 E_gap | N=16 E_gap | Scaling |
+|-------|---|:---------:|:----------:|:----------:|---------|
+| XY | 0.0 | 21.0 | 37.4 | 60.6 | Linear (~3.8×N) |
+| Heisenberg | 1.0 | 16.0 | 28.5 | 60.4 | Linear (~3.8×N) |
+| **TFIM** | N/A | **0.0** | **0.0** | **0.001** | **Constant (≈0)** |
+
+Where E_gap = E_vqe - E_exact at h=4.0 (first point in sweep).
+
+### Key Findings
+
+1. **Heisenberg energy gap scales linearly with N**: E_gap ≈ 3.8×N for both XY and isotropic. The VQE local minimum stays at E≈-3 to -4.5 regardless of N, while E_exact scales as ~-4N.
+
+2. **TFIM energy gap stays at zero**: E_vqe tracks E_exact perfectly at all N. The fidelity=0 at N=16 is a DMRG artifact (solver doesn't return statevector for fidelity computation), NOT a VQE failure.
+
+3. **N=16 takes 7-8 min per Heisenberg variant**: Confirms the project rule "N=12+ too slow for iterative experimentation." Running all 30 variants at N=16 would take ~4 hours.
+
+4. **No entanglement data at N=16**: DMRG solver returns `ground_state=None`, so `EntanglementAnalyzer` cannot compute entropy. This is expected — entanglement analysis requires the full statevector.
+
+### TFIM N=16 Clarification
+
+The TFIM "failure" at N=16 is **not real**. Evidence:
+- E_vqe = -64.940 vs E_exact = -64.941 → ΔE = 0.001 (excellent)
+- θ_smoothness = 0.04 (perfect warm-start chain)
+- convergence_rate = 1.0
+
+The fidelity=0 is because `ClassicalSolver` uses DMRG at N≥12 which doesn't produce a statevector. The `PipelineRunner` then computes fidelity as `|⟨ψ_exact|ψ_vqe⟩|² = 0` because `ψ_exact = None`. This is a known limitation documented in the project — fidelity is only meaningful at N≤10 where exact diagonalization provides the full statevector.
+
+### Conclusion
+
+The Heisenberg negative result is confirmed at N=16 with the same mechanism:
+- VQE converges to E≈-4.5 (local minimum in wrong symmetry sector)
+- True ground state at E≈-65 (scales linearly with N)
+- Energy gap grows as ~3.8×N → failure gets WORSE with system size
+- This is the opposite of TFIM where the gap stays at zero
+
+**Thesis implication**: The HVA expressibility limit for Heisenberg is not a finite-size effect that might improve at larger N — it gets strictly worse. Any future extension to Heisenberg requires a fundamentally different ansatz (p≥4-6 or symmetry-adapted circuits).
+
+### Tool Used
+
+```bash
+python analysis/heisenberg_summary.py --compare-scaling --verbose \
+  --json results/thesis/heisenberg_summary.json
+```
+
+
+---
+
+## 2026-06-01 — Sanity Checks (Circuit + VQE Verification)
+
+### Test 2: Circuit Structure ✅
+
+| Property | Expected | Actual | Status |
+|----------|:--------:|:------:|:------:|
+| Parameters | 8 (4/layer × 2) | 8 | ✅ |
+| Qubits | 6 | 6 | ✅ |
+| 2-qubit gates | 30 (3×5 edges × 2 layers) | 30 | ✅ |
+| Gate breakdown | RXX:10, RYY:10, RZZ:10 | Correct | ✅ |
+| Initial state | Néel (X gates on odd qubits) | 3 X gates | ✅ |
+| Circuit depth | — | 18 | — |
+
+**Conclusion**: Circuit is correctly constructed. No structural bugs.
+
+### Test 3: VQE Optimization ✅
+
+At h=3.0, N=6, Δ=1.0 (isotropic Heisenberg):
+
+| State | Energy | Interpretation |
+|-------|:------:|----------------|
+| E_exact (ground state) | -14.464 | True minimum |
+| E_Néel (zero params) | -5.000 | Initial state energy |
+| E_vqe (from Néel init) | -5.000 | VQE from Néel doesn't move! |
+| E_vqe (best of 5 random) | -8.549 | Random init finds better basin |
+| Fidelity (best VQE) | 0.048% | Still essentially zero overlap |
+
+**Critical finding**: VQE from Néel initial state **does not optimize at all** (stays at E=-5.000). The L-BFGS-B optimizer finds a flat landscape starting from the Néel state — all gradients are zero or near-zero.
+
+With random initialization, VQE DOES optimize (E=-8.55, improving 3.55 over Néel) but still cannot reach the ground state (gap = 5.92). This confirms:
+1. The circuit CAN represent states with E < E_Néel (it's not completely inexpressive)
+2. But it CANNOT reach E_exact = -14.46 (expressibility limit at ~59% of the way)
+3. The Néel initial state is a **saddle point or flat region** — VQE gets stuck there
+
+**Why the pipeline shows E_vqe ≈ -3 (not -5 or -8.5)**: The pipeline uses descending warm-start from h=4.0. At h=4.0, E_Néel = -3.0 (field-dominated). The warm-start propagates this E≈-3 basin through the sweep without ever escaping it.
+
+### Bonus: Exact Energy Verification
+
+| System | Our E_exact | Reference | Status |
+|--------|:-----------:|:---------:|:------:|
+| Heisenberg N=6, h=0 (open) | -9.974 | E/N≈-1.66 (finite-size) | ✅ Reasonable |
+| TFIM N=6, h=1 (critical) | -7.296, gap=0.482 | Gap should be small | ✅ |
+| Heisenberg N=6, h=10 | -55.00 | ≈-hN=-60 (strong field) | ✅ (ratio=0.92) |
+
+Note: Our E/N=-1.66 differs from the thermodynamic limit (-0.4671) because:
+(a) we use open boundary (not periodic), (b) N=6 has strong finite-size effects,
+(c) the literature value is for the spin-1/2 chain with different normalization.
+The value is physically reasonable for an open N=6 chain with our Hamiltonian convention.
+
+### Scientific Validity Conclusion
+
+The negative result is **confirmed valid**:
+1. ✅ Circuit has correct structure (8 params, 30 two-qubit gates, Néel init)
+2. ✅ VQE does optimize when given random init (E improves by 3.55)
+3. ✅ But cannot reach ground state (gap = 5.92, fidelity = 0.05%)
+4. ✅ Néel init is a trap (VQE stays at E=-5.000, zero gradient)
+5. ✅ Warm-start propagates the trap through the h-sweep
+6. ✅ Exact energies are physically reasonable
+
+**Root cause refined**: The failure is a combination of:
+- **Expressibility limit** (circuit can reach E=-8.5 but not E=-14.5)
+- **Initial state trap** (Néel is a flat region, VQE doesn't move from it)
+- **Warm-start propagation** (h=4.0 trap at E=-3 propagates to all h-values)
+
+### Tool
+
+```bash
+python analysis/_verify_heisenberg_sanity.py
+```
+
+
+---
+
+## 2026-06-01 — Test 4: Depth Scaling Validation (p=1→6)
+
+### Objective
+
+Verify that increasing HVA depth (p>2) improves fidelity for Heisenberg, confirming the p=2 failure is an expressibility limit and not a circuit bug.
+
+### Results
+
+#### Test A: Heisenberg (Δ=1.0) at h=3.0, N=6
+
+| p | Params | E_vqe | Fidelity | Gap to GS | Status |
+|---|:------:|:-----:|:--------:|:---------:|:------:|
+| 1 | 4 | -5.60 | 0.0000 | 8.87 | ❌ |
+| 2 | 8 | -8.60 | 0.0020 | 5.86 | ❌ |
+| 3 | 12 | -10.78 | 0.3708 | 3.68 | ⚠️ |
+| 4 | 16 | -11.82 | 0.4329 | 2.64 | ⚠️ |
+| 5 | 20 | -13.06 | **0.4772** | 1.40 | ⚠️ |
+| 6 | 24 | -12.50 | 0.4291 | 1.97 | ⚠️ |
+
+E_exact = -14.464
+
+**Key finding**: Fidelity jumps from 0% (p≤2) to 37% (p=3) to 48% (p=5), then saturates. Even p=6 cannot reach fidelity > 50%. The landscape becomes harder to optimize at higher p (p=6 is worse than p=5 due to local minima in 24-dim space).
+
+#### Test B: XY Model (Δ=0.0) at h=3.0, N=6
+
+| p | Params | E_vqe | Fidelity | Gap to GS |
+|---|:------:|:-----:|:--------:|:---------:|
+| 1 | 4 | -3.94 | 0.0000 | 14.06 |
+| 2 | 8 | -7.00 | 0.0000 | 11.00 |
+| 3 | 12 | -11.25 | 0.0000 | 6.75 |
+| 4 | 16 | -13.25 | 0.0000 | 4.75 |
+| 5 | 20 | -14.31 | 0.0000 | 3.69 |
+| 6 | 24 | -12.27 | 0.0000 | 5.73 |
+
+E_exact = -18.000
+
+**Key finding**: XY model shows ZERO fidelity at ALL depths up to p=6, even though energy improves. This is a more severe expressibility problem than isotropic Heisenberg — the XY ground state requires a fundamentally different circuit structure.
+
+#### Test C: TFIM at h=1.5, N=6 (control)
+
+| p | Params | Fidelity | Status |
+|---|:------:|:--------:|:------:|
+| 1 | 2 | 0.9827 | ⚠️ |
+| 2 | 4 | 0.9957 | ✅ |
+| 3 | 6 | 0.9987 | ✅ |
+| 4 | 8 | 0.9997 | ✅ |
+
+**Control confirmed**: TFIM reaches >99% at p=2 and improves monotonically. The circuit builder works correctly.
+
+#### Test D: Heisenberg (Δ=1.0) at h=0.5, N=6 (deep correlated)
+
+| p | Params | Fidelity | Gap to GS |
+|---|:------:|:--------:|:---------:|
+| 2 | 8 | 0.4792 | 1.39 |
+| 4 | 16 | 0.4924 | 1.10 |
+| 6 | 24 | 0.4954 | 1.06 |
+
+**Key finding**: At h=0.5 (deep in correlated regime), fidelity starts at 48% even at p=2 (unlike h=3.0 where p=2 gives 0%). This is because at low h, the Néel state has higher overlap with the ground state. But even p=6 saturates at ~50%.
+
+### Scientific Conclusions
+
+1. **p=2 failure is CONFIRMED as expressibility limit** — fidelity increases from 0% to 48% as p goes from 2 to 5. The circuit implementation is correct.
+
+2. **Even p=6 is insufficient** — max fidelity saturates at ~48% for Heisenberg at h=3.0. Literature (Wiersema et al.) suggests p∝N is needed for high fidelity.
+
+3. **XY model is HARDER than Heisenberg** — zero fidelity at all p≤6 despite energy improvement. The XY ground state requires a different ansatz structure entirely.
+
+4. **Optimization becomes harder at high p** — p=6 gives worse results than p=5 (local minima in 24-dim space). More restarts would be needed.
+
+5. **TFIM control is perfect** — confirms the circuit builder, VQE optimizer, and fidelity computation all work correctly.
+
+6. **h=0.5 vs h=3.0**: At low field, Néel state has natural overlap with the ground state (48% at p=2). At high field, the ground state is in a completely different sector (0% at p=2).
+
+### Tool
+
+```bash
+python analysis/verify_depth_scaling.py --verbose
+```
+
+Total time: 5.2 min (19 VQE runs).

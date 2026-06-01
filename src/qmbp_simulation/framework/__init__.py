@@ -34,6 +34,8 @@ from qmbp_simulation.framework.result_io import (
 )
 from qmbp_simulation.framework.result_store import CATEGORY_MAP, ResultStore
 from qmbp_simulation.framework.preflight import (
+    ExperimentChecker,
+    ExperimentSpec,
     P1_VALID_REGIME,
     P2_VALID_REGIME,
     PreflightChecker,
@@ -101,6 +103,8 @@ __all__ = [
     "PreflightChecker",
     "PreflightReport",
     "VariantSpec",
+    "ExperimentChecker",
+    "ExperimentSpec",
     "P1_VALID_REGIME",
     "P2_VALID_REGIME",
     "get_valid_regime",

@@ -43,7 +43,8 @@ class ExperimentG4(BaseExperiment):
             system=SystemConfig(
                 n_qubits=6,
                 p_layers=2,
-                h_values=[1.0, 1.25, 1.5, 1.75, 2.0],
+                h_values=[2.0, 1.75, 1.5, 1.25, 1.0],
+                h_test=[],  # G4 evaluates at all h_values (no MPNN deployment)
             ),
             vqe=VQEConfig(maxiter=500),
             analysis=AnalysisConfig(compute_hessian=True),

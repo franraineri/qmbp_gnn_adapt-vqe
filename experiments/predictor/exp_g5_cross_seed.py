@@ -44,8 +44,8 @@ class ExperimentG5(BaseExperiment):
             system=SystemConfig(
                 n_qubits=6,
                 p_layers=2,
-                h_values=list(np.linspace(1.0, 2.0, 17)),
-                h_test=[1.25, 1.5, 1.75, 2.0],
+                h_values=[float(x) for x in np.linspace(2.0, 1.0, 17)],
+                h_test=[1.35, 1.65],  # Interpolation points not in linspace(1.0, 2.0, 17)
             ),
             vqe=VQEConfig(n_restarts=5, maxiter=500),
             mpnn=MPNNConfig(hidden_dim=64, n_layers=3, n_epochs=6000, lr=1e-3),
