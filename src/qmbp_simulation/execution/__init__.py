@@ -2,10 +2,15 @@
 
 from qmbp_simulation.execution.backends import (
     ExecutionBackend,
-    HardwareBackend,
     MitigationOptions,
     NoiselessBackend,
     NoisyBackend,
+)
+from qmbp_simulation.execution.hardware import (
+    HardwareBackend,
+    HardwareConfig,
+    HardwareRunResult,
+    SPSAConfig,
 )
 from qmbp_simulation.execution.noisy_utils import (
     LayoutSelection,
@@ -27,6 +32,9 @@ __all__ = [
     # Backends
     "ExecutionBackend",
     "HardwareBackend",
+    "HardwareConfig",
+    "HardwareRunResult",
+    "SPSAConfig",
     "MitigationOptions",
     "NoiselessBackend",
     "NoisyBackend",

@@ -32,19 +32,22 @@ class TestNoiselessBackend:
 
 
 class TestHardwareBackend:
-    """Test HardwareBackend.evaluate() raises NotImplementedError."""
+    """Test HardwareBackend basic interface."""
 
-    def test_evaluate_raises_not_implemented(self, small_lattice, small_circuit):
-        backend = HardwareBackend()
-        builder = HamiltonianBuilder()
-        H = builder.build(small_lattice)
-        qc, theta = small_circuit
-        params = np.zeros(len(theta))
-        with pytest.raises(NotImplementedError, match="not yet implemented"):
-            backend.evaluate(qc, H, params)
+    def test_hardware_mode_requires_credentials(self):
+        """Hardware mode raises ValueError without IBM_KEY."""
+        from qmbp_simulation.execution.hardware import HardwareConfig
+
+        config = HardwareConfig(mode="hardware")
+        backend = HardwareBackend(config=config)
+        with pytest.raises(ValueError, match="IBM_KEY"):
+            _ = backend.backend  # Triggers lazy connection
 
     def test_name_property(self):
-        backend = HardwareBackend(backend_name="ibm_torino")
+        from qmbp_simulation.execution.hardware import HardwareConfig
+
+        config = HardwareConfig(mode="fake_backend", backend_name="ibm_torino")
+        backend = HardwareBackend(config=config)
         assert "ibm_torino" in backend.name
 
 

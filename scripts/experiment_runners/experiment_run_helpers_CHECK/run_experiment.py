@@ -47,6 +47,8 @@ EXPERIMENT_REGISTRY: dict[str, tuple[str, str]] = {
     "S4": ("experiments.predictor.exp_s4_data_efficiency_n10", "ExperimentS4"),
     "S5": ("experiments.scaling.exp_s5_n20_p1_pipeline", "ExperimentS5"),
     "S6": ("experiments.predictor.exp_s6_mc_dropout_uq", "ExperimentS6"),
+    "S8": ("experiments.scaling.exp_s8_d1_finite_size_scaling", "ExperimentS8"),
+    "S8b": ("experiments.scaling.exp_s8b_mpnn_finite_size_scaling", "ExperimentS8b"),
 }
 
 _PLANNED_NOT_IMPLEMENTED: dict[str, str] = {

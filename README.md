@@ -56,16 +56,26 @@ project-root/
 │   ├── generalization/             # Model-agnostic tests (E4)
 │   └── helpers/                    # DyPP, sign canon, freezing, etc.
 ├── scripts/                        # CLI entry points (Zone 2: Consumers)
-│   ├── run_experiment.py           # Run experiments by ID
-│   ├── run_pipeline.py             # Full 4-phase pipeline
+│   ├── experiment_runners/         # Pipeline & variant runners
+│   │   ├── experiment_run_helpers_CHECK/
+│   │   │   ├── run_experiment.py   # Run experiments by ID
+│   │   │   └── run_pipeline.py     # Full 4-phase pipeline
+│   │   ├── run_thesis_variants-*.py # Topology-specific variant runners
+│   │   └── run_p1_pipeline_variants*.py # p=1 multi-topology variants
+│   ├── digest/                     # Result digest & analysis tool
 │   ├── compare.py                  # Cross-experiment comparison
+│   ├── preflight.py                # Pre-flight validation
 │   ├── smoke_test.py               # Quick validation (<30s)
 │   └── benchmark.py                # Performance benchmarking
 ├── tests/                          # pytest suite
 ├── results/                        # Experiment outputs (gitignored)
 ├── analysis/                       # Cross-experiment analysis & thesis figures
 │   ├── FINDINGS_INDEX.md           # Master index (36 findings with confidence)
+│   ├── 10_key_findings_corrected.md # Corrected findings post-verification
 │   ├── thesis_chapter_results.md   # Draft results chapter (11 tables)
+│   ├── diagnose.py                 # Automated failure root cause analysis
+│   ├── scan_coverage.py            # Coverage scanner + gap analysis
+│   ├── heisenberg_summary.py       # Heisenberg XXZ cross-N comparison
 │   ├── figures/                    # Thesis-quality PNG figures
 │   └── raw_data/                   # Parsed JSON for analysis scripts
 ├── documentation/                  # Thesis docs, binnacles, bibliography
@@ -76,29 +86,29 @@ project-root/
 
 All scripts live in `scripts/` and use the framework via `from qmbp_simulation import ...`.
 
-### `scripts/run_experiment.py` — Experiment Runner
+### `scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py` — Experiment Runner
 
 Unified CLI for running any registered experiment by ID. Experiments inherit from
 `BaseExperiment` and follow the lifecycle: `setup() → run() → analyze() → report() → save()`.
 
 ```bash
-python scripts/run_experiment.py --list              # List all experiments
-python scripts/run_experiment.py --exp B4            # Run experiment B4
-python scripts/run_experiment.py --exp B4 D1 F1      # Run multiple
-python scripts/run_experiment.py --exp A3 --seeds 42 43 --verbose
-python scripts/run_experiment.py --exp B1 --n-qubits 10 --p 1
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --list
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp B4
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp B4 D1 F1
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp A3 --seeds 42 43 --verbose
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp B1 --n-qubits 10 --p 1
 ```
 
-### `scripts/run_pipeline.py` — Full Pipeline
+### `scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py` — Full Pipeline
 
 Executes the complete 4-phase pipeline (exact diag → VQE → MPNN → deployment).
 Uses the framework's `PipelineRunner`, CLI argument groups, and result I/O.
 
 ```bash
-python scripts/run_pipeline.py --n-qubits 6 --p 2
-python scripts/run_pipeline.py --n-qubits 10 --h-values 2.0 1.75 1.5 1.25
-python scripts/run_pipeline.py --n-qubits 6 --output-dir results/my_run --verbose
-python scripts/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --p 2
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 10 --h-values 2.0 1.75 1.5 1.25
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --output-dir results/my_run --verbose
+python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
 ```
 
 ### `scripts/compare.py` — Result Comparison
@@ -152,6 +162,22 @@ Verifies ΔE/gap < 5%. Should complete in under 30 seconds.
 ```bash
 python scripts/smoke_test.py
 ```
+
+### `scripts/preflight.py` — Pre-flight Validation
+
+Validates variant runner configurations before execution. Always run before executing
+a variant runner script for the first time. A Kiro hook enforces this automatically.
+
+```bash
+python scripts/preflight.py --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+python scripts/preflight.py --from-script my_script.py --strict
+python scripts/preflight.py --from-json variants.json
+# Or via Makefile:
+make preflight SCRIPT=scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+```
+
+Checks: h_test not in training set, h_test within valid regime, descending order,
+interpolation (not extrapolation), no duplicate IDs, fresh output directories.
 
 ## Framework Modules (for programmatic use)
 
@@ -994,16 +1020,21 @@ print(f"Critical region detected: {grad_result.critical_region_detected}")
 |---|---|---|---|
 | Validate pipeline at N=6 | Noiseless | Standard (5 restarts) | `run_pipeline.py --n-qubits 6` |
 | Test at N=10 | Noiseless | Standard (5 restarts, h=128) | `run_pipeline.py --n-qubits 10 --hidden-dim 128 --patience 500` |
-| Test at N=20 | Noiseless (MPS) | 7 restarts, no freeze | `run_experiment.py --exp G3` |
+| Test at N=10 p=1 | Noiseless | 1 restart, h≥1.9 (chain) | `run_p1_pipeline_variants_r2.py` |
+| Test at N=20 p=2 | Noiseless (MPS) | 7 restarts, no freeze | `run_experiment.py --exp G3` |
+| Test at N=20 p=1 | Noiseless (MPS) | 5 restarts, h≥2.25 | S5 experiment |
+| Heavy-hex (IBM Torino native) | Noiseless | 1 restart (p=1), h≥3.25 | `run_thesis_variants-heavy_hex.py` |
 | Check for saddle points | Noiseless | Hessian check | `run_experiment.py --exp B4` |
 | Reduce VQE cost at h≥1.5 | Noiseless | Parameter freezing | `run_experiment.py --exp B2` |
 | Detect phase transition | Noiseless | Weight gradient (D1) | `run_experiment.py --exp D1` |
-| Test ZNE at N=6 | Noisy (FakeTorino) | ZNE + layout selection | Use `run_zne_deployment()` |
+| Test ZNE at N=6 p=2 | Noisy (FakeTorino) | ZNE + layout selection | Use `run_zne_deployment()` |
+| Test ZNE at N=10 p=1 | Noisy (FakeTorino) | ZNE + 3 layouts (gain=+49%) | p=1 ZNE variants |
 | Validate noise resilience | Noisy (Gaussian) | SPSA optimizer | Use `NoisyBackend(shots=8192)` |
-| Hardware deployment | Hardware | DD + twirling + TREX + ZNE | `HardwareBackend` (pending) |
+| Hardware deployment | Hardware | p=1 heavy-hex + DD + ZNE | `HardwareBackend` (pending) |
 | Landscape analysis | Noiseless | Random sampling | `run_experiment.py --exp F3` |
 | Scaling law | Noiseless | Multi-N sweep | `run_experiment.py --exp A3` |
 | Data efficiency | Noiseless | Reduced training set | `run_experiment.py --exp G1` |
+| Heisenberg model test | Noiseless | Model-agnostic pipeline | `run_thesis_variants-heisenberg.py` |
 
 ---
 
@@ -1117,29 +1148,35 @@ make check-full        # lint + test + smoke-test (~15s)
 
 | System | ΔE/gap | Status |
 |--------|:------:|--------|
-| N=6, h≥1.25 | < 5% | ✅ Thesis-ready |
-| N=10, h≥1.5 | < 5% | ✅ Thesis-ready |
-| N=20 p=1, h≥2.25 | 1.58% | ✅ Validated |
-| N=20 p=2, h≥2.0 | 1.75% | ✅ Validated (MPS) |
+| N=6 p=2, h≥1.25 (chain_1d) | < 5% | ✅ Thesis-ready |
+| N=10 p=2, h≥1.5 (chain/ladder/triangular/heavy-hex) | < 5% | ✅ Thesis-ready |
+| N=10 p=1, h≥1.9 (chain), h≥3.25 (ladder/heavy-hex) | < 5% | ✅ Thesis-ready |
+| N=20 p=1, h≥2.25 (chain) | 2.48% | ✅ Validated (MPNN) |
+| N=20 p=2, h≥2.0 (chain) | 1.75% | ✅ Validated (MPS) |
+| Heavy-hex p=1 N=10 (IBM Torino native) | 0.56% | ✅ Hardware-ready |
+| ZNE p=1 N=10 (heavy-hex, 3 layouts) | +62.7% gain | ✅ Confirmed |
+| Heisenberg XXZ (all Δ, all topologies) | fidelity ≈ 0% | ❌ HVA p≤2 cannot express |
 
 ## Tech Stack
 
 | Component | Tool | Version |
 |-----------|------|---------|
-| Quantum circuits | Qiskit | 2.4.x |
-| Hardware runtime | qiskit-ibm-runtime | 0.46.x |
-| Noisy simulation | qiskit-aer (MPS) | 0.17.x |
-| ML predictor | PyTorch + PyTorch Geometric | 2.11 + 2.7 |
+| Quantum circuits | Qiskit | 1.4.x |
+| Hardware runtime | qiskit-ibm-runtime | ≥0.20 |
+| Noisy simulation | qiskit-aer (MPS) | ≥0.14 |
+| ML predictor | PyTorch + PyTorch Geometric | 2.x + 2.x |
 | Tensor networks | TeNPy | 1.1.x |
-| Linting | Ruff | 0.11.x |
-| Testing | pytest + Hypothesis | 9.x + 6.x |
-| Git hooks | pre-commit (12 hooks) | 4.2.x |
+| Linting | Ruff | ≥0.11 |
+| Testing | pytest + Hypothesis | ≥8.0 + ≥6.98 |
+| Git hooks | pre-commit | ≥3.6 |
 
 ## Constraints (enforced by pre-commit)
 
 - HVA only, never HEA. p ≤ 2 layers.
 - Primitives V2 only (no deprecated Qiskit APIs)
-- Fidelity threshold ≥ 0.93 in training data
+- Fidelity threshold ≥ 0.93 in training data (TFIM), ≥ 0.60 (Heisenberg)
+- Heisenberg HVA p≤2 CANNOT work — do not attempt (30 runs + N=10/16 scaling confirm)
+- ZNE threshold: ~18 CX gates. Use p=1 for N≥10 hardware deployment.
 - No secrets in commits (gitleaks)
 - Conventional commits (commitizen)
 

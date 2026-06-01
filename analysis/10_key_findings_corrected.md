@@ -504,3 +504,34 @@ Para publicación, se recomienda repetir con 10+ test points.
 
 **Detalles completos**: `documentation/binnacles/binnacle-s-series-results.md` §S6.
 **Tabla tesis**: `documentation/analysis/09_thesis_tables.md` Table 5.20.
+
+---
+
+## Hallazgo #17: Weight-gradient ν extraction FAILS — D1 es cualitativo (S8/S8b, 2026-06-01)
+
+**Hipótesis**: h_peak(N) = 1.0 + a·N^(-1/ν) con ν≈1 (TFIM 1D).
+**Resultado**: REJECTED en ambas variantes.
+
+| Variante | Arquitectura | h_peak mediana (todos N) | N-dependencia | ν extraído |
+|----------|-------------|:------------------------:|:-------------:|:----------:|
+| S8 (MLP) | h→θ, h=128, dropout=0.1 | 0.704 | ❌ Ninguna | 5.0 (sin sentido) |
+| S8b (MPNN) | GINConv, h=128, L=3 | 0.500 | ❌ Ninguna | 5.0 (sin sentido) |
+
+**Causa raíz**: ||dW/dh|| está dominado por el efecto de frontera — la transición
+en calidad de datos VQE en h<1.0 (fuera del régimen válido) produce un gradiente
+mayor que la señal física de la transición de fase. Ni MLP ni MPNN pueden separar
+estas señales.
+
+**Diferencia con Hernandes et al. (2025)**: Ellos usan estados exactos (no VQE) +
+métrica de distancia en weight-space (no norma de gradiente). Nuestros datos VQE
+tienen ruido inherente en h<1.0 que contamina la señal.
+
+**Implicación para la tesis**: D1 es cualitativo (detecta que hay transición) pero
+NO cuantitativo (no puede extraer exponentes críticos). La extracción de ν requiere
+datos exactos o una métrica diferente (distancia, Fisher information).
+
+**Seed 44 patológico**: Falla catastróficamente en ambas arquitecturas (gradient
+norms 80-1200× normales). Consistente con patrón conocido de seed 44.
+
+**Detalles completos**: `documentation/binnacles/binnacle-s8-negative-result.md`.
+**Resultados**: `results/experiments/exp_s8/`, `results/experiments/exp_s8b/`.

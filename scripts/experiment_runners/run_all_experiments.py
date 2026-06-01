@@ -70,6 +70,14 @@ EXPERIMENT_REGISTRY: dict[str, tuple[str, str]] = {
     "G3": ("experiments.scaling.exp_g3_n20_optimized", "ExperimentG3"),
     "G4": ("experiments.optimization.exp_g4_condition_restarts", "ExperimentG4"),
     "G5": ("experiments.predictor.exp_g5_cross_seed", "ExperimentG5"),
+    "S1": ("experiments.scaling.exp_s1_entanglement_scaling", "ExperimentS1"),
+    "S2": ("experiments.predictor.exp_s2_cross_topology", "ExperimentS2"),
+    "S3": ("experiments.landscape.exp_s3_landscape_n20", "ExperimentS3"),
+    "S4": ("experiments.predictor.exp_s4_data_efficiency_n10", "ExperimentS4"),
+    "S5": ("experiments.scaling.exp_s5_n20_p1_pipeline", "ExperimentS5"),
+    "S6": ("experiments.predictor.exp_s6_mc_dropout_uq", "ExperimentS6"),
+    "S8": ("experiments.scaling.exp_s8_d1_finite_size_scaling", "ExperimentS8"),
+    "S8b": ("experiments.scaling.exp_s8b_mpnn_finite_size_scaling", "ExperimentS8b"),
 }
 
 CATEGORY_NAMES = {

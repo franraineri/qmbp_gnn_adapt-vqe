@@ -5,4 +5,6 @@ Includes:
     - G3: N=20 p=2 optimized pipeline (capstone)
     - S1: Entanglement entropy vs valid regime boundary
     - S5: N=20 p=1 full pipeline with MPNN
+    - S8: Finite-size scaling of h_c via D1 weight-space gradients (REJECTED)
+    - S8b: Finite-size scaling of h_c via MPNN weight gradients (REJECTED)
 """

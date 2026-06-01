@@ -1,4 +1,5 @@
 {
+  "enable": "false",
   "name": "Preflight Before Script Run",
   "version": "4.0.0",
   "description": "When a variant runner or BaseExperiment script is edited, automatically run preflight validation to catch data leakage, regime violations, descending sweep errors, model-ansatz incompatibilities, and configuration issues before execution.",

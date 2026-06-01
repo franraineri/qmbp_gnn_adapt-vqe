@@ -229,7 +229,7 @@ Scripts are thin CLI wrappers that delegate to framework classes.
 
 | Parameter | Value |
 |-----------|-------|
-| VQE restarts | 5 |
+| VQE restarts | 5 (p=2) / 1 (p=1) |
 | VQE maxiter | 1000 |
 | VQE σ (restart) | 0.1 |
 | MPNN hidden | 64 |
@@ -244,7 +244,7 @@ Scripts are thin CLI wrappers that delegate to framework classes.
 
 | Parameter | Value |
 |-----------|-------|
-| VQE restarts | 5 |
+| VQE restarts | 5 (p=2) / 1 (p=1) |
 | VQE maxiter | 1000 |
 | VQE σ (restart) | 0.1 |
 | MPNN hidden | **128** |
@@ -253,15 +253,15 @@ Scripts are thin CLI wrappers that delegate to framework classes.
 | MPNN lr | 1e-3 |
 | MPNN patience | **500** |
 | Fid threshold | 0.93 |
-| Preferred seed | **43** (10x better MSE) |
+| Seeds | 42, 43, 44 (use median — seed 43 problematic for ladder, seed 44 for triangular) |
 
 ### N=20 (MPS-based)
 
 | Parameter | Value |
 |-----------|-------|
 | MPS chi | 64 (sufficient for 1D HVA) |
-| VQE restarts | 7 (no freeze) |
+| VQE restarts | 7 (p=2) / 5 (p=1) |
 | VQE maxiter | 100 |
 | Valid regime | h ≥ 2.0 (p=2), h ≥ 2.25 (p=1) |
 | MPNN hidden | 128 |
-| Training points | 11 (h∈[1.5,2.0]) |
+| Training points | 11 (h∈[1.5,2.0]) for p=2; 15 (h∈[2.25,4.0]) for p=1 |

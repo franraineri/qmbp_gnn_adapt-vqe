@@ -81,6 +81,7 @@
 | G2 | Naive ensemble no calibra UQ | Necesita bootstrap |
 | G3 | N=6 findings no escalan a N=20 | Landscape es N-dependent |
 | G4 | κ no predice dificultad | h-value es mejor proxy |
+| S8 | Weight-gradient ν extraction falla | D1 es cualitativo, no cuantitativo |
 
 ---
 
@@ -435,6 +436,7 @@ in `documentation/binnacles/binnacle-s-series-results.md`.
 | S4 | k_min(N=10) > k_min(N=6) | ⚠️ Partial | k=5 seed-dependent (50%), k=7-9 robust |
 | S5 | N=20 p=1 MPNN < 3% | ✅ Confirmed | 2.48% mean |
 | S6 | MC-Dropout r > 0.7 | ✅ Confirmed | r=0.82 (2/3 bootstrap significant) |
+| S8 | h_peak(N) → ν via weight gradients | ❌ Rejected | No N-dependence (MLP & MPNN) |
 
 *S1 and S4 downgraded after cross-validation (V1: N=12 prediction off by 0.26; V3: 1/5 extra seeds pass at k=5).*
 
@@ -469,8 +471,9 @@ in `documentation/binnacles/binnacle-s-series-results.md`.
 | C,D,G (Predictor) | 3 | 3 | 1 |
 | E (Generalization) | 0 | 1 | 0 |
 | F (Landscape) | 1 | 1 | 0 |
-| **S (Scalability)** | **3** | **2** | **1** |
-| **Total** | **11 (52%)** | **7 (33%)** | **3 (14%)** |
+| **S (Scalability)** | **3** | **3** | **1** |
+| **Total** | **11 (50%)** | **8 (36%)** | **3 (14%)** |
 
 S2 "failed" by ΔE/gap criterion but produced valid negative finding. S1/S4 are "partial"
-(findings valid but weaker than initially claimed). Effective useful-outcome rate: 90% (19/21).
+(findings valid but weaker than initially claimed). S8/S8b rejected (weight-gradient ν
+extraction fails — D1 is qualitative only). Effective useful-outcome rate: 91% (20/22).
