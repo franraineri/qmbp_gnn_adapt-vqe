@@ -56,6 +56,8 @@ class RunResult:
     delta_e_over_gap: float | None = None
     phase3_failed: bool = False
     noisy_summary: dict | None = field(default=None)
+    max_fidelity: float | None = None
+    scientific_conclusion: str | None = None
 
     @property
     def verdict(self) -> str:
@@ -69,6 +71,11 @@ class RunResult:
                 return "ZNE-PASS"
             return "ZNE-FAIL"
         if self.delta_e_over_gap is None:
+            # No Phase 4 data — check if we have scientific classification
+            if self.scientific_conclusion == "negative_fundamental":
+                return "NEG-FUND"
+            if self.scientific_conclusion == "negative_expressibility":
+                return "NEG-EXPR"
             return "OK"
         if self.delta_e_over_gap < 0.05:
             return "PASS"
@@ -81,7 +88,8 @@ def extract_metrics_from_output(output_dir: str) -> dict:
     """Extract key metrics from pipeline output.
 
     Handles both noiseless (pipeline_run_*.json) and noisy (noisy_3mode_*.json)
-    output formats.
+    output formats. For model-agnostic pipelines, also extracts phase2_summary
+    and scientific_conclusion when Phase 4 is not available.
 
     Parameters
     ----------
@@ -96,6 +104,8 @@ def extract_metrics_from_output(output_dir: str) -> dict:
         - "n_test_points": int
         - "phase3_failed": bool
         - "noisy_summary": dict with ZNE metrics
+        - "max_fidelity": float (from phase2_summary, when Phase 4 absent)
+        - "scientific_conclusion": str (classification from model-agnostic pipeline)
     """
     out_path = Path(output_dir)
     if not out_path.exists():
@@ -116,7 +126,15 @@ def extract_metrics_from_output(output_dir: str) -> dict:
                     return {"delta_e_over_gap": max(de_gaps), "n_test_points": len(de_gaps)}
             # Phase 3 failed (no phase4 results but pipeline completed)
             if not results and data.get("elapsed_s", 0) > 0:
-                return {"phase3_failed": True}
+                result = {"phase3_failed": True}
+                # Extract phase2_summary for model-agnostic pipelines (Heisenberg)
+                p2 = data.get("phase2_summary")
+                if p2:
+                    result["max_fidelity"] = p2.get("max_fidelity")
+                sci = data.get("scientific_conclusion")
+                if sci:
+                    result["scientific_conclusion"] = sci.get("classification")
+                return result
         except (json.JSONDecodeError, KeyError, OSError):
             pass
 
@@ -204,6 +222,8 @@ def run_variant(
             delta_e_over_gap=metrics.get("delta_e_over_gap"),
             phase3_failed=metrics.get("phase3_failed", False),
             noisy_summary=metrics.get("noisy_summary"),
+            max_fidelity=metrics.get("max_fidelity"),
+            scientific_conclusion=metrics.get("scientific_conclusion"),
         )
 
     except subprocess.TimeoutExpired:
@@ -393,6 +413,8 @@ class VariantRunner:
             r2_str = f"R²={r2:.3f}" if r2 is not None else "R²=—"
             gain_str = f" gain={gain:.1f}%" if gain is not None else ""
             return f"  {r2_str}{gain_str}"
+        if result.max_fidelity is not None:
+            return f"  max_fid={result.max_fidelity:.4f}"
         if result.phase3_failed:
             return "  [fidelity too low]"
         return ""
@@ -420,8 +442,8 @@ class VariantRunner:
         print()
 
         # Per-variant summary table
-        print(f"  {'#':<4} {'ID':<22} {'Verdict':<10} {'Time':<8} {'Metric':<12} {'Description'}")
-        print(f"  {'-' * 84}")
+        print(f"  {'#':<4} {'ID':<22} {'Verdict':<10} {'Time':<8} {'Metric':<16} {'Description'}")
+        print(f"  {'-' * 88}")
         for i, r in enumerate(results):
             variant_idx = start_from + i
             desc = variants[variant_idx].description[:28] if variant_idx < len(variants) else ""
@@ -431,11 +453,13 @@ class VariantRunner:
             elif r.noisy_summary is not None:
                 r2 = r.noisy_summary.get("mean_r2")
                 metric_str = f"R²={r2:.3f}" if r2 is not None else "—"
+            elif r.max_fidelity is not None:
+                metric_str = f"fid={r.max_fidelity:.4f}"
             else:
                 metric_str = "—"
             print(
                 f"  {variant_idx:<4} {r.variant_id:<22} {r.verdict:<10} "
-                f"{time_str:<8} {metric_str:<12} {desc}"
+                f"{time_str:<8} {metric_str:<16} {desc}"
             )
 
         if n_fail > 0:
@@ -477,6 +501,9 @@ class VariantRunner:
                 "ZNE-PASS": sum(1 for r in results if r.verdict == "ZNE-PASS"),
                 "ZNE-FAIL": sum(1 for r in results if r.verdict == "ZNE-FAIL"),
                 "SKIP-P3": sum(1 for r in results if r.verdict == "SKIP-P3"),
+                "NEG-FUND": sum(1 for r in results if r.verdict == "NEG-FUND"),
+                "NEG-EXPR": sum(1 for r in results if r.verdict == "NEG-EXPR"),
+                "OK": sum(1 for r in results if r.verdict == "OK"),
                 "ERROR": sum(1 for r in results if r.verdict == "ERROR"),
             },
             "results": [
@@ -486,6 +513,8 @@ class VariantRunner:
                     "verdict": r.verdict,
                     "elapsed_s": round(r.elapsed_s, 2),
                     "delta_e_over_gap": r.delta_e_over_gap,
+                    "max_fidelity": r.max_fidelity,
+                    "scientific_conclusion": r.scientific_conclusion,
                     "noisy_summary": r.noisy_summary,
                     "return_code": r.return_code,
                     "error_msg": r.error_msg if not r.success else "",
