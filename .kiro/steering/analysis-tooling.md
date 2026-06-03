@@ -17,7 +17,7 @@ If the existing tool is close but not sufficient, **extend it** rather than crea
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
-| `scripts/digest/run_digest.py` | Quick overview of all results | `python scripts/digest/run_digest.py [--kind noiseless] [--group-by topology]` |
+| `scripts/digest/run_digest.py` | Quick overview of all results | `python scripts/digest/run_digest.py [--kind noiseless] [--group-by topology] [--model tfim_longitudinal]` |
 | `analysis/scan_coverage.py` | Coverage scan, gap analysis, extended analytics | `python analysis/scan_coverage.py [--discover] [--extended] [--topology X] [--p N]` |
 | `analysis/diagnose.py` | Automated failure root cause analysis | `python analysis/diagnose.py [--all] [path] [--severity fail]` |
 | `scripts/compare.py` | Cross-experiment result comparison | `python scripts/compare.py [--all] [--category X] [--noisy]` |

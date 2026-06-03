@@ -95,6 +95,9 @@ Primary question: "Was the hypothesis confirmed or disproved?"
 | `rejected` | Hypothesis disproved — valid finding | Document as negative result |
 | `failed` | Did not meet strict threshold | Check if threshold is too strict |
 
+Verdicts are computed by `compute_verdict(exp_id, summary)` from `framework/criteria.py`.
+Per-experiment thresholds live in `EXPERIMENT_CRITERIA` (same module).
+
 ## Interpretation Rules
 
 1. **ΔE/gap is the ONLY hard criterion** — everything else is informational.

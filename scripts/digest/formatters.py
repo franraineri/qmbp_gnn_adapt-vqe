@@ -205,6 +205,7 @@ _NOISELESS_GROUP_EXTRACTORS: dict[str, Any] = {
     "hidden_dim": lambda r: r.hidden_dim,
     "n_restarts": lambda r: r.n_restarts,
     "p_layers": lambda r: r.p_layers,
+    "model": lambda r: r.model or "tfim",
 }
 
 _NOISY_GROUP_EXTRACTORS: dict[str, Any] = {

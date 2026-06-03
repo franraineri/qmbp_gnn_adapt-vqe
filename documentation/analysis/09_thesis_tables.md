@@ -663,3 +663,42 @@ transition exists near h_c) but not quantitative (cannot extract critical expone
 The contrast with Hernandes et al. (2025), who successfully extract phase boundaries
 from NQS weight space, is explained by their use of exact ground states and
 weight-space distance metrics rather than VQE-optimized parameters and gradient norms."
+
+---
+
+## Table 5.22 — Model Extensibility: TFIM + Longitudinal Field (E4b)
+
+**Source**: E4b experiment (2026-06-02), N=6, p=2, chain_1d, 3 seeds (42/43/44)
+**Reference**: `documentation/binnacles/binnacle-hamiltonian-comparison.md`
+
+### Fidelity Comparison: Standard HVA vs Extended HVA
+
+| g | Standard HVA (E4) | Extended HVA (E4b) | Improvement | Pass≥0.90 |
+|---|:---:|:---:|:---:|:---:|
+| 0.0 | 0.990 | 0.991 | +0.001 | 100% |
+| 0.1 | 0.889 | 0.984 | +0.095 | 100% |
+| 0.2 | 0.778 | 0.985 | +0.207 | 100% |
+| 0.3 | 0.688 | 0.985 | +0.297 | 100% |
+| 0.5 | 0.556 | 0.987 | +0.431 | 100% |
+
+### Cross-Topology at g=0.3
+
+| Topology | Mean Fidelity | Min Fidelity |
+|----------|:---:|:---:|
+| chain_1d | 0.986 | 0.979 |
+| ladder | 0.991 | 0.989 |
+| triangular | 0.995 | 0.991 |
+
+### Hardware Viability (2Q Gate Count, FakeTorino)
+
+| Model | p=1 N=6 | p=1 N=10 | ZNE viable (p=1) |
+|-------|:---:|:---:|:---:|
+| TFIM standard | 10 CZ | 18 CZ | ✅ |
+| TFIM + longitudinal | 10 CZ | 18 CZ | ✅ (same) |
+| Kitaev chain | 20 CZ | 36 CZ | ❌ (2× over budget) |
+
+**Thesis statement**: "The framework is extensible to modified Ising Hamiltonians when
+the additional term maps to single-qubit gates (e.g., RZ for g·Z). The TFIM + longitudinal
+field achieves fid≥0.98 at g=0.5 with zero hardware overhead (10 CZ at N=6 p=1, identical
+to standard TFIM). Models requiring additional 2-body interactions (XX, YY) such as the
+Kitaev chain exceed the CX budget by 2× and are not viable under p≤2 constraints."

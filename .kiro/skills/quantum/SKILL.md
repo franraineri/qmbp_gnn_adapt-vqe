@@ -113,6 +113,30 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 - Dataset metadata: `cost_function="energy"`, `version="v6.0"` (prevents V5.x phase coupling failure)
 - **Known limit**: HVA p=2 + |+⟩^N cannot express ferromagnetic ground state (h<1.0). Validated for h≥1.0.
 
+### Model Registry (5 models)
+
+```python
+from qmbp_simulation.models.model_registry import get_model_spec, list_models
+# Available: ['tfim', 'tfim_longitudinal', 'tfim_frustrated', 'heisenberg', 'xy']
+
+spec = get_model_spec("tfim_frustrated")
+spec_custom = spec.with_params(J2=0.3)  # Generic parameter override
+H = spec_custom.build_hamiltonian(lattice, **spec_custom.hamiltonian_kwargs)
+qc, theta = spec_custom.create_circuit(N, p, lattice, **spec_custom.circuit_kwargs)
+```
+
+### CX Budget Rule (hardware extensibility)
+
+| Model | 2Q gates p=1 N=6 | ZNE viable | Reason |
+|-------|:---:|:---:|---|
+| `tfim` | 10 CZ | ✅ | Only ZZ (NN) |
+| `tfim_longitudinal` | 10 CZ | ✅ | +RZ = single-qubit, 0 extra CX |
+| `tfim_frustrated` | 27 CZ | ❌ N≥6 | +ZZ (NNN) = extra 2Q gates |
+| `heisenberg` | 30+ CZ | ❌ | XX+YY+ZZ per bond |
+| `kitaev` (not impl) | 20 CZ | ❌ | XX+YY per bond |
+
+**Rule**: Extensible without CX cost ↔ new term maps to single-qubit gate (RX, RZ).
+
 ### Package Imports
 
 ```python

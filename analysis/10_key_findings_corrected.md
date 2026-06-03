@@ -535,3 +535,40 @@ norms 80-1200× normales). Consistente con patrón conocido de seed 44.
 
 **Detalles completos**: `documentation/binnacles/binnacle-s8-negative-result.md`.
 **Resultados**: `results/experiments/exp_s8/`, `results/experiments/exp_s8b/`.
+
+---
+
+## Hallazgo #8: Extensibilidad del Framework — Regla del CX Budget
+
+**Fecha**: 2026-06-02
+**Detalles completos**: `documentation/binnacles/binnacle-hamiltonian-comparison.md`,
+`documentation/binnacles/binnacle-hamiltonian-candidates.md`
+
+### Resultado positivo: TFIM + Longitudinal (E4b)
+
+| Métrica | Valor |
+|---------|-------|
+| Fidelidad media (g=0.5) | 0.987 |
+| Mejora sobre E4 estándar | +0.431 |
+| 2Q gates p=1 N=6 | 10 CZ (= TFIM estándar) |
+| Cross-topology pass rate | 100% (chain, ladder, triangular) |
+
+**Regla descubierta**: El framework es extensible si y solo si el nuevo término del
+Hamiltoniano se implementa con **gates single-qubit** (RZ, RX). Esto no añade CX gates.
+
+### Resultado negativo: Kitaev chain
+
+| Métrica | Valor |
+|---------|-------|
+| Fidelidad máxima (p=1) | 0.16 (insuficiente) |
+| 2Q gates p=1 N=6 | 20 CZ (2× TFIM) |
+| Causa | XX+YY por bond = 4 CX (vs 2 CX para ZZ) |
+
+**Regla operativa (CX budget)**:
+```
+Extensible:     Nuevo término → single-qubit gate   → 0 CX adicionales   → ✅
+No extensible:  Nuevo término → 2-qubit interaction → duplica CX budget  → ❌
+```
+
+Modelos con solo ZZ + campos (X, Z): extensibles sin costo.
+Modelos con XX, YY, XY: duplican el CX budget → exceden ZNE threshold.

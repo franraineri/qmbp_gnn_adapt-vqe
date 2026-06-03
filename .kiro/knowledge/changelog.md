@@ -4,6 +4,10 @@
 
 | File | Last Updated | Trigger |
 |------|-------------|---------|
+| changelog.md | 2026-06-02 | Scalability refactoring: (1) auto-preflight in BaseExperiment.execute(), (2) centralized CLI args (add_result_filter_args, add_format_args, add_variant_runner_args), (3) run_vqe_sweep helper in BaseExperiment, (4) EXPERIMENT_CRITERIA unified in criteria.py, (5) json_serialize unified — all _json_default implementations delegate to utils/helpers.py |
+| changelog.md | 2026-06-02 | Frustrated TFIM (J1-J2) implemented: `build_frustrated_tfim()`, `create_frustrated_tfim()`, registered as `tfim_frustrated`. CX budget 27@N=6 (noiseless only). See `binnacle-hamiltonian-candidates.md` |
+| changelog.md | 2026-06-02 | Kitaev chain verified NOT viable (20 CZ N=6, fid=16%). TFIM+longitudinal confirmed as only viable extension. See `binnacle-hamiltonian-candidates.md` |
+| changelog.md | 2026-06-02 | TFIM+longitudinal extension: HVA extended (ZZ+X+Z), ModelSpec.with_params(), digest --model filter, E4b experiment |
 | changelog.md | 2026-06-01 | Heisenberg V9 experiments: 30 variants executed, definitive negative result documented in binnacle + project-status |
 | changelog.md | 2026-05-31 | Heisenberg XXZ extension: ModelSpec, ModelRegistry, EntanglementAnalyzer, PipelineRunner model-aware dispatch |
 | changelog.md | 2026-05-30 | Verification R1 results: p=1 valid regime corrected, new tools documented |

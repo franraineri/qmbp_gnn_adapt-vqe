@@ -32,6 +32,9 @@
 - Fidelity filter ≥ 0.93 (TFIM), ≥ 0.60 (Heisenberg) in Phase 3 training data.
 - Hardware success: ΔE/gap < 5% AND correct phase label (not fidelity).
 - **Heisenberg HVA p≤2 CANNOT work** — do not attempt (V9: 30 runs + N=10/16 scaling confirm).
+- **Kitaev chain NOT viable** — 20 CZ@N=6 (exceeds ZNE), fid=16% max. Do not implement.
+- **TFIM+longitudinal WORKS** — fid≥0.98 at g=0.5, 0 extra CX gates (E4b validated).
+- **TFIM frustrated (J1-J2) WORKS in simulation** — fid≥0.99 at J₂=0.5, but 27 CZ@N=6 (no ZNE for N≥6).
 - **ZNE threshold**: ~18 CX gates. p=2 N=10 (36 CX) fails. Use p=1 for N≥10 hardware.
 
 ## Optimal Config (quick reference)
@@ -97,6 +100,8 @@
 | p=1 scaling results | `documentation/binnacles/binnacle-p1-scaling.md` |
 | Thesis tables (5.1–5.21) | `documentation/analysis/09_thesis_tables.md` |
 | Key findings (corrected) | `analysis/10_key_findings_corrected.md` |
+| Hamiltonian comparison | `documentation/binnacles/binnacle-hamiltonian-comparison.md` |
+| Hamiltonian candidates | `documentation/binnacles/binnacle-hamiltonian-candidates.md` |
 | Analysis summary | `documentation/analysis/08_summary.md` |
 | Experiment framework guide | `.kiro/steering/v8-experiments.md` (conditional: experiments/**) |
 | Hardware deployment strategy | `.kiro/steering/hardware-deployment.md` |

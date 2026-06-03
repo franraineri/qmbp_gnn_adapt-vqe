@@ -3,10 +3,13 @@
 from qmbp_simulation.framework.base import BaseExperiment
 from qmbp_simulation.framework.benchmarking import BenchmarkResult, BenchmarkSuite
 from qmbp_simulation.framework.cli import (
+    add_format_args,
     add_mpnn_args,
     add_output_args,
+    add_result_filter_args,
     add_sweep_args,
     add_system_args,
+    add_variant_runner_args,
     add_vqe_args,
     build_mpnn_config_dict,
     configure_logging,
@@ -21,6 +24,12 @@ from qmbp_simulation.framework.config import (
     MPNNConfig,
     SystemConfig,
     VQEConfig,
+)
+from qmbp_simulation.framework.criteria import (
+    EXPERIMENT_CRITERIA,
+    REJECTION_IS_FINDING,
+    Verdict,
+    compute_verdict,
 )
 from qmbp_simulation.framework.logging import ProgressReporter, StructuredLogger
 from qmbp_simulation.framework.metrics import ExperimentMetrics, WarmColdComparison
@@ -72,6 +81,11 @@ __all__ = [
     # Result store
     "ResultStore",
     "CATEGORY_MAP",
+    # Criteria
+    "EXPERIMENT_CRITERIA",
+    "REJECTION_IS_FINDING",
+    "Verdict",
+    "compute_verdict",
     # Result I/O
     "save_experiment_result",
     "save_pipeline_result",
@@ -86,6 +100,9 @@ __all__ = [
     "add_vqe_args",
     "add_mpnn_args",
     "add_output_args",
+    "add_result_filter_args",
+    "add_format_args",
+    "add_variant_runner_args",
     "configure_logging",
     "validate_descending_sweep",
     "validate_system_size",

@@ -65,6 +65,7 @@ def apply_filters(
     topology: str | None = None,
     n_qubits: int | None = None,
     p_layers: int | None = None,
+    model: str | None = None,
 ) -> tuple[list[NoiselessResult], list[NoisyResult], list]:
     """Filter results by system parameters."""
     if topology:
@@ -82,6 +83,11 @@ def apply_filters(
         noiseless = [r for r in noiseless if r.p_layers == p_layers]
         noisy = [r for r in noisy if r.p_layers == p_layers]
         experiments = [r for r in experiments if r.p_layers == p_layers]
+
+    if model:
+        m = model.lower()
+        noiseless = [r for r in noiseless if m in r.model.lower()]
+        experiments = [r for r in experiments if m in r.model.lower()]
 
     return noiseless, noisy, experiments
 
@@ -120,6 +126,9 @@ Examples:
     filt.add_argument("--topology", type=str, help="Filter by topology")
     filt.add_argument("--n-qubits", type=int, help="Filter by system size")
     filt.add_argument("--p-layers", type=int, help="Filter by ansatz depth")
+    filt.add_argument(
+        "--model", type=str, help="Filter by model type (tfim, tfim_longitudinal, heisenberg)"
+    )
     filt.add_argument("--folder", type=str, help="Specific folder to scan")
 
     parser.add_argument(
@@ -217,6 +226,8 @@ def main() -> None:
         active_filters.append(f"n_qubits={args.n_qubits}")
     if args.p_layers is not None:
         active_filters.append(f"p_layers={args.p_layers}")
+    if args.model:
+        active_filters.append(f"model={args.model}")
 
     if active_filters:
         _log(f"[digest] Applying filters: {', '.join(active_filters)}")
@@ -228,6 +239,7 @@ def main() -> None:
         topology=args.topology,
         n_qubits=args.n_qubits,
         p_layers=args.p_layers,
+        model=args.model,
     )
 
     if active_filters:

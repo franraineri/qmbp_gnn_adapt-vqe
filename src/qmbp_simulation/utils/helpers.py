@@ -54,6 +54,7 @@ def json_serialize(obj: Any) -> Any:
     """Recursively convert Python/numpy objects to JSON-serializable types.
 
     Handles:
+    - numpy bool → bool
     - numpy arrays → list
     - numpy integer/floating scalars → int/float
     - dataclasses → dict (via asdict)
@@ -73,6 +74,8 @@ def json_serialize(obj: Any) -> Any:
     """
     if obj is None:
         return None
+    if isinstance(obj, np.bool_):
+        return bool(obj)
     if isinstance(obj, np.ndarray):
         return obj.tolist()
     if isinstance(obj, np.integer):

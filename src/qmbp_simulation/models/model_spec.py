@@ -103,3 +103,52 @@ class ModelSpec:
 
         new_kwargs = {**self.hamiltonian_kwargs, "delta": delta}
         return replace(self, hamiltonian_kwargs=new_kwargs)
+
+    def with_g(self, g: float) -> ModelSpec:
+        """Return a new ModelSpec with overridden g in hamiltonian_kwargs.
+
+        Convenience method for varying the longitudinal field strength
+        in the TFIM + longitudinal model.
+
+        Parameters
+        ----------
+        g : float
+            New longitudinal field strength.
+
+        Returns
+        -------
+        ModelSpec
+            New frozen instance with updated hamiltonian_kwargs.
+        """
+        from dataclasses import replace
+
+        new_kwargs = {**self.hamiltonian_kwargs, "g": g}
+        return replace(self, hamiltonian_kwargs=new_kwargs)
+
+    def with_params(self, **kwargs: Any) -> ModelSpec:
+        """Return a new ModelSpec with arbitrary hamiltonian_kwargs overrides.
+
+        Generic method for varying any Hamiltonian parameter. Preferred over
+        model-specific methods (with_delta, with_g) when writing code that
+        must work across multiple models.
+
+        Parameters
+        ----------
+        **kwargs
+            Key-value pairs to merge into hamiltonian_kwargs.
+
+        Returns
+        -------
+        ModelSpec
+            New frozen instance with updated hamiltonian_kwargs.
+
+        Examples
+        --------
+        >>> spec = get_model_spec("heisenberg").with_params(delta=0.5)
+        >>> spec = get_model_spec("tfim_longitudinal").with_params(g=0.3)
+        >>> spec = get_model_spec("kitaev").with_params(mu=1.0, delta=0.5)
+        """
+        from dataclasses import replace
+
+        new_kwargs = {**self.hamiltonian_kwargs, **kwargs}
+        return replace(self, hamiltonian_kwargs=new_kwargs)

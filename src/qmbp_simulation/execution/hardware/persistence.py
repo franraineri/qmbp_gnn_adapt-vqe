@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import numpy as np
+from qmbp_simulation.utils.helpers import json_serialize
 
 if TYPE_CHECKING:
     from qmbp_simulation.execution.hardware.config import HardwareConfig, HardwareRunResult
@@ -26,26 +26,11 @@ def _collect_metadata(seed: int | None = None) -> dict[str, Any]:
     return collect_run_metadata(seed=seed)
 
 
-def _json_default(obj: Any) -> Any:
-    """JSON serializer fallback for numpy and Path types."""
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, Path):
-        return str(obj)
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
-
-
 def _write_json(data: Any, path: Path) -> None:
-    """Write data to JSON with numpy-safe serialization."""
+    """Write data to JSON with numpy/Path/datetime-safe serialization."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=_json_default)
+        json.dump(data, f, indent=2, default=json_serialize)
 
 
 def save_run(

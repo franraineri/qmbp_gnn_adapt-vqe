@@ -101,9 +101,12 @@ Eliminates argparse boilerplate across scripts. Provides:
 - `create_base_parser(description, epilog)` — Standardized parser with RawDescriptionHelpFormatter
 - `add_system_args(parser)` — Adds --n-qubits, --topology, --J, --periodic, --p
 - `add_sweep_args(parser)` — Adds --h-values, --h-test
-- `add_vqe_args(parser)` — Adds --n-restarts, --maxiter, --sigma
+- `add_vqe_args(parser)` — Adds --n-restarts, --maxiter, --sigma, --seed
 - `add_mpnn_args(parser)` — Adds --hidden-dim, --n-layers, --n-epochs, --lr, --patience
 - `add_output_args(parser)` — Adds --output-dir, --verbose, --debug
+- `add_result_filter_args(parser)` — Adds --topology, --n-qubits, --p-layers, --model, --folder
+- `add_format_args(parser)` — Adds --markdown, --json, --output, --sort, --top, --group-by
+- `add_variant_runner_args(parser)` — Adds --dry-run, --variant, --start-from, --list
 - `validate_descending_sweep(h_values)` — Validates/normalizes h-values to descending order
 - `validate_system_size(n_qubits, p_layers)` — Checks constraints (p≤2, N=12 warning)
 - `configure_logging(verbose, debug)` — Sets up logging level
@@ -131,6 +134,14 @@ Eliminates argparse boilerplate across scripts. Provides:
   - `analyze_noisy_by_group(results, key)` — Group-by analysis
   - `format_experiment_table(comparisons)` — Text table output
 - `CATEGORY_MAP` — Dict mapping category names to experiment ID prefixes
+
+### `framework/criteria.py` — Experiment Success Criteria (single source)
+
+Single source of truth for experiment evaluation. Never duplicate elsewhere.
+- `EXPERIMENT_CRITERIA` — Dict mapping exp_id → {metric, threshold, desc}
+- `REJECTION_IS_FINDING` — Set of exp_ids where rejection = valid finding
+- `compute_verdict(exp_id, summary)` — Returns (verdict, criteria_desc)
+- `Verdict` — Type alias: `Literal["confirmed", "rejected", "failed"]`
 
 ### `framework/benchmarking.py` — Performance Regression Suite
 
@@ -222,6 +233,8 @@ Scripts are thin CLI wrappers that delegate to framework classes.
 9. New scripts should use `framework/cli.py` for argument parsing.
 10. Result saving should use `framework/result_io.py` for consistent structure.
 11. **Always run preflight before executing variant runner scripts** — `python scripts/preflight.py --from-script <path>`.
+12. **JSON serialization**: use `json_serialize` from `utils/helpers.py` — never create local `_json_default`.
+13. **Experiment criteria**: import from `framework/criteria.py` — never duplicate threshold dicts.
 
 ## Current Best Configuration (from 60+ benchmark runs)
 

@@ -142,3 +142,126 @@ class TestJsonDump:
         content = path.read_text()
         # Indented JSON has newlines
         assert "\n" in content
+
+
+class TestJsonSerializeUnification:
+    """Test that all _json_default implementations delegate to json_serialize.
+
+    Verifies Action B: the three separate _json_default implementations
+    (base.py, persistence.py, result_io.py) all produce the same output
+    as the canonical json_serialize from utils/helpers.py.
+    """
+
+    def test_base_experiment_json_default_delegates(self):
+        """BaseExperiment._json_default uses json_serialize under the hood."""
+        from qmbp_simulation.framework.base import BaseExperiment
+
+        fn = BaseExperiment._json_default
+
+        assert fn(np.int64(42)) == 42
+        assert fn(np.float64(3.14)) == pytest.approx(3.14)
+        assert fn(np.array([1, 2, 3])) == [1, 2, 3]
+        assert fn(np.bool_(True)) is True
+        # Path support (json_serialize handles it)
+        from pathlib import Path
+
+        assert fn(Path("/tmp/test")) == "/tmp/test"
+
+    def test_base_experiment_json_default_handles_nan(self):
+        """NaN and Inf become None (safe for JSON)."""
+        from qmbp_simulation.framework.base import BaseExperiment
+
+        fn = BaseExperiment._json_default
+        assert fn(np.float64(float("nan"))) is None
+        assert fn(np.float64(float("inf"))) is None
+        assert fn(np.float64(float("-inf"))) is None
+
+    def test_persistence_write_json_roundtrip(self, tmp_path):
+        """Hardware persistence _write_json produces valid JSON with numpy types."""
+        import json
+
+        from qmbp_simulation.execution.hardware.persistence import _write_json
+
+        data = {
+            "energy": np.float64(-5.123),
+            "n_qubits": np.int64(10),
+            "layouts": np.array([[0, 1, 2], [3, 4, 5]]),
+            "flag": np.bool_(False),
+        }
+        path = tmp_path / "test_persistence.json"
+        _write_json(data, path)
+
+        with open(path) as f:
+            loaded = json.load(f)
+
+        assert loaded["energy"] == pytest.approx(-5.123)
+        assert loaded["n_qubits"] == 10
+        assert loaded["layouts"] == [[0, 1, 2], [3, 4, 5]]
+        assert loaded["flag"] is False
+
+    def test_persistence_write_json_handles_path(self, tmp_path):
+        """Hardware persistence handles Path objects in data."""
+        import json
+        from pathlib import Path
+
+        from qmbp_simulation.execution.hardware.persistence import _write_json
+
+        data = {"output_dir": Path("/results/hardware/run_001")}
+        path = tmp_path / "test_path.json"
+        _write_json(data, path)
+
+        with open(path) as f:
+            loaded = json.load(f)
+
+        assert loaded["output_dir"] == "/results/hardware/run_001"
+
+    def test_result_io_uses_json_serialize(self, tmp_path):
+        """result_io save functions use json_serialize for numpy types."""
+        from qmbp_simulation.framework.result_io import (
+            build_result_envelope,
+        )
+
+        config = {"n_qubits": np.int64(6), "h_values": np.array([2.0, 1.5, 1.0])}
+        results = {"energies": np.array([-4.0, -3.5, -3.0])}
+        summary = {"mean_de_gap": np.float64(0.023)}
+
+        envelope = build_result_envelope(
+            config=config,
+            results=results,
+            summary=summary,
+            elapsed_s=10.5,
+        )
+
+        # Envelope values should already be serialized
+        assert envelope["config"]["n_qubits"] == 6
+        assert envelope["config"]["h_values"] == [2.0, 1.5, 1.0]
+        assert envelope["results"]["energies"] == [-4.0, -3.5, -3.0]
+        assert envelope["summary"]["mean_de_gap"] == pytest.approx(0.023)
+
+    def test_all_implementations_agree_on_types(self):
+        """All three json_default callsites produce identical output."""
+        from pathlib import Path
+
+        from qmbp_simulation.framework.base import BaseExperiment
+        from qmbp_simulation.utils.helpers import json_serialize
+
+        test_cases = [
+            (np.int64(7), 7),
+            (np.float64(2.718), pytest.approx(2.718)),
+            (np.array([10, 20]), [10, 20]),
+            (np.bool_(False), False),
+            (Path("/a/b"), "/a/b"),
+        ]
+
+        for obj, expected in test_cases:
+            base_result = BaseExperiment._json_default(obj)
+            canonical_result = json_serialize(obj)
+            # Both should produce the same value
+            if isinstance(expected, type(pytest.approx(0))):
+                assert base_result == expected
+                assert canonical_result == expected
+            else:
+                assert base_result == canonical_result == expected, (
+                    f"Mismatch for {type(obj).__name__}: "
+                    f"base={base_result}, canonical={canonical_result}"
+                )

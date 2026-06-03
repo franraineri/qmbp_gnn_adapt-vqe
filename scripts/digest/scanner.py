@@ -3,8 +3,6 @@
 Scans results/experiments/ and results/thesis/ uniformly, classifying
 each JSON file by its kind (noiseless pipeline, noisy/ZNE, or experiment).
 
-No external dependencies — stdlib only.
-
 Fixes applied (2026-05-30):
 - Bug #1: Now reports worst-case ΔE/gap across ALL phase4_results points
   (previously only read phase4[0], hiding failures at other h_test values).
@@ -23,11 +21,10 @@ from pathlib import Path
 from typing import Any
 
 from scripts.digest.models import (
-    EXPERIMENT_CRITERIA,
-    REJECTION_IS_FINDING,
     ExperimentResult,
     NoiselessResult,
     NoisyResult,
+    compute_verdict,
 )
 
 logger = logging.getLogger(__name__)
@@ -227,6 +224,14 @@ class ResultScanner:
         # Extract p_layers with warning (Fix #2)
         p_layers = _extract_p_layers(config, system, path)
 
+        # Extract model type and model-specific params
+        model_type = config.get("model") or system.get("model", "tfim")
+        model_params = {}
+        if "g_longitudinal" in system or "g_longitudinal" in config:
+            g_val = system.get("g_longitudinal") or config.get("g_longitudinal", 0.0)
+            if g_val:
+                model_params["g"] = g_val
+
         return NoiselessResult(
             source_file=str(path),
             folder=folder,
@@ -235,6 +240,8 @@ class ResultScanner:
             topology=config.get("topology") or system.get("topology", ""),
             n_restarts=config.get("n_restarts", 5),
             seed=config.get("seed"),
+            model=model_type,
+            model_params=model_params,
             h_values=config.get("h_values", []),
             h_test=config.get("h_test", []),
             hidden_dim=mpnn_cfg.get("hidden_dim", 128),
@@ -312,23 +319,8 @@ class ResultScanner:
 
         exp_id = config.get("experiment_id", exp_dir.name.replace("exp_", "").upper())
 
-        # Compute verdict
-        criteria = EXPERIMENT_CRITERIA.get(exp_id, {})
-        metric_name = criteria.get("metric", "mean_de_gap")
-        threshold = criteria.get("threshold", 0.05)
-        criteria_desc = criteria.get("desc", "ΔE/gap < 5%")
-
-        if metric_name == "mean_de_gap":
-            value = summary.get("mean_de_gap", float("inf"))
-            passed = value < threshold
-        else:
-            value = summary.get("pass_rate", 0.0)
-            passed = value >= threshold
-
-        if passed:
-            verdict = "confirmed"
-        else:
-            verdict = "rejected" if exp_id in REJECTION_IS_FINDING else "failed"
+        # Compute verdict using centralized criteria
+        verdict, criteria_desc = compute_verdict(exp_id, summary)
 
         # Experiment-specific extras
         extras: dict[str, Any] = {}
@@ -341,6 +333,9 @@ class ResultScanner:
         p_layers_val = system.get("p_layers") or config.get("p_layers")
         p_layers = int(p_layers_val) if p_layers_val is not None else 2
 
+        # Extract model type
+        model_type = system.get("model") or config.get("model", "tfim")
+
         return ExperimentResult(
             source_file=str(run_files[0]),
             folder=exp_dir.name,
@@ -351,6 +346,7 @@ class ResultScanner:
             n_qubits=system.get("n_qubits", 0),
             p_layers=p_layers,
             topology=system.get("topology", ""),
+            model=model_type,
             h_values=system.get("h_values", []),
             seeds=config.get("seeds", []),
             verdict=verdict,

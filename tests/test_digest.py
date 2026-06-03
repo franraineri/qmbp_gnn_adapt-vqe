@@ -15,6 +15,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
 DIGEST_CMD = [sys.executable, "-m", "scripts.digest"]
@@ -145,6 +147,7 @@ class TestScanner:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow
 class TestCLIBasic:
     """Test basic CLI invocations."""
 
@@ -179,6 +182,7 @@ class TestCLIBasic:
         assert "NOISY / ZNE" in result.stdout
 
 
+@pytest.mark.slow
 class TestCLIFilters:
     """Test filter options."""
 
@@ -209,6 +213,7 @@ class TestCLIFilters:
         assert "No results found" in result.stdout
 
 
+@pytest.mark.slow
 class TestCLISorting:
     """Test sorting options."""
 
@@ -255,6 +260,7 @@ class TestCLISorting:
         assert "3 runs scanned" in result.stdout
 
 
+@pytest.mark.slow
 class TestCLIGroupBy:
     """Test --group-by option."""
 
@@ -285,6 +291,7 @@ class TestCLIGroupBy:
         assert "Unknown group key" in result.stdout
 
 
+@pytest.mark.slow
 class TestCLIAnalysis:
     """Test analysis modes (--stats, --outliers, --compare)."""
 
@@ -334,6 +341,7 @@ class TestCLIAnalysis:
         assert result.returncode != 0
 
 
+@pytest.mark.slow
 class TestCLIOutput:
     """Test output format options."""
 

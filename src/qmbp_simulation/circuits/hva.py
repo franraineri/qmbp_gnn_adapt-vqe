@@ -91,6 +91,164 @@ class HVACircuitBuilder:
 
         return qc, theta
 
+    def create_frustrated_tfim(
+        self,
+        n_qubits: int,
+        p_layers: int,
+        lattice: LatticeConfig,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Build an HVA circuit for frustrated TFIM (J1-J2).
+
+        Gate structure per layer:
+        - RZZ(2θ_nn) on NN bonds (from lattice.edges)
+        - RZZ(2θ_nnn) on NNN bonds (computed from topology)
+        - RX(2θ_x) on all sites (transverse field)
+
+        This mirrors H = -J₁·ZZ_nn + J₂·ZZ_nnn - h·X.
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits.
+        p_layers : int
+            Number of HVA layers (MUST be ≤ 2).
+        lattice : LatticeConfig
+            Lattice specification with edge list (defines NN bonds).
+
+        Returns
+        -------
+        (qc, theta)
+            qc : QuantumCircuit with 3*p_layers parameters.
+            theta : ParameterVector of length 3*p_layers.
+
+        Notes
+        -----
+        Hardware viability: NNN bonds add extra CX gates. At N=6 p=1, this
+        circuit uses ~27 CZ gates (exceeds ZNE budget of 18). Viable for
+        noiseless simulation; hardware deployment limited to N=4.
+        """
+        if p_layers > MAX_P_LAYERS:
+            raise ValueError(
+                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
+                f"Mele et al. (Nature Physics, 2026) depth constraint."
+            )
+
+        if n_qubits != lattice.n_qubits:
+            raise ValueError(
+                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
+            )
+
+        if not lattice.edges:
+            raise ValueError(
+                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
+                f"Cannot build HVA circuit without ZZ interaction terms."
+            )
+
+        # Compute NNN edges from topology
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
+
+        qc = QuantumCircuit(n_qubits)
+        theta = ParameterVector("θ", 3 * p_layers)
+
+        # Initial state: |+⟩^N
+        qc.h(range(n_qubits))
+
+        for layer in range(p_layers):
+            theta_nn = theta[layer * 3]
+            theta_nnn = theta[layer * 3 + 1]
+            theta_x = theta[layer * 3 + 2]
+
+            # RZZ(2θ_nn) on NN bonds
+            for i, j in lattice.edges:
+                qc.rzz(2 * theta_nn, i, j)
+
+            # RZZ(2θ_nnn) on NNN bonds
+            for i, j in nnn_edges:
+                qc.rzz(2 * theta_nnn, i, j)
+
+            # RX(2θ_x) on all qubits
+            for i in range(n_qubits):
+                qc.rx(2 * theta_x, i)
+
+        return qc, theta
+
+    def create_tfim_longitudinal(
+        self,
+        n_qubits: int,
+        p_layers: int,
+        lattice: LatticeConfig,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Build an HVA circuit for TFIM + longitudinal field.
+
+        Gate structure per layer: RZZ on edges, then RX on sites, then RZ on sites.
+        This mirrors H = -J·ZZ - h·X - g·Z, adding the RZ layer that the
+        standard TFIM HVA lacks (E4 showed this is necessary for g>0).
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits (must match ``lattice.n_qubits``).
+        p_layers : int
+            Number of HVA layers (MUST be ≤ 2).
+        lattice : LatticeConfig
+            Lattice specification with edge list.
+
+        Returns
+        -------
+        (qc, theta)
+            qc : QuantumCircuit with 3*p_layers parameters.
+            theta : ParameterVector of length 3*p_layers.
+
+        Raises
+        ------
+        ValueError
+            If ``p_layers > 2`` (Mele et al. depth constraint).
+        """
+        if p_layers > MAX_P_LAYERS:
+            raise ValueError(
+                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
+                f"Mele et al. (Nature Physics, 2026) depth constraint."
+            )
+
+        if n_qubits != lattice.n_qubits:
+            raise ValueError(
+                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
+            )
+
+        if not lattice.edges:
+            raise ValueError(
+                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
+                f"Cannot build HVA circuit without ZZ interaction terms."
+            )
+
+        qc = QuantumCircuit(n_qubits)
+        theta = ParameterVector("θ", 3 * p_layers)
+
+        # Initial state: |+⟩^N (paramagnetic ground state at h → ∞)
+        qc.h(range(n_qubits))
+
+        # HVA layers: e^{-iθ_z H_Z} · e^{-iθ_x H_X} · e^{-iθ_zz H_ZZ}
+        for layer in range(p_layers):
+            theta_zz = theta[layer * 3]
+            theta_x = theta[layer * 3 + 1]
+            theta_z = theta[layer * 3 + 2]
+
+            # RZZ(2θ_zz) on each lattice edge
+            for i, j in lattice.edges:
+                qc.rzz(2 * theta_zz, i, j)
+
+            # RX(2θ_x) on all qubits (transverse field)
+            for i in range(n_qubits):
+                qc.rx(2 * theta_x, i)
+
+            # RZ(2θ_z) on all qubits (longitudinal field)
+            for i in range(n_qubits):
+                qc.rz(2 * theta_z, i)
+
+        return qc, theta
+
     def create_heisenberg(
         self,
         n_qubits: int,

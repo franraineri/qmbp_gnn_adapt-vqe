@@ -405,3 +405,168 @@ def resolve_output_dir(path: str | Path) -> Path:
     output_dir = Path(path)
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Result Filtering and Output Format argument groups
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def add_result_filter_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard result filtering arguments.
+
+    Adds: --topology, --n-qubits, --p-layers, --model, --folder
+
+    These filters are shared across scripts/digest, scripts/compare, and
+    any tool that queries experiment results.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Result filters")
+    group.add_argument(
+        "--topology",
+        type=str,
+        default=None,
+        help="Filter by topology (chain_1d, ladder, triangular, kagome, heavy_hex)",
+    )
+    group.add_argument(
+        "--n-qubits",
+        type=int,
+        default=None,
+        help="Filter by system size",
+    )
+    group.add_argument(
+        "--p-layers",
+        type=int,
+        default=None,
+        help="Filter by HVA depth (1 or 2)",
+    )
+    group.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Filter by model type (tfim, tfim_longitudinal, heisenberg)",
+    )
+    group.add_argument(
+        "--folder",
+        type=str,
+        default=None,
+        help="Specific results folder to scan",
+    )
+    return group
+
+
+def add_format_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard output format arguments.
+
+    Adds: --markdown, --json, --output, --sort, --top, --group-by
+
+    These formatting options are shared across digest, compare, and
+    other result-reporting scripts.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Output format")
+    group.add_argument(
+        "--markdown",
+        action="store_true",
+        help="Output in Markdown format",
+    )
+    group.add_argument(
+        "--json",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="Save output as JSON to file",
+    )
+    group.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="Save text/markdown output to file",
+    )
+    group.add_argument(
+        "--sort",
+        type=str,
+        default=None,
+        help="Sort key (varies by context: delta_e, time, r2, gain, id, verdict)",
+    )
+    group.add_argument(
+        "--top",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Show only the top N results (after sorting)",
+    )
+    group.add_argument(
+        "--group-by",
+        type=str,
+        default=None,
+        dest="group_by",
+        help="Group results by dimension (topology, n_qubits, p_layers, etc.)",
+    )
+    return group
+
+
+def add_variant_runner_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard variant runner arguments.
+
+    Adds: --dry-run, --variant, --start-from, --list
+
+    These arguments are shared across all topology-specific variant runner
+    scripts (chain_1d, ladder, triangular, kagome, heavy_hex).
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Variant runner")
+    group.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show commands without executing",
+    )
+    group.add_argument(
+        "--variant",
+        type=int,
+        default=None,
+        metavar="IDX",
+        help="Run only this variant index (0-based)",
+    )
+    group.add_argument(
+        "--start-from",
+        type=int,
+        default=0,
+        metavar="IDX",
+        help="Start from this variant index (default: 0)",
+    )
+    group.add_argument(
+        "--list",
+        action="store_true",
+        dest="list_variants",
+        help="List all variants without executing",
+    )
+    return group

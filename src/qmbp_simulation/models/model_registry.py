@@ -149,5 +149,56 @@ def _register_builtins() -> None:
         )
     )
 
+    # TFIM + Longitudinal: H = -J·ZZ - h·X - g·Z
+    def _create_tfim_longitudinal(n_qubits, p_layers, lattice, **kwargs):
+        mod = importlib.import_module("qmbp_simulation.circuits")
+        hva = mod.HVACircuitBuilder()
+        return hva.create_tfim_longitudinal(n_qubits, p_layers, lattice, **kwargs)
+
+    register_model(
+        ModelSpec(
+            name="tfim_longitudinal",
+            params_per_layer=3,
+            build_hamiltonian=builder.build_tfim_longitudinal,
+            build_observables=builder.build_local_observables,
+            create_circuit=_create_tfim_longitudinal,
+            initial_state="plus",
+            vqe_defaults={"n_restarts": 5, "restart_sigma": 0.1, "maxiter": 1000},
+            hamiltonian_kwargs={"g": 0.0},
+            description=(
+                "TFIM + Longitudinal Field: H = -J·ZZ - h·X - g·Z. "
+                "Extends standard TFIM with Z₂-symmetry-breaking longitudinal field."
+            ),
+            fidelity_threshold=0.90,
+            mpnn_hidden_dim=64,
+        )
+    )
+
+    # Frustrated TFIM (J1-J2): H = -J₁·ZZ_nn + J₂·ZZ_nnn - h·X
+    def _create_frustrated_tfim(n_qubits, p_layers, lattice, **kwargs):
+        mod = importlib.import_module("qmbp_simulation.circuits")
+        hva = mod.HVACircuitBuilder()
+        return hva.create_frustrated_tfim(n_qubits, p_layers, lattice, **kwargs)
+
+    register_model(
+        ModelSpec(
+            name="tfim_frustrated",
+            params_per_layer=3,
+            build_hamiltonian=builder.build_frustrated_tfim,
+            build_observables=builder.build_local_observables,
+            create_circuit=_create_frustrated_tfim,
+            initial_state="plus",
+            vqe_defaults={"n_restarts": 5, "restart_sigma": 0.1, "maxiter": 1000},
+            hamiltonian_kwargs={"J2": 0.0},
+            description=(
+                "Frustrated TFIM (J1-J2): H = -J₁·ZZ_nn + J₂·ZZ_nnn - h·X. "
+                "NNN antiferromagnetic coupling introduces frustration. "
+                "Hardware-viable only at N=4 (27 CZ at N=6 exceeds ZNE budget)."
+            ),
+            fidelity_threshold=0.90,
+            mpnn_hidden_dim=64,
+        )
+    )
+
 
 _register_builtins()

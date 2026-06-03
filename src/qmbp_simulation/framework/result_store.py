@@ -16,6 +16,8 @@ from typing import Any
 
 import numpy as np
 
+from qmbp_simulation.framework.criteria import compute_verdict
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_RESULTS_ROOT = Path("results/experiments")
@@ -40,33 +42,6 @@ _KNOWN_BASELINES: dict[tuple[int, float], float] = {
     (10, 2.0): 0.012,
     (20, 2.0): 0.0175,
 }
-
-# Experiment-specific success criteria
-# Thresholds calibrated against actual project findings
-# (see documentation/analysis/04_verdict_reconciliation.md)
-_EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
-    "A3": {"metric": "pass_rate", "threshold": 1.0, "desc": "Scaling law R²>0.99"},
-    "B1": {"metric": "mean_de_gap", "threshold": 0.05, "desc": "ΔE/gap < 5%"},
-    "B2": {"metric": "pass_rate", "threshold": 0.60, "desc": "Freeze works at h≥1.5"},
-    "B4": {
-        "metric": "pass_rate",
-        "threshold": 0.70,
-        "desc": "No saddle points (physics-limited excluded)",
-    },
-    "C1": {"metric": "mean_de_gap", "threshold": 0.05, "desc": "Physics loss ΔE/gap < 5%"},
-    "D1": {"metric": "pass_rate", "threshold": 0.0, "desc": "Gradient peak detected near h_c"},
-    "E4": {"metric": "pass_rate", "threshold": 0.5, "desc": "HVA fails at g>0"},
-    "F1": {"metric": "pass_rate", "threshold": 0.8, "desc": "DyPP savings > 30%"},
-    "F3": {"metric": "pass_rate", "threshold": 0.0, "desc": "Fluctuation > 1.0 everywhere"},
-    "G1": {"metric": "pass_rate", "threshold": 0.80, "desc": "≤9 points sufficient"},
-    "G2": {"metric": "pass_rate", "threshold": 0.8, "desc": "Ensemble r > 0.7"},
-    "G3": {"metric": "mean_de_gap", "threshold": 0.05, "desc": "N=20 ΔE/gap < 5%"},
-    "G4": {"metric": "pass_rate", "threshold": 0.8, "desc": "κ predicts restarts"},
-    "G5": {"metric": "pass_rate", "threshold": 0.85, "desc": "Seed-independent (std<0.01)"},
-}
-
-# Experiments where hypothesis rejection IS the valid finding
-_REJECTION_IS_FINDING = {"E4", "F1", "G2", "G3", "G4"}
 
 
 class ResultStore:
@@ -247,27 +222,7 @@ class ResultStore:
         analysis: dict[str, Any],
     ) -> dict[str, Any]:
         """Evaluate one experiment against its criteria."""
-        criteria = _EXPERIMENT_CRITERIA.get(exp_id, {})
-        metric_name = criteria.get("metric", "mean_de_gap")
-        threshold = criteria.get("threshold", 0.05)
-        criteria_desc = criteria.get("desc", "ΔE/gap < 5%")
-
-        # Extract metric value
-        if metric_name == "mean_de_gap":
-            value = summary.get("mean_de_gap", float("inf"))
-            passed = value < threshold
-        elif metric_name == "pass_rate":
-            value = summary.get("pass_rate", 0.0)
-            passed = value >= threshold
-        else:
-            value = summary.get("pass_rate", 0.0)
-            passed = value >= 0.8
-
-        # Verdict: confirmed, rejected (valid finding), or failed
-        if passed:
-            verdict = "confirmed"
-        else:
-            verdict = "rejected" if exp_id in _REJECTION_IS_FINDING else "failed"
+        verdict, criteria_desc = compute_verdict(exp_id, summary)
 
         return {
             "experiment_id": exp_id,

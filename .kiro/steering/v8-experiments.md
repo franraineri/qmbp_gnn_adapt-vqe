@@ -133,6 +133,38 @@ class ExperimentX1(BaseExperiment):
         ...
 ```
 
+### Running a descending VQE sweep (centralized helper):
+```python
+# Instead of reimplementing _run_vqe_sweep locally, use:
+vqe_data = self.run_vqe_sweep(h_values, seed=42)
+# Returns dict[float, np.ndarray] (h → θ_opt)
+
+# With overrides:
+vqe_data = self.run_vqe_sweep(
+    h_values, seed=42,
+    topology="ladder",      # cross-topology mode
+    n_restarts=3,           # override config
+    maxiter=500,
+)
+```
+
+### Auto-preflight validation:
+```python
+# execute() now validates config BEFORE running (p≤2, descending h, data leakage, regime)
+analysis = experiment.execute()  # auto-validates
+
+# To skip (e.g., in tests):
+analysis = experiment.execute(skip_preflight=True)
+```
+
+### Computing experiment verdicts:
+```python
+from qmbp_simulation.framework.criteria import compute_verdict
+
+verdict, desc = compute_verdict("G1", summary_dict)
+# verdict: "confirmed" | "rejected" | "failed"
+```
+
 ## Currently Implemented Experiments
 
 | ID | Name | Status |

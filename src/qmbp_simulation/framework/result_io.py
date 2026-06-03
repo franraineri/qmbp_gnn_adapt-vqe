@@ -27,8 +27,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-
 from qmbp_simulation.utils.helpers import json_serialize
 
 _DEFAULT_RESULTS_ROOT = Path("results/experiments")
@@ -226,26 +224,7 @@ def _write_json(data: dict[str, Any], path: Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=_json_default)
-
-
-def _json_default(obj: Any) -> Any:
-    """JSON serializer fallback for non-standard types."""
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        val = float(obj)
-        return None if (np.isnan(val) or np.isinf(val)) else val
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    if isinstance(obj, Path):
-        return str(obj)
-    if isinstance(obj, datetime):
-        return obj.isoformat()
-    # Fallback
-    return json_serialize(obj)
+        json.dump(data, f, indent=2, default=json_serialize)
 
 
 def collect_run_metadata(seed: int | None = None) -> dict[str, Any]:

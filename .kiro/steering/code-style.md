@@ -34,11 +34,13 @@ src/qmbp_simulation/
 ├── framework/               ← Experiment engine, CLI, benchmarking, result I/O
 │   ├── base.py             ← BaseExperiment lifecycle
 │   ├── config.py           ← ExperimentConfig, SystemConfig, VQEConfig, MPNNConfig
+│   ├── criteria.py         ← EXPERIMENT_CRITERIA, compute_verdict (single source)
 │   ├── metrics.py          ← ExperimentMetrics, WarmColdComparison
 │   ├── logging.py          ← StructuredLogger + ProgressReporter
 │   ├── cli.py             ← Shared CLI argument groups and validation
 │   ├── result_io.py       ← Standardized result saving/loading
 │   ├── result_store.py    ← Result querying, comparison, CATEGORY_MAP
+│   ├── preflight.py       ← Pre-run validation (variants + experiments)
 │   ├── benchmarking.py    ← BenchmarkSuite, BenchmarkResult
 │   └── variant_runner.py  ← PipelineVariant, RunResult, VariantRunner, run_variant_script
 └── analysis/                ← Gradient analysis, diagnostics, comparison
@@ -102,6 +104,7 @@ from qmbp_simulation.framework import (
     # CLI argument groups
     create_base_parser, add_system_args, add_sweep_args,
     add_vqe_args, add_mpnn_args, add_output_args,
+    add_result_filter_args, add_format_args, add_variant_runner_args,
     validate_descending_sweep, validate_system_size,
     configure_logging, build_mpnn_config_dict, resolve_output_dir,
     # Result I/O
@@ -109,6 +112,8 @@ from qmbp_simulation.framework import (
     build_result_envelope, load_result, generate_timestamp,
     # Result store
     ResultStore, CATEGORY_MAP,
+    # Experiment criteria (single source of truth)
+    EXPERIMENT_CRITERIA, REJECTION_IS_FINDING, compute_verdict,
     # Benchmarking
     BenchmarkSuite, BenchmarkResult,
     # Variant runner (for topology variant scripts)
@@ -145,7 +150,50 @@ from experiments.helpers import ...  # Only valid in other experiments/scripts
 
 # ❌ WRONG — duplicating noisy utilities in scripts
 def build_adjacency(backend): ...  # Use from qmbp_simulation.execution
+
+# ❌ WRONG — duplicating JSON serialization logic
+def _json_default(obj):  # Use json_serialize from utils
+    if isinstance(obj, np.integer): ...
+
+# ❌ WRONG — duplicating experiment criteria
+EXPERIMENT_CRITERIA = {...}  # Import from qmbp_simulation.framework.criteria
 ```
+
+## JSON Serialization (single canonical implementation)
+
+**All JSON serialization MUST use `json_serialize` from `qmbp_simulation.utils.helpers`.**
+
+```python
+from qmbp_simulation.utils.helpers import json_serialize, json_dump
+
+# For writing files:
+json_dump(data, path)  # Preferred — handles mkdir + indent
+
+# For json.dump with custom objects:
+json.dump(data, f, indent=2, default=json_serialize)
+
+# For pre-serializing before embedding in dicts:
+serialized = json_serialize(my_numpy_object)
+```
+
+**Never create local `_json_default` functions.** The canonical `json_serialize` handles:
+`np.bool_`, `np.integer`, `np.floating`, `np.ndarray`, `Path`, `datetime`, dataclasses, `NaN/Inf → None`.
+
+## Experiment Criteria (single source of truth)
+
+**All experiment success criteria MUST live in `framework/criteria.py`.**
+
+```python
+from qmbp_simulation.framework.criteria import (
+    EXPERIMENT_CRITERIA,      # dict[str, dict[str, Any]]
+    REJECTION_IS_FINDING,     # set[str]
+    compute_verdict,          # (exp_id, summary) → (verdict, desc)
+)
+```
+
+- Never duplicate criteria dicts in scripts or digest modules.
+- `scripts/digest/models.py` re-exports from criteria.py for backward compat.
+- To add a new experiment: add its entry to `EXPERIMENT_CRITERIA` in `criteria.py`.
 
 ## Module Dependency Order
 
@@ -180,3 +228,61 @@ utils → models → solvers, circuits → execution → optimizers
 - Use `logging.warning()` for recoverable issues (DMRG fallback, gap computation failure).
 - Use `assert` only for invariant checks (QRC no-training invariant).
 - `HardwareBackend` raises `NotImplementedError` until IBM Runtime is configured.
+
+## Adding a New Hamiltonian (Extension Pattern)
+
+When adding a new spin model to the framework:
+
+### 1. Hamiltonian (`models/hamiltonian.py`)
+```python
+def build_<model>(self, lattice: LatticeConfig, **kwargs) -> SparsePauliOp:
+    """Build H = ... (describe terms)."""
+    # Use SparsePauliOp.from_sparse_list only
+    # Call self.validate(H, n) at the end
+```
+
+### 2. Circuit (`circuits/hva.py`)
+```python
+def create_<model>(self, n_qubits, p_layers, lattice, **kwargs):
+    """HVA matching the Hamiltonian structure."""
+    # Enforce MAX_P_LAYERS
+    # Return (qc, theta) with params_per_layer × p_layers parameters
+```
+
+### 3. Registry (`models/model_registry.py`)
+```python
+register_model(ModelSpec(
+    name="<model>",
+    params_per_layer=<N>,
+    build_hamiltonian=builder.build_<model>,
+    build_observables=builder.build_<model>_observables,  # or build_local_observables
+    create_circuit=_create_<model>,  # lazy import
+    hamiltonian_kwargs={<defaults>},
+    ...
+))
+```
+
+### 4. Usage in Experiments (via ModelSpec)
+```python
+from qmbp_simulation.models.model_registry import get_model_spec
+
+spec = get_model_spec("<model>")
+# Vary parameters:
+spec_custom = spec.with_params(param1=val1, param2=val2)
+# Build:
+H = spec_custom.build_hamiltonian(lattice, **spec_custom.hamiltonian_kwargs)
+qc, theta = spec_custom.create_circuit(N, p, lattice, **spec_custom.circuit_kwargs)
+```
+
+### 5. Digest Integration (automatic)
+Results with `"model": "<model>"` in their JSON are automatically detected by the digest system.
+Filter with `--model <model>` and group with `--group-by model`.
+
+### Available Models
+| Name | H | Params/layer | Status |
+|------|---|:---:|--------|
+| `tfim` | −J·ZZ − h·X | 2 | ✅ Production |
+| `tfim_longitudinal` | −J·ZZ − h·X − g·Z | 3 | ✅ Validated (E4b) |
+| `tfim_frustrated` | −J₁·ZZ_nn + J₂·ZZ_nnn − h·X | 3 | ✅ Noiseless only (27 CZ@N=6) |
+| `heisenberg` | J(XX+YY+Δ·ZZ) − h·Z | 4 | ⚠️ p≤2 insufficient |
+| `xy` | J(XX+YY) − h·Z | 4 | ⚠️ Same limits as Heisenberg |

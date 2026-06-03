@@ -89,13 +89,16 @@ python -m scripts.digest --kind experiment --verbose
 scripts/digest/
 ├── __init__.py       # Public API exports
 ├── __main__.py       # CLI entry point + filters + sorting
-├── models.py         # Dataclasses (NoiselessResult, NoisyResult, ExperimentResult)
+├── models.py         # Dataclasses + re-exports from framework.criteria
 ├── scanner.py        # File discovery and JSON parsing
 ├── formatters.py     # Text, markdown, grouped, stats, outliers, compare
 └── README.md
 ```
 
-No heavy dependencies — stdlib only. Runs instantly (no torch/qiskit import).
+Experiment success criteria and verdict logic live in
+`src/qmbp_simulation/framework/criteria.py` (single source of truth).
+`models.py` re-exports `EXPERIMENT_CRITERIA`, `REJECTION_IS_FINDING`, and
+`compute_verdict` for backward compatibility.
 
 ## Programmatic Use
 

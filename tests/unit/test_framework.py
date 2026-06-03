@@ -164,3 +164,248 @@ class TestWarmColdComparison:
         assert comp.cold_final_energy == -4.0
         assert comp.gain_pct > 0  # warm is better
         assert comp.iteration_savings_pct == 50.0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Tests extracted from test_refactoring.py (formerly ad-hoc functional tests)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCLIFilterFormatArgs:
+    """Test CLI argument group helpers parse correctly."""
+
+    def test_result_filter_args_parse(self):
+        from qmbp_simulation.framework.cli import (
+            add_result_filter_args,
+            create_base_parser,
+        )
+
+        parser = create_base_parser("Test")
+        add_result_filter_args(parser)
+        args = parser.parse_args(["--topology", "ladder", "--n-qubits", "10", "--p-layers", "1"])
+        assert args.topology == "ladder"
+        assert args.n_qubits == 10
+        assert args.p_layers == 1
+
+    def test_format_args_parse(self):
+        from qmbp_simulation.framework.cli import (
+            add_format_args,
+            create_base_parser,
+        )
+
+        parser = create_base_parser("Test")
+        add_format_args(parser)
+        args = parser.parse_args(["--sort", "delta_e", "--top", "5", "--group-by", "topology"])
+        assert args.sort == "delta_e"
+        assert args.top == 5
+        assert args.group_by == "topology"
+
+    def test_variant_runner_args_parse(self):
+        from qmbp_simulation.framework.cli import (
+            add_variant_runner_args,
+            create_base_parser,
+        )
+
+        parser = create_base_parser("Test")
+        add_variant_runner_args(parser)
+        args = parser.parse_args(["--dry-run", "--start-from", "3"])
+        assert args.dry_run is True
+        assert args.start_from == 3
+
+    def test_all_arg_groups_combine(self):
+        from qmbp_simulation.framework.cli import (
+            add_format_args,
+            add_result_filter_args,
+            add_variant_runner_args,
+            create_base_parser,
+        )
+
+        parser = create_base_parser("Test")
+        add_result_filter_args(parser)
+        add_format_args(parser)
+        add_variant_runner_args(parser)
+        args = parser.parse_args(
+            [
+                "--topology",
+                "triangular",
+                "--n-qubits",
+                "6",
+                "--sort",
+                "r2",
+                "--dry-run",
+            ]
+        )
+        assert args.topology == "triangular"
+        assert args.n_qubits == 6
+        assert args.sort == "r2"
+        assert args.dry_run is True
+
+
+class TestAutoPreflightInBaseExperiment:
+    """Test that BaseExperiment._run_preflight() validates configs correctly."""
+
+    def _make_experiment(self, **system_kwargs):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig, VQEConfig
+        from qmbp_simulation.framework.metrics import ExperimentMetrics
+
+        class _DummyExp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                sys_config = SystemConfig(
+                    n_qubits=6,
+                    p_layers=2,
+                    h_values=[2.0, 1.75, 1.5, 1.25],
+                    h_test=[1.6],
+                    **system_kwargs,
+                )
+                return ExperimentConfig(
+                    experiment_id="TEST",
+                    category="T",
+                    description="Test",
+                    hypothesis="Testing",
+                    system=sys_config,
+                    vqe=VQEConfig(n_restarts=1, maxiter=100),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return [
+                    ExperimentMetrics(
+                        h_value=1.6,
+                        energy=-5.0,
+                        exact_energy=-5.1,
+                        energy_error=0.1,
+                        gap=0.5,
+                        relative_error=0.02,
+                        seed=seed,
+                        wall_time_s=1.0,
+                    )
+                ]
+
+        config = _DummyExp.default_config()
+        return _DummyExp(config)
+
+    def test_valid_config_passes_preflight(self):
+        exp = self._make_experiment()
+        # Should not raise
+        exp._run_preflight()
+
+    def test_p3_blocked_by_preflight(self):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig
+
+        class _BadExp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                return ExperimentConfig(
+                    experiment_id="BAD",
+                    category="T",
+                    description="Bad",
+                    hypothesis="Should fail",
+                    system=SystemConfig(n_qubits=6, p_layers=3),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return []
+
+        config = _BadExp.default_config()
+        exp = _BadExp(config)
+        with pytest.raises(ValueError):
+            exp._run_preflight()
+
+
+@pytest.mark.slow
+class TestRunVQESweep:
+    """Test BaseExperiment.run_vqe_sweep produces valid warm-started results.
+
+    Marked slow because it runs actual VQE optimization (~10s).
+    """
+
+    def test_sweep_produces_correct_count(self):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig, VQEConfig
+        from qmbp_simulation.framework.metrics import ExperimentMetrics
+
+        class _SweepExp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                return ExperimentConfig(
+                    experiment_id="SWEEP",
+                    category="T",
+                    description="Sweep test",
+                    hypothesis="VQE sweep works",
+                    system=SystemConfig(
+                        n_qubits=6,
+                        p_layers=2,
+                        h_values=[2.0, 1.75, 1.5, 1.25],
+                        h_test=[1.6],
+                    ),
+                    vqe=VQEConfig(n_restarts=2, maxiter=200),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return [
+                    ExperimentMetrics(
+                        h_value=1.6,
+                        energy=-5.0,
+                        exact_energy=-5.1,
+                        energy_error=0.1,
+                        gap=0.5,
+                        relative_error=0.02,
+                        seed=seed,
+                        wall_time_s=1.0,
+                    )
+                ]
+
+        config = _SweepExp.default_config()
+        exp = _SweepExp(config)
+        exp.setup()
+
+        h_vals = [2.0, 1.75, 1.5]
+        vqe_data = exp.run_vqe_sweep(h_vals, seed=42)
+
+        assert len(vqe_data) == 3
+        assert all(isinstance(v, np.ndarray) for v in vqe_data.values())
+        assert all(len(v) == exp.circuit.num_parameters for v in vqe_data.values())
+
+    def test_sweep_warm_start_smoothness(self):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig, VQEConfig
+
+        class _SweepExp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                return ExperimentConfig(
+                    experiment_id="SWEEP",
+                    category="T",
+                    description="Sweep test",
+                    hypothesis="Warm start produces smooth θ",
+                    system=SystemConfig(
+                        n_qubits=6,
+                        p_layers=2,
+                        h_values=[2.0, 1.75, 1.5, 1.25],
+                        h_test=[1.6],
+                    ),
+                    vqe=VQEConfig(n_restarts=2, maxiter=200),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return []
+
+        config = _SweepExp.default_config()
+        exp = _SweepExp(config)
+        exp.setup()
+
+        h_vals = [2.0, 1.75, 1.5]
+        vqe_data = exp.run_vqe_sweep(h_vals, seed=42)
+
+        # Check smoothness: adjacent h-points should have similar params
+        theta_arr = np.array([vqe_data[h] for h in h_vals])
+        diffs = np.diff(theta_arr, axis=0)
+        max_jump = np.max(np.abs(diffs))
+        # With warm start, max parameter jump should be modest (< π)
+        assert max_jump < np.pi, f"Warm start failed: max jump = {max_jump:.3f}"

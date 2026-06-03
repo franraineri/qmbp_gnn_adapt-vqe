@@ -345,11 +345,21 @@ class BaseExperiment(ABC):
 
     # ── Convenience: Full Pipeline ───────────────────────────────────────────
 
-    def execute(self) -> dict[str, Any]:
-        """Full lifecycle: setup → run → analyze → report → save.
+    def execute(self, *, skip_preflight: bool = False) -> dict[str, Any]:
+        """Full lifecycle: preflight → setup → run → analyze → report → save.
+
+        Runs automatic preflight validation before setup to catch
+        configuration errors early (invalid regime, wrong h-order, p>2, etc.).
+
+        Parameters
+        ----------
+        skip_preflight : bool
+            If True, skip automatic preflight checks (default: False).
 
         Returns the analysis dict.
         """
+        if not skip_preflight:
+            self._run_preflight()
         self.setup()
         results = self.run()
         analysis = self.analyze(results)
@@ -357,6 +367,51 @@ class BaseExperiment(ABC):
         print(report_str)
         self.save(results, analysis)
         return analysis
+
+    def _run_preflight(self) -> None:
+        """Run automatic preflight validation on experiment config.
+
+        Checks:
+        - p_layers ≤ 2
+        - h_values in descending order
+        - h_test not in training set (data leakage)
+        - h_test and h_values within valid regime bounds
+        - System size feasibility (N=12 warning)
+        - Heisenberg model + HVA p≤2 incompatibility
+
+        Raises
+        ------
+        ValueError
+            If any ERROR-severity issue is found.
+        """
+        from qmbp_simulation.framework.preflight import (
+            ExperimentChecker,
+            ExperimentSpec,
+        )
+
+        try:
+            spec = ExperimentSpec.from_config(self.config)
+        except (AttributeError, TypeError) as e:
+            logger.warning(f"Preflight: Could not build spec from config: {e}")
+            return
+
+        checker = ExperimentChecker(specs=[spec])
+        report = checker.run_all(verbose=False)
+
+        # Log warnings
+        for issue in report.warnings:
+            logger.warning(f"Preflight: {issue.icon} {issue.message}")
+        for issue in report.infos:
+            logger.info(f"Preflight: {issue.icon} {issue.message}")
+
+        # Abort on errors
+        if report.has_errors:
+            error_msgs = [f"  • {issue.message}" for issue in report.errors]
+            raise ValueError(
+                f"Preflight validation failed for {self.config.experiment_id}:\n"
+                + "\n".join(error_msgs)
+                + "\n\nFix the configuration or use execute(skip_preflight=True) to bypass."
+            )
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -509,6 +564,115 @@ class BaseExperiment(ABC):
         sv_exact = Statevector(exact_state)
         return float(state_fidelity(sv_vqe, sv_exact))
 
+    def run_vqe_sweep(
+        self,
+        h_values: np.ndarray | list[float],
+        seed: int,
+        *,
+        circuit=None,
+        topology: str | None = None,
+        n_restarts: int | None = None,
+        maxiter: int | None = None,
+        sigma: float | None = None,
+    ) -> dict[float, np.ndarray]:
+        """Run a descending VQE sweep with warm-start, returning h → θ_opt.
+
+        Centralizes the VQE sweep pattern used by G1, G2, G5, S2, S4, and
+        other predictor experiments. Uses the experiment's configured backend,
+        circuit, and VQE parameters unless overridden.
+
+        Parameters
+        ----------
+        h_values : array-like
+            Transverse field values. Automatically sorted descending.
+        seed : int
+            Random seed for reproducibility (initial guess + restart noise).
+        circuit : QuantumCircuit | None
+            Circuit to use (defaults to self.circuit).
+        topology : str | None
+            Topology override (defaults to self.config.system.topology).
+            Useful for cross-topology experiments.
+        n_restarts : int | None
+            Number of VQE restarts (defaults to self.config.vqe.n_restarts).
+        maxiter : int | None
+            Max optimizer iterations (defaults to self.config.vqe.maxiter).
+        sigma : float | None
+            Restart noise std (defaults to self.config.vqe.sigma or 0.1).
+
+        Returns
+        -------
+        dict[float, np.ndarray]
+            Mapping h-value → optimized parameters θ_opt.
+
+        Example
+        -------
+        >>> vqe_data = self.run_vqe_sweep(
+        ...     h_values=np.linspace(2.0, 1.0, 11), seed=42
+        ... )
+        >>> theta_at_1_5 = vqe_data[1.5]
+        """
+        from scipy.optimize import minimize
+
+        # Resolve configuration
+        qc = circuit if circuit is not None else self.circuit
+        n_params = qc.num_parameters
+        restarts = n_restarts if n_restarts is not None else self.config.vqe.n_restarts
+        max_it = maxiter if maxiter is not None else self.config.vqe.maxiter
+        noise_sigma = sigma if sigma is not None else getattr(self.config.vqe, "sigma", 0.1)
+        topo = topology if topology is not None else self.config.system.topology
+
+        # Sort descending (warm-start from paramagnetic limit)
+        h_sorted = sorted(np.asarray(h_values, dtype=float), reverse=True)
+
+        # Deterministic initial guess
+        rng = np.random.default_rng(seed)
+        prev_theta = rng.uniform(-0.01, 0.01, n_params)
+
+        vqe_data: dict[float, np.ndarray] = {}
+
+        for h_val in h_sorted:
+            h_float = float(h_val)
+
+            # Build Hamiltonian for this h
+            if topology is not None:
+                # Cross-topology mode: rebuild from scratch
+                from qmbp_simulation.models import make_lattice
+
+                lattice_h = make_lattice(
+                    topo, self.config.system.n_qubits, J=self.config.system.J, h=h_float
+                )
+                H = self.builder.build(lattice_h)
+            else:
+                sol = self.get_exact_solution(h_float)
+                H = sol["hamiltonian"]
+
+            # Multi-restart VQE
+            best_e = float("inf")
+            best_theta = prev_theta.copy()
+
+            for r in range(restarts):
+                if r == 0:
+                    x0 = prev_theta.copy()
+                else:
+                    x0 = best_theta + rng.normal(0, noise_sigma, n_params)
+                x0 = np.clip(x0, -np.pi, np.pi)
+
+                res = minimize(
+                    lambda p, _H=H, _qc=qc: self.backend.evaluate(_qc, _H, p),
+                    x0,
+                    method="L-BFGS-B",
+                    bounds=[(-np.pi, np.pi)] * n_params,
+                    options={"maxiter": max_it, "ftol": 1e-14},
+                )
+                if res.fun < best_e:
+                    best_e = res.fun
+                    best_theta = res.x.copy()
+
+            vqe_data[h_float] = best_theta.copy()
+            prev_theta = best_theta.copy()
+
+        return vqe_data
+
     # ── Private ──────────────────────────────────────────────────────────────
 
     def _setup_logging(self) -> None:
@@ -582,13 +746,10 @@ class BaseExperiment(ABC):
 
     @staticmethod
     def _json_default(obj: Any) -> Any:
-        """JSON serializer for numpy types."""
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+        """JSON serializer for numpy/Path/datetime types.
+
+        Delegates to the canonical ``json_serialize`` from utils.
+        """
+        from qmbp_simulation.utils.helpers import json_serialize
+
+        return json_serialize(obj)
