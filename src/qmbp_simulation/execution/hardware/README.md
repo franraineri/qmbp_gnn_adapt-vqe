@@ -21,6 +21,28 @@ execution/hardware/
 ## Pipeline Flow
 
 ```
+MPNN θ_opt → HardwareBackend.run_deployment(circuit, H, params, h, e_exact, gap)
+                │
+                ├─ 1. Input validation (param shape, gap>0, finite values)
+                ├─ 2. Preflight checks (status, calibration, topology, cost ceiling)
+                ├─ 3. Circuit ZNE check (2Q gate count ≤ 18 threshold)
+                ├─ 4. Bind parameters to HVA circuit
+                ├─ 5. Select 3 lowest-CES layouts (cached)
+                ├─ 6. Transpile circuit to each layout
+                ├─ 7. Submit all 3 energy PUBs (parallel, with retry)
+                ├─ 8. Collect results + discard NaN/Inf (timeout-aware)
+                ├─ 9. Linear ZNE extrapolation → E(CES=0)
+                ├─ 10. Measure per-site ⟨X_i⟩ and ⟨Z_iZ_j⟩
+                ├─ 11. Classify phase: |⟨X⟩| vs |⟨ZZ⟩|
+                ├─ 12. Compute ΔE/gap
+                ├─ 13. Conditional SPSA (only if ΔE/gap > 5%)
+                ├─ 14. Save all results + params + logs to disk
+                └─ return: HardwareRunResult
+```
+
+For simple energy evaluation only (no phase classification or persistence):
+
+```
 MPNN θ_opt → HardwareBackend.evaluate(circuit, H, params)
                 │
                 ├─ 1. Bind parameters to HVA circuit
@@ -30,21 +52,6 @@ MPNN θ_opt → HardwareBackend.evaluate(circuit, H, params)
                 ├─ 5. Collect results + discard NaN/Inf
                 ├─ 6. Linear ZNE extrapolation → E(CES=0)
                 └─ return: float (ZNE-extrapolated energy)
-```
-
-For the full deployment pipeline with phase classification and persistence:
-
-```
-HardwareBackend.run_deployment(circuit, H, params, h, e_exact, gap)
-                │
-                ├─ 1. Preflight checks (status, calibration, topology)
-                ├─ 2. evaluate() → ZNE energy
-                ├─ 3. Measure per-site ⟨X_i⟩ and ⟨Z_iZ_j⟩
-                ├─ 4. Classify phase: |⟨X⟩| vs |⟨ZZ⟩|
-                ├─ 5. Compute ΔE/gap
-                ├─ 6. Conditional SPSA (only if ΔE/gap > 5%)
-                ├─ 7. Save all results + logs to disk
-                └─ return: HardwareRunResult
 ```
 
 ## Quick Start
@@ -182,13 +189,44 @@ else:
     print(f"Backend operational: {checks.get('backend_operational', 'N/A')}")
     print(f"Queue depth: {checks.get('queue_pending_jobs', 'N/A')}")
     print(f"Mean 2Q error: {checks.get('mean_2q_error', 'N/A')}")
+    print(f"Shots/eval: {checks.get('shots_per_eval', 'N/A')}")
 ```
 
-Preflight checks:
-- Backend operational status
-- Queue depth (warns if > 50 jobs)
-- Mean 2-qubit gate error (aborts if > 1%)
-- Topology connectivity (enough connected qubits)
+Preflight checks (both modes):
+- **Topology connectivity** — enough connected qubits for N
+- **Cost ceiling** — `shots × n_layouts` does not exceed `max_total_shots`
+
+Additional checks (hardware mode only):
+- **Backend operational status** — QPU is active
+- **Queue depth** — warns if > 50 pending jobs
+- **Mean 2-qubit gate error** — aborts if > 1% (poor calibration)
+
+### Circuit-Level Validation
+
+Called automatically by `run_deployment()` before job submission:
+
+```python
+from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
+
+result = validate_circuit_for_zne(circuit, config, logger)
+if result["abort"]:
+    print(f"ABORT: {result['abort_reason']}")
+print(f"2Q gates: {result['two_qubit_gate_count']} (threshold: 18)")
+```
+
+- **Aborts** if 2Q gate count > 18 (ZNE non-perturbative regime)
+- **Warns** if 2Q gate count > 80% of threshold (R² may degrade)
+- Counts: CX, CZ, ECR, RZZ, RXX, RYY, CP gates
+
+### Input Validation (run_deployment)
+
+Before any QPU interaction, `run_deployment()` validates:
+- `params.shape` matches `circuit.num_parameters`
+- `gap > 0` (prevents division by zero in ΔE/gap)
+- `params` contains no NaN/Inf (prevents invalid circuits)
+- `e_exact` is finite (prevents meaningless verdicts)
+
+All validations fail with `ValueError` — zero QPU cost on misconfiguration.
 
 ## Error Mitigation Stack
 
@@ -215,10 +253,19 @@ results/hardware/run_20260615_032241/
 ├── raw_results.json     # Per-layout raw EVs and stds (no rounding)
 ├── zne_analysis.json    # ZNE extrapolation (R², gain, slope, CES-E pairs)
 ├── summary.json         # ΔE/gap, phase label, verdict (PASS/FAIL)
+├── input_params.json    # Exact parameters used (for reproduction)
 └── execution_log.json   # Complete structured log (all events with timestamps)
 ```
 
 For multi-h sweeps, an additional `sweep_summary.json` is created with consolidated results.
+
+### Reproducibility
+
+Every run saves `input_params.json` containing the exact parameter vector used:
+```json
+{"params": [0.15, 0.78], "n_params": 2}
+```
+This allows re-executing the identical point without retraining the MPNN.
 
 ## Success Criteria
 
@@ -255,3 +302,35 @@ python -m pytest tests/test_hardware_module.py -v
 # Run full test suite
 python -m pytest tests/ -m "not slow" -q
 ```
+
+## Integration with Runner Framework
+
+For runner scripts that use hardware execution, use `HardwareValidationRunner`
+from `qmbp_simulation.framework.runner_base`:
+
+```python
+from qmbp_simulation.framework.runner_base import HardwareValidationRunner, Section
+
+class MyHWRunner(HardwareValidationRunner):
+    runner_id = "hw_deploy"
+    experiment_id = "HW_DEPLOY"
+    description = "Hardware deployment validation"
+    hypothesis = "ΔE/gap<5% at h=3.25 on IBM Torino"
+
+    def setup(self):
+        super().setup()  # Creates self.hw_backend
+        # ... build circuit, H, params ...
+
+    def define_sections(self):
+        return [Section(id=1, name="Deploy", fn=self.section_deploy, hypothesis="...")]
+
+    def section_deploy(self) -> dict:
+        result = self.hw_backend.run_deployment(...)
+        return {"delta_e_gap": result.delta_e_gap, "pass": result.verdict == "PASS"}
+```
+
+This provides:
+- Dual preflight (structural + QPU)
+- Shared StructuredLogger between runner and backend
+- CLI: `--mode hardware|fake_backend`, `--shots`, `--n-layouts`
+- Result saved to both `results/experiments/` (digest-compatible) and `results/hardware/` (full provenance)

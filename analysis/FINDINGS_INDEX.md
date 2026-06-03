@@ -1,7 +1,7 @@
 # Índice Maestro de Hallazgos — GNN-HVA Framework
 
-**Última actualización**: 2026-05-28
-**Estado**: Todos los claims verificados, datos completos, p=1 ZNE confirmado multi-seed.
+**Última actualización**: 2026-06-03
+**Estado**: Tier 1 extensions validated, hardware rehearsal finding documented.
 
 ---
 
@@ -38,6 +38,10 @@
 | 22 | Restart paradox es probabilístico | Depende del seed, no determinístico | `08_lessons_learned.md` §2.1 |
 | 23 | h=128 crítico a N=6 | Menos datos que N=10 | `03_hyperparameter_sensitivity.md` |
 | 24 | p=1 ZNE variabilidad es layout-dependent | 1/3 seeds falla por alto CES | `11_p1_zne_verification.md` |
+| 25 | D1 generalizes to frustrated TFIM (T1c) | 100% agreement, 4 J₂ values | `12_tier1_session_results.md` |
+| 26 | ZNE transfers to longitudinal model (T1b) | R²=0.9999, gain=+89.5% | `12_tier1_session_results.md` |
+| 27 | MPNN 2D requires dense J₂ grid (T1a) | 5 J₂ insufficient for interp | `12_tier1_session_results.md` |
+| 28 | CES-ZNE fails on heavy_hex (HW_REHEARSAL) | No CES gradient available | `11_hardware_rehearsal_findings.md` |
 
 ## Resultados Negativos (★★★ — publicables)
 

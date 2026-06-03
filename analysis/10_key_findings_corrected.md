@@ -572,3 +572,125 @@ No extensible:  Nuevo término → 2-qubit interaction → duplica CX budget  �
 
 Modelos con solo ZZ + campos (X, Z): extensibles sin costo.
 Modelos con XX, YY, XY: duplican el CX budget → exceden ZNE threshold.
+
+---
+
+## Hallazgo #19: TFIM Longitudinal Hardware-Ready (E4b HW, 2026-06-03)
+
+**Evidencia**: `scripts/run_e4b_hardware_readiness.py` — 5 hipótesis, todas confirmadas.
+**Resultado JSON**: `results/experiments/exp_e4b_hw/run_20260603_114106.json`
+
+| Hipótesis | Resultado | Métrica clave |
+|-----------|:---------:|---------------|
+| H6: ZNE gain equiv (±5%) | ✅ | Diff=2.9% (TFIM: +91.8%, Long: +88.8%) |
+| H7: θ_smoothness ≤ 0.5 | ✅ | Max=0.030 (vs TFIM: 0.993 con chain break) |
+| H8: MPNN gen_gap comparable | ✅ | Ratio=0.71 (longitudinal generaliza MEJOR) |
+| H9: g≥0.1 viable a p=1 | ✅ | g_max=0.1 at h=2.0 (g=0.3 falla a p=1) |
+| H10: Clasificación 100% | ✅ | 12/12 correct en valid regime |
+
+**Hallazgo clave**: A p=1, g>0.1 degrada la expresividad significativamente.
+El modelo longitudinal aporta valor **demostrativo** (extensibilidad del framework
+confirmada a p=2) pero el beneficio operacional en hardware es limitado a g≤0.1.
+
+**Hallazgo inesperado**: El longitudinal tiene landscape 33× más suave que TFIM
+estándar (θ_smoothness=0.03 vs 0.99). El tercer parámetro θ_z estabiliza la
+warm-start chain, eliminando el chain_break de seed 43 que afecta al TFIM puro.
+
+**Detalles**: `documentation/binnacles/binnacle-e4b-hardware-readiness.md`
+
+---
+
+## Hallazgo #20: MPS Truncation Irrelevante para HVA p=1 TFIM (2026-06-03)
+
+**Evidencia**: `scripts/run_mps_pseudo_hardware.py` — 5 secciones, todas PASS.
+**Resultado JSON**: `results/experiments/exp_mps_hw/run_20260603_124638.json`
+
+| Sección | Resultado | Hallazgo |
+|:---:|:---:|---|
+| Chi calibration | chi=4 suficiente | TFIM paramagnético tiene S≈0.09 (bajo) |
+| Scaling N=10/16/20 | 3/3 PASS | Pipeline funciona a toda escala |
+| Phase classification | 100% | Observables correctos incluso con MPS truncado |
+| Error decomposition | 0% trunc error | HVA p=1 produce estados quasi-producto |
+| Cross-topology | heavy-hex clean | Truncation overhead < 0.001 en heavy-hex |
+
+**Hallazgo fundamental**: MPS truncation ≠ hardware noise para TFIM p=1.
+
+El circuito HVA p=1 produce estados con entanglement tan bajo (S≈0.09 bits)
+que incluso chi=4 los representa exactamente. Esto significa:
+- El hardware noise NO destruye correlaciones (porque no hay correlaciones de largo alcance)
+- La robustez del pipeline en hardware viene de esta propiedad
+- El error en hardware es 100% gate noise acumulativo, no pérdida de entanglement
+
+**Implicación para la tesis**: El éxito del TFIM+HVA p=1 en hardware es predecible
+a priori desde S(h) < log(chi_hardware). La barrera de hardware NO es entanglement-limited
+sino gate-error-limited. Esto explica por qué ZNE (que mitiga gate errors) funciona
+tan bien (+63% gain en heavy-hex).
+
+**Scaling verificado**:
+
+| N | ΔE/gap | Método referencia | Status |
+|---|:---:|:---:|:---:|
+| 10 | 0.012 | exact_diag | ✅ |
+| 16 | 0.012 | dmrg_chi4 | ✅ |
+| 20 | 0.011 | dmrg_chi4 | ✅ |
+
+**Detalles**: `documentation/binnacles/binnacle-e4b-hardware-readiness.md` §MPS results
+
+---
+
+## Hallazgo #21: Preflight Detecta Valid-Regime Violations (2026-06-03)
+
+**Evidencia**: Mejora al framework (`src/qmbp_simulation/framework/runner_base.py`
+y `preflight.py`) que ahora:
+1. Detecta ValidationRunner subclasses en `preflight.py --from-script`
+2. Valida h-values contra boundaries topology-específicos en preflight
+3. Emite WARNING (no error) para h-values marginales
+
+**Motivación**: Los errores detectados durante esta sesión:
+- Section 5 (MPS): ladder a h=2.4 falló porque boundary es h≥3.0
+- Section 8 (E4b): test point h=1.125 falló porque boundary es h≥1.9
+- Section 9 (E4b): g=0.3 a p=1 falló porque expresividad insuficiente
+
+Todos habrían sido advertidos por preflight si el check existiera antes.
+
+**Uso**:
+```bash
+python scripts/preflight.py --from-script scripts/run_mps_pseudo_hardware.py
+# → WARNING: h-values [1.75, 1.5, 1.625] below valid regime (1.9)
+```
+
+**Detalles**: Implementado en `ValidationRunner._check_regime_warnings()` y
+`_try_load_as_validation_runner()` en `preflight.py`.
+
+
+---
+
+## Addendum: Tier 1 Experiments (2026-06-03)
+
+> Full details: `documentation/analysis/12_tier1_session_results.md`
+
+### Hallazgo #7: D1 Weight-Space Phase Detection generaliza a TFIM frustrado
+
+| J₂ | Peak h (gradient) | Exact crossover h | Δh | Agreement |
+|-----|:--:|:--:|:--:|:--:|
+| 0.0 | 0.48 | 0.33 | 0.16 | ✓ |
+| 0.2 | 0.33 | 0.33 | 0.00 | ✓ |
+| 0.3 | 0.48 | 0.33 | 0.16 | ✓ |
+| 0.5 | 0.41 | 0.33 | 0.08 | ✓ |
+
+**100% agreement** (Δh ≤ 0.3) — zero-QPU phase detection funciona para J₁-J₂.
+- Ref: `scripts/run_t1c_d1_frustrated.py`, resultado en `results/experiments/exp_t1c/`
+
+### Hallazgo #8: ZNE por CES inhomogéneo falla en heavy_hex N=10 p=1
+
+- CES spread → outlier CES=14.4 destruye extrapolación (gain=16% vs 63% esperado)
+- CES uniform → todos CES≈0.15, R²=0.04, sin leverage para fit
+- **Solución**: gate-folding ZNE (IBM built-in) en vez de layout-based ZNE
+- Ref: `documentation/analysis/11_hardware_rehearsal_findings.md`
+
+### Hallazgo #9: MPNN 2D (h × J₂) requiere densidad mínima en J₂
+
+- Cross-validation (J₂ conocido, h nuevo): **83% pass**
+- Interpolación (J₂ nuevo): **0% pass** con 5 J₂ values
+- Necesita ≥8 J₂ values o ≥80 puntos totales para interpolación 2D
+- Ref: `scripts/run_t1a_mpnn_2d_predictor.py`, resultado en `results/experiments/exp_t1a/`

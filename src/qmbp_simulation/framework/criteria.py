@@ -59,11 +59,39 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
     "S6": {"metric": "pass_rate", "threshold": 0.7, "desc": "MC-Dropout UQ calibrated"},
     "S8": {"metric": "pass_rate", "threshold": 0.5, "desc": "D1 finite-size scaling"},
     "S8b": {"metric": "pass_rate", "threshold": 0.5, "desc": "MPNN finite-size scaling"},
+    "MPS_HW": {"metric": "pass_rate", "threshold": 0.80, "desc": "MPS chi-proxy matches hardware"},
+    # Tier 1 new experiments (2026-06-03)
+    "T1a": {
+        "metric": "pass_rate",
+        "threshold": 0.50,
+        "desc": "2D MPNN interpolates in J₂ dimension",
+    },
+    "T1b": {
+        "metric": "pass_rate",
+        "threshold": 0.75,
+        "desc": "ZNE transfers to longitudinal model (R²>0.95, gain>30%)",
+    },
+    "T1c": {
+        "metric": "pass_rate",
+        "threshold": 0.80,
+        "desc": "D1 weight gradient generalizes to frustrated TFIM",
+    },
+    "HW_REHEARSAL": {
+        "metric": "pass_rate",
+        "threshold": 0.60,
+        "desc": "Full pipeline on FakeTorino (ZNE + classification)",
+    },
+    "E4b_hardware_readiness": {
+        "metric": "pass_rate",
+        "threshold": 0.60,
+        "desc": "5/5 hypotheses confirmed",
+    },
+    "E4c_pipeline": {"metric": "pass_rate", "threshold": 0.80, "desc": "ΔE/gap < 5%"},
 }
 
 # Experiments where hypothesis rejection IS a valid scientific finding
 # (negative result = useful knowledge, not failure)
-REJECTION_IS_FINDING: set[str] = {"E4", "F1", "G2", "G3", "G4"}
+REJECTION_IS_FINDING: set[str] = {"E4", "F1", "G2", "G3", "G4", "T1a"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

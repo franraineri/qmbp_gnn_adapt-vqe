@@ -4,6 +4,8 @@
 
 | File | Last Updated | Trigger |
 |------|-------------|---------|
+| changelog.md | 2026-06-03 | E4c full pipeline PASS (2/2 test points, ΔE/gap=0.007). MPNN with extra_node_features=[J₂] works. 15 training points required (8 insufficient). Digest shows 13 confirmed, 5 rejected, 5 failed across 23 experiments. |
+| changelog.md | 2026-06-03 | E4b+E4c standard execution: E4c ✅ 96% pass ΔE/gap=0.009 (J₂≤0.7), E4b ✅ fid≥0.98 (g≤0.5). Both in digest. E4b analyze() fixed to include `analysis.summary`. Next: MPNN with J₂ feature for full pipeline. |
 | changelog.md | 2026-06-02 | Scalability refactoring: (1) auto-preflight in BaseExperiment.execute(), (2) centralized CLI args (add_result_filter_args, add_format_args, add_variant_runner_args), (3) run_vqe_sweep helper in BaseExperiment, (4) EXPERIMENT_CRITERIA unified in criteria.py, (5) json_serialize unified — all _json_default implementations delegate to utils/helpers.py |
 | changelog.md | 2026-06-02 | Frustrated TFIM (J1-J2) implemented: `build_frustrated_tfim()`, `create_frustrated_tfim()`, registered as `tfim_frustrated`. CX budget 27@N=6 (noiseless only). See `binnacle-hamiltonian-candidates.md` |
 | changelog.md | 2026-06-02 | Kitaev chain verified NOT viable (20 CZ N=6, fid=16%). TFIM+longitudinal confirmed as only viable extension. See `binnacle-hamiltonian-candidates.md` |

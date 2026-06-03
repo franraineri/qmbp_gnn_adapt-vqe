@@ -218,6 +218,7 @@ def build_graph_dataset(
     fidelities: np.ndarray | None = None,
     fidelity_threshold: float = 0.93,
     include_edge_features: bool = False,
+    extra_node_features: np.ndarray | None = None,
 ) -> list[Data]:
     """Convert LatticeConfig + θ_opt arrays into torch_geometric Data objects.
 
@@ -237,6 +238,15 @@ def build_graph_dataset(
         Minimum fidelity to include in dataset (default 0.93).
     include_edge_features : bool
         When True, add ``edge_attr`` tensors containing coupling J_ij.
+    extra_node_features : np.ndarray | None [n_points, n_extra]
+        Additional per-point features broadcast to all nodes. Each row is
+        replicated across all N sites as extra columns in the node feature
+        matrix. Use for model parameters like J₂, g, delta that vary across
+        the dataset but are uniform within a single graph.
+
+        Example: for frustrated TFIM with J₂ varying per point,
+        pass extra_node_features=J2_values.reshape(-1, 1) to get
+        node features [h_i, coord_i, J₂] (3 features per node).
 
     Returns
     -------
@@ -274,10 +284,18 @@ def build_graph_dataset(
         if fidelities is not None and fidelities[i] < fidelity_threshold:
             continue
 
-        # Node features: [h_i, coordination_number_i] per site
+        # Node features: [h_i, coordination_number_i, ...extra...] per site
         h_feat = np.full(lattice.n_qubits, float(h))
+        base_features = [h_feat, coord.astype(float)]
+
+        # Add extra features (broadcast scalar per-point values to all nodes)
+        if extra_node_features is not None:
+            for col in range(extra_node_features.shape[1]):
+                val = extra_node_features[i, col]
+                base_features.append(np.full(lattice.n_qubits, float(val)))
+
         x = torch.tensor(
-            np.stack([h_feat, coord.astype(float)], axis=1),
+            np.stack(base_features, axis=1),
             dtype=torch.float32,
         )
         y = torch.tensor(theta_opt[i], dtype=torch.float32)
@@ -301,9 +319,11 @@ def build_graph_dataset(
             f"fidelity threshold."
         )
 
+    n_features = 2 + (extra_node_features.shape[1] if extra_node_features is not None else 0)
     logger.info(
         f"Built graph dataset: {len(dataset)}/{len(h_values)} points "
         f"(fidelity threshold={fidelity_threshold}, "
+        f"node_features={n_features}, "
         f"edge_features={include_edge_features})"
     )
     return dataset

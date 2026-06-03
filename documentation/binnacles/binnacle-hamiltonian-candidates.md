@@ -338,3 +338,194 @@ La cadena de Kitaev **no es compatible** con las restricciones del framework (HV
 - p≥3 capas o ansatz con más parámetros por capa
 
 **El TFIM + longitudinal es la ÚNICA extensión viable confirmada.**
+
+
+---
+
+## ADDENDUM 2: Análisis Detallado de Barreras del Framework para Kitaev (2026-06-03)
+
+### Objetivo
+
+Documentar con precisión cuáles son las restricciones del framework que impiden la
+implementación exitosa de la cadena de Kitaev, qué reglas las gobiernan, y cuáles
+serían los cambios mínimos necesarios para intentar una validación — junto con la
+evaluación de si esos cambios son compatibles con la arquitectura del proyecto.
+
+---
+
+### Barrera 1: Estado Inicial |+⟩^N — Overlap nulo con ground state de Kitaev
+
+**Regla que lo impone:** SKILL.md → "Initial state: |+⟩^N (`qc.h(range(n))`). MANDATORY."
+
+**Por qué existe la regla:**
+El estado |+⟩^N es el ground state exacto de H_X = −h·ΣX_i (campo transverso puro).
+Para el TFIM, cuando h→∞ el ground state converge a |+⟩^N, y la estrategia de
+warm-start VQE (descending sweep h_max→h_min) parte desde este estado natural.
+El ansatz HVA solo necesita "rotar" gradualmente desde |+⟩^N hacia el ground state
+ferromagnético conforme h decrece.
+
+**Por qué falla para Kitaev:**
+El ground state del Kitaev en la fase topológica (|μ| < 2J) es un estado de
+**fermiones pareados** (BCS-like). En la base de qubits tras Jordan-Wigner, este
+estado tiene estructura de entanglement muy diferente a |+⟩^N:
+
+- |+⟩^N tiene ⟨Z_i⟩ = 0 para todo i → no tiene magnetización neta
+- El ground state de Kitaev tiene correlaciones XX+YY de largo alcance (pairing)
+- El overlap ⟨+|^N |GS_Kitaev⟩ es exponencialmente pequeño en N
+
+Resultado: el VQE arranca en una región del landscape que es un **mínimo local
+profundo** (la energía de |+⟩^N bajo H_Kitaev no es terrible, pero el gradiente
+apunta hacia soluciones incorrectas). Los 15 restarts no logran escapar.
+
+**Precedente de excepción:** El modelo Heisenberg usa estado Néel (|010101...⟩) como
+excepción explícita a la regla |+⟩^N. El `create_heisenberg()` acepta
+`initial_state="neel"` como parámetro. El mismo mecanismo permitiría un estado
+adaptado para Kitaev.
+
+**Cambio hipotético:**
+- Opción A: `initial_state="half_fill"` → |0101...⟩ (half-filling fermionic).
+  Similar a Néel pero motivado por la estructura de la cadena a half-filling.
+- Opción B: `initial_state="bcs"` → Estado BCS preparable con un circuito
+  Gaussian de profundidad O(N). Requiere circuito de preparación previo al HVA.
+- Opción C: Ground state del Kitaev a μ=0 (punto sweet-spot), preparable
+  exactamente con un circuito matchgate de profundidad N-1.
+
+**Evaluación:** La Opción A es trivial de implementar (una línea de código,
+precedente existente). Las opciones B/C añaden gates 2Q al circuito de
+preparación, empeorando el problema del budget CX.
+
+---
+
+### Barrera 2: Budget CX — 20 CZ a N=6 p=1 (excede ZNE ≤ 18)
+
+**Regla que lo impone:** Project-status.md → "ZNE threshold: ~18 CX gates."
+
+**Origen de la regla:**
+La extrapolación ZNE (Zero-Noise Extrapolation) inhomogénea requiere que el circuito
+sea lo suficientemente corto para que la relación señal/ruido permita un fit lineal
+confiable (R² > 0.99). Empíricamente, con el ruido de IBM Torino:
+- ≤18 CX: ZNE lineal funciona (R²>0.99, gain +48-62%)
+- 19-25 CX: ZNE degradado (R²<0.9, gain variable)
+- >25 CX: ZNE inútil (señal enterrada en ruido)
+
+**Por qué Kitaev excede:**
+```
+TFIM (N=6, p=1):  5 bonds × 1 RZZ × 2 CX/RZZ = 10 CX  ✅
+Kitaev (N=6, p=1): 5 bonds × (RXX + RYY) × 2 CX/gate = 20 CX  ❌ (+2 sobre límite)
+```
+
+Cada bond del Kitaev necesita representar la interacción de hopping (XX) y de
+pairing (YY). Cada una requiere 2 CX gates en la descomposición estándar.
+
+**Cambios hipotéticos y sus consecuencias:**
+
+| Opción | CX resultantes | Viabilidad | Problema |
+|--------|:-:|:-:|---|
+| Reducir a N=4 | 12 CX | ✅ ZNE OK | N=4 tiene poca física (solo 1 bond de bulk) |
+| Usar N=5 (impar) | 16 CX | ✅ ZNE OK | Boundary effects dominan; N impar rompe simetría |
+| Gate cancellation (RXX·RYY → fSim) | ~12-14 CX | ⚠️ Posible | Requiere synthesis custom; Qiskit opt_level=3 podría lograrlo |
+| Subir threshold ZNE | 20 CX | ❌ | No es negociable — es un resultado empírico, no una elección |
+
+**La opción más realista** es N=4 o gate cancellation. Pero N=4 tiene un solo "bond
+de bulk" (los bonds 0-1 y 3-4 son de borde), lo que hace que los edge modes no se
+distingan del bulk. La física interesante del Kitaev (Majorana zero modes en los
+bordes) requiere al menos N=6 para ser observable.
+
+---
+
+### Barrera 3: Parámetros globales por capa — Insuficiente para capturar pairing
+
+**Regla que lo impone:** Convención arquitectónica del HVA: "un θ por tipo de interacción
+por capa" (ver `circuits/hva.py`).
+
+**Cómo funciona en TFIM:**
+```python
+# 2 params por capa: θ_zz (TODOS los bonds), θ_x (TODOS los sitios)
+for i, j in lattice.edges:
+    qc.rzz(2 * theta_zz, i, j)  # mismo ángulo para todos los bonds
+for i in range(n_qubits):
+    qc.rx(2 * theta_x, i)       # mismo ángulo para todos los sitios
+```
+
+Esto funciona para TFIM porque el Hamiltoniano es **traslacionalmente invariante** y
+el ground state hereda esa simetría. Un solo θ_zz captura la correlación ZZ uniforme.
+
+**Por qué falla para Kitaev:**
+El Kitaev con boundary conditions abiertas (necesarias para edge modes) tiene un
+ground state que **NO es traslacionalmente invariante**:
+- Los qubits de borde (0 y N-1) tienen correlaciones cualitativamente diferentes
+- El pairing Δ(XY − YX) introduce una **fase compleja** direction-dependent
+- Con un solo θ_XX global, el circuito no puede diferenciar hopping de pairing
+
+Para capturar la física del Kitaev, se necesitaría una de:
+- **Params por bond** (edge-resolved HVA): θ_XX^{(i,j)} diferente para cada bond.
+  Para N=6 p=1: 5 bonds × 2 params + 1 RZ = 11 params (vs 3 actuales).
+- **Separación hopping/pairing**: θ_XX y θ_YY como params independientes (ya lo es
+  en la prueba de verificación) — pero ni así funciona porque la invariancia traslacional
+  del ansatz no puede representar las correlaciones de borde.
+- **RXY antisimétrico explícito**: Gate e^{−iθ(XY−YX)} que no se descompone
+  naturalmente en RXX + RYY con mismos ángulos.
+
+**Evaluación:**
+Usar params por bond **sigue siendo HVA** (cada gate corresponde a un término del
+Hamiltoniano). No viola la regla "ONLY HVA, NEVER HEA" — simplemente añade
+resolución espacial. Sin embargo:
+- 11 params en un landscape VQE con p=1 es significativamente más duro que 3
+- El Heisenberg con 4 params/capa (8 total en p=2) ya demostró que landscapes
+  con >6 params tienen minimos locales difíciles (fid máx 48%)
+- 11+ params con N=4 (donde la física es trivial) no aporta valor científico
+
+---
+
+### Barrera 4 (emergente): La combinación de problemas es peor que la suma
+
+Los 3 problemas NO son independientes — se refuerzan:
+
+1. Estado inicial malo → VQE necesita más iteraciones y restarts
+2. Más params → landscape más complejo → VQE necesita AÚN más restarts
+3. Más CX gates → no se puede usar hardware → valor de la validación se reduce
+
+El Heisenberg (V9) ya demostró este patrón con solo 2 de los 3 problemas
+(4 params + estado subóptimo): max fid = 48% con 10 restarts. El Kitaev
+tiene los 3 simultáneamente, con un agravante: la fidelidad verificada es
+**3× peor** que Heisenberg (16% vs 48%).
+
+---
+
+### Tabla resumen: Reglas vs Cambios necesarios
+
+| Barrera | Regla afectada | Cambio mínimo | Rompe regla | Precedente |
+|---------|---------------|---------------|:-----------:|:----------:|
+| Estado |+⟩^N | SKILL.md (mandatory) | initial_state adaptado | ⚠️ Parcial | Heisenberg usa Néel |
+| CX > 18 | ZNE threshold (empírico) | N=4 o gate cancellation | No (limita N) | — |
+| Params globales | Convención HVA | Params por bond | No (sigue siendo HVA) | — |
+| Combinación 1+2+3 | Expresividad p≤2 | p≥3 o ansatz híbrido | ❌ Sí (Mele et al.) | Ninguno |
+
+---
+
+### Veredicto Final Extendido
+
+La cadena de Kitaev está bloqueada por **3 restricciones simultáneas** del framework,
+de las cuales:
+- 1 tiene precedente de relajación (estado inicial → como Heisenberg)
+- 1 es un límite empírico no negociable (budget CX = física del hardware)
+- 1 es una limitación arquitectónica resoluble pero costosa (params por bond)
+
+Incluso relajando las 3, el resultado más optimista (N=4, p=2, initial_state
+adaptado, params por bond) produciría un resultado con **valor científico mínimo**:
+- N=4 no tiene physics de Majorana distinguible del trivial
+- No es deployable en hardware (o trivialmente deployable sin interés)
+- No demuestra capacidad del framework (requiere excepciones a todas las reglas)
+
+**Conclusión reforzada:** El Kitaev NO es viable bajo el framework GNN-HVA actual.
+La barrera es fundamentalmente física (entanglement structure del pairing
+superconductor), no una limitación de implementación que se pueda "arreglar"
+con más código. Documentar como resultado negativo informado.
+
+**Implicación para la tesis:** Citar esta incompatibilidad como evidencia de los
+**límites de aplicabilidad del HVA p≤2**: modelos con pairing superconductor o
+entanglement que escala linealmente están fuera del alcance de circuitos shallow.
+Esto complementa el resultado negativo de Heisenberg (V9) y establece el boundary
+preciso del framework.
+
+*Addendum complete. No further Kitaev work planned.*

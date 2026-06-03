@@ -172,6 +172,11 @@ Examples:
         metavar=("A", "B"),
         help="Side-by-side comparison of two folders/variants",
     )
+    analysis.add_argument(
+        "--exclude-tests",
+        action="store_true",
+        help="Exclude test artifacts (T1A, TEST, FAIL, XFAIL, etc.) from experiment list",
+    )
 
     out = parser.add_argument_group("output")
     out.add_argument("--markdown", action="store_true", help="Markdown output")
@@ -211,7 +216,9 @@ def main() -> None:
         noiseless, noisy, experiments = scanner.scan_folder(args.folder)
     else:
         _log("[digest] Scanning all result areas...")
-        noiseless, noisy, experiments = scanner.scan_all()
+        noiseless, noisy, experiments = scanner.scan_all(
+            exclude_tests=args.exclude_tests,
+        )
 
     _log(
         f"[digest] Scanned: {len(noiseless)} noiseless, "

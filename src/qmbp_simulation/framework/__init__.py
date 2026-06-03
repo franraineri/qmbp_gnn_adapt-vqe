@@ -62,6 +62,14 @@ from qmbp_simulation.framework.variant_runner import (
     VariantRunner,
     run_variant_script,
 )
+from qmbp_simulation.framework.runner_base import (
+    ExperimentRunner,
+    HardwareValidationRunner,
+    Section,
+    SectionResult,
+    ValidationRunner,
+    VariantPipelineRunner,
+)
 
 __all__ = [
     # Base
@@ -116,6 +124,13 @@ __all__ = [
     "RunResult",
     "VariantRunner",
     "run_variant_script",
+    # Runner bases
+    "ExperimentRunner",
+    "ValidationRunner",
+    "VariantPipelineRunner",
+    "HardwareValidationRunner",
+    "Section",
+    "SectionResult",
     # Preflight
     "PreflightChecker",
     "PreflightReport",

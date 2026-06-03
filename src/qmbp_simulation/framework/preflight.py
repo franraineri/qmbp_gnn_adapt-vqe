@@ -1370,6 +1370,139 @@ def _try_load_as_experiment(script_path: str) -> list[ExperimentSpec] | None:
     return experiment_specs if experiment_specs else None
 
 
+def _try_load_as_validation_runner(script_path: str) -> tuple | None:
+    """Attempt to load a script as a ValidationRunner file.
+
+    Returns (runner_class, issues_list) if successful, None if not found.
+    Issues list contains strings with [ERROR] or [WARNING] prefixes.
+    """
+    import importlib.util
+    import inspect
+
+    path = Path(script_path).resolve()
+    if not path.exists():
+        return None
+
+    spec = importlib.util.spec_from_file_location("_validation_module", path)
+    if spec is None or spec.loader is None:
+        return None
+
+    module = importlib.util.module_from_spec(spec)
+    original_argv = sys.argv
+    sys.argv = [str(path)]
+
+    project_root = str(Path.cwd())
+    path_added = False
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+        path_added = True
+
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    except (SystemExit, Exception):
+        return None
+    finally:
+        sys.argv = original_argv
+        if path_added and project_root in sys.path:
+            sys.path.remove(project_root)
+
+    # Find ValidationRunner subclasses
+    try:
+        from qmbp_simulation.framework.runner_base import ValidationRunner
+    except ImportError:
+        return None
+
+    for _name, obj in inspect.getmembers(module, inspect.isclass):
+        if not issubclass(obj, ValidationRunner):
+            continue
+        if obj is ValidationRunner:
+            continue
+        if obj.__module__ != module.__name__:
+            continue
+
+        # Found a ValidationRunner subclass — run its preflight logic
+        issues: list[str] = []
+
+        # Structural checks
+        if not obj.runner_id:
+            issues.append("[ERROR] runner_id is not set")
+        if not obj.experiment_id:
+            issues.append("[ERROR] experiment_id is not set")
+        if not obj.description:
+            issues.append("[ERROR] description is not set")
+        if not obj.hypothesis:
+            issues.append("[ERROR] hypothesis is not set")
+
+        # Instantiate to check sections and config
+        try:
+            # Create with default args (no CLI parsing)
+            import argparse
+
+            fake_args = argparse.Namespace(
+                section=None,
+                skip_preflight=False,
+                stop_on_failure=False,
+                verbose=False,
+                dry_run=False,
+            )
+            # Add any custom args with defaults
+            if hasattr(obj, "_add_custom_args"):
+                temp_parser = argparse.ArgumentParser()
+                obj._add_custom_args(temp_parser)
+                for action in temp_parser._actions:
+                    if action.dest != "help":
+                        setattr(fake_args, action.dest, action.default)
+
+            runner = obj(args=fake_args)
+            sections = runner.define_sections()
+
+            if not sections:
+                issues.append("[ERROR] define_sections() returned empty list")
+            else:
+                ids = [s.id for s in sections]
+                if len(ids) != len(set(ids)):
+                    issues.append(
+                        f"[ERROR] Duplicate section IDs: {set(i for i in ids if ids.count(i) > 1)}"
+                    )
+                for s in sections:
+                    if not s.hypothesis:
+                        issues.append(f"[WARNING] Section {s.id} ({s.name}) has no hypothesis")
+
+            # Physics checks from build_config()
+            try:
+                config = runner.build_config()
+                system = config.get("system", {})
+                topology = system.get("topology") or config.get("topology", "")
+                n_qubits = system.get("n_qubits") or config.get("n_qubits", 0)
+                p_layers = system.get("p_layers") or config.get("p_layers", 1)
+
+                if topology and n_qubits:
+                    threshold = get_regime_threshold(topology, n_qubits, p_layers)
+                    if threshold > 0:
+                        # Check h-values
+                        h_keys = ["h_train", "h_test", "h_values", "h_values_sweep"]
+                        all_h: list[float] = []
+                        for key in h_keys:
+                            val = config.get(key) or system.get(key)
+                            if isinstance(val, (list, tuple)):
+                                all_h.extend(float(v) for v in val if isinstance(v, (int, float)))
+                        below = [h for h in all_h if h < threshold]
+                        if below:
+                            issues.append(
+                                f"[WARNING] h-values {below} below valid regime "
+                                f"({threshold}) for {topology} N={n_qubits} p={p_layers}"
+                            )
+            except Exception:
+                pass  # build_config() may fail without full setup
+
+        except Exception as e:
+            issues.append(f"[WARNING] Could not instantiate runner for deep checks: {e}")
+
+        return obj, issues
+
+    return None
+
+
 def main() -> None:
     """CLI entry point for preflight checks."""
     import argparse
@@ -1529,6 +1662,30 @@ Examples:
                 report.print_summary()
 
             sys.exit(1 if report.has_errors else 0)
+
+        # Try as ValidationRunner
+        validation_result = _try_load_as_validation_runner(args.from_script)
+        if validation_result:
+            print(f"\n  Auto-detected ValidationRunner in: {args.from_script}")
+            runner_cls, issues = validation_result
+            print(f"  Runner: {runner_cls.runner_id} ({runner_cls.description})")
+            print(f"  Project root: {root}")
+            print()
+
+            if issues:
+                has_errors = any("[ERROR]" in i for i in issues)
+                for i in issues:
+                    print(f"  {i}")
+                print()
+                if has_errors:
+                    print("  ❌ Preflight FAILED")
+                    sys.exit(1)
+                else:
+                    print("  ⚠️  Preflight PASSED with warnings")
+                    sys.exit(0)
+            else:
+                print("  ✅ Preflight PASSED (no issues)")
+                sys.exit(0)
 
         # Neither variant runner nor experiment
         print(

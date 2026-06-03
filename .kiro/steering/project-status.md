@@ -1,6 +1,6 @@
 # Project Status — GNN-HVA Framework
 
-**Last updated**: 2026-06-01
+**Last updated**: 2026-06-03
 
 ## Experiment Discipline (ALWAYS ENFORCE)
 
@@ -14,7 +14,9 @@
 
 **All simulation work complete.** Next: IBM Torino hardware deployment + thesis writing.
 - V7 (12/22 experiments), V8 (18/19), V9 Heisenberg (30 runs), S-series (6 experiments) — all done.
-- Total useful-outcome rate: 90% (19/21 formal experiments).
+- Tier 1 extensions (T1a/T1b/T1c) — executed 2026-06-03, 3 confirmed.
+- Hardware rehearsal — critical finding: CES-ZNE fails on heavy_hex, need gate-folding ZNE.
+- Total useful-outcome rate: 90% (19/21 formal experiments → 24/29 with Tier 1).
 - 210+ pipeline runs executed across 5 topologies (chain_1d, ladder, triangular, kagome, heavy-hex).
 
 ## Active Priority
@@ -36,6 +38,8 @@
 - **TFIM+longitudinal WORKS** — fid≥0.98 at g=0.5, 0 extra CX gates (E4b validated).
 - **TFIM frustrated (J1-J2) WORKS in simulation** — fid≥0.99 at J₂=0.5, but 27 CZ@N=6 (no ZNE for N≥6).
 - **ZNE threshold**: ~18 CX gates. p=2 N=10 (36 CX) fails. Use p=1 for N≥10 hardware.
+- **CES-ZNE fails on heavy_hex**: All good layouts have CES≈0.15 (no spread). Use IBM gate-folding ZNE instead. Ref: `documentation/analysis/11_hardware_rehearsal_findings.md`.
+- **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
 
 ## Optimal Config (quick reference)
 
@@ -83,6 +87,10 @@
 - `experiments/` — categorized experiment scripts
 - `scripts/experiment_runners/` — variant runners, pipeline CLIs
 - `scripts/digest/` — result digest tool
+- `scripts/run_t1a_mpnn_2d_predictor.py` — Tier 1A: 2D MPNN predictor (h × J₂)
+- `scripts/run_t1b_longitudinal_zne.py` — Tier 1B: ZNE for TFIM+longitudinal
+- `scripts/run_t1c_d1_frustrated.py` — Tier 1C: D1 weight-space for frustrated TFIM
+- `scripts/run_hardware_rehearsal.py` — Hardware deployment rehearsal (5 sections)
 - `analysis/` — coverage scanner, diagnostics, verification
 
 ### Do NOT Overwrite
@@ -108,6 +116,9 @@
 | Physics constraints (full) | `.kiro/skills/quantum/SKILL.md` |
 | Code style | `.kiro/steering/code-style.md` |
 | Error patterns | `.kiro/knowledge/error-patterns.md` |
+| Tier 1 session results (2026-06-03) | `documentation/analysis/12_tier1_session_results.md` |
+| Hardware rehearsal findings | `documentation/analysis/11_hardware_rehearsal_findings.md` |
+| Hardware deployment spec | `HARDWARE_DEPLOYMENT_SPEC.md` |
 
 ## Early-Stopping Rules (from 174 runs diagnosed)
 

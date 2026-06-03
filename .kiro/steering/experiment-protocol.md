@@ -3,13 +3,121 @@ inclusion: fileMatch
 fileMatchPattern: "scripts/run_*,scripts/experiment_runners/*,experiments/**"
 ---
 
-# Experiment Protocol — Experiments & Result Logging
+# Experiment Protocol — Full Pipeline (5 Phases)
+
+## Pipeline Overview
+
+```
+DESIGN ──▶ CHECK ──▶ RUN ──▶ ANALYZE ──▶ DOCUMENT
+```
+
+Every experiment follows this sequence. Skipping phases leads to
+unvalidated results, broken analysis tooling, or undocumented findings.
+
+### Phase 1: DESIGN (create script)
+
+```bash
+cp scripts/runner_templates/template_validation_runner.py scripts/run_<name>.py
+```
+
+- Inherit from `ValidationRunner` (or `ExperimentRunner`/`VariantPipelineRunner`)
+- Define `runner_id`, `experiment_id`, `description`, `hypothesis`
+- Implement `define_sections()` with per-section hypotheses
+- Use framework utilities: `self.vqe_descending_sweep()`, `self.exact_ground_state()`
+- See: `.kiro/steering/runner-standards.md`
+
+### Phase 2: CHECK (preflight validation)
+
+```bash
+python scripts/preflight.py --from-script scripts/run_<name>.py
+python scripts/run_<name>.py --dry-run
+```
+
+- **ERRORS → fix before executing** (regime violations, structural issues)
+- WARNINGs → acceptable if intentional (e.g., below-regime test points)
+- `--dry-run` lists sections without executing
+
+### Phase 3: RUN (execute)
+
+```bash
+python scripts/run_<name>.py
+python scripts/run_<name>.py --section 1 2  # selective
+python scripts/run_<name>.py --verbose      # debug
+```
+
+- Output: `results/experiments/exp_<id>/run_<timestamp>.json`
+- Structured log: `results/experiments/exp_<id>/log_<timestamp>.json`
+
+### Phase 4: ANALYZE (verify with existing tools)
+
+```bash
+# 1. Does the experiment appear correctly in the digest?
+python -m scripts.digest --kind experiment --sort verdict
+
+# 2. Does compare.py work without errors?
+python scripts/compare.py --all
+
+# 3. Are thesis claims still valid?
+python analysis/verify_claims.py
+
+# 4. Are there new coverage gaps?
+python analysis/scan_coverage.py
+
+# 5. (If failures) What's the root cause?
+python analysis/diagnose.py --all
+```
+
+- See: `.kiro/steering/analysis-tooling.md`
+
+### Phase 5: DOCUMENT (record findings)
+
+Update these files (using REFERENCES, never duplicate data):
+
+| File | What to add |
+|------|-------------|
+| `documentation/binnacles/binnacle-<name>.md` | Full binnacle entry with tables + cross-references |
+| `analysis/10_key_findings_corrected.md` | New hallazgo # (if novel finding) |
+| `documentation/analysis/08_summary.md` | Session entry (date, experiments, verdicts) |
+| `documentation/analysis/09_thesis_tables.md` | Only if new table for Chapter 5 |
+
+### Quick-Reference Checklist
+
+```
+□ Script created from template (ValidationRunner / ExperimentRunner)
+□ preflight.py --from-script → PASS (or justified WARNINGs only)
+□ --dry-run shows correct sections
+□ Execution complete → JSON saved in results/experiments/
+□ python -m scripts.digest --kind experiment → experiment visible with correct verdict
+□ python scripts/compare.py --all → no crash, experiment listed
+□ python analysis/verify_claims.py → no new contradictions
+□ python analysis/scan_coverage.py → check if gaps closed
+□ Binnacle created/updated with cross-references
+□ 10_key_findings updated (if new finding)
+□ 08_summary updated (session entry)
+```
+
+---
+
+## Runner Standards (ALWAYS ENFORCE)
+
+All `scripts/run_*.py` and `scripts/experiment_runners/run_*.py` scripts MUST use the
+standardized runner base classes from `qmbp_simulation.framework.runner_base`:
+- `ValidationRunner` — multi-section validation suites.
+- `ExperimentRunner` — BaseExperiment lifecycle wrappers.
+- `VariantPipelineRunner` — batch pipeline variant runners.
+
+See `.kiro/steering/runner-standards.md` for full reference and templates in
+`scripts/runner_templates/`.
 
 ## Preflight Validation (ALWAYS ENFORCE)
 
-Before executing ANY variant runner script (scripts that define `build_noiseless_variants`, `build_noisy_variants`, `build_extended_variants`, or a `VARIANTS` list):
+Preflight is BUILT INTO the runner base classes. It runs automatically before execution.
+- `ValidationRunner`: validates runner_id, sections, hypotheses.
+- `ExperimentRunner`: delegates to `BaseExperiment.execute()` built-in preflight.
+- `VariantPipelineRunner`: runs `PreflightChecker` on all variant specs.
 
-1. **Run preflight**: `.venv/bin/python scripts/preflight.py --from-script <path_to_script>`
+For legacy scripts or manual validation:
+1. **Run preflight**: `.venv/bin/python -m qmbp_simulation.framework.preflight --from-script <path>`
 2. **If exit code = 1 (ERRORS)**: Do NOT execute. Report errors and suggest fixes.
 3. **If exit code = 0**: Safe to execute (note any warnings).
 
@@ -17,7 +125,7 @@ This catches:
 - Data leakage (h_test in training set)
 - Valid regime violations (h_test below threshold)
 - Descending sweep violations (warm-start requires h=high→low)
-- Duplicate variant IDs
+- Duplicate variant IDs / section IDs
 - Output directory collisions
 - Missing pipeline scripts
 

@@ -159,18 +159,58 @@ class HardwareBackend(ExecutionBackend):
         gap: float,
         expected_label: str = "paramagnetic",
     ) -> HardwareRunResult:
-        """Full pipeline: preflight → evaluate → observables → classify → persist."""
+        """Full pipeline: preflight → evaluate → observables → classify → persist.
+
+        Validates inputs before any QPU interaction to fail fast on misconfigs.
+        """
         from .observables import build_per_site_observables, map_observables_to_layout
         from .persistence import save_partial_before_error, save_run
         from .phase import classify_phase
         from .spsa import spsa_refinement
         from .submission import build_estimator_options, submit_all_then_collect
 
+        # ─── Input validation (fail fast, no QPU cost) ───────────────────
+        params = np.asarray(params, dtype=float)
+        if params.ndim != 1:
+            raise ValueError(f"params must be 1-D array, got shape {params.shape}")
+        if circuit.num_parameters != len(params):
+            raise ValueError(
+                f"Circuit has {circuit.num_parameters} parameters but "
+                f"params has length {len(params)}"
+            )
+        if gap <= 0:
+            raise ValueError(f"Spectral gap must be positive, got {gap}")
+        if not np.all(np.isfinite(params)):
+            raise ValueError("params contains NaN or Inf values")
+        if not np.isfinite(e_exact):
+            raise ValueError(f"e_exact is not finite: {e_exact}")
+
+        self._logger.log(
+            "deployment_start",
+            h_value=h_value,
+            data={
+                "n_qubits": circuit.num_qubits,
+                "n_params": len(params),
+                "h_value": h_value,
+                "e_exact": e_exact,
+                "gap": gap,
+                "expected_label": expected_label,
+                "params_norm": float(np.linalg.norm(params)),
+            },
+        )
+
         partial_data: list[dict] = []
         try:
             preflight = self.run_preflight()
             if preflight.get("abort"):
                 raise RuntimeError(f"Preflight abort: {preflight.get('abort_reason')}")
+
+            # Validate circuit gate count for ZNE viability
+            from .preflight import validate_circuit_for_zne
+
+            circuit_check = validate_circuit_for_zne(circuit, self._config, self._logger)
+            if circuit_check.get("abort"):
+                raise RuntimeError(f"Circuit check: {circuit_check.get('abort_reason')}")
 
             bound = circuit.assign_parameters(params)
             layout_selection = self._get_cached_layouts(bound)
@@ -267,6 +307,7 @@ class HardwareBackend(ExecutionBackend):
                 ),
                 raw_per_layout=raw_results,
                 zne_data=zne_data,
+                input_params=params,
             )
             return result
 

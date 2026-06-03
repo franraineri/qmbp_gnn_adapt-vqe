@@ -326,7 +326,6 @@ class TestRunVQESweepFastProxy:
     def test_setup_creates_circuit_and_hamiltonian(self):
         from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
         from qmbp_simulation.framework.config import SystemConfig, VQEConfig
-        from qmbp_simulation.framework.metrics import ExperimentMetrics
 
         class _Exp(BaseExperiment):
             @classmethod

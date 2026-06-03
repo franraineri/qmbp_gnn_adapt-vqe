@@ -1,7 +1,8 @@
 """Preflight checks for hardware execution.
 
-Verifies backend status, calibration quality, and topology connectivity
-before submitting any jobs. Designed to fail fast and save credits.
+Verifies backend status, calibration quality, topology connectivity,
+and cost ceiling feasibility before submitting any jobs.
+Designed to fail fast and save credits.
 """
 
 from __future__ import annotations
@@ -13,6 +14,9 @@ from qmbp_simulation.execution.noisy_utils import build_adjacency
 if TYPE_CHECKING:
     from qmbp_simulation.execution.hardware.config import HardwareConfig
     from qmbp_simulation.framework.logging import StructuredLogger
+
+# ZNE perturbative threshold — validated empirically (project-status.md)
+_ZNE_CX_THRESHOLD = 18
 
 
 def compute_mean_2q_error(backend) -> float | None:
@@ -66,7 +70,7 @@ def run_preflight_checks(
 
     In fake_backend mode, only topology connectivity is checked.
     In hardware mode, checks backend status, queue depth, calibration
-    quality, and topology connectivity.
+    quality, topology connectivity, and cost ceiling feasibility.
 
     Parameters
     ----------
@@ -100,7 +104,18 @@ def run_preflight_checks(
         checks["abort"] = True
         checks["abort_reason"] = f"Topology check failed: {exc}"
 
-    # --- In fake_backend mode, only topology matters ---
+    # --- Cost ceiling feasibility (both modes) ---
+    # Ensure requested shots don't exceed max_total_shots for a single evaluation
+    shots_per_eval = config.shots * config.n_layouts
+    checks["shots_per_eval"] = shots_per_eval
+    if shots_per_eval > config.max_total_shots:
+        checks["abort"] = True
+        checks["abort_reason"] = (
+            f"shots×layouts ({shots_per_eval:,}) exceeds max_total_shots "
+            f"({config.max_total_shots:,}). Reduce shots or n_layouts."
+        )
+
+    # --- In fake_backend mode, only topology + cost ceiling matter ---
     if config.mode == "fake_backend":
         logger.log("preflight", data=checks)
         return checks
@@ -147,4 +162,64 @@ def run_preflight_checks(
         checks["calibration_error"] = str(exc)
 
     logger.log("preflight", data=checks)
+    return checks
+
+
+def validate_circuit_for_zne(
+    circuit,
+    config: HardwareConfig,
+    logger: StructuredLogger,
+) -> dict[str, Any]:
+    """Validate circuit gate count is within ZNE perturbative regime.
+
+    Must be called AFTER circuit construction but BEFORE job submission.
+    Counts 2-qubit gates (CX, CZ, ECR) and warns/aborts if above threshold.
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        The parametrized circuit (before or after binding).
+    config : HardwareConfig
+        Execution configuration.
+    logger : StructuredLogger
+        Logger for recording check events.
+
+    Returns
+    -------
+    dict[str, Any]
+        Check results with "abort" boolean if CX count is too high.
+    """
+    checks: dict[str, Any] = {"abort": False}
+
+    # Count 2-qubit gates
+    two_q_gates = {"cx", "cz", "ecr", "rzz", "rxx", "ryy", "cp"}
+    gate_count = 0
+    gate_breakdown: dict[str, int] = {}
+    for instruction in circuit.data:
+        name = instruction.operation.name.lower()
+        if name in two_q_gates:
+            gate_count += 1
+            gate_breakdown[name] = gate_breakdown.get(name, 0) + 1
+
+    checks["two_qubit_gate_count"] = gate_count
+    checks["gate_breakdown"] = gate_breakdown
+    checks["zne_threshold"] = _ZNE_CX_THRESHOLD
+
+    if gate_count > _ZNE_CX_THRESHOLD:
+        checks["abort"] = True
+        checks["abort_reason"] = (
+            f"Circuit has {gate_count} 2Q gates (threshold: {_ZNE_CX_THRESHOLD}). "
+            f"ZNE extrapolation will fail in non-perturbative regime. "
+            f"Use p=1 for N≥10 or reduce circuit depth."
+        )
+        logger.log("circuit_zne_abort", data=checks)
+    elif gate_count > _ZNE_CX_THRESHOLD * 0.8:
+        checks["zne_warning"] = (
+            f"Circuit has {gate_count} 2Q gates ({gate_count / _ZNE_CX_THRESHOLD:.0%} of threshold). "
+            f"ZNE may have reduced R². Monitor extrapolation quality."
+        )
+        logger.log("circuit_zne_warning", data=checks)
+    else:
+        logger.log("circuit_zne_ok", data=checks)
+
     return checks

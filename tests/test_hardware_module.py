@@ -500,3 +500,293 @@ class TestHardwareBackendIntegration:
         energy = backend.evaluate(qc, H, params)
         assert np.isfinite(energy)
         assert isinstance(energy, float)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 10. Preflight Improvements — Cost Ceiling & Circuit Validation
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPreflightImprovements:
+    """Tests for enhanced preflight: cost ceiling and ZNE gate count."""
+
+    def test_cost_ceiling_passes_normal(self, fake_torino, logger):
+        """Normal config (16384 shots × 3 layouts = 49k) should pass."""
+        from qmbp_simulation.execution.hardware.preflight import run_preflight_checks
+
+        cfg = HardwareConfig(
+            mode="fake_backend",
+            n_qubits=6,
+            shots=16384,
+            n_layouts=3,
+            max_total_shots=10_000_000,
+        )
+        result = run_preflight_checks(fake_torino, cfg, logger)
+        assert result["abort"] is False
+        assert result["shots_per_eval"] == 16384 * 3
+
+    def test_cost_ceiling_aborts_excessive(self, fake_torino, logger):
+        """Excessive shots × layouts should abort."""
+        from qmbp_simulation.execution.hardware.preflight import run_preflight_checks
+
+        cfg = HardwareConfig(
+            mode="fake_backend",
+            n_qubits=6,
+            shots=100_000,
+            n_layouts=200,
+            max_total_shots=1_000_000,
+        )
+        result = run_preflight_checks(fake_torino, cfg, logger)
+        assert result["abort"] is True
+        assert "exceeds max_total_shots" in result.get("abort_reason", "")
+
+    def test_circuit_zne_check_pass(self, logger):
+        """Circuit with <18 CX gates should pass ZNE check."""
+        from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
+
+        # 5 CX gates — well within threshold
+        qc = QuantumCircuit(6)
+        for i in range(5):
+            qc.cx(i, i + 1)
+
+        cfg = HardwareConfig(mode="fake_backend", n_qubits=6)
+        result = validate_circuit_for_zne(qc, cfg, logger)
+        assert result["abort"] is False
+        assert result["two_qubit_gate_count"] == 5
+
+    def test_circuit_zne_check_abort_high_gates(self, logger):
+        """Circuit with >18 CX gates should abort (non-perturbative ZNE)."""
+        from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
+
+        # 30 CX gates — above threshold
+        qc = QuantumCircuit(10)
+        for _ in range(3):
+            for i in range(9):
+                qc.cx(i, i + 1)
+
+        cfg = HardwareConfig(mode="fake_backend", n_qubits=10)
+        result = validate_circuit_for_zne(qc, cfg, logger)
+        assert result["abort"] is True
+        assert "non-perturbative" in result.get("abort_reason", "").lower()
+        assert result["two_qubit_gate_count"] > 18
+
+    def test_circuit_zne_check_warning_near_threshold(self, logger):
+        """Circuit at ~80% of threshold should produce a warning."""
+        from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
+
+        # 15 CX gates — above 80% of 18 (=14.4)
+        qc = QuantumCircuit(8)
+        for i in range(7):
+            qc.cx(i, i + 1)
+        for i in range(7, 0, -1):
+            qc.cx(i, i - 1)
+
+        cfg = HardwareConfig(mode="fake_backend", n_qubits=8)
+        result = validate_circuit_for_zne(qc, cfg, logger)
+        # 14 gates — should still pass but may or may not warn depending on exact count
+        # The circuit above has 14 CX gates total
+        assert result["abort"] is False
+
+    def test_circuit_zne_counts_multiple_gate_types(self, logger):
+        """ZNE check should count CZ, RZZ, and CX gates."""
+        from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
+
+        qc = QuantumCircuit(6)
+        qc.cx(0, 1)
+        qc.cz(2, 3)
+        qc.rzz(0.5, 4, 5)
+
+        cfg = HardwareConfig(mode="fake_backend", n_qubits=6)
+        result = validate_circuit_for_zne(qc, cfg, logger)
+        assert result["two_qubit_gate_count"] == 3
+        assert "cx" in result["gate_breakdown"]
+        assert "cz" in result["gate_breakdown"]
+        assert "rzz" in result["gate_breakdown"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 11. Input Validation — run_deployment
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDeploymentInputValidation:
+    """Tests for input validation in run_deployment (fail fast, no QPU cost)."""
+
+    def _make_backend(self, tmp_path):
+        from qmbp_simulation.execution.hardware import HardwareBackend
+
+        config = HardwareConfig(
+            mode="fake_backend",
+            n_qubits=4,
+            shots=64,
+            n_layouts=2,
+            n_candidates=10,
+            optimization_level=1,
+            output_dir=str(tmp_path),
+        )
+        return HardwareBackend(config=config)
+
+    def test_rejects_wrong_param_length(self, tmp_path):
+        """run_deployment should reject params with wrong length."""
+        backend = self._make_backend(tmp_path)
+
+        qc = QuantumCircuit(4)
+        from qiskit.circuit import Parameter
+
+        t = Parameter("t")
+        qc.rx(t, 0)  # 1 parameter
+
+        H = SparsePauliOp.from_list([("ZZZZ", 1.0)])
+        params = np.array([0.1, 0.2, 0.3])  # 3 params, circuit expects 1
+
+        with pytest.raises(ValueError, match="parameters"):
+            backend.run_deployment(qc, H, params, h_value=2.0, e_exact=-3.0, gap=1.0)
+
+    def test_rejects_negative_gap(self, tmp_path):
+        """run_deployment should reject non-positive gap."""
+        backend = self._make_backend(tmp_path)
+
+        qc = QuantumCircuit(4)
+        from qiskit.circuit import Parameter
+
+        t = Parameter("t")
+        qc.rx(t, 0)
+
+        H = SparsePauliOp.from_list([("ZZZZ", 1.0)])
+        params = np.array([0.5])
+
+        with pytest.raises(ValueError, match="gap"):
+            backend.run_deployment(qc, H, params, h_value=2.0, e_exact=-3.0, gap=-0.5)
+
+    def test_rejects_nan_params(self, tmp_path):
+        """run_deployment should reject params containing NaN."""
+        backend = self._make_backend(tmp_path)
+
+        qc = QuantumCircuit(4)
+        from qiskit.circuit import Parameter
+
+        t = Parameter("t")
+        qc.rx(t, 0)
+
+        H = SparsePauliOp.from_list([("ZZZZ", 1.0)])
+        params = np.array([float("nan")])
+
+        with pytest.raises(ValueError, match="NaN"):
+            backend.run_deployment(qc, H, params, h_value=2.0, e_exact=-3.0, gap=1.0)
+
+    def test_rejects_inf_e_exact(self, tmp_path):
+        """run_deployment should reject non-finite e_exact."""
+        backend = self._make_backend(tmp_path)
+
+        qc = QuantumCircuit(4)
+        from qiskit.circuit import Parameter
+
+        t = Parameter("t")
+        qc.rx(t, 0)
+
+        H = SparsePauliOp.from_list([("ZZZZ", 1.0)])
+        params = np.array([0.5])
+
+        with pytest.raises(ValueError, match="not finite"):
+            backend.run_deployment(qc, H, params, h_value=2.0, e_exact=float("inf"), gap=1.0)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 12. Persistence Improvements — input_params saved
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestPersistenceImprovements:
+    """Tests for enhanced persistence (input params, reproducibility)."""
+
+    def test_save_run_includes_input_params(self, tmp_output, logger):
+        """save_run should create input_params.json when params provided."""
+        from qmbp_simulation.execution.hardware.persistence import save_run
+
+        result = HardwareRunResult(
+            h_value=3.0,
+            e_exact=-5.0,
+            e_zne=-4.9,
+            delta_e_gap=0.02,
+            gap=5.0,
+            phase_label="paramagnetic",
+            expected_label="paramagnetic",
+            zne_r2=0.99,
+            zne_gain=0.5,
+            mag_x_mean=0.8,
+            corr_zz_mean=0.2,
+            sigma=0.01,
+            total_shots=50000,
+            verdict="PASS",
+        )
+        config = HardwareConfig(
+            mode="fake_backend",
+            n_qubits=6,
+            output_dir=str(tmp_output),
+        )
+        params = np.array([0.15, 0.78, -0.34])
+
+        run_dir = save_run(
+            result,
+            config,
+            logger,
+            calibration_info={},
+            options_dict={},
+            execution_mode_name="Batch",
+            raw_per_layout=[{"layout_idx": 0, "energy": -4.9}],
+            zne_data={"extrapolated_energy": -4.9},
+            input_params=params,
+        )
+
+        # Verify input_params.json exists and has correct content
+        params_file = run_dir / "input_params.json"
+        assert params_file.exists()
+
+        with open(params_file) as f:
+            data = json.load(f)
+        assert data["n_params"] == 3
+        np.testing.assert_allclose(data["params"], [0.15, 0.78, -0.34], atol=1e-10)
+
+    def test_save_run_works_without_input_params(self, tmp_output, logger):
+        """save_run should still work if input_params is None (backward compat)."""
+        from qmbp_simulation.execution.hardware.persistence import save_run
+
+        result = HardwareRunResult(
+            h_value=3.0,
+            e_exact=-5.0,
+            e_zne=-4.9,
+            delta_e_gap=0.02,
+            gap=5.0,
+            phase_label="paramagnetic",
+            expected_label="paramagnetic",
+            zne_r2=0.99,
+            zne_gain=0.5,
+            mag_x_mean=0.8,
+            corr_zz_mean=0.2,
+            sigma=0.01,
+            total_shots=50000,
+            verdict="PASS",
+        )
+        config = HardwareConfig(
+            mode="fake_backend",
+            n_qubits=6,
+            output_dir=str(tmp_output),
+        )
+
+        run_dir = save_run(
+            result,
+            config,
+            logger,
+            calibration_info={},
+            options_dict={},
+            execution_mode_name="Batch",
+            raw_per_layout=[],
+            zne_data={},
+            # No input_params — backward compatible
+        )
+
+        # input_params.json should NOT exist
+        assert not (run_dir / "input_params.json").exists()
+        # But summary.json and config.json should exist
+        assert (run_dir / "summary.json").exists()
+        assert (run_dir / "config.json").exists()

@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "**/hardware_deployer*"
+fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 ---
 
 # Hardware Deployment — Phase 4 Guidelines
@@ -161,3 +161,41 @@ backend_zne = NoisyBackend(n_layouts=3, seed=42)
   2. Add DD pre-mitigation to reduce effective CES back into linear regime
   3. Use NN extrapolation (Sun et al. 2025) for non-linear E(CES) curves
 - **Rule**: When modifying n_layouts or adding new system sizes, always verify R² > 0.8 before trusting ZNE results.
+
+---
+
+## Hardware Module Integration with Runner Framework
+
+### Runner Pattern for Hardware Scripts
+
+All `scripts/run_hardware*.py` MUST use `HardwareValidationRunner`:
+
+```python
+from qmbp_simulation.framework.runner_base import HardwareValidationRunner, Section
+
+class MyHWRunner(HardwareValidationRunner):
+    runner_id = "hw_deploy_n10"
+    experiment_id = "HW_DEPLOY"
+    ...
+```
+
+### Automatic Validations (enforced by framework)
+
+1. **Structural preflight** — runner_id, hypothesis, sections (from ValidationRunner).
+2. **QPU preflight** — backend status, calibration, topology (from HardwareBackend).
+3. **Cost ceiling check** — `shots × n_layouts ≤ max_total_shots` (in preflight.py).
+4. **Circuit ZNE check** — 2Q gate count ≤ 18 (in run_deployment, before submission).
+5. **Input validation** — params shape, gap>0, finite values (in run_deployment).
+6. **Timeout handling** — job.result() respects job_timeout_s (in submission.py).
+
+### Dual Persistence
+
+Results are saved in TWO locations:
+- `results/experiments/exp_{id}/run_{ts}.json` — digest/compare.py compatible
+- `results/hardware/{runner_id}/run_{ts}/` — full provenance + input_params.json
+
+### Key Rule: NEVER Skip Preflight for Real Hardware
+
+- `--skip-preflight` is available for FakeTorino debugging only.
+- For `--mode hardware`, preflight is MANDATORY — it prevents wasting IBM credits on misconfigured runs.
+- If preflight aborts, fix the underlying issue. Do not bypass.

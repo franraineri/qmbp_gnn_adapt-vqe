@@ -1,0 +1,172 @@
+"""Core health check engine — orchestrates scan, analysis, and reporting.
+
+This is the main logic module. It:
+1. Runs ResultScanner to collect all parsed results.
+2. Aggregates experiment verdicts.
+3. Computes coverage gaps.
+4. Detects new results since last run.
+5. Derives actionable items.
+6. Produces a HealthReport.
+
+No I/O (prints, file writes) happens here — that's the reporter's job.
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from datetime import datetime
+from pathlib import Path
+
+from project_health.coverage import (
+    compute_noiseless_by_topology,
+    compute_noiseless_stats,
+    compute_noisy_stats,
+    derive_actions,
+    detect_coverage_gaps,
+)
+from project_health.models import ExperimentSummary, HealthReport
+from project_health.state import (
+    DEFAULT_STATE_FILE,
+    detect_new_results,
+    detect_removed_results,
+    save_current_state,
+)
+from scripts.digest.models import ExperimentResult, NoiselessResult, NoisyResult
+from scripts.digest.scanner import ResultScanner
+
+logger = logging.getLogger(__name__)
+
+
+def run_health_check(
+    results_dir: Path = Path("results"),
+    state_file: Path = DEFAULT_STATE_FILE,
+    *,
+    save_state: bool = True,
+) -> HealthReport:
+    """Execute the full health check pipeline.
+
+    Parameters
+    ----------
+    results_dir : Path
+        Root results directory (contains experiments/ and thesis/).
+    state_file : Path
+        Where to persist/load the run state for delta detection.
+    save_state : bool
+        If True, persist the current file set for next-run comparison.
+
+    Returns
+    -------
+    HealthReport
+        Complete health report ready for formatting.
+    """
+    report = HealthReport(
+        timestamp=datetime.now().isoformat(timespec="seconds"),
+        results_dir=str(results_dir),
+        state_file=str(state_file),
+    )
+
+    t_start = time.time()
+
+    # ─── Step 1: Scan ────────────────────────────────────────────────────
+    logger.info("Scanning results in %s...", results_dir)
+    scanner = ResultScanner(results_root=results_dir)
+    noiseless, noisy, experiments = scanner.scan_all(exclude_tests=True)
+
+    report.n_noiseless = len(noiseless)
+    report.n_noisy = len(noisy)
+    report.n_experiments = len(experiments)
+    logger.info(
+        "  Scanned: %d noiseless, %d noisy, %d experiments",
+        len(noiseless),
+        len(noisy),
+        len(experiments),
+    )
+
+    # ─── Step 2: Experiment verdicts ─────────────────────────────────────
+    report.experiments = _aggregate_experiments(experiments)
+    report.n_confirmed = sum(1 for e in report.experiments if e.verdict == "confirmed")
+    report.n_rejected = sum(1 for e in report.experiments if e.verdict == "rejected")
+    report.n_failed = sum(1 for e in report.experiments if e.verdict == "failed")
+
+    # ─── Step 3: Noiseless/Noisy quality stats ───────────────────────────
+    report.noiseless_pass_rate, report.noiseless_median_de = compute_noiseless_stats(noiseless)
+    report.noiseless_by_topology = compute_noiseless_by_topology(noiseless)
+    report.noisy_success_rate, report.noisy_mean_r2, report.noisy_mean_gain = compute_noisy_stats(
+        noisy
+    )
+
+    # ─── Step 4: Coverage gaps ───────────────────────────────────────────
+    report.gaps = detect_coverage_gaps(noiseless, noisy, experiments)
+    logger.info("  Coverage gaps detected: %d", len(report.gaps))
+
+    # ─── Step 5: Delta since last run ────────────────────────────────────
+    current_files = _collect_source_files(noiseless, noisy, experiments)
+    report.new_results = detect_new_results(current_files, state_file)
+    report.n_new = len(report.new_results)
+    report.removed_results = detect_removed_results(current_files, state_file)
+    report.n_removed = len(report.removed_results)
+
+    if save_state:
+        save_current_state(
+            current_files,
+            state_file,
+            metadata={
+                "timestamp": report.timestamp,
+                "n_noiseless": report.n_noiseless,
+                "n_noisy": report.n_noisy,
+                "n_experiments": report.n_experiments,
+            },
+        )
+
+    # ─── Step 6: Derive actions ──────────────────────────────────────────
+    report.actions = derive_actions(report.gaps)
+
+    # ─── Finalize ────────────────────────────────────────────────────────
+    report.elapsed_s = round(time.time() - t_start, 2)
+
+    return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Internal helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _aggregate_experiments(experiments: list[ExperimentResult]) -> list[ExperimentSummary]:
+    """Convert ExperimentResult list to ExperimentSummary list.
+
+    The scanner already computes verdicts — we just extract the relevant
+    fields into a leaner structure.
+    """
+    summaries: list[ExperimentSummary] = []
+    for exp in experiments:
+        hypotheses = exp.extras.get("hypotheses", {})
+        summaries.append(
+            ExperimentSummary(
+                experiment_id=exp.experiment_id,
+                verdict=exp.verdict,
+                criteria=exp.criteria,
+                pass_rate=exp.pass_rate,
+                hypotheses=hypotheses,
+                n_hypotheses=len(hypotheses),
+                n_confirmed=sum(1 for v in hypotheses.values() if v),
+            )
+        )
+    return summaries
+
+
+def _collect_source_files(
+    noiseless: list[NoiselessResult],
+    noisy: list[NoisyResult],
+    experiments: list[ExperimentResult],
+) -> set[str]:
+    """Collect all source_file paths from scan results."""
+    files: set[str] = set()
+    for r in noiseless:
+        files.add(r.source_file)
+    for r in noisy:
+        files.add(r.source_file)
+    for r in experiments:
+        files.add(r.source_file)
+    return files

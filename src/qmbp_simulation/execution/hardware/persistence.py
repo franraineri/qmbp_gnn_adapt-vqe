@@ -42,11 +42,19 @@ def save_run(
     execution_mode_name: str,
     raw_per_layout: list[dict],
     zne_data: dict[str, Any],
+    input_params: Any | None = None,
 ) -> Path:
     """Persist all artifacts from a single hardware execution.
 
     Creates ``{output_dir}/run_YYYYMMDD_HHMMSS/`` with config.json, provenance.json,
-    raw_results.json, zne_analysis.json, summary.json, and execution_log.json.
+    raw_results.json, zne_analysis.json, summary.json, input_params.json, and
+    execution_log.json.
+
+    Parameters
+    ----------
+    input_params : array-like | None
+        The input parameters used for this execution. Saved for full
+        reproducibility — allows re-running the exact same point.
     """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path(config.output_dir) / f"run_{ts}"
@@ -95,6 +103,15 @@ def save_run(
         },
         run_dir / "summary.json",
     )
+
+    # Save input parameters for exact reproducibility
+    if input_params is not None:
+        import numpy as np
+
+        _write_json(
+            {"params": np.asarray(input_params).tolist(), "n_params": len(input_params)},
+            run_dir / "input_params.json",
+        )
 
     logger.log("run_saved", data={"run_dir": str(run_dir)})
     logger.save(run_dir / "execution_log.json")

@@ -128,12 +128,23 @@ def submit_all_then_collect(
                     },
                 )
             else:
+                failed_count += 1
                 logger.log("job_nan_discarded", data={"layout_idx": idx, "value": ev})
+        except TimeoutError:
+            failed_count += 1
+            logger.log(
+                "job_timeout",
+                data={"layout_idx": idx, "timeout_s": config.job_timeout_s},
+            )
         except Exception as e:
             failed_count += 1
             logger.log("job_error", data={"layout_idx": idx, "error": str(e)})
+
     if failed_count > 1:
-        raise RuntimeError(f"More than 1 job failed ({failed_count}). Session aborted.")
+        raise RuntimeError(
+            f"More than 1 job failed ({failed_count}/{len(submitted)}). "
+            f"Session aborted. Check execution_log for details."
+        )
     return results
 
 

@@ -42,7 +42,8 @@ src/qmbp_simulation/
 │   ├── result_store.py    ← Result querying, comparison, CATEGORY_MAP
 │   ├── preflight.py       ← Pre-run validation (variants + experiments)
 │   ├── benchmarking.py    ← BenchmarkSuite, BenchmarkResult
-│   └── variant_runner.py  ← PipelineVariant, RunResult, VariantRunner, run_variant_script
+│   ├── variant_runner.py  ← PipelineVariant, RunResult, VariantRunner, run_variant_script
+│   └── runner_base.py     ← ValidationRunner, ExperimentRunner, VariantPipelineRunner
 └── analysis/                ← Gradient analysis, diagnostics, comparison
     ├── gradient.py
     ├── diagnostics.py
@@ -118,6 +119,9 @@ from qmbp_simulation.framework import (
     BenchmarkSuite, BenchmarkResult,
     # Variant runner (for topology variant scripts)
     PipelineVariant, RunResult, VariantRunner, run_variant_script,
+    # Runner bases (for all scripts/run_*.py)
+    ExperimentRunner, ValidationRunner, VariantPipelineRunner,
+    Section, SectionResult, resolve_project_root,
 )
 ```
 

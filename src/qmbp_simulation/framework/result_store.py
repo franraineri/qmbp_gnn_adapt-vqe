@@ -101,14 +101,37 @@ class ResultStore:
         prefix = category.upper()
         return [e for e in available if e.startswith(prefix)]
 
-    def list_experiments(self) -> list[str]:
-        """List experiment IDs that have at least one run_*.json file."""
+    # Known test artifact experiment IDs (from test_runner_base.py)
+    _TEST_ARTIFACTS: set[str] = {
+        "TEST",
+        "FAIL",
+        "XFAIL",
+        "NONE",
+        "CNT",
+        "T1A",
+        "T1B",
+        "T1C",
+    }
+
+    def list_experiments(self, *, exclude_tests: bool = True) -> list[str]:
+        """List experiment IDs that have at least one run_*.json file.
+
+        Parameters
+        ----------
+        exclude_tests : bool
+            If True (default), filter out known test artifacts.
+        """
         experiments: list[str] = []
         if not self.root.exists():
             return experiments
         for d in sorted(self.root.iterdir()):
             if d.is_dir() and d.name.startswith("exp_") and list(d.glob("run_*.json")):
-                experiments.append(d.name.replace("exp_", "").upper())
+                exp_id = d.name.replace("exp_", "").upper()
+                if not exp_id:
+                    continue  # Skip empty IDs
+                if exclude_tests and exp_id in self._TEST_ARTIFACTS:
+                    continue
+                experiments.append(exp_id)
         return experiments
 
     def list_pipeline_runs(self) -> list[Path]:
@@ -200,6 +223,9 @@ class ResultStore:
         """
         comparisons: list[dict[str, Any]] = []
         for exp_id in experiment_ids:
+            if not exp_id:
+                continue  # Skip empty IDs
+
             result = self.load_latest(exp_id)
             if result is None:
                 logger.warning(f"No results for {exp_id}")
@@ -226,7 +252,7 @@ class ResultStore:
 
         return {
             "experiment_id": exp_id,
-            "category": config.get("category", exp_id[0]),
+            "category": config.get("category", exp_id[0] if exp_id else ""),
             "hypothesis": config.get("hypothesis", "N/A"),
             "criteria": criteria_desc,
             "n_seeds": analysis.get("n_seeds", 1),
