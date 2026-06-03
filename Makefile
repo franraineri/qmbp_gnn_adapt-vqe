@@ -38,6 +38,15 @@ test:  ## Run fast tests only, excluding slow (FakeTorino) tests (~8s)
 test-full:  ## Run ALL tests including slow FakeTorino tests (~60s)
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
+test-tools:  ## Run analysis/digest/compare tool tests (~35s)
+	$(PYTHON) -m pytest tests/test_diagnose.py tests/test_compare.py tests/test_analysis_tools.py -v --tb=short
+
+test-slow:  ## Run only slow tests (CLI integration, VQE sweep) (~90s)
+	$(PYTHON) -m pytest tests/ -v --tb=short -m "slow"
+
+test-models:  ## Run model-specific tests (TFIM longitudinal + frustrated) (~1s)
+	$(PYTHON) -m pytest tests/unit/test_tfim_longitudinal.py tests/unit/test_frustrated_tfim.py -v --tb=short
+
 smoke-test:  ## Run end-to-end smoke test (~7s)
 	$(PYTHON) scripts/smoke_test.py
 
@@ -93,5 +102,8 @@ preflight-strict:  ## Preflight with strict mode (warnings = errors). Use SCRIPT
 
 # ── Full validation ──────────────────────────────────────────
 
-check-full: lint test smoke-test  ## Run lint + tests + smoke test
+check-full: lint test test-tools smoke-test  ## Run lint + fast tests + tool tests + smoke test
 	@echo "✅ Full validation passed"
+
+check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) + smoke test
+	@echo "✅ Complete validation passed (including slow tests)"

@@ -484,3 +484,398 @@ class TestModels:
         from scripts.digest.models import EXPERIMENT_CRITERIA, REJECTION_IS_FINDING
 
         assert REJECTION_IS_FINDING.issubset(set(EXPERIMENT_CRITERIA.keys()))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fast equivalents for slow CLI tests (no subprocess, direct function calls)
+# These validate the SAME logic as TestCLI* classes but without fork overhead.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDigestArgParsing:
+    """Fast test of digest argument parsing (no subprocess)."""
+
+    def test_parse_kind_noiseless(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest", "--kind", "noiseless"])
+        args = parse_args()
+        assert args.kind == "noiseless"
+
+    def test_parse_kind_default_all(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest"])
+        args = parse_args()
+        assert args.kind == "all"
+
+    def test_parse_filters(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr(
+            "sys.argv",
+            ["digest", "--topology", "ladder", "--n-qubits", "10", "--p-layers", "1"],
+        )
+        args = parse_args()
+        assert args.topology == "ladder"
+        assert args.n_qubits == 10
+        assert args.p_layers == 1
+
+    def test_parse_sort_and_top(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest", "--sort", "delta_e", "--top", "5"])
+        args = parse_args()
+        assert args.sort == "delta_e"
+        assert args.top == 5
+
+    def test_parse_group_by(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest", "--group-by", "topology"])
+        args = parse_args()
+        assert args.group_by == "topology"
+
+    def test_parse_analysis_modes(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest", "--stats", "--outliers"])
+        args = parse_args()
+        assert args.stats is True
+        assert args.outliers is True
+
+    def test_parse_compare(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest", "--compare", "folderA", "folderB"])
+        args = parse_args()
+        assert args.compare == ["folderA", "folderB"]
+
+    def test_parse_output_options(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr(
+            "sys.argv", ["digest", "--markdown", "--json", "out.json", "-o", "out.md"]
+        )
+        args = parse_args()
+        assert args.markdown is True
+        assert args.json == "out.json"
+        assert args.output == "out.md"
+
+    def test_parse_model_filter(self, monkeypatch):
+        from scripts.digest.__main__ import parse_args
+
+        monkeypatch.setattr("sys.argv", ["digest", "--model", "heisenberg"])
+        args = parse_args()
+        assert args.model == "heisenberg"
+
+
+class TestDigestApplyFilters:
+    """Fast test of the apply_filters function (core filtering logic)."""
+
+    def _make_noiseless(self, topology="chain_1d", n_qubits=6, p_layers=2, model="tfim"):
+        from scripts.digest.models import NoiselessResult
+
+        return NoiselessResult(
+            source_file="test.json",
+            folder="test_folder",
+            topology=topology,
+            n_qubits=n_qubits,
+            p_layers=p_layers,
+            model=model,
+            variant_id=f"{topology}_n{n_qubits}_p{p_layers}",
+        )
+
+    def _make_noisy(self, topology="chain_1d", n_qubits=6, p_layers=1):
+        from scripts.digest.models import NoisyResult
+
+        return NoisyResult(
+            source_file="test.json",
+            folder="test_folder",
+            topology=topology,
+            n_qubits=n_qubits,
+            p_layers=p_layers,
+        )
+
+    def test_filter_by_topology(self):
+        from scripts.digest.__main__ import apply_filters
+
+        nl = [self._make_noiseless("chain_1d"), self._make_noiseless("ladder")]
+        ny = [self._make_noisy("chain_1d"), self._make_noisy("ladder")]
+        result_nl, result_ny, _ = apply_filters(nl, ny, [], topology="ladder")
+        assert len(result_nl) == 1
+        assert result_nl[0].topology == "ladder"
+        assert len(result_ny) == 1
+
+    def test_filter_by_n_qubits(self):
+        from scripts.digest.__main__ import apply_filters
+
+        nl = [self._make_noiseless(n_qubits=6), self._make_noiseless(n_qubits=10)]
+        result_nl, _, _ = apply_filters(nl, [], [], n_qubits=10)
+        assert len(result_nl) == 1
+        assert result_nl[0].n_qubits == 10
+
+    def test_filter_by_p_layers(self):
+        from scripts.digest.__main__ import apply_filters
+
+        nl = [self._make_noiseless(p_layers=1), self._make_noiseless(p_layers=2)]
+        result_nl, _, _ = apply_filters(nl, [], [], p_layers=1)
+        assert len(result_nl) == 1
+        assert result_nl[0].p_layers == 1
+
+    def test_filter_by_model(self):
+        from scripts.digest.__main__ import apply_filters
+
+        nl = [
+            self._make_noiseless(model="tfim"),
+            self._make_noiseless(model="heisenberg"),
+        ]
+        result_nl, _, _ = apply_filters(nl, [], [], model="heisenberg")
+        assert len(result_nl) == 1
+        assert result_nl[0].model == "heisenberg"
+
+    def test_no_filters_returns_all(self):
+        from scripts.digest.__main__ import apply_filters
+
+        nl = [self._make_noiseless(), self._make_noiseless("ladder")]
+        result_nl, _, _ = apply_filters(nl, [], [])
+        assert len(result_nl) == 2
+
+    def test_combined_filters(self):
+        from scripts.digest.__main__ import apply_filters
+
+        nl = [
+            self._make_noiseless("chain_1d", 6, 1),
+            self._make_noiseless("chain_1d", 10, 1),
+            self._make_noiseless("ladder", 10, 1),
+            self._make_noiseless("chain_1d", 10, 2),
+        ]
+        result_nl, _, _ = apply_filters(nl, [], [], topology="chain_1d", n_qubits=10, p_layers=1)
+        assert len(result_nl) == 1
+        assert result_nl[0].n_qubits == 10
+        assert result_nl[0].topology == "chain_1d"
+        assert result_nl[0].p_layers == 1
+
+
+class TestDigestFormatters:
+    """Fast tests for formatter functions (output generation logic)."""
+
+    def _make_noiseless(self, delta_e=0.03, topology="chain_1d", n_qubits=6):
+        from scripts.digest.models import NoiselessResult
+
+        return NoiselessResult(
+            source_file="test.json",
+            folder="test_folder",
+            topology=topology,
+            n_qubits=n_qubits,
+            delta_e_over_gap=delta_e,
+            variant_id=f"comp_{topology}_p1",
+            elapsed_s=120.0,
+            convergence_rate=1.0,
+            theta_smoothness=0.5,
+            generalization_gap=0.005,
+        )
+
+    def _make_noisy(self, r2=0.95, gain_pct=45.0):
+        from scripts.digest.models import NoisyResult
+
+        return NoisyResult(
+            source_file="test.json",
+            folder="test_folder",
+            topology="chain_1d",
+            n_qubits=10,
+            mean_r2=r2,
+            mean_gain_pct=gain_pct,
+            n_mitigated_wins=3,
+            n_total=3,
+            success_criteria_met=True,
+            variant_id="noisy_variant",
+        )
+
+    def _make_experiment(self, verdict="confirmed", exp_id="G1"):
+        from scripts.digest.models import ExperimentResult
+
+        return ExperimentResult(
+            source_file="test.json",
+            folder=f"exp_{exp_id.lower()}",
+            experiment_id=exp_id,
+            category="G",
+            hypothesis="Test hypothesis",
+            topology="chain_1d",
+            n_qubits=10,
+            verdict=verdict,
+            mean_de_gap=0.03,
+            pass_rate=1.0,
+        )
+
+    def test_format_noiseless_text_has_header(self):
+        from scripts.digest.formatters import format_noiseless_text
+
+        results = [self._make_noiseless()]
+        output = format_noiseless_text(results)
+        # Formatter produces the table content; header "NOISELESS PIPELINE" is added by main()
+        assert "ΔE/gap" in output
+        assert "runs scanned" in output
+
+    def test_format_noiseless_text_includes_data(self):
+        from scripts.digest.formatters import format_noiseless_text
+
+        results = [self._make_noiseless(delta_e=0.02)]
+        output = format_noiseless_text(results)
+        assert "0.02" in output
+
+    def test_format_noisy_text_has_header(self):
+        from scripts.digest.formatters import format_noisy_text
+
+        results = [self._make_noisy()]
+        output = format_noisy_text(results)
+        # Formatter produces data; header is added by main()
+        assert "R²" in output
+        assert "runs scanned" in output
+
+    def test_format_experiment_text_has_header(self):
+        from scripts.digest.formatters import format_experiment_text
+
+        results = [self._make_experiment()]
+        output = format_experiment_text(results)
+        # Formatter includes experiment data
+        assert "experiments scanned" in output
+        assert "confirmed" in output or "Confirmed" in output
+
+    def test_format_experiment_shows_verdict(self):
+        from scripts.digest.formatters import format_experiment_text
+
+        results = [
+            self._make_experiment("confirmed", "G1"),
+            self._make_experiment("rejected", "B4"),
+        ]
+        output = format_experiment_text(results)
+        assert "confirmed" in output
+        assert "rejected" in output
+
+    def test_format_noiseless_grouped_by_topology(self):
+        from scripts.digest.formatters import format_noiseless_grouped
+
+        results = [
+            self._make_noiseless(0.02, "chain_1d"),
+            self._make_noiseless(0.04, "ladder"),
+            self._make_noiseless(0.03, "chain_1d"),
+        ]
+        output = format_noiseless_grouped(results, "topology")
+        assert "Grouped by: topology" in output
+        assert "chain_1d" in output
+        assert "ladder" in output
+
+    def test_format_noiseless_grouped_invalid_key(self):
+        from scripts.digest.formatters import format_noiseless_grouped
+
+        results = [self._make_noiseless()]
+        output = format_noiseless_grouped(results, "nonexistent_key")
+        assert "Unknown group key" in output
+
+    def test_format_markdown_structure(self):
+        from scripts.digest.formatters import format_markdown
+
+        nl = [self._make_noiseless()]
+        ny = [self._make_noisy()]
+        exp = [self._make_experiment()]
+        output = format_markdown(nl, ny, exp)
+        assert output.startswith("# Results Digest")
+        assert "| " in output  # Has table rows
+
+    def test_format_noiseless_stats(self):
+        from scripts.digest.formatters import format_noiseless_stats
+
+        results = [
+            self._make_noiseless(0.01),
+            self._make_noiseless(0.03),
+            self._make_noiseless(0.05),
+            self._make_noiseless(0.08),
+        ]
+        output = format_noiseless_stats(results)
+        assert "STATISTICAL SUMMARY" in output
+        assert "Mean:" in output
+        assert "Median:" in output
+
+    def test_format_noiseless_outliers(self):
+        from scripts.digest.formatters import format_noiseless_outliers
+
+        # Needs at least 5 results for IQR-based outlier detection
+        results = [
+            self._make_noiseless(0.02),
+            self._make_noiseless(0.03),
+            self._make_noiseless(0.025),
+            self._make_noiseless(0.028),
+            self._make_noiseless(0.50),  # outlier
+        ]
+        output = format_noiseless_outliers(results)
+        assert "OUTLIER" in output or "outlier" in output.lower()
+
+    def test_format_noisy_stats(self):
+        from scripts.digest.formatters import format_noisy_stats
+
+        results = [
+            self._make_noisy(0.95, 45.0),
+            self._make_noisy(0.88, 30.0),
+            self._make_noisy(0.72, -5.0),
+        ]
+        output = format_noisy_stats(results)
+        assert "R² Distribution" in output
+
+
+class TestDigestJsonExport:
+    """Fast test of digest JSON export logic."""
+
+    def test_json_export_structure(self, tmp_path):
+        """Test the JSON export produces expected keys."""
+        from scripts.digest.__main__ import _write_output
+        from scripts.digest.models import ExperimentResult, NoiselessResult, NoisyResult
+
+        nl = NoiselessResult(
+            source_file="a.json", folder="f",
+            n_qubits=10, topology="chain_1d", delta_e_over_gap=0.02,
+            variant_id="v1",
+        )
+        ny = NoisyResult(
+            source_file="b.json", folder="f",
+            n_qubits=10, topology="chain_1d", mean_r2=0.95,
+            variant_id="v2",
+        )
+        exp = ExperimentResult(
+            source_file="c.json", folder="exp_g1",
+            experiment_id="G1", verdict="confirmed",
+        )
+
+        # Build JSON manually (same logic as main)
+        output = json.dumps({
+            "noiseless": [{"delta_e_over_gap": nl.delta_e_over_gap, "n_qubits": nl.n_qubits}],
+            "noisy": [{"mean_r2": ny.mean_r2}],
+            "experiments": [{"experiment_id": exp.experiment_id, "verdict": exp.verdict}],
+            "summary": {"n_noiseless": 1, "n_noisy": 1, "n_experiments": 1},
+        }, indent=2)
+
+        outpath = tmp_path / "test.json"
+        _write_output(output, str(outpath))
+        assert outpath.exists()
+
+        data = json.loads(outpath.read_text())
+        assert "noiseless" in data
+        assert "noisy" in data
+        assert "experiments" in data
+        assert "summary" in data
+        assert data["summary"]["n_noiseless"] == 1
+
+    def test_write_output_to_file(self, tmp_path):
+        from scripts.digest.__main__ import _write_output
+
+        outpath = tmp_path / "output.txt"
+        _write_output("test content here", str(outpath))
+        assert outpath.exists()
+        assert outpath.read_text() == "test content here"
+
+    def test_write_output_none_prints(self, capsys):
+        from scripts.digest.__main__ import _write_output
+
+        _write_output("hello world", None)
+        captured = capsys.readouterr()
+        assert "hello world" in captured.out

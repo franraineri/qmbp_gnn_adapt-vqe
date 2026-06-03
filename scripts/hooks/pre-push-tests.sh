@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pre-push hook: run fast test suite before pushing.
+# Pre-push hook: run fast test suite + tool tests before pushing.
 # Prevents broken code from reaching the remote.
 #
 # Install: cp scripts/hooks/pre-push-tests.sh .git/hooks/pre-push && chmod +x .git/hooks/pre-push
@@ -18,15 +18,28 @@ fi
 echo "🧪 Running test suite before push..."
 echo ""
 
-# Run fast tests only (excludes @pytest.mark.slow)
+# Step 1: Fast unit tests (excludes @pytest.mark.slow)
+echo "── Step 1/2: Fast tests ──"
 $PYTHON -m pytest tests/ -x -q -m "not slow" --tb=short 2>&1
 
 EXIT_CODE=$?
-
 if [ $EXIT_CODE -ne 0 ]; then
     echo ""
-    echo "❌ Tests failed. Push aborted."
+    echo "❌ Fast tests failed. Push aborted."
     echo "   Fix the failing tests or use 'git push --no-verify' to skip."
+    exit 1
+fi
+
+# Step 2: Tool tests (analysis, digest, compare — catches CLI/API breaks)
+echo ""
+echo "── Step 2/2: Analysis tool tests ──"
+$PYTHON -m pytest tests/test_diagnose.py tests/test_compare.py::TestResultStoreCompare tests/test_compare.py::TestNoisyAnalysis tests/test_analysis_tools.py -x -q --tb=short 2>&1
+
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo ""
+    echo "❌ Tool tests failed. Push aborted."
+    echo "   Run 'make test-tools' for details."
     exit 1
 fi
 

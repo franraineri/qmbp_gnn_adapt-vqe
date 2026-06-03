@@ -273,3 +273,104 @@ class TestCompareCLI:
             timeout=30,
         )
         assert result.returncode == 0 or "No noisy" in result.stdout
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fast equivalents for slow CLI tests (run without subprocess)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestCompareArgParsing:
+    """Fast test of compare.py argument parsing (no subprocess)."""
+
+    def test_parse_args_all(self, monkeypatch):
+        """--all should set args.all=True."""
+        import scripts.compare as compare_mod
+
+        monkeypatch.setattr("sys.argv", ["compare.py", "--all"])
+        args = compare_mod.parse_args()
+        assert args.all is True
+        assert args.noisy is False
+
+    def test_parse_args_exp(self, monkeypatch):
+        """--exp G1 G5 should populate args.experiments."""
+        import scripts.compare as compare_mod
+
+        monkeypatch.setattr("sys.argv", ["compare.py", "--exp", "G1", "G5"])
+        args = compare_mod.parse_args()
+        assert args.experiments == ["G1", "G5"]
+
+    def test_parse_args_category(self, monkeypatch):
+        """--category G should set category."""
+        import scripts.compare as compare_mod
+
+        monkeypatch.setattr("sys.argv", ["compare.py", "--category", "G"])
+        args = compare_mod.parse_args()
+        assert args.category == "G"
+
+    def test_parse_args_noisy_with_group(self, monkeypatch):
+        """--noisy --group-by seed_layout should set both."""
+        import scripts.compare as compare_mod
+
+        monkeypatch.setattr(
+            "sys.argv", ["compare.py", "--noisy", "--group-by", "seed_layout"]
+        )
+        args = compare_mod.parse_args()
+        assert args.noisy is True
+        assert args.group_by == "seed_layout"
+
+    def test_parse_args_json_output(self, monkeypatch):
+        """--json file.json should set json_file."""
+        import scripts.compare as compare_mod
+
+        monkeypatch.setattr("sys.argv", ["compare.py", "--all", "--json", "out.json"])
+        args = compare_mod.parse_args()
+        assert args.json_file == "out.json"
+
+    def test_parse_args_results_dir(self, monkeypatch):
+        """--results-dir should override default."""
+        import scripts.compare as compare_mod
+
+        monkeypatch.setattr(
+            "sys.argv", ["compare.py", "--all", "--results-dir", "/tmp/results"]
+        )
+        args = compare_mod.parse_args()
+        assert args.results_dir == "/tmp/results"
+
+
+class TestCompareWriteJson:
+    """Fast test of compare.py JSON export function."""
+
+    def test_write_json_creates_file(self, tmp_path):
+        from scripts.compare import _write_json
+
+        data = [{"experiment_id": "G1", "verdict": "confirmed"}]
+        outpath = str(tmp_path / "test_output.json")
+        _write_json(data, outpath)
+
+        result_path = tmp_path / "test_output.json"
+        assert result_path.exists()
+        loaded = json.loads(result_path.read_text())
+        assert loaded == data
+
+    def test_write_json_creates_parent_dirs(self, tmp_path):
+        from scripts.compare import _write_json
+
+        data = {"key": "value"}
+        outpath = str(tmp_path / "nested" / "dir" / "output.json")
+        _write_json(data, outpath)
+
+        assert (tmp_path / "nested" / "dir" / "output.json").exists()
+
+    def test_write_json_handles_datetimes(self, tmp_path):
+        """default=str should handle non-serializable types."""
+        from datetime import datetime
+
+        from scripts.compare import _write_json
+
+        data = {"timestamp": datetime(2024, 1, 15, 10, 30)}
+        outpath = str(tmp_path / "datetime.json")
+        _write_json(data, outpath)
+
+        loaded = json.loads((tmp_path / "datetime.json").read_text())
+        assert "2024" in loaded["timestamp"]

@@ -316,6 +316,106 @@ class TestAutoPreflightInBaseExperiment:
             exp._run_preflight()
 
 
+class TestRunVQESweepFastProxy:
+    """Fast proxy tests for BaseExperiment.run_vqe_sweep.
+
+    Tests the setup and structure without running actual VQE optimization.
+    The slow tests validate numerical correctness; these validate API contract.
+    """
+
+    def test_setup_creates_circuit_and_hamiltonian(self):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig, VQEConfig
+        from qmbp_simulation.framework.metrics import ExperimentMetrics
+
+        class _Exp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                return ExperimentConfig(
+                    experiment_id="FAST",
+                    category="T",
+                    description="Fast",
+                    hypothesis="Setup works",
+                    system=SystemConfig(
+                        n_qubits=6, p_layers=2,
+                        h_values=[2.0, 1.5, 1.0],
+                        h_test=[1.6],
+                    ),
+                    vqe=VQEConfig(n_restarts=1, maxiter=10),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return []
+
+        exp = _Exp(_Exp.default_config())
+        exp.setup()
+
+        # Verify setup creates expected attributes
+        assert exp.circuit is not None
+        assert exp.circuit.num_qubits == 6
+        assert exp.circuit.num_parameters == 4  # 2 params/layer × 2 layers
+
+    def test_get_exact_solution_returns_expected_fields(self):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig, VQEConfig
+
+        class _Exp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                return ExperimentConfig(
+                    experiment_id="FAST",
+                    category="T",
+                    description="Fast",
+                    hypothesis="Exact solution",
+                    system=SystemConfig(n_qubits=4, p_layers=1),
+                    vqe=VQEConfig(n_restarts=1, maxiter=10),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return []
+
+        exp = _Exp(_Exp.default_config())
+        exp.setup()
+        sol = exp.get_exact_solution(1.5)
+
+        assert "hamiltonian" in sol
+        assert "exact" in sol
+        assert sol["exact"].ground_energy < 0  # TFIM always negative
+        assert sol["exact"].gap > 0  # finite gap in paramagnetic phase
+
+    def test_evaluate_energy_returns_float(self):
+        from qmbp_simulation.framework import BaseExperiment, ExperimentConfig
+        from qmbp_simulation.framework.config import SystemConfig, VQEConfig
+
+        class _Exp(BaseExperiment):
+            @classmethod
+            def default_config(cls):
+                return ExperimentConfig(
+                    experiment_id="FAST",
+                    category="T",
+                    description="Fast",
+                    hypothesis="Energy eval",
+                    system=SystemConfig(n_qubits=4, p_layers=1),
+                    vqe=VQEConfig(n_restarts=1, maxiter=10),
+                    seeds=[42],
+                )
+
+            def run_single(self, seed):
+                return []
+
+        exp = _Exp(_Exp.default_config())
+        exp.setup()
+        sol = exp.get_exact_solution(1.5)
+
+        # Random params → some energy
+        params = np.zeros(exp.circuit.num_parameters)
+        energy = exp.evaluate_energy(params, sol["hamiltonian"])
+        assert isinstance(energy, float)
+        assert np.isfinite(energy)
+
+
 @pytest.mark.slow
 class TestRunVQESweep:
     """Test BaseExperiment.run_vqe_sweep produces valid warm-started results.
