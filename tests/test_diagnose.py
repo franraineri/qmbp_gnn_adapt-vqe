@@ -1,4 +1,4 @@
-"""Tests for analysis/diagnose.py — automated failure diagnosis tool.
+"""Tests for project_health/analysis/diagnose.py — automated failure diagnosis tool.
 
 Covers:
 - Data models (RootCause, DeploymentPoint, Diagnosis)
@@ -14,13 +14,9 @@ Run with:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-# Make analysis/ importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from analysis.diagnose import (
+from project_health.analysis.diagnose import (
     MARGINAL_THRESHOLD,
     PASS_THRESHOLD,
     DeploymentPoint,

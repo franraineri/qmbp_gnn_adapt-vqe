@@ -1,22 +1,20 @@
-# GNN-HVA v6.0 — Project Makefile
+# GNN-HVA — Project Makefile
 #
 # This is the SINGLE entry point for all project operations.
 # Run `make help` to see all available targets.
 #
 # Structure:
 #   scripts/              — All executable scripts
-#     smoke_test.py       — Quick end-to-end validation (~7s)
-#     benchmark_v6.py     — Multi-run benchmark with configurable params
-#     run_notebooks.py    — Notebook executor with validation
-#     hooks/              — Pre-commit hook scripts
 #   tests/                — Pytest test suite
-#   src/poc/v6/           — Source modules (do NOT put scripts here)
+#   src/qmbp_simulation/  — Source modules (do NOT put scripts here)
+#   project_health/       — Analysis, diagnosis, and figure tools
 
-PYTHON := python
+PYTHON := .venv/bin/python
 VENV := source .venv/bin/activate
 
 .PHONY: help lint format test smoke-test benchmark check check-full \
-        hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34
+        hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
+        clean typecheck coverage health figures
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -25,10 +23,10 @@ help:  ## Show this help
 # ── Code quality ─────────────────────────────────────────────
 
 lint:  ## Run ruff linter
-	ruff check src/ tests/ scripts/ --exclude "scripts/hooks/*"
+	.venv/bin/ruff check src/ tests/ scripts/ project_health/ --exclude "scripts/hooks/*"
 
 format:  ## Auto-format with ruff
-	ruff format src/ tests/ scripts/
+	.venv/bin/ruff format src/ tests/ scripts/ project_health/
 
 # ── Testing ──────────────────────────────────────────────────
 
@@ -48,15 +46,15 @@ test-models:  ## Run model-specific tests (TFIM longitudinal + frustrated) (~1s)
 	$(PYTHON) -m pytest tests/unit/test_tfim_longitudinal.py tests/unit/test_frustrated_tfim.py -v --tb=short
 
 smoke-test:  ## Run end-to-end smoke test (~7s)
-	$(PYTHON) scripts/smoke_test.py
+	$(PYTHON) tests/smoke_test.py
 
 # ── Benchmarking ─────────────────────────────────────────────
 
 benchmark:  ## Run benchmark (3 runs, N=6). Use ARGS for options.
-	$(PYTHON) scripts/benchmark_v6.py $(ARGS)
+	$(PYTHON) scripts/benchmark.py $(ARGS)
 
 benchmark-n10:  ## Run benchmark with N=10 chain
-	$(PYTHON) scripts/benchmark_v6.py --n-qubits 10 --n-restarts 5 --mpnn-epochs 6000 --h-test 1.5 $(ARGS)
+	$(PYTHON) scripts/benchmark.py --n-qubits 10 --n-restarts 5 --mpnn-epochs 6000 --h-test 1.5 $(ARGS)
 
 # ── Notebooks ────────────────────────────────────────────────
 
@@ -107,3 +105,38 @@ check-full: lint test test-tools smoke-test  ## Run lint + fast tests + tool tes
 
 check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) + smoke test
 	@echo "✅ Complete validation passed (including slow tests)"
+
+
+# ── Cleaning ─────────────────────────────────────────────────
+
+clean:  ## Remove caches and build artifacts
+	rm -rf .hypothesis/ .ruff_cache/ .pytest_cache/ __pycache__/
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -name "*.pyc" -delete
+	@echo "✅ Caches cleaned"
+
+# ── Type checking ────────────────────────────────────────────
+
+typecheck:  ## Run mypy type checking
+	$(PYTHON) -m mypy src/ --ignore-missing-imports
+
+# ── Coverage ─────────────────────────────────────────────────
+
+coverage:  ## Run tests with coverage report
+	$(PYTHON) -m pytest tests/ -m "not slow" --cov=src/qmbp_simulation --cov-report=term-missing --cov-report=html:htmlcov
+
+# ── Project health ───────────────────────────────────────────
+
+health:  ## Run project health report (compact)
+	$(PYTHON) -m project_health --compact
+
+health-full:  ## Run full project health report (markdown, saved)
+	$(PYTHON) -m project_health --markdown -o reports/
+
+# ── Figures ──────────────────────────────────────────────────
+
+figures:  ## Generate all analysis figures (PNG, default theme)
+	$(PYTHON) -m project_health.figures --source both
+
+figures-thesis:  ## Generate thesis-quality figures (PDF, 300dpi, no titles)
+	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/

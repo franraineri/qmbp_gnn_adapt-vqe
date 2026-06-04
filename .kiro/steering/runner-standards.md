@@ -14,7 +14,7 @@ This ensures every execution is:
 - **Pre-validated** (preflight catches config errors before wasting time).
 - **Logged** (StructuredLogger + ProgressReporter for post-hoc analysis).
 - **Saved** (standardized JSON to `results/experiments/exp_{id}/run_{ts}.json`).
-- **Digest-compatible** (parseable by `scripts/digest/`, `compare.py`, `ResultStore`).
+- **Digest-compatible** (parseable by `project_health/digest/`, `compare.py`, `ResultStore`).
 - **Exit-coded** (non-zero on failure for CI/automation).
 
 ## Four Runner Types
@@ -244,7 +244,7 @@ digest/compare.py/ResultStore:
 }
 ```
 
-The `analysis` wrapper is what `scripts/digest/scanner.py` reads.
+The `analysis` wrapper is what `project_health/digest/scanner.py` reads.
 The `config.system` is what provides n_qubits/topology/model to the digest.
 The `summary.pass_rate` is what `compute_verdict()` uses for experiment verdicts.
 

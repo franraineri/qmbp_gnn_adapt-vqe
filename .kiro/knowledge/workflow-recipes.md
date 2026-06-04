@@ -352,7 +352,7 @@ data = load_phase12_dataset("phase12_N6_p2.npz")
 | Run the full 4-phase pipeline | `scripts/run_pipeline.py` | `--n-qubits 6 --p 2` |
 | Compare experiment results | `scripts/compare.py --all` | `--category optimization` |
 | Benchmark performance | `scripts/benchmark.py` | `--components solver vqe` |
-| Validate package works | `scripts/smoke_test.py` | (no args needed) |
+| Validate package works | `tests/smoke_test.py` | (no args needed) |
 | Compute ground truth only | `run_exact_diag_sweep()` | See pipeline module |
 | Run pipeline programmatically | `PipelineRunner.run_full()` | See Example 1 below |
 | Save results consistently | `save_experiment_result()` | See result_io module |

@@ -52,7 +52,7 @@ python scripts/run_<name>.py --verbose      # debug
 
 ```bash
 # 1. Does the experiment appear correctly in the digest?
-python -m scripts.digest --kind experiment --sort verdict
+python -m project_health.digest --kind experiment --sort verdict
 
 # 2. Does compare.py work without errors?
 python scripts/compare.py --all
@@ -87,7 +87,7 @@ Update these files (using REFERENCES, never duplicate data):
 □ preflight.py --from-script → PASS (or justified WARNINGs only)
 □ --dry-run shows correct sections
 □ Execution complete → JSON saved in results/experiments/
-□ python -m scripts.digest --kind experiment → experiment visible with correct verdict
+□ python -m project_health.digest --kind experiment → experiment visible with correct verdict
 □ python scripts/compare.py --all → no crash, experiment listed
 □ python analysis/verify_claims.py → no new contradictions
 □ python analysis/scan_coverage.py → check if gaps closed
@@ -200,7 +200,7 @@ When results are thesis-relevant:
 - Supports `--all` for comparing all results
 - Produces structured JSON output + terminal summary
 
-### `scripts/smoke_test.py`
+### `tests/smoke_test.py`
 - Imports all public submodules of `qmbp_simulation`
 - Runs minimal pipeline (N=4, p=1, 3 h-points)
 - Verifies ΔE/gap < 5%
@@ -216,9 +216,9 @@ When results are thesis-relevant:
 
 | Change | Re-run |
 |--------|--------|
-| Modified `src/qmbp_simulation/optimizers/` | `make test` + `scripts/smoke_test.py` |
-| Modified `src/qmbp_simulation/predictors/` | `make test` + `scripts/smoke_test.py` |
-| Modified `src/qmbp_simulation/execution/` | `make test` + `scripts/smoke_test.py` |
+| Modified `src/qmbp_simulation/optimizers/` | `make test` + `tests/smoke_test.py` |
+| Modified `src/qmbp_simulation/predictors/` | `make test` + `tests/smoke_test.py` |
+| Modified `src/qmbp_simulation/execution/` | `make test` + `tests/smoke_test.py` |
 | Modified `src/qmbp_simulation/analysis/` | `make test` |
 | Modified `src/qmbp_simulation/framework/` | `make test` + run one experiment to verify |
 | New thesis results needed | `scripts/run_thesis_results.py` |

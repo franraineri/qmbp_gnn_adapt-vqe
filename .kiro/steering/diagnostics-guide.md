@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "scripts/digest/**,scripts/run_*,experiments/**"
+fileMatchPattern: "project_health/digest/**,scripts/run_*,experiments/**"
 ---
 
 # Diagnostics Guide — Detecting Problems & Using Tools
@@ -56,7 +56,7 @@ fileMatchPattern: "scripts/digest/**,scripts/run_*,experiments/**"
 
 | Situation | Command |
 |-----------|---------|
-| "What's the overall status?" | `python -m scripts.digest` |
+| "What's the overall status?" | `python -m project_health.digest` |
 | "How does ladder compare to chain?" | `--kind noiseless --group-by topology` |
 | "What's failing and why?" | `--kind noiseless --outliers` |
 | "Is this result statistically significant?" | `--kind noiseless --stats --topology X` |

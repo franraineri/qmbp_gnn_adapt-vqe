@@ -85,6 +85,12 @@ from qmbp_simulation.execution import (
     compute_circuit_ces, select_layouts_by_circuit_ces,
     select_layouts_low_ces,
     noisy_estimate, linear_zne,
+    # Gate-folding ZNE
+    fold_gates, run_gate_folding_zne, run_gate_folding_zne_deployment,
+    GateFoldingZNEResult, GateFoldingDeploymentResult,
+    # PEA (Probabilistic Error Amplification)
+    run_pea_zne, run_pea_zne_deployment,
+    PEAResult, PEADeploymentResult,
 )
 ```
 
@@ -104,7 +110,7 @@ from qmbp_simulation.framework import (
     WarmColdComparison, StructuredLogger, ProgressReporter,
     # CLI argument groups
     create_base_parser, add_system_args, add_sweep_args,
-    add_vqe_args, add_mpnn_args, add_output_args,
+    add_vqe_args, add_mpnn_args, add_output_args, add_noisy_args,
     add_result_filter_args, add_format_args, add_variant_runner_args,
     validate_descending_sweep, validate_system_size,
     configure_logging, build_mpnn_config_dict, resolve_output_dir,
@@ -196,7 +202,7 @@ from qmbp_simulation.framework.criteria import (
 ```
 
 - Never duplicate criteria dicts in scripts or digest modules.
-- `scripts/digest/models.py` re-exports from criteria.py for backward compat.
+- `project_health/digest/models.py` re-exports from criteria.py for backward compat.
 - To add a new experiment: add its entry to `EXPERIMENT_CRITERIA` in `criteria.py`.
 
 ## Module Dependency Order

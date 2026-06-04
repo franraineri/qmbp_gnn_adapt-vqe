@@ -20,11 +20,12 @@ class MitigationOptions:
 
     zne_enabled: bool = False
     zne_noise_factors: list[float] | None = None  # e.g. [1, 3, 5]
+    zne_amplifier: str = "gate_folding"  # "gate_folding" | "pea"
     dd_enabled: bool = False  # Dynamical decoupling
     trex_enabled: bool = False  # Twirled readout error extinction
     twirling_enabled: bool = False
     num_randomizations: int = 32
-    shots_per_randomization: int = 256
+    shots_per_randomization: int = 128
 
 
 class ExecutionBackend(ABC):

@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "results/**,scripts/digest/**,scripts/compare*,analysis/**,documentation/analysis/**"
+fileMatchPattern: "results/**,project_health/digest/**,scripts/compare*,analysis/**,documentation/analysis/**"
 ---
 
 # Results Analysis — Interpretation & Decision Guide
@@ -120,16 +120,16 @@ python analysis/diagnose.py --all
 python analysis/diagnose.py results/thesis/p1_variants_N10_r2 --severity fail
 
 # Quick overview of all results (digest)
-python scripts/digest/run_digest.py
-python scripts/digest/run_digest.py --kind noiseless --p-layers 1
+python -m project_health.digest
+python -m project_health.digest --kind noiseless --p-layers 1
 
 # Compare topologies
-python scripts/digest/run_digest.py --kind noiseless --group-by topology
+python -m project_health.digest --kind noiseless --group-by topology
 
 # Verification plan — systematic claim validation
 python scripts/experiment_runners/run_verification_plan.py --list
 python scripts/experiment_runners/run_verification_plan.py --noiseless-only  # Tier 1
-python scripts/experiment_runners/verify_results.py                          # Analyze results
+python -m project_health.analysis.verify_results                            # Analyze results
 
 # Existing compare tool (experiment verdicts)
 python scripts/compare.py --all

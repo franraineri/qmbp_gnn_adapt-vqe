@@ -194,6 +194,177 @@ class ResultStore:
                 continue
         return []
 
+    def load_zne_results(self) -> list[dict[str, Any]]:
+        """Load GF-ZNE and PEA-ZNE results from all new-format experiments.
+
+        Scans experiment directories matching the ZNE validation experiments
+        and extracts per-h-point comparison data (gains, R², method).
+
+        Returns
+        -------
+        list[dict]
+            Per-h-point results with keys: experiment, topology, n_qubits, h,
+            gf_gain, gf_r2, pea_gain, pea_r2, ces_gain, ces_r2.
+        """
+        zne_dirs = [
+            "exp_gf_zne_cmp",
+            "exp_zne_3way",
+            "exp_pea_zne_val",
+            "exp_pea_hw_ready",
+            "exp_pea_pipeline",
+            "exp_zne_cross_topology",
+        ]
+
+        all_points: list[dict[str, Any]] = []
+
+        for dirname in zne_dirs:
+            exp_dir = self.root / dirname
+            if not exp_dir.exists():
+                continue
+            for f in sorted(exp_dir.glob("run_*.json")):
+                try:
+                    with open(f) as fh:
+                        data = json.load(fh)
+                except (json.JSONDecodeError, OSError):
+                    continue
+
+                config = data.get("config", {})
+                system = config.get("system", {})
+                topology = system.get("topology", "")
+                n_qubits = system.get("n_qubits", 0)
+                exp_id = config.get("experiment_id", dirname)
+
+                # Extract comparison data from section_4 or section_5
+                results_sections = data.get("results", {})
+                comparison = self._extract_zne_comparison(results_sections)
+
+                for row in comparison:
+                    point: dict[str, Any] = {
+                        "experiment": exp_id,
+                        "file": f.name,
+                        "topology": topology or row.get("topology", ""),
+                        "n_qubits": n_qubits or row.get("n_qubits", 0),
+                        "h": row.get("h", 0),
+                    }
+                    # GF data (multiple possible key patterns)
+                    gf_gain = row.get("gf_zne_gain") or row.get("gf_gain") or row.get("gain_gf_zne")
+                    if gf_gain is not None:
+                        point["gf_gain"] = gf_gain
+                        point["gf_r2"] = (
+                            row.get("gf_zne_r2") or row.get("gf_r2") or row.get("r2_gf_zne")
+                        )
+                    # PEA data
+                    pea_gain = (
+                        row.get("pea_zne_gain") or row.get("pea_gain") or row.get("gain_pea_zne")
+                    )
+                    if pea_gain is not None:
+                        point["pea_gain"] = pea_gain
+                        point["pea_r2"] = (
+                            row.get("pea_zne_r2") or row.get("pea_r2") or row.get("r2_pea_zne")
+                        )
+                    # CES data
+                    ces_gain = (
+                        row.get("ces_zne_gain") or row.get("ces_gain") or row.get("gain_ces_zne")
+                    )
+                    if ces_gain is not None:
+                        point["ces_gain"] = ces_gain
+                        point["ces_r2"] = (
+                            row.get("ces_zne_r2") or row.get("ces_r2") or row.get("r2_ces_zne")
+                        )
+
+                    all_points.append(point)
+
+        return all_points
+
+    @staticmethod
+    def _extract_zne_comparison(results_sections: dict) -> list[dict]:
+        """Extract per-h comparison rows from ValidationRunner result sections."""
+        # Try section_5, section_4 (comparison/verdict sections)
+        for sec_key in ["section_5", "section_4"]:
+            sec = results_sections.get(sec_key, {}).get("data", {})
+            comparison = sec.get("comparison", [])
+            if comparison:
+                return comparison
+            # Also check nested in summary
+            summary = sec.get("summary", {})
+            comparison = summary.get("comparison", [])
+            if comparison:
+                return comparison
+        return []
+
+    def analyze_zne_summary(self) -> dict[str, Any]:
+        """Analyze all ZNE experiments and return consolidated summary.
+
+        Returns
+        -------
+        dict with keys: n_evaluations, methods (CES/GF/PEA stats),
+        by_topology, coverage_matrix, gaps.
+        """
+        points = self.load_zne_results()
+        if not points:
+            return {"n_evaluations": 0, "status": "no_data"}
+
+        gf_gains = [p["gf_gain"] for p in points if "gf_gain" in p]
+        pea_gains = [p["pea_gain"] for p in points if "pea_gain" in p]
+        ces_gains = [p["ces_gain"] for p in points if "ces_gain" in p]
+        gf_r2s = [p["gf_r2"] for p in points if p.get("gf_r2") is not None]
+        pea_r2s = [p["pea_r2"] for p in points if p.get("pea_r2") is not None]
+
+        summary: dict[str, Any] = {
+            "n_evaluations": len(points),
+            "methods": {},
+        }
+
+        if ces_gains:
+            summary["methods"]["CES-ZNE"] = {
+                "n": len(ces_gains),
+                "mean_gain": float(np.mean(ces_gains)),
+                "always_positive": sum(1 for g in ces_gains if g > 0) == len(ces_gains),
+                "positive_rate": sum(1 for g in ces_gains if g > 0) / len(ces_gains),
+            }
+        if gf_gains:
+            summary["methods"]["GF-ZNE"] = {
+                "n": len(gf_gains),
+                "mean_gain": float(np.mean(gf_gains)),
+                "mean_r2": float(np.mean(gf_r2s)) if gf_r2s else None,
+                "always_positive": sum(1 for g in gf_gains if g > 0) == len(gf_gains),
+                "positive_rate": sum(1 for g in gf_gains if g > 0) / len(gf_gains),
+            }
+        if pea_gains:
+            summary["methods"]["PEA-ZNE"] = {
+                "n": len(pea_gains),
+                "mean_gain": float(np.mean(pea_gains)),
+                "mean_r2": float(np.mean(pea_r2s)) if pea_r2s else None,
+                "always_positive": sum(1 for g in pea_gains if g > 0) == len(pea_gains),
+                "positive_rate": sum(1 for g in pea_gains if g > 0) / len(pea_gains),
+            }
+
+        # By topology
+        topologies = sorted(set(p["topology"] for p in points if p.get("topology")))
+        summary["by_topology"] = {}
+        for topo in topologies:
+            topo_pts = [p for p in points if p["topology"] == topo]
+            topo_gf = [p["gf_gain"] for p in topo_pts if "gf_gain" in p]
+            topo_pea = [p["pea_gain"] for p in topo_pts if "pea_gain" in p]
+            summary["by_topology"][topo] = {
+                "n_points": len(topo_pts),
+                "gf_mean_gain": float(np.mean(topo_gf)) if topo_gf else None,
+                "pea_mean_gain": float(np.mean(topo_pea)) if topo_pea else None,
+            }
+
+        # Coverage gaps
+        configs = sorted(set((p["topology"], p["n_qubits"]) for p in points if p["topology"]))
+        gaps = []
+        for topo, n in configs:
+            cfg_pts = [p for p in points if p["topology"] == topo and p["n_qubits"] == n]
+            if not any("pea_gain" in p for p in cfg_pts):
+                gaps.append(f"PEA on {topo} N={n}")
+            if not any("gf_gain" in p for p in cfg_pts):
+                gaps.append(f"GF on {topo} N={n}")
+        summary["gaps"] = gaps
+
+        return summary
+
     # ── Baselines ────────────────────────────────────────────────────────
 
     def get_baseline_de_gap(self, n_qubits: int, h_value: float) -> float:

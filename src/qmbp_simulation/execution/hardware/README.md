@@ -237,7 +237,81 @@ Applied automatically in hardware mode:
 | 1 | Dynamical Decoupling (XpXm) | Suppresses idle decoherence |
 | 2 | Pauli Twirling (32 randomizations) | Converts coherent → stochastic noise |
 | 3 | TREX | Mitigates readout errors |
-| 4 | Inhomogeneous ZNE (3 layouts) | Extrapolates to zero noise |
+| 4 | ZNE (configurable amplifier) | Extrapolates to zero noise |
+
+### ZNE Amplifier Selection
+
+Two noise amplification strategies are available via `MitigationOptions.zne_amplifier`:
+
+| Amplifier | Method | Pros | Cons |
+|-----------|--------|------|------|
+| `"pea"` (**recommended**) | Probabilistic Error Amplification | +94% gain, R²=0.998, topology-independent | ~50% QPU overhead from noise learning phase |
+| `"gate_folding"` (fallback) | Digital: U → U·U†·U | Simple, zero overhead | R²=0.47 on heavy_hex p=1 (may fail on shallow circuits) |
+
+**Validated strategy** (from ZNE_CROSS_TOPO, 2026-06-04):
+1. **Primary**: Deploy with `pea` (validated +94.4% gain, 18/18 wins across 3 topologies, t=46.32, p<10⁻¹⁹)
+2. **Fallback**: If `pea` unavailable or `qiskit-aer` not installed, use `gate_folding` (+20.6% gain)
+3. IBM Runtime handles PEA's noise learning automatically on real hardware
+
+> **Critical finding**: CES-based inhomogeneous ZNE (different layouts → extrapolate
+> to CES=0) **fails on heavy_hex** because all good layouts have CES≈0.15 (no spread).
+> The current `run_deployment()` uses this broken strategy and must be updated.
+> See `documentation/analysis/13_hardware_zne_improvements.md` for the implementation plan.
+
+**Recommended configuration:**
+
+```python
+from qmbp_simulation.execution.backends import MitigationOptions
+
+# PEA (recommended primary — validated across chain_1d, heavy_hex, ladder)
+mitigation = MitigationOptions(
+    zne_enabled=True,
+    zne_amplifier="pea",
+    zne_noise_factors=[1, 3, 5],
+    num_randomizations=32,
+    shots_per_randomization=512,
+)
+
+# Gate-folding (fallback if PEA unavailable)
+mitigation = MitigationOptions(
+    zne_enabled=True,
+    zne_amplifier="gate_folding",
+    zne_noise_factors=[1, 3, 5],
+)
+```
+
+**On real hardware**, PEA is controlled via EstimatorV2 options:
+```json
+{
+  "resilience": {
+    "zne_mitigation": true,
+    "zne": {"amplifier": "pea", "noise_factors": [1, 3, 5]},
+    "layer_noise_learning": {"num_randomizations": 32, "shots_per_randomization": 512}
+  }
+}
+```
+
+> **Note**: IBM Runtime returns already-mitigated energies when `zne_mitigation=True`.
+> The client does NOT need to perform additional CES extrapolation.
+> Multi-layout averaging across 3 low-CES layouts provides √3 variance reduction.
+```
+
+**For local simulation** (FakeTorino), PEA is simulated by:
+1. Learning per-gate error rates from backend calibration data
+2. Building amplified noise models (depolarizing × noise_factor)
+3. Running the unmodified circuit through the amplified model
+
+```python
+from qmbp_simulation.execution import run_pea_zne, run_pea_zne_deployment
+
+# Single-layout PEA-ZNE
+pea_result = run_pea_zne(
+    transpiled, H_mapped, fake_backend, config,
+    noise_factors=(1, 3, 5), extrapolator="linear",
+)
+print(f"E={pea_result.extrapolated_value:.6f}, R²={pea_result.r_squared:.4f}")
+print(f"Learned rates: {pea_result.learned_error_rates}")
+```
 
 In `fake_backend` mode, only layout selection + ZNE are applied (DD/twirling/TREX
 have no effect on local simulation).
@@ -332,5 +406,5 @@ class MyHWRunner(HardwareValidationRunner):
 This provides:
 - Dual preflight (structural + QPU)
 - Shared StructuredLogger between runner and backend
-- CLI: `--mode hardware|fake_backend`, `--shots`, `--n-layouts`
+- CLI: `--mode hardware|fake_backend`, `--shots`, `--n-layouts`, `--zne-amplifier gate_folding|pea`, `--zne-noise-factors`
 - Result saved to both `results/experiments/` (digest-compatible) and `results/hardware/` (full provenance)

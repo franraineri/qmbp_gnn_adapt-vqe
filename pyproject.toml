@@ -53,7 +53,7 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 markers = [
     "slow: marks tests as slow (deselect with '-m not slow')",
     "integration: marks integration tests",
@@ -66,3 +66,11 @@ warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
 exclude = ["archive/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "qmbp_simulation.framework.criteria",
+    "qmbp_simulation.framework.result_io",
+]
+disallow_untyped_defs = true
+warn_unreachable = true

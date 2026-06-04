@@ -63,6 +63,28 @@ def save_current_state(
     logger.debug("Saved state with %d known files to %s", len(known_files), state_file)
 
 
+def detect_delta(
+    current_files: set[str],
+    state_file: Path = DEFAULT_STATE_FILE,
+) -> tuple[list[str], list[str]]:
+    """Compare current scan results against previous state in a single pass.
+
+    Returns (new_results, removed_results) as sorted lists.
+    Loads the state file only once to avoid redundant I/O.
+    """
+    previous = load_previous_state(state_file)
+    if not previous:
+        # First run — everything is "new" but we don't flag it
+        return [], []
+
+    new = sorted(current_files - previous)
+    removed = sorted(previous - current_files)
+    return new, removed
+
+
+# ─── Backward-compatible wrappers (deprecated, use detect_delta) ─────────────
+
+
 def detect_new_results(
     current_files: set[str],
     state_file: Path = DEFAULT_STATE_FILE,
@@ -70,13 +92,10 @@ def detect_new_results(
     """Compare current scan results against previous state.
 
     Returns list of source_file paths that are new since last run.
-    """
-    previous = load_previous_state(state_file)
-    if not previous:
-        # First run — everything is "new" but we don't flag it
-        return []
 
-    new = sorted(current_files - previous)
+    .. deprecated:: Use `detect_delta` for a single-pass approach.
+    """
+    new, _ = detect_delta(current_files, state_file)
     return new
 
 
@@ -86,12 +105,7 @@ def detect_removed_results(
 ) -> list[str]:
     """Detect results that existed in previous state but are now missing.
 
-    Returns list of source_file paths that were removed since last run.
-    Useful for detecting deleted/cleaned-up results.
+    .. deprecated:: Use `detect_delta` for a single-pass approach.
     """
-    previous = load_previous_state(state_file)
-    if not previous:
-        return []
-
-    removed = sorted(previous - current_files)
+    _, removed = detect_delta(current_files, state_file)
     return removed

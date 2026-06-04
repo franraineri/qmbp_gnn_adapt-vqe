@@ -73,9 +73,13 @@ quantum hardware to classify quantum phases via local observable measurements.
 | `make test` | Fast tests (`-m "not slow"`) | ~12s |
 | `make test-full` | All tests including slow | ~60s |
 | `make lint` | Ruff linter | ~1s |
+| `make typecheck` | Mypy type checking (full) | ~5s |
+| `make coverage` | Tests with coverage report | ~15s |
+| `make health` | Project health report (compact) | ~5s |
+| `make figures` | Generate all analysis figures | ~10s |
 | `make check-full` | lint + test + smoke-test | ~15s |
 | `make preflight SCRIPT=<path>` | Validate variant script before running | ~3s |
-| `python scripts/smoke_test.py` | Package smoke test (N=4, p=1) | ~30s |
+| `python tests/smoke_test.py` | Package smoke test (N=4, p=1) | ~30s |
 | `python scripts/preflight.py --from-script <path>` | Preflight validation | ~3s |
 | `python scripts/run_experiment.py --list` | List all experiments | instant |
 | `python scripts/run_experiment.py --exp A3` | Run experiment A3 | varies |
@@ -86,9 +90,10 @@ quantum hardware to classify quantum phases via local observable measurements.
 ### Installation
 
 ```bash
-pip install -e .                    # Install package in editable mode
+pip install -e ".[dev,test]"        # Install with dev + test extras
 python -c "import qmbp_simulation" # Verify import works
-python scripts/smoke_test.py       # Verify pipeline works
+python tests/smoke_test.py         # Verify pipeline works
+make check-full                    # Full quality gate
 ```
 
 ## Framework Module Reference
@@ -209,7 +214,7 @@ Validates variant runner configurations before execution. Use **always** before 
 | See full experiment history | `documentation/binnacles/` |
 | Run experiments | `scripts/run_experiment.py --list` |
 | Validate a script before running | `scripts/preflight.py --from-script <path>` |
-| Validate package | `scripts/smoke_test.py` |
+| Validate package | `tests/smoke_test.py` |
 | Check knowledge freshness | `.kiro/knowledge/changelog.md` |
 
 ## Repository Zones (CRITICAL for AI agents)

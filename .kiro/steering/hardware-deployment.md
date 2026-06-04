@@ -19,12 +19,18 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 
 ### Error Mitigation Stack (in order of application)
 1. **Dynamical Decoupling** — free, always apply. Use optimized sequences if available.
-2. **Pauli Twirling** — 32 randomizations × 256 shots. Converts coherent → stochastic noise.
+2. **Pauli Twirling** — 32 randomizations × 128 shots. Converts coherent → stochastic noise.
 3. **TREX** — twirled readout error extinction. Enable via EstimatorV2 options.
-4. **Inhomogeneous ZNE** — preferred over gate folding:
-   - Transpile same circuit with 3-5 different `initial_layout` values
-   - Each layout produces different Circuit Error Sum (CES)
-   - Linear extrapolation of energy vs CES to zero
+4. **ZNE** (configurable amplifier — select via `MitigationOptions.zne_amplifier`):
+   - **Gate-folding** (`"gate_folding"`, default): Digital noise amplification U→U·U†·U at
+     factors [1,3,5]. Simple, zero overhead, validated locally (R²>0.99).
+   - **PEA** (`"pea"`, fallback): Probabilistic Error Amplification. Learns noise model
+     via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% QPU overhead from
+     noise learning phase. More physically accurate for correlated noise. Use if gate-folding
+     gives R²<0.90 or ΔE/gap>5%. IBM Runtime handles it automatically via
+     `options.resilience.zne.amplifier = "pea"`.
+   - **Inhomogeneous CES-ZNE** (deprecated for heavy_hex): Different layouts → different CES.
+     Fails on heavy_hex due to uniform CES≈0.15. Use only for chain_1d where CES varies.
 5. **NN-enhanced extrapolation** — optional improvement:
    - After collecting ZNE data, fit 2-layer MLP instead of linear regression
    - `MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=1000)`
@@ -98,6 +104,7 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 - Layout selection on heavy-hex topology — must implement ourselves
 - Weight gradient analysis (Hernandes 2025) — must implement ourselves
 - Mitiq does gate-folding ZNE only (different paradigm, not applicable)
+- PEA local simulation — implemented in `noisy_utils.py` (IBM Runtime handles it on hardware)
 - DD/twirling/TREX are native to Qiskit Runtime (just set options, no custom code)
 
 ---
@@ -187,6 +194,18 @@ class MyHWRunner(HardwareValidationRunner):
 4. **Circuit ZNE check** — 2Q gate count ≤ 18 (in run_deployment, before submission).
 5. **Input validation** — params shape, gap>0, finite values (in run_deployment).
 6. **Timeout handling** — job.result() respects job_timeout_s (in submission.py).
+
+### CLI Arguments (HardwareValidationRunner)
+
+```bash
+--mode hardware|fake_backend    # Execution mode
+--shots 16384                   # Shots per circuit
+--n-layouts 3                   # Number of low-CES layouts
+--n-qubits 10                   # System size
+--topology heavy_hex            # Lattice topology
+--zne-amplifier gate_folding|pea  # ZNE noise amplification strategy
+--zne-noise-factors 1 3 5      # Noise amplification factors
+```
 
 ### Dual Persistence
 

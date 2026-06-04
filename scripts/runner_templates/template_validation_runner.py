@@ -14,6 +14,14 @@ Guarantees provided by the framework:
 - --stop-on-failure aborts on first failure.
 - --section N M runs only selected sections.
 
+Best practices (from ZNE validation suite, 2026-06-04):
+- ALWAYS provide a per-section `hypothesis` string (avoids preflight warnings).
+- Use self.vqe_descending_sweep() for noiseless baselines (avoids code duplication).
+- Use self.exact_ground_state() for (e_exact, gap) lookup.
+- For noisy sections, cache layout selection in setup/section_2 and reuse in
+  sections 3/4 — ensures fair comparison across methods (same physical layout).
+- Include build_config() with system params for digest/compare.py compatibility.
+
 Usage:
     python scripts/my_validation.py
     python scripts/my_validation.py --section 1 2

@@ -5,6 +5,7 @@ from qmbp_simulation.framework.benchmarking import BenchmarkResult, BenchmarkSui
 from qmbp_simulation.framework.cli import (
     add_format_args,
     add_mpnn_args,
+    add_noisy_args,
     add_output_args,
     add_result_filter_args,
     add_sweep_args,
@@ -108,6 +109,7 @@ __all__ = [
     "add_vqe_args",
     "add_mpnn_args",
     "add_output_args",
+    "add_noisy_args",
     "add_result_filter_args",
     "add_format_args",
     "add_variant_runner_args",

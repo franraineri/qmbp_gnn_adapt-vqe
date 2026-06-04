@@ -1475,6 +1475,20 @@ class HardwareValidationRunner(ValidationRunner):
             default="heavy_hex",
             help="Lattice topology (default: %(default)s)",
         )
+        parser.add_argument(
+            "--zne-amplifier",
+            choices=["gate_folding", "pea"],
+            default="gate_folding",
+            help="ZNE noise amplification strategy (default: %(default)s). "
+            "'pea' uses Probabilistic Error Amplification (learns noise model).",
+        )
+        parser.add_argument(
+            "--zne-noise-factors",
+            type=float,
+            nargs="+",
+            default=None,
+            help="ZNE noise amplification factors (default: [1, 3, 5])",
+        )
 
     def build_hardware_config(self):
         """Build HardwareConfig from CLI args.
@@ -1486,7 +1500,23 @@ class HardwareValidationRunner(ValidationRunner):
         HardwareConfig
             Configuration for the hardware backend.
         """
+        from qmbp_simulation.execution.backends import MitigationOptions
         from qmbp_simulation.execution.hardware import HardwareConfig
+
+        # Build mitigation options with amplifier selection
+        zne_noise_factors = getattr(self._args, "zne_noise_factors", None)
+        zne_amplifier = getattr(self._args, "zne_amplifier", "gate_folding")
+
+        mitigation = MitigationOptions(
+            dd_enabled=True,
+            trex_enabled=True,
+            twirling_enabled=True,
+            zne_enabled=True,
+            zne_amplifier=zne_amplifier,
+            zne_noise_factors=zne_noise_factors,
+            num_randomizations=32,
+            shots_per_randomization=128,
+        )
 
         return HardwareConfig(
             mode=self._args.mode,
@@ -1494,6 +1524,7 @@ class HardwareValidationRunner(ValidationRunner):
             shots=self._args.shots,
             n_layouts=self._args.n_layouts,
             output_dir=f"results/hardware/{self.runner_id}",
+            mitigation=mitigation,
         )
 
     def setup(self) -> None:
@@ -1562,6 +1593,8 @@ class HardwareValidationRunner(ValidationRunner):
                 "shots": self._args.shots,
                 "n_layouts": self._args.n_layouts,
                 "backend": "ibm_torino",
+                "zne_amplifier": getattr(self._args, "zne_amplifier", "gate_folding"),
+                "zne_noise_factors": getattr(self._args, "zne_noise_factors", None),
             },
             "seeds": [],
         }

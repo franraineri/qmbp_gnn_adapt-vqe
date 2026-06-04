@@ -1,4 +1,4 @@
-"""Tests for analysis/ tooling — heisenberg_summary, scan_coverage, validate_s_series.
+"""Tests for project_health/analysis/ tooling — heisenberg_summary, scan_coverage, validate_s_series.
 
 Covers the testable utility functions and data models from the analysis scripts.
 These scripts operate on real result files, so tests focus on:
@@ -16,14 +16,9 @@ Run with:
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
-
-# Make analysis/ importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # validate_s_series utility tests
@@ -35,7 +30,7 @@ class TestComputeEntropy:
 
     def test_product_state_zero_entropy(self):
         """A product state |00...0⟩ should have zero entropy."""
-        from analysis.validate_s_series import _compute_entropy
+        from project_health.analysis.validate_s_series import _compute_entropy
 
         n_qubits = 4
         # |0000⟩ state
@@ -46,7 +41,7 @@ class TestComputeEntropy:
 
     def test_bell_state_one_ebit(self):
         """A maximally entangled 2-qubit state has S = 1 bit."""
-        from analysis.validate_s_series import _compute_entropy
+        from project_health.analysis.validate_s_series import _compute_entropy
 
         # Bell state (|00⟩ + |11⟩) / √2
         psi = np.array([1, 0, 0, 1]) / np.sqrt(2)
@@ -55,7 +50,7 @@ class TestComputeEntropy:
 
     def test_ghz_state_entropy(self):
         """GHZ state |000⟩+|111⟩ has S = 1 across any bipartition."""
-        from analysis.validate_s_series import _compute_entropy
+        from project_health.analysis.validate_s_series import _compute_entropy
 
         n_qubits = 4
         psi = np.zeros(2**n_qubits)
@@ -66,7 +61,7 @@ class TestComputeEntropy:
 
     def test_entropy_nonnegative(self):
         """Entropy should always be non-negative."""
-        from analysis.validate_s_series import _compute_entropy
+        from project_health.analysis.validate_s_series import _compute_entropy
 
         # Random normalized state
         rng = np.random.default_rng(42)
@@ -78,7 +73,7 @@ class TestComputeEntropy:
 
     def test_max_entropy_bounded(self):
         """Entropy cannot exceed n_A = n_qubits/2 bits."""
-        from analysis.validate_s_series import _compute_entropy
+        from project_health.analysis.validate_s_series import _compute_entropy
 
         n_qubits = 6
         n_a = n_qubits // 2  # max entropy = n_a bits
@@ -99,7 +94,7 @@ class TestPipelineRecord:
     """Test PipelineRecord from scan_coverage."""
 
     def test_verdict_pass(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -113,7 +108,7 @@ class TestPipelineRecord:
         assert rec.verdict == "PASS"
 
     def test_verdict_marginal(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -127,7 +122,7 @@ class TestPipelineRecord:
         assert rec.verdict == "MARGINAL"
 
     def test_verdict_fail(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -141,7 +136,7 @@ class TestPipelineRecord:
         assert rec.verdict == "FAIL"
 
     def test_verdict_no_data(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -155,7 +150,7 @@ class TestPipelineRecord:
         assert rec.verdict == "NO_DATA"
 
     def test_verdict_with_custom_thresholds(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -172,7 +167,7 @@ class TestPipelineRecord:
         assert rec.verdict_with_thresholds(0.08, 0.15) == "PASS"
 
     def test_in_valid_regime_true(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -186,7 +181,7 @@ class TestPipelineRecord:
         assert rec.in_valid_regime is True
 
     def test_in_valid_regime_false(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -200,7 +195,7 @@ class TestPipelineRecord:
         assert rec.in_valid_regime is False
 
     def test_in_valid_regime_p2_boundary(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -214,7 +209,7 @@ class TestPipelineRecord:
         assert rec.in_valid_regime is True
 
     def test_in_valid_regime_missing_data(self):
-        from analysis.scan_coverage import PipelineRecord
+        from project_health.analysis.scan_coverage import PipelineRecord
 
         rec = PipelineRecord(
             folder="f",
@@ -232,7 +227,7 @@ class TestNoisyRecord:
     """Test NoisyRecord from scan_coverage."""
 
     def test_zne_works_true(self):
-        from analysis.scan_coverage import NoisyRecord
+        from project_health.analysis.scan_coverage import NoisyRecord
 
         rec = NoisyRecord(
             folder="f",
@@ -247,7 +242,7 @@ class TestNoisyRecord:
         assert rec.zne_works is True
 
     def test_zne_works_false_negative_gain(self):
-        from analysis.scan_coverage import NoisyRecord
+        from project_health.analysis.scan_coverage import NoisyRecord
 
         rec = NoisyRecord(
             folder="f",
@@ -262,7 +257,7 @@ class TestNoisyRecord:
         assert rec.zne_works is False
 
     def test_zne_works_false_no_wins(self):
-        from analysis.scan_coverage import NoisyRecord
+        from project_health.analysis.scan_coverage import NoisyRecord
 
         rec = NoisyRecord(
             folder="f",
@@ -286,61 +281,61 @@ class TestScanCoverageUtils:
     """Test utility functions from scan_coverage."""
 
     def test_infer_topology_chain(self):
-        from analysis.scan_coverage import _infer_default_topology
+        from project_health.analysis.scan_coverage import _infer_default_topology
 
         assert _infer_default_topology("p1_variants_N10_chain") == "chain_1d"
         assert _infer_default_topology("variants_N6_linear") == "chain_1d"
 
     def test_infer_topology_ladder(self):
-        from analysis.scan_coverage import _infer_default_topology
+        from project_health.analysis.scan_coverage import _infer_default_topology
 
         assert _infer_default_topology("p1_variants_N10_ladder") == "ladder"
 
     def test_infer_topology_triangular(self):
-        from analysis.scan_coverage import _infer_default_topology
+        from project_health.analysis.scan_coverage import _infer_default_topology
 
         assert _infer_default_topology("variants_N6_tri") == "triangular"
         assert _infer_default_topology("variants_N6_triangular") == "triangular"
 
     def test_infer_topology_kagome(self):
-        from analysis.scan_coverage import _infer_default_topology
+        from project_health.analysis.scan_coverage import _infer_default_topology
 
         # kagome is NOT in _TOPO_HINTS, so falls back to chain_1d
         assert _infer_default_topology("variants_N12_kagome") == "chain_1d"
 
     def test_infer_topology_heavy_hex(self):
-        from analysis.scan_coverage import _infer_default_topology
+        from project_health.analysis.scan_coverage import _infer_default_topology
 
         assert _infer_default_topology("variants_N10_heavy_hex") == "heavy_hex"
         assert _infer_default_topology("p1_heavyhex_N10") == "heavy_hex"
 
     def test_infer_topology_default(self):
-        from analysis.scan_coverage import _infer_default_topology
+        from project_health.analysis.scan_coverage import _infer_default_topology
 
         assert _infer_default_topology("some_random_folder") == "chain_1d"
 
     def test_compute_median_odd(self):
-        from analysis.scan_coverage import _compute_median
+        from project_health.analysis.scan_coverage import _compute_median
 
         assert _compute_median([1.0, 2.0, 3.0]) == 2.0
 
     def test_compute_median_even(self):
-        from analysis.scan_coverage import _compute_median
+        from project_health.analysis.scan_coverage import _compute_median
 
         assert _compute_median([1.0, 2.0, 3.0, 4.0]) == 2.5
 
     def test_compute_median_single(self):
-        from analysis.scan_coverage import _compute_median
+        from project_health.analysis.scan_coverage import _compute_median
 
         assert _compute_median([5.0]) == 5.0
 
     def test_compute_median_empty(self):
-        from analysis.scan_coverage import _compute_median
+        from project_health.analysis.scan_coverage import _compute_median
 
         assert _compute_median([]) is None
 
     def test_safe_load_json_valid(self, tmp_path):
-        from analysis.scan_coverage import _safe_load_json
+        from project_health.analysis.scan_coverage import _safe_load_json
 
         p = tmp_path / "test.json"
         p.write_text(json.dumps({"key": "value"}))
@@ -348,14 +343,14 @@ class TestScanCoverageUtils:
         assert result == {"key": "value"}
 
     def test_safe_load_json_invalid(self, tmp_path):
-        from analysis.scan_coverage import _safe_load_json
+        from project_health.analysis.scan_coverage import _safe_load_json
 
         p = tmp_path / "bad.json"
         p.write_text("not json {{")
         assert _safe_load_json(p) is None
 
     def test_safe_load_json_missing(self, tmp_path):
-        from analysis.scan_coverage import _safe_load_json
+        from project_health.analysis.scan_coverage import _safe_load_json
 
         p = tmp_path / "missing.json"
         assert _safe_load_json(p) is None
@@ -443,14 +438,14 @@ class TestHeisenbergSummary:
         return folder
 
     def test_enrich_with_heisenberg_data_parses_variants(self, tmp_path):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data
+        from project_health.analysis.heisenberg_summary import enrich_with_heisenberg_data
 
         folder = self._create_heisenberg_folder(tmp_path)
         results = enrich_with_heisenberg_data(folder)
         assert len(results) == 2
 
     def test_enrich_extracts_correct_fields(self, tmp_path):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data
+        from project_health.analysis.heisenberg_summary import enrich_with_heisenberg_data
 
         folder = self._create_heisenberg_folder(tmp_path)
         results = enrich_with_heisenberg_data(folder)
@@ -465,7 +460,7 @@ class TestHeisenbergSummary:
         assert r["theta_smoothness"] == 0.85
 
     def test_enrich_skips_non_directories(self, tmp_path):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data
+        from project_health.analysis.heisenberg_summary import enrich_with_heisenberg_data
 
         folder = self._create_heisenberg_folder(tmp_path)
         # Add a stray file
@@ -475,7 +470,7 @@ class TestHeisenbergSummary:
         assert len(results) == 2
 
     def test_enrich_skips_invalid_json(self, tmp_path):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data
+        from project_health.analysis.heisenberg_summary import enrich_with_heisenberg_data
 
         folder = tmp_path / "variants_N6_heisenberg"
         folder.mkdir()
@@ -486,7 +481,7 @@ class TestHeisenbergSummary:
         assert results == []
 
     def test_enrich_skips_no_phase2_summary(self, tmp_path):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data
+        from project_health.analysis.heisenberg_summary import enrich_with_heisenberg_data
 
         folder = tmp_path / "variants_N6_heisenberg"
         folder.mkdir()
@@ -499,7 +494,10 @@ class TestHeisenbergSummary:
         assert results == []
 
     def test_export_json_structure(self, tmp_path):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data, export_json
+        from project_health.analysis.heisenberg_summary import (
+            enrich_with_heisenberg_data,
+            export_json,
+        )
 
         folder = self._create_heisenberg_folder(tmp_path)
         results = enrich_with_heisenberg_data(folder)
@@ -519,7 +517,10 @@ class TestHeisenbergSummary:
             assert "vqe_energies" not in r
 
     def test_print_summary_no_crash(self, tmp_path, capsys):
-        from analysis.heisenberg_summary import enrich_with_heisenberg_data, print_summary
+        from project_health.analysis.heisenberg_summary import (
+            enrich_with_heisenberg_data,
+            print_summary,
+        )
 
         folder = self._create_heisenberg_folder(tmp_path)
         results = enrich_with_heisenberg_data(folder)
@@ -529,7 +530,7 @@ class TestHeisenbergSummary:
         assert "N=6" in captured.out
 
     def test_print_summary_empty(self, capsys):
-        from analysis.heisenberg_summary import print_summary
+        from project_health.analysis.heisenberg_summary import print_summary
 
         print_summary([])
         captured = capsys.readouterr()

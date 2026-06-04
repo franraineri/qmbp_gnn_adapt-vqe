@@ -66,6 +66,11 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "threshold": 0.50,
         "desc": "2D MPNN interpolates in J₂ dimension",
     },
+    "T1a_dense": {
+        "metric": "pass_rate",
+        "threshold": 0.50,
+        "desc": "Dense J₂ grid (8 values) enables cross-J₂ interpolation >50%",
+    },
     "T1b": {
         "metric": "pass_rate",
         "threshold": 0.75,
@@ -87,11 +92,52 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "desc": "5/5 hypotheses confirmed",
     },
     "E4c_pipeline": {"metric": "pass_rate", "threshold": 0.80, "desc": "ΔE/gap < 5%"},
+    "GF_ZNE_CMP": {
+        "metric": "pass_rate",
+        "threshold": 0.75,
+        "desc": "GF-ZNE R²>0.9 and gain>0% (consistent noise reduction)",
+    },
+    "ZNE_3WAY": {
+        "metric": "pass_rate",
+        "threshold": 0.75,
+        "desc": "PEA-ZNE gain ≥ GF-ZNE gain (targeted noise amplification)",
+    },
+    "PEA_ZNE_VAL": {
+        "metric": "pass_rate",
+        "threshold": 0.80,
+        "desc": "PEA-ZNE R²>0.9 and gain>GF-ZNE (multi-seed validation)",
+    },
+    "PEA_HW_READY": {
+        "metric": "pass_rate",
+        "threshold": 0.80,
+        "desc": "PEA-ZNE gain>GF-ZNE on heavy_hex N=10 (hardware target)",
+    },
+    "PEA_PIPELINE": {
+        "metric": "pass_rate",
+        "threshold": 0.60,
+        "desc": "PEA-ZNE gain>50% with MPNN predictions (full pipeline)",
+    },
+    "ZNE_CROSS_TOPO": {
+        "metric": "pass_rate",
+        "threshold": 0.75,
+        "desc": "PEA>GF across all topologies (paired t-test p<0.05, R²>0.9)",
+    },
 }
 
 # Experiments where hypothesis rejection IS a valid scientific finding
 # (negative result = useful knowledge, not failure)
-REJECTION_IS_FINDING: set[str] = {"E4", "F1", "G2", "G3", "G4", "T1a"}
+REJECTION_IS_FINDING: set[str] = {
+    "E4",
+    "F1",
+    "G2",
+    "G3",
+    "G4",
+    "T1a",
+    "T1a_dense",
+    "HW_REHEARSAL",
+    "S8",
+    "S8b",
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -149,7 +149,12 @@ def submit_all_then_collect(
 
 
 def build_estimator_options(config: HardwareConfig) -> dict[str, Any]:
-    """Build EstimatorOptions dict for hardware or fake_backend mode."""
+    """Build EstimatorOptions dict for hardware or fake_backend mode.
+
+    Supports ZNE with two amplifier strategies:
+    - "gate_folding" (default): digital gate folding U→U·U†·U
+    - "pea": Probabilistic Error Amplification (learns noise model first)
+    """
     if config.mode == "fake_backend":
         return {
             "default_precision": 1.0 / math.sqrt(config.shots),
@@ -162,11 +167,32 @@ def build_estimator_options(config: HardwareConfig) -> dict[str, Any]:
         options["twirling"] = {
             "enable_gates": True,
             "enable_measure": True,
-            "num_randomizations": 32,
+            "num_randomizations": config.mitigation.num_randomizations,
         }
     if config.mitigation.trex_enabled:
         options.setdefault("resilience", {})["measure_mitigation"] = True
-    options.setdefault("resilience", {})["zne_mitigation"] = False  # always off
+
+    # ZNE configuration
+    if config.mitigation.zne_enabled:
+        options.setdefault("resilience", {})["zne_mitigation"] = True
+        zne_opts: dict[str, Any] = {}
+        # Amplifier selection
+        amplifier = config.mitigation.zne_amplifier
+        if amplifier and amplifier != "gate_folding":
+            zne_opts["amplifier"] = amplifier
+        # Custom noise factors
+        if config.mitigation.zne_noise_factors:
+            zne_opts["noise_factors"] = config.mitigation.zne_noise_factors
+        if zne_opts:
+            options.setdefault("resilience", {})["zne"] = zne_opts
+        # PEA-specific: layer noise learning options
+        if amplifier == "pea":
+            options.setdefault("resilience", {})["layer_noise_learning"] = {
+                "num_randomizations": config.mitigation.num_randomizations,
+                "shots_per_randomization": config.mitigation.shots_per_randomization,
+            }
+    else:
+        options.setdefault("resilience", {})["zne_mitigation"] = False
     return options
 
 

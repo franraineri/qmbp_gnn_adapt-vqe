@@ -17,7 +17,7 @@ inclusion: manual
   ```
 - [ ] Check Torino queue depth (< 50 jobs ideal)
 - [ ] Confirm calibration freshness (error rates accessible via `backend.target`)
-- [ ] Run noisy simulation first: `python scripts/smoke_test.py` (validates package imports and pipeline)
+- [ ] Run noisy simulation first: `python tests/smoke_test.py` (validates package imports and pipeline)
 
 ## Execution
 

@@ -133,3 +133,49 @@ Do NOT duplicate this content in other files — reference this document instead
 | κ doesn't predict difficulty | h-value is better proxy | G4 |
 | No cross-topology transfer | Each topology needs own training data | S2 |
 | Condition number (G4) | r=-0.29, not predictive | G4 |
+
+---
+
+## Tier 1 Validated Decisions (2026-06-03)
+
+| Decision | Evidence | Experiment |
+|----------|----------|------------|
+| MPNN 2D predictor works within training J₂ range | ΔE/gap < 5% for seen J₂, 0% at unseen J₂ (5-value grid) | T1a |
+| J₂ interpolation fails with 5 training values | Pass rate = 0% at J₂=0.15, 0.35, 0.45 — grid too sparse | T1a |
+| ZNE gain equivalent for TFIM+longitudinal vs standard | |gain_diff| < 5% (0 extra CX from g·Z term) | T1b |
+| TFIM+longitudinal hardware-viable at g≤0.1 | fid≥0.93 maintained, p=1 sufficient | T1b |
+| D1 weight gradient generalizes to frustrated TFIM | Gradient peaks track crossover for ALL J₂ tested | T1c |
+| D1 detection is model-agnostic (within TFIM family) | 100% agreement between standard TFIM and frustrated TFIM D1 peaks | T1c |
+
+**Session results**: `documentation/analysis/12_tier1_session_results.md`
+
+---
+
+## ZNE Strategy Validated Decisions (2026-06-04)
+
+| Decision | Evidence | Experiment |
+|----------|----------|------------|
+| CES-ZNE fails on heavy_hex | R²=0.04, gain=0% (uniform CES≈0.15, no spread) | HW_REHEARSAL |
+| Gate-folding ZNE validated | +12% gain, R²>0.99, wins 9/12 vs CES | GF_ZNE_CMP |
+| PEA-ZNE universally superior | +94.4% gain, 18/18 wins vs GF (t=46.32, p<10⁻¹⁹) | ZNE_CROSS_TOPO |
+| PEA-ZNE cross-topology robust | Validated on chain_1d, heavy_hex, ladder (3 seeds each) | ZNE_CROSS_TOPO |
+| GF-ZNE fails on heavy_hex (shallow circuits) | R²=0.47 — extrapolation meaningless at depth≤3 | PEA_HW_READY |
+| PEA works with imperfect MPNN θ | +81% gain even with prediction error | PEA_PIPELINE |
+| Amplifier strategy: PEA primary, GF fallback | PEA 4.6× better, ~50% extra QPU overhead justified | All ZNE exps |
+
+**Binnacle**: `documentation/binnacles/binnacle-gate-folding-zne.md`
+
+---
+
+## Unsupervised Phase Detection Validated Decisions (2026-06-04)
+
+| Decision | Evidence | Experiment |
+|----------|----------|------------|
+| PCA of θ_opt(h) detects h_c for chain_1d | Peak at h=1.25 (Δh=0.25 from h_c=1.0) | Task 2 |
+| PC1 explains >99% variance (p=2) | θ-space is effectively 1D for HVA p=2 | Task 2 |
+| K-means (k=2) does NOT reliably detect h_c | Boundary at h≈1.58 (too high) | Task 2 |
+| |∂θ/∂h| corroborates D1 peak | Agreement Δh=0.18 with D1 valid-regime peak (h=1.07) | Task 3 |
+| Detection requires h-grid covering h_c | Ladder (h∈[2,4]) fails — data limitation, not method | Task 2 |
+| Method is zero-cost (uses existing VQE data) | No additional QPU or VQE runs needed | Tasks 2+3 |
+
+**Binnacle**: `documentation/binnacles/binnacle-theta-pca-unsupervised-detection.md`

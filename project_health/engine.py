@@ -4,9 +4,11 @@ This is the main logic module. It:
 1. Runs ResultScanner to collect all parsed results.
 2. Aggregates experiment verdicts.
 3. Computes coverage gaps.
-4. Detects new results since last run.
-5. Derives actionable items.
-6. Produces a HealthReport.
+4. Computes VQE/MPNN quality diagnostics.
+5. Computes timing and distribution analytics.
+6. Detects new results since last run.
+7. Derives actionable items.
+8. Produces a HealthReport.
 
 No I/O (prints, file writes) happens here — that's the reporter's job.
 """
@@ -15,25 +17,29 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from project_health.coverage import (
+    compute_distribution,
+    compute_energy_decomposition,
+    compute_mpnn_quality,
     compute_noiseless_by_topology,
     compute_noiseless_stats,
     compute_noisy_stats,
+    compute_timing_stats,
+    compute_vqe_quality,
     derive_actions,
     detect_coverage_gaps,
 )
+from project_health.digest.models import ExperimentResult, NoiselessResult, NoisyResult
+from project_health.digest.scanner import ResultScanner
 from project_health.models import ExperimentSummary, HealthReport
 from project_health.state import (
     DEFAULT_STATE_FILE,
-    detect_new_results,
-    detect_removed_results,
+    detect_delta,
     save_current_state,
 )
-from scripts.digest.models import ExperimentResult, NoiselessResult, NoisyResult
-from scripts.digest.scanner import ResultScanner
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +67,7 @@ def run_health_check(
         Complete health report ready for formatting.
     """
     report = HealthReport(
-        timestamp=datetime.now().isoformat(timespec="seconds"),
+        timestamp=datetime.now(tz=UTC).isoformat(timespec="seconds"),
         results_dir=str(results_dir),
         state_file=str(state_file),
     )
@@ -96,16 +102,26 @@ def run_health_check(
         noisy
     )
 
-    # ─── Step 4: Coverage gaps ───────────────────────────────────────────
+    # ─── Step 4: VQE & MPNN quality diagnostics ──────────────────────────
+    report.vqe_quality = compute_vqe_quality(noiseless)
+    report.mpnn_quality = compute_mpnn_quality(noiseless)
+
+    # ─── Step 5: Timing & Distribution ───────────────────────────────────
+    report.timing = compute_timing_stats(noiseless, noisy, experiments)
+    report.distribution = compute_distribution(noiseless, noisy)
+    report.energy_decomposition = compute_energy_decomposition(noiseless)
+
+    # ─── Step 6: Coverage gaps ───────────────────────────────────────────
     report.gaps = detect_coverage_gaps(noiseless, noisy, experiments)
     logger.info("  Coverage gaps detected: %d", len(report.gaps))
 
-    # ─── Step 5: Delta since last run ────────────────────────────────────
+    # ─── Step 7: Delta since last run ────────────────────────────────────
     current_files = _collect_source_files(noiseless, noisy, experiments)
-    report.new_results = detect_new_results(current_files, state_file)
-    report.n_new = len(report.new_results)
-    report.removed_results = detect_removed_results(current_files, state_file)
-    report.n_removed = len(report.removed_results)
+    new_results, removed_results = detect_delta(current_files, state_file)
+    report.new_results = new_results
+    report.n_new = len(new_results)
+    report.removed_results = removed_results
+    report.n_removed = len(removed_results)
 
     if save_state:
         save_current_state(
@@ -119,8 +135,8 @@ def run_health_check(
             },
         )
 
-    # ─── Step 6: Derive actions ──────────────────────────────────────────
-    report.actions = derive_actions(report.gaps)
+    # ─── Step 8: Derive actions ──────────────────────────────────────────
+    report.actions = derive_actions(report)
 
     # ─── Finalize ────────────────────────────────────────────────────────
     report.elapsed_s = round(time.time() - t_start, 2)

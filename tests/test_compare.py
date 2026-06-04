@@ -1,4 +1,4 @@
-"""Tests for scripts/compare.py — experiment comparison CLI.
+"""Tests for project_health/compare.py — experiment comparison CLI.
 
 Covers:
 - ResultStore.compare_experiments logic
@@ -285,7 +285,7 @@ class TestCompareArgParsing:
 
     def test_parse_args_all(self, monkeypatch):
         """--all should set args.all=True."""
-        import scripts.compare as compare_mod
+        import project_health.compare as compare_mod
 
         monkeypatch.setattr("sys.argv", ["compare.py", "--all"])
         args = compare_mod.parse_args()
@@ -294,7 +294,7 @@ class TestCompareArgParsing:
 
     def test_parse_args_exp(self, monkeypatch):
         """--exp G1 G5 should populate args.experiments."""
-        import scripts.compare as compare_mod
+        import project_health.compare as compare_mod
 
         monkeypatch.setattr("sys.argv", ["compare.py", "--exp", "G1", "G5"])
         args = compare_mod.parse_args()
@@ -302,7 +302,7 @@ class TestCompareArgParsing:
 
     def test_parse_args_category(self, monkeypatch):
         """--category G should set category."""
-        import scripts.compare as compare_mod
+        import project_health.compare as compare_mod
 
         monkeypatch.setattr("sys.argv", ["compare.py", "--category", "G"])
         args = compare_mod.parse_args()
@@ -310,18 +310,16 @@ class TestCompareArgParsing:
 
     def test_parse_args_noisy_with_group(self, monkeypatch):
         """--noisy --group-by seed_layout should set both."""
-        import scripts.compare as compare_mod
+        import project_health.compare as compare_mod
 
-        monkeypatch.setattr(
-            "sys.argv", ["compare.py", "--noisy", "--group-by", "seed_layout"]
-        )
+        monkeypatch.setattr("sys.argv", ["compare.py", "--noisy", "--group-by", "seed_layout"])
         args = compare_mod.parse_args()
         assert args.noisy is True
         assert args.group_by == "seed_layout"
 
     def test_parse_args_json_output(self, monkeypatch):
         """--json file.json should set json_file."""
-        import scripts.compare as compare_mod
+        import project_health.compare as compare_mod
 
         monkeypatch.setattr("sys.argv", ["compare.py", "--all", "--json", "out.json"])
         args = compare_mod.parse_args()
@@ -329,11 +327,9 @@ class TestCompareArgParsing:
 
     def test_parse_args_results_dir(self, monkeypatch):
         """--results-dir should override default."""
-        import scripts.compare as compare_mod
+        import project_health.compare as compare_mod
 
-        monkeypatch.setattr(
-            "sys.argv", ["compare.py", "--all", "--results-dir", "/tmp/results"]
-        )
+        monkeypatch.setattr("sys.argv", ["compare.py", "--all", "--results-dir", "/tmp/results"])
         args = compare_mod.parse_args()
         assert args.results_dir == "/tmp/results"
 
@@ -342,7 +338,7 @@ class TestCompareWriteJson:
     """Fast test of compare.py JSON export function."""
 
     def test_write_json_creates_file(self, tmp_path):
-        from scripts.compare import _write_json
+        from project_health.compare import _write_json
 
         data = [{"experiment_id": "G1", "verdict": "confirmed"}]
         outpath = str(tmp_path / "test_output.json")
@@ -354,7 +350,7 @@ class TestCompareWriteJson:
         assert loaded == data
 
     def test_write_json_creates_parent_dirs(self, tmp_path):
-        from scripts.compare import _write_json
+        from project_health.compare import _write_json
 
         data = {"key": "value"}
         outpath = str(tmp_path / "nested" / "dir" / "output.json")
@@ -366,7 +362,7 @@ class TestCompareWriteJson:
         """default=str should handle non-serializable types."""
         from datetime import datetime
 
-        from scripts.compare import _write_json
+        from project_health.compare import _write_json
 
         data = {"timestamp": datetime(2024, 1, 15, 10, 30)}
         outpath = str(tmp_path / "datetime.json")

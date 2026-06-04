@@ -408,6 +408,75 @@ def resolve_output_dir(path: str | Path) -> Path:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Noisy Simulation / ZNE arguments
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def add_noisy_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add standard noisy simulation and ZNE configuration arguments.
+
+    Adds: --zne-amplifier, --zne-noise-factors, --zne-extrapolator,
+          --zne-shots, --zne-n-layouts, --zne-multi-layout
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("ZNE / Noisy Simulation")
+    group.add_argument(
+        "--zne-amplifier",
+        choices=["gate_folding", "pea"],
+        default="gate_folding",
+        help=(
+            "ZNE noise amplification strategy (default: gate_folding). "
+            "'gate_folding': digital U→U·U†·U (simple, validated). "
+            "'pea': Probabilistic Error Amplification (learns noise model, "
+            "more accurate but ~50%% overhead)."
+        ),
+    )
+    group.add_argument(
+        "--zne-noise-factors",
+        type=float,
+        nargs="+",
+        default=None,
+        help=(
+            "Noise amplification factors (default: [1, 3, 5]). "
+            "Gate-folding requires odd integers; PEA allows any float ≥1."
+        ),
+    )
+    group.add_argument(
+        "--zne-extrapolator",
+        choices=["linear", "exponential"],
+        default="linear",
+        help="Extrapolation method for ZNE (default: linear)",
+    )
+    group.add_argument(
+        "--zne-shots",
+        type=int,
+        default=16384,
+        help="Shots for noisy ZNE estimation (default: %(default)s)",
+    )
+    group.add_argument(
+        "--zne-n-layouts",
+        type=int,
+        default=3,
+        help="Number of low-CES layouts for ZNE (default: %(default)s)",
+    )
+    group.add_argument(
+        "--zne-multi-layout",
+        action="store_true",
+        help="Run ZNE on ALL layouts and average (variance reduction)",
+    )
+    return group
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Result Filtering and Output Format argument groups
 # ─────────────────────────────────────────────────────────────────────────────
 

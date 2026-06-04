@@ -18,16 +18,32 @@ pre-commit hooks.
 # Clone and setup
 python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[dev,test]"
 
 # Verify installation
 python -c "from qmbp_simulation import HamiltonianBuilder, make_lattice; print('OK')"
 
 # Run smoke test (N=4, p=1, <30s)
-python scripts/smoke_test.py
+python tests/smoke_test.py
 
 # Run full test suite
 make test
+
+# Run lint + tests + smoke in one command
+make check-full
+
+# Project health report
+make health
+
+# Generate thesis figures (PDF, 300dpi, no titles)
+make figures-thesis
+# → documentation/thesis_figures/ (21 PDF vector files)
+
+# Generate analysis figures (PNG, with titles)
+make figures
+
+# Coverage report
+make coverage
 ```
 
 ## Package Structure
@@ -57,25 +73,42 @@ project-root/
 │   └── helpers/                    # DyPP, sign canon, freezing, etc.
 ├── scripts/                        # CLI entry points (Zone 2: Consumers)
 │   ├── experiment_runners/         # Pipeline & variant runners
-│   │   ├── experiment_run_helpers_CHECK/
+│   │   ├── experiment_run_helpers/
 │   │   │   ├── run_experiment.py   # Run experiments by ID
 │   │   │   └── run_pipeline.py     # Full 4-phase pipeline
 │   │   ├── run_thesis_variants-*.py # Topology-specific variant runners
 │   │   └── run_p1_pipeline_variants*.py # p=1 multi-topology variants
-│   ├── digest/                     # Result digest & analysis tool
-│   ├── compare.py                  # Cross-experiment comparison
+│   ├── compare.py                  # Shim → project_health/compare.py
 │   ├── preflight.py                # Pre-flight validation
 │   ├── smoke_test.py               # Quick validation (<30s)
 │   └── benchmark.py                # Performance benchmarking
+├── project_health/                 # Phase 4 tooling (unified analysis)
+│   ├── __init__.py                 # Public API
+│   ├── __main__.py                 # CLI (python -m project_health)
+│   ├── engine.py                   # Core orchestration
+│   ├── coverage.py                 # Coverage gaps + analytics
+│   ├── models.py                   # Typed data models
+│   ├── reporter.py                 # Output formatters
+│   ├── state.py                    # Delta tracking persistence
+│   ├── figures.py                  # Matplotlib figure generation
+│   ├── compare.py                  # Cross-experiment comparison CLI
+│   ├── analysis/                   # Analysis scripts (canonical location)
+│   │   ├── diagnose.py             # Automated failure root cause analysis
+│   │   ├── scan_coverage.py        # Coverage scanner + gap analysis
+│   │   ├── verify_claims.py        # Thesis claim verification
+│   │   ├── verify_results.py       # Pipeline result verification against specs
+│   │   ├── validate_s_series.py    # S-series experiment validation
+│   │   └── heisenberg_summary.py   # Heisenberg XXZ cross-N comparison
+│   └── digest/                     # Result digest & scanning
+│       ├── scanner.py              # ResultScanner (parse all results)
+│       ├── formatters.py           # Output formatting
+│       └── models.py               # Result data models
 ├── tests/                          # pytest suite
 ├── results/                        # Experiment outputs (gitignored)
 ├── analysis/                       # Cross-experiment analysis & thesis figures
 │   ├── FINDINGS_INDEX.md           # Master index (36 findings with confidence)
 │   ├── 10_key_findings_corrected.md # Corrected findings post-verification
-│   ├── thesis_chapter_results.md   # Draft results chapter (11 tables)
-│   ├── diagnose.py                 # Automated failure root cause analysis
-│   ├── scan_coverage.py            # Coverage scanner + gap analysis
-│   ├── heisenberg_summary.py       # Heisenberg XXZ cross-N comparison
+│   ├── scripts/                    # Backward-compat shims (delegate to project_health/)
 │   ├── figures/                    # Thesis-quality PNG figures
 │   └── raw_data/                   # Parsed JSON for analysis scripts
 ├── documentation/                  # Thesis docs, binnacles, bibliography
@@ -86,32 +119,35 @@ project-root/
 
 All scripts live in `scripts/` and use the framework via `from qmbp_simulation import ...`.
 
-### `scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py` — Experiment Runner
+### `scripts/experiment_runners/experiment_run_helpers/run_experiment.py` — Experiment Runner
 
 Unified CLI for running any registered experiment by ID. Experiments inherit from
 `BaseExperiment` and follow the lifecycle: `setup() → run() → analyze() → report() → save()`.
 
 ```bash
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --list
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp B4
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp B4 D1 F1
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp A3 --seeds 42 43 --verbose
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_experiment.py --exp B1 --n-qubits 10 --p 1
+python scripts/experiment_runners/experiment_run_helpers/run_experiment.py --list
+python scripts/experiment_runners/experiment_run_helpers/run_experiment.py --exp B4
+python scripts/experiment_runners/experiment_run_helpers/run_experiment.py --exp B4 D1 F1
+python scripts/experiment_runners/experiment_run_helpers/run_experiment.py --exp A3 --seeds 42 43 --verbose
+python scripts/experiment_runners/experiment_run_helpers/run_experiment.py --exp B1 --n-qubits 10 --p 1
 ```
 
-### `scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py` — Full Pipeline
+### `scripts/experiment_runners/experiment_run_helpers/run_pipeline.py` — Full Pipeline
 
 Executes the complete 4-phase pipeline (exact diag → VQE → MPNN → deployment).
 Uses the framework's `PipelineRunner`, CLI argument groups, and result I/O.
 
 ```bash
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --p 2
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 10 --h-values 2.0 1.75 1.5 1.25
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --output-dir results/my_run --verbose
-python scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
+python scripts/experiment_runners/experiment_run_helpers/run_pipeline.py --n-qubits 6 --p 2
+python scripts/experiment_runners/experiment_run_helpers/run_pipeline.py --n-qubits 10 --h-values 2.0 1.75 1.5 1.25
+python scripts/experiment_runners/experiment_run_helpers/run_pipeline.py --n-qubits 6 --output-dir results/my_run --verbose
+python scripts/experiment_runners/experiment_run_helpers/run_pipeline.py --n-qubits 6 --skip-phase3 --skip-phase4
 ```
 
 ### `scripts/compare.py` — Result Comparison
+
+> **Canonical location**: `project_health/compare.py`
+> The `scripts/compare.py` shim delegates to the new location for backward compatibility.
 
 Evaluates experiments against their own success criteria (not a blanket baseline).
 Verdicts: `confirmed` (hypothesis holds), `rejected` (disproved = valid finding),
@@ -140,27 +176,29 @@ python scripts/benchmark.py --output bench.json      # Save results
 
 ### `scripts/digest/` — Result Digest & Analysis
 
+> **Canonical location**: `project_health/digest/`
+
 Extracts key knowledge from all experiment results by kind (noiseless, noisy, experiment).
 Supports filtering, grouping, statistical analysis, outlier detection, and side-by-side
-comparison. Lightweight (no torch import). See [`scripts/digest/README.md`](scripts/digest/README.md)
+comparison. Lightweight (no torch import). See [`project_health/digest/README.md`](project_health/digest/README.md)
 for full documentation.
 
 ```bash
-python -m scripts.digest --kind noiseless --group-by topology
-python -m scripts.digest --kind noisy --group-by n_qubits
-python -m scripts.digest --kind experiment --sort verdict --verbose
-python -m scripts.digest --stats --topology ladder
-python -m scripts.digest --outliers
-python -m scripts.digest --compare variants_N10_ladder variants_N10_triangular
+python -m project_health.digest --kind noiseless --group-by topology
+python -m project_health.digest --kind noisy --group-by n_qubits
+python -m project_health.digest --kind experiment --sort verdict --verbose
+python -m project_health.digest --stats --topology ladder
+python -m project_health.digest --outliers
+python -m project_health.digest --compare variants_N10_ladder variants_N10_triangular
 ```
 
-### `scripts/smoke_test.py` — Quick Validation
+### `tests/smoke_test.py` — Quick Validation
 
 Imports all submodules and runs a minimal pipeline (N=4, p=1, 3 h-points).
 Verifies ΔE/gap < 5%. Should complete in under 30 seconds.
 
 ```bash
-python scripts/smoke_test.py
+python tests/smoke_test.py
 ```
 
 ### `scripts/preflight.py` — Pre-flight Validation

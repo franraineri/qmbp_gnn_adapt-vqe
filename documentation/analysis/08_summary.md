@@ -19,6 +19,7 @@
 | Hallazgos negativos válidos | 5/15 (33%) | Contribuciones que delimitan el framework |
 | Fallos genuinos | 2/15 (13%) | Solo B1 (analytical init) y C3 (sign canon N=20) |
 | p=1 ZNE gain at N=10 | +49% (9 runs) | Confirmado cross-topology (chain, ladder, triangular) |
+| PEA-ZNE gain (all topologies) | +94.4% (18 pts) | Paired t=46.32, p<10⁻¹⁹ vs GF-ZNE |
 
 ---
 
@@ -39,6 +40,16 @@
 - **Mean gain por topología**: chain=+46%, ladder=+51%, triangular=+50%.
 - **Confianza**: ALTA. Topology-independent. Solo seed=43 es outlier (layout selection issue).
 - **Implicación**: p=1 + ZNE es la estrategia recomendada para hardware a N≥10.
+
+### 2.3b PEA-ZNE es universalmente superior a GF-ZNE (NUEVO — 2026-06-04)
+- **Evidencia**: 18 evaluaciones (3 topologías × seeds), PEA gana 18/18.
+- **Paired t-test**: t=46.32, p=2.5×10⁻¹⁹ (extremadamente significativo).
+- **Mean gain**: PEA=+94.4% vs GF=+20.6% (4.6× mejor).
+- **R²**: PEA=0.998, GF=0.997 (ambos excelentes en este run).
+- **Por topología**: ladder +91%, heavy_hex +98%, chain_1d +97%.
+- **Confianza**: ALTA (3 seeds en ladder, 2 en heavy_hex, consistente con 5 exps previos).
+- **Implicación**: PEA es la estrategia PRIMARY para IBM Torino. GF es fallback.
+- **Ref**: `binnacle-gate-folding-zne.md` § Cross-Topology Validation, `ZNE_CROSS_TOPO`.
 
 ### 2.4 100% del error es MPNN prediction (no HVA)
 - **Evidencia**: error_from_circuit = 0.0 en TODAS las topologías y runs.

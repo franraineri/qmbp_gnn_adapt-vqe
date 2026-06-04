@@ -95,6 +95,7 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 2. **Learned DD**: `PadDynamicalDecoupling` pass with optimized sequences (Qiskit native)
 3. **Shot budget**: increase to 8192 minimum (Qiskit `EstimatorV2` `precision` parameter)
 4. **Observable grouping**: group commuting Paulis to reduce circuit executions (Qiskit `ObservablesArray`)
+5. **PEA (Probabilistic Error Amplification)** ✅ IMPLEMENTED: Fallback amplifier if gate-folding ZNE gives R²<0.90. Learns noise model via Pauli-Lindblad fitting, amplifies probabilistically. Config: `MitigationOptions(zne_amplifier="pea")`. IBM Runtime: `options.resilience.zne.amplifier = "pea"`. Local simulation available via `run_pea_zne()`. ~50% QPU overhead.
 
 ### Phase 3 Enhancements (optional)
 5. **MPNN weight analysis**: detect phase transitions from trained weight structure (zero QPU cost)
@@ -239,7 +240,7 @@ backend = NoisyBackend(n_layouts=3, seed=42)
 
 ```bash
 # Smoke test (N=4, p=1, 3 h-points, ~30s)
-python scripts/smoke_test.py
+python tests/smoke_test.py
 
 # Run a specific experiment
 python scripts/run_experiment.py --exp A3 --verbose

@@ -66,6 +66,67 @@ class ExperimentSummary:
 
 
 @dataclass
+class VQEQualityStats:
+    """Aggregated VQE convergence quality metrics."""
+
+    n_results: int = 0
+    convergence_rate_mean: float | None = None
+    convergence_rate_min: float | None = None
+    theta_smoothness_mean: float | None = None
+    theta_smoothness_max: float | None = None
+    n_chain_break_warnings: int = 0  # theta_smoothness > 1.0
+
+
+@dataclass
+class MPNNQualityStats:
+    """Aggregated MPNN training quality metrics."""
+
+    n_results: int = 0
+    gen_gap_mean: float | None = None
+    gen_gap_max: float | None = None
+    gen_gap_median: float | None = None
+    n_overfit_warnings: int = 0  # gen_gap > 0.01
+    theta_mse_mean: float | None = None
+
+
+@dataclass
+class TimingStats:
+    """Pipeline timing breakdown."""
+
+    total_pipeline_hours: float = 0.0
+    mean_run_s: float = 0.0
+    median_run_s: float = 0.0
+    max_run_s: float = 0.0
+    total_runs: int = 0
+    # By phase (noiseless pipeline only)
+    mean_phase1_s: float = 0.0
+    mean_phase2_s: float = 0.0
+    mean_phase3_s: float = 0.0
+
+
+@dataclass
+class ModelDistribution:
+    """Distribution of results by model type."""
+
+    by_model: dict[str, int] = field(default_factory=dict)  # model → count
+    by_topology: dict[str, int] = field(default_factory=dict)  # topology → count
+    by_n_qubits: dict[int, int] = field(default_factory=dict)  # n_qubits → count
+    by_p_layers: dict[int, int] = field(default_factory=dict)  # p_layers → count
+
+
+@dataclass
+class EnergyDecompositionStats:
+    """Aggregated energy error decomposition (circuit vs MPNN contributions)."""
+
+    n_results: int = 0
+    mean_circuit_error: float = 0.0
+    mean_mpnn_error: float = 0.0
+    # Fraction of total error attributed to each source
+    circuit_error_fraction: float = 0.0
+    mpnn_error_fraction: float = 0.0
+
+
+@dataclass
 class HealthReport:
     """Complete project health report — the main output."""
 
@@ -92,6 +153,21 @@ class HealthReport:
     noisy_mean_r2: float = 0.0
     noisy_mean_gain: float = 0.0
 
+    # VQE quality (Phase 2 diagnostics)
+    vqe_quality: VQEQualityStats = field(default_factory=VQEQualityStats)
+
+    # MPNN quality (Phase 3 diagnostics)
+    mpnn_quality: MPNNQualityStats = field(default_factory=MPNNQualityStats)
+
+    # Timing breakdown
+    timing: TimingStats = field(default_factory=TimingStats)
+
+    # Distribution of results across system parameters
+    distribution: ModelDistribution = field(default_factory=ModelDistribution)
+
+    # Energy error decomposition
+    energy_decomposition: EnergyDecompositionStats = field(default_factory=EnergyDecompositionStats)
+
     # Coverage analysis
     gaps: list[CoverageGap] = field(default_factory=list)
 
@@ -107,9 +183,6 @@ class HealthReport:
     # Metadata
     results_dir: str = "results"
     state_file: str = ""
-
-    # Timing
-    elapsed_s: float = 0.0
 
     # Timing
     elapsed_s: float = 0.0

@@ -462,7 +462,7 @@ def test_digest_scanner_can_parse_validation_runner_output(tmp_path, monkeypatch
     runner.run()
 
     # Now try parsing with the actual digest scanner
-    from scripts.digest.scanner import ResultScanner
+    from project_health.digest.scanner import ResultScanner
 
     scanner = ResultScanner(results_root=tmp_path)
     _, _, experiments = scanner.scan_all()

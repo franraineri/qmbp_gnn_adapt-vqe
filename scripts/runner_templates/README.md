@@ -60,9 +60,9 @@ Esto evita instanciar backends duplicados cuando `setup()` ya los creó.
 ## Compatibilidad con digest/compare
 
 El output JSON de todo runner es **parseable por**:
-- `scripts/digest/` (scanner.py → `ExperimentResult`)
-- `scripts/compare.py` (ResultStore → verdicts)
-- `analysis/` scripts
+- `project_health/digest/` (scanner.py → `ExperimentResult`)
+- `project_health/compare.py` (ResultStore → verdicts)
+- `project_health/analysis/` scripts
 
 Requisitos del `build_config()` para compatibilidad:
 ```python

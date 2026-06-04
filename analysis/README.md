@@ -1,7 +1,21 @@
-# Analysis Toolkit — GNN-HVA Framework
+# Analysis — GNN-HVA Framework
 
-Herramientas de análisis para el proyecto GNN-HVA. Cada script tiene una
-responsabilidad clara y se ejecuta en un orden lógico.
+Resultados de análisis cross-experiment y figuras para la tesis.
+
+## Ubicación de Scripts
+
+> **Los scripts activos han sido movidos a `project_health/analysis/`.**
+> Los shims en `analysis/scripts/` preservan backward compatibility con
+> invocaciones existentes (steering files, protocolos, etc.).
+
+| Script | Ubicación canónica | Shim (backward-compat) |
+|--------|-------------------|------------------------|
+| `scan_coverage.py` | `project_health/analysis/scan_coverage.py` | `analysis/scripts/scan_coverage.py` |
+| `diagnose.py` | `project_health/analysis/diagnose.py` | `analysis/scripts/diagnose.py` |
+| `verify_claims.py` | `project_health/analysis/verify_claims.py` | `analysis/scripts/verify_claims.py` |
+| `validate_s_series.py` | `project_health/analysis/validate_s_series.py` | `analysis/scripts/validate_s_series.py` |
+| `heisenberg_summary.py` | `project_health/analysis/heisenberg_summary.py` | `analysis/scripts/heisenberg_summary.py` |
+| `compare.py` | `project_health/compare.py` | `scripts/compare.py` |
 
 ## Workflow de Análisis (orden recomendado)
 
@@ -13,15 +27,28 @@ responsabilidad clara y se ejecuta en un orden lógico.
 │  2. DIAGNÓSTICO         →  diagnose.py                              │
 │     "¿Por qué fallaron estos runs?"                                 │
 ├─────────────────────────────────────────────────────────────────────┤
-│  3. ANÁLISIS PROFUNDO   →  09_diagnostics_deep_dive.py              │
-│     "¿Qué correlaciones existen en los datos?"                      │
-├─────────────────────────────────────────────────────────────────────┤
-│  4. VERIFICACIÓN        →  verify_claims.py                         │
+│  3. VERIFICACIÓN        →  verify_claims.py                         │
 │     "¿Los claims son robustos?"                                     │
 ├─────────────────────────────────────────────────────────────────────┤
-│  5. FIGURAS             →  generate_figures.py                       │
+│  4. FIGURAS             →  python -m project_health.figures          │
 │     "Generar visualizaciones para la tesis"                         │
 └─────────────────────────────────────────────────────────────────────┘
+```
+
+## Invocación (ambas rutas funcionan)
+
+```bash
+# Canonical (new)
+python -m project_health.analysis.scan_coverage --discover --extended
+python -m project_health.analysis.diagnose --all
+python -m project_health.analysis.verify_claims
+python -m project_health.compare --all
+
+# Legacy (shims, still work)
+python analysis/scripts/scan_coverage.py --discover --extended
+python analysis/scripts/diagnose.py --all
+python analysis/scripts/verify_claims.py
+python scripts/compare.py --all
 ```
 
 ## Scripts Principales
@@ -32,58 +59,21 @@ responsabilidad clara y se ejecuta en un orden lógico.
 produce un inventario completo con análisis de gaps.
 
 ```bash
-# Scan básico (folders hardcoded)
-python analysis/scan_coverage.py
-
-# Auto-descubrir todos los folders bajo results/thesis/
-python analysis/scan_coverage.py --discover
-
-# Filtrar por topología, N, o p
-python analysis/scan_coverage.py --topology chain_1d --n-qubits 10 --p 1
-
-# Extended analytics (reproducibilidad, staleness, h-coverage, calidad)
-python analysis/scan_coverage.py --extended
-
-# Exportar a JSON/CSV/Markdown
-python analysis/scan_coverage.py --json analysis/raw_data/coverage.json
-python analysis/scan_coverage.py --csv analysis/raw_data/coverage.csv
-python analysis/scan_coverage.py --markdown analysis/raw_data/coverage.md
-
-# Modo silencioso (solo resumen)
-python analysis/scan_coverage.py --quiet
+python analysis/scripts/scan_coverage.py --discover
+python analysis/scripts/scan_coverage.py --topology chain_1d --n-qubits 10 --p 1
+python analysis/scripts/scan_coverage.py --extended
+python analysis/scripts/scan_coverage.py --json analysis/raw_data/coverage.json
 ```
-
-**Output**: Identifica gaps en cobertura p=1 vs p=2, seed coverage, valid regime
-violations, y produce recomendaciones priorizadas.
-
-**Cuándo usarlo**: Antes de planificar nuevos experimentos. Después de ejecutar
-un batch de runs para verificar que se guardaron correctamente.
-
----
 
 ### 2. `diagnose.py` — Diagnóstico Automatizado de Failures
 
-**Propósito**: Lee los pipeline_run JSON en profundidad y clasifica la causa raíz
-de cada failure en categorías accionables.
+**Propósito**: Clasifica la causa raíz de cada failure en categorías accionables.
 
 ```bash
-# Diagnosticar todos los failures en thesis results
-python analysis/diagnose.py --all
-
-# Diagnosticar un folder específico
-python analysis/diagnose.py results/thesis/p1_variants_N10_r2
-
-# Solo failures severos (skip MARGINAL)
-python analysis/diagnose.py --all --severity fail
-
-# Filtrar por topología o p
-python analysis/diagnose.py --all --topology triangular --p 1
-
-# Exportar diagnósticos a JSON
-python analysis/diagnose.py --all --json analysis/raw_data/diagnoses.json
-
-# Incluir runs que pasaron (para comparación)
-python analysis/diagnose.py --all --show-passing
+python analysis/scripts/diagnose.py --all
+python analysis/scripts/diagnose.py results/thesis/p1_variants_N10_r2
+python analysis/scripts/diagnose.py --all --severity fail
+python analysis/scripts/diagnose.py --all --json analysis/raw_data/diagnoses.json
 ```
 
 **Root causes clasificados**:
@@ -96,147 +86,78 @@ python analysis/diagnose.py --all --show-passing
 | VQE_DIVERGENCE | convergence_rate < 1.0 | Phase 2 |
 | BOUNDARY_EFFECT | h_test within 0.5 of boundary | Pre-run |
 
-**Cuándo usarlo**: Después de que un batch de experimentos produce failures.
-Para entender si re-ejecutar con diferentes parámetros o si es un límite físico.
+### 3. `verify_claims.py` — Verificación de Robustez
 
----
-
-### 3. `09_diagnostics_deep_dive.py` — Correlaciones y Tabla Definitiva
-
-**Propósito**: Scan directo de TODOS los pipeline_run files para producir:
-- Correlación θ_smoothness vs ΔE/gap
-- Correlación gen_gap vs ΔE/gap
-- Descomposición de error (circuit vs MPNN)
-- Tabla cross-topología definitiva (131+ variants)
+Cross-check de claims contra datos crudos.
 
 ```bash
-python analysis/09_diagnostics_deep_dive.py
+python analysis/scripts/verify_claims.py
 ```
 
-**Output**: `analysis/09_diagnostics_deep_dive.md` + `raw_data/all_diagnostics.json`
-
-**Cuándo usarlo**: Cuando se agregan nuevos datos y se necesita actualizar las
-correlaciones y tablas definitivas.
-
----
-
-### 4. `verify_claims.py` — Verificación de Robustez
-
-**Propósito**: Cross-check de claims contra datos crudos. Verifica que las
-afirmaciones en los documentos de análisis son consistentes con los datos.
+### 4. Figuras (via project_health)
 
 ```bash
-python analysis/verify_claims.py
+# Full generalized tool (recommended)
+python -m project_health.figures --help
+python -m project_health.figures --source analysis --only gen_gap_vs_de_gap smoothness_histogram
+
+# Legacy shim (generates original 4 figures in analysis/figures/)
+python analysis/scripts/generate_figures.py
 ```
 
-**Cuándo usarlo**: Antes de escribir la tesis. Después de correcciones mayores.
+## Deprecated Scripts (in `analysis/scripts/`)
 
----
+Los siguientes scripts ya completaron su propósito y pueden ser removidos:
 
-### 5. `generate_figures.py` — Figuras Thesis-Quality
+| Script | Estado | Resultado capturado en |
+|--------|--------|----------------------|
+| `09_diagnostics_deep_dive.py` | Completado | `analysis/09_diagnostics_deep_dive.md` |
+| `run_analysis.py` | Superseded | `project_health/` + `digest/` |
+| `run_p1_zne_multiseed.py` | Completado (9 runs) | `analysis/verification/` |
+| `step1a_p1_zne_validation.py` | Completado | `analysis/11_p1_zne_verification.md` |
+| `step2a_error_decomposition.py` | Completado | `documentation/analysis/` |
+| `step2c_smoothness_correlation.py` | Completado | `documentation/analysis/` |
+| `generate_figures.py` | Legacy shim | `project_health.figures` |
+| `analyze_s_series.py` | Superseded | `validate_s_series.py` |
+| `verify_depth_scaling.py` | Completado | Heisenberg p≤2 limit documented |
+| `verify_heisenberg_sanity.py` | Completado | Expressibility limit confirmed |
 
-**Propósito**: Genera las 4 figuras principales para el capítulo de resultados.
-
-```bash
-python analysis/generate_figures.py
-```
-
-**Output**: `analysis/figures/fig_01-04.png`
-
----
-
-## Scripts Secundarios
-
-| Script | Propósito | Cuándo usar |
-|--------|-----------|-------------|
-| `run_analysis.py` | Parsea execution logs → tablas markdown | Después de variant runner |
-| `run_p1_zne_multiseed.py` | Ejecuta p=1 ZNE con 3 seeds | Ya completado (9 runs) |
-| `step1a_p1_zne_validation.py` | Validación ZNE single-topology | Ya completado |
-| `step2a_error_decomposition.py` | Error decomposition por topología | Ya completado |
-| `step2c_smoothness_correlation.py` | Correlación θ vs ΔE/gap | Ya completado |
-
-## Documentos de Resultados
-
-### Fuentes Canónicas (usar para la tesis)
-
-| Archivo | Contenido | Actualizado |
-|---------|-----------|-------------|
-| `../documentation/analysis/08_summary.md` | Resumen completo + thesis statements | 2026-05-30 |
-| `../documentation/analysis/09_thesis_tables.md` | Tables 5.1–5.10 definitivas | 2026-05-30 |
-| `10_key_findings_corrected.md` | 8 hallazgos clave verificados | 2026-05-30 |
-| `FINDINGS_INDEX.md` | Índice maestro (36 hallazgos) | 2026-05-28 |
-
-### Documentos de Análisis
-
-| Archivo | Contenido |
-|---------|-----------|
-| `00_executive_summary.md` | Resumen ejecutivo (186 variants) |
-| `02_reproducibility_analysis.md` | Cross-seed reproducibility |
-| `03_hyperparameter_sensitivity.md` | Hidden dim, grid, restarts |
-| `04_zne_failure_confirmation.md` | ZNE failure + p=1 finding |
-| `05_negative_results_catalog.md` | 6 rechazos + anomalías |
-| `08_lessons_learned.md` | Lecciones + restart paradox |
-| `09_diagnostics_deep_dive.md` | Correlaciones (gen_gap, smoothness) |
-| `11_p1_zne_verification.md` | Multi-seed triangular |
-| `13_p1_zne_all_topologies.md` | p=1 ZNE cross-topology (8/9 seeds) |
-| `thesis_chapter_results.md` | Draft del capítulo de resultados |
+## Datos y Documentos
 
 ### Datos
 
-| Archivo | Contenido | Registros |
-|---------|-----------|-----------|
-| `raw_data/all_variants.json` | Execution log data | 186 |
-| `raw_data/all_diagnostics.json` | Pipeline diagnostics (scan directo) | 131+ |
-| `raw_data/coverage.json` | Coverage scan structured data | 247+ |
-| `raw_data/diagnoses.json` | Failure diagnoses structured | 76 |
-| `verification/p1_zne_multiseed/` | p=1 ZNE multi-seed results | 3 |
+| Archivo | Contenido |
+|---------|-----------|
+| `raw_data/all_variants.json` | Execution log data (186 records) |
+| `raw_data/all_diagnostics.json` | Pipeline diagnostics (131+ records) |
+| `raw_data/coverage.json` | Coverage scan structured data |
+| `raw_data/diagnoses.json` | Failure diagnoses structured |
 
 ### Figuras
 
-| Archivo | Contenido | Uso en tesis |
-|---------|-----------|--------------|
-| `figures/fig_01_gen_gap_vs_de_gap.png` | Scatter: predictor de failure | Cap. 5 |
-| `figures/fig_02_smoothness_histogram.png` | Chain breaks por topología | Cap. 4 |
-| `figures/fig_03_cross_topology_bar.png` | Pass rate comparison | Cap. 5 |
-| `figures/fig_04_smoothness_vs_de_gap.png` | Threshold effect | Cap. 5 |
+| Archivo | Uso en tesis |
+|---------|--------------|
+| `figures/fig_01_gen_gap_vs_de_gap.png` | Cap. 5 |
+| `figures/fig_02_smoothness_histogram.png` | Cap. 4 |
+| `figures/fig_03_cross_topology_bar.png` | Cap. 5 |
+| `figures/fig_04_smoothness_vs_de_gap.png` | Cap. 5 |
 
-## Nivel de Confianza (actualizado 2026-05-30)
-
-| Claim | Confianza | Evidencia |
-|-------|-----------|-----------|
-| Framework topology-agnostic (64%) | ★★★ | 131+ variants, 5 topologías |
-| Warm-start = contribución central | ★★★ | 5 evidencias independientes |
-| ZNE falla N=10 p=2 | ★★★ | 33 runs consistentes |
-| p=1 ZNE funciona (all topologies) | ★★★ | 8/9 seeds, 3 topologías |
-| p=1 pipeline funciona N=10 | ★★★ | 9/9 PASS (R2, chain+ladder+tri) |
-| gen_gap predice failure | ★★★ | 131 variants, 89% vs 15% |
-| Error 100% MPNN (régimen válido) | ★★★ | 131 variants decomposition |
-| CHAIN_BREAK = 45% de failures | ★★★ | 174 runs diagnosed |
-| p=1 más consistente que p=2 | ★★☆ | COMP-4: std 0.002 vs 0.47 |
-| N=16 requiere MPS | ★★★ | 13 runs, Phase 3 no completa |
-
-## Ejemplo: Workflow Completo Post-Experimento
+## Workflow Post-Experimento
 
 ```bash
-# 1. Ejecutar experimentos
-python scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+# 1. Verificar qué se guardó
+python analysis/scripts/scan_coverage.py --discover
 
-# 2. Verificar qué se guardó
-python analysis/scan_coverage.py --discover
+# 2. Diagnosticar failures
+python analysis/scripts/diagnose.py --all --severity fail
 
-# 3. Diagnosticar failures
-python analysis/diagnose.py --all --severity fail
+# 3. Verificar claims
+python analysis/scripts/verify_claims.py
 
-# 4. Actualizar correlaciones (si hay datos nuevos significativos)
-python analysis/09_diagnostics_deep_dive.py
+# 4. Report completo
+python -m project_health
 
-# 5. Verificar claims
-python analysis/verify_claims.py
-
-# 6. Regenerar figuras
-python analysis/generate_figures.py
-
-# 7. Exportar todo para la tesis
-python analysis/scan_coverage.py --discover --extended --json analysis/raw_data/coverage.json
-python analysis/diagnose.py --all --json analysis/raw_data/diagnoses.json
+# 5. Exportar para la tesis
+python analysis/scripts/scan_coverage.py --discover --extended --json analysis/raw_data/coverage.json
+python analysis/scripts/diagnose.py --all --json analysis/raw_data/diagnoses.json
 ```

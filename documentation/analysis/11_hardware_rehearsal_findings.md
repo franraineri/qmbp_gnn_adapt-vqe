@@ -218,6 +218,11 @@ For IBM Torino heavy_hex N=10 p=1:
 - **Primary**: Enable IBM's built-in ZNE (`options.resilience.zne_mitigation = True`)
   which uses gate folding (noise factors [1, 3, 5]). This works regardless of
   layout CES uniformity.
+- **Fallback**: If gate-folding R² < 0.90, switch to PEA amplifier
+  (`options.resilience.zne.amplifier = "pea"`). PEA learns the actual noise model
+  and amplifies probabilistically (~50% extra QPU overhead).
+  Implemented locally via `run_pea_zne()` in `noisy_utils.py`.
+  CLI: `--zne-amplifier pea`.
 - **Combine with**: 3 low-CES layouts for statistical averaging.
 - **Monitor**: If R² < 0.8 on hardware, fall back to simple averaging.
 

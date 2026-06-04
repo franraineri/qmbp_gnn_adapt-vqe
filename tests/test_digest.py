@@ -19,7 +19,7 @@ import pytest
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
-DIGEST_CMD = [sys.executable, "-m", "scripts.digest"]
+DIGEST_CMD = [sys.executable, "-m", "project_health.digest"]
 
 
 def run_digest(*args: str, expect_ok: bool = True) -> subprocess.CompletedProcess:
@@ -49,7 +49,7 @@ class TestScanner:
 
     def test_scan_all_finds_results(self):
         """scan_all should find noiseless, noisy, and experiment results."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         noiseless, noisy, experiments = scanner.scan_all()
@@ -60,7 +60,7 @@ class TestScanner:
 
     def test_scan_all_noiseless_have_required_fields(self):
         """Every noiseless result should have core fields populated."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         noiseless, _, _ = scanner.scan_all()
@@ -73,7 +73,7 @@ class TestScanner:
 
     def test_scan_all_noisy_have_required_fields(self):
         """Every noisy result should have core fields populated."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         _, noisy, _ = scanner.scan_all()
@@ -85,7 +85,7 @@ class TestScanner:
 
     def test_scan_all_experiments_have_verdict(self):
         """Every experiment result should have a verdict."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         _, _, experiments = scanner.scan_all()
@@ -97,7 +97,7 @@ class TestScanner:
 
     def test_scan_folder_exact_match(self):
         """scan_folder with exact name should find results."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         nl, ny, _ = scanner.scan_folder("variants_N10_ladder")
@@ -107,7 +107,7 @@ class TestScanner:
 
     def test_scan_folder_substring_match(self):
         """scan_folder with substring should find matching folders."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         nl, _, _ = scanner.scan_folder("ladder")
@@ -116,7 +116,7 @@ class TestScanner:
 
     def test_scan_folder_experiment(self):
         """scan_folder should find experiment results by folder name."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         _, _, exp = scanner.scan_folder("exp_b4")
@@ -126,7 +126,7 @@ class TestScanner:
 
     def test_topology_inference_from_parent(self):
         """Results without topology in JSON should inherit from parent folder."""
-        from scripts.digest.scanner import ResultScanner
+        from project_health.digest.scanner import ResultScanner
 
         scanner = ResultScanner(Path("results"))
         nl, _, _ = scanner.scan_folder("variants_N10_ladder")
@@ -448,7 +448,7 @@ class TestModels:
 
     def test_noiseless_result_defaults(self):
         """NoiselessResult should have sensible defaults."""
-        from scripts.digest.models import NoiselessResult
+        from project_health.digest.models import NoiselessResult
 
         r = NoiselessResult(source_file="test.json", folder="test")
         assert r.n_qubits == 0
@@ -459,7 +459,7 @@ class TestModels:
 
     def test_experiment_criteria_complete(self):
         """All known experiment IDs should have criteria defined."""
-        from scripts.digest.models import EXPERIMENT_CRITERIA
+        from project_health.digest.models import EXPERIMENT_CRITERIA
 
         expected_ids = {
             "A3",
@@ -481,7 +481,7 @@ class TestModels:
 
     def test_rejection_is_finding_subset(self):
         """REJECTION_IS_FINDING should be a subset of EXPERIMENT_CRITERIA."""
-        from scripts.digest.models import EXPERIMENT_CRITERIA, REJECTION_IS_FINDING
+        from project_health.digest.models import EXPERIMENT_CRITERIA, REJECTION_IS_FINDING
 
         assert REJECTION_IS_FINDING.issubset(set(EXPERIMENT_CRITERIA.keys()))
 
@@ -496,21 +496,21 @@ class TestDigestArgParsing:
     """Fast test of digest argument parsing (no subprocess)."""
 
     def test_parse_kind_noiseless(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest", "--kind", "noiseless"])
         args = parse_args()
         assert args.kind == "noiseless"
 
     def test_parse_kind_default_all(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest"])
         args = parse_args()
         assert args.kind == "all"
 
     def test_parse_filters(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr(
             "sys.argv",
@@ -522,7 +522,7 @@ class TestDigestArgParsing:
         assert args.p_layers == 1
 
     def test_parse_sort_and_top(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest", "--sort", "delta_e", "--top", "5"])
         args = parse_args()
@@ -530,14 +530,14 @@ class TestDigestArgParsing:
         assert args.top == 5
 
     def test_parse_group_by(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest", "--group-by", "topology"])
         args = parse_args()
         assert args.group_by == "topology"
 
     def test_parse_analysis_modes(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest", "--stats", "--outliers"])
         args = parse_args()
@@ -545,14 +545,14 @@ class TestDigestArgParsing:
         assert args.outliers is True
 
     def test_parse_compare(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest", "--compare", "folderA", "folderB"])
         args = parse_args()
         assert args.compare == ["folderA", "folderB"]
 
     def test_parse_output_options(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr(
             "sys.argv", ["digest", "--markdown", "--json", "out.json", "-o", "out.md"]
@@ -563,7 +563,7 @@ class TestDigestArgParsing:
         assert args.output == "out.md"
 
     def test_parse_model_filter(self, monkeypatch):
-        from scripts.digest.__main__ import parse_args
+        from project_health.digest.__main__ import parse_args
 
         monkeypatch.setattr("sys.argv", ["digest", "--model", "heisenberg"])
         args = parse_args()
@@ -574,7 +574,7 @@ class TestDigestApplyFilters:
     """Fast test of the apply_filters function (core filtering logic)."""
 
     def _make_noiseless(self, topology="chain_1d", n_qubits=6, p_layers=2, model="tfim"):
-        from scripts.digest.models import NoiselessResult
+        from project_health.digest.models import NoiselessResult
 
         return NoiselessResult(
             source_file="test.json",
@@ -587,7 +587,7 @@ class TestDigestApplyFilters:
         )
 
     def _make_noisy(self, topology="chain_1d", n_qubits=6, p_layers=1):
-        from scripts.digest.models import NoisyResult
+        from project_health.digest.models import NoisyResult
 
         return NoisyResult(
             source_file="test.json",
@@ -598,7 +598,7 @@ class TestDigestApplyFilters:
         )
 
     def test_filter_by_topology(self):
-        from scripts.digest.__main__ import apply_filters
+        from project_health.digest.__main__ import apply_filters
 
         nl = [self._make_noiseless("chain_1d"), self._make_noiseless("ladder")]
         ny = [self._make_noisy("chain_1d"), self._make_noisy("ladder")]
@@ -608,7 +608,7 @@ class TestDigestApplyFilters:
         assert len(result_ny) == 1
 
     def test_filter_by_n_qubits(self):
-        from scripts.digest.__main__ import apply_filters
+        from project_health.digest.__main__ import apply_filters
 
         nl = [self._make_noiseless(n_qubits=6), self._make_noiseless(n_qubits=10)]
         result_nl, _, _ = apply_filters(nl, [], [], n_qubits=10)
@@ -616,7 +616,7 @@ class TestDigestApplyFilters:
         assert result_nl[0].n_qubits == 10
 
     def test_filter_by_p_layers(self):
-        from scripts.digest.__main__ import apply_filters
+        from project_health.digest.__main__ import apply_filters
 
         nl = [self._make_noiseless(p_layers=1), self._make_noiseless(p_layers=2)]
         result_nl, _, _ = apply_filters(nl, [], [], p_layers=1)
@@ -624,7 +624,7 @@ class TestDigestApplyFilters:
         assert result_nl[0].p_layers == 1
 
     def test_filter_by_model(self):
-        from scripts.digest.__main__ import apply_filters
+        from project_health.digest.__main__ import apply_filters
 
         nl = [
             self._make_noiseless(model="tfim"),
@@ -635,14 +635,14 @@ class TestDigestApplyFilters:
         assert result_nl[0].model == "heisenberg"
 
     def test_no_filters_returns_all(self):
-        from scripts.digest.__main__ import apply_filters
+        from project_health.digest.__main__ import apply_filters
 
         nl = [self._make_noiseless(), self._make_noiseless("ladder")]
         result_nl, _, _ = apply_filters(nl, [], [])
         assert len(result_nl) == 2
 
     def test_combined_filters(self):
-        from scripts.digest.__main__ import apply_filters
+        from project_health.digest.__main__ import apply_filters
 
         nl = [
             self._make_noiseless("chain_1d", 6, 1),
@@ -661,7 +661,7 @@ class TestDigestFormatters:
     """Fast tests for formatter functions (output generation logic)."""
 
     def _make_noiseless(self, delta_e=0.03, topology="chain_1d", n_qubits=6):
-        from scripts.digest.models import NoiselessResult
+        from project_health.digest.models import NoiselessResult
 
         return NoiselessResult(
             source_file="test.json",
@@ -677,7 +677,7 @@ class TestDigestFormatters:
         )
 
     def _make_noisy(self, r2=0.95, gain_pct=45.0):
-        from scripts.digest.models import NoisyResult
+        from project_health.digest.models import NoisyResult
 
         return NoisyResult(
             source_file="test.json",
@@ -693,7 +693,7 @@ class TestDigestFormatters:
         )
 
     def _make_experiment(self, verdict="confirmed", exp_id="G1"):
-        from scripts.digest.models import ExperimentResult
+        from project_health.digest.models import ExperimentResult
 
         return ExperimentResult(
             source_file="test.json",
@@ -709,7 +709,7 @@ class TestDigestFormatters:
         )
 
     def test_format_noiseless_text_has_header(self):
-        from scripts.digest.formatters import format_noiseless_text
+        from project_health.digest.formatters import format_noiseless_text
 
         results = [self._make_noiseless()]
         output = format_noiseless_text(results)
@@ -718,14 +718,14 @@ class TestDigestFormatters:
         assert "runs scanned" in output
 
     def test_format_noiseless_text_includes_data(self):
-        from scripts.digest.formatters import format_noiseless_text
+        from project_health.digest.formatters import format_noiseless_text
 
         results = [self._make_noiseless(delta_e=0.02)]
         output = format_noiseless_text(results)
         assert "0.02" in output
 
     def test_format_noisy_text_has_header(self):
-        from scripts.digest.formatters import format_noisy_text
+        from project_health.digest.formatters import format_noisy_text
 
         results = [self._make_noisy()]
         output = format_noisy_text(results)
@@ -734,7 +734,7 @@ class TestDigestFormatters:
         assert "runs scanned" in output
 
     def test_format_experiment_text_has_header(self):
-        from scripts.digest.formatters import format_experiment_text
+        from project_health.digest.formatters import format_experiment_text
 
         results = [self._make_experiment()]
         output = format_experiment_text(results)
@@ -743,7 +743,7 @@ class TestDigestFormatters:
         assert "confirmed" in output or "Confirmed" in output
 
     def test_format_experiment_shows_verdict(self):
-        from scripts.digest.formatters import format_experiment_text
+        from project_health.digest.formatters import format_experiment_text
 
         results = [
             self._make_experiment("confirmed", "G1"),
@@ -754,7 +754,7 @@ class TestDigestFormatters:
         assert "rejected" in output
 
     def test_format_noiseless_grouped_by_topology(self):
-        from scripts.digest.formatters import format_noiseless_grouped
+        from project_health.digest.formatters import format_noiseless_grouped
 
         results = [
             self._make_noiseless(0.02, "chain_1d"),
@@ -767,14 +767,14 @@ class TestDigestFormatters:
         assert "ladder" in output
 
     def test_format_noiseless_grouped_invalid_key(self):
-        from scripts.digest.formatters import format_noiseless_grouped
+        from project_health.digest.formatters import format_noiseless_grouped
 
         results = [self._make_noiseless()]
         output = format_noiseless_grouped(results, "nonexistent_key")
         assert "Unknown group key" in output
 
     def test_format_markdown_structure(self):
-        from scripts.digest.formatters import format_markdown
+        from project_health.digest.formatters import format_markdown
 
         nl = [self._make_noiseless()]
         ny = [self._make_noisy()]
@@ -784,7 +784,7 @@ class TestDigestFormatters:
         assert "| " in output  # Has table rows
 
     def test_format_noiseless_stats(self):
-        from scripts.digest.formatters import format_noiseless_stats
+        from project_health.digest.formatters import format_noiseless_stats
 
         results = [
             self._make_noiseless(0.01),
@@ -798,7 +798,7 @@ class TestDigestFormatters:
         assert "Median:" in output
 
     def test_format_noiseless_outliers(self):
-        from scripts.digest.formatters import format_noiseless_outliers
+        from project_health.digest.formatters import format_noiseless_outliers
 
         # Needs at least 5 results for IQR-based outlier detection
         results = [
@@ -812,7 +812,7 @@ class TestDigestFormatters:
         assert "OUTLIER" in output or "outlier" in output.lower()
 
     def test_format_noisy_stats(self):
-        from scripts.digest.formatters import format_noisy_stats
+        from project_health.digest.formatters import format_noisy_stats
 
         results = [
             self._make_noisy(0.95, 45.0),
@@ -828,31 +828,42 @@ class TestDigestJsonExport:
 
     def test_json_export_structure(self, tmp_path):
         """Test the JSON export produces expected keys."""
-        from scripts.digest.__main__ import _write_output
-        from scripts.digest.models import ExperimentResult, NoiselessResult, NoisyResult
+        from project_health.digest.__main__ import _write_output
+        from project_health.digest.models import ExperimentResult, NoiselessResult, NoisyResult
 
         nl = NoiselessResult(
-            source_file="a.json", folder="f",
-            n_qubits=10, topology="chain_1d", delta_e_over_gap=0.02,
+            source_file="a.json",
+            folder="f",
+            n_qubits=10,
+            topology="chain_1d",
+            delta_e_over_gap=0.02,
             variant_id="v1",
         )
         ny = NoisyResult(
-            source_file="b.json", folder="f",
-            n_qubits=10, topology="chain_1d", mean_r2=0.95,
+            source_file="b.json",
+            folder="f",
+            n_qubits=10,
+            topology="chain_1d",
+            mean_r2=0.95,
             variant_id="v2",
         )
         exp = ExperimentResult(
-            source_file="c.json", folder="exp_g1",
-            experiment_id="G1", verdict="confirmed",
+            source_file="c.json",
+            folder="exp_g1",
+            experiment_id="G1",
+            verdict="confirmed",
         )
 
         # Build JSON manually (same logic as main)
-        output = json.dumps({
-            "noiseless": [{"delta_e_over_gap": nl.delta_e_over_gap, "n_qubits": nl.n_qubits}],
-            "noisy": [{"mean_r2": ny.mean_r2}],
-            "experiments": [{"experiment_id": exp.experiment_id, "verdict": exp.verdict}],
-            "summary": {"n_noiseless": 1, "n_noisy": 1, "n_experiments": 1},
-        }, indent=2)
+        output = json.dumps(
+            {
+                "noiseless": [{"delta_e_over_gap": nl.delta_e_over_gap, "n_qubits": nl.n_qubits}],
+                "noisy": [{"mean_r2": ny.mean_r2}],
+                "experiments": [{"experiment_id": exp.experiment_id, "verdict": exp.verdict}],
+                "summary": {"n_noiseless": 1, "n_noisy": 1, "n_experiments": 1},
+            },
+            indent=2,
+        )
 
         outpath = tmp_path / "test.json"
         _write_output(output, str(outpath))
@@ -866,7 +877,7 @@ class TestDigestJsonExport:
         assert data["summary"]["n_noiseless"] == 1
 
     def test_write_output_to_file(self, tmp_path):
-        from scripts.digest.__main__ import _write_output
+        from project_health.digest.__main__ import _write_output
 
         outpath = tmp_path / "output.txt"
         _write_output("test content here", str(outpath))
@@ -874,7 +885,7 @@ class TestDigestJsonExport:
         assert outpath.read_text() == "test content here"
 
     def test_write_output_none_prints(self, capsys):
-        from scripts.digest.__main__ import _write_output
+        from project_health.digest.__main__ import _write_output
 
         _write_output("hello world", None)
         captured = capsys.readouterr()

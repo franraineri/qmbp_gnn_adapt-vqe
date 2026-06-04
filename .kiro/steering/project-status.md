@@ -1,6 +1,6 @@
 # Project Status — GNN-HVA Framework
 
-**Last updated**: 2026-06-03
+**Last updated**: 2026-06-04
 
 ## Experiment Discipline (ALWAYS ENFORCE)
 
@@ -16,7 +16,9 @@
 - V7 (12/22 experiments), V8 (18/19), V9 Heisenberg (30 runs), S-series (6 experiments) — all done.
 - Tier 1 extensions (T1a/T1b/T1c) — executed 2026-06-03, 3 confirmed.
 - Hardware rehearsal — critical finding: CES-ZNE fails on heavy_hex, need gate-folding ZNE.
-- Total useful-outcome rate: 90% (19/21 formal experiments → 24/29 with Tier 1).
+- ZNE cross-topology validation (ZNE_CROSS_TOPO) — PEA wins 18/18, t=46.32, p<10⁻¹⁹. All 6 ZNE experiments confirmed.
+- Confirmed: 20 experiments. Rejected: 8 (valid negative results). Failed: 2.
+- Useful-outcome rate: 93% (28/30 formal experiments produce actionable knowledge).
 - 210+ pipeline runs executed across 5 topologies (chain_1d, ladder, triangular, kagome, heavy-hex).
 
 ## Active Priority
@@ -39,7 +41,18 @@
 - **TFIM frustrated (J1-J2) WORKS in simulation** — fid≥0.99 at J₂=0.5, but 27 CZ@N=6 (no ZNE for N≥6).
 - **ZNE threshold**: ~18 CX gates. p=2 N=10 (36 CX) fails. Use p=1 for N≥10 hardware.
 - **CES-ZNE fails on heavy_hex**: All good layouts have CES≈0.15 (no spread). Use IBM gate-folding ZNE instead. Ref: `documentation/analysis/11_hardware_rehearsal_findings.md`.
+- **Gate-folding ZNE validated**: +12% mean gain, R²>0.99, wins 9/12 h-points vs CES-ZNE (t=3.28, p<0.01). Robust across chain_1d/heavy_hex/ladder. Ref: `documentation/binnacles/binnacle-gate-folding-zne.md`.
+- **PEA-ZNE validated**: +95% mean gain (8.4× GF-ZNE), R²=0.998, std=2.9% (3 seeds × 4 h-points). Requires qiskit-aer. Recommended primary strategy for hardware. Ref: `documentation/binnacles/binnacle-gate-folding-zne.md`.
+- **PEA available as fallback**: If gate-folding ZNE gives R²<0.90 or ΔE/gap>5%, switch `zne_amplifier="pea"`. Learns actual noise model via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% extra QPU overhead. Use `--zne-amplifier pea` in CLI. Ref: IBM Nature 618 (2023).
 - **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
+
+## Unsupervised Phase Detection (Task 2+3 findings)
+
+- **PCA of θ_opt(h) detects h_c for chain_1d**: Peak at h=1.25 (Δh=0.25), PC1 explains 99.96% variance.
+- **Detection requires h-grid covering h_c**: Ladder data (h∈[2,4]) cannot detect h_c — data limitation, not method failure.
+- **|∂θ/∂h| corroborates D1**: Agreement Δh=0.18 with D1 valid-regime peak (h=1.07). Ref: Fontana et al. (2024, arXiv:2402.18953).
+- **K-means NOT recommended**: Boundary at h≈1.58 (too far from h_c). Use PCA or derivative instead.
+- **Zero-cost analysis**: All results from existing VQE data — no additional QPU overhead.
 
 ## Optimal Config (quick reference)
 
@@ -59,6 +72,10 @@
 - N=6 p=2: 3 layouts, R²>0.99, gain=+48.5%.
 - N=10 p=1: 3 layouts, R²>0.99, gain=+49% (9 runs cross-topology). Heavy-hex: +62.7%.
 - **p=1 + ZNE is the recommended strategy for hardware deployment at N≥10.**
+- **Amplifier strategy**: PEA (primary) → gate_folding (fallback). CLI: `--zne-amplifier pea`.
+- **PEA-ZNE definitive**: +94.4% gain, R²=0.998, 18/18 wins vs GF (t=46.32, p<10⁻¹⁹). Cross-validated on ladder/heavy_hex/chain_1d. Ref: `ZNE_CROSS_TOPO`.
+- **GF-ZNE fallback**: +20.6% gain, R²=0.997, always positive. Use if PEA unavailable or `qiskit-aer` not installed.
+- **PEA overhead**: ~50% extra QPU time (noise learning phase). Justified by 4.6× better gain vs GF.
 
 ## Scaling Law
 
@@ -72,11 +89,11 @@
 - `src/qmbp_simulation/models/` — data models, Hamiltonians, lattices, constants
 - `src/qmbp_simulation/solvers/` — exact diag + DMRG
 - `src/qmbp_simulation/circuits/` — HVA construction (p≤2 enforced)
-- `src/qmbp_simulation/execution/` — backend ABC + noiseless/noisy/hardware
+- `src/qmbp_simulation/execution/` — backend ABC + noiseless/noisy/hardware + PEA simulation
 - `src/qmbp_simulation/optimizers/` — multi-start VQE + SPSA
 - `src/qmbp_simulation/pipeline/` — dataset save/load, orchestration
 - `src/qmbp_simulation/utils/` — seed, JSON, timing
-- `scripts/smoke_test.py` — package smoke test (N=4, p=1, <30s)
+- `tests/smoke_test.py` — package smoke test (N=4, p=1, <30s)
 - `Makefile` — unified entry point
 
 ### Active Development
@@ -86,11 +103,10 @@
 - `src/qmbp_simulation/pipeline/runner.py` — PipelineRunner
 - `experiments/` — categorized experiment scripts
 - `scripts/experiment_runners/` — variant runners, pipeline CLIs
-- `scripts/digest/` — result digest tool
-- `scripts/run_t1a_mpnn_2d_predictor.py` — Tier 1A: 2D MPNN predictor (h × J₂)
-- `scripts/run_t1b_longitudinal_zne.py` — Tier 1B: ZNE for TFIM+longitudinal
-- `scripts/run_t1c_d1_frustrated.py` — Tier 1C: D1 weight-space for frustrated TFIM
+- `scripts/experiment_runners/t1_experiments/` — Tier 1 experiments (T1a, T1a_dense)
+- `project_health/` — health reports, figures, digest, analysis tools
 - `scripts/run_hardware_rehearsal.py` — Hardware deployment rehearsal (5 sections)
+- `.github/workflows/ci.yml` — CI gate (lint + mypy strict + test + smoke)
 - `analysis/` — coverage scanner, diagnostics, verification
 
 ### Do NOT Overwrite
@@ -119,6 +135,25 @@
 | Tier 1 session results (2026-06-03) | `documentation/analysis/12_tier1_session_results.md` |
 | Hardware rehearsal findings | `documentation/analysis/11_hardware_rehearsal_findings.md` |
 | Hardware deployment spec | `HARDWARE_DEPLOYMENT_SPEC.md` |
+| Gate-folding ZNE validation | `documentation/binnacles/binnacle-gate-folding-zne.md` |
+| ZNE cross-topology (PEA definitive) | `results/experiments/exp_zne_cross_topo/run_20260604_155548.json` |
+| Hardware ZNE improvements plan | `documentation/analysis/13_hardware_zne_improvements.md` |
+| Thesis figures (21 PDF, vector) | `documentation/thesis_figures/` |
+| Figure generation | `make figures` (PNG) or `make figures-thesis` (PDF 300dpi) |
+| θ_opt PCA unsupervised detection (Tasks 2+3) | `documentation/binnacles/binnacle-theta-pca-unsupervised-detection.md` |
+| D1 weight-space phase detection | `documentation/binnacles/binnacle-d1-weight-space-phase-detection.md` |
+| Analysis sanity check | `python -m project_health.analysis.sanity_check` |
+
+## CI & Quality Gates
+
+- **CI workflow**: `.github/workflows/ci.yml` — lint + mypy strict modules + fast tests + smoke test.
+- **mypy strict modules**: `framework/criteria.py`, `framework/result_io.py` (0 errors).
+- **Make targets**: `make typecheck`, `make coverage`, `make health`, `make figures`, `make figures-thesis`.
+- **Preflight**: Mandatory before any variant runner execution (`make preflight SCRIPT=<path>`).
+
+## Pending Execution (Optional)
+
+- `T1a_dense` (J₂-Grid Density Study): Script ready at `scripts/experiment_runners/t1_experiments/run_t1a_dense_j2.py`. ~30 min execution. Run only if thesis needs denser-grid evidence.
 
 ## Early-Stopping Rules (from 174 runs diagnosed)
 

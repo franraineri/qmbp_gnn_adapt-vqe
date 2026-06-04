@@ -38,7 +38,7 @@ DEFAULT_N_QUBITS = 10
 SEEDS = [42, 43, 44]
 
 # Pipeline script path (relative to project root)
-PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers_CHECK/run_pipeline.py"
+PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_pipeline.py"
 
 
 def build_noiseless_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineVariant]:

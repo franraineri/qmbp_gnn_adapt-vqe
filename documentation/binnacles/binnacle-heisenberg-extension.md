@@ -106,7 +106,7 @@ Systematic exploration of HVA expressibility limits for the Heisenberg XXZ model
 ### Method
 
 - Script: `scripts/experiment_runners/run_thesis_variants-heisenberg.py`
-- Pipeline: `scripts/experiment_runners/experiment_run_helpers_CHECK/run_heisenberg_pipeline.py`
+- Pipeline: `scripts/experiment_runners/experiment_run_helpers/run_heisenberg_pipeline.py`
 - 30 variants total: 16 noiseless + 0 noisy + 14 extended
 - All at N=6, p=2 (except EXT-5: p=1)
 - VQE: L-BFGS-B, 10 restarts (model default), σ=0.5, maxiter=1500

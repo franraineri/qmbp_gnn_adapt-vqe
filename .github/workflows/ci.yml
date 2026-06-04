@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,test]"
+
+      - name: Lint (ruff)
+        run: make lint
+
+      - name: Type check (mypy) — strict modules
+        run: |
+          mypy src/qmbp_simulation/execution/ \
+               src/qmbp_simulation/framework/criteria.py \
+               src/qmbp_simulation/framework/result_io.py \
+               --ignore-missing-imports
+
+      - name: Fast tests
+        run: make test
+
+      - name: Smoke test (end-to-end pipeline)
+        run: make smoke-test

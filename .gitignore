@@ -51,3 +51,5 @@ checkpoint*
 
 digest_poc/*
 *_TEMP.py
+*.pdf
+*/figures/*

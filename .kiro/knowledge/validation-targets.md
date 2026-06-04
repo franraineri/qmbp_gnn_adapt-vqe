@@ -48,7 +48,7 @@
 
 | Script | Purpose | Time |
 |--------|---------|------|
-| `scripts/smoke_test.py` | V6.0 legacy end-to-end (6 h-points) | ~7s |
+| `tests/smoke_test.py` | V6.0 legacy end-to-end (6 h-points) | ~7s |
 | `scripts/smoke_test_v61.py` | V6.1 full pipeline (12 h-points, deployer, gradient analysis) | ~16s |
 | `scripts/benchmark_v6.py` | Configurable multi-run benchmark | ~50s (N=6) |
 | `scripts/run_notebooks.py` | Notebook executor with auto-registry + binnacle | ~15min |
