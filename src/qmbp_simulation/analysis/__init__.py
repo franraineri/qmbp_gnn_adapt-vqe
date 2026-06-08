@@ -38,6 +38,16 @@ from qmbp_simulation.analysis.metrics import (
     compute_snr,
     compute_theta_smoothness,
 )
+from qmbp_simulation.analysis.theta_validator import (
+    ThetaValidationReport,
+    ThetaValidator,
+)
+from qmbp_simulation.analysis.vqe_validator import (
+    VQEValidationReport,
+    VQEValidator,
+    ValidationIssue,
+    Severity,
+)
 
 __all__ = [
     "BaselineComparison",
@@ -49,6 +59,12 @@ __all__ = [
     "EntanglementResult",
     "GradientAnalysisResult",
     "RegimeDiscoveryResult",
+    "Severity",
+    "ThetaValidationReport",
+    "ThetaValidator",
+    "VQEValidationReport",
+    "VQEValidator",
+    "ValidationIssue",
     "WeightGradientAnalyzer",
     "classify_outcome",
     "classify_result",

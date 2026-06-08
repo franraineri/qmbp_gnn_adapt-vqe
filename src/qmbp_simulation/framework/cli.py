@@ -408,6 +408,79 @@ def resolve_output_dir(path: str | Path) -> Path:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Validation arguments
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def add_validation_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add VQE and θ validation arguments.
+
+    Adds: --validate-vqe, --validate-theta, --theta-validation-level,
+          --strict-validation
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Validation")
+    group.add_argument(
+        "--validate-vqe",
+        action="store_true",
+        default=True,
+        help=(
+            "Run VQE result validation (variational principle, energy bounds, "
+            "convergence checks). Default: on."
+        ),
+    )
+    group.add_argument(
+        "--no-validate-vqe",
+        action="store_false",
+        dest="validate_vqe",
+        help="Disable VQE result validation.",
+    )
+    group.add_argument(
+        "--validate-theta",
+        action="store_true",
+        default=True,
+        help=("Run θ_pred validation after MPNN inference (levels 1-4). Default: on."),
+    )
+    group.add_argument(
+        "--no-validate-theta",
+        action="store_false",
+        dest="validate_theta",
+        help="Disable θ_pred validation.",
+    )
+    group.add_argument(
+        "--theta-validation-level",
+        type=int,
+        default=4,
+        choices=range(1, 8),
+        metavar="[1-7]",
+        help=(
+            "Maximum θ validation level (1=bounds, 2=NaN, 3=interpolation, "
+            "4=fidelity, 5=gradient, 6=MC-dropout, 7=sensitivity). "
+            "Levels 5-7 have significant computational cost. Default: 4."
+        ),
+    )
+    group.add_argument(
+        "--strict-validation",
+        action="store_true",
+        default=False,
+        help=(
+            "Abort execution on CRITICAL validation failures instead of "
+            "logging and continuing. Default: off."
+        ),
+    )
+    return group
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Noisy Simulation / ZNE arguments
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -431,13 +504,14 @@ def add_noisy_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
     group = parser.add_argument_group("ZNE / Noisy Simulation")
     group.add_argument(
         "--zne-amplifier",
-        choices=["gate_folding", "pea"],
+        choices=["gate_folding", "pea", "adaptive"],
         default="gate_folding",
         help=(
             "ZNE noise amplification strategy (default: gate_folding). "
             "'gate_folding': digital U→U·U†·U (simple, validated). "
             "'pea': Probabilistic Error Amplification (learns noise model, "
-            "more accurate but ~50%% overhead)."
+            "more accurate but ~50%% overhead). "
+            "'adaptive': try gate_folding first, fall back to PEA if R²<threshold."
         ),
     )
     group.add_argument(
@@ -455,6 +529,15 @@ def add_noisy_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
         choices=["linear", "exponential"],
         default="linear",
         help="Extrapolation method for ZNE (default: linear)",
+    )
+    group.add_argument(
+        "--zne-r2-threshold",
+        type=float,
+        default=0.90,
+        help=(
+            "R² threshold for adaptive ZNE fallback (default: 0.90). "
+            "Only used when --zne-amplifier=adaptive."
+        ),
     )
     group.add_argument(
         "--zne-shots",

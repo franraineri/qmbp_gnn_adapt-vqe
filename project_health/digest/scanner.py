@@ -24,6 +24,7 @@ from project_health.digest.models import (
     ExperimentResult,
     NoiselessResult,
     NoisyResult,
+    ScalingResult,
     compute_verdict,
 )
 
@@ -146,6 +147,94 @@ class ResultScanner:
 
         return noiseless, noisy, experiments
 
+    # ── Scaling results ─────────────────────────────────────────────────
+
+    def scan_scaling(self) -> list[ScalingResult]:
+        """Scan for MPS scaling validation results.
+
+        Looks for ``scaling_N*_*.json`` files in ``results/scaling/``
+        (relative to self.root's parent, since root is usually results/).
+        Falls back to ``Path("results/scaling")`` if the primary path
+        doesn't exist.
+
+        Returns
+        -------
+        list[ScalingResult]
+            Parsed scaling results, one per JSON file.
+        """
+        # Primary: self.root / "scaling" (root is usually "results/")
+        scaling_dir = self.root / "scaling"
+        if not scaling_dir.exists():
+            # Fallback: relative to CWD
+            scaling_dir = Path("results/scaling")
+
+        if not scaling_dir.exists():
+            logger.debug("No scaling results directory found")
+            return []
+
+        results: list[ScalingResult] = []
+        for path in sorted(scaling_dir.glob("scaling_N*_*.json")):
+            parsed = self._parse_scaling_file(path)
+            if parsed:
+                results.append(parsed)
+
+        logger.info("Scanned %d scaling result files from %s", len(results), scaling_dir)
+        return results
+
+    def _parse_scaling_file(self, path: Path) -> ScalingResult | None:
+        """Parse a scaling_N*_*.json into a ScalingResult."""
+        data = _load_json(path)
+        if not data:
+            return None
+
+        if data.get("experiment") != "mps_scaling_validation":
+            return None
+
+        meta = data.get("metadata", {})
+        timing = data.get("timing", {})
+        summary = data.get("summary", {})
+        vqe_results = data.get("vqe_results", [])
+
+        # Collect per-h metrics from all seed runs
+        per_h_de_gap: list[float] = []
+        per_h_passed: list[bool] = []
+        for seed_run in vqe_results:
+            for r in seed_run.get("results", []):
+                per_h_de_gap.append(r.get("de_gap", 0.0))
+                per_h_passed.append(r.get("passed", False))
+
+        n_pass = summary.get("n_pass", 0)
+        n_total = summary.get("n_total", 0)
+        all_passed = summary.get("all_passed", False)
+        mean_de = float(sum(per_h_de_gap) / max(len(per_h_de_gap), 1))
+        max_de = float(max(per_h_de_gap)) if per_h_de_gap else 0.0
+
+        seeds = meta.get("seeds", [42])
+        seed = seeds[0] if seeds else 42
+
+        return ScalingResult(
+            source_file=str(path),
+            folder=path.parent.name,
+            n_qubits=meta.get("n", 0),
+            p_layers=meta.get("p_layers", 1),
+            topology=meta.get("topology", "chain_1d"),
+            strategy=meta.get("strategy", "aer_mps"),
+            chi_max=meta.get("chi_max", 64),
+            precision=meta.get("precision", 0.005),
+            seed=seed,
+            h_values=meta.get("h_values", []),
+            n_pass=n_pass,
+            n_total=n_total,
+            all_passed=all_passed,
+            mean_de_gap=mean_de,
+            max_de_gap=max_de,
+            phase1_time_s=timing.get("phase1_dmrg_s", 0.0),
+            phase2_time_s=timing.get("phase2_vqe_s", 0.0),
+            total_time_s=timing.get("total_s", 0.0),
+            per_h_de_gap=per_h_de_gap,
+            per_h_passed=per_h_passed,
+        )
+
     # ── Recursive folder scanning ────────────────────────────────────────
 
     def _scan_folder_recursive(
@@ -212,6 +301,10 @@ class ResultScanner:
 
         Fix #1: Reports worst-case ΔE/gap across ALL phase4_results entries.
         Previously only read phase4[0], which hid failures at other h_test values.
+
+        Enhanced (2026-06-07): Extracts Phase 1/2/3/4 diagnostic fields that were
+        previously ignored — gap_min, per-h VQE stats, theta_x_mse, energy
+        decomposition, CES correlation, classification confidence, timestamps.
         """
         data = _load_json(path)
         if not data:
@@ -249,8 +342,11 @@ class ResultScanner:
             mag_x_error = p4.get("mag_x_error")
             corr_zz_error = p4.get("corr_zz_error")
 
+        # Phase diagnostics extraction
+        phase1_diag = diagnostics.get("phase1", {})
         phase2_diag = diagnostics.get("phase2", {})
         phase3_diag = diagnostics.get("phase3", {})
+        phase4_diag = diagnostics.get("phase4", {})
 
         # Extract p_layers with warning (Fix #2)
         p_layers = _extract_p_layers(config, system, path)
@@ -262,6 +358,20 @@ class ResultScanner:
             g_val = system.get("g_longitudinal") or config.get("g_longitudinal", 0.0)
             if g_val:
                 model_params["g"] = g_val
+
+        # Phase 2: compute mean iterations and max restart spread
+        per_h_iters = phase2_diag.get("per_h_iterations", [])
+        mean_iterations = sum(per_h_iters) / len(per_h_iters) if per_h_iters else None
+        per_h_spread = phase2_diag.get("per_h_restart_spread", [])
+        max_restart_spread = max(per_h_spread) if per_h_spread else None
+
+        # Phase 4 diagnostics: energy decomposition, CES correlation, confidence
+        energy_decomp = phase4_diag.get("energy_decomposition") or {}
+        error_from_circuit = energy_decomp.get("error_from_circuit")
+        error_from_mpnn = energy_decomp.get("error_from_mpnn")
+
+        # Extract run timestamp from filename (pipeline_run_YYYYMMDD_HHMMSS.json)
+        run_timestamp = _extract_timestamp_from_filename(path.name)
 
         return NoiselessResult(
             source_file=str(path),
@@ -278,17 +388,35 @@ class ResultScanner:
             hidden_dim=mpnn_cfg.get("hidden_dim", 128),
             n_epochs=mpnn_cfg.get("n_epochs", 6000),
             patience=mpnn_cfg.get("patience", 500),
+            # Phase 1
+            gap_min=phase1_diag.get("gap_min"),
+            phase1_elapsed_s=phase1_diag.get("elapsed_s", 0.0),
+            # Phase 4 primary
             delta_e_over_gap=delta_e,
             phase_label=phase_label,
             phase_correct=phase_correct,
             mag_x_error=mag_x_error,
             corr_zz_error=corr_zz_error,
+            # Phase 2
             convergence_rate=phase2_diag.get("convergence_rate"),
             theta_smoothness=phase2_diag.get("theta_smoothness"),
             worst_convergence_h=phase2_diag.get("worst_convergence_h"),
+            mean_iterations=mean_iterations,
+            max_restart_spread=max_restart_spread,
+            phase2_elapsed_s=phase2_diag.get("total_elapsed_s", 0.0),
+            # Phase 3
             generalization_gap=phase3_diag.get("generalization_gap"),
             theta_zz_mse=phase3_diag.get("theta_zz_mse"),
+            theta_x_mse=phase3_diag.get("theta_x_mse"),
+            phase3_elapsed_s=phase3_diag.get("elapsed_s", 0.0),
+            # Phase 4 diagnostics
+            error_from_circuit=error_from_circuit,
+            error_from_mpnn=error_from_mpnn,
+            ces_energy_r=phase4_diag.get("ces_energy_pearson_r"),
+            classification_confidence=phase4_diag.get("classification_confidence"),
+            # Timing
             elapsed_s=data.get("elapsed_s", 0),
+            run_timestamp=run_timestamp,
             variant_id=folder,
         )
 
@@ -306,6 +434,17 @@ class ResultScanner:
         # Extract p_layers with warning (Fix #2)
         p_layers = _extract_p_layers(config, system, path)
 
+        # Detect ZNE strategy from config or filename
+        zne_strategy = config.get("zne_strategy", "") or config.get("amplifier", "")
+        if not zne_strategy:
+            fname_lower = path.name.lower()
+            if "pea" in fname_lower:
+                zne_strategy = "pea"
+            elif "gf" in fname_lower or "gate_folding" in fname_lower:
+                zne_strategy = "gate_folding"
+            elif "ces" in fname_lower:
+                zne_strategy = "ces"
+
         return NoisyResult(
             source_file=str(path),
             folder=folder,
@@ -316,6 +455,7 @@ class ResultScanner:
             n_layouts=config.get("n_layouts", 3),
             shots=config.get("shots", 16384),
             h_values=config.get("h_values", []),
+            zne_strategy=zne_strategy,
             mean_r2=summary.get("mean_r2", 0),
             mean_gain_pct=summary.get("mean_gain_pct", 0),
             n_mitigated_wins=summary.get("n_mitigated_wins", 0),
@@ -487,7 +627,7 @@ def _synthesize_summary_from_analysis(
 
     # Pattern 3: results dict has per-seed data (E4b with seeds as keys)
     results = data.get("results", {})
-    if results and all(k.isdigit() for k in results.keys()):
+    if results and all(k.isdigit() for k in results):
         # Per-seed results — count successes
         n_total = len(results)
         if n_total > 0:
@@ -540,3 +680,24 @@ def _apply_topology_fallback(result: NoiselessResult | NoisyResult, context: str
     """Set topology from parent context if the result file didn't specify one."""
     if not result.topology and context:
         result.topology = context
+
+
+def _extract_timestamp_from_filename(filename: str) -> str:
+    """Extract ISO timestamp from pipeline_run_YYYYMMDD_HHMMSS.json filename.
+
+    Returns empty string if the pattern doesn't match (legacy files).
+    """
+    import re
+
+    match = re.search(r"(\d{8})_(\d{6})", filename)
+    if not match:
+        return ""
+    date_str, time_str = match.group(1), match.group(2)
+    try:
+        # Convert to ISO format: YYYY-MM-DDTHH:MM:SS
+        return (
+            f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+            f"T{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+        )
+    except (IndexError, ValueError):
+        return ""

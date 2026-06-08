@@ -5,6 +5,7 @@ from qmbp_simulation.models.constants import (
     EXACT_DIAG_QUBIT_LIMIT,
     MAX_P_LAYERS,
     SUPPORTED_TOPOLOGIES,
+    SUPPORTED_VQE_METHODS,
 )
 from qmbp_simulation.models.data_models import (
     DeployResult,
@@ -26,6 +27,7 @@ __all__ = [
     "DMRG_QUBIT_LIMIT",
     "EXACT_DIAG_QUBIT_LIMIT",
     "MAX_P_LAYERS",
+    "SUPPORTED_VQE_METHODS",
     "ModelSpec",
     "SUPPORTED_TOPOLOGIES",
     "DeployResult",

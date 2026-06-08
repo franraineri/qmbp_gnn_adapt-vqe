@@ -91,6 +91,15 @@ from qmbp_simulation.execution import (
     # PEA (Probabilistic Error Amplification)
     run_pea_zne, run_pea_zne_deployment,
     PEAResult, PEADeploymentResult,
+    # Adaptive ZNE (GF→PEA fallback)
+    run_adaptive_zne, AdaptiveZNEResult,
+    # Block-level ZNE (layer-wise folding, arXiv:2507.23314)
+    fold_single_layer, run_block_zne, BlockZNEResult,
+    # Dual-branch affine correction (arXiv:2604.16815)
+    affine_correct_energy, AffineCorrectedResult,
+    # TLS-aware calibration monitoring (Nature Comms 2025)
+    take_calibration_snapshot, check_calibration_drift,
+    CalibrationSnapshot, DriftReport,
 )
 ```
 
@@ -99,6 +108,12 @@ from qmbp_simulation.execution import (
 from qmbp_simulation.predictors import (
     MPNNPredictor, build_graph_dataset, train_mpnn,
     save_mpnn_checkpoint, load_mpnn_checkpoint,
+    # GNN-QEM error correction (arXiv:2604.16815)
+    GNNQEMCorrector, GNNQEMConfig, QEMSample,
+    build_qem_dataset, train_gnn_qem, correct_energy,
+    generate_qem_training_data,
+    save_qem_checkpoint, load_qem_checkpoint,
+    save_qem_samples, load_qem_samples,
 )
 ```
 
@@ -112,6 +127,7 @@ from qmbp_simulation.framework import (
     create_base_parser, add_system_args, add_sweep_args,
     add_vqe_args, add_mpnn_args, add_output_args, add_noisy_args,
     add_result_filter_args, add_format_args, add_variant_runner_args,
+    add_validation_args,
     validate_descending_sweep, validate_system_size,
     configure_logging, build_mpnn_config_dict, resolve_output_dir,
     # Result I/O
@@ -138,6 +154,10 @@ from qmbp_simulation.analysis import (
     compute_snr, compute_theta_smoothness,
     compute_classification_confidence, compute_energy_decomposition,
     compute_hessian, landscape_fluctuation,
+    # θ_pred validation (MPNN output quality assurance)
+    ThetaValidator, ThetaValidationReport,
+    # VQE output validation (variational principle, energy bounds, sweep quality)
+    VQEValidator, VQEValidationReport, ValidationIssue, Severity,
 )
 ```
 
@@ -205,6 +225,23 @@ from qmbp_simulation.framework.criteria import (
 - `project_health/digest/models.py` re-exports from criteria.py for backward compat.
 - To add a new experiment: add its entry to `EXPERIMENT_CRITERIA` in `criteria.py`.
 
+## Valid Regime Boundaries (single source of truth)
+
+**All P1/P2_VALID_REGIME dicts MUST live in `framework/preflight.py`.**
+
+```python
+from qmbp_simulation.framework.preflight import (
+    P1_VALID_REGIME,          # dict[tuple[str, int], float]
+    P2_VALID_REGIME,          # dict[tuple[str, int], float]
+    get_valid_regime,         # (p) → dict
+)
+```
+
+- Never duplicate regime boundary dicts in analysis modules.
+- `project_health/coverage.py` and `project_health/analysis/diagnose.py` import from preflight.
+- Tests enforce identity (`is` not `==`) to prevent accidental duplication.
+- To add a new topology/size: add its entry to preflight.py ONLY.
+
 ## Module Dependency Order
 
 Modules follow a strict DAG (no circular imports possible):
@@ -238,6 +275,10 @@ utils → models → solvers, circuits → execution → optimizers
 - Use `logging.warning()` for recoverable issues (DMRG fallback, gap computation failure).
 - Use `assert` only for invariant checks (QRC no-training invariant).
 - `HardwareBackend` raises `NotImplementedError` until IBM Runtime is configured.
+- `NoisyBackend` = **raw noise only** (Gaussian shot noise or AerSimulator). It does NOT
+  apply `MitigationOptions`; passing a `MitigationOptions` with any flag enabled emits
+  `DeprecationWarning`. Use `run_gate_folding_zne()`, `run_pea_zne()`, or
+  `run_adaptive_zne()` from `noisy_utils` for mitigated estimation.
 
 ## Adding a New Hamiltonian (Extension Pattern)
 

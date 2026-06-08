@@ -329,7 +329,7 @@ class ValidationRunner(ABC):
 
         # Collect all h-values from config
         h_keys = ["h_train", "h_test", "h_values", "h_values_sweep"]
-        all_h = []
+        all_h: list[float] = []
         for key in h_keys:
             val = config.get(key) or system.get(key)
             if isinstance(val, (list, tuple)):
@@ -803,6 +803,45 @@ class ValidationRunner(ABC):
             action="store_true",
             help="List sections without executing",
         )
+        # Validation flags
+        parser.add_argument(
+            "--validate-vqe",
+            action="store_true",
+            default=True,
+            help="Run VQE result validation (default: on)",
+        )
+        parser.add_argument(
+            "--no-validate-vqe",
+            action="store_false",
+            dest="validate_vqe",
+            help="Disable VQE result validation",
+        )
+        parser.add_argument(
+            "--validate-theta",
+            action="store_true",
+            default=True,
+            help="Run θ_pred validation after MPNN inference (default: on)",
+        )
+        parser.add_argument(
+            "--no-validate-theta",
+            action="store_false",
+            dest="validate_theta",
+            help="Disable θ_pred validation",
+        )
+        parser.add_argument(
+            "--theta-validation-level",
+            type=int,
+            default=4,
+            choices=range(1, 8),
+            metavar="[1-7]",
+            help="Max θ validation level (1-4: cheap, 5-7: expensive). Default: 4",
+        )
+        parser.add_argument(
+            "--strict-validation",
+            action="store_true",
+            default=False,
+            help="Abort on CRITICAL validation failures",
+        )
         # Allow subclasses to add custom args
         cls._add_custom_args(parser)
         return parser.parse_args()
@@ -1012,6 +1051,70 @@ class ValidationRunner(ABC):
         return float(state_fidelity(sv_vqe, sv_exact))
 
     @staticmethod
+    def validate_theta_prediction(
+        theta_pred: np.ndarray,
+        theta_training: np.ndarray,
+        h_values_training: np.ndarray | None = None,
+        h_test: float | None = None,
+        circuit=None,
+        exact_state: np.ndarray | None = None,
+        energy_fn=None,
+        model=None,
+        graph_data=None,
+        level: int = 4,
+    ) -> dict:
+        """Validate MPNN-predicted θ using ThetaValidator.
+
+        Convenience method for experiment scripts. Returns the report dict
+        suitable for embedding in experiment results.
+
+        Parameters
+        ----------
+        theta_pred : np.ndarray
+            Predicted variational parameters.
+        theta_training : np.ndarray [n_points, n_params]
+            Training θ_opt array for building the validator.
+        h_values_training : np.ndarray | None
+            Training h-values for interpolation check.
+        h_test : float | None
+            Test h-value.
+        circuit : QuantumCircuit | None
+            For L4 fidelity (requires exact_state too).
+        exact_state : np.ndarray | None
+            For L4 fidelity.
+        energy_fn : callable | None
+            E(θ) → float for L5/L7.
+        model : MPNNPredictor | None
+            For L6 MC Dropout.
+        graph_data : Data | None
+            For L6 MC Dropout.
+        level : int
+            Maximum validation level (1-7, default 4).
+
+        Returns
+        -------
+        dict
+            JSON-serializable validation report.
+        """
+        from qmbp_simulation.analysis.theta_validator import ThetaValidator
+
+        validator = ThetaValidator.from_training_data(
+            theta_opt=theta_training,
+            h_values=h_values_training,
+        )
+        report = validator.validate(
+            theta_pred,
+            level=level,
+            h_test=h_test,
+            circuit=circuit,
+            exact_state=exact_state,
+            energy_fn=energy_fn,
+            model=model,
+            graph_data=graph_data,
+        )
+        return report.to_dict()
+
+    @staticmethod
     def truncate_statevector_mps(
         psi: np.ndarray,
         n_qubits: int,
@@ -1074,13 +1177,68 @@ class ValidationRunner(ABC):
                 psi_trunc.shape[0],
                 psi_trunc.shape[1] * t.shape[1],
                 t.shape[2],
-            )
+            )  # type: ignore[assignment]
 
-        psi_trunc = psi_trunc.reshape(-1)
+        psi_trunc = psi_trunc.reshape(-1)  # type: ignore[assignment]
         norm = np.linalg.norm(psi_trunc)
         if norm > 1e-15:
             psi_trunc = psi_trunc / norm
         return psi_trunc
+
+    @staticmethod
+    def validate_vqe_results(
+        vqe_results: list,
+        exact_data: list | None = None,
+        *,
+        lattice=None,
+        model_name: str = "tfim",
+        strict: bool = False,
+    ) -> dict:
+        """Validate VQE results using VQEValidator.
+
+        Convenience method for experiment scripts. Runs comprehensive
+        validation on a VQE sweep (variational principle, energy bounds,
+        convergence, etc.) and returns the report dict.
+
+        Parameters
+        ----------
+        vqe_results : list[VQEResult]
+            VQE optimization results from a descending sweep.
+        exact_data : list[GroundTruthResult] | None
+            Exact references for variational principle and energy checks.
+        lattice : LatticeConfig | None
+            Lattice config for energy bound computation. If None,
+            bounds are inferred from the first exact result.
+        model_name : str
+            Hamiltonian model name (default: "tfim").
+        strict : bool
+            If True, raises ValueError on CRITICAL issues.
+
+        Returns
+        -------
+        dict
+            JSON-serializable validation report with keys:
+            "passed", "n_critical", "n_warnings", "n_info",
+            "sweep_metrics", "issues".
+        """
+        from qmbp_simulation.analysis.vqe_validator import VQEValidator
+
+        if lattice is not None:
+            validator = VQEValidator.from_lattice(lattice, model_name=model_name, strict=strict)
+        else:
+            # Infer from first VQE result dimensions
+            n_qubits = len(vqe_results[0].theta_opt) if vqe_results else 4
+            # Rough edge count estimate from theta dimension
+            n_edges = max(n_qubits - 1, 1)
+            validator = VQEValidator(
+                n_qubits=n_qubits,
+                n_edges=n_edges,
+                model_name=model_name,
+                strict=strict,
+            )
+
+        report = validator.validate_sweep(vqe_results, exact_data)
+        return report.to_dict()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1477,10 +1635,11 @@ class HardwareValidationRunner(ValidationRunner):
         )
         parser.add_argument(
             "--zne-amplifier",
-            choices=["gate_folding", "pea"],
-            default="gate_folding",
+            choices=["gate_folding", "pea", "adaptive"],
+            default="pea",
             help="ZNE noise amplification strategy (default: %(default)s). "
-            "'pea' uses Probabilistic Error Amplification (learns noise model).",
+            "'pea' uses Probabilistic Error Amplification (learns noise model). "
+            "'adaptive' tries gate_folding first, falls back to PEA if R²<threshold.",
         )
         parser.add_argument(
             "--zne-noise-factors",
@@ -1488,6 +1647,12 @@ class HardwareValidationRunner(ValidationRunner):
             nargs="+",
             default=None,
             help="ZNE noise amplification factors (default: [1, 3, 5])",
+        )
+        parser.add_argument(
+            "--zne-r2-threshold",
+            type=float,
+            default=0.90,
+            help="R² threshold for adaptive ZNE fallback (default: %(default)s)",
         )
 
     def build_hardware_config(self):
@@ -1505,7 +1670,8 @@ class HardwareValidationRunner(ValidationRunner):
 
         # Build mitigation options with amplifier selection
         zne_noise_factors = getattr(self._args, "zne_noise_factors", None)
-        zne_amplifier = getattr(self._args, "zne_amplifier", "gate_folding")
+        zne_amplifier = getattr(self._args, "zne_amplifier", "pea")
+        zne_r2_threshold = getattr(self._args, "zne_r2_threshold", 0.90)
 
         mitigation = MitigationOptions(
             dd_enabled=True,
@@ -1514,6 +1680,7 @@ class HardwareValidationRunner(ValidationRunner):
             zne_enabled=True,
             zne_amplifier=zne_amplifier,
             zne_noise_factors=zne_noise_factors,
+            zne_r2_fallback_threshold=zne_r2_threshold,
             num_randomizations=32,
             shots_per_randomization=128,
         )
@@ -1535,10 +1702,10 @@ class HardwareValidationRunner(ValidationRunner):
         from qmbp_simulation.execution.hardware import HardwareBackend
 
         hw_config = self.build_hardware_config()
-        self.hw_backend = HardwareBackend(config=hw_config)
+        self.hw_backend = HardwareBackend(config=hw_config)  # type: ignore[assignment, no-redef]
 
         # Share the runner's StructuredLogger with the backend
-        self.hw_backend._logger = self.slog
+        self.hw_backend._logger = self.slog  # type: ignore[attr-defined]
 
         logger.info(f"  Hardware backend: {hw_config.mode} ({hw_config.backend_name})")
         logger.info(f"  Shots: {hw_config.shots}, Layouts: {hw_config.n_layouts}")
@@ -1593,8 +1760,9 @@ class HardwareValidationRunner(ValidationRunner):
                 "shots": self._args.shots,
                 "n_layouts": self._args.n_layouts,
                 "backend": "ibm_torino",
-                "zne_amplifier": getattr(self._args, "zne_amplifier", "gate_folding"),
+                "zne_amplifier": getattr(self._args, "zne_amplifier", "pea"),
                 "zne_noise_factors": getattr(self._args, "zne_noise_factors", None),
+                "zne_r2_threshold": getattr(self._args, "zne_r2_threshold", 0.90),
             },
             "seeds": [],
         }

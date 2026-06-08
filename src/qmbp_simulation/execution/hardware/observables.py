@@ -86,7 +86,7 @@ def extract_array_result(result: object, n_x: int, n_zz: int) -> tuple[list[floa
     tuple[list[float], list[float]]
         (x_values, zz_values)
     """
-    evs = result[0].data.evs
+    evs = result[0].data.evs  # type: ignore[index]
     # Handle scalar evs (0-d array from single observable)
     evs = np.atleast_1d(evs)
     x_values = [float(evs[i]) for i in range(n_x)]

@@ -37,7 +37,7 @@ test-full:  ## Run ALL tests including slow FakeTorino tests (~60s)
 	$(PYTHON) -m pytest tests/ -v --tb=short
 
 test-tools:  ## Run analysis/digest/compare tool tests (~35s)
-	$(PYTHON) -m pytest tests/test_diagnose.py tests/test_compare.py tests/test_analysis_tools.py -v --tb=short
+	$(PYTHON) -m pytest tests/test_diagnose.py tests/test_compare.py tests/test_analysis_tools.py tests/test_project_health.py -v --tb=short
 
 test-slow:  ## Run only slow tests (CLI integration, VQE sweep) (~90s)
 	$(PYTHON) -m pytest tests/ -v --tb=short -m "slow"

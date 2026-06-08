@@ -20,7 +20,8 @@ class MitigationOptions:
 
     zne_enabled: bool = False
     zne_noise_factors: list[float] | None = None  # e.g. [1, 3, 5]
-    zne_amplifier: str = "gate_folding"  # "gate_folding" | "pea"
+    zne_amplifier: str = "gate_folding"  # "gate_folding" | "pea" | "adaptive"
+    zne_r2_fallback_threshold: float = 0.90  # R² threshold for adaptive GF→PEA fallback
     dd_enabled: bool = False  # Dynamical decoupling
     trex_enabled: bool = False  # Twirled readout error extinction
     twirling_enabled: bool = False
@@ -106,30 +107,66 @@ class NoiselessBackend(ExecutionBackend):
 
 
 class NoisyBackend(ExecutionBackend):
-    """Shot-noise simulation with configurable noise model and mitigation.
+    """Shot-noise simulation — RAW noise only, no mitigation applied.
 
     Two evaluation modes:
     - If noise_model is None: Gaussian shot noise approximation
       (exact energy + N(0, 1/√shots)).
     - If noise_model is provided: Full simulation via AerSimulator
       (requires qiskit-aer installed).
+
+    This backend is intended for:
+    - Generating "noisy raw" baselines (factor=1, no mitigation).
+    - VQE training with shot noise approximation.
+    - Quick noise-level estimation without full mitigation stack.
+
+    For mitigated noisy simulation, use the utility functions directly:
+    - Gate-folding ZNE: ``run_gate_folding_zne()`` from ``noisy_utils``.
+    - PEA-ZNE: ``run_pea_zne()`` from ``noisy_utils``.
+    - CES-ZNE: ``run_zne_deployment()`` from ``noisy_utils``.
+
+    .. deprecated::
+        The ``mitigation`` parameter is accepted for backward compatibility
+        but is NOT applied. Pass ``MitigationOptions(zne_enabled=True)``
+        and you will receive a ``DeprecationWarning``. Use the utility
+        functions above for mitigated estimation.
     """
 
     def __init__(
         self,
         shots: int = 8192,
         noise_model=None,
-        mitigation: MitigationOptions | None = None,
+        mitigation: MitigationOptions | None = None,  # DEPRECATED — ignored
         seed_simulator: int | None = None,
     ) -> None:
         self._shots = shots
         self._noise_model = noise_model
-        self._mitigation = mitigation or MitigationOptions()
         self._seed_simulator = seed_simulator
         self._noiseless = NoiselessBackend()
         # Persistent RNG for Gaussian shot noise approximation — advances
         # on each evaluate() call to produce realistic stochastic noise.
         self._rng = np.random.default_rng(seed_simulator)
+
+        # Emit DeprecationWarning if mitigation flags are active — they are
+        # NOT applied by this backend (raw-only).
+        if mitigation is not None and (
+            mitigation.zne_enabled
+            or mitigation.dd_enabled
+            or mitigation.trex_enabled
+            or mitigation.twirling_enabled
+        ):
+            import warnings
+
+            warnings.warn(
+                "NoisyBackend does not apply mitigation options. "
+                "Use run_gate_folding_zne() or run_pea_zne() from "
+                "qmbp_simulation.execution.noisy_utils for mitigated estimation.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
+        # Store for reference only (never consumed in evaluate)
+        self._mitigation = mitigation or MitigationOptions()
 
     def evaluate(
         self,
@@ -146,7 +183,7 @@ class NoisyBackend(ExecutionBackend):
             # Gaussian shot noise approximation — RNG advances each call
             exact_energy = self._noiseless.evaluate(circuit, hamiltonian, params)
             noise = self._rng.normal(0.0, 1.0 / np.sqrt(self._shots))
-            return exact_energy + noise
+            return float(exact_energy + noise)
 
         # Full noise model simulation via AerSimulator
         try:

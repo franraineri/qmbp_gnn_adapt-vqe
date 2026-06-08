@@ -179,6 +179,23 @@ collector.cleanup_checkpoints()
 - **θ smoothness**: `max_i ||θ(h_i) - θ(h_{i-1})||_∞` — MPNN learnability predictor
 - **Energy decomposition**: separates `error_from_circuit` (physics limit) from `error_from_mpnn` (ML error)
 - **Classification confidence**: `|⟨X⟩ - ⟨ZZ⟩| * √shots` — phase label reliability
+- **θ_pred confidence score**: composite [0,1] from ThetaValidator (bounds, fidelity, interpolation, gradient)
+
+### θ_pred Validation (auto-integrated in Phase 4)
+```python
+from qmbp_simulation.analysis import ThetaValidator, ThetaValidationReport
+
+# Auto-initialized in PipelineRunner after Phase 3
+# To use standalone:
+validator = ThetaValidator.from_training_data(theta_opt_array, h_values)
+report = validator.validate(theta_pred, level=4, circuit=qc, exact_state=psi)
+report.passes()           # True if all checks pass
+report.confidence_score   # [0, 1] weighted composite
+report.to_dict()          # JSON-serializable for diagnostics
+
+# Levels: 1=bounds, 2=NaN, 3=interpolation, 4=fidelity, 5=gradient, 6=MC-Dropout, 7=sensitivity
+# Default: L1-L4 (zero extra circuit evals). Set via runner.set_theta_validation_level(7) for full.
+```
 
 ### CLI Flags
 - `--verbose` / `-v`: INFO logging + DiagnosticCollector + VQE callbacks + checkpoints

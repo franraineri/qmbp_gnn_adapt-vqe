@@ -29,33 +29,9 @@ from project_health.models import (
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Valid regime boundaries (canonical source: analysis/scan_coverage.py)
+# Valid regime boundaries — imported from canonical source (preflight.py)
 # ═══════════════════════════════════════════════════════════════════════════════
-
-P1_VALID_REGIME: dict[tuple[str, int], float] = {
-    ("chain_1d", 6): 1.6,
-    ("chain_1d", 10): 1.9,
-    ("chain_1d", 20): 2.25,
-    ("heavy_hex", 6): 2.0,
-    ("heavy_hex", 10): 3.0,
-    ("ladder", 6): 2.0,
-    ("ladder", 10): 3.0,
-    ("triangular", 6): 4.0,
-    ("triangular", 10): 3.5,
-}
-
-P2_VALID_REGIME: dict[tuple[str, int], float] = {
-    ("chain_1d", 6): 1.25,
-    ("chain_1d", 10): 1.5,
-    ("chain_1d", 20): 2.0,
-    ("heavy_hex", 6): 1.5,
-    ("heavy_hex", 10): 1.5,
-    ("ladder", 6): 1.5,
-    ("ladder", 10): 2.0,
-    ("triangular", 6): 2.0,
-    ("triangular", 10): 2.5,
-}
-
+from qmbp_simulation.framework.preflight import P1_VALID_REGIME, P2_VALID_REGIME  # noqa: F401
 
 # Required seeds for reproducibility claims
 REQUIRED_SEEDS: set[int] = {42, 43, 44}
@@ -884,29 +860,26 @@ def compute_energy_decomposition(
     """Compute aggregated energy error decomposition.
 
     Separates error contributions from circuit expressibility (VQE ceiling)
-    vs MPNN prediction quality. This is key for understanding which
-    component to improve.
+    vs MPNN prediction quality. Uses the actual energy_decomposition diagnostic
+    data when available (error_from_circuit, error_from_mpnn fields), falling
+    back to heuristic decomposition when not.
 
-    Note: Uses mag_x_error and corr_zz_error as proxies when decomposition
-    data isn't directly available. The actual decomposition comes from the
-    raw JSON's phase4.energy_decomposition field, which is captured in
-    NoiselessResult when available.
+    Enhanced (2026-06-07): Prefers direct decomposition data from phase4
+    diagnostics over heuristic inference from convergence_rate/gen_gap.
     """
-    # We work from delta_e_over_gap and the known structure:
-    # total_error = error_from_circuit + error_from_mpnn
-    # The scanner doesn't extract these sub-fields directly, but we can
-    # infer from convergence_rate (circuit quality) vs gen_gap (MPNN quality).
     circuit_errors: list[float] = []
     mpnn_errors: list[float] = []
 
     for r in noiseless:
         if r.delta_e_over_gap is None:
             continue
-        # If convergence_rate is available, low convergence → circuit contribution
-        # If gen_gap is available, high gen_gap → MPNN contribution
-        if r.convergence_rate is not None and r.generalization_gap is not None:
-            # Heuristic decomposition: circuit error ∝ (1 - convergence_rate)
-            # MPNN error ∝ generalization_gap (normalized)
+
+        # Prefer direct decomposition data (from diagnostics.phase4.energy_decomposition)
+        if r.error_from_circuit is not None and r.error_from_mpnn is not None:
+            circuit_errors.append(r.error_from_circuit)
+            mpnn_errors.append(r.error_from_mpnn)
+        elif r.convergence_rate is not None and r.generalization_gap is not None:
+            # Heuristic fallback: circuit error ∝ (1 - convergence_rate)
             circuit_contrib = (1.0 - r.convergence_rate) * r.delta_e_over_gap
             mpnn_contrib = r.delta_e_over_gap - circuit_contrib
             if mpnn_contrib < 0:

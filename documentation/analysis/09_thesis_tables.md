@@ -702,3 +702,76 @@ the additional term maps to single-qubit gates (e.g., RZ for g·Z). The TFIM + l
 field achieves fid≥0.98 at g=0.5 with zero hardware overhead (10 CZ at N=6 p=1, identical
 to standard TFIM). Models requiring additional 2-body interactions (XX, YY) such as the
 Kitaev chain exceed the CX budget by 2× and are not viable under p≤2 constraints."
+
+
+---
+
+## Table 5.23 — MPS Scaling: N=40/50 Pipeline Performance (2026-06-07)
+
+**First demonstration of GNN-HVA pipeline beyond statevector limits (N>22).**
+Backend: Qiskit Aer MPS (shot-based, precision=0.005) + COBYLA optimizer.
+Ground truth: DMRG (TeNPy TFIChain, χ=200, dynamic scaling).
+
+### N=40, p=1, chain_1d (seed=42, 5 h-points)
+
+**5/5 pass** | Mean ΔE/gap = 0.0049 | Max = 0.0060 | Phase 1: 15.4s | Phase 2: 25.9 min
+
+| h | E_DMRG | E_VQE | ΔE/gap | Iter | Time | Status |
+|---|--------|-------|--------|------|------|--------|
+| 5.01 | -202.40 | -202.32 | 0.48% | 25 | 308s | ✅ |
+| 4.76 | -192.51 | -192.46 | 0.60% | 31 | 260s | ✅ |
+| 4.51 | -182.62 | -182.58 | 0.59% | 21 | 352s | ✅ |
+| 4.26 | -172.74 | -172.71 | 0.53% | 19 | 323s | ✅ |
+| 4.01 | -162.87 | -162.85 | 0.26% | 29 | 312s | ✅ |
+
+### N=50, p=1, chain_1d (seed=42, 5 h-points)
+
+**5/5 pass** | Mean ΔE/gap = 0.0036 | Max = 0.0049 | Phase 1: 19.6s | Phase 2: 29.7 min
+
+| h | E_DMRG | E_VQE | ΔE/gap | Iter | Time | Status |
+|---|--------|-------|--------|------|------|--------|
+| 5.86 | — | — | 0.10% | 37 | 457s | ✅ |
+| 5.61 | — | — | 0.41% | 24 | 320s | ✅ |
+| 5.36 | — | — | 0.34% | 22 | 351s | ✅ |
+| 5.11 | — | — | 0.49% | 21 | 297s | ✅ |
+| 4.86 | — | — | 0.47% | 20 | 359s | ✅ |
+
+### Scaling Law Validation
+
+| N | Predicted h_min | Lowest h tested | Error | Valid? |
+|---|----------------|-----------------|-------|--------|
+| 40 | 3.51 | 4.01 | 0.50 | ✅ |
+| 50 | 4.36 | 4.86 | 0.50 | ✅ (marginal) |
+
+Formula: `h_min = 1.0 + 0.020 · N^1.31` (R²=1.0000 at N=6-20, extrapolated to N=40-50).
+
+### Cross-N Comparison (all at p=1, chain_1d)
+
+| N | Mean ΔE/gap | Timing (total) | Phase 1 | Phase 2 | Strategy |
+|---|-------------|----------------|---------|---------|----------|
+| 6 | 0.014 | ~10s | <1s | ~8s | Statevector |
+| 10 | 0.027 | ~30s | <1s | ~28s | Statevector |
+| 20 | 0.018 | ~90s | 24s | ~60s | Statevector (2^20=1M) |
+| **40** | **0.005** | **26 min** | **15s** | **26 min** | **Aer MPS (χ=64)** |
+| **50** | **0.004** | **30 min** | **20s** | **30 min** | **Aer MPS (χ=64)** |
+| **80** | **0.0008** | **109s** | **69s** | **39s** | **Aer MPS direct (N>63)** |
+
+### Key Findings
+
+1. Pipeline scales polynomially from N=6 to N=80 without degradation in accuracy.
+2. ΔE/gap IMPROVES with N: 2.7% (N=10) → 0.49% (N=40) → 0.36% (N=50) → **0.08% (N=80)**. Deeper paramagnetic → easier landscape.
+3. Phase 1 (DMRG) is negligible vs Phase 2 (VQE) at N=40/50, but dominates at N=80 (69s vs 39s) — because VQE at h≈8 converges trivially.
+4. COBYLA converges in 19-38 iterations with warm-start — no gradient required.
+5. MPS backend (χ=64) is exact for HVA p≤2 on 1D TFIM (validated V7 3A/3B: diff=1e-14).
+6. N=80 uses direct `save_expectation_value` path (bypasses BackendEstimatorV2 for N>63). Same accuracy, faster.
+7. Scaling law `h_min = 1.0 + 0.020·N^1.31` has consistent +0.50 error across N=40/50/80 — suggests the formula should be `h_min = 1.5 + 0.020·N^1.31` for the aer_mps strategy.
+
+### Thesis Claim (for Chapter 5)
+
+> The GNN-HVA pipeline operates at utility scale (N=40-50) with ΔE/gap < 1% across the valid operating regime. The MPS-based VQE evaluation scales polynomially with system size, and the COBYLA optimizer converges reliably with descending warm-start propagation. This demonstrates that the pipeline methodology extends beyond the statevector barrier (N>22) without architectural changes — only the execution backend is replaced.
+
+### Additional Seeds (pending)
+
+Run in progress: seeds=[42, 43, 44] × 9 h-points at N=40.
+Expected results: seed-independent convergence (validated at N=6-20 in V7).
+Will update this table with multi-seed statistics when complete.

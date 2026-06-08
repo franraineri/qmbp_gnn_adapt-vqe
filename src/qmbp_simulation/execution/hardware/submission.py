@@ -117,7 +117,26 @@ def submit_all_then_collect(
             std = float(res[0].data.stds) if hasattr(res[0].data, "stds") else 0.0
             if np.isfinite(ev):
                 jid = job.job_id() if hasattr(job, "job_id") else str(idx)
-                results.append({"layout_idx": idx, "job_id": jid, "energy": ev, "std": std})
+                # Capture QPU usage metrics (IBM Runtime provides these for real jobs)
+                usage_info: dict[str, Any] = {}
+                if hasattr(job, "metrics"):
+                    try:
+                        metrics = job.metrics()
+                        usage_info = {
+                            "qpu_seconds": metrics.get("usage", {}).get("quantum_seconds", None),
+                            "total_time_s": metrics.get("timestamps", {}).get("running", None),
+                        }
+                    except Exception:
+                        pass  # metrics() not available for local jobs
+                results.append(
+                    {
+                        "layout_idx": idx,
+                        "job_id": jid,
+                        "energy": ev,
+                        "std": std,
+                        **usage_info,
+                    }
+                )
                 logger.log(
                     "job_completion",
                     data={
@@ -125,6 +144,7 @@ def submit_all_then_collect(
                         "job_id": jid,
                         "energy": ev,
                         "std": std,
+                        **usage_info,
                     },
                 )
             else:
@@ -224,12 +244,51 @@ def _submit_with_retry(
 
 
 def _get_estimator(backend: Any, config: HardwareConfig) -> Any:
-    """Create a configured estimator for the given backend and config."""
-    options = build_estimator_options(config)
+    """Create a configured estimator for the given backend and config.
+
+    For fake_backend: uses Qiskit's local BackendEstimatorV2 with dict options.
+    For hardware: uses IBM Runtime EstimatorV2 with EstimatorOptions object,
+    applying mitigation settings via the structured options API.
+    """
+    options_dict = build_estimator_options(config)
     if config.mode == "fake_backend":
         from qiskit.primitives import BackendEstimatorV2
 
-        return BackendEstimatorV2(backend=backend, options=options)
+        return BackendEstimatorV2(backend=backend, options=options_dict)
+
     from qiskit_ibm_runtime import EstimatorV2
 
-    return EstimatorV2(backend=backend, options=options)
+    estimator = EstimatorV2(backend=backend)
+    # Apply options via the structured API (resilience, execution, etc.)
+    if "default_shots" in options_dict:
+        estimator.options.default_shots = options_dict["default_shots"]
+    if "dynamical_decoupling" in options_dict:
+        dd = options_dict["dynamical_decoupling"]
+        estimator.options.dynamical_decoupling.enable = dd.get("enable", True)
+        estimator.options.dynamical_decoupling.sequence_type = dd.get("sequence_type", "XpXm")
+    if "twirling" in options_dict:
+        tw = options_dict["twirling"]
+        estimator.options.twirling.enable_gates = tw.get("enable_gates", True)
+        estimator.options.twirling.enable_measure = tw.get("enable_measure", True)
+        estimator.options.twirling.num_randomizations = tw.get("num_randomizations", 32)
+    if "resilience" in options_dict:
+        res = options_dict["resilience"]
+        if "measure_mitigation" in res:
+            estimator.options.resilience.measure_mitigation = res["measure_mitigation"]
+        if "zne_mitigation" in res:
+            estimator.options.resilience.zne_mitigation = res["zne_mitigation"]
+        if "zne" in res:
+            zne = res["zne"]
+            if "amplifier" in zne:
+                estimator.options.resilience.zne.amplifier = zne["amplifier"]
+            if "noise_factors" in zne:
+                estimator.options.resilience.zne.noise_factors = zne["noise_factors"]
+        if "layer_noise_learning" in res:
+            lnl = res["layer_noise_learning"]
+            estimator.options.resilience.layer_noise_learning.num_randomizations = lnl.get(
+                "num_randomizations", 32
+            )
+            estimator.options.resilience.layer_noise_learning.shots_per_randomization = lnl.get(
+                "shots_per_randomization", 128
+            )
+    return estimator

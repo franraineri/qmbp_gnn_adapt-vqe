@@ -164,6 +164,7 @@ def _run_zne_analysis(args) -> None:
         "exp_pea_hw_ready",
         "exp_pea_pipeline",
         "exp_zne_cross_topo",
+        "exp_pea_triangular",
     ]
 
     all_points: list[dict] = []
@@ -263,6 +264,35 @@ def _run_zne_analysis(args) -> None:
                                 "pea_gain": r.get("pea_gain"),
                             }
                         )
+
+            # Fallback: check section_1.results for PEA/GF per-point data
+            # (handles experiments like PEA_TRIANGULAR that use section_1 directly)
+            if not comparison:
+                s1 = results_sections.get("section_1", {}).get("data", {})
+                s1_results = s1.get("results", [])
+                if isinstance(s1_results, list) and s1_results:
+                    first = s1_results[0]
+                    # Only process if it has ZNE fields (de_pea, de_gf, pea_gain, etc.)
+                    if any(k in first for k in ("de_pea", "pea_gain", "de_gf", "gf_gain")):
+                        for row in s1_results:
+                            row_topo = row.get("topology", topology)
+                            row_n = row.get("n_qubits", n_qubits)
+                            point = {
+                                "experiment": exp_id,
+                                "file": f.name,
+                                "topology": row_topo,
+                                "n_qubits": row_n,
+                                "h": row.get("h", 0),
+                            }
+                            if "de_gf" in row or "gf_gain" in row:
+                                point["gf_de"] = row.get("de_gf")
+                                point["gf_r2"] = row.get("gf_r2")
+                                point["gf_gain"] = row.get("gf_gain")
+                            if "de_pea" in row or "pea_gain" in row:
+                                point["pea_de"] = row.get("de_pea")
+                                point["pea_r2"] = row.get("pea_r2")
+                                point["pea_gain"] = row.get("pea_gain")
+                            all_points.append(point)
 
     if not all_points:
         print("No ZNE experiment data found.")

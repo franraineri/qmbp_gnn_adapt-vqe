@@ -142,7 +142,7 @@ def save_phase12_dataset(
         if value is not None:
             save_dict[key] = value
 
-    np.savez(filepath, **save_dict)
+    np.savez(filepath, **save_dict)  # type: ignore[arg-type]
     logger.info(
         f"Dataset saved: {filepath} (version={PIPELINE_VERSION}, cost={EXPECTED_COST_FUNCTION})"
     )

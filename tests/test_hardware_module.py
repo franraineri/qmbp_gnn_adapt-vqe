@@ -14,6 +14,7 @@ import pytest
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
+from qmbp_simulation.execution.backends import MitigationOptions
 from qmbp_simulation.execution.hardware.config import (
     HardwareConfig,
     HardwareRunResult,
@@ -555,16 +556,20 @@ class TestPreflightImprovements:
         assert result["two_qubit_gate_count"] == 5
 
     def test_circuit_zne_check_abort_high_gates(self, logger):
-        """Circuit with >18 CX gates should abort (non-perturbative ZNE)."""
+        """Circuit with >18 CX gates should abort when using gate_folding amplifier."""
         from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
 
-        # 30 CX gates — above threshold
+        # 30 CX gates — above GF threshold (18), below PEA threshold (50)
         qc = QuantumCircuit(10)
         for _ in range(3):
             for i in range(9):
                 qc.cx(i, i + 1)
 
-        cfg = HardwareConfig(mode="fake_backend", n_qubits=10)
+        cfg = HardwareConfig(
+            mode="fake_backend",
+            n_qubits=10,
+            mitigation=MitigationOptions(zne_enabled=True, zne_amplifier="gate_folding"),
+        )
         result = validate_circuit_for_zne(qc, cfg, logger)
         assert result["abort"] is True
         assert "non-perturbative" in result.get("abort_reason", "").lower()

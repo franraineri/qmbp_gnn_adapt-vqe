@@ -74,6 +74,8 @@ def save_run(
             "options_snapshot": options_dict,
             "n_qubits": config.n_qubits,
             "layout_selection_seed": config.layout_seed,
+            # QPU usage (from job.metrics(), populated for real hardware jobs)
+            "total_qpu_seconds": sum(r.get("qpu_seconds", 0) or 0 for r in raw_per_layout) or None,
         },
         run_dir / "provenance.json",
     )
@@ -97,9 +99,25 @@ def save_run(
             "total_shots_consumed": result.total_shots,
             "zne_r2": result.zne_r2,
             "zne_gain": result.zne_gain,
+            "zne_amplifier_used": result.zne_amplifier_used,
+            "mitigation_strategy": result.mitigation_strategy,
+            "layout_std": result.layout_std,
+            "fallback_triggered": result.fallback_triggered,
             "spsa_applied": result.spsa_applied,
             "is_partial": result.is_partial,
             "verdict": result.verdict,
+            "verdict_reason": result.verdict_reason,
+            # GNN-QEM post-correction
+            "gnn_qem_applied": result.gnn_qem_applied,
+            "gnn_qem_delta_e": result.gnn_qem_delta_e,
+            "gnn_qem_confidence": result.gnn_qem_confidence,
+            "e_after_gnn_qem": result.e_after_gnn_qem,
+            # Affine correction
+            "affine_correction_applied": result.affine_correction_applied,
+            "e_after_affine": result.e_after_affine,
+            # Per-site observables (for thesis analysis)
+            "per_site_x": result.per_site_x,
+            "per_bond_zz": result.per_bond_zz,
         },
         run_dir / "summary.json",
     )
@@ -149,7 +167,8 @@ def save_sweep_summary(
 ) -> Path:
     """Save consolidated sweep summary with per-h-point verdicts and overall pass rate.
 
-    Writes ``{output_dir}/sweep_summary.json``.
+    Writes ``{output_dir}/sweep_summary.json``. Includes full mitigation metadata,
+    ZNE quality, and per-site observables for each h-point.
     """
     per_h = [
         {
@@ -160,15 +179,40 @@ def save_sweep_summary(
             "phase_label": r.phase_label,
             "expected_label": r.expected_label,
             "verdict": r.verdict,
+            "verdict_reason": r.verdict_reason,
+            "zne_r2": r.zne_r2,
+            "zne_amplifier_used": r.zne_amplifier_used,
+            "mitigation_strategy": r.mitigation_strategy,
+            "layout_std": r.layout_std,
+            "fallback_triggered": r.fallback_triggered,
+            "spsa_applied": r.spsa_applied,
             "is_partial": r.is_partial,
+            "total_shots": r.total_shots,
+            "mag_x_mean": r.mag_x_mean,
+            "corr_zz_mean": r.corr_zz_mean,
+            # Post-correction
+            "gnn_qem_applied": r.gnn_qem_applied,
+            "affine_correction_applied": r.affine_correction_applied,
+            "e_after_affine": r.e_after_affine,
         }
         for r in results
     ]
     n_pass = sum(1 for r in results if r.verdict == "PASS")
+    n_indeterminate = sum(1 for r in results if r.verdict == "INDETERMINATE")
+
+    import numpy as np
+
+    de_gaps = [r.delta_e_gap for r in results]
     summary = {
         "n_points": len(results),
         "n_pass": n_pass,
+        "n_indeterminate": n_indeterminate,
         "pass_rate": n_pass / len(results) if results else 0.0,
+        "mean_delta_e_gap": float(np.mean(de_gaps)) if de_gaps else None,
+        "std_delta_e_gap": float(np.std(de_gaps, ddof=1)) if len(de_gaps) > 1 else None,
+        "max_delta_e_gap": float(np.max(de_gaps)) if de_gaps else None,
+        "amplifier_used": results[0].zne_amplifier_used if results else None,
+        "total_shots_all": sum(r.total_shots for r in results),
         "per_h_point": per_h,
     }
     out_path = Path(config.output_dir) / "sweep_summary.json"

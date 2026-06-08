@@ -50,6 +50,42 @@ def generate_ladder(n: int, periodic: bool = False) -> list[tuple[int, int]]:
     return edges
 
 
+def generate_square(n: int, periodic: bool = False) -> list[tuple[int, int]]:
+    """Square lattice (2D grid with nearest-neighbor edges only).
+
+    Maps *n* sites onto a rectangular grid with `cols = ceil(sqrt(n))`.
+    Only horizontal and vertical edges (no diagonals — that's triangular).
+    Coordination number z=4 for bulk, z=3 for edges, z=2 for corners.
+
+    This is the canonical 2D lattice for studying QPTs. At 4×4 (N=16)
+    or larger, it becomes challenging for classical tensor network methods.
+    """
+    cols = int(np.ceil(np.sqrt(n)))
+    rows = int(np.ceil(n / cols))
+    edges: list[tuple[int, int]] = []
+
+    def idx(r: int, c: int) -> int | None:
+        if r < 0 or c < 0 or r >= rows or c >= cols:
+            return None
+        s = r * cols + c
+        return s if s < n else None
+
+    for r in range(rows):
+        for c in range(cols):
+            s = idx(r, c)
+            if s is None:
+                continue
+            # Right neighbour (same row, next column)
+            right = idx(r, c + 1)
+            if right is not None:
+                edges.append((s, right))
+            # Down neighbour (next row, same column)
+            down = idx(r + 1, c)
+            if down is not None:
+                edges.append((s, down))
+    return edges
+
+
 def generate_triangular(n: int) -> list[tuple[int, int]]:
     """Triangular lattice on a roughly-square grid.
 
@@ -242,6 +278,8 @@ def make_lattice(
         edges = generate_chain_1d(n_qubits, periodic)
     elif topology == "ladder":
         edges = generate_ladder(n_qubits, periodic)
+    elif topology == "square":
+        edges = generate_square(n_qubits, periodic)
     elif topology == "triangular":
         edges = generate_triangular(n_qubits)
     elif topology == "kagome":

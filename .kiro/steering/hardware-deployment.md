@@ -22,15 +22,18 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 2. **Pauli Twirling** — 32 randomizations × 128 shots. Converts coherent → stochastic noise.
 3. **TREX** — twirled readout error extinction. Enable via EstimatorV2 options.
 4. **ZNE** (configurable amplifier — select via `MitigationOptions.zne_amplifier`):
-   - **Gate-folding** (`"gate_folding"`, default): Digital noise amplification U→U·U†·U at
-     factors [1,3,5]. Simple, zero overhead, validated locally (R²>0.99).
-   - **PEA** (`"pea"`, fallback): Probabilistic Error Amplification. Learns noise model
+   - **PEA** (`"pea"`, default): Probabilistic Error Amplification. Learns noise model
      via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% QPU overhead from
-     noise learning phase. More physically accurate for correlated noise. Use if gate-folding
-     gives R²<0.90 or ΔE/gap>5%. IBM Runtime handles it automatically via
-     `options.resilience.zne.amplifier = "pea"`.
+     noise learning phase. Validated +94.4% gain across all topologies (t=46.32, p<10⁻¹⁹).
+     IBM Runtime handles it automatically via `options.resilience.zne.amplifier = "pea"`.
+   - **Gate-folding** (`"gate_folding"`, fallback): Digital noise amplification U→U·U†·U at
+     factors [1,3,5]. Simple, zero overhead, validated locally (R²>0.99 on chain_1d).
+     May give low R² on heavy_hex p=1 shallow circuits.
+   - **Adaptive** (`"adaptive"`): Tries gate-folding first; if R²<threshold (default 0.90),
+     falls back to PEA. Best for unattended deployment where topology properties are uncertain.
+     Configure threshold via `MitigationOptions.zne_r2_fallback_threshold` or `--zne-r2-threshold`.
    - **Inhomogeneous CES-ZNE** (deprecated for heavy_hex): Different layouts → different CES.
-     Fails on heavy_hex due to uniform CES≈0.15. Use only for chain_1d where CES varies.
+     Fails on heavy_hex due to uniform CES≈0.15. Only used as legacy path when `zne_enabled=False`.
 5. **NN-enhanced extrapolation** — optional improvement:
    - After collecting ZNE data, fit 2-layer MLP instead of linear regression
    - `MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=1000)`
@@ -124,50 +127,64 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 ## Noisy Simulation Mode (FakeTorino)
 
 ### Overview
-`mode="noisy_simulation"` exercises the full inhomogeneous ZNE pipeline locally using `FakeTorino` + `BackendEstimatorV2`. No IBM credentials required. Validates that ZNE actually reduces errors before real QPU deployment.
+`mode="fake_backend"` exercises the full ZNE pipeline locally using `FakeTorino` +
+`BackendEstimatorV2`. No IBM credentials required. Validates that PEA-ZNE reduces
+errors before real QPU deployment.
 
 ### Backend & Estimator
-- Backend: `FakeTorino` from `qiskit_ibm_runtime.fake_provider` (133 qubits, heavy-hex, real calibration data)
-- Estimator: `BackendEstimatorV2` from `qiskit.primitives` (NOT `qiskit_ibm_runtime.EstimatorV2`)
-- `BackendEstimatorV2` uses `default_precision` parameter, NOT `default_shots`
+- Backend: `FakeTorino` from `qiskit_ibm_runtime.fake_provider` (133 qubits, heavy-hex)
+- Estimator: `BackendEstimatorV2` from `qiskit.primitives` (local simulation)
+- Uses `default_precision = 1/sqrt(shots)` parameter
+
+### ZNE Strategy (2026-06-06 — post-refactoring)
+- **Primary**: PEA-ZNE via `run_pea_zne()` — validated +94.4% gain, R²=0.998
+- **Fallback**: Gate-folding ZNE via `run_gate_folding_zne()` — +20.6% gain
+- **Adaptive**: Auto-selects GF first, falls back to PEA if R² < threshold
+- **CES-ZNE**: DEPRECATED on heavy_hex (uniform CES≈0.15 → R²≈0.04)
+
+### Post-ZNE Correction Stack
+Applied automatically by `run_deployment()`:
+1. **GNN-QEM** (optional) — Only if model loaded AND amplifier ≠ PEA. Confidence-gated.
+2. **Affine correction** (always) — Clips to [E_ground, E_upper]. Zero cost.
 
 ### What's Included (same as hardware)
-- Layout selection via `LayoutSelector` (BFS on heavy-hex topology)
+- Layout selection via BFS on heavy-hex topology (`select_layouts_low_ces`)
 - Transpilation with `generate_preset_pass_manager(optimization_level=2)`
-- Observable grouping (commuting Paulis)
-- Inhomogeneous ZNE extrapolation (energy vs CES, linear fit)
+- PEA noise amplification (learned from FakeTorino calibration data)
+- Observable grouping (commuting Paulis — 2 circuit executions total)
+- TLS calibration drift monitoring (between h-points in sweeps)
 
 ### What's Excluded (isolates ZNE contribution)
-- No Dynamical Decoupling sequences
-- No Pauli Twirling
-- No TREX readout error mitigation
-- No NNExtrapolator (requires ≥5 layouts)
-
-### Seed Parameter
-- `HardwareDeployerV61(mode="noisy_simulation", seed=42)` — controls `LayoutSelector` randomness
-- Ensures reproducible qubit mappings across runs
-- Default: `seed=42`
+- No DD/twirling/TREX (no effect on local simulation)
+- No IBM server-side ZNE (only available on real hardware)
 
 ### Usage Pattern
 ```python
-from qmbp_simulation.execution import NoisyBackend, MitigationOptions
+from qmbp_simulation.execution.hardware import HardwareBackend, HardwareConfig
 
-# Noisy raw (no ZNE — single layout)
-backend_raw = NoisyBackend(n_layouts=1, seed=42)
-
-# ZNE mitigated (3 layouts for extrapolation)
-backend_zne = NoisyBackend(n_layouts=3, seed=42)
+# Fake backend (local PEA-ZNE simulation)
+config = HardwareConfig(mode="fake_backend", n_qubits=10, shots=16384)
+backend = HardwareBackend(config=config)
+energy = backend.evaluate(circuit, H, params)  # PEA-ZNE mitigated energy
+result = backend.run_deployment(circuit, H, params, h, e_exact, gap)  # Full pipeline
 ```
 
-### ZNE Layout Scaling (CRITICAL — Validated 2026-05-14)
-- **N=6, n_layouts=3**: Linear E(CES) holds. R²>0.99, ZNE gain +40%.
-- **N=10, n_layouts=3**: Linear E(CES) BREAKS. R²<0.05, ZNE makes things WORSE.
-- **Root cause**: At N=10, total CES exceeds perturbative regime. 3 random layouts produce energies with no linear correlation to their CES values.
-- **Fix options** (to be validated):
-  1. Increase to O(n) layouts — CLP-ZNE (Rabinovich et al. 2025) uses cyclic permutations
-  2. Add DD pre-mitigation to reduce effective CES back into linear regime
-  3. Use NN extrapolation (Sun et al. 2025) for non-linear E(CES) curves
-- **Rule**: When modifying n_layouts or adding new system sizes, always verify R² > 0.8 before trusting ZNE results.
+### Rehearsal (mandatory before real QPU)
+```bash
+# Full rehearsal (9 sections, ~60s)
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py
+
+# Quick check (sections 1-3 only)
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 1 2 3
+```
+
+### Deployment Script (real QPU)
+```bash
+# Tiered deployment on IBM Torino
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py  # Full auto
+```
 
 ---
 
@@ -203,8 +220,9 @@ class MyHWRunner(HardwareValidationRunner):
 --n-layouts 3                   # Number of low-CES layouts
 --n-qubits 10                   # System size
 --topology heavy_hex            # Lattice topology
---zne-amplifier gate_folding|pea  # ZNE noise amplification strategy
+--zne-amplifier gate_folding|pea|adaptive  # ZNE noise amplification strategy
 --zne-noise-factors 1 3 5      # Noise amplification factors
+--zne-r2-threshold 0.90        # R² threshold for adaptive fallback
 ```
 
 ### Dual Persistence

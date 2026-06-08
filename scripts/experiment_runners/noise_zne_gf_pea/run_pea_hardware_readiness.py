@@ -493,6 +493,13 @@ class PEAHardwareReadinessRunner(ValidationRunner):
 
         # Pass = PEA is better than GF and has good R²
         passed = mean_pea_gain > mean_gf_gain and mean_pea_r2 > 0.9
+
+        logger.info("")
+        logger.info(
+            "  ⚠ Note: Results are from depolarizing PEA approximation — "
+            "real hardware may differ by ±10%."
+        )
+
         return {"pass": passed, "summary": summary}
 
 

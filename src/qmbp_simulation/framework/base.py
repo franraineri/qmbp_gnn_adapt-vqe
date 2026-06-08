@@ -88,21 +88,21 @@ class BaseExperiment(ABC):
             logger.warning(f"Config warning: {w}")
 
         # Build shared infrastructure
-        self.builder = HamiltonianBuilder()
-        self.solver = ClassicalSolver()
-        self.hva = HVACircuitBuilder()
+        self.builder = HamiltonianBuilder()  # type: ignore[assignment]
+        self.solver = ClassicalSolver()  # type: ignore[assignment]
+        self.hva = HVACircuitBuilder()  # type: ignore[assignment]
 
         N = self.config.system.n_qubits
         p = self.config.system.p_layers
         topology = self.config.system.topology
 
         base_lattice = make_lattice(topology, N, J=self.config.system.J, h=1.0)
-        self.circuit, _ = self.hva.create(N, p, base_lattice)
+        self.circuit, _ = self.hva.create(N, p, base_lattice)  # type: ignore[attr-defined]
 
         logger.info(
             f"Setup complete: {self.config.experiment_id} | "
             f"N={N}, p={p}, topology={topology}, "
-            f"n_params={self.circuit.num_parameters}"
+            f"n_params={self.circuit.num_parameters}"  # type: ignore[attr-defined]
         )
 
     @abstractmethod
@@ -330,7 +330,7 @@ class BaseExperiment(ABC):
 
         # Include warm-cold comparison results if any were collected
         if self.warm_cold_results:
-            output["warm_cold_comparisons"] = [wc.to_dict() for wc in self.warm_cold_results]
+            output["warm_cold_comparisons"] = [wc.to_dict() for wc in self.warm_cold_results]  # type: ignore[misc]
 
         filepath = self.results_dir / f"run_{self._run_id}.json"
         with open(filepath, "w") as f:
@@ -559,7 +559,7 @@ class BaseExperiment(ABC):
         """Compute state fidelity |<psi_exact|psi_vqe>|^2."""
         from qiskit.quantum_info import Statevector, state_fidelity
 
-        bound = self.circuit.assign_parameters(params)
+        bound = self.circuit.assign_parameters(params)  # type: ignore[attr-defined]
         sv_vqe = Statevector(bound)
         sv_exact = Statevector(exact_state)
         return float(state_fidelity(sv_vqe, sv_exact))
@@ -615,7 +615,7 @@ class BaseExperiment(ABC):
 
         # Resolve configuration
         qc = circuit if circuit is not None else self.circuit
-        n_params = qc.num_parameters
+        n_params = qc.num_parameters  # type: ignore[union-attr]
         restarts = n_restarts if n_restarts is not None else self.config.vqe.n_restarts
         max_it = maxiter if maxiter is not None else self.config.vqe.maxiter
         noise_sigma = sigma if sigma is not None else getattr(self.config.vqe, "sigma", 0.1)
@@ -641,7 +641,7 @@ class BaseExperiment(ABC):
                 lattice_h = make_lattice(
                     topo, self.config.system.n_qubits, J=self.config.system.J, h=h_float
                 )
-                H = self.builder.build(lattice_h)
+                H = self.builder.build(lattice_h)  # type: ignore[attr-defined]
             else:
                 sol = self.get_exact_solution(h_float)
                 H = sol["hamiltonian"]

@@ -19,6 +19,7 @@ SUPPORTED_TOPOLOGIES: tuple[str, ...] = (
     "chain_1d",
     "heavy_hex",
     "kagome",
+    "square",
     "triangular",
     "ladder",
 )
@@ -34,5 +35,17 @@ MAX_P_LAYERS: int = 2
 EXACT_DIAG_QUBIT_LIMIT: int = 15
 """n_qubits ≤ 15 → exact diagonalization."""
 
-DMRG_QUBIT_LIMIT: int = 40
-"""n_qubits > 15 → DMRG (up to 40 qubits)."""
+DMRG_QUBIT_LIMIT: int = 100
+"""n_qubits > 15 → DMRG (up to 100 qubits). 1D TFIM validated at N=50 in <3s."""
+
+# ---------------------------------------------------------------------------
+# VQE optimizer methods
+# ---------------------------------------------------------------------------
+
+SUPPORTED_VQE_METHODS: tuple[str, ...] = ("L-BFGS-B", "COBYLA", "Nelder-Mead")
+"""Optimizer methods supported by VQEOptimizer.
+
+- L-BFGS-B: gradient-based (finite differences), best for exact backends.
+- COBYLA: gradient-free, tolerant to shot noise, for MPS shot-based backends.
+- Nelder-Mead: gradient-free simplex, alternative to COBYLA.
+"""

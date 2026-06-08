@@ -96,3 +96,9 @@ When adding a new feature to `src/qmbp_simulation/`:
 | Smoke test (all imports) | `tests/integration/test_smoke.py` |
 | End-to-end pipeline | `tests/integration/test_pipeline_e2e.py` |
 | Backward compatibility | `tests/integration/test_backward_compat.py` |
+| `project_health.engine` | `tests/test_project_health.py` |
+| `project_health.digest` (scanner, formatters, CLI) | `tests/test_digest.py` |
+| `project_health.analysis.diagnose` | `tests/test_diagnose.py` |
+| `project_health.compare` (ResultStore) | `tests/test_compare.py` |
+| `project_health.analysis` (scan_coverage, heisenberg, validate_s) | `tests/test_analysis_tools.py` |
+| `project_health` (state, coverage, verify, sanity, scaling, reporter, models) | `tests/test_project_health_coverage.py` |

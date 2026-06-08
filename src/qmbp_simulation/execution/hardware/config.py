@@ -43,8 +43,9 @@ class HardwareConfig:
             trex_enabled=True,
             twirling_enabled=True,
             zne_enabled=True,
+            zne_amplifier="pea",  # Primary: PEA (+94.4% gain, R²=0.998)
             num_randomizations=32,
-            shots_per_randomization=512,
+            shots_per_randomization=128,  # IBM LayerNoiseLearning default=128
         )
     )
 
@@ -86,3 +87,18 @@ class HardwareRunResult:
     is_partial: bool = False
     spsa_applied: bool = False
     verdict: str = ""
+    verdict_reason: str = ""  # Human-readable verdict explanation
+    zne_amplifier_used: str = ""  # "pea", "gate_folding", "server_side", or "average"
+    mitigation_strategy: str = (
+        ""  # "ibm_zne_layout_avg" | "ces_zne" | "gate_folding_local" | "pea_local"
+    )
+    layout_std: float | None = None  # std across layouts (when using layout averaging)
+    fallback_triggered: bool = False  # True if adaptive ZNE fell back from GF to PEA
+    # GNN-QEM post-correction (optional, from predictors.gnn_qem)
+    gnn_qem_applied: bool = False
+    gnn_qem_delta_e: float | None = None  # ΔE correction predicted by GNN
+    gnn_qem_confidence: float | None = None  # Model confidence [0,1]
+    e_after_gnn_qem: float | None = None  # Energy after GNN correction
+    # Affine correction (optional, from noisy_utils.affine_correct_energy)
+    affine_correction_applied: bool = False
+    e_after_affine: float | None = None

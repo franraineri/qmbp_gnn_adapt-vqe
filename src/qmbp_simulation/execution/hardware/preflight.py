@@ -7,6 +7,7 @@ Designed to fail fast and save credits.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from qmbp_simulation.execution.noisy_utils import build_adjacency
@@ -15,7 +16,14 @@ if TYPE_CHECKING:
     from qmbp_simulation.execution.hardware.config import HardwareConfig
     from qmbp_simulation.framework.logging import StructuredLogger
 
-# ZNE perturbative threshold — validated empirically (project-status.md)
+# ZNE perturbative thresholds — validated empirically (project-status.md)
+# Gate-folding: each 2Q gate gets folded → noise scales linearly with gate count.
+#   At >18 CX, the folded circuit is too deep for linear extrapolation.
+# PEA: noise amplification is via the noise MODEL, not circuit depth.
+#   PEA works up to ~50 CX (validated on heavy_hex N=10: 41-44 CX, R²>0.99).
+_ZNE_CX_THRESHOLD_GF = 18
+_ZNE_CX_THRESHOLD_PEA = 50
+# Legacy alias (used in validate_circuit_for_zne when amplifier unknown)
 _ZNE_CX_THRESHOLD = 18
 
 
@@ -175,12 +183,17 @@ def validate_circuit_for_zne(
     Must be called AFTER circuit construction but BEFORE job submission.
     Counts 2-qubit gates (CX, CZ, ECR) and warns/aborts if above threshold.
 
+    The threshold is amplifier-aware:
+    - Gate-folding: 18 CX (each gate folded → depth triples at factor=3)
+    - PEA: 50 CX (noise amplified via model, not circuit depth)
+    - Adaptive: uses GF threshold (conservative — will fall back to PEA if needed)
+
     Parameters
     ----------
     circuit : QuantumCircuit
         The parametrized circuit (before or after binding).
     config : HardwareConfig
-        Execution configuration.
+        Execution configuration (includes mitigation.zne_amplifier).
     logger : StructuredLogger
         Logger for recording check events.
 
@@ -190,6 +203,17 @@ def validate_circuit_for_zne(
         Check results with "abort" boolean if CX count is too high.
     """
     checks: dict[str, Any] = {"abort": False}
+
+    # Determine threshold based on amplifier
+    amplifier = config.mitigation.zne_amplifier if config.mitigation else "gate_folding"
+    if amplifier == "pea":
+        threshold = _ZNE_CX_THRESHOLD_PEA
+    elif amplifier == "adaptive":
+        # Adaptive starts with GF, so use GF threshold for abort
+        # (PEA fallback will handle higher gate counts gracefully)
+        threshold = _ZNE_CX_THRESHOLD_PEA
+    else:
+        threshold = _ZNE_CX_THRESHOLD_GF
 
     # Count 2-qubit gates
     two_q_gates = {"cx", "cz", "ecr", "rzz", "rxx", "ryy", "cp"}
@@ -203,19 +227,21 @@ def validate_circuit_for_zne(
 
     checks["two_qubit_gate_count"] = gate_count
     checks["gate_breakdown"] = gate_breakdown
-    checks["zne_threshold"] = _ZNE_CX_THRESHOLD
+    checks["zne_threshold"] = threshold
+    checks["amplifier"] = amplifier
 
-    if gate_count > _ZNE_CX_THRESHOLD:
+    if gate_count > threshold:
         checks["abort"] = True
         checks["abort_reason"] = (
-            f"Circuit has {gate_count} 2Q gates (threshold: {_ZNE_CX_THRESHOLD}). "
+            f"Circuit has {gate_count} 2Q gates (threshold: {threshold} for {amplifier}). "
             f"ZNE extrapolation will fail in non-perturbative regime. "
             f"Use p=1 for N≥10 or reduce circuit depth."
         )
         logger.log("circuit_zne_abort", data=checks)
-    elif gate_count > _ZNE_CX_THRESHOLD * 0.8:
+    elif gate_count > threshold * 0.8:
         checks["zne_warning"] = (
-            f"Circuit has {gate_count} 2Q gates ({gate_count / _ZNE_CX_THRESHOLD:.0%} of threshold). "
+            f"Circuit has {gate_count} 2Q gates "
+            f"({gate_count / threshold:.0%} of {amplifier} threshold). "
             f"ZNE may have reduced R². Monitor extrapolation quality."
         )
         logger.log("circuit_zne_warning", data=checks)
@@ -223,3 +249,101 @@ def validate_circuit_for_zne(
         logger.log("circuit_zne_ok", data=checks)
 
     return checks
+
+
+@dataclass
+class QPUCostEstimate:
+    """Estimated QPU cost for a hardware deployment run.
+
+    All times in seconds. Use this to verify the run fits within
+    IBM's max_execution_time limits before submitting jobs.
+    """
+
+    n_h_points: int
+    circuits_per_h: int
+    shots_per_h: int
+    total_circuits: int
+    total_shots: int
+    est_time_per_h_s: float
+    est_total_s: float
+    max_execution_time_s: int
+    fits_per_job: bool
+    amplifier: str
+    estimated_clops: int
+
+
+def estimate_qpu_cost(
+    config: HardwareConfig,
+    n_h_points: int = 4,
+    include_spsa: bool = True,
+) -> QPUCostEstimate:
+    """Estimate QPU time and shot budget for a hardware deployment.
+
+    Uses IBM Eagle r3 throughput estimates (~2500 CLOPS for 10-qubit circuits)
+    to predict wall-clock time. Includes ZNE overhead (noise factors) and
+    optional SPSA refinement cost.
+
+    Parameters
+    ----------
+    config : HardwareConfig
+        Hardware configuration (shots, n_layouts, amplifier, etc.)
+    n_h_points : int
+        Number of h-values to evaluate (default: 4).
+    include_spsa : bool
+        Include worst-case SPSA overhead (30% probability × 200 iters).
+
+    Returns
+    -------
+    QPUCostEstimate
+        Detailed cost breakdown with fits_per_job boolean.
+    """
+    shots = config.shots
+    n_layouts = config.n_layouts
+    amplifier = config.mitigation.zne_amplifier
+
+    # IBM Eagle r3 approximate throughput
+    ESTIMATED_CLOPS = 2500
+
+    # Noise factors per amplifier
+    if amplifier == "pea":
+        n_noise_factors = 3
+        overhead_factor = 1.5  # noise learning phase
+    elif amplifier == "adaptive":
+        n_noise_factors = 6  # worst case: GF(3) fails + PEA(3) runs
+        overhead_factor = 1.5
+    else:
+        n_noise_factors = 3
+        overhead_factor = 1.0
+
+    circuits_per_h = n_layouts * n_noise_factors
+    shots_per_h = circuits_per_h * shots
+    time_per_circuit_s = shots / ESTIMATED_CLOPS
+    time_per_h_s = circuits_per_h * time_per_circuit_s * overhead_factor
+
+    # Observable measurement overhead (2 groups: X, ZZ)
+    obs_time_per_h = 2 * time_per_circuit_s
+
+    # SPSA worst case (30% probability × 200 iter × 2 evals)
+    spsa_per_h = 0.0
+    if include_spsa:
+        spsa_per_h = 0.3 * 200 * 2 * time_per_circuit_s
+
+    total_per_h = time_per_h_s + obs_time_per_h + spsa_per_h
+    total_s = n_h_points * total_per_h
+
+    max_exec = config.job_timeout_s
+    fits = time_per_h_s < max_exec
+
+    return QPUCostEstimate(
+        n_h_points=n_h_points,
+        circuits_per_h=circuits_per_h,
+        shots_per_h=shots_per_h,
+        total_circuits=n_h_points * circuits_per_h,
+        total_shots=n_h_points * shots_per_h,
+        est_time_per_h_s=total_per_h,
+        est_total_s=total_s,
+        max_execution_time_s=max_exec,
+        fits_per_job=fits,
+        amplifier=amplifier,
+        estimated_clops=ESTIMATED_CLOPS,
+    )

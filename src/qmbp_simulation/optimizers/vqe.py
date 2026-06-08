@@ -1,5 +1,4 @@
-"""
-VQE Optimizer — Multi-start L-BFGS-B with diagnostic callbacks and trajectory
+"""VQE Optimizer — Multi-start L-BFGS-B with diagnostic callbacks and trajectory
 logging.
 
 Implements the V4 descending sweep pattern (h=2→0) with warm-start propagation,
@@ -15,6 +14,7 @@ References
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import numpy as np
 from qiskit.circuit import QuantumCircuit
@@ -46,7 +46,7 @@ class OptimizationCallback:
     vector, so we re-evaluate energy via the cost function reference.
     """
 
-    def __init__(self, cost_fn: callable) -> None:
+    def __init__(self, cost_fn: Callable[..., float]) -> None:
         self.cost_fn = cost_fn
         self.energies: list[float] = []
         self.grad_norms: list[float] = []
@@ -118,9 +118,13 @@ class VQEOptimizer:
         exact_energy: float | None = None,
         exact_state: np.ndarray | None = None,
     ) -> VQEResult:
-        """Run multi-start L-BFGS-B VQE for a single h-point.
+        """Run multi-start VQE for a single h-point.
 
         Uses a pure energy cost function (⟨H⟩ only — never hybrid/observable).
+        Optimizer method is determined by ``config.method``:
+        - ``"L-BFGS-B"``: gradient-based with bounds (default, for exact backends)
+        - ``"COBYLA"``: gradient-free (for shot-based/noisy backends)
+        - ``"Nelder-Mead"``: simplex method (alternative gradient-free)
 
         Parameters
         ----------
@@ -154,14 +158,7 @@ class VQEOptimizer:
         bounds = [cfg.bounds] * len(initial_guess)
 
         # Warm-start run
-        best = minimize(
-            cost_fn,
-            initial_guess,
-            method="L-BFGS-B",
-            bounds=bounds,
-            callback=callback,
-            options={"maxiter": cfg.maxiter, "ftol": cfg.ftol},
-        )
+        best = self._run_minimize(cost_fn, initial_guess, cfg, bounds, callback)
 
         n_restarts_used = 0
 
@@ -170,14 +167,7 @@ class VQEOptimizer:
             x0 = best.x + self._rng.normal(0, cfg.restart_sigma, len(best.x))
             # Clip to bounds
             x0 = np.clip(x0, cfg.bounds[0], cfg.bounds[1])
-            trial = minimize(
-                cost_fn,
-                x0,
-                method="L-BFGS-B",
-                bounds=bounds,
-                callback=callback,
-                options={"maxiter": cfg.maxiter, "ftol": cfg.ftol},
-            )
+            trial = self._run_minimize(cost_fn, x0, cfg, bounds, callback)
             if not trial.success:
                 logger.debug(
                     f"VQE restart {restart_idx + 1}/{cfg.n_restarts} did not converge: "
@@ -189,8 +179,9 @@ class VQEOptimizer:
 
         # Log convergence status
         if not best.success:
+            n_iters = getattr(best, "nit", getattr(best, "nfev", "?"))
             logger.warning(
-                f"VQE best result did not converge (nit={best.nit}, "
+                f"VQE best result did not converge (nit={n_iters}, "
                 f"message='{best.message}'). Energy={best.fun:.6f}"
             )
 
@@ -215,9 +206,49 @@ class VQEOptimizer:
             energy=float(best.fun),
             energy_error=energy_error,
             fidelity=fidelity,
-            n_iterations=int(best.nit),
+            n_iterations=int(getattr(best, "nit", getattr(best, "nfev", 0))),
             trajectory=trajectory,
         )
+
+    # ── optimizer dispatch ──────────────────────────────────────────
+
+    @staticmethod
+    def _run_minimize(cost_fn, x0, cfg, bounds, callback):
+        """Dispatch to the correct scipy.optimize.minimize method.
+
+        - L-BFGS-B: gradient-based, uses bounds and ftol
+        - COBYLA: gradient-free, no bounds/ftol (TypeError if passed)
+        - Nelder-Mead: simplex, no bounds, uses fatol
+        """
+        method = cfg.method
+        if method == "L-BFGS-B":
+            return minimize(
+                cost_fn,
+                x0,
+                method="L-BFGS-B",
+                bounds=bounds,
+                callback=callback,
+                options={"maxiter": cfg.maxiter, "ftol": cfg.ftol},
+            )
+        elif method == "COBYLA":
+            return minimize(
+                cost_fn,
+                x0,
+                method="COBYLA",
+                callback=callback,
+                options={"maxiter": cfg.maxiter, "rhobeg": cfg.restart_sigma},
+            )
+        elif method == "Nelder-Mead":
+            return minimize(
+                cost_fn,
+                x0,
+                method="Nelder-Mead",
+                callback=callback,
+                options={"maxiter": cfg.maxiter, "fatol": cfg.ftol},
+            )
+        else:
+            # Should not reach here — VQEConfig validates method
+            raise ValueError(f"Unsupported method: {method}")
 
     # ── warm-start seeding ───────────────────────────────────────────
 
@@ -345,6 +376,18 @@ class VQEOptimizer:
                 result.theta_opt = current_guess.copy()
                 result.energy = float("inf")  # Mark as unreliable
                 result.fidelity = 0.0
+
+            # Variational principle check (lightweight, per-point)
+            if (
+                exact_e is not None
+                and np.isfinite(result.energy)
+                and result.energy < exact_e - 1e-8
+            ):
+                logger.warning(
+                    f"⚠️  Variational principle violated at h={h:.4f}: "
+                    f"E_VQE={result.energy:.8f} < E_exact={exact_e:.8f} "
+                    f"(Δ={exact_e - result.energy:.2e})"
+                )
 
             status = "✅" if result.fidelity >= 0.995 else "⚠️"
             logger.info(

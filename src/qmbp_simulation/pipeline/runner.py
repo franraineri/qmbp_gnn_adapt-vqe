@@ -119,7 +119,7 @@ class PipelineRunner:
         *,
         verbose: bool = False,
         seed: int | None = None,
-        collector: "DiagnosticCollector | None" = None,  # noqa: F821, UP037
+        collector: DiagnosticCollector | None = None,  # type: ignore[name-defined]  # noqa: F821
         model_spec: ModelSpec | None = None,
     ) -> None:
         self._lattice = lattice
@@ -159,6 +159,27 @@ class PipelineRunner:
                 verbose=verbose,
                 save_dir=checkpoint_dir,
             )
+
+        # Theta validation — initialized after Phase 3 trains the MPNN
+        self._theta_validator = None  # ThetaValidator | None (lazy import)
+        self._theta_validation_level: int = 4  # default: L1-L4 (cheap)
+
+    def set_theta_validation_level(self, level: int) -> None:
+        """Configure the maximum theta validation level (1-7).
+
+        Levels 1-4 are cheap (L4 uses existing Statevector). Levels 5-7
+        require additional circuit evaluations (gradient, MC Dropout, sensitivity).
+
+        Parameters
+        ----------
+        level : int
+            Maximum level to execute. Set to 0 to disable validation entirely.
+        """
+        if level < 0 or level > 7:
+            raise ValueError(f"Validation level must be 0-7, got {level}")
+        self._theta_validation_level = level
+        if level == 0:
+            self._theta_validator = None
 
     # ── Private helpers for model-aware dispatch ─────────────────────────
 
@@ -284,6 +305,36 @@ class PipelineRunner:
                 converged=converged,
             )
         self.collector.save_checkpoint("phase2")
+
+        # ── VQE Validation ───────────────────────────────────────────────
+        # Run comprehensive validation on the sweep output. This catches
+        # variational principle violations, energy bound breaches, and
+        # sweep-level quality issues early — before Phase 3 trains on bad data.
+        from qmbp_simulation.analysis.vqe_validator import VQEValidator
+
+        model_name = self._model_spec.name if self._model_spec else "tfim"
+        vqe_validator = VQEValidator.from_lattice(
+            self._lattice, model_name=model_name, strict=False
+        )
+        validation_report = vqe_validator.validate_sweep(results, exact_data)
+
+        # Store validation report in diagnostics
+        self.collector.record_vqe_validation(validation_report)
+
+        if validation_report.has_critical:
+            for issue in validation_report.critical_issues:
+                logger.error(f"VQE CRITICAL: {issue.message}")
+            logger.error(
+                f"⚠️  VQE VALIDATION FAILED: {validation_report.n_critical} critical issue(s). "
+                f"Phase 3 training data may be unreliable."
+            )
+        elif validation_report.has_warnings:
+            logger.warning(
+                f"VQE validation: {validation_report.n_warnings} warning(s) — "
+                f"review recommended. {validation_report.summary()}"
+            )
+        else:
+            logger.info(f"VQE validation: {validation_report.summary()}")
 
         logger.info(
             f"Phase 2 complete: {len(results)} points, "
@@ -416,7 +467,7 @@ class PipelineRunner:
 
         train_mpnn(
             model=model,
-            dataset=dataset,
+            dataset=dataset,  # type: ignore[arg-type]
             n_epochs=cfg.get("n_epochs", 4000),
             lr=cfg.get("lr", 1e-3),
             patience=cfg.get("patience", 150),
@@ -435,7 +486,7 @@ class PipelineRunner:
         per_h_mse = []
         filtered_h_values = []
         with torch.no_grad():
-            for data in dataset:
+            for data in dataset or []:  # type: ignore[union-attr]
                 pred = model(data).numpy().flatten()
                 target = data.y.numpy().flatten()
                 mse_i = float(np.mean((pred - target) ** 2))
@@ -518,6 +569,39 @@ class PipelineRunner:
         with torch.no_grad():
             theta_pred = model(graph).numpy().flatten()
 
+        # ── θ_pred validation (L1-L4 by default) ────────────────────────
+        theta_validation_report = None
+        if hasattr(self, "_theta_validator") and self._theta_validator is not None:
+            try:
+                # Build energy_fn for higher-level validation (L5+)
+                circuit_for_val, _ = self._create_circuit()
+
+                def _energy_fn(theta: np.ndarray) -> float:
+                    return self._backend.evaluate(circuit_for_val, hamiltonian, theta)
+
+                # L4 needs exact_state; downgrade level if unavailable
+                effective_level = self._theta_validation_level
+                exact_state_for_val = exact.ground_state
+                if exact_state_for_val is None and effective_level >= 4:
+                    effective_level = 3  # Skip fidelity if no statevector
+
+                theta_validation_report = self._theta_validator.validate(
+                    theta_pred,
+                    level=effective_level,
+                    h_test=h_test,
+                    circuit=circuit_for_val,
+                    exact_state=exact_state_for_val,
+                    energy_fn=_energy_fn if effective_level >= 5 else None,
+                    model=model if effective_level >= 6 else None,
+                    graph_data=graph if effective_level >= 6 else None,
+                )
+                self.collector.record_theta_validation(
+                    h_test=h_test,
+                    report_dict=theta_validation_report.to_dict(),
+                )
+            except Exception as e:
+                logger.warning(f"θ_pred validation failed at h={h_test}: {e}")
+
         # Evaluate predicted circuit — use model-aware dispatch
         circuit, _ = self._create_circuit()
         predicted_energy = self._backend.evaluate(circuit, hamiltonian, theta_pred)
@@ -594,7 +678,7 @@ class PipelineRunner:
             fidelity=None,
             adapt_iterations=0,
             phase_label=phase_label,
-            metrics_checklist=metrics_checklist,
+            metrics_checklist=metrics_checklist,  # type: ignore[arg-type]
         )
 
         elapsed = time.time() - t0
@@ -612,6 +696,13 @@ class PipelineRunner:
         logger.info(
             f"Phase 4 complete: ΔE/gap={delta_e_over_gap:.4f}, phase={phase_label}, {elapsed:.2f}s"
         )
+        if theta_validation_report is not None:
+            tv_status = "PASS" if theta_validation_report.passes() else "FAIL"
+            tv_conf = theta_validation_report.confidence_score
+            logger.info(
+                f"  θ validation: {tv_status} (confidence={tv_conf:.3f}, "
+                f"level=L{theta_validation_report.level_executed})"
+            )
         return result
 
     def run_full(
@@ -736,6 +827,24 @@ class PipelineRunner:
             elif gen_gap is not None and gen_gap > 0.001:
                 logger.info(f"gen_gap={gen_gap:.2e} (elevated, monitor Phase 4 result)")
 
+        # ── Initialize θ validator from training data ───────────────────
+        if model is not None:
+            try:
+                from qmbp_simulation.analysis.theta_validator import ThetaValidator
+
+                theta_opt_arr = np.array([r.theta_opt for r in vqe_results])
+                self._theta_validator = ThetaValidator.from_training_data(  # type: ignore[assignment]
+                    theta_opt=theta_opt_arr,
+                    h_values=h_values,
+                )
+                logger.info(
+                    f"θ validator initialized: {theta_opt_arr.shape[0]} training points, "
+                    f"{theta_opt_arr.shape[1]} params"
+                )
+            except Exception as e:
+                logger.warning(f"θ validator initialization failed: {e}")
+                self._theta_validator = None
+
         # Phase 4: Deployment
         if skip_phase4 or model is None:
             logger.info("Phase 4 skipped")
@@ -775,7 +884,7 @@ class PipelineRunner:
         save_phase12_dataset(
             filepath,
             h_values=np.array(h_values),
-            J=float(self._lattice.J) if np.isscalar(self._lattice.J) else 1.0,
+            J=float(self._lattice.J) if np.isscalar(self._lattice.J) else 1.0,  # type: ignore[arg-type]
             n_qubits=self._lattice.n_qubits,
             p_layers=self._config.p_layers,
             ground_energies=np.array([r.ground_energy for r in exact_data]),

@@ -59,31 +59,11 @@ GEN_GAP_OVERFIT = 0.01
 CONVERGENCE_RATE_MIN = 1.0
 BOUNDARY_PROXIMITY = 0.5  # h_test within this distance of regime boundary
 
-# Valid regime boundaries
-P1_VALID_REGIME: dict[tuple[str, int], float] = {
-    ("chain_1d", 6): 1.6,
-    ("chain_1d", 10): 1.9,
-    ("chain_1d", 16): 2.3,
-    ("chain_1d", 20): 2.25,
-    ("chain_1d", 24): 2.5,
-    ("ladder", 6): 2.0,
-    ("ladder", 10): 2.0,
-    ("ladder", 16): 2.5,
-    ("triangular", 6): 3.0,
-    ("triangular", 10): 3.5,
-    ("triangular", 16): 4.0,
-}
-
-P2_VALID_REGIME: dict[tuple[str, int], float] = {
-    ("chain_1d", 6): 1.25,
-    ("chain_1d", 10): 1.5,
-    ("chain_1d", 20): 2.0,
-    ("ladder", 6): 1.5,
-    ("ladder", 10): 2.0,
-    ("triangular", 6): 2.0,
-    ("triangular", 10): 2.5,
-    ("triangular", 16): 3.0,
-}
+# Valid regime boundaries — imported from canonical source (preflight.py)
+from qmbp_simulation.framework.preflight import (  # noqa: E402
+    P1_VALID_REGIME,
+    P2_VALID_REGIME,
+)
 
 PASS_THRESHOLD = 0.05
 MARGINAL_THRESHOLD = 0.10

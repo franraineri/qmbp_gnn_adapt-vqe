@@ -7,6 +7,10 @@
 
 ## Validation Targets (V6.1, HardwareDeployerV61 4-metric checklist)
 
+> **Note**: `HardwareDeployerV61` was refactored into `HardwareBackend` (2026-06-04).
+> The 4-metric checklist (ΔE/gap, ⟨X⟩, ⟨ZZ⟩, ADAPT) remains unchanged.
+> Current class: `from qmbp_simulation.execution.hardware import HardwareBackend`
+
 ### N=6 (all pass ✅, from 9 definitive runs)
 
 | h_test | ΔE/gap (mean±std) | Checklist | Status |

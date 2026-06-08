@@ -80,6 +80,44 @@ When extending an existing script:
 - Add the new capability to the tool's `--help` output
 - Update this steering file if a new major capability is added
 
+## Data Extraction Architecture (2026-06-07)
+
+### Single Source of Truth for Valid Regime Boundaries
+
+`P1_VALID_REGIME` and `P2_VALID_REGIME` are defined ONLY in:
+```
+src/qmbp_simulation/framework/preflight.py
+```
+
+All consumers (`coverage.py`, `diagnose.py`, `scan_coverage.py`) MUST import from there.
+Never define local copies. The test `TestRegimeBoundaryConsistency` enforces this via
+identity checks (`is` not `==`).
+
+### NoiselessResult Fields (full extraction)
+
+The scanner (`project_health/digest/scanner.py`) extracts ALL diagnostic data from
+pipeline_run JSON files into `NoiselessResult`. Key fields by phase:
+
+| Phase | Field | Source in JSON | Use |
+|-------|-------|----------------|-----|
+| 1 | `gap_min` | `diagnostics.phase1.gap_min` | Criticality indicator |
+| 2 | `mean_iterations` | Computed from `phase2.per_h_iterations` | VQE bottleneck |
+| 2 | `max_restart_spread` | `max(phase2.per_h_restart_spread)` | Landscape roughness |
+| 2 | `phase2_elapsed_s` | `phase2.total_elapsed_s` | Timing breakdown |
+| 3 | `theta_x_mse` | `phase3.theta_x_mse` | Complementary observable |
+| 3 | `phase3_elapsed_s` | `phase3.elapsed_s` | MPNN training time |
+| 4 | `error_from_circuit` | `phase4.energy_decomposition.error_from_circuit` | Direct decomposition |
+| 4 | `error_from_mpnn` | `phase4.energy_decomposition.error_from_mpnn` | vs heuristic |
+| 4 | `ces_energy_r` | `phase4.ces_energy_pearson_r` | ZNE linearity check |
+| 4 | `classification_confidence` | `phase4.classification_confidence` | Phase label reliability |
+| — | `run_timestamp` | Extracted from filename | Provenance tracking |
+
+### NoisyResult: ZNE Strategy Detection
+
+`zne_strategy` field is auto-populated from:
+1. `config.zne_strategy` or `config.amplifier` (if present in JSON)
+2. Filename heuristic: "pea" → `"pea"`, "gf"/"gate_folding" → `"gate_folding"`, "ces" → `"ces"`
+
 ## Anti-Patterns (DO NOT)
 
 - ❌ Writing `analysis/_tmp_*.py` throwaway scripts for one-off analysis

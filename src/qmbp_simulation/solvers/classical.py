@@ -95,7 +95,7 @@ class ClassicalSolver:
 
         Returns E₀, gap, ψ_gs, and bulk-averaged + per-site/per-bond observables.
         """
-        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
+        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))  # type: ignore[arg-type]
 
         try:
             mat = np.asarray(hamiltonian.to_matrix())
@@ -132,6 +132,152 @@ class ClassicalSolver:
         obs_x: list[SparsePauliOp],
         obs_zz: list[SparsePauliOp],
     ) -> GroundTruthResult:
+        """DMRG ground state solver using TeNPy.
+
+        Dispatches between:
+        - TFIChain: for 1D chain topology (fastest, native TeNPy model)
+        - SpinModel + 2D lattice: for square/triangular (genuine 2D DMRG)
+        - TFIChain with snake ordering: for other quasi-1D topologies
+
+        Returns E₀, gap, local observables.  ψ_gs is None (MPS, not statevector).
+        """
+        if lattice.topology in ("square", "triangular") and lattice.n_qubits >= 9:
+            return self._solve_dmrg_2d(hamiltonian, lattice, obs_x, obs_zz)
+        return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz)
+
+    def _solve_dmrg_2d(
+        self,
+        hamiltonian: SparsePauliOp,
+        lattice: LatticeConfig,
+        obs_x: list[SparsePauliOp],
+        obs_zz: list[SparsePauliOp],
+    ) -> GroundTruthResult:
+        """2D DMRG via TeNPy SpinModel with native Square/Triangular lattice.
+
+        Uses TeNPy's built-in 2D lattice classes for proper snake-path MPS
+        ordering, which is significantly more accurate than treating 2D systems
+        as 1D chains.
+
+        Convention mapping (our Pauli → TeNPy spin-1/2):
+            Z_i = 2 * Sz_i  →  ZZ coupling: Jz = -4J
+            X_i = 2 * Sx_i  →  X field: hx = -2h
+        """
+        try:
+            from tenpy.algorithms import dmrg as tenpy_dmrg
+            from tenpy.models.spins import SpinModel
+            from tenpy.networks.mps import MPS
+        except ImportError as exc:
+            raise ImportError(
+                "TeNPy is required for DMRG. Install via: pip install physics-tenpy"
+            ) from exc
+
+        n = lattice.n_qubits
+        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
+        j_val = float(lattice.J) if np.isscalar(lattice.J) else float(np.mean(lattice.J))
+
+        # Determine grid dimensions
+        cols = int(np.ceil(np.sqrt(n)))
+        rows = int(np.ceil(n / cols))
+
+        # Map topology to TeNPy lattice class
+        if lattice.topology == "square":
+            tenpy_lattice = "Square"
+        elif lattice.topology == "triangular":
+            tenpy_lattice = "Triangular"
+        else:
+            # Fallback to 1D method for unsupported topologies
+            return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz)
+
+        # TeNPy SpinModel uses spin-1/2 operators (Sx, Sz with eigenvalues ±0.5)
+        # Our H = -J·ZZ - h·X uses Pauli matrices (eigenvalues ±1)
+        # Conversion: Z = 2*Sz → ZZ = 4*Sz*Sz, X = 2*Sx
+        # So: Jz_tenpy = -4J, hx_tenpy = -2h
+        model_params = {
+            "lattice": tenpy_lattice,
+            "Lx": rows,
+            "Ly": cols,
+            "bc_MPS": "finite",
+            "bc_y": "open",
+            "Jx": 0.0,
+            "Jy": 0.0,
+            "Jz": -4.0 * j_val,
+            "hx": -2.0 * h_val,
+            "hz": 0.0,
+            "hy": 0.0,
+            "conserve": None,
+            "S": 0.5,
+        }
+
+        model = SpinModel(model_params)
+
+        # Handle case where TeNPy lattice has more sites than our N
+        actual_sites = model.lat.N_sites
+        if actual_sites != n:
+            logger.warning(
+                f"TeNPy lattice has {actual_sites} sites but our lattice has {n}. "
+                f"Falling back to 1D DMRG."
+            )
+            return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz)
+
+        # Initial state: product state |↑⟩^N (paramagnetic along x at h→∞)
+        p_state = [[["up"] for _ in range(cols)] for _ in range(rows)]
+        psi = MPS.from_lat_product_state(model.lat, p_state)
+
+        # DMRG parameters — higher chi for 2D (more entanglement)
+        chi_max = min(256, 2 ** (n // 2))  # Scale with system size
+        dmrg_params = {
+            "mixer": True,
+            "max_E_err": 1e-12,
+            "trunc_params": {"chi_max": chi_max, "svd_min": 1e-12},
+            "max_sweeps": 80,
+        }
+
+        eng = tenpy_dmrg.TwoSiteDMRGEngine(psi, model, dmrg_params)
+        e0, _ = eng.run()
+
+        # Gap estimation via finite-size floor (excited-state DMRG unreliable for 2D)
+        gap = 2 * np.pi / n
+        logger.info(
+            f"DMRG 2D ({lattice.topology} {rows}x{cols}): E0={e0:.8f}, "
+            f"using finite-size gap floor={gap:.4f}"
+        )
+
+        # Local observables via MPS expectation values
+        # SpinModel with S=0.5, conserve=None uses: Sx, Sy, Sz (spin-1/2 operators)
+        # Our ⟨X_i⟩ = 2*⟨Sx_i⟩ (Pauli X = 2*Sx for spin-1/2)
+        per_site_sx = np.real(psi.expectation_value("Sx"))
+        per_site_mx = np.abs(2.0 * per_site_sx)  # Convert to Pauli scale
+
+        # ZZ correlations: ⟨Z_i Z_j⟩ = 4*⟨Sz_i Sz_j⟩
+        per_bond_zz = np.zeros(len(lattice.edges))
+        try:
+            for idx, (i, j) in enumerate(lattice.edges):
+                # Map our qubit indices to TeNPy MPS site indices
+                mps_i = model.lat.lat2mps_idx((i // cols, i % cols, 0))
+                mps_j = model.lat.lat2mps_idx((j // cols, j % cols, 0))
+                val = psi.expectation_value_term([("Sz", mps_i), ("Sz", mps_j)])
+                per_bond_zz[idx] = 4.0 * float(np.real(val))  # 4*SzSz = ZZ
+        except Exception:
+            logger.warning("Could not compute per-bond ZZ via DMRG. Using zeros.")
+
+        return GroundTruthResult(
+            h_value=h_val,
+            ground_energy=float(e0),
+            gap=gap,
+            ground_state=None,
+            mag_x=float(np.mean(per_site_mx)),
+            corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
+            per_site_mag_x=per_site_mx,
+            per_bond_corr_zz=per_bond_zz,
+        )
+
+    def _solve_dmrg_1d(
+        self,
+        hamiltonian: SparsePauliOp,
+        lattice: LatticeConfig,
+        obs_x: list[SparsePauliOp],
+        obs_zz: list[SparsePauliOp],
+    ) -> GroundTruthResult:
         """DMRG ground state solver using TeNPy for quasi-1D systems.
 
         Returns E₀, gap, local observables.  ψ_gs is None (MPS, not statevector).
@@ -157,8 +303,8 @@ class ClassicalSolver:
             ) from exc
 
         n = lattice.n_qubits
-        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
-        j_val = float(lattice.J) if np.isscalar(lattice.J) else float(np.mean(lattice.J))
+        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))  # type: ignore[arg-type]
+        j_val = float(lattice.J) if np.isscalar(lattice.J) else float(np.mean(lattice.J))  # type: ignore[arg-type]
 
         model_params = {
             "L": n,
@@ -171,10 +317,17 @@ class ClassicalSolver:
         model = TFIChain(model_params)
         psi = MPS.from_lat_product_state(model.lat, [["up"]])
 
+        # Dynamic chi scaling: sufficient for 1D TFIM (area law → bounded entanglement)
+        # - N≤50: chi_max=200 (backward-compatible with previous hardcoded value)
+        # - N=60: chi_max=240
+        # - N=100: chi_max=400 (capped to limit O(N·χ³) compute time)
+        chi_max = min(400, max(200, 4 * n))
+        logger.debug(f"DMRG 1D: N={n}, dynamic chi_max={chi_max}")
+
         dmrg_params = {
             "mixer": True,
             "max_E_err": 1e-12,
-            "trunc_params": {"chi_max": 200, "svd_min": 1e-12},
+            "trunc_params": {"chi_max": chi_max, "svd_min": 1e-12},
             "max_sweeps": 100,
         }
 

@@ -50,6 +50,7 @@ import logging
 import random
 from collections import deque
 from dataclasses import dataclass, field
+from datetime import UTC
 
 import numpy as np
 from qiskit.circuit import QuantumCircuit
@@ -90,7 +91,7 @@ class NoisyEstimatorConfig:
     @property
     def precision(self) -> float:
         """Correct precision for BackendEstimatorV2: 1/sqrt(shots)."""
-        return 1.0 / np.sqrt(self.shots)
+        return float(1.0 / np.sqrt(self.shots))
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -373,7 +374,7 @@ def select_layouts_low_ces(
 
     # Apply max_ces filter if specified
     if max_ces is not None:
-        sorted_idx = [i for i in sorted_idx if circuit_ces_list[i] <= max_ces]
+        sorted_idx = [i for i in sorted_idx if circuit_ces_list[i] <= max_ces]  # type: ignore[assignment]
 
     # Take the n_select lowest
     indices = list(sorted_idx[:n_select])
@@ -659,7 +660,7 @@ def run_zne_deployment(
     if per_site:
         per_site_zne_results = []
         for site_i in range(n_qubits):
-            site_vals = np.array([d["per_site_x"][site_i] for d in per_layout_data])
+            site_vals = np.array([d["per_site_x"][site_i] for d in per_layout_data])  # type: ignore[index]
             per_site_zne_results.append(linear_zne(ces_arr, site_vals))
 
     return ZNEDeploymentResult(
@@ -1181,6 +1182,17 @@ def _build_amplified_noise_model(
     The amplification is capped so that the total error probability
     never exceeds 0.75 (the depolarizing channel limit for 2 qubits).
 
+    Note
+    ----
+    **Approximation**: This is a simplified isotropic depolarizing model.
+    Real PEA (IBM Runtime) learns a full Pauli-Lindblad noise model with
+    up to 15 generators per 2-qubit pair (XX, XY, XZ, YX, ...) and
+    amplifies each channel independently. Our local simulation uses
+    isotropic depolarizing as a practical simplification. This is accurate
+    for FakeTorino (whose calibration data is already mostly depolarizing)
+    but may differ from real hardware results by ~5-10% in extrapolated
+    energy values due to the anisotropic structure of physical noise.
+
     Parameters
     ----------
     backend : BackendV2
@@ -1549,4 +1561,862 @@ def run_pea_zne_deployment(
         per_layout_pea_zne=per_layout_results,
         best_layout_idx=best_idx,
         ces_values=ces_values,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Adaptive ZNE — automatic GF → PEA fallback by R² threshold
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class AdaptiveZNEResult:
+    """Result from adaptive tiered ZNE strategy (QESEM-inspired).
+
+    Default strategy ("pea_primary"): PEA first, GF only if PEA unavailable.
+    Legacy strategy ("gf_primary"): GF first, PEA if R² < threshold.
+
+    Rationale for pea_primary (Kim et al. Nature 618, 2023; QESEM arXiv:2508.10997):
+    Characterization-based methods (PEA) model the actual noise channel via
+    Sparse Pauli-Lindblad fitting, yielding +94.4% mean gain. Gate-folding
+    assumes uniform noise scaling and achieves only +20.6% gain. Critically,
+    GF can produce R²>0.99 with ΔE/gap=89.8% (HW_REHEARSAL_V2 section 5),
+    proving that R² alone is insufficient for accuracy assessment.
+
+    Attributes
+    ----------
+    extrapolated_value : float
+        Best ZNE-extrapolated energy (from whichever amplifier was used).
+    r_squared : float
+        R² of the selected extrapolation.
+    amplifier_used : str
+        "gate_folding" or "pea" — which amplifier produced the final result.
+    gf_result : GateFoldingZNEResult | None
+        Gate-folding result (present if GF was attempted).
+    pea_result : PEAResult | None
+        PEA result (present if PEA was attempted).
+    fallback_triggered : bool
+        True if the primary method failed and fallback was used.
+    """
+
+    extrapolated_value: float
+    r_squared: float
+    amplifier_used: str
+    gf_result: GateFoldingZNEResult | None
+    pea_result: PEAResult | None
+    fallback_triggered: bool
+
+
+def run_adaptive_zne(
+    transpiled_circuit: QuantumCircuit,
+    observable: SparsePauliOp,
+    backend,
+    config: NoisyEstimatorConfig,
+    noise_factors: tuple[float, ...] = (1, 3, 5),
+    r2_threshold: float = 0.90,
+    extrapolator: str = "linear",
+    seed_offset: int = 0,
+    strategy: str = "pea_primary",
+) -> AdaptiveZNEResult:
+    """Run tiered ZNE with configurable primary/fallback strategy.
+
+    Strategies (inspired by QESEM — arXiv:2508.10997):
+      - "pea_primary" (default, RECOMMENDED): PEA first, GF only if PEA
+        unavailable (missing qiskit-aer). PEA uses learned noise model
+        (Sparse Pauli-Lindblad) for physically accurate amplification.
+        Validated: +94.4% mean gain vs +20.6% for GF (ZNE_CROSS_TOPO).
+      - "gf_primary" (legacy): GF first, PEA fallback if R² < threshold.
+        WARNING: GF can produce high R² (>0.99) with terrible accuracy
+        (ΔE/gap=89.8% observed in HW_REHEARSAL_V2 section 5). High R²
+        only means the extrapolation is *consistent*, not *accurate*.
+
+    The key insight from Kim et al. (Nature 618, 2023) and follow-up work
+    (QESEM 2025, Stabilized Noise 2025): characterization-based methods
+    (PEA, PEC, QESEM) always outperform heuristic methods (gate-folding)
+    because they model the *actual* noise channel rather than assuming
+    noise scales uniformly with gate repetition.
+
+    Parameters
+    ----------
+    transpiled_circuit : QuantumCircuit
+        Already-transpiled, parameter-bound ISA circuit.
+    observable : SparsePauliOp
+        Observable to measure (already layout-mapped).
+    backend : BackendV2
+        Noisy backend (e.g. FakeTorino).
+    config : NoisyEstimatorConfig
+        Shots and seed configuration.
+    noise_factors : tuple[float, ...]
+        Noise amplification factors (default [1, 3, 5]).
+    r2_threshold : float
+        Minimum R² for the primary method to be accepted (default 0.90).
+    extrapolator : str
+        "linear" or "exponential" (default "linear").
+    seed_offset : int
+        Added to config.seed_simulator for independence.
+    strategy : str
+        "pea_primary" (recommended) or "gf_primary" (legacy).
+
+    Returns
+    -------
+    AdaptiveZNEResult
+        Result with the best available extrapolation and provenance.
+    """
+    if strategy == "pea_primary":
+        return _adaptive_pea_primary(
+            transpiled_circuit,
+            observable,
+            backend,
+            config,
+            noise_factors,
+            r2_threshold,
+            extrapolator,
+            seed_offset,
+        )
+    elif strategy == "gf_primary":
+        return _adaptive_gf_primary(
+            transpiled_circuit,
+            observable,
+            backend,
+            config,
+            noise_factors,
+            r2_threshold,
+            extrapolator,
+            seed_offset,
+        )
+    else:
+        raise ValueError(
+            f"Unknown adaptive ZNE strategy: {strategy!r}. "
+            f"Use 'pea_primary' (recommended) or 'gf_primary'."
+        )
+
+
+def _adaptive_pea_primary(
+    transpiled_circuit: QuantumCircuit,
+    observable: SparsePauliOp,
+    backend,
+    config: NoisyEstimatorConfig,
+    noise_factors: tuple[float, ...],
+    r2_threshold: float,
+    extrapolator: str,
+    seed_offset: int,
+) -> AdaptiveZNEResult:
+    """PEA-primary strategy: try PEA first, GF only if PEA unavailable."""
+    # Step 1: Attempt PEA (characterization-based, highest accuracy)
+    pea_result: PEAResult | None = None
+    try:
+        pea_result = run_pea_zne(
+            transpiled_circuit,
+            observable,
+            backend,
+            config,
+            noise_factors=noise_factors,
+            extrapolator=extrapolator,
+            seed_offset=seed_offset,
+        )
+    except Exception as e:
+        _logger.warning(
+            f"[adaptive_zne] PEA failed ({type(e).__name__}: {e}), falling back to gate-folding"
+        )
+
+    if pea_result is not None and pea_result.r_squared >= r2_threshold:
+        _logger.info(
+            f"[adaptive_zne] PEA R²={pea_result.r_squared:.3f} >= {r2_threshold}, "
+            f"accepting PEA result (strategy=pea_primary)"
+        )
+        return AdaptiveZNEResult(
+            extrapolated_value=pea_result.extrapolated_value,
+            r_squared=pea_result.r_squared,
+            amplifier_used="pea",
+            gf_result=None,
+            pea_result=pea_result,
+            fallback_triggered=False,
+        )
+
+    # Step 2: Fallback to gate-folding (if PEA failed or R² insufficient)
+    _logger.warning(
+        f"[adaptive_zne] PEA {'unavailable' if pea_result is None else f'R²={pea_result.r_squared:.3f} < {r2_threshold}'}, "
+        f"falling back to gate-folding"
+    )
+    gf_noise_factors = tuple(int(nf) for nf in noise_factors)
+    gf_result = run_gate_folding_zne(
+        transpiled_circuit,
+        observable,
+        backend,
+        config,
+        noise_factors=gf_noise_factors,
+        extrapolator=extrapolator,
+        seed_offset=seed_offset + 5000,
+    )
+
+    return AdaptiveZNEResult(
+        extrapolated_value=gf_result.extrapolated_value,
+        r_squared=gf_result.r_squared,
+        amplifier_used="gate_folding",
+        gf_result=gf_result,
+        pea_result=pea_result,
+        fallback_triggered=True,
+    )
+
+
+def _adaptive_gf_primary(
+    transpiled_circuit: QuantumCircuit,
+    observable: SparsePauliOp,
+    backend,
+    config: NoisyEstimatorConfig,
+    noise_factors: tuple[float, ...],
+    r2_threshold: float,
+    extrapolator: str,
+    seed_offset: int,
+) -> AdaptiveZNEResult:
+    """Legacy GF-primary strategy: GF first, PEA if R² < threshold.
+
+    WARNING: High GF R² does NOT guarantee accuracy. Gate-folding assumes
+    noise scales uniformly with gate repetition, which is incorrect for
+    correlated noise channels. Use pea_primary instead.
+    """
+    # Step 1: Try gate-folding (cheap)
+    gf_noise_factors = tuple(int(nf) for nf in noise_factors)
+    gf_result = run_gate_folding_zne(
+        transpiled_circuit,
+        observable,
+        backend,
+        config,
+        noise_factors=gf_noise_factors,
+        extrapolator=extrapolator,
+        seed_offset=seed_offset,
+    )
+
+    if gf_result.r_squared >= r2_threshold:
+        _logger.info(
+            f"[adaptive_zne] GF R²={gf_result.r_squared:.3f} >= {r2_threshold}, "
+            f"accepting gate-folding result (strategy=gf_primary)"
+        )
+        return AdaptiveZNEResult(
+            extrapolated_value=gf_result.extrapolated_value,
+            r_squared=gf_result.r_squared,
+            amplifier_used="gate_folding",
+            gf_result=gf_result,
+            pea_result=None,
+            fallback_triggered=False,
+        )
+
+    # Step 2: Fallback to PEA (more expensive but higher quality)
+    _logger.warning(
+        f"[adaptive_zne] GF R²={gf_result.r_squared:.3f} < {r2_threshold}, "
+        f"falling back to PEA (strategy=gf_primary)"
+    )
+    pea_result = run_pea_zne(
+        transpiled_circuit,
+        observable,
+        backend,
+        config,
+        noise_factors=noise_factors,
+        extrapolator=extrapolator,
+        seed_offset=seed_offset + 5000,
+    )
+
+    return AdaptiveZNEResult(
+        extrapolated_value=pea_result.extrapolated_value,
+        r_squared=pea_result.r_squared,
+        amplifier_used="pea",
+        gf_result=gf_result,
+        pea_result=pea_result,
+        fallback_triggered=True,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Dual-Branch Affine Correction — physics-constrained post-processing
+# ═══════════════════════════════════════════════════════════════════════════
+# Reference: Wang et al. (2026), "Scalable Quantum Error Mitigation with
+# Physically Informed Graph Neural Networks", arXiv:2604.16815.
+# The GEM framework applies a dual-branch affine correction to maintain
+# consistency with physical constraints. We adapt this idea: the mitigated
+# energy must lie in [E_ground, E_max] where E_max is the maximum eigenvalue.
+# For TFIM, E_max = 0 (trivial upper bound) or the max-energy state.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class AffineCorrectedResult:
+    """Result of dual-branch affine correction on a mitigated energy.
+
+    Attributes
+    ----------
+    corrected_energy : float
+        Energy after affine correction (clipped to physical bounds).
+    original_energy : float
+        Input energy before correction.
+    correction_applied : bool
+        True if the energy was actually modified.
+    correction_magnitude : float
+        |corrected - original| (0 if no correction).
+    lower_bound : float
+        Physical lower bound used (E_ground or estimate).
+    upper_bound : float
+        Physical upper bound used (E_max or 0).
+    """
+
+    corrected_energy: float
+    original_energy: float
+    correction_applied: bool
+    correction_magnitude: float
+    lower_bound: float
+    upper_bound: float
+
+
+def affine_correct_energy(
+    mitigated_energy: float,
+    e_ground: float,
+    e_upper: float | None = None,
+    n_qubits: int | None = None,
+    h_value: float | None = None,
+) -> AffineCorrectedResult:
+    """Apply dual-branch affine correction to a ZNE-mitigated energy.
+
+    Physics constraint: for a finite spin system, the ground state energy
+    has a rigorous lower bound (E_ground from exact diag or variational
+    principle) and an upper bound (E_max eigenvalue or trivial bound).
+
+    For TFIM H = -J·ΣZZ - h·ΣX with N spins:
+      - E_lower = E_ground (from Phase 1 exact diag)
+      - E_upper = +|J|·N_bonds + |h|·N (all spins anti-aligned)
+      - Trivial: E_upper ≈ 0 works for h >> J (paramagnetic phase)
+
+    The correction clips the mitigated energy to [E_lower, E_upper] and
+    optionally applies soft affine rescaling when the result is close to
+    but outside bounds (reduces discontinuity at boundary).
+
+    Inspired by: Wang et al. (arXiv:2604.16815) GEM dual-branch affine
+    correction which maintains consistency with physical constraints.
+
+    Parameters
+    ----------
+    mitigated_energy : float
+        ZNE-mitigated energy estimate.
+    e_ground : float
+        Ground state energy (rigorous lower bound). From exact diag.
+    e_upper : float | None
+        Upper bound on energy. If None, estimated from system params.
+    n_qubits : int | None
+        Number of qubits (used to estimate e_upper if not provided).
+    h_value : float | None
+        Transverse field value (used to estimate e_upper if not provided).
+
+    Returns
+    -------
+    AffineCorrectedResult
+        Corrected energy with metadata about the correction.
+    """
+    # Estimate upper bound if not provided
+    if e_upper is None:
+        if n_qubits is not None and h_value is not None:
+            # TFIM trivial upper bound: all eigenvalues ≤ |J|*N_bonds + |h|*N
+            n_bonds = n_qubits - 1  # 1D chain
+            e_upper = float(abs(1.0) * n_bonds + abs(h_value) * n_qubits)
+        else:
+            # Fallback: use 0 as upper bound (valid for h > J paramagnetic)
+            e_upper = 0.0
+
+    # Ensure e_ground < e_upper
+    if e_ground >= e_upper:
+        _logger.warning(
+            f"[affine_correct] e_ground={e_ground:.4f} >= e_upper={e_upper:.4f}, "
+            f"swapping or skipping correction"
+        )
+        return AffineCorrectedResult(
+            corrected_energy=mitigated_energy,
+            original_energy=mitigated_energy,
+            correction_applied=False,
+            correction_magnitude=0.0,
+            lower_bound=e_ground,
+            upper_bound=e_upper,
+        )
+
+    # Apply clipping with soft margin (5% of range)
+    energy_range = e_upper - e_ground
+    margin = 0.05 * energy_range
+
+    corrected = mitigated_energy
+    if mitigated_energy < e_ground - margin:
+        corrected = e_ground
+    elif mitigated_energy > e_upper + margin:
+        corrected = e_upper
+    elif mitigated_energy < e_ground:
+        # Soft correction: linear interpolation to bound
+        alpha = (e_ground - mitigated_energy) / margin
+        corrected = e_ground - margin * (1 - alpha) * 0.5
+    elif mitigated_energy > e_upper:
+        alpha = (mitigated_energy - e_upper) / margin
+        corrected = e_upper + margin * (1 - alpha) * 0.5
+
+    correction_applied = abs(corrected - mitigated_energy) > 1e-10
+    correction_mag = abs(corrected - mitigated_energy)
+
+    if correction_applied:
+        _logger.info(
+            f"[affine_correct] Corrected {mitigated_energy:.6f} → {corrected:.6f} "
+            f"(bounds=[{e_ground:.4f}, {e_upper:.4f}], Δ={correction_mag:.6f})"
+        )
+
+    return AffineCorrectedResult(
+        corrected_energy=corrected,
+        original_energy=mitigated_energy,
+        correction_applied=correction_applied,
+        correction_magnitude=correction_mag,
+        lower_bound=e_ground,
+        upper_bound=e_upper,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Block-Level ZNE — fold only one HVA layer instead of the full circuit
+# ═══════════════════════════════════════════════════════════════════════════
+# Reference: "Enhanced Extrapolation-Based Quantum Error Mitigation Using
+# Repetitive Structure in Quantum Algorithms", arXiv:2507.23314 (Jul 2025).
+# Key insight: for algorithms with repeating blocks (like HVA layers),
+# characterize the error of ONE block with shallow circuits, then extrapolate.
+# This yields better ZNE for p≥2 because:
+#   1. The folded block stays shallow → less decoherence during measurement
+#   2. Noise amplification is more uniform (same block structure)
+#   3. Extrapolation is more linear (single-block error model)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def fold_single_layer(
+    circuit: QuantumCircuit,
+    layer_index: int,
+    noise_factor: int = 3,
+    n_layers: int = 1,
+) -> QuantumCircuit:
+    """Apply gate folding only to 2-qubit gates in a specific HVA layer.
+
+    For an HVA circuit with p layers, this folds gates only in layer
+    `layer_index`, leaving other layers untouched. This is more precise
+    than full-circuit folding because it amplifies noise in a controlled,
+    structured way that matches the algorithm's repetitive structure.
+
+    The layer boundaries are identified by counting 2-qubit gate groups:
+    each HVA layer contains a fixed number of 2Q gates determined by
+    the lattice connectivity.
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        Transpiled (ISA) circuit. Must be parameter-free.
+    layer_index : int
+        Which HVA layer to fold (0-indexed). Must be < n_layers.
+    noise_factor : int
+        Odd integer ≥ 1. Folding factor for gates in the target layer.
+    n_layers : int
+        Total number of HVA layers in the circuit (p).
+
+    Returns
+    -------
+    QuantumCircuit
+        Circuit with the specified layer's 2Q gates folded.
+
+    Raises
+    ------
+    ValueError
+        If noise_factor is not odd, or layer_index >= n_layers.
+    """
+    if noise_factor < 1 or noise_factor % 2 == 0:
+        raise ValueError(f"noise_factor must be odd positive integer, got {noise_factor}")
+    if layer_index >= n_layers:
+        raise ValueError(f"layer_index={layer_index} >= n_layers={n_layers}")
+    if noise_factor == 1:
+        return circuit.copy()
+
+    n_folds = (noise_factor - 1) // 2
+
+    # Count total 2Q gates to determine gates-per-layer
+    total_2q = sum(1 for inst in circuit.data if inst.operation.name.lower() in TWO_QUBIT_GATES)
+    if total_2q == 0 or n_layers == 0:
+        return circuit.copy()
+
+    gates_per_layer = total_2q // n_layers
+    if gates_per_layer == 0:
+        return circuit.copy()
+
+    # Determine which 2Q gates belong to the target layer
+    start_gate = layer_index * gates_per_layer
+    end_gate = start_gate + gates_per_layer
+
+    folded = QuantumCircuit(
+        circuit.qubits, circuit.clbits, name=f"block_fold_L{layer_index}_{noise_factor}x"
+    )
+    gate_2q_counter = 0
+    n_folded = 0
+
+    for instruction in circuit.data:
+        gate = instruction.operation
+        qubits = instruction.qubits
+        gate_name = gate.name.lower()
+
+        folded.append(instruction)
+
+        if gate_name in TWO_QUBIT_GATES:
+            if start_gate <= gate_2q_counter < end_gate:
+                # This gate is in the target layer — fold it
+                for _ in range(n_folds):
+                    folded.append(gate.inverse(), qubits, [])
+                    folded.append(gate, qubits, [])
+                n_folded += 1
+            gate_2q_counter += 1
+
+    _logger.debug(
+        f"[block_fold] Layer {layer_index}/{n_layers}: folded {n_folded}/{gates_per_layer} "
+        f"gates × {n_folds} folds (factor={noise_factor}). "
+        f"Depth: {circuit.depth()} → {folded.depth()}"
+    )
+    return folded
+
+
+@dataclass
+class BlockZNEResult:
+    """Result of block-level (single-layer) ZNE extrapolation.
+
+    Attributes
+    ----------
+    extrapolated_value : float
+        Energy extrapolated to noise_factor=0.
+    r_squared : float
+        R² of the extrapolation fit.
+    slope : float
+        Slope of E vs noise_factor for the target layer.
+    layer_index : int
+        Which HVA layer was used for noise amplification.
+    noise_factors : list[int]
+        Noise factors applied to the target layer.
+    measured_values : list[float]
+        Measured energies at each noise factor.
+    """
+
+    extrapolated_value: float
+    r_squared: float
+    slope: float
+    layer_index: int
+    noise_factors: list[int]
+    measured_values: list[float]
+
+
+def run_block_zne(
+    transpiled_circuit: QuantumCircuit,
+    observable: SparsePauliOp,
+    backend,
+    config: NoisyEstimatorConfig,
+    n_layers: int,
+    layer_index: int = 0,
+    noise_factors: tuple[int, ...] = (1, 3, 5),
+    extrapolator: str = "linear",
+    seed_offset: int = 0,
+) -> BlockZNEResult:
+    """Run block-level ZNE: fold only one HVA layer and extrapolate.
+
+    For p≥2 circuits, this is more precise than full-circuit gate-folding
+    because the noise amplification is structurally uniform (same repeating
+    block) and the folded circuit is shallower.
+
+    Reference: arXiv:2507.23314 — "Enhanced Extrapolation-Based Quantum
+    Error Mitigation Using Repetitive Structure in Quantum Algorithms"
+
+    Parameters
+    ----------
+    transpiled_circuit : QuantumCircuit
+        Already-transpiled, parameter-bound ISA circuit.
+    observable : SparsePauliOp
+        Observable to measure (already layout-mapped).
+    backend : BackendV2
+        Noisy backend.
+    config : NoisyEstimatorConfig
+        Shots and seed configuration.
+    n_layers : int
+        Number of HVA layers (p) in the circuit.
+    layer_index : int
+        Which layer to fold for noise amplification (default: 0 = first).
+    noise_factors : tuple[int, ...]
+        Odd integers for noise amplification (default: [1, 3, 5]).
+    extrapolator : str
+        "linear" or "exponential" (default: "linear").
+    seed_offset : int
+        Added to config.seed_simulator.
+
+    Returns
+    -------
+    BlockZNEResult
+        Extrapolation result with per-layer noise characterization.
+    """
+    _logger.info(
+        f"[block_zne] Starting: layer={layer_index}/{n_layers}, noise_factors={noise_factors}"
+    )
+
+    if transpiled_circuit.num_parameters > 0:
+        raise ValueError(f"Circuit has {transpiled_circuit.num_parameters} unbound parameters.")
+
+    measured_values: list[float] = []
+    for i, nf in enumerate(noise_factors):
+        folded = fold_single_layer(
+            transpiled_circuit, layer_index, noise_factor=nf, n_layers=n_layers
+        )
+        energy = noisy_estimate(
+            folded,
+            observable,
+            backend,
+            config,
+            seed_offset=seed_offset + i * 100,
+        )
+        measured_values.append(energy)
+        _logger.info(f"[block_zne]   factor={nf}: E={energy:.6f}, depth={folded.depth()}")
+
+    nf_arr = np.array(noise_factors, dtype=float)
+    meas_arr = np.array(measured_values, dtype=float)
+
+    if extrapolator == "exponential":
+        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr)
+    else:
+        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr)
+
+    _logger.info(f"[block_zne] Result: E={extrap:.6f}, R²={r2:.4f}, slope={slope:.6f}")
+
+    return BlockZNEResult(
+        extrapolated_value=extrap,
+        r_squared=r2,
+        slope=slope,
+        layer_index=layer_index,
+        noise_factors=list(noise_factors),
+        measured_values=measured_values,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TLS-Aware Scheduling — monitor calibration stability for hardware runs
+# ═══════════════════════════════════════════════════════════════════════════
+# Reference: "Error mitigation with stabilized noise in superconducting
+# quantum processors", Nature Communications (2025), arXiv:2407.02467.
+# Key insight: qubit-TLS (Two-Level System) interactions cause quasi-static
+# noise fluctuations that degrade error mitigation. Monitoring T1/T2 drift
+# between runs allows us to:
+#   1. Detect when calibration has drifted (abort/re-calibrate)
+#   2. Schedule experiments during stable windows
+#   3. Filter out runs affected by TLS events
+#
+# Also: IBM "Detection of time-varying noise in superconducting qubits for
+# quantum error mitigation", APS Global Physics Summit 2025 — demonstrates
+# post-selection based on anomalous output variance reduces errors from
+# 5.4% to 1.6%.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class CalibrationSnapshot:
+    """Snapshot of backend calibration data for drift monitoring.
+
+    Attributes
+    ----------
+    timestamp : str
+        ISO timestamp when snapshot was taken.
+    qubit_t1 : dict[int, float]
+        T1 (µs) per qubit.
+    qubit_t2 : dict[int, float]
+        T2 (µs) per qubit.
+    gate_errors_2q : dict[str, float]
+        2-qubit gate errors keyed by "q0-q1".
+    readout_errors : dict[int, float]
+        Readout error per qubit.
+    """
+
+    timestamp: str
+    qubit_t1: dict[int, float]
+    qubit_t2: dict[int, float]
+    gate_errors_2q: dict[str, float]
+    readout_errors: dict[int, float]
+
+
+@dataclass
+class DriftReport:
+    """Report of calibration drift between two snapshots.
+
+    Attributes
+    ----------
+    t1_drift_pct : float
+        Mean |ΔT1/T1| across relevant qubits (%).
+    t2_drift_pct : float
+        Mean |ΔT2/T2| across relevant qubits (%).
+    gate_error_drift_pct : float
+        Mean |Δerr/err| across 2Q gates (%).
+    max_single_drift_pct : float
+        Worst-case single-qubit drift (%).
+    is_stable : bool
+        True if all drifts below thresholds.
+    recommendation : str
+        "proceed", "re-calibrate", or "abort".
+    """
+
+    t1_drift_pct: float
+    t2_drift_pct: float
+    gate_error_drift_pct: float
+    max_single_drift_pct: float
+    is_stable: bool
+    recommendation: str
+
+
+def take_calibration_snapshot(
+    backend,
+    qubits: list[int] | None = None,
+) -> CalibrationSnapshot:
+    """Capture current calibration data from a backend.
+
+    Works with both FakeTorino (local) and real IBM backends.
+
+    Parameters
+    ----------
+    backend : BackendV2
+        IBM backend (real or fake).
+    qubits : list[int] | None
+        Specific qubits to monitor. If None, captures all.
+
+    Returns
+    -------
+    CalibrationSnapshot
+        Current calibration state.
+    """
+    from datetime import datetime
+
+    target = backend.target
+    all_qubits = qubits or list(range(backend.num_qubits))
+
+    t1_data: dict[int, float] = {}
+    t2_data: dict[int, float] = {}
+    readout_data: dict[int, float] = {}
+    gate_2q_data: dict[str, float] = {}
+
+    for q in all_qubits:
+        # T1, T2 from qubit properties
+        props = target.qubit_properties
+        if props and q < len(props) and props[q] is not None:
+            t1 = getattr(props[q], "t1", None)
+            t2 = getattr(props[q], "t2", None)
+            if t1 is not None:
+                t1_data[q] = t1 * 1e6  # Convert to µs
+            if t2 is not None:
+                t2_data[q] = t2 * 1e6
+
+        # Readout error
+        if "measure" in target.operation_names:
+            meas_props = target["measure"].get((q,))
+            if meas_props and meas_props.error is not None:
+                readout_data[q] = meas_props.error
+
+    # 2Q gate errors
+    for op_name in target.operation_names:
+        qargs = target.qargs_for_operation_name(op_name)
+        if qargs is None:
+            continue
+        for qa in qargs:
+            if len(qa) == 2:
+                q0, q1 = qa
+                if q0 in all_qubits or q1 in all_qubits:
+                    gate_props = target[op_name].get((q0, q1))
+                    if gate_props and gate_props.error is not None:
+                        key = f"{q0}-{q1}"
+                        gate_2q_data[key] = gate_props.error
+
+    return CalibrationSnapshot(
+        timestamp=datetime.now(UTC).isoformat(),
+        qubit_t1=t1_data,
+        qubit_t2=t2_data,
+        gate_errors_2q=gate_2q_data,
+        readout_errors=readout_data,
+    )
+
+
+def check_calibration_drift(
+    before: CalibrationSnapshot,
+    after: CalibrationSnapshot,
+    t1_threshold_pct: float = 20.0,
+    t2_threshold_pct: float = 30.0,
+    gate_error_threshold_pct: float = 50.0,
+) -> DriftReport:
+    """Compare two calibration snapshots to detect drift.
+
+    Thresholds based on IBM's findings (Nature Comms 2025): TLS events
+    can cause T1 drops of 30-50% on individual qubits. A 20% mean drift
+    in T1 is the recommended abort threshold.
+
+    Parameters
+    ----------
+    before : CalibrationSnapshot
+        Calibration at the start of the experiment.
+    after : CalibrationSnapshot
+        Calibration at the end (or mid-point).
+    t1_threshold_pct : float
+        Maximum allowed mean T1 drift (default: 20%).
+    t2_threshold_pct : float
+        Maximum allowed mean T2 drift (default: 30%).
+    gate_error_threshold_pct : float
+        Maximum allowed mean gate error drift (default: 50%).
+
+    Returns
+    -------
+    DriftReport
+        Drift analysis with stability assessment and recommendation.
+    """
+    # T1 drift
+    t1_drifts = []
+    for q in before.qubit_t1:
+        if q in after.qubit_t1 and before.qubit_t1[q] > 0:
+            drift = abs(after.qubit_t1[q] - before.qubit_t1[q]) / before.qubit_t1[q]
+            t1_drifts.append(drift * 100)
+
+    # T2 drift
+    t2_drifts = []
+    for q in before.qubit_t2:
+        if q in after.qubit_t2 and before.qubit_t2[q] > 0:
+            drift = abs(after.qubit_t2[q] - before.qubit_t2[q]) / before.qubit_t2[q]
+            t2_drifts.append(drift * 100)
+
+    # Gate error drift
+    gate_drifts = []
+    for key in before.gate_errors_2q:
+        if key in after.gate_errors_2q and before.gate_errors_2q[key] > 0:
+            drift = (
+                abs(after.gate_errors_2q[key] - before.gate_errors_2q[key])
+                / before.gate_errors_2q[key]
+            )
+            gate_drifts.append(drift * 100)
+
+    mean_t1 = float(np.mean(t1_drifts)) if t1_drifts else 0.0
+    mean_t2 = float(np.mean(t2_drifts)) if t2_drifts else 0.0
+    mean_gate = float(np.mean(gate_drifts)) if gate_drifts else 0.0
+    max_single = float(max(t1_drifts + t2_drifts + gate_drifts, default=0.0))
+
+    # Stability assessment
+    is_stable = (
+        mean_t1 <= t1_threshold_pct
+        and mean_t2 <= t2_threshold_pct
+        and mean_gate <= gate_error_threshold_pct
+    )
+
+    if not is_stable:
+        if mean_t1 > t1_threshold_pct * 2 or max_single > 100:
+            recommendation = "abort"
+        else:
+            recommendation = "re-calibrate"
+    else:
+        recommendation = "proceed"
+
+    _logger.info(
+        f"[tls_monitor] Drift: T1={mean_t1:.1f}%, T2={mean_t2:.1f}%, "
+        f"gates={mean_gate:.1f}%, max_single={max_single:.1f}% → {recommendation}"
+    )
+
+    return DriftReport(
+        t1_drift_pct=mean_t1,
+        t2_drift_pct=mean_t2,
+        gate_error_drift_pct=mean_gate,
+        max_single_drift_pct=max_single,
+        is_stable=is_stable,
+        recommendation=recommendation,
     )

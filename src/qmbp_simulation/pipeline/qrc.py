@@ -128,9 +128,9 @@ class QRCPipeline:
         sv = Statevector(encoded)
 
         features = []
-        for op in self._obs_x:
+        for op in self._obs_x or []:
             features.append(float(sv.expectation_value(op).real))
-        for op in self._obs_zz:
+        for op in self._obs_zz or []:
             features.append(float(sv.expectation_value(op).real))
 
         return np.array(features)

@@ -30,6 +30,7 @@ CATEGORY_MAP: dict[str, list[str]] = {
     "predictor": ["C1", "D", "E3", "G1", "G2", "G5"],
     "hardware": [],
     "generalization": ["E4"],
+    "mps_scaling": ["SCALE"],
 }
 
 # Known reference baselines from validated V6.1 experiments (ΔE/gap)
@@ -41,6 +42,7 @@ _KNOWN_BASELINES: dict[tuple[int, float], float] = {
     (10, 1.5): 0.027,
     (10, 2.0): 0.012,
     (20, 2.0): 0.0175,
+    (40, 3.0): 0.0333,  # Viability test: COBYLA + aer_mps
 }
 
 
@@ -152,7 +154,7 @@ class ResultStore:
         if not runs:
             return None
         with open(runs[0]) as f:
-            return json.load(f)
+            return json.load(f)  # type: ignore[no-any-return]
 
     def load_all_runs(self, experiment_id: str) -> list[dict[str, Any]]:
         """Load all runs for an experiment (chronological)."""
@@ -189,7 +191,7 @@ class ResultStore:
                 with open(f) as fh:
                     data = json.load(fh)
                 if isinstance(data.get("results"), list) and data["results"]:
-                    return data["results"]
+                    return data["results"]  # type: ignore[no-any-return]
             except (json.JSONDecodeError, OSError):
                 continue
         return []
@@ -284,12 +286,12 @@ class ResultStore:
             sec = results_sections.get(sec_key, {}).get("data", {})
             comparison = sec.get("comparison", [])
             if comparison:
-                return comparison
+                return comparison  # type: ignore[no-any-return]
             # Also check nested in summary
             summary = sec.get("summary", {})
             comparison = summary.get("comparison", [])
             if comparison:
-                return comparison
+                return comparison  # type: ignore[no-any-return]
         return []
 
     def analyze_zne_summary(self) -> dict[str, Any]:
@@ -374,7 +376,7 @@ class ResultStore:
         baseline_path = baselines_dir / f"baseline_{system_key}.json"
         if baseline_path.exists():
             with open(baseline_path) as f:
-                return json.load(f).get("mean_de_gap", 0.03)
+                return json.load(f).get("mean_de_gap", 0.03)  # type: ignore[no-any-return]
         return _KNOWN_BASELINES.get((n_qubits, h_value), 0.03)
 
     def save_baseline(self, system_key: str, data: dict[str, Any]) -> None:

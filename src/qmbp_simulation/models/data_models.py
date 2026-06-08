@@ -14,7 +14,11 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from qmbp_simulation.models.constants import MAX_P_LAYERS, SUPPORTED_TOPOLOGIES
+from qmbp_simulation.models.constants import (
+    MAX_P_LAYERS,
+    SUPPORTED_TOPOLOGIES,
+    SUPPORTED_VQE_METHODS,
+)
 
 # ---------------------------------------------------------------------------
 # Model 1 — LatticeConfig
@@ -157,7 +161,7 @@ class VQEConfig:
     restart_sigma : float
         Standard deviation for restart perturbations.
     maxiter : int
-        Maximum L-BFGS-B iterations.
+        Maximum optimizer iterations.
     ftol : float
         Convergence tolerance.
     sweep_direction : str
@@ -166,6 +170,10 @@ class VQEConfig:
         Whether to log the full optimization trajectory.
     warm_start_seed_zeros : bool
         Enforce θ=0 initial guess for h=0 (ferromagnetic phase).
+    method : str
+        Optimizer method: ``"L-BFGS-B"`` (gradient-based, default),
+        ``"COBYLA"`` (gradient-free, shot-noise tolerant), or
+        ``"Nelder-Mead"`` (simplex).
     """
 
     p_layers: int = 2
@@ -177,6 +185,7 @@ class VQEConfig:
     sweep_direction: str = "descending"
     enable_callbacks: bool = True
     warm_start_seed_zeros: bool = True
+    method: str = "L-BFGS-B"
 
     def __post_init__(self) -> None:
         if self.p_layers > MAX_P_LAYERS:
@@ -194,6 +203,11 @@ class VQEConfig:
             raise ValueError(f"n_restarts must be ≥ 1, got {self.n_restarts}.")
         if self.maxiter < 1:
             raise ValueError(f"maxiter must be ≥ 1, got {self.maxiter}.")
+        if self.method not in SUPPORTED_VQE_METHODS:
+            raise ValueError(
+                f"Unsupported optimizer method '{self.method}'. "
+                f"Must be one of {SUPPORTED_VQE_METHODS}."
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +276,16 @@ class VQEResult:
     trajectory: OptimizationTrajectory | None = None
 
     def validate(self) -> list[str]:
-        """Run sanity checks on VQE result. Returns list of issues found."""
+        """Run sanity checks on VQE result. Returns list of issues found.
+
+        Checks:
+        - θ_opt contains NaN/Inf
+        - Energy is not finite
+        - Negative energy_error
+        - Fidelity outside [0, 1]
+        - Negative n_iterations
+        - θ_opt values outside [-π, π] (possible with gradient-free optimizers)
+        """
         issues: list[str] = []
         if not np.all(np.isfinite(self.theta_opt)):
             issues.append(f"theta_opt contains NaN/Inf at h={self.h_value}")
@@ -274,6 +297,15 @@ class VQEResult:
             issues.append(f"Invalid fidelity: {self.fidelity} (must be in [0,1])")
         if self.n_iterations < 0:
             issues.append(f"Negative n_iterations: {self.n_iterations}")
+        # θ_opt bounds check (π + small tolerance for numerical noise)
+        if np.all(np.isfinite(self.theta_opt)):
+            out_of_bounds = np.sum(np.abs(self.theta_opt) > np.pi + 1e-6)
+            if out_of_bounds > 0:
+                max_val = float(np.max(np.abs(self.theta_opt)))
+                issues.append(
+                    f"{int(out_of_bounds)} parameters outside [-π, π] "
+                    f"(max |θ|={max_val:.4f}) at h={self.h_value}"
+                )
         return issues
 
     @property

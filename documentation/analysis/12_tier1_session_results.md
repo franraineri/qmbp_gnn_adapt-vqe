@@ -17,6 +17,39 @@ New experiments contributed: +3 confirmed (T1a, T1b, T1c), +1 failed (HW_REHEARS
 
 ---
 
+## T1a Dense: MPNN 2D Predictor — Dense J₂ Grid (8 values)
+
+**Verdict**: ✅ confirmed (partial — denser grid helps, architecture is the bottleneck)
+**Date**: 2026-06-04 | **Time**: 151s | **Model**: tfim_frustrated, p=2, N=6, chain_1d
+**Result file**: `results/experiments/exp_t1a_dense/run_20260604_224228.json`
+
+| Section | Status | Key metric |
+|---------|--------|------------|
+| VQE Data (9h × 8J₂ = 72pts) | ✅ | mean fid = 99.5% (all J₂ ≥ 99%) |
+| MPNN Training (3 features) | ✅ | Early stopped, converged |
+| Deployment at unseen (h,J₂) | ❌ | **33% pass rate** (>50% threshold → REJECTED) |
+| Dense vs Original Comparison | ✅ | 33% vs 11% (+22% improvement) |
+
+**Key results**:
+- Dense grid (8 J₂): **33% pass rate** at unseen J₂ (vs 11% with 5 values)
+- Improvement: **+22%** — denser grid helps but doesn't solve generalization
+- J₂=0.55 passes consistently (3/3 h-values) — higher J₂ is easier to interpolate
+- J₂=0.15, J₂=0.35 fail catastrophically (ΔE/gap > 3) — interpolation fails
+
+**Conclusion** (per spec): "Denser grid improves but doesn't solve J₂ generalization
+— architecture changes needed (attention, separate J₂ embedding)."
+
+**Thesis contribution**: The failure is NOT due to insufficient training data.
+Doubling the J₂ grid (5→8) only improves pass rate from 11%→33%. The bottleneck
+is architectural — the MPNN learns J₂-specific patterns rather than continuous
+J₂-dependence. Future work: cross-J₂ attention mechanism or separate J₂ embedding
+(as in the original T1a finding). This bounds the approach and supports the thesis
+narrative that 1D (h-only) prediction is sufficient for current hardware targets.
+
+**Ref**: Task 5 in `documentation/tasks.md`
+
+---
+
 ## T1a: MPNN 2D Predictor (h × J₂ interpolation)
 
 **Verdict**: ✅ confirmed (partial — identifies limits)

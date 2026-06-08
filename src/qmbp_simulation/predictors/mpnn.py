@@ -20,6 +20,7 @@ References
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 import numpy as np
 import torch
@@ -204,7 +205,7 @@ class MPNNPredictor(nn.Module):
             zz_out = self.head_zz(x)
             x_out = self.head_x(x)
             return torch.cat([zz_out, x_out], dim=-1)
-        return self.head(x)
+        return self.head(x)  # type: ignore[misc, no-any-return]
 
 
 # ── Graph data construction utility ──────────────────────────────────────
@@ -339,7 +340,7 @@ def train_mpnn(
     lr: float = 1e-3,
     patience: int = 150,
     energy_val_interval: int = 50,
-    energy_val_fn: callable | None = None,
+    energy_val_fn: Callable[..., float] | None = None,
     divergence_window: int = 5,
     divergence_threshold: float = 0.01,
     seed: int = 42,

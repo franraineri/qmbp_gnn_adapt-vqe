@@ -50,9 +50,20 @@ MPNN θ_opt → HardwareBackend.evaluate(circuit, H, params)
                 ├─ 3. Transpile circuit to each layout
                 ├─ 4. Submit all 3 energy PUBs (parallel)
                 ├─ 5. Collect results + discard NaN/Inf
-                ├─ 6. Linear ZNE extrapolation → E(CES=0)
-                └─ return: float (ZNE-extrapolated energy)
+                ├─ 6. Mode-aware ZNE aggregation:
+                │      ├─ hardware + zne_enabled → mean(per-layout energies)
+                │      ├─ fake_backend + zne_enabled → local GF/PEA/adaptive ZNE
+                │      └─ zne_disabled → CES-based linear extrapolation (legacy)
+                └─ return: float (ZNE-mitigated energy)
 ```
+
+### HardwareRunResult Fields (new in 2026-06-05)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mitigation_strategy` | `str` | Human-readable label: `"ibm_zne_layout_avg"`, `"pea_local"`, `"gate_folding_local"`, or `"ces_zne"` |
+| `layout_std` | `float \| None` | Standard deviation across per-layout energies (variance metric for layout averaging) |
+| `fallback_triggered` | `bool` | True if adaptive ZNE fell back from gate-folding to PEA due to low R² |
 
 ## Quick Start
 
@@ -90,7 +101,7 @@ print(f"ZNE energy: {energy:.6f}")
 ### 2. Real Hardware Execution (IBM Torino)
 
 ```bash
-# Set credentials
+# Set credentials (REQUIRED — passed directly to QiskitRuntimeService)
 export IBM_KEY="your_ibm_quantum_api_token"
 export IBM_INSTANCE_CRN="your_instance_crn"
 ```
@@ -139,8 +150,10 @@ result = backend.run_deployment(
 
 print(f"ΔE/gap: {result.delta_e_gap:.4f}")
 print(f"Phase: {result.phase_label}")
-print(f"Verdict: {result.verdict}")
+print(f"Verdict: {result.verdict} — {result.verdict_reason}")
 print(f"ZNE R²: {result.zne_r2:.4f}")
+print(f"Strategy: {result.mitigation_strategy}")
+print(f"Layout std: {result.layout_std}")
 ```
 
 ### 3. Multi-h Sweep (4 test points in one session)
@@ -211,12 +224,31 @@ from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zn
 result = validate_circuit_for_zne(circuit, config, logger)
 if result["abort"]:
     print(f"ABORT: {result['abort_reason']}")
-print(f"2Q gates: {result['two_qubit_gate_count']} (threshold: 18)")
+print(f"2Q gates: {result['two_qubit_gate_count']} (threshold: {result['zne_threshold']})")
 ```
 
-- **Aborts** if 2Q gate count > 18 (ZNE non-perturbative regime)
-- **Warns** if 2Q gate count > 80% of threshold (R² may degrade)
-- Counts: CX, CZ, ECR, RZZ, RXX, RYY, CP gates
+Thresholds are **amplifier-aware** (updated 2026-06-05):
+- **Gate-folding**: aborts if 2Q gates > 18 (folding triples depth → non-perturbative)
+- **PEA / Adaptive**: aborts if 2Q gates > 50 (noise amplified via model, not depth)
+- Warns at 80% of threshold (R² may degrade)
+
+| Amplifier | 2Q Gate Threshold | Rationale |
+|-----------|:-----------------:|-----------|
+| `gate_folding` | 18 | Each gate folded 3×: 18 → 54 effective gates |
+| `pea` | 50 | Noise model amplification, circuit unchanged |
+| `adaptive` | 50 | Starts GF, falls back to PEA if R²<threshold |
+
+### QPU Cost Estimation
+
+Estimate QPU time before committing credits:
+
+```python
+from qmbp_simulation.execution.hardware.preflight import estimate_qpu_cost
+
+est = estimate_qpu_cost(config, n_h_points=4)
+print(f"Total: {est.est_total_s/60:.1f} min, {est.total_shots:,} shots")
+print(f"Fits per job: {est.fits_per_job}")
+```
 
 ### Input Validation (run_deployment)
 
@@ -227,6 +259,27 @@ Before any QPU interaction, `run_deployment()` validates:
 - `e_exact` is finite (prevents meaningless verdicts)
 
 All validations fail with `ValueError` — zero QPU cost on misconfiguration.
+
+## Transpilation Strategy
+
+**optimization_level=2** with explicit `initial_layout` (BFS-selected, CES < 0.5).
+
+### Explored options (2026-06-05)
+
+| Method | 2Q-Depth | n_2Q | CES | Verdict |
+|--------|:--------:|:----:|:---:|---------|
+| **PauliEvol + SABRE lvl2** ✅ | 24 | 34 | 0.1251 | **Best** |
+| Orig HVA + SABRE lvl2 | 27 | 34 | 0.1271 | Previous default |
+| Orig HVA + SABRE lvl3 | 25 | 34 | 0.1271 | No benefit |
+| PauliEvol + Rustiq | 50 | 67 | — | **Counterproductive** |
+
+**Use `HVACircuitBuilder.create_pauli_evolution()`** for hardware deployment.
+It uses `PauliEvolutionGate` to expose commuting structure, giving the transpiler
+better scheduling information → 11% lower 2Q-depth with identical gate count.
+
+- Level 3 (KAK decomposition): no benefit for HVA (individual RZZ gates, no multi-gate blocks to resynthesize)
+- Rustiq plugin: counterproductive (designed for dense Pauli networks, not sparse HVA)
+- AI transpiler: not tested locally but IBM tutorial shows potential for TFIM
 
 ## Error Mitigation Stack
 
@@ -241,12 +294,35 @@ Applied automatically in hardware mode:
 
 ### ZNE Amplifier Selection
 
-Two noise amplification strategies are available via `MitigationOptions.zne_amplifier`:
+Three noise amplification strategies are available via `MitigationOptions.zne_amplifier`:
 
 | Amplifier | Method | Pros | Cons |
 |-----------|--------|------|------|
 | `"pea"` (**recommended**) | Probabilistic Error Amplification | +94% gain, R²=0.998, topology-independent | ~50% QPU overhead from noise learning phase |
 | `"gate_folding"` (fallback) | Digital: U → U·U†·U | Simple, zero overhead | R²=0.47 on heavy_hex p=1 (may fail on shallow circuits) |
+| `"adaptive"` (auto) | GF first, PEA if R²<threshold | Best of both: cheap when GF works, reliable when it doesn't | Slightly more complex; 2× measurement in worst case |
+
+**Adaptive mode** (new in 2026-06-05): Tries gate-folding first (zero overhead). If
+the resulting R² < `zne_r2_fallback_threshold` (default 0.90), automatically falls back
+to PEA. This is the recommended mode for unattended deployment where circuit/topology
+properties are uncertain.
+
+```python
+from qmbp_simulation.execution import MitigationOptions
+
+# Adaptive (recommended for new experiments)
+mitigation = MitigationOptions(
+    zne_enabled=True,
+    zne_amplifier="adaptive",
+    zne_r2_fallback_threshold=0.90,  # configurable
+    zne_noise_factors=[1, 3, 5],
+)
+```
+
+CLI usage:
+```bash
+python my_runner.py --zne-amplifier adaptive --zne-r2-threshold 0.85
+```
 
 **Validated strategy** (from ZNE_CROSS_TOPO, 2026-06-04):
 1. **Primary**: Deploy with `pea` (validated +94.4% gain, 18/18 wins across 3 topologies, t=46.32, p<10⁻¹⁹)
@@ -255,8 +331,9 @@ Two noise amplification strategies are available via `MitigationOptions.zne_ampl
 
 > **Critical finding**: CES-based inhomogeneous ZNE (different layouts → extrapolate
 > to CES=0) **fails on heavy_hex** because all good layouts have CES≈0.15 (no spread).
-> The current `run_deployment()` uses this broken strategy and must be updated.
-> See `documentation/analysis/13_hardware_zne_improvements.md` for the implementation plan.
+> This has been resolved (NM-1, 2026-06-05): `run_deployment()` now uses IBM server-side
+> ZNE for hardware mode and local GF/PEA for fake_backend mode.
+> See `documentation/analysis/13_hardware_zne_improvements.md` for the original plan.
 
 **Recommended configuration:**
 
@@ -269,7 +346,7 @@ mitigation = MitigationOptions(
     zne_amplifier="pea",
     zne_noise_factors=[1, 3, 5],
     num_randomizations=32,
-    shots_per_randomization=512,
+    shots_per_randomization=128,  # IBM LayerNoiseLearning default
 )
 
 # Gate-folding (fallback if PEA unavailable)
@@ -286,7 +363,7 @@ mitigation = MitigationOptions(
   "resilience": {
     "zne_mitigation": true,
     "zne": {"amplifier": "pea", "noise_factors": [1, 3, 5]},
-    "layer_noise_learning": {"num_randomizations": 32, "shots_per_randomization": 512}
+    "layer_noise_learning": {"num_randomizations": 32, "shots_per_randomization": 128}
   }
 }
 ```
@@ -316,6 +393,74 @@ print(f"Learned rates: {pea_result.learned_error_rates}")
 In `fake_backend` mode, only layout selection + ZNE are applied (DD/twirling/TREX
 have no effect on local simulation).
 
+### QESEM-Style Tiered Mitigation (Literature Validation)
+
+Our adaptive PEA→GF strategy is independently validated by the QESEM framework
+(Aharonov, Lindner, et al., arXiv:2508.10997, Aug 2025):
+
+> **Core principle**: Characterization-based methods (PEA, PEC, QESEM) always
+> outperform heuristic methods (gate-folding) because they model the *actual*
+> noise channel via Sparse Pauli-Lindblad fitting, not uniform noise scaling.
+
+| Property | QESEM (127 qubits) | Our PEA (10 qubits) |
+|----------|-------|-----------|
+| Noise model | Sparse Pauli-Lindblad | Same (via `qiskit-aer`) |
+| Mean gain vs heuristic | "Consistently higher accuracy" | +94.4% vs +20.6% (GF) |
+| Tiered approach | PEC with reduced overhead | PEA primary, GF fallback |
+| Validation device | IBM Heron (kicked TFIM) | FakeTorino (TFIM static) |
+
+**Critical finding** (HW_REHEARSAL_V2 section 5, 2026-06-05):
+Gate-folding R²=0.996 produced ΔE/gap=89.8% while PEA R²=0.998 produced
+ΔE/gap=2.07% on the same circuit. High R² ≠ accuracy. The `run_adaptive_zne()`
+default strategy was changed from `gf_primary` to `pea_primary` accordingly.
+
+**Post-processing stack** (applied after ZNE, from 2025-2026 literature):
+1. `affine_correct_energy()` — Physics bounds E ∈ [E₀, E_max] (arXiv:2604.16815)
+2. `run_block_zne()` — Block-level folding for p≥2 (arXiv:2507.23314)
+3. `check_calibration_drift()` — TLS stability monitoring (Nature Comms 2025)
+
+See: `documentation/analysis/15_advanced_mitigation_techniques.md`
+
+### GNN-QEM Integration (Optional Post-ZNE Correction)
+
+When a trained GNN-QEM model is loaded via `backend.load_gnn_qem(path)`, the
+deployment pipeline applies an additional correction after ZNE:
+
+```
+ZNE energy (E_zne)
+  → GNN-QEM correction (E_zne + ΔE_GNN, if confidence ≥ threshold)
+  → Affine correction (clip to [E_ground, E_upper])
+  → Final energy used for verdict
+```
+
+**Critical constraint (validated 2026-06-06):** GNN-QEM only activates when
+`zne_amplifier != "pea"`. PEA already removes structured noise → GNN-QEM on
+PEA residuals REGRESSES (0/15 improvements, −31,000% mean regression). The
+model is designed for GF-ZNE residuals where structured error remains.
+
+**Circuit selection mode** (no E_noisy, Spearman ρ=0.945): The model can also
+rank circuits by expected error difficulty WITHOUT executing them. This
+enables layout selection and feasibility checks at zero QPU cost.
+
+**Usage:**
+
+```python
+backend = HardwareBackend(config=config)
+backend.load_gnn_qem("results/gnn_qem/model_vqe_realistic.pt")  # Optional
+
+result = backend.run_deployment(circuit, H, params, h, e_exact, gap)
+# GNN-QEM only activates if zne_amplifier != "pea" (e.g., gate_folding fallback)
+# result.gnn_qem_applied: bool
+# result.gnn_qem_delta_e: float or None
+# result.gnn_qem_confidence: float or None
+```
+
+**Behavior:**
+- If no model loaded (`_gnn_qem_model is None`): GNN step is skipped entirely
+- If PEA is the ZNE amplifier: GNN step is skipped (PEA handles structured noise)
+- If model confidence < threshold (default 0.8): correction NOT applied
+- Affine correction ALWAYS runs (zero cost, clips unphysical extrapolations)
+
 ## Output Structure
 
 Each run creates a timestamped directory:
@@ -323,15 +468,17 @@ Each run creates a timestamped directory:
 ```
 results/hardware/run_20260615_032241/
 ├── config.json          # Full input configuration (reproducibility)
-├── provenance.json      # Execution metadata (job_ids, versions, layouts, CES)
-├── raw_results.json     # Per-layout raw EVs and stds (no rounding)
-├── zne_analysis.json    # ZNE extrapolation (R², gain, slope, CES-E pairs)
-├── summary.json         # ΔE/gap, phase label, verdict (PASS/FAIL)
+├── provenance.json      # Execution metadata (job_ids, versions, layouts, CES, qpu_seconds)
+├── raw_results.json     # Per-layout raw EVs, stds, and QPU metrics (no rounding)
+├── zne_analysis.json    # ZNE extrapolation (R², gain, slope, amplifier)
+├── summary.json         # ΔE/gap, phase, verdict, verdict_reason, mitigation_strategy,
+│                        # per_site_x, per_bond_zz, layout_std, GNN-QEM fields, affine fields
 ├── input_params.json    # Exact parameters used (for reproduction)
 └── execution_log.json   # Complete structured log (all events with timestamps)
 ```
 
-For multi-h sweeps, an additional `sweep_summary.json` is created with consolidated results.
+For multi-h sweeps, an additional `sweep_summary.json` is created with consolidated
+results including per-h-point metadata, aggregate statistics, and pass rates.
 
 ### Reproducibility
 
@@ -366,6 +513,102 @@ SPSA refinement activates ONLY when ΔE/gap > 5%:
 - Never apply SPSA if ΔE/gap ≤ 5%
 - Cost ceiling: 10M total shots per execution run
 - Execute during off-peak hours (UTC 2-6 AM) if queue > 50 jobs
+
+## Limitations
+
+### PEA Local Simulation Approximation
+
+The local PEA simulation (`run_pea_zne()` with FakeTorino) uses an
+**isotropic depolarizing** noise model to approximate IBM's full
+Pauli-Lindblad error amplification:
+
+| Aspect | Local Simulation | IBM Runtime (real hardware) |
+|--------|------------------|---------------------------|
+| Noise model | Depolarizing (1 rate per gate pair) | Full Pauli-Lindblad (15 generators per 2Q pair) |
+| Amplification | Scale depolarizing rate × factor | Scale each Pauli channel independently |
+| Accuracy vs FakeTorino | Exact (same noise type) | N/A |
+| Accuracy vs real QPU | ±5-10% in extrapolated energy | Ground truth |
+| Overhead | Zero (local sim) | ~50% extra QPU time (noise learning) |
+
+**Implication for thesis**: Local PEA results (R², gain percentages)
+are accurate for validating the *methodology* but the absolute energy
+values may differ from real QPU results by up to 10%. The
+comparative rankings (PEA > GF > raw) remain valid on hardware.
+
+### CES-ZNE Failure on heavy_hex
+
+Client-side CES-based inhomogeneous ZNE (extrapolating E(CES) → CES=0
+across different layouts) **does not work on heavy_hex topology** because
+all good layouts have nearly identical CES≈0.15 (no spread → R²≈0.04).
+The current implementation uses IBM's server-side ZNE for hardware mode
+and local GF/PEA for fake_backend mode to avoid this issue.
+
+## Pre-Hardware Validation (Rehearsal V2)
+
+Before committing QPU time, run the full 9-section rehearsal:
+
+```bash
+# Full rehearsal (all 9 sections, ~60s on FakeTorino N=10)
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py \
+  --topology heavy_hex --n-qubits 10 --zne-amplifier pea
+
+# Quick check (cost + circuit audit only, ~2s)
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py \
+  --section 8 9 --topology heavy_hex --n-qubits 10 --zne-amplifier pea
+
+# Analysis of results
+python scripts/analyze_hw_rehearsal_v2.py --all
+```
+
+### Rehearsal Sections
+
+| # | Section | What it validates | Pass criterion |
+|---|---------|-------------------|----------------|
+| 1 | MPNN Prediction | θ_pred quality (noiseless) | ΔE/gap < 5% all h_test |
+| 2 | HardwareBackend Noisy | evaluate() + ZNE pipeline | ΔE/gap < 5% |
+| 3 | Full run_deployment() | Complete verdict pipeline | verdict = PASS |
+| 4 | Adaptive ZNE | GF→PEA fallback mechanism | Fields populated correctly |
+| 5 | Amplifier Comparison | GF vs PEA cost/quality | At least one < 5% |
+| 6 | Shot Noise | Measurement reproducibility | std(ΔE/gap) < 3% |
+| 7 | Phase Classification | Observable SNR + labels | All correct, SNR > 1 |
+| 8 | QPU Cost Estimation | Fits IBM time limits | time_per_h < max_execution_time |
+| 9 | Circuit Depth Audit | 2Q gates ≤ ZNE threshold | All layouts viable |
+
+### GO/NO-GO Decision
+
+After running all sections, `analyze_hw_rehearsal_v2.py` reports:
+- **🟢 GO**: Sections 1-3 all pass → safe to submit to IBM Torino
+- **🔴 NO-GO**: Any critical section fails → fix before QPU
+
+## Tiered QPU Deployment
+
+For production hardware runs on IBM Torino, use the tiered deployment script:
+
+```bash
+# Full tiered deployment (recommended)
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+
+# Dry run (cost estimate + preflight only, no QPU)
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+
+# Single tier
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0  # Smoke test
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 1  # Core validation
+```
+
+The script implements automatic tier advancement: Tier 0 (smoke) → Tier 1 (core) → Tier 2 (seeds) → Tier 3 (extensibility). Each tier only proceeds if the previous one passes. Includes TLS calibration monitoring between h-points.
+
+## Hardware Generations & Scaling
+
+For a detailed comparison of IBM processor generations (Eagle → Heron → Nighthawk)
+including EPLG benchmarks, fidelity estimates by system size, and N-scaling projections:
+
+→ **`documentation/analysis/18_ibm_hardware_generations.md`**
+
+Key takeaway:
+- ibm_torino (Heron r1): N=50-60 viable with PEA-ZNE + fractional gates
+- Nighthawk: N=100-120 viable (3× better EPLG, square lattice, T₁=350μs)
+- Fractional gates (rzz nativo) eliminate CX decomposition → halve effective gate count
 
 ## Testing
 

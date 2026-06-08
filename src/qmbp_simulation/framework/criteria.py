@@ -86,6 +86,11 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "threshold": 0.60,
         "desc": "Full pipeline on FakeTorino (ZNE + classification)",
     },
+    "HW_REHEARSAL_V2": {
+        "metric": "pass_rate",
+        "threshold": 0.50,
+        "desc": "HardwareBackend(fake_backend) with PEA/GF/adaptive ZNE",
+    },
     "E4b_hardware_readiness": {
         "metric": "pass_rate",
         "threshold": 0.60,
@@ -122,6 +127,38 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "threshold": 0.75,
         "desc": "PEA>GF across all topologies (paired t-test p<0.05, R²>0.9)",
     },
+    "PEA_TRIANGULAR": {
+        "metric": "pass_rate",
+        "threshold": 1.0,
+        "desc": "PEA-ZNE gain>0 on triangular N=6 with R²>0.9 (all seeds)",
+    },
+    "BOND_RESOLVED_HVA": {
+        "metric": "pass_rate",
+        "threshold": 0.75,
+        "desc": "Bond-resolved HVA achieves dE/gap <= global on >=75% topologies",
+    },
+    "BOND_RESOLVED_SCALING": {
+        "metric": "pass_rate",
+        "threshold": 0.75,
+        "desc": "Bond-resolved scales to 2D square + MPNN + ZNE (>=3/4 sections pass)",
+    },
+    "N16_SQUARE_DMRG2D": {
+        "metric": "pass_rate",
+        "threshold": 0.50,
+        "desc": "N=16 DMRG 2D works + VQE convergence assessment (1/2 = DMRG validated)",
+    },
+    "SCALE_N40": {
+        "hypothesis": "MPS-VQE converges at N=40 within valid regime",
+        "threshold": 0.05,
+        "metric": "max_de_gap",
+        "pass_if": "max_de_gap < 0.05 for h >= h_min(N=40)",
+    },
+    "SCALE_N50": {
+        "hypothesis": "MPS-VQE converges at N=50 within valid regime",
+        "threshold": 0.05,
+        "metric": "max_de_gap",
+        "pass_if": "max_de_gap < 0.05 for h >= h_min(N=50)",
+    },
 }
 
 # Experiments where hypothesis rejection IS a valid scientific finding
@@ -135,6 +172,7 @@ REJECTION_IS_FINDING: set[str] = {
     "T1a",
     "T1a_dense",
     "HW_REHEARSAL",
+    "HW_REHEARSAL_V2",
     "S8",
     "S8b",
 }

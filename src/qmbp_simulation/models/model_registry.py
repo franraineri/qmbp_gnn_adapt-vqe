@@ -200,5 +200,35 @@ def _register_builtins() -> None:
         )
     )
 
+    # Bond-Resolved TFIM: H = -J·ZZ - h·X (same Hamiltonian, local parameters)
+    def _create_bond_resolved(n_qubits, p_layers, lattice, **kwargs):
+        mod = importlib.import_module("qmbp_simulation.circuits")
+        hva = mod.HVACircuitBuilder()
+        return hva.create_bond_resolved(n_qubits, p_layers, lattice, **kwargs)
+
+    register_model(
+        ModelSpec(
+            name="tfim_bond_resolved",
+            params_per_layer=-1,  # Variable: n_edges + n_qubits (topology-dependent)
+            build_hamiltonian=builder.build,
+            build_observables=builder.build_local_observables,
+            create_circuit=_create_bond_resolved,
+            initial_state="plus",
+            vqe_defaults={
+                "n_restarts": 5,
+                "restart_sigma": 0.05,
+                "maxiter": 1500,
+            },
+            description=(
+                "Bond-Resolved TFIM: Same H = -J·ZZ - h·X but with per-bond θ_zz_k "
+                "and per-site θ_x_i parameters. Increases expressibility without "
+                "increasing depth or gate count. Toward quantum advantage via "
+                "high-dimensional parameter space (Fusco et al., 2026)."
+            ),
+            fidelity_threshold=0.93,
+            mpnn_hidden_dim=128,
+        )
+    )
+
 
 _register_builtins()

@@ -16,6 +16,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -139,6 +140,9 @@ class DiagnosticCollector:
         # Baseline comparison data
         self._baseline_data: dict | None = None
 
+        # VQE validation report
+        self._vqe_validation: dict | None = None
+
     # ── Phase 1 recording ────────────────────────────────────────────────
 
     def record_phase1(
@@ -258,6 +262,21 @@ class DiagnosticCollector:
         if val_loss is not None:
             entry["val_loss"] = float(val_loss)
         self._loss_curve.append(entry)
+
+    def record_vqe_validation(self, report: Any) -> None:
+        """Record VQE validation report from VQEValidator.
+
+        Parameters
+        ----------
+        report : VQEValidationReport
+            Validation report from VQEValidator.validate_sweep().
+        """
+        try:
+            self._vqe_validation = report.to_dict()
+            if self.verbose:
+                self._log.info(f"VQE validation recorded: {report.summary()}")
+        except Exception:
+            self._log.exception("Error recording VQE validation report")
 
     def record_mpnn_per_h_error(
         self,
@@ -502,6 +521,36 @@ class DiagnosticCollector:
             self._log.exception(f"Error recording baseline comparison at h_test={h_test}")
             self._baseline_data = {"error": "see logs for traceback"}
 
+    # ── Theta Validation recording ───────────────────────────────────────
+
+    def record_theta_validation(
+        self,
+        h_test: float,
+        report_dict: dict,
+    ) -> None:
+        """Record θ_pred validation diagnostics from ThetaValidator.
+
+        Parameters
+        ----------
+        h_test : float
+            Test h-value where prediction was validated.
+        report_dict : dict
+            Output of ThetaValidationReport.to_dict().
+        """
+        if not hasattr(self, "_theta_validation_data"):
+            self._theta_validation_data: list[dict] = []
+
+        entry = {"h_test": float(h_test), **report_dict}
+        self._theta_validation_data.append(entry)
+
+        if self.verbose:
+            status = "PASS" if report_dict.get("overall_pass") else "FAIL"
+            conf = report_dict.get("confidence_score", 0.0)
+            self._log.info(
+                f"θ validation h={h_test}: {status} "
+                f"(confidence={conf:.2f}, level=L{report_dict.get('level_executed', '?')})"
+            )
+
     # ── Serialization ────────────────────────────────────────────────────
 
     def to_dict(self) -> dict:
@@ -578,6 +627,8 @@ class DiagnosticCollector:
             "phase3": phase3,
             "phase4": phase4,
             "baseline_comparison": _to_json_safe(self._baseline_data),
+            "vqe_validation": _to_json_safe(self._vqe_validation),
+            "theta_validation": _to_json_safe(getattr(self, "_theta_validation_data", None)),
         }
 
     # ── Checkpoint persistence ───────────────────────────────────────────

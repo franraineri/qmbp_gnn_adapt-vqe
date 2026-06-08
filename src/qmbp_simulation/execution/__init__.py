@@ -6,6 +6,7 @@ from qmbp_simulation.execution.backends import (
     NoiselessBackend,
     NoisyBackend,
 )
+from qmbp_simulation.execution.mps_backend import MPSBackend
 from qmbp_simulation.execution.hardware import (
     HardwareBackend,
     HardwareConfig,
@@ -13,6 +14,11 @@ from qmbp_simulation.execution.hardware import (
     SPSAConfig,
 )
 from qmbp_simulation.execution.noisy_utils import (
+    AdaptiveZNEResult,
+    AffineCorrectedResult,
+    BlockZNEResult,
+    CalibrationSnapshot,
+    DriftReport,
     GateFoldingDeploymentResult,
     GateFoldingZNEResult,
     LayoutSelection,
@@ -21,13 +27,18 @@ from qmbp_simulation.execution.noisy_utils import (
     PEAResult,
     ZNEDeploymentResult,
     ZNEResult,
+    affine_correct_energy,
     build_adjacency,
+    check_calibration_drift,
     compute_circuit_ces,
     find_layouts_bfs,
     fold_gates,
+    fold_single_layer,
     linear_zne,
     noisy_estimate,
     noisy_estimate_batch,
+    run_adaptive_zne,
+    run_block_zne,
     run_gate_folding_zne,
     run_gate_folding_zne_deployment,
     run_pea_zne,
@@ -35,6 +46,7 @@ from qmbp_simulation.execution.noisy_utils import (
     run_zne_deployment,
     select_layouts_by_circuit_ces,
     select_layouts_low_ces,
+    take_calibration_snapshot,
 )
 
 __all__ = [
@@ -45,6 +57,7 @@ __all__ = [
     "HardwareRunResult",
     "SPSAConfig",
     "MitigationOptions",
+    "MPSBackend",
     "NoiselessBackend",
     "NoisyBackend",
     # Noisy simulation utilities
@@ -72,4 +85,19 @@ __all__ = [
     "run_pea_zne_deployment",
     "PEAResult",
     "PEADeploymentResult",
+    # Adaptive ZNE (GF→PEA fallback)
+    "run_adaptive_zne",
+    "AdaptiveZNEResult",
+    # Block-level ZNE (layer-wise folding)
+    "fold_single_layer",
+    "run_block_zne",
+    "BlockZNEResult",
+    # Dual-branch affine correction
+    "affine_correct_energy",
+    "AffineCorrectedResult",
+    # TLS-aware calibration monitoring
+    "take_calibration_snapshot",
+    "check_calibration_drift",
+    "CalibrationSnapshot",
+    "DriftReport",
 ]

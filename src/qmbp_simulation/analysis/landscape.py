@@ -119,7 +119,7 @@ def landscape_fluctuation(
     e_var = np.var(energies)
 
     if abs(e_mean) > 1e-10:
-        fluctuation = e_var / (e_mean**2)
+        fluctuation = float(e_var / (e_mean**2))
     else:
         # Mean near zero — normalized fluctuation is undefined.
         # Use inf to signal this rather than a misleading 0.0.
