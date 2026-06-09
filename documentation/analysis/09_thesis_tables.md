@@ -743,6 +743,17 @@ Ground truth: DMRG (TeNPy TFIChain, χ=200, dynamic scaling).
 | 40 | 3.51 | 4.01 | 0.50 | ✅ |
 | 50 | 4.36 | 4.86 | 0.50 | ✅ (marginal) |
 
+### Transpilation Audit (FakeTorino, opt_level=2)
+
+| N | Logical CX | Transpiled 2Q | SWAPs | Depth | PEA viable? | Est. fidelity |
+|---|-----------|--------------|-------|-------|-------------|---------------|
+| 40 | 39 | 78 | 13 | 267 | ✅ | ~67% |
+| 50 | 49 | 98 | 16 | 333 | ✅ | ~61% |
+| 80 | 79 | 158 | 26 | 524 | ⚠️ Marginal | ~45% |
+
+**Go/No-Go**: N=40 and N=50 are hardware-viable with PEA-ZNE. N=80 needs relaxed
+criteria (ΔE/gap < 15%) or PauliEvolutionGate (-11% depth).
+
 Formula: `h_min = 1.0 + 0.020 · N^1.31` (R²=1.0000 at N=6-20, extrapolated to N=40-50).
 
 ### Cross-N Comparison (all at p=1, chain_1d)

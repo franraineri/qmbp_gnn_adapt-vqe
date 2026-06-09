@@ -48,20 +48,36 @@ from qmbp_simulation.analysis.vqe_validator import (
     ValidationIssue,
     Severity,
 )
+from qmbp_simulation.analysis.nlce import (
+    ClusterResult,
+    ClusterSolver,
+    NLCEConfig,
+    NLCEResult,
+    NLCERunner,
+    VQEClusterSolver,
+    nlce_convergence_analysis,
+    tfim_analytical_energy_per_site,
+)
 
 __all__ = [
     "BaselineComparison",
     "BaselineMetrics",
+    "ClusterResult",
+    "ClusterSolver",
     "ComparativeMetrics",
     "ComparisonResult",
     "DiagnosticCollector",
     "EntanglementAnalyzer",
     "EntanglementResult",
     "GradientAnalysisResult",
+    "NLCEConfig",
+    "NLCEResult",
+    "NLCERunner",
     "RegimeDiscoveryResult",
     "Severity",
     "ThetaValidationReport",
     "ThetaValidator",
+    "VQEClusterSolver",
     "VQEValidationReport",
     "VQEValidator",
     "ValidationIssue",
@@ -82,4 +98,6 @@ __all__ = [
     "find_minimum_viable_threshold",
     "generate_comparison_table",
     "landscape_fluctuation",
+    "nlce_convergence_analysis",
+    "tfim_analytical_energy_per_site",
 ]

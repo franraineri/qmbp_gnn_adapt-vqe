@@ -77,8 +77,12 @@ P1_VALID_REGIME: dict[tuple[str, int], float] = {
     ("chain_1d", 16): 2.0,  # Scaling law: 1.0+0.020·16^1.31≈1.70, empirical conservative
     ("chain_1d", 20): 2.0,  # Validated: scaling law predicts 2.00, exact match
     ("chain_1d", 24): 2.5,
+    ("chain_1d", 40): 4.0,  # Scaling law: 1.5+0.020·40^1.31≈4.51, validated MPS
+    ("chain_1d", 50): 4.9,  # Scaling law: 1.5+0.020·50^1.31≈5.36, validated MPS
+    ("chain_1d", 80): 7.7,  # Scaling law: 1.5+0.020·80^1.31≈8.22, validated MPS
     ("heavy_hex", 6): 2.0,
     ("heavy_hex", 10): 3.0,
+    ("heavy_hex", 20): 3.5,  # Empirical estimate (extrapolated from N=10)
     ("ladder", 6): 2.0,
     ("ladder", 10): 3.0,
     ("ladder", 16): 2.5,

@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "project_health/digest/**,scripts/run_*,experiments/**"
+fileMatchPattern: "project_health/**,analysis/**,scripts/run_*,experiments/**,results/**"
 ---
 
 # Diagnostics Guide — Detecting Problems & Using Tools
@@ -132,3 +132,43 @@ When a result fails (ΔE/gap > 5%), check in this order:
 - JSON field reference: #[[file:.kiro/knowledge/result-schemas.md]]
 - Known error patterns: #[[file:.kiro/knowledge/error-patterns.md]]
 - Experiment protocol: #[[file:.kiro/steering/experiment-protocol.md]]
+- Tool invocation reference: #[[file:.kiro/steering/analysis-tooling.md]]
+
+## Additional Diagnostic Tools
+
+### Sanity Check (`python -m project_health.analysis.sanity_check`)
+
+24 automated checks on analysis outputs. Run after any bulk analysis.
+
+```bash
+python -m project_health.analysis.sanity_check              # All 24 checks
+python -m project_health.analysis.sanity_check --only physics  # Physics subset
+python -m project_health.analysis.sanity_check --json out.json  # Machine output
+```
+
+Checks: valid regime consistency, scaling law fit, claim contradictions, statistical test validity.
+
+### Scaling Analyzer (`python -m project_health.analysis.scaling_analyzer`)
+
+MPS scaling law analysis — validates h_min(N) formula and timing predictions.
+
+```bash
+python -m project_health.analysis.scaling_analyzer
+```
+
+### Failure Diagnosis Priority (`analysis/diagnose.py`)
+
+When multiple results fail, triage by root cause:
+
+| Root Cause | % | Detection |
+|-----------|---|-----------|
+| CHAIN_BREAK (θ>1.0) | 45% | `theta_smoothness > 1.0` in Phase 2 |
+| MPNN_OVERFIT (gen_gap>0.01) | 25% | `generalization_gap > 0.01` in Phase 3 |
+| BOUNDARY_EFFECT | 14% | h_test near valid regime boundary |
+| OUTSIDE_REGIME | 9% | h_test below h_min_safe |
+| VQE_DIVERGENCE | 7% | `convergence_rate < 0.8` |
+
+```bash
+python analysis/diagnose.py --all --severity fail   # Only failures
+python analysis/diagnose.py results/thesis/variants_N10_ladder/  # Specific folder
+```

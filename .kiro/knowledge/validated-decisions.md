@@ -23,6 +23,31 @@ Do NOT duplicate this content in other files — reference this document instead
 
 ---
 
+## MPS Scaling Validated Decisions (2026-06-07/08)
+
+| Decision | Evidence | Experiment |
+|----------|----------|------------|
+| MPSBackend(aer_mps) works for N=40-80 | 52/52 h-points pass, 0.08-0.49% ΔE/gap | SCALE-1/3/5 |
+| COBYLA mandatory for shot-based MPS | L-BFGS-B fails (finite diff + shot noise) | Viability test |
+| χ=64 sufficient at ANY N for 1D HVA p≤2 | DMRG actual χ=9-15 (area law) | All scaling runs |
+| Dynamic chi formula: min(400, max(200, 4*N)) | χ=200 vs χ=400 gives ΔE=0 at N=40 | Viability test |
+| DMRG_QUBIT_LIMIT=100 works | N=40/50/60/80 all converge <70s | All scaling runs |
+| N>63: use save_expectation_value bypass | BackendEstimatorV2 Target limit=63 | N=80 crash + fix |
+| Zero-shot cross-N GNN FAILS | Train N=40→N=60: 324% error | A1 |
+| Cross-N VQE warm-start useless (2 params) | 0/5 advantage (identical results) | SCALE-4 |
+| Phase 3 MPNN works at N=40 (0.46% deploy) | 26/26 pass with 27 training points | Phase 3 run |
+| MPNN extrapolation fails at boundary | 1/3 fail at h=3.0 (h_min≈3.5) | Phase 3 extrapolation |
+| Seed-independent at N=40 | 27/27 pass, seeds 42/43/44 | Multi-seed run |
+| Scaling law h_min_safe = 1.5+0.020·N^1.31 | Consistent +0.50 offset at N=40/50/80 | Scaling law analysis |
+| Hardware viable at N=40 (78 CX) and N=50 (98 CX) | Transpilation audit + B2 noisy rehearsal | Audit + B2 |
+| T(N) ≈ 0.08·N^2.56 at boundary h-values | Fit on N=6-50 data | C2 timing analysis |
+
+**DO NOT re-run**: χ convergence (already proven), noise-aware training (already failed in V7 5B), zero-shot cross-N without arch change, redundant N=100 (N=80 proves the same point).
+
+**Binnacle**: `documentation/binnacles/binnacle-mps-scaling.md`
+
+---
+
 ## V8 Validated Decisions (2026-05-22)
 
 ### VQE & Optimization

@@ -62,6 +62,30 @@ class MPNNPredictor(nn.Module):
         Default False preserves V6.0 GINConv behavior.
     edge_feature_dim : int
         Dimension of edge features (default 1 for scalar J_ij).
+    norm_type : str
+        Normalization layer type between GNN convolutions. One of:
+        - ``"batch"`` (default): BatchNorm1d — best for fixed-N training
+          where all graphs have the same size. Standard GIN behavior.
+        - ``"layer"``: LayerNorm — normalizes per-node across features.
+          Size-invariant; recommended for cross-N generalization.
+        - ``"none"``: No normalization — recommended for chain_1d cross-N
+          where all nodes have identical features (BN variance=0 causes
+          distortion). Validated: 0.13% ΔE/gap vs 18.5% with BN.
+
+        .. note::
+           For topologies with nodal symmetry (chain_1d), all nodes in a
+           graph have identical features after message passing. BatchNorm
+           accumulates running_stats that reflect graph-size differences
+           rather than meaningful feature variation, causing 25-40%
+           underprediction of θ_x during cross-N deployment. Use
+           ``norm_type="none"`` or ``norm_type="layer"`` for cross-N.
+    n_edges : int | None
+        Number of lattice edges for asymmetric head split. When
+        ``per_parameter_heads=True`` and ``n_edges`` is provided,
+        head_zz outputs ``n_edges`` values and head_x outputs
+        ``output_dim - n_edges`` values. When None, falls back to
+        symmetric ``output_dim // 2`` split (backward compatible).
+        Required for bond-resolved HVA where n_edges ≠ n_qubits.
     """
 
     def __init__(
@@ -73,8 +97,13 @@ class MPNNPredictor(nn.Module):
         per_parameter_heads: bool = False,
         use_edge_features: bool = False,
         edge_feature_dim: int = 1,
+        norm_type: str = "batch",
+        n_edges: int | None = None,
     ) -> None:
         super().__init__()
+
+        if norm_type not in ("batch", "layer", "none"):
+            raise ValueError(f"norm_type must be 'batch', 'layer', or 'none'. Got: {norm_type!r}")
 
         # Store architecture attributes for checkpoint metadata
         self.node_features = node_features
@@ -84,9 +113,20 @@ class MPNNPredictor(nn.Module):
         self.per_parameter_heads = per_parameter_heads
         self.use_edge_features = use_edge_features
         self.edge_feature_dim = edge_feature_dim
+        self.norm_type = norm_type
+        self.n_edges = n_edges
 
         self.convs = nn.ModuleList()
-        self.bns = nn.ModuleList()
+        self.norms = nn.ModuleList()
+
+        def _make_norm(dim: int) -> nn.Module:
+            """Create normalization layer based on norm_type."""
+            if norm_type == "batch":
+                return nn.BatchNorm1d(dim)
+            elif norm_type == "layer":
+                return nn.LayerNorm(dim)
+            else:  # "none"
+                return nn.Identity()
 
         if use_edge_features:
             # NNConv architecture: edge features processed through learned MLP
@@ -97,7 +137,7 @@ class MPNNPredictor(nn.Module):
                 nn.Linear(NNCONV_EDGE_MLP_HIDDEN, node_features * hidden_dim),
             )
             self.convs.append(NNConv(node_features, hidden_dim, edge_nn_0, aggr="add"))
-            self.bns.append(nn.BatchNorm1d(hidden_dim))
+            self.norms.append(_make_norm(hidden_dim))
 
             # Subsequent layers: hidden_dim → hidden_dim
             for _ in range(n_layers - 1):
@@ -107,7 +147,7 @@ class MPNNPredictor(nn.Module):
                     nn.Linear(NNCONV_EDGE_MLP_HIDDEN, hidden_dim * hidden_dim),
                 )
                 self.convs.append(NNConv(hidden_dim, hidden_dim, edge_nn, aggr="add"))
-                self.bns.append(nn.BatchNorm1d(hidden_dim))
+                self.norms.append(_make_norm(hidden_dim))
         else:
             # GINConv architecture (V6.0 default)
             # First layer: node_features → hidden_dim
@@ -117,7 +157,7 @@ class MPNNPredictor(nn.Module):
                 nn.Linear(hidden_dim, hidden_dim),
             )
             self.convs.append(GINConv(mlp0))
-            self.bns.append(nn.BatchNorm1d(hidden_dim))
+            self.norms.append(_make_norm(hidden_dim))
 
             # Subsequent layers: hidden_dim → hidden_dim
             for _ in range(n_layers - 1):
@@ -127,22 +167,34 @@ class MPNNPredictor(nn.Module):
                     nn.Linear(hidden_dim, hidden_dim),
                 )
                 self.convs.append(GINConv(mlp))
-                self.bns.append(nn.BatchNorm1d(hidden_dim))
+                self.norms.append(_make_norm(hidden_dim))
+
+        # Backward compatibility: expose self.bns as alias for self.norms
+        # (existing code may reference model.bns for checkpoint loading)
+        # Note: We don't set self.bns = self.norms because nn.Module.__setattr__
+        # would register it as a duplicate ModuleList. Instead, use a property.
+        # Legacy checkpoints with 'bns' keys are handled via state_dict remapping.
 
         # Readout head(s): global pooled vector → θ_pred
         if per_parameter_heads:
-            # Separate heads for θ_zz and θ_x (physics-informed specialization)
+            # Separate heads for θ_zz and θ_x (physics-informed specialization).
+            # For bond-resolved HVA: n_edges ZZ params + (output_dim - n_edges) X params.
+            # When n_edges is None, fall back to symmetric split (backward compat).
+            dim_zz = n_edges if n_edges is not None else output_dim // 2
+            dim_x = output_dim - dim_zz
+            self._dim_zz = dim_zz
+            self._dim_x = dim_x
             self.head_zz = nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
                 nn.Dropout(0.1),
-                nn.Linear(hidden_dim, output_dim // 2),
+                nn.Linear(hidden_dim, dim_zz),
             )
             self.head_x = nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
                 nn.Dropout(0.1),
-                nn.Linear(hidden_dim, output_dim // 2),
+                nn.Linear(hidden_dim, dim_x),
             )
             self.head = None  # Not used in per-parameter mode
         else:
@@ -153,6 +205,11 @@ class MPNNPredictor(nn.Module):
                 nn.Dropout(0.1),
                 nn.Linear(hidden_dim, output_dim),
             )
+
+    @property
+    def bns(self) -> nn.ModuleList:
+        """Backward-compatible alias for self.norms (legacy code uses model.bns)."""
+        return self.norms
 
     def forward(self, data: Data) -> torch.Tensor:
         """Predict θ_pred from graph-structured Hamiltonian data.
@@ -188,14 +245,14 @@ class MPNNPredictor(nn.Module):
                     "include_edge_features=True."
                 )
             edge_attr = data.edge_attr
-            for conv, bn in zip(self.convs, self.bns, strict=False):
+            for conv, norm in zip(self.convs, self.norms, strict=False):
                 x = conv(x, edge_index, edge_attr)
-                x = bn(x)
+                x = norm(x)
                 x = torch.relu(x)
         else:
-            for conv, bn in zip(self.convs, self.bns, strict=False):
+            for conv, norm in zip(self.convs, self.norms, strict=False):
                 x = conv(x, edge_index)
-                x = bn(x)
+                x = norm(x)
                 x = torch.relu(x)
 
         # Global mean pooling: lattice-agnostic fixed-size output
@@ -441,7 +498,7 @@ def train_mpnn(
                 for batch in loader:
                     pred = model(batch)
                     target = batch.y.view(pred.shape)
-                    p = model.output_dim // 2
+                    p = model._dim_zz if hasattr(model, "_dim_zz") else model.output_dim // 2
                     loss_zz = F.mse_loss(pred[:, :p], target[:, :p]).item()
                     loss_x = F.mse_loss(pred[:, p:], target[:, p:]).item()
                     zz_head_loss_history.append(loss_zz)
@@ -535,6 +592,7 @@ def save_mpnn_checkpoint(
             "output_dim": getattr(model, "output_dim", 4),
             "use_edge_features": getattr(model, "use_edge_features", False),
             "edge_feature_dim": getattr(model, "edge_feature_dim", 1),
+            "norm_type": getattr(model, "norm_type", "batch"),
             "training_metadata": training_metadata or {},
         },
         path,
@@ -566,7 +624,12 @@ def load_mpnn_checkpoint(path: str) -> MPNNPredictor:
             "Assuming single-head GINConv (V6.0 defaults)."
         )
         model = MPNNPredictor()
-        model.load_state_dict(data)
+        # Remap legacy keys if needed
+        remapped = {}
+        for key, value in data.items():
+            new_key = key.replace("bns.", "norms.", 1) if key.startswith("bns.") else key
+            remapped[new_key] = value
+        model.load_state_dict(remapped)
         return model
 
     # Reconstruct architecture from metadata
@@ -578,11 +641,21 @@ def load_mpnn_checkpoint(path: str) -> MPNNPredictor:
         per_parameter_heads=data.get("per_parameter_heads", False),
         use_edge_features=data.get("use_edge_features", False),
         edge_feature_dim=data.get("edge_feature_dim", 1),
+        norm_type=data.get("norm_type", "batch"),
     )
-    model.load_state_dict(data["state_dict"])
+
+    # Remap legacy state_dict keys: "bns.*" → "norms.*"
+    state_dict = data["state_dict"]
+    remapped = {}
+    for key, value in state_dict.items():
+        new_key = key.replace("bns.", "norms.", 1) if key.startswith("bns.") else key
+        remapped[new_key] = value
+
+    model.load_state_dict(remapped)
     logger.info(
         f"Loaded MPNNCheckpoint: arch={data['architecture']}, "
         f"per_param_heads={data.get('per_parameter_heads', False)}, "
-        f"edge_features={data.get('use_edge_features', False)}"
+        f"edge_features={data.get('use_edge_features', False)}, "
+        f"norm_type={data.get('norm_type', 'batch')}"
     )
     return model

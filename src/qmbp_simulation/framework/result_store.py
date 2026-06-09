@@ -25,12 +25,13 @@ _DEFAULT_RESULTS_ROOT = Path("results/experiments")
 # Experiment category mapping: category_name → list of experiment ID prefixes
 CATEGORY_MAP: dict[str, list[str]] = {
     "optimization": ["B", "C3", "G4"],
-    "scaling": ["A", "G3"],
+    "scaling": ["A", "G3", "E5"],
     "landscape": ["F"],
     "predictor": ["C1", "D", "E3", "G1", "G2", "G5"],
     "hardware": [],
     "generalization": ["E4"],
     "mps_scaling": ["SCALE"],
+    "nlce": ["E5_NLCE"],
 }
 
 # Known reference baselines from validated V6.1 experiments (ΔE/gap)

@@ -145,8 +145,31 @@ class VQEOptimizer:
             """Pure energy cost function — evaluates ⟨H⟩ only."""
             return backend.evaluate(circuit, hamiltonian, params)
 
+        # Warn if L-BFGS-B is used on high-dimensional landscape
+        n_params = len(initial_guess)
+        if cfg.method == "L-BFGS-B" and n_params > 10:
+            evals_per_iter = 2 * n_params + 1
+            logger.warning(
+                f"L-BFGS-B with {n_params} params: ~{evals_per_iter} evals/iter "
+                f"(finite-difference gradient). Consider COBYLA for n_params > 10."
+            )
+
+        # Lightweight progress callback: logs every 50 iterations so the
+        # user sees activity during long-running VQE calls (even when
+        # enable_callbacks=False). Does NOT re-evaluate cost_fn (zero overhead).
+        _iter_count = [0]
+
+        def _progress_callback(xk: np.ndarray) -> None:
+            _iter_count[0] += 1
+            if _iter_count[0] % 50 == 0:
+                logger.info(f"    VQE progress: iter={_iter_count[0]}/{cfg.maxiter}")
+
         # Set up callback if enabled
         callback = OptimizationCallback(cost_fn) if cfg.enable_callbacks else None
+
+        # Use progress callback when full callbacks are disabled and
+        # parameter space is high-dimensional (potentially long-running).
+        progress_cb = _progress_callback if (not cfg.enable_callbacks and n_params > 4) else None
 
         # Record initial energy in callback so trajectory is never empty
         if callback is not None:
@@ -155,10 +178,13 @@ class VQEOptimizer:
             callback.param_vectors.append(initial_guess.copy())
             callback.grad_norms.append(float("nan"))
 
+        # Effective callback for scipy: full trajectory OR lightweight progress
+        effective_cb = callback or progress_cb
+
         bounds = [cfg.bounds] * len(initial_guess)
 
         # Warm-start run
-        best = self._run_minimize(cost_fn, initial_guess, cfg, bounds, callback)
+        best = self._run_minimize(cost_fn, initial_guess, cfg, bounds, effective_cb)
 
         n_restarts_used = 0
 
@@ -167,7 +193,10 @@ class VQEOptimizer:
             x0 = best.x + self._rng.normal(0, cfg.restart_sigma, len(best.x))
             # Clip to bounds
             x0 = np.clip(x0, cfg.bounds[0], cfg.bounds[1])
-            trial = self._run_minimize(cost_fn, x0, cfg, bounds, callback)
+            # Reset iter counter for each restart
+            if progress_cb is not None:
+                _iter_count[0] = 0
+            trial = self._run_minimize(cost_fn, x0, cfg, bounds, effective_cb)
             if not trial.success:
                 logger.debug(
                     f"VQE restart {restart_idx + 1}/{cfg.n_restarts} did not converge: "
@@ -219,16 +248,29 @@ class VQEOptimizer:
         - L-BFGS-B: gradient-based, uses bounds and ftol
         - COBYLA: gradient-free, no bounds/ftol (TypeError if passed)
         - Nelder-Mead: simplex, no bounds, uses fatol
+
+        Note: L-BFGS-B uses finite-difference gradients (2*n_params+1 evals
+        per iteration). For high-dimensional problems (n_params > 10), this
+        becomes very expensive. A maxfun cap prevents indefinite hangs.
         """
         method = cfg.method
+        n_params = len(x0)
         if method == "L-BFGS-B":
+            # Cap total function evaluations to prevent hangs on
+            # high-dimensional landscapes where ftol convergence is slow.
+            # Default: maxiter * (n_params + 5) — generous but finite.
+            maxfun = cfg.maxiter * min(n_params + 5, 50)
             return minimize(
                 cost_fn,
                 x0,
                 method="L-BFGS-B",
                 bounds=bounds,
                 callback=callback,
-                options={"maxiter": cfg.maxiter, "ftol": cfg.ftol},
+                options={
+                    "maxiter": cfg.maxiter,
+                    "ftol": cfg.ftol,
+                    "maxfun": maxfun,
+                },
             )
         elif method == "COBYLA":
             return minimize(

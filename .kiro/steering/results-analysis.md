@@ -109,33 +109,14 @@ Per-experiment thresholds live in `EXPERIMENT_CRITERIA` (same module).
 
 ## Diagnostic Tools
 
+For full tool reference with all flags, see #[[file:.kiro/steering/analysis-tooling.md]].
+
+Quick commands for result interpretation:
 ```bash
-# Coverage scan — what data exists, what's missing
-python analysis/scan_coverage.py
-python analysis/scan_coverage.py --discover --extended
-python analysis/scan_coverage.py --topology ladder --p 1 --n-qubits 10
-
-# Failure diagnosis — automated root cause analysis
-python analysis/diagnose.py --all
-python analysis/diagnose.py results/thesis/p1_variants_N10_r2 --severity fail
-
-# Quick overview of all results (digest)
-python -m project_health.digest
-python -m project_health.digest --kind noiseless --p-layers 1
-
-# Compare topologies
-python -m project_health.digest --kind noiseless --group-by topology
-
-# Verification plan — systematic claim validation
-python scripts/experiment_runners/run_verification_plan.py --list
-python scripts/experiment_runners/run_verification_plan.py --noiseless-only  # Tier 1
-python -m project_health.analysis.verify_results                            # Analyze results
-
-# Existing compare tool (experiment verdicts)
-python scripts/compare.py --all
-
-# Export coverage data
-python analysis/scan_coverage.py --discover --json coverage.json --csv coverage.csv --markdown coverage.md
+python -m project_health.digest --kind noiseless --outliers   # Find problem results
+python -m project_health.digest --kind noiseless --stats      # Statistical summary
+python analysis/diagnose.py --all --severity fail             # Root cause analysis
+python -m project_health.digest --compare folder_A folder_B   # A/B comparison
 ```
 
 ## Decision Flowchart

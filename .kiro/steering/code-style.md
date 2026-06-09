@@ -158,6 +158,9 @@ from qmbp_simulation.analysis import (
     ThetaValidator, ThetaValidationReport,
     # VQE output validation (variational principle, energy bounds, sweep quality)
     VQEValidator, VQEValidationReport, ValidationIssue, Severity,
+    # NLCE — Numerical Linked-Cluster Expansion (thermodynamic limit)
+    NLCERunner, NLCEConfig, NLCEResult, ClusterSolver, VQEClusterSolver,
+    nlce_convergence_analysis, tfim_analytical_energy_per_site,
 )
 ```
 
@@ -248,13 +251,15 @@ Modules follow a strict DAG (no circular imports possible):
 
 ```
 utils → models → solvers, circuits → execution → optimizers
-                  models → predictors
+                  models, execution, solvers, circuits → predictors
          solvers, optimizers, predictors, analysis → pipeline
                   pipeline, analysis → framework
          models, predictors → analysis
+         execution ← predictors (hardware GNN-QEM correction, lazy imports only)
 ```
 
 - A module may only import from modules **above** it in this order.
+- `execution` ↔ `predictors` forms a controlled bidirectional dependency (both use lazy imports to avoid circular import at module level). This exists because hardware backend needs GNN-QEM for error correction, and GNN-QEM training data generation needs noisy execution.
 - No module in `src/qmbp_simulation/` imports from `experiments/` or `scripts/`.
 
 ## Qiskit Patterns

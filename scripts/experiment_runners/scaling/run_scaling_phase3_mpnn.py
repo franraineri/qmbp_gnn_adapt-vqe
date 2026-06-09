@@ -75,7 +75,9 @@ def canonicalize_theta(theta: np.ndarray) -> np.ndarray:
     return theta
 
 
-def load_theta_from_result(result_file: Path, seed: int | None = None) -> dict:
+def load_theta_from_result(
+    result_file: Path, seed: int | None = None, use_all_seeds: bool = False
+) -> dict:
     """Load θ_opt, h_values, energies from a scaling result JSON.
 
     Parameters
@@ -83,7 +85,10 @@ def load_theta_from_result(result_file: Path, seed: int | None = None) -> dict:
     result_file : Path
         Path to scaling_N*_*.json from run_scaling_validation.py
     seed : int | None
-        Which seed's results to use. If None, uses first available seed.
+        Which seed's results to use. If None and use_all_seeds=False, uses first.
+    use_all_seeds : bool
+        If True, aggregate ALL seeds' data (more training points).
+        Requires canonicalization to handle Z₂ sign symmetry.
 
     Returns
     -------
@@ -95,31 +100,76 @@ def load_theta_from_result(result_file: Path, seed: int | None = None) -> dict:
     meta = data["metadata"]
     vqe_results = data["vqe_results"]
 
-    # Select seed
-    if seed is not None:
-        seed_run = next((r for r in vqe_results if r["seed"] == seed), None)
-        if seed_run is None:
-            available = [r["seed"] for r in vqe_results]
-            raise ValueError(f"Seed {seed} not found. Available: {available}")
-    else:
-        seed_run = vqe_results[0]
+    if use_all_seeds:
+        # Aggregate ALL seeds — more data for MPNN training
+        all_h = []
+        all_theta = []
+        all_e = []
+        for seed_run in vqe_results:
+            for r in seed_run["results"]:
+                if "theta_opt" not in r:
+                    continue
+                # Filter: only include points that passed (ΔE/gap < 5%)
+                if not r.get("passed", True):
+                    logger.warning(
+                        f"Skipping failed point: seed={seed_run['seed']}, "
+                        f"h={r['h']:.3f}, ΔE/gap={r['de_gap']:.4f}"
+                    )
+                    continue
+                all_h.append(r["h"])
+                all_theta.append(canonicalize_theta(np.array(r["theta_opt"])))
+                all_e.append(r["dmrg_energy"])
 
-    results = seed_run["results"]
+        if not all_theta:
+            raise ValueError(f"No valid theta_opt found in {result_file}")
 
-    # Check theta_opt presence
-    if "theta_opt" not in results[0]:
-        raise ValueError(
-            f"theta_opt not found in {result_file}. "
-            f"Re-run scaling validation with the updated runner that saves theta_opt."
+        h_values = np.array(all_h)
+        theta_opt = np.array(all_theta)
+        e_dmrg = np.array(all_e)
+
+        # Check sign consistency after canonicalization
+        if len(theta_opt) > 1:
+            theta_std = np.std(theta_opt, axis=0)
+            theta_mean = np.mean(np.abs(theta_opt), axis=0)
+            cv = theta_std / np.maximum(theta_mean, 1e-10)
+            if np.any(cv > 0.5):
+                logger.warning(
+                    f"High θ variance across seeds after canonicalization: "
+                    f"CV={cv}. Check Z₂ symmetry handling."
+                )
+
+        logger.info(
+            f"Loaded {len(theta_opt)} points from {len(vqe_results)} seeds "
+            f"(filtered by ΔE/gap < 5%)"
         )
+        seed_used = "all"
+    else:
+        # Single seed
+        if seed is not None:
+            seed_run = next((r for r in vqe_results if r["seed"] == seed), None)
+            if seed_run is None:
+                available = [r["seed"] for r in vqe_results]
+                raise ValueError(f"Seed {seed} not found. Available: {available}")
+        else:
+            seed_run = vqe_results[0]
 
-    h_values = np.array([r["h"] for r in results])
-    theta_opt = np.array([r["theta_opt"] for r in results])
-    e_dmrg = np.array([r["dmrg_energy"] for r in results])
+        results = seed_run["results"]
 
-    # Canonicalize signs
-    for i in range(len(theta_opt)):
-        theta_opt[i] = canonicalize_theta(theta_opt[i])
+        if "theta_opt" not in results[0]:
+            raise ValueError(
+                f"theta_opt not found in {result_file}. "
+                f"Re-run scaling validation with the updated runner."
+            )
+
+        h_values = np.array([r["h"] for r in results])
+        theta_opt = np.array([r["theta_opt"] for r in results])
+        e_dmrg = np.array([r["dmrg_energy"] for r in results])
+        seed_used = seed_run["seed"]
+
+    # Canonicalize signs (for single-seed case; multi-seed already done above)
+    if not use_all_seeds:
+        for i in range(len(theta_opt)):
+            theta_opt[i] = canonicalize_theta(theta_opt[i])
 
     return {
         "h_values": h_values,
@@ -128,7 +178,7 @@ def load_theta_from_result(result_file: Path, seed: int | None = None) -> dict:
         "n_qubits": meta["n"],
         "topology": meta["topology"],
         "p_layers": meta["p_layers"],
-        "seed": seed_run["seed"],
+        "seed": seed_used,
     }
 
 
@@ -204,6 +254,26 @@ def train_scaling_mpnn(
         f"Training complete: final_mse={metrics['final_mse']:.2e}, "
         f"time={train_time:.1f}s, stopped_early={metrics['stopped_early']}"
     )
+
+    # Generalization gap check (early warning for MPNN overfit)
+    # Per steering: gen_gap > 0.01 → 25% of failures
+    gen_gap = metrics.get("generalization_gap", None)
+    if gen_gap is not None and gen_gap > 0.01:
+        logger.warning(
+            f"⚠️  Generalization gap={gen_gap:.4f} > 0.01 threshold. "
+            f"MPNN may be overfitting. Consider more training points or "
+            f"reducing hidden_dim/n_layers."
+        )
+
+    # Data sufficiency check
+    n_model_params = sum(p.numel() for p in model.parameters())
+    data_ratio = n_model_params / max(len(dataset), 1)
+    if data_ratio > 5000:
+        logger.warning(
+            f"⚠️  Model/data ratio={data_ratio:.0f} (high). "
+            f"{n_model_params:,} params trained on {len(dataset)} points. "
+            f"Risk of memorization."
+        )
 
     return model, metrics
 
@@ -315,6 +385,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--seed", type=int, default=42, help="Seed for data selection")
     parser.add_argument(
+        "--use-all-seeds",
+        action="store_true",
+        help="Aggregate ALL seeds for training (more data, requires canonicalization)",
+    )
+    parser.add_argument(
         "--h-test",
         type=float,
         nargs="+",
@@ -346,7 +421,7 @@ def main() -> int:
 
     # Load data
     logger.info(f"Loading θ_opt from {result_file}")
-    data = load_theta_from_result(result_file, seed=args.seed)
+    data = load_theta_from_result(result_file, seed=args.seed, use_all_seeds=args.use_all_seeds)
     logger.info(
         f"  N={data['n_qubits']}, {len(data['h_values'])} h-points, "
         f"θ shape={data['theta_opt'].shape}, seed={data['seed']}"
@@ -365,9 +440,11 @@ def main() -> int:
     if args.h_test is not None:
         h_test = sorted(args.h_test, reverse=True)
     else:
-        # Use midpoints between training h-values (interpolation test)
-        h_vals = data["h_values"]
-        h_test = [(h_vals[i] + h_vals[i + 1]) / 2 for i in range(len(h_vals) - 1)]
+        # Use midpoints between UNIQUE sorted training h-values (interpolation test)
+        h_vals_unique = sorted(set(float(f"{h:.6f}") for h in data["h_values"]), reverse=True)
+        h_test = [
+            (h_vals_unique[i] + h_vals_unique[i + 1]) / 2 for i in range(len(h_vals_unique) - 1)
+        ]
 
     logger.info(f"\n─── Phase 4: Deployment (h_test={[f'{h:.2f}' for h in h_test]}) ───")
     deploy_results = deploy_mpnn(

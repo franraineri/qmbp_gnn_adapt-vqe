@@ -117,6 +117,7 @@ def mpnn_config_strategy(draw):
     n_layers = draw(st.integers(min_value=1, max_value=2))
     output_dim = draw(st.sampled_from([2, 4]))
     per_parameter_heads = draw(st.booleans())
+    norm_type = draw(st.sampled_from(["batch", "layer", "none"]))
     # per_parameter_heads requires even output_dim (always true for 2, 4)
     return {
         "node_features": 2,
@@ -124,6 +125,7 @@ def mpnn_config_strategy(draw):
         "n_layers": n_layers,
         "output_dim": output_dim,
         "per_parameter_heads": per_parameter_heads,
+        "norm_type": norm_type,
     }
 
 
@@ -284,3 +286,4 @@ class TestProperty12MPNNCheckpointRoundTrip:
         assert loaded.n_layers == config["n_layers"]
         assert loaded.output_dim == config["output_dim"]
         assert loaded.per_parameter_heads == config["per_parameter_heads"]
+        assert loaded.norm_type == config["norm_type"]

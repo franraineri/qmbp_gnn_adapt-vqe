@@ -366,3 +366,95 @@ The following were excluded from the curated list:
 - **Removed:** 40+ papers (placeholder IDs, tangential, or superseded)
 
 All URLs verified as of May 2026.
+
+
+---
+
+## 21. New Additions (Session 2026-06-09)
+
+### GNN Parameter Prediction (Additional Validation)
+
+📎 Wu, Y. et al. (2025). PVLS: A GNN-based parameter initialization framework for variational quantum linear solvers. *arXiv preprint arXiv:2512.04909*. https://arxiv.org/abs/2512.04909
+
+> GNN-based parameter prediction extended to VQLS (linear systems). Validates GNN initialization paradigm beyond VQE. Demonstrates GNN mitigates barren plateaus in VQLS as system size increases.
+
+### Frustrated TFIM on Hardware
+
+✅ Teoh, Y. H. et al. (2025). Variational quantum simulations of a two-dimensional frustrated transverse-field Ising model on a trapped-ion quantum computer. *arXiv preprint arXiv:2505.22932*. https://arxiv.org/abs/2505.22932
+
+> 2D frustrated TFIM with NNN interactions simulated on trapped-ion hardware. Multiple ordered magnetic phases explored. Directly validates our TFIM frustrated extension (Ec. 3, J1-J2) and confirms hardware viability of frustrated Ising models.
+
+### Frustration-Induced Expressibility Limits
+
+🔑 Huang, C. et al. (2026). Frustration-induced expressibility limitations in variational quantum algorithms. *arXiv preprint arXiv:2604.11688*. https://arxiv.org/abs/2604.11688
+
+> Proves geometric frustration fundamentally limits VQA expressibility. Competing interactions prevent simultaneous energy minimization, creating expressibility barriers independent of optimization. Confirms our finding: TFIM frustrated J1-J2 achieves high fidelity (no frustration in ZZ-only TFIM) but Heisenberg XXZ fails (competing XX+YY+ZZ frustration).
+
+### ML for Phase Transition Detection (Additional)
+
+📎 Li, X. et al. (2026). Learning variational quantum circuit parameters with classical artificial intelligence for quantum phase transition detection. *arXiv preprint arXiv:2506.06678*. https://arxiv.org/abs/2506.06678
+
+> Attention mechanism + VAE for unsupervised phase transition detection from VQE parameters. Complementary approach to our weight-gradient method (Hernandes 2025). Validates that VQE parameter structure encodes phase information.
+
+### VQE Optimizer Benchmarks
+
+📎 Singh, M. et al. (2025). Statistical benchmarking of optimization methods for variational quantum eigensolver under quantum noise. *arXiv preprint arXiv:2510.08727*. https://arxiv.org/abs/2510.08727
+
+> Comprehensive benchmark of 6 optimizers (BFGS, SLSQP, Nelder-Mead, Powell, COBYLA, iSOMA) under noise. BFGS best for accuracy; COBYLA for low-cost noisy regime. Validates our choice of L-BFGS-B (noiseless) and COBYLA (shot-based MPS).
+
+### Entanglement & Expressivity (TFIM specific)
+
+📎 Kumar, S. et al. (2026). A study of entanglement and ansatz expressivity for the transverse-field Ising model using variational quantum eigensolver. *arXiv preprint arXiv:2602.17662*. https://arxiv.org/abs/2602.17662
+
+> Studies entanglement structure and expressibility specifically for TFIM with VQE. Confirms that entanglement entropy at criticality exceeds shallow-circuit capacity. Independent validation of our h_min boundary findings.
+
+### QESEM (PEA Alternative at Scale)
+
+✅ Aharonov, D. et al. (2026). Reliable high-accuracy error mitigation for utility-scale quantum circuits. *arXiv preprint arXiv:2508.10997*. https://arxiv.org/abs/2508.10997
+
+> QESEM method on IBM Heron resolves ZNE vs PEC tradeoff. Tested on kicked TFIM. Provides a third error mitigation strategy beyond PEA-ZNE and gate-folding for utility-scale deployment.
+
+---
+
+**Updated Summary Statistics:**
+- **Total papers in curated list:** 51 (+7 new)
+- **Core (✅):** 19
+- **Key (🔑):** 15
+- **Supporting (📎):** 17
+
+
+### Adiabatic VQE Warm-Start (Validates Our Approach)
+
+🔑 Schiffer, B. et al. (2026). Scalable, self-verifying variational quantum eigensolver using adiabatic warm starts. *arXiv preprint arXiv:2602.17612*. https://arxiv.org/abs/2602.17612
+
+> Adiabatic VQE variant where optimization proceeds along a Hamiltonian path. Derives conditions for successful gradient-based warm-start. Directly validates our descending h-sweep strategy — they prove that adiabatic warm-starts avoid barren plateaus and maintain ground-state tracking.
+
+🔑 Matos, G. et al. (2026). Exploiting adiabaticity for variational ground-states. *arXiv preprint arXiv:2602.06137*. https://arxiv.org/abs/2602.06137
+
+> Demonstrates that solving a sequence of intermediate problems facilitates tracking the ground-state manifold. Validates warm-start parameter transfer as system size scales. Directly supports our approach of descending sweep with parameter inheritance.
+
+### IBM Hardware Generations (Updated 2025-2026)
+
+📎 IBM Quantum. (2025). IBM Quantum Nighthawk processor announcement. *IBM Newsroom*. https://newsroom.ibm.com/2025-11-12-IBM-Delivers-New-Quantum-Processors
+
+> Nighthawk: 120 qubits, square lattice (218 couplers), designed for quantum advantage. Available end 2025. Successor to Heron for our hardware deployment path.
+
+### VQE Scalability Limits
+
+📎 Bittel, L. et al. (2026). Exponential scaling barriers for variational quantum eigensolvers. *arXiv preprint arXiv:2603.13073*. https://arxiv.org/abs/2603.13073
+
+> Identifies fundamental exponential barriers in VQE for certain problems. Our pipeline avoids these by operating in the gapped (non-critical) regime where the landscape is smooth — this paper provides theoretical justification for why we restrict to h > h_min.
+
+### RIKEN-IBM Quantum-Centric Supercomputing (2026)
+
+📎 Riken-IBM. (2026). Quantum-centric supercomputing demonstration. *IBM Research Blog*. https://ibm.com/quantum/blog/riken-fugaku-qcsc
+
+> Largest and most accurate chemistry experiment on quantum computer (2026). IBM Heron + Fugaku classical HPC in closed-loop workflow. Validates the hybrid quantum-classical paradigm at utility scale.
+
+---
+
+**Updated Summary Statistics:**
+- **Total papers in curated list:** 56 (+5 new this round)
+- **Core (✅):** 19
+- **Key (🔑):** 17 (+2)
+- **Supporting (📎):** 20 (+3)

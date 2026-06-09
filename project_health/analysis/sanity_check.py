@@ -879,6 +879,196 @@ def format_report(report: SanityReport, verbose: bool = False) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Checks — Scaling Extensions (E5: NLCE, Bond Dimension, HE)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@register_check("nlce_convergence", "physics")
+def check_nlce_convergence(verbose: bool = False) -> list[CheckResult]:
+    """Verify NLCE results converge and weights decay monotonically."""
+    results = []
+    e5_dir = ROOT / "results" / "experiments" / "exp_e5_scaling_ext"
+
+    if not e5_dir.exists():
+        results.append(
+            CheckResult(
+                name="nlce_results_exist",
+                category="physics",
+                passed=True,
+                message="E5 results not yet generated (skip)",
+                severity="info",
+            )
+        )
+        return results
+
+    # Find the latest run with NLCE data (Section 4 or 5)
+    run_files = sorted(e5_dir.glob("run_*.json"), reverse=True)
+    nlce_data = None
+    source_file = ""
+
+    for rf in run_files:
+        try:
+            with open(rf) as f:
+                data = json.load(f)
+            section_4 = data.get("results", {}).get("section_4", {}).get("data")
+            if section_4 and "results_per_h" in section_4:
+                nlce_data = section_4
+                source_file = rf.name
+                break
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    if not nlce_data:
+        results.append(
+            CheckResult(
+                name="nlce_results_exist",
+                category="physics",
+                passed=True,
+                message="No NLCE section results found (pending execution)",
+                severity="info",
+            )
+        )
+        return results
+
+    results.append(
+        CheckResult(
+            name="nlce_results_exist",
+            category="physics",
+            passed=True,
+            message=f"Found NLCE data in {source_file}",
+        )
+    )
+
+    # Check 1: Gapped-phase convergence (error < 5%)
+    per_h = nlce_data.get("results_per_h", [])
+    gapped_errors = [r["error_pct"] for r in per_h if "error_pct" in r and r.get("h", 0) > 1.2]
+    if gapped_errors:
+        mean_gapped = sum(gapped_errors) / len(gapped_errors)
+        results.append(
+            CheckResult(
+                name="nlce_gapped_convergence",
+                category="physics",
+                passed=mean_gapped < 5.0,
+                message=f"Gapped-phase NLCE error: {mean_gapped:.3f}% (threshold: 5%)",
+                details={"mean_error_pct": mean_gapped, "n_points": len(gapped_errors)},
+                severity="error" if mean_gapped >= 5.0 else "info",
+            )
+        )
+
+    # Check 2: Weight decay (|W(L)| should decrease with L for gapped phase)
+    for r in per_h:
+        weights = r.get("weights", {})
+        if len(weights) < 4:
+            continue
+        h_val = r.get("h", 0)
+        if h_val <= 1.2:  # Skip critical region
+            continue
+
+        # Check last 3 weights decrease in magnitude
+        sorted_keys = sorted(int(k) for k in weights.keys())
+        last_3 = [abs(weights[str(k)]) for k in sorted_keys[-3:]]
+        monotone = last_3[0] >= last_3[1] >= last_3[2]
+
+        if not monotone:
+            results.append(
+                CheckResult(
+                    name="nlce_weight_decay",
+                    category="physics",
+                    passed=False,
+                    message=(
+                        f"NLCE weights not monotonically decaying at h={h_val}: "
+                        f"|W| = {[f'{w:.2e}' for w in last_3]}"
+                    ),
+                    severity="warning",
+                    details={"h": h_val, "last_3_weights": last_3},
+                )
+            )
+            break
+    else:
+        results.append(
+            CheckResult(
+                name="nlce_weight_decay",
+                category="physics",
+                passed=True,
+                message="NLCE weights decay monotonically in gapped phase",
+            )
+        )
+
+    return results
+
+
+@register_check("bond_dimension_exactness", "physics")
+def check_bond_dimension_exactness(verbose: bool = False) -> list[CheckResult]:
+    """Verify MPS bond dimension test shows χ=64 convergence."""
+    results = []
+    e5_dir = ROOT / "results" / "experiments" / "exp_e5_scaling_ext"
+
+    if not e5_dir.exists():
+        return results
+
+    run_files = sorted(e5_dir.glob("run_*.json"), reverse=True)
+    bd_data = None
+
+    for rf in run_files:
+        try:
+            with open(rf) as f:
+                data = json.load(f)
+            section_1 = data.get("results", {}).get("section_1", {}).get("data")
+            if section_1 and "chi_convergence" in section_1:
+                bd_data = section_1
+                break
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    if not bd_data:
+        return results  # Not yet executed, skip silently
+
+    # Check: E(χ) converges monotonically
+    chi_results = bd_data.get("chi_convergence", [])
+    if len(chi_results) >= 2:
+        energies = [r["energy"] for r in chi_results]
+        # For variational methods, E(larger χ) ≤ E(smaller χ) (lower is better)
+        # But for HVA evaluation, energy should converge (differences shrink)
+        diffs = [abs(energies[i + 1] - energies[i]) for i in range(len(energies) - 1)]
+        diffs_decrease = all(diffs[i] >= diffs[i + 1] for i in range(len(diffs) - 1))
+
+        results.append(
+            CheckResult(
+                name="bond_dim_convergence_monotone",
+                category="physics",
+                passed=diffs_decrease,
+                message=(
+                    "χ convergence diffs decrease monotonically"
+                    if diffs_decrease
+                    else f"Non-monotone χ convergence: diffs={[f'{d:.2e}' for d in diffs]}"
+                ),
+                severity="warning" if not diffs_decrease else "info",
+                details={"diffs": diffs},
+            )
+        )
+
+    # Check: χ=64 is exact (diff < 1e-10)
+    diff_64_128 = bd_data.get("diff_64_128")
+    if diff_64_128 is not None:
+        is_exact = diff_64_128 < 1e-10
+        results.append(
+            CheckResult(
+                name="bond_dim_chi64_exact",
+                category="physics",
+                passed=is_exact,
+                message=(
+                    f"|E(χ=64)-E(χ=128)| = {diff_64_128:.2e} "
+                    f"({'exact' if is_exact else 'NOT exact, χ=64 insufficient'})"
+                ),
+                severity="error" if not is_exact else "info",
+                details={"diff_64_128": diff_64_128},
+            )
+        )
+
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # CLI
 # ═══════════════════════════════════════════════════════════════════════════════
 

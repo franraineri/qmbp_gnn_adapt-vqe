@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from project_health.digest.models import (
+    CrossTopologyResult,
     ExperimentResult,
     NoiselessResult,
     NoisyResult,
@@ -233,6 +234,193 @@ class ResultScanner:
             total_time_s=timing.get("total_s", 0.0),
             per_h_de_gap=per_h_de_gap,
             per_h_passed=per_h_passed,
+        )
+
+    # ── Cross-topology transfer results ──────────────────────────────────
+
+    def scan_cross_topology(self) -> list[CrossTopologyResult]:
+        """Scan for cross-topology transfer experiment results.
+
+        Looks for result JSON files in ``results/scaling/cross_topology/``:
+        - ``cross_n_validation_*.json``
+        - ``cross_topology_transfer_*.json``
+        - ``ablation_study_*.json``
+        - ``orchestrator_summary_*.json``
+
+        Returns
+        -------
+        list[CrossTopologyResult]
+            Parsed results, one per JSON file.
+        """
+        cross_topo_dir = self.root / "scaling" / "cross_topology"
+        if not cross_topo_dir.exists():
+            cross_topo_dir = Path("results/scaling/cross_topology")
+        if not cross_topo_dir.exists():
+            logger.debug("No cross-topology results directory found")
+            return []
+
+        results: list[CrossTopologyResult] = []
+        patterns = [
+            "cross_n_validation_*.json",
+            "cross_topology_transfer_*.json",
+            "ablation_study_*.json",
+            "orchestrator_summary_*.json",
+        ]
+        for pattern in patterns:
+            for path in sorted(cross_topo_dir.glob(pattern)):
+                parsed = self._parse_cross_topology_file(path)
+                if parsed:
+                    results.append(parsed)
+
+        logger.info("Scanned %d cross-topology results from %s", len(results), cross_topo_dir)
+        return results
+
+    def _parse_cross_topology_file(self, path: Path) -> CrossTopologyResult | None:
+        """Parse a cross-topology result JSON into a CrossTopologyResult."""
+        data = _load_json(path)
+        if not data:
+            return None
+
+        experiment = data.get("experiment", "")
+        meta = data.get("metadata", {})
+        env = data.get("environment", {})
+        summary = data.get("summary", data.get("verdict", {}))
+
+        # Determine experiment type from filename or experiment field
+        if "cross_n_validation" in path.name or experiment == "cross_n_validation":
+            exp_type = "cross_n_validation"
+        elif "cross_topology_transfer" in path.name or experiment == "cross_topology_transfer":
+            exp_type = "cross_topology_transfer"
+        elif "ablation" in path.name or experiment == "ablation_study":
+            exp_type = "ablation_study"
+        elif "orchestrator" in path.name or experiment == "cross_topology_orchestrator":
+            exp_type = "orchestrator_summary"
+        else:
+            exp_type = experiment or "unknown"
+
+        # Extract common metadata
+        seeds = meta.get("seeds", [42, 43, 44])
+        target_n = meta.get("target_n", 10)
+        threshold = meta.get("threshold", 0.10)
+        norm_type = meta.get("norm_type", "none")
+        hidden_dim = meta.get("hidden_dim", 128)
+        n_epochs = meta.get("n_epochs", 6000)
+        total_time = meta.get("total_time_s", 0.0)
+        git_commit = meta.get("git_commit", "")
+        timestamp = meta.get("timestamp", "")
+
+        # Extract topology info and metrics based on experiment type
+        source_topos: list[str] = []
+        target_topos: list[str] = []
+        mean_de_gap = 0.0
+        std_de_gap = 0.0
+        max_de_gap = 0.0
+        pass_rate = 0.0
+        n_pass = 0
+        n_total = 0
+        verdict = ""
+        all_pass = False
+        graph_essential = False
+        mlp_gnn_ratio = 0.0
+        best_norm = ""
+        directions: dict = {}
+
+        if exp_type == "cross_n_validation":
+            # Extract from per-topology strategy sections
+            topos_tested = summary.get("topologies_tested", [])
+            source_topos = topos_tested
+            target_topos = topos_tested
+            verdict = summary.get("verdict", "")
+            all_pass = summary.get("all_topologies_pass", False)
+            # Aggregate across strategies
+            de_gaps_all = []
+            for key, val in data.items():
+                if key.startswith("strategy_") and isinstance(val, dict):
+                    de_gaps_all.append(val.get("mean_de_gap", 0.0))
+            if de_gaps_all:
+                mean_de_gap = float(sum(de_gaps_all) / len(de_gaps_all))
+                max_de_gap = float(max(de_gaps_all))
+
+        elif exp_type == "cross_topology_transfer":
+            cross_topo = data.get("cross_topology", {})
+            comparison = data.get("comparison", {})
+            for dir_key, agg in cross_topo.items():
+                if isinstance(agg, dict) and "mean_de_gap" in agg:
+                    directions[dir_key] = agg
+                    de_val = agg["mean_de_gap"]
+                    if isinstance(de_val, dict):
+                        mean_de_gap = max(mean_de_gap, de_val.get("mean", 0.0))
+                    else:
+                        mean_de_gap = max(mean_de_gap, de_val)
+            verdict = comparison.get("verdict", "")
+            all_pass = comparison.get("overall_pass", False)
+            source_topos = ["triangular", "heavy_hex"]
+            target_topos = ["heavy_hex", "triangular"]
+
+        elif exp_type == "ablation_study":
+            pred_comp = data.get("predictor_comparison", {})
+            norm_abl = data.get("norm_ablation", {})
+            verdict_data = data.get("verdict", {})
+            # Graph-essential flag
+            essential_map = verdict_data.get("graph_structure_essential", {})
+            graph_essential = any(essential_map.values()) if essential_map else False
+            best_norms = verdict_data.get("best_norm_per_experiment", {})
+            if best_norms:
+                # Majority norm across experiments
+                from collections import Counter
+
+                norm_counts = Counter(best_norms.values())
+                best_norm = norm_counts.most_common(1)[0][0] if norm_counts else ""
+            # Extract GNN metrics from first predictor comparison
+            for exp_label, comp in pred_comp.items():
+                if isinstance(comp, dict) and "predictors" in comp:
+                    gnn_data = comp["predictors"].get("GNN", {})
+                    mlp_data = comp["predictors"].get("MLP", {})
+                    gnn_mean = gnn_data.get("mean_de_gap", {})
+                    mlp_mean = mlp_data.get("mean_de_gap", {})
+                    if isinstance(gnn_mean, dict):
+                        mean_de_gap = gnn_mean.get("mean", 0.0)
+                    if isinstance(mlp_mean, dict) and isinstance(gnn_mean, dict):
+                        g = gnn_mean.get("mean", 1e-10)
+                        m = mlp_mean.get("mean", 0.0)
+                        mlp_gnn_ratio = m / max(g, 1e-10)
+                    break
+            source_topos = ["triangular", "heavy_hex"]
+            target_topos = ["triangular", "heavy_hex"]
+
+        elif exp_type == "orchestrator_summary":
+            verdict_info = data.get("verdict", {})
+            verdict = verdict_info.get("overall", "")
+            all_pass = verdict_info.get("all_completed", False)
+            total_time = verdict_info.get("total_time_s", total_time)
+
+        return CrossTopologyResult(
+            source_file=str(path),
+            folder=path.parent.name,
+            experiment_type=exp_type,
+            target_n=target_n,
+            threshold=threshold,
+            seeds=seeds,
+            norm_type=norm_type,
+            hidden_dim=hidden_dim,
+            n_epochs=n_epochs,
+            source_topologies=source_topos,
+            target_topologies=target_topos,
+            mean_de_gap=mean_de_gap,
+            std_de_gap=std_de_gap,
+            max_de_gap=max_de_gap,
+            pass_rate=pass_rate,
+            n_pass=n_pass,
+            n_total=n_total,
+            verdict=verdict,
+            all_pass=all_pass,
+            graph_structure_essential=graph_essential,
+            mlp_gnn_ratio=mlp_gnn_ratio,
+            best_norm_type=best_norm,
+            directions=directions,
+            total_time_s=total_time,
+            git_commit=git_commit,
+            timestamp=timestamp,
         )
 
     # ── Recursive folder scanning ────────────────────────────────────────

@@ -55,12 +55,19 @@ project_health/
 ├── figures.py        Matplotlib figure generation (optional)
 ├── compare.py        Cross-experiment comparison CLI
 ├── analysis/         Analysis scripts (diagnose, scan_coverage, verify, etc.)
-│   ├── diagnose.py           Automated failure root cause analysis
-│   ├── scan_coverage.py      Coverage scanner + gap analysis + extended analytics
-│   ├── verify_claims.py      Thesis claim verification against data
-│   ├── verify_results.py     Pipeline result verification against specs (generic)
-│   ├── validate_s_series.py  S-series experiment validation
-│   └── heisenberg_summary.py Heisenberg XXZ cross-N comparison
+│   ├── diagnose.py                    Automated failure root cause analysis
+│   ├── scan_coverage.py               Coverage scanner + gap analysis
+│   ├── verify_claims.py               Thesis claim verification (legacy)
+│   ├── verify_results.py              Pipeline result verification against specs
+│   ├── validate_s_series.py           S-series experiment validation
+│   ├── heisenberg_summary.py          Heisenberg XXZ cross-N comparison
+│   ├── sanity_check.py                24 automated sanity checks
+│   ├── scaling_analyzer.py            MPS scaling law validation (N=40-120)
+│   ├── scaling_extensions_analyzer.py E5 extensions (bond-dim, HE, NLCE)
+│   ├── statistical_tests.py           Shared statistical test utilities
+│   ├── thesis_findings_validator.py   ★ Corroborate ALL thesis findings
+│   ├── thesis_tables_compiler.py      ★ Auto-generate thesis tables (MD+LaTeX)
+│   └── thesis_figures.py              ★ Global thesis figures (PDF/PNG)
 ├── digest/           Result scanning and formatting
 │   ├── scanner.py            ResultScanner (parse all results)
 │   ├── formatters.py         Output formatting
@@ -218,3 +225,110 @@ Path(f"reports/{filename}").write_text(output)
 hw_actions = [a for a in report.actions if a.category == "hardware"]
 quality_actions = [a for a in report.actions if a.category in ("vqe_quality", "mpnn_quality")]
 ```
+
+## Thesis Compilation Tools
+
+Three dedicated modules for thesis writing support, each building on the same
+`ResultScanner` data pipeline:
+
+### Thesis Findings Validator (`analysis/thesis_findings_validator.py`)
+
+Systematically validates ALL key findings against raw experimental data.
+Produces statistical evidence (t-tests, effect sizes, confidence intervals)
+and classifies findings as CORROBORATED / QUALIFIED / UNSUPPORTED / CONTRADICTED.
+
+```bash
+python -m project_health.analysis.thesis_findings_validator --verbose
+python -m project_health.analysis.thesis_findings_validator --only scaling,zne
+python -m project_health.analysis.thesis_findings_validator --json report.json
+python -m project_health.analysis.thesis_findings_validator --latex findings.tex
+make validate-findings
+```
+
+15 findings validated across categories: `scaling`, `zne`, `gnn`, `topology`, `global`, `physics`.
+
+```python
+from project_health.analysis.thesis_findings_validator import run_validation
+
+report = run_validation(categories=["scaling"], verbose=False)
+print(f"Corroboration rate: {report.overall_corroboration_rate:.0%}")
+for f in report.findings:
+    print(f"  {f.finding_id}: {f.verdict} ({f.strength})")
+```
+
+### Thesis Tables Compiler (`analysis/thesis_tables_compiler.py`)
+
+Auto-generates 10 publication-ready tables in Markdown and LaTeX from live data:
+
+| ID | Table | Content |
+|----|-------|---------|
+| T1 | Global Pipeline Performance | All topology × N aggregated |
+| T2 | ZNE Strategy Comparison | PEA vs GF vs CES |
+| T3 | Scaling Law Validation | N=6 → N=80 |
+| T4 | GNN-QEM Results | Correction + transfer + ablation |
+| T5 | Experiment Verdicts | By category (confirmed/rejected/failed) |
+| T6 | Cross-Topology Transfer | GNN generalization |
+| T7 | Failure Mode Distribution | Root cause classification |
+| T8 | Hyperparameter Sensitivity | hidden_dim, restarts, topology, seed |
+| T9 | MPS Backend Performance | N=40-80 timing + accuracy |
+| T10 | Timing Breakdown | Phase-by-phase by system size |
+
+```bash
+python -m project_health.analysis.thesis_tables_compiler --verbose
+python -m project_health.analysis.thesis_tables_compiler --latex documentation/thesis_tables/
+python -m project_health.analysis.thesis_tables_compiler --markdown tables.md
+python -m project_health.analysis.thesis_tables_compiler --only T1,T3
+make thesis-tables
+```
+
+### Thesis Global Figures (`analysis/thesis_figures.py`)
+
+Publication-ready global figures (PDF 300dpi, no titles) aggregating data
+across ALL experiments:
+
+| Figure | Description |
+|--------|-------------|
+| `global_de_gap_distribution` | Histogram of ΔE/gap across 210+ runs |
+| `scaling_law_comprehensive` | N vs ΔE/gap + scaling law overlay (2-panel) |
+| `topology_performance_violin` | Violin plots per topology at N=10 |
+| `pea_vs_gf_comparison` | Bar chart PEA vs GF per topology |
+| `gnn_qem_summary_panel` | 3-panel: correction, ablation, composability |
+| `experiment_verdicts_overview` | Stacked bar by category |
+| `pipeline_timing_stacked` | Stacked area time vs N |
+| `cross_n_performance_heatmap` | Heatmap N × h |
+| `findings_corroboration_summary` | Corroboration status of all findings |
+| `zne_gain_by_topology_and_strategy` | Gain heatmap: topology × strategy |
+
+```bash
+python -m project_health.analysis.thesis_figures --format pdf --dpi 300
+python -m project_health.analysis.thesis_figures --list
+python -m project_health.analysis.thesis_figures --only global_de_gap_distribution
+python -m project_health.analysis.thesis_figures --with-titles  # for presentations
+make thesis-figures
+```
+
+### Full Compilation (`make thesis-all`)
+
+Runs everything in sequence: validate → tables → figures.
+
+```bash
+make thesis-all
+# Output:
+#   documentation/thesis_tables/findings_report.json
+#   documentation/thesis_tables/all_tables.md
+#   documentation/thesis_tables/*.tex
+#   documentation/thesis_figures/*.pdf
+```
+
+## Testing
+
+```bash
+# Fast tests only (~20s, no full scan)
+pytest tests/test_thesis_tools.py -v -m "not slow"
+
+# All tests including slow (~90s, full scan + figure generation)
+pytest tests/test_thesis_tools.py -v
+```
+
+Tests validate: imports, crash-free execution, output structure, JSON serialization,
+schema integrity of result files, and cross-tool consistency.

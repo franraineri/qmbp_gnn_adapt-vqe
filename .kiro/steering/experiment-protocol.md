@@ -98,16 +98,11 @@ Update these files (using REFERENCES, never duplicate data):
 
 ---
 
-## Runner Standards (ALWAYS ENFORCE)
+## Runner Standards (reference)
 
-All `scripts/run_*.py` and `scripts/experiment_runners/run_*.py` scripts MUST use the
-standardized runner base classes from `qmbp_simulation.framework.runner_base`:
-- `ValidationRunner` — multi-section validation suites.
-- `ExperimentRunner` — BaseExperiment lifecycle wrappers.
-- `VariantPipelineRunner` — batch pipeline variant runners.
-
-See `.kiro/steering/runner-standards.md` for full reference and templates in
-`scripts/runner_templates/`.
+See `.kiro/steering/runner-standards.md` for full runner base class documentation,
+templates, anti-patterns, and the 4 runner types (ValidationRunner, ExperimentRunner,
+VariantPipelineRunner, HardwareValidationRunner).
 
 ## Preflight Validation (ALWAYS ENFORCE)
 
@@ -236,13 +231,11 @@ When results are thesis-relevant:
 | Run would take >5 min | Inform user of expected time before starting |
 | Result contradicts binnacle | Report the contradiction — may indicate a regression or new finding |
 
-## ZNE Scaling Rules (Validated 2026-05-14)
+## ZNE Scaling Rules
 
-- **N=6, 3 layouts**: Works perfectly (R²>0.99, +40% gain). Linear E(CES) holds.
-- **N=10, 3 layouts**: Completely fails (R²<0.05, negative gain). Non-perturbative regime.
-- **Rule**: n_layouts must scale with system size. Use O(n) for n-qubit circuits.
-- **Literature**: Tsubouchi et al. (2023, PRL 131:210602) proves exp(depth×qubits) cost. Rabinovich et al. (2025, arXiv:2511.02901) proposes CLP-ZNE with O(n) cyclic permutations.
-- **Before running noisy sweeps at new N**: verify CES range is in perturbative regime (total CES < 0.5) or use sufficient layouts.
+- p=1 N=10 ≈ 18 CX → ZNE works. p=2 N=10 ≈ 36 CX → ZNE fails.
+- **p=1 + ZNE is the recommended strategy for N≥10.**
+- PEA primary, gate-folding fallback. See `context-zne-mitigation.md` for full details.
 
 ## Experiment Value Checklist (Before Running)
 
@@ -254,40 +247,17 @@ Ask these questions before starting any experiment:
 4. **Has this already been established?** (Check binnacle — if 3 seeds already confirm, don't re-run.)
 5. **Is this a physics limit or a tunable parameter?** (If physics limit confirmed, no hyperparameter will help.)
 
-## Known Physics Limits (Do NOT Try to Tune Past These)
+## Known Physics Limits
 
-| Limit | Evidence | Implication |
-|-------|----------|-------------|
-| h=1.25 ceiling at N=6 (2-3/6 V6.0 checklist) | 40+ experiments, all configs | HVA p=2 expressibility |
-| h=1.4 fails with seed 42 at N=10 | Confirmed 3× | Seed-dependent MPNN convergence |
-| h=1.5 ceiling at N=20 (ΔE/gap≈7.7%) | V7 3C with L-BFGS-B + 3 restarts | HVA expressibility degrades with N |
-| Valid regime shifts: N=6→h≥1.25, N=10→h≥1.5, N=20→h≥2.0 | V7 3C + binnacles | Physics limit, not tunable |
-| N=20 full pipeline: ΔE/gap=1.75% ✅ (h≥1.5 training only) | 3 runs, Run 3 passes | Train ONLY on valid regime |
-| Energy-error filter HURTS at N=20 | Run 2 worse than Run 1 (7.4% vs 6.0%) | Coverage > purity for MPNN training |
-| Training on invalid regime poisons MPNN | Runs 1-2 included h<1.5 → bad θ | Restrict h-grid to valid regime per N |
-| N=6 VQE config (5 rst, σ=0.1) fails at N=20 | Runs 1-2 got avg ΔE=0.09-0.14 | Scale restarts and σ with N |
-| "More h-points = better" is FALSE | 19 pts (h∈[0.8,2.0]) worse than 11 pts (h∈[1.5,2.0]) | Quality of regime > quantity of points |
-| Fidelity filter unavailable at N≥15 (DMRG) | ground_state=None → fidelity=0 | Must manually restrict h-grid |
-| ZNE fails at N=10 with 3 layouts | R²<0.05, 6/6 losses | Exponential mitigation cost |
-| Ladder topology fails with HVA p=2 | ΔE/gap=203% | Coordination number 3 needs deeper circuits |
-| Heisenberg XXZ fails with HVA p=2 | Max fid=48% (Néel), 22% (|+⟩) | GS too entangled for 2 layers |
-| XY model (Δ=0) fails with HVA p=2 | Max fid=23% | Same — shallow circuits insufficient |
-| N=12 too slow for local iteration | 14+ min for Phase 1 alone | 2^12 exact diag on single core |
-| Predictor is NOT the bottleneck (N≥10) | V7 2B: QRC=MPNN, both ceiling-limited | No ML improvement possible |
-| Noise-aware training fails under shot noise | V7 5B: 6× worse than noiseless | Only coherent errors could help |
-| SPSA refinement hurts warm-start | V7 4B: -146% to -356% | Don't refine good predictions |
-| optimization_level=1 for noisy sim | Tested: 3× SLOWER (more gates = more noise channels) | Always use level 2 for noisy simulation |
-| DD on FakeTorino (XY4) | YGate not in basis — pass fails silently | DD only testable on real hardware via EstimatorV2 options |
-| More N=10 noisy simulation experiments | A, A', B all exhausted; R² never >0.08 | Go to real hardware — local sim cannot validate ZNE at N=10 |
-| MAX_CES_RATIO < 10 with 5+ layouts | Layout search becomes 45+ min (too expensive) | Keep MAX_CES_RATIO=10, accept outlier filtering at 3 layouts |
-| Gate folding locally (nf=3,5) | Folded circuits are 3-5× heavier to simulate | Only viable on real hardware via Runtime ZNE options |
-| MPS chi is NOT the bottleneck for 1D HVA | V7 3A/3B: chi=64=chi=256 (identical) | Use chi=64 for speed |
-| Transfer learning N→N' fails | V7 TL: baseline wins by 7%, different θ landscapes | Don't pre-train across system sizes |
-| p=1 valid regime (chain_1d): N=6 h≥1.6, N=10 h≥1.9, N=20 h≥2.25 | Exp 6A/6B/6D + Verification R1 | Boundary shifts +0.25 to +0.40 vs p=2 |
-| p=1 valid regime (ladder): N=6 h≥2.0, N=10 h≥3.0 (safe: h≥3.25) | Verification R1 (2026-05-30) | +1.0 shift vs p=2 at N=10 |
-| p=1 valid regime (triangular): N=6 h≥4.0, N=10 h≥3.5 (safe: h≥4.25) | Verification R1 (2026-05-30) | Largest shift at N=6 |
-| p=1 seed-independent only at N≤10 | Exp 6A: identical across seeds; 6B: seed 44 fails at N=20 | N=20 needs better init (analytical guess) |
-| p=1 frustrated topologies: ~33% chain break rate per seed | Verification R1 (2026-05-30) | Seed 43 → ladder breaks, seed 44 → triangular breaks |
-| p=1 θ_x constant (±3π/8) at N=20 | Exp 6B: same |θ_x| across all h and seeds | Only θ_zz varies; Z₂ sign symmetry |
-| p=1 MPNN needs sign canonicalization | Exp 6B: seeds find ±θ → inconsistent targets | NOT needed — C3 proved warm-start resolves this with 3 restarts |
-| p=1 N=20 needs >6 training points | Exp 6B: only h=3.0 passes deployment | Use 15-20 pts in [2.25, 4.0] |
+See `.kiro/steering/project-status.md` → "Key Constraints" section for the complete
+list of validated physics limits. The most critical ones for experiment design:
+
+- h_min valid regime shifts with N: N=6→h≥1.25, N=10→h≥1.5, N=20→h≥2.0 (p=2)
+- p=1 valid regime: h_min_safe = 1.5 + 0.020·N^1.31
+- ZNE CX threshold: ~18 CX (p=2 N=10 = 36 CX → fails)
+- HVA is TFIM-specific (Heisenberg/XY fail with p≤2)
+- N=12 too slow for iteration (~30+ min)
+- Predictor is NOT the bottleneck at N≥10
+
+**Full table with evidence**: `.kiro/steering/project-status.md`
+**Full validated decisions**: `.kiro/knowledge/validated-decisions.md`

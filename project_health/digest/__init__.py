@@ -8,10 +8,16 @@ Public API for programmatic use:
     noiseless, noisy, experiments = scanner.scan_all()
 """
 
-from project_health.digest.models import ExperimentResult, NoiselessResult, NoisyResult
+from project_health.digest.models import (
+    CrossTopologyResult,
+    ExperimentResult,
+    NoiselessResult,
+    NoisyResult,
+)
 from project_health.digest.scanner import ResultScanner
 
 __all__ = [
+    "CrossTopologyResult",
     "ExperimentResult",
     "NoiselessResult",
     "NoisyResult",

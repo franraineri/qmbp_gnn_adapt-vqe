@@ -98,7 +98,11 @@ project-root/
 │   │   ├── verify_claims.py        # Thesis claim verification
 │   │   ├── verify_results.py       # Pipeline result verification against specs
 │   │   ├── validate_s_series.py    # S-series experiment validation
-│   │   └── heisenberg_summary.py   # Heisenberg XXZ cross-N comparison
+│   │   ├── heisenberg_summary.py   # Heisenberg XXZ cross-N comparison
+│   │   ├── sanity_check.py         # 26 automated checks (physics + data integrity)
+│   │   ├── scaling_analyzer.py     # MPS scaling law validation (N=40-120)
+│   │   ├── scaling_extensions_analyzer.py  # E5: bond-dim, HE, NLCE analysis
+│   │   └── statistical_tests.py    # Shared statistical test utilities
 │   └── digest/                     # Result digest & scanning
 │       ├── scanner.py              # ResultScanner (parse all results)
 │       ├── formatters.py           # Output formatting
@@ -216,6 +220,49 @@ make preflight SCRIPT=scripts/experiment_runners/run_p1_pipeline_variants_r2.py
 
 Checks: h_test not in training set, h_test within valid regime, descending order,
 interpolation (not extrapolation), no duplicate IDs, fresh output directories.
+
+### `scripts/experiment_runners/bond_resolved/run_scaling_extensions.py` — Scaling Extensions (E5)
+
+Multi-section validation runner for N=120 bond-dimension test, Hamiltonian engineering
+comparison, and NLCE (Numerical Linked-Cluster Expansion) thermodynamic limit.
+
+```bash
+# Dry run (list sections)
+python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --dry-run
+
+# Individual sections
+python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1   # Bond dim N=120
+python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 3   # HE comparison
+python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 4 5 # NLCE (TFIM + frustrated)
+
+# Full suite
+python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py
+
+# Analysis (post-execution)
+make extensions                                                          # Quick report
+make cross-topology                                                      # Cross-topology results
+python -m project_health.analysis.scaling_extensions_analyzer --verbose --cross-check --thesis-tables
+```
+
+### NLCE Module (`qmbp_simulation.analysis.nlce`)
+
+Modular Numerical Linked-Cluster Expansion framework for 1D spin systems.
+Decomposes thermodynamic-limit properties as sums over finite clusters with
+Euler subtraction. Pluggable cluster solver (exact diag, DMRG, or VQE).
+
+```python
+from qmbp_simulation.analysis import NLCERunner, NLCEConfig, tfim_analytical_energy_per_site
+
+config = NLCEConfig(l_max=10, model="tfim")
+runner = NLCERunner(config)
+result = runner.compute(h=2.0)
+print(f"E/N = {result.energy_per_site:.8f}, converged={result.converged}")
+
+# Frustrated TFIM (novel result — no analytical formula)
+config_f = NLCEConfig(l_max=8, model="tfim_frustrated", J2=0.5)
+runner_f = NLCERunner(config_f)
+results = runner_f.compute_sweep([1.5, 2.0, 3.0, 4.0])
+```
 
 ## Framework Modules (for programmatic use)
 

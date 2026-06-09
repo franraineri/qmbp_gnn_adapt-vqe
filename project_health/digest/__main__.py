@@ -15,6 +15,7 @@ from pathlib import Path
 
 from project_health.digest.formatters import (
     format_compare_two,
+    format_cross_topology_text,
     format_experiment_text,
     format_markdown,
     format_noiseless_grouped,
@@ -117,7 +118,7 @@ Examples:
 
     parser.add_argument(
         "--kind",
-        choices=["noiseless", "noisy", "experiment", "all"],
+        choices=["noiseless", "noisy", "experiment", "cross_topology", "all"],
         default="all",
         help="Which result kind to digest (default: all)",
     )
@@ -220,9 +221,13 @@ def main() -> None:
             exclude_tests=args.exclude_tests,
         )
 
+    # Also scan cross-topology results (separate path: results/scaling/cross_topology/)
+    cross_topology = scanner.scan_cross_topology()
+
     _log(
         f"[digest] Scanned: {len(noiseless)} noiseless, "
-        f"{len(noisy)} noisy, {len(experiments)} experiments"
+        f"{len(noisy)} noisy, {len(experiments)} experiments, "
+        f"{len(cross_topology)} cross-topology"
     )
 
     # Filter
@@ -257,14 +262,17 @@ def main() -> None:
 
     # Filter by kind
     if args.kind == "noiseless":
-        noisy, experiments = [], []
+        noisy, experiments, cross_topology = [], [], []
         _log("[digest] Kind filter: noiseless only")
     elif args.kind == "noisy":
-        noiseless, experiments = [], []
+        noiseless, experiments, cross_topology = [], [], []
         _log("[digest] Kind filter: noisy only")
     elif args.kind == "experiment":
-        noiseless, noisy = [], []
+        noiseless, noisy, cross_topology = [], [], []
         _log("[digest] Kind filter: experiment only")
+    elif args.kind == "cross_topology":
+        noiseless, noisy, experiments = [], [], []
+        _log("[digest] Kind filter: cross-topology only")
 
     # Sort
     if args.sort:
@@ -285,7 +293,7 @@ def main() -> None:
         experiments = experiments[: args.top]
 
     # Check results
-    total = len(noiseless) + len(noisy) + len(experiments)
+    total = len(noiseless) + len(noisy) + len(experiments) + len(cross_topology)
     if total == 0:
         print("No results found matching the specified filters.")
         sys.exit(0)
@@ -339,10 +347,12 @@ def main() -> None:
             "noiseless": [asdict(r) for r in noiseless],
             "noisy": [asdict(r) for r in noisy],
             "experiments": [asdict(r) for r in experiments],
+            "cross_topology": [asdict(r) for r in cross_topology],
             "summary": {
                 "n_noiseless": len(noiseless),
                 "n_noisy": len(noisy),
                 "n_experiments": len(experiments),
+                "n_cross_topology": len(cross_topology),
             },
         }
         path = Path(args.json)
@@ -386,6 +396,13 @@ def main() -> None:
                 sections.append(format_noisy_grouped(noisy, args.group_by))
             else:
                 sections.append(format_noisy_text(noisy, verbose=args.verbose))
+            sections.append("")
+        if cross_topology:
+            _log(f"[digest]   Formatting {len(cross_topology)} cross-topology")
+            sections.append("═" * 80)
+            sections.append(" CROSS-TOPOLOGY TRANSFER")
+            sections.append("═" * 80)
+            sections.append(format_cross_topology_text(cross_topology, verbose=args.verbose))
             sections.append("")
         output = "\n".join(sections)
 

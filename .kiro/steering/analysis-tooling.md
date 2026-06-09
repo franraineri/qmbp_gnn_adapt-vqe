@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "analysis/**,scripts/**,experiments/**,results/**"
+fileMatchPattern: "analysis/**,scripts/**,experiments/**,results/**,project_health/**"
 ---
 
 # Analysis Tooling — ALWAYS Use Existing Scripts
@@ -13,128 +13,432 @@ When analyzing data, inspecting results, or producing output files:
 Do NOT write ad-hoc one-off scripts or inline Python when an existing tool covers the need.
 If the existing tool is close but not sufficient, **extend it** rather than creating a new file.
 
-## Available Tools (use these)
+## Quick Decision Tree
 
-| Tool | Purpose | Usage |
-|------|---------|-------|
-| `python -m project_health.digest` | Quick overview of all results | `python -m project_health.digest [--kind noiseless] [--group-by topology] [--model tfim_longitudinal]` |
-| `analysis/scan_coverage.py` | Coverage scan, gap analysis, extended analytics | `python analysis/scan_coverage.py [--discover] [--extended] [--topology X] [--p N]` |
-| `analysis/diagnose.py` | Automated failure root cause analysis | `python analysis/diagnose.py [--all] [path] [--severity fail]` |
-| `scripts/compare.py` | Cross-experiment result comparison | `python scripts/compare.py [--all] [--category X] [--noisy]` |
-| `project_health/analysis/verify_results.py` | Post-verification analysis | `python -m project_health.analysis.verify_results` |
-| `project_health/analysis/sanity_check.py` | Analysis results sanity check (24 checks) | `python -m project_health.analysis.sanity_check [--only physics] [--json out.json]` |
-| `scripts/analysis/extract_theta_trajectories.py` | Extract θ_opt(h) from pipeline results | `python scripts/analysis/extract_theta_trajectories.py` |
-| `scripts/analysis/theta_pca_phase_detection.py` | PCA/clustering unsupervised phase detection | `python scripts/analysis/theta_pca_phase_detection.py [--format pdf] [--theme thesis]` |
-| `scripts/analysis/theta_derivative_analysis.py` | |∂θ/∂h| vs D1 weight gradient comparison | `python scripts/analysis/theta_derivative_analysis.py [--format pdf]` |
-| `scripts/experiment_runners/run_verification_plan.py` | Systematic claim validation | `python scripts/experiment_runners/run_verification_plan.py [--list] [--noiseless-only]` |
-| `analysis/run_analysis.py` | Full analysis pipeline | `python analysis/run_analysis.py` |
-| `project_health/figures.py` | Generate thesis & analysis figures | `make figures` or `make figures-thesis` |
-
-## Decision Process
-
-1. **Need to inspect results?** → `python -m project_health.digest`
-2. **Need to check what data exists?** → `analysis/scan_coverage.py --discover`
-3. **Need to understand a failure?** → `analysis/diagnose.py`
-4. **Need to compare experiments?** → `scripts/compare.py`
-5. **Need to validate a claim?** → `python -m project_health.analysis.verify_results`
-6. **Need to check/validate a variant runner script?** → `python scripts/preflight.py --from-script <path>`
-7. **Need unsupervised phase detection from θ_opt?** → `python scripts/analysis/theta_pca_phase_detection.py`
-8. **Need to verify analysis outputs are sane?** → `python -m project_health.analysis.sanity_check`
-9. **Need something the tools don't cover?** → Extend the closest existing tool
-
-## Preflight Validation (MANDATORY for runner scripts)
-
-When reviewing, checking, or validating any variant runner script (`run_*.py`), **ALWAYS use
-`scripts/preflight.py`** instead of manually reading the file and checking constraints by hand.
-
-```bash
-# Validate a variant runner script before execution
-python scripts/preflight.py --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
-
-# Strict mode (warnings = errors)
-python scripts/preflight.py --from-script my_script.py --strict
-
-# Validate from JSON config
-python scripts/preflight.py --from-json variants.json
+```
+Need to...
+├── See overall project status?     → python -m project_health [--compact]
+├── Inspect pipeline results?       → python -m project_health.digest --kind noiseless
+├── Inspect ZNE results?            → python -m project_health.digest --kind noisy
+├── Inspect experiment verdicts?    → python -m project_health.digest --kind experiment
+├── Inspect cross-topology results? → python -m project_health.digest --kind cross_topology
+├── Compare topologies/configs?     → python -m project_health.digest --group-by topology
+├── Check what data exists?         → analysis/scan_coverage.py --discover
+├── Find coverage gaps?             → analysis/scan_coverage.py --extended
+├── Understand a failure?           → analysis/diagnose.py [path] [--all]
+├── Compare experiments?            → scripts/compare.py [--all] [--category X]
+├── Compare ZNE methods?            → project_health/compare.py --zne
+├── Validate runner script?         → python scripts/preflight.py --from-script <path>
+├── Validate a thesis claim?        → python -m project_health.analysis.verify_claims
+├── Verify pipeline correctness?    → python -m project_health.analysis.verify_results
+├── Check analysis sanity?          → python -m project_health.analysis.sanity_check
+├── Analyze MPS scaling?            → python -m project_health.analysis.scaling_analyzer
+├── Analyze E5 extensions?          → python -m project_health.analysis.scaling_extensions_analyzer
+├── Analyze cross-topology transfer?→ make cross-topology
+├── Generate figures?               → make figures (PNG) or make figures-thesis (PDF)
+├── PCA phase detection?            → python scripts/analysis/theta_pca_phase_detection.py
+├── θ-derivative vs D1?            → python scripts/analysis/theta_derivative_analysis.py
+├── Full analysis pipeline?         → python analysis/run_analysis.py
+│
+│ ─── THESIS COMPILATION (global aggregation) ─────────────────
+├── Corroborate ALL findings?       → python -m project_health.analysis.thesis_findings_validator
+├── Generate thesis tables?         → python -m project_health.analysis.thesis_tables_compiler
+├── Generate thesis global figures? → python -m project_health.analysis.thesis_figures
+├── Full thesis compilation?        → make thesis-all
+├── Validate + LaTeX export?        → make validate-findings-latex
+└── Something tools don't cover?    → Extend the closest existing tool
 ```
 
-Preflight checks 9 validations automatically:
-1. Pipeline script exists on disk
-2. Minimum config present (h_values, h_test, topology, n_qubits)
-3. h_test NOT in training set (data leakage)
-4. h_test within valid regime for topology/N/p
-5. Training h_values within valid regime
-6. h_test is interpolation (not extrapolation)
-7. h_values in descending order (warm-start requirement)
-8. No duplicate variant IDs
-9. Output directories are fresh (no collision)
+## Tool Reference (complete flags)
 
-**DO NOT** manually open a runner script and check these constraints by reading the code.
-The preflight tool does it faster, more reliably, and catches edge cases you'd miss.
+### 1. Project Health Report (`python -m project_health`)
 
-## Extension Guidelines
+Full health report: experiments, coverage, VQE/MPNN quality, timing, actions.
 
-When extending an existing script:
-- Add new flags/options rather than changing existing behavior
-- Keep backward compatibility (existing invocations must still work)
-- Add the new capability to the tool's `--help` output
-- Update this steering file if a new major capability is added
+```bash
+python -m project_health                    # Full text report
+python -m project_health --compact          # Summary only
+python -m project_health --json             # Machine-parseable
+python -m project_health --markdown         # For documentation
+python -m project_health -o reports/        # Auto-timestamped save
+python -m project_health --diff-only        # Only show changes since last run
+python -m project_health --ci              # Exit 1 on CRITICAL gaps
+python -m project_health --no-state        # Skip delta tracking
+```
 
-## Data Extraction Architecture (2026-06-07)
+**Programmatic:**
+```python
+from project_health.engine import run_health_check
+from project_health.models import Priority
 
-### Single Source of Truth for Valid Regime Boundaries
+report = run_health_check()
+critical = [a for a in report.actions if a.priority == Priority.CRITICAL]
+for topo, stats in report.noiseless_by_topology.items():
+    print(f"{topo}: {stats['pass_rate']:.0%}")
+```
 
-`P1_VALID_REGIME` and `P2_VALID_REGIME` are defined ONLY in:
+### 2. Result Digest (`python -m project_health.digest`)
+
+Quick inspection of all results by kind: noiseless, noisy, experiment.
+
+```bash
+# By kind
+python -m project_health.digest --kind noiseless
+python -m project_health.digest --kind noisy
+python -m project_health.digest --kind experiment
+
+# Filters
+python -m project_health.digest --kind noiseless --topology ladder --n-qubits 10 --p-layers 1
+python -m project_health.digest --kind noiseless --folder variants_N10_ladder
+python -m project_health.digest --kind noiseless --model tfim_longitudinal
+
+# Sorting + limiting
+python -m project_health.digest --kind noiseless --sort delta_e --top 10
+python -m project_health.digest --kind noisy --sort gain --top 5
+python -m project_health.digest --kind experiment --sort verdict
+
+# Grouped comparisons
+python -m project_health.digest --kind noiseless --group-by topology
+python -m project_health.digest --kind noiseless --group-by n_restarts
+python -m project_health.digest --kind noisy --group-by n_qubits
+
+# Statistical analysis
+python -m project_health.digest --kind noiseless --stats
+python -m project_health.digest --kind noiseless --outliers
+
+# Side-by-side comparison
+python -m project_health.digest --compare variants_N10_ladder variants_N10_triangular
+
+# Output formats
+python -m project_health.digest --markdown -o digest.md
+python -m project_health.digest --json digest.json
+```
+
+**Programmatic:**
+```python
+from project_health.digest import ResultScanner, NoiselessResult
+scanner = ResultScanner(Path("results"))
+noiseless, noisy, experiments = scanner.scan_all()
+ladder_n10 = [r for r in noiseless if r.topology == "ladder" and r.n_qubits == 10]
+```
+
+### 3. Coverage Scanner (`analysis/scan_coverage.py`)
+
+Discover data, find gaps, extended analytics.
+
+```bash
+python analysis/scan_coverage.py --discover           # What data exists
+python analysis/scan_coverage.py --extended           # Full analytics
+python analysis/scan_coverage.py --topology chain_1d  # Filter by topology
+python analysis/scan_coverage.py --p 1                # Filter by depth
+```
+
+### 4. Failure Diagnosis (`analysis/diagnose.py`)
+
+Automated root cause analysis for failed results.
+
+```bash
+python analysis/diagnose.py --all                     # All results
+python analysis/diagnose.py results/experiments/exp_B4/  # Specific folder
+python analysis/diagnose.py --severity fail           # Only failures
+```
+
+### 5. Experiment Comparison (`scripts/compare.py`)
+
+Cross-experiment verdict comparison against criteria.
+
+```bash
+python scripts/compare.py --all                       # All experiments
+python scripts/compare.py --category optimization     # By category
+python scripts/compare.py --noisy                     # ZNE experiments
+```
+
+### 6. ZNE Method Comparison (`project_health/compare.py`)
+
+Cross-method ZNE analysis (PEA vs GF vs CES).
+
+```bash
+python project_health/compare.py --zne                # Full comparison
+python project_health/compare.py --zne --json out.json  # Machine-readable
+```
+
+### 7. Sanity Check (`python -m project_health.analysis.sanity_check`)
+
+24 automated checks on analysis outputs.
+
+```bash
+python -m project_health.analysis.sanity_check         # All checks
+python -m project_health.analysis.sanity_check --only physics  # Physics subset
+python -m project_health.analysis.sanity_check --json out.json  # JSON output
+```
+
+### 8. MPS Scaling Analyzer (`python -m project_health.analysis.scaling_analyzer`)
+
+Scaling law analysis for N>30 results.
+
+```bash
+python -m project_health.analysis.scaling_analyzer     # Full analysis
+```
+
+### 9. Scaling Extensions Analyzer (`python -m project_health.analysis.scaling_extensions_analyzer`)
+
+E5 results: bond dimension, HE comparison, NLCE convergence, thesis tables.
+
+```bash
+python -m project_health.analysis.scaling_extensions_analyzer              # Full report
+python -m project_health.analysis.scaling_extensions_analyzer --verbose     # Per-h detail
+python -m project_health.analysis.scaling_extensions_analyzer --thesis-tables  # Tables 5.25/5.26
+python -m project_health.analysis.scaling_extensions_analyzer --cross-check    # Cross-section validation
+python -m project_health.analysis.scaling_extensions_analyzer --convergence-data plot.json  # NLCE L vs E/N
+python -m project_health.analysis.scaling_extensions_analyzer --json report.json  # Full JSON export
+```
+
+### 10. Cross-Topology Transfer (`python -m project_health.digest --kind cross_topology`)
+
+Cross-topology GNN transfer results: within-topology cross-N, cross-topology, ablation.
+
+```bash
+python -m project_health.digest --kind cross_topology           # Full report
+python -m project_health.digest --kind cross_topology --verbose # Per-direction detail
+python -m project_health.digest --kind cross_topology --json cross_topo.json  # JSON export
+make cross-topology                                             # Quick report
+```
+
+Result files scanned (from `results/scaling/cross_topology/`):
+- `cross_n_validation_*.json` — within-topology cross-N (sanity check)
+- `cross_topology_transfer_*.json` — tri→hex, hex→tri transfer
+- `ablation_study_*.json` — GNN vs MLP vs Scipy + norm_type comparison
+- `orchestrator_summary_*.json` — full run summary + verdicts
+
+### 11. Preflight Validation (`python scripts/preflight.py`)
+
+Validate variant runner scripts before execution (9 checks).
+
+```bash
+python scripts/preflight.py --from-script <path>       # Standard
+python scripts/preflight.py --from-script <path> --strict  # Warnings=errors (CI)
+python scripts/preflight.py --from-json variants.json  # From JSON
+make preflight SCRIPT=<path>                           # Via Makefile
+```
+
+### 10. Figures (`make figures` / `make figures-thesis`)
+
+Generate all analysis + thesis figures.
+
+```bash
+make figures            # PNG, all figures
+make figures-thesis     # PDF 300dpi, thesis-ready
+```
+
+### 11. Specialized Analysis Scripts
+
+```bash
+# Unsupervised phase detection from θ_opt
+python scripts/analysis/theta_pca_phase_detection.py [--format pdf] [--theme thesis]
+
+# θ-derivative vs D1 weight gradient comparison
+python scripts/analysis/theta_derivative_analysis.py [--format pdf]
+
+# Extract θ trajectories from pipeline results
+python scripts/analysis/extract_theta_trajectories.py
+
+# Systematic claim validation (multi-section runner)
+python scripts/experiment_runners/run_verification_plan.py [--list] [--noiseless-only]
+
+# Full analysis pipeline
+python analysis/run_analysis.py
+```
+
+### 12. Thesis Findings Validator (`python -m project_health.analysis.thesis_findings_validator`)
+
+Corroborates ALL key thesis findings against raw data with statistical tests.
+
+```bash
+python -m project_health.analysis.thesis_findings_validator            # Full report
+python -m project_health.analysis.thesis_findings_validator --verbose   # Per-finding details
+python -m project_health.analysis.thesis_findings_validator --only scaling,zne  # Filter by category
+python -m project_health.analysis.thesis_findings_validator --json report.json  # Machine-readable
+python -m project_health.analysis.thesis_findings_validator --latex findings.tex # LaTeX table
+make validate-findings                                                 # Quick run
+make validate-findings-latex                                           # With LaTeX export
+```
+
+Categories: `scaling`, `zne`, `gnn`, `topology`, `global`.
+Verdicts: `CORROBORATED` (p<0.01, strong effect), `QUALIFIED` (p<0.05 or caveats), `UNSUPPORTED`, `CONTRADICTED`.
+
+**Programmatic:**
+```python
+from project_health.analysis.thesis_findings_validator import run_validation
+report = run_validation(categories=["scaling", "zne"], verbose=True)
+print(f"Corroboration rate: {report.overall_corroboration_rate:.0%}")
+for f in report.findings:
+    print(f"  {f.finding_id}: {f.verdict} ({f.strength})")
+```
+
+### 13. Thesis Tables Compiler (`python -m project_health.analysis.thesis_tables_compiler`)
+
+Auto-generates global thesis tables from live data in Markdown and LaTeX.
+
+```bash
+python -m project_health.analysis.thesis_tables_compiler               # Print to stdout (Markdown)
+python -m project_health.analysis.thesis_tables_compiler --verbose      # Show progress
+python -m project_health.analysis.thesis_tables_compiler --markdown tables.md  # Save Markdown
+python -m project_health.analysis.thesis_tables_compiler --latex tables/       # Save LaTeX (per-table + combined)
+python -m project_health.analysis.thesis_tables_compiler --only T1,T3,T5       # Specific tables
+python -m project_health.analysis.thesis_tables_compiler --json tables.json    # JSON export
+make thesis-tables                                                     # Quick run (Markdown + LaTeX)
+```
+
+Tables: T1 (Global Performance), T2 (ZNE Comparison), T3 (Scaling Law), T4 (GNN-QEM),
+T5 (Experiment Verdicts), T6 (Cross-Topology), T7 (Failure Modes), T8 (Hyperparameter Sensitivity),
+T9 (MPS Performance), T10 (Timing Breakdown).
+
+**Programmatic:**
+```python
+from project_health.analysis.thesis_tables_compiler import compile_tables
+report = compile_tables(only=["T1", "T2"], verbose=True)
+for table in report.tables:
+    print(f"{table.table_id}: {table.title} ({len(table.rows)} rows)")
+```
+
+### 14. Thesis Global Figures (`python -m project_health.analysis.thesis_figures`)
+
+Publication-ready global figures aggregating data across ALL experiments.
+
+```bash
+python -m project_health.analysis.thesis_figures                       # All figures (PDF)
+python -m project_health.analysis.thesis_figures --list                 # List available
+python -m project_health.analysis.thesis_figures --only global_de_gap_distribution  # Specific
+python -m project_health.analysis.thesis_figures --format png --dpi 150 # PNG for slides
+python -m project_health.analysis.thesis_figures --with-titles          # Include titles
+python -m project_health.analysis.thesis_figures --output-dir figs/     # Custom dir
+make thesis-figures                                                     # Quick run
+```
+
+Available figures: `global_de_gap_distribution`, `scaling_law_comprehensive`,
+`topology_performance_violin`, `pea_vs_gf_comparison`, `gnn_qem_summary_panel`,
+`experiment_verdicts_overview`, `pipeline_timing_stacked`, `cross_n_performance_heatmap`,
+`findings_corroboration_summary`, `zne_gain_by_topology_and_strategy`.
+
+### 15. Full Thesis Compilation (`make thesis-all`)
+
+Runs ALL thesis compilation steps in order: validate → tables → figures.
+
+```bash
+make thesis-all   # Everything: findings validation + tables (md+tex) + all figures
+```
+
+Output:
+- `documentation/thesis_tables/findings_report.json` — Corroboration report
+- `documentation/thesis_tables/all_tables.md` — All tables in Markdown
+- `documentation/thesis_tables/*.tex` — Per-table LaTeX + `all_tables.tex`
+- `documentation/thesis_figures/*.pdf` — All global + registry figures
+
+## Data Architecture
+
+### Single Source of Truth: Valid Regime Boundaries
+
+`P1_VALID_REGIME` and `P2_VALID_REGIME` defined ONLY in:
 ```
 src/qmbp_simulation/framework/preflight.py
 ```
+All consumers MUST import from there. Test `TestRegimeBoundaryConsistency` enforces via identity checks.
 
-All consumers (`coverage.py`, `diagnose.py`, `scan_coverage.py`) MUST import from there.
-Never define local copies. The test `TestRegimeBoundaryConsistency` enforces this via
-identity checks (`is` not `==`).
-
-### NoiselessResult Fields (full extraction)
-
-The scanner (`project_health/digest/scanner.py`) extracts ALL diagnostic data from
-pipeline_run JSON files into `NoiselessResult`. Key fields by phase:
+### NoiselessResult Key Fields
 
 | Phase | Field | Source in JSON | Use |
 |-------|-------|----------------|-----|
 | 1 | `gap_min` | `diagnostics.phase1.gap_min` | Criticality indicator |
-| 2 | `mean_iterations` | Computed from `phase2.per_h_iterations` | VQE bottleneck |
-| 2 | `max_restart_spread` | `max(phase2.per_h_restart_spread)` | Landscape roughness |
-| 2 | `phase2_elapsed_s` | `phase2.total_elapsed_s` | Timing breakdown |
-| 3 | `theta_x_mse` | `phase3.theta_x_mse` | Complementary observable |
-| 3 | `phase3_elapsed_s` | `phase3.elapsed_s` | MPNN training time |
-| 4 | `error_from_circuit` | `phase4.energy_decomposition.error_from_circuit` | Direct decomposition |
-| 4 | `error_from_mpnn` | `phase4.energy_decomposition.error_from_mpnn` | vs heuristic |
-| 4 | `ces_energy_r` | `phase4.ces_energy_pearson_r` | ZNE linearity check |
-| 4 | `classification_confidence` | `phase4.classification_confidence` | Phase label reliability |
-| — | `run_timestamp` | Extracted from filename | Provenance tracking |
+| 2 | `theta_smoothness` | `diagnostics.phase2.theta_smoothness` | Chain break detection |
+| 2 | `convergence_rate` | `diagnostics.phase2.convergence_rate` | VQE health |
+| 3 | `generalization_gap` | `diagnostics.phase3.generalization_gap` | MPNN overfit |
+| 4 | `error_from_circuit` | `diagnostics.phase4.energy_decomposition.error_from_circuit` | Error attribution |
+| 4 | `error_from_mpnn` | `diagnostics.phase4.energy_decomposition.error_from_mpnn` | Error attribution |
 
 ### NoisyResult: ZNE Strategy Detection
 
-`zne_strategy` field is auto-populated from:
-1. `config.zne_strategy` or `config.amplifier` (if present in JSON)
-2. Filename heuristic: "pea" → `"pea"`, "gf"/"gate_folding" → `"gate_folding"`, "ces" → `"ces"`
+Auto-populated from:
+1. `config.zne_strategy` or `config.amplifier` (if present)
+2. Filename heuristic: "pea" → `"pea"`, "gf" → `"gate_folding"`, "ces" → `"ces"`
 
 ## Anti-Patterns (DO NOT)
 
 - ❌ Writing `analysis/_tmp_*.py` throwaway scripts for one-off analysis
 - ❌ Using `python -c "..."` for multi-line data inspection
-- ❌ Creating new scripts in `scripts/` when `digest/` or `analysis/` already covers it
-- ❌ Manually parsing JSON result files when `scan_coverage.py` or `diagnose.py` can do it
-- ❌ Duplicating formatting/reporting logic that exists in `project_health/digest/formatters.py`
+- ❌ Creating new scripts when `digest/` or `analysis/` already covers it
+- ❌ Manually parsing JSON result files (use scanner/diagnose)
+- ❌ Duplicating formatting logic from `project_health/digest/formatters.py`
+- ❌ Defining local valid-regime dicts (import from `preflight.py`)
+- ❌ Running `cat results/...json | python -c "import json..."` — use digest instead
 
 ## When a New Script IS Justified
 
 A new standalone script is appropriate ONLY when:
-1. The analysis is fundamentally different from all existing tools (new experiment type)
+1. The analysis is fundamentally different from all existing tools
 2. It will be reused multiple times (not a one-off)
-3. It belongs to a new category not covered by existing tools
-4. It's registered in the experiment framework (`experiments/<category>/exp_*.py`)
+3. It belongs to a new category not covered
+4. It's registered in the experiment framework
 
-In that case, place it in the correct location:
+Placement:
 - Experiment scripts → `experiments/<category>/`
 - Reusable analysis → extend `analysis/scan_coverage.py` or `analysis/diagnose.py`
 - Result formatting → extend `project_health/digest/`
+
+## Extension Guidelines
+
+When extending an existing script:
+- Add new flags/options rather than changing existing behavior
+- Keep backward compatibility
+- Add the new capability to `--help` output
+- Update this steering file if a new major capability is added
+
+### Extending Thesis Tools
+
+When adding new findings to validate:
+1. Add a `@register_finding(id, category, claim)` decorated function in `thesis_findings_validator.py`
+2. Categories: `scaling`, `zne`, `gnn`, `topology`, `global`, `physics`
+3. Return `FindingValidation` with verdict + evidence list
+4. Load data from `_load_scan_results()` kwargs or use direct file reading for custom sources
+
+When adding new thesis tables:
+1. Add a `@register_table("T<N>")` decorated function in `thesis_tables_compiler.py`
+2. Return `TableSpec(table_id, title, caption, columns, rows, notes)`
+3. Data comes from `data` dict (keys: noiseless, noisy, experiments, scaling, cross_topo, gnn_qem)
+
+When adding new thesis figures:
+1. Add a `@register_thesis_figure(name, description)` decorated function in `thesis_figures.py`
+2. Signature: `func(data: dict, cfg: FigureConfig) -> bool`
+3. Save to `cfg.output_dir / f"fig_{name}.{cfg.fmt}"`
+
+### GNN-QEM JSON Schema Reference
+
+| File | Top-level keys | Metrics location |
+|------|---------------|------------------|
+| `cross_topology_results.json` | `zero_shot`, `fine_tuned`, `verdict` | `zero_shot.improvement_rate`, `.reduction_pct`, `.n_samples` |
+| `ablation_no_enoisy_results.json` | `gnn_no_enoisy`, `mlp_no_enoisy`, `linear_no_enoisy`, `verdict` | `*.improvement_rate`, `*.n_total` |
+| `post_zne_validation.json` | `summary`, `per_point` | `summary.n_gnn_regresses`, `.n_evaluations` |
+| `vqe_realistic_results.json` | varies | `ranking.spearman_rho`, `.binary_accuracy` |
+| `affine_overshoot_audit.json` | `n_records`, `n_overshoot` | top-level |
+
+### Zero-Shot Cross-N JSON Schema
+
+```
+results/scaling/zero_shot/zero_shot_v3_*.json
+├── experiment, version, metadata
+├── strategy_a_gnn_no_bn
+│   ├── description, training_mse
+│   └── results: [{h, e_pred, e_dmrg, gap, de_gap, theta_pred, passed}, ...]
+├── strategy_b_interpolation
+│   └── results: [{h, e_pred, e_dmrg, gap, de_gap, passed}, ...]
+└── comparison
+```
+
+### ZNE Cross-Topology Definitive Schema
+
+```
+results/experiments/exp_zne_cross_topo/run_*.json
+├── results
+│   ├── section_1..3: {name, success, data: {pass, results, summary}}
+│   └── section_4: {data: {comparison: [{topology,h,de_pea,de_gf,pea_gain,...}], summary: {paired_t_stat, paired_p_value, pea_wins_total, ...}}}
+└── summary: {n_sections, n_passed, all_passed}
+```

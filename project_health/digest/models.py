@@ -24,6 +24,7 @@ from qmbp_simulation.framework.criteria import (
 __all__ = [
     "EXPERIMENT_CRITERIA",
     "REJECTION_IS_FINDING",
+    "CrossTopologyResult",
     "ExperimentResult",
     "NoiselessResult",
     "NoisyResult",
@@ -183,3 +184,51 @@ class ScalingResult:
     # Per-h breakdown
     per_h_de_gap: list[float] = field(default_factory=list)
     per_h_passed: list[bool] = field(default_factory=list)
+
+
+@dataclass
+class CrossTopologyResult:
+    """Key metrics from a cross-topology transfer experiment.
+
+    Captures results from cross-N validation, cross-topology transfer,
+    and ablation studies. Each result JSON may contain multiple directions
+    and predictor comparisons.
+    """
+
+    source_file: str
+    folder: str
+    # Experiment type
+    experiment_type: str = (
+        ""  # cross_n_validation, cross_topology_transfer, ablation_study, orchestrator_summary
+    )
+    # System
+    target_n: int = 10
+    threshold: float = 0.10
+    seeds: list[int] = field(default_factory=list)
+    norm_type: str = "none"
+    hidden_dim: int = 128
+    n_epochs: int = 6000
+    # Source/target topologies
+    source_topologies: list[str] = field(default_factory=list)
+    target_topologies: list[str] = field(default_factory=list)
+    # Aggregate metrics (best direction or overall)
+    mean_de_gap: float = 0.0
+    std_de_gap: float = 0.0
+    max_de_gap: float = 0.0
+    pass_rate: float = 0.0
+    n_pass: int = 0
+    n_total: int = 0
+    # Verdict
+    verdict: str = ""  # PASS, FAIL, PARTIAL
+    all_pass: bool = False
+    # Cross-topology specific
+    graph_structure_essential: bool = False
+    mlp_gnn_ratio: float = 0.0
+    best_norm_type: str = ""
+    # Per-direction breakdown (for cross-topology transfer)
+    directions: dict[str, Any] = field(default_factory=dict)
+    # Timing
+    total_time_s: float = 0.0
+    # Traceability
+    git_commit: str = ""
+    timestamp: str = ""

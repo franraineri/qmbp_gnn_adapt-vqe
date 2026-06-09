@@ -12,7 +12,12 @@ import re
 import statistics
 from typing import Any
 
-from project_health.digest.models import ExperimentResult, NoiselessResult, NoisyResult
+from project_health.digest.models import (
+    CrossTopologyResult,
+    ExperimentResult,
+    NoiselessResult,
+    NoisyResult,
+)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Text formatters
@@ -737,3 +742,79 @@ def format_compare_two(
             lines.append(f"\n  → {label_a} is {-improvement:.1f}% better (lower mean ΔE/gap)")
 
     return "\n".join(lines)
+
+
+def format_cross_topology_text(results: list[CrossTopologyResult], verbose: bool = False) -> str:
+    """Format cross-topology transfer results as a text table.
+
+    Groups by experiment type and shows key metrics for each.
+    """
+    if not results:
+        return "  No cross-topology transfer results found.\n"
+
+    lines: list[str] = []
+    lines.append(f"  {len(results)} cross-topology result files scanned")
+    lines.append("")
+
+    # Group by experiment type
+    by_type: dict[str, list[CrossTopologyResult]] = {}
+    for r in results:
+        by_type.setdefault(r.experiment_type, []).append(r)
+
+    # Cross-N validation results
+    if "cross_n_validation" in by_type:
+        lines.append("  ── Cross-N Validation (within-topology) ──")
+        lines.append(f"  {'File':<45} {'Verdict':<8} {'Mean ΔE/gap':<12} {'Time':<8}")
+        lines.append(f"  {'─' * 73}")
+        for r in by_type["cross_n_validation"]:
+            fname = Path(r.source_file).name[:42]
+            v = "✅" if r.all_pass else "❌"
+            lines.append(
+                f"  {fname:<45} {v} {r.verdict:<5} "
+                f"{r.mean_de_gap * 100:>7.3f}%  {r.total_time_s:>5.0f}s"
+            )
+        lines.append("")
+
+    # Cross-topology transfer results
+    if "cross_topology_transfer" in by_type:
+        lines.append("  ── Cross-Topology Transfer (bidirectional) ──")
+        lines.append(f"  {'File':<45} {'Verdict':<8} {'Mean ΔE/gap':<12} {'Time':<8}")
+        lines.append(f"  {'─' * 73}")
+        for r in by_type["cross_topology_transfer"]:
+            fname = Path(r.source_file).name[:42]
+            v = "✅" if r.all_pass else "❌"
+            lines.append(
+                f"  {fname:<45} {v} {r.verdict:<5} "
+                f"{r.mean_de_gap * 100:>7.3f}%  {r.total_time_s:>5.0f}s"
+            )
+            if verbose and r.directions:
+                for dir_key, dir_data in r.directions.items():
+                    if isinstance(dir_data, dict):
+                        de = dir_data.get("mean_de_gap", {})
+                        de_val = de.get("mean", 0.0) if isinstance(de, dict) else de
+                        lines.append(f"    └─ {dir_key}: {de_val * 100:.3f}%")
+        lines.append("")
+
+    # Ablation results
+    if "ablation_study" in by_type:
+        lines.append("  ── Ablation (GNN vs MLP vs Scipy) ──")
+        lines.append(f"  {'File':<40} {'Graph Essential':<16} {'MLP/GNN':<10} {'Best Norm':<10}")
+        lines.append(f"  {'─' * 76}")
+        for r in by_type["ablation_study"]:
+            fname = Path(r.source_file).name[:37]
+            ess = "YES ✅" if r.graph_structure_essential else "NO"
+            lines.append(
+                f"  {fname:<40} {ess:<16} {r.mlp_gnn_ratio:>6.1f}×    {r.best_norm_type:<10}"
+            )
+        lines.append("")
+
+    # Orchestrator summaries
+    if "orchestrator_summary" in by_type:
+        lines.append("  ── Orchestrator Runs ──")
+        for r in by_type["orchestrator_summary"]:
+            fname = Path(r.source_file).name[:45]
+            v = "✅" if r.all_pass else "⚠️"
+            lines.append(f"  {fname}: {v} {r.verdict} ({r.total_time_s / 60:.1f}m)")
+        lines.append("")
+
+    return "\n".join(lines) + "\n"

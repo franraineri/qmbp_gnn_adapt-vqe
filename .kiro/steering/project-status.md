@@ -1,6 +1,6 @@
 # Project Status — GNN-HVA Framework
 
-**Last updated**: 2026-06-06
+**Last updated**: 2026-06-08
 
 ## Experiment Discipline (ALWAYS ENFORCE)
 
@@ -51,6 +51,15 @@
    - Levels: L1=bounds, L2=NaN/Inf, L3=interpolation, L4=fidelity, L5=gradient, L6=MC-Dropout, L7=sensitivity.
    - Outputs `diagnostics.theta_validation[]` in result JSON. Accessible via `ValidationRunner.validate_theta_prediction()`.
    - Ref: `src/qmbp_simulation/analysis/theta_validator.py`, `tests/test_theta_validator.py`.
+5. **Cross-N Zero-Shot GNN** (2026-06-08) — GNN generalizes to unseen system sizes.
+   - **Discovery**: BatchNorm is harmful for cross-N on topologies with nodal symmetry (chain_1d). Fix: `norm_type="none"`.
+   - Package fix: `MPNNPredictor(norm_type="none"|"layer"|"batch")` — backward compatible.
+   - Validated: Train N=40+80 → predict N=50,60,70,100: **25/25 PASS**, mean ΔE/gap=0.16%.
+   - Multi-seed confirmed: seeds 42/43/44 all 5/5 PASS (std=0.074%).
+   - Extrapolation: N=100 (beyond training) achieves 0.18%, GNN beats scipy 2.6×.
+   - Pending: Bond-resolved (79D necessity proof).
+   - Scripts: `run_zero_shot_cross_n_v3.py`, `run_cross_n_ablation_suite.py`, `run_bond_resolved_cross_n.py`.
+   - Ref: `documentation/binnacles/binnacle-cross-n-zero-shot.md`, `documentation/analysis/19_cross_n_validation_plan.md`.
 
 ## Key Constraints (always enforce)
 
@@ -96,7 +105,21 @@
 | N=10 | **h=128**, L=3, 6000ep, patience=500 | 5 (p=2) / 1 (p=1) | h≥1.5 (chain) | h≥1.9 (chain), h≥3.25 (ladder) |
 | N=20 | h=128, MPS chi=64 | 7 (p=2) / 5 (p=1) | h≥2.0 | h≥2.0 (chain) |
 | N=40 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥4.0 (chain, aer_mps) |
-| N=50 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥4.2 (chain, predicted) |
+| N=50 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥4.9 (chain, validated) |
+| N=80 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥7.7 (chain, validated) |
+
+- **MPS Scaling**: Use `MPSBackend(strategy="aer_mps")` for N>22. COBYLA optimizer (L-BFGS-B fails with shots).
+- **N>63 direct path**: AerSimulator Target has 63 qubits max. For N>63, `save_expectation_value` bypass is used automatically.
+- **Scaling law (corrected)**: h_min_safe = 1.5 + 0.020·N^1.31 (original formula +0.50 offset validated at N=40/50/80).
+- **Seeds**: All pass at N=40 (27/27). Seed 44 is noisier (max 2.36%) but never fails 5% threshold.
+- **Phase 3 MPNN at N=40**: 0.46% mean ΔE/gap with 27 training points. Interpolation only — do not extrapolate to h < h_min.
+- **Zero-shot cross-N GNN WORKS with norm_type="none"** (2026-06-08): Train N=40+N=80 (14 pts) → predict N=60: ΔE/gap=0.13% (5/5 PASS). BatchNorm causes 25-40% θ_x underprediction on chain_1d (zero intra-graph variance). Fix: `MPNNPredictor(norm_type="none")`. Interpolation (scipy) also achieves 0.11% but cannot scale to bond-resolved (79D). Ref: `results/scaling/zero_shot/zero_shot_v3_N40_80_to_N60_20260608_110212.json`, `documentation/analysis/19_cross_n_validation_plan.md`.
+- **BatchNorm HARMFUL for cross-N on chain_1d**: All nodes identical post-GINConv → BN running_stats capture graph-size artifact, not feature variation. With BN: 18.5% error. Without: 0.13%. Use `norm_type="none"` for cross-N, `norm_type="batch"` for fixed-N (unchanged default).
+- **Cross-N VQE warm-start is useless** at 2 params: COBYLA always converges to global min regardless of init (trivial landscape). Warm-start only matters for bond-resolved (79+ params).
+- **Noise-aware MPNN training FAILS**: V7 5B showed 6× worse than noiseless. Shot noise corrupts θ_opt targets.
+- **χ=64 is validated exact** for HVA p≤2 on 1D TFIM at ANY N (V7 3A/3B: diff=1e-14, actual χ used by DMRG: 9-15).
+- **Timing**: T(N) ≈ 0.08·N^2.56 for VQE at boundary h-values. N=80 at h>>h_c is anomalously fast (trivial landscape).
+- **Hardware viability** (transpilation audit): N=40: 78 CX (✅ PEA viable), N=50: 98 CX (✅), N=80: 158 CX (⚠️ marginal).
 
 - **Seeds**: Use median of 3 seeds (42/43/44). Seed 43 problematic for ladder, seed 44 for triangular.
 - **Hardware deployment (p=1 heavy-hex N=10)**: 1 restart, 3 layouts, 16k shots, h_test≥3.25, SPSA (a=0.1, c=0.05, A=10). Seed-independent (std=0.0003).
@@ -197,12 +220,16 @@
 | VQE result validation (variational principle, bounds, sweep) | `src/qmbp_simulation/analysis/vqe_validator.py` |
 | θ_pred validation module | `src/qmbp_simulation/analysis/theta_validator.py` |
 | θ_pred validation tests | `tests/test_theta_validator.py` |
+| NLCE module (cluster expansion) | `src/qmbp_simulation/analysis/nlce.py` |
+| Scaling extensions runner (E5) | `scripts/experiment_runners/bond_resolved/run_scaling_extensions.py` |
+| Scaling extensions analyzer | `python -m project_health.analysis.scaling_extensions_analyzer` |
+| Scaling extensions plan | `documentation/analysis/20_scaling_extensions_plan.md` |
 
 ## CI & Quality Gates
 
 - **CI workflow**: `.github/workflows/ci.yml` — lint + mypy strict modules + fast tests + smoke test.
 - **mypy strict modules**: `framework/criteria.py`, `framework/result_io.py` (0 errors).
-- **Make targets**: `make typecheck`, `make coverage`, `make health`, `make figures`, `make figures-thesis`.
+- **Make targets**: `make typecheck`, `make coverage`, `make health`, `make figures`, `make figures-thesis`, `make sanity`, `make scaling`, `make extensions`, `make cross-topology`.
 - **Preflight**: Mandatory before any variant runner execution (`make preflight SCRIPT=<path>`).
 
 ## Pending Execution (Optional)

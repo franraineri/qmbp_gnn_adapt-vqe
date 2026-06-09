@@ -133,6 +133,18 @@ health:  ## Run project health report (compact)
 health-full:  ## Run full project health report (markdown, saved)
 	$(PYTHON) -m project_health --markdown -o reports/
 
+sanity:  ## Run sanity checks (physics + data integrity)
+	$(PYTHON) -m project_health.analysis.sanity_check
+
+scaling:  ## Analyze MPS scaling results (N=40-120)
+	$(PYTHON) -m project_health.analysis.scaling_analyzer
+
+extensions:  ## Analyze E5 scaling extensions (bond-dim, HE, NLCE)
+	$(PYTHON) -m project_health.analysis.scaling_extensions_analyzer --verbose --cross-check
+
+cross-topology:  ## Analyze cross-topology transfer results
+	$(PYTHON) -m project_health.digest --kind cross_topology
+
 # ── Figures ──────────────────────────────────────────────────
 
 figures:  ## Generate all analysis figures (PNG, default theme)
@@ -140,3 +152,29 @@ figures:  ## Generate all analysis figures (PNG, default theme)
 
 figures-thesis:  ## Generate thesis-quality figures (PDF, 300dpi, no titles)
 	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/
+	$(PYTHON) -m project_health.analysis.thesis_figures --format pdf --dpi 300 --verbose
+
+# ── Thesis Compilation ───────────────────────────────────────
+
+validate-findings:  ## Validate all thesis findings against raw data
+	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose
+
+validate-findings-latex:  ## Validate findings + generate LaTeX table
+	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose --latex documentation/thesis_tables/findings_validation.tex
+
+thesis-tables:  ## Compile all thesis tables (Markdown + LaTeX)
+	$(PYTHON) -m project_health.analysis.thesis_tables_compiler --verbose --markdown documentation/thesis_tables/all_tables.md --latex documentation/thesis_tables/
+
+thesis-figures:  ## Generate thesis-level global figures (PDF)
+	$(PYTHON) -m project_health.analysis.thesis_figures --format pdf --dpi 300 --verbose
+
+thesis-all:  ## Full thesis compilation: validate + tables + figures
+	@echo "═══ Validating Findings ═══"
+	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose --json documentation/thesis_tables/findings_report.json || true
+	@echo "\n═══ Compiling Tables ═══"
+	$(PYTHON) -m project_health.analysis.thesis_tables_compiler --verbose --markdown documentation/thesis_tables/all_tables.md --latex documentation/thesis_tables/
+	@echo "\n═══ Generating Global Figures ═══"
+	$(PYTHON) -m project_health.analysis.thesis_figures --format pdf --dpi 300 --verbose
+	@echo "\n═══ Generating Registry Figures ═══"
+	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/
+	@echo "\n✅ Thesis compilation complete → documentation/thesis_tables/ + documentation/thesis_figures/"

@@ -159,6 +159,31 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "metric": "max_de_gap",
         "pass_if": "max_de_gap < 0.05 for h >= h_min(N=50)",
     },
+    "E3_BR_SCALING": {
+        "metric": "pass_rate",
+        "threshold": 0.78,
+        "desc": "Bond-resolved N=40 VQE converges (>=7/9 h-points ΔE/gap < 5%)",
+    },
+    "E5_SCALING_EXT": {
+        "metric": "pass_rate",
+        "threshold": 0.60,
+        "desc": "Scaling extensions: ≥3/5 sections pass (bond-dim + VQE + HE + NLCE)",
+    },
+    "E5_BOND_DIM": {
+        "metric": "pass_rate",
+        "threshold": 1.0,
+        "desc": "χ=64 exact at N=120: |E(χ=64)-E(χ=128)| < 1e-10",
+    },
+    "E5_NLCE": {
+        "metric": "pass_rate",
+        "threshold": 0.80,
+        "desc": "NLCE converges to <5% error in gapped phase (L_max=8-10)",
+    },
+    "E5_HE_COMPARISON": {
+        "metric": "pass_rate",
+        "threshold": 1.0,
+        "desc": "HE (analytical θ_x) improves over cold-start VQE",
+    },
 }
 
 # Experiments where hypothesis rejection IS a valid scientific finding
