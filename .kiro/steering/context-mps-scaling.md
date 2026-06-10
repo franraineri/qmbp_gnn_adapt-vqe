@@ -13,7 +13,7 @@ fileMatchPattern: "**/mps_backend*,**/scaling/**,**/run_mps*,**/binnacle-mps*"
 - Scaling law confirmed: `h_min_safe = 1.5 + 0.020·N^1.31` (+0.50 offset).
 - Multi-seed (42/43/44) at N=40: 27/27 pass, std=0.074%.
 - Phase 3 MPNN at N=40: 0.46% deploy error with 27 training points.
-- Zero-shot cross-N GNN validated with `norm_type="none"` (25/25 PASS).
+- Zero-shot cross-N GNN validated with `norm_type="none"` (30/30 PASS).
 
 ## Key APIs
 

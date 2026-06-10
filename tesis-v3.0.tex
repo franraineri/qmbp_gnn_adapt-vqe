@@ -36,14 +36,14 @@
 
 \chapter{Resumen}
 
-El presente Trabajo Fin de Máster desarrolla y valida un marco híbrido clásico-cuántico para la caracterización de fases cuánticas en hardware NISQ, integrando técnicas de predicción de parámetros mediante redes neuronales de grafos con algoritmos variacionales superficiales y mitigación de errores. El marco combina una Red Neuronal de Grafos de Paso de Mensajes (MPNN) basada en GINConv con un Ansatz Variacional Hamiltoniano (HVA) de profundidad estrictamente acotada ($p \leq 2$), operando sobre el Modelo de Ising en Campo Transversal (TFIM) como sistema de validación. Siguiendo el paradigma de predicción de parámetros propuesto en la literatura reciente, la MPNN predice los parámetros óptimos del circuito variacional directamente desde la representación en grafo del Hamiltoniano, reduciendo el costo en hardware cuántico de cientos de evaluaciones a 0--2 iteraciones de refinamiento. La contribución principal es la integración de estas técnicas en un pipeline unificado y su validación sistemática sobre 210+ ejecuciones, abarcando 5 topologías de red (cadena 1D, escalera, triangular, kagomé, heavy-hex) y tamaños de sistema desde $N=6$ hasta $N=80$ qubits, demostrando que el pipeline mantiene $\Delta E/\text{gap} < 5\%$ de manera consistente dentro del régimen operativo válido. Se valida además la mitigación de errores mediante PEA-ZNE (+95\% de ganancia media) y la extensibilidad del marco a variantes del Hamiltoniano de Ising (campo longitudinal, frustración). El pipeline escala sin modificaciones arquitectónicas al régimen de utilidad cuántica ($N > 22$), donde los métodos clásicos exactos dejan de ser viables.
+El presente Trabajo Fin de Máster desarrolla y valida un marco híbrido clásico-cuántico para la caracterización de fases cuánticas en hardware NISQ, integrando técnicas de predicción de parámetros mediante redes neuronales de grafos con algoritmos variacionales superficiales y mitigación de errores. El marco combina una Red Neuronal de Grafos de Paso de Mensajes (MPNN) basada en GINConv con un Ansatz Variacional Hamiltoniano (HVA) de profundidad estrictamente acotada ($p \leq 2$), operando sobre el Modelo de Ising en Campo Transversal (TFIM) como sistema de validación. Siguiendo el paradigma de predicción de parámetros propuesto en la literatura reciente, la MPNN predice los parámetros óptimos del circuito variacional directamente desde la representación en grafo del Hamiltoniano, reduciendo el costo en hardware cuántico de cientos de evaluaciones a 0--2 iteraciones de refinamiento. La contribución principal es la integración de estas técnicas en un pipeline unificado y su validación sistemática sobre 430+ ejecuciones, abarcando 5 topologías de red (cadena 1D, escalera, triangular, kagomé, heavy-hex) y tamaños de sistema desde $N=6$ hasta $N=80$ qubits, demostrando que el pipeline mantiene $\Delta E/\text{gap} < 5\%$ de manera consistente dentro del régimen operativo válido. Se valida además la mitigación de errores mediante PEA-ZNE (+95\% de ganancia media) y la extensibilidad del marco a variantes del Hamiltoniano de Ising (campo longitudinal, frustración). El pipeline escala sin modificaciones arquitectónicas al régimen de utilidad cuántica ($N > 22$), donde los métodos clásicos exactos dejan de ser viables.
 
 \vspace{0.5cm}
 {\bf Palabras clave:} Computación cuántica, VQE, Redes Neuronales de Grafos, transiciones de fase cuánticas, NISQ, Modelo de Ising, circuitos variacionales superficiales, mitigación de errores.
 
 \chapter{Abstract}
 
-This Master's Thesis develops and validates a hybrid classical-quantum framework for quantum phase characterization on NISQ hardware, integrating existing techniques of GNN-based parameter prediction, shallow variational circuits, and error mitigation into a unified pipeline. The framework combines a Message-Passing Neural Network (MPNN) based on GINConv with a strictly depth-bounded Hamiltonian Variational Ansatz (HVA, $p \leq 2$), operating on the Transverse Field Ising Model (TFIM) as the validation system. Following the parameter prediction paradigm from recent literature, the MPNN predicts optimal variational circuit parameters directly from the Hamiltonian's graph representation, reducing hardware cost from hundreds of evaluations to 0--2 refinement iterations. The main contribution is the integration of these techniques and their systematic validation over 210+ pipeline executions, spanning 5 lattice topologies (chain 1D, ladder, triangular, kagome, heavy-hex) and system sizes from $N=6$ to $N=80$ qubits, demonstrating that the pipeline maintains $\Delta E/\text{gap} < 5\%$ consistently within the valid operating regime. Error mitigation via PEA-ZNE (+95\% mean gain) and framework extensibility to Ising Hamiltonian variants (longitudinal field, frustration) are also validated. The pipeline scales without architectural modifications to the quantum utility regime ($N > 22$), where exact classical methods become intractable.
+This Master's Thesis develops and validates a hybrid classical-quantum framework for quantum phase characterization on NISQ hardware, integrating existing techniques of GNN-based parameter prediction, shallow variational circuits, and error mitigation into a unified pipeline. The framework combines a Message-Passing Neural Network (MPNN) based on GINConv with a strictly depth-bounded Hamiltonian Variational Ansatz (HVA, $p \leq 2$), operating on the Transverse Field Ising Model (TFIM) as the validation system. Following the parameter prediction paradigm from recent literature, the MPNN predicts optimal variational circuit parameters directly from the Hamiltonian's graph representation, reducing hardware cost from hundreds of evaluations to 0--2 refinement iterations. The main contribution is the integration of these techniques and their systematic validation over 430+ pipeline executions, spanning 5 lattice topologies (chain 1D, ladder, triangular, kagome, heavy-hex) and system sizes from $N=6$ to $N=80$ qubits, demonstrating that the pipeline maintains $\Delta E/\text{gap} < 5\%$ consistently within the valid operating regime. Error mitigation via PEA-ZNE (+95\% mean gain) and framework extensibility to Ising Hamiltonian variants (longitudinal field, frustration) are also validated. The pipeline scales without architectural modifications to the quantum utility regime ($N > 22$), where exact classical methods become intractable.
 
 \vspace{0.5cm}
 {\bf Keywords:} Quantum computing, VQE, Graph Neural Networks, quantum phase transitions, NISQ, Ising model, shallow variational circuits, error mitigation.
@@ -555,7 +555,7 @@ El desarrollo del pipeline se realizó en fases iterativas documentadas:
     \item \textbf{S-series:} Experimentos focalizados (S1--S8) para eficiencia de datos, paisaje energético, incertidumbre y escalamiento.
 \end{itemize}
 
-En total, se acumulan 210+ ejecuciones de pipeline documentadas en bitácoras estructuradas, con 30 experimentos formales y una tasa de resultados útiles del 93\% (véase Tabla~\ref{tab:experiment_summary} en Capítulo~5).
+En total, se acumulan 430+ ejecuciones de pipeline documentadas en bitácoras estructuradas, con 49 experimentos formales y una tasa de resultados útiles del 84\% (véase Tabla~\ref{tab:experiment_summary} en Capítulo~5).
 
 \section{Requisitos Funcionales}
 
@@ -594,7 +594,7 @@ El pipeline se considera \emph{validado} cuando la tasa de éxito es $\geq 67\%$
 
 \chapter{Evaluación}
 
-Este capítulo presenta la evaluación completa del pipeline GNN-HVA, demostrando la ventaja de la solución propuesta y su aplicabilidad para resolver el problema de clasificación de fases cuánticas. Se organizan los resultados en seis ejes: (1) validación por topología a escala fija, (2) validación de escalamiento, (3) mitigación de errores, (4) extensibilidad a Hamiltonianos de Ising, (5) comparativa con la literatura, y (6) análisis de límites físicos. La totalidad de los resultados numéricos se basa en 210+ ejecuciones del pipeline sobre 5 topologías y tamaños de sistema desde $N = 6$ hasta $N = 80$.
+Este capítulo presenta la evaluación completa del pipeline GNN-HVA, demostrando la ventaja de la solución propuesta y su aplicabilidad para resolver el problema de clasificación de fases cuánticas. Se organizan los resultados en seis ejes: (1) validación por topología a escala fija, (2) validación de escalamiento, (3) mitigación de errores, (4) extensibilidad a Hamiltonianos de Ising, (5) comparativa con la literatura, y (6) análisis de límites físicos. La totalidad de los resultados numéricos se basa en 430+ ejecuciones del pipeline sobre 5 topologías y tamaños de sistema desde $N = 6$ hasta $N = 80$.
 
 \section{Definición de Métricas}
 
@@ -658,7 +658,7 @@ Convergencia VQE & 100\% & 100\% & 86--100\% & 100\% \\
 \end{tabular}
 \end{table}
 
-El framework logra $\Delta E/\text{gap} < 5\%$ en las cuatro topologías con los mismos hiperparámetros (Tabla~\ref{tab:cross_topo}). El ranking de rendimiento (escalera $<$ cadena $<$ triangular) se explica por la cantidad de información disponible para el paso de mensajes: topologías con mayor conectividad (más aristas por nodo) proporcionan más canales de propagación de información durante las capas GINConv, lo cual es consistente con la teoría de expresividad del test de Weisfeiler-Lehman \citep{xu2019}. La topología heavy-hex ---nativa de los procesadores IBM Torino \citep{kim2023}--- logra el mejor rendimiento absoluto (mediana 0.10\%) con la ventaja adicional de cero overhead de routing SWAP en hardware.
+El framework logra $\Delta E/\text{gap} < 5\%$ en las cuatro topologías con los mismos hiperparámetros (Tabla~\ref{tab:cross_topo}). Para las 15 mejores configuraciones por topología dentro del régimen válido, el ranking de rendimiento observado es escalera (mediana 1.70\%) $<$ cadena (2.80\%) $<$ triangular (3.70\%). Este ordenamiento se explica por la cantidad de información disponible para el paso de mensajes: la topología escalera tiene mayor ratio aristas/nodo que la cadena 1D, proporcionando más canales de propagación durante las capas GINConv \citep{xu2019}. La topología heavy-hex ---nativa de los procesadores IBM Torino \citep{kim2023}--- logra el mejor rendimiento absoluto (mediana 0.10\%) con la ventaja adicional de cero overhead de routing SWAP en hardware. Cabe notar que este ranking se invierte para configuraciones no optimizadas fuera del régimen válido, donde la convergencia VQE domina sobre la calidad de predicción MPNN.
 
 \textbf{Hallazgo: el transfer cross-topology falla.} Un resultado negativo importante es que la MPNN entrenada sobre datos de una topología \emph{no generaliza} a topologías distintas. En el experimento S2, un modelo entrenado con datos de cadena 1D produce $\Delta E/\text{gap} = 5.98\%$ (media, 3 semillas) al evaluarse sobre escalera, y $7.82\%$ sobre triangular ---ambos por encima del umbral del 5\%. Incluso la autoaplicación (cadena $\to$ cadena con datos de un barrido diferente) falla en 2/3 semillas ($\Delta E/\text{gap} = 4.03\%$, $0.95\%$, $0.008\%$). Esto confirma que el framework es \emph{agnóstico a la topología en arquitectura} (el mismo código funciona) pero \emph{no en representaciones aprendidas}: cada topología produce parámetros $\theta^*$ cualitativamente distintos al mismo valor de $h$, requiriendo datos de entrenamiento específicos por topología.
 
@@ -977,10 +977,6 @@ S8b (MPNN) & 0.500 (borde del rango) & 5.0 & Ninguna & RECHAZADO \\
 
 \textbf{Implicación:} El método D1 de detección de fases por gradientes de pesos es \emph{cualitativo} (detecta que una transición existe en $h \approx 0.7$--$1.2$) pero \emph{no cuantitativo} (no puede extraer $\nu$). Para extracción cuantitativa de exponentes críticos se requiere: (a) datos de ground truth exacto como entrada, (b) una métrica diferente (distancia en espacio de pesos, información de Fisher), o (c) restricción del análisis al régimen válido ($h > h_{\min}$).
 
-\subsection{Entrenamiento Noise-Aware de la MPNN Falla}
-
-El resultado del experimento V7 5B (Sección anterior) tiene una implicación adicional: confirma que la generación de datos de entrenamiento de alta calidad es un prerequisito no negociable para el éxito del pipeline. Los datos VQE deben ser producidos en condiciones noiseless (o equivalentemente con MPS exacto) para que la MPNN aprenda la relación suave $h \mapsto \theta^*$ postulada por \citet{mele2022}. Cualquier perturbación estocástica en los targets destruye la señal aprendible.
-
 \subsection{Dynamic Parameter Prediction No Mejora el Warm-Start (F1)}
 
 \textbf{Tipo de experimento:} Simulación noiseless (StatevectorEstimator, $N = 6$, $p = 2$, cadena 1D, 3 semillas). Se evalúa si una técnica de predicción dinámica de parámetros (DyPP) ---que ajusta la inicialización punto a punto usando la información del gradiente previo--- reduce significativamente las iteraciones VQE más allá del warm-start descendente estándar \citep{puig2025}.
@@ -1068,7 +1064,7 @@ VQE\_DIVERGENCE & 5 & 7\% & Fase 2 \\
 \end{tabular}
 \end{table}
 
-El 69\% de los fallos es prevenible mediante el early-stopping implementado (Tabla~\ref{tab:root_cause}: CHAIN\_BREAK 45\% + MPNN\_OVERFIT 25\% detectable y prevenible). La tasa de resultados útiles (confirmados + negativos válidos) es del 93\% (28/30 experimentos formales producen conocimiento accionable), comparado con una tasa típica del 50--70\% reportada en estudios de benchmarking VQE \citep{tilly2022}.
+El 69\% de los fallos es prevenible mediante el early-stopping implementado (Tabla~\ref{tab:root_cause}: CHAIN\_BREAK 45\% + MPNN\_OVERFIT 25\% detectable y prevenible). La tasa de resultados útiles (confirmados + negativos válidos) es del 84\% (41/49 experimentos formales producen conocimiento accionable), comparado con una tasa típica del 50--70\% reportada en estudios de benchmarking VQE \citep{tilly2022}.
 
 \subsection{Eficiencia de Datos}
 
@@ -1241,27 +1237,29 @@ La totalidad de la campaña experimental se resume como:
 
 \begin{table}[h]
 \centering
-\caption{Resumen de la campaña experimental formal V8 (15 experimentos con hipótesis formales). Los 210+ ejecuciones totales incluyen además los experimentos de escalamiento (V7), Heisenberg (V9), S-series (S1-S8), y Tier-1 (T1a-T1c).}
+\caption{Resumen de la campaña experimental formal (49 experimentos con hipótesis formales). Las 430+ ejecuciones totales incluyen además los experimentos de escalamiento (V7), Heisenberg (V9), S-series (S1-S8), Tier-1 (T1a-T1c), y cross-topology/zero-shot.}
 \label{tab:experiment_summary}
 \begin{tabular}{lccc}
 \toprule
 \textbf{Categoría} & \textbf{Confirmados} & \textbf{Rechazados (válidos)} & \textbf{Fallidos} \\
 \midrule
 Escalamiento (A) & 2 & 0 & 0 \\
-Optimización (B) & 2 & 0 & 1 \\
-Predictor (C, D, G) & 3 & 3 & 1 \\
+Optimización (B) & 4 & 0 & 1 \\
+Predictor (C, D, G) & 3 & 3 & 2 \\
 Paisaje energético (F) & 1 & 1 & 0 \\
-Generalización (E) & 0 & 1 & 0 \\
+Generalización (E) & 5 & 1 & 2 \\
+Hardware (H, M) & 2 & 1 & 0 \\
+Scalability (S, N) & 5 & 2 & 2 \\
+Tier-1 (T) & 4 & 0 & 1 \\
+ZNE & 6 & 0 & 0 \\
+Otros & 1 & 0 & 0 \\
 \midrule
-\textbf{Total V8} & \textbf{8 (53\%)} & \textbf{5 (33\%)} & \textbf{2 (13\%)} \\
-\midrule
-\multicolumn{4}{l}{\textit{Campaña completa (V7+V8+V9+S+T1):}} \\
-Total global & 22 & 8 & 2 \\
+\textbf{Total} & \textbf{33 (67\%)} & \textbf{8 (16\%)} & \textbf{8 (16\%)} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-La tasa de resultados útiles (confirmados + rechazados con resultado negativo válido) es del 87\%, demostrando la madurez de la metodología experimental. Los 5 experimentos rechazados producen conocimiento accionable: delimitan la aplicabilidad del framework (cross-topology transfer falla, Heisenberg falla, escalamiento de exponente crítico falla).
+La tasa de resultados útiles (confirmados + rechazados con resultado negativo válido) es del 84\% (41/49), demostrando la madurez de la metodología experimental. Los 8 experimentos rechazados producen conocimiento accionable: delimitan la aplicabilidad del framework (cross-topology transfer falla, Heisenberg falla, escalamiento de exponente crítico falla, DyPP redundante).
 
 \section{Ventaja de la Solución y Aplicabilidad}
 
@@ -1331,7 +1329,7 @@ El pipeline GNN-HVA se implementa como un paquete Python instalable (\texttt{qmb
 
 \section{Resumen del Problema y Enfoque}
 
-El presente trabajo abordó el problema de la caracterización de fases cuánticas en hardware NISQ, donde las tres barreras fundamentales ---barren plateaus \citep{mcclean2018}, truncamiento por ruido \citep{mele2026} y costo de evaluación \citep{tilly2022}--- impiden la aplicación directa de VQE convencional. Se propuso una Arquitectura Predictiva Híbrida (GNN-HVA) que reduce drásticamente la optimización cuántica iterativa mediante la predicción clásica de parámetros variacionales ---siguiendo el paradigma propuesto por \citet{miao2024} y \citet{zhang2025}---, operando dentro del régimen donde circuitos superficiales son simultáneamente resilientes al ruido \citep{mele2026}, entrenables \citep{cerezo2021} y expresivos \citep{wiersema2020}. La contribución específica de este trabajo es la \emph{integración} de estas técnicas existentes en un pipeline end-to-end y su \emph{validación sistemática} a escala ($N = 6$--$80$, 5 topologías, 210+ ejecuciones).
+El presente trabajo abordó el problema de la caracterización de fases cuánticas en hardware NISQ, donde las tres barreras fundamentales ---barren plateaus \citep{mcclean2018}, truncamiento por ruido \citep{mele2026} y costo de evaluación \citep{tilly2022}--- impiden la aplicación directa de VQE convencional. Se propuso una Arquitectura Predictiva Híbrida (GNN-HVA) que reduce drásticamente la optimización cuántica iterativa mediante la predicción clásica de parámetros variacionales ---siguiendo el paradigma propuesto por \citet{miao2024} y \citet{zhang2025}---, operando dentro del régimen donde circuitos superficiales son simultáneamente resilientes al ruido \citep{mele2026}, entrenables \citep{cerezo2021} y expresivos \citep{wiersema2020}. La contribución específica de este trabajo es la \emph{integración} de estas técnicas existentes en un pipeline end-to-end y su \emph{validación sistemática} a escala ($N = 6$--$80$, 5 topologías, 430+ ejecuciones).
 
 La solución se considera válida porque:
 \begin{itemize}
@@ -1345,7 +1343,7 @@ La solución se considera válida porque:
 Se resumen las contribuciones del trabajo y su relación con los objetivos planteados:
 
 \begin{enumerate}
-    \item \textbf{El pipeline GNN-HVA clasifica correctamente fases cuánticas} con $\Delta E/\text{gap} < 5\%$ en el régimen operativo válido, validado sobre 210+ ejecuciones, 5 topologías y tamaños de sistema de $N = 6$ a $N = 80$ (Tablas~\ref{tab:cross_topo}--\ref{tab:scaling}). La tasa de aprobación es 100\% dentro del régimen válido ($h \geq h_{\min}$) para configuraciones optimizadas.
+    \item \textbf{El pipeline GNN-HVA clasifica correctamente fases cuánticas} con $\Delta E/\text{gap} < 5\%$ en el régimen operativo válido, validado sobre 430+ ejecuciones, 5 topologías y tamaños de sistema de $N = 6$ a $N = 80$ (Tablas~\ref{tab:cross_topo}--\ref{tab:scaling}). La tasa de aprobación es 100\% dentro del régimen válido ($h \geq h_{\min}$) para configuraciones optimizadas.
 
     \item \textbf{La reducción de costo cuántico es de 50--500$\times$} respecto a VQE convencional \citep{tilly2022}. La MPNN ---siguiendo el paradigma de predicción de parámetros propuesto por \citet{miao2024} y \citet{zhang2025}--- predice parámetros en una única pasada forward clásica, logrando predicciones sub-5\% sin refinamiento iterativo en el 95\% de los casos (Tabla~\ref{tab:comparison_literature}). Esta eficacia se atribuye a la calidad de los datos de entrenamiento (warm-start \citep{puig2025}) y la expresividad de GINConv \citep{xu2019}.
 
@@ -1355,7 +1353,7 @@ Se resumen las contribuciones del trabajo y su relación con los objetivos plant
 
     \item \textbf{El framework es extensible a variantes del Hamiltoniano de Ising} cuando los términos adicionales se mapean a compuertas de un qubit (TFIM + longitudinal: fid $\geq 0.98$ sin costo hardware adicional, Tabla~\ref{tab:tfim_long}). El límite se alcanza con modelos que requieren interacciones de dos cuerpos adicionales (Heisenberg: fid $\approx 0\%$ a $p = 2$, Tabla~\ref{tab:heisenberg}), consistente con \citet{wiersema2020}.
 
-    \item \textbf{La generalización zero-shot cross-N funciona:} entrenando con datos de $N = 40 + 80$, el modelo predice correctamente para $N = 50$--$100$ (25/25 PASS, media $\Delta E/\text{gap} = 0.16\%$, Tabla~\ref{tab:cross_n}) con la corrección de \texttt{norm\_type="none"} para topologías con simetría nodal.
+    \item \textbf{La generalización zero-shot cross-N funciona:} entrenando con datos de $N = 40 + 80$, el modelo predice correctamente para $N = 50$--$100$ (30/30 PASS, media $\Delta E/\text{gap} = 0.15\%$, Tabla~\ref{tab:cross_n}) con la corrección de \texttt{norm\_type="none"} para topologías con simetría nodal.
 
     \item \textbf{Los límites del pipeline son físicos, no algorítmicos:} la frontera de expresividad del HVA $p = 2$ en $h \approx 1.25$ ($N = 6$) es un resultado confirmado independientemente por \citet{tripathi2026} y explicable por la cota de profundidad de \citet{sumeet2025}.
 \end{enumerate}
@@ -1367,7 +1365,7 @@ Se resumen las contribuciones del trabajo y su relación con los objetivos plant
     \item \textbf{OE2} (Ground truth): Completado --- Diagonalización exacta ($N \leq 14$) y DMRG ($N > 14$, $\chi = 64$--$200$), 5 topologías.
     \item \textbf{OE3} (VQE warm-start): Completado --- Fidelidad media $> 0.95$, 93\%+ de puntos $\geq 0.93$ en régimen válido.
     \item \textbf{OE4} (Predictor MPNN): Completado --- $\Delta E/\text{gap} < 5\%$ en 5 topologías, cross-N validated.
-    \item \textbf{OE5} (Validación sistemática): Completado --- 210+ ejecuciones, 5 topologías, $N = 6$--$80$, 30 experimentos formales.
+    \item \textbf{OE5} (Validación sistemática): Completado --- 430+ ejecuciones, 5 topologías, $N = 6$--$80$, 49 experimentos formales.
     \item \textbf{OE6} (Hardware + mitigación): Completado en simulación ruidosa (PEA-ZNE +95\%, $R^2 = 0.998$). Pendiente: ejecución en QPU real (requiere credenciales IBM).
     \item \textbf{OE7} (Extensibilidad): Completado --- TFIM longitudinal ($g \leq 0.5$, fid $\geq 0.98$), TFIM frustrado (sim. viable, hw no viable), Heisenberg (resultado negativo documentado).
 \end{itemize}
@@ -1728,7 +1726,7 @@ $p=2$ + 5 layouts & — & 5 layouts & FAIL (gain=$-$27\%) & $p=2$ no viable \\
 {\textbf{Abstract}}
 \end{center}
 
-\noindent We present GNN-HVA, a hybrid classical-quantum pipeline for quantum phase classification on NISQ hardware. The framework combines a Message-Passing Neural Network (MPNN) based on GINConv with a depth-bounded Hamiltonian Variational Ansatz (HVA, $p \leq 2$) to classify quantum phases of the Transverse Field Ising Model with zero iterative quantum optimization. The MPNN predicts variational parameters directly from the Hamiltonian's graph representation, reducing QPU cost by $50$--$500\times$ compared to conventional VQE. Systematic validation over 210+ pipeline executions across 5 lattice topologies (chain, ladder, triangular, kagome, heavy-hex) and system sizes $N = 6$--$80$ demonstrates $\Delta E/\text{gap} < 5\%$ within the valid operating regime. PEA-ZNE error mitigation achieves +95\% mean gain ($R^2 = 0.998$) across all topologies. The framework extends to Ising Hamiltonian variants (longitudinal field: fidelity $\geq 0.98$) and demonstrates zero-shot cross-$N$ generalization (25/25 PASS for unseen system sizes). We identify the HVA $p = 2$ expressibility boundary as a physics limit, independently confirmed by Tripathi et al.\ (2026).
+\noindent We present GNN-HVA, a hybrid classical-quantum pipeline for quantum phase classification on NISQ hardware. The framework combines a Message-Passing Neural Network (MPNN) based on GINConv with a depth-bounded Hamiltonian Variational Ansatz (HVA, $p \leq 2$) to classify quantum phases of the Transverse Field Ising Model with zero iterative quantum optimization. The MPNN predicts variational parameters directly from the Hamiltonian's graph representation, reducing QPU cost by $50$--$500\times$ compared to conventional VQE. Systematic validation over 430+ pipeline executions across 5 lattice topologies (chain, ladder, triangular, kagome, heavy-hex) and system sizes $N = 6$--$80$ demonstrates $\Delta E/\text{gap} < 5\%$ within the valid operating regime. PEA-ZNE error mitigation achieves +95\% mean gain ($R^2 = 0.998$) across all topologies. The framework extends to Ising Hamiltonian variants (longitudinal field: fidelity $\geq 0.98$) and demonstrates zero-shot cross-$N$ generalization (30/30 PASS for unseen system sizes). We identify the HVA $p = 2$ expressibility boundary as a physics limit, independently confirmed by Tripathi et al.\ (2026).
 
 \vspace{0.3cm}
 \noindent\textbf{Keywords:} VQE, Graph Neural Networks, quantum phase transitions, NISQ, error mitigation, Ising model.
@@ -1757,7 +1755,7 @@ The TFIM Hamiltonian $H = -J\sum Z_iZ_{i+1} - h\sum X_i$ is represented as a gra
 
 \textbf{Scaling ($N = 6$--$80$):} Accuracy \emph{improves} with system size: 2.7\% at $N = 10$ to 0.08\% at $N = 80$, explained by the trivial paramagnetic landscape at $h \gg h_c$. The valid regime follows $h_{\min} = 1.5 + 0.020 \cdot N^{1.31}$ ($R^2 = 1.0$).
 
-\textbf{Zero-shot cross-$N$:} Training on $N = 40 + 80$ (14 points), the MPNN predicts for $N = 50$--$100$ with 25/25 PASS (mean 0.16\%), using \texttt{norm\_type="none"} to avoid BatchNorm artifacts on regular graphs.
+\textbf{Zero-shot cross-$N$:} Training on $N = 40 + 80$ (14 points), the MPNN predicts for $N = 50$--$100$ with 30/30 PASS (mean 0.15\%), using \texttt{norm\_type="none"} to avoid BatchNorm artifacts on regular graphs.
 
 \textbf{Error mitigation:} PEA-ZNE achieves +95\% mean gain ($R^2 = 0.998$) across 4 topologies (18/18 wins vs.\ gate-folding, $t = 46.3$, $p < 10^{-19}$), confirming it as the optimal strategy for this circuit class \citep{kim2023}.
 

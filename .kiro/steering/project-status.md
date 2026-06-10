@@ -1,6 +1,6 @@
 # Project Status — GNN-HVA Framework
 
-**Last updated**: 2026-06-08
+**Last updated**: 2026-06-09
 
 ## Experiment Discipline (ALWAYS ENFORCE)
 
@@ -20,9 +20,9 @@
 - **PEA_TRIANGULAR** (2026-06-05) — PEA +96.8% on triangular, t=111.22, 9/9 wins. All 4 topologies now have PEA validation.
 - **GNN-QEM cross-topology** (2026-06-05) — 100% improvement on unseen heavy_hex (zero-shot: +72.3% error reduction). Thesis contribution validated.
 - **Affine overshoot audit** (2026-06-05) — 0% overshoot in 102 ZNE records. Safety net confirmed (zero-cost insurance).
-- Confirmed: 22 experiments. Rejected: 8 (valid negative results). Failed: 2.
-- Useful-outcome rate: 93% (28/30 formal experiments produce actionable knowledge).
-- 210+ pipeline runs executed across 5 topologies (chain_1d, ladder, triangular, kagome, heavy-hex).
+- Confirmed: 33 experiments. Rejected: 8 (valid negative results). Failed: 8.
+- Useful-outcome rate: 84% (41/49 formal experiments produce actionable knowledge).
+- 430+ pipeline runs executed across 5 topologies (329 noiseless + 93 noisy/ZNE + 8 MPS scaling).
 - **GNN-QEM cross-topology validated** (2026-06-05): Zero-shot transfer from chain_1d+ladder → heavy_hex gives 100% improvement rate (+72.3% error reduction). Model: GINConv(3L, h=64), 30K params. Ref: `results/gnn_qem/cross_topology_results.json`.
 - **GNN-QEM NOT composable with PEA** (2026-06-05): Post-ZNE pipeline shows GNN regresses 15/15 points. Model trained on large errors (10-25 units) over-corrects post-PEA residuals (0.01 units). Use as ALTERNATIVE to ZNE, not after it. Ref: `results/gnn_qem/post_zne_validation.json`.
 - **GNN-QEM ablation** (2026-06-06): Graph IS essential without E_noisy (GNN 100% vs MLP 67% vs Linear 0%). With E_noisy, correction is 99.96% linear — graph adds +11% precision only. Claim reframed: graph captures noise propagation in predictive mode; regularization in correction mode. Ref: `results/gnn_qem/ablation_no_enoisy_results.json`.
@@ -54,7 +54,7 @@
 5. **Cross-N Zero-Shot GNN** (2026-06-08) — GNN generalizes to unseen system sizes.
    - **Discovery**: BatchNorm is harmful for cross-N on topologies with nodal symmetry (chain_1d). Fix: `norm_type="none"`.
    - Package fix: `MPNNPredictor(norm_type="none"|"layer"|"batch")` — backward compatible.
-   - Validated: Train N=40+80 → predict N=50,60,70,100: **25/25 PASS**, mean ΔE/gap=0.16%.
+   - Validated: Train N=40+80 → predict N=50,60,70,100: **30/30 PASS**, mean ΔE/gap=0.15%.
    - Multi-seed confirmed: seeds 42/43/44 all 5/5 PASS (std=0.074%).
    - Extrapolation: N=100 (beyond training) achieves 0.18%, GNN beats scipy 2.6×.
    - Pending: Bond-resolved (79D necessity proof).

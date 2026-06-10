@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 import statistics
+from pathlib import Path
 from typing import Any
 
 from project_health.digest.models import (

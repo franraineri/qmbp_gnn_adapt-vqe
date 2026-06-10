@@ -30,7 +30,7 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 - NOT composable with PEA (alternative, not complement).
 
 ### Contribution 5: Cross-N Generalization
-- Train N=40+80 → predict N=50,60,70,100: 25/25 PASS (0.16% mean ΔE/gap).
+- Train N=40+80 → predict N=50,60,70,100: 30/30 PASS (0.15% mean ΔE/gap).
 - BatchNorm harmful for cross-N on symmetric topologies (discovery + fix).
 - GNN extrapolates to N=100 beyond training (0.18%), beats scipy 2.6×.
 
@@ -62,17 +62,20 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 
 ## Key Statistics (for claims)
 
+> **Canonical source**: `documentation/ESTADO_PROYECTO.md` (validated 2026-06-09 via project-health tools).
+
 | Claim | Value | Evidence | Stat sig |
 |-------|-------|----------|----------|
-| Experiments completed | 22 confirmed, 8 rejected, 2 failed | project-status.md | — |
-| Pipeline runs | 210+ across 5 topologies | project-status.md | — |
-| Useful-outcome rate | 93% (28/30) | project-status.md | — |
+| Experiments completed | 33 confirmed, 8 rejected, 8 failed (49 total) | `python -m project_health --compact` | — |
+| Pipeline runs | 430+ (329 noiseless + 93 noisy + 8 MPS) | `python -m project_health --compact` | — |
+| Useful-outcome rate | 84% (41/49) | `python -m project_health.analysis.thesis_findings_validator` | — |
 | PEA vs GF | 4.6× better | ZNE_CROSS_TOPO | t=46.32, p<10⁻¹⁹ |
 | GNN-QEM zero-shot | +72.3% | cross_topology_results.json | t=13.28, p<10⁻⁶ |
 | PEA on triangular | +96.8% | PEA_TRIANGULAR | t=111.22, 9/9 wins |
-| Cross-N GNN | 25/25 PASS, 0.16% | zero_shot_v3 results | 3 seeds |
+| Cross-N GNN | 30/30 PASS, 0.15% | zero_shot_v3 results | 3 seeds |
 | Affine overshoot | 0% in 102 records | Affine audit | — |
 | MPS N=80 | 0.08% ΔE/gap | scaling_N80 | 5/5 h-points |
+| PEA mean gain (all evals) | +86.8% | `python project_health/compare.py --zne` | 69/69 always positive |
 
 ## Negative Results (valid scientific contributions)
 

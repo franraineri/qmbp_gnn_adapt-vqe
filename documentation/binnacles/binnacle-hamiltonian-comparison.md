@@ -17,7 +17,7 @@ Data source: `from qmbp_simulation.models.model_registry import list_models`
 
 | Model | Hamiltonian | Params/layer | Initial State | Status |
 |-------|-------------|:---:|:---:|--------|
-| `tfim` | H = −J·ZZ − h·X | 2 | \|+⟩^N | ✅ Production (210+ runs) |
+| `tfim` | H = −J·ZZ − h·X | 2 | \|+⟩^N | ✅ Production (430+ runs) |
 | `tfim_longitudinal` | H = −J·ZZ − h·X − g·Z | 3 | \|+⟩^N | ✅ Validated (E4b) |
 | `heisenberg` | H = J(XX+YY+Δ·ZZ) − h·Z | 4 | Néel | ❌ p≤2 insufficient |
 | `xy` | H = J(XX+YY) − h·Z | 4 | Néel | ❌ p≤2 insufficient |
@@ -165,7 +165,7 @@ E4b: H = -J·ZZ - h·X - g·Z  +  circuit = RZZ + RX + RZ     → PASSES (fid=0.
 
 ### Chapter 5 Integration
 
-1. **§5.1**: Standard TFIM results (existing, 210+ runs across 5 topologies)
+1. **§5.1**: Standard TFIM results (existing, 430+ runs across 5 topologies)
 2. **§5.5**: Model extensibility — E4b demonstrates the HVA-matches-H principle
 3. **§5.6**: Negative results — Heisenberg confirms expressibility limits of p≤2
 4. **§5.7**: Future work — TFIM+longitudinal as stepping stone to 2D phase diagrams

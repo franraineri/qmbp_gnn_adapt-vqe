@@ -1,8 +1,8 @@
 # Next Steps — Local Simulation Opportunities
 
 **Date**: 2026-06-03 (updated with deep ROI analysis)
-**Context**: All thesis-critical simulation work complete (210+ runs, 34 experiments,
-82% useful-outcome rate). Hardware deployment on IBM Torino is the primary remaining task.
+**Context**: All thesis-critical simulation work complete (430+ runs, 49 experiments,
+84% useful-outcome rate). Hardware deployment on IBM Torino is the primary remaining task.
 This document identifies what local simulation work could still add value.
 
 ---

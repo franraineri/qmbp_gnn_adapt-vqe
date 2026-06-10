@@ -371,3 +371,50 @@ All simulation-testable hypotheses for bond-resolved HVA have been evaluated:
 ### Remaining (hardware-only)
 - IBM Torino deployment with bond-resolved p=1 heavy-hex N=10
 - GNN transfer learning: train on N=10 → warm-start N=16 VQE
+
+
+---
+
+## E3 Bond-Resolved Scaling: N=40 (2026-06-08)
+
+**Run**: `run_e3_bond_resolved_scaling.py --section 1 2 3 --n-qubits 20 --topology chain_1d`
+**Result file**: `results/experiments/exp_e3_br_scaling/run_20260608_171206.json`
+**Status**: PARTIAL — Section 0 PASS, Section 1 FAIL (close to threshold)
+
+### Section 0: Sanity Check ✅
+
+| Metric | Value |
+|--------|-------|
+| N | 40 |
+| Topology | chain_1d |
+| n_params | 79 (39 edges + 40 sites) |
+| Circuit depth | 41 |
+| Backend | aer_mps |
+| BR vs Global uniform energy | 0.0 diff (identical at uniform θ) |
+
+Confirms: bond-resolved architecture produces correct energies, and the circuit
+is equivalent to global-param HVA when all per-bond params are equal.
+
+### Section 1: VQE Convergence ❌ (near-miss)
+
+| Optimizer | Energy | ΔE/gap | Iterations | Time | |θ| |
+|-----------|--------|--------|:----------:|------|------|
+| COBYLA | -260.778 | **6.59%** | 1059 | 133m | 1.54 |
+| SPSA | -259.971 | 13.9% | 1002 | 51m | 0.048 |
+
+- h=6.5 (deep paramagnetic), gap=11.0, e_exact=-261.502
+- Threshold: 5% → COBYLA at 6.59% is a near-miss
+- SPSA barely moved from init (|θ|=0.048) — insufficient iterations for 79 params
+
+### Analysis
+
+1. COBYLA is 1.6% above threshold — with `maxiter=2000` or warm-start from global-param θ_opt it should pass
+2. The 79-dim landscape at N=40 is non-trivial (unlike 2-param where COBYLA always finds global min)
+3. Total time 184 min confirms budget feasibility (single h-point, single seed)
+4. SPSA needs ~10x more iterations for 79 params (known limitation)
+
+### Next Steps
+
+- Re-run with `maxiter=2000` and warm-start using uniform-param θ_opt as initial guess
+- If COBYLA passes at 5%, proceed to Section 2 (full h-sweep) and Section 3 (MPNN training)
+- Consider Section 3 skipped for thesis if VQE doesn't converge (known physics limit at 79 params)

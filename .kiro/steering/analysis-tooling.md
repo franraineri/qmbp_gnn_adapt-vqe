@@ -39,6 +39,7 @@ Need to...
 ├── PCA phase detection?            → python scripts/analysis/theta_pca_phase_detection.py
 ├── θ-derivative vs D1?            → python scripts/analysis/theta_derivative_analysis.py
 ├── Full analysis pipeline?         → python analysis/run_analysis.py
+├── Deep raw-data audit (23 checks)?→ PYTHONPATH=. python project_health/analysis/audit_findings.py
 │
 │ ─── THESIS COMPILATION (global aggregation) ─────────────────
 ├── Corroborate ALL findings?       → python -m project_health.analysis.thesis_findings_validator
@@ -417,8 +418,8 @@ When adding new thesis figures:
 | `cross_topology_results.json` | `zero_shot`, `fine_tuned`, `verdict` | `zero_shot.improvement_rate`, `.reduction_pct`, `.n_samples` |
 | `ablation_no_enoisy_results.json` | `gnn_no_enoisy`, `mlp_no_enoisy`, `linear_no_enoisy`, `verdict` | `*.improvement_rate`, `*.n_total` |
 | `post_zne_validation.json` | `summary`, `per_point` | `summary.n_gnn_regresses`, `.n_evaluations` |
-| `vqe_realistic_results.json` | varies | `ranking.spearman_rho`, `.binary_accuracy` |
-| `affine_overshoot_audit.json` | `n_records`, `n_overshoot` | top-level |
+| `vqe_realistic_results.json` | `data_stats`, `exp1_*`, `exp2_*`, `circuit_selection` | `circuit_selection.spearman_rho`, `.binary_accuracy_pct` |
+| `affine_overshoot_audit.json` | `summary`, `records` | `summary.n_zne_records`, `summary.n_overshoot` |
 
 ### Zero-Shot Cross-N JSON Schema
 
@@ -441,4 +442,86 @@ results/experiments/exp_zne_cross_topo/run_*.json
 │   ├── section_1..3: {name, success, data: {pass, results, summary}}
 │   └── section_4: {data: {comparison: [{topology,h,de_pea,de_gf,pea_gain,...}], summary: {paired_t_stat, paired_p_value, pea_wins_total, ...}}}
 └── summary: {n_sections, n_passed, all_passed}
+```
+
+## Thesis Compilation Workflow (Full Pipeline)
+
+### Quick Start
+```bash
+make thesis-all   # validate + tables + figures (full pipeline)
+```
+
+### Step-by-Step
+```bash
+# 1. Corroborate ALL findings against raw data
+python -m project_health.analysis.thesis_findings_validator --verbose
+
+# 2. Generate global tables (Markdown + LaTeX)
+python -m project_health.analysis.thesis_tables_compiler --latex documentation/thesis_tables/
+
+# 3. Generate global figures (PDF 300dpi)
+python -m project_health.analysis.thesis_figures --output-dir documentation/thesis_figures/
+
+# 4. Verify LaTeX thesis claims
+python -m project_health.analysis.verify_claims
+
+# 5. Sanity check (24 automated checks)
+python -m project_health.analysis.sanity_check
+```
+
+### Finding → Thesis Table → Figure Mapping
+
+| Finding ID | Thesis Section | Table | Figure |
+|-----------|---------------|-------|--------|
+| PIPELINE_UNIVERSALITY | 5.2 Cross-Topology | tab:cross_topo | topology_performance_violin |
+| PEA_SUPERIORITY | 5.4 PEA-ZNE | tab:pea_zne | pea_vs_gf_comparison |
+| SCALING_LAW | 5.3 Escalamiento | tab:scaling | scaling_law_comprehensive |
+| GNN_QEM_CROSS_TOPO | 5.5 GNN-QEM | tab:gnn_qem_composability | gnn_qem_summary_panel |
+| CROSS_N_ZERO_SHOT | 5.3.1 Cross-N | tab:cross_n | cross_n_performance_heatmap |
+| TOPOLOGY_AGNOSTIC | 5.2 Cross-Topology | tab:cross_topo | topology_performance_violin |
+| BATCHNORM_FINDING | 5.3.1 Cross-N | tab:cross_n | — |
+| GNN_NOT_COMPOSABLE | 5.6.2 GNN-QEM | tab:gnn_qem_composability | gnn_qem_summary_panel |
+| CX_BUDGET_RULE | 5.4.1 CX Budget | tab:cx_budget | zne_gain_heatmap |
+| EXPERIMENT_SUCCESS_RATE | 5.8 Resumen | tab:experiment_summary | experiment_verdicts_overview |
+| FAILURE_PREVENTION | 5.7 Pruebas Sistemáticas | tab:root_cause | — |
+| S8_CRITICAL_EXPONENT | 5.6.3 S8/S8b | tab:s8_scaling | — |
+| NOISE_AWARE_FAILS | 5.6.1 Noise-Aware | — (inline) | — |
+| KITAEV_INCOMPATIBLE | 5.5.4 Kitaev | tab:kitaev | — |
+| CROSS_TOPOLOGY_TRANSFER_FAILS | 5.2 (hallazgo) | — (inline) | — |
+| PAULI_EVOLUTION_GATE | 5.6.5 Transpilación | tab:transpilation | — |
+| DYPP_REDUNDANT | 5.6.4 DyPP | — (inline) | — |
+
+### Registered Findings (for `thesis_findings_validator.py`)
+
+Current: 22 findings validated and corroborated (21 CORROBORATED + 1 QUALIFIED). All implemented.
+
+All findings are now registered as F16-F22 in `thesis_findings_validator.py`.
+Deep audit: `PYTHONPATH=. python project_health/analysis/audit_findings.py` (23 checks, all VERIFIED).
+
+### Verification Plan
+
+Full plan documented in: `documentation/analysis/21_thesis_compilation_verification_plan.md`
+
+Steps:
+1. Run `make thesis-all` → expect 21/22 findings CORROBORATED + 1 QUALIFIED
+2. Run `PYTHONPATH=. python project_health/analysis/audit_findings.py` → 23/23 VERIFIED
+3. Verify 10/10 tables generated without errors
+4. Verify 10/10 figures generated (PDF output)
+4. Check `sanity_check` → 23/24+ pass
+5. Check LaTeX bibliography balance: all \citep matched by \bibitem
+6. Cross-reference: every thesis table number referenced in prose
+
+### Adding New Findings to the Validator
+
+```python
+# In project_health/analysis/thesis_findings_validator.py:
+
+@register_finding("S8_CRITICAL_EXPONENT", "physics",
+    "Weight-gradient peak position shows no N-dependence (ν=5.0 → extraction fails)")
+def _validate_s8_critical_exponent(**_) -> FindingValidation:
+    # Load S8/S8b results from results/experiments/exp_s8/
+    # Check: h_peak is constant across N=4,6,8,10
+    # Check: ν_fit hits upper bound (5.0)
+    # Verdict: CORROBORATED (the negative result IS the finding)
+    ...
 ```

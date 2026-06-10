@@ -116,7 +116,7 @@ Total time: ~2.5 minutes (training 57s + 5× DMRG eval).
 ## Limitations and Pending Validation
 
 ### What is confirmed (high confidence):
-- BatchNorm removal fixes cross-N for chain_1d (25/25 pass across 5 target N values)
+- BatchNorm removal fixes cross-N for chain_1d (30/30 pass across 6 target N values)
 - Multi-seed robustness (15/15 pass, std=0.074%)
 - Extrapolation works to N=100 (beyond training range N=40-80)
 - N/100 feature is marginal — the fix is primarily architectural (BN removal)
@@ -150,3 +150,51 @@ Total time: ~2.5 minutes (training 57s + 5× DMRG eval).
 | v2 results (BN) | `results/scaling/zero_shot/zero_shot_N40_80_to_N60_*.json` |
 | Validation plan | `documentation/analysis/19_cross_n_validation_plan.md` |
 | Scaling figures | `scripts/generate_scaling_figures.py` |
+
+
+---
+
+## Cross-Topology Transfer: First Attempt (2026-06-08/09)
+
+**Pipeline**: `scripts/experiment_runners/cross_topology/`
+**Status**: ❌ FAIL — root cause identified, fix implemented
+
+### What Was Tested
+
+| Runner | Verdict | Key Metric |
+|--------|---------|-----------|
+| VQE Data Gen (heavy_hex + triangular N=6,16) | ✅ | 7 files, 3 seeds |
+| Cross-N Validation (tri N=6+16 → N=10) | ❌ FAIL | 263% mean ΔE/gap |
+| Cross-Topology Transfer (tri→hex, hex→tri) | ❌ FAIL | 625-719% ΔE/gap |
+| Ablation | ⏱ Timeout | 1800s limit exceeded |
+
+### Root Cause Analysis
+
+1. **VQE N=16 data is low quality** — MPS+COBYLA doesn't converge for triangular/heavy_hex at lower h-values:
+   - Triangular N=16 h=6.0: ΔE/gap = 423% (!) — theta_opt is near-zero (not optimized)
+   - Heavy_hex N=16 h=6.0: ΔE/gap = 160%
+
+2. **Pi-shifted VQE solutions** — N=6 data at h<5.0 has theta near (π, π) which after canonicalization becomes ~(3.1, 2.7). This creates a discontinuity in the theta(h) mapping that the GNN cannot learn.
+
+3. **Only 11 training points** — 5-6 h-points × 2 sizes = insufficient for 30K-param GNN.
+
+4. **No N=10 in training data** — Cross-N trains on N=6+16 only (huge interpolation gap).
+
+### Fix Implemented (2026-06-09)
+
+Added to `helpers.py`:
+- `filter_source_data()` — auto-removes points with |theta| > 2.0 (catches pi-shifts)
+- `load_source_data_filtered()` — loads + filters using de_gap from JSON
+- `validate_training_data()` — 5 checks (sufficiency, diversity, continuity, energy bounds, h-range)
+- `validate_predictions_sanity()` — post-GNN sanity check (positive energy, NaN, extremes)
+- `validate_vqe_sweep_quality()` — Check 6: VQE convergence guard
+- `save_validation_checkpoint()` — persists failure reports for tracking
+
+All runners updated to use filtered loading and validate before training.
+
+### Next Steps
+
+1. Generate N=10 data for both topologies (statevector — will converge exactly)
+2. Regenerate N=16 with higher h-values only (h≥5.0 where MPS converges)
+3. Re-run cross-N with N=6+10+16 training data + quality filter
+4. The chain_1d cross-N already works perfectly (30/30 PASS at 0.15%) — the issue is specific to non-chain topologies with MPS at large N

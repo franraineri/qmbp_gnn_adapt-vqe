@@ -1,7 +1,12 @@
 # Resumen del Análisis — GNN-HVA Framework
 
-**Fecha**: 2026-05-28 (actualizado)
-**Base de datos**: 135 noiseless, 60+9 noisy/ZNE, 15 experimentos de hipótesis
+> **⚠️ NOTA (2026-06-09)**: Las estadísticas globales de este encabezado reflejan el estado a 2026-05-28 (135 runs, 15 experiments).
+> El estado actual verificado es: **329 noiseless, 93 noisy, 49 experiments, 33 confirmed, 84% useful-outcome rate**.
+> Para estadísticas actualizadas, consultar `documentation/ESTADO_PROYECTO.md` o ejecutar `python -m project_health --compact`.
+> Las secciones por sesión (§5b en adelante) contienen datos incrementales válidos de cada momento.
+
+**Fecha**: 2026-05-28 (encabezado original — no actualizado)
+**Base de datos original**: 135 noiseless, 60+9 noisy/ZNE, 15 experimentos de hipótesis
 **Topologías**: chain_1d, ladder, triangular, kagome
 **Tamaños**: N=6, N=10 (N=20 solo en experimentos V7/V8)
 **Estudios completados**: 14
@@ -297,8 +302,6 @@ This aligns with the project-status rule "N=12+ too slow for iterative experimen
 
 ```
 documentation/analysis/
-├── 00_analysis_plan.md              # Plan original (7 estudios)
-├── 01_topology_comparison.md        # Topology-agnostic claim
 ├── 02_seed_robustness.md            # Seed independence
 ├── 03_hyperparameter_sensitivity.md # Config robustness
 ├── 04_verdict_reconciliation.md     # Threshold corrections
@@ -306,18 +309,23 @@ documentation/analysis/
 ├── 06_zne_boundary.md               # ZNE CX-budget frontier
 ├── 07_outliers.md                   # 9 outliers explained
 ├── 08_summary.md                    # ← THIS FILE
-├── 09_thesis_tables.md              # Tables 5.1–5.6
-├── 10_next_steps.md                 # Execution plan (all done)
+├── 09_thesis_tables.md              # Tables 5.1–5.23 (definitive)
 ├── 11_error_decomposition.md        # MPNN is the bottleneck
 ├── 12_smoothness_correlation.md     # θ-smoothness as predictor
 ├── 13_controlled_restarts.md        # restarts=5 validated
 ├── 14_p1_zne_validation.md          # p=1 ZNE CONFIRMED ✅
-├── raw_all_results.json             # 210 results for plotting
-├── raw_p1_zne_validation.json       # 9 p=1 ZNE runs
-├── table_experiments.md             # Markdown table (experiments)
-├── table_topology_n10.md            # Markdown table (topology)
-└── table_zne_boundary.md            # Markdown table (ZNE)
+├── 15_advanced_mitigation_techniques.md  # PEA, block-ZNE, TLS, GNN-QEM
+├── 21_thesis_compilation_verification_plan.md  # Verification plan
+├── 22_global_vision_audit.md        # Global audit (2026-06-09)
+└── ESTADO_PROYECTO.md → ../ESTADO_PROYECTO.md  # Current state (canonical)
 ```
+
+> **Deleted (2026-06-09)**: `raw_all_results.json`, `raw_p1_zne_validation.json`,
+> `table_experiments.md`, `table_topology_n10.md`, `table_zne_boundary.md`,
+> `worklog/` (all entries). All data exists in `results/` (scanned live by
+> `project_health/digest/scanner.py`) or in `09_thesis_tables.md`.
+> Static findings index at `analysis/FINDINGS_INDEX.md` also deleted
+> (superseded by `python -m project_health.analysis.thesis_findings_validator`).
 
 ---
 

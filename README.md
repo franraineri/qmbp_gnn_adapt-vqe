@@ -1265,6 +1265,27 @@ make check-full        # lint + test + smoke-test (~15s)
 - No secrets in commits (gitleaks)
 - Conventional commits (commitizen)
 
+## Project Status (2026-06-09)
+
+| Metric | Value |
+|--------|-------|
+| Pipeline runs (total) | 430+ |
+| Noiseless runs | 329 |
+| Noisy/ZNE runs | 93 |
+| MPS scaling runs (N=40-80) | 8 |
+| Formal experiments | 49 |
+| Confirmed | 33 ✅ |
+| Rejected (valid negative) | 8 ⚠️ |
+| Useful-outcome rate | 84% |
+| Topologies validated | 5 |
+| Max system size | N=80 (MPS), N=100 (cross-N zero-shot) |
+| Thesis findings corroborated | 15/22 (68%) strong |
+| Compute time (total) | 17.6 hours |
+
+**Next**: IBM Torino hardware deployment (QPU credentials needed) + thesis compilation.
+
+For detailed status see [`documentation/ESTADO_PROYECTO.md`](documentation/ESTADO_PROYECTO.md).
+
 ## Development
 
 ```bash

@@ -35,8 +35,8 @@ MAX_P_LAYERS: int = 2
 EXACT_DIAG_QUBIT_LIMIT: int = 15
 """n_qubits ≤ 15 → exact diagonalization."""
 
-DMRG_QUBIT_LIMIT: int = 100
-"""n_qubits > 15 → DMRG (up to 100 qubits). 1D TFIM validated at N=50 in <3s."""
+DMRG_QUBIT_LIMIT: int = 150
+"""n_qubits > 15 → DMRG (up to 150 qubits). 1D TFIM validated at N=80 with χ=64."""
 
 # ---------------------------------------------------------------------------
 # VQE optimizer methods

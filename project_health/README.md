@@ -55,6 +55,7 @@ project_health/
 ├── figures.py        Matplotlib figure generation (optional)
 ├── compare.py        Cross-experiment comparison CLI
 ├── analysis/         Analysis scripts (diagnose, scan_coverage, verify, etc.)
+│   ├── audit_findings.py              ★ Deep raw-data audit (23 checks, Level 1+2)
 │   ├── diagnose.py                    Automated failure root cause analysis
 │   ├── scan_coverage.py               Coverage scanner + gap analysis
 │   ├── verify_claims.py               Thesis claim verification (legacy)
@@ -288,7 +289,7 @@ across ALL experiments:
 
 | Figure | Description |
 |--------|-------------|
-| `global_de_gap_distribution` | Histogram of ΔE/gap across 210+ runs |
+| `global_de_gap_distribution` | Histogram of ΔE/gap across 430+ runs |
 | `scaling_law_comprehensive` | N vs ΔE/gap + scaling law overlay (2-panel) |
 | `topology_performance_violin` | Violin plots per topology at N=10 |
 | `pea_vs_gf_comparison` | Bar chart PEA vs GF per topology |
@@ -319,6 +320,24 @@ make thesis-all
 #   documentation/thesis_tables/*.tex
 #   documentation/thesis_figures/*.pdf
 ```
+
+### Deep Findings Audit (`analysis/audit_findings.py`)
+
+Verifies ALL quantitative claims against raw JSON data files. 23 checks across
+two levels: Level 1 reads result files directly, Level 2 uses `ResultScanner`
+for diagnostics data.
+
+```bash
+PYTHONPATH=. python project_health/analysis/audit_findings.py              # Full audit (23 checks)
+PYTHONPATH=. python project_health/analysis/audit_findings.py --only F2,F5 # Selective
+PYTHONPATH=. python project_health/analysis/audit_findings.py --only ERR_DECOMP,CONV_RATE  # Level 2 only
+```
+
+Checks: F2 (PEA 18/18), F3 (scaling law), F4 (GNN-QEM), F5 (cross-N 30/30),
+F8 (PEA triangular), F9 (not composable), F10 (experiment verdicts), F11 (affine),
+F14 (circuit selection), F16 (cross-topo fails), F21 (DyPP), F22 (warm-start),
+HEISENBERG, D1, PEA_TOPO, ABLATION, F13 (run count), MPS_CHI,
+ERR_DECOMP, CONV_RATE, THETA_SMOOTH, GEN_GAP, TIMING.
 
 ## Testing
 

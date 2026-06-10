@@ -14,7 +14,7 @@ This file helps Kiro quickly identify which papers to cite for specific claims, 
 
 ### What IS Our Contribution (can say "se propone/valida/demuestra"):
 1. Integration of GNN prediction + HVA + warm-start + PEA-ZNE into unified 4-phase pipeline
-2. Systematic validation across 5 topologies + N=6-80 (210+ executions)
+2. Systematic validation across 5 topologies + N=6-80 (430+ executions)
 3. Cross-N generalization finding (BatchNorm harmful on regular graphs)
 4. Extensibility to Ising variants documented (longitudinal OK, Heisenberg negative, Kitaev negative)
 5. Diagnostic/early-stopping system (69% failure prevention)

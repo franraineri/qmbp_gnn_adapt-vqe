@@ -21,6 +21,7 @@ python -m project_health.digest --kind experiment
 | `noiseless` | 4-phase pipeline runs | ΔE/gap, convergence rate, θ-smoothness, generalization gap |
 | `noisy` | ZNE/noise mitigation | R², gain%, mitigation wins, ΔE comparison |
 | `experiment` | Hypothesis tests | verdict (confirmed/rejected/failed), pass rate, criteria |
+| `cross_topology` | Cross-topology/cross-N GNN transfer | per-direction ΔE/gap, pass rate, verdict |
 
 ## Filters
 

@@ -99,7 +99,7 @@ fileMatchPattern: "**/*.tex"
 | Root cause analysis (174 runs) | `09_thesis_tables.md` Table 5.9 | Table 4.9 |
 | Data efficiency (k=5-17) | `09_thesis_tables.md` Table 5.17 | Table 4.10 |
 | Literature comparison | Own analysis | Table 4.11 |
-| Cross-N zero-shot (25/25 PASS) | `binnacle-cross-n-zero-shot.md` | Table 4.12 |
+| Cross-N zero-shot (30/30 PASS) | `binnacle-cross-n-zero-shot.md` | Table 4.12 |
 | MC-Dropout (r=0.82) | `09_thesis_tables.md` Table 5.20 | Table 4.13 |
 | Source JSON for all | `results/thesis/` | — |
 | GitHub repository | `https://github.com/franraineri/qmbp_gnn_adapt-vqe` | Section 4.7 |
@@ -151,7 +151,7 @@ fileMatchPattern: "**/*.tex"
 5. **Using "preliminar"** — the final thesis contains only definitive results
 6. **Orphaned bibliography entries** — every \bibitem must be \cited somewhere
 7. **Methodology in wrong chapter** — development/methodology goes in Chapter 3 only
-8. **Unreferenced numerical claims** — any number (50×, 95%, 210+ runs) needs source
+8. **Unreferenced numerical claims** — any number (50×, 95%, 430+ runs) needs source
 
 ## Bibliography Management
 
@@ -178,3 +178,44 @@ fileMatchPattern: "**/*.tex"
 - All claims must be referenced (same bibliography as main thesis)
 - GitHub URL included in conclusions
 - Target venue style: arXiv/conference paper (concise, quantitative)
+
+## Current Document Status (tesis-v3.0.tex — Updated 2026-06-09)
+
+### Stats
+- Lines: 1790 | Chapters: 10 | Tables: 31 | Table refs: 23
+- Citations: 49 unique keys | Bibitems: 49 (balanced)
+- Environments: 88/88 (balanced)
+- Verification: 22 findings, 95% corroboration rate (21 CORROBORATED, 1 QUALIFIED, 0 CONTRADICTED)
+
+### Pending Actions for Final Submission
+1. **Insert figures**: Run `make figures-thesis` → insert `\includegraphics` in appropriate sections
+2. **Hardware execution (OE6)**: Run on IBM Torino when credentials available → add results to Ch.5
+3. **Compile LaTeX**: Verify with `pdflatex tesis-v3.0.tex` (requires `estilo_unir-1.sty`)
+
+### Known Verification Issues (RESOLVED 2026-06-09)
+- **F1**: Fixed — now uses valid-regime filter (ΔE/gap<20%), CORROBORATED (STRONG)
+- **F6**: Reformulated from "topology ranking" to "topology-agnostic" — CORROBORATED (STRONG)
+- **F10**: Updated to 84% (41/49) — CORROBORATED (STRONG)
+- **F11**: Fixed path lookup (summary.n_zne_records) — CORROBORATED (STRONG)
+- **F14**: Fixed path lookup (circuit_selection.spearman_rho) — CORROBORATED (STRONG)
+- **F16**: QUALIFIED (MODERATE) — qualitative result from binnacle S2, valid as-is
+
+### Experiments NOT in Thesis (documented but excluded for brevity)
+- Per-observable site-selective ZNE (V3 noisy variants) — novel but superseded by PEA
+- Non-linear ZNE decision rule (quadratic only when R²_lin < 0.5) — implementation detail
+- K-means rejected for phase detection — PCA/derivative sufficient
+- seed_transpiler CES diversity failure — infrastructure fix, not thesis content
+- GNN-QEM ablation with E_noisy (correction is 99.96% linear) — detail in GNN-QEM binnacle
+- SKQD alternatives analysis (5 methods evaluated, all rejected) — in doc 14
+
+### Key Files for Context
+| Purpose | File |
+|---------|------|
+| Thesis document | `tesis-v3.0.tex` |
+| Definitive results data | `documentation/analysis/09_thesis_tables.md` |
+| Project status (comprehensive) | `.kiro/steering/project-status.md` |
+| Bibliography curated (56 papers) | `documentation/bibliography/bibliography_curated.md` |
+| Verification plan | `documentation/analysis/21_thesis_compilation_verification_plan.md` |
+| Findings validator (22 findings) | `project_health/analysis/thesis_findings_validator.py` |
+| Tables compiler (10 tables) | `project_health/analysis/thesis_tables_compiler.py` |
+| Figures generator (10 figs) | `project_health/analysis/thesis_figures.py` |

@@ -9,7 +9,7 @@ fileMatchPattern: "**/cross_n*,**/zero_shot*,**/19_cross_n*,**/binnacle-cross-n*
 
 ## What's Done
 
-- Train N=40+80 (14 pts) → predict N=50,60,70,100: **25/25 PASS**, mean ΔE/gap=0.16%.
+- Train N=40+80 (14 pts) → predict N=50,60,70,100: **30/30 PASS**, mean ΔE/gap=0.15%.
 - Multi-seed confirmed: seeds 42/43/44 all 5/5 PASS (std=0.074%).
 - Extrapolation to N=100 (beyond training): 0.18% ΔE/gap — GNN beats scipy 2.6×.
 - BatchNorm discovery: harmful for cross-N on chain_1d. Fix: `norm_type="none"`.
@@ -68,7 +68,7 @@ model = MPNNPredictor(..., norm_type="batch")
 - Claim VQE warm-start helps at 2 params (proven useless — identical results).
 - Skip the `norm_type` argument when creating MPNNPredictor for cross-N.
 - Extrapolate beyond 2× training size gap without validation.
-- Re-run N=40→N=60 zero-shot (already 25/25 PASS with 3 seeds).
+- Re-run N=40→N=60 zero-shot (already 30/30 PASS with 3 seeds).
 
 ## Pending Work
 

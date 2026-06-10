@@ -226,7 +226,7 @@ Use our existing MPNN architecture (GINConv + global_mean_pool) as a
 
 **Why this fits our project perfectly:**
 - We already have an MPNN (Phase 3) that processes graph-structured data
-- We have (E_noisy, E_exact) pairs from 210+ pipeline runs
+- We have (E_noisy, E_exact) pairs from 430+ pipeline runs
 - The hardware topology (heavy_hex) IS a graph
 - Zero-shot transfer to larger systems demonstrated in the paper
 
@@ -244,7 +244,7 @@ Output: ΔE_correction (additive correction to E_noisy)
 
 ### Training data (already available)
 
-From our 210+ runs across 5 topologies:
+From our 430+ runs across 5 topologies:
 - E_exact from Phase 1 (exact diag)
 - E_noisy from Phase 4b (FakeTorino BackendEstimatorV2)
 - Circuit metadata: N, p, topology, h_value, CES, n_2q_gates
@@ -296,7 +296,7 @@ Output: (ΔE_correction, confidence) — additive + gated
 ```
 
 **Next steps** (to run on actual data):
-1. Extract (E_noisy, E_exact) pairs from 210+ pipeline results
+1. Extract (E_noisy, E_exact) pairs from 430+ pipeline results
 2. Build QEMSample objects with FakeTorino calibration data per layout
 3. Train with 80/20 split stratified by topology
 4. Validate: correction ΔE/gap < ZNE-only ΔE/gap for ≥70% of test points
