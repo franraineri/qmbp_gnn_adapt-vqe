@@ -241,7 +241,7 @@ def main():
     # Save
     audit_path = output_dir / "affine_overshoot_audit.json"
     with open(audit_path, "w") as f:
-        json.dump({"summary": summary, "records": all_records[:100]}, f, indent=2)
+        json.dump({"summary": summary, "records": all_records[:100]}, f, indent=2, default=str)
     logger.info(f"Saved to {audit_path}")
 
 

@@ -693,7 +693,7 @@ def main() -> None:
     }
 
     with open(log_path, "w") as f:
-        json.dump(log_data, f, indent=2)
+        json.dump(log_data, f, indent=2, default=str)
     print(f"\n  Execution log: {log_path}")
 
     print(f"{'=' * 70}")

@@ -166,7 +166,20 @@ def audit_f8_pea_triangular():
         _record("F8", "❌ MISSING", "No exp_pea_triangular files")
         return
 
-    d = json.load(open(sorted(pea_tri_files)[-1]))
+    # Filter for triangular topology (exp_pea_triangular also contains chain_1d/ladder runs)
+    triangular_file = None
+    for f in sorted(pea_tri_files, reverse=True):
+        d_check = json.load(open(f))
+        topo = d_check.get("config", {}).get("system", {}).get("topology", "")
+        if topo == "triangular":
+            triangular_file = f
+            break
+
+    if not triangular_file:
+        _record("F8", "❌ MISSING", "No triangular topology in exp_pea_triangular files")
+        return
+
+    d = json.load(open(triangular_file))
     sec1 = d.get("results", {}).get("section_1", {}).get("data", {})
     summary = sec1.get("summary", {})
 
@@ -548,9 +561,7 @@ def audit_experiment_verdicts():
     """F10: Verify experiment counts match digest output."""
     print("=== F10: Experiment Verdicts ===")
     try:
-        from project_health.digest import ResultScanner
-        scanner = ResultScanner(RESULTS)
-        _, _, experiments = scanner.scan_all()
+        _, _, experiments = _get_scan_results()
 
         # Filter out test/stub experiments (same as thesis_findings_validator)
         real_experiments = [
@@ -605,6 +616,21 @@ def audit_mps_chi():
 # DEEP AUDITS — Level 2 (structural, physics, diagnostics verification)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Shared scanner cache for Level 2+ audits (avoid 5× redundant scan_all)
+_scan_cache: dict = {}
+
+
+def _get_scan_results():
+    """Get shared ResultScanner results (cached). Avoids 5× redundant scan_all."""
+    if not _scan_cache:
+        from project_health.digest import ResultScanner
+        scanner = ResultScanner(RESULTS)
+        noiseless, noisy, experiments = scanner.scan_all()
+        _scan_cache["noiseless"] = noiseless
+        _scan_cache["noisy"] = noisy
+        _scan_cache["experiments"] = experiments
+    return _scan_cache["noiseless"], _scan_cache["noisy"], _scan_cache["experiments"]
+
 
 def audit_error_decomposition():
     """Verify claim: 100% of error is MPNN prediction (circuit error = 0)."""
@@ -652,19 +678,16 @@ def audit_error_decomposition():
         _record("ERR_DECOMP", "⚠️ NO DATA",
                 f"No energy_decomposition in {n_checked} files")
     else:
-        pct = n_circuit_nonzero / n_with_decomp * 100
         _record("ERR_DECOMP", "⚠️ PARTIAL",
                 f"{n_circuit_nonzero}/{n_with_decomp} have circuit_err!=0")
     print()
 
 
 def audit_convergence_rate():
-    """Verify claim: mean convergence rate ~99.6%, min ~75%. Uses ResultScanner."""
+    """Verify claim: mean convergence rate ~99.6%, min ~75%. Uses shared scan cache."""
     print("=== VQE CONVERGENCE RATE (via ResultScanner) ===")
     try:
-        from project_health.digest import ResultScanner
-        scanner = ResultScanner(RESULTS)
-        noiseless, _, _ = scanner.scan_all()
+        noiseless, _, _ = _get_scan_results()
         rates = [r.convergence_rate for r in noiseless if r.convergence_rate is not None]
         if rates:
             mean_r = sum(rates) / len(rates)
@@ -685,12 +708,10 @@ def audit_convergence_rate():
 
 
 def audit_theta_smoothness():
-    """Verify claim: 96/329 (29%) runs have θ-smoothness > 1.0. Uses ResultScanner."""
+    """Verify claim: 96/329 (29%) runs have θ-smoothness > 1.0. Uses shared scan cache."""
     print("=== θ-SMOOTHNESS CHAIN BREAKS (via ResultScanner) ===")
     try:
-        from project_health.digest import ResultScanner
-        scanner = ResultScanner(RESULTS)
-        noiseless, _, _ = scanner.scan_all()
+        noiseless, _, _ = _get_scan_results()
         vals = [r.theta_smoothness for r in noiseless if r.theta_smoothness is not None]
         if vals:
             n_above = sum(1 for s in vals if s > 1.0)
@@ -715,12 +736,10 @@ def audit_theta_smoothness():
 
 
 def audit_generalization_gap():
-    """Verify claim: 41/279 (15%) runs have gen_gap > 0.01. Uses ResultScanner."""
+    """Verify claim: 41/279 (15%) runs have gen_gap > 0.01. Uses shared scan cache."""
     print("=== MPNN GENERALIZATION GAP (via ResultScanner) ===")
     try:
-        from project_health.digest import ResultScanner
-        scanner = ResultScanner(RESULTS)
-        noiseless, _, _ = scanner.scan_all()
+        noiseless, _, _ = _get_scan_results()
         vals = [r.generalization_gap for r in noiseless if r.generalization_gap is not None]
         if vals:
             n_above = sum(1 for g in vals if g > 0.01)
@@ -751,12 +770,10 @@ def audit_generalization_gap():
 
 
 def audit_noisy_gains():
-    """Verify noisy ZNE gains: mean ~+28.5%, mean R²~0.968. Uses ResultScanner."""
+    """Verify noisy ZNE gains: mean ~+28.5%, mean R²~0.968. Uses shared scan cache."""
     print("=== NOISY ZNE GAINS (via ResultScanner) ===")
     try:
-        from project_health.digest import ResultScanner
-        scanner = ResultScanner(RESULTS)
-        _, noisy, _ = scanner.scan_all()
+        _, noisy, _ = _get_scan_results()
 
         gains = [r.mean_gain_pct for r in noisy if r.mean_gain_pct is not None]
         r2s = [r.mean_r2 for r in noisy if r.mean_r2 is not None]
@@ -799,9 +816,7 @@ def audit_data_coverage():
     """
     print("=== DATA COVERAGE (ResultScanner meta-audit) ===")
     try:
-        from project_health.digest import ResultScanner
-        scanner = ResultScanner(RESULTS)
-        noiseless, noisy, experiments = scanner.scan_all()
+        noiseless, noisy, experiments = _get_scan_results()
 
         n_total = len(noiseless)
         n_with_smoothness = sum(
@@ -903,6 +918,183 @@ def audit_timing_detailed():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Level 4: New experiments (N=120, mode comparison, E5, cross-topology transfer)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def audit_n120_sweep():
+    """N120: Verify N=120 full sweep — 15/15 PASS, mean ΔE/gap < 0.1%."""
+    print("=== N120: Full Sweep (15/15, <0.1%) ===")
+    f = RESULTS / "scaling" / "scaling_N120_full_sweep.json"
+    if not f.exists():
+        _record("N120_SWEEP", "❌ MISSING", "scaling_N120_full_sweep.json not found")
+        return
+
+    d = json.load(open(f))
+    summary = d.get("summary", {})
+    scaling = d.get("scaling_law", {})
+    n_pass = summary.get("n_pass", 0)
+    n_total = summary.get("n_total", 0)
+    mean_de = summary.get("mean_de_gap", 0)
+    max_de = summary.get("max_de_gap", 0)
+    validated = scaling.get("validated", False)
+    seeds = d.get("seeds", [])
+
+    print(f"  Pass: {n_pass}/{n_total}")
+    print(f"  Mean ΔE/gap: {mean_de*100:.4f}%")
+    print(f"  Max ΔE/gap: {max_de*100:.4f}%")
+    print(f"  Seeds: {seeds}")
+    print(f"  Scaling law validated: {validated}")
+
+    ok = n_pass == 15 and n_total == 15 and mean_de < 0.001 and validated
+    if ok:
+        _record("N120_SWEEP", "✅ VERIFIED",
+                f"15/15, mean={mean_de*100:.4f}%, law validated")
+    else:
+        _record("N120_SWEEP", "⚠️ PARTIAL",
+                f"{n_pass}/{n_total}, mean={mean_de*100:.4f}%")
+    print()
+
+
+def audit_mps_mode_comparison():
+    """MPS_MODE: Verify deterministic vs stochastic consistency."""
+    print("=== MPS_MODE: Det vs Stochastic Comparison ===")
+    f = RESULTS / "scaling" / "mps_mode_comparison.json"
+    if not f.exists():
+        _record("MPS_MODE", "❌ MISSING", "mps_mode_comparison.json not found")
+        return
+
+    try:
+        d = json.load(open(f))
+    except json.JSONDecodeError:
+        _record("MPS_MODE", "❌ CORRUPT", "JSON parse error")
+        return
+
+    summary = d.get("summary", {})
+    consistent = summary.get("modes_consistent", False)
+    speedup = summary.get("mean_speedup", 0)
+    all_det_pass = summary.get("all_det_pass", False)
+    all_sto_pass = summary.get("all_sto_pass", False)
+    results = d.get("results", [])
+
+    print(f"  Modes consistent: {consistent}")
+    print(f"  Mean speedup: {speedup:.1f}×")
+    print(f"  Det all pass: {all_det_pass}, Sto all pass: {all_sto_pass}")
+    print(f"  N comparisons: {len(results)}")
+
+    # Verify: both modes pass, speedup > 1
+    ok = all_det_pass and all_sto_pass and speedup > 1.0
+    if ok:
+        _record("MPS_MODE", "✅ VERIFIED",
+                f"consistent={consistent}, speedup={speedup:.0f}×")
+    else:
+        _record("MPS_MODE", "⚠️ ISSUE",
+                f"det_pass={all_det_pass}, sto_pass={all_sto_pass}")
+    print()
+
+
+def audit_e5_scaling_extensions():
+    """E5: Verify scaling extensions sections 1+2 (χ convergence + VQE N=120)."""
+    print("=== E5: Scaling Extensions (sections 1+2) ===")
+    e5_dir = RESULTS / "experiments" / "exp_E5_SCALING_EXT"
+    if not e5_dir.exists():
+        _record("E5_EXT", "❌ MISSING", "exp_E5_SCALING_EXT dir not found")
+        return
+
+    run_files = sorted(e5_dir.glob("run_*.json"), reverse=True)
+    if not run_files:
+        _record("E5_EXT", "❌ MISSING", "No run files in E5 dir")
+        return
+
+    # Find most recent run with sections 1+2
+    best = None
+    for rf in run_files:
+        d = json.load(open(rf))
+        results = d.get("results", {})
+        if "section_1" in results and "section_2" in results:
+            best = d
+            break
+
+    if not best:
+        _record("E5_EXT", "⚠️ PARTIAL", "No run with both sections 1+2")
+        print("  ⚠️ Could not find a run with both sections 1 and 2")
+        return
+
+    results = best.get("results", {})
+    summary = best.get("summary", {})
+    n_passed = summary.get("n_passed", 0)
+    n_sections = summary.get("n_sections", 0)
+
+    # Section 1: χ=64 exact
+    s1 = results.get("section_1", {}).get("data", {})
+    chi_exact = s1.get("chi_64_is_exact", False)
+    diff_64_128 = s1.get("diff_64_128", None)
+
+    # Section 2: VQE convergence
+    s2 = results.get("section_2", {}).get("data", {})
+    vqe_data = s2.get("vqe", {})
+    de_gap_vqe = vqe_data.get("de_gap", 1.0)
+    s2_pass = s2.get("pass", False)
+
+    print(f"  Sections passed: {n_passed}/{n_sections}")
+    print(f"  S1 χ=64 exact: {chi_exact} (|E64-E128|={diff_64_128})")
+    print(f"  S2 VQE ΔE/gap: {de_gap_vqe:.4f} (pass={s2_pass})")
+
+    ok = chi_exact and s2_pass and n_passed >= 2
+    if ok:
+        _record("E5_EXT", "✅ VERIFIED",
+                f"S1:χ=64 exact, S2:ΔE/gap={de_gap_vqe:.4f}")
+    else:
+        _record("E5_EXT", "⚠️ PARTIAL",
+                f"S1 exact={chi_exact}, S2 pass={s2_pass}")
+    print()
+
+
+def audit_scaling_multi_seed():
+    """MULTI_SEED: Verify N=50 and N=80 have 3-seed deterministic runs."""
+    print("=== MULTI_SEED: 3-seed Deterministic at N=50, N=80 ===")
+    scaling_files = sorted(glob.glob(str(RESULTS / "scaling/scaling_N*.json")))
+
+    # Group by N, find the best run per N (most seeds)
+    by_n = defaultdict(list)
+    for f in scaling_files:
+        try:
+            d = json.load(open(f))
+            meta = d.get("metadata", {})
+            N = meta.get("n", 0)
+            seeds = meta.get("seeds", [42])
+            mode = meta.get("mps_evaluation_mode", "stochastic")
+            n_total = d.get("summary", {}).get("n_total", 0)
+            all_pass = d.get("summary", {}).get("all_passed", False)
+            by_n[N].append({
+                "seeds": seeds, "mode": mode, "n_total": n_total,
+                "all_pass": all_pass, "file": Path(f).name,
+            })
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Check N=50 and N=80 for 3-seed runs
+    issues = []
+    for target_n in [50, 80]:
+        runs = by_n.get(target_n, [])
+        multi_seed = [r for r in runs if len(r["seeds"]) >= 3]
+        if multi_seed:
+            best = max(multi_seed, key=lambda r: r["n_total"])
+            print(f"  N={target_n}: ✅ {len(best['seeds'])} seeds, "
+                  f"{best['n_total']} pts, pass={best['all_pass']}, "
+                  f"mode={best['mode']}, file={best['file']}")
+        else:
+            print(f"  N={target_n}: ❌ No 3-seed run found")
+            issues.append(target_n)
+
+    if not issues:
+        _record("MULTI_SEED", "✅ VERIFIED", "N=50,80 both have 3-seed runs")
+    else:
+        _record("MULTI_SEED", "⚠️ MISSING", f"N={issues} lack 3-seed runs")
+    print()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Summary
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -978,6 +1170,11 @@ if __name__ == "__main__":
         # Level 3 — data coverage & consistency
         ("NOISY_GAINS", audit_noisy_gains),
         ("DATA_COV", audit_data_coverage),
+        # Level 4 — new experiments (N=120, mode comparison, E5)
+        ("N120_SWEEP", audit_n120_sweep),
+        ("MPS_MODE", audit_mps_mode_comparison),
+        ("E5_EXT", audit_e5_scaling_extensions),
+        ("MULTI_SEED", audit_scaling_multi_seed),
     ]
 
     for fid, func in audits:

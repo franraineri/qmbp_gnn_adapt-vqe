@@ -277,7 +277,7 @@ def main():
 
     out_path = output_dir / "post_zne_validation.json"
     with open(out_path, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, indent=2, default=str)
     logger.info(f"Saved to {out_path}")
 
 

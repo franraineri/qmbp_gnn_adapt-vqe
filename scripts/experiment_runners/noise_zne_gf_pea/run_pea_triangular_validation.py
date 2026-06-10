@@ -41,11 +41,19 @@ logger = logging.getLogger(__name__)
 NOISE_FACTORS = (1, 3, 5)
 ZNE_SHOTS = 16384
 N_CANDIDATE_LAYOUTS = 20
-TOPOLOGY = "triangular"
-N_QUBITS = 6
-P_LAYERS = 1
-# Valid regime for triangular N=6 p=1: h >= 4.0
-H_TEST = [4.5, 4.0, 3.5]
+
+# Defaults (overridable via CLI)
+DEFAULT_TOPOLOGY = "triangular"
+DEFAULT_N_QUBITS = 6
+DEFAULT_P_LAYERS = 1
+
+# Valid-regime minimum h per topology (p=1 N=6)
+_H_TEST_MAP = {
+    "triangular": [4.5, 4.0, 3.5],
+    "chain_1d": [2.5, 2.0, 1.75],
+    "ladder": [3.5, 3.25, 3.0],
+    "heavy_hex": [3.5, 3.25, 3.0],
+}
 SEEDS = [42, 43, 44]
 
 
@@ -55,7 +63,7 @@ SEEDS = [42, 43, 44]
 
 
 class PEATriangularRunner(ValidationRunner):
-    """PEA vs GF-ZNE on triangular N=6 p=1 — closes coverage gap G6."""
+    """PEA vs GF-ZNE validation — configurable topology/N/p."""
 
     runner_id = "pea_triangular"
     experiment_id = "PEA_TRIANGULAR"
@@ -65,11 +73,35 @@ class PEATriangularRunner(ValidationRunner):
         "and positive gain, consistent with all other topologies."
     )
 
+    @classmethod
+    def _add_custom_args(cls, parser):
+        parser.add_argument(
+            "--topology",
+            type=str,
+            default=DEFAULT_TOPOLOGY,
+            help=f"Topology to validate (default: {DEFAULT_TOPOLOGY})",
+        )
+        parser.add_argument(
+            "--n-qubits",
+            type=int,
+            default=DEFAULT_N_QUBITS,
+            help=f"Number of qubits (default: {DEFAULT_N_QUBITS})",
+        )
+        parser.add_argument(
+            "--p-layers",
+            type=int,
+            default=DEFAULT_P_LAYERS,
+            help=f"HVA layers (default: {DEFAULT_P_LAYERS})",
+        )
+
     def define_sections(self) -> list[Section]:
+        topo = self._args.topology
+        n = self._args.n_qubits
+        p = self._args.p_layers
         return [
             Section(
                 id=1,
-                name="Triangular N=6 p=1 (3 seeds × 3 h-points)",
+                name=f"{topo} N={n} p={p} (3 seeds × 3 h-points)",
                 fn=self._section_sweep,
                 hypothesis="PEA gain > GF gain, R²>0.9, all positive",
             ),
@@ -82,6 +114,18 @@ class PEATriangularRunner(ValidationRunner):
         ]
 
     def build_config(self) -> dict:
+        topo = self._args.topology
+        n = self._args.n_qubits
+        p = self._args.p_layers
+        h_test = _H_TEST_MAP.get(topo, [3.5, 3.0, 2.5])
+
+        # Update instance metadata for dynamic config
+        self.description = f"PEA-ZNE validation on {topo} N={n} p={p}"
+        self.hypothesis = (
+            f"PEA-ZNE outperforms GF-ZNE on {topo} N={n} with R²>0.9 "
+            "and positive gain, consistent with all other topologies."
+        )
+
         return {
             "runner_id": self.runner_id,
             "experiment_id": self.experiment_id,
@@ -89,13 +133,13 @@ class PEATriangularRunner(ValidationRunner):
             "description": self.description,
             "hypothesis": self.hypothesis,
             "system": {
-                "topology": TOPOLOGY,
-                "n_qubits": N_QUBITS,
-                "p_layers": P_LAYERS,
+                "topology": topo,
+                "n_qubits": n,
+                "p_layers": p,
                 "model": "tfim",
             },
             "seeds": SEEDS,
-            "h_test": H_TEST,
+            "h_test": h_test,
             "zne": {
                 "noise_factors": list(NOISE_FACTORS),
                 "shots": ZNE_SHOTS,
@@ -118,6 +162,14 @@ class PEATriangularRunner(ValidationRunner):
             select_layouts_low_ces,
         )
 
+        topo = self._args.topology
+        n = self._args.n_qubits
+        p = self._args.p_layers
+        self._topology = topo
+        self._n_qubits = n
+        self._p_layers = p
+        self._h_test = _H_TEST_MAP.get(topo, [3.5, 3.0, 2.5])
+
         self._fake_backend = FakeTorino()
         self._noisy_config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
         self._noisy_estimate = noisy_estimate
@@ -126,37 +178,42 @@ class PEATriangularRunner(ValidationRunner):
         self._select_low_ces = select_layouts_low_ces
 
         adj = build_adjacency(self._fake_backend)
-        self._candidates = find_layouts_bfs(adj, N_QUBITS, n_candidates=N_CANDIDATE_LAYOUTS)
+        self._candidates = find_layouts_bfs(adj, n, n_candidates=N_CANDIDATE_LAYOUTS)
         self._all_results: list[dict] = []
 
-        logger.info(f"[setup] FakeTorino loaded, {len(self._candidates)} candidates for triangular")
+        logger.info(f"[setup] FakeTorino loaded, {len(self._candidates)} candidates for {topo} N={n} p={p}")
 
     def _section_sweep(self) -> dict:
-        """Run PEA vs GF on triangular N=6 p=1 across all seeds and h-points."""
+        """Run PEA vs GF on configured topology across all seeds and h-points."""
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.models.model_registry import get_model_spec
 
+        topo = self._topology
+        n = self._n_qubits
+        p = self._p_layers
+        h_test = self._h_test
+
         spec = get_model_spec("tfim")
         builder = HamiltonianBuilder()
-        lattice_ref = make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=max(H_TEST))
-        circuit, _ = spec.create_circuit(N_QUBITS, P_LAYERS, lattice_ref)
+        lattice_ref = make_lattice(topo, n, J=1.0, h=max(h_test))
+        circuit, _ = spec.create_circuit(n, p, lattice_ref)
 
         results = []
         for seed in SEEDS:
             theta_map = self.vqe_descending_sweep(
-                topology=TOPOLOGY,
-                n_qubits=N_QUBITS,
-                h_values=H_TEST,
+                topology=topo,
+                n_qubits=n,
+                h_values=h_test,
                 seed=seed,
-                p_layers=P_LAYERS,
+                p_layers=p,
                 n_restarts=1,
                 maxiter=500,
             )
-            for h in sorted(H_TEST, reverse=True):
-                e_exact, gap = self.exact_ground_state(TOPOLOGY, N_QUBITS, h)
+            for h in sorted(h_test, reverse=True):
+                e_exact, gap = self.exact_ground_state(topo, n, h)
                 theta_opt = theta_map[h]
 
-                lattice = make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)
+                lattice = make_lattice(topo, n, J=1.0, h=h)
                 H = builder.build(lattice)
                 bound = circuit.assign_parameters(theta_opt)
                 layout_sel = self._select_low_ces(
@@ -212,8 +269,8 @@ class PEATriangularRunner(ValidationRunner):
                 pea_gain = (de_noisy - de_pea) / max(de_noisy, 1e-10)
 
                 row = {
-                    "topology": TOPOLOGY,
-                    "n_qubits": N_QUBITS,
+                    "topology": topo,
+                    "n_qubits": n,
                     "seed": seed,
                     "h": h,
                     "e_exact": e_exact,

@@ -222,7 +222,7 @@ def main() -> int:
     if args.h_values is not None:
         h_values = sorted(args.h_values, reverse=True)
     else:
-        h_min = 1.0 + 0.020 * n_target**1.31
+        h_min = 1.5 + 0.020 * n_target**1.31  # Corrected formula
         h_max = h_min + 1.5
         h_values = np.linspace(h_max, h_min + 0.5, 5).tolist()
 

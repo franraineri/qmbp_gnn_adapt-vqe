@@ -268,7 +268,7 @@ def main():
     }
 
     with open(output_path, "w") as f:
-        json.dump(payload, f, indent=2)
+        json.dump(payload, f, indent=2, default=str)
 
     logger.info(f"\n  Results saved: {output_path}")
     logger.info(f"  Total time: {elapsed:.1f}s")

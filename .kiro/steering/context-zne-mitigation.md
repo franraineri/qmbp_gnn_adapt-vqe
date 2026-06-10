@@ -112,7 +112,10 @@ backend = HardwareBackend(config=config)  # PEA-ZNE by default
 - Use gate-folding on p=1 heavy_hex (depth≤3 → meaningless extrapolation).
 - Skip affine correction (zero cost, zero risk).
 - Use noise_factors beyond [1,3,5] for GF (diminishing returns, more circuits).
-
+- Attempt PEA/ZNE at N≥20 in local simulation without FakeTorino routing (no noise effect).
+- Use FakeTorino/BackendEstimatorV2 at N>10 (OOM — 133-qubit Target object).
+- Use rehearsal (`run_hardware_rehearsal_v2.py`) at N>10 (FakeTorino limit).
+- Expect MPS+noise (native chain) to show ZNE effect at N≥20 (0.3% noise is below threshold).
 ## TLS Drift Monitoring (hardware runs)
 
 ```python

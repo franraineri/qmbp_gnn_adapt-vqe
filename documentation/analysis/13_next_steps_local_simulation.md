@@ -255,3 +255,72 @@ was 100% correct despite ΔE/gap ~100%).
 
 *Document complete. Primary next action: gate-folding ZNE validation (action #1).*
 *Everything else is polish or procrastination.*
+
+
+---
+
+## 10. Post-Hamiltonian-Extension Next Steps (2026-06-03)
+
+**Context**: E4b (TFIM+longitudinal) and E4c (TFIM frustrated) are fully validated.
+Full MPNN pipeline working with `extra_node_features`. 23 experiments in digest
+(13 confirmed, 5 rejected, 5 failed). See `binnacle-hamiltonian-comparison.md`.
+
+### 10.1 2D MPNN Predictor (train across J₂ grid) — HIGH VALUE
+
+**What**: Train a single MPNN on a (h × J₂) grid, then predict θ at unseen (h, J₂) pairs.
+Currently E4c_pipeline trains at fixed J₂=0.3. A 2D predictor would generalize across J₂.
+
+**Novel contribution**: No existing paper shows a GNN predicting VQE parameters across
+a 2D Hamiltonian parameter space. This is a genuine thesis-level finding.
+
+**Implementation**: Sweep J₂ ∈ {0.1, 0.3, 0.5} × h_grid (15 pts each) = 45 training points.
+Test at unseen (h, J₂) combinations. `extra_node_features` already supports this.
+
+**Effort**: ~1 day. **Impact**: Novel thesis contribution (§5.5 or §5.7).
+
+### 10.2 Noisy Simulation for TFIM+Longitudinal (ZNE transfer) — MEDIUM VALUE
+
+**What**: Run ZNE (inhomogeneous, 3 layouts) on TFIM+longitudinal at g=0.3, p=1, N=6.
+Same CX budget as standard TFIM (10 CZ), so ZNE should work identically.
+
+**What it proves**: Error mitigation transfers to extended models without modification.
+This is the "hardware readiness" argument for the model extension.
+
+**Effort**: ~2 hours. Uses existing `NoisyBackend`. **Impact**: Confirms §5.5 hardware claim.
+
+### 10.3 Weight-Space Phase Detection for Frustrated TFIM (D1 analog) — MEDIUM VALUE
+
+**What**: Apply `WeightGradientAnalyzer` to E4c's trained MPNN. Does ||dW/dh|| peak
+at the crossover point? Does frustration shift/broaden the peak?
+
+**What it proves**: Zero-QPU phase detection generalizes to new physics.
+
+**Effort**: ~3 hours. **Impact**: Extends D1 finding to new model (§5.1 extension).
+
+### 10.4 Finite-Size Scaling for Extended Models — LOW-MEDIUM VALUE
+
+**What**: Measure h_min(N) for TFIM+longitudinal and TFIM frustrated at N=4,6,8,10.
+Compare scaling exponent β across models.
+
+**What it proves**: How the valid-regime boundary scales with system size differs by model.
+
+**Effort**: ~4 hours compute. **Impact**: Table in §5.5.
+
+### 10.5 Cross-Model MPNN Transfer — EXPLORATORY
+
+**What**: Train MPNN on standard TFIM data → evaluate on TFIM+longitudinal (g→0 limit).
+Does knowledge transfer between related Hamiltonians?
+
+**Effort**: ~3 hours. **Impact**: If positive → strong §5.7 claim. If negative → validates
+that model-specific training is necessary (consistent with S2 cross-topology failure).
+
+### Priority Order
+
+1. **10.1** (2D MPNN) — novel, directly thesis-impactful
+2. **10.2** (noisy ZNE transfer) — confirms hardware claim
+3. **10.3** (D1 for frustrated) — extends existing finding
+4. **10.4** (scaling) — quantitative but not blocking
+5. **10.5** (transfer) — exploratory, may fail
+
+**Decision**: Options 10.1 and 10.2 are the only ones with genuine thesis-advancing value.
+The rest are incremental polish.

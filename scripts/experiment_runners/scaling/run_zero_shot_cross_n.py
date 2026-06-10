@@ -387,8 +387,8 @@ def main() -> int:
     if args.target_h_values:
         h_test = sorted(args.target_h_values, reverse=True)
     else:
-        # Auto-compute using scaling law: h_min = 1.0 + 0.020 * N^1.31
-        h_min_target = 1.0 + 0.020 * n_target**1.31
+        # Auto-compute using scaling law: h_min = 1.5 + 0.020 * N^1.31 (corrected)
+        h_min_target = 1.5 + 0.020 * n_target**1.31
         h_test = np.linspace(h_min_target + 1.5, h_min_target + 0.5, 5).tolist()
 
     logger.info(f"\n─── Zero-shot Deploy: N_target={n_target} ───")

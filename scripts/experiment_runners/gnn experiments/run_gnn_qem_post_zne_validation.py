@@ -34,8 +34,6 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 logging.getLogger("qiskit.passmanager").setLevel(logging.WARNING)
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 from qmbp_simulation import HamiltonianBuilder, make_lattice
 from qmbp_simulation.execution.noisy_utils import (
     NoisyEstimatorConfig,

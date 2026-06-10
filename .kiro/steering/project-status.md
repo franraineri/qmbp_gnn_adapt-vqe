@@ -58,6 +58,7 @@
    - Multi-seed confirmed: seeds 42/43/44 all 5/5 PASS (std=0.074%).
    - Extrapolation: N=100 (beyond training) achieves 0.18%, GNN beats scipy 2.6×.
    - Pending: Bond-resolved (79D necessity proof).
+   - **Bond-resolved 79D VALIDATED** (2026-06-10): GNN is ESSENTIAL for 79-param prediction. Intra-N: 6/6 PASS (ΔE/gap=0.7%), GNN 4414× better than random init. Cross-N 79D FAILS (45 training pts insufficient for 494K-param model). Ref: `results/experiments/exp_B4_BR_CROSS_N/run_20260610_165650.json`.
    - Scripts: `run_zero_shot_cross_n_v3.py`, `run_cross_n_ablation_suite.py`, `run_bond_resolved_cross_n.py`.
    - Ref: `documentation/binnacles/binnacle-cross-n-zero-shot.md`, `documentation/analysis/19_cross_n_validation_plan.md`.
 
@@ -86,13 +87,15 @@
 - **GNN-QEM validated** (2026-06-06): +99.4% error reduction in-distribution, 100% zero-shot transfer to heavy_hex N=10 (t=13.28, p<10⁻⁶). BUT: does NOT help after PEA-ZNE (0% improvement on post-ZNE residuals). Use only when PEA unavailable. Ref: Wang et al. arXiv:2604.16815.
 - **GNN-QEM + PEA are alternatives, not complements**: Both remove structured noise. After one removes structure, residual is unstructured shot noise. Deploy: PEA (primary) → affine (always). GNN-QEM only if PEA unavailable.
 - **PEA available as fallback**: If gate-folding ZNE gives R²<0.90 or ΔE/gap>5%, switch `zne_amplifier="pea"`. Learns actual noise model via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% extra QPU overhead. Use `--zne-amplifier pea` in CLI. Ref: IBM Nature 618 (2023).
+- **PEA local simulation valid ONLY at N≤10**: FakeTorino (133 qubits) OOMs at N≥20. Native chain_1d at N≥20 has insufficient noise for ZNE (no SWAP routing overhead). PEA N≥20 validation requires real QPU. Ref: `documentation/analysis/23_noisy_simulation_scalability_limits.md`.
 - **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
 - **PauliEvolutionGate gives 11% less 2Q-depth**: Use `create_pauli_evolution()` for hardware. Same n_2Q (34), same energy, better scheduling. Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/analysis/15_transpiler_exploration.md`.
 
 ## Unsupervised Phase Detection (Task 2+3 findings)
 
 - **PCA of θ_opt(h) detects h_c for chain_1d**: Peak at h=1.25 (Δh=0.25), PC1 explains 99.96% variance.
-- **Detection requires h-grid covering h_c**: Ladder data (h∈[2,4]) cannot detect h_c — data limitation, not method failure.
+- **PCA converges to h_c=1.0 at N=100** (2026-06-10): Δ=0.033, 3 seeds unanimous. Thermodynamic limit behavior. Ref: `analysis/raw_data/pca_peak_vs_N.json`, Finding F23.
+- **Detection requires h-grid covering h_c**: Ladder data (h∈[2,4]) cannot detect h_c — data limitation, not method failure. N=40-200 in paramagnetic regime correctly show no transition.
 - **|∂θ/∂h| corroborates D1**: Agreement Δh=0.18 with D1 valid-regime peak (h=1.07). Ref: Fontana et al. (2024, arXiv:2402.18953).
 - **K-means NOT recommended**: Boundary at h≈1.58 (too far from h_c). Use PCA or derivative instead.
 - **Zero-cost analysis**: All results from existing VQE data — no additional QPU overhead.
@@ -109,8 +112,9 @@
 | N=80 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥7.7 (chain, validated) |
 
 - **MPS Scaling**: Use `MPSBackend(strategy="aer_mps")` for N>22. COBYLA optimizer (L-BFGS-B fails with shots).
+- **MPS evaluation mode** (2026-06-10): Default `deterministic=True` — exact ⟨H⟩ via `save_expectation_value`, 12ms/eval, no shot noise. Use `deterministic=False` only for noise-tolerance testing (6s/eval, σ≈precision). New results tagged with `metadata.mps_evaluation_mode`.
 - **N>63 direct path**: AerSimulator Target has 63 qubits max. For N>63, `save_expectation_value` bypass is used automatically.
-- **Scaling law (corrected)**: h_min_safe = 1.5 + 0.020·N^1.31 (original formula +0.50 offset validated at N=40/50/80).
+- **Scaling law (corrected)**: h_min_safe = 1.5 + 0.020·N^1.31 (original formula +0.50 offset validated at N=40/50/80/120).
 - **Seeds**: All pass at N=40 (27/27). Seed 44 is noisier (max 2.36%) but never fails 5% threshold.
 - **Phase 3 MPNN at N=40**: 0.46% mean ΔE/gap with 27 training points. Interpolation only — do not extrapolate to h < h_min.
 - **Zero-shot cross-N GNN WORKS with norm_type="none"** (2026-06-08): Train N=40+N=80 (14 pts) → predict N=60: ΔE/gap=0.13% (5/5 PASS). BatchNorm causes 25-40% θ_x underprediction on chain_1d (zero intra-graph variance). Fix: `MPNNPredictor(norm_type="none")`. Interpolation (scipy) also achieves 0.11% but cannot scale to bond-resolved (79D). Ref: `results/scaling/zero_shot/zero_shot_v3_N40_80_to_N60_20260608_110212.json`, `documentation/analysis/19_cross_n_validation_plan.md`.
@@ -138,9 +142,10 @@
 
 ## Scaling Law
 
-`h_min = 1.0 + 0.020·N^1.31` (R²=1.0000). Predicts N=20→2.00 (exact match).
+`h_min = 1.5 + 0.020·N^1.31` (corrected, validated N=40-120). Original fit: `1.0 + 0.020·N^1.31` (N=4-20, R²=1.0000).
 - p=1 scales better: β(p=1)=0.60 < β(p=2)=1.33.
 - Exponent ≠ ν=1 (expressibility limit, not critical exponent).
+- +0.50 offset consistently observed at ALL MPS-regime sizes (N=40/50/80/120).
 
 ## Code Map
 
@@ -213,6 +218,7 @@
 | MPS scaling plan + results | `documentation/analysis/17_scaling_N30_research_plan.md` |
 | MPS scaling binnacle (N=40/50) | `documentation/binnacles/binnacle-mps-scaling.md` |
 | MPS scaling analyzer | `python -m project_health.analysis.scaling_analyzer` |
+| MPS scaling digest | `python -m project_health.digest --kind scaling` |
 | MPS scaling results | `results/scaling/scaling_N*_*.json` |
 | D1 weight-space phase detection | `documentation/binnacles/binnacle-d1-weight-space-phase-detection.md` |
 | IBM hardware generations (Eagle→Heron→Nighthawk) | `documentation/analysis/18_ibm_hardware_generations.md` |

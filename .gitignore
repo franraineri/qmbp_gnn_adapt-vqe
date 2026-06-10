@@ -45,8 +45,11 @@ scripts/notebook_results/
 *.log
 tmp/
 checkpoint*
+log_*
+digest_*
+*/analysis/*.json
+*/scaling/*.json
 *.json
-*json
 
 digest_poc/*
 *_TEMP.py

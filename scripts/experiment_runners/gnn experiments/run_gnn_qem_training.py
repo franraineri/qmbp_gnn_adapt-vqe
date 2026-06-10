@@ -224,7 +224,7 @@ def main():
     # Save evaluation results
     eval_path = output_dir / ("evaluation_quick.json" if quick else "evaluation.json")
     with open(eval_path, "w") as f:
-        json.dump({"summary": summary, "per_sample": results_per_sample}, f, indent=2)
+        json.dump({"summary": summary, "per_sample": results_per_sample}, f, indent=2, default=str)
     logger.info(f"Results saved to {eval_path}")
 
     # Print per-topology breakdown

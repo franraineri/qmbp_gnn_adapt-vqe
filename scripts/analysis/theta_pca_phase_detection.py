@@ -71,24 +71,39 @@ def analyze_trajectory(traj: dict) -> dict | None:
         h_values = h_values[::-1]
         theta_opt = theta_opt[::-1]
 
+    # Remove duplicate h-values (causes inf in np.gradient)
+    _, unique_idx = np.unique(h_values, return_index=True)
+    unique_idx = np.sort(unique_idx)  # Keep original order
+    if len(unique_idx) < len(h_values):
+        h_values = h_values[unique_idx]
+        theta_opt = theta_opt[unique_idx]
+    if len(h_values) < 5:
+        return None
+
+    n_params = theta_opt.shape[1]
+
     # --- PCA Analysis ---
     scaler = StandardScaler()
     theta_scaled = scaler.fit_transform(theta_opt)
 
-    pca = PCA(n_components=min(2, theta_opt.shape[1]))
+    pca = PCA(n_components=min(2, n_params))
     pc_scores = pca.fit_transform(theta_scaled)
     pc1 = pc_scores[:, 0]
 
     # --- |dPC1/dh| derivative peak ---
     dpc1_dh = np.abs(np.gradient(pc1, h_values))
+    # Guard against inf/nan (can happen with very close h-values)
+    dpc1_dh = np.where(np.isfinite(dpc1_dh), dpc1_dh, 0.0)
     peak_idx = np.argmax(dpc1_dh)
     pca_peak_h = float(h_values[peak_idx])
 
-    # --- |dθ/dh| total derivative (L2 norm across all params) ---
+    # --- |dθ/dh| total derivative (RMS across params, normalized by √n_params) ---
     dtheta_dh = np.zeros(len(h_values))
-    for i in range(theta_opt.shape[1]):
-        dtheta_dh += np.gradient(theta_opt[:, i], h_values) ** 2
-    dtheta_dh = np.sqrt(dtheta_dh)
+    for i in range(n_params):
+        grad_i = np.gradient(theta_opt[:, i], h_values)
+        grad_i = np.where(np.isfinite(grad_i), grad_i, 0.0)
+        dtheta_dh += grad_i ** 2
+    dtheta_dh = np.sqrt(dtheta_dh / n_params)  # RMS per param (fair cross-N)
     theta_deriv_peak_idx = np.argmax(dtheta_dh)
     theta_deriv_peak_h = float(h_values[theta_deriv_peak_idx])
 
@@ -283,7 +298,270 @@ def parse_args() -> argparse.Namespace:
         default=5,
         help="Minimum h-points for a trajectory to be analyzed (default: 5)",
     )
+    parser.add_argument(
+        "--scaling-analysis",
+        action="store_true",
+        help="Run PCA peak vs N analysis (requires scaling data in theta_trajectories.json).",
+    )
     return parser.parse_args()
+
+
+def run_scaling_analysis(
+    results: list[dict], fmt: str = "png", theme: str = "default"
+) -> dict:
+    """Analyze how PCA peak position and |∂θ/∂h| amplitude scale with N.
+
+    Key questions:
+    1. Does PCA peak converge to h_c=1.0 as N→∞?
+    2. Does |∂θ/∂h| amplitude decrease with N (smoother landscape)?
+    3. At what N does PCA become unreliable (h-range doesn't cover h_c)?
+
+    Produces:
+    - 2-panel figure: PCA peak vs N (left), |∂θ/∂h| max amplitude vs N (right)
+    - JSON with per-N statistics
+
+    Returns analysis dict with findings.
+    """
+    logger.info("\n" + "=" * 60)
+    logger.info("  SCALING ANALYSIS: PCA Peak Position vs System Size N")
+    logger.info("=" * 60)
+
+    # Group results by N (chain_1d only for consistency)
+    from collections import defaultdict
+
+    by_n: dict[int, list[dict]] = defaultdict(list)
+    for r in results:
+        if r["topology"] == "chain_1d":
+            by_n[r["n_qubits"]].append(r)
+
+    if not by_n:
+        logger.warning("  No chain_1d results for scaling analysis")
+        return {"error": "no_chain_1d_data"}
+
+    # Compute statistics per N
+    n_values = sorted(by_n.keys())
+    stats_per_n: list[dict] = []
+
+    logger.info(f"\n  {'N':>4} | {'PCA peak h':>10} | {'|∂θ/∂h| max':>12} | "
+                f"{'h_range':>12} | {'Covers h_c?':>11} | {'Seeds':>5}")
+    logger.info(f"  {'─' * 65}")
+
+    for n in n_values:
+        n_results = by_n[n]
+        pca_peaks = [r["pca_peak_h"] for r in n_results]
+        # For derivative amplitude, use only trajectories with ≥8 points (reliable gradient)
+        reliable = [r for r in n_results if r["n_points"] >= 8]
+        if not reliable:
+            reliable = n_results  # Fall back to all
+        deriv_maxes = [
+            max(d for d in r["dtheta_dh"] if np.isfinite(d)) if any(np.isfinite(d) for d in r["dtheta_dh"]) else 0.0
+            for r in reliable
+        ]
+        h_ranges = [(min(r["h_values"]), max(r["h_values"])) for r in n_results]
+
+        # Check if h-range covers h_c
+        covers_hc = any(h_lo <= H_C <= h_hi for h_lo, h_hi in h_ranges)
+        # Alternative: check if lowest h is within 0.5 of h_c
+        closest_to_hc = min(abs(min(r["h_values"]) - H_C) for r in n_results)
+
+        mean_peak = float(np.mean(pca_peaks))
+        std_peak = float(np.std(pca_peaks)) if len(pca_peaks) > 1 else 0.0
+        mean_deriv_max = float(np.mean(deriv_maxes))
+        std_deriv_max = float(np.std(deriv_maxes)) if len(deriv_maxes) > 1 else 0.0
+        h_lo_best = min(h_lo for h_lo, _ in h_ranges)
+        h_hi_best = max(h_hi for _, h_hi in h_ranges)
+
+        covers_str = "✅ YES" if covers_hc else f"❌ ({closest_to_hc:.1f} away)"
+        logger.info(
+            f"  {n:>4} | {mean_peak:>8.3f}±{std_peak:.3f} | "
+            f"{mean_deriv_max:>10.4f}±{std_deriv_max:.4f} | "
+            f"[{h_lo_best:.1f},{h_hi_best:.1f}] | {covers_str:>11} | {len(n_results):>5}"
+        )
+
+        stats_per_n.append({
+            "n_qubits": n,
+            "n_seeds": len(n_results),
+            "pca_peak_mean": mean_peak,
+            "pca_peak_std": std_peak,
+            "pca_peaks": pca_peaks,
+            "deriv_max_mean": mean_deriv_max,
+            "deriv_max_std": std_deriv_max,
+            "h_range": [h_lo_best, h_hi_best],
+            "covers_hc": covers_hc,
+            "closest_to_hc": closest_to_hc,
+        })
+
+    # ── Key findings ─────────────────────────────────────────────────
+    # Classify results by regime
+    regime_near_hc = [s for s in stats_per_n if s["covers_hc"]]
+    regime_paramagnetic = [s for s in stats_per_n if not s["covers_hc"]]
+
+    logger.info(f"\n  ── Key Findings ──")
+    logger.info(f"  Trajectories covering h_c: {len(regime_near_hc)} system sizes")
+    logger.info(f"  Trajectories in paramagnetic only: {len(regime_paramagnetic)} system sizes")
+
+    if regime_near_hc:
+        peaks_near_hc = [(s["n_qubits"], s["pca_peak_mean"]) for s in regime_near_hc]
+        logger.info(f"\n  PCA peaks when h-range covers h_c (detectable regime):")
+        for n, peak in peaks_near_hc:
+            delta = abs(peak - H_C)
+            status = "✅" if delta <= 0.3 else "⚠️"
+            logger.info(f"    {status} N={n:>3}: peak at h={peak:.3f} (Δ from h_c = {delta:.3f})")
+
+        # Convergence toward h_c
+        if len(peaks_near_hc) >= 2:
+            ns = [p[0] for p in peaks_near_hc]
+            peaks = [p[1] for p in peaks_near_hc]
+            # Linear trend
+            if ns[-1] > ns[0]:
+                slope = (peaks[-1] - peaks[0]) / (ns[-1] - ns[0])
+                logger.info(
+                    f"\n  Trend: PCA peak moves {'toward' if abs(peaks[-1] - H_C) < abs(peaks[0] - H_C) else 'away from'} h_c "
+                    f"as N increases (slope={slope:.5f}/qubit)"
+                )
+                if abs(peaks[-1] - H_C) < abs(peaks[0] - H_C):
+                    logger.info("  → Convergence toward thermodynamic limit h_c=1.0 ✅")
+
+    if regime_paramagnetic:
+        logger.info(f"\n  In paramagnetic regime (h >> h_c), PCA peak = lowest h tested:")
+        for s in regime_paramagnetic[:5]:  # Show first 5
+            logger.info(
+                f"    N={s['n_qubits']:>3}: peak={s['pca_peak_mean']:.2f}, "
+                f"h_range=[{s['h_range'][0]:.1f}, {s['h_range'][1]:.1f}]"
+            )
+        logger.info("  → Expected: no phase transition in valid regime (trivial landscape)")
+
+    # Derivative amplitude scaling
+    logger.info(f"\n  |∂θ/∂h| maximum amplitude vs N:")
+    for s in stats_per_n:
+        logger.info(f"    N={s['n_qubits']:>3}: max|∂θ/∂h| = {s['deriv_max_mean']:.4f}")
+
+    # Check if amplitude decreases with N (smoother landscape at large N)
+    if len(stats_per_n) >= 3:
+        derivs = [(s["n_qubits"], s["deriv_max_mean"]) for s in stats_per_n if s["n_qubits"] >= 40]
+        if len(derivs) >= 2:
+            is_decreasing = all(derivs[i][1] >= derivs[i + 1][1] for i in range(len(derivs) - 1))
+            logger.info(
+                f"\n  Derivative amplitude {'decreases' if is_decreasing else 'does NOT monotonically decrease'} "
+                f"with N (for N≥40)"
+            )
+
+    # ── Generate figure ──────────────────────────────────────────────
+    _generate_scaling_figure(stats_per_n, fmt=fmt, theme=theme)
+
+    # ── Save results ─────────────────────────────────────────────────
+    output = {
+        "analysis": "pca_peak_vs_N",
+        "description": "How PCA peak position and θ-derivative amplitude scale with system size",
+        "h_c_reference": H_C,
+        "n_values_analyzed": n_values,
+        "stats_per_n": stats_per_n,
+        "findings": {
+            "n_covering_hc": len(regime_near_hc),
+            "n_paramagnetic_only": len(regime_paramagnetic),
+            "peaks_converge_to_hc": (
+                len(regime_near_hc) >= 2
+                and abs(regime_near_hc[-1]["pca_peak_mean"] - H_C)
+                < abs(regime_near_hc[0]["pca_peak_mean"] - H_C)
+            )
+            if len(regime_near_hc) >= 2
+            else None,
+        },
+    }
+
+    out_path = ROOT / "analysis" / "raw_data" / "pca_peak_vs_N.json"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w") as f:
+        json.dump(output, f, indent=2, default=str)
+    logger.info(f"\n  Results saved: {out_path.relative_to(ROOT)}")
+
+    return output
+
+
+def _generate_scaling_figure(
+    stats_per_n: list[dict], fmt: str = "png", theme: str = "default"
+) -> bool:
+    """Generate 2-panel figure: PCA peak vs N + derivative amplitude vs N."""
+    try:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+    except ImportError:
+        logger.error("matplotlib not available — skipping figure")
+        return False
+
+    if theme == "thesis":
+        plt.rcParams.update({
+            "font.family": "serif", "font.size": 11,
+            "axes.labelsize": 12, "axes.titlesize": 13,
+            "legend.fontsize": 9, "figure.dpi": 150,
+            "savefig.dpi": 300, "axes.grid": True, "grid.alpha": 0.3,
+        })
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    n_vals = [s["n_qubits"] for s in stats_per_n]
+    peaks = [s["pca_peak_mean"] for s in stats_per_n]
+    peak_errs = [s["pca_peak_std"] for s in stats_per_n]
+    derivs = [s["deriv_max_mean"] for s in stats_per_n]
+    deriv_errs = [s["deriv_max_std"] for s in stats_per_n]
+    covers = [s["covers_hc"] for s in stats_per_n]
+
+    # ── Panel 1: PCA peak vs N ───────────────────────────────────────
+    # Color by whether h-range covers h_c
+    colors = ["#2196F3" if c else "#9E9E9E" for c in covers]
+    markers = ["o" if c else "^" for c in covers]
+
+    for i, (n, p, e, c, m) in enumerate(zip(n_vals, peaks, peak_errs, colors, markers)):
+        ax1.errorbar(n, p, yerr=e, fmt=m, color=c, markersize=8, capsize=3, linewidth=1.5)
+
+    # Reference line at h_c
+    ax1.axhline(H_C, color="red", linestyle="--", alpha=0.7, linewidth=1.5, label=f"$h_c = {H_C}$")
+
+    # Connect points covering h_c with a trend line
+    hc_ns = [n_vals[i] for i in range(len(n_vals)) if covers[i]]
+    hc_peaks = [peaks[i] for i in range(len(peaks)) if covers[i]]
+    if len(hc_ns) >= 2:
+        ax1.plot(hc_ns, hc_peaks, "b--", alpha=0.5, linewidth=1)
+
+    ax1.set_xlabel("System size $N$ (qubits)")
+    ax1.set_ylabel("PCA peak position $h_{\\mathrm{peak}}$")
+    ax1.set_title("PCA Peak Position vs System Size")
+    ax1.legend(
+        handles=[
+            plt.Line2D([0], [0], marker="o", color="#2196F3", linestyle="", markersize=8,
+                       label="h-range covers $h_c$"),
+            plt.Line2D([0], [0], marker="^", color="#9E9E9E", linestyle="", markersize=8,
+                       label="Paramagnetic only"),
+            plt.Line2D([0], [0], color="red", linestyle="--", linewidth=1.5, label=f"$h_c = {H_C}$"),
+        ],
+        loc="upper right",
+    )
+    ax1.set_xscale("log")
+
+    # ── Panel 2: |∂θ/∂h| amplitude vs N ─────────────────────────────
+    ax2.errorbar(n_vals, derivs, yerr=deriv_errs, fmt="s-", color="#E53935",
+                 markersize=7, capsize=3, linewidth=1.5)
+    ax2.set_xlabel("System size $N$ (qubits)")
+    ax2.set_ylabel("max $|\\partial\\theta/\\partial h|$")
+    ax2.set_title("θ-Derivative Amplitude vs System Size")
+    ax2.set_xscale("log")
+    ax2.set_yscale("log")
+
+    # Annotate key N values
+    for i, n in enumerate(n_vals):
+        if n in (6, 10, 40, 100, 200):
+            ax2.annotate(f"N={n}", (n_vals[i], derivs[i]),
+                         textcoords="offset points", xytext=(5, 5), fontsize=8)
+
+    plt.tight_layout()
+    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    outpath = FIGURES_DIR / f"fig_pca_peak_vs_N.{fmt}"
+    plt.savefig(outpath, dpi=300 if fmt == "pdf" else 150, bbox_inches="tight")
+    plt.close()
+    logger.info(f"  Figure saved: {outpath.relative_to(ROOT)}")
+    return True
 
 
 def main() -> None:
@@ -381,6 +659,11 @@ def main() -> None:
         json.dump(output, f, indent=2, default=str)
 
     logger.info(f"  Results saved: {OUTPUT_RESULTS.relative_to(ROOT)}")
+
+    # --- Scaling analysis (PCA peak vs N) ---
+    if args.scaling_analysis:
+        run_scaling_analysis(results, fmt=args.format, theme=args.theme)
+
     logger.info("\n  Done.")
 
 

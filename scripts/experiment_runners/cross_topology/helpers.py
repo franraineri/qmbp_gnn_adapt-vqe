@@ -833,7 +833,7 @@ def save_validation_checkpoint(
     }
 
     with open(path, "w") as f:
-        json.dump(checkpoint, f, indent=2)
+        json.dump(checkpoint, f, indent=2, default=str)
 
     logger.error(f"Validation failure saved to: {path}")
     return path

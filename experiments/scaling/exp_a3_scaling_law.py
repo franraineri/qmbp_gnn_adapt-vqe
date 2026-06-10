@@ -174,6 +174,8 @@ class ExperimentA3(BaseExperiment):
         """
         topology = self.config.system.topology
         if topology == "chain_1d":
+            # Original fit at N=4-20 (exact diag): 1.0 + 0.020*N^1.31
+            # For N>30 (MPS regime), add +0.50 offset: use run_scaling_validation.py
             return 1.0 + 0.020 * N**1.31
         elif topology == "ladder":
             return 1.0 + 0.04 * N**1.33

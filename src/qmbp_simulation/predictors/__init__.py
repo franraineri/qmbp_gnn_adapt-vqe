@@ -17,10 +17,13 @@ from qmbp_simulation.predictors.gnn_qem import (
     train_gnn_qem,
 )
 from qmbp_simulation.predictors.mpnn import (
+    BondResolvedMPNN,
     MPNNPredictor,
+    build_bond_resolved_graph,
     build_graph_dataset,
     load_mpnn_checkpoint,
     save_mpnn_checkpoint,
+    train_bond_resolved_mpnn,
     train_mpnn,
 )
 
@@ -31,6 +34,10 @@ __all__ = [
     "load_mpnn_checkpoint",
     "save_mpnn_checkpoint",
     "train_mpnn",
+    # Phase 3b: Bond-resolved cross-N predictor
+    "BondResolvedMPNN",
+    "build_bond_resolved_graph",
+    "train_bond_resolved_mpnn",
     # Phase 4+: GNN-QEM error correction
     "GNNQEMCorrector",
     "GNNQEMConfig",

@@ -659,3 +659,314 @@ def load_mpnn_checkpoint(path: str) -> MPNNPredictor:
         f"norm_type={data.get('norm_type', 'batch')}"
     )
     return model
+
+
+# ── BondResolvedMPNN: Per-node/per-edge prediction for cross-N transfer ──────
+
+
+class BondResolvedMPNN(nn.Module):
+    """Size-agnostic MPNN for bond-resolved HVA parameter prediction.
+
+    Unlike ``MPNNPredictor`` which uses global pooling → fixed output_dim,
+    this model predicts **per-node** (θ_x) and **per-edge** (θ_zz) values,
+    allowing it to generalize across system sizes without retraining.
+
+    Architecture:
+        Input: Data(x=[N, node_features], edge_index=[2, 2*n_edges])
+        Message Passing: k GINConv layers (norm_type='none' for cross-N)
+        Per-node head: node_embedding → θ_x_i  (N outputs)
+        Per-edge head: edge_embedding → θ_zz_ij  (n_edges outputs)
+
+    The key insight: for bond-resolved HVA on chain_1d,
+    θ = [θ_zz_1, ..., θ_zz_{N-1}, θ_x_1, ..., θ_x_N] has dimension 2N-1.
+    By predicting per-node and per-edge, the model naturally adapts to any N.
+
+    Parameters
+    ----------
+    node_features : int
+        Input node features (default 3: h_i, coord_i, N/100).
+    hidden_dim : int
+        Hidden dimension for GNN layers.
+    n_layers : int
+        Number of GINConv message passing layers.
+    norm_type : str
+        Normalization type ('none' recommended for cross-N on chain_1d).
+    dropout : float
+        Dropout rate in output heads.
+
+    References
+    ----------
+    - Cross-N zero-shot (binnacle-cross-n-zero-shot.md): norm_type='none' is essential.
+    - Bond-resolved HVA: N-1 ZZ bonds + N X fields = 2N-1 params.
+    """
+
+    def __init__(
+        self,
+        node_features: int = 3,
+        hidden_dim: int = 256,
+        n_layers: int = 3,
+        norm_type: str = "none",
+        dropout: float = 0.1,
+    ) -> None:
+        super().__init__()
+
+        if norm_type not in ("batch", "layer", "none"):
+            raise ValueError(f"norm_type must be 'batch', 'layer', or 'none'. Got: {norm_type!r}")
+
+        self.node_features = node_features
+        self.hidden_dim = hidden_dim
+        self.n_layers = n_layers
+        self.norm_type = norm_type
+        self.dropout_rate = dropout
+
+        # ── Message passing backbone ─────────────────────────────────
+        self.convs = nn.ModuleList()
+        self.norms = nn.ModuleList()
+
+        def _make_norm(dim: int) -> nn.Module:
+            if norm_type == "batch":
+                return nn.BatchNorm1d(dim)
+            elif norm_type == "layer":
+                return nn.LayerNorm(dim)
+            return nn.Identity()
+
+        # First layer: node_features → hidden_dim
+        mlp0 = nn.Sequential(
+            nn.Linear(node_features, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.convs.append(GINConv(mlp0))
+        self.norms.append(_make_norm(hidden_dim))
+
+        # Subsequent layers: hidden_dim → hidden_dim
+        for _ in range(n_layers - 1):
+            mlp = nn.Sequential(
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, hidden_dim),
+            )
+            self.convs.append(GINConv(mlp))
+            self.norms.append(_make_norm(hidden_dim))
+
+        # ── Per-node head: predicts θ_x per site ────────────────────
+        self.node_head = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim // 2, 1),
+        )
+
+        # ── Per-edge head: predicts θ_zz per bond ───────────────────
+        # Uses concatenation of source + target node embeddings
+        self.edge_head = nn.Sequential(
+            nn.Linear(2 * hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+
+    def forward(self, data: Data) -> torch.Tensor:
+        """Predict bond-resolved θ = [θ_zz_edges, θ_x_nodes].
+
+        Parameters
+        ----------
+        data : Data
+            Must have x, edge_index, and edge_list (undirected edge pairs).
+            - ``edge_list``: tensor of shape [n_edges, 2] with unique undirected
+              edges (i < j). Used for θ_zz predictions.
+            - ``batch``: batch indices (for batched graphs).
+
+        Returns
+        -------
+        torch.Tensor of shape [batch_size, n_edges + n_nodes]
+            Concatenated [θ_zz_per_edge, θ_x_per_node] for each graph.
+            When batch_size=1, shape is [1, 2N-1] for chain_1d.
+        """
+        x, edge_index = data.x, data.edge_index
+
+        if hasattr(data, "batch") and data.batch is not None:
+            batch = data.batch
+        else:
+            batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
+
+        # ── Message passing ──────────────────────────────────────────
+        for conv, norm in zip(self.convs, self.norms, strict=False):
+            x = conv(x, edge_index)
+            x = norm(x)
+            x = torch.relu(x)
+
+        # ── Per-node θ_x predictions ─────────────────────────────────
+        theta_x = self.node_head(x).squeeze(-1)  # [total_nodes]
+
+        # ── Per-edge θ_zz predictions ────────────────────────────────
+        edge_list = data.edge_list  # [n_edges_total, 2] undirected
+        src_emb = x[edge_list[:, 0]]  # [n_edges_total, hidden]
+        tgt_emb = x[edge_list[:, 1]]  # [n_edges_total, hidden]
+        edge_emb = torch.cat([src_emb, tgt_emb], dim=-1)
+        theta_zz = self.edge_head(edge_emb).squeeze(-1)  # [n_edges_total]
+
+        # ── Reassemble per-graph: [θ_zz, θ_x] ───────────────────────
+        # For single graph (no batching), just concatenate
+        if batch.max() == 0:
+            return torch.cat([theta_zz, theta_x], dim=-1).unsqueeze(0)
+
+        # Batched: assemble per graph
+        outputs = []
+        for g in range(batch.max().item() + 1):
+            node_mask = batch == g
+            edge_mask = data.edge_batch == g if hasattr(data, "edge_batch") else None
+
+            if edge_mask is None:
+                # Infer edge_batch from node batch
+                edge_mask = batch[edge_list[:, 0]] == g
+
+            g_theta_zz = theta_zz[edge_mask]
+            g_theta_x = theta_x[node_mask]
+            outputs.append(torch.cat([g_theta_zz, g_theta_x], dim=-1))
+
+        # Pad to max length for batching (needed for loss computation)
+        max_len = max(o.size(0) for o in outputs)
+        padded = torch.zeros(len(outputs), max_len, device=x.device)
+        for i, o in enumerate(outputs):
+            padded[i, : o.size(0)] = o
+
+        return padded
+
+
+def build_bond_resolved_graph(
+    lattice: "LatticeConfig",
+    h_value: float,
+    theta_opt: np.ndarray | None = None,
+    n_feature: bool = True,
+) -> Data:
+    """Build a single graph for bond-resolved MPNN prediction.
+
+    Parameters
+    ----------
+    lattice : LatticeConfig
+        Lattice with edges defined.
+    h_value : float
+        Transverse field value.
+    theta_opt : np.ndarray | None
+        Target θ_opt vector [θ_zz_edges, θ_x_nodes]. None for inference.
+    n_feature : bool
+        Include N/100 as third node feature.
+
+    Returns
+    -------
+    Data
+        Graph with x, edge_index, edge_list, and optionally y.
+    """
+    builder = HamiltonianBuilder()
+    edge_index_np, coord = builder.build_graph_data(lattice)
+    edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+
+    N = lattice.n_qubits
+    h_feat = np.full(N, float(h_value))
+    cols = [h_feat, coord.astype(float)]
+    if n_feature:
+        cols.append(np.full(N, N / 100.0))
+
+    x = torch.tensor(np.stack(cols, axis=1), dtype=torch.float32)
+
+    # Undirected edge list (i < j) for θ_zz prediction
+    edges_unique = np.array(sorted(lattice.edges))
+    edge_list = torch.tensor(edges_unique, dtype=torch.long)
+
+    data = Data(x=x, edge_index=edge_index, edge_list=edge_list)
+    data.n_nodes = N
+    data.n_edges_unique = len(edges_unique)
+
+    if theta_opt is not None:
+        data.y = torch.tensor(theta_opt, dtype=torch.float32)
+
+    return data
+
+
+def train_bond_resolved_mpnn(
+    model: BondResolvedMPNN,
+    dataset: list[Data],
+    n_epochs: int = 8000,
+    lr: float = 1e-3,
+    patience: int = 300,
+    seed: int = 42,
+) -> dict:
+    """Train the BondResolvedMPNN with per-node/per-edge MSE loss.
+
+    Parameters
+    ----------
+    model : BondResolvedMPNN
+    dataset : list[Data]
+        Training graphs with `y` targets [θ_zz, θ_x].
+    n_epochs : int
+    lr : float
+    patience : int
+        Scheduler patience for ReduceLROnPlateau.
+    seed : int
+
+    Returns
+    -------
+    dict with training metrics.
+    """
+    if len(dataset) < 3:
+        raise ValueError(f"Need ≥3 training points, got {len(dataset)}.")
+
+    import torch.nn.functional as F
+
+    torch.manual_seed(seed)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, patience=patience, factor=0.5, min_lr=1e-6
+    )
+
+    mse_history: list[float] = []
+    zz_loss_history: list[float] = []
+    x_loss_history: list[float] = []
+
+    model.train()
+    for epoch in range(n_epochs):
+        total_loss = 0.0
+        total_zz_loss = 0.0
+        total_x_loss = 0.0
+
+        for data in dataset:
+            optimizer.zero_grad()
+            pred = model(data).squeeze(0)  # [n_edges + n_nodes]
+            target = data.y
+
+            n_e = data.n_edges_unique
+            loss_zz = F.mse_loss(pred[:n_e], target[:n_e])
+            loss_x = F.mse_loss(pred[n_e:], target[n_e:])
+            loss = loss_zz + loss_x
+
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+            total_zz_loss += loss_zz.item()
+            total_x_loss += loss_x.item()
+
+        avg_loss = total_loss / len(dataset)
+        mse_history.append(avg_loss)
+        zz_loss_history.append(total_zz_loss / len(dataset))
+        x_loss_history.append(total_x_loss / len(dataset))
+        scheduler.step(avg_loss)
+
+        if (epoch + 1) % 1000 == 0:
+            logger.info(
+                f"  Epoch {epoch + 1}: MSE={avg_loss:.2e} "
+                f"(ZZ={total_zz_loss / len(dataset):.2e}, "
+                f"X={total_x_loss / len(dataset):.2e})"
+            )
+
+    return {
+        "mse_history": mse_history,
+        "zz_loss_history": zz_loss_history,
+        "x_loss_history": x_loss_history,
+        "final_mse": mse_history[-1] if mse_history else float("inf"),
+        "final_zz_mse": zz_loss_history[-1] if zz_loss_history else float("inf"),
+        "final_x_mse": x_loss_history[-1] if x_loss_history else float("inf"),
+        "stopped_early": False,
+        "stop_reason": "completed",
+    }

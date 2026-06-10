@@ -633,8 +633,8 @@ class TestScalingAnalyzer:
             validate_scaling_law,
         )
 
-        # N=40: predicted h_min = 1.0 + 0.020 * 40^1.31 ≈ 3.51
-        # Use h_values starting at 3.5 so actual_h_min ≈ predicted
+        # N=40: predicted h_min = 1.5 + 0.020 * 40^1.31 ≈ 4.01
+        # Use h_values starting at 4.0 so actual_h_min ≈ predicted
         run = ScalingRunSummary(
             n_qubits=40,
             topology="chain_1d",
@@ -643,7 +643,7 @@ class TestScalingAnalyzer:
             precision=0.005,
             seed=42,
             p_layers=1,
-            h_values=[3.5, 4.0, 4.5],
+            h_values=[4.0, 4.5, 5.0],
             phase1_time_s=10,
             phase2_time_s=100,
             total_time_s=110,
@@ -655,7 +655,7 @@ class TestScalingAnalyzer:
             min_de_gap=0.001,
             per_h_results=[
                 ScalingPointResult(
-                    h=3.5,
+                    h=4.0,
                     vqe_energy=-1.5,
                     dmrg_energy=-1.5,
                     gap=0.4,
@@ -664,7 +664,7 @@ class TestScalingAnalyzer:
                     passed=True,
                 ),
                 ScalingPointResult(
-                    h=4.0,
+                    h=4.5,
                     vqe_energy=-1.5,
                     dmrg_energy=-1.5,
                     gap=0.4,
@@ -673,7 +673,7 @@ class TestScalingAnalyzer:
                     passed=True,
                 ),
                 ScalingPointResult(
-                    h=4.5,
+                    h=5.0,
                     vqe_energy=-1.5,
                     dmrg_energy=-1.5,
                     gap=0.4,
@@ -685,7 +685,7 @@ class TestScalingAnalyzer:
         )
         validation = validate_scaling_law(run)
         assert validation.n_qubits == 40
-        assert validation.actual_h_min == 3.5
+        assert validation.actual_h_min == 4.0
         assert validation.within_tolerance is True
         assert validation.prediction_error is not None
         assert validation.prediction_error < 0.5

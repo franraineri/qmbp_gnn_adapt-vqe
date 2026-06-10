@@ -942,7 +942,7 @@ def save_qem_samples(samples: list[QEMSample], path: Path | str) -> None:
         serializable.append(d)
 
     with open(path, "w") as f:
-        json.dump(serializable, f, indent=2)
+        json.dump(serializable, f, indent=2, default=str)
     logger.info(f"[gnn_qem] Saved {len(samples)} samples to {path}")
 
 

@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""Task 2.1: Extract θ_opt(h) trajectories from existing pipeline results.
+"""Task 2.1: Extract θ_opt(h) trajectories from ALL pipeline/scaling results.
 
-Scans results/thesis/ for pipeline_run_*.json and noisy_3mode_*.json files
-containing phase12_data with theta_opt arrays.
+Scans:
+  - results/thesis/ for pipeline_run_*.json and noisy_3mode_*.json files
+  - results/scaling/scaling_N*.json for MPS VQE descending sweeps (N=40-200)
+  - results/scaling/scaling_N120_full_sweep.json for N=120 rigorous sweep
 
 Groups by (topology, n_qubits, p_layers, seed) and saves to
 analysis/raw_data/theta_trajectories.json.
 
 Usage:
     python scripts/analysis/extract_theta_trajectories.py
+    python scripts/analysis/extract_theta_trajectories.py --include-scaling
+    python scripts/analysis/extract_theta_trajectories.py --only-scaling
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import sys
@@ -25,6 +30,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 RESULTS_DIR = ROOT / "results" / "thesis"
+SCALING_DIR = ROOT / "results" / "scaling"
 OUTPUT_FILE = ROOT / "analysis" / "raw_data" / "theta_trajectories.json"
 
 
@@ -116,6 +122,127 @@ def scan_results() -> list[dict]:
     return trajectories
 
 
+def scan_scaling_results() -> list[dict]:
+    """Scan results/scaling/ for θ_opt trajectories from MPS-VQE runs.
+
+    Handles two formats:
+    1. scaling_N*_*.json (run_scaling_validation.py output):
+       vqe_results[seed_idx].results[h_idx].theta_opt
+    2. scaling_N120_full_sweep.json (N=120 sweep):
+       per_point[i].theta_opt (sorted by seed then h descending)
+
+    Returns list of trajectory dicts compatible with theta_trajectories.json schema.
+    """
+    if not SCALING_DIR.exists():
+        return []
+
+    trajectories: list[dict] = []
+    seen_keys: set[str] = set()
+
+    # ── Format 1: scaling_N*_*.json (run_scaling_validation.py) ──────
+    for filepath in sorted(SCALING_DIR.glob("scaling_N*_*.json")):
+        if "full_sweep" in filepath.name:
+            continue  # Handle separately below
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        if data.get("experiment") != "mps_scaling_validation":
+            continue
+
+        meta = data.get("metadata", {})
+        n_qubits = meta.get("n", 0)
+        topology = meta.get("topology", "chain_1d")
+        p_layers = meta.get("p_layers", 1)
+        vqe_results = data.get("vqe_results", [])
+
+        for seed_run in vqe_results:
+            seed = seed_run.get("seed", 42)
+            results = seed_run.get("results", [])
+
+            # Only include if theta_opt is present
+            valid_points = [
+                r for r in results
+                if r.get("theta_opt") and len(r["theta_opt"]) > 0
+            ]
+            if len(valid_points) < 3:
+                continue
+
+            h_values = [p["h"] for p in valid_points]
+            theta_opt = [p["theta_opt"] for p in valid_points]
+
+            key = f"{topology}_{n_qubits}_p{p_layers}_s{seed}_{len(valid_points)}_{h_values[0]:.2f}"
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+
+            trajectories.append({
+                "topology": topology,
+                "n_qubits": n_qubits,
+                "p_layers": p_layers,
+                "seed": seed,
+                "h_values": h_values,
+                "theta_opt": theta_opt,
+                "n_points": len(valid_points),
+                "n_params": len(theta_opt[0]),
+                "mean_fidelity": None,
+                "source_file": str(filepath.relative_to(ROOT)),
+                "source_type": "scaling_validation",
+            })
+
+    # ── Format 2: scaling_N120_full_sweep.json ───────────────────────
+    sweep_file = SCALING_DIR / "scaling_N120_full_sweep.json"
+    if sweep_file.exists():
+        try:
+            with open(sweep_file) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            data = None
+
+        if data and data.get("experiment") == "N120_full_sweep":
+            n_qubits = data.get("n_qubits", 120)
+            seeds = data.get("seeds", [42, 43, 44])
+            per_point = data.get("per_point", [])
+
+            # Group by seed
+            from collections import defaultdict
+            by_seed: dict[int, list[dict]] = defaultdict(list)
+            for pt in per_point:
+                if pt.get("theta_opt") and len(pt["theta_opt"]) > 0:
+                    by_seed[pt["seed"]].append(pt)
+
+            for seed, points in by_seed.items():
+                if len(points) < 3:
+                    continue
+                # Sort by h descending (matches sweep order)
+                points.sort(key=lambda p: p["h"], reverse=True)
+                h_values = [p["h"] for p in points]
+                theta_opt = [p["theta_opt"] for p in points]
+
+                key = f"chain_1d_{n_qubits}_p1_s{seed}_{len(points)}_{h_values[0]:.2f}"
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+
+                trajectories.append({
+                    "topology": "chain_1d",
+                    "n_qubits": n_qubits,
+                    "p_layers": 1,
+                    "seed": seed,
+                    "h_values": h_values,
+                    "theta_opt": theta_opt,
+                    "n_points": len(points),
+                    "n_params": len(theta_opt[0]),
+                    "mean_fidelity": None,
+                    "source_file": str(sweep_file.relative_to(ROOT)),
+                    "source_type": "n120_full_sweep",
+                })
+
+    return trajectories
+
+
 def filter_best_trajectories(trajectories: list[dict]) -> list[dict]:
     """Keep only the best trajectory per (topology, n_qubits, p_layers, seed).
 
@@ -142,13 +269,38 @@ def filter_best_trajectories(trajectories: list[dict]) -> list[dict]:
 
 def main() -> None:
     """Extract, filter, and save theta trajectories."""
+    parser = argparse.ArgumentParser(description="Extract θ_opt(h) trajectories")
+    parser.add_argument(
+        "--include-scaling", action="store_true", default=True,
+        help="Include MPS scaling results (N=40-200). Default: True.",
+    )
+    parser.add_argument(
+        "--only-scaling", action="store_true",
+        help="Only scan scaling results (skip thesis/ pipeline data).",
+    )
+    args = parser.parse_args()
+
     logger.info("=" * 60)
     logger.info("Task 2.1: Extract θ_opt(h) trajectories")
     logger.info("=" * 60)
 
-    logger.info(f"\nScanning: {RESULTS_DIR}")
-    all_trajectories = scan_results()
-    logger.info(f"  Found {len(all_trajectories)} raw trajectories")
+    all_trajectories: list[dict] = []
+
+    # Scan thesis pipeline results (unless --only-scaling)
+    if not args.only_scaling:
+        logger.info(f"\nScanning thesis data: {RESULTS_DIR}")
+        thesis_trajs = scan_results()
+        logger.info(f"  Found {len(thesis_trajs)} thesis trajectories")
+        all_trajectories.extend(thesis_trajs)
+
+    # Scan scaling results (always unless disabled)
+    if args.include_scaling or args.only_scaling:
+        logger.info(f"\nScanning scaling data: {SCALING_DIR}")
+        scaling_trajs = scan_scaling_results()
+        logger.info(f"  Found {len(scaling_trajs)} scaling trajectories")
+        all_trajectories.extend(scaling_trajs)
+
+    logger.info(f"\n  Total raw: {len(all_trajectories)} trajectories")
 
     # Filter to best per config
     best = filter_best_trajectories(all_trajectories)
@@ -162,11 +314,17 @@ def main() -> None:
     for topo, count in sorted(topo_counts.items()):
         logger.info(f"    {topo}: {count} trajectories")
 
-    # Summary by (topology, p_layers)
+    # Summary by (topology, n_qubits, p_layers)
     config_counts = Counter((t["topology"], t["n_qubits"], t["p_layers"]) for t in best)
     logger.info("\n  Per-config breakdown:")
     for (topo, nq, p), count in sorted(config_counts.items()):
         logger.info(f"    {topo} N={nq} p={p}: {count} seeds")
+
+    # Summary by source type
+    source_types = Counter(t.get("source_type", "thesis_pipeline") for t in best)
+    logger.info("\n  Per-source breakdown:")
+    for src, count in sorted(source_types.items()):
+        logger.info(f"    {src}: {count}")
 
     # Save output
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -174,13 +332,18 @@ def main() -> None:
         "metadata": {
             "n_trajectories": len(best),
             "topologies": sorted(set(t["topology"] for t in best)),
-            "source_dir": str(RESULTS_DIR.relative_to(ROOT)),
+            "n_values": sorted(set(t["n_qubits"] for t in best)),
+            "source_dirs": [
+                str(RESULTS_DIR.relative_to(ROOT)),
+                str(SCALING_DIR.relative_to(ROOT)),
+            ],
+            "includes_scaling": args.include_scaling or args.only_scaling,
         },
         "trajectories": best,
     }
 
     with open(OUTPUT_FILE, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, indent=2, default=str)
 
     logger.info(f"\n  Saved to: {OUTPUT_FILE.relative_to(ROOT)}")
     logger.info("  Done.")

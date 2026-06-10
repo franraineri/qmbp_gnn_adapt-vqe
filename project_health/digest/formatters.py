@@ -16,8 +16,11 @@ from typing import Any
 from project_health.digest.models import (
     CrossTopologyResult,
     ExperimentResult,
+    ModeComparisonResult,
+    N120SweepResult,
     NoiselessResult,
     NoisyResult,
+    ScalingResult,
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -819,3 +822,184 @@ def format_cross_topology_text(results: list[CrossTopologyResult], verbose: bool
         lines.append("")
 
     return "\n".join(lines) + "\n"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Scaling results formatter
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def format_scaling_text(
+    scaling: list[ScalingResult],
+    mode_comparison: ModeComparisonResult | None = None,
+    n120_sweep: N120SweepResult | None = None,
+    verbose: bool = False,
+) -> str:
+    """Format MPS scaling validation results as a text table.
+
+    Includes:
+    - Standard scaling validation runs (N=40/50/80 with seeds)
+    - Mode comparison (deterministic vs stochastic)
+    - N=120 rigorous sweep
+    """
+    lines: list[str] = []
+
+    # ── Standard scaling results ──────────────────────────────────────
+    if scaling:
+        lines.append("  ── MPS Scaling Validation Runs ──")
+        lines.append(f"  {len(scaling)} result files scanned")
+        lines.append("")
+
+        # Aggregate by N
+        by_n: dict[int, list[ScalingResult]] = {}
+        for r in scaling:
+            by_n.setdefault(r.n_qubits, []).append(r)
+
+        # Summary table
+        lines.append(
+            f"  {'N':<5} {'Seeds':<8} {'Pass':<8} "
+            f"{'Mean ΔE/gap':<13} {'Max ΔE/gap':<12} {'Total Time':<12} {'Status'}"
+        )
+        lines.append(f"  {'─' * 70}")
+
+        for n in sorted(by_n.keys()):
+            runs = by_n[n]
+            # Pick the best representative run per N:
+            # Prefer multi-seed > latest timestamp (encoded in filename)
+            best = max(
+                runs,
+                key=lambda r: (
+                    r.n_total,  # More data points = better
+                    Path(r.source_file).stem,  # Later timestamp sorts higher
+                ),
+            )
+            n_seeds = best.n_total // max(len(best.h_values), 1)
+            status = "✅ PASS" if best.all_passed else "❌ FAIL"
+            lines.append(
+                f"  {n:<5} {n_seeds:<8} "
+                f"{best.n_pass}/{best.n_total:<5} "
+                f"{best.mean_de_gap * 100:>8.4f}%   "
+                f"{best.max_de_gap * 100:>8.4f}%   "
+                f"{_format_time(best.total_time_s):<12} {status}"
+            )
+
+            if verbose:
+                lines.append(
+                    f"       h-values: {[f'{h:.2f}' for h in best.h_values]}"
+                )
+                lines.append(
+                    f"       strategy={best.strategy}, χ={best.chi_max}, "
+                    f"precision={best.precision}"
+                )
+                lines.append(f"       file: {Path(best.source_file).name}")
+
+        lines.append("")
+
+        # Scaling law validation
+        lines.append("  ── Scaling Law: h_min = 1.5 + 0.020·N^1.31 ──")
+        for n in sorted(by_n.keys()):
+            best = max(
+                by_n[n],
+                key=lambda r: (r.n_total, Path(r.source_file).stem),
+            )
+            h_min_pred = 1.5 + 0.020 * n**1.31
+            lowest_h = min(best.h_values) if best.h_values else 0
+            margin = lowest_h - h_min_pred
+            icon = "✅" if best.all_passed and margin >= 0 else "⚠️"
+            lines.append(
+                f"  {icon} N={n:>3}: h_min_pred={h_min_pred:.2f}, "
+                f"lowest_h_tested={lowest_h:.2f} (margin=+{margin:.2f})"
+            )
+        lines.append("")
+
+    # ── N=120 sweep ───────────────────────────────────────────────────
+    if n120_sweep:
+        lines.append("  ── N=120 Rigorous Sweep ──")
+        status = "✅ PASS" if n120_sweep.scaling_law_validated else "❌ FAIL"
+        lines.append(f"  Status: {status} ({n120_sweep.n_pass}/{n120_sweep.n_total})")
+        lines.append(
+            f"  h_min_safe = {n120_sweep.h_min_safe:.4f} "
+            f"(formula: 1.5 + 0.020·120^1.31)"
+        )
+        lines.append(f"  h-values: {n120_sweep.h_values}")
+        lines.append(f"  Seeds: {n120_sweep.seeds}")
+        lines.append(
+            f"  Mean ΔE/gap: {n120_sweep.mean_de_gap * 100:.4f}% ± "
+            f"{n120_sweep.std_de_gap * 100:.4f}%"
+        )
+        lines.append(f"  Max ΔE/gap: {n120_sweep.max_de_gap * 100:.4f}%")
+        if n120_sweep.bootstrap_ci_95:
+            lo, hi = n120_sweep.bootstrap_ci_95
+            lines.append(f"  Bootstrap 95% CI: [{lo * 100:.4f}%, {hi * 100:.4f}%]")
+        lines.append(f"  Total time: {_format_time(n120_sweep.total_time_s)}")
+        lines.append("")
+
+    # ── Mode comparison ───────────────────────────────────────────────
+    if mode_comparison:
+        lines.append("  ── MPS Mode Comparison (Deterministic vs Stochastic) ──")
+        consist = "✅ CONSISTENT" if mode_comparison.modes_consistent else "⚠️ DIVERGENT"
+        lines.append(f"  Modes: {consist}")
+        lines.append(
+            f"  Mean speedup (det over sto): {mode_comparison.mean_speedup:.1f}×"
+        )
+        lines.append(
+            f"  Mean energy difference: {mode_comparison.mean_energy_diff:.6f}"
+        )
+        lines.append(
+            f"  Deterministic all pass: {mode_comparison.all_det_pass}, "
+            f"Stochastic all pass: {mode_comparison.all_sto_pass}"
+        )
+        lines.append("")
+
+        if verbose and mode_comparison.results:
+            lines.append(
+                f"  {'N':<5} {'h':<6} {'Det ΔE/gap':<12} {'Sto ΔE/gap':<12} "
+                f"{'Speedup':<10} {'Energy Δ'}"
+            )
+            lines.append(f"  {'─' * 60}")
+            for r in mode_comparison.results:
+                det = r.get("deterministic", {})
+                sto = r.get("stochastic", {})
+                comp = r.get("comparison", {})
+                lines.append(
+                    f"  {r['N']:<5} {r['h']:<6.1f} "
+                    f"{det.get('de_gap', 0) * 100:>8.4f}%   "
+                    f"{sto.get('de_gap', 0) * 100:>8.4f}%   "
+                    f"{comp.get('speedup_factor', 0):>6.1f}×   "
+                    f"{comp.get('energy_diff', 0):.6f}"
+                )
+            lines.append("")
+
+    # ── Overall thesis summary ────────────────────────────────────────
+    if scaling or n120_sweep:
+        lines.append("  ── Thesis Summary (Scaling) ──")
+        all_n = set()
+        if scaling:
+            for r in scaling:
+                if r.all_passed:
+                    all_n.add(r.n_qubits)
+        if n120_sweep and n120_sweep.scaling_law_validated:
+            all_n.add(120)
+        all_n_sorted = sorted(all_n)
+        lines.append(
+            f"  Validated system sizes: N ∈ {{{', '.join(str(n) for n in all_n_sorted)}}}"
+        )
+        if all_n_sorted:
+            lines.append(
+                f"  Range: N={min(all_n_sorted)} to N={max(all_n_sorted)}"
+            )
+        lines.append(
+            "  Scaling law: h_min = 1.5 + 0.020·N^1.31 "
+            "(corrected formula, +0.50 offset from original)"
+        )
+        if mode_comparison and mode_comparison.modes_consistent:
+            lines.append(
+                f"  MPS evaluation: deterministic mode validated "
+                f"({mode_comparison.mean_speedup:.0f}× faster, consistent results)"
+            )
+        lines.append("")
+
+    if not scaling and not n120_sweep and not mode_comparison:
+        lines.append("  No MPS scaling results found.\n")
+
+    return "\n".join(lines)

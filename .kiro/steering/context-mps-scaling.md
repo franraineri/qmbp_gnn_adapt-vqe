@@ -20,14 +20,26 @@ fileMatchPattern: "**/mps_backend*,**/scaling/**,**/run_mps*,**/binnacle-mps*"
 ```python
 from qmbp_simulation.execution import MPSBackend
 
-# MPSBackend uses strategy="aer_mps" for N>22
-# For N>63: save_expectation_value bypass (BackendEstimatorV2 Target limit=63)
-backend = MPSBackend(strategy="aer_mps", chi_max=64)
+# Default: deterministic mode (exact, 12ms/eval, no shot noise)
+backend = MPSBackend(strategy="aer_mps", chi_max=64, seed=42)
+
+# Legacy stochastic mode (backward-compatible, 6s/eval, σ≈precision)
+backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=False, precision=0.005)
 
 from qmbp_simulation import VQEOptimizer, VQEConfig
-# COBYLA mandatory for shot-based MPS (L-BFGS-B fails with finite diff + shot noise)
-config = VQEConfig(optimizer="COBYLA", n_restarts=3, maxiter=100)
+# COBYLA works with both modes. L-BFGS-B only with deterministic=True (no shot noise).
+config = VQEConfig(method="COBYLA", n_restarts=3, maxiter=500)
 ```
+
+## MPS Evaluation Modes (since 2026-06-10)
+
+| Mode | `deterministic=` | Per-eval | Accuracy | Shot noise | Use case |
+|------|:-:|:-:|:-:|:-:|---------|
+| **Exact** | `True` (default) | ~12ms | 10⁻¹⁴ | None | VQE loops, all new experiments |
+| Stochastic | `False` | ~6s | σ≈0.005 | Yes | Reproduce pre-2026-06-10 results |
+
+New results include `metadata.mps_evaluation_mode = "deterministic"` for traceability.
+Results before 2026-06-10 implicitly used stochastic mode (no field present).
 
 ## Configuration Quick Reference
 

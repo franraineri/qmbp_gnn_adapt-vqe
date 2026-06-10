@@ -23,6 +23,8 @@ from typing import Any
 from project_health.digest.models import (
     CrossTopologyResult,
     ExperimentResult,
+    ModeComparisonResult,
+    N120SweepResult,
     NoiselessResult,
     NoisyResult,
     ScalingResult,
@@ -234,6 +236,76 @@ class ResultScanner:
             total_time_s=timing.get("total_s", 0.0),
             per_h_de_gap=per_h_de_gap,
             per_h_passed=per_h_passed,
+        )
+
+    # ── Mode comparison + N=120 sweep results ─────────────────────────────
+
+    def scan_mode_comparison(self) -> ModeComparisonResult | None:
+        """Scan for MPS mode comparison result (deterministic vs stochastic).
+
+        Looks for ``mps_mode_comparison.json`` in ``results/scaling/``.
+        """
+        scaling_dir = self.root / "scaling"
+        if not scaling_dir.exists():
+            scaling_dir = Path("results/scaling")
+        if not scaling_dir.exists():
+            return None
+
+        path = scaling_dir / "mps_mode_comparison.json"
+        if not path.exists():
+            return None
+
+        data = _load_json(path)
+        if not data or data.get("experiment") != "mps_mode_comparison":
+            return None
+
+        summary = data.get("summary", {})
+        return ModeComparisonResult(
+            source_file=str(path),
+            results=data.get("results", []),
+            all_det_pass=summary.get("all_det_pass", False),
+            all_sto_pass=summary.get("all_sto_pass", False),
+            mean_speedup=summary.get("mean_speedup", 0.0),
+            mean_energy_diff=summary.get("mean_energy_diff", 0.0),
+            modes_consistent=summary.get("modes_consistent", False),
+        )
+
+    def scan_n120_sweep(self) -> N120SweepResult | None:
+        """Scan for N=120 full VQE sweep result.
+
+        Looks for ``scaling_N120_full_sweep.json`` in ``results/scaling/``.
+        """
+        scaling_dir = self.root / "scaling"
+        if not scaling_dir.exists():
+            scaling_dir = Path("results/scaling")
+        if not scaling_dir.exists():
+            return None
+
+        path = scaling_dir / "scaling_N120_full_sweep.json"
+        if not path.exists():
+            return None
+
+        data = _load_json(path)
+        if not data or data.get("experiment") != "N120_full_sweep":
+            return None
+
+        summary = data.get("summary", {})
+        scaling_law = data.get("scaling_law", {})
+        return N120SweepResult(
+            source_file=str(path),
+            n_qubits=data.get("n_qubits", 120),
+            h_min_safe=data.get("h_min_safe", 0.0),
+            h_values=data.get("h_values", []),
+            seeds=data.get("seeds", []),
+            total_time_s=data.get("total_time_s", 0.0),
+            n_total=summary.get("n_total", 0),
+            n_pass=summary.get("n_pass", 0),
+            pass_rate=summary.get("pass_rate", 0.0),
+            mean_de_gap=summary.get("mean_de_gap", 0.0),
+            max_de_gap=summary.get("max_de_gap", 0.0),
+            std_de_gap=summary.get("std_de_gap", 0.0),
+            bootstrap_ci_95=summary.get("bootstrap_ci_95_mean_de_gap", []),
+            scaling_law_validated=scaling_law.get("validated", False),
         )
 
     # ── Cross-topology transfer results ──────────────────────────────────

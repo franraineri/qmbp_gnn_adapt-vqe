@@ -253,7 +253,7 @@ def main() -> int:
     if args.target_h_values:
         h_test = sorted(args.target_h_values, reverse=True)
     else:
-        h_min = 1.0 + 0.020 * n_target**1.31
+        h_min = 1.5 + 0.020 * n_target**1.31  # Corrected formula
         h_test = np.linspace(h_min + 1.5, h_min + 0.5, 5).tolist()
 
     logger.info("=" * 60)
@@ -371,6 +371,7 @@ def main() -> int:
                 "n_model_params": n_model_params,
                 "n_training_points": len(dataset),
                 "de_gap_threshold": 0.05,
+                "mps_evaluation_mode": "deterministic",
             },
             "environment": {
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),

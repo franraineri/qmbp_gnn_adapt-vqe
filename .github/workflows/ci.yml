@@ -35,5 +35,8 @@ jobs:
       - name: Fast tests
         run: make test
 
+      - name: MPS backend cache tests
+        run: PYTHONPATH=src python -m pytest tests/test_mps_backend_cache.py -v
+
       - name: Smoke test (end-to-end pipeline)
         run: make smoke-test

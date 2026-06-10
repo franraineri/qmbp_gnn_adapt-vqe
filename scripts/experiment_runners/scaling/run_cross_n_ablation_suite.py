@@ -172,7 +172,7 @@ def _deploy_and_evaluate(
 
 def _compute_h_test(n_target: int) -> list[float]:
     """Auto-compute h-test values in valid regime for target N."""
-    h_min = 1.0 + 0.020 * n_target**1.31
+    h_min = 1.5 + 0.020 * n_target**1.31  # Corrected formula
     return np.linspace(h_min + 1.5, h_min + 0.5, 5).tolist()
 
 

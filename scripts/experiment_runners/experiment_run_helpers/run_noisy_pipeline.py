@@ -340,7 +340,7 @@ def main() -> None:
     timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     output_path = output_dir / f"noisy_3mode_{timestamp}.json"
     with open(output_path, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, indent=2, default=str)
     print(f"\n  Results saved to: {output_path}")
 
 

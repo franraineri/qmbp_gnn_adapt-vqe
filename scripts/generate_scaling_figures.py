@@ -153,11 +153,11 @@ def fig_scaling_law(
 
     fig, ax = plt.subplots(1, 1, figsize=(7, 5))
 
-    # Scaling law: h_min = 1.0 + 0.020 * N^1.31
+    # Scaling law: h_min = 1.5 + 0.020 * N^1.31 (corrected formula)
     n_range = np.linspace(6, 100, 200)
-    h_min_pred = 1.0 + 0.020 * n_range**1.31
+    h_min_pred = 1.5 + 0.020 * n_range**1.31
 
-    ax.plot(n_range, h_min_pred, "b-", linewidth=2, label=r"$h_{min} = 1.0 + 0.020 \cdot N^{1.31}$")
+    ax.plot(n_range, h_min_pred, "b-", linewidth=2, label=r"$h_{min} = 1.5 + 0.020 \cdot N^{1.31}$")
 
     # Data points: lowest h tested that still passes
     n_vals = []
@@ -180,7 +180,7 @@ def fig_scaling_law(
 
     # Predicted h_min for those N values
     for n_val in n_vals:
-        h_pred = 1.0 + 0.020 * n_val**1.31
+        h_pred = 1.5 + 0.020 * n_val**1.31
         ax.scatter(
             n_val,
             h_pred,
@@ -194,7 +194,7 @@ def fig_scaling_law(
 
     # Connect predicted to actual with arrows
     for n_val, h_actual in zip(n_vals, h_lowest_pass, strict=False):
-        h_pred = 1.0 + 0.020 * n_val**1.31
+        h_pred = 1.5 + 0.020 * n_val**1.31
         offset = h_actual - h_pred
         if abs(offset) > 0.01:
             ax.annotate(

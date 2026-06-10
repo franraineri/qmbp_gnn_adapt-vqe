@@ -13,6 +13,8 @@ Sections:
     2. MPNN Training: Train GNN (norm_type=none) on bond-resolved θ_opt
     3. Deploy: Evaluate on midpoint h-values (intra-N interpolation test)
     4. Necessity: Compare GNN prediction vs random init → GNN saves >10× evals
+    5. Dense Sweep: Multi-seed × dense h-grid (3 seeds × 15 h-pts = 45 pts)
+    6. BondResolvedMPNN Training: Per-node/per-edge architecture for cross-N
 
 Prerequisites (skip Section 1 if data exists):
     python scripts/.../run_e3_bond_resolved_scaling.py --section 0 1 2
@@ -24,6 +26,12 @@ Usage:
     # Skip VQE sweep, use existing data
     python scripts/.../run_bond_resolved_cross_n.py --section 2 3 4 \\
         --sweep-data results/bond_resolved_scaling/sweep_N40_chain_1d_*.json
+
+    # Dense data generation + per-node MPNN (Mejora 1)
+    python scripts/.../run_bond_resolved_cross_n.py --section 5 6
+
+    # Dense + full pipeline (reuses existing sweep if available)
+    python scripts/.../run_bond_resolved_cross_n.py --section 5 6 --seeds 42 43 44
 
     # Dry run (list sections)
     python scripts/.../run_bond_resolved_cross_n.py --dry-run
@@ -63,8 +71,8 @@ CHI_MAX = 64
 PRECISION = 0.005
 STRATEGY = "aer_mps"
 
-# Valid regime for N=40: h_min = 1.0 + 0.020 * 40^1.31 ≈ 4.01
-H_MIN_SAFE = 1.0 + 0.020 * N_QUBITS**1.31
+# Valid regime for N=40: h_min = 1.5 + 0.020 * 40^1.31 ≈ 4.01 (corrected formula)
+H_MIN_SAFE = 1.5 + 0.020 * N_QUBITS**1.31
 H_SWEEP = np.linspace(H_MIN_SAFE + 2.0, H_MIN_SAFE + 0.5, 7).tolist()
 
 
@@ -111,6 +119,26 @@ class BondResolvedCrossNRunner(ValidationRunner):
         )
         parser.add_argument(
             "--cobyla-maxiter", type=int, default=2000, help="COBYLA maxiter for VQE sweep"
+        )
+        parser.add_argument(
+            "--method",
+            type=str,
+            default="COBYLA",
+            choices=["COBYLA", "L-BFGS-B"],
+            help="VQE optimizer method (default: COBYLA). L-BFGS-B uses exact gradients.",
+        )
+        parser.add_argument(
+            "--seeds",
+            type=int,
+            nargs="+",
+            default=[42, 43, 44],
+            help="Seeds for multi-seed dense sweep (Section 5). Default: 42 43 44",
+        )
+        parser.add_argument(
+            "--n-dense-points",
+            type=int,
+            default=15,
+            help="Number of h-points per seed in dense sweep (Section 5). Default: 15",
         )
 
     def build_config(self) -> dict:
@@ -226,6 +254,18 @@ class BondResolvedCrossNRunner(ValidationRunner):
                 fn=self.section_necessity,
                 hypothesis="GNN (1 eval) beats random search (100 evals) by >5×",
             ),
+            Section(
+                id=5,
+                name="Dense Multi-Seed Sweep (3 seeds × 15 h-points)",
+                fn=self.section_dense_sweep,
+                hypothesis="≥80% of dense points converge (ΔE/gap < 5%) with warm-start",
+            ),
+            Section(
+                id=6,
+                name="BondResolvedMPNN Training (per-node/per-edge architecture)",
+                fn=self.section_train_per_node_mpnn,
+                hypothesis="Per-node MPNN achieves MSE < 5e-4 on dense training data",
+            ),
         ]
 
     # ── Section 1: VQE Sweep ─────────────────────────────────────────────────
@@ -257,7 +297,7 @@ class BondResolvedCrossNRunner(ValidationRunner):
             strategy=STRATEGY, chi_max=CHI_MAX, precision=PRECISION, seed=SEED
         )
         config = self.VQEConfig(
-            method="COBYLA",
+            method=self._args.method,
             p_layers=P_LAYERS,
             n_restarts=1,
             maxiter=self._args.cobyla_maxiter,
@@ -581,6 +621,260 @@ class BondResolvedCrossNRunner(ValidationRunner):
             "improvement_factor": float(improvement_factor),
             "gnn_is_necessary": bool(gnn_better),
             "pass": gnn_better and improvement_factor > 5.0,
+        }
+
+
+    # ── Section 5: Dense Multi-Seed Sweep ───────────────────────────────────
+
+    def section_dense_sweep(self) -> dict:
+        """Generate dense bond-resolved training data: multi-seed × many h-points."""
+        from qmbp_simulation.utils.helpers import json_dump as _json_dump
+
+        N = self._args.n_qubits
+        seeds = self._args.seeds
+        n_pts = self._args.n_dense_points
+
+        # Dense h-grid spanning valid regime
+        h_max = H_MIN_SAFE + 3.0
+        h_min = H_MIN_SAFE + 0.3
+        h_dense = np.linspace(h_max, h_min, n_pts).tolist()
+
+        logger.info(
+            f"  Dense sweep: {len(seeds)} seeds × {n_pts} h-points = "
+            f"{len(seeds) * n_pts} total (N={N}, params={self._n_params})"
+        )
+        logger.info(f"  h-range: [{h_min:.2f}, {h_max:.2f}], seeds: {seeds}")
+
+        # Check if dense data already exists (avoid re-running expensive VQE)
+        output_dir = Path("results/bond_resolved_scaling")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        existing_dense = list(output_dir.glob(f"dense_N{N}_{TOPOLOGY}_*.json"))
+
+        all_sweep_results = []
+
+        if existing_dense:
+            logger.info(f"  Found {len(existing_dense)} existing dense files, loading...")
+            for p in existing_dense:
+                with open(p) as f:
+                    d = json.load(f)
+                all_sweep_results.extend(d.get("sweep_results", []))
+            logger.info(f"  Loaded {len(all_sweep_results)} existing points")
+
+        # Determine which (seed, h) combos are missing
+        existing_keys = {(r["seed"], round(r["h"], 4)) for r in all_sweep_results}
+        needed = [
+            (seed, h)
+            for seed in seeds
+            for h in h_dense
+            if (seed, round(h, 4)) not in existing_keys
+        ]
+
+        if not needed:
+            logger.info("  All dense data already exists — skipping VQE computation")
+        else:
+            logger.info(f"  Computing {len(needed)} new VQE points...")
+
+            # Group by seed for efficient warm-start chains
+            from collections import defaultdict
+
+            by_seed = defaultdict(list)
+            for seed, h in needed:
+                by_seed[seed].append(h)
+
+            for seed, h_vals in by_seed.items():
+                h_vals_sorted = sorted(h_vals, reverse=True)
+                logger.info(f"    Seed {seed}: {len(h_vals_sorted)} h-points")
+
+                backend = self.MPSBackend(
+                    strategy=STRATEGY, chi_max=CHI_MAX, precision=PRECISION, seed=seed
+                )
+                config = self.VQEConfig(
+                    method=self._args.method,
+                    p_layers=P_LAYERS,
+                    n_restarts=1,
+                    maxiter=self._args.cobyla_maxiter,
+                    enable_callbacks=False,
+                )
+                opt = self.VQEOptimizer(config=config, backend=backend, seed=seed)
+
+                theta_prev = np.random.default_rng(seed).uniform(-0.01, 0.01, self._n_params)
+
+                for h in h_vals_sorted:
+                    t0 = time.time()
+                    lattice_h = self.make_lattice(TOPOLOGY, N, h=h)
+                    H = self.builder.build(lattice_h)
+                    qc, _ = self.spec_br.create_circuit(N, P_LAYERS, lattice_h)
+                    gt = self.solver.solve(H, lattice_h, method="dmrg")
+
+                    res = opt.optimize(H, qc, theta_prev.copy(), exact_energy=gt.ground_energy)
+                    elapsed = time.time() - t0
+                    de_gap = abs(res.energy - gt.ground_energy) / max(gt.gap, 1e-10)
+                    theta_prev = res.theta_opt.copy()
+
+                    result = {
+                        "h": float(h),
+                        "seed": int(seed),
+                        "vqe_energy": float(res.energy),
+                        "dmrg_energy": float(gt.ground_energy),
+                        "gap": float(gt.gap),
+                        "de_gap": float(de_gap),
+                        "theta_opt": res.theta_opt.tolist(),
+                        "n_iterations": res.n_iterations,
+                        "time_s": elapsed,
+                        "passed": de_gap < 0.05,
+                    }
+                    all_sweep_results.append(result)
+
+                    status = "✅" if de_gap < 0.05 else "⚠️"
+                    logger.info(
+                        f"      {status} seed={seed} h={h:.3f}: "
+                        f"ΔE/gap={de_gap:.4f} ({elapsed:.1f}s)"
+                    )
+
+            # Save dense data
+            dense_path = output_dir / f"dense_N{N}_{TOPOLOGY}_{int(time.time())}.json"
+            _json_dump(
+                {
+                    "experiment_id": self.experiment_id,
+                    "section": "dense_sweep",
+                    "n_qubits": N,
+                    "topology": TOPOLOGY,
+                    "n_params": self._n_params,
+                    "n_edges": self._n_edges,
+                    "seeds": seeds,
+                    "h_values": h_dense,
+                    "sweep_results": all_sweep_results,
+                },
+                dense_path,
+            )
+            logger.info(f"  Dense sweep saved: {dense_path}")
+
+        # Store for Section 6
+        self._dense_results = all_sweep_results
+
+        n_total = len(all_sweep_results)
+        n_pass = sum(1 for r in all_sweep_results if r.get("passed", r.get("de_gap", 1) < 0.05))
+        mean_de = float(np.mean([r["de_gap"] for r in all_sweep_results])) if n_total > 0 else 0
+
+        logger.info(f"  Dense sweep: {n_pass}/{n_total} pass, mean ΔE/gap={mean_de:.4f}")
+
+        return {
+            "n_total": n_total,
+            "n_pass": n_pass,
+            "n_seeds": len(seeds),
+            "n_h_points": n_pts,
+            "mean_de_gap": mean_de,
+            "pass": n_pass >= n_total * 0.8,
+        }
+
+    # ── Section 6: BondResolvedMPNN (Per-Node/Per-Edge) Training ──────────
+
+    def section_train_per_node_mpnn(self) -> dict:
+        """Train the per-node/per-edge BondResolvedMPNN on dense data."""
+        from qmbp_simulation.predictors import (
+            BondResolvedMPNN,
+            build_bond_resolved_graph,
+            train_bond_resolved_mpnn,
+        )
+        from qmbp_simulation.predictors import save_mpnn_checkpoint
+
+        # Use dense results if available, otherwise fall back to Section 1 data
+        if hasattr(self, "_dense_results") and self._dense_results:
+            train_data = self._dense_results
+            source = "dense_sweep"
+        elif self._sweep_results:
+            train_data = self._sweep_results
+            source = "section_1_sweep"
+        else:
+            raise RuntimeError(
+                "No training data. Run Section 1 or Section 5 first."
+            )
+
+        # Filter passing points
+        N = self._args.n_qubits
+        passing = [r for r in train_data if r.get("passed", r.get("de_gap", 1) < 0.05)]
+        if len(passing) < 5:
+            logger.warning(f"  Only {len(passing)} passing points — using all data")
+            passing = train_data
+
+        logger.info(
+            f"  Training BondResolvedMPNN: {len(passing)} pts, "
+            f"source={source}, N={N}, output=per-node/per-edge"
+        )
+
+        # Build graph dataset using the new per-node API
+        dataset = []
+        for r in passing:
+            h_val = r["h"]
+            lattice = self.make_lattice(TOPOLOGY, N, h=h_val)
+            theta_opt = np.array(r["theta_opt"])
+            graph = build_bond_resolved_graph(lattice, h_val, theta_opt=theta_opt, n_feature=True)
+            dataset.append(graph)
+
+        # Create model
+        model = BondResolvedMPNN(
+            node_features=3,
+            hidden_dim=self._args.hidden_dim,
+            n_layers=3,
+            norm_type="none",
+            dropout=0.1,
+        )
+        n_model_params = sum(p.numel() for p in model.parameters())
+        logger.info(f"  Model: {n_model_params:,} params, hidden={self._args.hidden_dim}")
+        logger.info(f"  Architecture: per-node θ_x ({N}) + per-edge θ_zz ({self._n_edges})")
+
+        # Train
+        t0 = time.time()
+        metrics = train_bond_resolved_mpnn(
+            model, dataset, n_epochs=self._args.n_epochs, lr=1e-3, patience=300, seed=SEED
+        )
+        train_time = time.time() - t0
+
+        logger.info(
+            f"  Training done: MSE={metrics['final_mse']:.2e} "
+            f"(ZZ={metrics['final_zz_mse']:.2e}, X={metrics['final_x_mse']:.2e}), "
+            f"time={train_time:.1f}s"
+        )
+
+        # Save checkpoint
+        output_dir = Path("results/bond_resolved_scaling")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        ckpt_path = output_dir / f"bond_resolved_mpnn_N{N}_{int(time.time())}.pt"
+
+        import torch
+        torch.save(
+            {
+                "state_dict": model.state_dict(),
+                "architecture": "bond_resolved_mpnn",
+                "node_features": model.node_features,
+                "hidden_dim": model.hidden_dim,
+                "n_layers": model.n_layers,
+                "norm_type": model.norm_type,
+                "n_qubits_trained": N,
+                "n_training_points": len(passing),
+                "training_metrics": {
+                    "final_mse": metrics["final_mse"],
+                    "final_zz_mse": metrics["final_zz_mse"],
+                    "final_x_mse": metrics["final_x_mse"],
+                },
+            },
+            str(ckpt_path),
+        )
+        logger.info(f"  Checkpoint saved: {ckpt_path}")
+
+        # Store for potential use by cross-N transfer script
+        self._bond_resolved_model = model
+
+        return {
+            "source": source,
+            "n_training_points": len(passing),
+            "n_model_params": n_model_params,
+            "final_mse": float(metrics["final_mse"]),
+            "final_zz_mse": float(metrics["final_zz_mse"]),
+            "final_x_mse": float(metrics["final_x_mse"]),
+            "training_time_s": train_time,
+            "checkpoint_path": str(ckpt_path),
+            "pass": metrics["final_mse"] < 5e-4,
         }
 
 

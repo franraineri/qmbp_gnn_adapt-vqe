@@ -25,6 +25,7 @@ from project_health.digest.formatters import (
     format_noisy_grouped,
     format_noisy_stats,
     format_noisy_text,
+    format_scaling_text,
 )
 from project_health.digest.models import NoiselessResult, NoisyResult
 from project_health.digest.scanner import ResultScanner
@@ -118,7 +119,7 @@ Examples:
 
     parser.add_argument(
         "--kind",
-        choices=["noiseless", "noisy", "experiment", "cross_topology", "all"],
+        choices=["noiseless", "noisy", "experiment", "cross_topology", "scaling", "all"],
         default="all",
         help="Which result kind to digest (default: all)",
     )
@@ -215,6 +216,10 @@ def main() -> None:
     if args.folder:
         _log(f"[digest] Scanning folder: {args.folder}")
         noiseless, noisy, experiments = scanner.scan_folder(args.folder)
+    elif args.kind == "scaling":
+        # Skip expensive scan_all() when only scaling is requested
+        noiseless, noisy, experiments = [], [], []
+        _log("[digest] Kind=scaling: skipping experiment/thesis scan")
     else:
         _log("[digest] Scanning all result areas...")
         noiseless, noisy, experiments = scanner.scan_all(
@@ -222,12 +227,23 @@ def main() -> None:
         )
 
     # Also scan cross-topology results (separate path: results/scaling/cross_topology/)
-    cross_topology = scanner.scan_cross_topology()
+    cross_topology = scanner.scan_cross_topology() if args.kind in ("cross_topology", "all") else []
+
+    # Also scan scaling results (MPS validation runs + mode comparison + N=120)
+    if args.kind in ("scaling", "all"):
+        scaling_results = scanner.scan_scaling()
+        mode_comparison = scanner.scan_mode_comparison()
+        n120_sweep = scanner.scan_n120_sweep()
+    else:
+        scaling_results = []
+        mode_comparison = None
+        n120_sweep = None
 
     _log(
         f"[digest] Scanned: {len(noiseless)} noiseless, "
         f"{len(noisy)} noisy, {len(experiments)} experiments, "
-        f"{len(cross_topology)} cross-topology"
+        f"{len(cross_topology)} cross-topology, "
+        f"{len(scaling_results)} scaling"
     )
 
     # Filter
@@ -260,19 +276,26 @@ def main() -> None:
             f"{len(noisy)} noisy, {len(experiments)} experiments"
         )
 
-    # Filter by kind
+    # Filter by kind (clear what's not requested)
     if args.kind == "noiseless":
-        noisy, experiments, cross_topology = [], [], []
+        noisy, experiments, cross_topology, scaling_results = [], [], [], []
+        mode_comparison, n120_sweep = None, None
         _log("[digest] Kind filter: noiseless only")
     elif args.kind == "noisy":
-        noiseless, experiments, cross_topology = [], [], []
+        noiseless, experiments, cross_topology, scaling_results = [], [], [], []
+        mode_comparison, n120_sweep = None, None
         _log("[digest] Kind filter: noisy only")
     elif args.kind == "experiment":
-        noiseless, noisy, cross_topology = [], [], []
+        noiseless, noisy, cross_topology, scaling_results = [], [], [], []
+        mode_comparison, n120_sweep = None, None
         _log("[digest] Kind filter: experiment only")
     elif args.kind == "cross_topology":
-        noiseless, noisy, experiments = [], [], []
+        noiseless, noisy, experiments, scaling_results = [], [], [], []
+        mode_comparison, n120_sweep = None, None
         _log("[digest] Kind filter: cross-topology only")
+    elif args.kind == "scaling":
+        noiseless, noisy, experiments, cross_topology = [], [], [], []
+        _log("[digest] Kind filter: scaling only")
 
     # Sort
     if args.sort:
@@ -293,7 +316,8 @@ def main() -> None:
         experiments = experiments[: args.top]
 
     # Check results
-    total = len(noiseless) + len(noisy) + len(experiments) + len(cross_topology)
+    n_scaling_total = len(scaling_results) + (1 if mode_comparison else 0) + (1 if n120_sweep else 0)
+    total = len(noiseless) + len(noisy) + len(experiments) + len(cross_topology) + n_scaling_total
     if total == 0:
         print("No results found matching the specified filters.")
         sys.exit(0)
@@ -348,11 +372,17 @@ def main() -> None:
             "noisy": [asdict(r) for r in noisy],
             "experiments": [asdict(r) for r in experiments],
             "cross_topology": [asdict(r) for r in cross_topology],
+            "scaling": [asdict(r) for r in scaling_results],
+            "mode_comparison": asdict(mode_comparison) if mode_comparison else None,
+            "n120_sweep": asdict(n120_sweep) if n120_sweep else None,
             "summary": {
                 "n_noiseless": len(noiseless),
                 "n_noisy": len(noisy),
                 "n_experiments": len(experiments),
                 "n_cross_topology": len(cross_topology),
+                "n_scaling": len(scaling_results),
+                "has_mode_comparison": mode_comparison is not None,
+                "has_n120_sweep": n120_sweep is not None,
             },
         }
         path = Path(args.json)
@@ -403,6 +433,21 @@ def main() -> None:
             sections.append(" CROSS-TOPOLOGY TRANSFER")
             sections.append("═" * 80)
             sections.append(format_cross_topology_text(cross_topology, verbose=args.verbose))
+            sections.append("")
+        if scaling_results or mode_comparison or n120_sweep:
+            n_items = len(scaling_results) + (1 if mode_comparison else 0) + (1 if n120_sweep else 0)
+            _log(f"[digest]   Formatting {n_items} scaling results")
+            sections.append("═" * 80)
+            sections.append(" MPS SCALING VALIDATION")
+            sections.append("═" * 80)
+            sections.append(
+                format_scaling_text(
+                    scaling_results,
+                    mode_comparison=mode_comparison,
+                    n120_sweep=n120_sweep,
+                    verbose=args.verbose,
+                )
+            )
             sections.append("")
         output = "\n".join(sections)
 

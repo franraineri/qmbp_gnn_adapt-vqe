@@ -23,6 +23,8 @@ from qmbp_simulation.framework.criteria import (
 
 __all__ = [
     "EXPERIMENT_CRITERIA",
+    "ModeComparisonResult",
+    "N120SweepResult",
     "REJECTION_IS_FINDING",
     "CrossTopologyResult",
     "ExperimentResult",
@@ -184,6 +186,42 @@ class ScalingResult:
     # Per-h breakdown
     per_h_de_gap: list[float] = field(default_factory=list)
     per_h_passed: list[bool] = field(default_factory=list)
+
+
+@dataclass
+class ModeComparisonResult:
+    """Deterministic vs stochastic MPS evaluation comparison."""
+
+    source_file: str
+    # Per-N results
+    results: list[dict] = field(default_factory=list)
+    # Summary
+    all_det_pass: bool = False
+    all_sto_pass: bool = False
+    mean_speedup: float = 0.0
+    mean_energy_diff: float = 0.0
+    modes_consistent: bool = False
+
+
+@dataclass
+class N120SweepResult:
+    """N=120 rigorous VQE sweep near h_min boundary."""
+
+    source_file: str
+    n_qubits: int = 120
+    h_min_safe: float = 0.0
+    h_values: list[float] = field(default_factory=list)
+    seeds: list[int] = field(default_factory=list)
+    total_time_s: float = 0.0
+    # Summary
+    n_total: int = 0
+    n_pass: int = 0
+    pass_rate: float = 0.0
+    mean_de_gap: float = 0.0
+    max_de_gap: float = 0.0
+    std_de_gap: float = 0.0
+    bootstrap_ci_95: list[float] = field(default_factory=list)
+    scaling_law_validated: bool = False
 
 
 @dataclass

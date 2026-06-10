@@ -101,6 +101,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.005,
         help="Precision for aer_mps strategy (controls shot budget)",
     )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default=None,
+        choices=["COBYLA", "L-BFGS-B", "Nelder-Mead"],
+        help="VQE optimizer method. Default: auto (COBYLA for aer_mps, L-BFGS-B for tenpy).",
+    )
     return parser
 
 
@@ -165,6 +172,7 @@ def phase2_mps_vqe(
     precision: float,
     seed: int,
     dmrg_data: list[dict],
+    method_override: str | None = None,
 ) -> list[dict]:
     """Run MPS-VQE descending sweep and compute ΔE/gap vs DMRG.
 
@@ -173,8 +181,11 @@ def phase2_mps_vqe(
     builder = HamiltonianBuilder()
     hva = HVACircuitBuilder()
 
-    # Determine optimizer method based on strategy
-    method = "COBYLA" if strategy == "aer_mps" else "L-BFGS-B"
+    # Method selection: override > auto (COBYLA for stochastic, L-BFGS-B for deterministic)
+    if method_override:
+        method = method_override
+    else:
+        method = "COBYLA" if strategy == "aer_mps" else "L-BFGS-B"
 
     backend = MPSBackend(strategy=strategy, chi_max=chi_max, precision=precision, seed=seed)
     config = VQEConfig(
@@ -274,12 +285,14 @@ def main() -> int:
     precision = args.precision
     seeds = args.seeds
     output_dir = Path(args.output_dir)
+    # Method override: None = auto-select based on strategy
+    method_override = args.method
 
     # Auto-compute h-values if not provided (valid regime for this N)
     if args.h_values is not None:
         h_values = sorted(args.h_values, reverse=True)
     else:
-        h_min = 1.0 + 0.020 * n**1.31
+        h_min = 1.5 + 0.020 * n**1.31  # Corrected formula (original + 0.50 offset)
         h_max = h_min + 1.5
         h_values = np.linspace(h_max, h_min + 0.5, 5).tolist()
 
@@ -312,6 +325,7 @@ def main() -> int:
             precision,
             seed,
             dmrg_data,
+            method_override=method_override,
         )
         if circuit_info is None:
             circuit_info = c_info
@@ -340,7 +354,7 @@ def main() -> int:
     ]
 
     # Scaling law prediction
-    h_min_predicted = 1.0 + 0.020 * n**1.31
+    h_min_predicted = 1.5 + 0.020 * n**1.31
 
     envelope = {
         "experiment": "mps_scaling_validation",
@@ -354,12 +368,13 @@ def main() -> int:
             "precision": precision,
             "seeds": seeds,
             "h_values": h_values,
-            "optimizer_method": "COBYLA" if strategy == "aer_mps" else "L-BFGS-B",
+            "optimizer_method": method_override or ("COBYLA" if strategy == "aer_mps" else "L-BFGS-B"),
             "n_restarts": 3,
             "maxiter": 500,
             "n_params": 2 * p_layers,
             "model": "tfim",
             "J": 1.0,
+            "mps_evaluation_mode": "deterministic",
         },
         "environment": {
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -370,7 +385,7 @@ def main() -> int:
             "numpy_version": np.__version__,
         },
         "scaling_law": {
-            "formula": "h_min = 1.0 + 0.020 * N^1.31",
+            "formula": "h_min = 1.5 + 0.020 * N^1.31",
             "predicted_h_min": h_min_predicted,
             "lowest_h_tested": min(h_values),
             "highest_h_tested": max(h_values),

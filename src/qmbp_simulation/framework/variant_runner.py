@@ -534,7 +534,7 @@ class VariantRunner:
         }
 
         with open(log_path, "w") as f:
-            json.dump(log_data, f, indent=2)
+            json.dump(log_data, f, indent=2, default=str)
         print(f"  Execution log: {log_path}")
         print("=" * 90)
 

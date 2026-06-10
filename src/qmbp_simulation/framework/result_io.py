@@ -252,6 +252,10 @@ def collect_run_metadata(seed: int | None = None) -> dict[str, Any]:
     if seed is not None:
         metadata["seed"] = seed
 
+    # MPS evaluation mode: deterministic is the default since 2026-06-10.
+    # Results generated before this date used stochastic mode (precision=0.005).
+    metadata["mps_evaluation_mode"] = "deterministic"
+
     try:
         import qiskit
 

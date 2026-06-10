@@ -273,6 +273,11 @@ class VQEOptimizer:
                 },
             )
         elif method == "COBYLA":
+            # NOTE: rhobeg=restart_sigma is a semantic overload. restart_sigma
+            # controls random perturbation for restarts (default 0.1), while rhobeg
+            # is COBYLA's initial trust region radius. They happen to have the same
+            # good default (0.1) for this use case. Future refactor: add dedicated
+            # cobyla_rhobeg to VQEConfig.
             return minimize(
                 cost_fn,
                 x0,

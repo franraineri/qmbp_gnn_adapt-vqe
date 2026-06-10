@@ -314,6 +314,12 @@ def main():
     logger.info(
         f"  Cross-topo (no E_noisy): rate={eval_pred['rate']:.1f}%, MAE={eval_pred['mae_before']:.3f}→{eval_pred['mae_after']:.3f} ({eval_pred['reduction_pct']:+.1f}%)"
     )
+    logger.info(
+        "  NOTE: 'correction mode' metrics are NOT meaningful without E_noisy."
+    )
+    logger.info(
+        "  The valid metric for predictive mode is circuit selection ranking (Step 5)."
+    )
 
     save_qem_checkpoint(
         model_pred,
@@ -334,6 +340,8 @@ def main():
 
     predicted_errors = []
     actual_errors = []
+    per_seed_rho = []
+    per_seed_acc = []
     for s in test_samples:
         s_in = replace(s, noisy_energy=0.0)
         c = correct_energy(model_pred, s_in, confidence_threshold=0.0)
@@ -354,11 +362,62 @@ def main():
     actual_high = np.array(actual_errors) > median_err
     accuracy = np.mean(pred_high == actual_high) * 100
 
+    # Bootstrap CI over all 12 points (1000 resamples)
+    # NOTE: per-seed ρ with N=4 is trivially 1.0 when ranking is correct.
+    # Bootstrap over the full sample gives a more meaningful CI.
+    n_bootstrap = 1000
+    rng_boot = np.random.default_rng(42)
+    boot_rhos = []
+    boot_accs = []
+    pred_arr = np.array(predicted_errors)
+    actual_arr = np.array(actual_errors)
+    for _ in range(n_bootstrap):
+        idx_b = rng_boot.choice(len(pred_arr), size=len(pred_arr), replace=True)
+        bp = pred_arr[idx_b]
+        ba = actual_arr[idx_b]
+        if np.std(bp) < 1e-10 or np.std(ba) < 1e-10:
+            continue
+        r_b, _ = stats.spearmanr(bp, ba)
+        boot_rhos.append(r_b)
+        med_b = np.median(ba)
+        boot_accs.append(float(np.mean((bp > np.median(bp)) == (ba > med_b)) * 100))
+
+    rho_ci_lo = float(np.percentile(boot_rhos, 2.5)) if boot_rhos else rho
+    rho_ci_hi = float(np.percentile(boot_rhos, 97.5)) if boot_rhos else rho
+    acc_ci_lo = float(np.percentile(boot_accs, 2.5)) if boot_accs else accuracy
+    acc_ci_hi = float(np.percentile(boot_accs, 97.5)) if boot_accs else accuracy
+
+    # Per-seed breakdown (informational — N=4 per seed is too small for robust ρ)
+    n_per_seed = len(TEST_H)
+    for i, seed in enumerate(SEEDS):
+        start = i * n_per_seed
+        end = start + n_per_seed
+        if end <= len(predicted_errors):
+            seed_pred = predicted_errors[start:end]
+            seed_actual = actual_errors[start:end]
+            if len(seed_pred) >= 3:
+                r, _ = stats.spearmanr(seed_pred, seed_actual)
+                per_seed_rho.append(float(r))
+                seed_pred_high = np.array(seed_pred) > np.median(seed_pred)
+                seed_actual_high = np.array(seed_actual) > np.median(seed_actual)
+                seed_acc = float(np.mean(seed_pred_high == seed_actual_high) * 100)
+                per_seed_acc.append(seed_acc)
+
     logger.info(f"  Spearman rank correlation: ρ={rho:.3f} (p={p_val:.4f})")
-    logger.info(f"  Binary classification (high/low error): {accuracy:.1f}% accuracy")
+    logger.info(f"  Bootstrap 95% CI for ρ: [{rho_ci_lo:.3f}, {rho_ci_hi:.3f}]")
+    logger.info(f"  Binary classification: {accuracy:.1f}% (CI: [{acc_ci_lo:.1f}%, {acc_ci_hi:.1f}%])")
+    logger.info(f"  Per-seed ρ (N=4 each, informational): {per_seed_rho}")
     logger.info(
         f"  Practical: model can {'✅ rank' if rho > 0.5 else '❌ NOT rank'} circuits by expected error"
     )
+    # OOD warning
+    if test_errs and train_errs:
+        overlap = min(max(train_errs), max(test_errs)) - max(min(train_errs), min(test_errs))
+        if overlap <= 0:
+            logger.info(
+                f"  ⚠️ OOD: train err [{min(train_errs):.2f}, {max(train_errs):.2f}] "
+                f"vs test [{min(test_errs):.2f}, {max(test_errs):.2f}] — no overlap (extrapolation)"
+            )
 
     # ── Summary ───────────────────────────────────────────────────────
     logger.info("\n" + "=" * 60)
@@ -371,9 +430,9 @@ def main():
         f"  EXP 1 (correction): {eval_full['rate']:.1f}% improvement, {eval_full['reduction_pct']:+.1f}% reduction"
     )
     logger.info(
-        f"  EXP 2 (predictive): {eval_pred['rate']:.1f}% improvement, {eval_pred['reduction_pct']:+.1f}% reduction"
+        f"  EXP 2 (predictive): ranking ρ={rho:.3f}, binary accuracy={accuracy:.1f}%"
     )
-    logger.info(f"  Circuit selection: ρ={rho:.3f}, accuracy={accuracy:.1f}%")
+    logger.info(f"  Circuit selection: ρ={rho:.3f} [{rho_ci_lo:.3f}, {rho_ci_hi:.3f}], accuracy={accuracy:.1f}% [{acc_ci_lo:.1f}%, {acc_ci_hi:.1f}%]")
     logger.info(f"  Time: data={t_data:.1f}s, total={time.time() - t0:.1f}s")
     logger.info("=" * 60)
 
@@ -388,12 +447,24 @@ def main():
             "test_err_range": [float(min(test_errs)), float(max(test_errs))],
         },
         "exp1_correction_mode": eval_full,
-        "exp2_predictive_mode": eval_pred,
+        "exp2_predictive_mode": {
+            **eval_pred,
+            "note": "Correction metrics are invalid without E_noisy. Use circuit_selection ranking instead.",
+            "valid_metric": "circuit_selection.spearman_rho",
+        },
         "circuit_selection": {
             "spearman_rho": float(rho),
             "spearman_p": float(p_val),
             "binary_accuracy_pct": float(accuracy),
             "median_actual_error": float(median_err),
+            "bootstrap_n": n_bootstrap,
+            "rho_ci_95": [rho_ci_lo, rho_ci_hi],
+            "accuracy_ci_95": [acc_ci_lo, acc_ci_hi],
+            "per_seed_rho": per_seed_rho,
+            "per_seed_accuracy_pct": per_seed_acc,
+            "per_seed_note": "N=4 per seed — trivially 1.0 if ranking is correct",
+            "ood_warning": "train err [1.2, 3.0] vs test [4.7, 6.3] — zero overlap",
+            "seeds": SEEDS,
         },
         "time_s": time.time() - t0,
     }

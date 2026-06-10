@@ -22,6 +22,7 @@ Need to...
 ├── Inspect ZNE results?            → python -m project_health.digest --kind noisy
 ├── Inspect experiment verdicts?    → python -m project_health.digest --kind experiment
 ├── Inspect cross-topology results? → python -m project_health.digest --kind cross_topology
+├── Inspect MPS scaling results?   → python -m project_health.digest --kind scaling
 ├── Compare topologies/configs?     → python -m project_health.digest --group-by topology
 ├── Check what data exists?         → analysis/scan_coverage.py --discover
 ├── Find coverage gaps?             → analysis/scan_coverage.py --extended
@@ -39,7 +40,7 @@ Need to...
 ├── PCA phase detection?            → python scripts/analysis/theta_pca_phase_detection.py
 ├── θ-derivative vs D1?            → python scripts/analysis/theta_derivative_analysis.py
 ├── Full analysis pipeline?         → python analysis/run_analysis.py
-├── Deep raw-data audit (23 checks)?→ PYTHONPATH=. python project_health/analysis/audit_findings.py
+├── Deep raw-data audit (29 checks)?→ PYTHONPATH=. python project_health/analysis/audit_findings.py
 │
 │ ─── THESIS COMPILATION (global aggregation) ─────────────────
 ├── Corroborate ALL findings?       → python -m project_health.analysis.thesis_findings_validator
@@ -87,6 +88,13 @@ Quick inspection of all results by kind: noiseless, noisy, experiment.
 python -m project_health.digest --kind noiseless
 python -m project_health.digest --kind noisy
 python -m project_health.digest --kind experiment
+python -m project_health.digest --kind cross_topology
+python -m project_health.digest --kind scaling
+
+# Scaling mode (MPS validation N=40-120, mode comparison, N=120 sweep)
+python -m project_health.digest --kind scaling            # Summary table
+python -m project_health.digest --kind scaling --verbose  # With h-values and source files
+python -m project_health.digest --kind scaling --json scaling.json  # Machine-readable
 
 # Filters
 python -m project_health.digest --kind noiseless --topology ladder --n-qubits 10 --p-layers 1
@@ -240,8 +248,9 @@ python scripts/analysis/theta_pca_phase_detection.py [--format pdf] [--theme the
 # θ-derivative vs D1 weight gradient comparison
 python scripts/analysis/theta_derivative_analysis.py [--format pdf]
 
-# Extract θ trajectories from pipeline results
-python scripts/analysis/extract_theta_trajectories.py
+# Extract θ trajectories from pipeline + scaling results (N=6-200)
+python scripts/analysis/extract_theta_trajectories.py             # All sources (thesis + scaling)
+python scripts/analysis/extract_theta_trajectories.py --only-scaling  # Only MPS scaling data
 
 # Systematic claim validation (multi-section runner)
 python scripts/experiment_runners/run_verification_plan.py [--list] [--noiseless-only]
@@ -344,6 +353,18 @@ Output:
 src/qmbp_simulation/framework/preflight.py
 ```
 All consumers MUST import from there. Test `TestRegimeBoundaryConsistency` enforces via identity checks.
+
+### Scaling Law Formula (Two Regimes)
+
+| Regime | Formula | Valid range | Used by |
+|--------|---------|------------|---------|
+| Exact diag (original fit) | `h_min = 1.0 + 0.020·N^1.31` | N=4–20 | `exp_a3_scaling_law.py`, `test_analysis_tools.py` |
+| MPS (corrected) | `h_min = 1.5 + 0.020·N^1.31` | N=40–120 | Runner scripts, `scaling_analyzer.py`, digest |
+
+**Rule**: Any script that computes h-values for MPS-regime VQE (N>30) MUST use the corrected formula (`1.5 + ...`).
+The original formula (`1.0 + ...`) is correct only for the exact-diag regime (N≤20) where it was fit.
+The +0.50 offset is consistently observed at N=40/50/80/120.
+Thesis presentation uses `1.0 + 0.020·N^1.31 + 0.50` to explicitly show the correction history.
 
 ### NoiselessResult Key Fields
 
@@ -490,12 +511,13 @@ python -m project_health.analysis.sanity_check
 | CROSS_TOPOLOGY_TRANSFER_FAILS | 5.2 (hallazgo) | — (inline) | — |
 | PAULI_EVOLUTION_GATE | 5.6.5 Transpilación | tab:transpilation | — |
 | DYPP_REDUNDANT | 5.6.4 DyPP | — (inline) | — |
+| PCA_CONVERGENCE_HC | 5.x Detección Unsupervised | — | fig_pca_peak_vs_N |
 
 ### Registered Findings (for `thesis_findings_validator.py`)
 
-Current: 22 findings validated and corroborated (21 CORROBORATED + 1 QUALIFIED). All implemented.
+Current: 23 findings validated (22 CORROBORATED + 1 QUALIFIED). All implemented.
 
-All findings are now registered as F16-F22 in `thesis_findings_validator.py`.
+All findings registered as F1-F23 in `thesis_findings_validator.py`.
 Deep audit: `PYTHONPATH=. python project_health/analysis/audit_findings.py` (23 checks, all VERIFIED).
 
 ### Verification Plan
@@ -503,8 +525,8 @@ Deep audit: `PYTHONPATH=. python project_health/analysis/audit_findings.py` (23 
 Full plan documented in: `documentation/analysis/21_thesis_compilation_verification_plan.md`
 
 Steps:
-1. Run `make thesis-all` → expect 21/22 findings CORROBORATED + 1 QUALIFIED
-2. Run `PYTHONPATH=. python project_health/analysis/audit_findings.py` → 23/23 VERIFIED
+1. Run `make thesis-all` → expect 22/23 findings CORROBORATED + 1 QUALIFIED
+2. Run `PYTHONPATH=. python project_health/analysis/audit_findings.py` → 25/29 VERIFIED (4 PARTIAL from exploratory runs)
 3. Verify 10/10 tables generated without errors
 4. Verify 10/10 figures generated (PDF output)
 4. Check `sanity_check` → 23/24+ pass

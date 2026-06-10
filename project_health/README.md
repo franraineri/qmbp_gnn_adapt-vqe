@@ -328,16 +328,76 @@ two levels: Level 1 reads result files directly, Level 2 uses `ResultScanner`
 for diagnostics data.
 
 ```bash
-PYTHONPATH=. python project_health/analysis/audit_findings.py              # Full audit (23 checks)
+PYTHONPATH=. python project_health/analysis/audit_findings.py              # Full audit (29 checks)
 PYTHONPATH=. python project_health/analysis/audit_findings.py --only F2,F5 # Selective
 PYTHONPATH=. python project_health/analysis/audit_findings.py --only ERR_DECOMP,CONV_RATE  # Level 2 only
+PYTHONPATH=. python project_health/analysis/audit_findings.py --only N120_SWEEP,MPS_MODE,E5_EXT  # Level 4 (new)
 ```
 
 Checks: F2 (PEA 18/18), F3 (scaling law), F4 (GNN-QEM), F5 (cross-N 30/30),
 F8 (PEA triangular), F9 (not composable), F10 (experiment verdicts), F11 (affine),
 F14 (circuit selection), F16 (cross-topo fails), F21 (DyPP), F22 (warm-start),
 HEISENBERG, D1, PEA_TOPO, ABLATION, F13 (run count), MPS_CHI,
-ERR_DECOMP, CONV_RATE, THETA_SMOOTH, GEN_GAP, TIMING.
+ERR_DECOMP, CONV_RATE, THETA_SMOOTH, GEN_GAP, TIMING,
+NOISY_GAINS, DATA_COV, N120_SWEEP, MPS_MODE, E5_EXT, MULTI_SEED.
+
+## MPS Scaling Digest (`--kind scaling`)
+
+Dedicated digest mode for MPS scaling validation results:
+
+```bash
+python -m project_health.digest --kind scaling            # Summary table
+python -m project_health.digest --kind scaling --verbose  # With h-values and files
+python -m project_health.digest --kind scaling --json scaling.json  # Machine-readable
+```
+
+Scans three data sources from `results/scaling/`:
+- `scaling_N*_*.json` — standard validation runs (N=40/50/80, multi-seed)
+- `scaling_N120_full_sweep.json` — rigorous N=120 boundary sweep (3 seeds × 5 h-points)
+- `mps_mode_comparison.json` — deterministic vs stochastic evaluation comparison
+
+Output sections:
+1. **Per-N summary table**: pass rate, ΔE/gap statistics, timing
+2. **Scaling law validation**: predicted vs tested h_min per N
+3. **N=120 sweep**: bootstrap CI, pass/fail, scaling law extrapolation
+4. **Mode comparison**: speedup factor, energy consistency between modes
+5. **Thesis summary**: validated system sizes, scaling law statement
+
+New data models: `ScalingResult`, `ModeComparisonResult`, `N120SweepResult`
+(exported from `project_health.digest`).
+
+```python
+from project_health.digest import ResultScanner, ScalingResult
+
+scanner = ResultScanner(Path("results"))
+scaling = scanner.scan_scaling()          # list[ScalingResult]
+mc = scanner.scan_mode_comparison()       # ModeComparisonResult | None
+n120 = scanner.scan_n120_sweep()          # N120SweepResult | None
+```
+
+## MPS Backend Evaluation Modes (since 2026-06-10)
+
+The `MPSBackend(strategy="aer_mps")` now supports two evaluation modes:
+
+| Mode | Flag | Per-eval time | Accuracy | Use case |
+|------|------|:---:|:---:|---------|
+| **Deterministic** (default) | `deterministic=True` | ~12ms | Machine epsilon | VQE loops, scaling validation |
+| Stochastic (legacy) | `deterministic=False` | ~6s | σ ≈ precision | Noise-tolerance testing |
+
+Results generated before 2026-06-10 used stochastic mode implicitly.
+New results include `metadata.mps_evaluation_mode = "deterministic"` for traceability.
+
+The improvement is purely technical: stochastic results had σ≈0.005 noise per
+evaluation. The energy difference between modes is ≤ 2.5×10⁻⁵ — negligible
+for all thesis claims (ΔE/gap threshold is 5%).
+
+```python
+# New default (exact, fast):
+backend = MPSBackend(strategy="aer_mps", chi_max=64, seed=42)
+
+# Legacy (stochastic, slow — backward compatibility):
+backend = MPSBackend(strategy="aer_mps", deterministic=False, precision=0.005)
+```
 
 ## Testing
 

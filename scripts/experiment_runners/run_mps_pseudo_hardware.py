@@ -491,7 +491,7 @@ class MPSPseudoHardwareRunner(ValidationRunner):
             logger.info(f"\n  --- N = {n_qubits} ---")
 
             # Determine valid regime h-values for this N
-            h_min_approx = 1.0 + 0.020 * n_qubits**1.31
+            h_min_approx = 1.5 + 0.020 * n_qubits**1.31  # Corrected formula
             h_safe = h_min_approx + 1.0
             h_values = [h_safe + 0.5, h_safe + 0.25, h_safe, h_safe - 0.25, h_safe - 0.5]
             h_test_n = h_safe + 0.125
@@ -578,7 +578,7 @@ class MPSPseudoHardwareRunner(ValidationRunner):
         logger.info(f"  Phase classification at N={n_qubits}, chi={chi}")
 
         # h-values spanning paramagnetic regime (all should be "paramagnetic")
-        h_min_approx = 1.0 + 0.020 * n_qubits**1.31
+        h_min_approx = 1.5 + 0.020 * n_qubits**1.31  # Corrected formula
         h_values = [h_min_approx + 1.5, h_min_approx + 1.0, h_min_approx + 0.5]
 
         results = []
@@ -706,7 +706,7 @@ class MPSPseudoHardwareRunner(ValidationRunner):
 
         logger.info(f"  Error decomposition at N={n_qubits}, topology={topology}")
 
-        h_min_approx = 1.0 + 0.020 * n_qubits**1.31
+        h_min_approx = 1.5 + 0.020 * n_qubits**1.31  # Corrected formula
         h_values = [h_min_approx + 1.0, h_min_approx + 0.5, h_min_approx]
 
         theta_map = self._vqe_sweep(topology, n_qubits, h_values, seed=42)

@@ -488,7 +488,7 @@ def main() -> None:
 
     OUTPUT_RESULTS.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_RESULTS, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output, f, indent=2, default=str)
 
     logger.info(f"\n  Results saved: {OUTPUT_RESULTS.relative_to(ROOT)}")
     logger.info("  Done.")
