@@ -49,7 +49,6 @@ log_*
 digest_*
 */analysis/*.json
 */scaling/*.json
-*.json
 
 digest_poc/*
 *_TEMP.py
