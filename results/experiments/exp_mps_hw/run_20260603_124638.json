@@ -1,0 +1,530 @@
+{
+  "timestamp": "2026-06-03T12:46:38.165375",
+  "config": {
+    "runner_id": "mps_pseudo_hardware",
+    "experiment_id": "MPS_HW",
+    "description": "MPS Pseudo-Hardware Validation (chi-limited TN as noise proxy)",
+    "hypothesis": "MPS with calibrated chi reproduces FakeTorino noise profile, enabling hardware performance prediction at N>10",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "chain_1d"
+    },
+    "chi_sweep": [
+      4,
+      8,
+      12,
+      16,
+      24,
+      32,
+      64,
+      128
+    ],
+    "chi_target_override": null,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "h_train": [
+      2.5,
+      2.25,
+      2.0,
+      1.75,
+      1.5
+    ],
+    "h_test": [
+      2.125,
+      1.625
+    ],
+    "vqe": {
+      "restarts": 1,
+      "maxiter": 500,
+      "sigma": 0.1
+    },
+    "category": "M"
+  },
+  "elapsed_s": 70.72755479812622,
+  "results": {
+    "section_1": {
+      "name": "Chi Calibration (match FakeTorino)",
+      "success": true,
+      "elapsed_s": 3.99,
+      "data": {
+        "chi_sweep": [
+          {
+            "chi": 4,
+            "energy": -21.139319074050377,
+            "de_gap": 1.9491264294806827e-08
+          },
+          {
+            "chi": 8,
+            "energy": -21.139319115631086,
+            "de_gap": 6.827955267204887e-14
+          },
+          {
+            "chi": 12,
+            "energy": -21.139319115631206,
+            "de_gap": 1.165748460254493e-14
+          },
+          {
+            "chi": 16,
+            "energy": -21.13931911563121,
+            "de_gap": 9.992129659324226e-15
+          },
+          {
+            "chi": 24,
+            "energy": -21.139319115631206,
+            "de_gap": 1.165748460254493e-14
+          },
+          {
+            "chi": 32,
+            "energy": -21.139319115631196,
+            "de_gap": 1.6653549432207044e-14
+          },
+          {
+            "chi": 64,
+            "energy": -21.139319115631196,
+            "de_gap": 1.6653549432207044e-14
+          },
+          {
+            "chi": 128,
+            "energy": -21.139319115631196,
+            "de_gap": 1.6653549432207044e-14
+          }
+        ],
+        "precision_target": 0.01,
+        "calibrated_chi": 4,
+        "n_calibration": 10,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Scaling Demonstration (N=10,16,20)",
+      "success": true,
+      "elapsed_s": 64.79,
+      "data": {
+        "n_pass": 3,
+        "n_total": 3,
+        "chi_used": 4,
+        "results": [
+          {
+            "n_qubits": 10,
+            "h_test": 2.533347588933906,
+            "h_min_approx": 1.4083475889339059,
+            "chi": 4,
+            "e_ref": -26.22855014431186,
+            "e_vqe": -26.19038271003861,
+            "gap": 3.184398184982797,
+            "de_gap": 0.011985760591512785,
+            "passed": true,
+            "ref_method": "exact_diag"
+          },
+          {
+            "n_qubits": 16,
+            "h_test": 2.8808353033148997,
+            "h_min_approx": 1.7558353033148997,
+            "chi": 4,
+            "e_ref": -47.403791808780944,
+            "e_vqe": -47.35788815636556,
+            "gap": 3.7616706066297994,
+            "de_gap": 0.01220299627896171,
+            "passed": true,
+            "ref_method": "dmrg_chi4"
+          },
+          {
+            "n_qubits": 20,
+            "h_test": 3.1374633005057664,
+            "h_min_approx": 2.0124633005057664,
+            "chi": 4,
+            "e_ref": -64.27202827894835,
+            "e_vqe": -64.22605377305989,
+            "gap": 4.274926601011533,
+            "de_gap": 0.010754455030312785,
+            "passed": true,
+            "ref_method": "dmrg_chi4"
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Phase Classification",
+      "success": true,
+      "elapsed_s": 0.16,
+      "data": {
+        "accuracy": 1.0,
+        "n_correct": 3,
+        "n_total": 3,
+        "chi": 4,
+        "results": [
+          {
+            "h": 2.908347588933906,
+            "x": 0.9753820560956019,
+            "zz": 0.16330240257133022,
+            "label": "paramagnetic",
+            "correct": true
+          },
+          {
+            "h": 2.408347588933906,
+            "x": 0.9652705290846524,
+            "zz": 0.19293535391995312,
+            "label": "paramagnetic",
+            "correct": true
+          },
+          {
+            "h": 1.9083475889339059,
+            "x": 0.9478631015159402,
+            "zz": 0.23421383178531086,
+            "label": "paramagnetic",
+            "correct": true
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Error Decomposition",
+      "success": true,
+      "elapsed_s": 0.77,
+      "data": {
+        "chi": 4,
+        "results": [
+          {
+            "h": 2.408347588933906,
+            "e_exact": -25.025807436408783,
+            "e_noiseless": -24.983487699179335,
+            "e_mps": -24.9834876991794,
+            "vqe_error": 0.04231973722944815,
+            "truncation_error": 6.394884621840902e-14,
+            "total_error": 0.0423197372293842,
+            "fraction_truncation": 1.511087979393381e-12,
+            "de_gap_total": 0.014408366753976928
+          },
+          {
+            "h": 1.9083475889339059,
+            "e_exact": -20.279067233307416,
+            "e_noiseless": -20.196447130241342,
+            "e_mps": -20.19644713024141,
+            "vqe_error": 0.08262010306607337,
+            "truncation_error": 6.750155989720952e-14,
+            "total_error": 0.08262010306600587,
+            "fraction_truncation": 8.17011325237418e-13,
+            "de_gap_total": 0.042280332200584865
+          },
+          {
+            "h": 1.4083475889339059,
+            "e_exact": -15.724197178464372,
+            "e_noiseless": -15.529972430770114,
+            "e_mps": -15.529972430770176,
+            "vqe_error": 0.19422474769425868,
+            "truncation_error": 6.217248937900877e-14,
+            "total_error": 0.1942247476941965,
+            "fraction_truncation": 3.201059088355634e-13,
+            "de_gap_total": 0.19513876321949666
+          }
+        ],
+        "mean_fraction_truncation": 8.827350711554542e-13,
+        "truncation_dominates": false,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Cross-Topology (heavy-hex)",
+      "success": true,
+      "elapsed_s": 1.0,
+      "data": {
+        "chi": 4,
+        "topologies": {
+          "chain_1d": {
+            "h_test": 2.5,
+            "de_gap_mps": 0.012177657799327661,
+            "de_gap_noiseless": 0.01217765779934589,
+            "truncation_overhead": -1.822847428556429e-14,
+            "vqe_passes": true
+          },
+          "ladder": {
+            "h_test": 4.0,
+            "de_gap_mps": 0.04453917679622403,
+            "de_gap_noiseless": 0.009133257939346275,
+            "truncation_overhead": 0.03540591885687776,
+            "vqe_passes": true
+          },
+          "heavy_hex": {
+            "h_test": 4.0,
+            "de_gap_mps": 0.002736619540913217,
+            "de_gap_noiseless": 0.0022062658081140603,
+            "truncation_overhead": 0.0005303537327991568,
+            "vqe_passes": true
+          }
+        },
+        "all_vqe_pass": true,
+        "heavy_hex_low_truncation": true,
+        "pass": true,
+        "note": "Truncation overhead is topology-dependent: ladder (z=3) has more entanglement than chain (z=2) or heavy-hex (z\u22643 but sparser). This is expected physics, not a failure mode."
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 5,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 70.73,
+    "total_elapsed_s": 70.73,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:46:38.029618",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "MPS_HW",
+    "category": "M",
+    "hypothesis": "MPS with calibrated chi reproduces FakeTorino noise profile, enabling hardware performance prediction at N>10",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 5,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 70.73,
+      "total_elapsed_s": 70.73,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Chi Calibration (match FakeTorino)",
+        "success": true,
+        "elapsed_s": 3.99,
+        "data": {
+          "chi_sweep": [
+            {
+              "chi": 4,
+              "energy": -21.139319074050377,
+              "de_gap": 1.9491264294806827e-08
+            },
+            {
+              "chi": 8,
+              "energy": -21.139319115631086,
+              "de_gap": 6.827955267204887e-14
+            },
+            {
+              "chi": 12,
+              "energy": -21.139319115631206,
+              "de_gap": 1.165748460254493e-14
+            },
+            {
+              "chi": 16,
+              "energy": -21.13931911563121,
+              "de_gap": 9.992129659324226e-15
+            },
+            {
+              "chi": 24,
+              "energy": -21.139319115631206,
+              "de_gap": 1.165748460254493e-14
+            },
+            {
+              "chi": 32,
+              "energy": -21.139319115631196,
+              "de_gap": 1.6653549432207044e-14
+            },
+            {
+              "chi": 64,
+              "energy": -21.139319115631196,
+              "de_gap": 1.6653549432207044e-14
+            },
+            {
+              "chi": 128,
+              "energy": -21.139319115631196,
+              "de_gap": 1.6653549432207044e-14
+            }
+          ],
+          "precision_target": 0.01,
+          "calibrated_chi": 4,
+          "n_calibration": 10,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "Scaling Demonstration (N=10,16,20)",
+        "success": true,
+        "elapsed_s": 64.79,
+        "data": {
+          "n_pass": 3,
+          "n_total": 3,
+          "chi_used": 4,
+          "results": [
+            {
+              "n_qubits": 10,
+              "h_test": 2.533347588933906,
+              "h_min_approx": 1.4083475889339059,
+              "chi": 4,
+              "e_ref": -26.22855014431186,
+              "e_vqe": -26.19038271003861,
+              "gap": 3.184398184982797,
+              "de_gap": 0.011985760591512785,
+              "passed": true,
+              "ref_method": "exact_diag"
+            },
+            {
+              "n_qubits": 16,
+              "h_test": 2.8808353033148997,
+              "h_min_approx": 1.7558353033148997,
+              "chi": 4,
+              "e_ref": -47.403791808780944,
+              "e_vqe": -47.35788815636556,
+              "gap": 3.7616706066297994,
+              "de_gap": 0.01220299627896171,
+              "passed": true,
+              "ref_method": "dmrg_chi4"
+            },
+            {
+              "n_qubits": 20,
+              "h_test": 3.1374633005057664,
+              "h_min_approx": 2.0124633005057664,
+              "chi": 4,
+              "e_ref": -64.27202827894835,
+              "e_vqe": -64.22605377305989,
+              "gap": 4.274926601011533,
+              "de_gap": 0.010754455030312785,
+              "passed": true,
+              "ref_method": "dmrg_chi4"
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Phase Classification",
+        "success": true,
+        "elapsed_s": 0.16,
+        "data": {
+          "accuracy": 1.0,
+          "n_correct": 3,
+          "n_total": 3,
+          "chi": 4,
+          "results": [
+            {
+              "h": 2.908347588933906,
+              "x": 0.9753820560956019,
+              "zz": 0.16330240257133022,
+              "label": "paramagnetic",
+              "correct": true
+            },
+            {
+              "h": 2.408347588933906,
+              "x": 0.9652705290846524,
+              "zz": 0.19293535391995312,
+              "label": "paramagnetic",
+              "correct": true
+            },
+            {
+              "h": 1.9083475889339059,
+              "x": 0.9478631015159402,
+              "zz": 0.23421383178531086,
+              "label": "paramagnetic",
+              "correct": true
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Error Decomposition",
+        "success": true,
+        "elapsed_s": 0.77,
+        "data": {
+          "chi": 4,
+          "results": [
+            {
+              "h": 2.408347588933906,
+              "e_exact": -25.025807436408783,
+              "e_noiseless": -24.983487699179335,
+              "e_mps": -24.9834876991794,
+              "vqe_error": 0.04231973722944815,
+              "truncation_error": 6.394884621840902e-14,
+              "total_error": 0.0423197372293842,
+              "fraction_truncation": 1.511087979393381e-12,
+              "de_gap_total": 0.014408366753976928
+            },
+            {
+              "h": 1.9083475889339059,
+              "e_exact": -20.279067233307416,
+              "e_noiseless": -20.196447130241342,
+              "e_mps": -20.19644713024141,
+              "vqe_error": 0.08262010306607337,
+              "truncation_error": 6.750155989720952e-14,
+              "total_error": 0.08262010306600587,
+              "fraction_truncation": 8.17011325237418e-13,
+              "de_gap_total": 0.042280332200584865
+            },
+            {
+              "h": 1.4083475889339059,
+              "e_exact": -15.724197178464372,
+              "e_noiseless": -15.529972430770114,
+              "e_mps": -15.529972430770176,
+              "vqe_error": 0.19422474769425868,
+              "truncation_error": 6.217248937900877e-14,
+              "total_error": 0.1942247476941965,
+              "fraction_truncation": 3.201059088355634e-13,
+              "de_gap_total": 0.19513876321949666
+            }
+          ],
+          "mean_fraction_truncation": 8.827350711554542e-13,
+          "truncation_dominates": false,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Cross-Topology (heavy-hex)",
+        "success": true,
+        "elapsed_s": 1.0,
+        "data": {
+          "chi": 4,
+          "topologies": {
+            "chain_1d": {
+              "h_test": 2.5,
+              "de_gap_mps": 0.012177657799327661,
+              "de_gap_noiseless": 0.01217765779934589,
+              "truncation_overhead": -1.822847428556429e-14,
+              "vqe_passes": true
+            },
+            "ladder": {
+              "h_test": 4.0,
+              "de_gap_mps": 0.04453917679622403,
+              "de_gap_noiseless": 0.009133257939346275,
+              "truncation_overhead": 0.03540591885687776,
+              "vqe_passes": true
+            },
+            "heavy_hex": {
+              "h_test": 4.0,
+              "de_gap_mps": 0.002736619540913217,
+              "de_gap_noiseless": 0.0022062658081140603,
+              "truncation_overhead": 0.0005303537327991568,
+              "vqe_passes": true
+            }
+          },
+          "all_vqe_pass": true,
+          "heavy_hex_low_truncation": true,
+          "pass": true,
+          "note": "Truncation overhead is topology-dependent: ladder (z=3) has more entanglement than chain (z=2) or heavy-hex (z\u22643 but sparser). This is expected physics, not a failure mode."
+        },
+        "error": null
+      }
+    }
+  }
+}

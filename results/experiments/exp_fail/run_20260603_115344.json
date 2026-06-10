@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-06-03T11:53:44.126241",
+  "config": {
+    "runner_id": "failing_runner",
+    "experiment_id": "FAIL",
+    "description": "Failing runner",
+    "hypothesis": "Error handling works"
+  },
+  "elapsed_s": 0.0003361701965332031,
+  "results": {
+    "section_1": {
+      "name": "Good",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Exception",
+      "success": false,
+      "elapsed_s": 0.0,
+      "data": {},
+      "error": "ValueError: Intentional failure for testing"
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 1,
+    "n_failed": 1,
+    "pass_rate": 0.5,
+    "total_elapsed_s": 0.0,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T11:53:44.126238",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  }
+}

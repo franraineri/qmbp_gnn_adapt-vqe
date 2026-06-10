@@ -1,0 +1,73 @@
+{
+  "phase1": {
+    "n_points": 5,
+    "elapsed_s": 3.521554946899414,
+    "gap_min": 2.1333071927175418
+  },
+  "phase2": {
+    "per_h_timing_s": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_h_iterations": [
+      8,
+      2,
+      2,
+      2,
+      3
+    ],
+    "per_h_restart_spread": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "theta_smoothness": 0.021087036227243172,
+    "worst_convergence_h": 4.0,
+    "total_elapsed_s": 0.0,
+    "convergence_rate": 1.0
+  },
+  "phase3": {
+    "per_h_mse": {
+      "4.0000": 1.9134859030600637e-07,
+      "3.5000": 1.3154232192391646e-07,
+      "3.0000": 1.4839858408777218e-07,
+      "2.5000": 3.3068045013351366e-07,
+      "2.0000": 6.612005876149851e-08
+    },
+    "theta_zz_mse": 1.7361800104254143e-07,
+    "theta_x_mse": 1.7361800104254143e-07,
+    "generalization_gap": 2.6456039137201515e-07,
+    "loss_curve_last100": [],
+    "elapsed_s": 10.074368953704834
+  },
+  "phase4": {
+    "h_test": 2.25,
+    "snr_mag_x": null,
+    "snr_corr_zz": null,
+    "classification_confidence": null,
+    "per_layout_energies": [],
+    "per_layout_ces": [],
+    "ces_energy_pearson_r": null,
+    "energy_decomposition": {
+      "e_exact": -23.50995700086166,
+      "e_vqe_ceiling": -23.50995700086166,
+      "e_mpnn_predicted": -23.45797924558314,
+      "error_from_circuit": 0.0,
+      "error_from_mpnn": 0.05197775527852144
+    },
+    "total_shots": null
+  },
+  "baseline_comparison": null
+}

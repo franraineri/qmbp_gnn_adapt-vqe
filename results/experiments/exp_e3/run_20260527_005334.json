@@ -1,0 +1,192 @@
+{
+  "config": {
+    "experiment_id": "E3",
+    "category": "E",
+    "description": "Active learning reduces VQE data collection by 30-50%",
+    "hypothesis": "Ensemble-based active learning achieves \u0394E/gap < 5% with 10-12 training points instead of 17 (30% reduction).",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d",
+      "J": 1.0,
+      "h_values": [],
+      "h_test": [
+        1.5
+      ],
+      "g_longitudinal": 0.0,
+      "boundary": "open",
+      "model": "tfim"
+    },
+    "vqe": {
+      "optimizer": "L-BFGS-B",
+      "n_restarts": 5,
+      "maxiter": 1000,
+      "sigma": 0.1,
+      "ftol": 1e-14,
+      "use_analytical_init": false,
+      "freeze_params": null,
+      "freeze_after_h": null,
+      "use_hessian_check": false,
+      "hessian_escape_threshold": -1e-06,
+      "use_dypp": false,
+      "dypp_order": 2
+    },
+    "mpnn": {
+      "hidden_dim": 64,
+      "n_layers": 3,
+      "n_epochs": 2000,
+      "lr": 0.001,
+      "patience": 300,
+      "dropout": 0.1,
+      "use_physics_loss": false,
+      "physics_loss_weight": 0.1,
+      "physics_loss_start_epoch": 1000,
+      "physics_loss_eval_every": 100,
+      "sign_canonicalization": "none",
+      "use_active_learning": true,
+      "n_ensemble": 5,
+      "acquisition": "max_variance"
+    },
+    "analysis": {
+      "landscape_resolution": 20,
+      "tci_max_rank": 10,
+      "tci_tolerance": 0.0001,
+      "scaling_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        20
+      ],
+      "weight_gradient_n_points": 40,
+      "fluctuation_n_samples": 100,
+      "threshold": 0.05,
+      "compute_hessian": false
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "verbose": true,
+    "debug": false,
+    "compare_with_baseline": true,
+    "baseline_config": "v61_optimal",
+    "auto_warm_cold_comparison": true
+  },
+  "backend": "noiseless_statevector",
+  "analysis": {
+    "experiment_id": "E3",
+    "category": "E",
+    "hypothesis": "Ensemble-based active learning achieves \u0394E/gap < 5% with 10-12 training points instead of 17 (30% reduction).",
+    "n_seeds": 3,
+    "timestamp": "20260527_005334",
+    "per_seed": {},
+    "summary": {
+      "error": "No successful runs"
+    }
+  },
+  "results": {
+    "42": [],
+    "43": [],
+    "44": []
+  },
+  "structured_log": {
+    "n_events": 6,
+    "timing_summary": {},
+    "failure_summary": {
+      "total_failures": 3,
+      "by_seed": {
+        "42": 1,
+        "43": 1,
+        "44": 1
+      },
+      "by_h_value": {},
+      "reasons": [
+        "unknown",
+        "unknown",
+        "unknown"
+      ]
+    },
+    "events": [
+      {
+        "timestamp": "2026-05-27T00:53:34.368",
+        "event_type": "seed_start",
+        "experiment_id": "E3",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "index": 0
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-27T00:53:34.368",
+        "event_type": "seed_failed",
+        "experiment_id": "E3",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "error": "E3 full implementation requires ensemble MPNN training. See scripts/experiments_v8/experiments/exp_e3_active.py for reference.",
+          "error_type": "NotImplementedError"
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-27T00:53:34.368",
+        "event_type": "seed_start",
+        "experiment_id": "E3",
+        "seed": 43,
+        "h_value": null,
+        "data": {
+          "index": 1
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-27T00:53:34.368",
+        "event_type": "seed_failed",
+        "experiment_id": "E3",
+        "seed": 43,
+        "h_value": null,
+        "data": {
+          "error": "E3 full implementation requires ensemble MPNN training. See scripts/experiments_v8/experiments/exp_e3_active.py for reference.",
+          "error_type": "NotImplementedError"
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-27T00:53:34.369",
+        "event_type": "seed_start",
+        "experiment_id": "E3",
+        "seed": 44,
+        "h_value": null,
+        "data": {
+          "index": 2
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-27T00:53:34.369",
+        "event_type": "seed_failed",
+        "experiment_id": "E3",
+        "seed": 44,
+        "h_value": null,
+        "data": {
+          "error": "E3 full implementation requires ensemble MPNN training. See scripts/experiments_v8/experiments/exp_e3_active.py for reference.",
+          "error_type": "NotImplementedError"
+        },
+        "elapsed_s": 0.0
+      }
+    ]
+  },
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "timestamp": "2026-05-27T00:53:34.369244",
+    "run_id": "20260527_005334",
+    "qiskit": "2.4.1",
+    "torch": "2.11.0"
+  }
+}

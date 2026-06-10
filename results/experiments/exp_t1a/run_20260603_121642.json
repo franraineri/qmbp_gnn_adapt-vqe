@@ -1,0 +1,561 @@
+{
+  "timestamp": "2026-06-03T12:16:42.411228",
+  "config": {
+    "runner_id": "t1a_mpnn_2d",
+    "experiment_id": "T1a",
+    "description": "MPNN 2D Predictor \u2014 Generalization Across J\u2082 Values",
+    "hypothesis": "A single MPNN with node_features=[h, coord, J\u2082] achieves \u0394E/gap < 5% on unseen (h, J\u2082) interpolation points",
+    "category": "T",
+    "model": "tfim_frustrated",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d"
+    },
+    "grid": {
+      "h_train": [
+        2.5,
+        2.25,
+        2.0,
+        1.75,
+        1.5,
+        1.25,
+        1.0,
+        0.875,
+        0.75
+      ],
+      "j2_train": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5
+      ],
+      "h_test": [
+        1.875,
+        1.375,
+        1.125
+      ],
+      "j2_test": [
+        0.15,
+        0.35,
+        0.45
+      ],
+      "n_train_points": 45
+    },
+    "mpnn": {
+      "hidden_dim": 64,
+      "n_layers": 3,
+      "epochs": 6000,
+      "lr": 0.001,
+      "patience": 500,
+      "node_features": 3
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 175.1440510749817,
+  "results": {
+    "section_1": {
+      "name": "VQE Data Generation (h\u00d7J\u2082 grid)",
+      "success": true,
+      "elapsed_s": 75.89,
+      "data": {
+        "n_points": 45,
+        "mean_fidelity": 0.9970212821588699,
+        "min_fidelity": 0.9589450387991612,
+        "pass_rate": 1.0,
+        "per_j2_mean_fid": {
+          "0.1": 0.9926688465646402,
+          "0.2": 0.9981727617083709,
+          "0.3": 0.9995069504765051,
+          "0.4": 0.9980401187994118,
+          "0.5": 0.9967177332454202
+        },
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "MPNN Training (2D predictor)",
+      "success": false,
+      "elapsed_s": 15.97,
+      "data": {
+        "final_mse": 0.01565956510603428,
+        "n_epochs": 6000,
+        "stopped_early": false,
+        "n_train_graphs": 45,
+        "pass": false
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Deployment at Unseen (h, J\u2082)",
+      "success": false,
+      "elapsed_s": 0.05,
+      "data": {
+        "n_test_points": 15,
+        "n_pass": 5,
+        "pass_rate": 0.3333333333333333,
+        "mean_de_gap": 2.597892687584678,
+        "mean_fidelity": 0.5586079847118277,
+        "interp_pass_rate": 0.0,
+        "cross_pass_rate": 0.8333333333333334,
+        "per_point": [
+          {
+            "h": 1.875,
+            "j2": 0.15,
+            "de_gap": 3.403717351732483,
+            "fidelity": 0.20137098104028126,
+            "pred_energy": -4.0089105804093315,
+            "e_exact": -11.87510484528883,
+            "gap": 2.3110597772977908,
+            "passed": false
+          },
+          {
+            "h": 1.875,
+            "j2": 0.35,
+            "de_gap": 1.4950770848083674,
+            "fidelity": 0.5463257269460192,
+            "pred_energy": -7.873006197685007,
+            "e_exact": -11.859482049607314,
+            "gap": 2.6664015470702473,
+            "passed": false
+          },
+          {
+            "h": 1.875,
+            "j2": 0.45,
+            "de_gap": 0.2952622221649232,
+            "fidelity": 0.917678263677669,
+            "pred_energy": -11.082827481691435,
+            "e_exact": -11.872019919222382,
+            "gap": 2.672852733222779,
+            "passed": false
+          },
+          {
+            "h": 1.375,
+            "j2": 0.15,
+            "de_gap": 5.484618748763879,
+            "fidelity": 0.15191430011021723,
+            "pred_energy": -1.5862798955538593,
+            "e_exact": -9.081949381388508,
+            "gap": 1.366671017474828,
+            "passed": false
+          },
+          {
+            "h": 1.375,
+            "j2": 0.35,
+            "de_gap": 5.311560664845991,
+            "fidelity": 0.006072784408476886,
+            "pred_energy": 0.17224398356025045,
+            "e_exact": -9.03427577094321,
+            "gap": 1.73329842873411,
+            "passed": false
+          },
+          {
+            "h": 1.375,
+            "j2": 0.45,
+            "de_gap": 2.252445600431596,
+            "fidelity": 0.41312996783652756,
+            "pred_energy": -5.118826309839337,
+            "e_exact": -9.042138210857555,
+            "gap": 1.7418009563766885,
+            "passed": false
+          },
+          {
+            "h": 1.125,
+            "j2": 0.15,
+            "de_gap": 8.570919846141628,
+            "fidelity": 0.03276539838309411,
+            "pred_energy": 0.08746946606534584,
+            "e_exact": -7.748589854933696,
+            "gap": 0.9142611833578869,
+            "passed": false
+          },
+          {
+            "h": 1.125,
+            "j2": 0.35,
+            "de_gap": 5.661298161799192,
+            "fidelity": 0.08517977035125672,
+            "pred_energy": -0.41109262759664444,
+            "e_exact": -7.665909640830271,
+            "gap": 1.281475874594813,
+            "passed": false
+          },
+          {
+            "h": 1.125,
+            "j2": 0.45,
+            "de_gap": 6.366652949182252,
+            "fidelity": 0.049620532887274825,
+            "pred_energy": 0.5680417475127222,
+            "e_exact": -7.667837965553117,
+            "gap": 1.293596459364677,
+            "passed": false
+          },
+          {
+            "h": 1.875,
+            "j2": 0.2,
+            "de_gap": 0.0038835081138571793,
+            "fidelity": 0.9987997258985969,
+            "pred_energy": -11.856681829414892,
+            "e_exact": -11.865999573258366,
+            "gap": 2.399311027631331,
+            "passed": true
+          },
+          {
+            "h": 1.875,
+            "j2": 0.4,
+            "de_gap": 0.004203030894251441,
+            "fidelity": 0.998773162755921,
+            "pred_energy": -11.852824979413423,
+            "e_exact": -11.864090487663269,
+            "gap": 2.68032963194576,
+            "passed": true
+          },
+          {
+            "h": 1.375,
+            "j2": 0.2,
+            "de_gap": 0.026349192854515292,
+            "fidelity": 0.9942940211915251,
+            "pred_energy": -9.023404651665624,
+            "e_exact": -9.061765667367224,
+            "gap": 1.455870618633634,
+            "passed": true
+          },
+          {
+            "h": 1.375,
+            "j2": 0.4,
+            "de_gap": 0.005134306492685241,
+            "fidelity": 0.9987245913563305,
+            "pred_energy": -9.026686757314625,
+            "e_exact": -9.035671817535759,
+            "gap": 1.7500046469634682,
+            "passed": true
+          },
+          {
+            "h": 1.125,
+            "j2": 0.2,
+            "de_gap": 0.06528463764666778,
+            "fidelity": 0.9890923296418533,
+            "pred_energy": -7.651056781864193,
+            "e_exact": -7.716427174712603,
+            "gap": 1.0013135586691426,
+            "passed": false
+          },
+          {
+            "h": 1.125,
+            "j2": 0.4,
+            "de_gap": 0.02198300789787905,
+            "fidelity": 0.9953782141923724,
+            "pred_energy": -7.634837961064222,
+            "e_exact": -7.663482599948545,
+            "gap": 1.3030354634538792,
+            "passed": true
+          }
+        ],
+        "pass": false
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "2D vs 1D Comparison",
+      "success": false,
+      "elapsed_s": 83.19,
+      "data": {
+        "per_j2_comparison": {
+          "0.15": {
+            "mean_de_gap_1d": 0.00267619338466633,
+            "mean_de_gap_2d": 5.819751982212565,
+            "improvement": -5.817075788827898,
+            "2d_competitive": false
+          },
+          "0.35": {
+            "mean_de_gap_1d": 0.06766175404925608,
+            "mean_de_gap_2d": 4.155978637151178,
+            "improvement": -4.088316883101922,
+            "2d_competitive": false
+          },
+          "0.45": {
+            "mean_de_gap_1d": 0.0038604858032508685,
+            "mean_de_gap_2d": 2.9714535905929047,
+            "improvement": -2.9675931047896538,
+            "2d_competitive": false
+          }
+        },
+        "all_competitive": false,
+        "mean_improvement": -4.2909952589064915,
+        "pass": false
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 1,
+    "n_failed": 3,
+    "pass_rate": 0.25,
+    "total_time_s": 175.14,
+    "total_elapsed_s": 175.14,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:16:42.324945",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "T1a",
+    "category": "T",
+    "hypothesis": "A single MPNN with node_features=[h, coord, J\u2082] achieves \u0394E/gap < 5% on unseen (h, J\u2082) interpolation points",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 1,
+      "n_failed": 3,
+      "pass_rate": 0.25,
+      "total_time_s": 175.14,
+      "total_elapsed_s": 175.14,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "VQE Data Generation (h\u00d7J\u2082 grid)",
+        "success": true,
+        "elapsed_s": 75.89,
+        "data": {
+          "n_points": 45,
+          "mean_fidelity": 0.9970212821588699,
+          "min_fidelity": 0.9589450387991612,
+          "pass_rate": 1.0,
+          "per_j2_mean_fid": {
+            "0.1": 0.9926688465646402,
+            "0.2": 0.9981727617083709,
+            "0.3": 0.9995069504765051,
+            "0.4": 0.9980401187994118,
+            "0.5": 0.9967177332454202
+          },
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "MPNN Training (2D predictor)",
+        "success": false,
+        "elapsed_s": 15.97,
+        "data": {
+          "final_mse": 0.01565956510603428,
+          "n_epochs": 6000,
+          "stopped_early": false,
+          "n_train_graphs": 45,
+          "pass": false
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Deployment at Unseen (h, J\u2082)",
+        "success": false,
+        "elapsed_s": 0.05,
+        "data": {
+          "n_test_points": 15,
+          "n_pass": 5,
+          "pass_rate": 0.3333333333333333,
+          "mean_de_gap": 2.597892687584678,
+          "mean_fidelity": 0.5586079847118277,
+          "interp_pass_rate": 0.0,
+          "cross_pass_rate": 0.8333333333333334,
+          "per_point": [
+            {
+              "h": 1.875,
+              "j2": 0.15,
+              "de_gap": 3.403717351732483,
+              "fidelity": 0.20137098104028126,
+              "pred_energy": -4.0089105804093315,
+              "e_exact": -11.87510484528883,
+              "gap": 2.3110597772977908,
+              "passed": false
+            },
+            {
+              "h": 1.875,
+              "j2": 0.35,
+              "de_gap": 1.4950770848083674,
+              "fidelity": 0.5463257269460192,
+              "pred_energy": -7.873006197685007,
+              "e_exact": -11.859482049607314,
+              "gap": 2.6664015470702473,
+              "passed": false
+            },
+            {
+              "h": 1.875,
+              "j2": 0.45,
+              "de_gap": 0.2952622221649232,
+              "fidelity": 0.917678263677669,
+              "pred_energy": -11.082827481691435,
+              "e_exact": -11.872019919222382,
+              "gap": 2.672852733222779,
+              "passed": false
+            },
+            {
+              "h": 1.375,
+              "j2": 0.15,
+              "de_gap": 5.484618748763879,
+              "fidelity": 0.15191430011021723,
+              "pred_energy": -1.5862798955538593,
+              "e_exact": -9.081949381388508,
+              "gap": 1.366671017474828,
+              "passed": false
+            },
+            {
+              "h": 1.375,
+              "j2": 0.35,
+              "de_gap": 5.311560664845991,
+              "fidelity": 0.006072784408476886,
+              "pred_energy": 0.17224398356025045,
+              "e_exact": -9.03427577094321,
+              "gap": 1.73329842873411,
+              "passed": false
+            },
+            {
+              "h": 1.375,
+              "j2": 0.45,
+              "de_gap": 2.252445600431596,
+              "fidelity": 0.41312996783652756,
+              "pred_energy": -5.118826309839337,
+              "e_exact": -9.042138210857555,
+              "gap": 1.7418009563766885,
+              "passed": false
+            },
+            {
+              "h": 1.125,
+              "j2": 0.15,
+              "de_gap": 8.570919846141628,
+              "fidelity": 0.03276539838309411,
+              "pred_energy": 0.08746946606534584,
+              "e_exact": -7.748589854933696,
+              "gap": 0.9142611833578869,
+              "passed": false
+            },
+            {
+              "h": 1.125,
+              "j2": 0.35,
+              "de_gap": 5.661298161799192,
+              "fidelity": 0.08517977035125672,
+              "pred_energy": -0.41109262759664444,
+              "e_exact": -7.665909640830271,
+              "gap": 1.281475874594813,
+              "passed": false
+            },
+            {
+              "h": 1.125,
+              "j2": 0.45,
+              "de_gap": 6.366652949182252,
+              "fidelity": 0.049620532887274825,
+              "pred_energy": 0.5680417475127222,
+              "e_exact": -7.667837965553117,
+              "gap": 1.293596459364677,
+              "passed": false
+            },
+            {
+              "h": 1.875,
+              "j2": 0.2,
+              "de_gap": 0.0038835081138571793,
+              "fidelity": 0.9987997258985969,
+              "pred_energy": -11.856681829414892,
+              "e_exact": -11.865999573258366,
+              "gap": 2.399311027631331,
+              "passed": true
+            },
+            {
+              "h": 1.875,
+              "j2": 0.4,
+              "de_gap": 0.004203030894251441,
+              "fidelity": 0.998773162755921,
+              "pred_energy": -11.852824979413423,
+              "e_exact": -11.864090487663269,
+              "gap": 2.68032963194576,
+              "passed": true
+            },
+            {
+              "h": 1.375,
+              "j2": 0.2,
+              "de_gap": 0.026349192854515292,
+              "fidelity": 0.9942940211915251,
+              "pred_energy": -9.023404651665624,
+              "e_exact": -9.061765667367224,
+              "gap": 1.455870618633634,
+              "passed": true
+            },
+            {
+              "h": 1.375,
+              "j2": 0.4,
+              "de_gap": 0.005134306492685241,
+              "fidelity": 0.9987245913563305,
+              "pred_energy": -9.026686757314625,
+              "e_exact": -9.035671817535759,
+              "gap": 1.7500046469634682,
+              "passed": true
+            },
+            {
+              "h": 1.125,
+              "j2": 0.2,
+              "de_gap": 0.06528463764666778,
+              "fidelity": 0.9890923296418533,
+              "pred_energy": -7.651056781864193,
+              "e_exact": -7.716427174712603,
+              "gap": 1.0013135586691426,
+              "passed": false
+            },
+            {
+              "h": 1.125,
+              "j2": 0.4,
+              "de_gap": 0.02198300789787905,
+              "fidelity": 0.9953782141923724,
+              "pred_energy": -7.634837961064222,
+              "e_exact": -7.663482599948545,
+              "gap": 1.3030354634538792,
+              "passed": true
+            }
+          ],
+          "pass": false
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "2D vs 1D Comparison",
+        "success": false,
+        "elapsed_s": 83.19,
+        "data": {
+          "per_j2_comparison": {
+            "0.15": {
+              "mean_de_gap_1d": 0.00267619338466633,
+              "mean_de_gap_2d": 5.819751982212565,
+              "improvement": -5.817075788827898,
+              "2d_competitive": false
+            },
+            "0.35": {
+              "mean_de_gap_1d": 0.06766175404925608,
+              "mean_de_gap_2d": 4.155978637151178,
+              "improvement": -4.088316883101922,
+              "2d_competitive": false
+            },
+            "0.45": {
+              "mean_de_gap_1d": 0.0038604858032508685,
+              "mean_de_gap_2d": 2.9714535905929047,
+              "improvement": -2.9675931047896538,
+              "2d_competitive": false
+            }
+          },
+          "all_competitive": false,
+          "mean_improvement": -4.2909952589064915,
+          "pass": false
+        },
+        "error": null
+      }
+    }
+  }
+}

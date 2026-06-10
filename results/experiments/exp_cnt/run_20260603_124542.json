@@ -1,0 +1,67 @@
+{
+  "timestamp": "2026-06-03T12:45:42.605286",
+  "config": {
+    "runner_id": "counting",
+    "experiment_id": "CNT",
+    "description": "Counting runner",
+    "hypothesis": "Caching works",
+    "category": "C",
+    "system": {},
+    "seeds": []
+  },
+  "elapsed_s": 0.00030517578125,
+  "results": {
+    "section_1": {
+      "name": "A",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 1,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 0.0,
+    "total_elapsed_s": 0.0,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:45:42.605278",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "CNT",
+    "category": "C",
+    "hypothesis": "Caching works",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 1,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 0.0,
+      "total_elapsed_s": 0.0,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "A",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

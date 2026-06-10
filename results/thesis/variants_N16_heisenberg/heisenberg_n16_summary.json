@@ -1,0 +1,77 @@
+{
+  "tool": "analysis/heisenberg_summary.py",
+  "n_results": 3,
+  "by_n": {
+    "16": {
+      "count": 3,
+      "classifications": {
+        "negative_fundamental": 3
+      }
+    }
+  },
+  "by_classification": {
+    "negative_fundamental": 3
+  },
+  "results": [
+    {
+      "directory": "ext_tfim_baseline",
+      "n_qubits": 16,
+      "model": "tfim",
+      "delta": null,
+      "topology": "chain_1d",
+      "p_layers": 2,
+      "seed": 42,
+      "n_restarts": 5,
+      "max_fidelity": 0.0,
+      "mean_fidelity": 0.0,
+      "n_above_threshold": 0,
+      "fidelity_threshold": 0.93,
+      "classification": "negative_fundamental",
+      "max_entropy": null,
+      "theta_smoothness": 0.0387505829231605,
+      "convergence_rate": 1.0,
+      "elapsed_s": 87.24510216712952,
+      "delta_e_over_gap": null
+    },
+    {
+      "directory": "nl_delta_isotropic",
+      "n_qubits": 16,
+      "model": "heisenberg",
+      "delta": 1.0,
+      "topology": "chain_1d",
+      "p_layers": 2,
+      "seed": 42,
+      "n_restarts": 10,
+      "max_fidelity": 0.0,
+      "mean_fidelity": 0.0,
+      "n_above_threshold": 0,
+      "fidelity_threshold": 0.6,
+      "classification": "negative_fundamental",
+      "max_entropy": null,
+      "theta_smoothness": 0.8228433705866309,
+      "convergence_rate": 1.0,
+      "elapsed_s": 481.4508879184723,
+      "delta_e_over_gap": null
+    },
+    {
+      "directory": "nl_delta_xy",
+      "n_qubits": 16,
+      "model": "heisenberg",
+      "delta": 0.0,
+      "topology": "chain_1d",
+      "p_layers": 2,
+      "seed": 42,
+      "n_restarts": 10,
+      "max_fidelity": 0.0,
+      "mean_fidelity": 0.0,
+      "n_above_threshold": 0,
+      "fidelity_threshold": 0.6,
+      "classification": "negative_fundamental",
+      "max_entropy": null,
+      "theta_smoothness": 4.823008207185362,
+      "convergence_rate": 1.0,
+      "elapsed_s": 418.36733508110046,
+      "delta_e_over_gap": null
+    }
+  ]
+}

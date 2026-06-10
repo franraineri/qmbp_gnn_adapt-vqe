@@ -1,0 +1,260 @@
+{
+  "timestamp": "20260531_021910",
+  "topology": "heavy_hex",
+  "n_qubits": 10,
+  "total_variants": 14,
+  "passed": 14,
+  "failed": 0,
+  "total_elapsed_s": 421.6889307498932,
+  "verdicts": {
+    "PASS": 10,
+    "MARGINAL": 0,
+    "FAIL": 4,
+    "ZNE-PASS": 0,
+    "ZNE-FAIL": 0,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "NL-A1",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 25.47,
+      "delta_e_over_gap": 0.006680089137984606,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A3",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 24.98,
+      "delta_e_over_gap": 6.446269076437268,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A5",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 30.46,
+      "delta_e_over_gap": 0.0009356338978180588,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B64",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 32.4,
+      "delta_e_over_gap": 0.6860818067659646,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B128",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 28.57,
+      "delta_e_over_gap": 9.691637065585946,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-seed42",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 29.03,
+      "delta_e_over_gap": 0.15934667723297097,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-seed43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 25.92,
+      "delta_e_over_gap": 0.0010157938948093244,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-seed44",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 29.09,
+      "delta_e_over_gap": 0.0009377518006110098,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-safe",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 41.22,
+      "delta_e_over_gap": 0.00040578767407221825,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-boundary",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 42.81,
+      "delta_e_over_gap": 0.002382639580259852,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-multi",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 42.36,
+      "delta_e_over_gap": 0.007011179052200399,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-p1-s42",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.52,
+      "delta_e_over_gap": 0.005631044695863942,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-p1-s43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.64,
+      "delta_e_over_gap": 0.006118886206343022,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-p1-s44",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 24.2,
+      "delta_e_over_gap": 0.005570341610979284,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "NL-A1",
+      "description": "VQE restarts=1 (heavy_hex, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 1 restart(s) on heavy_hex converges to \u0394E/gap < 5%. Heavy-hex is bipartite \u2192 expect benign landscape (like ladder).",
+      "expected_outcome": "Even 1 restart should work (no frustration). Validates that heavy-hex landscape is as benign as ladder."
+    },
+    {
+      "id": "NL-A3",
+      "description": "VQE restarts=3 (heavy_hex, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 3 restart(s) on heavy_hex converges to \u0394E/gap < 5%. Heavy-hex is bipartite \u2192 expect benign landscape (like ladder).",
+      "expected_outcome": "Even 1 restart should work (no frustration). Validates that heavy-hex landscape is as benign as ladder."
+    },
+    {
+      "id": "NL-A5",
+      "description": "VQE restarts=5 (heavy_hex, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 5 restart(s) on heavy_hex converges to \u0394E/gap < 5%. Heavy-hex is bipartite \u2192 expect benign landscape (like ladder).",
+      "expected_outcome": "Even 1 restart should work (no frustration). Validates that heavy-hex landscape is as benign as ladder."
+    },
+    {
+      "id": "NL-B64",
+      "description": "MPNN hidden_dim=64 (heavy_hex, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=64 on heavy_hex achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 should be sufficient (z=3, similar to ladder). h=64 tests if smaller model works on this simpler graph."
+    },
+    {
+      "id": "NL-B128",
+      "description": "MPNN hidden_dim=128 (heavy_hex, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=128 on heavy_hex achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 should be sufficient (z=3, similar to ladder). h=64 tests if smaller model works on this simpler graph."
+    },
+    {
+      "id": "NL-C-seed42",
+      "description": "Seed=42 (heavy_hex, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Heavy-hex pipeline with seed=42 is reproducible",
+      "expected_outcome": "Should be seed-independent (bipartite, no frustration). Expect std < 0.01 across seeds (like chain_1d)."
+    },
+    {
+      "id": "NL-C-seed43",
+      "description": "Seed=43 (heavy_hex, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Heavy-hex pipeline with seed=43 is reproducible",
+      "expected_outcome": "Should be seed-independent (bipartite, no frustration). Expect std < 0.01 across seeds (like chain_1d)."
+    },
+    {
+      "id": "NL-C-seed44",
+      "description": "Seed=44 (heavy_hex, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Heavy-hex pipeline with seed=44 is reproducible",
+      "expected_outcome": "Should be seed-independent (bipartite, no frustration). Expect std < 0.01 across seeds (like chain_1d)."
+    },
+    {
+      "id": "NL-D-safe",
+      "description": "h_test: Safe point (deep in paramagnetic, unseen) (heavy_hex)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on heavy_hex to h_test=['3.125']",
+      "expected_outcome": "Safe should pass. Boundary tests where the valid regime starts for heavy-hex (expected h\u22651.5 for p=2)."
+    },
+    {
+      "id": "NL-D-boundary",
+      "description": "h_test: Near expected valid regime boundary (heavy_hex)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on heavy_hex to h_test=['2.375']",
+      "expected_outcome": "Safe should pass. Boundary tests where the valid regime starts for heavy-hex (expected h\u22651.5 for p=2)."
+    },
+    {
+      "id": "NL-D-multi",
+      "description": "h_test: Multiple unseen points across regime (heavy_hex)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on heavy_hex to h_test=['3.125', '2.375']",
+      "expected_outcome": "Safe should pass. Boundary tests where the valid regime starts for heavy-hex (expected h\u22651.5 for p=2)."
+    },
+    {
+      "id": "NL-E-p1-s42",
+      "description": "p=1 heavy_hex seed=42 (hardware deployment candidate)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on heavy_hex N=10 seed=42 achieves \u0394E/gap < 5%. This is the target config for IBM Torino deployment (zero SWAP overhead).",
+      "expected_outcome": "PASS expected \u2014 heavy-hex is bipartite (no frustration), p=1 should work at h\u22652.5 (similar to ladder p=1 boundary)."
+    },
+    {
+      "id": "NL-E-p1-s43",
+      "description": "p=1 heavy_hex seed=43 (hardware deployment candidate)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on heavy_hex N=10 seed=43 achieves \u0394E/gap < 5%. This is the target config for IBM Torino deployment (zero SWAP overhead).",
+      "expected_outcome": "PASS expected \u2014 heavy-hex is bipartite (no frustration), p=1 should work at h\u22652.5 (similar to ladder p=1 boundary)."
+    },
+    {
+      "id": "NL-E-p1-s44",
+      "description": "p=1 heavy_hex seed=44 (hardware deployment candidate)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on heavy_hex N=10 seed=44 achieves \u0394E/gap < 5%. This is the target config for IBM Torino deployment (zero SWAP overhead).",
+      "expected_outcome": "PASS expected \u2014 heavy-hex is bipartite (no frustration), p=1 should work at h\u22652.5 (similar to ladder p=1 boundary)."
+    }
+  ]
+}

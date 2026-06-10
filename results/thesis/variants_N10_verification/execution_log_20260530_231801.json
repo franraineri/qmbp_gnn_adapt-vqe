@@ -1,0 +1,175 @@
+{
+  "timestamp": "20260530_231801",
+  "topology": "verification",
+  "n_qubits": 10,
+  "total_variants": 9,
+  "passed": 0,
+  "failed": 9,
+  "total_elapsed_s": 0.6895599365234375,
+  "verdicts": {
+    "PASS": 0,
+    "MARGINAL": 0,
+    "FAIL": 0,
+    "ZNE-PASS": 0,
+    "ZNE-FAIL": 0,
+    "SKIP-P3": 0,
+    "ERROR": 9
+  },
+  "results": [
+    {
+      "variant_id": "V1-ladder-N6-s42",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.09,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V1-ladder-N6-s43",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.08,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V1-ladder-N6-s44",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.08,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V2-tri-N6-s42",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.08,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V2-tri-N6-s43",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.08,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V2-tri-N6-s44",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.07,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V3-ladder-N10-s42",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.08,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V3-ladder-N10-s43",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.07,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    },
+    {
+      "variant_id": "V3-ladder-N10-s44",
+      "success": false,
+      "verdict": "ERROR",
+      "elapsed_s": 0.06,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 2,
+      "error_msg": "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python: can't open file '/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py': [Errno 2] No such file or directory"
+    }
+  ],
+  "variants": [
+    {
+      "id": "V1-ladder-N6-s42",
+      "description": "p=1 ladder N=6 seed=42 h_test=3.0 (reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=6 achieves \u0394E/gap < 5% at h_test=3.0 reproducibly across 3 seeds (h_test=3.0 is well inside valid regime h\u22652.0 for ladder N=6)",
+      "expected_outcome": "PASS \u2014 existing run at h_test=3.0 passes (0.015). If 2/3 seeds pass \u2192 ladder N=6 p=1 is viable. If 0-1/3 pass \u2192 ladder N=6 p=1 is seed-dependent."
+    },
+    {
+      "id": "V1-ladder-N6-s43",
+      "description": "p=1 ladder N=6 seed=43 h_test=3.0 (reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=6 achieves \u0394E/gap < 5% at h_test=3.0 reproducibly across 3 seeds (h_test=3.0 is well inside valid regime h\u22652.0 for ladder N=6)",
+      "expected_outcome": "PASS \u2014 existing run at h_test=3.0 passes (0.015). If 2/3 seeds pass \u2192 ladder N=6 p=1 is viable. If 0-1/3 pass \u2192 ladder N=6 p=1 is seed-dependent."
+    },
+    {
+      "id": "V1-ladder-N6-s44",
+      "description": "p=1 ladder N=6 seed=44 h_test=3.0 (reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=6 achieves \u0394E/gap < 5% at h_test=3.0 reproducibly across 3 seeds (h_test=3.0 is well inside valid regime h\u22652.0 for ladder N=6)",
+      "expected_outcome": "PASS \u2014 existing run at h_test=3.0 passes (0.015). If 2/3 seeds pass \u2192 ladder N=6 p=1 is viable. If 0-1/3 pass \u2192 ladder N=6 p=1 is seed-dependent."
+    },
+    {
+      "id": "V2-tri-N6-s42",
+      "description": "p=1 triangular N=6 seed=42 h_test=4.5 (deeper valid regime)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular N=6 achieves \u0394E/gap < 5% at h_test=4.5 (deeper in valid regime than the failed h_test=4.0 run). The previous failure may have been a boundary effect.",
+      "expected_outcome": "PASS expected \u2014 triangular N=10 passes at h_test=4.25 (3/3 seeds). N=6 should be easier. If FAIL \u2192 triangular N=6 p=1 has a genuine expressibility issue."
+    },
+    {
+      "id": "V2-tri-N6-s43",
+      "description": "p=1 triangular N=6 seed=43 h_test=4.5 (deeper valid regime)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular N=6 achieves \u0394E/gap < 5% at h_test=4.5 (deeper in valid regime than the failed h_test=4.0 run). The previous failure may have been a boundary effect.",
+      "expected_outcome": "PASS expected \u2014 triangular N=10 passes at h_test=4.25 (3/3 seeds). N=6 should be easier. If FAIL \u2192 triangular N=6 p=1 has a genuine expressibility issue."
+    },
+    {
+      "id": "V2-tri-N6-s44",
+      "description": "p=1 triangular N=6 seed=44 h_test=4.5 (deeper valid regime)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular N=6 achieves \u0394E/gap < 5% at h_test=4.5 (deeper in valid regime than the failed h_test=4.0 run). The previous failure may have been a boundary effect.",
+      "expected_outcome": "PASS expected \u2014 triangular N=10 passes at h_test=4.25 (3/3 seeds). N=6 should be easier. If FAIL \u2192 triangular N=6 p=1 has a genuine expressibility issue."
+    },
+    {
+      "id": "V3-ladder-N10-s42",
+      "description": "p=1 ladder N=10 seed=42 h_test=3.0 (boundary test)",
+      "category": "noiseless",
+      "hypothesis": "p=1 ladder N=10 at h_test=3.0 is at the boundary of the valid regime. R1 failed at 2.75, R2 passed at 3.25. h=3.0 determines if the boundary is h\u22653.0 or h\u22653.25.",
+      "expected_outcome": "MARGINAL or PASS \u2014 h=3.0 is in the training set so this tests interpolation. If FAIL \u2192 valid regime is h\u22653.25. If PASS \u2192 valid regime is h\u22653.0 (update P1_VALID_REGIME)."
+    },
+    {
+      "id": "V3-ladder-N10-s43",
+      "description": "p=1 ladder N=10 seed=43 h_test=3.0 (boundary test)",
+      "category": "noiseless",
+      "hypothesis": "p=1 ladder N=10 at h_test=3.0 is at the boundary of the valid regime. R1 failed at 2.75, R2 passed at 3.25. h=3.0 determines if the boundary is h\u22653.0 or h\u22653.25.",
+      "expected_outcome": "MARGINAL or PASS \u2014 h=3.0 is in the training set so this tests interpolation. If FAIL \u2192 valid regime is h\u22653.25. If PASS \u2192 valid regime is h\u22653.0 (update P1_VALID_REGIME)."
+    },
+    {
+      "id": "V3-ladder-N10-s44",
+      "description": "p=1 ladder N=10 seed=44 h_test=3.0 (boundary test)",
+      "category": "noiseless",
+      "hypothesis": "p=1 ladder N=10 at h_test=3.0 is at the boundary of the valid regime. R1 failed at 2.75, R2 passed at 3.25. h=3.0 determines if the boundary is h\u22653.0 or h\u22653.25.",
+      "expected_outcome": "MARGINAL or PASS \u2014 h=3.0 is in the training set so this tests interpolation. If FAIL \u2192 valid regime is h\u22653.25. If PASS \u2192 valid regime is h\u22653.0 (update P1_VALID_REGIME)."
+    }
+  ]
+}

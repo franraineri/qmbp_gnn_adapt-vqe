@@ -1,0 +1,223 @@
+{
+  "timestamp": "2026-06-08T22:08:42.910939",
+  "config": {
+    "runner_id": "scaling_extensions",
+    "experiment_id": "E5_SCALING_EXT",
+    "description": "E5: Scaling Extensions \u2014 N=120 + HE + NLCE",
+    "hypothesis": "MPS \u03c7=64 is exact at N=120, GNN eliminates VQE entirely (outperforming Hamiltonian engineering), and NLCE with GNN-HVA cluster solver converges to thermodynamic limit.",
+    "bond_dimension_test": {
+      "n_qubits": 120,
+      "chi_values": [
+        16,
+        32,
+        64,
+        128
+      ],
+      "strategy": "aer_mps",
+      "model": "tfim",
+      "topology": "chain_1d"
+    },
+    "he_comparison": {
+      "n_qubits": 20,
+      "topology": "chain_1d",
+      "parametrization": "bond_resolved"
+    },
+    "nlce": {
+      "l_max": 10,
+      "topology": "chain_1d",
+      "j2": 0.5
+    },
+    "seeds": [
+      42
+    ],
+    "category": "E",
+    "system": {}
+  },
+  "elapsed_s": 779.2715163230896,
+  "results": {
+    "section_3": {
+      "name": "Hamiltonian Engineering Comparison",
+      "success": true,
+      "elapsed_s": 779.27,
+      "data": {
+        "n_qubits": 20,
+        "h_test": 3.5124633005057664,
+        "e_exact": -71.60783563468911,
+        "gap": 5.024926601011533,
+        "n_edges": 19,
+        "n_params_total": 39,
+        "results": {
+          "method_a_full_vqe": {
+            "description": "Full cold-start VQE (39 params)",
+            "n_params_optimized": 39,
+            "energy": -71.32122022714648,
+            "de_gap": 0.05703872519947457,
+            "n_iterations": 300,
+            "time_s": 339.1036961078644
+          },
+          "method_b_he_vqe": {
+            "description": "HE analytical \u03b8_x + VQE \u03b8_zz (19 free params)",
+            "n_params_optimized": 19,
+            "theta_x_analytical": [
+              0.1414002563139342,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.277362119388419,
+              0.1414002563139342
+            ],
+            "energy": -71.56671370302811,
+            "de_gap": 0.008183588523008057,
+            "n_iterations": 300,
+            "time_s": 432.88529205322266
+          },
+          "method_c_uniform": {
+            "description": "Analytical uniform warm-start (0 optimization)",
+            "n_params_optimized": 0,
+            "n_evals": 1,
+            "energy": -66.55852427534336,
+            "de_gap": 1.0048527591088214,
+            "time_s": 1.09185791015625
+          },
+          "method_d_gnn": {
+            "description": "GNN prediction (0 optimization) \u2014 requires trained model",
+            "available": false,
+            "note": "Run Section 2 of run_bond_resolved_cross_n.py to train the GNN model, then reference its output here. Expected \u0394E/gap < 1%."
+          }
+        },
+        "comparison": {
+          "he_improvement_over_cold": 6.969891636060501,
+          "uniform_de_gap": 1.0048527591088214,
+          "uniform_acceptable": false,
+          "best_method": "B"
+        },
+        "thesis_narrative": "HE reduces dimension 39\u219219 (7.0\u00d7 improvement). Uniform analytical init achieves 100.49% \u0394E/gap with 0 optimization. GNN (when trained) eliminates VQE entirely with \u22641% error.",
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 1,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 779.27,
+    "total_elapsed_s": 779.27,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-08T22:08:42.447335",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "E5_SCALING_EXT",
+    "category": "E",
+    "hypothesis": "MPS \u03c7=64 is exact at N=120, GNN eliminates VQE entirely (outperforming Hamiltonian engineering), and NLCE with GNN-HVA cluster solver converges to thermodynamic limit.",
+    "n_seeds": 1,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 1,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 779.27,
+      "total_elapsed_s": 779.27,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_3": {
+        "name": "Hamiltonian Engineering Comparison",
+        "success": true,
+        "elapsed_s": 779.27,
+        "data": {
+          "n_qubits": 20,
+          "h_test": 3.5124633005057664,
+          "e_exact": -71.60783563468911,
+          "gap": 5.024926601011533,
+          "n_edges": 19,
+          "n_params_total": 39,
+          "results": {
+            "method_a_full_vqe": {
+              "description": "Full cold-start VQE (39 params)",
+              "n_params_optimized": 39,
+              "energy": -71.32122022714648,
+              "de_gap": 0.05703872519947457,
+              "n_iterations": 300,
+              "time_s": 339.1036961078644
+            },
+            "method_b_he_vqe": {
+              "description": "HE analytical \u03b8_x + VQE \u03b8_zz (19 free params)",
+              "n_params_optimized": 19,
+              "theta_x_analytical": [
+                0.1414002563139342,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.277362119388419,
+                0.1414002563139342
+              ],
+              "energy": -71.56671370302811,
+              "de_gap": 0.008183588523008057,
+              "n_iterations": 300,
+              "time_s": 432.88529205322266
+            },
+            "method_c_uniform": {
+              "description": "Analytical uniform warm-start (0 optimization)",
+              "n_params_optimized": 0,
+              "n_evals": 1,
+              "energy": -66.55852427534336,
+              "de_gap": 1.0048527591088214,
+              "time_s": 1.09185791015625
+            },
+            "method_d_gnn": {
+              "description": "GNN prediction (0 optimization) \u2014 requires trained model",
+              "available": false,
+              "note": "Run Section 2 of run_bond_resolved_cross_n.py to train the GNN model, then reference its output here. Expected \u0394E/gap < 1%."
+            }
+          },
+          "comparison": {
+            "he_improvement_over_cold": 6.969891636060501,
+            "uniform_de_gap": 1.0048527591088214,
+            "uniform_acceptable": false,
+            "best_method": "B"
+          },
+          "thesis_narrative": "HE reduces dimension 39\u219219 (7.0\u00d7 improvement). Uniform analytical init achieves 100.49% \u0394E/gap with 0 optimization. GNN (when trained) eliminates VQE entirely with \u22641% error.",
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

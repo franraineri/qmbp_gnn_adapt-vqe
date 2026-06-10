@@ -1,0 +1,262 @@
+{
+  "timestamp": "2026-06-05T01:52:58.167370",
+  "config": {
+    "runner_id": "hardware_rehearsal_v2",
+    "experiment_id": "HW_REHEARSAL_V2",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "description": "Hardware Rehearsal V2 (PEA/GF/Adaptive ZNE via HardwareBackend)",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "h_train": [
+      4.5,
+      4.25,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "zne": {
+      "amplifier": "pea",
+      "r2_threshold": 0.9,
+      "shots": 16384,
+      "n_layouts": 3
+    },
+    "thresholds": {
+      "de_gap": 0.05,
+      "zne_r2": 0.8
+    },
+    "category": "H"
+  },
+  "elapsed_s": 1.8340752124786377,
+  "results": {
+    "section_8": {
+      "name": "QPU Cost & Timeout Estimation",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "n_h_points": 3,
+        "circuits_per_h": 9,
+        "shots_per_h": 147456,
+        "total_circuits": 27,
+        "total_shots": 442368,
+        "est_time_per_h_s": 88.4736,
+        "est_zne_time_s": 265.4208,
+        "est_obs_time_s": 39.321600000000004,
+        "est_spsa_time_s": 2359.296,
+        "est_grand_total_s": 2664.0384,
+        "est_grand_total_min": 44.400639999999996,
+        "max_execution_time_s": 600,
+        "fits_single_job": true,
+        "fits_full_sweep": false,
+        "amplifier": "pea",
+        "estimated_clops": 2500,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_9": {
+      "name": "Transpiled Circuit Depth Audit",
+      "success": true,
+      "elapsed_s": 1.78,
+      "data": {
+        "layouts": [
+          {
+            "layout_idx": 0,
+            "layout_qubits": [
+              25,
+              24,
+              26,
+              35,
+              23
+            ],
+            "ces": 0.15390226170521154,
+            "n_2q_gates": 41,
+            "n_1q_gates": 185,
+            "depth": 87,
+            "zne_viable": true,
+            "depth_warning": false
+          },
+          {
+            "layout_idx": 1,
+            "layout_qubits": [
+              32,
+              33,
+              31,
+              37,
+              18
+            ],
+            "ces": 0.1614839966520763,
+            "n_2q_gates": 43,
+            "n_1q_gates": 201,
+            "depth": 111,
+            "zne_viable": true,
+            "depth_warning": false
+          },
+          {
+            "layout_idx": 2,
+            "layout_qubits": [
+              5,
+              4,
+              6,
+              16,
+              3
+            ],
+            "ces": 0.17198902030369212,
+            "n_2q_gates": 44,
+            "n_1q_gates": 198,
+            "depth": 97,
+            "zne_viable": true,
+            "depth_warning": false
+          }
+        ],
+        "mean_2q_gates": 42.666666666666664,
+        "max_2q_gates": 44,
+        "mean_ces": 0.16245842622032666,
+        "zne_threshold": 50,
+        "all_zne_viable": true,
+        "n_layouts_audited": 3,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 2,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 1.83,
+    "total_elapsed_s": 1.83,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T01:52:58.102955",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "HW_REHEARSAL_V2",
+    "category": "H",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 2,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 1.83,
+      "total_elapsed_s": 1.83,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_8": {
+        "name": "QPU Cost & Timeout Estimation",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "n_h_points": 3,
+          "circuits_per_h": 9,
+          "shots_per_h": 147456,
+          "total_circuits": 27,
+          "total_shots": 442368,
+          "est_time_per_h_s": 88.4736,
+          "est_zne_time_s": 265.4208,
+          "est_obs_time_s": 39.321600000000004,
+          "est_spsa_time_s": 2359.296,
+          "est_grand_total_s": 2664.0384,
+          "est_grand_total_min": 44.400639999999996,
+          "max_execution_time_s": 600,
+          "fits_single_job": true,
+          "fits_full_sweep": false,
+          "amplifier": "pea",
+          "estimated_clops": 2500,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_9": {
+        "name": "Transpiled Circuit Depth Audit",
+        "success": true,
+        "elapsed_s": 1.78,
+        "data": {
+          "layouts": [
+            {
+              "layout_idx": 0,
+              "layout_qubits": [
+                25,
+                24,
+                26,
+                35,
+                23
+              ],
+              "ces": 0.15390226170521154,
+              "n_2q_gates": 41,
+              "n_1q_gates": 185,
+              "depth": 87,
+              "zne_viable": true,
+              "depth_warning": false
+            },
+            {
+              "layout_idx": 1,
+              "layout_qubits": [
+                32,
+                33,
+                31,
+                37,
+                18
+              ],
+              "ces": 0.1614839966520763,
+              "n_2q_gates": 43,
+              "n_1q_gates": 201,
+              "depth": 111,
+              "zne_viable": true,
+              "depth_warning": false
+            },
+            {
+              "layout_idx": 2,
+              "layout_qubits": [
+                5,
+                4,
+                6,
+                16,
+                3
+              ],
+              "ces": 0.17198902030369212,
+              "n_2q_gates": 44,
+              "n_1q_gates": 198,
+              "depth": 97,
+              "zne_viable": true,
+              "depth_warning": false
+            }
+          ],
+          "mean_2q_gates": 42.666666666666664,
+          "max_2q_gates": 44,
+          "mean_ces": 0.16245842622032666,
+          "zne_threshold": 50,
+          "all_zne_viable": true,
+          "n_layouts_audited": 3,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

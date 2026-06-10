@@ -1,0 +1,193 @@
+{
+  "timestamp": "2026-06-03T12:35:38.911545",
+  "config": {
+    "runner_id": "t1b_longitudinal_zne",
+    "experiment_id": "T1b",
+    "description": "Noisy Simulation \u2014 TFIM+longitudinal ZNE on FakeTorino",
+    "hypothesis": "ZNE achieves R\u00b2>0.95, gain\u226530%, and \u0394E/gap<10% for TFIM+longitudinal (g=0.3) at p=1 N=6",
+    "category": "T",
+    "model": "tfim_longitudinal",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 1,
+      "topology": "chain_1d",
+      "g": 0.3
+    },
+    "zne": {
+      "n_layouts": 3,
+      "shots": 16384,
+      "h_values": [
+        2.5,
+        2.0,
+        1.75,
+        1.5
+      ]
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 2.178133010864258,
+  "results": {
+    "section_1": {
+      "name": "Noiseless VQE Baseline",
+      "success": true,
+      "elapsed_s": 0.77,
+      "data": {
+        "points": [
+          {
+            "h": 2.5,
+            "e_exact": -15.731749333909118,
+            "e_noiseless": -15.484079155902162,
+            "gap": 3.4793073619620802,
+            "de_gap": 0.07118375936390048,
+            "theta_opt": [
+              0.09581013138136985,
+              0.39269912758871023,
+              -2.5812191664174142e-08
+            ]
+          },
+          {
+            "h": 2.0,
+            "e_exact": -12.978666399988136,
+            "e_noiseless": -12.594951655587371,
+            "gap": 2.664006977886954,
+            "de_gap": 0.14403668893732424,
+            "theta_opt": [
+              0.11714392737100297,
+              0.39269907743970495,
+              -1.6887043073900297e-08
+            ]
+          },
+          {
+            "h": 1.75,
+            "e_exact": -11.675093144561627,
+            "e_noiseless": -11.170663118302166,
+            "gap": 2.335930316333565,
+            "de_gap": 0.2159439529220229,
+            "theta_opt": [
+              0.1315109201455493,
+              0.3926990890643055,
+              4.2990692305033065e-09
+            ]
+          },
+          {
+            "h": 1.5,
+            "e_exact": -10.457309825045794,
+            "e_noiseless": -9.766830411348398,
+            "gap": 2.1083585039452437,
+            "de_gap": 0.32749620731262913,
+            "theta_opt": [
+              0.1494956262995532,
+              0.39269907493083056,
+              -2.3143700091947828e-08
+            ]
+          }
+        ],
+        "mean_de_gap": 0.18966515213396917,
+        "all_converged": true,
+        "hw_regime_ok": true,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 1,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 2.18,
+    "total_elapsed_s": 2.18,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:35:38.872364",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "T1b",
+    "category": "T",
+    "hypothesis": "ZNE achieves R\u00b2>0.95, gain\u226530%, and \u0394E/gap<10% for TFIM+longitudinal (g=0.3) at p=1 N=6",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 1,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 2.18,
+      "total_elapsed_s": 2.18,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Noiseless VQE Baseline",
+        "success": true,
+        "elapsed_s": 0.77,
+        "data": {
+          "points": [
+            {
+              "h": 2.5,
+              "e_exact": -15.731749333909118,
+              "e_noiseless": -15.484079155902162,
+              "gap": 3.4793073619620802,
+              "de_gap": 0.07118375936390048,
+              "theta_opt": [
+                0.09581013138136985,
+                0.39269912758871023,
+                -2.5812191664174142e-08
+              ]
+            },
+            {
+              "h": 2.0,
+              "e_exact": -12.978666399988136,
+              "e_noiseless": -12.594951655587371,
+              "gap": 2.664006977886954,
+              "de_gap": 0.14403668893732424,
+              "theta_opt": [
+                0.11714392737100297,
+                0.39269907743970495,
+                -1.6887043073900297e-08
+              ]
+            },
+            {
+              "h": 1.75,
+              "e_exact": -11.675093144561627,
+              "e_noiseless": -11.170663118302166,
+              "gap": 2.335930316333565,
+              "de_gap": 0.2159439529220229,
+              "theta_opt": [
+                0.1315109201455493,
+                0.3926990890643055,
+                4.2990692305033065e-09
+              ]
+            },
+            {
+              "h": 1.5,
+              "e_exact": -10.457309825045794,
+              "e_noiseless": -9.766830411348398,
+              "gap": 2.1083585039452437,
+              "de_gap": 0.32749620731262913,
+              "theta_opt": [
+                0.1494956262995532,
+                0.39269907493083056,
+                -2.3143700091947828e-08
+              ]
+            }
+          ],
+          "mean_de_gap": 0.18966515213396917,
+          "all_converged": true,
+          "hw_regime_ok": true,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

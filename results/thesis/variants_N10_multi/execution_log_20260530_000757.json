@@ -1,0 +1,175 @@
+{
+  "timestamp": "20260530_000757",
+  "topology": "multi",
+  "n_qubits": 10,
+  "total_variants": 9,
+  "passed": 9,
+  "failed": 0,
+  "total_elapsed_s": 197.20653796195984,
+  "verdicts": {
+    "PASS": 4,
+    "MARGINAL": 2,
+    "FAIL": 3,
+    "ZNE-PASS": 0,
+    "ZNE-FAIL": 0,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "P1-chain-s42",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.56,
+      "delta_e_over_gap": 0.019803854127553203,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-chain-s43",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 22.93,
+      "delta_e_over_gap": 0.1531559654687778,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-chain-s44",
+      "success": true,
+      "verdict": "MARGINAL",
+      "elapsed_s": 19.65,
+      "delta_e_over_gap": 0.05685738767988146,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-ladder-s42",
+      "success": true,
+      "verdict": "MARGINAL",
+      "elapsed_s": 21.77,
+      "delta_e_over_gap": 0.05740599725401872,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-ladder-s43",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 21.71,
+      "delta_e_over_gap": 11.06440567487688,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-ladder-s44",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 21.47,
+      "delta_e_over_gap": 8.747288183464764,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-tri-s42",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.5,
+      "delta_e_over_gap": 0.0322386301566393,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-tri-s43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.29,
+      "delta_e_over_gap": 0.0354195618048172,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1-tri-s44",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.31,
+      "delta_e_over_gap": 0.03336068283591307,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "P1-chain-s42",
+      "description": "p=1 chain_1d N=10 seed=42 (h_test=2.25)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on chain_1d N=10 achieves \u0394E/gap < 5% at h_test=2.25 (within valid regime h\u22651.9)",
+      "expected_outcome": "PASS \u2014 landscape is trivial (1 effective param)"
+    },
+    {
+      "id": "P1-chain-s43",
+      "description": "p=1 chain_1d N=10 seed=43 (h_test=2.25)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on chain_1d N=10 achieves \u0394E/gap < 5% at h_test=2.25 (within valid regime h\u22651.9)",
+      "expected_outcome": "PASS \u2014 landscape is trivial (1 effective param)"
+    },
+    {
+      "id": "P1-chain-s44",
+      "description": "p=1 chain_1d N=10 seed=44 (h_test=2.25)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on chain_1d N=10 achieves \u0394E/gap < 5% at h_test=2.25 (within valid regime h\u22651.9)",
+      "expected_outcome": "PASS \u2014 landscape is trivial (1 effective param)"
+    },
+    {
+      "id": "P1-ladder-s42",
+      "description": "p=1 ladder N=10 seed=42 (h_test=2.75)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=10 achieves \u0394E/gap < 5% at h_test=2.75 (within valid regime h\u22652.0)",
+      "expected_outcome": "PASS \u2014 existing run passes at 0.036"
+    },
+    {
+      "id": "P1-ladder-s43",
+      "description": "p=1 ladder N=10 seed=43 (h_test=2.75)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=10 achieves \u0394E/gap < 5% at h_test=2.75 (within valid regime h\u22652.0)",
+      "expected_outcome": "PASS \u2014 existing run passes at 0.036"
+    },
+    {
+      "id": "P1-ladder-s44",
+      "description": "p=1 ladder N=10 seed=44 (h_test=2.75)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=10 achieves \u0394E/gap < 5% at h_test=2.75 (within valid regime h\u22652.0)",
+      "expected_outcome": "PASS \u2014 existing run passes at 0.036"
+    },
+    {
+      "id": "P1-tri-s42",
+      "description": "p=1 triangular N=10 seed=42 (h_test=4.25, 5rst)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular N=10 achieves \u0394E/gap < 5% at h_test=4.25 with 5 restarts (avoids restart paradox)",
+      "expected_outcome": "PASS expected \u2014 previous failure was restart paradox (7rst), not physics limit"
+    },
+    {
+      "id": "P1-tri-s43",
+      "description": "p=1 triangular N=10 seed=43 (h_test=4.25, 5rst)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular N=10 achieves \u0394E/gap < 5% at h_test=4.25 with 5 restarts (avoids restart paradox)",
+      "expected_outcome": "PASS expected \u2014 previous failure was restart paradox (7rst), not physics limit"
+    },
+    {
+      "id": "P1-tri-s44",
+      "description": "p=1 triangular N=10 seed=44 (h_test=4.25, 5rst)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular N=10 achieves \u0394E/gap < 5% at h_test=4.25 with 5 restarts (avoids restart paradox)",
+      "expected_outcome": "PASS expected \u2014 previous failure was restart paradox (7rst), not physics limit"
+    }
+  ]
+}

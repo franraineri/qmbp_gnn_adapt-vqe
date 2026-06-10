@@ -1,0 +1,362 @@
+{
+  "timestamp": "2026-06-09T20:05:25.170905",
+  "config": {
+    "runner_id": "t1a_dense_j2",
+    "experiment_id": "T1a_dense",
+    "description": "T1a Dense J\u2082 \u2014 Cross-J\u2082 Interpolation with 8 Training Values",
+    "hypothesis": "With 8 J\u2082 training values (vs 5 in T1a), the MPNN achieves cross-J\u2082 interpolation pass rate > 50% at unseen J\u2082",
+    "category": "T",
+    "model": "tfim_frustrated",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d"
+    },
+    "grid": {
+      "h_train": [
+        2.5,
+        2.25,
+        2.0,
+        1.75,
+        1.5,
+        1.25,
+        1.0,
+        0.875,
+        0.75
+      ],
+      "j2_train": [
+        0.0,
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7
+      ],
+      "h_test": [
+        1.875,
+        1.375,
+        1.125
+      ],
+      "j2_test": [
+        0.15,
+        0.35,
+        0.55
+      ],
+      "n_train_points": 72
+    },
+    "mpnn": {
+      "hidden_dim": 64,
+      "n_layers": 3,
+      "epochs": 6000,
+      "lr": 0.001,
+      "patience": 500,
+      "node_features": 3
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 301.4056251049042,
+  "results": {
+    "section_1": {
+      "name": "VQE Data Generation (dense h\u00d7J\u2082 grid)",
+      "success": true,
+      "elapsed_s": 232.96,
+      "data": {
+        "n_points": 72,
+        "mean_fidelity": 0.9955955585047044,
+        "min_fidelity": 0.9482227001618035,
+        "pass_rate": 1.0,
+        "per_j2_mean_fid": {
+          "0.0": 0.9900881331801913,
+          "0.1": 0.9951846785674081,
+          "0.2": 0.9970782294946685,
+          "0.3": 0.9991479464753681,
+          "0.4": 0.9983584808659247,
+          "0.5": 0.9967177293587225,
+          "0.6": 0.995127825436461,
+          "0.7": 0.9930614446588911
+        },
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "MPNN Training (2D predictor, dense grid)",
+      "success": true,
+      "elapsed_s": 37.8,
+      "data": {
+        "final_mse": 0.011942900717258453,
+        "n_epochs": 6000,
+        "stopped_early": false,
+        "n_train_graphs": 72,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Deployment at Unseen (h, J\u2082)",
+      "success": true,
+      "elapsed_s": 0.08,
+      "data": {
+        "n_test_points": 9,
+        "n_pass": 3,
+        "pass_rate": 0.3333333333333333,
+        "mean_de_gap": 2.497134159433785,
+        "mean_fidelity": 0.5406643631907511,
+        "per_point": [
+          {
+            "h": 1.875,
+            "j2": 0.15,
+            "de_gap": 1.0985600773123994,
+            "fidelity": 0.6879462132818057,
+            "passed": false
+          },
+          {
+            "h": 1.875,
+            "j2": 0.35,
+            "de_gap": 4.885398636328996,
+            "fidelity": 0.013930260467916625,
+            "passed": false
+          },
+          {
+            "h": 1.875,
+            "j2": 0.55,
+            "de_gap": 0.0076839027133724525,
+            "fidelity": 0.9981892689624375,
+            "passed": true
+          },
+          {
+            "h": 1.375,
+            "j2": 0.15,
+            "de_gap": 2.9401873351223515,
+            "fidelity": 0.45130463364929213,
+            "passed": false
+          },
+          {
+            "h": 1.375,
+            "j2": 0.35,
+            "de_gap": 5.298032868737171,
+            "fidelity": 0.04647497634709855,
+            "passed": false
+          },
+          {
+            "h": 1.375,
+            "j2": 0.55,
+            "de_gap": 0.02165182420930793,
+            "fidelity": 0.995774539808398,
+            "passed": true
+          },
+          {
+            "h": 1.125,
+            "j2": 0.15,
+            "de_gap": 2.564940005057057,
+            "fidelity": 0.5541078678021043,
+            "passed": false
+          },
+          {
+            "h": 1.125,
+            "j2": 0.35,
+            "de_gap": 5.608405486825943,
+            "fidelity": 0.1267011505156078,
+            "passed": false
+          },
+          {
+            "h": 1.125,
+            "j2": 0.55,
+            "de_gap": 0.049347298597463625,
+            "fidelity": 0.9915503578820987,
+            "passed": true
+          }
+        ],
+        "hypothesis_confirmed": false,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Dense vs Original Comparison",
+      "success": true,
+      "elapsed_s": 30.54,
+      "data": {
+        "dense_pass_rate": 0.3333333333333333,
+        "original_pass_rate": 0.1111111111111111,
+        "improvement": 0.2222222222222222,
+        "dense_grid_size": 8,
+        "original_grid_size": 5,
+        "conclusion": "Denser grid improves but doesn't solve J\u2082 generalization \u2014 architecture changes needed (attention, separate J\u2082 embedding)",
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 4,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 301.41,
+    "total_elapsed_s": 301.41,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-09T20:05:24.319806",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "T1a_dense",
+    "category": "T",
+    "hypothesis": "With 8 J\u2082 training values (vs 5 in T1a), the MPNN achieves cross-J\u2082 interpolation pass rate > 50% at unseen J\u2082",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 4,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 301.41,
+      "total_elapsed_s": 301.41,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "VQE Data Generation (dense h\u00d7J\u2082 grid)",
+        "success": true,
+        "elapsed_s": 232.96,
+        "data": {
+          "n_points": 72,
+          "mean_fidelity": 0.9955955585047044,
+          "min_fidelity": 0.9482227001618035,
+          "pass_rate": 1.0,
+          "per_j2_mean_fid": {
+            "0.0": 0.9900881331801913,
+            "0.1": 0.9951846785674081,
+            "0.2": 0.9970782294946685,
+            "0.3": 0.9991479464753681,
+            "0.4": 0.9983584808659247,
+            "0.5": 0.9967177293587225,
+            "0.6": 0.995127825436461,
+            "0.7": 0.9930614446588911
+          },
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "MPNN Training (2D predictor, dense grid)",
+        "success": true,
+        "elapsed_s": 37.8,
+        "data": {
+          "final_mse": 0.011942900717258453,
+          "n_epochs": 6000,
+          "stopped_early": false,
+          "n_train_graphs": 72,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Deployment at Unseen (h, J\u2082)",
+        "success": true,
+        "elapsed_s": 0.08,
+        "data": {
+          "n_test_points": 9,
+          "n_pass": 3,
+          "pass_rate": 0.3333333333333333,
+          "mean_de_gap": 2.497134159433785,
+          "mean_fidelity": 0.5406643631907511,
+          "per_point": [
+            {
+              "h": 1.875,
+              "j2": 0.15,
+              "de_gap": 1.0985600773123994,
+              "fidelity": 0.6879462132818057,
+              "passed": false
+            },
+            {
+              "h": 1.875,
+              "j2": 0.35,
+              "de_gap": 4.885398636328996,
+              "fidelity": 0.013930260467916625,
+              "passed": false
+            },
+            {
+              "h": 1.875,
+              "j2": 0.55,
+              "de_gap": 0.0076839027133724525,
+              "fidelity": 0.9981892689624375,
+              "passed": true
+            },
+            {
+              "h": 1.375,
+              "j2": 0.15,
+              "de_gap": 2.9401873351223515,
+              "fidelity": 0.45130463364929213,
+              "passed": false
+            },
+            {
+              "h": 1.375,
+              "j2": 0.35,
+              "de_gap": 5.298032868737171,
+              "fidelity": 0.04647497634709855,
+              "passed": false
+            },
+            {
+              "h": 1.375,
+              "j2": 0.55,
+              "de_gap": 0.02165182420930793,
+              "fidelity": 0.995774539808398,
+              "passed": true
+            },
+            {
+              "h": 1.125,
+              "j2": 0.15,
+              "de_gap": 2.564940005057057,
+              "fidelity": 0.5541078678021043,
+              "passed": false
+            },
+            {
+              "h": 1.125,
+              "j2": 0.35,
+              "de_gap": 5.608405486825943,
+              "fidelity": 0.1267011505156078,
+              "passed": false
+            },
+            {
+              "h": 1.125,
+              "j2": 0.55,
+              "de_gap": 0.049347298597463625,
+              "fidelity": 0.9915503578820987,
+              "passed": true
+            }
+          ],
+          "hypothesis_confirmed": false,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Dense vs Original Comparison",
+        "success": true,
+        "elapsed_s": 30.54,
+        "data": {
+          "dense_pass_rate": 0.3333333333333333,
+          "original_pass_rate": 0.1111111111111111,
+          "improvement": 0.2222222222222222,
+          "dense_grid_size": 8,
+          "original_grid_size": 5,
+          "conclusion": "Denser grid improves but doesn't solve J\u2082 generalization \u2014 architecture changes needed (attention, separate J\u2082 embedding)",
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

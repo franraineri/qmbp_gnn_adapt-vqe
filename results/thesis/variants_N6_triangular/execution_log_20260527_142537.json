@@ -1,0 +1,612 @@
+{
+  "timestamp": "20260527_142537",
+  "topology": "triangular",
+  "n_qubits": 6,
+  "total_variants": 37,
+  "passed": 37,
+  "failed": 0,
+  "total_elapsed_s": 1205.096610069275,
+  "verdicts": {
+    "PASS": 14,
+    "MARGINAL": 1,
+    "FAIL": 12,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "NL-A1",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 28.78,
+      "delta_e_over_gap": 0.0030498137208225546,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A3",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.19,
+      "delta_e_over_gap": 0.002643351524716696,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A5",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 22.68,
+      "delta_e_over_gap": 0.19169055534215565,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A7",
+      "success": true,
+      "verdict": "MARGINAL",
+      "elapsed_s": 26.97,
+      "delta_e_over_gap": 0.0756471579573677,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B64",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 24.9,
+      "delta_e_over_gap": 0.17083786837708784,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B128",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 23.99,
+      "delta_e_over_gap": 0.0025987909264647852,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B256",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 33.15,
+      "delta_e_over_gap": 0.18382697452184646,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-sparse5",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 26.59,
+      "delta_e_over_gap": 0.1934011421487509,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-standard7",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 26.43,
+      "delta_e_over_gap": 0.002419126720334367,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-dense9",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 27.77,
+      "delta_e_over_gap": 0.002582673667801776,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-safe",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 27.58,
+      "delta_e_over_gap": 0.002515083984905377,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-boundary",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 27.3,
+      "delta_e_over_gap": 0.047913553571223115,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-multi",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 23.89,
+      "delta_e_over_gap": 0.3384196880389781,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed42",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 23.56,
+      "delta_e_over_gap": 0.15412137959086777,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 28.57,
+      "delta_e_over_gap": 0.002600425430668153,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed44",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 26.34,
+      "delta_e_over_gap": 0.14330871459594666,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-F-chain1d",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 32.16,
+      "delta_e_over_gap": 0.006942637343170066,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-F-ladder",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 29.52,
+      "delta_e_over_gap": 0.02733986629875051,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-G-p1-tri",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 24.03,
+      "delta_e_over_gap": 0.1932932534738699,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-H-ep4000",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 25.56,
+      "delta_e_over_gap": 0.026992347851762914,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-H-ep6000",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 29.87,
+      "delta_e_over_gap": 0.0027818869346052703,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-H-ep8000",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 31.68,
+      "delta_e_over_gap": 0.1227025670769541,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-shots8192",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 57.85,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-shots16384",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 42.12,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-shots32768",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 38.5,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-lay3",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 44.37,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-lay5",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 50.28,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-lay7",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 74.77,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-C-seed42",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 43.0,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-C-seed43",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 51.34,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-C-seed44",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 39.33,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-1-high-h",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 21.5,
+      "delta_e_over_gap": 0.7198887632474065,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-2-near-boundary",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 27.06,
+      "delta_e_over_gap": 0.13895674419220475,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-kagome",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 24.46,
+      "delta_e_over_gap": 0.031645672916697995,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-4-deep-gnn",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 34.68,
+      "delta_e_over_gap": 0.028621091721110728,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-5-noisy-p1",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 38.4,
+      "delta_e_over_gap": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-6-N6-tri",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 23.88,
+      "delta_e_over_gap": 0.17685691393966196,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "NL-A1",
+      "description": "VQE restarts=1 (triangular, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 1 restart(s) on triangular converges to \u0394E/gap < 5%",
+      "expected_outcome": "Frustration creates local minima \u2014 likely needs \u22655 restarts. 1 restart almost certainly fails."
+    },
+    {
+      "id": "NL-A3",
+      "description": "VQE restarts=3 (triangular, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 3 restart(s) on triangular converges to \u0394E/gap < 5%",
+      "expected_outcome": "Frustration creates local minima \u2014 likely needs \u22655 restarts. 1 restart almost certainly fails."
+    },
+    {
+      "id": "NL-A5",
+      "description": "VQE restarts=5 (triangular, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 5 restart(s) on triangular converges to \u0394E/gap < 5%",
+      "expected_outcome": "Frustration creates local minima \u2014 likely needs \u22655 restarts. 1 restart almost certainly fails."
+    },
+    {
+      "id": "NL-A7",
+      "description": "VQE restarts=7 (triangular, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 7 restart(s) on triangular converges to \u0394E/gap < 5%",
+      "expected_outcome": "Frustration creates local minima \u2014 likely needs \u22655 restarts. 1 restart almost certainly fails."
+    },
+    {
+      "id": "NL-B64",
+      "description": "MPNN hidden_dim=64 (triangular, 7 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=64 on triangular achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 likely sufficient (GINConv is expressive). h=256 tests if extra capacity helps on frustrated lattice."
+    },
+    {
+      "id": "NL-B128",
+      "description": "MPNN hidden_dim=128 (triangular, 7 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=128 on triangular achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 likely sufficient (GINConv is expressive). h=256 tests if extra capacity helps on frustrated lattice."
+    },
+    {
+      "id": "NL-B256",
+      "description": "MPNN hidden_dim=256 (triangular, 7 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=256 on triangular achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 likely sufficient (GINConv is expressive). h=256 tests if extra capacity helps on frustrated lattice."
+    },
+    {
+      "id": "NL-C-sparse5",
+      "description": "h-grid: sparse5 (5 pts, triangular)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'sparse5' sufficient for triangular MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse5 may fail on triangular (frustrated landscape needs more training points for smooth interpolation)."
+    },
+    {
+      "id": "NL-C-standard7",
+      "description": "h-grid: standard7 (7 pts, triangular)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'standard7' sufficient for triangular MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse5 may fail on triangular (frustrated landscape needs more training points for smooth interpolation)."
+    },
+    {
+      "id": "NL-C-dense9",
+      "description": "h-grid: dense9 (9 pts, triangular)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'dense9' sufficient for triangular MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse5 may fail on triangular (frustrated landscape needs more training points for smooth interpolation)."
+    },
+    {
+      "id": "NL-D-safe",
+      "description": "h_test: Safe point (deep in paramagnetic phase) (triangular)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on triangular to h_test=['3.5']",
+      "expected_outcome": "Safe and multi should pass; boundary (h=3.0) may be marginal due to frustration effects near the valid regime edge."
+    },
+    {
+      "id": "NL-D-boundary",
+      "description": "h_test: Boundary of expected valid regime (triangular)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on triangular to h_test=['3.0']",
+      "expected_outcome": "Safe and multi should pass; boundary (h=3.0) may be marginal due to frustration effects near the valid regime edge."
+    },
+    {
+      "id": "NL-D-multi",
+      "description": "h_test: Multiple points across regime (triangular)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on triangular to h_test=['4.5', '3.75', '3.25']",
+      "expected_outcome": "Safe and multi should pass; boundary (h=3.0) may be marginal due to frustration effects near the valid regime edge."
+    },
+    {
+      "id": "NL-E-seed42",
+      "description": "Seed=42 (triangular, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Triangular pipeline with seed=42 is reproducible",
+      "expected_outcome": "May show higher variance than chain/ladder due to frustration. Tests if 7 restarts is sufficient to overcome seed dependence."
+    },
+    {
+      "id": "NL-E-seed43",
+      "description": "Seed=43 (triangular, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Triangular pipeline with seed=43 is reproducible",
+      "expected_outcome": "May show higher variance than chain/ladder due to frustration. Tests if 7 restarts is sufficient to overcome seed dependence."
+    },
+    {
+      "id": "NL-E-seed44",
+      "description": "Seed=44 (triangular, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Triangular pipeline with seed=44 is reproducible",
+      "expected_outcome": "May show higher variance than chain/ladder due to frustration. Tests if 7 restarts is sufficient to overcome seed dependence."
+    },
+    {
+      "id": "NL-F-chain1d",
+      "description": "chain_1d baseline (same h-range for comparison)",
+      "category": "noiseless",
+      "hypothesis": "chain_1d baseline at same h-range for topology comparison",
+      "expected_outcome": "PASS \u2014 chain_1d at h\u22653.0 is well within valid regime. Provides reference for triangular performance delta."
+    },
+    {
+      "id": "NL-F-ladder",
+      "description": "ladder baseline (same h-range for comparison)",
+      "category": "noiseless",
+      "hypothesis": "ladder baseline at same h-range for topology comparison",
+      "expected_outcome": "PASS \u2014 ladder at h\u22653.0 is well within valid regime. Provides reference for triangular performance delta."
+    },
+    {
+      "id": "NL-G-p1-tri",
+      "description": "p=1 layer on triangular (2 params, highest connectivity)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on triangular works at h\u22653.5 (narrower regime than p=2)",
+      "expected_outcome": "Valid regime likely shifts up significantly vs p=2 due to fewer params + high connectivity. Tests p=1 viability on 2D lattices."
+    },
+    {
+      "id": "NL-H-ep4000",
+      "description": "MPNN epochs=4000 (triangular, patience=500)",
+      "category": "noiseless",
+      "hypothesis": "MPNN with 4000 epochs on triangular converges sufficiently",
+      "expected_outcome": "6000 should be sufficient (patience=500 handles early stopping). 8000 tests if frustrated landscape benefits from longer training."
+    },
+    {
+      "id": "NL-H-ep6000",
+      "description": "MPNN epochs=6000 (triangular, patience=500)",
+      "category": "noiseless",
+      "hypothesis": "MPNN with 6000 epochs on triangular converges sufficiently",
+      "expected_outcome": "6000 should be sufficient (patience=500 handles early stopping). 8000 tests if frustrated landscape benefits from longer training."
+    },
+    {
+      "id": "NL-H-ep8000",
+      "description": "MPNN epochs=8000 (triangular, patience=500)",
+      "category": "noiseless",
+      "hypothesis": "MPNN with 8000 epochs on triangular converges sufficiently",
+      "expected_outcome": "6000 should be sufficient (patience=500 handles early stopping). 8000 tests if frustrated landscape benefits from longer training."
+    },
+    {
+      "id": "NY-A-shots8192",
+      "description": "Noisy triangular: shots=8192 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on triangular with 8192 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 triangular has the most CX gates \u2192 ZNE almost certainly fails. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Triangular has even more gates \u2192 expect worse failure."
+    },
+    {
+      "id": "NY-A-shots16384",
+      "description": "Noisy triangular: shots=16384 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on triangular with 16384 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 triangular has the most CX gates \u2192 ZNE almost certainly fails. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Triangular has even more gates \u2192 expect worse failure."
+    },
+    {
+      "id": "NY-A-shots32768",
+      "description": "Noisy triangular: shots=32768 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on triangular with 32768 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 triangular has the most CX gates \u2192 ZNE almost certainly fails. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Triangular has even more gates \u2192 expect worse failure."
+    },
+    {
+      "id": "NY-B-lay3",
+      "description": "Noisy triangular: n_layouts=3 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 3 layouts on triangular",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE fails regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Triangular makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-B-lay5",
+      "description": "Noisy triangular: n_layouts=5 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 5 layouts on triangular",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE fails regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Triangular makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-B-lay7",
+      "description": "Noisy triangular: n_layouts=7 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 7 layouts on triangular",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE fails regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Triangular makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-C-seed42",
+      "description": "Noisy triangular: seed=42 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy triangular seed=42 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "NY-C-seed43",
+      "description": "Noisy triangular: seed=43 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy triangular seed=43 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "NY-C-seed44",
+      "description": "Noisy triangular: seed=44 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy triangular seed=44 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "EXT-1-high-h",
+      "description": "Triangular at very high h=[5.0, 4.0, 3.5] (topology-independent regime)",
+      "category": "noiseless",
+      "hypothesis": "At h>>J, triangular and chain give identical results (ZZ negligible)",
+      "expected_outcome": "PASS with very low \u0394E/gap (<0.1%). Confirms topology-independence at high field. Useful as sanity check."
+    },
+    {
+      "id": "EXT-2-near-boundary",
+      "description": "Triangular near valid boundary: dense grid h=[4.0\u21922.5] (boundary probe)",
+      "category": "noiseless",
+      "hypothesis": "Triangular valid regime boundary is at h\u22483.0",
+      "expected_outcome": "h\u22653.5 should pass; h=3.0 marginal; h=2.5 likely fails. Maps the valid regime boundary for triangular topology."
+    },
+    {
+      "id": "EXT-3-kagome",
+      "description": "Kagome topology N=10 (corner-sharing triangles, maximum frustration)",
+      "category": "noiseless",
+      "hypothesis": "Framework works on kagome lattice at high h",
+      "expected_outcome": "Needs h\u22654.0+ for valid regime (maximum frustration). Tests true topology-agnosticism of the GNN approach on the hardest lattice."
+    },
+    {
+      "id": "EXT-4-deep-gnn",
+      "description": "Triangular with 5 GNN layers (deeper message passing)",
+      "category": "noiseless",
+      "hypothesis": "5 GNN layers (vs default 3) improves prediction on triangular",
+      "expected_outcome": "Marginal improvement expected \u2014 triangular diameter is small (~3 hops), so 3 layers already covers full graph. Tests over-smoothing risk."
+    },
+    {
+      "id": "EXT-5-noisy-p1",
+      "description": "Noisy triangular p=1 (fewer CX \u2192 ZNE may succeed where p=2 fails)",
+      "category": "noisy",
+      "hypothesis": "p=1 triangular has ~50% fewer CX gates \u2192 ZNE may work at N=10",
+      "expected_outcome": "Even with p=1, triangular has many bonds \u2192 CX count still high. Likely fails but quantifies the CX-budget hypothesis for frustrated lattices."
+    },
+    {
+      "id": "EXT-6-N6-tri",
+      "description": "Triangular N=6 (fast validation of topology support)",
+      "category": "noiseless",
+      "hypothesis": "Triangular N=6 works with standard config (fast sanity check)",
+      "expected_outcome": "PASS \u2014 N=6 is small enough that VQE converges easily. Validates triangular topology support before expensive N=10 runs."
+    }
+  ]
+}

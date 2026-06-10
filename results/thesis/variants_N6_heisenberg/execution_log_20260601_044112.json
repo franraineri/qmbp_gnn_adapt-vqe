@@ -1,0 +1,532 @@
+{
+  "timestamp": "20260601_044112",
+  "topology": "heisenberg",
+  "n_qubits": 6,
+  "total_variants": 30,
+  "passed": 30,
+  "failed": 0,
+  "total_elapsed_s": 1550.4759941101074,
+  "verdicts": {
+    "PASS": 1,
+    "MARGINAL": 0,
+    "FAIL": 0,
+    "ZNE-PASS": 0,
+    "ZNE-FAIL": 0,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "NL-A-xy",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 40.07,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A-intermediate",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 48.14,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A-isotropic",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 33.61,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A-ising_like",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 40.87,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B-seed42",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 39.84,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B-seed43",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 45.98,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B-seed44",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 36.23,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-r5",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 46.28,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-r10",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 51.31,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-r15",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 53.39,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-r20",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 73.18,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-deep-xy",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 65.38,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-deep-isotropic",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 117.93,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-chain1d",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 75.86,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-ladder",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 44.87,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-triangular",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 72.51,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-1-tfim-baseline",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 39.9,
+      "delta_e_over_gap": 0.0027837395573584484,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-2-xy-extended",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 89.76,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta0.00",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 64.8,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta0.25",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 46.01,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta0.50",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 58.67,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta0.75",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 46.55,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta1.00",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 43.51,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta1.25",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 41.69,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta1.50",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 48.98,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-3-delta2.00",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 38.32,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-4-xy-ladder-s42",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 42.5,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-4-xy-ladder-s43",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 46.62,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-4-xy-ladder-s44",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 45.55,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-5-p1-heisenberg",
+      "success": true,
+      "verdict": "OK",
+      "elapsed_s": 12.12,
+      "delta_e_over_gap": null,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "NL-A-xy",
+      "description": "\u0394=0.0: XY model (\u0394=0, no ZZ term)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg XXZ with \u0394=0.0 at N=6 p=2: explore HVA expressibility. XY (\u0394=0) expected to have highest fidelity; isotropic (\u0394=1) lowest (~22%).",
+      "expected_outcome": "Likely negative result for \u0394\u22650.5 (max fidelity < 60%). XY model may reach ~40-50% at high h. Documents expressibility as function of anisotropy."
+    },
+    {
+      "id": "NL-A-intermediate",
+      "description": "\u0394=0.5: Intermediate anisotropy (\u0394=0.5)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg XXZ with \u0394=0.5 at N=6 p=2: explore HVA expressibility. XY (\u0394=0) expected to have highest fidelity; isotropic (\u0394=1) lowest (~22%).",
+      "expected_outcome": "Likely negative result for \u0394\u22650.5 (max fidelity < 60%). XY model may reach ~40-50% at high h. Documents expressibility as function of anisotropy."
+    },
+    {
+      "id": "NL-A-isotropic",
+      "description": "\u0394=1.0: Isotropic Heisenberg (\u0394=1.0)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg XXZ with \u0394=1.0 at N=6 p=2: explore HVA expressibility. XY (\u0394=0) expected to have highest fidelity; isotropic (\u0394=1) lowest (~22%).",
+      "expected_outcome": "Likely negative result for \u0394\u22650.5 (max fidelity < 60%). XY model may reach ~40-50% at high h. Documents expressibility as function of anisotropy."
+    },
+    {
+      "id": "NL-A-ising_like",
+      "description": "\u0394=1.5: Ising-like anisotropy (\u0394=1.5)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg XXZ with \u0394=1.5 at N=6 p=2: explore HVA expressibility. XY (\u0394=0) expected to have highest fidelity; isotropic (\u0394=1) lowest (~22%).",
+      "expected_outcome": "Likely negative result for \u0394\u22650.5 (max fidelity < 60%). XY model may reach ~40-50% at high h. Documents expressibility as function of anisotropy."
+    },
+    {
+      "id": "NL-B-seed42",
+      "description": "Heisenberg \u0394=1.0 seed=42 (reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg pipeline with seed=42 produces consistent results. 4D landscape may have multiple local minima \u2192 higher seed variance than TFIM.",
+      "expected_outcome": "Expect higher variance than TFIM (4D landscape vs 2D). If max fidelity varies >10% across seeds, landscape is rugged."
+    },
+    {
+      "id": "NL-B-seed43",
+      "description": "Heisenberg \u0394=1.0 seed=43 (reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg pipeline with seed=43 produces consistent results. 4D landscape may have multiple local minima \u2192 higher seed variance than TFIM.",
+      "expected_outcome": "Expect higher variance than TFIM (4D landscape vs 2D). If max fidelity varies >10% across seeds, landscape is rugged."
+    },
+    {
+      "id": "NL-B-seed44",
+      "description": "Heisenberg \u0394=1.0 seed=44 (reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg pipeline with seed=44 produces consistent results. 4D landscape may have multiple local minima \u2192 higher seed variance than TFIM.",
+      "expected_outcome": "Expect higher variance than TFIM (4D landscape vs 2D). If max fidelity varies >10% across seeds, landscape is rugged."
+    },
+    {
+      "id": "NL-C-r5",
+      "description": "VQE restarts=5 (Heisenberg \u0394=1.0)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 5 restarts on Heisenberg 4D landscape. More restarts needed than TFIM (4 params vs 2 params per layer).",
+      "expected_outcome": "Fidelity should plateau after ~10 restarts. If 20 restarts \u2248 10 restarts, landscape has few local minima."
+    },
+    {
+      "id": "NL-C-r10",
+      "description": "VQE restarts=10 (Heisenberg \u0394=1.0)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 10 restarts on Heisenberg 4D landscape. More restarts needed than TFIM (4 params vs 2 params per layer).",
+      "expected_outcome": "Fidelity should plateau after ~10 restarts. If 20 restarts \u2248 10 restarts, landscape has few local minima."
+    },
+    {
+      "id": "NL-C-r15",
+      "description": "VQE restarts=15 (Heisenberg \u0394=1.0)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 15 restarts on Heisenberg 4D landscape. More restarts needed than TFIM (4 params vs 2 params per layer).",
+      "expected_outcome": "Fidelity should plateau after ~10 restarts. If 20 restarts \u2248 10 restarts, landscape has few local minima."
+    },
+    {
+      "id": "NL-C-r20",
+      "description": "VQE restarts=20 (Heisenberg \u0394=1.0)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 20 restarts on Heisenberg 4D landscape. More restarts needed than TFIM (4 params vs 2 params per layer).",
+      "expected_outcome": "Fidelity should plateau after ~10 restarts. If 20 restarts \u2248 10 restarts, landscape has few local minima."
+    },
+    {
+      "id": "NL-D-deep-xy",
+      "description": "Deep h-sweep \u0394=0.0 (regime discovery, h=4\u21920.5)",
+      "category": "noiseless",
+      "hypothesis": "Deep sweep for \u0394=0.0: identify h_min where fidelity \u2265 0.60. Expect fidelity to drop sharply below h\u22482.0 (entanglement transition).",
+      "expected_outcome": "Maps the full fidelity landscape. Likely no valid regime at standard threshold (0.93). May find partial regime at relaxed threshold (0.60)."
+    },
+    {
+      "id": "NL-D-deep-isotropic",
+      "description": "Deep h-sweep \u0394=1.0 (regime discovery, h=4\u21920.5)",
+      "category": "noiseless",
+      "hypothesis": "Deep sweep for \u0394=1.0: identify h_min where fidelity \u2265 0.60. Expect fidelity to drop sharply below h\u22482.0 (entanglement transition).",
+      "expected_outcome": "Maps the full fidelity landscape. Likely no valid regime at standard threshold (0.93). May find partial regime at relaxed threshold (0.60)."
+    },
+    {
+      "id": "NL-E-chain1d",
+      "description": "Heisenberg \u0394=1.0 on chain_1d (topology comparison)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg on chain_1d: more edges \u2192 more entanglement \u2192 lower fidelity. Triangular (frustrated) expected worst; chain_1d best.",
+      "expected_outcome": "chain_1d > ladder > triangular in max fidelity. Frustration (triangular) compounds the expressibility problem."
+    },
+    {
+      "id": "NL-E-ladder",
+      "description": "Heisenberg \u0394=1.0 on ladder (topology comparison)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg on ladder: more edges \u2192 more entanglement \u2192 lower fidelity. Triangular (frustrated) expected worst; chain_1d best.",
+      "expected_outcome": "chain_1d > ladder > triangular in max fidelity. Frustration (triangular) compounds the expressibility problem."
+    },
+    {
+      "id": "NL-E-triangular",
+      "description": "Heisenberg \u0394=1.0 on triangular (topology comparison)",
+      "category": "noiseless",
+      "hypothesis": "Heisenberg on triangular: more edges \u2192 more entanglement \u2192 lower fidelity. Triangular (frustrated) expected worst; chain_1d best.",
+      "expected_outcome": "chain_1d > ladder > triangular in max fidelity. Frustration (triangular) compounds the expressibility problem."
+    },
+    {
+      "id": "EXT-1-tfim-baseline",
+      "description": "TFIM baseline (same h-range for Heisenberg comparison)",
+      "category": "extended",
+      "hypothesis": "TFIM at same h-range as Heisenberg for direct comparison",
+      "expected_outcome": "PASS (\u0394E/gap < 5%) \u2014 TFIM is easy at these h-values. Provides reference for quantifying Heisenberg difficulty."
+    },
+    {
+      "id": "EXT-2-xy-extended",
+      "description": "XY model (\u0394=0) extended h-range (searching for valid regime)",
+      "category": "extended",
+      "hypothesis": "XY model with extended h-range may find a valid regime at high h. \u0394=0 removes ZZ correlations \u2192 lower entanglement \u2192 better HVA fit.",
+      "expected_outcome": "Best chance of finding a valid regime among non-TFIM models. If XY fails, all XXZ models fail at p=2."
+    },
+    {
+      "id": "EXT-3-delta0.00",
+      "description": "\u0394=0.00 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=0.00 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta0.25",
+      "description": "\u0394=0.25 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=0.25 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta0.50",
+      "description": "\u0394=0.50 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=0.50 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta0.75",
+      "description": "\u0394=0.75 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=0.75 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta1.00",
+      "description": "\u0394=1.00 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=1.00 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta1.25",
+      "description": "\u0394=1.25 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=1.25 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta1.50",
+      "description": "\u0394=1.50 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=1.50 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-3-delta2.00",
+      "description": "\u0394=2.00 at h=4\u21922 (anisotropy-fidelity mapping)",
+      "category": "extended",
+      "hypothesis": "\u0394=2.00 at high h: map fidelity vs anisotropy. Expect monotonic decrease in fidelity as \u0394 increases.",
+      "expected_outcome": "Produces fidelity(\u0394) curve. Quantifies how anisotropy degrades HVA expressibility at fixed field strength."
+    },
+    {
+      "id": "EXT-4-xy-ladder-s42",
+      "description": "XY on ladder seed=42 (best-case non-TFIM)",
+      "category": "extended",
+      "hypothesis": "XY model on ladder with seed=42: ladder has more edges but XY has lower entanglement. Tests if reduced anisotropy compensates for topology complexity.",
+      "expected_outcome": "Likely negative result but documents the interaction between topology complexity and model anisotropy."
+    },
+    {
+      "id": "EXT-4-xy-ladder-s43",
+      "description": "XY on ladder seed=43 (best-case non-TFIM)",
+      "category": "extended",
+      "hypothesis": "XY model on ladder with seed=43: ladder has more edges but XY has lower entanglement. Tests if reduced anisotropy compensates for topology complexity.",
+      "expected_outcome": "Likely negative result but documents the interaction between topology complexity and model anisotropy."
+    },
+    {
+      "id": "EXT-4-xy-ladder-s44",
+      "description": "XY on ladder seed=44 (best-case non-TFIM)",
+      "category": "extended",
+      "hypothesis": "XY model on ladder with seed=44: ladder has more edges but XY has lower entanglement. Tests if reduced anisotropy compensates for topology complexity.",
+      "expected_outcome": "Likely negative result but documents the interaction between topology complexity and model anisotropy."
+    },
+    {
+      "id": "EXT-5-p1-heisenberg",
+      "description": "Heisenberg p=1 (4 params, reduced expressibility)",
+      "category": "extended",
+      "hypothesis": "Heisenberg p=1 (4 params): even less expressible than p=2. Documents the floor of HVA capability for this model.",
+      "expected_outcome": "Worse than p=2 (which already fails). Establishes that the problem is fundamental, not just insufficient depth."
+    }
+  ]
+}

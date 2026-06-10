@@ -1,0 +1,493 @@
+{
+  "timestamp": "2026-06-04T14:21:57.760375",
+  "config": {
+    "runner_id": "pea_full_pipeline",
+    "experiment_id": "PEA_PIPELINE",
+    "category": "ZNE",
+    "description": "PEA-ZNE Full Pipeline (MPNN + Mitigate + Classify, heavy_hex N=10)",
+    "hypothesis": "PEA-ZNE achieves correct phase classification (100% at h>=3.0) when starting from MPNN-predicted parameters on heavy_hex N=10 p=1.",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "h_train": [
+      4.5,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0
+    ],
+    "seeds": [
+      42
+    ]
+  },
+  "elapsed_s": 51.60342717170715,
+  "results": {
+    "section_1": {
+      "name": "VQE Training Data",
+      "success": true,
+      "elapsed_s": 1.03,
+      "data": {
+        "n_train": 6,
+        "train_data": [
+          {
+            "h": 4.5,
+            "e_exact": -45.502238142266485,
+            "gap": 6.918573709439514,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.072592728408928
+          },
+          {
+            "h": 4.0,
+            "e_exact": -40.56569043551275,
+            "gap": 5.921971082752414,
+            "theta_opt": [
+              -3.141592653589793,
+              3.011374702903561
+            ],
+            "de_gap": 0.09552401178727724
+          },
+          {
+            "h": 3.75,
+            "e_exact": -38.103875034650386,
+            "gap": 5.424130192511058,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.11133122053083207
+          },
+          {
+            "h": 3.5,
+            "e_exact": -35.64762791436936,
+            "gap": 4.926714336378666,
+            "theta_opt": [
+              -3.141592653589793,
+              3.056288260832435
+            ],
+            "de_gap": 0.1314522966325258
+          },
+          {
+            "h": 3.25,
+            "e_exact": -33.198273652500575,
+            "gap": 4.429858148786295,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.15762889669320382
+          },
+          {
+            "h": 3.0,
+            "e_exact": -30.757597386785978,
+            "gap": 3.9337583475541074,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.19258869504707446
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "MPNN Train + Predict",
+      "success": true,
+      "elapsed_s": 8.38,
+      "data": {
+        "predictions": {
+          "4.0": {
+            "theta_pred": [
+              -3.106060028076172,
+              2.98435115814209
+            ],
+            "e_exact": -40.56569043551275,
+            "gap": 5.921971082752414,
+            "e_mpnn_noiseless": -39.44374728002009,
+            "de_gap_mpnn": 0.1894543454898469
+          },
+          "3.25": {
+            "theta_pred": [
+              -3.1066763401031494,
+              3.0853524208068848
+            ],
+            "e_exact": -33.198273652500575,
+            "gap": 4.429858148786295,
+            "e_mpnn_noiseless": -32.21796356762709,
+            "de_gap_mpnn": 0.22129604424062096
+          },
+          "3.0": {
+            "theta_pred": [
+              -3.0987889766693115,
+              3.1027512550354004
+            ],
+            "e_exact": -30.757597386785978,
+            "gap": 3.9337583475541074,
+            "e_mpnn_noiseless": -29.684145021185678,
+            "de_gap_mpnn": 0.27288213224072094
+          }
+        }
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "PEA-ZNE Mitigation",
+      "success": true,
+      "elapsed_s": 40.56,
+      "data": {
+        "results": {
+          "4.0": {
+            "e_noisy": -33.5372314453125,
+            "e_pea": -39.37601725260416,
+            "de_noisy": 1.1868445306446114,
+            "de_pea": 0.2008914204889457,
+            "pea_gain": 0.8307348474868604,
+            "pea_r2": 0.9997155728702257,
+            "mean_x_mitigated": 0.9952728271484372,
+            "x_r2": 0.9999213591130673,
+            "x_per_factor": [
+              0.97178955078125,
+              0.92601318359375,
+              0.87880859375
+            ]
+          },
+          "3.25": {
+            "e_noisy": -27.413848876953125,
+            "e_pea": -32.14567057291665,
+            "de_noisy": 1.3057810388651572,
+            "de_pea": 0.23761552723134485,
+            "pea_gain": 0.818028045928853,
+            "pea_r2": 0.9999423548096092,
+            "mean_x_mitigated": 0.9947499593098956,
+            "x_r2": 0.9985253789098231,
+            "x_per_factor": [
+              0.97056884765625,
+              0.92734375,
+              0.8779541015625
+            ]
+          },
+          "3.0": {
+            "e_noisy": -25.239501953125,
+            "e_pea": -29.650868733723943,
+            "de_noisy": 1.4027540448924536,
+            "de_pea": 0.2813412912743269,
+            "pea_gain": 0.7994364783343777,
+            "pea_r2": 0.999986775520779,
+            "mean_x_mitigated": 0.9930928548177079,
+            "x_r2": 0.9994880434001574,
+            "x_per_factor": [
+              0.969287109375,
+              0.92470703125,
+              0.8764892578125
+            ]
+          }
+        }
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Phase Classification",
+      "success": false,
+      "elapsed_s": 0.0,
+      "data": {
+        "classifications": [
+          {
+            "h": 4.0,
+            "mean_x": 0.9952728271484372,
+            "predicted": "ordered",
+            "true": "paramagnetic",
+            "correct": false
+          },
+          {
+            "h": 3.25,
+            "mean_x": 0.9947499593098956,
+            "predicted": "ordered",
+            "true": "paramagnetic",
+            "correct": false
+          },
+          {
+            "h": 3.0,
+            "mean_x": 0.9930928548177079,
+            "predicted": "ordered",
+            "true": "paramagnetic",
+            "correct": false
+          }
+        ],
+        "accuracy": 0.0,
+        "pass": false
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Pipeline Verdict",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true,
+        "mean_gain": 0.8160664572500304,
+        "mean_r2": 0.9998815677335381,
+        "mean_mpnn_de_gap": 0.22787750732372958,
+        "all_positive": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 4,
+    "n_failed": 1,
+    "pass_rate": 0.8,
+    "total_time_s": 51.6,
+    "total_elapsed_s": 51.6,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-04T14:21:57.682559",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_PIPELINE",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE achieves correct phase classification (100% at h>=3.0) when starting from MPNN-predicted parameters on heavy_hex N=10 p=1.",
+    "n_seeds": 1,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 4,
+      "n_failed": 1,
+      "pass_rate": 0.8,
+      "total_time_s": 51.6,
+      "total_elapsed_s": 51.6,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "VQE Training Data",
+        "success": true,
+        "elapsed_s": 1.03,
+        "data": {
+          "n_train": 6,
+          "train_data": [
+            {
+              "h": 4.5,
+              "e_exact": -45.502238142266485,
+              "gap": 6.918573709439514,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.072592728408928
+            },
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "gap": 5.921971082752414,
+              "theta_opt": [
+                -3.141592653589793,
+                3.011374702903561
+              ],
+              "de_gap": 0.09552401178727724
+            },
+            {
+              "h": 3.75,
+              "e_exact": -38.103875034650386,
+              "gap": 5.424130192511058,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.11133122053083207
+            },
+            {
+              "h": 3.5,
+              "e_exact": -35.64762791436936,
+              "gap": 4.926714336378666,
+              "theta_opt": [
+                -3.141592653589793,
+                3.056288260832435
+              ],
+              "de_gap": 0.1314522966325258
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "gap": 4.429858148786295,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.15762889669320382
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "gap": 3.9337583475541074,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.19258869504707446
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "MPNN Train + Predict",
+        "success": true,
+        "elapsed_s": 8.38,
+        "data": {
+          "predictions": {
+            "4.0": {
+              "theta_pred": [
+                -3.106060028076172,
+                2.98435115814209
+              ],
+              "e_exact": -40.56569043551275,
+              "gap": 5.921971082752414,
+              "e_mpnn_noiseless": -39.44374728002009,
+              "de_gap_mpnn": 0.1894543454898469
+            },
+            "3.25": {
+              "theta_pred": [
+                -3.1066763401031494,
+                3.0853524208068848
+              ],
+              "e_exact": -33.198273652500575,
+              "gap": 4.429858148786295,
+              "e_mpnn_noiseless": -32.21796356762709,
+              "de_gap_mpnn": 0.22129604424062096
+            },
+            "3.0": {
+              "theta_pred": [
+                -3.0987889766693115,
+                3.1027512550354004
+              ],
+              "e_exact": -30.757597386785978,
+              "gap": 3.9337583475541074,
+              "e_mpnn_noiseless": -29.684145021185678,
+              "de_gap_mpnn": 0.27288213224072094
+            }
+          }
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "PEA-ZNE Mitigation",
+        "success": true,
+        "elapsed_s": 40.56,
+        "data": {
+          "results": {
+            "4.0": {
+              "e_noisy": -33.5372314453125,
+              "e_pea": -39.37601725260416,
+              "de_noisy": 1.1868445306446114,
+              "de_pea": 0.2008914204889457,
+              "pea_gain": 0.8307348474868604,
+              "pea_r2": 0.9997155728702257,
+              "mean_x_mitigated": 0.9952728271484372,
+              "x_r2": 0.9999213591130673,
+              "x_per_factor": [
+                0.97178955078125,
+                0.92601318359375,
+                0.87880859375
+              ]
+            },
+            "3.25": {
+              "e_noisy": -27.413848876953125,
+              "e_pea": -32.14567057291665,
+              "de_noisy": 1.3057810388651572,
+              "de_pea": 0.23761552723134485,
+              "pea_gain": 0.818028045928853,
+              "pea_r2": 0.9999423548096092,
+              "mean_x_mitigated": 0.9947499593098956,
+              "x_r2": 0.9985253789098231,
+              "x_per_factor": [
+                0.97056884765625,
+                0.92734375,
+                0.8779541015625
+              ]
+            },
+            "3.0": {
+              "e_noisy": -25.239501953125,
+              "e_pea": -29.650868733723943,
+              "de_noisy": 1.4027540448924536,
+              "de_pea": 0.2813412912743269,
+              "pea_gain": 0.7994364783343777,
+              "pea_r2": 0.999986775520779,
+              "mean_x_mitigated": 0.9930928548177079,
+              "x_r2": 0.9994880434001574,
+              "x_per_factor": [
+                0.969287109375,
+                0.92470703125,
+                0.8764892578125
+              ]
+            }
+          }
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Phase Classification",
+        "success": false,
+        "elapsed_s": 0.0,
+        "data": {
+          "classifications": [
+            {
+              "h": 4.0,
+              "mean_x": 0.9952728271484372,
+              "predicted": "ordered",
+              "true": "paramagnetic",
+              "correct": false
+            },
+            {
+              "h": 3.25,
+              "mean_x": 0.9947499593098956,
+              "predicted": "ordered",
+              "true": "paramagnetic",
+              "correct": false
+            },
+            {
+              "h": 3.0,
+              "mean_x": 0.9930928548177079,
+              "predicted": "ordered",
+              "true": "paramagnetic",
+              "correct": false
+            }
+          ],
+          "accuracy": 0.0,
+          "pass": false
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Pipeline Verdict",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true,
+          "mean_gain": 0.8160664572500304,
+          "mean_r2": 0.9998815677335381,
+          "mean_mpnn_de_gap": 0.22787750732372958,
+          "all_positive": true
+        },
+        "error": null
+      }
+    }
+  }
+}

@@ -1,0 +1,532 @@
+{
+  "config": {
+    "experiment_id": "S2",
+    "category": "S",
+    "description": "Cross-topology MPNN transfer: train on chain, deploy on ladder/triangular",
+    "hypothesis": "MPNN trained on chain_1d generalizes to other topologies with \u0394E/gap < 10% (zero-shot) or < 5% (3-point fine-tune).",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "chain_1d",
+      "J": 1.0,
+      "h_values": [
+        4.0,
+        3.5,
+        3.0,
+        2.5,
+        2.0
+      ],
+      "h_test": [
+        2.75
+      ],
+      "g_longitudinal": 0.0,
+      "boundary": "open",
+      "model": "tfim",
+      "delta": 1.0
+    },
+    "vqe": {
+      "optimizer": "L-BFGS-B",
+      "n_restarts": 3,
+      "maxiter": 100,
+      "sigma": 0.3,
+      "ftol": 1e-14,
+      "use_analytical_init": false,
+      "freeze_params": null,
+      "freeze_after_h": null,
+      "use_hessian_check": false,
+      "hessian_escape_threshold": -1e-06,
+      "use_dypp": false,
+      "dypp_order": 2
+    },
+    "mpnn": {
+      "hidden_dim": 128,
+      "n_layers": 3,
+      "n_epochs": 6000,
+      "lr": 0.001,
+      "patience": 500,
+      "dropout": 0.1,
+      "use_physics_loss": false,
+      "physics_loss_weight": 0.1,
+      "physics_loss_start_epoch": 1000,
+      "physics_loss_eval_every": 100,
+      "sign_canonicalization": "none",
+      "use_active_learning": false,
+      "n_ensemble": 5,
+      "acquisition": "max_variance"
+    },
+    "analysis": {
+      "landscape_resolution": 20,
+      "tci_max_rank": 10,
+      "tci_tolerance": 0.0001,
+      "scaling_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        20
+      ],
+      "weight_gradient_n_points": 40,
+      "fluctuation_n_samples": 100,
+      "threshold": 0.05,
+      "compute_hessian": false
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "verbose": true,
+    "debug": true,
+    "compare_with_baseline": true,
+    "baseline_config": "v61_optimal",
+    "auto_warm_cold_comparison": true
+  },
+  "backend": "noiseless_statevector",
+  "analysis": {
+    "experiment_id": "S2",
+    "category": "S",
+    "hypothesis": "MPNN trained on chain_1d generalizes to other topologies with \u0394E/gap < 10% (zero-shot) or < 5% (3-point fine-tune).",
+    "n_seeds": 3,
+    "timestamp": "20260601_012949",
+    "per_seed": {
+      "42": {
+        "mean_de_gap": 5.29326108518844,
+        "min_de_gap": 3.7950801960285476,
+        "max_de_gap": 8.056218701613538,
+        "n_passing": 0,
+        "n_total": 3,
+        "total_time_s": 0.0
+      },
+      "43": {
+        "mean_de_gap": 5.969830132456881,
+        "min_de_gap": 0.9462376811157533,
+        "max_de_gap": 9.817034442091128,
+        "n_passing": 0,
+        "n_total": 3,
+        "total_time_s": 0.0
+      },
+      "44": {
+        "mean_de_gap": 4.190224050318638,
+        "min_de_gap": 0.008098880210862518,
+        "max_de_gap": 9.83640064997436,
+        "n_passing": 1,
+        "n_total": 3,
+        "total_time_s": 0.0
+      }
+    },
+    "summary": {
+      "mean_de_gap": 5.151105089321319,
+      "std_de_gap": 3.484152280425299,
+      "median_de_gap": 4.028484357923231,
+      "min_de_gap": 0.008098880210862518,
+      "max_de_gap": 9.83640064997436,
+      "pass_rate": 0.1111111111111111,
+      "n_total_points": 9,
+      "total_time_s": 0.0,
+      "convergence_rate": 0.1111111111111111,
+      "mean_evaluations": 0.0
+    }
+  },
+  "results": {
+    "42": [
+      {
+        "h_value": 2.75,
+        "energy": -13.765739798537695,
+        "exact_energy": -28.323569129913313,
+        "energy_error": 14.557829331375618,
+        "gap": 3.613723683137369,
+        "relative_error": 4.028484357923231,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "chain_1d",
+          "source_topology": "chain_1d",
+          "is_source": true,
+          "transfer_type": "self",
+          "de_gap": 4.028484357923231,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      },
+      {
+        "h_value": 3.75,
+        "energy": -1.0405696402954354,
+        "exact_energy": -38.40163173866208,
+        "energy_error": 37.361062098366645,
+        "gap": 4.63754318026195,
+        "relative_error": 8.056218701613538,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "ladder",
+          "source_topology": "chain_1d",
+          "is_source": false,
+          "transfer_type": "zero-shot",
+          "de_gap": 8.056218701613538,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      },
+      {
+        "h_value": 4.75,
+        "energy": -29.946932905577953,
+        "exact_energy": -48.7901989992157,
+        "energy_error": 18.843266093637745,
+        "gap": 4.965182583850726,
+        "relative_error": 3.7950801960285476,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "triangular",
+          "source_topology": "chain_1d",
+          "is_source": false,
+          "transfer_type": "zero-shot",
+          "de_gap": 3.7950801960285476,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      }
+    ],
+    "43": [
+      {
+        "h_value": 2.75,
+        "energy": -24.90412761178833,
+        "exact_energy": -28.323569129913313,
+        "energy_error": 3.4194415181249838,
+        "gap": 3.613723683137369,
+        "relative_error": 0.9462376811157533,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "chain_1d",
+          "source_topology": "chain_1d",
+          "is_source": true,
+          "transfer_type": "self",
+          "de_gap": 0.9462376811157533,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      },
+      {
+        "h_value": 3.75,
+        "energy": -5.260735916650608,
+        "exact_energy": -38.40163173866208,
+        "energy_error": 33.14089582201147,
+        "gap": 4.63754318026195,
+        "relative_error": 7.146218274163761,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "ladder",
+          "source_topology": "chain_1d",
+          "is_source": false,
+          "transfer_type": "zero-shot",
+          "de_gap": 7.146218274163761,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      },
+      {
+        "h_value": 4.75,
+        "energy": -0.04683056228209492,
+        "exact_energy": -48.7901989992157,
+        "energy_error": 48.7433684369336,
+        "gap": 4.965182583850726,
+        "relative_error": 9.817034442091128,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "triangular",
+          "source_topology": "chain_1d",
+          "is_source": false,
+          "transfer_type": "zero-shot",
+          "de_gap": 9.817034442091128,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      }
+    ],
+    "44": [
+      {
+        "h_value": 2.75,
+        "energy": -28.294302014688427,
+        "exact_energy": -28.323569129913313,
+        "energy_error": 0.029267115224886453,
+        "gap": 3.613723683137369,
+        "relative_error": 0.008098880210862518,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "chain_1d",
+          "source_topology": "chain_1d",
+          "is_source": true,
+          "transfer_type": "self",
+          "de_gap": 0.008098880210862518,
+          "pass_5pct": true,
+          "pass_10pct": true
+        }
+      },
+      {
+        "h_value": 3.75,
+        "energy": -25.75888849299012,
+        "exact_energy": -38.40163173866208,
+        "energy_error": 12.642743245671962,
+        "gap": 4.63754318026195,
+        "relative_error": 2.72617262077069,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "ladder",
+          "source_topology": "chain_1d",
+          "is_source": false,
+          "transfer_type": "zero-shot",
+          "de_gap": 2.72617262077069,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      },
+      {
+        "h_value": 4.75,
+        "energy": 0.049326195814953774,
+        "exact_energy": -48.7901989992157,
+        "energy_error": 48.83952519503065,
+        "gap": 4.965182583850726,
+        "relative_error": 9.83640064997436,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": false,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "topology": "triangular",
+          "source_topology": "chain_1d",
+          "is_source": false,
+          "transfer_type": "zero-shot",
+          "de_gap": 9.83640064997436,
+          "pass_5pct": false,
+          "pass_10pct": false
+        }
+      }
+    ]
+  },
+  "structured_log": {
+    "n_events": 6,
+    "timing_summary": {
+      "seed_complete": {
+        "count": 3,
+        "total_s": 90.87,
+        "mean_s": 30.291,
+        "max_s": 33.704
+      }
+    },
+    "failure_summary": {
+      "total_failures": 0,
+      "by_seed": {},
+      "by_h_value": {},
+      "reasons": []
+    },
+    "events": [
+      {
+        "timestamp": "2026-06-01T01:29:49.089",
+        "event_type": "seed_start",
+        "experiment_id": "S2",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "index": 0
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-06-01T01:30:16.674",
+        "event_type": "seed_complete",
+        "experiment_id": "S2",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "n_points": 3,
+          "elapsed_s": 27.585
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-06-01T01:30:16.677",
+        "event_type": "seed_start",
+        "experiment_id": "S2",
+        "seed": 43,
+        "h_value": null,
+        "data": {
+          "index": 1
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-06-01T01:30:50.381",
+        "event_type": "seed_complete",
+        "experiment_id": "S2",
+        "seed": 43,
+        "h_value": null,
+        "data": {
+          "n_points": 3,
+          "elapsed_s": 33.704
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-06-01T01:30:50.382",
+        "event_type": "seed_start",
+        "experiment_id": "S2",
+        "seed": 44,
+        "h_value": null,
+        "data": {
+          "index": 2
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-06-01T01:31:19.967",
+        "event_type": "seed_complete",
+        "experiment_id": "S2",
+        "seed": 44,
+        "h_value": null,
+        "data": {
+          "n_points": 3,
+          "elapsed_s": 29.585
+        },
+        "elapsed_s": 0.0
+      }
+    ]
+  },
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "timestamp": "2026-06-01T01:31:20.024949",
+    "run_id": "20260601_012949",
+    "qiskit": "2.4.1",
+    "torch": "2.11.0"
+  }
+}

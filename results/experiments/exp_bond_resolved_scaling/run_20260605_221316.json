@@ -1,0 +1,234 @@
+{
+  "timestamp": "2026-06-05T22:13:16.020460",
+  "config": {
+    "runner_id": "bond_resolved_scaling",
+    "experiment_id": "BOND_RESOLVED_SCALING",
+    "hypothesis": "Bond-resolved HVA scales to 2D square lattice, GNN predicts high-dimensional theta_opt, and ZNE remains effective",
+    "system": {
+      "model": "tfim_bond_resolved",
+      "p_layers": 1,
+      "topologies": [
+        "square",
+        "heavy_hex",
+        "chain_1d"
+      ]
+    },
+    "seed": 42,
+    "category": "B",
+    "description": "Bond-resolved scaling: 2D square, MPNN training, ZNE validation",
+    "seeds": []
+  },
+  "elapsed_s": 396.1446940898895,
+  "results": {
+    "section_1": {
+      "name": "2D Square N=9 Convergence",
+      "success": true,
+      "elapsed_s": 35.85,
+      "data": {
+        "topology": "square",
+        "n_qubits": 9,
+        "p_layers": 1,
+        "n_params": 21,
+        "n_edges": 12,
+        "grid_shape": "3x3",
+        "results": [
+          {
+            "h": 6.0,
+            "fidelity": 0.9993947338178206,
+            "delta_e_gap": 0.0014647195091264254,
+            "elapsed_s": 11.839963912963867
+          },
+          {
+            "h": 5.5,
+            "fidelity": 0.9991268764293344,
+            "delta_e_gap": 0.0021438318112193895,
+            "elapsed_s": 5.205089092254639
+          },
+          {
+            "h": 5.0,
+            "fidelity": 0.9986906110312865,
+            "delta_e_gap": 0.0032712354492353524,
+            "elapsed_s": 7.40910792350769
+          },
+          {
+            "h": 4.5,
+            "fidelity": 0.9979390610773654,
+            "delta_e_gap": 0.005259901031495017,
+            "elapsed_s": 6.000401020050049
+          },
+          {
+            "h": 4.0,
+            "fidelity": 0.9965488009138243,
+            "delta_e_gap": 0.0090537852977427,
+            "elapsed_s": 4.8585169315338135
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "2D Square N=12 Convergence",
+      "success": true,
+      "elapsed_s": 360.29,
+      "data": {
+        "topology": "square",
+        "n_qubits": 12,
+        "p_layers": 1,
+        "n_params": 29,
+        "n_edges": 17,
+        "grid_shape": "3x4",
+        "results": [
+          {
+            "h": 6.0,
+            "fidelity": 0.9990256431610228,
+            "delta_e_gap": 0.002403606739689943,
+            "elapsed_s": 30.73632264137268
+          },
+          {
+            "h": 5.5,
+            "fidelity": 0.9985911512499345,
+            "delta_e_gap": 0.0035341162606139305,
+            "elapsed_s": 20.859225273132324
+          },
+          {
+            "h": 5.0,
+            "fidelity": 0.9978802654098662,
+            "delta_e_gap": 0.005425847486378183,
+            "elapsed_s": 20.193424940109253
+          },
+          {
+            "h": 4.5,
+            "fidelity": 0.9966475047757108,
+            "delta_e_gap": 0.008800135661952932,
+            "elapsed_s": 16.743369817733765
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 2,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 396.14,
+    "total_elapsed_s": 396.14,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T22:13:15.929892",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "BOND_RESOLVED_SCALING",
+    "category": "B",
+    "hypothesis": "Bond-resolved HVA scales to 2D square lattice, GNN predicts high-dimensional theta_opt, and ZNE remains effective",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 2,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 396.14,
+      "total_elapsed_s": 396.14,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "2D Square N=9 Convergence",
+        "success": true,
+        "elapsed_s": 35.85,
+        "data": {
+          "topology": "square",
+          "n_qubits": 9,
+          "p_layers": 1,
+          "n_params": 21,
+          "n_edges": 12,
+          "grid_shape": "3x3",
+          "results": [
+            {
+              "h": 6.0,
+              "fidelity": 0.9993947338178206,
+              "delta_e_gap": 0.0014647195091264254,
+              "elapsed_s": 11.839963912963867
+            },
+            {
+              "h": 5.5,
+              "fidelity": 0.9991268764293344,
+              "delta_e_gap": 0.0021438318112193895,
+              "elapsed_s": 5.205089092254639
+            },
+            {
+              "h": 5.0,
+              "fidelity": 0.9986906110312865,
+              "delta_e_gap": 0.0032712354492353524,
+              "elapsed_s": 7.40910792350769
+            },
+            {
+              "h": 4.5,
+              "fidelity": 0.9979390610773654,
+              "delta_e_gap": 0.005259901031495017,
+              "elapsed_s": 6.000401020050049
+            },
+            {
+              "h": 4.0,
+              "fidelity": 0.9965488009138243,
+              "delta_e_gap": 0.0090537852977427,
+              "elapsed_s": 4.8585169315338135
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "2D Square N=12 Convergence",
+        "success": true,
+        "elapsed_s": 360.29,
+        "data": {
+          "topology": "square",
+          "n_qubits": 12,
+          "p_layers": 1,
+          "n_params": 29,
+          "n_edges": 17,
+          "grid_shape": "3x4",
+          "results": [
+            {
+              "h": 6.0,
+              "fidelity": 0.9990256431610228,
+              "delta_e_gap": 0.002403606739689943,
+              "elapsed_s": 30.73632264137268
+            },
+            {
+              "h": 5.5,
+              "fidelity": 0.9985911512499345,
+              "delta_e_gap": 0.0035341162606139305,
+              "elapsed_s": 20.859225273132324
+            },
+            {
+              "h": 5.0,
+              "fidelity": 0.9978802654098662,
+              "delta_e_gap": 0.005425847486378183,
+              "elapsed_s": 20.193424940109253
+            },
+            {
+              "h": 4.5,
+              "fidelity": 0.9966475047757108,
+              "delta_e_gap": 0.008800135661952932,
+              "elapsed_s": 16.743369817733765
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

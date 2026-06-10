@@ -1,0 +1,139 @@
+{
+  "timestamp": "20260526_205157",
+  "topology": "ladder",
+  "n_qubits": 6,
+  "total_variants": 9,
+  "passed": 9,
+  "failed": 0,
+  "total_elapsed_s": 299.76266407966614,
+  "results": [
+    {
+      "variant_id": "NY-A-shots8192",
+      "success": true,
+      "elapsed_s": 29.657327890396118,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-shots16384",
+      "success": true,
+      "elapsed_s": 29.59502387046814,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-shots32768",
+      "success": true,
+      "elapsed_s": 31.696392059326172,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-lay3",
+      "success": true,
+      "elapsed_s": 30.593481063842773,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-lay5",
+      "success": true,
+      "elapsed_s": 40.55496597290039,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-lay7",
+      "success": true,
+      "elapsed_s": 48.173383951187134,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-C-seed42",
+      "success": true,
+      "elapsed_s": 31.357585906982422,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-C-seed43",
+      "success": true,
+      "elapsed_s": 27.871549129486084,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-C-seed44",
+      "success": true,
+      "elapsed_s": 30.261218070983887,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "NY-A-shots8192",
+      "description": "Noisy ladder: shots=8192 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on ladder with 8192 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 ladder has more CX gates \u2192 ZNE may struggle. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Ladder has even more gates \u2192 expect failure."
+    },
+    {
+      "id": "NY-A-shots16384",
+      "description": "Noisy ladder: shots=16384 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on ladder with 16384 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 ladder has more CX gates \u2192 ZNE may struggle. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Ladder has even more gates \u2192 expect failure."
+    },
+    {
+      "id": "NY-A-shots32768",
+      "description": "Noisy ladder: shots=32768 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on ladder with 32768 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 ladder has more CX gates \u2192 ZNE may struggle. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Ladder has even more gates \u2192 expect failure."
+    },
+    {
+      "id": "NY-B-lay3",
+      "description": "Noisy ladder: n_layouts=3 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 3 layouts on ladder",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE is known to fail regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Ladder makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-B-lay5",
+      "description": "Noisy ladder: n_layouts=5 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 5 layouts on ladder",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE is known to fail regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Ladder makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-B-lay7",
+      "description": "Noisy ladder: n_layouts=7 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 7 layouts on ladder",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE is known to fail regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Ladder makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-C-seed42",
+      "description": "Noisy ladder: seed=42 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy ladder seed=42 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "NY-C-seed43",
+      "description": "Noisy ladder: seed=43 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy ladder seed=43 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "NY-C-seed44",
+      "description": "Noisy ladder: seed=44 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy ladder seed=44 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    }
+  ]
+}

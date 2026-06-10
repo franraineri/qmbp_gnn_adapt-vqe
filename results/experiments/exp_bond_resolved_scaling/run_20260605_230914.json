@@ -1,0 +1,366 @@
+{
+  "timestamp": "2026-06-05T23:09:14.582704",
+  "config": {
+    "runner_id": "bond_resolved_scaling",
+    "experiment_id": "BOND_RESOLVED_SCALING",
+    "hypothesis": "Bond-resolved HVA scales to 2D square lattice, GNN predicts high-dimensional theta_opt, and ZNE remains effective",
+    "system": {
+      "model": "tfim_bond_resolved",
+      "p_layers": 1,
+      "topologies": [
+        "square",
+        "heavy_hex",
+        "chain_1d"
+      ]
+    },
+    "seed": 42,
+    "category": "B",
+    "description": "Bond-resolved scaling: 2D square, MPNN training, ZNE validation",
+    "seeds": []
+  },
+  "elapsed_s": 552.6719579696655,
+  "results": {
+    "section_1": {
+      "name": "2D Square N=9 Convergence",
+      "success": true,
+      "elapsed_s": 34.88,
+      "data": {
+        "topology": "square",
+        "n_qubits": 9,
+        "p_layers": 1,
+        "n_params": 21,
+        "n_edges": 12,
+        "grid_shape": "3x3",
+        "results": [
+          {
+            "h": 6.0,
+            "fidelity": 0.9993947338178206,
+            "delta_e_gap": 0.0014647195091264254,
+            "elapsed_s": 10.637094259262085
+          },
+          {
+            "h": 5.5,
+            "fidelity": 0.9991268764293344,
+            "delta_e_gap": 0.0021438318112193895,
+            "elapsed_s": 5.422656059265137
+          },
+          {
+            "h": 5.0,
+            "fidelity": 0.9986906110312865,
+            "delta_e_gap": 0.0032712354492353524,
+            "elapsed_s": 7.473017930984497
+          },
+          {
+            "h": 4.5,
+            "fidelity": 0.9979390610773654,
+            "delta_e_gap": 0.005259901031495017,
+            "elapsed_s": 5.9739320278167725
+          },
+          {
+            "h": 4.0,
+            "fidelity": 0.9965488009138243,
+            "delta_e_gap": 0.0090537852977427,
+            "elapsed_s": 4.857835054397583
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "2D Square N=12 Convergence",
+      "success": true,
+      "elapsed_s": 378.63,
+      "data": {
+        "topology": "square",
+        "n_qubits": 12,
+        "p_layers": 1,
+        "n_params": 29,
+        "n_edges": 17,
+        "grid_shape": "3x4",
+        "results": [
+          {
+            "h": 6.0,
+            "fidelity": 0.9990256431610228,
+            "delta_e_gap": 0.002403606739689943,
+            "elapsed_s": 30.136462211608887
+          },
+          {
+            "h": 5.5,
+            "fidelity": 0.9985911512499345,
+            "delta_e_gap": 0.0035341162606139305,
+            "elapsed_s": 20.62497115135193
+          },
+          {
+            "h": 5.0,
+            "fidelity": 0.9978802654098662,
+            "delta_e_gap": 0.005425847486378183,
+            "elapsed_s": 18.53756880760193
+          },
+          {
+            "h": 4.5,
+            "fidelity": 0.9966475047757108,
+            "delta_e_gap": 0.008800135661952932,
+            "elapsed_s": 16.210808992385864
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "MPNN Training (heavy-hex N=10)",
+      "success": true,
+      "elapsed_s": 105.62,
+      "data": {
+        "topology": "heavy_hex",
+        "n_qubits": 10,
+        "n_params": 19,
+        "train_points": 6,
+        "test_points": 2,
+        "final_train_loss": 0.0001025539095280692,
+        "mean_train_fidelity": 0.9994296452045126,
+        "test_results": [
+          {
+            "h_test": 3.875,
+            "de_gap_mpnn": 0.0015844521738569684,
+            "de_gap_interp": 0.0012661552960851925,
+            "mpnn_wins": false
+          },
+          {
+            "h_test": 3.625,
+            "de_gap_mpnn": 0.0021666189099791427,
+            "de_gap_interp": 0.0016932415441127298,
+            "mpnn_wins": false
+          }
+        ],
+        "mpnn_wins": 0,
+        "n_tests": 2,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Noisy Simulation + ZNE",
+      "success": true,
+      "elapsed_s": 33.54,
+      "data": {
+        "topology": "heavy_hex",
+        "n_qubits": 10,
+        "n_params": 19,
+        "results_per_h": [
+          {
+            "h": 4.0,
+            "r2": 0.9967024011481986,
+            "de_noiseless": 0.0011032357966356224,
+            "de_noisy_raw": 0.3927652312482482,
+            "de_zne": 0.27025285831033935,
+            "gain_pct": 31.19226530020286,
+            "zne_positive": true
+          },
+          {
+            "h": 3.5,
+            "r2": 0.99670408507432,
+            "de_noiseless": 0.001974581736510286,
+            "de_noisy_raw": 0.42273336059710465,
+            "de_zne": 0.2943305509304263,
+            "gain_pct": 30.374420766156536,
+            "zne_positive": true
+          }
+        ],
+        "n_positive_gain": 2,
+        "n_total": 2,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 4,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 552.67,
+    "total_elapsed_s": 552.67,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T23:09:14.543378",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "BOND_RESOLVED_SCALING",
+    "category": "B",
+    "hypothesis": "Bond-resolved HVA scales to 2D square lattice, GNN predicts high-dimensional theta_opt, and ZNE remains effective",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 4,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 552.67,
+      "total_elapsed_s": 552.67,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "2D Square N=9 Convergence",
+        "success": true,
+        "elapsed_s": 34.88,
+        "data": {
+          "topology": "square",
+          "n_qubits": 9,
+          "p_layers": 1,
+          "n_params": 21,
+          "n_edges": 12,
+          "grid_shape": "3x3",
+          "results": [
+            {
+              "h": 6.0,
+              "fidelity": 0.9993947338178206,
+              "delta_e_gap": 0.0014647195091264254,
+              "elapsed_s": 10.637094259262085
+            },
+            {
+              "h": 5.5,
+              "fidelity": 0.9991268764293344,
+              "delta_e_gap": 0.0021438318112193895,
+              "elapsed_s": 5.422656059265137
+            },
+            {
+              "h": 5.0,
+              "fidelity": 0.9986906110312865,
+              "delta_e_gap": 0.0032712354492353524,
+              "elapsed_s": 7.473017930984497
+            },
+            {
+              "h": 4.5,
+              "fidelity": 0.9979390610773654,
+              "delta_e_gap": 0.005259901031495017,
+              "elapsed_s": 5.9739320278167725
+            },
+            {
+              "h": 4.0,
+              "fidelity": 0.9965488009138243,
+              "delta_e_gap": 0.0090537852977427,
+              "elapsed_s": 4.857835054397583
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "2D Square N=12 Convergence",
+        "success": true,
+        "elapsed_s": 378.63,
+        "data": {
+          "topology": "square",
+          "n_qubits": 12,
+          "p_layers": 1,
+          "n_params": 29,
+          "n_edges": 17,
+          "grid_shape": "3x4",
+          "results": [
+            {
+              "h": 6.0,
+              "fidelity": 0.9990256431610228,
+              "delta_e_gap": 0.002403606739689943,
+              "elapsed_s": 30.136462211608887
+            },
+            {
+              "h": 5.5,
+              "fidelity": 0.9985911512499345,
+              "delta_e_gap": 0.0035341162606139305,
+              "elapsed_s": 20.62497115135193
+            },
+            {
+              "h": 5.0,
+              "fidelity": 0.9978802654098662,
+              "delta_e_gap": 0.005425847486378183,
+              "elapsed_s": 18.53756880760193
+            },
+            {
+              "h": 4.5,
+              "fidelity": 0.9966475047757108,
+              "delta_e_gap": 0.008800135661952932,
+              "elapsed_s": 16.210808992385864
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "MPNN Training (heavy-hex N=10)",
+        "success": true,
+        "elapsed_s": 105.62,
+        "data": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "n_params": 19,
+          "train_points": 6,
+          "test_points": 2,
+          "final_train_loss": 0.0001025539095280692,
+          "mean_train_fidelity": 0.9994296452045126,
+          "test_results": [
+            {
+              "h_test": 3.875,
+              "de_gap_mpnn": 0.0015844521738569684,
+              "de_gap_interp": 0.0012661552960851925,
+              "mpnn_wins": false
+            },
+            {
+              "h_test": 3.625,
+              "de_gap_mpnn": 0.0021666189099791427,
+              "de_gap_interp": 0.0016932415441127298,
+              "mpnn_wins": false
+            }
+          ],
+          "mpnn_wins": 0,
+          "n_tests": 2,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Noisy Simulation + ZNE",
+        "success": true,
+        "elapsed_s": 33.54,
+        "data": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "n_params": 19,
+          "results_per_h": [
+            {
+              "h": 4.0,
+              "r2": 0.9967024011481986,
+              "de_noiseless": 0.0011032357966356224,
+              "de_noisy_raw": 0.3927652312482482,
+              "de_zne": 0.27025285831033935,
+              "gain_pct": 31.19226530020286,
+              "zne_positive": true
+            },
+            {
+              "h": 3.5,
+              "r2": 0.99670408507432,
+              "de_noiseless": 0.001974581736510286,
+              "de_noisy_raw": 0.42273336059710465,
+              "de_zne": 0.2943305509304263,
+              "gain_pct": 30.374420766156536,
+              "zne_positive": true
+            }
+          ],
+          "n_positive_gain": 2,
+          "n_total": 2,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

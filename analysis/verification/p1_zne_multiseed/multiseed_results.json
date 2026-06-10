@@ -1,0 +1,29 @@
+[
+  {
+    "seed": 42,
+    "success": true,
+    "mean_r2": 0.982491613740593,
+    "mean_gain_pct": 73.13393429151779,
+    "n_mitigated_wins": 3,
+    "n_total": 3,
+    "elapsed_s": 45.8978750705719
+  },
+  {
+    "seed": 43,
+    "success": true,
+    "mean_r2": 0.9999567124346657,
+    "mean_gain_pct": 0.7476969910747115,
+    "n_mitigated_wins": 3,
+    "n_total": 3,
+    "elapsed_s": 42.87726092338562
+  },
+  {
+    "seed": 44,
+    "success": true,
+    "mean_r2": 0.33258256535535413,
+    "mean_gain_pct": -39.1288819124053,
+    "n_mitigated_wins": 0,
+    "n_total": 3,
+    "elapsed_s": 35.579087018966675
+  }
+]

@@ -1,0 +1,628 @@
+{
+  "timestamp": "2026-06-03T12:59:22.324636",
+  "config": {
+    "runner_id": "t1c_d1_frustrated",
+    "experiment_id": "T1c",
+    "description": "D1 Weight-Space Phase Detection \u2014 Frustrated TFIM (J\u2081-J\u2082)",
+    "hypothesis": "||dW/dh|| peaks track the frustrated TFIM crossover, generalizing the zero-QPU phase detection to frustrated systems",
+    "category": "T",
+    "model": "tfim_frustrated",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d"
+    },
+    "d1_config": {
+      "j2_values": [
+        0.0,
+        0.2,
+        0.3,
+        0.5
+      ],
+      "h_grid": [
+        0.25,
+        0.3275862068965517,
+        0.4051724137931034,
+        0.4827586206896552,
+        0.5603448275862069,
+        0.6379310344827587,
+        0.7155172413793104,
+        0.7931034482758621,
+        0.8706896551724138,
+        0.9482758620689655,
+        1.0258620689655173,
+        1.103448275862069,
+        1.1810344827586208,
+        1.2586206896551724,
+        1.3362068965517242,
+        1.4137931034482758,
+        1.4913793103448276,
+        1.5689655172413794,
+        1.646551724137931,
+        1.7241379310344829,
+        1.8017241379310345,
+        1.8793103448275863,
+        1.956896551724138,
+        2.0344827586206895,
+        2.1120689655172415,
+        2.189655172413793,
+        2.2672413793103448,
+        2.344827586206897,
+        2.4224137931034484,
+        2.5
+      ],
+      "dropout": 0.1,
+      "mpnn_epochs": 3000
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 129.14313197135925,
+  "results": {
+    "section_1": {
+      "name": "VQE Data Generation (per J\u2082)",
+      "success": true,
+      "elapsed_s": 103.17,
+      "data": {
+        "per_j2": {
+          "0.0": {
+            "mean_fidelity": 0.9584535206149962,
+            "n_high_fid": 27,
+            "n_total": 30,
+            "min_gap": 0.00045776382364692836,
+            "h_crossover_exact": 0.3275862068965517,
+            "crossover_at_edge": false
+          },
+          "0.2": {
+            "mean_fidelity": 0.9626781007747877,
+            "n_high_fid": 27,
+            "n_total": 30,
+            "min_gap": 0.001984251098681611,
+            "h_crossover_exact": 0.3275862068965517,
+            "crossover_at_edge": false
+          },
+          "0.3": {
+            "mean_fidelity": 0.9725849449127447,
+            "n_high_fid": 28,
+            "n_total": 30,
+            "min_gap": 0.0061571011505225925,
+            "h_crossover_exact": 0.3275862068965517,
+            "crossover_at_edge": false
+          },
+          "0.5": {
+            "mean_fidelity": 0.9802168387035198,
+            "n_high_fid": 29,
+            "n_total": 30,
+            "min_gap": 0.05368865634329989,
+            "h_crossover_exact": 0.3275862068965517,
+            "crossover_at_edge": false
+          }
+        },
+        "n_j2_values": 4,
+        "h_grid_size": 30,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "MPNN Training (dropout=0.1)",
+      "success": true,
+      "elapsed_s": 25.18,
+      "data": {
+        "per_j2": {
+          "0.0": {
+            "final_mse": 0.0003062252071686089,
+            "n_epochs": 3000,
+            "stopped_early": false,
+            "n_train_graphs": 30
+          },
+          "0.2": {
+            "final_mse": 0.000440175092080608,
+            "n_epochs": 3000,
+            "stopped_early": false,
+            "n_train_graphs": 30
+          },
+          "0.3": {
+            "final_mse": 0.01918763294816017,
+            "n_epochs": 3000,
+            "stopped_early": false,
+            "n_train_graphs": 30
+          },
+          "0.5": {
+            "final_mse": 8.593389065936208e-05,
+            "n_epochs": 3000,
+            "stopped_early": false,
+            "n_train_graphs": 30
+          }
+        },
+        "dropout": 0.1,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Weight Gradient Analysis",
+      "success": true,
+      "elapsed_s": 0.78,
+      "data": {
+        "per_j2": {
+          "0.0": {
+            "peaks_detected": 0,
+            "peak_h_values": [],
+            "peak_magnitudes": [],
+            "h_at_max_gradient": 0.3275862068965517,
+            "max_gradient_norm": 0.046835415065288544,
+            "mean_gradient_norm": 0.021188950228194395,
+            "critical_region_detected": false,
+            "per_layer_names": [
+              "ginconv_0",
+              "ginconv_1",
+              "ginconv_2",
+              "head"
+            ]
+          },
+          "0.2": {
+            "peaks_detected": 3,
+            "peak_h_values": [
+              0.3275862068965517,
+              0.7155172413793104,
+              1.5689655172413794
+            ],
+            "peak_magnitudes": [
+              0.05226723477244377,
+              0.04628923907876015,
+              0.041218698024749756
+            ],
+            "h_at_max_gradient": 0.3275862068965517,
+            "max_gradient_norm": 0.05226723477244377,
+            "mean_gradient_norm": 0.028013376231926183,
+            "critical_region_detected": false,
+            "per_layer_names": [
+              "ginconv_0",
+              "ginconv_1",
+              "ginconv_2",
+              "head"
+            ]
+          },
+          "0.3": {
+            "peaks_detected": 3,
+            "peak_h_values": [
+              0.4827586206896552,
+              0.6379310344827587,
+              2.2672413793103448
+            ],
+            "peak_magnitudes": [
+              1.558160662651062,
+              2.617504835128784,
+              1.8935405015945435
+            ],
+            "h_at_max_gradient": 0.6379310344827587,
+            "max_gradient_norm": 2.617504835128784,
+            "mean_gradient_norm": 0.5235654859493176,
+            "critical_region_detected": false,
+            "per_layer_names": [
+              "ginconv_0",
+              "ginconv_1",
+              "ginconv_2",
+              "head"
+            ]
+          },
+          "0.5": {
+            "peaks_detected": 2,
+            "peak_h_values": [
+              0.4051724137931034,
+              1.7241379310344829
+            ],
+            "peak_magnitudes": [
+              0.018129438161849976,
+              0.005025783553719521
+            ],
+            "h_at_max_gradient": 0.4051724137931034,
+            "max_gradient_norm": 0.018129438161849976,
+            "mean_gradient_norm": 0.005455459155685579,
+            "critical_region_detected": false,
+            "per_layer_names": [
+              "ginconv_0",
+              "ginconv_1",
+              "ginconv_2",
+              "head"
+            ]
+          }
+        },
+        "any_peaks_detected": true,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "J\u2082-Dependence of Peak Location",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "peak_vs_j2": [
+          {
+            "j2": 0.0,
+            "peak_h": 0.3275862068965517,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.0
+          },
+          {
+            "j2": 0.2,
+            "peak_h": 0.3275862068965517,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.0
+          },
+          {
+            "j2": 0.3,
+            "peak_h": 0.4827586206896552,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.15517241379310348
+          },
+          {
+            "j2": 0.5,
+            "peak_h": 0.4051724137931034,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.07758620689655171
+          }
+        ],
+        "spearman_corr": 0.7378647873726218,
+        "spearman_p": 0.26213521262737816,
+        "systematic_shift": false,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Comparison with Exact Crossover",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "comparisons": [
+          {
+            "j2": 0.0,
+            "peak_h_gradient": 0.3275862068965517,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.0,
+            "gap_at_peak": 0.002206411266843844,
+            "gap_at_crossover": 0.00045776382364692836,
+            "agrees_within_tolerance": true
+          },
+          {
+            "j2": 0.2,
+            "peak_h_gradient": 0.3275862068965517,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.0,
+            "gap_at_peak": 0.009293467043404391,
+            "gap_at_crossover": 0.001984251098681611,
+            "agrees_within_tolerance": true
+          },
+          {
+            "j2": 0.3,
+            "peak_h_gradient": 0.4827586206896552,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.15517241379310348,
+            "gap_at_peak": 0.1562749106364354,
+            "gap_at_crossover": 0.0061571011505225925,
+            "agrees_within_tolerance": true
+          },
+          {
+            "j2": 0.5,
+            "peak_h_gradient": 0.4051724137931034,
+            "exact_crossover_h": 0.3275862068965517,
+            "delta_h": 0.07758620689655171,
+            "gap_at_peak": 0.18762091779668433,
+            "gap_at_crossover": 0.05368865634329989,
+            "agrees_within_tolerance": true
+          }
+        ],
+        "agreement_rate": 1.0,
+        "tolerance": 0.3,
+        "generalizes": true,
+        "finding": "D1 GENERALIZES: Weight gradient peaks track the frustrated TFIM crossover. Zero-QPU phase detection works for J\u2081-J\u2082 model.",
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 5,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 129.14,
+    "total_elapsed_s": 129.14,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:59:22.200696",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "T1c",
+    "category": "T",
+    "hypothesis": "||dW/dh|| peaks track the frustrated TFIM crossover, generalizing the zero-QPU phase detection to frustrated systems",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 5,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 129.14,
+      "total_elapsed_s": 129.14,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "VQE Data Generation (per J\u2082)",
+        "success": true,
+        "elapsed_s": 103.17,
+        "data": {
+          "per_j2": {
+            "0.0": {
+              "mean_fidelity": 0.9584535206149962,
+              "n_high_fid": 27,
+              "n_total": 30,
+              "min_gap": 0.00045776382364692836,
+              "h_crossover_exact": 0.3275862068965517,
+              "crossover_at_edge": false
+            },
+            "0.2": {
+              "mean_fidelity": 0.9626781007747877,
+              "n_high_fid": 27,
+              "n_total": 30,
+              "min_gap": 0.001984251098681611,
+              "h_crossover_exact": 0.3275862068965517,
+              "crossover_at_edge": false
+            },
+            "0.3": {
+              "mean_fidelity": 0.9725849449127447,
+              "n_high_fid": 28,
+              "n_total": 30,
+              "min_gap": 0.0061571011505225925,
+              "h_crossover_exact": 0.3275862068965517,
+              "crossover_at_edge": false
+            },
+            "0.5": {
+              "mean_fidelity": 0.9802168387035198,
+              "n_high_fid": 29,
+              "n_total": 30,
+              "min_gap": 0.05368865634329989,
+              "h_crossover_exact": 0.3275862068965517,
+              "crossover_at_edge": false
+            }
+          },
+          "n_j2_values": 4,
+          "h_grid_size": 30,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "MPNN Training (dropout=0.1)",
+        "success": true,
+        "elapsed_s": 25.18,
+        "data": {
+          "per_j2": {
+            "0.0": {
+              "final_mse": 0.0003062252071686089,
+              "n_epochs": 3000,
+              "stopped_early": false,
+              "n_train_graphs": 30
+            },
+            "0.2": {
+              "final_mse": 0.000440175092080608,
+              "n_epochs": 3000,
+              "stopped_early": false,
+              "n_train_graphs": 30
+            },
+            "0.3": {
+              "final_mse": 0.01918763294816017,
+              "n_epochs": 3000,
+              "stopped_early": false,
+              "n_train_graphs": 30
+            },
+            "0.5": {
+              "final_mse": 8.593389065936208e-05,
+              "n_epochs": 3000,
+              "stopped_early": false,
+              "n_train_graphs": 30
+            }
+          },
+          "dropout": 0.1,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Weight Gradient Analysis",
+        "success": true,
+        "elapsed_s": 0.78,
+        "data": {
+          "per_j2": {
+            "0.0": {
+              "peaks_detected": 0,
+              "peak_h_values": [],
+              "peak_magnitudes": [],
+              "h_at_max_gradient": 0.3275862068965517,
+              "max_gradient_norm": 0.046835415065288544,
+              "mean_gradient_norm": 0.021188950228194395,
+              "critical_region_detected": false,
+              "per_layer_names": [
+                "ginconv_0",
+                "ginconv_1",
+                "ginconv_2",
+                "head"
+              ]
+            },
+            "0.2": {
+              "peaks_detected": 3,
+              "peak_h_values": [
+                0.3275862068965517,
+                0.7155172413793104,
+                1.5689655172413794
+              ],
+              "peak_magnitudes": [
+                0.05226723477244377,
+                0.04628923907876015,
+                0.041218698024749756
+              ],
+              "h_at_max_gradient": 0.3275862068965517,
+              "max_gradient_norm": 0.05226723477244377,
+              "mean_gradient_norm": 0.028013376231926183,
+              "critical_region_detected": false,
+              "per_layer_names": [
+                "ginconv_0",
+                "ginconv_1",
+                "ginconv_2",
+                "head"
+              ]
+            },
+            "0.3": {
+              "peaks_detected": 3,
+              "peak_h_values": [
+                0.4827586206896552,
+                0.6379310344827587,
+                2.2672413793103448
+              ],
+              "peak_magnitudes": [
+                1.558160662651062,
+                2.617504835128784,
+                1.8935405015945435
+              ],
+              "h_at_max_gradient": 0.6379310344827587,
+              "max_gradient_norm": 2.617504835128784,
+              "mean_gradient_norm": 0.5235654859493176,
+              "critical_region_detected": false,
+              "per_layer_names": [
+                "ginconv_0",
+                "ginconv_1",
+                "ginconv_2",
+                "head"
+              ]
+            },
+            "0.5": {
+              "peaks_detected": 2,
+              "peak_h_values": [
+                0.4051724137931034,
+                1.7241379310344829
+              ],
+              "peak_magnitudes": [
+                0.018129438161849976,
+                0.005025783553719521
+              ],
+              "h_at_max_gradient": 0.4051724137931034,
+              "max_gradient_norm": 0.018129438161849976,
+              "mean_gradient_norm": 0.005455459155685579,
+              "critical_region_detected": false,
+              "per_layer_names": [
+                "ginconv_0",
+                "ginconv_1",
+                "ginconv_2",
+                "head"
+              ]
+            }
+          },
+          "any_peaks_detected": true,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "J\u2082-Dependence of Peak Location",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "peak_vs_j2": [
+            {
+              "j2": 0.0,
+              "peak_h": 0.3275862068965517,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.0
+            },
+            {
+              "j2": 0.2,
+              "peak_h": 0.3275862068965517,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.0
+            },
+            {
+              "j2": 0.3,
+              "peak_h": 0.4827586206896552,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.15517241379310348
+            },
+            {
+              "j2": 0.5,
+              "peak_h": 0.4051724137931034,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.07758620689655171
+            }
+          ],
+          "spearman_corr": 0.7378647873726218,
+          "spearman_p": 0.26213521262737816,
+          "systematic_shift": false,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Comparison with Exact Crossover",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "comparisons": [
+            {
+              "j2": 0.0,
+              "peak_h_gradient": 0.3275862068965517,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.0,
+              "gap_at_peak": 0.002206411266843844,
+              "gap_at_crossover": 0.00045776382364692836,
+              "agrees_within_tolerance": true
+            },
+            {
+              "j2": 0.2,
+              "peak_h_gradient": 0.3275862068965517,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.0,
+              "gap_at_peak": 0.009293467043404391,
+              "gap_at_crossover": 0.001984251098681611,
+              "agrees_within_tolerance": true
+            },
+            {
+              "j2": 0.3,
+              "peak_h_gradient": 0.4827586206896552,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.15517241379310348,
+              "gap_at_peak": 0.1562749106364354,
+              "gap_at_crossover": 0.0061571011505225925,
+              "agrees_within_tolerance": true
+            },
+            {
+              "j2": 0.5,
+              "peak_h_gradient": 0.4051724137931034,
+              "exact_crossover_h": 0.3275862068965517,
+              "delta_h": 0.07758620689655171,
+              "gap_at_peak": 0.18762091779668433,
+              "gap_at_crossover": 0.05368865634329989,
+              "agrees_within_tolerance": true
+            }
+          ],
+          "agreement_rate": 1.0,
+          "tolerance": 0.3,
+          "generalizes": true,
+          "finding": "D1 GENERALIZES: Weight gradient peaks track the frustrated TFIM crossover. Zero-QPU phase detection works for J\u2081-J\u2082 model.",
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

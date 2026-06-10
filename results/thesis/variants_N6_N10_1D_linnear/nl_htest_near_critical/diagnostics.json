@@ -1,0 +1,98 @@
+{
+  "phase1": {
+    "n_points": 10,
+    "elapsed_s": 9.59965181350708,
+    "gap_min": 0.7067561537674063
+  },
+  "phase2": {
+    "per_h_timing_s": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_h_iterations": [
+      18,
+      17,
+      13,
+      17,
+      15,
+      9,
+      9,
+      10,
+      13,
+      10
+    ],
+    "per_h_restart_spread": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "theta_smoothness": 0.015212274918743385,
+    "worst_convergence_h": 2.0,
+    "total_elapsed_s": 0.0,
+    "convergence_rate": 1.0
+  },
+  "phase3": {
+    "per_h_mse": {
+      "2.0000": 3.792677307501435e-05,
+      "1.9000": 4.1776380385272205e-05,
+      "1.8000": 3.1943960493663326e-05,
+      "1.7000": 3.543994534993544e-05,
+      "1.6000": 2.2342097508953884e-05,
+      "1.5000": 1.4502791600534692e-05,
+      "1.4000": 1.5107465515029617e-05,
+      "1.3500": 1.2484294529713225e-05,
+      "1.3000": 7.2515831561759114e-06,
+      "1.2500": 1.6390715245506726e-05
+    },
+    "theta_zz_mse": 2.3516600685979937e-05,
+    "theta_x_mse": 2.3516600685979937e-05,
+    "generalization_gap": 3.4524797229096293e-05,
+    "loss_curve_last100": [],
+    "elapsed_s": 13.147100925445557
+  },
+  "phase4": {
+    "h_test": 1.25,
+    "snr_mag_x": null,
+    "snr_corr_zz": null,
+    "classification_confidence": null,
+    "per_layout_energies": [],
+    "per_layout_ces": [],
+    "ces_energy_pearson_r": null,
+    "energy_decomposition": {
+      "e_exact": -14.363329535855529,
+      "e_vqe_ceiling": -14.363329535855529,
+      "e_mpnn_predicted": -14.290802705828153,
+      "error_from_circuit": 0.0,
+      "error_from_mpnn": 0.07252683002737648
+    },
+    "total_shots": null
+  },
+  "baseline_comparison": null
+}

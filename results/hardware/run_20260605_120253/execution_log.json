@@ -1,0 +1,322 @@
+{
+  "experiment_id": "hardware_deployment",
+  "n_events": 23,
+  "timing_summary": {},
+  "failure_summary": {
+    "total_failures": 0,
+    "by_seed": {},
+    "by_h_value": {},
+    "reasons": []
+  },
+  "events": [
+    {
+      "timestamp": "2026-06-05T11:48:46.563",
+      "event_type": "layout_selection",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "n_selected": 3,
+        "ces_values": [
+          0.20286453756766554,
+          0.22585395809375036,
+          0.2543822369727261
+        ]
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:46.564",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 0,
+        "job_id": "1d0c4114-6879-4855-999e-f5ad2b79ed02"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:46.608",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 1,
+        "job_id": "80bba9ad-1dbd-4e8b-a2cd-724a653457ab"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:46.612",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 2,
+        "job_id": "b0515145-5a16-4b88-893c-60098ecb3a5d"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:50.805",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 0,
+        "job_id": "1d0c4114-6879-4855-999e-f5ad2b79ed02",
+        "energy": -33.9503173828125,
+        "std": 0.23941969046259828
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:50.805",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 1,
+        "job_id": "80bba9ad-1dbd-4e8b-a2cd-724a653457ab",
+        "energy": -40.627685546875,
+        "std": 0.11906285522451172
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:50.805",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 2,
+        "job_id": "b0515145-5a16-4b88-893c-60098ecb3a5d",
+        "energy": -40.5950927734375,
+        "std": 0.11914154271074251
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:52.860",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 0,
+        "job_id": "079194fe-a664-446d-b895-d9a613734b02"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:52.861",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 1,
+        "job_id": "147a5133-9a3b-4d23-bff6-e5623072be7c"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:52.862",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 2,
+        "job_id": "380ad208-675e-4089-8045-ee5fdb563875"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:48:54.464",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 0,
+        "job_id": "079194fe-a664-446d-b895-d9a613734b02",
+        "energy": -27.74176025390625,
+        "std": 0.2076537541354582
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:52:18.096",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 1,
+        "job_id": "147a5133-9a3b-4d23-bff6-e5623072be7c",
+        "energy": -27.844757080078125,
+        "std": 0.2043413573873524
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:42.099",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 2,
+        "job_id": "380ad208-675e-4089-8045-ee5fdb563875",
+        "energy": -28.65704345703125,
+        "std": 0.19807943015785248
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:44.094",
+      "event_type": "deployment_start",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": 3.25,
+      "data": {
+        "n_qubits": 10,
+        "n_params": 2,
+        "h_value": 3.25,
+        "e_exact": -33.19554893362552,
+        "gap": 4.6071660790644415,
+        "expected_label": "paramagnetic",
+        "params_norm": 0.3979315941844626
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:44.095",
+      "event_type": "preflight",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "abort": false,
+        "topology_connected_nodes": 133,
+        "topology_sufficient": true,
+        "shots_per_eval": 49152
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:44.095",
+      "event_type": "circuit_zne_ok",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "abort": false,
+        "two_qubit_gate_count": 9,
+        "gate_breakdown": {
+          "rzz": 9
+        },
+        "zne_threshold": 50,
+        "amplifier": "pea"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:44.096",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 0,
+        "job_id": "a85d0c8b-0900-4a93-9a63-9b7ed7023cfb"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:44.097",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 1,
+        "job_id": "09613b50-d7ce-4ab6-8279-e433484b4e3d"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:55:44.098",
+      "event_type": "job_submitted",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 2,
+        "job_id": "3b9ee779-571f-4309-abce-25ea2dc57097"
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:59:15.286",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 0,
+        "job_id": "a85d0c8b-0900-4a93-9a63-9b7ed7023cfb",
+        "energy": -27.74176025390625,
+        "std": 0.2076537541354582
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T11:59:15.286",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 1,
+        "job_id": "09613b50-d7ce-4ab6-8279-e433484b4e3d",
+        "energy": -27.844757080078125,
+        "std": 0.2043413573873524
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T12:02:50.415",
+      "event_type": "job_completion",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "layout_idx": 2,
+        "job_id": "3b9ee779-571f-4309-abce-25ea2dc57097",
+        "energy": -28.65704345703125,
+        "std": 0.19807943015785248
+      },
+      "elapsed_s": 0.0
+    },
+    {
+      "timestamp": "2026-06-05T12:02:53.969",
+      "event_type": "run_saved",
+      "experiment_id": "hardware_deployment",
+      "seed": null,
+      "h_value": null,
+      "data": {
+        "run_dir": "results/hardware/run_20260605_120253"
+      },
+      "elapsed_s": 0.0
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "timestamp": "2026-06-04T12:47:05.950834",
+  "config": {
+    "runner_id": "pea_zne_validation",
+    "experiment_id": "PEA_ZNE_VAL",
+    "category": "ZNE",
+    "description": "PEA-ZNE Comprehensive Validation (multi-seed, vs GF-ZNE)",
+    "hypothesis": "PEA-ZNE achieves gain > GF-ZNE gain with R\u00b2>0.9 and seed-independent reproducibility (std < 5%).",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 1,
+      "topology": "chain_1d",
+      "model": "tfim"
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 76.20994400978088,
+  "results": {
+    "section_1": {
+      "name": "Noiseless Baseline (3 seeds)",
+      "success": true,
+      "elapsed_s": 0.92,
+      "data": {
+        "n_params": 2,
+        "n_seeds": 3,
+        "n_h_points": 4
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Gate-Folding ZNE (3 seeds)",
+      "success": true,
+      "elapsed_s": 70.11,
+      "data": {
+        "mean_gain": 0.10980925857230994,
+        "std_gain": 0.021359472850648112,
+        "mean_r2": 0.9974814217919933
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "PEA-ZNE (3 seeds)",
+      "success": false,
+      "elapsed_s": 4.13,
+      "data": {},
+      "error": "AerError: 'unknown instruction: x'"
+    },
+    "section_4": {
+      "name": "Seed Stability",
+      "success": false,
+      "elapsed_s": 0.0,
+      "data": {},
+      "error": "RuntimeError: Run Sections 2 and 3 first"
+    },
+    "section_5": {
+      "name": "Verdict",
+      "success": false,
+      "elapsed_s": 0.0,
+      "data": {},
+      "error": "RuntimeError: Run Sections 2, 3, 4 first"
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 2,
+    "n_failed": 3,
+    "pass_rate": 0.4,
+    "total_time_s": 76.21,
+    "total_elapsed_s": 76.21,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-04T12:47:05.881569",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_ZNE_VAL",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE achieves gain > GF-ZNE gain with R\u00b2>0.9 and seed-independent reproducibility (std < 5%).",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 2,
+      "n_failed": 3,
+      "pass_rate": 0.4,
+      "total_time_s": 76.21,
+      "total_elapsed_s": 76.21,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Noiseless Baseline (3 seeds)",
+        "success": true,
+        "elapsed_s": 0.92,
+        "data": {
+          "n_params": 2,
+          "n_seeds": 3,
+          "n_h_points": 4
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "Gate-Folding ZNE (3 seeds)",
+        "success": true,
+        "elapsed_s": 70.11,
+        "data": {
+          "mean_gain": 0.10980925857230994,
+          "std_gain": 0.021359472850648112,
+          "mean_r2": 0.9974814217919933
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "PEA-ZNE (3 seeds)",
+        "success": false,
+        "elapsed_s": 4.13,
+        "data": {},
+        "error": "AerError: 'unknown instruction: x'"
+      },
+      "section_4": {
+        "name": "Seed Stability",
+        "success": false,
+        "elapsed_s": 0.0,
+        "data": {},
+        "error": "RuntimeError: Run Sections 2 and 3 first"
+      },
+      "section_5": {
+        "name": "Verdict",
+        "success": false,
+        "elapsed_s": 0.0,
+        "data": {},
+        "error": "RuntimeError: Run Sections 2, 3, 4 first"
+      }
+    }
+  }
+}

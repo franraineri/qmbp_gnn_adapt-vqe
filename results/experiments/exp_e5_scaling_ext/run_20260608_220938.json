@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-06-08T22:09:38.303487",
+  "config": {
+    "runner_id": "scaling_extensions",
+    "experiment_id": "E5_SCALING_EXT",
+    "description": "E5: Scaling Extensions \u2014 N=120 + HE + NLCE",
+    "hypothesis": "MPS \u03c7=64 is exact at N=120, GNN eliminates VQE entirely (outperforming Hamiltonian engineering), and NLCE with GNN-HVA cluster solver converges to thermodynamic limit.",
+    "bond_dimension_test": {
+      "n_qubits": 120,
+      "chi_values": [
+        16,
+        32,
+        64,
+        128
+      ],
+      "strategy": "aer_mps",
+      "model": "tfim",
+      "topology": "chain_1d"
+    },
+    "he_comparison": {
+      "n_qubits": 20,
+      "topology": "chain_1d",
+      "parametrization": "bond_resolved"
+    },
+    "nlce": {
+      "l_max": 10,
+      "topology": "chain_1d",
+      "j2": 0.5
+    },
+    "seeds": [
+      42
+    ],
+    "category": "E",
+    "system": {}
+  },
+  "elapsed_s": 0.023962974548339844,
+  "results": {
+    "section_2": {
+      "name": "N=120 Single-Point VQE Convergence",
+      "success": false,
+      "elapsed_s": 0.01,
+      "data": {},
+      "error": "ValueError: DMRG supports up to 100 qubits, got 120."
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 0,
+    "n_failed": 1,
+    "pass_rate": 0.0,
+    "total_time_s": 0.02,
+    "total_elapsed_s": 0.02,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-08T22:09:37.988128",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "E5_SCALING_EXT",
+    "category": "E",
+    "hypothesis": "MPS \u03c7=64 is exact at N=120, GNN eliminates VQE entirely (outperforming Hamiltonian engineering), and NLCE with GNN-HVA cluster solver converges to thermodynamic limit.",
+    "n_seeds": 1,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 0,
+      "n_failed": 1,
+      "pass_rate": 0.0,
+      "total_time_s": 0.02,
+      "total_elapsed_s": 0.02,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_2": {
+        "name": "N=120 Single-Point VQE Convergence",
+        "success": false,
+        "elapsed_s": 0.01,
+        "data": {},
+        "error": "ValueError: DMRG supports up to 100 qubits, got 120."
+      }
+    }
+  }
+}

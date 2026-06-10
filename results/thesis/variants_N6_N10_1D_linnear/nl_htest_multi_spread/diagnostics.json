@@ -1,0 +1,98 @@
+{
+  "phase1": {
+    "n_points": 10,
+    "elapsed_s": 9.927818059921265,
+    "gap_min": 0.7067561537674063
+  },
+  "phase2": {
+    "per_h_timing_s": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_h_iterations": [
+      33,
+      15,
+      12,
+      16,
+      13,
+      16,
+      12,
+      15,
+      12,
+      11
+    ],
+    "per_h_restart_spread": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "theta_smoothness": 0.015212467825049814,
+    "worst_convergence_h": 2.0,
+    "total_elapsed_s": 0.0,
+    "convergence_rate": 1.0
+  },
+  "phase3": {
+    "per_h_mse": {
+      "2.0000": 0.0009951809188351035,
+      "1.9000": 0.0005672051920555532,
+      "1.8000": 0.0007285393076017499,
+      "1.7000": 0.0007759184227325022,
+      "1.6000": 0.0005939739639870822,
+      "1.5000": 0.0009719534427858889,
+      "1.4000": 0.0012239739298820496,
+      "1.3500": 0.0010466359090059996,
+      "1.3000": 0.0009427877375856042,
+      "1.2500": 0.0011936057126149535
+    },
+    "theta_zz_mse": 0.0009039774537086487,
+    "theta_x_mse": 0.0009039774537086487,
+    "generalization_gap": 0.0006567687378264964,
+    "loss_curve_last100": [],
+    "elapsed_s": 13.243833065032959
+  },
+  "phase4": {
+    "h_test": 1.3,
+    "snr_mag_x": null,
+    "snr_corr_zz": null,
+    "classification_confidence": null,
+    "per_layout_energies": [],
+    "per_layout_ces": [],
+    "ces_energy_pearson_r": null,
+    "energy_decomposition": {
+      "e_exact": -14.786536102772981,
+      "e_vqe_ceiling": -14.786536102772981,
+      "e_mpnn_predicted": -14.67705454246423,
+      "error_from_circuit": 0.0,
+      "error_from_mpnn": 0.10948156030875111
+    },
+    "total_shots": null
+  },
+  "baseline_comparison": null
+}

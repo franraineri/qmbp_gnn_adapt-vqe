@@ -1,0 +1,18 @@
+{
+  "h_test": 3.25,
+  "e_exact": -19.88599119768642,
+  "e_zne": -19.899754842122384,
+  "gap": 4.748840192121573,
+  "delta_e_gap": 0.0028983170372418898,
+  "phase_label": "paramagnetic",
+  "expected_label": "paramagnetic",
+  "mag_x_mean": 0.9193522135416666,
+  "corr_zz_mean": 0.110205078125,
+  "sigma": 0.0078125,
+  "total_shots_consumed": 147456,
+  "zne_r2": 0.9995301020687611,
+  "zne_gain": 0.0,
+  "spsa_applied": false,
+  "is_partial": false,
+  "verdict": "PASS"
+}

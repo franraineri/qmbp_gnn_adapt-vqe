@@ -1,0 +1,825 @@
+{
+  "experiment": "cross_topology_transfer",
+  "metadata": {
+    "source_files": [
+      "results/scaling/cross_topology/vqe_triangular_N16_p1_20260608_230139.json",
+      "results/scaling/cross_topology/vqe_triangular_N6_p1_20260608_210026.json",
+      "results/thesis/p1_variants_N10/triangular_seed42/pipeline_run_20260529_210712.json",
+      "results/thesis/p1_variants_N10/triangular_seed43/pipeline_run_20260529_210735.json",
+      "results/thesis/p1_variants_N10/triangular_seed44/pipeline_run_20260529_210757.json",
+      "results/thesis/verification_r1/v2_triangular_N6_seed42/pipeline_run_20260530_202036.json",
+      "results/thesis/verification_r1/v2_triangular_N6_seed43/pipeline_run_20260530_202053.json",
+      "results/thesis/verification_r1/v2_triangular_N6_seed44/pipeline_run_20260530_202111.json",
+      "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233420.json",
+      "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233633.json",
+      "results/scaling/cross_topology/vqe_heavy_hex_N6_p1_20260608_205021.json"
+    ],
+    "git_commit": "3ac6aa760f38a191a0bd5830d1ca0517cb12c0bc",
+    "timestamp": "2026-06-08T23:38:40",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "target_n": 10,
+    "norm_type": "none",
+    "hidden_dim": 128,
+    "epochs": 6000,
+    "threshold": 0.1,
+    "total_time_s": 87.10383108298993
+  },
+  "environment": {
+    "python_version": "3.12.13",
+    "numpy_version": "2.4.4",
+    "torch_version": "2.11.0"
+  },
+  "cross_topology": {
+    "tri_to_hea": {
+      "n_seeds": 3,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "mean_de_gap": {
+        "mean": 6.249838300923867,
+        "std": 0.9676460238997409,
+        "per_seed": [
+          7.230603511571287,
+          6.5859440152643005,
+          4.932967375936014
+        ]
+      },
+      "pass_rate": {
+        "mean": 0.0,
+        "std": 0.0,
+        "per_seed": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "variational_ok_count": {
+        "mean": 5.0,
+        "per_seed": [
+          5,
+          5,
+          5
+        ]
+      },
+      "per_seed_results": [
+        {
+          "direction": "triangular\u2192heavy_hex",
+          "source_topology": "triangular",
+          "target_topology": "heavy_hex",
+          "target_n": 10,
+          "seed": 42,
+          "source_files": [
+            "results/scaling/cross_topology/vqe_triangular_N16_p1_20260608_230139.json",
+            "results/scaling/cross_topology/vqe_triangular_N6_p1_20260608_210026.json"
+          ],
+          "source_sizes": [
+            6,
+            16
+          ],
+          "n_training_points": 11,
+          "model_params": 99842,
+          "training": {
+            "final_mse": 0.01024107076227665,
+            "stopped_early": false,
+            "time_s": 10.607410416996572
+          },
+          "predictions": [
+            {
+              "h": 5.0,
+              "e_pred": -36.761363803886795,
+              "e_exact": -50.45163028484238,
+              "gap": 7.916027832447895,
+              "de_gap": 1.7294363752536361,
+              "energy_error": 13.690266480955586,
+              "variational_ok": true,
+              "theta_pred": [
+                0.3337504267692566,
+                0.5209343433380127
+              ],
+              "passed": false,
+              "time_s": 0.8775850830134004
+            },
+            {
+              "h": 4.5,
+              "e_pred": -15.810489070707932,
+              "e_exact": -45.50223814226651,
+              "gap": 6.918573709439507,
+              "de_gap": 4.291599731176962,
+              "energy_error": 29.691749071558583,
+              "variational_ok": true,
+              "theta_pred": [
+                0.5412808656692505,
+                0.6598148941993713
+              ],
+              "passed": false,
+              "time_s": 0.8001131659839302
+            },
+            {
+              "h": 4.0,
+              "e_pred": 2.954072385449494,
+              "e_exact": -40.565690435512735,
+              "gap": 5.921971082752528,
+              "de_gap": 7.348864459624189,
+              "energy_error": 43.51976282096223,
+              "variational_ok": true,
+              "theta_pred": [
+                0.8399621248245239,
+                0.8797124028205872
+              ],
+              "passed": false,
+              "time_s": 0.7440079580119345
+            },
+            {
+              "h": 3.5,
+              "e_pred": 19.936776703079175,
+              "e_exact": -35.647627914369316,
+              "gap": 4.926714336378733,
+              "de_gap": 11.282246305009945,
+              "energy_error": 55.58440461744849,
+              "variational_ok": true,
+              "theta_pred": [
+                1.3712831735610962,
+                1.298987627029419
+              ],
+              "passed": false,
+              "time_s": 0.7132096659915987
+            },
+            {
+              "h": 3.25,
+              "e_pred": 17.748952077522482,
+              "e_exact": -33.19827365250055,
+              "gap": 4.4298581487864155,
+              "de_gap": 11.500870686791702,
+              "energy_error": 50.947225730023035,
+              "variational_ok": true,
+              "theta_pred": [
+                1.748462438583374,
+                1.601117730140686
+              ],
+              "passed": false,
+              "time_s": 0.7284273340192158
+            }
+          ],
+          "metrics": {
+            "mean_de_gap": 7.230603511571287,
+            "max_de_gap": 11.500870686791702,
+            "min_de_gap": 1.7294363752536361,
+            "std_de_gap": 3.8357674540591273,
+            "n_pass": 0,
+            "n_total": 5,
+            "pass_rate": 0.0,
+            "variational_ok_count": 5,
+            "variational_ok_all": true
+          },
+          "timing": {
+            "training_s": 10.607410416996572,
+            "prediction_s": 3.8633432070200797,
+            "total_s": 14.514172750001308
+          }
+        },
+        {
+          "direction": "triangular\u2192heavy_hex",
+          "source_topology": "triangular",
+          "target_topology": "heavy_hex",
+          "target_n": 10,
+          "seed": 43,
+          "source_files": [
+            "results/scaling/cross_topology/vqe_triangular_N16_p1_20260608_230139.json",
+            "results/scaling/cross_topology/vqe_triangular_N6_p1_20260608_210026.json"
+          ],
+          "source_sizes": [
+            6,
+            16
+          ],
+          "n_training_points": 11,
+          "model_params": 99842,
+          "training": {
+            "final_mse": 0.002506074495613575,
+            "stopped_early": false,
+            "time_s": 10.721580957993865
+          },
+          "predictions": [
+            {
+              "h": 5.0,
+              "e_pred": -17.17969170240674,
+              "e_exact": -50.45163028484238,
+              "gap": 7.916027832447895,
+              "de_gap": 4.203110358714702,
+              "energy_error": 33.27193858243564,
+              "variational_ok": true,
+              "theta_pred": [
+                -2.574847936630249,
+                0.3338174521923065
+              ],
+              "passed": false,
+              "time_s": 0.7163657500059344
+            },
+            {
+              "h": 4.5,
+              "e_pred": -6.682715325448814,
+              "e_exact": -45.50223814226651,
+              "gap": 6.918573709439507,
+              "de_gap": 5.610914105584138,
+              "energy_error": 38.8195228168177,
+              "variational_ok": true,
+              "theta_pred": [
+                -2.437042474746704,
+                0.3177114725112915
+              ],
+              "passed": false,
+              "time_s": 0.7939870829868596
+            },
+            {
+              "h": 4.0,
+              "e_pred": -0.3768763195108037,
+              "e_exact": -40.565690435512735,
+              "gap": 5.921971082752528,
+              "de_gap": 6.786391482567355,
+              "energy_error": 40.18881411600193,
+              "variational_ok": true,
+              "theta_pred": [
+                -2.3091988563537598,
+                0.3032884895801544
+              ],
+              "passed": false,
+              "time_s": 0.8313598340027966
+            },
+            {
+              "h": 3.5,
+              "e_pred": 3.281998415652883,
+              "e_exact": -35.647627914369316,
+              "gap": 4.926714336378733,
+              "de_gap": 7.901742149441633,
+              "energy_error": 38.9296263300222,
+              "variational_ok": true,
+              "theta_pred": [
+                -2.190911293029785,
+                0.291035920381546
+              ],
+              "passed": false,
+              "time_s": 0.7881135839852504
+            },
+            {
+              "h": 3.25,
+              "e_pred": 4.134630459065602,
+              "e_exact": -33.19827365250055,
+              "gap": 4.4298581487864155,
+              "de_gap": 8.427561980013675,
+              "energy_error": 37.33290411156616,
+              "variational_ok": true,
+              "theta_pred": [
+                -2.147866725921631,
+                0.28673258423805237
+              ],
+              "passed": false,
+              "time_s": 0.7323579170042649
+            }
+          ],
+          "metrics": {
+            "mean_de_gap": 6.5859440152643005,
+            "max_de_gap": 8.427561980013675,
+            "min_de_gap": 4.203110358714702,
+            "std_de_gap": 1.5356848768348812,
+            "n_pass": 0,
+            "n_total": 5,
+            "pass_rate": 0.0,
+            "variational_ok_count": 5,
+            "variational_ok_all": true
+          },
+          "timing": {
+            "training_s": 10.721580957993865,
+            "prediction_s": 3.862184167985106,
+            "total_s": 14.597079583007144
+          }
+        },
+        {
+          "direction": "triangular\u2192heavy_hex",
+          "source_topology": "triangular",
+          "target_topology": "heavy_hex",
+          "target_n": 10,
+          "seed": 44,
+          "source_files": [
+            "results/scaling/cross_topology/vqe_triangular_N16_p1_20260608_230139.json",
+            "results/scaling/cross_topology/vqe_triangular_N6_p1_20260608_210026.json"
+          ],
+          "source_sizes": [
+            6,
+            16
+          ],
+          "n_training_points": 11,
+          "model_params": 99842,
+          "training": {
+            "final_mse": 0.026141909882426262,
+            "stopped_early": false,
+            "time_s": 9.981226415984565
+          },
+          "predictions": [
+            {
+              "h": 5.0,
+              "e_pred": 10.40028867314902,
+              "e_exact": -50.45163028484238,
+              "gap": 7.916027832447895,
+              "de_gap": 7.687178499873212,
+              "energy_error": 60.8519189579914,
+              "variational_ok": true,
+              "theta_pred": [
+                -0.9654197692871094,
+                0.35477685928344727
+              ],
+              "passed": false,
+              "time_s": 0.7083745000127237
+            },
+            {
+              "h": 4.5,
+              "e_pred": 2.4280336841813672,
+              "e_exact": -45.50223814226651,
+              "gap": 6.918573709439507,
+              "de_gap": 6.9277677508954145,
+              "energy_error": 47.93027182644788,
+              "variational_ok": true,
+              "theta_pred": [
+                -0.7841861844062805,
+                0.3593592047691345
+              ],
+              "passed": false,
+              "time_s": 0.7145811249793041
+            },
+            {
+              "h": 4.0,
+              "e_pred": -7.2530579093687635,
+              "e_exact": -40.565690435512735,
+              "gap": 5.921971082752528,
+              "de_gap": 5.625260924215842,
+              "energy_error": 33.31263252614397,
+              "variational_ok": true,
+              "theta_pred": [
+                -0.5632492303848267,
+                0.37470531463623047
+              ],
+              "passed": false,
+              "time_s": 0.743526500009466
+            },
+            {
+              "h": 3.5,
+              "e_pred": -19.95682919063555,
+              "e_exact": -35.647627914369316,
+              "gap": 4.926714336378733,
+              "de_gap": 3.1848403727963905,
+              "energy_error": 15.690798723733767,
+              "variational_ok": true,
+              "theta_pred": [
+                -0.3173486590385437,
+                0.41067031025886536
+              ],
+              "passed": false,
+              "time_s": 0.707918083993718
+            },
+            {
+              "h": 3.25,
+              "e_pred": -27.70618277780835,
+              "e_exact": -33.19827365250055,
+              "gap": 4.4298581487864155,
+              "de_gap": 1.2397893318992148,
+              "energy_error": 5.492090874692202,
+              "variational_ok": true,
+              "theta_pred": [
+                -0.1454872488975525,
+                0.44546347856521606
+              ],
+              "passed": false,
+              "time_s": 0.7086415000085253
+            }
+          ],
+          "metrics": {
+            "mean_de_gap": 4.932967375936014,
+            "max_de_gap": 7.687178499873212,
+            "min_de_gap": 1.2397893318992148,
+            "std_de_gap": 2.3974857618850978,
+            "n_pass": 0,
+            "n_total": 5,
+            "pass_rate": 0.0,
+            "variational_ok_count": 5,
+            "variational_ok_all": true
+          },
+          "timing": {
+            "training_s": 9.981226415984565,
+            "prediction_s": 3.583041709003737,
+            "total_s": 13.577770750009222
+          }
+        }
+      ]
+    },
+    "hea_to_tri": {
+      "n_seeds": 3,
+      "seeds": [
+        42,
+        43,
+        44
+      ],
+      "mean_de_gap": {
+        "mean": 7.194005467333313,
+        "std": 3.761643841879875,
+        "per_seed": [
+          10.379367645542104,
+          9.291181751482915,
+          1.9114670049749196
+        ]
+      },
+      "pass_rate": {
+        "mean": 0.0,
+        "std": 0.0,
+        "per_seed": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "variational_ok_count": {
+        "mean": 5.0,
+        "per_seed": [
+          5,
+          5,
+          5
+        ]
+      },
+      "per_seed_results": [
+        {
+          "direction": "heavy_hex\u2192triangular",
+          "source_topology": "heavy_hex",
+          "target_topology": "triangular",
+          "target_n": 10,
+          "seed": 42,
+          "source_files": [
+            "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233420.json",
+            "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233633.json",
+            "results/scaling/cross_topology/vqe_heavy_hex_N6_p1_20260608_205021.json"
+          ],
+          "source_sizes": [
+            6,
+            16
+          ],
+          "n_training_points": 17,
+          "model_params": 99842,
+          "training": {
+            "final_mse": 0.002313675358891487,
+            "stopped_early": false,
+            "time_s": 10.850858165998943
+          },
+          "predictions": [
+            {
+              "h": 5.5,
+              "e_pred": 0.00263441235704724,
+              "e_exact": -56.07530105792296,
+              "gap": 6.526836849787465,
+              "de_gap": 8.591900910179191,
+              "energy_error": 56.07793547028,
+              "variational_ok": true,
+              "theta_pred": [
+                0.7567022442817688,
+                0.9057878851890564
+              ],
+              "passed": false,
+              "time_s": 0.7134082079865038
+            },
+            {
+              "h": 5.0,
+              "e_pred": 0.009514497307066001,
+              "e_exact": -51.20926837677754,
+              "gap": 5.487269175220675,
+              "de_gap": 9.334111602430147,
+              "energy_error": 51.2187828740846,
+              "variational_ok": true,
+              "theta_pred": [
+                0.8145341277122498,
+                1.2053346633911133
+              ],
+              "passed": false,
+              "time_s": 0.7126977079897188
+            },
+            {
+              "h": 4.5,
+              "e_pred": 0.03122014757389013,
+              "e_exact": -46.383342127529865,
+              "gap": 4.441639883679649,
+              "de_gap": 10.449870653775717,
+              "energy_error": 46.414562275103755,
+              "variational_ok": true,
+              "theta_pred": [
+                0.8683729767799377,
+                1.490742802619934
+              ],
+              "passed": false,
+              "time_s": 0.737392583017936
+            },
+            {
+              "h": 4.25,
+              "e_pred": 0.0329644556364654,
+              "e_exact": -43.991853745878686,
+              "gap": 3.916957333417322,
+              "de_gap": 11.23954499731709,
+              "energy_error": 44.02481820151515,
+              "variational_ok": true,
+              "theta_pred": [
+                0.902431070804596,
+                1.6178580522537231
+              ],
+              "passed": false,
+              "time_s": 0.7246795000100974
+            },
+            {
+              "h": 4.0,
+              "e_pred": 0.03709224467074956,
+              "e_exact": -41.62012746489371,
+              "gap": 3.3918922576849866,
+              "de_gap": 12.28141006400837,
+              "energy_error": 41.657219709564465,
+              "variational_ok": true,
+              "theta_pred": [
+                0.929731547832489,
+                1.710620641708374
+              ],
+              "passed": false,
+              "time_s": 0.7102370839857031
+            }
+          ],
+          "metrics": {
+            "mean_de_gap": 10.379367645542104,
+            "max_de_gap": 12.28141006400837,
+            "min_de_gap": 8.591900910179191,
+            "std_de_gap": 1.3153127869835854,
+            "n_pass": 0,
+            "n_total": 5,
+            "pass_rate": 0.0,
+            "variational_ok_count": 5,
+            "variational_ok_all": true
+          },
+          "timing": {
+            "training_s": 10.850858165998943,
+            "prediction_s": 3.598415082989959,
+            "total_s": 14.45823124999879
+          }
+        },
+        {
+          "direction": "heavy_hex\u2192triangular",
+          "source_topology": "heavy_hex",
+          "target_topology": "triangular",
+          "target_n": 10,
+          "seed": 43,
+          "source_files": [
+            "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233420.json",
+            "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233633.json",
+            "results/scaling/cross_topology/vqe_heavy_hex_N6_p1_20260608_205021.json"
+          ],
+          "source_sizes": [
+            6,
+            16
+          ],
+          "n_training_points": 17,
+          "model_params": 99842,
+          "training": {
+            "final_mse": 0.00845982413738966,
+            "stopped_early": false,
+            "time_s": 11.032742042007158
+          },
+          "predictions": [
+            {
+              "h": 5.5,
+              "e_pred": -5.269156995942414,
+              "e_exact": -56.07530105792296,
+              "gap": 6.526836849787465,
+              "de_gap": 7.784190907672981,
+              "energy_error": 50.80614406198055,
+              "variational_ok": true,
+              "theta_pred": [
+                -1.935547113418579,
+                1.1685080528259277
+              ],
+              "passed": false,
+              "time_s": 0.7476770000066608
+            },
+            {
+              "h": 5.0,
+              "e_pred": -5.756170747322398,
+              "e_exact": -51.20926837677754,
+              "gap": 5.487269175220675,
+              "de_gap": 8.28337305461732,
+              "energy_error": 45.45309762945514,
+              "variational_ok": true,
+              "theta_pred": [
+                -1.9066886901855469,
+                1.1914310455322266
+              ],
+              "passed": false,
+              "time_s": 0.792128542001592
+            },
+            {
+              "h": 4.5,
+              "e_pred": -5.294034262645839,
+              "e_exact": -46.383342127529865,
+              "gap": 4.441639883679649,
+              "de_gap": 9.250931849712194,
+              "energy_error": 41.08930786488403,
+              "variational_ok": true,
+              "theta_pred": [
+                -1.9074678421020508,
+                1.211040735244751
+              ],
+              "passed": false,
+              "time_s": 0.7300962080189493
+            },
+            {
+              "h": 4.25,
+              "e_pred": -4.637128691459645,
+              "e_exact": -43.991853745878686,
+              "gap": 3.916957333417322,
+              "de_gap": 10.047269271652823,
+              "energy_error": 39.35472505441904,
+              "variational_ok": true,
+              "theta_pred": [
+                -1.9236204624176025,
+                1.2249510288238525
+              ],
+              "passed": false,
+              "time_s": 0.7329148330027238
+            },
+            {
+              "h": 4.0,
+              "e_pred": -4.0035550012555445,
+              "e_exact": -41.62012746489371,
+              "gap": 3.3918922576849866,
+              "de_gap": 11.090143673759261,
+              "energy_error": 37.61657246363817,
+              "variational_ok": true,
+              "theta_pred": [
+                -1.9403293132781982,
+                1.2392204999923706
+              ],
+              "passed": false,
+              "time_s": 0.7125316659803502
+            }
+          ],
+          "metrics": {
+            "mean_de_gap": 9.291181751482915,
+            "max_de_gap": 11.090143673759261,
+            "min_de_gap": 7.784190907672981,
+            "std_de_gap": 1.1913229758007982,
+            "n_pass": 0,
+            "n_total": 5,
+            "pass_rate": 0.0,
+            "variational_ok_count": 5,
+            "variational_ok_all": true
+          },
+          "timing": {
+            "training_s": 11.032742042007158,
+            "prediction_s": 3.715348249010276,
+            "total_s": 14.755526541994186
+          }
+        },
+        {
+          "direction": "heavy_hex\u2192triangular",
+          "source_topology": "heavy_hex",
+          "target_topology": "triangular",
+          "target_n": 10,
+          "seed": 44,
+          "source_files": [
+            "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233420.json",
+            "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233633.json",
+            "results/scaling/cross_topology/vqe_heavy_hex_N6_p1_20260608_205021.json"
+          ],
+          "source_sizes": [
+            6,
+            16
+          ],
+          "n_training_points": 17,
+          "model_params": 99842,
+          "training": {
+            "final_mse": 0.00031385774491354823,
+            "stopped_early": false,
+            "time_s": 11.379903334018309
+          },
+          "predictions": [
+            {
+              "h": 5.5,
+              "e_pred": -51.49719299941624,
+              "e_exact": -56.07530105792296,
+              "gap": 6.526836849787465,
+              "de_gap": 0.7014282973314696,
+              "energy_error": 4.578108058506714,
+              "variational_ok": true,
+              "theta_pred": [
+                0.06894166767597198,
+                0.984475314617157
+              ],
+              "passed": false,
+              "time_s": 0.8775017090083566
+            },
+            {
+              "h": 5.0,
+              "e_pred": -44.48149436472555,
+              "e_exact": -51.20926837677754,
+              "gap": 5.487269175220675,
+              "de_gap": 1.2260696162734581,
+              "energy_error": 6.727774012051988,
+              "variational_ok": true,
+              "theta_pred": [
+                0.09296776354312897,
+                1.029725432395935
+              ],
+              "passed": false,
+              "time_s": 0.7240512910066172
+            },
+            {
+              "h": 4.5,
+              "e_pred": -37.30568211028979,
+              "e_exact": -46.383342127529865,
+              "gap": 4.441639883679649,
+              "de_gap": 2.0437631719300366,
+              "energy_error": 9.077660017240078,
+              "variational_ok": true,
+              "theta_pred": [
+                0.11711972951889038,
+                1.0842409133911133
+              ],
+              "passed": false,
+              "time_s": 0.7353204159880988
+            },
+            {
+              "h": 4.25,
+              "e_pred": -34.06135194178027,
+              "e_exact": -43.991853745878686,
+              "gap": 3.916957333417322,
+              "de_gap": 2.5352591204853936,
+              "energy_error": 9.930501804098412,
+              "variational_ok": true,
+              "theta_pred": [
+                0.12680119276046753,
+                1.102441668510437
+              ],
+              "passed": false,
+              "time_s": 0.7475108329963405
+            },
+            {
+              "h": 4.0,
+              "e_pred": -31.272092301191392,
+              "e_exact": -41.62012746489371,
+              "gap": 3.3918922576849866,
+              "de_gap": 3.05081481885424,
+              "energy_error": 10.34803516370232,
+              "variational_ok": true,
+              "theta_pred": [
+                0.1326785385608673,
+                1.1128772497177124
+              ],
+              "passed": false,
+              "time_s": 0.7228095839964226
+            }
+          ],
+          "metrics": {
+            "mean_de_gap": 1.9114670049749196,
+            "max_de_gap": 3.05081481885424,
+            "min_de_gap": 0.7014282973314696,
+            "std_de_gap": 0.8530762655929244,
+            "n_pass": 0,
+            "n_total": 5,
+            "pass_rate": 0.0,
+            "variational_ok_count": 5,
+            "variational_ok_all": true
+          },
+          "timing": {
+            "training_s": 11.379903334018309,
+            "prediction_s": 3.8071938329958357,
+            "total_s": 15.194957291998435
+          }
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "threshold": 0.1,
+    "directions": {
+      "tri_to_hea": {
+        "mean_de_gap": 6.249838300923867,
+        "mean_de_gap_pct": "624.984%",
+        "pass_rate": 0.0,
+        "status": "FAIL"
+      },
+      "hea_to_tri": {
+        "mean_de_gap": 7.194005467333313,
+        "mean_de_gap_pct": "719.401%",
+        "pass_rate": 0.0,
+        "status": "FAIL"
+      }
+    },
+    "overall_pass": false,
+    "verdict": "FAIL"
+  },
+  "timing": {
+    "total_s": 87.10383108298993
+  }
+}

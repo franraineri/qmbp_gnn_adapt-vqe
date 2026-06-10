@@ -1,0 +1,512 @@
+[
+  {
+    "noisy_energy": -21.900390625,
+    "exact_energy": -24.31323613440133,
+    "h_value": 4.0,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -19.218994140625,
+    "exact_energy": -21.358243321291365,
+    "h_value": 3.5,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -16.5712890625,
+    "exact_energy": -18.41841803015973,
+    "h_value": 3.0,
+    "n_2q_gates": 11,
+    "ces": 0.03431365763109001,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -13.90966796875,
+    "exact_energy": -15.503036832525517,
+    "h_value": 2.5,
+    "n_2q_gates": 11,
+    "ces": 0.03431365763109001,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -11.28173828125,
+    "exact_energy": -12.630964276492962,
+    "h_value": 2.0,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -22.08740234375,
+    "exact_energy": -24.31323613440133,
+    "h_value": 4.0,
+    "n_2q_gates": 11,
+    "ces": 0.03431365763109001,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -19.35888671875,
+    "exact_energy": -21.358243321291365,
+    "h_value": 3.5,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -16.7060546875,
+    "exact_energy": -18.41841803015973,
+    "h_value": 3.0,
+    "n_2q_gates": 11,
+    "ces": 0.03431365763109001,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -14.00830078125,
+    "exact_energy": -15.503036832525517,
+    "h_value": 2.5,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -11.39892578125,
+    "exact_energy": -12.630964276492962,
+    "h_value": 2.0,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -21.9052734375,
+    "exact_energy": -24.31323613440133,
+    "h_value": 4.0,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -19.212646484375,
+    "exact_energy": -21.358243321291365,
+    "h_value": 3.5,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -16.58935546875,
+    "exact_energy": -18.41841803015973,
+    "h_value": 3.0,
+    "n_2q_gates": 11,
+    "ces": 0.03431365763109001,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -13.926025390625,
+    "exact_energy": -15.503036832525517,
+    "h_value": 2.5,
+    "n_2q_gates": 11,
+    "ces": 0.03431365763109001,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -11.2998046875,
+    "exact_energy": -12.630964276492962,
+    "h_value": 2.0,
+    "n_2q_gates": 13,
+    "ces": 0.03900781536685605,
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -21.4716796875,
+    "exact_energy": -24.450819488440228,
+    "h_value": 4.0,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -18.873291015625,
+    "exact_energy": -21.520042612704312,
+    "h_value": 3.5,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -16.23974609375,
+    "exact_energy": -18.615529357446192,
+    "h_value": 3.0,
+    "n_2q_gates": 26,
+    "ces": 0.08148916714697868,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -13.714111328125,
+    "exact_energy": -15.756566646356827,
+    "h_value": 2.5,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -11.15576171875,
+    "exact_energy": -12.987854389092842,
+    "h_value": 2.0,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -21.6484375,
+    "exact_energy": -24.450819488440228,
+    "h_value": 4.0,
+    "n_2q_gates": 26,
+    "ces": 0.08148916714697868,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -18.987060546875,
+    "exact_energy": -21.520042612704312,
+    "h_value": 3.5,
+    "n_2q_gates": 26,
+    "ces": 0.08148916714697868,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -16.4052734375,
+    "exact_energy": -18.615529357446192,
+    "h_value": 3.0,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -13.818359375,
+    "exact_energy": -15.756566646356827,
+    "h_value": 2.5,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -11.29296875,
+    "exact_energy": -12.987854389092842,
+    "h_value": 2.0,
+    "n_2q_gates": 26,
+    "ces": 0.08182494041315891,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -21.4306640625,
+    "exact_energy": -24.450819488440228,
+    "h_value": 4.0,
+    "n_2q_gates": 26,
+    "ces": 0.08148916714697868,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -18.8623046875,
+    "exact_energy": -21.520042612704312,
+    "h_value": 3.5,
+    "n_2q_gates": 26,
+    "ces": 0.08148916714697868,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -16.32275390625,
+    "exact_energy": -18.615529357446192,
+    "h_value": 3.0,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -13.671875,
+    "exact_energy": -15.756566646356827,
+    "h_value": 2.5,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  },
+  {
+    "noisy_energy": -11.1435546875,
+    "exact_energy": -12.987854389092842,
+    "h_value": 2.0,
+    "n_2q_gates": 26,
+    "ces": 0.08054550283607914,
+    "topology": "ladder",
+    "n_qubits": 6,
+    "qubit_t1": [],
+    "qubit_t2": [],
+    "readout_errors": [],
+    "gate_errors_2q": [],
+    "edge_index": [
+      [],
+      []
+    ]
+  }
+]

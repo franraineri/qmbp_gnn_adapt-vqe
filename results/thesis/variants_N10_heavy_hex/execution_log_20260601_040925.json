@@ -1,0 +1,125 @@
+{
+  "timestamp": "20260601_040925",
+  "topology": "heavy_hex",
+  "n_qubits": 10,
+  "total_variants": 5,
+  "passed": 5,
+  "failed": 0,
+  "total_elapsed_s": 264.7549240589142,
+  "verdicts": {
+    "PASS": 1,
+    "MARGINAL": 0,
+    "FAIL": 1,
+    "ZNE-PASS": 2,
+    "ZNE-FAIL": 1,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "EXT-3-5layouts",
+      "success": true,
+      "verdict": "ZNE-PASS",
+      "elapsed_s": 66.59,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": true,
+        "mean_r2": 0.9885016866471057,
+        "mean_gain_pct": 78.8812068145048,
+        "n_mitigated_wins": 3,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-4-32kshots",
+      "success": true,
+      "verdict": "ZNE-PASS",
+      "elapsed_s": 50.91,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": true,
+        "mean_r2": 0.9980685626827009,
+        "mean_gain_pct": 76.3614592918416,
+        "n_mitigated_wins": 3,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-5-boundary-aggressive",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 33.75,
+      "delta_e_over_gap": 10.670952994968209,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-6-1restart-p1",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 31.29,
+      "delta_e_over_gap": 0.005550764175343673,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "EXT-7-p2-5layouts",
+      "success": true,
+      "verdict": "ZNE-FAIL",
+      "elapsed_s": 82.2,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": false,
+        "mean_r2": 0.790106534409996,
+        "mean_gain_pct": -26.514650004262577,
+        "n_mitigated_wins": 0,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "EXT-3-5layouts",
+      "description": "p=1 heavy_hex ZNE with 5 layouts (vs 3 baseline)",
+      "category": "extended",
+      "hypothesis": "5 layouts improves ZNE gain over 3 layouts on heavy-hex p=1. More CES diversity \u2192 better linear fit \u2192 higher gain.",
+      "expected_outcome": "Marginal improvement expected \u2014 3 layouts already gives R\u00b2=0.998. If gain increases significantly \u2192 recommend 5 layouts on hardware. If no improvement \u2192 3 layouts is sufficient (saves QPU time)."
+    },
+    {
+      "id": "EXT-4-32kshots",
+      "description": "p=1 heavy_hex ZNE with 32768 shots (vs 16384 baseline)",
+      "category": "extended",
+      "hypothesis": "32768 shots improves ZNE gain over 16384 on heavy-hex p=1. Less shot noise \u2192 more accurate energy estimates \u2192 better ZNE.",
+      "expected_outcome": "Marginal improvement expected \u2014 16384 already gives R\u00b2=0.998. If gain increases \u2192 recommend 32k shots on hardware. If no improvement \u2192 16k is sufficient (halves QPU time)."
+    },
+    {
+      "id": "EXT-5-boundary-aggressive",
+      "description": "p=1 heavy_hex h_test=2.625 (aggressive boundary probe)",
+      "category": "extended",
+      "hypothesis": "p=1 heavy_hex at h_test=2.625 still passes (\u0394E/gap < 5%). This is closer to the valid regime boundary (h\u22652.5) than our safe point (3.25), testing deployment flexibility.",
+      "expected_outcome": "PASS expected \u2014 h=2.625 is just above the estimated boundary h\u22652.5. If PASS \u2192 hardware can test at h=2.625 (closer to phase transition). If FAIL \u2192 stick with h_test\u22653.0 on hardware."
+    },
+    {
+      "id": "EXT-6-1restart-p1",
+      "description": "p=1 heavy_hex with 1 restart (minimum VQE cost)",
+      "category": "extended",
+      "hypothesis": "p=1 heavy_hex with 1 restart achieves \u0394E/gap < 5%. Bipartite graph \u2192 single global minimum \u2192 1 restart sufficient.",
+      "expected_outcome": "PASS expected \u2014 NL-A1 (p=2, 1 restart) passed with 0.007. p=1 has simpler landscape \u2192 should also pass with 1 restart. If PASS \u2192 hardware SPSA needs only 1 run (minimum cost)."
+    },
+    {
+      "id": "EXT-7-p2-5layouts",
+      "description": "p=2 heavy_hex ZNE with 5 layouts (can more layouts rescue p=2?)",
+      "category": "extended",
+      "hypothesis": "5 layouts does NOT rescue p=2 ZNE on heavy-hex (CX=36 > threshold). Confirms that the failure is fundamental, not statistical.",
+      "expected_outcome": "FAIL expected \u2014 chain_1d p=2 N=10 with 7 layouts still fails (R\u00b2=0.08). More layouts cannot fix non-perturbative noise regime. Definitively closes the 'more layouts' question for heavy-hex."
+    }
+  ]
+}

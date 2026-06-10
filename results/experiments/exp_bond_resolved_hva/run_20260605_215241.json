@@ -1,0 +1,586 @@
+{
+  "timestamp": "2026-06-05T21:52:41.153844",
+  "config": {
+    "runner_id": "bond_resolved_validation",
+    "experiment_id": "BOND_RESOLVED_HVA",
+    "description": "Bond-Resolved HVA: per-bond/per-site params, same depth",
+    "hypothesis": "Bond-resolved HVA achieves equal or better energy accuracy than global HVA at same circuit depth, with advantage growing on non-uniform topologies (heavy-hex > chain)",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 1,
+      "topologies": [
+        "chain_1d",
+        "heavy_hex",
+        "ladder"
+      ],
+      "model": "tfim_bond_resolved"
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "category": "B"
+  },
+  "elapsed_s": 309.14905285835266,
+  "results": {
+    "section_1": {
+      "name": "N=6 Chain Convergence (3 seeds)",
+      "success": true,
+      "elapsed_s": 23.48,
+      "data": {
+        "topology": "chain_1d",
+        "n_qubits": 6,
+        "p_layers": 1,
+        "n_params": 11,
+        "results_by_seed": {
+          "42": [
+            {
+              "h": 3.0,
+              "fidelity": 0.9989996719080182,
+              "delta_e_gap": 0.0026014548052559097,
+              "energy_error": 0.011066835487074655
+            },
+            {
+              "h": 2.5,
+              "fidelity": 0.997897301206671,
+              "delta_e_gap": 0.0057441344641169425,
+              "energy_error": 0.01877568185213363
+            },
+            {
+              "h": 2.0,
+              "fidelity": 0.9947528934046875,
+              "delta_e_gap": 0.015487740796918033,
+              "energy_error": 0.03551770256994402
+            },
+            {
+              "h": 1.75,
+              "fidelity": 0.9909069855756613,
+              "delta_e_gap": 0.028502540775768047,
+              "energy_error": 0.05167890898488636
+            },
+            {
+              "h": 1.5,
+              "fidelity": 0.9828246441369818,
+              "delta_e_gap": 0.05888450353129804,
+              "energy_error": 0.07907876722911489
+            }
+          ],
+          "43": [
+            {
+              "h": 3.0,
+              "fidelity": 0.9989996723097408,
+              "delta_e_gap": 0.002601454828930118,
+              "energy_error": 0.011066835587786983
+            },
+            {
+              "h": 2.5,
+              "fidelity": 0.9978973002614207,
+              "delta_e_gap": 0.005744134646310519,
+              "energy_error": 0.018775682447664366
+            },
+            {
+              "h": 2.0,
+              "fidelity": 0.9947528903688447,
+              "delta_e_gap": 0.015487740803262722,
+              "energy_error": 0.03551770258449416
+            },
+            {
+              "h": 1.75,
+              "fidelity": 0.9909069753994337,
+              "delta_e_gap": 0.028502540792060733,
+              "energy_error": 0.05167890901442718
+            },
+            {
+              "h": 1.5,
+              "fidelity": 0.982824632978806,
+              "delta_e_gap": 0.058884503536898475,
+              "energy_error": 0.07907876723663598
+            }
+          ],
+          "44": [
+            {
+              "h": 3.0,
+              "fidelity": 0.9989996804175185,
+              "delta_e_gap": 0.0026014547664333153,
+              "energy_error": 0.011066835321919655
+            },
+            {
+              "h": 2.5,
+              "fidelity": 0.9978972989608001,
+              "delta_e_gap": 0.005744134360577338,
+              "energy_error": 0.018775681513696796
+            },
+            {
+              "h": 2.0,
+              "fidelity": 0.9947528951540745,
+              "delta_e_gap": 0.015487740797436235,
+              "energy_error": 0.035517702571132403
+            },
+            {
+              "h": 1.75,
+              "fidelity": 0.990906990254811,
+              "delta_e_gap": 0.02850254077783623,
+              "energy_error": 0.05167890898863625
+            },
+            {
+              "h": 1.5,
+              "fidelity": 0.982824645142759,
+              "delta_e_gap": 0.058884503529427694,
+              "energy_error": 0.07907876722660312
+            }
+          ]
+        },
+        "all_fid_above_099": true,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "N=10 Heavy-Hex Convergence",
+      "success": true,
+      "elapsed_s": 59.85,
+      "data": {
+        "topology": "heavy_hex",
+        "n_qubits": 10,
+        "p_layers": 1,
+        "n_params": 19,
+        "n_edges": 9,
+        "results": [
+          {
+            "h": 4.0,
+            "fidelity": 0.9995615913011818,
+            "delta_e_gap": 0.0011032357966356224,
+            "energy_error": 0.006533330485133604,
+            "elapsed_s": 16.46622920036316
+          },
+          {
+            "h": 3.75,
+            "fidelity": 0.9994276935546073,
+            "delta_e_gap": 0.0014601570644445449,
+            "energy_error": 0.007920082019062136,
+            "elapsed_s": 10.97901701927185
+          },
+          {
+            "h": 3.5,
+            "fidelity": 0.9992381020803206,
+            "delta_e_gap": 0.0019745817349973924,
+            "energy_error": 0.009728200142163246,
+            "elapsed_s": 10.085410118103027
+          },
+          {
+            "h": 3.25,
+            "fidelity": 0.9989623026381353,
+            "delta_e_gap": 0.002738351234093608,
+            "energy_error": 0.012130507528588907,
+            "elapsed_s": 10.227229833602905
+          },
+          {
+            "h": 3.0,
+            "fidelity": 0.9985481815729331,
+            "delta_e_gap": 0.003912879889570045,
+            "energy_error": 0.015392323928573148,
+            "elapsed_s": 7.857265949249268
+          }
+        ],
+        "pass": true
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Global vs Bond-Resolved Comparison",
+      "success": true,
+      "elapsed_s": 189.97,
+      "data": {
+        "comparisons": [
+          {
+            "topology": "chain_1d",
+            "n_qubits": 6,
+            "n_params_br": 11,
+            "n_params_global": 2,
+            "mean_de_gap_br": 0.020679458399034803,
+            "mean_de_gap_global": 0.02106137068096095,
+            "improvement_pct": 1.8133306122919537,
+            "br_wins": 4,
+            "n_points": 4
+          },
+          {
+            "topology": "chain_1d",
+            "n_qubits": 10,
+            "n_params_br": 19,
+            "n_params_global": 2,
+            "mean_de_gap_br": 0.015655735692697605,
+            "mean_de_gap_global": 0.015813764182220212,
+            "improvement_pct": 0.9993097639604533,
+            "br_wins": 5,
+            "n_points": 5
+          },
+          {
+            "topology": "heavy_hex",
+            "n_qubits": 10,
+            "n_params_br": 19,
+            "n_params_global": 2,
+            "mean_de_gap_br": 0.001819081457542792,
+            "mean_de_gap_global": 0.003618200708827855,
+            "improvement_pct": 49.724141806049836,
+            "br_wins": 4,
+            "n_points": 4
+          },
+          {
+            "topology": "ladder",
+            "n_qubits": 10,
+            "n_params_br": 23,
+            "n_params_global": 2,
+            "mean_de_gap_br": 0.015714599199121642,
+            "mean_de_gap_global": 0.015734094795611685,
+            "improvement_pct": 0.12390669271599992,
+            "br_wins": 4,
+            "n_points": 4
+          }
+        ],
+        "n_improved": 4,
+        "n_total": 4,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Parameter Space Analysis",
+      "success": true,
+      "elapsed_s": 35.85,
+      "data": {
+        "topology": "heavy_hex",
+        "n_qubits": 10,
+        "n_edges": 9,
+        "spatial_variance": [
+          {
+            "h": 4.0,
+            "std_theta_zz": 0.0005816568183976523,
+            "std_theta_x": 0.35992872780898305,
+            "range_theta_zz": 0.0011768199131465748,
+            "range_theta_x": 0.785435518601332,
+            "mean_theta_zz": 0.0621307000240438,
+            "mean_theta_x": 0.5497851843156016
+          },
+          {
+            "h": 3.5,
+            "std_theta_zz": 0.0008574733910424395,
+            "std_theta_x": 0.3599287217752491,
+            "range_theta_zz": 0.0017377577291247254,
+            "range_theta_x": 0.7854352124518679,
+            "mean_theta_zz": 0.07088188714268598,
+            "mean_theta_x": 0.549785133365635
+          },
+          {
+            "h": 3.0,
+            "std_theta_zz": 0.0013366957532281393,
+            "std_theta_x": 0.3599287136849352,
+            "range_theta_zz": 0.002715582500724345,
+            "range_theta_x": 0.785434747959786,
+            "mean_theta_zz": 0.08247569180969719,
+            "mean_theta_x": 0.5497850744927673
+          }
+        ],
+        "has_spatial_structure": false,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 4,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 309.15,
+    "total_elapsed_s": 309.15,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T21:52:41.074236",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "BOND_RESOLVED_HVA",
+    "category": "B",
+    "hypothesis": "Bond-resolved HVA achieves equal or better energy accuracy than global HVA at same circuit depth, with advantage growing on non-uniform topologies (heavy-hex > chain)",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 4,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 309.15,
+      "total_elapsed_s": 309.15,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "N=6 Chain Convergence (3 seeds)",
+        "success": true,
+        "elapsed_s": 23.48,
+        "data": {
+          "topology": "chain_1d",
+          "n_qubits": 6,
+          "p_layers": 1,
+          "n_params": 11,
+          "results_by_seed": {
+            "42": [
+              {
+                "h": 3.0,
+                "fidelity": 0.9989996719080182,
+                "delta_e_gap": 0.0026014548052559097,
+                "energy_error": 0.011066835487074655
+              },
+              {
+                "h": 2.5,
+                "fidelity": 0.997897301206671,
+                "delta_e_gap": 0.0057441344641169425,
+                "energy_error": 0.01877568185213363
+              },
+              {
+                "h": 2.0,
+                "fidelity": 0.9947528934046875,
+                "delta_e_gap": 0.015487740796918033,
+                "energy_error": 0.03551770256994402
+              },
+              {
+                "h": 1.75,
+                "fidelity": 0.9909069855756613,
+                "delta_e_gap": 0.028502540775768047,
+                "energy_error": 0.05167890898488636
+              },
+              {
+                "h": 1.5,
+                "fidelity": 0.9828246441369818,
+                "delta_e_gap": 0.05888450353129804,
+                "energy_error": 0.07907876722911489
+              }
+            ],
+            "43": [
+              {
+                "h": 3.0,
+                "fidelity": 0.9989996723097408,
+                "delta_e_gap": 0.002601454828930118,
+                "energy_error": 0.011066835587786983
+              },
+              {
+                "h": 2.5,
+                "fidelity": 0.9978973002614207,
+                "delta_e_gap": 0.005744134646310519,
+                "energy_error": 0.018775682447664366
+              },
+              {
+                "h": 2.0,
+                "fidelity": 0.9947528903688447,
+                "delta_e_gap": 0.015487740803262722,
+                "energy_error": 0.03551770258449416
+              },
+              {
+                "h": 1.75,
+                "fidelity": 0.9909069753994337,
+                "delta_e_gap": 0.028502540792060733,
+                "energy_error": 0.05167890901442718
+              },
+              {
+                "h": 1.5,
+                "fidelity": 0.982824632978806,
+                "delta_e_gap": 0.058884503536898475,
+                "energy_error": 0.07907876723663598
+              }
+            ],
+            "44": [
+              {
+                "h": 3.0,
+                "fidelity": 0.9989996804175185,
+                "delta_e_gap": 0.0026014547664333153,
+                "energy_error": 0.011066835321919655
+              },
+              {
+                "h": 2.5,
+                "fidelity": 0.9978972989608001,
+                "delta_e_gap": 0.005744134360577338,
+                "energy_error": 0.018775681513696796
+              },
+              {
+                "h": 2.0,
+                "fidelity": 0.9947528951540745,
+                "delta_e_gap": 0.015487740797436235,
+                "energy_error": 0.035517702571132403
+              },
+              {
+                "h": 1.75,
+                "fidelity": 0.990906990254811,
+                "delta_e_gap": 0.02850254077783623,
+                "energy_error": 0.05167890898863625
+              },
+              {
+                "h": 1.5,
+                "fidelity": 0.982824645142759,
+                "delta_e_gap": 0.058884503529427694,
+                "energy_error": 0.07907876722660312
+              }
+            ]
+          },
+          "all_fid_above_099": true,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "N=10 Heavy-Hex Convergence",
+        "success": true,
+        "elapsed_s": 59.85,
+        "data": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "p_layers": 1,
+          "n_params": 19,
+          "n_edges": 9,
+          "results": [
+            {
+              "h": 4.0,
+              "fidelity": 0.9995615913011818,
+              "delta_e_gap": 0.0011032357966356224,
+              "energy_error": 0.006533330485133604,
+              "elapsed_s": 16.46622920036316
+            },
+            {
+              "h": 3.75,
+              "fidelity": 0.9994276935546073,
+              "delta_e_gap": 0.0014601570644445449,
+              "energy_error": 0.007920082019062136,
+              "elapsed_s": 10.97901701927185
+            },
+            {
+              "h": 3.5,
+              "fidelity": 0.9992381020803206,
+              "delta_e_gap": 0.0019745817349973924,
+              "energy_error": 0.009728200142163246,
+              "elapsed_s": 10.085410118103027
+            },
+            {
+              "h": 3.25,
+              "fidelity": 0.9989623026381353,
+              "delta_e_gap": 0.002738351234093608,
+              "energy_error": 0.012130507528588907,
+              "elapsed_s": 10.227229833602905
+            },
+            {
+              "h": 3.0,
+              "fidelity": 0.9985481815729331,
+              "delta_e_gap": 0.003912879889570045,
+              "energy_error": 0.015392323928573148,
+              "elapsed_s": 7.857265949249268
+            }
+          ],
+          "pass": true
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Global vs Bond-Resolved Comparison",
+        "success": true,
+        "elapsed_s": 189.97,
+        "data": {
+          "comparisons": [
+            {
+              "topology": "chain_1d",
+              "n_qubits": 6,
+              "n_params_br": 11,
+              "n_params_global": 2,
+              "mean_de_gap_br": 0.020679458399034803,
+              "mean_de_gap_global": 0.02106137068096095,
+              "improvement_pct": 1.8133306122919537,
+              "br_wins": 4,
+              "n_points": 4
+            },
+            {
+              "topology": "chain_1d",
+              "n_qubits": 10,
+              "n_params_br": 19,
+              "n_params_global": 2,
+              "mean_de_gap_br": 0.015655735692697605,
+              "mean_de_gap_global": 0.015813764182220212,
+              "improvement_pct": 0.9993097639604533,
+              "br_wins": 5,
+              "n_points": 5
+            },
+            {
+              "topology": "heavy_hex",
+              "n_qubits": 10,
+              "n_params_br": 19,
+              "n_params_global": 2,
+              "mean_de_gap_br": 0.001819081457542792,
+              "mean_de_gap_global": 0.003618200708827855,
+              "improvement_pct": 49.724141806049836,
+              "br_wins": 4,
+              "n_points": 4
+            },
+            {
+              "topology": "ladder",
+              "n_qubits": 10,
+              "n_params_br": 23,
+              "n_params_global": 2,
+              "mean_de_gap_br": 0.015714599199121642,
+              "mean_de_gap_global": 0.015734094795611685,
+              "improvement_pct": 0.12390669271599992,
+              "br_wins": 4,
+              "n_points": 4
+            }
+          ],
+          "n_improved": 4,
+          "n_total": 4,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Parameter Space Analysis",
+        "success": true,
+        "elapsed_s": 35.85,
+        "data": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "n_edges": 9,
+          "spatial_variance": [
+            {
+              "h": 4.0,
+              "std_theta_zz": 0.0005816568183976523,
+              "std_theta_x": 0.35992872780898305,
+              "range_theta_zz": 0.0011768199131465748,
+              "range_theta_x": 0.785435518601332,
+              "mean_theta_zz": 0.0621307000240438,
+              "mean_theta_x": 0.5497851843156016
+            },
+            {
+              "h": 3.5,
+              "std_theta_zz": 0.0008574733910424395,
+              "std_theta_x": 0.3599287217752491,
+              "range_theta_zz": 0.0017377577291247254,
+              "range_theta_x": 0.7854352124518679,
+              "mean_theta_zz": 0.07088188714268598,
+              "mean_theta_x": 0.549785133365635
+            },
+            {
+              "h": 3.0,
+              "std_theta_zz": 0.0013366957532281393,
+              "std_theta_x": 0.3599287136849352,
+              "range_theta_zz": 0.002715582500724345,
+              "range_theta_x": 0.785434747959786,
+              "mean_theta_zz": 0.08247569180969719,
+              "mean_theta_x": 0.5497850744927673
+            }
+          ],
+          "has_spatial_structure": false,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

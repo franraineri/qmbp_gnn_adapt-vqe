@@ -1,0 +1,53 @@
+{
+  "config": {
+    "experiment_id": "E4c",
+    "category": "E",
+    "model": "tfim_frustrated",
+    "description": "Frustrated TFIM (J1-J2) validation suite",
+    "hypothesis": "HVA p=2 with NNN RZZ achieves fid\u22650.90 for J\u2082\u22640.5",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d",
+      "model": "tfim_frustrated"
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "results": {
+    "section_1": "expressibility_vs_j2",
+    "section_2": "descending_h_sweep",
+    "section_3": "cross_topology",
+    "section_4": "phase_diagram_2d",
+    "section_5": "comparison_standard_tfim",
+    "section_6_scaling": [
+      {
+        "N": 4,
+        "h_min": 0.5,
+        "mean_fid": 0.999981444685387,
+        "pass_rate": 0.8888888888888888
+      },
+      {
+        "N": 6,
+        "h_min": 0.5,
+        "mean_fid": 0.9998427704508313,
+        "pass_rate": 0.8888888888888888
+      },
+      {
+        "N": 10,
+        "h_min": 0.5,
+        "mean_fid": 0.999611783000576,
+        "pass_rate": 0.8888888888888888
+      }
+    ],
+    "section_7": "seed_robustness"
+  },
+  "elapsed_s": 280.8362250328064,
+  "timestamp": "20260603_140406",
+  "environment": {
+    "python": "3.12.13"
+  }
+}

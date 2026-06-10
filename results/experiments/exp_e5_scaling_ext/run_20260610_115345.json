@@ -1,0 +1,232 @@
+{
+  "timestamp": "2026-06-10T11:53:45.045352",
+  "config": {
+    "runner_id": "scaling_extensions",
+    "experiment_id": "E5_SCALING_EXT",
+    "description": "E5: Scaling Extensions \u2014 N=120 + HE + NLCE",
+    "hypothesis": "MPS \u03c7=64 is exact at N=120, GNN eliminates VQE entirely (outperforming Hamiltonian engineering), and NLCE with GNN-HVA cluster solver converges to thermodynamic limit.",
+    "bond_dimension_test": {
+      "n_qubits": 120,
+      "chi_values": [
+        16,
+        32,
+        64,
+        128
+      ],
+      "strategy": "aer_mps",
+      "model": "tfim",
+      "topology": "chain_1d"
+    },
+    "he_comparison": {
+      "n_qubits": 20,
+      "topology": "chain_1d",
+      "parametrization": "bond_resolved"
+    },
+    "nlce": {
+      "l_max": 10,
+      "topology": "chain_1d",
+      "j2": 0.5
+    },
+    "seeds": [
+      42
+    ],
+    "category": "E",
+    "system": {}
+  },
+  "elapsed_s": 374.8572099208832,
+  "results": {
+    "section_1": {
+      "name": "N=120 Bond Dimension Test (\u03c7 convergence)",
+      "success": true,
+      "elapsed_s": 164.39,
+      "data": {
+        "n_qubits": 120,
+        "h_test": 13.086622519358373,
+        "h_min_safe": 12.086622519358373,
+        "dmrg": {
+          "ground_energy": -1572.6688330152385,
+          "gap": 24.173245038716747,
+          "time_s": 158.8034119606018
+        },
+        "theta_uniform": [
+          -0.019103477587909926,
+          0.0762657001298584
+        ],
+        "chi_convergence": [
+          {
+            "chi": 16,
+            "energy": -1566.7582140785892,
+            "time_s": 5.373342990875244
+          },
+          {
+            "chi": 32,
+            "energy": -1566.7582140785892,
+            "time_s": 0.07514500617980957
+          },
+          {
+            "chi": 64,
+            "energy": -1566.7582140785892,
+            "time_s": 0.0635688304901123
+          },
+          {
+            "chi": 128,
+            "energy": -1566.7582140785892,
+            "time_s": 0.0640711784362793
+          }
+        ],
+        "diff_64_128": 0.0,
+        "diff_32_64": 0.0,
+        "de_gap_uniform_theta": 0.24451077739801624,
+        "chi_64_is_exact": true,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "N=120 Single-Point VQE Convergence",
+      "success": true,
+      "elapsed_s": 210.47,
+      "data": {
+        "n_qubits": 120,
+        "h_test": 13.586622519358373,
+        "h_min_safe": 12.086622519358373,
+        "dmrg": {
+          "ground_energy": -1632.5850860283588,
+          "gap": 25.173245038716747,
+          "time_s": 113.02100872993469
+        },
+        "vqe": {
+          "energy": -1632.57831395844,
+          "de_gap": 0.0002690185515736762,
+          "theta_opt": [
+            0.0183146518505665,
+            0.38328827770533047
+          ],
+          "n_iterations": 31,
+          "time_s": 97.4420473575592
+        },
+        "timing_estimate": {
+          "t_per_point_s": 97.4420473575592,
+          "t_full_sweep_5pts_s": 487.210236787796,
+          "t_full_sweep_5pts_min": 8.120170613129934
+        },
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 2,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 374.86,
+    "total_elapsed_s": 374.86,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-10T11:53:44.980042",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "mps_evaluation_mode": "deterministic",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "E5_SCALING_EXT",
+    "category": "E",
+    "hypothesis": "MPS \u03c7=64 is exact at N=120, GNN eliminates VQE entirely (outperforming Hamiltonian engineering), and NLCE with GNN-HVA cluster solver converges to thermodynamic limit.",
+    "n_seeds": 1,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 2,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 374.86,
+      "total_elapsed_s": 374.86,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "N=120 Bond Dimension Test (\u03c7 convergence)",
+        "success": true,
+        "elapsed_s": 164.39,
+        "data": {
+          "n_qubits": 120,
+          "h_test": 13.086622519358373,
+          "h_min_safe": 12.086622519358373,
+          "dmrg": {
+            "ground_energy": -1572.6688330152385,
+            "gap": 24.173245038716747,
+            "time_s": 158.8034119606018
+          },
+          "theta_uniform": [
+            -0.019103477587909926,
+            0.0762657001298584
+          ],
+          "chi_convergence": [
+            {
+              "chi": 16,
+              "energy": -1566.7582140785892,
+              "time_s": 5.373342990875244
+            },
+            {
+              "chi": 32,
+              "energy": -1566.7582140785892,
+              "time_s": 0.07514500617980957
+            },
+            {
+              "chi": 64,
+              "energy": -1566.7582140785892,
+              "time_s": 0.0635688304901123
+            },
+            {
+              "chi": 128,
+              "energy": -1566.7582140785892,
+              "time_s": 0.0640711784362793
+            }
+          ],
+          "diff_64_128": 0.0,
+          "diff_32_64": 0.0,
+          "de_gap_uniform_theta": 0.24451077739801624,
+          "chi_64_is_exact": true,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "N=120 Single-Point VQE Convergence",
+        "success": true,
+        "elapsed_s": 210.47,
+        "data": {
+          "n_qubits": 120,
+          "h_test": 13.586622519358373,
+          "h_min_safe": 12.086622519358373,
+          "dmrg": {
+            "ground_energy": -1632.5850860283588,
+            "gap": 25.173245038716747,
+            "time_s": 113.02100872993469
+          },
+          "vqe": {
+            "energy": -1632.57831395844,
+            "de_gap": 0.0002690185515736762,
+            "theta_opt": [
+              0.0183146518505665,
+              0.38328827770533047
+            ],
+            "n_iterations": 31,
+            "time_s": 97.4420473575592
+          },
+          "timing_estimate": {
+            "t_per_point_s": 97.4420473575592,
+            "t_full_sweep_5pts_s": 487.210236787796,
+            "t_full_sweep_5pts_min": 8.120170613129934
+          },
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

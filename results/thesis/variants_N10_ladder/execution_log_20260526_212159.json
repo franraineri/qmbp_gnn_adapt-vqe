@@ -1,0 +1,279 @@
+{
+  "timestamp": "20260526_212159",
+  "topology": "ladder",
+  "n_qubits": 10,
+  "total_variants": 19,
+  "passed": 18,
+  "failed": 1,
+  "total_elapsed_s": 981.8925211429596,
+  "results": [
+    {
+      "variant_id": "NL-A1",
+      "success": true,
+      "elapsed_s": 24.882487058639526,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A3",
+      "success": true,
+      "elapsed_s": 24.74175000190735,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A5",
+      "success": true,
+      "elapsed_s": 28.262242794036865,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A7",
+      "success": true,
+      "elapsed_s": 31.183406114578247,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B64",
+      "success": true,
+      "elapsed_s": 42.10871195793152,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B128",
+      "success": true,
+      "elapsed_s": 54.14118409156799,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B256",
+      "success": true,
+      "elapsed_s": 83.36662697792053,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-sparse3",
+      "success": false,
+      "elapsed_s": 26.166146993637085,
+      "return_code": 1,
+      "error_msg": "              ^^^^^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/pipeline/runner.py\", line 584, in run_full\n    model = self.run_phase3(h_values, vqe_results, exact_data, mpnn_config=mpnn_config)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/pipeline/runner.py\", line 282, in run_phase3\n    dataset = build_graph_dataset(\n              ^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/predictors/mpnn.py\", line 297, in build_graph_dataset\n    raise ValueError(\nValueError: Fewer than 3 data points (0) passed the fidelity filter (threshold=0.93). Cannot build a reliable training dataset. Consider widening the h-grid or lowering the fidelity threshold."
+    },
+    {
+      "variant_id": "NL-C-standard6",
+      "success": true,
+      "elapsed_s": 82.39495396614075,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-dense11",
+      "success": true,
+      "elapsed_s": 81.27131915092468,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-safe",
+      "success": true,
+      "elapsed_s": 70.72606801986694,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-boundary",
+      "success": true,
+      "elapsed_s": 69.56695699691772,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-multi",
+      "success": true,
+      "elapsed_s": 79.36002731323242,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed42",
+      "success": true,
+      "elapsed_s": 61.17688274383545,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed43",
+      "success": true,
+      "elapsed_s": 49.65305304527283,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed44",
+      "success": true,
+      "elapsed_s": 42.428975105285645,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-F-chain-baseline",
+      "success": true,
+      "elapsed_s": 49.93917512893677,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-G-periodic",
+      "success": true,
+      "elapsed_s": 45.19442105293274,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-H-p1-ladder",
+      "success": true,
+      "elapsed_s": 35.32076716423035,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "NL-A1",
+      "description": "VQE restarts=1 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 1 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-A3",
+      "description": "VQE restarts=3 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 3 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-A5",
+      "description": "VQE restarts=5 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 5 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-A7",
+      "description": "VQE restarts=7 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 7 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-B64",
+      "description": "MPNN hidden_dim=64 (ladder, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=64 on ladder achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 is optimal for N=10 (from project-status). h=64 may underfit on ladder due to richer graph structure."
+    },
+    {
+      "id": "NL-B128",
+      "description": "MPNN hidden_dim=128 (ladder, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=128 on ladder achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 is optimal for N=10 (from project-status). h=64 may underfit on ladder due to richer graph structure."
+    },
+    {
+      "id": "NL-B256",
+      "description": "MPNN hidden_dim=256 (ladder, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=256 on ladder achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 is optimal for N=10 (from project-status). h=64 may underfit on ladder due to richer graph structure."
+    },
+    {
+      "id": "NL-C-sparse3",
+      "description": "h-grid: sparse3 (3 pts, ladder)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'sparse3' sufficient for ladder MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse3 may fail on ladder (steeper parameter landscape needs more training points)."
+    },
+    {
+      "id": "NL-C-standard6",
+      "description": "h-grid: standard6 (7 pts, ladder)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'standard6' sufficient for ladder MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse3 may fail on ladder (steeper parameter landscape needs more training points)."
+    },
+    {
+      "id": "NL-C-dense11",
+      "description": "h-grid: dense11 (9 pts, ladder)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'dense11' sufficient for ladder MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse3 may fail on ladder (steeper parameter landscape needs more training points)."
+    },
+    {
+      "id": "NL-D-safe",
+      "description": "h_test: Safe point (deep in paramagnetic phase) (ladder)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on ladder to h_test=['2.5']",
+      "expected_outcome": "Safe and multi should pass; boundary may be marginal."
+    },
+    {
+      "id": "NL-D-boundary",
+      "description": "h_test: Boundary of expected valid regime (ladder)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on ladder to h_test=['2.0']",
+      "expected_outcome": "Safe and multi should pass; boundary may be marginal."
+    },
+    {
+      "id": "NL-D-multi",
+      "description": "h_test: Multiple points across regime (ladder)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on ladder to h_test=['3.5', '2.75', '2.25']",
+      "expected_outcome": "Safe and multi should pass; boundary may be marginal."
+    },
+    {
+      "id": "NL-E-seed42",
+      "description": "Seed=42 (ladder, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline with seed=42 is reproducible",
+      "expected_outcome": "All seeds pass \u2014 topology doesn't affect seed independence."
+    },
+    {
+      "id": "NL-E-seed43",
+      "description": "Seed=43 (ladder, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline with seed=43 is reproducible",
+      "expected_outcome": "All seeds pass \u2014 topology doesn't affect seed independence."
+    },
+    {
+      "id": "NL-E-seed44",
+      "description": "Seed=44 (ladder, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline with seed=44 is reproducible",
+      "expected_outcome": "All seeds pass \u2014 topology doesn't affect seed independence."
+    },
+    {
+      "id": "NL-F-chain-baseline",
+      "description": "Chain_1d baseline (same config as ladder for comparison)",
+      "category": "noiseless",
+      "hypothesis": "Chain_1d baseline for direct topology comparison",
+      "expected_outcome": "PASS \u2014 chain_1d at N=10 is well-validated. Provides reference for ladder performance delta."
+    },
+    {
+      "id": "NL-G-periodic",
+      "description": "Periodic ladder (cylinder topology, max connectivity)",
+      "category": "noiseless",
+      "hypothesis": "Periodic ladder (cylinder) works with 7 restarts at h\u22652.5",
+      "expected_outcome": "May need even higher h threshold due to periodic bonds. Tests framework's handling of periodic boundary conditions."
+    },
+    {
+      "id": "NL-H-p1-ladder",
+      "description": "p=1 layer on ladder (2 params, higher connectivity)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder works at h\u22652.5 (narrower regime than p=2)",
+      "expected_outcome": "Valid regime likely shifts up vs p=2 due to fewer params. Tests if p=1 is viable on higher-connectivity topologies."
+    }
+  ]
+}

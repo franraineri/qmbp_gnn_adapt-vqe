@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-06-03T12:53:56.159995",
+  "config": {
+    "runner_id": "explicit_fail",
+    "experiment_id": "XFAIL",
+    "description": "Explicit fail runner",
+    "hypothesis": "Explicit failure detection",
+    "category": "X",
+    "system": {},
+    "seeds": []
+  },
+  "elapsed_s": 0.0002491474151611328,
+  "results": {
+    "section_1": {
+      "name": "Passes",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Fails",
+      "success": false,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": false,
+        "reason": "threshold exceeded"
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 1,
+    "n_failed": 1,
+    "pass_rate": 0.5,
+    "total_time_s": 0.0,
+    "total_elapsed_s": 0.0,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:53:56.159991",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "XFAIL",
+    "category": "X",
+    "hypothesis": "Explicit failure detection",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 1,
+      "n_failed": 1,
+      "pass_rate": 0.5,
+      "total_time_s": 0.0,
+      "total_elapsed_s": 0.0,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Passes",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "Fails",
+        "success": false,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": false,
+          "reason": "threshold exceeded"
+        },
+        "error": null
+      }
+    }
+  }
+}

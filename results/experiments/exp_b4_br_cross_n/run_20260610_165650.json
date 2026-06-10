@@ -1,0 +1,402 @@
+{
+  "timestamp": "2026-06-10T16:56:50.055392",
+  "config": {
+    "runner_id": "bond_resolved_cross_n",
+    "experiment_id": "B4_BR_CROSS_N",
+    "description": "B4: Bond-Resolved GNN Necessity \u2014 79-param cross-h prediction",
+    "hypothesis": "GNN (norm_type=none) predicts 79-dim bond-resolved \u03b8_opt at midpoint h-values with \u0394E/gap < 10%, while random init requires >50\u00d7 more evals.",
+    "system": {
+      "n_qubits": 40,
+      "p_layers": 1,
+      "topology": "chain_1d",
+      "model": "tfim_bond_resolved",
+      "parametrization": "bond_resolved"
+    },
+    "mps": {
+      "strategy": "aer_mps",
+      "chi_max": 64,
+      "precision": 0.005
+    },
+    "gnn": {
+      "hidden_dim": 256,
+      "n_layers": 3,
+      "norm_type": "none",
+      "n_epochs": 8000
+    },
+    "h_sweep": [
+      6.0103170990852774,
+      5.7603170990852774,
+      5.5103170990852774,
+      5.2603170990852774,
+      5.0103170990852774,
+      4.7603170990852774,
+      4.5103170990852774
+    ],
+    "seeds": [
+      42
+    ],
+    "category": "B"
+  },
+  "elapsed_s": 3406.3398168087006,
+  "results": {
+    "section_1": {
+      "name": "Bond-Resolved VQE Sweep (N=40, 7 h-points)",
+      "success": true,
+      "elapsed_s": 440.83,
+      "data": {
+        "source": "computed",
+        "n_pass": 7,
+        "n_total": 7,
+        "mean_de_gap": 0.007762275130718285,
+        "sweep_data_path": "results/bond_resolved_scaling/sweep_N40_chain_1d_1781118444.json",
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "MPNN Training (norm_type=none, 79D output)",
+      "success": true,
+      "elapsed_s": 112.32,
+      "data": {
+        "n_training_points": 7,
+        "n_model_params": 416079,
+        "output_dim": 79,
+        "final_mse": 0.00017662467143964022,
+        "training_time_s": 112.26966190338135,
+        "training_converged": true,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "GNN Deploy at Midpoint h-values",
+      "success": true,
+      "elapsed_s": 45.72,
+      "data": {
+        "h_deploy": [
+          5.8853170990852774,
+          5.6353170990852774,
+          5.3853170990852774,
+          5.1353170990852774,
+          4.8853170990852774,
+          4.6353170990852774
+        ],
+        "results": [
+          {
+            "h": 5.8853170990852774,
+            "e_pred": -236.88921993413427,
+            "e_dmrg": -237.0722047690914,
+            "gap": 9.770634198170555,
+            "de_gap": 0.01872804070296552,
+            "passed": true,
+            "time_s": 8.32329797744751
+          },
+          {
+            "h": 5.6353170990852774,
+            "e_pred": -227.09732315714194,
+            "e_dmrg": -227.1460987391927,
+            "gap": 9.270634198170555,
+            "de_gap": 0.005261299389892535,
+            "passed": true,
+            "time_s": 11.033701181411743
+          },
+          {
+            "h": 5.3853170990852774,
+            "e_pred": -217.18961739235047,
+            "e_dmrg": -217.22689447018595,
+            "gap": 8.770634198170555,
+            "de_gap": 0.004250214635933503,
+            "passed": true,
+            "time_s": 6.25308084487915
+          },
+          {
+            "h": 5.1353170990852774,
+            "e_pred": -207.28032813503674,
+            "e_dmrg": -207.31560866122976,
+            "gap": 8.270634198170555,
+            "de_gap": 0.004265758265650776,
+            "passed": true,
+            "time_s": 7.924683094024658
+          },
+          {
+            "h": 4.8853170990852774,
+            "e_pred": -197.37792764536437,
+            "e_dmrg": -197.41346857315835,
+            "gap": 7.770634198170555,
+            "de_gap": 0.004573748665502212,
+            "passed": true,
+            "time_s": 6.003574848175049
+          },
+          {
+            "h": 4.6353170990852774,
+            "e_pred": -187.48384661584086,
+            "e_dmrg": -187.52196968810622,
+            "gap": 7.270634198170555,
+            "de_gap": 0.005243431484279131,
+            "passed": true,
+            "time_s": 6.181465148925781
+          }
+        ],
+        "n_pass": 6,
+        "n_total": 6,
+        "mean_de_gap": 0.007053748857370613,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "GNN Necessity: Random Init Baseline",
+      "success": true,
+      "elapsed_s": 5.16,
+      "data": {
+        "h_test": 5.3853170990852774,
+        "e_exact": -217.22689447018595,
+        "gap": 8.770634198170555,
+        "gnn": {
+          "de_gap": 0.004250214635933503,
+          "energy": -217.18961739235047,
+          "n_evals": 1
+        },
+        "random_search": {
+          "n_samples": 100,
+          "best_de_gap": 18.76265195343119,
+          "best_energy": -52.666537599050784,
+          "median_de_gap": 24.913097167530786,
+          "time_s": 0.8012180328369141
+        },
+        "improvement_factor": 4414.518691550791,
+        "gnn_is_necessary": true,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Dense Multi-Seed Sweep (3 seeds \u00d7 15 h-points)",
+      "success": true,
+      "elapsed_s": 2006.49,
+      "data": {
+        "n_total": 45,
+        "n_pass": 45,
+        "n_seeds": 3,
+        "n_h_points": 15,
+        "mean_de_gap": 0.004723605566918705,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_6": {
+      "name": "BondResolvedMPNN Training (per-node/per-edge architecture)",
+      "success": false,
+      "elapsed_s": 795.8,
+      "data": {
+        "source": "dense_sweep",
+        "n_training_points": 45,
+        "n_model_params": 494594,
+        "final_mse": 0.03511818266577191,
+        "final_zz_mse": 0.0003109533258154329,
+        "final_x_mse": 0.034807229228317735,
+        "training_time_s": 795.7896809577942,
+        "checkpoint_path": "results/bond_resolved_scaling/bond_resolved_mpnn_N40_1781121410.pt",
+        "pass": false
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 6,
+    "n_passed": 5,
+    "n_failed": 1,
+    "pass_rate": 0.8333333333333334,
+    "total_time_s": 3406.34,
+    "total_elapsed_s": 3406.34,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-10T16:56:50.015763",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "mps_evaluation_mode": "deterministic",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "B4_BR_CROSS_N",
+    "category": "B",
+    "hypothesis": "GNN (norm_type=none) predicts 79-dim bond-resolved \u03b8_opt at midpoint h-values with \u0394E/gap < 10%, while random init requires >50\u00d7 more evals.",
+    "n_seeds": 1,
+    "summary": {
+      "n_sections": 6,
+      "n_passed": 5,
+      "n_failed": 1,
+      "pass_rate": 0.8333333333333334,
+      "total_time_s": 3406.34,
+      "total_elapsed_s": 3406.34,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Bond-Resolved VQE Sweep (N=40, 7 h-points)",
+        "success": true,
+        "elapsed_s": 440.83,
+        "data": {
+          "source": "computed",
+          "n_pass": 7,
+          "n_total": 7,
+          "mean_de_gap": 0.007762275130718285,
+          "sweep_data_path": "results/bond_resolved_scaling/sweep_N40_chain_1d_1781118444.json",
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "MPNN Training (norm_type=none, 79D output)",
+        "success": true,
+        "elapsed_s": 112.32,
+        "data": {
+          "n_training_points": 7,
+          "n_model_params": 416079,
+          "output_dim": 79,
+          "final_mse": 0.00017662467143964022,
+          "training_time_s": 112.26966190338135,
+          "training_converged": true,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "GNN Deploy at Midpoint h-values",
+        "success": true,
+        "elapsed_s": 45.72,
+        "data": {
+          "h_deploy": [
+            5.8853170990852774,
+            5.6353170990852774,
+            5.3853170990852774,
+            5.1353170990852774,
+            4.8853170990852774,
+            4.6353170990852774
+          ],
+          "results": [
+            {
+              "h": 5.8853170990852774,
+              "e_pred": -236.88921993413427,
+              "e_dmrg": -237.0722047690914,
+              "gap": 9.770634198170555,
+              "de_gap": 0.01872804070296552,
+              "passed": true,
+              "time_s": 8.32329797744751
+            },
+            {
+              "h": 5.6353170990852774,
+              "e_pred": -227.09732315714194,
+              "e_dmrg": -227.1460987391927,
+              "gap": 9.270634198170555,
+              "de_gap": 0.005261299389892535,
+              "passed": true,
+              "time_s": 11.033701181411743
+            },
+            {
+              "h": 5.3853170990852774,
+              "e_pred": -217.18961739235047,
+              "e_dmrg": -217.22689447018595,
+              "gap": 8.770634198170555,
+              "de_gap": 0.004250214635933503,
+              "passed": true,
+              "time_s": 6.25308084487915
+            },
+            {
+              "h": 5.1353170990852774,
+              "e_pred": -207.28032813503674,
+              "e_dmrg": -207.31560866122976,
+              "gap": 8.270634198170555,
+              "de_gap": 0.004265758265650776,
+              "passed": true,
+              "time_s": 7.924683094024658
+            },
+            {
+              "h": 4.8853170990852774,
+              "e_pred": -197.37792764536437,
+              "e_dmrg": -197.41346857315835,
+              "gap": 7.770634198170555,
+              "de_gap": 0.004573748665502212,
+              "passed": true,
+              "time_s": 6.003574848175049
+            },
+            {
+              "h": 4.6353170990852774,
+              "e_pred": -187.48384661584086,
+              "e_dmrg": -187.52196968810622,
+              "gap": 7.270634198170555,
+              "de_gap": 0.005243431484279131,
+              "passed": true,
+              "time_s": 6.181465148925781
+            }
+          ],
+          "n_pass": 6,
+          "n_total": 6,
+          "mean_de_gap": 0.007053748857370613,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "GNN Necessity: Random Init Baseline",
+        "success": true,
+        "elapsed_s": 5.16,
+        "data": {
+          "h_test": 5.3853170990852774,
+          "e_exact": -217.22689447018595,
+          "gap": 8.770634198170555,
+          "gnn": {
+            "de_gap": 0.004250214635933503,
+            "energy": -217.18961739235047,
+            "n_evals": 1
+          },
+          "random_search": {
+            "n_samples": 100,
+            "best_de_gap": 18.76265195343119,
+            "best_energy": -52.666537599050784,
+            "median_de_gap": 24.913097167530786,
+            "time_s": 0.8012180328369141
+          },
+          "improvement_factor": 4414.518691550791,
+          "gnn_is_necessary": true,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Dense Multi-Seed Sweep (3 seeds \u00d7 15 h-points)",
+        "success": true,
+        "elapsed_s": 2006.49,
+        "data": {
+          "n_total": 45,
+          "n_pass": 45,
+          "n_seeds": 3,
+          "n_h_points": 15,
+          "mean_de_gap": 0.004723605566918705,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_6": {
+        "name": "BondResolvedMPNN Training (per-node/per-edge architecture)",
+        "success": false,
+        "elapsed_s": 795.8,
+        "data": {
+          "source": "dense_sweep",
+          "n_training_points": 45,
+          "n_model_params": 494594,
+          "final_mse": 0.03511818266577191,
+          "final_zz_mse": 0.0003109533258154329,
+          "final_x_mse": 0.034807229228317735,
+          "training_time_s": 795.7896809577942,
+          "checkpoint_path": "results/bond_resolved_scaling/bond_resolved_mpnn_N40_1781121410.pt",
+          "pass": false
+        },
+        "error": null
+      }
+    }
+  }
+}

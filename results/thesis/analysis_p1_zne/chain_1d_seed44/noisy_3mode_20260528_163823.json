@@ -1,0 +1,165 @@
+{
+  "metadata": {
+    "timestamp": "2026-05-28T13:38:23.602203",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "seed": 44,
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "system": {
+    "hamiltonian": "TFIM: H = -J \u03a3_{<i,j>} Z_i Z_j - h \u03a3_i X_i",
+    "model_type": "TFIM",
+    "topology": "chain_1d",
+    "boundary_conditions": "open",
+    "n_qubits": 10,
+    "J": 1.0,
+    "initial_state": "|+>^N",
+    "ansatz": "HVA",
+    "p_layers": 1,
+    "sweep_direction": "descending"
+  },
+  "experiment": "n6_noisy_3mode_comparison",
+  "config": {
+    "n_qubits": 10,
+    "p_layers": 1,
+    "J": 1.0,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0
+    ],
+    "n_layouts": 3,
+    "shots": 16384,
+    "seed": 44,
+    "n_restarts": 5,
+    "optimizer": "L-BFGS-B",
+    "noise_model": {
+      "backend": "FakeTorino",
+      "optimization_level": 2,
+      "n_candidate_layouts": 30
+    }
+  },
+  "vqe_baseline": [
+    {
+      "h": 4.0,
+      "e_exact": -40.56422833999756,
+      "gap": 6.101112097894692,
+      "mag_x_exact": 0.9858068924815759,
+      "corr_zz_exact": 0.1257725156371609,
+      "e_vqe": -40.55466774765342,
+      "energy_error": 0.00956059234414397,
+      "fidelity": 0.9993717781726719,
+      "n_iterations": 8,
+      "theta_opt": [
+        3.0802464015934534,
+        1.1780972215029792
+      ]
+    },
+    {
+      "h": 3.5,
+      "e_exact": -35.645446070614064,
+      "gap": 5.104780873208185,
+      "mag_x_exact": 0.9814085371847655,
+      "corr_zz_exact": 0.1440163632385937,
+      "e_vqe": -35.63126379581626,
+      "energy_error": 0.014182274797803984,
+      "fidelity": 0.9989193185934178,
+      "n_iterations": 9,
+      "theta_opt": [
+        3.071869010738108,
+        1.1780972270567271
+      ]
+    },
+    {
+      "h": 3.0,
+      "e_exact": -30.754133429609336,
+      "gap": 4.110081165054879,
+      "mag_x_exact": 0.9745810128157327,
+      "corr_zz_exact": 0.16852256057081805,
+      "e_vqe": -30.73182359014539,
+      "energy_error": 0.022309839463947156,
+      "fidelity": 0.9979728730023583,
+      "n_iterations": 9,
+      "theta_opt": [
+        3.0609257037932647,
+        1.1780972189548455
+      ]
+    }
+  ],
+  "results_per_h": [
+    {
+      "h": 4.0,
+      "e_exact": -40.56422833999756,
+      "gap": 6.101112097894692,
+      "e_noiseless": -40.55466774765342,
+      "de_noiseless": 0.001567024534337443,
+      "e_noisy_raw": -2.6451416015625,
+      "de_noisy_raw": 6.2151106437660415,
+      "e_zne": -33.2882196505132,
+      "de_zne": 1.1925708908044965,
+      "r_squared": 0.9999998091854273,
+      "zne_wins": true,
+      "good_r2": true,
+      "ces_values": [
+        28.11539830365644,
+        0.19720529440040024,
+        0.42198794522179717
+      ],
+      "gain_pct": 80.81175124370981
+    },
+    {
+      "h": 3.5,
+      "e_exact": -35.645446070614064,
+      "gap": 5.104780873208185,
+      "e_noiseless": -35.63126379581626,
+      "de_noiseless": 0.0027782338067120394,
+      "e_noisy_raw": -2.098876953125,
+      "de_noisy_raw": 6.57159826263143,
+      "e_zne": -29.540803331619596,
+      "de_zne": 1.195867734702176,
+      "r_squared": 0.9998016110597459,
+      "zne_wins": true,
+      "good_r2": true,
+      "ces_values": [
+        28.11539830365644,
+        0.19720529440040024,
+        0.4255269699196866
+      ],
+      "gain_pct": 81.80248263953797
+    },
+    {
+      "h": 3.0,
+      "e_exact": -30.754133429609336,
+      "gap": 4.110081165054879,
+      "e_noiseless": -30.73182359014539,
+      "de_noiseless": 0.005428077589715741,
+      "e_noisy_raw": -1.7369384765625,
+      "de_noisy_raw": 7.060005335115903,
+      "e_zne": -25.347463543921833,
+      "de_zne": 1.3154654783113782,
+      "r_squared": 0.9996747169058623,
+      "zne_wins": true,
+      "good_r2": true,
+      "ces_values": [
+        29.112861467356964,
+        0.19720529440040024,
+        0.4255269699196866
+      ],
+      "gain_pct": 81.36735858019317
+    }
+  ],
+  "summary": {
+    "n_mitigated_wins": 3,
+    "n_good_r2": 3,
+    "n_total": 3,
+    "success_criteria_met": false,
+    "mean_de_noiseless": 0.0032577786435884076,
+    "mean_de_noisy_raw": 6.615571413837792,
+    "mean_de_zne": 1.2346347012726835,
+    "mean_r2": 0.9998253790503452,
+    "mean_gain_pct": 81.32719748781365,
+    "elapsed_s": 598.2593019008636
+  }
+}

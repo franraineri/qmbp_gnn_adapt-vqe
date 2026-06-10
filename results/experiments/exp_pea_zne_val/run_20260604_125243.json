@@ -1,0 +1,254 @@
+{
+  "timestamp": "2026-06-04T12:52:43.082349",
+  "config": {
+    "runner_id": "pea_zne_validation",
+    "experiment_id": "PEA_ZNE_VAL",
+    "category": "ZNE",
+    "description": "PEA-ZNE Comprehensive Validation (multi-seed, vs GF-ZNE)",
+    "hypothesis": "PEA-ZNE achieves gain > GF-ZNE gain with R\u00b2>0.9 and seed-independent reproducibility (std < 5%).",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 1,
+      "topology": "chain_1d",
+      "model": "tfim"
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 131.40477991104126,
+  "results": {
+    "section_1": {
+      "name": "Noiseless Baseline (3 seeds)",
+      "success": true,
+      "elapsed_s": 0.75,
+      "data": {
+        "n_params": 2,
+        "n_seeds": 3,
+        "n_h_points": 4
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Gate-Folding ZNE (3 seeds)",
+      "success": true,
+      "elapsed_s": 66.98,
+      "data": {
+        "mean_gain": 0.11091968309942164,
+        "std_gain": 0.020088584879629164,
+        "mean_r2": 0.9984880091415377
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "PEA-ZNE (3 seeds)",
+      "success": true,
+      "elapsed_s": 62.23,
+      "data": {
+        "mean_gain": 0.18294506050259016,
+        "std_gain": 0.022602385229536035,
+        "mean_r2": 0.283522832885623
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Seed Stability",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "per_h": [
+          {
+            "h": 2.5,
+            "gf_mean": 0.11503769822179388,
+            "gf_std": 0.01968011684206694,
+            "pea_mean": 0.20594090445604843,
+            "pea_std": 0.020063996338577816,
+            "pea_more_stable": false
+          },
+          {
+            "h": 2.0,
+            "gf_mean": 0.12225507851441737,
+            "gf_std": 0.015434709907624926,
+            "pea_mean": 0.19556026222311243,
+            "pea_std": 0.009222836004905186,
+            "pea_more_stable": true
+          },
+          {
+            "h": 1.75,
+            "gf_mean": 0.0930800707435258,
+            "gf_std": 0.0060029259968424455,
+            "pea_mean": 0.174603726846279,
+            "pea_std": 0.00584171586694405,
+            "pea_more_stable": true
+          },
+          {
+            "h": 1.5,
+            "gf_mean": 0.11330588491794961,
+            "gf_std": 0.02198266623048672,
+            "pea_mean": 0.15567534848492073,
+            "pea_std": 0.0045336277599340976,
+            "pea_more_stable": true
+          }
+        ],
+        "overall_gf_std": 0.020088584879629164,
+        "overall_pea_std": 0.022602385229536035,
+        "pea_more_stable_overall": false
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Verdict",
+      "success": false,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": false,
+        "mean_gf_gain": 0.11091968309942164,
+        "mean_pea_gain": 0.18294506050259016,
+        "mean_pea_r2": 0.283522832885623,
+        "pea_std": 0.022602385229536035,
+        "pea_better": true,
+        "r2_good": false,
+        "reproducible": true,
+        "all_positive": true,
+        "n_total_points": 12,
+        "topology": "chain_1d",
+        "n_qubits": 6
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 4,
+    "n_failed": 1,
+    "pass_rate": 0.8,
+    "total_time_s": 131.4,
+    "total_elapsed_s": 131.4,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-04T12:52:43.016987",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_ZNE_VAL",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE achieves gain > GF-ZNE gain with R\u00b2>0.9 and seed-independent reproducibility (std < 5%).",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 4,
+      "n_failed": 1,
+      "pass_rate": 0.8,
+      "total_time_s": 131.4,
+      "total_elapsed_s": 131.4,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Noiseless Baseline (3 seeds)",
+        "success": true,
+        "elapsed_s": 0.75,
+        "data": {
+          "n_params": 2,
+          "n_seeds": 3,
+          "n_h_points": 4
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "Gate-Folding ZNE (3 seeds)",
+        "success": true,
+        "elapsed_s": 66.98,
+        "data": {
+          "mean_gain": 0.11091968309942164,
+          "std_gain": 0.020088584879629164,
+          "mean_r2": 0.9984880091415377
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "PEA-ZNE (3 seeds)",
+        "success": true,
+        "elapsed_s": 62.23,
+        "data": {
+          "mean_gain": 0.18294506050259016,
+          "std_gain": 0.022602385229536035,
+          "mean_r2": 0.283522832885623
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Seed Stability",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "per_h": [
+            {
+              "h": 2.5,
+              "gf_mean": 0.11503769822179388,
+              "gf_std": 0.01968011684206694,
+              "pea_mean": 0.20594090445604843,
+              "pea_std": 0.020063996338577816,
+              "pea_more_stable": false
+            },
+            {
+              "h": 2.0,
+              "gf_mean": 0.12225507851441737,
+              "gf_std": 0.015434709907624926,
+              "pea_mean": 0.19556026222311243,
+              "pea_std": 0.009222836004905186,
+              "pea_more_stable": true
+            },
+            {
+              "h": 1.75,
+              "gf_mean": 0.0930800707435258,
+              "gf_std": 0.0060029259968424455,
+              "pea_mean": 0.174603726846279,
+              "pea_std": 0.00584171586694405,
+              "pea_more_stable": true
+            },
+            {
+              "h": 1.5,
+              "gf_mean": 0.11330588491794961,
+              "gf_std": 0.02198266623048672,
+              "pea_mean": 0.15567534848492073,
+              "pea_std": 0.0045336277599340976,
+              "pea_more_stable": true
+            }
+          ],
+          "overall_gf_std": 0.020088584879629164,
+          "overall_pea_std": 0.022602385229536035,
+          "pea_more_stable_overall": false
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Verdict",
+        "success": false,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": false,
+          "mean_gf_gain": 0.11091968309942164,
+          "mean_pea_gain": 0.18294506050259016,
+          "mean_pea_r2": 0.283522832885623,
+          "pea_std": 0.022602385229536035,
+          "pea_better": true,
+          "r2_good": false,
+          "reproducible": true,
+          "all_positive": true,
+          "n_total_points": 12,
+          "topology": "chain_1d",
+          "n_qubits": 6
+        },
+        "error": null
+      }
+    }
+  }
+}

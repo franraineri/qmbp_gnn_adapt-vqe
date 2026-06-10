@@ -1,0 +1,124 @@
+{
+  "timestamp": "2026-06-05T22:15:55.173922",
+  "config": {
+    "runner_id": "bond_resolved_scaling",
+    "experiment_id": "BOND_RESOLVED_SCALING",
+    "hypothesis": "Bond-resolved HVA scales to 2D square lattice, GNN predicts high-dimensional theta_opt, and ZNE remains effective",
+    "system": {
+      "model": "tfim_bond_resolved",
+      "p_layers": 1,
+      "topologies": [
+        "square",
+        "heavy_hex",
+        "chain_1d"
+      ]
+    },
+    "seed": 42,
+    "category": "B",
+    "description": "Bond-resolved scaling: 2D square, MPNN training, ZNE validation",
+    "seeds": []
+  },
+  "elapsed_s": 102.44470715522766,
+  "results": {
+    "section_3": {
+      "name": "MPNN Training (heavy-hex N=10)",
+      "success": false,
+      "elapsed_s": 78.96,
+      "data": {},
+      "error": "KeyError: -1"
+    },
+    "section_4": {
+      "name": "Noisy Simulation + ZNE",
+      "success": false,
+      "elapsed_s": 23.48,
+      "data": {
+        "topology": "heavy_hex",
+        "n_qubits": 10,
+        "n_params": 19,
+        "results_per_h": [
+          {
+            "h": 4.0,
+            "error": "run_gate_folding_zne() got an unexpected keyword argument 'circuit'",
+            "zne_positive": false
+          },
+          {
+            "h": 3.5,
+            "error": "run_gate_folding_zne() got an unexpected keyword argument 'circuit'",
+            "zne_positive": false
+          }
+        ],
+        "n_positive_gain": 0,
+        "n_total": 2,
+        "pass": false
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 0,
+    "n_failed": 2,
+    "pass_rate": 0.0,
+    "total_time_s": 102.44,
+    "total_elapsed_s": 102.44,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T22:15:55.110639",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "BOND_RESOLVED_SCALING",
+    "category": "B",
+    "hypothesis": "Bond-resolved HVA scales to 2D square lattice, GNN predicts high-dimensional theta_opt, and ZNE remains effective",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 0,
+      "n_failed": 2,
+      "pass_rate": 0.0,
+      "total_time_s": 102.44,
+      "total_elapsed_s": 102.44,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_3": {
+        "name": "MPNN Training (heavy-hex N=10)",
+        "success": false,
+        "elapsed_s": 78.96,
+        "data": {},
+        "error": "KeyError: -1"
+      },
+      "section_4": {
+        "name": "Noisy Simulation + ZNE",
+        "success": false,
+        "elapsed_s": 23.48,
+        "data": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "n_params": 19,
+          "results_per_h": [
+            {
+              "h": 4.0,
+              "error": "run_gate_folding_zne() got an unexpected keyword argument 'circuit'",
+              "zne_positive": false
+            },
+            {
+              "h": 3.5,
+              "error": "run_gate_folding_zne() got an unexpected keyword argument 'circuit'",
+              "zne_positive": false
+            }
+          ],
+          "n_positive_gain": 0,
+          "n_total": 2,
+          "pass": false
+        },
+        "error": null
+      }
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "experiment": "mps_scaling_phase3",
+  "metadata": {
+    "n_qubits": 40,
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "source_file": "results/scaling/scaling_N40_aer_mps_20260608_001053.json",
+    "seed": 42,
+    "hidden_dim": 128,
+    "n_epochs": 6000,
+    "strategy": "aer_mps"
+  },
+  "training": {
+    "final_mse": 7.508582712034695e-06,
+    "n_train_points": 9,
+    "train_time_s": 23.439328908920288,
+    "stopped_early": false
+  },
+  "deployment": {
+    "h_test": [
+      3.0,
+      2.75,
+      2.5
+    ],
+    "results": [
+      {
+        "h": 3.0,
+        "theta_pred": [
+          0.08693545311689377,
+          0.3932819962501526
+        ],
+        "e_pred": -123.2516,
+        "e_dmrg": -123.27199894101183,
+        "gap": 4.0,
+        "de_gap": 0.005099735252958482,
+        "passed": true,
+        "time_s": 8.781218767166138
+      },
+      {
+        "h": 2.75,
+        "theta_pred": [
+          0.0972800999879837,
+          0.3939136862754822
+        ],
+        "e_pred": -113.49917499999997,
+        "e_dmrg": -113.57416758943138,
+        "gap": 3.5,
+        "de_gap": 0.021426454123262113,
+        "passed": true,
+        "time_s": 8.03961992263794
+      },
+      {
+        "h": 2.5,
+        "theta_pred": [
+          0.11166279762983322,
+          0.3787943422794342
+        ],
+        "e_pred": -103.74325,
+        "e_dmrg": -103.93848913973179,
+        "gap": 3.0,
+        "de_gap": 0.06507971324392751,
+        "passed": false,
+        "time_s": 7.907047271728516
+      }
+    ],
+    "n_pass": 2,
+    "n_total": 3,
+    "mean_de_gap": 0.030535300873382704,
+    "all_passed": false
+  }
+}

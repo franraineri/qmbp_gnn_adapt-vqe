@@ -1,0 +1,217 @@
+{
+  "timestamp": "2026-06-05T16:21:26.598025",
+  "config": {
+    "runner_id": "transpiler_exploration",
+    "experiment_id": "TRANSPILER_EXPLORATION",
+    "description": "Compare optimization_level 0-3, approximation_degree, and noise suppression stack for HVA p=1 N=10 heavy_hex",
+    "hypothesis": "Level 3 + KAK resynthesis reduces 2Q gates; PEA-ZNE remains best noise mitigation strategy",
+    "category": "T",
+    "system": {},
+    "seeds": []
+  },
+  "elapsed_s": 11.019713878631592,
+  "results": {
+    "section_1": {
+      "name": "Transpiler Level Comparison",
+      "success": true,
+      "elapsed_s": 11.02,
+      "data": {
+        "layout": [
+          24,
+          25,
+          23,
+          26,
+          35,
+          16,
+          22,
+          27,
+          44,
+          4
+        ],
+        "per_level": [
+          {
+            "optimization_level": 0,
+            "depth": 127,
+            "n_2q_gates": 36,
+            "n_1q_gates": 233,
+            "ces": 0.13341602041953293,
+            "gate_counts": {
+              "rz": 131,
+              "sx": 102,
+              "cz": 36
+            },
+            "transpile_time_s": 0.013
+          },
+          {
+            "optimization_level": 1,
+            "depth": 105,
+            "n_2q_gates": 36,
+            "n_1q_gates": 153,
+            "ces": 0.13341602041953293,
+            "gate_counts": {
+              "rz": 77,
+              "sx": 76,
+              "cz": 36
+            },
+            "transpile_time_s": 0.017
+          },
+          {
+            "optimization_level": 2,
+            "depth": 80,
+            "n_2q_gates": 34,
+            "n_1q_gates": 164,
+            "ces": 0.12513421696855198,
+            "gate_counts": {
+              "sx": 84,
+              "rz": 72,
+              "cz": 34,
+              "x": 8
+            },
+            "transpile_time_s": 0.055
+          },
+          {
+            "optimization_level": 3,
+            "depth": 89,
+            "n_2q_gates": 34,
+            "n_1q_gates": 166,
+            "ces": 0.1270656447244647,
+            "gate_counts": {
+              "sx": 85,
+              "rz": 74,
+              "cz": 34,
+              "x": 7
+            },
+            "transpile_time_s": 0.167
+          }
+        ],
+        "logical_depth": 9,
+        "logical_ops": {
+          "h": 10,
+          "rx": 10,
+          "rzz": 9
+        },
+        "decomposed_depth": 23,
+        "level3_vs_level2_2q_reduction": 0
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 1,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 11.02,
+    "total_elapsed_s": 11.02,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T16:21:26.333474",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "TRANSPILER_EXPLORATION",
+    "category": "T",
+    "hypothesis": "Level 3 + KAK resynthesis reduces 2Q gates; PEA-ZNE remains best noise mitigation strategy",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 1,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 11.02,
+      "total_elapsed_s": 11.02,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Transpiler Level Comparison",
+        "success": true,
+        "elapsed_s": 11.02,
+        "data": {
+          "layout": [
+            24,
+            25,
+            23,
+            26,
+            35,
+            16,
+            22,
+            27,
+            44,
+            4
+          ],
+          "per_level": [
+            {
+              "optimization_level": 0,
+              "depth": 127,
+              "n_2q_gates": 36,
+              "n_1q_gates": 233,
+              "ces": 0.13341602041953293,
+              "gate_counts": {
+                "rz": 131,
+                "sx": 102,
+                "cz": 36
+              },
+              "transpile_time_s": 0.013
+            },
+            {
+              "optimization_level": 1,
+              "depth": 105,
+              "n_2q_gates": 36,
+              "n_1q_gates": 153,
+              "ces": 0.13341602041953293,
+              "gate_counts": {
+                "rz": 77,
+                "sx": 76,
+                "cz": 36
+              },
+              "transpile_time_s": 0.017
+            },
+            {
+              "optimization_level": 2,
+              "depth": 80,
+              "n_2q_gates": 34,
+              "n_1q_gates": 164,
+              "ces": 0.12513421696855198,
+              "gate_counts": {
+                "sx": 84,
+                "rz": 72,
+                "cz": 34,
+                "x": 8
+              },
+              "transpile_time_s": 0.055
+            },
+            {
+              "optimization_level": 3,
+              "depth": 89,
+              "n_2q_gates": 34,
+              "n_1q_gates": 166,
+              "ces": 0.1270656447244647,
+              "gate_counts": {
+                "sx": 85,
+                "rz": 74,
+                "cz": 34,
+                "x": 7
+              },
+              "transpile_time_s": 0.167
+            }
+          ],
+          "logical_depth": 9,
+          "logical_ops": {
+            "h": 10,
+            "rx": 10,
+            "rzz": 9
+          },
+          "decomposed_depth": 23,
+          "level3_vs_level2_2q_reduction": 0
+        },
+        "error": null
+      }
+    }
+  }
+}

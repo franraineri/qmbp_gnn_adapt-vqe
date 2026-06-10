@@ -1,0 +1,1234 @@
+[
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_0.00",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_0.00/pipeline_run_20260601_013321.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 3.1415929036118153,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 57.329833030700684,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=3.142 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_0.25",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_0.25/pipeline_run_20260601_013407.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.8436672225096603,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 39.325939893722534,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_0.50",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_0.50/pipeline_run_20260601_013505.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 3.926605590797015,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 50.285279989242554,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=3.927 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_0.75",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_0.75/pipeline_run_20260601_013552.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 4.475719609974877,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 39.15621089935303,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=4.476 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_1.00",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_1.00/pipeline_run_20260601_013635.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.431672677191377,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 36.554940938949585,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_1.25",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_1.25/pipeline_run_20260601_013717.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.0,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 34.05555725097656,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_1.50",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_1.50/pipeline_run_20260601_013806.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 4.712388972632145,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 42.55780100822449,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=4.712 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_delta_sweep_2.00",
+    "file": "results/thesis/variants_N6_heisenberg/ext_delta_sweep_2.00/pipeline_run_20260601_013844.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.5312071602764268,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 31.316163063049316,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_p1_heisenberg",
+    "file": "results/thesis/variants_N6_heisenberg/ext_p1_heisenberg/pipeline_run_20260601_014111.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 1,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 1.827181688355287,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 4.630086898803711,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=1.827 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_tfim_baseline",
+    "file": "results/thesis/variants_N6_heisenberg/ext_tfim_baseline/pipeline_run_20260601_013046.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 5,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.03922290909903148,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": 5.7611066949903034e-05,
+    "per_h_mse": {
+      "4.0000": 6.761695840395987e-05,
+      "3.5000": 2.8891128749819472e-05,
+      "3.0000": 2.1765825295005925e-05,
+      "2.5000": 4.903218723484315e-05,
+      "2.0000": 7.937689224490896e-05
+    },
+    "deployment_points": [
+      {
+        "h_test": 3.25,
+        "de_gap": 0.0027837395573584484,
+        "verdict": "PASS"
+      }
+    ],
+    "error_from_circuit": 0.0,
+    "error_from_mpnn": 0.013219534294382385,
+    "elapsed_s": 32.00395679473877,
+    "root_causes": [],
+    "severity": "PASS",
+    "explanation": "Run passed \u2014 no diagnosis needed.",
+    "recommendations": []
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_xy_extended",
+    "file": "results/thesis/variants_N6_heisenberg/ext_xy_extended/pipeline_run_20260601_013216.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0,
+      2.75,
+      2.5,
+      2.25,
+      2.0,
+      1.75,
+      1.5
+    ],
+    "theta_smoothness": 1.570796325707237,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 79.73033499717712,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=1.571 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_xy_ladder_seed42",
+    "file": "results/thesis/variants_N6_heisenberg/ext_xy_ladder_seed42/pipeline_run_20260601_013927.json",
+    "topology": "ladder",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 3.8293648927415873,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 36.08796000480652,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=3.829 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_xy_ladder_seed43",
+    "file": "results/thesis/variants_N6_heisenberg/ext_xy_ladder_seed43/pipeline_run_20260601_014014.json",
+    "topology": "ladder",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 43,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.24755013205320606,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 40.245707988739014,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "ext_xy_ladder_seed44",
+    "file": "results/thesis/variants_N6_heisenberg/ext_xy_ladder_seed44/pipeline_run_20260601_014059.json",
+    "topology": "ladder",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 44,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 3.1415926428535146,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 38.96334195137024,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=3.142 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_deep_isotropic",
+    "file": "results/thesis/variants_N6_heisenberg/nl_deep_isotropic/pipeline_run_20260601_012653.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0,
+      1.5,
+      1.0,
+      0.5
+    ],
+    "theta_smoothness": 0.7747390582436129,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 105.37651371955872,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_deep_xy",
+    "file": "results/thesis/variants_N6_heisenberg/nl_deep_xy/pipeline_run_20260601_012455.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0,
+      1.5,
+      1.0,
+      0.5
+    ],
+    "theta_smoothness": 0.8011311057836632,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 57.84611201286316,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_delta_intermediate",
+    "file": "results/thesis/variants_N6_heisenberg/nl_delta_intermediate/pipeline_run_20260601_011649.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 1.8257275147530367,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 37.567874908447266,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=1.826 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_delta_ising_like",
+    "file": "results/thesis/variants_N6_heisenberg/nl_delta_ising_like/pipeline_run_20260601_011804.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 3.942798451466704,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 33.31093668937683,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=3.943 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_delta_isotropic",
+    "file": "results/thesis/variants_N6_heisenberg/nl_delta_isotropic/pipeline_run_20260601_011723.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.4277796673090181,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 25.671551942825317,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_delta_xy",
+    "file": "results/thesis/variants_N6_heisenberg/nl_delta_xy/pipeline_run_20260601_011600.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.0,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 31.294833183288574,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_restarts_10",
+    "file": "results/thesis/variants_N6_heisenberg/nl_restarts_10/pipeline_run_20260601_012143.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 1.5707963083108814,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 42.819825887680054,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=1.571 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_restarts_15",
+    "file": "results/thesis/variants_N6_heisenberg/nl_restarts_15/pipeline_run_20260601_012237.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 15,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.0,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 45.57602524757385,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_restarts_20",
+    "file": "results/thesis/variants_N6_heisenberg/nl_restarts_20/pipeline_run_20260601_012350.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 20,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 1.5707963401047644,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 66.93915390968323,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=1.571 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_restarts_5",
+    "file": "results/thesis/variants_N6_heisenberg/nl_restarts_5/pipeline_run_20260601_012052.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.0,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 37.37175393104553,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_seed_42",
+    "file": "results/thesis/variants_N6_heisenberg/nl_seed_42/pipeline_run_20260601_011843.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 3.1415925131217004,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 32.279890060424805,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=3.142 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_seed_43",
+    "file": "results/thesis/variants_N6_heisenberg/nl_seed_43/pipeline_run_20260601_011929.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 43,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 4.712388931797839,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 38.47795581817627,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=4.712 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_seed_44",
+    "file": "results/thesis/variants_N6_heisenberg/nl_seed_44/pipeline_run_20260601_012005.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 44,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 2.15043089698956,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 28.36862587928772,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=2.150 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_topo_chain_1d",
+    "file": "results/thesis/variants_N6_heisenberg/nl_topo_chain_1d/pipeline_run_20260601_012809.json",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 1.5707962089920937,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 59.45281505584717,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=1.571 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_topo_ladder",
+    "file": "results/thesis/variants_N6_heisenberg/nl_topo_ladder/pipeline_run_20260601_012854.json",
+    "topology": "ladder",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 0.0,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 37.23657512664795,
+    "root_causes": [
+      "UNKNOWN"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "No standard failure pattern detected \u2014 manual investigation needed",
+    "recommendations": [
+      "Check per-h MSE and MPNN training curves"
+    ]
+  },
+  {
+    "folder": "variants_N6_heisenberg",
+    "variant": "nl_topo_triangular",
+    "file": "results/thesis/variants_N6_heisenberg/nl_topo_triangular/pipeline_run_20260601_013006.json",
+    "topology": "triangular",
+    "n_qubits": 6,
+    "p_layers": 2,
+    "seed": 42,
+    "n_restarts": 10,
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "theta_smoothness": 4.518704556157378,
+    "convergence_rate": 1.0,
+    "per_h_converged": [
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "generalization_gap": null,
+    "per_h_mse": {},
+    "deployment_points": [],
+    "error_from_circuit": null,
+    "error_from_mpnn": null,
+    "elapsed_s": 66.049733877182,
+    "root_causes": [
+      "CHAIN_BREAK"
+    ],
+    "severity": "NO_PHASE4",
+    "explanation": "\u03b8_smoothness=4.519 > 1.0 \u2014 warm-start chain disrupted (restart paradox)",
+    "recommendations": [
+      "Reduce n_restarts to 3 or increase h-grid density"
+    ]
+  }
+]

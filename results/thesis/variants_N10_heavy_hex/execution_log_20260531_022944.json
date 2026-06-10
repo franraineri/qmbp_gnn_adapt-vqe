@@ -1,0 +1,114 @@
+{
+  "timestamp": "20260531_022944",
+  "topology": "heavy_hex",
+  "n_qubits": 10,
+  "total_variants": 4,
+  "passed": 4,
+  "failed": 0,
+  "total_elapsed_s": 144.49363374710083,
+  "verdicts": {
+    "PASS": 0,
+    "MARGINAL": 0,
+    "FAIL": 0,
+    "ZNE-PASS": 0,
+    "ZNE-FAIL": 4,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "NY-A-p1-zne-s42",
+      "success": true,
+      "verdict": "ZNE-FAIL",
+      "elapsed_s": 35.56,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": false,
+        "mean_r2": 0.9980400748378407,
+        "mean_gain_pct": 76.44937447329674,
+        "n_mitigated_wins": 3,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-p1-zne-s43",
+      "success": true,
+      "verdict": "ZNE-FAIL",
+      "elapsed_s": 34.82,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": false,
+        "mean_r2": 0.9982231645682815,
+        "mean_gain_pct": 34.70732152022686,
+        "n_mitigated_wins": 3,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-A-p1-zne-s44",
+      "success": true,
+      "verdict": "ZNE-FAIL",
+      "elapsed_s": 34.56,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": false,
+        "mean_r2": 0.9976188716341329,
+        "mean_gain_pct": 76.88096704314381,
+        "n_mitigated_wins": 3,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NY-B-p2-zne",
+      "success": true,
+      "verdict": "ZNE-FAIL",
+      "elapsed_s": 39.55,
+      "delta_e_over_gap": null,
+      "noisy_summary": {
+        "success": false,
+        "mean_r2": 0.9812021960638383,
+        "mean_gain_pct": -15.284933053990185,
+        "n_mitigated_wins": 0,
+        "n_total": 3
+      },
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "NY-A-p1-zne-s42",
+      "description": "p=1 heavy_hex ZNE seed=42 (hardware deployment validation)",
+      "category": "noisy",
+      "hypothesis": "p=1 heavy_hex ZNE with seed=42 achieves positive gain. CX count for p=1 heavy_hex N=10 = 18 (at threshold). Key advantage: zero SWAP overhead on IBM Torino hardware.",
+      "expected_outcome": "PASS expected \u2014 p=1 heavy_hex has same CX count as chain_1d p=1 (both 18 CX), and chain_1d ZNE works (+46% gain). The real advantage is zero SWAP routing on hardware."
+    },
+    {
+      "id": "NY-A-p1-zne-s43",
+      "description": "p=1 heavy_hex ZNE seed=43 (hardware deployment validation)",
+      "category": "noisy",
+      "hypothesis": "p=1 heavy_hex ZNE with seed=43 achieves positive gain. CX count for p=1 heavy_hex N=10 = 18 (at threshold). Key advantage: zero SWAP overhead on IBM Torino hardware.",
+      "expected_outcome": "PASS expected \u2014 p=1 heavy_hex has same CX count as chain_1d p=1 (both 18 CX), and chain_1d ZNE works (+46% gain). The real advantage is zero SWAP routing on hardware."
+    },
+    {
+      "id": "NY-A-p1-zne-s44",
+      "description": "p=1 heavy_hex ZNE seed=44 (hardware deployment validation)",
+      "category": "noisy",
+      "hypothesis": "p=1 heavy_hex ZNE with seed=44 achieves positive gain. CX count for p=1 heavy_hex N=10 = 18 (at threshold). Key advantage: zero SWAP overhead on IBM Torino hardware.",
+      "expected_outcome": "PASS expected \u2014 p=1 heavy_hex has same CX count as chain_1d p=1 (both 18 CX), and chain_1d ZNE works (+46% gain). The real advantage is zero SWAP routing on hardware."
+    },
+    {
+      "id": "NY-B-p2-zne",
+      "description": "p=2 heavy_hex ZNE (expected failure \u2014 documents CX boundary)",
+      "category": "noisy",
+      "hypothesis": "p=2 heavy_hex ZNE fails (CX count > 18 threshold)",
+      "expected_outcome": "FAIL expected \u2014 p=2 N=10 on any topology exceeds CX threshold. Documents that heavy-hex doesn't magically fix the ZNE boundary."
+    }
+  ]
+}

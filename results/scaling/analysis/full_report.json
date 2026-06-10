@@ -1,0 +1,599 @@
+{
+  "overall_verdict": "PASS",
+  "n_files_scanned": 4,
+  "n_runs": 4,
+  "anomalies": [
+    "N=40: Total time 12230s > 2h (unexpected)"
+  ],
+  "runs": [
+    {
+      "n_qubits": 40,
+      "topology": "chain_1d",
+      "strategy": "aer_mps",
+      "chi_max": 64,
+      "precision": 0.005,
+      "seed": 42,
+      "p_layers": 1,
+      "h_values": [
+        5.0103170990852774,
+        4.7603170990852774,
+        4.5103170990852774,
+        4.2603170990852774,
+        4.0103170990852774
+      ],
+      "phase1_time_s": 15.375702857971191,
+      "phase2_time_s": 1555.3132438659668,
+      "total_time_s": 1570.688946723938,
+      "n_pass": 5,
+      "n_total": 5,
+      "all_passed": true,
+      "mean_de_gap": 0.004921381436606991,
+      "max_de_gap": 0.0060013617974283805,
+      "min_de_gap": 0.0025548426543378243,
+      "per_h_results": [
+        {
+          "h": 5.0103170990852774,
+          "vqe_energy": -202.40155609206698,
+          "dmrg_energy": -202.3633090165906,
+          "gap": 8.020634198170555,
+          "de_gap": 0.004768584943708736,
+          "time_s": 308.3045220375061,
+          "passed": true,
+          "n_iterations": 25
+        },
+        {
+          "h": 4.7603170990852774,
+          "vqe_energy": -192.51141712605275,
+          "dmrg_energy": -192.46628307928341,
+          "gap": 7.520634198170555,
+          "de_gap": 0.0060013617974283805,
+          "time_s": 259.647714138031,
+          "passed": true,
+          "n_iterations": 31
+        },
+        {
+          "h": 4.5103170990852774,
+          "vqe_energy": -182.62249358258353,
+          "dmrg_energy": -182.58076997523216,
+          "gap": 7.020634198170555,
+          "de_gap": 0.005942996910769746,
+          "time_s": 352.0610496997833,
+          "passed": true,
+          "n_iterations": 21
+        },
+        {
+          "h": 4.2603170990852774,
+          "vqe_energy": -172.74363636061423,
+          "dmrg_energy": -172.70882190643687,
+          "gap": 6.520634198170555,
+          "de_gap": 0.005339120876790264,
+          "time_s": 323.01062297821045,
+          "passed": true,
+          "n_iterations": 19
+        },
+        {
+          "h": 4.0103170990852774,
+          "vqe_energy": -162.86839350672244,
+          "dmrg_energy": -162.8530117336668,
+          "gap": 6.020634198170555,
+          "de_gap": 0.0025548426543378243,
+          "time_s": 312.2874789237976,
+          "passed": true,
+          "n_iterations": 29
+        }
+      ],
+      "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/scaling/scaling_N40_aer_mps_20260607_162333.json"
+    },
+    {
+      "n_qubits": 40,
+      "topology": "chain_1d",
+      "strategy": "aer_mps",
+      "chi_max": 64,
+      "precision": 0.005,
+      "seed": 42,
+      "p_layers": 1,
+      "h_values": [
+        5.0,
+        4.75,
+        4.5,
+        4.25,
+        4.0,
+        3.75,
+        3.5,
+        3.25,
+        3.0
+      ],
+      "phase1_time_s": 32.52462697029114,
+      "phase2_time_s": 12197.923211097717,
+      "total_time_s": 12230.447838068008,
+      "n_pass": 27,
+      "n_total": 27,
+      "all_passed": true,
+      "mean_de_gap": 0.006827247261125808,
+      "max_de_gap": 0.02356223525296386,
+      "min_de_gap": 0.0008100741681076329,
+      "per_h_results": [
+        {
+          "h": 5.0,
+          "vqe_energy": -201.96115,
+          "dmrg_energy": -201.95466940665514,
+          "gap": 8.0,
+          "de_gap": 0.0008100741681076329,
+          "time_s": 390.0976881980896,
+          "passed": true,
+          "n_iterations": 41
+        },
+        {
+          "h": 4.75,
+          "vqe_energy": -192.076325,
+          "dmrg_energy": -192.05808343408626,
+          "gap": 7.5,
+          "de_gap": 0.0024322087884987315,
+          "time_s": 327.8904757499695,
+          "passed": true,
+          "n_iterations": 28
+        },
+        {
+          "h": 4.5,
+          "vqe_energy": -182.19964999999993,
+          "dmrg_energy": -182.1730864439511,
+          "gap": 7.0,
+          "de_gap": 0.0037947937212631394,
+          "time_s": 341.3712980747223,
+          "passed": true,
+          "n_iterations": 25
+        },
+        {
+          "h": 4.25,
+          "vqe_energy": -172.33102500000004,
+          "dmrg_energy": -172.30174935194728,
+          "gap": 6.5,
+          "de_gap": 0.004503945854270779,
+          "time_s": 279.5137050151825,
+          "passed": true,
+          "n_iterations": 26
+        },
+        {
+          "h": 4.0,
+          "vqe_energy": -162.45505000000006,
+          "dmrg_energy": -162.44666988232802,
+          "gap": 6.0,
+          "de_gap": 0.0013966862786721397,
+          "time_s": 281.72461199760437,
+          "passed": true,
+          "n_iterations": 19
+        },
+        {
+          "h": 3.75,
+          "vqe_energy": -152.61594999999997,
+          "dmrg_energy": -152.61115231785334,
+          "gap": 5.5,
+          "de_gap": 0.0008723058448419414,
+          "time_s": 316.44191002845764,
+          "passed": true,
+          "n_iterations": 32
+        },
+        {
+          "h": 3.5,
+          "vqe_energy": -142.79520000000002,
+          "dmrg_energy": -142.79946669259218,
+          "gap": 5.0,
+          "de_gap": 0.0008533385184307463,
+          "time_s": 318.5294289588928,
+          "passed": true,
+          "n_iterations": 27
+        },
+        {
+          "h": 3.25,
+          "vqe_energy": -132.98842500000003,
+          "dmrg_energy": -133.01723195860157,
+          "gap": 4.5,
+          "de_gap": 0.006401546355896749,
+          "time_s": 401.9790210723877,
+          "passed": true,
+          "n_iterations": 29
+        },
+        {
+          "h": 3.0,
+          "vqe_energy": -123.25285000000002,
+          "dmrg_energy": -123.27199894101183,
+          "gap": 4.0,
+          "de_gap": 0.00478723525295166,
+          "time_s": 845.7132368087769,
+          "passed": true,
+          "n_iterations": 33
+        },
+        {
+          "h": 5.0,
+          "vqe_energy": -202.04230000000004,
+          "dmrg_energy": -201.95466940665514,
+          "gap": 8.0,
+          "de_gap": 0.010953824168112192,
+          "time_s": 899.7944240570068,
+          "passed": true,
+          "n_iterations": 36
+        },
+        {
+          "h": 4.75,
+          "vqe_energy": -192.14007499999994,
+          "dmrg_energy": -192.05808343408626,
+          "gap": 7.5,
+          "de_gap": 0.010932208788491,
+          "time_s": 437.20813488960266,
+          "passed": true,
+          "n_iterations": 26
+        },
+        {
+          "h": 4.5,
+          "vqe_energy": -182.23825,
+          "dmrg_energy": -182.1730864439511,
+          "gap": 7.0,
+          "de_gap": 0.009309079435557319,
+          "time_s": 378.20733094215393,
+          "passed": true,
+          "n_iterations": 21
+        },
+        {
+          "h": 4.25,
+          "vqe_energy": -172.35172499999996,
+          "dmrg_energy": -172.30174935194728,
+          "gap": 6.5,
+          "de_gap": 0.007688561238873822,
+          "time_s": 697.8864440917969,
+          "passed": true,
+          "n_iterations": 20
+        },
+        {
+          "h": 4.0,
+          "vqe_energy": -162.47019999999995,
+          "dmrg_energy": -162.44666988232802,
+          "gap": 6.0,
+          "de_gap": 0.003921686278654117,
+          "time_s": 563.7453169822693,
+          "passed": true,
+          "n_iterations": 43
+        },
+        {
+          "h": 3.75,
+          "vqe_energy": -152.63235,
+          "dmrg_energy": -152.61115231785334,
+          "gap": 5.5,
+          "de_gap": 0.003854124026666093,
+          "time_s": 616.717499256134,
+          "passed": true,
+          "n_iterations": 23
+        },
+        {
+          "h": 3.5,
+          "vqe_energy": -142.81390000000005,
+          "dmrg_energy": -142.79946669259218,
+          "gap": 5.0,
+          "de_gap": 0.0028866614815740376,
+          "time_s": 533.9406719207764,
+          "passed": true,
+          "n_iterations": 19
+        },
+        {
+          "h": 3.25,
+          "vqe_energy": -133.007925,
+          "dmrg_energy": -133.01723195860157,
+          "gap": 4.5,
+          "de_gap": 0.0020682130225711465,
+          "time_s": 556.4721300601959,
+          "passed": true,
+          "n_iterations": 24
+        },
+        {
+          "h": 3.0,
+          "vqe_energy": -123.24155000000003,
+          "dmrg_energy": -123.27199894101183,
+          "gap": 4.0,
+          "de_gap": 0.007612235252949517,
+          "time_s": 570.1460280418396,
+          "passed": true,
+          "n_iterations": 22
+        },
+        {
+          "h": 5.0,
+          "vqe_energy": -201.86624999999995,
+          "dmrg_energy": -201.95466940665514,
+          "gap": 8.0,
+          "de_gap": 0.011052425831898915,
+          "time_s": 385.57924604415894,
+          "passed": true,
+          "n_iterations": 22
+        },
+        {
+          "h": 4.75,
+          "vqe_energy": -192.0094999999999,
+          "dmrg_energy": -192.05808343408626,
+          "gap": 7.5,
+          "de_gap": 0.006477791211515675,
+          "time_s": 355.16816425323486,
+          "passed": true,
+          "n_iterations": 25
+        },
+        {
+          "h": 4.5,
+          "vqe_energy": -182.13814999999997,
+          "dmrg_energy": -182.1730864439511,
+          "gap": 7.0,
+          "de_gap": 0.004990920564446404,
+          "time_s": 457.06136298179626,
+          "passed": true,
+          "n_iterations": 33
+        },
+        {
+          "h": 4.25,
+          "vqe_energy": -172.26160000000002,
+          "dmrg_energy": -172.30174935194728,
+          "gap": 6.5,
+          "de_gap": 0.006176823376502118,
+          "time_s": 388.31459307670593,
+          "passed": true,
+          "n_iterations": 20
+        },
+        {
+          "h": 4.0,
+          "vqe_energy": -162.3989,
+          "dmrg_energy": -162.44666988232802,
+          "gap": 6.0,
+          "de_gap": 0.007961647054671062,
+          "time_s": 462.9910569190979,
+          "passed": true,
+          "n_iterations": 32
+        },
+        {
+          "h": 3.75,
+          "vqe_energy": -152.55180000000001,
+          "dmrg_energy": -152.61115231785334,
+          "gap": 5.5,
+          "de_gap": 0.010791330518786295,
+          "time_s": 327.57984471321106,
+          "passed": true,
+          "n_iterations": 21
+        },
+        {
+          "h": 3.5,
+          "vqe_energy": -142.73694999999995,
+          "dmrg_energy": -142.79946669259218,
+          "gap": 5.0,
+          "de_gap": 0.012503338518445161,
+          "time_s": 410.7152280807495,
+          "passed": true,
+          "n_iterations": 20
+        },
+        {
+          "h": 3.25,
+          "vqe_energy": -132.94640000000004,
+          "dmrg_energy": -133.01723195860157,
+          "gap": 4.5,
+          "de_gap": 0.015740435244784596,
+          "time_s": 339.567734003067,
+          "passed": true,
+          "n_iterations": 22
+        },
+        {
+          "h": 3.0,
+          "vqe_energy": -123.17774999999997,
+          "dmrg_energy": -123.27199894101183,
+          "gap": 4.0,
+          "de_gap": 0.02356223525296386,
+          "time_s": 313.5588788986206,
+          "passed": true,
+          "n_iterations": 25
+        }
+      ],
+      "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/scaling/scaling_N40_aer_mps_20260608_001053.json"
+    },
+    {
+      "n_qubits": 50,
+      "topology": "chain_1d",
+      "strategy": "aer_mps",
+      "chi_max": 64,
+      "precision": 0.005,
+      "seed": 42,
+      "p_layers": 1,
+      "h_values": [
+        5.862642528483546,
+        5.612642528483546,
+        5.362642528483546,
+        5.112642528483546,
+        4.862642528483546
+      ],
+      "phase1_time_s": 19.556994676589966,
+      "phase2_time_s": 1783.8387310504913,
+      "total_time_s": 1803.3957257270813,
+      "n_pass": 5,
+      "n_total": 5,
+      "all_passed": true,
+      "mean_de_gap": 0.0036327271692206857,
+      "max_de_gap": 0.004906121755520404,
+      "min_de_gap": 0.000999321080462151,
+      "per_h_results": [
+        {
+          "h": 5.862642528483546,
+          "vqe_energy": -295.2350167032418,
+          "dmrg_energy": -295.22529802087087,
+          "gap": 9.725285056967092,
+          "de_gap": 0.000999321080462151,
+          "time_s": 457.05211901664734,
+          "passed": true,
+          "n_iterations": 37
+        },
+        {
+          "h": 5.612642528483546,
+          "vqe_energy": -282.8570978804768,
+          "dmrg_energy": -282.81888451451937,
+          "gap": 9.225285056967092,
+          "de_gap": 0.004142242296192721,
+          "time_s": 319.6982879638672,
+          "passed": true,
+          "n_iterations": 24
+        },
+        {
+          "h": 5.362642528483546,
+          "vqe_energy": -270.45133334257144,
+          "dmrg_energy": -270.4212500638048,
+          "gap": 8.725285056967092,
+          "de_gap": 0.003447827614827585,
+          "time_s": 350.89037704467773,
+          "passed": true,
+          "n_iterations": 22
+        },
+        {
+          "h": 5.112642528483546,
+          "vqe_energy": -258.07404812452796,
+          "dmrg_energy": -258.0336938745646,
+          "gap": 8.225285056967092,
+          "de_gap": 0.004906121755520404,
+          "time_s": 296.8889398574829,
+          "passed": true,
+          "n_iterations": 21
+        },
+        {
+          "h": 4.862642528483546,
+          "vqe_energy": -245.6938481245281,
+          "dmrg_energy": -245.65778554290654,
+          "gap": 7.725285056967092,
+          "de_gap": 0.004668123099100565,
+          "time_s": 359.30766916275024,
+          "passed": true,
+          "n_iterations": 20
+        }
+      ],
+      "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/scaling/scaling_N50_aer_mps_20260607_172041.json"
+    },
+    {
+      "n_qubits": 80,
+      "topology": "chain_1d",
+      "strategy": "aer_mps",
+      "chi_max": 64,
+      "precision": 0.005,
+      "seed": 42,
+      "p_layers": 1,
+      "h_values": [
+        8.724118874049037,
+        8.474118874049037,
+        8.224118874049037,
+        7.974118874049037,
+        7.724118874049037
+      ],
+      "phase1_time_s": 69.37101984024048,
+      "phase2_time_s": 39.3801851272583,
+      "total_time_s": 108.75120496749878,
+      "n_pass": 5,
+      "n_total": 5,
+      "all_passed": true,
+      "mean_de_gap": 0.000774646372073097,
+      "max_de_gap": 0.0009775940270307767,
+      "min_de_gap": 0.0006098990539376754,
+      "per_h_results": [
+        {
+          "h": 8.724118874049037,
+          "vqe_energy": -700.1857447710803,
+          "dmrg_energy": -700.1951666366679,
+          "gap": 15.448237748098073,
+          "de_gap": 0.0006098990539376754,
+          "time_s": 13.960866212844849,
+          "passed": true,
+          "n_iterations": 38
+        },
+        {
+          "h": 8.474118874049037,
+          "vqe_energy": -680.2520397729215,
+          "dmrg_energy": -680.2621195474051,
+          "gap": 14.948237748098073,
+          "de_gap": 0.0006743118923708267,
+          "time_s": 8.497473955154419,
+          "passed": true,
+          "n_iterations": 20
+        },
+        {
+          "h": 8.224118874049037,
+          "vqe_energy": -660.3222529156023,
+          "dmrg_energy": -660.333153755765,
+          "gap": 14.448237748098073,
+          "de_gap": 0.000754475414421902,
+          "time_s": 4.522300958633423,
+          "passed": true,
+          "n_iterations": 25
+        },
+        {
+          "h": 7.974118874049037,
+          "vqe_energy": -640.3967015865699,
+          "dmrg_energy": -640.4086545494483,
+          "gap": 13.948237748098075,
+          "de_gap": 0.0008569514726043041,
+          "time_s": 4.571794271469116,
+          "passed": true,
+          "n_iterations": 19
+        },
+        {
+          "h": 7.724118874049037,
+          "vqe_energy": -620.4759104240288,
+          "dmrg_energy": -620.4890573409255,
+          "gap": 13.448237748098075,
+          "de_gap": 0.0009775940270307767,
+          "time_s": 7.825334072113037,
+          "passed": true,
+          "n_iterations": 19
+        }
+      ],
+      "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/scaling/scaling_N80_aer_mps_20260607_211634.json"
+    }
+  ],
+  "scaling_law": [
+    {
+      "predicted_h_min": 3.510317099085278,
+      "actual_h_min": 4.0103170990852774,
+      "prediction_error": 0.49999999999999956,
+      "within_tolerance": true,
+      "n_qubits": 40
+    },
+    {
+      "predicted_h_min": 3.510317099085278,
+      "actual_h_min": 3.0,
+      "prediction_error": 0.5103170990852779,
+      "within_tolerance": false,
+      "n_qubits": 40
+    },
+    {
+      "predicted_h_min": 4.362642528483546,
+      "actual_h_min": 4.862642528483546,
+      "prediction_error": 0.5,
+      "within_tolerance": false,
+      "n_qubits": 50
+    },
+    {
+      "predicted_h_min": 7.224118874049037,
+      "actual_h_min": 7.724118874049037,
+      "prediction_error": 0.5,
+      "within_tolerance": false,
+      "n_qubits": 80
+    }
+  ],
+  "cross_n": {
+    "n_values": [
+      40,
+      50,
+      80
+    ],
+    "mean_de_gap_per_n": {
+      "40": 0.0058743143488664,
+      "50": 0.0036327271692206857,
+      "80": 0.000774646372073097
+    },
+    "timing_per_n": {
+      "40": 6900.568392395973,
+      "50": 1803.3957257270813,
+      "80": 108.75120496749878
+    },
+    "pass_rate_per_n": {
+      "40": 1.0,
+      "50": 1.0,
+      "80": 1.0
+    },
+    "scaling_law_valid": true
+  }
+}

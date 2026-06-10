@@ -1,0 +1,79 @@
+{
+  "config": {
+    "experiment_id": "E4c_pipeline",
+    "category": "E",
+    "model": "tfim_frustrated",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d"
+    },
+    "J2": 0.3,
+    "h_train": [
+      0.75,
+      0.875,
+      1.0,
+      1.125,
+      1.25,
+      1.375,
+      1.5,
+      1.625,
+      1.75,
+      1.875,
+      2.0,
+      2.125,
+      2.25,
+      2.375,
+      2.5
+    ],
+    "h_test": [
+      1.6,
+      1.35
+    ],
+    "seeds": [
+      42
+    ],
+    "description": "Full 4-phase pipeline for frustrated TFIM with MPNN (J\u2082 as node feature)",
+    "hypothesis": "MPNN with node_features=[h, coord, J\u2082] predicts \u03b8 at unseen h with \u0394E/gap<5%"
+  },
+  "analysis": {
+    "summary": {
+      "mean_de_gap": 0.006507965049003901,
+      "pass_rate": 1.0,
+      "total_time_s": 38.34617877006531
+    },
+    "phase2_mean_fidelity": 0.9993985006937146,
+    "phase3_final_mse": 0.011674799956381321,
+    "phase4_results": [
+      {
+        "h_test": 1.6,
+        "predicted_energy": -10.289163772460293,
+        "exact_energy": -10.295454529109069,
+        "delta_e_over_gap": 0.003056710525221379,
+        "gap": 2.0580151757484266,
+        "passed": true
+      },
+      {
+        "h_test": 1.35,
+        "predicted_energy": -8.884048517609575,
+        "exact_energy": -8.899921104612604,
+        "delta_e_over_gap": 0.009959219572786423,
+        "gap": 1.593758113979236,
+        "passed": true
+      }
+    ]
+  },
+  "results": {
+    "42": [
+      {
+        "h_test": 1.6,
+        "de_gap": 0.003056710525221379
+      },
+      {
+        "h_test": 1.35,
+        "de_gap": 0.009959219572786423
+      }
+    ]
+  },
+  "elapsed_s": 38.34617877006531
+}

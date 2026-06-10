@@ -1,0 +1,276 @@
+{
+  "timestamp": "2026-06-05T01:17:16.239416",
+  "config": {
+    "runner_id": "hardware_rehearsal_v2",
+    "experiment_id": "HW_REHEARSAL_V2",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "description": "Hardware Rehearsal V2 (PEA/GF/Adaptive ZNE via HardwareBackend)",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "h_train": [
+      4.5,
+      4.25,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "zne": {
+      "amplifier": "pea",
+      "r2_threshold": 0.9,
+      "shots": 16384,
+      "n_layouts": 3
+    },
+    "thresholds": {
+      "de_gap": 0.05,
+      "zne_r2": 0.8
+    },
+    "category": "H"
+  },
+  "elapsed_s": 52.52929878234863,
+  "results": {
+    "section_1": {
+      "name": "MPNN Prediction Quality (Noiseless)",
+      "success": true,
+      "elapsed_s": 15.13,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "de_gap": 0.0022164107952760454,
+            "pass": true
+          },
+          {
+            "h": 3.25,
+            "de_gap": 0.005484825731275394,
+            "pass": true
+          },
+          {
+            "h": 3.0,
+            "de_gap": 0.007892629390470375,
+            "pass": true
+          }
+        ],
+        "n_pass": 3,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "HardwareBackend Noisy Pipeline",
+      "success": false,
+      "elapsed_s": 20.23,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_exact": -40.56569043551275,
+            "e_zne": -40.38504028320311,
+            "gap": 5.921971082752414,
+            "de_gap": 0.030505071670440524,
+            "pass": true
+          },
+          {
+            "h": 3.25,
+            "e_exact": -33.198273652500575,
+            "e_zne": -33.00622558593749,
+            "gap": 4.429858148786295,
+            "de_gap": 0.04335309621950306,
+            "pass": true
+          },
+          {
+            "h": 3.0,
+            "e_exact": -30.757597386785978,
+            "e_zne": -30.54662068684895,
+            "gap": 3.9337583475541074,
+            "de_gap": 0.05363234883713864,
+            "pass": false
+          }
+        ],
+        "n_pass": 2,
+        "pass": false
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Full run_deployment() Pipeline",
+      "success": true,
+      "elapsed_s": 8.5,
+      "data": {
+        "h": 3.25,
+        "verdict": "PASS",
+        "verdict_reason": "\u0394E/gap=0.0434 < 5%, phase=paramagnetic correct",
+        "de_gap": 0.04335309621950306,
+        "zne_r2": 0.9984036726137409,
+        "phase_label": "paramagnetic",
+        "amplifier_used": "pea",
+        "mitigation_strategy": "pea_local",
+        "layout_std": 0.5934624684189193,
+        "fallback_triggered": false,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Adaptive ZNE Validation",
+      "success": true,
+      "elapsed_s": 8.62,
+      "data": {
+        "amplifier_used": "gate_folding",
+        "r_squared": 0.9924597970754463,
+        "fallback_triggered": false,
+        "de_gap": 0.6945797996604947,
+        "gf_r2": 0.9924597970754463,
+        "pea_r2": null,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 3,
+    "n_failed": 1,
+    "pass_rate": 0.75,
+    "total_time_s": 52.53,
+    "total_elapsed_s": 52.53,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T01:17:16.239393",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "HW_REHEARSAL_V2",
+    "category": "H",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 3,
+      "n_failed": 1,
+      "pass_rate": 0.75,
+      "total_time_s": 52.53,
+      "total_elapsed_s": 52.53,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "MPNN Prediction Quality (Noiseless)",
+        "success": true,
+        "elapsed_s": 15.13,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "de_gap": 0.0022164107952760454,
+              "pass": true
+            },
+            {
+              "h": 3.25,
+              "de_gap": 0.005484825731275394,
+              "pass": true
+            },
+            {
+              "h": 3.0,
+              "de_gap": 0.007892629390470375,
+              "pass": true
+            }
+          ],
+          "n_pass": 3,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "HardwareBackend Noisy Pipeline",
+        "success": false,
+        "elapsed_s": 20.23,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "e_zne": -40.38504028320311,
+              "gap": 5.921971082752414,
+              "de_gap": 0.030505071670440524,
+              "pass": true
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "e_zne": -33.00622558593749,
+              "gap": 4.429858148786295,
+              "de_gap": 0.04335309621950306,
+              "pass": true
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "e_zne": -30.54662068684895,
+              "gap": 3.9337583475541074,
+              "de_gap": 0.05363234883713864,
+              "pass": false
+            }
+          ],
+          "n_pass": 2,
+          "pass": false
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Full run_deployment() Pipeline",
+        "success": true,
+        "elapsed_s": 8.5,
+        "data": {
+          "h": 3.25,
+          "verdict": "PASS",
+          "verdict_reason": "\u0394E/gap=0.0434 < 5%, phase=paramagnetic correct",
+          "de_gap": 0.04335309621950306,
+          "zne_r2": 0.9984036726137409,
+          "phase_label": "paramagnetic",
+          "amplifier_used": "pea",
+          "mitigation_strategy": "pea_local",
+          "layout_std": 0.5934624684189193,
+          "fallback_triggered": false,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Adaptive ZNE Validation",
+        "success": true,
+        "elapsed_s": 8.62,
+        "data": {
+          "amplifier_used": "gate_folding",
+          "r_squared": 0.9924597970754463,
+          "fallback_triggered": false,
+          "de_gap": 0.6945797996604947,
+          "gf_r2": 0.9924597970754463,
+          "pea_r2": null,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

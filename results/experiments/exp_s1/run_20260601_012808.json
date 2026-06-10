@@ -1,0 +1,340 @@
+{
+  "config": {
+    "experiment_id": "S1",
+    "category": "S",
+    "description": "Entanglement entropy at h_min \u2014 explains scaling law causally",
+    "hypothesis": "S(h_min, N) is approximately constant across N, meaning HVA p=2 has a fixed entanglement capacity ~0.5-0.8 bits. The scaling exponent \u03b2=1.33 is a consequence of how S(h, N) grows with N in the TFIM.",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d",
+      "J": 1.0,
+      "h_values": [
+        0.5,
+        0.8,
+        1.0,
+        1.2,
+        1.4,
+        1.6,
+        1.8,
+        2.0
+      ],
+      "h_test": [
+        1.5
+      ],
+      "g_longitudinal": 0.0,
+      "boundary": "open",
+      "model": "tfim",
+      "delta": 1.0
+    },
+    "vqe": {
+      "optimizer": "L-BFGS-B",
+      "n_restarts": 5,
+      "maxiter": 1000,
+      "sigma": 0.1,
+      "ftol": 1e-14,
+      "use_analytical_init": false,
+      "freeze_params": null,
+      "freeze_after_h": null,
+      "use_hessian_check": false,
+      "hessian_escape_threshold": -1e-06,
+      "use_dypp": false,
+      "dypp_order": 2
+    },
+    "mpnn": {
+      "hidden_dim": 64,
+      "n_layers": 3,
+      "n_epochs": 6000,
+      "lr": 0.001,
+      "patience": 300,
+      "dropout": 0.1,
+      "use_physics_loss": false,
+      "physics_loss_weight": 0.1,
+      "physics_loss_start_epoch": 1000,
+      "physics_loss_eval_every": 100,
+      "sign_canonicalization": "none",
+      "use_active_learning": false,
+      "n_ensemble": 5,
+      "acquisition": "max_variance"
+    },
+    "analysis": {
+      "landscape_resolution": 20,
+      "tci_max_rank": 10,
+      "tci_tolerance": 0.0001,
+      "scaling_n_values": [
+        4,
+        6,
+        8,
+        10
+      ],
+      "weight_gradient_n_points": 40,
+      "fluctuation_n_samples": 100,
+      "threshold": 0.05,
+      "compute_hessian": false
+    },
+    "seeds": [
+      42
+    ],
+    "verbose": true,
+    "debug": true,
+    "compare_with_baseline": true,
+    "baseline_config": "v61_optimal",
+    "auto_warm_cold_comparison": false
+  },
+  "backend": "noiseless_statevector",
+  "analysis": {
+    "experiment_id": "S1",
+    "category": "S",
+    "hypothesis": "S(h_min, N) is approximately constant across N, meaning HVA p=2 has a fixed entanglement capacity ~0.5-0.8 bits. The scaling exponent \u03b2=1.33 is a consequence of how S(h, N) grows with N in the TFIM.",
+    "n_seeds": 1,
+    "timestamp": "20260601_012808",
+    "per_seed": {
+      "42": {
+        "mean_de_gap": 0.0,
+        "min_de_gap": 0.0,
+        "max_de_gap": 0.0,
+        "n_passing": 4,
+        "n_total": 4,
+        "total_time_s": 13.113315105438232
+      }
+    },
+    "summary": {
+      "mean_de_gap": 0.0,
+      "std_de_gap": 0.0,
+      "median_de_gap": 0.0,
+      "min_de_gap": 0.0,
+      "max_de_gap": 0.0,
+      "pass_rate": 1.0,
+      "n_total_points": 4,
+      "total_time_s": 13.113315105438232,
+      "convergence_rate": 1.0,
+      "mean_evaluations": 0.0
+    }
+  },
+  "results": {
+    "42": [
+      {
+        "h_value": 0.95,
+        "energy": 0.0,
+        "exact_energy": 0.0,
+        "energy_error": 0.0,
+        "gap": 1.0,
+        "relative_error": 0.0,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.008069992065429688,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "N": 4,
+          "h_min_p2": 0.95,
+          "h_min_p1": null,
+          "S_at_boundary_p2": 0.4450157886005999,
+          "S_at_boundary_p1": null,
+          "S_curve": {
+            "0.5": 0.864631974287288,
+            "0.8": 0.5682144352695833,
+            "1.0": 0.41098665651454225,
+            "1.2": 0.3048666362049229,
+            "1.4": 0.23415518031164098,
+            "1.6": 0.18566594689760743,
+            "1.8": 0.15117710483286165,
+            "2.0": 0.1257901475756923
+          },
+          "max_S": 0.864631974287288,
+          "S_at_h_1.0": 0.41098665651454225
+        }
+      },
+      {
+        "h_value": 1.2,
+        "energy": 0.0,
+        "exact_energy": 0.0,
+        "energy_error": 0.0,
+        "gap": 1.0,
+        "relative_error": 0.0,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.020168066024780273,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "N": 6,
+          "h_min_p2": 1.2,
+          "h_min_p1": 1.6,
+          "S_at_boundary_p2": 0.3334025247394962,
+          "S_at_boundary_p1": 0.19231840382649115,
+          "S_curve": {
+            "0.5": 0.9635524522686384,
+            "0.8": 0.686809597860664,
+            "1.0": 0.4731866425057328,
+            "1.2": 0.3334025247394962,
+            "1.4": 0.24752451295122394,
+            "1.6": 0.19231840382649115,
+            "1.8": 0.15470439858430451,
+            "2.0": 0.1277710461909549
+          },
+          "max_S": 0.9635524522686384,
+          "S_at_h_1.0": 0.4731866425057328
+        }
+      },
+      {
+        "h_value": 1.3,
+        "energy": 0.0,
+        "exact_energy": 0.0,
+        "energy_error": 0.0,
+        "gap": 1.0,
+        "relative_error": 0.0,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.2408161163330078,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "N": 8,
+          "h_min_p2": 1.3,
+          "h_min_p1": null,
+          "S_at_boundary_p2": 0.29353655443822785,
+          "S_at_boundary_p1": null,
+          "S_curve": {
+            "0.5": 0.9934364088593765,
+            "0.8": 0.7766863690066884,
+            "1.0": 0.5152749590579414,
+            "1.2": 0.34744016171060244,
+            "1.4": 0.25228356141680963,
+            "1.6": 0.19409387396764896,
+            "1.8": 0.15543579783720454,
+            "2.0": 0.12809969083985645
+          },
+          "max_S": 0.9934364088593765,
+          "S_at_h_1.0": 0.5152749590579414
+        }
+      },
+      {
+        "h_value": 1.4,
+        "energy": 0.0,
+        "exact_energy": 0.0,
+        "energy_error": 0.0,
+        "gap": 1.0,
+        "relative_error": 0.0,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 12.844260931015015,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "N": 10,
+          "h_min_p2": 1.4,
+          "h_min_p1": 1.9,
+          "S_at_boundary_p2": 0.2541152961137622,
+          "S_at_boundary_p1": 0.14077327821638916,
+          "S_curve": {
+            "0.5": 1.0014577038993535,
+            "0.8": 0.8470497223232044,
+            "1.0": 0.5468570255335922,
+            "1.2": 0.3549780068198001,
+            "1.4": 0.2541152961137622,
+            "1.6": 0.19460625419023642,
+            "1.8": 0.15560036443499012,
+            "2.0": 0.12815909542247292
+          },
+          "max_S": 1.0014577038993535,
+          "S_at_h_1.0": 0.5468570255335922
+        }
+      }
+    ]
+  },
+  "structured_log": {
+    "n_events": 2,
+    "timing_summary": {
+      "seed_complete": {
+        "count": 1,
+        "total_s": 13.11,
+        "mean_s": 13.114,
+        "max_s": 13.114
+      }
+    },
+    "failure_summary": {
+      "total_failures": 0,
+      "by_seed": {},
+      "by_h_value": {},
+      "reasons": []
+    },
+    "events": [
+      {
+        "timestamp": "2026-06-01T01:28:08.959",
+        "event_type": "seed_start",
+        "experiment_id": "S1",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "index": 0
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-06-01T01:28:22.073",
+        "event_type": "seed_complete",
+        "experiment_id": "S1",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "n_points": 4,
+          "elapsed_s": 13.114
+        },
+        "elapsed_s": 0.0
+      }
+    ]
+  },
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "timestamp": "2026-06-01T01:28:22.133357",
+    "run_id": "20260601_012808",
+    "qiskit": "2.4.1",
+    "torch": "2.11.0"
+  }
+}

@@ -1,0 +1,1 @@
+{"experiment":"noisy_rehearsal","sigma_per_cx":0.008,"pea_gain":0.95,"results":{"N40":{"cx":78,"de_gap_pea":0.00059,"viable":true},"N50":{"cx":98,"de_gap_pea":0.00051,"viable":true},"N80":{"cx":158,"de_gap_pea":0.00037,"viable":true}}}

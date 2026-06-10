@@ -1,0 +1,317 @@
+{
+  "experiment": "cross_topology_vqe_data_gen",
+  "metadata": {
+    "n": 10,
+    "topology": "triangular",
+    "p_layers": 1,
+    "strategy": "statevector",
+    "chi_max": null,
+    "precision": null,
+    "method": "L-BFGS-B",
+    "n_restarts": 1,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "h_values": [
+      5.0,
+      4.5,
+      4.0,
+      3.5,
+      3.25
+    ]
+  },
+  "timing": {
+    "total_s": 23.349310249992413
+  },
+  "environment": {
+    "python_version": "3.12.13",
+    "numpy_version": "2.4.4",
+    "timestamp": "2026-06-09T09:55:21"
+  },
+  "dmrg_data": [
+    {
+      "h": 5.0,
+      "ground_energy": -51.20926837677754,
+      "gap": 5.487269175220675
+    },
+    {
+      "h": 4.5,
+      "ground_energy": -46.383342127529865,
+      "gap": 4.441639883679649
+    },
+    {
+      "h": 4.0,
+      "ground_energy": -41.62012746489371,
+      "gap": 3.3918922576849866
+    },
+    {
+      "h": 3.5,
+      "ground_energy": -36.9642040883332,
+      "gap": 2.348637626595007
+    },
+    {
+      "h": 3.25,
+      "ground_energy": -34.70359092518721,
+      "gap": 1.8399139851949187
+    }
+  ],
+  "vqe_results": [
+    {
+      "seed": 42,
+      "results": [
+        {
+          "h": 5.0,
+          "vqe_energy": -51.14129345717186,
+          "dmrg_energy": -51.20926837677754,
+          "gap": 5.487269175220675,
+          "de_gap": 0.012387750160432223,
+          "energy_error": 0.0679749196056747,
+          "variational_ok": true,
+          "n_iterations": 9,
+          "theta_opt": [
+            0.056437846026679256,
+            0.413612817697532
+          ],
+          "time_s": 1.8842249999870546,
+          "passed": true
+        },
+        {
+          "h": 4.5,
+          "vqe_energy": -46.28225136035154,
+          "dmrg_energy": -46.383342127529865,
+          "gap": 4.441639883679649,
+          "de_gap": 0.022759784634899125,
+          "energy_error": 0.10109076717832721,
+          "variational_ok": true,
+          "n_iterations": 8,
+          "theta_opt": [
+            0.06319470626142777,
+            0.4160461795795882
+          ],
+          "time_s": 1.7980949170014355,
+          "passed": true
+        },
+        {
+          "h": 4.0,
+          "vqe_energy": -41.460572510578224,
+          "dmrg_energy": -41.62012746489371,
+          "gap": 3.3918922576849866,
+          "de_gap": 0.0470401009802084,
+          "energy_error": 0.15955495431548883,
+          "variational_ok": true,
+          "n_iterations": 8,
+          "theta_opt": [
+            0.07162310448878774,
+            0.41904859943584316
+          ],
+          "time_s": 1.689806459005922,
+          "passed": true
+        },
+        {
+          "h": 3.5,
+          "vqe_energy": -36.69183908573507,
+          "dmrg_energy": -36.9642040883332,
+          "gap": 2.348637626595007,
+          "de_gap": 0.11596723117861148,
+          "energy_error": 0.27236500259812857,
+          "variational_ok": true,
+          "n_iterations": 8,
+          "theta_opt": [
+            0.08232333630175619,
+            0.4228006509008611
+          ],
+          "time_s": 1.6503189579816535,
+          "passed": false
+        },
+        {
+          "h": 3.25,
+          "vqe_energy": -34.33441914863877,
+          "dmrg_energy": -34.70359092518721,
+          "gap": 1.8399139851949187,
+          "de_gap": 0.20064621472471955,
+          "energy_error": 0.36917177654843414,
+          "variational_ok": true,
+          "n_iterations": 7,
+          "theta_opt": [
+            0.08877426878663779,
+            0.42502714254551227
+          ],
+          "time_s": 1.6259975419961847,
+          "passed": false
+        }
+      ]
+    },
+    {
+      "seed": 43,
+      "results": [
+        {
+          "h": 5.0,
+          "vqe_energy": -49.99999999999999,
+          "dmrg_energy": -51.20926837677754,
+          "gap": 5.487269175220675,
+          "de_gap": 0.22037708342035406,
+          "energy_error": 1.209268376777544,
+          "variational_ok": true,
+          "n_iterations": 1,
+          "theta_opt": [
+            3.141592653589793,
+            -1.2289710936740954
+          ],
+          "time_s": 1.4427769590110984,
+          "passed": false
+        },
+        {
+          "h": 4.5,
+          "vqe_energy": -44.99999999999999,
+          "dmrg_energy": -46.383342127529865,
+          "gap": 4.441639883679649,
+          "de_gap": 0.3114485108558262,
+          "energy_error": 1.3833421275298718,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            3.141592653589793,
+            -1.2289710936740954
+          ],
+          "time_s": 1.405731916980585,
+          "passed": false
+        },
+        {
+          "h": 4.0,
+          "vqe_energy": -39.99999999999999,
+          "dmrg_energy": -41.62012746489371,
+          "gap": 3.3918922576849866,
+          "de_gap": 0.4776470895332859,
+          "energy_error": 1.62012746489372,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            3.141592653589793,
+            -1.2289710936740954
+          ],
+          "time_s": 1.4693597499863245,
+          "passed": false
+        },
+        {
+          "h": 3.5,
+          "vqe_energy": -34.99999999999999,
+          "dmrg_energy": -36.9642040883332,
+          "gap": 2.348637626595007,
+          "de_gap": 0.8363163674512256,
+          "energy_error": 1.9642040883332044,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            3.141592653589793,
+            -1.2289710936740954
+          ],
+          "time_s": 1.4647985000046901,
+          "passed": false
+        },
+        {
+          "h": 3.25,
+          "vqe_energy": -32.49999999999999,
+          "dmrg_energy": -34.70359092518721,
+          "gap": 1.8399139851949187,
+          "de_gap": 1.1976597509006748,
+          "energy_error": 2.203590925187214,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            3.141592653589793,
+            -1.2289710936740954
+          ],
+          "time_s": 1.4783667920273729,
+          "passed": false
+        }
+      ]
+    },
+    {
+      "seed": 44,
+      "results": [
+        {
+          "h": 5.0,
+          "vqe_energy": -49.99999999999999,
+          "dmrg_energy": -51.20926837677754,
+          "gap": 5.487269175220675,
+          "de_gap": 0.22037708342035406,
+          "energy_error": 1.209268376777544,
+          "variational_ok": true,
+          "n_iterations": 1,
+          "theta_opt": [
+            -3.141592653589793,
+            1.0623807606273064
+          ],
+          "time_s": 1.4447520840039942,
+          "passed": false
+        },
+        {
+          "h": 4.5,
+          "vqe_energy": -44.99999999999999,
+          "dmrg_energy": -46.383342127529865,
+          "gap": 4.441639883679649,
+          "de_gap": 0.3114485108558262,
+          "energy_error": 1.3833421275298718,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            -3.141592653589793,
+            1.0623807606273064
+          ],
+          "time_s": 1.437396124994848,
+          "passed": false
+        },
+        {
+          "h": 4.0,
+          "vqe_energy": -39.99999999999999,
+          "dmrg_energy": -41.62012746489371,
+          "gap": 3.3918922576849866,
+          "de_gap": 0.4776470895332859,
+          "energy_error": 1.62012746489372,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            -3.141592653589793,
+            1.0623807606273064
+          ],
+          "time_s": 1.4915593329933472,
+          "passed": false
+        },
+        {
+          "h": 3.5,
+          "vqe_energy": -34.99999999999999,
+          "dmrg_energy": -36.9642040883332,
+          "gap": 2.348637626595007,
+          "de_gap": 0.8363163674512256,
+          "energy_error": 1.9642040883332044,
+          "variational_ok": true,
+          "n_iterations": 0,
+          "theta_opt": [
+            -3.141592653589793,
+            1.0623807606273064
+          ],
+          "time_s": 1.4110549589968286,
+          "passed": false
+        },
+        {
+          "h": 3.25,
+          "vqe_energy": -34.334419148638574,
+          "dmrg_energy": -34.70359092518721,
+          "gap": 1.8399139851949187,
+          "de_gap": 0.2006462147248277,
+          "energy_error": 0.3691717765486331,
+          "variational_ok": true,
+          "n_iterations": 10,
+          "theta_opt": [
+            -3.0528183708329557,
+            -2.7165654180249192
+          ],
+          "time_s": 1.6163190410006791,
+          "passed": false
+        }
+      ]
+    }
+  ]
+}

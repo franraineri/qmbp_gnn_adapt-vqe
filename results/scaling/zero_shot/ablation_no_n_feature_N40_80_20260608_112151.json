@@ -1,0 +1,120 @@
+{
+  "experiment": "cross_n_ablation_suite",
+  "version": "1.0",
+  "metadata": {
+    "n_source_sizes": [
+      40,
+      80
+    ],
+    "target_n_default": 60,
+    "topology": "chain_1d",
+    "source_seed": 42,
+    "source_files": [
+      "results/scaling/scaling_N40_aer_mps_20260608_001053.json",
+      "results/scaling/scaling_N80_aer_mps_20260607_211634.json"
+    ],
+    "hidden_dim": 128,
+    "n_epochs": 6000,
+    "strategy": "aer_mps",
+    "ablation_mode": "no-n-feature"
+  },
+  "environment": {
+    "timestamp": "2026-06-08T11:21:51",
+    "python_version": "3.12.13",
+    "numpy_version": "2.4.4",
+    "torch_version": "2.11.0"
+  },
+  "timing": {
+    "total_s": 92.60135293006897
+  },
+  "results": {
+    "no_n_feature": {
+      "ablation": "no_n_feature_no_bn",
+      "norm_type": "none",
+      "use_n_feature": false,
+      "n_features": 2,
+      "training_mse": 8.434565097559243e-05,
+      "training_time_s": 26.02585482597351,
+      "results": [
+        {
+          "h": 6.769805906617909,
+          "e_pred": -408.39277554326094,
+          "e_dmrg": -408.37003234400015,
+          "gap": 11.539611813235817,
+          "de_gap": 0.001970880791215298,
+          "theta_pred": [
+            0.03920162096619606,
+            0.3777156472206116
+          ],
+          "passed": true,
+          "time_s": 14.569889068603516
+        },
+        {
+          "h": 6.519805906617909,
+          "e_pred": -393.45455883188646,
+          "e_dmrg": -393.45392367626437,
+          "gap": 11.039611813235817,
+          "de_gap": 5.753423515585306e-05,
+          "theta_pred": [
+            0.04084698483347893,
+            0.3736342191696167
+          ],
+          "passed": true,
+          "time_s": 13.628715753555298
+        },
+        {
+          "h": 6.269805906617909,
+          "e_pred": -378.5286977998391,
+          "e_dmrg": -378.5445352385411,
+          "gap": 10.539611813235817,
+          "de_gap": 0.0015026586351193638,
+          "theta_pred": [
+            0.042642779648303986,
+            0.3697620630264282
+          ],
+          "passed": true,
+          "time_s": 16.073296070098877
+        },
+        {
+          "h": 6.019805906617909,
+          "e_pred": -363.62545903952224,
+          "e_dmrg": -363.64270967250803,
+          "gap": 10.039611813235817,
+          "de_gap": 0.0017182569711559864,
+          "theta_pred": [
+            0.04453449323773384,
+            0.3658938705921173
+          ],
+          "passed": true,
+          "time_s": 10.343538045883179
+        },
+        {
+          "h": 5.769805906617909,
+          "e_pred": -348.70199972562,
+          "e_dmrg": -348.74943692170285,
+          "gap": 9.539611813235817,
+          "de_gap": 0.004972654759079013,
+          "theta_pred": [
+            0.0463179312646389,
+            0.3624933063983917
+          ],
+          "passed": true,
+          "time_s": 11.92729663848877
+        }
+      ],
+      "mean_de_gap": 0.002044397078345103,
+      "n_pass": 5,
+      "n_total": 5,
+      "verdict": "PASS"
+    }
+  },
+  "summary": {
+    "ablations_run": [
+      "no_n_feature"
+    ],
+    "verdicts": {
+      "no_n_feature": "PASS"
+    },
+    "all_pass": true
+  }
+}

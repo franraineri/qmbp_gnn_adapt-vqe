@@ -1,0 +1,584 @@
+{
+  "timestamp": "2026-06-04T11:58:39.840874",
+  "config": {
+    "runner_id": "gf_zne_comparison",
+    "experiment_id": "GF_ZNE_CMP",
+    "category": "GF",
+    "description": "Gate-Folding ZNE vs CES-ZNE Direct Comparison",
+    "hypothesis": "Gate-folding ZNE achieves R\u00b2>0.9 and gain>40% on topologies where CES-ZNE fails due to uniform layout noise (heavy_hex), and performs comparably on chain_1d where CES-ZNE already works.",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "zne": {
+      "noise_factors": [
+        1,
+        3,
+        5
+      ],
+      "n_layouts_ces": 3,
+      "shots": 16384,
+      "extrapolator": "linear"
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 41.25059366226196,
+  "results": {
+    "section_1": {
+      "name": "Noiseless Baseline",
+      "success": true,
+      "elapsed_s": 0.78,
+      "data": {
+        "topology": "heavy_hex",
+        "n_qubits": 10,
+        "p_layers": 1,
+        "n_params": 2,
+        "results": [
+          {
+            "h": 2.5,
+            "e_exact": -25.91319496435392,
+            "gap": 2.9451974145358797,
+            "e_noiseless": -25.861703152394547,
+            "de_gap_noiseless": 0.017483314261121402,
+            "theta_opt": [
+              0.09444212536534038,
+              0.39269913746414914
+            ]
+          },
+          {
+            "h": 2.0,
+            "e_exact": -21.151039125318064,
+            "gap": 1.966584270134483,
+            "e_noiseless": -21.053613263256803,
+            "de_gap_noiseless": 0.04954064951134718,
+            "theta_opt": [
+              0.11473884957413816,
+              0.3926990904301751
+            ]
+          },
+          {
+            "h": 1.75,
+            "e_exact": -18.824958282074086,
+            "gap": 1.4857848517741914,
+            "e_noiseless": -18.683053147458214,
+            "de_gap_noiseless": 0.09550853506577436,
+            "theta_opt": [
+              0.12820794933561366,
+              0.3926990566340939
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "CES-ZNE (Inhomogeneous)",
+      "success": true,
+      "elapsed_s": 20.91,
+      "data": {
+        "results": [
+          {
+            "h": 2.5,
+            "e_noisy_raw": -21.77435302734375,
+            "e_ces_zne": -22.494211975579024,
+            "de_noisy_raw": 1.405285063942782,
+            "de_ces_zne": 1.160867170363749,
+            "ces_zne_gain": 0.17392762497117445,
+            "ces_zne_r2": 0.9947904378687273,
+            "ces_values": [
+              14.427456915392149,
+              0.2114916148269707,
+              0.12513421696855198
+            ],
+            "ces_spread": 6.721917398388985
+          },
+          {
+            "h": 2.0,
+            "e_noisy_raw": -17.673095703125,
+            "e_ces_zne": -17.85461749347757,
+            "de_noisy_raw": 1.768519902762788,
+            "de_ces_zne": 1.6762168201493204,
+            "ces_zne_gain": 0.05219227811305456,
+            "ces_zne_r2": 0.9998734542391372,
+            "ces_values": [
+              14.456760837644765,
+              0.21061844359664866,
+              0.12513421696855198
+            ],
+            "ces_spread": 6.735935159517136
+          },
+          {
+            "h": 1.75,
+            "e_noisy_raw": -15.70684814453125,
+            "e_ces_zne": -16.166247221667806,
+            "de_noisy_raw": 2.0986282999314922,
+            "de_ces_zne": 1.7894320683317537,
+            "ces_zne_gain": 0.14733253697657273,
+            "ces_zne_r2": 0.9948317208799674,
+            "ces_values": [
+              14.427456915392149,
+              0.21126813698329389,
+              0.1270656447244647
+            ],
+            "ces_spread": 6.721510279503566
+          }
+        ],
+        "mean_r2": 0.9964985376626107,
+        "mean_gain": 0.12448414668693392
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Gate-Folding ZNE",
+      "success": true,
+      "elapsed_s": 18.2,
+      "data": {
+        "results": [
+          {
+            "h": 2.5,
+            "e_noisy_raw": -21.77435302734375,
+            "e_gf_zne": -22.393152872721338,
+            "de_noisy_raw": 1.405285063942782,
+            "de_gf_zne": 1.195180355061968,
+            "gf_zne_gain": 0.14951038353124402,
+            "gf_zne_r2": 0.9986591160650561,
+            "gf_zne_slope": 0.6460113525390614,
+            "noise_factors": [
+              1,
+              3,
+              5
+            ],
+            "measured_values": [
+              -21.77447509765625,
+              -20.40045166015625,
+              -19.1904296875
+            ],
+            "layout_ces": 0.12513421696855198,
+            "extrapolator": "linear"
+          },
+          {
+            "h": 2.0,
+            "e_noisy_raw": -17.673095703125,
+            "e_gf_zne": -18.20430501302083,
+            "de_noisy_raw": 1.768519902762788,
+            "de_gf_zne": 1.4984021570027743,
+            "gf_zne_gain": 0.15273661627332255,
+            "gf_zne_r2": 0.9977637526668114,
+            "gf_zne_slope": 0.5411376953125001,
+            "noise_factors": [
+              1,
+              3,
+              5
+            ],
+            "measured_values": [
+              -17.6927490234375,
+              -16.521728515625,
+              -15.5281982421875
+            ],
+            "layout_ces": 0.12513421696855198,
+            "extrapolator": "linear"
+          },
+          {
+            "h": 1.75,
+            "e_noisy_raw": -15.70684814453125,
+            "e_gf_zne": -16.137207031249996,
+            "de_noisy_raw": 2.0986282999314922,
+            "de_gf_zne": 1.808977422010069,
+            "gf_zne_gain": 0.138019142280164,
+            "gf_zne_r2": 0.9956963129233095,
+            "gf_zne_slope": 0.49124145507812544,
+            "noise_factors": [
+              1,
+              3,
+              5
+            ],
+            "measured_values": [
+              -15.683258056640625,
+              -14.588897705078125,
+              -13.718292236328125
+            ],
+            "layout_ces": 0.1270656447244647,
+            "extrapolator": "linear"
+          }
+        ],
+        "mean_r2": 0.9973730605517256,
+        "mean_gain": 0.1467553806949102
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Comparison Summary",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "comparison": [
+          {
+            "h": 2.5,
+            "e_exact": -25.91319496435392,
+            "gap": 2.9451974145358797,
+            "de_noiseless": 0.017483314261121402,
+            "de_noisy_raw": 1.405285063942782,
+            "de_ces_zne": 1.160867170363749,
+            "ces_zne_r2": 0.9947904378687273,
+            "ces_zne_gain": 0.17392762497117445,
+            "ces_spread": 6.721917398388985,
+            "de_gf_zne": 1.195180355061968,
+            "gf_zne_r2": 0.9986591160650561,
+            "gf_zne_gain": 0.14951038353124402,
+            "gf_wins": false,
+            "best_method": "CES-ZNE",
+            "improvement_over_ces": -0.02955823506273091
+          },
+          {
+            "h": 2.0,
+            "e_exact": -21.151039125318064,
+            "gap": 1.966584270134483,
+            "de_noiseless": 0.04954064951134718,
+            "de_noisy_raw": 1.768519902762788,
+            "de_ces_zne": 1.6762168201493204,
+            "ces_zne_r2": 0.9998734542391372,
+            "ces_zne_gain": 0.05219227811305456,
+            "ces_spread": 6.735935159517136,
+            "de_gf_zne": 1.4984021570027743,
+            "gf_zne_r2": 0.9977637526668114,
+            "gf_zne_gain": 0.15273661627332255,
+            "gf_wins": true,
+            "best_method": "GF-ZNE",
+            "improvement_over_ces": 0.10608094430809135
+          },
+          {
+            "h": 1.75,
+            "e_exact": -18.824958282074086,
+            "gap": 1.4857848517741914,
+            "de_noiseless": 0.09550853506577436,
+            "de_noisy_raw": 2.0986282999314922,
+            "de_ces_zne": 1.7894320683317537,
+            "ces_zne_r2": 0.9948317208799674,
+            "ces_zne_gain": 0.14733253697657273,
+            "ces_spread": 6.721510279503566,
+            "de_gf_zne": 1.808977422010069,
+            "gf_zne_r2": 0.9956963129233095,
+            "gf_zne_gain": 0.138019142280164,
+            "gf_wins": false,
+            "best_method": "CES-ZNE",
+            "improvement_over_ces": -0.010922657542701192
+          }
+        ],
+        "summary": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "p_layers": 1,
+          "n_points": 3,
+          "gf_wins": 1,
+          "ces_wins": 2,
+          "mean_ces_zne_gain": 0.12448414668693392,
+          "mean_gf_zne_gain": 0.1467553806949102,
+          "mean_ces_zne_r2": 0.9964985376626107,
+          "mean_gf_zne_r2": 0.9973730605517256,
+          "gf_r2_above_09": true,
+          "gf_gain_above_40pct": false,
+          "gf_better_overall": true
+        }
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 4,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 41.25,
+    "total_elapsed_s": 41.25,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-04T11:58:39.782432",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "GF_ZNE_CMP",
+    "category": "GF",
+    "hypothesis": "Gate-folding ZNE achieves R\u00b2>0.9 and gain>40% on topologies where CES-ZNE fails due to uniform layout noise (heavy_hex), and performs comparably on chain_1d where CES-ZNE already works.",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 4,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 41.25,
+      "total_elapsed_s": 41.25,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Noiseless Baseline",
+        "success": true,
+        "elapsed_s": 0.78,
+        "data": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "p_layers": 1,
+          "n_params": 2,
+          "results": [
+            {
+              "h": 2.5,
+              "e_exact": -25.91319496435392,
+              "gap": 2.9451974145358797,
+              "e_noiseless": -25.861703152394547,
+              "de_gap_noiseless": 0.017483314261121402,
+              "theta_opt": [
+                0.09444212536534038,
+                0.39269913746414914
+              ]
+            },
+            {
+              "h": 2.0,
+              "e_exact": -21.151039125318064,
+              "gap": 1.966584270134483,
+              "e_noiseless": -21.053613263256803,
+              "de_gap_noiseless": 0.04954064951134718,
+              "theta_opt": [
+                0.11473884957413816,
+                0.3926990904301751
+              ]
+            },
+            {
+              "h": 1.75,
+              "e_exact": -18.824958282074086,
+              "gap": 1.4857848517741914,
+              "e_noiseless": -18.683053147458214,
+              "de_gap_noiseless": 0.09550853506577436,
+              "theta_opt": [
+                0.12820794933561366,
+                0.3926990566340939
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "CES-ZNE (Inhomogeneous)",
+        "success": true,
+        "elapsed_s": 20.91,
+        "data": {
+          "results": [
+            {
+              "h": 2.5,
+              "e_noisy_raw": -21.77435302734375,
+              "e_ces_zne": -22.494211975579024,
+              "de_noisy_raw": 1.405285063942782,
+              "de_ces_zne": 1.160867170363749,
+              "ces_zne_gain": 0.17392762497117445,
+              "ces_zne_r2": 0.9947904378687273,
+              "ces_values": [
+                14.427456915392149,
+                0.2114916148269707,
+                0.12513421696855198
+              ],
+              "ces_spread": 6.721917398388985
+            },
+            {
+              "h": 2.0,
+              "e_noisy_raw": -17.673095703125,
+              "e_ces_zne": -17.85461749347757,
+              "de_noisy_raw": 1.768519902762788,
+              "de_ces_zne": 1.6762168201493204,
+              "ces_zne_gain": 0.05219227811305456,
+              "ces_zne_r2": 0.9998734542391372,
+              "ces_values": [
+                14.456760837644765,
+                0.21061844359664866,
+                0.12513421696855198
+              ],
+              "ces_spread": 6.735935159517136
+            },
+            {
+              "h": 1.75,
+              "e_noisy_raw": -15.70684814453125,
+              "e_ces_zne": -16.166247221667806,
+              "de_noisy_raw": 2.0986282999314922,
+              "de_ces_zne": 1.7894320683317537,
+              "ces_zne_gain": 0.14733253697657273,
+              "ces_zne_r2": 0.9948317208799674,
+              "ces_values": [
+                14.427456915392149,
+                0.21126813698329389,
+                0.1270656447244647
+              ],
+              "ces_spread": 6.721510279503566
+            }
+          ],
+          "mean_r2": 0.9964985376626107,
+          "mean_gain": 0.12448414668693392
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Gate-Folding ZNE",
+        "success": true,
+        "elapsed_s": 18.2,
+        "data": {
+          "results": [
+            {
+              "h": 2.5,
+              "e_noisy_raw": -21.77435302734375,
+              "e_gf_zne": -22.393152872721338,
+              "de_noisy_raw": 1.405285063942782,
+              "de_gf_zne": 1.195180355061968,
+              "gf_zne_gain": 0.14951038353124402,
+              "gf_zne_r2": 0.9986591160650561,
+              "gf_zne_slope": 0.6460113525390614,
+              "noise_factors": [
+                1,
+                3,
+                5
+              ],
+              "measured_values": [
+                -21.77447509765625,
+                -20.40045166015625,
+                -19.1904296875
+              ],
+              "layout_ces": 0.12513421696855198,
+              "extrapolator": "linear"
+            },
+            {
+              "h": 2.0,
+              "e_noisy_raw": -17.673095703125,
+              "e_gf_zne": -18.20430501302083,
+              "de_noisy_raw": 1.768519902762788,
+              "de_gf_zne": 1.4984021570027743,
+              "gf_zne_gain": 0.15273661627332255,
+              "gf_zne_r2": 0.9977637526668114,
+              "gf_zne_slope": 0.5411376953125001,
+              "noise_factors": [
+                1,
+                3,
+                5
+              ],
+              "measured_values": [
+                -17.6927490234375,
+                -16.521728515625,
+                -15.5281982421875
+              ],
+              "layout_ces": 0.12513421696855198,
+              "extrapolator": "linear"
+            },
+            {
+              "h": 1.75,
+              "e_noisy_raw": -15.70684814453125,
+              "e_gf_zne": -16.137207031249996,
+              "de_noisy_raw": 2.0986282999314922,
+              "de_gf_zne": 1.808977422010069,
+              "gf_zne_gain": 0.138019142280164,
+              "gf_zne_r2": 0.9956963129233095,
+              "gf_zne_slope": 0.49124145507812544,
+              "noise_factors": [
+                1,
+                3,
+                5
+              ],
+              "measured_values": [
+                -15.683258056640625,
+                -14.588897705078125,
+                -13.718292236328125
+              ],
+              "layout_ces": 0.1270656447244647,
+              "extrapolator": "linear"
+            }
+          ],
+          "mean_r2": 0.9973730605517256,
+          "mean_gain": 0.1467553806949102
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Comparison Summary",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "comparison": [
+            {
+              "h": 2.5,
+              "e_exact": -25.91319496435392,
+              "gap": 2.9451974145358797,
+              "de_noiseless": 0.017483314261121402,
+              "de_noisy_raw": 1.405285063942782,
+              "de_ces_zne": 1.160867170363749,
+              "ces_zne_r2": 0.9947904378687273,
+              "ces_zne_gain": 0.17392762497117445,
+              "ces_spread": 6.721917398388985,
+              "de_gf_zne": 1.195180355061968,
+              "gf_zne_r2": 0.9986591160650561,
+              "gf_zne_gain": 0.14951038353124402,
+              "gf_wins": false,
+              "best_method": "CES-ZNE",
+              "improvement_over_ces": -0.02955823506273091
+            },
+            {
+              "h": 2.0,
+              "e_exact": -21.151039125318064,
+              "gap": 1.966584270134483,
+              "de_noiseless": 0.04954064951134718,
+              "de_noisy_raw": 1.768519902762788,
+              "de_ces_zne": 1.6762168201493204,
+              "ces_zne_r2": 0.9998734542391372,
+              "ces_zne_gain": 0.05219227811305456,
+              "ces_spread": 6.735935159517136,
+              "de_gf_zne": 1.4984021570027743,
+              "gf_zne_r2": 0.9977637526668114,
+              "gf_zne_gain": 0.15273661627332255,
+              "gf_wins": true,
+              "best_method": "GF-ZNE",
+              "improvement_over_ces": 0.10608094430809135
+            },
+            {
+              "h": 1.75,
+              "e_exact": -18.824958282074086,
+              "gap": 1.4857848517741914,
+              "de_noiseless": 0.09550853506577436,
+              "de_noisy_raw": 2.0986282999314922,
+              "de_ces_zne": 1.7894320683317537,
+              "ces_zne_r2": 0.9948317208799674,
+              "ces_zne_gain": 0.14733253697657273,
+              "ces_spread": 6.721510279503566,
+              "de_gf_zne": 1.808977422010069,
+              "gf_zne_r2": 0.9956963129233095,
+              "gf_zne_gain": 0.138019142280164,
+              "gf_wins": false,
+              "best_method": "CES-ZNE",
+              "improvement_over_ces": -0.010922657542701192
+            }
+          ],
+          "summary": {
+            "topology": "heavy_hex",
+            "n_qubits": 10,
+            "p_layers": 1,
+            "n_points": 3,
+            "gf_wins": 1,
+            "ces_wins": 2,
+            "mean_ces_zne_gain": 0.12448414668693392,
+            "mean_gf_zne_gain": 0.1467553806949102,
+            "mean_ces_zne_r2": 0.9964985376626107,
+            "mean_gf_zne_r2": 0.9973730605517256,
+            "gf_r2_above_09": true,
+            "gf_gain_above_40pct": false,
+            "gf_better_overall": true
+          }
+        },
+        "error": null
+      }
+    }
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "timestamp": "2026-06-05T01:10:01.350981",
+  "config": {
+    "runner_id": "hardware_rehearsal_v2",
+    "experiment_id": "HW_REHEARSAL_V2",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "description": "Hardware Rehearsal V2 (PEA/GF/Adaptive ZNE via HardwareBackend)",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 1,
+      "topology": "chain_1d",
+      "model": "tfim"
+    },
+    "h_train": [
+      4.5,
+      4.25,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "zne": {
+      "amplifier": "gate_folding",
+      "r2_threshold": 0.9,
+      "shots": 16384,
+      "n_layouts": 3
+    },
+    "thresholds": {
+      "de_gap": 0.05,
+      "zne_r2": 0.8
+    },
+    "category": "H"
+  },
+  "elapsed_s": 25.373235940933228,
+  "results": {
+    "section_2": {
+      "name": "HardwareBackend Noisy Pipeline",
+      "success": false,
+      "elapsed_s": 25.34,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_exact": -24.313236134401265,
+            "e_zne": -23.182902018229157,
+            "gap": 6.237674156827605,
+            "de_gap": 0.18121083079257544,
+            "pass": false
+          },
+          {
+            "h": 3.25,
+            "e_exact": -19.88599119768642,
+            "e_zne": -18.940836588541664,
+            "gap": 4.748840192121573,
+            "de_gap": 0.19902851452293263,
+            "pass": false
+          },
+          {
+            "h": 3.0,
+            "e_exact": -18.418418030159735,
+            "e_zne": -17.526814778645825,
+            "gap": 4.254094849049697,
+            "de_gap": 0.20958706449929798,
+            "pass": false
+          }
+        ],
+        "n_pass": 0,
+        "pass": false
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 0,
+    "n_failed": 1,
+    "pass_rate": 0.0,
+    "total_time_s": 25.37,
+    "total_elapsed_s": 25.37,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T01:10:01.293897",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "HW_REHEARSAL_V2",
+    "category": "H",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 0,
+      "n_failed": 1,
+      "pass_rate": 0.0,
+      "total_time_s": 25.37,
+      "total_elapsed_s": 25.37,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_2": {
+        "name": "HardwareBackend Noisy Pipeline",
+        "success": false,
+        "elapsed_s": 25.34,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_exact": -24.313236134401265,
+              "e_zne": -23.182902018229157,
+              "gap": 6.237674156827605,
+              "de_gap": 0.18121083079257544,
+              "pass": false
+            },
+            {
+              "h": 3.25,
+              "e_exact": -19.88599119768642,
+              "e_zne": -18.940836588541664,
+              "gap": 4.748840192121573,
+              "de_gap": 0.19902851452293263,
+              "pass": false
+            },
+            {
+              "h": 3.0,
+              "e_exact": -18.418418030159735,
+              "e_zne": -17.526814778645825,
+              "gap": 4.254094849049697,
+              "de_gap": 0.20958706449929798,
+              "pass": false
+            }
+          ],
+          "n_pass": 0,
+          "pass": false
+        },
+        "error": null
+      }
+    }
+  }
+}

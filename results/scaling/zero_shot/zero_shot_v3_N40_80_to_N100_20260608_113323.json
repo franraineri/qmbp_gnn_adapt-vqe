@@ -1,0 +1,248 @@
+{
+  "experiment": "zero_shot_cross_n_v3",
+  "version": "3.1",
+  "metadata": {
+    "n_source_sizes": [
+      40,
+      80
+    ],
+    "n_target": 100,
+    "topology": "chain_1d",
+    "source_seed": 42,
+    "source_files": [
+      "results/scaling/scaling_N40_aer_mps_20260608_001053.json",
+      "results/scaling/scaling_N80_aer_mps_20260607_211634.json"
+    ],
+    "strategy": "aer_mps",
+    "precision": 0.005,
+    "hidden_dim": 128,
+    "n_epochs": 6000,
+    "n_model_params": 99842,
+    "n_training_points": 14,
+    "de_gap_threshold": 0.05
+  },
+  "environment": {
+    "timestamp": "2026-06-08T11:33:23",
+    "python_version": "3.12.13",
+    "numpy_version": "2.4.4",
+    "torch_version": "2.11.0"
+  },
+  "timing": {
+    "training_s": 19.064516067504883,
+    "deploy_gnn_s": 54.875529050827026,
+    "deploy_interp_s": 54.25578165054321,
+    "total_s": 128.23105597496033
+  },
+  "strategy_a_gnn_no_bn": {
+    "description": "GINConv without BatchNorm, 3 features (h, coord, N/100)",
+    "norm_type": "none",
+    "training_mse": 0.00016793808026704937,
+    "mse_last_10": [
+      0.00013548143033403903,
+      0.00016614785999991,
+      0.0001777935103746131,
+      0.00031750951893627644,
+      0.00042628232040442526,
+      0.000244999973801896,
+      0.00020764954388141632,
+      0.0003872519882861525,
+      0.000342056475346908,
+      0.00016793808026704937
+    ],
+    "training_converged": true,
+    "results": [
+      {
+        "h": 10.83738766940671,
+        "e_pred": -1085.9867072796299,
+        "e_dmrg": -1086.0237208692247,
+        "gap": 19.67477533881342,
+        "de_gap": 0.0018812712703161886,
+        "energy_error": 0.03701358959483514,
+        "energy_error_abs": 0.03701358959483514,
+        "variational_ok": true,
+        "theta_pred": [
+          0.024375012144446373,
+          0.41708776354789734
+        ],
+        "passed": true,
+        "time_s": 7.80987811088562
+      },
+      {
+        "h": 10.58738766940671,
+        "e_pred": -1061.0428607796835,
+        "e_dmrg": -1061.0777339809388,
+        "gap": 19.17477533881342,
+        "de_gap": 0.001818701947695457,
+        "energy_error": 0.03487320125532278,
+        "energy_error_abs": 0.03487320125532278,
+        "variational_ok": true,
+        "theta_pred": [
+          0.025036798790097237,
+          0.41464337706565857
+        ],
+        "passed": true,
+        "time_s": 7.053701877593994
+      },
+      {
+        "h": 10.33738766940671,
+        "e_pred": -1036.101221630864,
+        "e_dmrg": -1036.1343640172577,
+        "gap": 18.67477533881342,
+        "de_gap": 0.0017747140617381213,
+        "energy_error": 0.03314238639359246,
+        "energy_error_abs": 0.03314238639359246,
+        "variational_ok": true,
+        "theta_pred": [
+          0.025721605867147446,
+          0.41225573420524597
+        ],
+        "passed": true,
+        "time_s": 7.289844036102295
+      },
+      {
+        "h": 10.08738766940671,
+        "e_pred": -1011.162425489208,
+        "e_dmrg": -1011.1938060028447,
+        "gap": 18.17477533881342,
+        "de_gap": 0.0017265970583788062,
+        "energy_error": 0.03138051363669092,
+        "energy_error_abs": 0.03138051363669092,
+        "variational_ok": true,
+        "theta_pred": [
+          0.026405688375234604,
+          0.40987664461135864
+        ],
+        "passed": true,
+        "time_s": 24.418563842773438
+      },
+      {
+        "h": 9.83738766940671,
+        "e_pred": -986.2268459059649,
+        "e_dmrg": -986.256274847446,
+        "gap": 17.67477533881342,
+        "de_gap": 0.001665024924899007,
+        "energy_error": 0.029428941481114634,
+        "energy_error_abs": 0.029428941481114634,
+        "variational_ok": true,
+        "theta_pred": [
+          0.02708626538515091,
+          0.4074349105358124
+        ],
+        "passed": true,
+        "time_s": 8.30354118347168
+      }
+    ],
+    "mean_de_gap": 0.001773261852605516,
+    "max_de_gap": 0.0018812712703161886,
+    "std_de_gap": 7.433139445336875e-05,
+    "n_pass": 5,
+    "n_total": 5,
+    "variational_principle_ok": true
+  },
+  "strategy_b_interpolation": {
+    "description": "Direct scipy LinearNDInterpolator on (h, N) -> theta",
+    "results": [
+      {
+        "h": 10.83738766940671,
+        "e_pred": -1085.88897880205,
+        "e_dmrg": -1086.0237208692247,
+        "gap": 19.67477533881342,
+        "de_gap": 0.006848467891217626,
+        "energy_error": 0.1347420671747841,
+        "energy_error_abs": 0.1347420671747841,
+        "variational_ok": true,
+        "theta_pred": [
+          0.028462145545118857,
+          0.38994472918564466
+        ],
+        "passed": true,
+        "time_s": 7.6449668407440186
+      },
+      {
+        "h": 10.58738766940671,
+        "e_pred": -1060.9690921492963,
+        "e_dmrg": -1061.0777339809388,
+        "gap": 19.17477533881342,
+        "de_gap": 0.005665872466444619,
+        "energy_error": 0.10864183164244423,
+        "energy_error_abs": 0.10864183164244423,
+        "variational_ok": true,
+        "theta_pred": [
+          0.028462145545118857,
+          0.38994472918564466
+        ],
+        "passed": true,
+        "time_s": 7.220968961715698
+      },
+      {
+        "h": 10.33738766940671,
+        "e_pred": -1036.0492054965364,
+        "e_dmrg": -1036.1343640172577,
+        "gap": 18.67477533881342,
+        "de_gap": 0.004560082741358975,
+        "energy_error": 0.08515852072127927,
+        "energy_error_abs": 0.08515852072127927,
+        "variational_ok": true,
+        "theta_pred": [
+          0.028462145545118857,
+          0.38994472918564466
+        ],
+        "passed": true,
+        "time_s": 7.165550947189331
+      },
+      {
+        "h": 10.08738766940671,
+        "e_pred": -1011.1293188437836,
+        "e_dmrg": -1011.1938060028447,
+        "gap": 18.17477533881342,
+        "de_gap": 0.003548168153877679,
+        "energy_error": 0.06448715906105917,
+        "energy_error_abs": 0.06448715906105917,
+        "variational_ok": true,
+        "theta_pred": [
+          0.028462145545118857,
+          0.38994472918564466
+        ],
+        "passed": true,
+        "time_s": 24.27560782432556
+      },
+      {
+        "h": 9.83738766940671,
+        "e_pred": -986.2094321910238,
+        "e_dmrg": -986.256274847446,
+        "gap": 17.67477533881342,
+        "de_gap": 0.002650254700512913,
+        "energy_error": 0.04684265642219998,
+        "energy_error_abs": 0.04684265642219998,
+        "variational_ok": true,
+        "theta_pred": [
+          0.028462145545118857,
+          0.38994472918564466
+        ],
+        "passed": true,
+        "time_s": 7.9486870765686035
+      }
+    ],
+    "mean_de_gap": 0.004654569190682362,
+    "max_de_gap": 0.006848467891217626,
+    "std_de_gap": 0.0014890435415144333,
+    "n_pass": 5,
+    "n_total": 5,
+    "variational_principle_ok": true
+  },
+  "comparison": {
+    "winner": "gnn_no_bn",
+    "gnn_improvement_over_bn": {
+      "vs_v2_3feat_bn": "99.0% reduction",
+      "vs_v2_2feat_bn": "98.1% reduction"
+    },
+    "v2_3feat_bn_mean": 0.185,
+    "v2_2feat_bn_mean": 0.095
+  },
+  "summary": {
+    "generalization_success": true,
+    "best_strategy": "gnn_no_bn",
+    "best_mean_de_gap": 0.001773261852605516,
+    "verdict": "PASS"
+  }
+}

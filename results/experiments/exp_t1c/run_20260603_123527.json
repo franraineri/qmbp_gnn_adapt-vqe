@@ -1,0 +1,192 @@
+{
+  "timestamp": "2026-06-03T12:35:27.154285",
+  "config": {
+    "runner_id": "t1c_d1_frustrated",
+    "experiment_id": "T1c",
+    "description": "D1 Weight-Space Phase Detection \u2014 Frustrated TFIM (J\u2081-J\u2082)",
+    "hypothesis": "||dW/dh|| peaks track the frustrated TFIM crossover, generalizing the zero-QPU phase detection to frustrated systems",
+    "category": "T",
+    "model": "tfim_frustrated",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d"
+    },
+    "d1_config": {
+      "j2_values": [
+        0.0,
+        0.2,
+        0.3,
+        0.5
+      ],
+      "h_grid": [
+        0.5,
+        0.5512820512820513,
+        0.6025641025641025,
+        0.6538461538461539,
+        0.7051282051282051,
+        0.7564102564102564,
+        0.8076923076923077,
+        0.858974358974359,
+        0.9102564102564102,
+        0.9615384615384615,
+        1.0128205128205128,
+        1.064102564102564,
+        1.1153846153846154,
+        1.1666666666666665,
+        1.217948717948718,
+        1.2692307692307692,
+        1.3205128205128205,
+        1.3717948717948718,
+        1.423076923076923,
+        1.4743589743589745,
+        1.5256410256410255,
+        1.5769230769230769,
+        1.6282051282051282,
+        1.6794871794871795,
+        1.7307692307692308,
+        1.782051282051282,
+        1.8333333333333333,
+        1.8846153846153846,
+        1.935897435897436,
+        1.9871794871794872,
+        2.0384615384615383,
+        2.0897435897435894,
+        2.141025641025641,
+        2.1923076923076925,
+        2.2435897435897436,
+        2.2948717948717947,
+        2.346153846153846,
+        2.3974358974358974,
+        2.448717948717949,
+        2.5
+      ],
+      "dropout": 0.1,
+      "mpnn_epochs": 3000
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "elapsed_s": 252.8344337940216,
+  "results": {
+    "section_1": {
+      "name": "VQE Data Generation (per J\u2082)",
+      "success": true,
+      "elapsed_s": 252.79,
+      "data": {
+        "per_j2": {
+          "0.0": {
+            "mean_fidelity": 0.9816039378032844,
+            "n_high_fid": 40,
+            "n_total": 40,
+            "min_gap": 0.023461885555156492,
+            "h_crossover_exact": 0.5
+          },
+          "0.2": {
+            "mean_fidelity": 0.9914768000667579,
+            "n_high_fid": 40,
+            "n_total": 40,
+            "min_gap": 0.08302198111527037,
+            "h_crossover_exact": 0.5
+          },
+          "0.3": {
+            "mean_fidelity": 0.9968363797622934,
+            "n_high_fid": 40,
+            "n_total": 40,
+            "min_gap": 0.17692261366118167,
+            "h_crossover_exact": 0.5
+          },
+          "0.5": {
+            "mean_fidelity": 0.9944625356371105,
+            "n_high_fid": 40,
+            "n_total": 40,
+            "min_gap": 0.299966585174853,
+            "h_crossover_exact": 0.5
+          }
+        },
+        "n_j2_values": 4,
+        "h_grid_size": 40,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 1,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 252.83,
+    "total_elapsed_s": 252.83,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T12:35:27.043687",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "T1c",
+    "category": "T",
+    "hypothesis": "||dW/dh|| peaks track the frustrated TFIM crossover, generalizing the zero-QPU phase detection to frustrated systems",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 1,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 252.83,
+      "total_elapsed_s": 252.83,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "VQE Data Generation (per J\u2082)",
+        "success": true,
+        "elapsed_s": 252.79,
+        "data": {
+          "per_j2": {
+            "0.0": {
+              "mean_fidelity": 0.9816039378032844,
+              "n_high_fid": 40,
+              "n_total": 40,
+              "min_gap": 0.023461885555156492,
+              "h_crossover_exact": 0.5
+            },
+            "0.2": {
+              "mean_fidelity": 0.9914768000667579,
+              "n_high_fid": 40,
+              "n_total": 40,
+              "min_gap": 0.08302198111527037,
+              "h_crossover_exact": 0.5
+            },
+            "0.3": {
+              "mean_fidelity": 0.9968363797622934,
+              "n_high_fid": 40,
+              "n_total": 40,
+              "min_gap": 0.17692261366118167,
+              "h_crossover_exact": 0.5
+            },
+            "0.5": {
+              "mean_fidelity": 0.9944625356371105,
+              "n_high_fid": 40,
+              "n_total": 40,
+              "min_gap": 0.299966585174853,
+              "h_crossover_exact": 0.5
+            }
+          },
+          "n_j2_values": 4,
+          "h_grid_size": 40,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

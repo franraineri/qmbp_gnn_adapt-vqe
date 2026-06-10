@@ -1,0 +1,499 @@
+{
+  "timestamp": "2026-06-04T14:25:31.231452",
+  "config": {
+    "runner_id": "pea_full_pipeline",
+    "experiment_id": "PEA_PIPELINE",
+    "category": "ZNE",
+    "description": "PEA-ZNE Full Pipeline (MPNN + Mitigate + Classify, heavy_hex N=10)",
+    "hypothesis": "PEA-ZNE achieves correct phase classification (100% at h>=3.0) when starting from MPNN-predicted parameters on heavy_hex N=10 p=1.",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "h_train": [
+      4.5,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0
+    ],
+    "seeds": [
+      42
+    ]
+  },
+  "elapsed_s": 57.759222984313965,
+  "results": {
+    "section_1": {
+      "name": "VQE Training Data",
+      "success": true,
+      "elapsed_s": 1.02,
+      "data": {
+        "n_train": 6,
+        "train_data": [
+          {
+            "h": 4.5,
+            "e_exact": -45.502238142266485,
+            "gap": 6.918573709439514,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.072592728408928
+          },
+          {
+            "h": 4.0,
+            "e_exact": -40.56569043551275,
+            "gap": 5.921971082752414,
+            "theta_opt": [
+              -3.141592653589793,
+              3.011374702903561
+            ],
+            "de_gap": 0.09552401178727724
+          },
+          {
+            "h": 3.75,
+            "e_exact": -38.103875034650386,
+            "gap": 5.424130192511058,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.11133122053083207
+          },
+          {
+            "h": 3.5,
+            "e_exact": -35.64762791436936,
+            "gap": 4.926714336378666,
+            "theta_opt": [
+              -3.141592653589793,
+              3.056288260832435
+            ],
+            "de_gap": 0.1314522966325258
+          },
+          {
+            "h": 3.25,
+            "e_exact": -33.198273652500575,
+            "gap": 4.429858148786295,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.15762889669320382
+          },
+          {
+            "h": 3.0,
+            "e_exact": -30.757597386785978,
+            "gap": 3.9337583475541074,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ],
+            "de_gap": 0.19258869504707446
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "MPNN Train + Predict",
+      "success": true,
+      "elapsed_s": 8.04,
+      "data": {
+        "predictions": {
+          "4.0": {
+            "theta_pred": [
+              -3.1041033267974854,
+              2.9945664405822754
+            ],
+            "e_exact": -40.56569043551275,
+            "gap": 5.921971082752414,
+            "e_mpnn_noiseless": -39.425317207050924,
+            "de_gap_mpnn": 0.1925664972905952
+          },
+          "3.25": {
+            "theta_pred": [
+              -3.101058006286621,
+              3.0826587677001953
+            ],
+            "e_exact": -33.198273652500575,
+            "gap": 4.429858148786295,
+            "e_mpnn_noiseless": -32.138712163145534,
+            "de_gap_mpnn": 0.23918632465586787
+          },
+          "3.0": {
+            "theta_pred": [
+              -3.098902940750122,
+              3.0940186977386475
+            ],
+            "e_exact": -30.757597386785978,
+            "gap": 3.9337583475541074,
+            "e_mpnn_noiseless": -29.65921317843091,
+            "de_gap_mpnn": 0.27922005149045565
+          }
+        }
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "PEA-ZNE Mitigation",
+      "success": true,
+      "elapsed_s": 11.61,
+      "data": {
+        "results": {
+          "4.0": {
+            "e_noisy": -33.516845703125,
+            "e_pea": -39.36498006184897,
+            "de_noisy": 1.1902869220211705,
+            "de_pea": 0.20275519027116146,
+            "pea_gain": 0.8296585583525756,
+            "pea_r2": 0.9998641911592325,
+            "pea_slope": 0.914642333984378,
+            "measured": [
+              -38.462646484375,
+              -36.596435546875,
+              -34.8040771484375
+            ],
+            "circuit_depth": 83
+          },
+          "3.25": {
+            "e_noisy": -27.340087890625,
+            "e_pea": -32.09454600016275,
+            "de_noisy": 1.322431907550046,
+            "de_pea": 0.24915643238829813,
+            "pea_gain": 0.8115922408058888,
+            "pea_r2": 0.9999998788784508,
+            "pea_slope": 0.7467422485351576,
+            "measured": [
+              -31.347503662109375,
+              -29.85491943359375,
+              -28.36053466796875
+            ],
+            "circuit_depth": 85
+          },
+          "3.0": {
+            "e_noisy": -25.2174072265625,
+            "e_pea": -29.62593587239582,
+            "de_noisy": 1.4083707413466822,
+            "de_pea": 0.2876794694554101,
+            "pea_gain": 0.7957359798739276,
+            "pea_r2": 0.9999921920273537,
+            "pea_slope": 0.6936035156249997,
+            "measured": [
+              -28.9345703125,
+              -27.5406494140625,
+              -26.16015625
+            ],
+            "circuit_depth": 84
+          }
+        }
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Phase Classification",
+      "success": false,
+      "elapsed_s": 35.63,
+      "data": {
+        "classifications": [
+          {
+            "h": 4.0,
+            "mean_x": 0.84342041015625,
+            "predicted": "ordered",
+            "true": "paramagnetic",
+            "correct": false,
+            "n_sites": 10
+          },
+          {
+            "h": 3.25,
+            "mean_x": 0.8447998046875,
+            "predicted": "ordered",
+            "true": "paramagnetic",
+            "correct": false,
+            "n_sites": 10
+          },
+          {
+            "h": 3.0,
+            "mean_x": 0.84261474609375,
+            "predicted": "ordered",
+            "true": "paramagnetic",
+            "correct": false,
+            "n_sites": 10
+          }
+        ],
+        "accuracy": 0.0,
+        "pass": false
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Pipeline Verdict",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true,
+        "mean_gain": 0.8123289263441307,
+        "mean_r2": 0.9999520873550124,
+        "mean_mpnn_de_gap": 0.23699095781230625,
+        "all_positive": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 4,
+    "n_failed": 1,
+    "pass_rate": 0.8,
+    "total_time_s": 57.76,
+    "total_elapsed_s": 57.76,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-04T14:25:31.170544",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_PIPELINE",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE achieves correct phase classification (100% at h>=3.0) when starting from MPNN-predicted parameters on heavy_hex N=10 p=1.",
+    "n_seeds": 1,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 4,
+      "n_failed": 1,
+      "pass_rate": 0.8,
+      "total_time_s": 57.76,
+      "total_elapsed_s": 57.76,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "VQE Training Data",
+        "success": true,
+        "elapsed_s": 1.02,
+        "data": {
+          "n_train": 6,
+          "train_data": [
+            {
+              "h": 4.5,
+              "e_exact": -45.502238142266485,
+              "gap": 6.918573709439514,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.072592728408928
+            },
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "gap": 5.921971082752414,
+              "theta_opt": [
+                -3.141592653589793,
+                3.011374702903561
+              ],
+              "de_gap": 0.09552401178727724
+            },
+            {
+              "h": 3.75,
+              "e_exact": -38.103875034650386,
+              "gap": 5.424130192511058,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.11133122053083207
+            },
+            {
+              "h": 3.5,
+              "e_exact": -35.64762791436936,
+              "gap": 4.926714336378666,
+              "theta_opt": [
+                -3.141592653589793,
+                3.056288260832435
+              ],
+              "de_gap": 0.1314522966325258
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "gap": 4.429858148786295,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.15762889669320382
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "gap": 3.9337583475541074,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ],
+              "de_gap": 0.19258869504707446
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "MPNN Train + Predict",
+        "success": true,
+        "elapsed_s": 8.04,
+        "data": {
+          "predictions": {
+            "4.0": {
+              "theta_pred": [
+                -3.1041033267974854,
+                2.9945664405822754
+              ],
+              "e_exact": -40.56569043551275,
+              "gap": 5.921971082752414,
+              "e_mpnn_noiseless": -39.425317207050924,
+              "de_gap_mpnn": 0.1925664972905952
+            },
+            "3.25": {
+              "theta_pred": [
+                -3.101058006286621,
+                3.0826587677001953
+              ],
+              "e_exact": -33.198273652500575,
+              "gap": 4.429858148786295,
+              "e_mpnn_noiseless": -32.138712163145534,
+              "de_gap_mpnn": 0.23918632465586787
+            },
+            "3.0": {
+              "theta_pred": [
+                -3.098902940750122,
+                3.0940186977386475
+              ],
+              "e_exact": -30.757597386785978,
+              "gap": 3.9337583475541074,
+              "e_mpnn_noiseless": -29.65921317843091,
+              "de_gap_mpnn": 0.27922005149045565
+            }
+          }
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "PEA-ZNE Mitigation",
+        "success": true,
+        "elapsed_s": 11.61,
+        "data": {
+          "results": {
+            "4.0": {
+              "e_noisy": -33.516845703125,
+              "e_pea": -39.36498006184897,
+              "de_noisy": 1.1902869220211705,
+              "de_pea": 0.20275519027116146,
+              "pea_gain": 0.8296585583525756,
+              "pea_r2": 0.9998641911592325,
+              "pea_slope": 0.914642333984378,
+              "measured": [
+                -38.462646484375,
+                -36.596435546875,
+                -34.8040771484375
+              ],
+              "circuit_depth": 83
+            },
+            "3.25": {
+              "e_noisy": -27.340087890625,
+              "e_pea": -32.09454600016275,
+              "de_noisy": 1.322431907550046,
+              "de_pea": 0.24915643238829813,
+              "pea_gain": 0.8115922408058888,
+              "pea_r2": 0.9999998788784508,
+              "pea_slope": 0.7467422485351576,
+              "measured": [
+                -31.347503662109375,
+                -29.85491943359375,
+                -28.36053466796875
+              ],
+              "circuit_depth": 85
+            },
+            "3.0": {
+              "e_noisy": -25.2174072265625,
+              "e_pea": -29.62593587239582,
+              "de_noisy": 1.4083707413466822,
+              "de_pea": 0.2876794694554101,
+              "pea_gain": 0.7957359798739276,
+              "pea_r2": 0.9999921920273537,
+              "pea_slope": 0.6936035156249997,
+              "measured": [
+                -28.9345703125,
+                -27.5406494140625,
+                -26.16015625
+              ],
+              "circuit_depth": 84
+            }
+          }
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Phase Classification",
+        "success": false,
+        "elapsed_s": 35.63,
+        "data": {
+          "classifications": [
+            {
+              "h": 4.0,
+              "mean_x": 0.84342041015625,
+              "predicted": "ordered",
+              "true": "paramagnetic",
+              "correct": false,
+              "n_sites": 10
+            },
+            {
+              "h": 3.25,
+              "mean_x": 0.8447998046875,
+              "predicted": "ordered",
+              "true": "paramagnetic",
+              "correct": false,
+              "n_sites": 10
+            },
+            {
+              "h": 3.0,
+              "mean_x": 0.84261474609375,
+              "predicted": "ordered",
+              "true": "paramagnetic",
+              "correct": false,
+              "n_sites": 10
+            }
+          ],
+          "accuracy": 0.0,
+          "pass": false
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Pipeline Verdict",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true,
+          "mean_gain": 0.8123289263441307,
+          "mean_r2": 0.9999520873550124,
+          "mean_mpnn_de_gap": 0.23699095781230625,
+          "all_positive": true
+        },
+        "error": null
+      }
+    }
+  }
+}

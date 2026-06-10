@@ -1,0 +1,238 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-05-26T17:12:33.153205+00:00",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "python_version": "3.12.13",
+    "software_versions": {
+      "qiskit": "2.4.1",
+      "qiskit_aer": "0.17.2",
+      "qiskit_ibm_runtime": "0.47.0",
+      "numpy": "2.4.4",
+      "torch": "2.11.0",
+      "torch_geometric": "2.7.0",
+      "scipy": "1.17.1"
+    }
+  },
+  "system": {
+    "hamiltonian": "TFIM: H = -J \u03a3_{<i,j>} Z_i Z_j - h \u03a3_i X_i",
+    "model_type": "TFIM",
+    "topology": "chain_1d",
+    "boundary_conditions": "open",
+    "n_qubits": 6,
+    "J": 1.0,
+    "initial_state": "|+>^N",
+    "ansatz": "HVA",
+    "p_layers": 2,
+    "sweep_direction": "descending"
+  },
+  "config": {
+    "n_restarts": 5,
+    "maxiter": 1000,
+    "optimizer": "L-BFGS-B",
+    "mpnn": {
+      "hidden_dim": 128,
+      "n_layers": 3,
+      "n_epochs": 6000,
+      "lr": 0.001,
+      "patience": 500
+    },
+    "h_values": [
+      4.0,
+      3.5,
+      3.0,
+      2.5,
+      2.0
+    ],
+    "h_test": [
+      2.5
+    ]
+  },
+  "elapsed_s": 22.88884997367859,
+  "phase12_data": [
+    {
+      "h": 4.0,
+      "e_exact": -24.31323613440133,
+      "gap": 6.237674156827676,
+      "mag_x_exact": 0.9868868497953406,
+      "corr_zz_exact": 0.12559034786263434,
+      "e_vqe": -24.313110423941403,
+      "energy_error": 0.00012571045992615382,
+      "delta_e_over_gap": 2.0153418849003646e-05,
+      "fidelity": 0.9999917505248765,
+      "n_iterations": 21,
+      "theta_opt": [
+        3.0815054116142115,
+        2.465535072380528,
+        3.0306145654790146,
+        1.2796661017800628
+      ]
+    },
+    {
+      "h": 3.5,
+      "e_exact": -21.358243321291365,
+      "gap": 5.244482029671545,
+      "mag_x_exact": 0.982835333875656,
+      "corr_zz_exact": 0.14374026198052436,
+      "e_vqe": -21.358000835349895,
+      "energy_error": 0.0002424859414702496,
+      "delta_e_over_gap": 4.623639476660314e-05,
+      "fidelity": 0.9999815427623829,
+      "n_iterations": 18,
+      "theta_opt": [
+        3.0731342727920348,
+        2.466414298579656,
+        3.0152993072901766,
+        1.279225921407006
+      ]
+    },
+    {
+      "h": 3.0,
+      "e_exact": -18.41841803015973,
+      "gap": 4.254094849049661,
+      "mag_x_exact": 0.9765583696690484,
+      "corr_zz_exact": 0.16807347522337202,
+      "e_vqe": -18.417902530583284,
+      "energy_error": 0.0005154995764478087,
+      "delta_e_over_gap": 0.00012117726443334196,
+      "fidelity": 0.9999531729153681,
+      "n_iterations": 19,
+      "theta_opt": [
+        3.0621094379649385,
+        2.467741209747192,
+        2.9952111429571024,
+        1.278571371982803
+      ]
+    },
+    {
+      "h": 2.5,
+      "e_exact": -15.503036832525517,
+      "gap": 3.268670322643649,
+      "mag_x_exact": 0.9660549099026464,
+      "corr_zz_exact": 0.20244263679716176,
+      "e_vqe": -15.50178909990726,
+      "energy_error": 0.001247732618256947,
+      "delta_e_over_gap": 0.00038172482847636976,
+      "fidelity": 0.9998588683582665,
+      "n_iterations": 18,
+      "theta_opt": [
+        3.0469845882163407,
+        2.4698648753525294,
+        2.967819415226078,
+        1.2775401117489213
+      ]
+    },
+    {
+      "h": 2.0,
+      "e_exact": -12.630964276492962,
+      "gap": 2.293278473320772,
+      "mag_x_exact": 0.9464119674411285,
+      "corr_zz_exact": 0.2548041334398828,
+      "e_vqe": -12.627347400085213,
+      "energy_error": 0.0036168764077491034,
+      "delta_e_over_gap": 0.0015771640687455202,
+      "fidelity": 0.9994540272896602,
+      "n_iterations": 18,
+      "theta_opt": [
+        3.025121217425,
+        2.4735402521982417,
+        2.92859670338135,
+        1.2758099663838942
+      ]
+    }
+  ],
+  "phase4_results": [
+    {
+      "h_test": 2.5,
+      "predicted_energy": -15.430360644807728,
+      "exact_energy": -15.503036832525517,
+      "gap": 3.268670322643649,
+      "delta_e": 0.07267618771778928,
+      "delta_e_over_gap": 0.022234174922544626,
+      "mag_x_pred": 0.9566485574896886,
+      "corr_zz_pred": 0.21612645649247958,
+      "mag_x_error": 0.009406352412957841,
+      "corr_zz_error": 0.013683819695317817,
+      "phase_label": "paramagnetic",
+      "metrics_checklist": {
+        "delta_e_over_gap_lt_5pct": true,
+        "correct_phase": true,
+        "mag_x_error_lt_1e2": true,
+        "corr_zz_error_lt_1e2": false,
+        "observables_computed": true
+      }
+    }
+  ],
+  "diagnostics": {
+    "phase1": {
+      "n_points": 5,
+      "elapsed_s": 0.00782322883605957,
+      "gap_min": 2.293278473320772
+    },
+    "phase2": {
+      "per_h_timing_s": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_h_iterations": [
+        21,
+        18,
+        19,
+        18,
+        18
+      ],
+      "per_h_restart_spread": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_h_converged": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "theta_smoothness": 0.03922271184472814,
+      "worst_convergence_h": 4.0,
+      "total_elapsed_s": 0.0,
+      "convergence_rate": 1.0
+    },
+    "phase3": {
+      "per_h_mse": {
+        "4.0000": 0.0023667614441365004,
+        "3.5000": 0.0024878159165382385,
+        "3.0000": 0.001537095638923347,
+        "2.5000": 0.004332303535193205,
+        "2.0000": 0.006345334462821484
+      },
+      "theta_zz_mse": 0.003413862199522555,
+      "theta_x_mse": 0.003413862199522555,
+      "generalization_gap": 0.004808238823898137,
+      "loss_curve_last100": [],
+      "elapsed_s": 15.526690006256104
+    },
+    "phase4": {
+      "h_test": 2.5,
+      "snr_mag_x": null,
+      "snr_corr_zz": null,
+      "classification_confidence": null,
+      "per_layout_energies": [],
+      "per_layout_ces": [],
+      "ces_energy_pearson_r": null,
+      "energy_decomposition": {
+        "e_exact": -15.503036832525517,
+        "e_vqe_ceiling": -15.503036832525517,
+        "e_mpnn_predicted": -15.430360644807728,
+        "error_from_circuit": 0.0,
+        "error_from_mpnn": 0.07267618771778928
+      },
+      "total_shots": null
+    },
+    "baseline_comparison": null
+  }
+}

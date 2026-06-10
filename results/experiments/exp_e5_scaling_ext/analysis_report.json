@@ -1,0 +1,48 @@
+{
+  "n_runs_scanned": 19,
+  "bond_dim": null,
+  "vqe_convergence": null,
+  "he_comparison": {
+    "n_qubits": 20,
+    "h_test": 3.5124633005057664,
+    "n_params_total": 39,
+    "method_a_de_gap": 0.05703872519977717,
+    "method_a_iters": 300,
+    "method_b_de_gap": 0.0075414901735140405,
+    "method_b_iters": 300,
+    "method_c_de_gap": 1.0048527591088185,
+    "he_improvement_factor": 7.563322882803591,
+    "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/experiments/exp_e5_scaling_ext/run_20260608_222218.json"
+  },
+  "nlce_tfim": {
+    "model": "tfim",
+    "l_max": 10,
+    "mean_error_pct": 2.5861745823764357,
+    "mean_gapped_error_pct": 2.5437169926023464,
+    "max_error_pct": 8.179631556977661,
+    "n_h_points": 5,
+    "n_converged": 5,
+    "per_h_errors": {
+      "h=0.5": 8.179631556977661,
+      "h=1.0": 2.756004941472792,
+      "h=1.5": 1.1005705050413266,
+      "h=2.0": 0.6185406204124728,
+      "h=3.0": 0.27612528797792496
+    },
+    "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/experiments/exp_e5_scaling_ext/run_20260608_222218.json"
+  },
+  "nlce_frustrated": {
+    "model": "tfim_frustrated",
+    "l_max": 8,
+    "mean_error_pct": 0.0,
+    "mean_gapped_error_pct": 0.0,
+    "max_error_pct": 0.0,
+    "n_h_points": 4,
+    "n_converged": 4,
+    "per_h_errors": {},
+    "source_file": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/experiments/exp_e5_scaling_ext/run_20260608_222218.json"
+  },
+  "overall_pass_rate": 1.0,
+  "sections_passed": 3,
+  "sections_total": 3
+}

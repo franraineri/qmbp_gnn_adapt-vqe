@@ -1,0 +1,475 @@
+{
+  "timestamp": "20260526_171726",
+  "topology": "ladder",
+  "n_qubits": 10,
+  "total_variants": 33,
+  "passed": 16,
+  "failed": 17,
+  "total_elapsed_s": 665.481645822525,
+  "results": [
+    {
+      "variant_id": "NL-A1",
+      "success": true,
+      "elapsed_s": 27.009005069732666,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A3",
+      "success": true,
+      "elapsed_s": 31.967808961868286,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A5",
+      "success": true,
+      "elapsed_s": 34.93671774864197,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-A7",
+      "success": true,
+      "elapsed_s": 33.33681917190552,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B64",
+      "success": true,
+      "elapsed_s": 30.33030080795288,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B128",
+      "success": true,
+      "elapsed_s": 32.42155599594116,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-B256",
+      "success": true,
+      "elapsed_s": 51.28375506401062,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-sparse3",
+      "success": false,
+      "elapsed_s": 12.83473515510559,
+      "return_code": 1,
+      "error_msg": "              ^^^^^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/pipeline/runner.py\", line 584, in run_full\n    model = self.run_phase3(h_values, vqe_results, exact_data, mpnn_config=mpnn_config)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/pipeline/runner.py\", line 282, in run_phase3\n    dataset = build_graph_dataset(\n              ^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/predictors/mpnn.py\", line 297, in build_graph_dataset\n    raise ValueError(\nValueError: Fewer than 3 data points (2) passed the fidelity filter (threshold=0.93). Cannot build a reliable training dataset. Consider widening the h-grid or lowering the fidelity threshold."
+    },
+    {
+      "variant_id": "NL-C-standard6",
+      "success": true,
+      "elapsed_s": 38.475998878479004,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-C-dense11",
+      "success": true,
+      "elapsed_s": 48.01733994483948,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-safe",
+      "success": true,
+      "elapsed_s": 40.2041449546814,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-boundary",
+      "success": true,
+      "elapsed_s": 47.63811707496643,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-D-multi",
+      "success": true,
+      "elapsed_s": 46.151769161224365,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed42",
+      "success": true,
+      "elapsed_s": 42.87528085708618,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed43",
+      "success": true,
+      "elapsed_s": 42.86096000671387,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-E-seed44",
+      "success": true,
+      "elapsed_s": 42.67223000526428,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-F-chain-baseline",
+      "success": true,
+      "elapsed_s": 43.6739022731781,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "NL-G-periodic",
+      "success": false,
+      "elapsed_s": 5.890489101409912,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 197, in <module>\n    run_output = {\n    ^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 66, in main\n    parser.add_argument(\n           ^^^^^^^^^^^^\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 24, in parse_args\n    import numpy as np\n        ^^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'qmbp_simulation.framework.cli'"
+    },
+    {
+      "variant_id": "NL-H-p1-ladder",
+      "success": false,
+      "elapsed_s": 0.2249908447265625,
+      "return_code": 2,
+      "error_msg": "usage: run_pipeline.py [-h] [--n-qubits N_QUBITS] [--topology TOPOLOGY]\n                       [--J J] [--periodic]\n                       [--h-values H_VALUES [H_VALUES ...]]\n                       [--h-test H_TEST [H_TEST ...]] [--p P]\n                       [--n-restarts N_RESTARTS] [--maxiter MAXITER]\n                       [--hidden-dim HIDDEN_DIM] [--n-epochs N_EPOCHS]\n                       [--skip-phase1] [--skip-phase2] [--skip-phase3]\n                       [--skip-phase4] [--checkpoint CHECKPOINT]\n                       [--output-dir OUTPUT_DIR] [--verbose] [--debug]\nrun_pipeline.py: error: unrecognized arguments: --patience 500"
+    },
+    {
+      "variant_id": "NY-A-shots8192",
+      "success": false,
+      "elapsed_s": 5.144331932067871,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 347, in <module>\n    main()\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 66, in <module>\n    from qmbp_simulation.framework import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/framework/__init__.py\", line 13\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-A-shots16384",
+      "success": false,
+      "elapsed_s": 0.6221792697906494,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-A-shots32768",
+      "success": false,
+      "elapsed_s": 0.5579090118408203,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-B-lay3",
+      "success": false,
+      "elapsed_s": 0.6230771541595459,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-B-lay5",
+      "success": false,
+      "elapsed_s": 0.7841291427612305,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-B-lay7",
+      "success": false,
+      "elapsed_s": 0.9396491050720215,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-C-seed42",
+      "success": false,
+      "elapsed_s": 0.8147649765014648,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-C-seed43",
+      "success": false,
+      "elapsed_s": 0.8487386703491211,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "NY-C-seed44",
+      "success": false,
+      "elapsed_s": 0.7876172065734863,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "EXT-1-high-h",
+      "success": false,
+      "elapsed_s": 0.07826590538024902,
+      "return_code": 1,
+      "error_msg": "File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 193\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "EXT-2-near-hc",
+      "success": false,
+      "elapsed_s": 0.07009291648864746,
+      "return_code": 1,
+      "error_msg": "File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 193\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "EXT-3-triangular",
+      "success": false,
+      "elapsed_s": 0.07038307189941406,
+      "return_code": 1,
+      "error_msg": "File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 193\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "EXT-4-deep-gnn",
+      "success": false,
+      "elapsed_s": 0.07089495658874512,
+      "return_code": 1,
+      "error_msg": "File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_pipeline.py\", line 193\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    },
+    {
+      "variant_id": "EXT-5-noisy-p1",
+      "success": false,
+      "elapsed_s": 1.2465310096740723,
+      "return_code": 1,
+      "error_msg": "  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/scripts/run_noisy_pipeline.py\", line 79, in main\n    from qmbp_simulation import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/__init__.py\", line 41, in <module>\n    from qmbp_simulation.execution import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/__init__.py\", line 3, in <module>\n    from qmbp_simulation.execution.backends import (\n  File \"/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/src/qmbp_simulation/execution/backends.py\", line 161\n    <<<<<<< Updated upstream\n    ^^\nSyntaxError: invalid syntax"
+    }
+  ],
+  "variants": [
+    {
+      "id": "NL-A1",
+      "description": "VQE restarts=1 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 1 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-A3",
+      "description": "VQE restarts=3 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 3 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-A5",
+      "description": "VQE restarts=5 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 5 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-A7",
+      "description": "VQE restarts=7 (ladder, hidden=128)",
+      "category": "noiseless",
+      "hypothesis": "VQE with 7 restart(s) on ladder converges to \u0394E/gap < 5%",
+      "expected_outcome": "Ladder may need \u22655 restarts due to higher connectivity. 1 restart likely fails."
+    },
+    {
+      "id": "NL-B64",
+      "description": "MPNN hidden_dim=64 (ladder, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=64 on ladder achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 is optimal for N=10 (from project-status). h=64 may underfit on ladder due to richer graph structure."
+    },
+    {
+      "id": "NL-B128",
+      "description": "MPNN hidden_dim=128 (ladder, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=128 on ladder achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 is optimal for N=10 (from project-status). h=64 may underfit on ladder due to richer graph structure."
+    },
+    {
+      "id": "NL-B256",
+      "description": "MPNN hidden_dim=256 (ladder, 5 restarts)",
+      "category": "noiseless",
+      "hypothesis": "MPNN hidden_dim=256 on ladder achieves \u0394E/gap < 5%",
+      "expected_outcome": "h=128 is optimal for N=10 (from project-status). h=64 may underfit on ladder due to richer graph structure."
+    },
+    {
+      "id": "NL-C-sparse3",
+      "description": "h-grid: sparse3 (3 pts, ladder)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'sparse3' sufficient for ladder MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse3 may fail on ladder (steeper parameter landscape needs more training points)."
+    },
+    {
+      "id": "NL-C-standard6",
+      "description": "h-grid: standard6 (7 pts, ladder)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'standard6' sufficient for ladder MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse3 may fail on ladder (steeper parameter landscape needs more training points)."
+    },
+    {
+      "id": "NL-C-dense11",
+      "description": "h-grid: dense11 (9 pts, ladder)",
+      "category": "noiseless",
+      "hypothesis": "Grid 'dense11' sufficient for ladder MPNN training",
+      "expected_outcome": "Dense grid should pass; sparse3 may fail on ladder (steeper parameter landscape needs more training points)."
+    },
+    {
+      "id": "NL-D-safe",
+      "description": "h_test: Safe point (deep in paramagnetic phase) (ladder)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on ladder to h_test=['2.5']",
+      "expected_outcome": "Safe and multi should pass; boundary may be marginal."
+    },
+    {
+      "id": "NL-D-boundary",
+      "description": "h_test: Boundary of expected valid regime (ladder)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on ladder to h_test=['2.0']",
+      "expected_outcome": "Safe and multi should pass; boundary may be marginal."
+    },
+    {
+      "id": "NL-D-multi",
+      "description": "h_test: Multiple points across regime (ladder)",
+      "category": "noiseless",
+      "hypothesis": "MPNN generalizes on ladder to h_test=['3.5', '2.75', '2.25']",
+      "expected_outcome": "Safe and multi should pass; boundary may be marginal."
+    },
+    {
+      "id": "NL-E-seed42",
+      "description": "Seed=42 (ladder, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline with seed=42 is reproducible",
+      "expected_outcome": "All seeds pass \u2014 topology doesn't affect seed independence."
+    },
+    {
+      "id": "NL-E-seed43",
+      "description": "Seed=43 (ladder, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline with seed=43 is reproducible",
+      "expected_outcome": "All seeds pass \u2014 topology doesn't affect seed independence."
+    },
+    {
+      "id": "NL-E-seed44",
+      "description": "Seed=44 (ladder, reproducibility)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline with seed=44 is reproducible",
+      "expected_outcome": "All seeds pass \u2014 topology doesn't affect seed independence."
+    },
+    {
+      "id": "NL-F-chain-baseline",
+      "description": "Chain_1d baseline (same config as ladder for comparison)",
+      "category": "noiseless",
+      "hypothesis": "Chain_1d baseline for direct topology comparison",
+      "expected_outcome": "PASS \u2014 chain_1d at N=10 is well-validated. Provides reference for ladder performance delta."
+    },
+    {
+      "id": "NL-G-periodic",
+      "description": "Periodic ladder (cylinder topology, max connectivity)",
+      "category": "noiseless",
+      "hypothesis": "Periodic ladder (cylinder) works with 7 restarts at h\u22652.5",
+      "expected_outcome": "May need even higher h threshold due to periodic bonds. Tests framework's handling of periodic boundary conditions."
+    },
+    {
+      "id": "NL-H-p1-ladder",
+      "description": "p=1 layer on ladder (2 params, higher connectivity)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder works at h\u22652.5 (narrower regime than p=2)",
+      "expected_outcome": "Valid regime likely shifts up vs p=2 due to fewer params. Tests if p=1 is viable on higher-connectivity topologies."
+    },
+    {
+      "id": "NY-A-shots8192",
+      "description": "Noisy ladder: shots=8192 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on ladder with 8192 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 ladder has more CX gates \u2192 ZNE may struggle. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Ladder has even more gates \u2192 expect failure."
+    },
+    {
+      "id": "NY-A-shots16384",
+      "description": "Noisy ladder: shots=16384 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on ladder with 16384 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 ladder has more CX gates \u2192 ZNE may struggle. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Ladder has even more gates \u2192 expect failure."
+    },
+    {
+      "id": "NY-A-shots32768",
+      "description": "Noisy ladder: shots=32768 (3 layouts)",
+      "category": "noisy",
+      "hypothesis": "ZNE on ladder with 32768 shots achieves R\u00b2 > 0.8",
+      "expected_outcome": "N=10 ladder has more CX gates \u2192 ZNE may struggle. Known: ZNE fails at N=10 chain_1d (R\u00b2<0.05). Ladder has even more gates \u2192 expect failure."
+    },
+    {
+      "id": "NY-B-lay3",
+      "description": "Noisy ladder: n_layouts=3 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 3 layouts on ladder",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE is known to fail regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Ladder makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-B-lay5",
+      "description": "Noisy ladder: n_layouts=5 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 5 layouts on ladder",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE is known to fail regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Ladder makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-B-lay7",
+      "description": "Noisy ladder: n_layouts=7 (16384 shots)",
+      "category": "noisy",
+      "hypothesis": "ZNE with 7 layouts on ladder",
+      "expected_outcome": "Expected to FAIL \u2014 N=10 ZNE is known to fail regardless of layout count (Tsubouchi et al. 2023: cost grows exp(depth\u00d7qubits)). Ladder makes it worse. Documents the failure mode."
+    },
+    {
+      "id": "NY-C-seed42",
+      "description": "Noisy ladder: seed=42 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy ladder seed=42 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "NY-C-seed43",
+      "description": "Noisy ladder: seed=43 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy ladder seed=43 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "NY-C-seed44",
+      "description": "Noisy ladder: seed=44 (3 layouts, 16384 shots)",
+      "category": "noisy",
+      "hypothesis": "Noisy ladder seed=44 \u2014 consistent failure mode",
+      "expected_outcome": "All seeds should show same failure pattern (R\u00b2<0.1). Confirms failure is systematic, not stochastic."
+    },
+    {
+      "id": "EXT-1-high-h",
+      "description": "Ladder at very high h=[3.0, 2.5, 2.0] (topology-independent regime)",
+      "category": "noiseless",
+      "hypothesis": "At h>>J, ladder and chain give identical results (ZZ negligible)",
+      "expected_outcome": "PASS with very low \u0394E/gap (<0.1%). Confirms topology-independence at high field. Useful as sanity check."
+    },
+    {
+      "id": "EXT-2-near-hc",
+      "description": "Ladder near valid boundary: dense grid h=[3.0\u21922.0] (boundary region)",
+      "category": "noiseless",
+      "hypothesis": "Ladder pipeline works near valid boundary with 7 restarts",
+      "expected_outcome": "h\u22652.5 should pass; h=2.0 is marginal (fid\u22480.93 boundary). Maps the valid regime boundary for ladder topology."
+    },
+    {
+      "id": "EXT-3-triangular",
+      "description": "Triangular topology N=10 (highest connectivity, hardest test)",
+      "category": "noiseless",
+      "hypothesis": "Framework works on triangular lattice at high h",
+      "expected_outcome": "Needs h\u22653.0+ for valid regime (many more ZZ bonds). Tests true topology-agnosticism of the GNN approach."
+    },
+    {
+      "id": "EXT-4-deep-gnn",
+      "description": "Ladder with 5 GNN layers (deeper message passing for ladder)",
+      "category": "noiseless",
+      "hypothesis": "5 GNN layers (vs default 3) improves prediction on ladder",
+      "expected_outcome": "Marginal improvement expected \u2014 ladder diameter is small (5 hops), so 3 layers already covers full graph. Tests over-smoothing risk."
+    },
+    {
+      "id": "EXT-5-noisy-p1",
+      "description": "Noisy ladder p=1 (fewer CX \u2192 ZNE may succeed where p=2 fails)",
+      "category": "noisy",
+      "hypothesis": "p=1 ladder has ~50% fewer CX gates \u2192 ZNE may work at N=10",
+      "expected_outcome": "If p=1 N=10 ladder CX count \u2248 p=2 N=6 chain (\u224818 CX), ZNE should work. Tests the CX-budget hypothesis for ZNE viability."
+    }
+  ]
+}

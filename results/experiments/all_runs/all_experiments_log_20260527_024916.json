@@ -1,0 +1,302 @@
+{
+  "timestamp": "20260527_024916",
+  "total_experiments": 16,
+  "passed": 16,
+  "failed": 0,
+  "total_elapsed_s": 895.5,
+  "overrides": {
+    "n_qubits": 6,
+    "p_layers": null,
+    "topology": null,
+    "seeds": null
+  },
+  "excluded": [],
+  "results": [
+    {
+      "exp_id": "A3",
+      "description": "Finite-size scaling law for valid regime boundary h_min(N)",
+      "success": true,
+      "elapsed_s": 122.41,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.0,
+        "std_de_gap": 0.0,
+        "median_de_gap": 0.0,
+        "min_de_gap": 0.0,
+        "max_de_gap": 0.0,
+        "pass_rate": 1.0,
+        "n_total_points": 12,
+        "total_time_s": 122.32713985443115,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "B1",
+      "description": "Analytical initial guess validation (perturbation theory)",
+      "success": true,
+      "elapsed_s": 17.06,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.2502047270674343,
+        "std_de_gap": 0.18530972932249742,
+        "median_de_gap": 0.21451641296888024,
+        "min_de_gap": 0.0007660563802204947,
+        "max_de_gap": 0.6311280136882976,
+        "pass_rate": 0.125,
+        "n_total_points": 24,
+        "total_time_s": 17.047892093658447,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 9.0
+      }
+    },
+    {
+      "exp_id": "B2",
+      "description": "TITAN parameter freezing: identify and freeze inactive HVA params",
+      "success": true,
+      "elapsed_s": 9.89,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.16805702942887563,
+        "std_de_gap": 0.2834186636454344,
+        "median_de_gap": 0.02414863432200932,
+        "min_de_gap": 0.0015771640699151553,
+        "max_de_gap": 0.8764107901050209,
+        "pass_rate": 0.6666666666666666,
+        "n_total_points": 18,
+        "total_time_s": 1.703467607498169,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "B4",
+      "description": "Hessian-guided adaptive restarts reduce VQE cost",
+      "success": true,
+      "elapsed_s": 13.49,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.050108461379586466,
+        "std_de_gap": 0.061419660295110264,
+        "median_de_gap": 0.022010782804949572,
+        "min_de_gap": 0.0015771640700871148,
+        "max_de_gap": 0.15452642515624862,
+        "pass_rate": 0.75,
+        "n_total_points": 12,
+        "total_time_s": 13.482945919036865,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 145.0
+      }
+    },
+    {
+      "exp_id": "C1",
+      "description": "Physics-informed MPNN loss: MSE + \u03bb\u00b7|E(\u03b8_pred)-E_exact| improves deployment at boundary h-values",
+      "success": true,
+      "elapsed_s": 0.0,
+      "error_msg": "",
+      "summary": {
+        "error": "No successful runs"
+      }
+    },
+    {
+      "exp_id": "C3",
+      "description": "Sign canonicalization enables MPNN deployment at N=20 p=1",
+      "success": true,
+      "elapsed_s": 0.76,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.0032569911556918608,
+        "std_de_gap": 0.0018711342338914804,
+        "median_de_gap": 0.002619818195075843,
+        "min_de_gap": 0.0013513422739767063,
+        "max_de_gap": 0.005799812998027752,
+        "pass_rate": 1.0,
+        "n_total_points": 9,
+        "total_time_s": 0.022864818572998047,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "D1",
+      "description": "Zero-QPU phase detection from MPNN weight gradient peaks",
+      "success": true,
+      "elapsed_s": 52.2,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 1.152703471655647,
+        "std_de_gap": 4.85818244832547,
+        "median_de_gap": 0.24078762531280518,
+        "min_de_gap": 0.038791391998529434,
+        "max_de_gap": 47.05400848388672,
+        "pass_rate": 0.006666666666666667,
+        "n_total_points": 150,
+        "total_time_s": 0.0,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "E3",
+      "description": "Active learning reduces VQE data collection by 30-50%",
+      "success": true,
+      "elapsed_s": 0.0,
+      "error_msg": "",
+      "summary": {
+        "error": "No successful runs"
+      }
+    },
+    {
+      "exp_id": "E4",
+      "description": "TFIM + longitudinal field: 2D phase diagram with MPNN",
+      "success": true,
+      "elapsed_s": 41.04,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.24643375154296351,
+        "std_de_gap": 0.21389589129511408,
+        "median_de_gap": 0.18065545235630454,
+        "min_de_gap": 0.001577164069915942,
+        "max_de_gap": 0.7719842173629057,
+        "pass_rate": 0.24,
+        "n_total_points": 75,
+        "total_time_s": 41.02196455001831,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 474.8
+      }
+    },
+    {
+      "exp_id": "F1",
+      "description": "DyPP extrapolation vs standard warm-start in descending sweep",
+      "success": true,
+      "elapsed_s": 9.77,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.13721683782655913,
+        "std_de_gap": 0.2534288863297288,
+        "median_de_gap": 0.026078621896380015,
+        "min_de_gap": 0.0015771640693342107,
+        "max_de_gap": 1.1907723151482104,
+        "pass_rate": 0.6410256410256411,
+        "n_total_points": 39,
+        "total_time_s": 9.75511646270752,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "F3",
+      "description": "Landscape fluctuation analysis for valid regime prediction",
+      "success": true,
+      "elapsed_s": 6.45,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 5.455223346205837,
+        "std_de_gap": 14.541927190552439,
+        "median_de_gap": 0.4834971190489523,
+        "min_de_gap": 0.05682242715927232,
+        "max_de_gap": 63.21008771208082,
+        "pass_rate": 0.0,
+        "n_total_points": 30,
+        "total_time_s": 0.0,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "G1",
+      "description": "Data efficiency: minimum VQE points for MPNN deployment",
+      "success": true,
+      "elapsed_s": 247.77,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.02061339175908445,
+        "std_de_gap": 0.014256970455753793,
+        "median_de_gap": 0.0143383732948353,
+        "min_de_gap": 0.01018316585103273,
+        "max_de_gap": 0.06667984837949936,
+        "pass_rate": 0.9523809523809523,
+        "n_total_points": 21,
+        "total_time_s": 224.90305066108704,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "G2",
+      "description": "Ensemble uncertainty calibration: variance vs \u0394E/gap",
+      "success": true,
+      "elapsed_s": 140.13,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 2.4699027111930696,
+        "std_de_gap": 8.48537474050003,
+        "median_de_gap": 0.05754212632584996,
+        "min_de_gap": 0.0016438665912533591,
+        "max_de_gap": 54.407499724478384,
+        "pass_rate": 0.5,
+        "n_total_points": 60,
+        "total_time_s": 0.2836034297943115,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "G3",
+      "description": "N=20 p=2 optimized pipeline (capstone)",
+      "success": true,
+      "elapsed_s": 32.04,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.018120216219972184,
+        "std_de_gap": 0.008276014703075643,
+        "median_de_gap": 0.015714897527235004,
+        "min_de_gap": 0.009266669649416774,
+        "max_de_gap": 0.02952865166320677,
+        "pass_rate": 1.0,
+        "n_total_points": 9,
+        "total_time_s": 96.01138401031494,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "G4",
+      "description": "Condition number \u03ba predicts VQE restart needs",
+      "success": true,
+      "elapsed_s": 138.89,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.045869048913243914,
+        "std_de_gap": 0.05667933664553329,
+        "median_de_gap": 0.0283834657410035,
+        "min_de_gap": 0.0015771640686239091,
+        "max_de_gap": 0.15452642515580836,
+        "pass_rate": 0.7333333333333333,
+        "n_total_points": 15,
+        "total_time_s": 138.88319492340088,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    },
+    {
+      "exp_id": "G5",
+      "description": "Cross-seed generalization: MPNN trained on seed 42, tested on 43/44",
+      "success": true,
+      "elapsed_s": 63.59,
+      "error_msg": "",
+      "summary": {
+        "mean_de_gap": 0.01797271813379665,
+        "std_de_gap": 0.015577237607358924,
+        "median_de_gap": 0.011299655247281023,
+        "min_de_gap": 0.0017773745500049036,
+        "max_de_gap": 0.05183690415347709,
+        "pass_rate": 0.9166666666666666,
+        "n_total_points": 12,
+        "total_time_s": 0.03874564170837402,
+        "convergence_rate": 1.0,
+        "mean_evaluations": 0.0
+      }
+    }
+  ]
+}

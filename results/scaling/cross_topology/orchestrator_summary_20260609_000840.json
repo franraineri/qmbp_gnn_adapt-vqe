@@ -1,0 +1,101 @@
+{
+  "experiment": "cross_topology_orchestrator",
+  "metadata": {
+    "source_files": [
+      "results/scaling/cross_topology/cross_n_validation_triangular_heavy_hex_20260608_233706.json",
+      "results/scaling/cross_topology/cross_n_validation_triangular_heavy_hex_20260609_000001.json",
+      "results/scaling/cross_topology/cross_topology_transfer_20260608_233840.json",
+      "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233420.json",
+      "results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233633.json",
+      "results/scaling/cross_topology/vqe_heavy_hex_N6_p1_20260608_205021.json",
+      "results/scaling/cross_topology/vqe_triangular_N16_p1_20260608_230139.json",
+      "results/scaling/cross_topology/vqe_triangular_N6_p1_20260608_210026.json",
+      "results/scaling/cross_topology/vqe_triangular_N6_p1_20260608_233958.json"
+    ],
+    "git_commit": "3ac6aa760f38a191a0bd5830d1ca0517cb12c0bc",
+    "timestamp": "2026-06-09T00:08:40",
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "total_time_s": 3767.3096752090205,
+    "timeout_per_experiment_s": 1800,
+    "total_budget_s": 10800,
+    "skip_existing": true,
+    "skip_ablation": false
+  },
+  "environment": {
+    "python_version": "3.12.13",
+    "numpy_version": "2.4.4",
+    "torch_version": "2.11.0"
+  },
+  "steps": [
+    {
+      "step": "data_gen_heavy_hex_N16",
+      "status": "completed",
+      "returncode": 0,
+      "time_s": 1708.7857787500252,
+      "stdout_tail": "",
+      "stderr_tail": "ime for N=16: 1702.0s (28.4m)\n2026-06-08 23:34:20,840 [INFO] \n\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n2026-06-08 23:34:20,840 [INFO]   VQE Data Generation Complete\n2026-06-08 23:34:20,840 [INFO] \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\n2026-06-08 23:34:20,840 [INFO]   Total time: 1702.0s (28.4m)\n2026-06-08 23:34:20,840 [INFO]   Files generated: 1\n2026-06-08 23:34:20,840 [INFO]     - results/scaling/cross_topology/vqe_heavy_hex_N16_p1_20260608_233420.json\n"
+    },
+    {
+      "step": "cross_n_validation",
+      "status": "error",
+      "returncode": 1,
+      "time_s": 164.49861429200973,
+      "stdout_tail": "",
+      "stderr_tail": "gap      Std  Pass Rate  Verdict\n2026-06-08 23:37:05,988 [INFO]   \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n2026-06-08 23:37:05,988 [INFO]   triangular         679.784% 297.573%      0.0%     FAIL\n2026-06-08 23:37:05,988 [INFO]   heavy_hex          323.935% 48.938%     13.3%     FAIL\n2026-06-08 23:37:05,988 [INFO] \n  Total time: 149.0s (2.5m)\n2026-06-08 23:37:06,028 [INFO] \n  Results saved: results/scaling/cross_topology/cross_n_validation_triangular_heavy_hex_20260608_233706.json\n"
+    },
+    {
+      "step": "cross_topology_transfer",
+      "status": "error",
+      "returncode": 1,
+      "time_s": 93.99170762498397,
+      "stdout_tail": "",
+      "stderr_tail": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n2026-06-08 23:38:40,041 [INFO]   tri_to_hea           624.984%          0%         5.0/5\n2026-06-08 23:38:40,041 [INFO]   hea_to_tri           719.401%          0%         5.0/5\n2026-06-08 23:38:40,041 [INFO]   \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n2026-06-08 23:38:40,041 [INFO]   Total time: 87.1s (1.5m)\n2026-06-08 23:38:40,083 [INFO] \n  Results saved: results/scaling/cross_topology/cross_topology_transfer_20260608_233840.json\n"
+    },
+    {
+      "step": "ablation",
+      "status": "timeout",
+      "returncode": -1,
+      "time_s": 1800.0293551249779,
+      "stdout_tail": "",
+      "stderr_tail": "TimeoutExpired after 1800s"
+    }
+  ],
+  "verdict_table": [
+    {
+      "step": "data_gen_heavy_hex_N16",
+      "status": "completed",
+      "time_s": 1708.7857787500252
+    },
+    {
+      "step": "cross_n_validation",
+      "status": "error",
+      "time_s": 164.49861429200973
+    },
+    {
+      "step": "cross_topology_transfer",
+      "status": "error",
+      "time_s": 93.99170762498397
+    },
+    {
+      "step": "ablation",
+      "status": "timeout",
+      "time_s": 1800.0293551249779
+    }
+  ],
+  "verdict": {
+    "overall": "PARTIAL (errors)",
+    "all_completed": false,
+    "any_timeout": true,
+    "any_error": true,
+    "total_time_s": 3767.3096752090205,
+    "within_budget": true
+  },
+  "experiment_verdicts": {
+    "within_topology_pass": false,
+    "cross_topology_pass": false
+  }
+}

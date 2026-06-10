@@ -1,0 +1,701 @@
+{
+  "timestamp": "2026-06-10T14:25:05.341546",
+  "config": {
+    "runner_id": "hardware_rehearsal_v2",
+    "experiment_id": "HW_REHEARSAL_V2",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "description": "Hardware Rehearsal V2 (PEA/GF/Adaptive ZNE via HardwareBackend)",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "h_train": [
+      4.5,
+      4.25,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "zne": {
+      "amplifier": "pea",
+      "r2_threshold": 0.9,
+      "shots": 16384,
+      "n_layouts": 3
+    },
+    "thresholds": {
+      "de_gap": 0.05,
+      "zne_r2": 0.8
+    },
+    "category": "H"
+  },
+  "elapsed_s": 80.6683259010315,
+  "results": {
+    "section_1": {
+      "name": "MPNN Prediction Quality (Noiseless)",
+      "success": true,
+      "elapsed_s": 17.15,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_exact": -40.56569043551275,
+            "e_pred": -40.552600594058006,
+            "gap": 5.921971082752414,
+            "de_gap": 0.002210385912364034,
+            "theta_norm": 0.3988038897514343,
+            "pass": true
+          },
+          {
+            "h": 3.25,
+            "e_exact": -33.198273652500575,
+            "e_pred": -33.17415499957306,
+            "gap": 4.429858148786295,
+            "de_gap": 0.0054445655182256076,
+            "theta_norm": 0.39993706345558167,
+            "pass": true
+          },
+          {
+            "h": 3.0,
+            "e_exact": -30.757597386785978,
+            "e_pred": -30.72699524907219,
+            "gap": 3.9337583475541074,
+            "de_gap": 0.007779363908516731,
+            "theta_norm": 0.4002845585346222,
+            "pass": true
+          }
+        ],
+        "n_pass": 3,
+        "n_total": 3,
+        "mean_de_gap": 0.005144771779702124,
+        "max_de_gap": 0.007779363908516731,
+        "std_de_gap": 0.0022833872783873293,
+        "train_mse": 2.6703124603955075e-05,
+        "train_epochs": 6000,
+        "n_params": 2,
+        "n_train_points": 7,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "HardwareBackend Noisy Pipeline",
+      "success": true,
+      "elapsed_s": 23.94,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_exact": -40.56569043551275,
+            "e_noiseless": -40.552600594058006,
+            "e_zne": -40.47207641601561,
+            "gap": 5.921971082752414,
+            "de_gap_noiseless": 0.002210385912364034,
+            "de_gap_zne": 0.015807915673514018,
+            "noise_error": 0.013597529761149984,
+            "amplifier": "pea",
+            "pass": true
+          },
+          {
+            "h": 3.25,
+            "e_exact": -33.198273652500575,
+            "e_noiseless": -33.17415499957306,
+            "e_zne": -33.09358978271484,
+            "gap": 4.429858148786295,
+            "de_gap_noiseless": 0.0054445655182256076,
+            "de_gap_zne": 0.023631427072765245,
+            "noise_error": 0.01818686155453964,
+            "amplifier": "pea",
+            "pass": true
+          },
+          {
+            "h": 3.0,
+            "e_exact": -30.757597386785978,
+            "e_noiseless": -30.72699524907219,
+            "e_zne": -30.634094238281246,
+            "gap": 3.9337583475541074,
+            "de_gap_noiseless": 0.007779363908516731,
+            "de_gap_zne": 0.031395713105133186,
+            "noise_error": 0.023616349196616454,
+            "amplifier": "pea",
+            "pass": true
+          }
+        ],
+        "n_pass": 3,
+        "n_total": 3,
+        "amplifier": "pea",
+        "pass": true,
+        "mean_de_gap_zne": 0.02361168528380415,
+        "max_de_gap_zne": 0.031395713105133186,
+        "mean_noise_error": 0.018466913504102025
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Full run_deployment() Pipeline",
+      "success": true,
+      "elapsed_s": 9.49,
+      "data": {
+        "h": 3.25,
+        "verdict": "PASS",
+        "verdict_reason": "\u0394E/gap=0.0236 < 5%, phase=paramagnetic correct",
+        "de_gap": 0.023631427072765245,
+        "zne_r2": 0.9987072763712685,
+        "phase_label": "paramagnetic",
+        "amplifier_used": "pea",
+        "mitigation_strategy": "pea_local",
+        "layout_std": 0.4602963752478627,
+        "fallback_triggered": false,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Adaptive ZNE Validation",
+      "success": false,
+      "elapsed_s": 1.34,
+      "data": {},
+      "error": "AssertionError: "
+    },
+    "section_5": {
+      "name": "Amplifier Comparison (GF vs PEA)",
+      "success": false,
+      "elapsed_s": 10.56,
+      "data": {
+        "h": 3.25,
+        "gf_energy": -29.163968404134096,
+        "gf_r2": 0.9968018290655848,
+        "gf_de_gap": 0.9107075470287485,
+        "gf_time_s": 9.13925814628601,
+        "pea_energy": -33.12125142415364,
+        "pea_r2": 0.99862618546909,
+        "pea_de_gap": 0.017387064271580908,
+        "pea_time_s": 1.0716569423675537,
+        "pea_better_energy": true,
+        "pea_time_overhead": 0.11725863579015448,
+        "both_pass_threshold": false,
+        "e_exact": -33.198273652500575,
+        "gap": 4.429858148786295,
+        "pass": false
+      },
+      "error": null
+    },
+    "section_6": {
+      "name": "Shot Noise Reproducibility",
+      "success": true,
+      "elapsed_s": 17.96,
+      "data": {
+        "h": 3.25,
+        "n_reps": 5,
+        "mean_de_gap": 0.9364803407198966,
+        "std_de_gap": 0.007416407759012585,
+        "energies": [
+          -29.095184326171875,
+          -29.0013427734375,
+          -29.02911376953125,
+          -29.04986572265625,
+          -29.073486328125
+        ],
+        "reproducible": true,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_7": {
+      "name": "Phase Classification from Noisy Observables",
+      "success": true,
+      "elapsed_s": 0.01,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "x_mean": 0.986558796143443,
+            "zz_mean": 0.12113874981336492,
+            "snr_x": 63.13976295318035,
+            "snr_zz": 7.752879988055355,
+            "label": "paramagnetic",
+            "expected": "paramagnetic",
+            "correct": true,
+            "confidence_sigma": 55.386882965125
+          },
+          {
+            "h": 3.25,
+            "x_mean": 0.9807242263214182,
+            "zz_mean": 0.14451307156966312,
+            "snr_x": 62.766350484570765,
+            "snr_zz": 9.24883658045844,
+            "label": "paramagnetic",
+            "expected": "paramagnetic",
+            "correct": true,
+            "confidence_sigma": 53.51751390411233
+          },
+          {
+            "h": 3.0,
+            "x_mean": 0.9779905531997547,
+            "zz_mean": 0.15414207256439408,
+            "snr_x": 62.5913954047843,
+            "snr_zz": 9.865092644121221,
+            "label": "paramagnetic",
+            "expected": "paramagnetic",
+            "correct": true,
+            "confidence_sigma": 52.72630276066308
+          }
+        ],
+        "n_correct": 3,
+        "n_total": 3,
+        "all_correct": true,
+        "all_snr_ok": true,
+        "mean_confidence": 53.87689987663347,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_8": {
+      "name": "QPU Cost & Timeout Estimation",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "n_h_points": 3,
+        "circuits_per_h": 9,
+        "shots_per_h": 147456,
+        "total_circuits": 27,
+        "total_shots": 442368,
+        "est_time_per_h_s": 88.4736,
+        "est_zne_time_s": 265.4208,
+        "est_obs_time_s": 39.321600000000004,
+        "est_spsa_time_s": 2359.296,
+        "est_grand_total_s": 2664.0384,
+        "est_grand_total_min": 44.400639999999996,
+        "max_execution_time_s": 600,
+        "fits_single_job": true,
+        "fits_full_sweep": false,
+        "amplifier": "pea",
+        "estimated_clops": 2500,
+        "pass": true
+      },
+      "error": null
+    },
+    "section_9": {
+      "name": "Transpiled Circuit Depth Audit",
+      "success": true,
+      "elapsed_s": 0.19,
+      "data": {
+        "layouts": [
+          {
+            "layout_idx": 0,
+            "layout_qubits": [
+              25,
+              24,
+              26,
+              35,
+              23
+            ],
+            "ces": 0.15108214181419538,
+            "n_2q_gates": 41,
+            "n_1q_gates": 200,
+            "depth": 98,
+            "zne_viable": true,
+            "depth_warning": false
+          },
+          {
+            "layout_idx": 1,
+            "layout_qubits": [
+              32,
+              33,
+              31,
+              37,
+              18
+            ],
+            "ces": 0.1542819054553537,
+            "n_2q_gates": 41,
+            "n_1q_gates": 187,
+            "depth": 100,
+            "zne_viable": true,
+            "depth_warning": false
+          },
+          {
+            "layout_idx": 2,
+            "layout_qubits": [
+              5,
+              4,
+              6,
+              16,
+              3
+            ],
+            "ces": 0.18011073057872012,
+            "n_2q_gates": 46,
+            "n_1q_gates": 192,
+            "depth": 100,
+            "zne_viable": true,
+            "depth_warning": false
+          }
+        ],
+        "mean_2q_gates": 42.666666666666664,
+        "max_2q_gates": 46,
+        "mean_ces": 0.16182492594942308,
+        "zne_threshold": 50,
+        "all_zne_viable": true,
+        "n_layouts_audited": 3,
+        "pass": true
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 9,
+    "n_passed": 7,
+    "n_failed": 2,
+    "pass_rate": 0.7777777777777778,
+    "total_time_s": 80.67,
+    "total_elapsed_s": 80.67,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-10T14:25:05.341526",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "mps_evaluation_mode": "deterministic",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "HW_REHEARSAL_V2",
+    "category": "H",
+    "hypothesis": "HardwareBackend(mode=fake_backend) produces \u0394E/gap<5% at h\u22653.0 using PEA or adaptive ZNE on FakeTorino",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 9,
+      "n_passed": 7,
+      "n_failed": 2,
+      "pass_rate": 0.7777777777777778,
+      "total_time_s": 80.67,
+      "total_elapsed_s": 80.67,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "MPNN Prediction Quality (Noiseless)",
+        "success": true,
+        "elapsed_s": 17.15,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "e_pred": -40.552600594058006,
+              "gap": 5.921971082752414,
+              "de_gap": 0.002210385912364034,
+              "theta_norm": 0.3988038897514343,
+              "pass": true
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "e_pred": -33.17415499957306,
+              "gap": 4.429858148786295,
+              "de_gap": 0.0054445655182256076,
+              "theta_norm": 0.39993706345558167,
+              "pass": true
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "e_pred": -30.72699524907219,
+              "gap": 3.9337583475541074,
+              "de_gap": 0.007779363908516731,
+              "theta_norm": 0.4002845585346222,
+              "pass": true
+            }
+          ],
+          "n_pass": 3,
+          "n_total": 3,
+          "mean_de_gap": 0.005144771779702124,
+          "max_de_gap": 0.007779363908516731,
+          "std_de_gap": 0.0022833872783873293,
+          "train_mse": 2.6703124603955075e-05,
+          "train_epochs": 6000,
+          "n_params": 2,
+          "n_train_points": 7,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "HardwareBackend Noisy Pipeline",
+        "success": true,
+        "elapsed_s": 23.94,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "e_noiseless": -40.552600594058006,
+              "e_zne": -40.47207641601561,
+              "gap": 5.921971082752414,
+              "de_gap_noiseless": 0.002210385912364034,
+              "de_gap_zne": 0.015807915673514018,
+              "noise_error": 0.013597529761149984,
+              "amplifier": "pea",
+              "pass": true
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "e_noiseless": -33.17415499957306,
+              "e_zne": -33.09358978271484,
+              "gap": 4.429858148786295,
+              "de_gap_noiseless": 0.0054445655182256076,
+              "de_gap_zne": 0.023631427072765245,
+              "noise_error": 0.01818686155453964,
+              "amplifier": "pea",
+              "pass": true
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "e_noiseless": -30.72699524907219,
+              "e_zne": -30.634094238281246,
+              "gap": 3.9337583475541074,
+              "de_gap_noiseless": 0.007779363908516731,
+              "de_gap_zne": 0.031395713105133186,
+              "noise_error": 0.023616349196616454,
+              "amplifier": "pea",
+              "pass": true
+            }
+          ],
+          "n_pass": 3,
+          "n_total": 3,
+          "amplifier": "pea",
+          "pass": true,
+          "mean_de_gap_zne": 0.02361168528380415,
+          "max_de_gap_zne": 0.031395713105133186,
+          "mean_noise_error": 0.018466913504102025
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Full run_deployment() Pipeline",
+        "success": true,
+        "elapsed_s": 9.49,
+        "data": {
+          "h": 3.25,
+          "verdict": "PASS",
+          "verdict_reason": "\u0394E/gap=0.0236 < 5%, phase=paramagnetic correct",
+          "de_gap": 0.023631427072765245,
+          "zne_r2": 0.9987072763712685,
+          "phase_label": "paramagnetic",
+          "amplifier_used": "pea",
+          "mitigation_strategy": "pea_local",
+          "layout_std": 0.4602963752478627,
+          "fallback_triggered": false,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Adaptive ZNE Validation",
+        "success": false,
+        "elapsed_s": 1.34,
+        "data": {},
+        "error": "AssertionError: "
+      },
+      "section_5": {
+        "name": "Amplifier Comparison (GF vs PEA)",
+        "success": false,
+        "elapsed_s": 10.56,
+        "data": {
+          "h": 3.25,
+          "gf_energy": -29.163968404134096,
+          "gf_r2": 0.9968018290655848,
+          "gf_de_gap": 0.9107075470287485,
+          "gf_time_s": 9.13925814628601,
+          "pea_energy": -33.12125142415364,
+          "pea_r2": 0.99862618546909,
+          "pea_de_gap": 0.017387064271580908,
+          "pea_time_s": 1.0716569423675537,
+          "pea_better_energy": true,
+          "pea_time_overhead": 0.11725863579015448,
+          "both_pass_threshold": false,
+          "e_exact": -33.198273652500575,
+          "gap": 4.429858148786295,
+          "pass": false
+        },
+        "error": null
+      },
+      "section_6": {
+        "name": "Shot Noise Reproducibility",
+        "success": true,
+        "elapsed_s": 17.96,
+        "data": {
+          "h": 3.25,
+          "n_reps": 5,
+          "mean_de_gap": 0.9364803407198966,
+          "std_de_gap": 0.007416407759012585,
+          "energies": [
+            -29.095184326171875,
+            -29.0013427734375,
+            -29.02911376953125,
+            -29.04986572265625,
+            -29.073486328125
+          ],
+          "reproducible": true,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_7": {
+        "name": "Phase Classification from Noisy Observables",
+        "success": true,
+        "elapsed_s": 0.01,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "x_mean": 0.986558796143443,
+              "zz_mean": 0.12113874981336492,
+              "snr_x": 63.13976295318035,
+              "snr_zz": 7.752879988055355,
+              "label": "paramagnetic",
+              "expected": "paramagnetic",
+              "correct": true,
+              "confidence_sigma": 55.386882965125
+            },
+            {
+              "h": 3.25,
+              "x_mean": 0.9807242263214182,
+              "zz_mean": 0.14451307156966312,
+              "snr_x": 62.766350484570765,
+              "snr_zz": 9.24883658045844,
+              "label": "paramagnetic",
+              "expected": "paramagnetic",
+              "correct": true,
+              "confidence_sigma": 53.51751390411233
+            },
+            {
+              "h": 3.0,
+              "x_mean": 0.9779905531997547,
+              "zz_mean": 0.15414207256439408,
+              "snr_x": 62.5913954047843,
+              "snr_zz": 9.865092644121221,
+              "label": "paramagnetic",
+              "expected": "paramagnetic",
+              "correct": true,
+              "confidence_sigma": 52.72630276066308
+            }
+          ],
+          "n_correct": 3,
+          "n_total": 3,
+          "all_correct": true,
+          "all_snr_ok": true,
+          "mean_confidence": 53.87689987663347,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_8": {
+        "name": "QPU Cost & Timeout Estimation",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "n_h_points": 3,
+          "circuits_per_h": 9,
+          "shots_per_h": 147456,
+          "total_circuits": 27,
+          "total_shots": 442368,
+          "est_time_per_h_s": 88.4736,
+          "est_zne_time_s": 265.4208,
+          "est_obs_time_s": 39.321600000000004,
+          "est_spsa_time_s": 2359.296,
+          "est_grand_total_s": 2664.0384,
+          "est_grand_total_min": 44.400639999999996,
+          "max_execution_time_s": 600,
+          "fits_single_job": true,
+          "fits_full_sweep": false,
+          "amplifier": "pea",
+          "estimated_clops": 2500,
+          "pass": true
+        },
+        "error": null
+      },
+      "section_9": {
+        "name": "Transpiled Circuit Depth Audit",
+        "success": true,
+        "elapsed_s": 0.19,
+        "data": {
+          "layouts": [
+            {
+              "layout_idx": 0,
+              "layout_qubits": [
+                25,
+                24,
+                26,
+                35,
+                23
+              ],
+              "ces": 0.15108214181419538,
+              "n_2q_gates": 41,
+              "n_1q_gates": 200,
+              "depth": 98,
+              "zne_viable": true,
+              "depth_warning": false
+            },
+            {
+              "layout_idx": 1,
+              "layout_qubits": [
+                32,
+                33,
+                31,
+                37,
+                18
+              ],
+              "ces": 0.1542819054553537,
+              "n_2q_gates": 41,
+              "n_1q_gates": 187,
+              "depth": 100,
+              "zne_viable": true,
+              "depth_warning": false
+            },
+            {
+              "layout_idx": 2,
+              "layout_qubits": [
+                5,
+                4,
+                6,
+                16,
+                3
+              ],
+              "ces": 0.18011073057872012,
+              "n_2q_gates": 46,
+              "n_1q_gates": 192,
+              "depth": 100,
+              "zne_viable": true,
+              "depth_warning": false
+            }
+          ],
+          "mean_2q_gates": 42.666666666666664,
+          "max_2q_gates": 46,
+          "mean_ces": 0.16182492594942308,
+          "zne_threshold": 50,
+          "all_zne_viable": true,
+          "n_layouts_audited": 3,
+          "pass": true
+        },
+        "error": null
+      }
+    }
+  }
+}

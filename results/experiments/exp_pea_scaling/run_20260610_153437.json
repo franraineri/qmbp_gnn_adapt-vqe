@@ -1,0 +1,402 @@
+{
+  "timestamp": "2026-06-10T15:34:37.703833",
+  "config": {
+    "runner_id": "pea_scaling_n40",
+    "experiment_id": "PEA_SCALING",
+    "category": "ZNE",
+    "system": {
+      "topology": "chain_1d",
+      "n_qubits": 40,
+      "p_layers": 1,
+      "model": "tfim"
+    },
+    "zne": {
+      "noise_factors": [
+        1,
+        3,
+        5
+      ],
+      "method": "mps_noisy",
+      "chi_max": 64,
+      "mean_error_rate": 0.008
+    },
+    "seed": 42,
+    "hypothesis": "PEA-ZNE extrapolation remains linear (R\u00b2>0.8) at N=40/50, confirming the methodology scales to hardware-relevant sizes.",
+    "description": "PEA-ZNE Scaling at N=40/50 via MPS + depolarizing noise",
+    "seeds": []
+  },
+  "elapsed_s": 113.5589919090271,
+  "results": {
+    "section_1": {
+      "name": "N=10 Reference (FakeTorino)",
+      "success": true,
+      "elapsed_s": 55.23,
+      "data": {
+        "pass": true,
+        "mean_pea_gain": 0.9706403975428097,
+        "results": [
+          {
+            "h": 4.0,
+            "n_2q": 54,
+            "de_noisy": 1.1316888233589477,
+            "de_pea": 0.039532072046603126,
+            "de_gf": 0.9058332161361878,
+            "pea_r2": 0.9963753888050838,
+            "gf_r2": 0.9871519433728106,
+            "pea_gain": 0.9650680723970848,
+            "gf_gain": 0.19957394874007983
+          },
+          {
+            "h": 3.25,
+            "n_2q": 54,
+            "de_noisy": 1.2173454797513865,
+            "de_pea": 0.042369444554461545,
+            "de_gf": 0.9747084573257084,
+            "pea_r2": 0.9972371513429231,
+            "gf_r2": 0.9874082550993329,
+            "pea_gain": 0.9651952175785673,
+            "gf_gain": 0.19931648530475576
+          },
+          {
+            "h": 3.0,
+            "n_2q": 54,
+            "de_noisy": 1.288688394621647,
+            "de_pea": 0.02363724798438663,
+            "de_gf": 1.0326428028678842,
+            "pea_r2": 0.9976074559787212,
+            "gf_r2": 0.9922746372629121,
+            "pea_gain": 0.9816579026527771,
+            "gf_gain": 0.19868696949733652
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "N=40 PEA-ZNE (MPS + noise, ~78 CZ)",
+      "success": false,
+      "elapsed_s": 29.53,
+      "data": {
+        "pass": false,
+        "n_qubits": 40,
+        "mean_pea_r2": 0.0,
+        "mean_pea_gain": -3.3027197389197704e-12,
+        "results": [
+          {
+            "h": 5.5,
+            "n_2q": 39,
+            "de_noisy": 0.001962818707347146,
+            "de_pea": 0.0019628187073566197,
+            "de_gf": 0.0019628187072713546,
+            "pea_r2": 0.0,
+            "gf_r2": 0.0,
+            "pea_gain": -4.826609073836792e-12,
+            "gf_gain": 3.8613535434696235e-11
+          },
+          {
+            "h": 5.0,
+            "n_2q": 39,
+            "de_noisy": 0.002934608826063112,
+            "de_pea": 0.0029346088260702174,
+            "de_gf": 0.002934608825963636,
+            "pea_r2": 0.0,
+            "gf_r2": 0.0,
+            "pea_gain": -2.4212519551143038e-12,
+            "gf_gain": 3.3897527371600254e-11
+          },
+          {
+            "h": 4.5,
+            "n_2q": 39,
+            "de_noisy": 0.004578569779279665,
+            "de_pea": 0.004578569779291846,
+            "de_gf": 0.0045785697792065806,
+            "pea_r2": 0.0,
+            "gf_r2": 0.0,
+            "pea_gain": -2.6602981878082145e-12,
+            "gf_gain": 1.5962357445197462e-11
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "N=50 PEA-ZNE (MPS + noise, ~98 CZ)",
+      "success": false,
+      "elapsed_s": 28.8,
+      "data": {
+        "pass": false,
+        "n_qubits": 50,
+        "mean_pea_r2": 0.0,
+        "mean_pea_gain": -1.11032326587028e-11,
+        "results": [
+          {
+            "h": 6.5,
+            "n_2q": 49,
+            "de_noisy": 0.0012338483595664745,
+            "de_pea": 0.0012338483595819773,
+            "de_gf": 0.0012338483589825376,
+            "pea_r2": 0.0,
+            "gf_r2": 0.0,
+            "pea_gain": -1.256458291955974e-11,
+            "gf_gain": 4.732647850155494e-10
+          },
+          {
+            "h": 6.0,
+            "n_2q": 49,
+            "de_noisy": 0.001734829766240864,
+            "de_pea": 0.0017348297662636014,
+            "de_gf": 0.0017348297662749701,
+            "pea_r2": 0.0,
+            "gf_r2": 0.0,
+            "pea_gain": -1.310644693961294e-11,
+            "gf_gain": -1.965967040941941e-11
+          },
+          {
+            "h": 5.5,
+            "n_2q": 49,
+            "de_noisy": 0.002480530709956636,
+            "de_pea": 0.002480530709975584,
+            "de_gf": 0.002480530709880845,
+            "pea_r2": 0.0,
+            "gf_r2": 0.0,
+            "pea_gain": -7.638668116935716e-12,
+            "gf_gain": 3.055432279993407e-11
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Scaling Comparison",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true,
+        "scaling": [
+          {
+            "N": 10,
+            "mean_pea_gain": 0.9706403975428097,
+            "mean_gf_gain": 0.19919246784739073,
+            "mean_pea_r2": 0.9970733320422428
+          },
+          {
+            "N": 40,
+            "mean_pea_gain": -3.3027197389197704e-12,
+            "mean_gf_gain": 2.9491140083831316e-11,
+            "mean_pea_r2": 0.0
+          },
+          {
+            "N": 50,
+            "mean_pea_gain": -1.11032326587028e-11,
+            "mean_gf_gain": 1.6138647913535468e-10,
+            "mean_pea_r2": 0.0
+          }
+        ]
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 4,
+    "n_passed": 2,
+    "n_failed": 2,
+    "pass_rate": 0.5,
+    "total_time_s": 113.56,
+    "total_elapsed_s": 113.56,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-10T15:34:37.632439",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "mps_evaluation_mode": "deterministic",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_SCALING",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE extrapolation remains linear (R\u00b2>0.8) at N=40/50, confirming the methodology scales to hardware-relevant sizes.",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 4,
+      "n_passed": 2,
+      "n_failed": 2,
+      "pass_rate": 0.5,
+      "total_time_s": 113.56,
+      "total_elapsed_s": 113.56,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_1": {
+        "name": "N=10 Reference (FakeTorino)",
+        "success": true,
+        "elapsed_s": 55.23,
+        "data": {
+          "pass": true,
+          "mean_pea_gain": 0.9706403975428097,
+          "results": [
+            {
+              "h": 4.0,
+              "n_2q": 54,
+              "de_noisy": 1.1316888233589477,
+              "de_pea": 0.039532072046603126,
+              "de_gf": 0.9058332161361878,
+              "pea_r2": 0.9963753888050838,
+              "gf_r2": 0.9871519433728106,
+              "pea_gain": 0.9650680723970848,
+              "gf_gain": 0.19957394874007983
+            },
+            {
+              "h": 3.25,
+              "n_2q": 54,
+              "de_noisy": 1.2173454797513865,
+              "de_pea": 0.042369444554461545,
+              "de_gf": 0.9747084573257084,
+              "pea_r2": 0.9972371513429231,
+              "gf_r2": 0.9874082550993329,
+              "pea_gain": 0.9651952175785673,
+              "gf_gain": 0.19931648530475576
+            },
+            {
+              "h": 3.0,
+              "n_2q": 54,
+              "de_noisy": 1.288688394621647,
+              "de_pea": 0.02363724798438663,
+              "de_gf": 1.0326428028678842,
+              "pea_r2": 0.9976074559787212,
+              "gf_r2": 0.9922746372629121,
+              "pea_gain": 0.9816579026527771,
+              "gf_gain": 0.19868696949733652
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "N=40 PEA-ZNE (MPS + noise, ~78 CZ)",
+        "success": false,
+        "elapsed_s": 29.53,
+        "data": {
+          "pass": false,
+          "n_qubits": 40,
+          "mean_pea_r2": 0.0,
+          "mean_pea_gain": -3.3027197389197704e-12,
+          "results": [
+            {
+              "h": 5.5,
+              "n_2q": 39,
+              "de_noisy": 0.001962818707347146,
+              "de_pea": 0.0019628187073566197,
+              "de_gf": 0.0019628187072713546,
+              "pea_r2": 0.0,
+              "gf_r2": 0.0,
+              "pea_gain": -4.826609073836792e-12,
+              "gf_gain": 3.8613535434696235e-11
+            },
+            {
+              "h": 5.0,
+              "n_2q": 39,
+              "de_noisy": 0.002934608826063112,
+              "de_pea": 0.0029346088260702174,
+              "de_gf": 0.002934608825963636,
+              "pea_r2": 0.0,
+              "gf_r2": 0.0,
+              "pea_gain": -2.4212519551143038e-12,
+              "gf_gain": 3.3897527371600254e-11
+            },
+            {
+              "h": 4.5,
+              "n_2q": 39,
+              "de_noisy": 0.004578569779279665,
+              "de_pea": 0.004578569779291846,
+              "de_gf": 0.0045785697792065806,
+              "pea_r2": 0.0,
+              "gf_r2": 0.0,
+              "pea_gain": -2.6602981878082145e-12,
+              "gf_gain": 1.5962357445197462e-11
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "N=50 PEA-ZNE (MPS + noise, ~98 CZ)",
+        "success": false,
+        "elapsed_s": 28.8,
+        "data": {
+          "pass": false,
+          "n_qubits": 50,
+          "mean_pea_r2": 0.0,
+          "mean_pea_gain": -1.11032326587028e-11,
+          "results": [
+            {
+              "h": 6.5,
+              "n_2q": 49,
+              "de_noisy": 0.0012338483595664745,
+              "de_pea": 0.0012338483595819773,
+              "de_gf": 0.0012338483589825376,
+              "pea_r2": 0.0,
+              "gf_r2": 0.0,
+              "pea_gain": -1.256458291955974e-11,
+              "gf_gain": 4.732647850155494e-10
+            },
+            {
+              "h": 6.0,
+              "n_2q": 49,
+              "de_noisy": 0.001734829766240864,
+              "de_pea": 0.0017348297662636014,
+              "de_gf": 0.0017348297662749701,
+              "pea_r2": 0.0,
+              "gf_r2": 0.0,
+              "pea_gain": -1.310644693961294e-11,
+              "gf_gain": -1.965967040941941e-11
+            },
+            {
+              "h": 5.5,
+              "n_2q": 49,
+              "de_noisy": 0.002480530709956636,
+              "de_pea": 0.002480530709975584,
+              "de_gf": 0.002480530709880845,
+              "pea_r2": 0.0,
+              "gf_r2": 0.0,
+              "pea_gain": -7.638668116935716e-12,
+              "gf_gain": 3.055432279993407e-11
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Scaling Comparison",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true,
+          "scaling": [
+            {
+              "N": 10,
+              "mean_pea_gain": 0.9706403975428097,
+              "mean_gf_gain": 0.19919246784739073,
+              "mean_pea_r2": 0.9970733320422428
+            },
+            {
+              "N": 40,
+              "mean_pea_gain": -3.3027197389197704e-12,
+              "mean_gf_gain": 2.9491140083831316e-11,
+              "mean_pea_r2": 0.0
+            },
+            {
+              "N": 50,
+              "mean_pea_gain": -1.11032326587028e-11,
+              "mean_gf_gain": 1.6138647913535468e-10,
+              "mean_pea_r2": 0.0
+            }
+          ]
+        },
+        "error": null
+      }
+    }
+  }
+}

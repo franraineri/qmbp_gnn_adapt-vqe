@@ -1,0 +1,211 @@
+{
+  "metadata": {
+    "timestamp_utc": "2026-05-26T15:41:51.341466+00:00",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "python_version": "3.12.13",
+    "software_versions": {
+      "qiskit": "2.4.1",
+      "qiskit_aer": "0.17.2",
+      "qiskit_ibm_runtime": "0.47.0",
+      "numpy": "2.4.4",
+      "torch": "2.11.0",
+      "torch_geometric": "2.7.0",
+      "scipy": "1.17.1"
+    }
+  },
+  "system": {
+    "hamiltonian": "TFIM: H = -J \u03a3_{<i,j>} Z_i Z_j - h \u03a3_i X_i",
+    "model_type": "TFIM",
+    "topology": "chain_1d",
+    "boundary_conditions": "open",
+    "n_qubits": 6,
+    "J": 1.0,
+    "initial_state": "|+>^N",
+    "ansatz": "HVA",
+    "p_layers": 2,
+    "sweep_direction": "descending"
+  },
+  "config": {
+    "n_restarts": 5,
+    "maxiter": 1000,
+    "optimizer": "L-BFGS-B",
+    "mpnn": {
+      "hidden_dim": 64,
+      "n_layers": 3,
+      "n_epochs": 6000,
+      "lr": 0.001,
+      "patience": 150
+    },
+    "h_values": [
+      2.0,
+      1.5,
+      1.25
+    ],
+    "h_test": [
+      1.75,
+      1.35
+    ]
+  },
+  "elapsed_s": 14.598587274551392,
+  "phase12_data": [
+    {
+      "h": 2.0,
+      "e_exact": -12.630964276492962,
+      "gap": 2.293278473320772,
+      "mag_x_exact": 0.9464119674411285,
+      "corr_zz_exact": 0.2548041334398828,
+      "e_vqe": -12.614280384159102,
+      "energy_error": 0.016683892333860584,
+      "delta_e_over_gap": 0.007275127084632485,
+      "fidelity": 0.9974946072499057,
+      "n_iterations": 41,
+      "theta_opt": [
+        0.6571800517212338,
+        0.020794169033450532,
+        -0.7773639126069758,
+        -0.3663597900811932
+      ]
+    },
+    {
+      "h": 1.5,
+      "e_exact": -9.847571471154597,
+      "gap": 1.342946997711941,
+      "mag_x_exact": 0.9026396499227536,
+      "corr_zz_exact": 0.34476292436996336,
+      "e_vqe": -9.80615074354964,
+      "energy_error": 0.0414207276049563,
+      "delta_e_over_gap": 0.030843158870400147,
+      "fidelity": 0.9907904155962486,
+      "n_iterations": 18,
+      "theta_opt": [
+        0.6845217880831271,
+        0.032663098020376244,
+        -0.8405612190470123,
+        -0.3674017414400475
+      ]
+    },
+    {
+      "h": 1.25,
+      "e_exact": -8.52455162353023,
+      "gap": 0.8918582459478577,
+      "mag_x_exact": 0.8570109537292042,
+      "corr_zz_exact": 0.4193938941122394,
+      "e_vqe": -8.451602874079272,
+      "energy_error": 0.07294874945095842,
+      "delta_e_over_gap": 0.08179410773225429,
+      "fidelity": 0.9788066880147585,
+      "n_iterations": 16,
+      "theta_opt": [
+        0.6966912847683285,
+        0.042883999007098654,
+        -0.8790864093177554,
+        -0.3684527841129793
+      ]
+    }
+  ],
+  "phase4_results": [
+    {
+      "h_test": 1.75,
+      "predicted_energy": -10.987226150297474,
+      "exact_energy": -10.751230711197191,
+      "gap": 0.0,
+      "delta_e": 0.2359954391002823,
+      "delta_e_over_gap": 0.13015889379201592,
+      "mag_x_pred": 0.986868092135979,
+      "corr_zz_pred": 0.12502223657393877,
+      "mag_x_error": 0.05747132545379263,
+      "corr_zz_error": 0.16788887127302268,
+      "phase_label": "paramagnetic",
+      "metrics_checklist": {
+        "delta_e_over_gap_lt_5pct": false,
+        "correct_phase": true,
+        "mag_x_error_lt_1e2": false,
+        "corr_zz_error_lt_1e2": false,
+        "observables_computed": true
+      }
+    },
+    {
+      "h_test": 1.35,
+      "predicted_energy": -8.94405898019384,
+      "exact_energy": -8.842656802672735,
+      "gap": 0.0,
+      "delta_e": 0.10140217752110559,
+      "delta_e_over_gap": 0.09485401049403933,
+      "mag_x_pred": 0.9347262744356946,
+      "corr_zz_pred": 0.2745552314529428,
+      "mag_x_error": 0.05624153400214593,
+      "corr_zz_error": 0.11139172058769559,
+      "phase_label": "paramagnetic",
+      "metrics_checklist": {
+        "delta_e_over_gap_lt_5pct": false,
+        "correct_phase": true,
+        "mag_x_error_lt_1e2": false,
+        "corr_zz_error_lt_1e2": false,
+        "observables_computed": true
+      }
+    }
+  ],
+  "diagnostics": {
+    "phase1": {
+      "n_points": 3,
+      "elapsed_s": 0.00644993782043457,
+      "gap_min": 0.8918582459478577
+    },
+    "phase2": {
+      "per_h_timing_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_h_iterations": [
+        41,
+        18,
+        16
+      ],
+      "per_h_restart_spread": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_h_converged": [
+        true,
+        true,
+        true
+      ],
+      "theta_smoothness": 0.06319730644003652,
+      "worst_convergence_h": 2.0,
+      "total_elapsed_s": 0.0,
+      "convergence_rate": 1.0
+    },
+    "phase3": {
+      "per_h_mse": {
+        "2.0000": 0.0017854203470051289,
+        "1.5000": 0.0003733192861545831,
+        "1.2500": 0.0021352500189095736
+      },
+      "theta_zz_mse": 0.0014313298840230952,
+      "theta_x_mse": 0.0014313298840230952,
+      "generalization_gap": 0.0017619307327549905,
+      "loss_curve_last100": [],
+      "elapsed_s": 12.325127840042114
+    },
+    "phase4": {
+      "h_test": 1.35,
+      "snr_mag_x": null,
+      "snr_corr_zz": null,
+      "classification_confidence": null,
+      "per_layout_energies": [],
+      "per_layout_ces": [],
+      "ces_energy_pearson_r": null,
+      "energy_decomposition": {
+        "e_exact": -9.045461157714946,
+        "e_vqe_ceiling": -9.045461157714946,
+        "e_mpnn_predicted": -8.94405898019384,
+        "error_from_circuit": 0.0,
+        "error_from_mpnn": 0.10140217752110559
+      },
+      "total_shots": null
+    },
+    "baseline_comparison": null
+  }
+}

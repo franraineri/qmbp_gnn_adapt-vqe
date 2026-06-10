@@ -1,0 +1,424 @@
+{
+  "timestamp": "2026-06-03T13:24:15.630448",
+  "config": {
+    "runner_id": "hardware_rehearsal",
+    "experiment_id": "HW_REHEARSAL",
+    "description": "Hardware Deployment Rehearsal (FakeTorino end-to-end)",
+    "hypothesis": "The full pipeline (MPNN predict \u2192 transpile \u2192 noisy eval \u2192 ZNE \u2192 classify) produces \u0394E/gap<5% and correct phase label at h=3.25 on FakeTorino",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim",
+      "model_kwargs": {}
+    },
+    "h_train": [
+      4.5,
+      4.25,
+      4.0,
+      3.75,
+      3.5,
+      3.25,
+      3.0
+    ],
+    "h_test": [
+      4.0,
+      3.25,
+      3.0,
+      2.5
+    ],
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "zne": {
+      "n_layouts": 3,
+      "shots": 16384,
+      "n_candidates": 10
+    },
+    "mpnn": {
+      "hidden_dim": 128,
+      "epochs": 6000,
+      "lr": 0.001,
+      "patience": 500
+    },
+    "thresholds": {
+      "de_gap": 0.05,
+      "zne_r2": 0.8,
+      "snr": 1.0
+    },
+    "category": "H"
+  },
+  "elapsed_s": 219.58198523521423,
+  "results": {
+    "section_2": {
+      "name": "End-to-End Noisy Pipeline",
+      "success": false,
+      "elapsed_s": 188.53,
+      "data": {
+        "results": [
+          {
+            "h_test": 4.0,
+            "e_exact": -40.56569043551275,
+            "e_noiseless": -40.55262499319633,
+            "e_noisy_raw": -34.4189453125,
+            "e_zne": -29.381565063492808,
+            "gap": 5.921971082752414,
+            "de_gap_noiseless": 0.0022062658080972625,
+            "de_gap_noisy": 1.037955950327921,
+            "de_gap_zne": 1.888581557683288,
+            "zne_gain": -0.8195199488828301,
+            "r_squared": 0.28902970818558227,
+            "ces_values": [
+              0.15390226170521154,
+              0.1542819054553537,
+              0.17198902030369212
+            ],
+            "passed_energy": false,
+            "passed_r2": false
+          },
+          {
+            "h_test": 3.25,
+            "e_exact": -33.198273652500575,
+            "e_noiseless": -33.17423548720569,
+            "e_noisy_raw": -28.130157470703125,
+            "e_zne": -27.463958134006383,
+            "gap": 4.429858148786295,
+            "de_gap_noiseless": 0.005426396170601698,
+            "de_gap_noisy": 1.144080918976159,
+            "de_gap_zne": 1.2944693319503462,
+            "zne_gain": -0.13144910511117538,
+            "r_squared": 0.04246608487831394,
+            "ces_values": [
+              0.15115818434307565,
+              0.1542819054553537,
+              0.17652660064875864
+            ],
+            "passed_energy": false,
+            "passed_r2": false
+          },
+          {
+            "h_test": 3.0,
+            "e_exact": -30.757597386785978,
+            "e_noiseless": -30.72723488850923,
+            "e_noisy_raw": -26.0726318359375,
+            "e_zne": -25.795284136440674,
+            "gap": 3.9337583475541074,
+            "de_gap_noiseless": 0.007718445210450351,
+            "de_gap_noisy": 1.190964247654269,
+            "de_gap_zne": 1.261468756318171,
+            "zne_gain": -0.05919951736818981,
+            "r_squared": 0.018597344659314174,
+            "ces_values": [
+              0.15390226170521154,
+              0.1542819054553537,
+              0.17652660064875864
+            ],
+            "passed_energy": false,
+            "passed_r2": false
+          },
+          {
+            "h_test": 2.5,
+            "e_exact": -25.91319496435392,
+            "e_noiseless": -25.86170315239461,
+            "e_noisy_raw": -21.85357666015625,
+            "e_zne": -18.654381375400295,
+            "gap": 2.9451974145358797,
+            "de_gap_noiseless": 0.017483314261099687,
+            "de_gap_noisy": 1.3783858033290468,
+            "de_gap_zne": 2.4646271768160943,
+            "zne_gain": -0.7880532220105441,
+            "r_squared": 0.24814455399057211,
+            "ces_values": [
+              0.15390226170521154,
+              0.15500173910614867,
+              0.17152103438429533
+            ],
+            "passed_energy": false,
+            "passed_r2": false
+          }
+        ],
+        "n_in_regime": 3,
+        "n_pass_energy": 0,
+        "n_pass_r2": 0,
+        "pass": false
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "Layout Stability",
+      "success": false,
+      "elapsed_s": 30.97,
+      "data": {
+        "h_test": 3.25,
+        "n_trials": 5,
+        "trials": [
+          {
+            "trial": 0,
+            "e_zne": -24.51707316282703,
+            "de_gap": 1.959701687525151,
+            "r_squared": 0.19445460477651788,
+            "ces_used": [
+              0.1542819054553537,
+              0.15430741635799022,
+              0.17152103438429533
+            ]
+          },
+          {
+            "trial": 1,
+            "e_zne": -24.994425472625277,
+            "de_gap": 1.8519437653151516,
+            "r_squared": 0.1724544426362088,
+            "ces_used": [
+              0.1570514937201261,
+              0.16076416300128132,
+              0.17489863927590216
+            ]
+          },
+          {
+            "trial": 2,
+            "e_zne": -44.46509066147211,
+            "de_gap": 2.5433809911178424,
+            "r_squared": 0.36840695492480036,
+            "ces_used": [
+              0.148542271910941,
+              0.15390226170521154,
+              0.15500173910614867
+            ]
+          },
+          {
+            "trial": 3,
+            "e_zne": -26.915106309793373,
+            "de_gap": 1.4183676162246148,
+            "r_squared": 0.05505755153532599,
+            "ces_used": [
+              0.148542271910941,
+              0.15430741635799022,
+              0.17152103438429533
+            ]
+          },
+          {
+            "trial": 4,
+            "e_zne": -27.154240984888272,
+            "de_gap": 1.3643851483750702,
+            "r_squared": 0.038530717432005535,
+            "ces_used": [
+              0.148542271910941,
+              0.15390226170521154,
+              0.17152103438429533
+            ]
+          }
+        ],
+        "mean_de_gap": 1.827555841711566,
+        "std_de_gap": 0.42718263891431035,
+        "max_de_gap": 2.5433809911178424,
+        "mean_r_squared": 0.16578085426097172,
+        "stable": false,
+        "pass": false
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 0,
+    "n_failed": 2,
+    "pass_rate": 0.0,
+    "total_time_s": 219.58,
+    "total_elapsed_s": 219.58,
+    "all_passed": false
+  },
+  "metadata": {
+    "timestamp": "2026-06-03T13:24:15.521781",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "HW_REHEARSAL",
+    "category": "H",
+    "hypothesis": "The full pipeline (MPNN predict \u2192 transpile \u2192 noisy eval \u2192 ZNE \u2192 classify) produces \u0394E/gap<5% and correct phase label at h=3.25 on FakeTorino",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 0,
+      "n_failed": 2,
+      "pass_rate": 0.0,
+      "total_time_s": 219.58,
+      "total_elapsed_s": 219.58,
+      "all_passed": false
+    },
+    "per_section": {
+      "section_2": {
+        "name": "End-to-End Noisy Pipeline",
+        "success": false,
+        "elapsed_s": 188.53,
+        "data": {
+          "results": [
+            {
+              "h_test": 4.0,
+              "e_exact": -40.56569043551275,
+              "e_noiseless": -40.55262499319633,
+              "e_noisy_raw": -34.4189453125,
+              "e_zne": -29.381565063492808,
+              "gap": 5.921971082752414,
+              "de_gap_noiseless": 0.0022062658080972625,
+              "de_gap_noisy": 1.037955950327921,
+              "de_gap_zne": 1.888581557683288,
+              "zne_gain": -0.8195199488828301,
+              "r_squared": 0.28902970818558227,
+              "ces_values": [
+                0.15390226170521154,
+                0.1542819054553537,
+                0.17198902030369212
+              ],
+              "passed_energy": false,
+              "passed_r2": false
+            },
+            {
+              "h_test": 3.25,
+              "e_exact": -33.198273652500575,
+              "e_noiseless": -33.17423548720569,
+              "e_noisy_raw": -28.130157470703125,
+              "e_zne": -27.463958134006383,
+              "gap": 4.429858148786295,
+              "de_gap_noiseless": 0.005426396170601698,
+              "de_gap_noisy": 1.144080918976159,
+              "de_gap_zne": 1.2944693319503462,
+              "zne_gain": -0.13144910511117538,
+              "r_squared": 0.04246608487831394,
+              "ces_values": [
+                0.15115818434307565,
+                0.1542819054553537,
+                0.17652660064875864
+              ],
+              "passed_energy": false,
+              "passed_r2": false
+            },
+            {
+              "h_test": 3.0,
+              "e_exact": -30.757597386785978,
+              "e_noiseless": -30.72723488850923,
+              "e_noisy_raw": -26.0726318359375,
+              "e_zne": -25.795284136440674,
+              "gap": 3.9337583475541074,
+              "de_gap_noiseless": 0.007718445210450351,
+              "de_gap_noisy": 1.190964247654269,
+              "de_gap_zne": 1.261468756318171,
+              "zne_gain": -0.05919951736818981,
+              "r_squared": 0.018597344659314174,
+              "ces_values": [
+                0.15390226170521154,
+                0.1542819054553537,
+                0.17652660064875864
+              ],
+              "passed_energy": false,
+              "passed_r2": false
+            },
+            {
+              "h_test": 2.5,
+              "e_exact": -25.91319496435392,
+              "e_noiseless": -25.86170315239461,
+              "e_noisy_raw": -21.85357666015625,
+              "e_zne": -18.654381375400295,
+              "gap": 2.9451974145358797,
+              "de_gap_noiseless": 0.017483314261099687,
+              "de_gap_noisy": 1.3783858033290468,
+              "de_gap_zne": 2.4646271768160943,
+              "zne_gain": -0.7880532220105441,
+              "r_squared": 0.24814455399057211,
+              "ces_values": [
+                0.15390226170521154,
+                0.15500173910614867,
+                0.17152103438429533
+              ],
+              "passed_energy": false,
+              "passed_r2": false
+            }
+          ],
+          "n_in_regime": 3,
+          "n_pass_energy": 0,
+          "n_pass_r2": 0,
+          "pass": false
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "Layout Stability",
+        "success": false,
+        "elapsed_s": 30.97,
+        "data": {
+          "h_test": 3.25,
+          "n_trials": 5,
+          "trials": [
+            {
+              "trial": 0,
+              "e_zne": -24.51707316282703,
+              "de_gap": 1.959701687525151,
+              "r_squared": 0.19445460477651788,
+              "ces_used": [
+                0.1542819054553537,
+                0.15430741635799022,
+                0.17152103438429533
+              ]
+            },
+            {
+              "trial": 1,
+              "e_zne": -24.994425472625277,
+              "de_gap": 1.8519437653151516,
+              "r_squared": 0.1724544426362088,
+              "ces_used": [
+                0.1570514937201261,
+                0.16076416300128132,
+                0.17489863927590216
+              ]
+            },
+            {
+              "trial": 2,
+              "e_zne": -44.46509066147211,
+              "de_gap": 2.5433809911178424,
+              "r_squared": 0.36840695492480036,
+              "ces_used": [
+                0.148542271910941,
+                0.15390226170521154,
+                0.15500173910614867
+              ]
+            },
+            {
+              "trial": 3,
+              "e_zne": -26.915106309793373,
+              "de_gap": 1.4183676162246148,
+              "r_squared": 0.05505755153532599,
+              "ces_used": [
+                0.148542271910941,
+                0.15430741635799022,
+                0.17152103438429533
+              ]
+            },
+            {
+              "trial": 4,
+              "e_zne": -27.154240984888272,
+              "de_gap": 1.3643851483750702,
+              "r_squared": 0.038530717432005535,
+              "ces_used": [
+                0.148542271910941,
+                0.15390226170521154,
+                0.17152103438429533
+              ]
+            }
+          ],
+          "mean_de_gap": 1.827555841711566,
+          "std_de_gap": 0.42718263891431035,
+          "max_de_gap": 2.5433809911178424,
+          "mean_r_squared": 0.16578085426097172,
+          "stable": false,
+          "pass": false
+        },
+        "error": null
+      }
+    }
+  }
+}

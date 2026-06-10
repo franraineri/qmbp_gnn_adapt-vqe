@@ -1,0 +1,67 @@
+{
+  "execution_timestamp": "2026-06-05T04:19:11.760017+00:00",
+  "backend_name": "ibm_torino",
+  "timestamp": "2026-06-05T01:19:11.760027",
+  "python_version": "3.12.13",
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "seed": 42,
+  "qiskit_version": "2.4.1",
+  "torch_version": "2.11.0",
+  "qiskit_aer_version": "0.17.2",
+  "execution_mode": "Batch",
+  "job_ids": [
+    "cbc9ec46-1026-40d2-9b4b-95cc04bd846b",
+    "995476ab-d45e-487d-b5c3-e9450ab98ec5",
+    "11b30038-60b6-42e8-a90c-dc2b6c7dda17"
+  ],
+  "layouts_used": [
+    [
+      25,
+      24,
+      26,
+      35,
+      23,
+      27,
+      44,
+      16,
+      22,
+      17
+    ],
+    [
+      32,
+      33,
+      31,
+      37,
+      18,
+      30,
+      52,
+      12,
+      29,
+      51
+    ],
+    [
+      10,
+      9,
+      11,
+      8,
+      12,
+      17,
+      7,
+      18,
+      13,
+      27
+    ]
+  ],
+  "ces_values": [
+    0.15108214181419538,
+    0.1542819054553537,
+    0.17974507559798536
+  ],
+  "calibration_error_rates": {},
+  "options_snapshot": {
+    "default_precision": 0.0078125,
+    "seed_simulator": 42
+  },
+  "n_qubits": 10,
+  "layout_selection_seed": 42
+}

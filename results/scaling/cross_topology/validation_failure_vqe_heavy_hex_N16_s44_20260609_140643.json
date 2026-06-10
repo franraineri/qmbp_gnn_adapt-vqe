@@ -1,0 +1,22 @@
+{
+  "type": "validation_failure",
+  "experiment_label": "vqe_heavy_hex_N16_s44",
+  "timestamp": "2026-06-09T14:06:43",
+  "report": {
+    "passed": false,
+    "warnings": [],
+    "errors": [
+      "[vqe_heavy_hex_N16_s44] Only 0/6 points converged (de_gap < 5%). Need >= 50% for usable training data."
+    ],
+    "n_sources": 0,
+    "n_total_points": 6,
+    "n_unique_sizes": 0,
+    "h_range": [
+      0.0,
+      0.0
+    ],
+    "theta_continuity_ok": true,
+    "sufficient_data": false
+  },
+  "action_required": "Fix the issues listed in 'errors' before re-running. Common fixes: generate more data, use higher h-values, or increase VQE restarts for problematic points."
+}

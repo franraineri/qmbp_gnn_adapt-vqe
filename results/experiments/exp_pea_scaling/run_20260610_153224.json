@@ -1,0 +1,86 @@
+{
+  "timestamp": "2026-06-10T15:32:24.136275",
+  "config": {
+    "runner_id": "pea_scaling_n40",
+    "experiment_id": "PEA_SCALING",
+    "category": "ZNE",
+    "system": {
+      "topology": "chain_1d",
+      "n_qubits": 40,
+      "p_layers": 1,
+      "model": "tfim"
+    },
+    "zne": {
+      "noise_factors": [
+        1,
+        3,
+        5
+      ],
+      "method": "mps_noisy",
+      "chi_max": 64,
+      "mean_error_rate": 0.008
+    },
+    "seed": 42,
+    "hypothesis": "PEA-ZNE extrapolation remains linear (R\u00b2>0.8) at N=40/50, confirming the methodology scales to hardware-relevant sizes.",
+    "description": "PEA-ZNE Scaling at N=40/50 via MPS + depolarizing noise",
+    "seeds": []
+  },
+  "elapsed_s": 0.0004341602325439453,
+  "results": {
+    "section_4": {
+      "name": "Scaling Comparison",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true,
+        "scaling": []
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 1,
+    "n_passed": 1,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 0.0,
+    "total_elapsed_s": 0.0,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-10T15:32:23.991196",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "mps_evaluation_mode": "deterministic",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_SCALING",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE extrapolation remains linear (R\u00b2>0.8) at N=40/50, confirming the methodology scales to hardware-relevant sizes.",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 1,
+      "n_passed": 1,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 0.0,
+      "total_elapsed_s": 0.0,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_4": {
+        "name": "Scaling Comparison",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true,
+          "scaling": []
+        },
+        "error": null
+      }
+    }
+  }
+}

@@ -1,0 +1,451 @@
+{
+  "timestamp": "2026-06-05T21:23:33.262750",
+  "config": {
+    "runner_id": "pea_triangular",
+    "experiment_id": "PEA_TRIANGULAR",
+    "category": "ZNE",
+    "description": "PEA-ZNE validation on triangular N=6 p=1 (gap G6)",
+    "hypothesis": "PEA-ZNE outperforms GF-ZNE on triangular N=6 with R\u00b2>0.9 and positive gain, consistent with all other topologies.",
+    "system": {
+      "topology": "triangular",
+      "n_qubits": 6,
+      "p_layers": 1,
+      "model": "tfim"
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "h_test": [
+      4.5,
+      4.0,
+      3.5
+    ],
+    "zne": {
+      "noise_factors": [
+        1,
+        3,
+        5
+      ],
+      "shots": 16384,
+      "n_candidate_layouts": 20,
+      "extrapolator": "linear"
+    }
+  },
+  "elapsed_s": 69.19512009620667,
+  "results": {
+    "section_1": {
+      "name": "Triangular N=6 p=1 (3 seeds \u00d7 3 h-points)",
+      "success": true,
+      "elapsed_s": 67.78,
+      "data": {
+        "pass": true,
+        "results": [
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 42,
+            "h": 4.5,
+            "e_exact": -27.665453926630214,
+            "gap": 5.407107394356487,
+            "de_noisy": 0.928341268676866,
+            "de_gf": 0.7852505150610547,
+            "de_pea": 0.02513691468568049,
+            "gf_r2": 0.999078867217407,
+            "pea_r2": 0.9991844119685337,
+            "gf_gain": 0.15413593949103843,
+            "pea_gain": 0.9729227650069815,
+            "gf_time_s": 4.37,
+            "pea_time_s": 0.61
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 42,
+            "h": 4.0,
+            "e_exact": -24.771489810502963,
+            "gap": 4.397574643726095,
+            "de_noisy": 1.0317034064818598,
+            "de_gf": 0.886903223604085,
+            "de_pea": 0.033508123716953844,
+            "gf_r2": 0.9967962354461897,
+            "pea_r2": 0.999381398945277,
+            "gf_gain": 0.14035059104006237,
+            "pea_gain": 0.9675215536689777,
+            "gf_time_s": 4.37,
+            "pea_time_s": 0.65
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 42,
+            "h": 3.5,
+            "e_exact": -21.91869453012596,
+            "gap": 3.3951661248617953,
+            "de_noisy": 1.2094596992969275,
+            "de_gf": 1.0280874909799262,
+            "de_pea": 0.05113083757723844,
+            "gf_r2": 0.9978344255875409,
+            "pea_r2": 0.9990083581247873,
+            "gf_gain": 0.14996134920612483,
+            "pea_gain": 0.9577242320624976,
+            "gf_time_s": 4.21,
+            "pea_time_s": 0.94
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 43,
+            "h": 4.5,
+            "e_exact": -27.665453926630214,
+            "gap": 5.407107394356487,
+            "de_noisy": 0.9345496410077978,
+            "de_gf": 0.7662152692294274,
+            "de_pea": 0.025516942325331037,
+            "gf_r2": 0.9999372672046907,
+            "pea_r2": 0.9998556207505486,
+            "gf_gain": 0.18012352088310934,
+            "pea_gain": 0.9726960011478747,
+            "gf_time_s": 4.18,
+            "pea_time_s": 0.95
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 43,
+            "h": 4.0,
+            "e_exact": -24.771489810502963,
+            "gap": 4.397574643726095,
+            "de_noisy": 1.0335909881427743,
+            "de_gf": 0.8496998218240753,
+            "de_pea": 0.03542577714452534,
+            "gf_r2": 0.9997641343719513,
+            "pea_r2": 0.9997909768297274,
+            "gf_gain": 0.1779148313290995,
+            "pea_gain": 0.9657255359702964,
+            "gf_time_s": 4.94,
+            "pea_time_s": 0.7
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 43,
+            "h": 3.5,
+            "e_exact": -21.91869453012596,
+            "gap": 3.3951661248617953,
+            "de_noisy": 1.2117248107538265,
+            "de_gf": 0.9984058419749362,
+            "de_pea": 0.05306936550397472,
+            "gf_r2": 0.9997928874623707,
+            "pea_r2": 0.9992277207361147,
+            "gf_gain": 0.17604572167353938,
+            "pea_gain": 0.9562034506242719,
+            "gf_time_s": 4.66,
+            "pea_time_s": 0.76
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 44,
+            "h": 4.5,
+            "e_exact": -27.665453926630214,
+            "gap": 5.407107394356487,
+            "de_noisy": 0.9609070035400268,
+            "de_gf": 0.769457732778629,
+            "de_pea": 0.025906376589725198,
+            "gf_r2": 0.9959175804140835,
+            "pea_r2": 0.9985472028868799,
+            "gf_gain": 0.1992380844931815,
+            "pea_gain": 0.9730396630534642,
+            "gf_time_s": 4.74,
+            "pea_time_s": 0.74
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 44,
+            "h": 4.0,
+            "e_exact": -24.771489810502963,
+            "gap": 4.397574643726095,
+            "de_noisy": 1.0700934864384004,
+            "de_gf": 0.8663572673390829,
+            "de_pea": 0.027824559818832608,
+            "gf_r2": 0.9950292325186867,
+            "pea_r2": 0.9980542005441556,
+            "gf_gain": 0.19039104683966834,
+            "pea_gain": 0.9739980102939965,
+            "gf_time_s": 6.19,
+            "pea_time_s": 0.87
+          },
+          {
+            "topology": "triangular",
+            "n_qubits": 6,
+            "seed": 44,
+            "h": 3.5,
+            "e_exact": -21.91869453012596,
+            "gap": 3.3951661248617953,
+            "de_noisy": 1.2619527584568102,
+            "de_gf": 1.0013450937463906,
+            "de_pea": 0.03969292357365098,
+            "gf_r2": 0.9906512385386397,
+            "pea_r2": 0.999442714242527,
+            "gf_gain": 0.20651142680579102,
+            "pea_gain": 0.9685464267123678,
+            "gf_time_s": 4.17,
+            "pea_time_s": 0.89
+          }
+        ],
+        "summary": {
+          "n_evaluations": 9,
+          "mean_pea_gain": 0.9675975153934142,
+          "mean_gf_gain": 0.17496361241795716,
+          "mean_pea_r2": 0.9991658450031723,
+          "pea_always_positive": true
+        }
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Statistical Verdict",
+      "success": true,
+      "elapsed_s": 0.68,
+      "data": {
+        "pass": true,
+        "summary": {
+          "n_evaluations": 9,
+          "mean_pea_gain": 0.9675975153934142,
+          "mean_gf_gain": 0.17496361241795716,
+          "pea_advantage": 0.7926339029754571,
+          "t_stat": 111.21793399483815,
+          "p_value": 4.773188448254767e-14,
+          "pea_wins": 9
+        }
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 2,
+    "n_passed": 2,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 69.2,
+    "total_elapsed_s": 69.2,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-05T21:23:33.205150",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_TRIANGULAR",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE outperforms GF-ZNE on triangular N=6 with R\u00b2>0.9 and positive gain, consistent with all other topologies.",
+    "n_seeds": 3,
+    "summary": {
+      "n_sections": 2,
+      "n_passed": 2,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 69.2,
+      "total_elapsed_s": 69.2,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Triangular N=6 p=1 (3 seeds \u00d7 3 h-points)",
+        "success": true,
+        "elapsed_s": 67.78,
+        "data": {
+          "pass": true,
+          "results": [
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 42,
+              "h": 4.5,
+              "e_exact": -27.665453926630214,
+              "gap": 5.407107394356487,
+              "de_noisy": 0.928341268676866,
+              "de_gf": 0.7852505150610547,
+              "de_pea": 0.02513691468568049,
+              "gf_r2": 0.999078867217407,
+              "pea_r2": 0.9991844119685337,
+              "gf_gain": 0.15413593949103843,
+              "pea_gain": 0.9729227650069815,
+              "gf_time_s": 4.37,
+              "pea_time_s": 0.61
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 42,
+              "h": 4.0,
+              "e_exact": -24.771489810502963,
+              "gap": 4.397574643726095,
+              "de_noisy": 1.0317034064818598,
+              "de_gf": 0.886903223604085,
+              "de_pea": 0.033508123716953844,
+              "gf_r2": 0.9967962354461897,
+              "pea_r2": 0.999381398945277,
+              "gf_gain": 0.14035059104006237,
+              "pea_gain": 0.9675215536689777,
+              "gf_time_s": 4.37,
+              "pea_time_s": 0.65
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 42,
+              "h": 3.5,
+              "e_exact": -21.91869453012596,
+              "gap": 3.3951661248617953,
+              "de_noisy": 1.2094596992969275,
+              "de_gf": 1.0280874909799262,
+              "de_pea": 0.05113083757723844,
+              "gf_r2": 0.9978344255875409,
+              "pea_r2": 0.9990083581247873,
+              "gf_gain": 0.14996134920612483,
+              "pea_gain": 0.9577242320624976,
+              "gf_time_s": 4.21,
+              "pea_time_s": 0.94
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 43,
+              "h": 4.5,
+              "e_exact": -27.665453926630214,
+              "gap": 5.407107394356487,
+              "de_noisy": 0.9345496410077978,
+              "de_gf": 0.7662152692294274,
+              "de_pea": 0.025516942325331037,
+              "gf_r2": 0.9999372672046907,
+              "pea_r2": 0.9998556207505486,
+              "gf_gain": 0.18012352088310934,
+              "pea_gain": 0.9726960011478747,
+              "gf_time_s": 4.18,
+              "pea_time_s": 0.95
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 43,
+              "h": 4.0,
+              "e_exact": -24.771489810502963,
+              "gap": 4.397574643726095,
+              "de_noisy": 1.0335909881427743,
+              "de_gf": 0.8496998218240753,
+              "de_pea": 0.03542577714452534,
+              "gf_r2": 0.9997641343719513,
+              "pea_r2": 0.9997909768297274,
+              "gf_gain": 0.1779148313290995,
+              "pea_gain": 0.9657255359702964,
+              "gf_time_s": 4.94,
+              "pea_time_s": 0.7
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 43,
+              "h": 3.5,
+              "e_exact": -21.91869453012596,
+              "gap": 3.3951661248617953,
+              "de_noisy": 1.2117248107538265,
+              "de_gf": 0.9984058419749362,
+              "de_pea": 0.05306936550397472,
+              "gf_r2": 0.9997928874623707,
+              "pea_r2": 0.9992277207361147,
+              "gf_gain": 0.17604572167353938,
+              "pea_gain": 0.9562034506242719,
+              "gf_time_s": 4.66,
+              "pea_time_s": 0.76
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 44,
+              "h": 4.5,
+              "e_exact": -27.665453926630214,
+              "gap": 5.407107394356487,
+              "de_noisy": 0.9609070035400268,
+              "de_gf": 0.769457732778629,
+              "de_pea": 0.025906376589725198,
+              "gf_r2": 0.9959175804140835,
+              "pea_r2": 0.9985472028868799,
+              "gf_gain": 0.1992380844931815,
+              "pea_gain": 0.9730396630534642,
+              "gf_time_s": 4.74,
+              "pea_time_s": 0.74
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 44,
+              "h": 4.0,
+              "e_exact": -24.771489810502963,
+              "gap": 4.397574643726095,
+              "de_noisy": 1.0700934864384004,
+              "de_gf": 0.8663572673390829,
+              "de_pea": 0.027824559818832608,
+              "gf_r2": 0.9950292325186867,
+              "pea_r2": 0.9980542005441556,
+              "gf_gain": 0.19039104683966834,
+              "pea_gain": 0.9739980102939965,
+              "gf_time_s": 6.19,
+              "pea_time_s": 0.87
+            },
+            {
+              "topology": "triangular",
+              "n_qubits": 6,
+              "seed": 44,
+              "h": 3.5,
+              "e_exact": -21.91869453012596,
+              "gap": 3.3951661248617953,
+              "de_noisy": 1.2619527584568102,
+              "de_gf": 1.0013450937463906,
+              "de_pea": 0.03969292357365098,
+              "gf_r2": 0.9906512385386397,
+              "pea_r2": 0.999442714242527,
+              "gf_gain": 0.20651142680579102,
+              "pea_gain": 0.9685464267123678,
+              "gf_time_s": 4.17,
+              "pea_time_s": 0.89
+            }
+          ],
+          "summary": {
+            "n_evaluations": 9,
+            "mean_pea_gain": 0.9675975153934142,
+            "mean_gf_gain": 0.17496361241795716,
+            "mean_pea_r2": 0.9991658450031723,
+            "pea_always_positive": true
+          }
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "Statistical Verdict",
+        "success": true,
+        "elapsed_s": 0.68,
+        "data": {
+          "pass": true,
+          "summary": {
+            "n_evaluations": 9,
+            "mean_pea_gain": 0.9675975153934142,
+            "mean_gf_gain": 0.17496361241795716,
+            "pea_advantage": 0.7926339029754571,
+            "t_stat": 111.21793399483815,
+            "p_value": 4.773188448254767e-14,
+            "pea_wins": 9
+          }
+        },
+        "error": null
+      }
+    }
+  }
+}

@@ -1,0 +1,597 @@
+{
+  "config": {
+    "experiment_id": "G5",
+    "category": "G",
+    "description": "Cross-seed generalization: MPNN trained on seed 42, tested on 43/44",
+    "hypothesis": "MPNN trained on seed-42 VQE data achieves \u0394E/gap < 5% when deployed with seeds 43/44, proving it learns physics.",
+    "system": {
+      "n_qubits": 6,
+      "p_layers": 2,
+      "topology": "chain_1d",
+      "J": 1.0,
+      "h_values": [
+        1.0,
+        1.0625,
+        1.125,
+        1.1875,
+        1.25,
+        1.3125,
+        1.375,
+        1.4375,
+        1.5,
+        1.5625,
+        1.625,
+        1.6875,
+        1.75,
+        1.8125,
+        1.875,
+        1.9375,
+        2.0
+      ],
+      "h_test": [
+        1.25,
+        1.5,
+        1.75,
+        2.0
+      ],
+      "g_longitudinal": 0.0,
+      "boundary": "open",
+      "model": "tfim"
+    },
+    "vqe": {
+      "optimizer": "L-BFGS-B",
+      "n_restarts": 5,
+      "maxiter": 500,
+      "sigma": 0.1,
+      "ftol": 1e-14,
+      "use_analytical_init": false,
+      "freeze_params": null,
+      "freeze_after_h": null,
+      "use_hessian_check": false,
+      "hessian_escape_threshold": -1e-06,
+      "use_dypp": false,
+      "dypp_order": 2
+    },
+    "mpnn": {
+      "hidden_dim": 64,
+      "n_layers": 3,
+      "n_epochs": 6000,
+      "lr": 0.001,
+      "patience": 300,
+      "dropout": 0.1,
+      "use_physics_loss": false,
+      "physics_loss_weight": 0.1,
+      "physics_loss_start_epoch": 1000,
+      "physics_loss_eval_every": 100,
+      "sign_canonicalization": "none",
+      "use_active_learning": false,
+      "n_ensemble": 5,
+      "acquisition": "max_variance"
+    },
+    "analysis": {
+      "landscape_resolution": 20,
+      "tci_max_rank": 10,
+      "tci_tolerance": 0.0001,
+      "scaling_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        20
+      ],
+      "weight_gradient_n_points": 40,
+      "fluctuation_n_samples": 100,
+      "threshold": 0.05,
+      "compute_hessian": false
+    },
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "verbose": true,
+    "debug": false,
+    "compare_with_baseline": true,
+    "baseline_config": "v61_optimal",
+    "auto_warm_cold_comparison": false
+  },
+  "backend": "noiseless_statevector",
+  "analysis": {
+    "experiment_id": "G5",
+    "category": "G",
+    "hypothesis": "MPNN trained on seed-42 VQE data achieves \u0394E/gap < 5% when deployed with seeds 43/44, proving it learns physics.",
+    "n_seeds": 3,
+    "timestamp": "20260526_234812",
+    "per_seed": {
+      "42": {
+        "mean_de_gap": 0.026769574675418184,
+        "min_de_gap": 0.00784857927312243,
+        "max_de_gap": 0.05183690415347709,
+        "n_passing": 3,
+        "n_total": 4,
+        "total_time_s": 0.013321638107299805
+      },
+      "43": {
+        "mean_de_gap": 0.014665190721335883,
+        "min_de_gap": 0.0024545533694098577,
+        "max_de_gap": 0.03781778229701438,
+        "n_passing": 4,
+        "n_total": 4,
+        "total_time_s": 0.012583732604980469
+      },
+      "44": {
+        "mean_de_gap": 0.012483389004635881,
+        "min_de_gap": 0.0017773745500049036,
+        "max_de_gap": 0.03407403792518772,
+        "n_passing": 4,
+        "n_total": 4,
+        "total_time_s": 0.01284027099609375
+      }
+    },
+    "summary": {
+      "mean_de_gap": 0.01797271813379665,
+      "std_de_gap": 0.015577237607358924,
+      "median_de_gap": 0.011299655247281023,
+      "min_de_gap": 0.0017773745500049036,
+      "max_de_gap": 0.05183690415347709,
+      "pass_rate": 0.9166666666666666,
+      "n_total_points": 12,
+      "total_time_s": 0.03874564170837402,
+      "convergence_rate": 1.0,
+      "mean_evaluations": 0.0
+    },
+    "cross_seed": {
+      "per_seed_mean_de_gap": {
+        "42": 0.026769574675418184,
+        "43": 0.014665190721335883,
+        "44": 0.012483389004635881
+      },
+      "overall_mean": 0.01797271813379665,
+      "overall_std": 0.006283766303905695,
+      "max_variation_pct": 79.4881751576461,
+      "all_seeds_pass": true,
+      "hypothesis_confirmed": true
+    }
+  },
+  "results": {
+    "42": [
+      {
+        "h_value": 1.25,
+        "energy": -8.478320453116543,
+        "exact_energy": -8.52455162353023,
+        "energy_error": 0.046231170413687295,
+        "gap": 0.8918582459478577,
+        "relative_error": 0.05183690415347709,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003606081008911133,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 42,
+          "de_gap": 0.05183690415347709
+        }
+      },
+      {
+        "h_value": 1.5,
+        "energy": -9.813202402032358,
+        "exact_energy": -9.847571471154597,
+        "energy_error": 0.03436906912223847,
+        "gap": 1.342946997711941,
+        "relative_error": 0.025592275183454825,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0031168460845947266,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 42,
+          "de_gap": 0.025592275183454825
+        }
+      },
+      {
+        "h_value": 1.75,
+        "energy": -11.183694301775246,
+        "exact_energy": -11.223221589397756,
+        "energy_error": 0.03952728762251034,
+        "gap": 1.8131334112088044,
+        "relative_error": 0.021800540091618383,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0033087730407714844,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 42,
+          "de_gap": 0.021800540091618383
+        }
+      },
+      {
+        "h_value": 2.0,
+        "energy": -12.61296529859976,
+        "exact_energy": -12.630964276492962,
+        "energy_error": 0.01799897789320326,
+        "gap": 2.293278473320772,
+        "relative_error": 0.00784857927312243,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003289937973022461,
+        "n_evaluations": 0,
+        "seed": 42,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 42,
+          "de_gap": 0.00784857927312243
+        }
+      }
+    ],
+    "43": [
+      {
+        "h_value": 1.25,
+        "energy": -8.490823522545178,
+        "exact_energy": -8.52455162353023,
+        "energy_error": 0.03372810098505319,
+        "gap": 0.8918582459478577,
+        "relative_error": 0.03781778229701438,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003564119338989258,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 43,
+          "de_gap": 0.03781778229701438
+        }
+      },
+      {
+        "h_value": 1.5,
+        "energy": -9.830994780170606,
+        "exact_energy": -9.847571471154597,
+        "energy_error": 0.016576690983990616,
+        "gap": 1.342946997711941,
+        "relative_error": 0.012343518405591072,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003033876419067383,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 43,
+          "de_gap": 0.012343518405591072
+        }
+      },
+      {
+        "h_value": 1.75,
+        "energy": -11.2122613632606,
+        "exact_energy": -11.223221589397756,
+        "energy_error": 0.01096022613715597,
+        "gap": 1.8131334112088044,
+        "relative_error": 0.006044908813328225,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0029268264770507812,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 43,
+          "de_gap": 0.006044908813328225
+        }
+      },
+      {
+        "h_value": 2.0,
+        "energy": -12.625335302089278,
+        "exact_energy": -12.630964276492962,
+        "energy_error": 0.0056289744036845946,
+        "gap": 2.293278473320772,
+        "relative_error": 0.0024545533694098577,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003058910369873047,
+        "n_evaluations": 0,
+        "seed": 43,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 43,
+          "de_gap": 0.0024545533694098577
+        }
+      }
+    ],
+    "44": [
+      {
+        "h_value": 1.25,
+        "energy": -8.494162411833912,
+        "exact_energy": -8.52455162353023,
+        "energy_error": 0.030389211696318696,
+        "gap": 0.8918582459478577,
+        "relative_error": 0.03407403792518772,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003255128860473633,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 44,
+          "de_gap": 0.03407403792518772
+        }
+      },
+      {
+        "h_value": 1.5,
+        "energy": -9.833798485959555,
+        "exact_energy": -9.847571471154597,
+        "energy_error": 0.013772985195041443,
+        "gap": 1.342946997711941,
+        "relative_error": 0.010255792088970973,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.00279998779296875,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 44,
+          "de_gap": 0.010255792088970973
+        }
+      },
+      {
+        "h_value": 1.75,
+        "energy": -11.216283903732792,
+        "exact_energy": -11.223221589397756,
+        "energy_error": 0.0069376856649636665,
+        "gap": 1.8131334112088044,
+        "relative_error": 0.0038263514543799377,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.003720998764038086,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 44,
+          "de_gap": 0.0038263514543799377
+        }
+      },
+      {
+        "h_value": 2.0,
+        "energy": -12.626888261698408,
+        "exact_energy": -12.630964276492962,
+        "energy_error": 0.004076014794554439,
+        "gap": 2.293278473320772,
+        "relative_error": 0.0017773745500049036,
+        "fidelity": null,
+        "phase_label": "unknown",
+        "phase_correct": true,
+        "wall_time_s": 0.0030641555786132812,
+        "n_evaluations": 0,
+        "seed": 44,
+        "n_restarts_used": 0,
+        "converged": true,
+        "theta_opt": [],
+        "theta_init": [],
+        "hessian_eigenvalues": null,
+        "landscape_fluctuation": null,
+        "basin_index": null,
+        "mpnn_mse": null,
+        "mpnn_energy_error": null,
+        "prediction_uncertainty": null,
+        "technique_metadata": {
+          "training_seed": 44,
+          "de_gap": 0.0017773745500049036
+        }
+      }
+    ]
+  },
+  "structured_log": {
+    "n_events": 6,
+    "timing_summary": {
+      "seed_complete": {
+        "count": 3,
+        "total_s": 63.59,
+        "mean_s": 21.196,
+        "max_s": 22.275
+      }
+    },
+    "failure_summary": {
+      "total_failures": 0,
+      "by_seed": {},
+      "by_h_value": {},
+      "reasons": []
+    },
+    "events": [
+      {
+        "timestamp": "2026-05-26T23:48:12.954",
+        "event_type": "seed_start",
+        "experiment_id": "G5",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "index": 0
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-26T23:48:32.293",
+        "event_type": "seed_complete",
+        "experiment_id": "G5",
+        "seed": 42,
+        "h_value": null,
+        "data": {
+          "n_points": 4,
+          "elapsed_s": 19.339
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-26T23:48:32.294",
+        "event_type": "seed_start",
+        "experiment_id": "G5",
+        "seed": 43,
+        "h_value": null,
+        "data": {
+          "index": 1
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-26T23:48:54.569",
+        "event_type": "seed_complete",
+        "experiment_id": "G5",
+        "seed": 43,
+        "h_value": null,
+        "data": {
+          "n_points": 4,
+          "elapsed_s": 22.275
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-26T23:48:54.569",
+        "event_type": "seed_start",
+        "experiment_id": "G5",
+        "seed": 44,
+        "h_value": null,
+        "data": {
+          "index": 2
+        },
+        "elapsed_s": 0.0
+      },
+      {
+        "timestamp": "2026-05-26T23:49:16.543",
+        "event_type": "seed_complete",
+        "experiment_id": "G5",
+        "seed": 44,
+        "h_value": null,
+        "data": {
+          "n_points": 4,
+          "elapsed_s": 21.973
+        },
+        "elapsed_s": 0.0
+      }
+    ]
+  },
+  "environment": {
+    "python": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "timestamp": "2026-05-26T23:49:16.546007",
+    "run_id": "20260526_234812",
+    "qiskit": "2.4.1",
+    "torch": "2.11.0"
+  }
+}

@@ -1,0 +1,578 @@
+{
+  "timestamp": "2026-06-04T13:13:10.214211",
+  "config": {
+    "runner_id": "pea_hardware_readiness",
+    "experiment_id": "PEA_HW_READY",
+    "category": "ZNE",
+    "description": "PEA-ZNE Hardware Readiness (heavy_hex N=10 p=1)",
+    "hypothesis": "PEA-ZNE on heavy_hex N=10 p=1 achieves \u0394E/gap closer to noiseless than GF-ZNE, with R\u00b2>0.9 and consistent gain across h-values.",
+    "system": {
+      "n_qubits": 10,
+      "p_layers": 1,
+      "topology": "heavy_hex",
+      "model": "tfim"
+    },
+    "seeds": []
+  },
+  "elapsed_s": 25.216174125671387,
+  "results": {
+    "section_1": {
+      "name": "Noiseless Baseline",
+      "success": true,
+      "elapsed_s": 0.55,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_exact": -40.56569043551275,
+            "gap": 5.921971082752414,
+            "e_noiseless": -39.99999999999999,
+            "de_gap_noiseless": 0.09552401178727724,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ]
+          },
+          {
+            "h": 3.25,
+            "e_exact": -33.198273652500575,
+            "gap": 4.429858148786295,
+            "e_noiseless": -32.49999999999999,
+            "de_gap_noiseless": 0.15762889669320382,
+            "theta_opt": [
+              -3.141592653589793,
+              3.011374702903561
+            ]
+          },
+          {
+            "h": 3.0,
+            "e_exact": -30.757597386785978,
+            "gap": 3.9337583475541074,
+            "e_noiseless": -29.999999999999996,
+            "de_gap_noiseless": 0.19258869504707446,
+            "theta_opt": [
+              -3.141592653589793,
+              3.141592653589793
+            ]
+          }
+        ],
+        "n_params": 2
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "Full-Noise Baseline",
+      "success": true,
+      "elapsed_s": 7.26,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_noisy": -35.6981201171875,
+            "de_gap_noisy": 0.8219510447293336,
+            "layout_ces": 0.0,
+            "circuit_depth": 3
+          },
+          {
+            "h": 3.25,
+            "e_noisy": -28.9957275390625,
+            "de_gap_noisy": 0.9486863850458734,
+            "layout_ces": 0.0,
+            "circuit_depth": 3
+          },
+          {
+            "h": 3.0,
+            "e_noisy": -26.7615966796875,
+            "de_gap_noisy": 1.0158226189931243,
+            "layout_ces": 0.0,
+            "circuit_depth": 3
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "Gate-Folding ZNE",
+      "success": true,
+      "elapsed_s": 12.62,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_gf_zne": -35.77034505208332,
+            "de_gap_gf": 0.8097549475369351,
+            "gf_r2": 0.27204030226714904,
+            "gf_slope": -0.006225585937498578,
+            "elapsed_s": 4.03,
+            "measured": [
+              -35.788330078125,
+              -35.7655029296875,
+              -35.813232421875
+            ]
+          },
+          {
+            "h": 3.25,
+            "e_gf_zne": -29.056058247884103,
+            "de_gap_gf": 0.9350672787911658,
+            "gf_r2": 0.5180809617087943,
+            "gf_slope": -0.007942199707030605,
+            "elapsed_s": 3.93,
+            "measured": [
+              -29.072845458984375,
+              -29.06219482421875,
+              -29.1046142578125
+            ]
+          },
+          {
+            "h": 3.0,
+            "e_gf_zne": -26.817962646484364,
+            "de_gap_gf": 1.001493836740419,
+            "gf_r2": 0.6092561284868977,
+            "gf_slope": -0.008514404296874813,
+            "elapsed_s": 4.39,
+            "measured": [
+              -26.8343505859375,
+              -26.8277587890625,
+              -26.868408203125
+            ]
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_4": {
+      "name": "PEA-ZNE",
+      "success": true,
+      "elapsed_s": 3.43,
+      "data": {
+        "results": [
+          {
+            "h": 4.0,
+            "e_pea_zne": -40.01195271809895,
+            "de_gap_pea": 0.09350564358994416,
+            "pea_r2": 0.9378743873663237,
+            "pea_slope": 0.002532958984373812,
+            "elapsed_s": 0.85,
+            "measured": [
+              -40.0086669921875,
+              -40.005859375,
+              -39.99853515625
+            ],
+            "learned_rates": {
+              "n_pairs": 300,
+              "mean_error": 0.0799984668976399,
+              "max_error": 1.0,
+              "min_error": 0.0014953046446719576
+            }
+          },
+          {
+            "h": 3.25,
+            "e_pea_zne": -32.51195271809894,
+            "de_gap_pea": 0.1549306797983307,
+            "pea_r2": 0.9378743873661282,
+            "pea_slope": 0.002532958984374413,
+            "elapsed_s": 1.1,
+            "measured": [
+              -32.5086669921875,
+              -32.505859375,
+              -32.49853515625
+            ],
+            "learned_rates": {
+              "n_pairs": 300,
+              "mean_error": 0.0799984668976399,
+              "max_error": 1.0,
+              "min_error": 0.0014953046446719576
+            }
+          },
+          {
+            "h": 3.0,
+            "e_pea_zne": -30.01195271809894,
+            "de_gap_pea": 0.18955019673505313,
+            "pea_r2": 0.9378743873661282,
+            "pea_slope": 0.0025329589843750134,
+            "elapsed_s": 1.19,
+            "measured": [
+              -30.0086669921875,
+              -30.005859375,
+              -29.99853515625
+            ],
+            "learned_rates": {
+              "n_pairs": 300,
+              "mean_error": 0.0799984668976399,
+              "max_error": 1.0,
+              "min_error": 0.0014953046446719576
+            }
+          }
+        ]
+      },
+      "error": null
+    },
+    "section_5": {
+      "name": "Hardware Readiness Verdict",
+      "success": true,
+      "elapsed_s": 0.0,
+      "data": {
+        "pass": true,
+        "summary": {
+          "topology": "heavy_hex",
+          "n_qubits": 10,
+          "comparison": [
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "gap": 5.921971082752414,
+              "de_noiseless": 0.09552401178727724,
+              "de_noisy": 0.8219510447293336,
+              "de_gf": 0.8097549475369351,
+              "de_pea": 0.09350564358994416,
+              "gf_r2": 0.27204030226714904,
+              "pea_r2": 0.9378743873663237,
+              "gf_gain": 0.01483798490263443,
+              "pea_gain": 0.8862394005220404,
+              "passes_hw_criterion": false,
+              "gf_passes": false
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "gap": 4.429858148786295,
+              "de_noiseless": 0.15762889669320382,
+              "de_noisy": 0.9486863850458734,
+              "de_gf": 0.9350672787911658,
+              "de_pea": 0.1549306797983307,
+              "gf_r2": 0.5180809617087943,
+              "pea_r2": 0.9378743873661282,
+              "gf_gain": 0.014355751773594905,
+              "pea_gain": 0.8366892555427166,
+              "passes_hw_criterion": false,
+              "gf_passes": false
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "gap": 3.9337583475541074,
+              "de_noiseless": 0.19258869504707446,
+              "de_noisy": 1.0158226189931243,
+              "de_gf": 1.001493836740419,
+              "de_pea": 0.18955019673505313,
+              "gf_r2": 0.6092561284868977,
+              "pea_r2": 0.9378743873661282,
+              "gf_gain": 0.014105594800505602,
+              "pea_gain": 0.8134022680820655,
+              "passes_hw_criterion": false,
+              "gf_passes": false
+            }
+          ],
+          "mean_de_noiseless": 0.14858053450918518,
+          "mean_de_noisy": 0.9288200162561105,
+          "mean_de_gf": 0.9154386876895065,
+          "mean_de_pea": 0.145995506707776,
+          "mean_gf_gain": 0.01443311049224498,
+          "mean_pea_gain": 0.8454436413822742,
+          "mean_gf_r2": 0.466459130820947,
+          "mean_pea_r2": 0.9378743873661932,
+          "pea_better_than_gf": true,
+          "n_hw_pass_pea": 0,
+          "n_hw_pass_gf": 0
+        }
+      },
+      "error": null
+    }
+  },
+  "summary": {
+    "n_sections": 5,
+    "n_passed": 5,
+    "n_failed": 0,
+    "pass_rate": 1.0,
+    "total_time_s": 25.22,
+    "total_elapsed_s": 25.22,
+    "all_passed": true
+  },
+  "metadata": {
+    "timestamp": "2026-06-04T13:13:10.148191",
+    "python_version": "3.12.13",
+    "platform": "macOS-26.5-arm64-arm-64bit",
+    "qiskit_version": "2.4.1",
+    "torch_version": "2.11.0",
+    "qiskit_aer_version": "0.17.2"
+  },
+  "analysis": {
+    "experiment_id": "PEA_HW_READY",
+    "category": "ZNE",
+    "hypothesis": "PEA-ZNE on heavy_hex N=10 p=1 achieves \u0394E/gap closer to noiseless than GF-ZNE, with R\u00b2>0.9 and consistent gain across h-values.",
+    "n_seeds": 0,
+    "summary": {
+      "n_sections": 5,
+      "n_passed": 5,
+      "n_failed": 0,
+      "pass_rate": 1.0,
+      "total_time_s": 25.22,
+      "total_elapsed_s": 25.22,
+      "all_passed": true
+    },
+    "per_section": {
+      "section_1": {
+        "name": "Noiseless Baseline",
+        "success": true,
+        "elapsed_s": 0.55,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_exact": -40.56569043551275,
+              "gap": 5.921971082752414,
+              "e_noiseless": -39.99999999999999,
+              "de_gap_noiseless": 0.09552401178727724,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ]
+            },
+            {
+              "h": 3.25,
+              "e_exact": -33.198273652500575,
+              "gap": 4.429858148786295,
+              "e_noiseless": -32.49999999999999,
+              "de_gap_noiseless": 0.15762889669320382,
+              "theta_opt": [
+                -3.141592653589793,
+                3.011374702903561
+              ]
+            },
+            {
+              "h": 3.0,
+              "e_exact": -30.757597386785978,
+              "gap": 3.9337583475541074,
+              "e_noiseless": -29.999999999999996,
+              "de_gap_noiseless": 0.19258869504707446,
+              "theta_opt": [
+                -3.141592653589793,
+                3.141592653589793
+              ]
+            }
+          ],
+          "n_params": 2
+        },
+        "error": null
+      },
+      "section_2": {
+        "name": "Full-Noise Baseline",
+        "success": true,
+        "elapsed_s": 7.26,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_noisy": -35.6981201171875,
+              "de_gap_noisy": 0.8219510447293336,
+              "layout_ces": 0.0,
+              "circuit_depth": 3
+            },
+            {
+              "h": 3.25,
+              "e_noisy": -28.9957275390625,
+              "de_gap_noisy": 0.9486863850458734,
+              "layout_ces": 0.0,
+              "circuit_depth": 3
+            },
+            {
+              "h": 3.0,
+              "e_noisy": -26.7615966796875,
+              "de_gap_noisy": 1.0158226189931243,
+              "layout_ces": 0.0,
+              "circuit_depth": 3
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_3": {
+        "name": "Gate-Folding ZNE",
+        "success": true,
+        "elapsed_s": 12.62,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_gf_zne": -35.77034505208332,
+              "de_gap_gf": 0.8097549475369351,
+              "gf_r2": 0.27204030226714904,
+              "gf_slope": -0.006225585937498578,
+              "elapsed_s": 4.03,
+              "measured": [
+                -35.788330078125,
+                -35.7655029296875,
+                -35.813232421875
+              ]
+            },
+            {
+              "h": 3.25,
+              "e_gf_zne": -29.056058247884103,
+              "de_gap_gf": 0.9350672787911658,
+              "gf_r2": 0.5180809617087943,
+              "gf_slope": -0.007942199707030605,
+              "elapsed_s": 3.93,
+              "measured": [
+                -29.072845458984375,
+                -29.06219482421875,
+                -29.1046142578125
+              ]
+            },
+            {
+              "h": 3.0,
+              "e_gf_zne": -26.817962646484364,
+              "de_gap_gf": 1.001493836740419,
+              "gf_r2": 0.6092561284868977,
+              "gf_slope": -0.008514404296874813,
+              "elapsed_s": 4.39,
+              "measured": [
+                -26.8343505859375,
+                -26.8277587890625,
+                -26.868408203125
+              ]
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_4": {
+        "name": "PEA-ZNE",
+        "success": true,
+        "elapsed_s": 3.43,
+        "data": {
+          "results": [
+            {
+              "h": 4.0,
+              "e_pea_zne": -40.01195271809895,
+              "de_gap_pea": 0.09350564358994416,
+              "pea_r2": 0.9378743873663237,
+              "pea_slope": 0.002532958984373812,
+              "elapsed_s": 0.85,
+              "measured": [
+                -40.0086669921875,
+                -40.005859375,
+                -39.99853515625
+              ],
+              "learned_rates": {
+                "n_pairs": 300,
+                "mean_error": 0.0799984668976399,
+                "max_error": 1.0,
+                "min_error": 0.0014953046446719576
+              }
+            },
+            {
+              "h": 3.25,
+              "e_pea_zne": -32.51195271809894,
+              "de_gap_pea": 0.1549306797983307,
+              "pea_r2": 0.9378743873661282,
+              "pea_slope": 0.002532958984374413,
+              "elapsed_s": 1.1,
+              "measured": [
+                -32.5086669921875,
+                -32.505859375,
+                -32.49853515625
+              ],
+              "learned_rates": {
+                "n_pairs": 300,
+                "mean_error": 0.0799984668976399,
+                "max_error": 1.0,
+                "min_error": 0.0014953046446719576
+              }
+            },
+            {
+              "h": 3.0,
+              "e_pea_zne": -30.01195271809894,
+              "de_gap_pea": 0.18955019673505313,
+              "pea_r2": 0.9378743873661282,
+              "pea_slope": 0.0025329589843750134,
+              "elapsed_s": 1.19,
+              "measured": [
+                -30.0086669921875,
+                -30.005859375,
+                -29.99853515625
+              ],
+              "learned_rates": {
+                "n_pairs": 300,
+                "mean_error": 0.0799984668976399,
+                "max_error": 1.0,
+                "min_error": 0.0014953046446719576
+              }
+            }
+          ]
+        },
+        "error": null
+      },
+      "section_5": {
+        "name": "Hardware Readiness Verdict",
+        "success": true,
+        "elapsed_s": 0.0,
+        "data": {
+          "pass": true,
+          "summary": {
+            "topology": "heavy_hex",
+            "n_qubits": 10,
+            "comparison": [
+              {
+                "h": 4.0,
+                "e_exact": -40.56569043551275,
+                "gap": 5.921971082752414,
+                "de_noiseless": 0.09552401178727724,
+                "de_noisy": 0.8219510447293336,
+                "de_gf": 0.8097549475369351,
+                "de_pea": 0.09350564358994416,
+                "gf_r2": 0.27204030226714904,
+                "pea_r2": 0.9378743873663237,
+                "gf_gain": 0.01483798490263443,
+                "pea_gain": 0.8862394005220404,
+                "passes_hw_criterion": false,
+                "gf_passes": false
+              },
+              {
+                "h": 3.25,
+                "e_exact": -33.198273652500575,
+                "gap": 4.429858148786295,
+                "de_noiseless": 0.15762889669320382,
+                "de_noisy": 0.9486863850458734,
+                "de_gf": 0.9350672787911658,
+                "de_pea": 0.1549306797983307,
+                "gf_r2": 0.5180809617087943,
+                "pea_r2": 0.9378743873661282,
+                "gf_gain": 0.014355751773594905,
+                "pea_gain": 0.8366892555427166,
+                "passes_hw_criterion": false,
+                "gf_passes": false
+              },
+              {
+                "h": 3.0,
+                "e_exact": -30.757597386785978,
+                "gap": 3.9337583475541074,
+                "de_noiseless": 0.19258869504707446,
+                "de_noisy": 1.0158226189931243,
+                "de_gf": 1.001493836740419,
+                "de_pea": 0.18955019673505313,
+                "gf_r2": 0.6092561284868977,
+                "pea_r2": 0.9378743873661282,
+                "gf_gain": 0.014105594800505602,
+                "pea_gain": 0.8134022680820655,
+                "passes_hw_criterion": false,
+                "gf_passes": false
+              }
+            ],
+            "mean_de_noiseless": 0.14858053450918518,
+            "mean_de_noisy": 0.9288200162561105,
+            "mean_de_gf": 0.9154386876895065,
+            "mean_de_pea": 0.145995506707776,
+            "mean_gf_gain": 0.01443311049224498,
+            "mean_pea_gain": 0.8454436413822742,
+            "mean_gf_r2": 0.466459130820947,
+            "mean_pea_r2": 0.9378743873661932,
+            "pea_better_than_gf": true,
+            "n_hw_pass_pea": 0,
+            "n_hw_pass_gf": 0
+          }
+        },
+        "error": null
+      }
+    }
+  }
+}

@@ -1,0 +1,243 @@
+{
+  "timestamp": "20260530_083633",
+  "topology": "multi",
+  "n_qubits": 10,
+  "total_variants": 13,
+  "passed": 13,
+  "failed": 0,
+  "total_elapsed_s": 323.2129080295563,
+  "verdicts": {
+    "PASS": 10,
+    "MARGINAL": 1,
+    "FAIL": 2,
+    "ZNE-PASS": 0,
+    "ZNE-FAIL": 0,
+    "SKIP-P3": 0,
+    "ERROR": 0
+  },
+  "results": [
+    {
+      "variant_id": "P1R2-chain-s42",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.81,
+      "delta_e_over_gap": 0.04212334857524981,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1R2-chain-s43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 23.62,
+      "delta_e_over_gap": 0.04097364951747168,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1R2-chain-s44",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 23.46,
+      "delta_e_over_gap": 0.008023827467331318,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1R2-ladder-s42",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 22.05,
+      "delta_e_over_gap": 0.03285626007011103,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1R2-ladder-s43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 21.36,
+      "delta_e_over_gap": 0.024812419599170597,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "P1R2-ladder-s44",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 20.94,
+      "delta_e_over_gap": 0.02878204046282033,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP4-tri-p2-s42",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 26.04,
+      "delta_e_over_gap": 0.014140911249892757,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP4-tri-p2-s43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 26.54,
+      "delta_e_over_gap": 0.034170389176940284,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP4-tri-p2-s44",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 23.94,
+      "delta_e_over_gap": 0.8221064954881264,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP5-tri-multi-h",
+      "success": true,
+      "verdict": "FAIL",
+      "elapsed_s": 22.36,
+      "delta_e_over_gap": 13.583055151513026,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP2-chain-dense-s42",
+      "success": true,
+      "verdict": "MARGINAL",
+      "elapsed_s": 28.96,
+      "delta_e_over_gap": 0.051586255910149245,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP2-chain-dense-s43",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 31.57,
+      "delta_e_over_gap": 0.01795157394870518,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    },
+    {
+      "variant_id": "COMP2-chain-dense-s44",
+      "success": true,
+      "verdict": "PASS",
+      "elapsed_s": 29.55,
+      "delta_e_over_gap": 0.01808711462546324,
+      "noisy_summary": null,
+      "return_code": 0,
+      "error_msg": ""
+    }
+  ],
+  "variants": [
+    {
+      "id": "P1R2-chain-s42",
+      "description": "p=1 chain_1d N=10 seed=42 (h_test=2.75, R2)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on chain_1d N=10 achieves \u0394E/gap < 5% at h_test=2.75 (further from boundary than R1's 2.25)",
+      "expected_outcome": "PASS \u2014 h_test=2.75 is well inside valid regime h\u22651.9"
+    },
+    {
+      "id": "P1R2-chain-s43",
+      "description": "p=1 chain_1d N=10 seed=43 (h_test=2.75, R2)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on chain_1d N=10 achieves \u0394E/gap < 5% at h_test=2.75 (further from boundary than R1's 2.25)",
+      "expected_outcome": "PASS \u2014 h_test=2.75 is well inside valid regime h\u22651.9"
+    },
+    {
+      "id": "P1R2-chain-s44",
+      "description": "p=1 chain_1d N=10 seed=44 (h_test=2.75, R2)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on chain_1d N=10 achieves \u0394E/gap < 5% at h_test=2.75 (further from boundary than R1's 2.25)",
+      "expected_outcome": "PASS \u2014 h_test=2.75 is well inside valid regime h\u22651.9"
+    },
+    {
+      "id": "P1R2-ladder-s42",
+      "description": "p=1 ladder N=10 seed=42 (h_test=3.25, R2)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=10 achieves \u0394E/gap < 5% at h_test=3.25 (further from boundary than R1's 2.75)",
+      "expected_outcome": "PASS expected \u2014 R1 failure was boundary effect, not physics limit (existing run passes at h_test=3.0)"
+    },
+    {
+      "id": "P1R2-ladder-s43",
+      "description": "p=1 ladder N=10 seed=43 (h_test=3.25, R2)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=10 achieves \u0394E/gap < 5% at h_test=3.25 (further from boundary than R1's 2.75)",
+      "expected_outcome": "PASS expected \u2014 R1 failure was boundary effect, not physics limit (existing run passes at h_test=3.0)"
+    },
+    {
+      "id": "P1R2-ladder-s44",
+      "description": "p=1 ladder N=10 seed=44 (h_test=3.25, R2)",
+      "category": "noiseless",
+      "hypothesis": "p=1 HVA on ladder N=10 achieves \u0394E/gap < 5% at h_test=3.25 (further from boundary than R1's 2.75)",
+      "expected_outcome": "PASS expected \u2014 R1 failure was boundary effect, not physics limit (existing run passes at h_test=3.0)"
+    },
+    {
+      "id": "COMP4-tri-p2-s42",
+      "description": "p=2 triangular N=10 seed=42 (matched config)",
+      "category": "extended",
+      "hypothesis": "p=2 at same conditions as p=1 triangular achieves lower \u0394E/gap (more expressive ansatz)",
+      "expected_outcome": "PASS with \u0394E/gap < p=1 result (0.033)"
+    },
+    {
+      "id": "COMP4-tri-p2-s43",
+      "description": "p=2 triangular N=10 seed=43 (matched config)",
+      "category": "extended",
+      "hypothesis": "p=2 at same conditions as p=1 triangular achieves lower \u0394E/gap (more expressive ansatz)",
+      "expected_outcome": "PASS with \u0394E/gap < p=1 result (0.033)"
+    },
+    {
+      "id": "COMP4-tri-p2-s44",
+      "description": "p=2 triangular N=10 seed=44 (matched config)",
+      "category": "extended",
+      "hypothesis": "p=2 at same conditions as p=1 triangular achieves lower \u0394E/gap (more expressive ansatz)",
+      "expected_outcome": "PASS with \u0394E/gap < p=1 result (0.033)"
+    },
+    {
+      "id": "COMP5-tri-multi-h",
+      "description": "p=1 triangular N=10 multi-h_test (robustness)",
+      "category": "extended",
+      "hypothesis": "p=1 MPNN generalizes across the valid regime: \u0394E/gap < 5% at h_test=3.75, 4.25, and 4.75",
+      "expected_outcome": "PASS at all 3 test points (all within valid regime h\u22653.5)"
+    },
+    {
+      "id": "COMP2-chain-dense-s42",
+      "description": "p=1 chain_1d N=10 seed=42 (9pt dense grid)",
+      "category": "extended",
+      "hypothesis": "Denser training grid (9 pts vs 5) improves p=1 chain_1d performance \u2014 R1 failures were data-limited, not physics-limited",
+      "expected_outcome": "PASS \u2014 more training data helps MPNN interpolation"
+    },
+    {
+      "id": "COMP2-chain-dense-s43",
+      "description": "p=1 chain_1d N=10 seed=43 (9pt dense grid)",
+      "category": "extended",
+      "hypothesis": "Denser training grid (9 pts vs 5) improves p=1 chain_1d performance \u2014 R1 failures were data-limited, not physics-limited",
+      "expected_outcome": "PASS \u2014 more training data helps MPNN interpolation"
+    },
+    {
+      "id": "COMP2-chain-dense-s44",
+      "description": "p=1 chain_1d N=10 seed=44 (9pt dense grid)",
+      "category": "extended",
+      "hypothesis": "Denser training grid (9 pts vs 5) improves p=1 chain_1d performance \u2014 R1 failures were data-limited, not physics-limited",
+      "expected_outcome": "PASS \u2014 more training data helps MPNN interpolation"
+    }
+  ]
+}
