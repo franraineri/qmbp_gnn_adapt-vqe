@@ -113,7 +113,7 @@ def train_and_eval(
     if shuffle_edges:
         rng_e = np.random.default_rng(123)
         for g in dataset:
-            n_edges = g.edge_index.shape[1]
+            g.edge_index.shape[1]
             perm = rng_e.permutation(g.edge_index.shape[1])
             # Shuffle target nodes (breaks topology structure)
             g.edge_index[1] = g.edge_index[1, perm]

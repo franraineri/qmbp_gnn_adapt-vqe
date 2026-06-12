@@ -100,7 +100,7 @@ def scan_experiment_file(filepath: Path) -> list[dict]:
     if isinstance(results, dict):
         # First pass: build e_exact lookup by h from any section that has it
         e_exact_by_h: dict[float, float] = {}
-        for section_key, section_data in results.items():
+        for _section_key, section_data in results.items():
             if not isinstance(section_data, dict):
                 continue
             inner = section_data.get("data", section_data)
@@ -117,7 +117,7 @@ def scan_experiment_file(filepath: Path) -> list[dict]:
                     e_exact_by_h[row["h"]] = row["e_exact"]
 
         # Second pass: extract ZNE energies, inject e_exact from lookup
-        for section_key, section_data in results.items():
+        for _section_key, section_data in results.items():
             if not isinstance(section_data, dict):
                 continue
             inner = section_data.get("data", section_data)

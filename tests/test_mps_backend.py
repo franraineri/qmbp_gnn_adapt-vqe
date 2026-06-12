@@ -278,12 +278,12 @@ class TestPropertyChiMaxFormula:
 
 
 class TestPropertyDMRGLimit:
-    """P8: ClassicalSolver.solve() rejects N>100 with method='dmrg'."""
+    """P8: ClassicalSolver.solve() rejects N>DMRG_QUBIT_LIMIT with method='dmrg'."""
 
-    @given(n=st.integers(min_value=101, max_value=200))
+    @given(n=st.integers(min_value=201, max_value=300))
     @settings(max_examples=10, deadline=None)
-    def test_dmrg_rejects_over_100(self, n):
-        """DMRG must raise ValueError for N > DMRG_QUBIT_LIMIT (100)."""
+    def test_dmrg_rejects_over_limit(self, n):
+        """DMRG must raise ValueError for N > DMRG_QUBIT_LIMIT (200)."""
         builder = HamiltonianBuilder()
         solver = ClassicalSolver()
 
@@ -314,11 +314,10 @@ class TestMPSBackendUnit:
         assert "chi64" in backend.name
 
     def test_name_format_aer(self):
-        """MPSBackend('aer_mps') name must contain strategy and precision."""
+        """MPSBackend('aer_mps') name must contain strategy and chi."""
         backend = MPSBackend(strategy="aer_mps", chi_max=32, precision=0.01)
         assert "aer_mps" in backend.name
         assert "chi32" in backend.name
-        assert "0.01" in backend.name
 
     def test_parameter_count_mismatch_raises(self):
         """Passing wrong number of params must raise ValueError."""
@@ -348,9 +347,9 @@ class TestMPSBackendUnit:
         cfg = VQEConfig(p_layers=1, n_restarts=1)
         assert cfg.method == "L-BFGS-B"
 
-    def test_dmrg_qubit_limit_is_100(self):
-        """DMRG_QUBIT_LIMIT constant must be 100."""
-        assert DMRG_QUBIT_LIMIT == 100
+    def test_dmrg_qubit_limit_is_200(self):
+        """DMRG_QUBIT_LIMIT constant must be 200 (validated at N=120 with χ=64)."""
+        assert DMRG_QUBIT_LIMIT == 200
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -73,7 +73,7 @@ class TestThesisFindingsValidator:
             FindingValidation,
         )
 
-        for finding_id, category, claim, func in _VALIDATORS:
+        for finding_id, _category, _claim, func in _VALIDATORS:
             try:
                 result = func(
                     noiseless=[],

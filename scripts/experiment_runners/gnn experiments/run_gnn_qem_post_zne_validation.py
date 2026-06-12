@@ -68,7 +68,7 @@ def run_vqe_sweep(spec, topology, n_qubits, h_values, seed, p_layers):
     """Warm-start VQE descending sweep to get theta_opt per h."""
     from qmbp_simulation import ClassicalSolver, VQEOptimizer
 
-    solver = ClassicalSolver()
+    ClassicalSolver()
     optimizer = VQEOptimizer()
     theta_map = {}
     prev_theta = None

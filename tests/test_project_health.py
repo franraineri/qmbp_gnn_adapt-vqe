@@ -18,6 +18,8 @@ import json
 import tempfile
 from pathlib import Path
 
+import pytest
+
 
 class TestHealthCheckEngine:
     """Tests for the core health check orchestration engine."""
@@ -86,8 +88,12 @@ class TestFigureRegistry:
         assert "smoothness_histogram" in names
 
     def test_figures_generate_from_analysis(self):
-        """At least one diagnostics figure generates without error."""
-        from project_health.figures import FigureConfig, generate_figures
+        """At least one diagnostics figure generates without error when data is available."""
+        from project_health.figures import ROOT, FigureConfig, generate_figures
+
+        diag_path = ROOT / "analysis" / "raw_data" / "all_diagnostics.json"
+        if not diag_path.exists():
+            pytest.skip("analysis/raw_data/all_diagnostics.json not available")
 
         with tempfile.TemporaryDirectory() as td:
             cfg = FigureConfig(output_dir=Path(td), format="png")

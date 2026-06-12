@@ -10,8 +10,9 @@ Reports discrepancies that require attention or re-execution.
 This script is REUSABLE and should be extended (not replaced) when new claims
 need verification. See .kiro/steering/analysis-tooling.md for patterns.
 """
-import json
+
 import glob
+import json
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -78,7 +79,7 @@ def audit_f3_scaling_law():
         N = meta.get("n", 0)
         h_values = meta.get("h_values", [])
         h_min = min(h_values) if h_values else 0
-        predicted = 1.5 + 0.020 * (N ** 1.31) if N > 0 else 0
+        predicted = 1.5 + 0.020 * (N**1.31) if N > 0 else 0
 
         vqe = d.get("vqe_results", [])
         if isinstance(vqe, list) and vqe:
@@ -90,13 +91,15 @@ def audit_f3_scaling_law():
             all_pass = False
             max_de = 0
 
-        offset = h_min - (1.0 + 0.020 * (N ** 1.31)) if N > 0 else 0
+        offset = h_min - (1.0 + 0.020 * (N**1.31)) if N > 0 else 0
         status = "✅" if all_pass else "⚠️"
         n_total += 1
         if all_pass:
             n_verified += 1
-        print(f"  {status} N={N:3d}: h_min={h_min:.2f}, predicted={predicted:.2f}, "
-              f"offset_from_raw={offset:.2f}, max_de={max_de:.4f}")
+        print(
+            f"  {status} N={N:3d}: h_min={h_min:.2f}, predicted={predicted:.2f}, "
+            f"offset_from_raw={offset:.2f}, max_de={max_de:.4f}"
+        )
 
     if n_verified == n_total:
         _record("F3", "✅ VERIFIED", f"All {n_total} runs pass with formula")
@@ -331,7 +334,7 @@ def audit_f21_dypp():
     # Check if we can extract per-technique data
     results = d.get("results", {})
     techniques_found = set()
-    for seed_key, seed_data in results.items():
+    for _seed_key, seed_data in results.items():
         if isinstance(seed_data, list):
             for item in seed_data:
                 tm = item.get("technique_metadata", {})
@@ -339,7 +342,7 @@ def audit_f21_dypp():
                 techniques_found.add(tech)
 
     print(f"  Techniques found: {techniques_found}")
-    print(f"  Note: 8-13% savings documented in binnacle (not in raw JSON iteration counts)")
+    print("  Note: 8-13% savings documented in binnacle (not in raw JSON iteration counts)")
 
     # Pass rate matching is sufficient evidence
     ok = abs(pass_rate - 0.64) < 0.05
@@ -372,8 +375,10 @@ def audit_f22_warmstart_useless():
                 print(f"  N={N}: iters={min(iters)}-{max(iters)} (n={len(iters)})")
 
     if all_iters:
-        print(f"  Overall: min={min(all_iters)}, max={max(all_iters)}, "
-              f"mean={sum(all_iters)/len(all_iters):.0f}")
+        print(
+            f"  Overall: min={min(all_iters)}, max={max(all_iters)}, "
+            f"mean={sum(all_iters) / len(all_iters):.0f}"
+        )
         ok = min(all_iters) >= 15 and max(all_iters) <= 50
         if ok:
             _record("F22", "✅ VERIFIED", f"iter range [{min(all_iters)}, {max(all_iters)}]")
@@ -431,8 +436,11 @@ def audit_d1_peak():
     if pca_file.exists():
         d = json.load(open(pca_file))
         trajectories = d.get("per_trajectory", [])
-        chain_peaks = [t.get("pca_peak_h") for t in trajectories
-                       if t.get("topology") == "chain_1d" and t.get("pca_peak_h")]
+        chain_peaks = [
+            t.get("pca_peak_h")
+            for t in trajectories
+            if t.get("topology") == "chain_1d" and t.get("pca_peak_h")
+        ]
         print(f"  PCA peaks (chain_1d): {chain_peaks}")
         if chain_peaks:
             mean_peak = sum(chain_peaks) / len(chain_peaks)
@@ -565,7 +573,8 @@ def audit_experiment_verdicts():
 
         # Filter out test/stub experiments (same as thesis_findings_validator)
         real_experiments = [
-            e for e in experiments
+            e
+            for e in experiments
             if e.experiment_id not in ("TEST", "NONE", "XFAIL", "FAIL", "CNT")
         ]
         n_confirmed = sum(1 for e in real_experiments if e.verdict == "confirmed")
@@ -624,6 +633,7 @@ def _get_scan_results():
     """Get shared ResultScanner results (cached). Avoids 5× redundant scan_all."""
     if not _scan_cache:
         from project_health.digest import ResultScanner
+
         scanner = ResultScanner(RESULTS)
         noiseless, noisy, experiments = scanner.scan_all()
         _scan_cache["noiseless"] = noiseless
@@ -636,9 +646,8 @@ def audit_error_decomposition():
     """Verify claim: 100% of error is MPNN prediction (circuit error = 0)."""
     print("=== ERROR DECOMPOSITION: 100% from MPNN ===")
     # Scan ALL pipeline result sources (thesis + experiments)
-    pipeline_files = (
-        list(RESULTS.rglob("thesis/*/pipeline_*.json"))
-        + list(RESULTS.rglob("experiments/*/run_*.json"))
+    pipeline_files = list(RESULTS.rglob("thesis/*/pipeline_*.json")) + list(
+        RESULTS.rglob("experiments/*/run_*.json")
     )
     n_checked = 0
     n_with_decomp = 0
@@ -672,14 +681,13 @@ def audit_error_decomposition():
         print(f"  Max circuit error: {max_circuit_err:.6f}")
 
     if n_with_decomp > 0 and n_circuit_nonzero == 0:
-        _record("ERR_DECOMP", "✅ VERIFIED",
-                f"100% MPNN error in {n_with_decomp} runs")
+        _record("ERR_DECOMP", "✅ VERIFIED", f"100% MPNN error in {n_with_decomp} runs")
     elif n_with_decomp == 0:
-        _record("ERR_DECOMP", "⚠️ NO DATA",
-                f"No energy_decomposition in {n_checked} files")
+        _record("ERR_DECOMP", "⚠️ NO DATA", f"No energy_decomposition in {n_checked} files")
     else:
-        _record("ERR_DECOMP", "⚠️ PARTIAL",
-                f"{n_circuit_nonzero}/{n_with_decomp} have circuit_err!=0")
+        _record(
+            "ERR_DECOMP", "⚠️ PARTIAL", f"{n_circuit_nonzero}/{n_with_decomp} have circuit_err!=0"
+        )
     print()
 
 
@@ -723,7 +731,7 @@ def audit_theta_smoothness():
             print(f"  Mean: {mean_s:.4f} [claimed: 1.05], Max: {max_s:.4f} [claimed: 6.14]")
             ok = n_above == 96 and len(vals) == 329
             if ok:
-                _record("THETA_SMOOTH", "✅ VERIFIED", f"96/329 (29%) EXACT match")
+                _record("THETA_SMOOTH", "✅ VERIFIED", "96/329 (29%) EXACT match")
             elif abs(pct - 29) < 5:
                 _record("THETA_SMOOTH", "✅ VERIFIED", f"{n_above}/{len(vals)} ({pct:.0f}%)")
             else:
@@ -752,7 +760,7 @@ def audit_generalization_gap():
             print(f"  Median: {median_g:.6f} [claimed: 0.00028]")
             ok = n_above == 41 and len(vals) == 279
             if ok:
-                _record("GEN_GAP", "✅ VERIFIED", f"41/279 (15%) EXACT match")
+                _record("GEN_GAP", "✅ VERIFIED", "41/279 (15%) EXACT match")
             elif abs(pct - 15) < 5:
                 _record("GEN_GAP", "✅ VERIFIED", f"{n_above}/{len(vals)} ({pct:.0f}%)")
             else:
@@ -796,11 +804,9 @@ def audit_noisy_gains():
         if mean_gain is not None and mean_r2 is not None:
             ok = abs(mean_gain - 28.5) < 5.0 and abs(mean_r2 - 0.968) < 0.05
             if ok:
-                _record("NOISY_GAINS", "✅ VERIFIED",
-                        f"gain={mean_gain:.1f}%, R²={mean_r2:.4f}")
+                _record("NOISY_GAINS", "✅ VERIFIED", f"gain={mean_gain:.1f}%, R²={mean_r2:.4f}")
             else:
-                _record("NOISY_GAINS", "⚠️ MISMATCH",
-                        f"gain={mean_gain:.1f}%, R²={mean_r2:.4f}")
+                _record("NOISY_GAINS", "⚠️ MISMATCH", f"gain={mean_gain:.1f}%, R²={mean_r2:.4f}")
         else:
             _record("NOISY_GAINS", "⚠️ NO DATA", "Missing gain or R² fields")
     except ImportError:
@@ -819,15 +825,9 @@ def audit_data_coverage():
         noiseless, noisy, experiments = _get_scan_results()
 
         n_total = len(noiseless)
-        n_with_smoothness = sum(
-            1 for r in noiseless if r.theta_smoothness is not None
-        )
-        n_with_gen_gap = sum(
-            1 for r in noiseless if r.generalization_gap is not None
-        )
-        n_with_conv = sum(
-            1 for r in noiseless if r.convergence_rate is not None
-        )
+        n_with_smoothness = sum(1 for r in noiseless if r.theta_smoothness is not None)
+        n_with_gen_gap = sum(1 for r in noiseless if r.generalization_gap is not None)
+        n_with_conv = sum(1 for r in noiseless if r.convergence_rate is not None)
 
         print(f"  Noiseless total: {n_total} (claimed: 329)")
         print(f"  With θ-smoothness: {n_with_smoothness}")
@@ -840,20 +840,23 @@ def audit_data_coverage():
         smooth_cov = n_with_smoothness / n_total * 100 if n_total else 0
         gap_cov = n_with_gen_gap / n_total * 100 if n_total else 0
         conv_cov = n_with_conv / n_total * 100 if n_total else 0
-        print(f"  Coverage: smooth={smooth_cov:.0f}%, "
-              f"gen_gap={gap_cov:.0f}%, conv={conv_cov:.0f}%")
+        print(f"  Coverage: smooth={smooth_cov:.0f}%, gen_gap={gap_cov:.0f}%, conv={conv_cov:.0f}%")
 
         # Verify total counts match claims
         noiseless_ok = n_total >= 320  # allow small tolerance
         noisy_ok = len(noisy) >= 85
         if noiseless_ok and noisy_ok:
-            _record("DATA_COV", "✅ VERIFIED",
-                    f"noiseless={n_total}, noisy={len(noisy)}, "
-                    f"exp={len(experiments)}")
+            _record(
+                "DATA_COV",
+                "✅ VERIFIED",
+                f"noiseless={n_total}, noisy={len(noisy)}, exp={len(experiments)}",
+            )
         else:
-            _record("DATA_COV", "⚠️ MISMATCH",
-                    f"noiseless={n_total} (exp≥320), "
-                    f"noisy={len(noisy)} (exp≥85)")
+            _record(
+                "DATA_COV",
+                "⚠️ MISMATCH",
+                f"noiseless={n_total} (exp≥320), noisy={len(noisy)} (exp≥85)",
+            )
     except ImportError:
         _record("DATA_COV", "⚠️ SKIP", "ResultScanner not importable")
     print()
@@ -908,7 +911,7 @@ def audit_timing_detailed():
     hours = total_s / 3600
     print(f"  Total: {hours:.1f}h ({total_s:.0f}s)")
     for src, s in sorted(by_source.items(), key=lambda x: -x[1]):
-        print(f"    {src}: {s/3600:.1f}h")
+        print(f"    {src}: {s / 3600:.1f}h")
 
     if hours >= 15:
         _record("TIMING", "✅ VERIFIED", f"{hours:.1f}h total")
@@ -941,18 +944,16 @@ def audit_n120_sweep():
     seeds = d.get("seeds", [])
 
     print(f"  Pass: {n_pass}/{n_total}")
-    print(f"  Mean ΔE/gap: {mean_de*100:.4f}%")
-    print(f"  Max ΔE/gap: {max_de*100:.4f}%")
+    print(f"  Mean ΔE/gap: {mean_de * 100:.4f}%")
+    print(f"  Max ΔE/gap: {max_de * 100:.4f}%")
     print(f"  Seeds: {seeds}")
     print(f"  Scaling law validated: {validated}")
 
     ok = n_pass == 15 and n_total == 15 and mean_de < 0.001 and validated
     if ok:
-        _record("N120_SWEEP", "✅ VERIFIED",
-                f"15/15, mean={mean_de*100:.4f}%, law validated")
+        _record("N120_SWEEP", "✅ VERIFIED", f"15/15, mean={mean_de * 100:.4f}%, law validated")
     else:
-        _record("N120_SWEEP", "⚠️ PARTIAL",
-                f"{n_pass}/{n_total}, mean={mean_de*100:.4f}%")
+        _record("N120_SWEEP", "⚠️ PARTIAL", f"{n_pass}/{n_total}, mean={mean_de * 100:.4f}%")
     print()
 
 
@@ -985,11 +986,9 @@ def audit_mps_mode_comparison():
     # Verify: both modes pass, speedup > 1
     ok = all_det_pass and all_sto_pass and speedup > 1.0
     if ok:
-        _record("MPS_MODE", "✅ VERIFIED",
-                f"consistent={consistent}, speedup={speedup:.0f}×")
+        _record("MPS_MODE", "✅ VERIFIED", f"consistent={consistent}, speedup={speedup:.0f}×")
     else:
-        _record("MPS_MODE", "⚠️ ISSUE",
-                f"det_pass={all_det_pass}, sto_pass={all_sto_pass}")
+        _record("MPS_MODE", "⚠️ ISSUE", f"det_pass={all_det_pass}, sto_pass={all_sto_pass}")
     print()
 
 
@@ -1042,11 +1041,9 @@ def audit_e5_scaling_extensions():
 
     ok = chi_exact and s2_pass and n_passed >= 2
     if ok:
-        _record("E5_EXT", "✅ VERIFIED",
-                f"S1:χ=64 exact, S2:ΔE/gap={de_gap_vqe:.4f}")
+        _record("E5_EXT", "✅ VERIFIED", f"S1:χ=64 exact, S2:ΔE/gap={de_gap_vqe:.4f}")
     else:
-        _record("E5_EXT", "⚠️ PARTIAL",
-                f"S1 exact={chi_exact}, S2 pass={s2_pass}")
+        _record("E5_EXT", "⚠️ PARTIAL", f"S1 exact={chi_exact}, S2 pass={s2_pass}")
     print()
 
 
@@ -1066,10 +1063,15 @@ def audit_scaling_multi_seed():
             mode = meta.get("mps_evaluation_mode", "stochastic")
             n_total = d.get("summary", {}).get("n_total", 0)
             all_pass = d.get("summary", {}).get("all_passed", False)
-            by_n[N].append({
-                "seeds": seeds, "mode": mode, "n_total": n_total,
-                "all_pass": all_pass, "file": Path(f).name,
-            })
+            by_n[N].append(
+                {
+                    "seeds": seeds,
+                    "mode": mode,
+                    "n_total": n_total,
+                    "all_pass": all_pass,
+                    "file": Path(f).name,
+                }
+            )
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -1080,9 +1082,11 @@ def audit_scaling_multi_seed():
         multi_seed = [r for r in runs if len(r["seeds"]) >= 3]
         if multi_seed:
             best = max(multi_seed, key=lambda r: r["n_total"])
-            print(f"  N={target_n}: ✅ {len(best['seeds'])} seeds, "
-                  f"{best['n_total']} pts, pass={best['all_pass']}, "
-                  f"mode={best['mode']}, file={best['file']}")
+            print(
+                f"  N={target_n}: ✅ {len(best['seeds'])} seeds, "
+                f"{best['n_total']} pts, pass={best['all_pass']}, "
+                f"mode={best['mode']}, file={best['file']}"
+            )
         else:
             print(f"  N={target_n}: ❌ No 3-seed run found")
             issues.append(target_n)

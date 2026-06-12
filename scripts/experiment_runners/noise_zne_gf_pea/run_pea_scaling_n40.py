@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import time
 
 import numpy as np
 
@@ -81,8 +80,12 @@ class PEAScalingRunner(ValidationRunner):
             "experiment_id": self.experiment_id,
             "category": "ZNE",
             "system": {"topology": "chain_1d", "n_qubits": 40, "p_layers": 1, "model": "tfim"},
-            "zne": {"noise_factors": list(NOISE_FACTORS), "method": "mps_noisy",
-                    "chi_max": MPS_CHI, "mean_error_rate": TORINO_MEAN_CZ_ERROR},
+            "zne": {
+                "noise_factors": list(NOISE_FACTORS),
+                "method": "mps_noisy",
+                "chi_max": MPS_CHI,
+                "mean_error_rate": TORINO_MEAN_CZ_ERROR,
+            },
             "seed": SEED,
         }
 
@@ -99,18 +102,30 @@ class PEAScalingRunner(ValidationRunner):
 
     def define_sections(self) -> list[Section]:
         return [
-            Section(id=1, name="N=10 Reference (FakeTorino)",
-                    fn=self._section_n10,
-                    hypothesis="PEA gain > 0 at N=10 (reference)"),
-            Section(id=2, name="N=40 PEA-ZNE (MPS + noise, ~78 CZ)",
-                    fn=self._section_n40,
-                    hypothesis="PEA R²>0.8 and positive gain at N=40"),
-            Section(id=3, name="N=50 PEA-ZNE (MPS + noise, ~98 CZ)",
-                    fn=self._section_n50,
-                    hypothesis="PEA R²>0.8 and positive gain at N=50"),
-            Section(id=4, name="Scaling Comparison",
-                    fn=self._section_comparison,
-                    hypothesis="PEA remains effective as N scales"),
+            Section(
+                id=1,
+                name="N=10 Reference (FakeTorino)",
+                fn=self._section_n10,
+                hypothesis="PEA gain > 0 at N=10 (reference)",
+            ),
+            Section(
+                id=2,
+                name="N=40 PEA-ZNE (MPS + noise, ~78 CZ)",
+                fn=self._section_n40,
+                hypothesis="PEA R²>0.8 and positive gain at N=40",
+            ),
+            Section(
+                id=3,
+                name="N=50 PEA-ZNE (MPS + noise, ~98 CZ)",
+                fn=self._section_n50,
+                hypothesis="PEA R²>0.8 and positive gain at N=50",
+            ),
+            Section(
+                id=4,
+                name="Scaling Comparison",
+                fn=self._section_comparison,
+                hypothesis="PEA remains effective as N scales",
+            ),
         ]
 
     # ─── N=10 FakeTorino (lazy-loaded) ───────────────────────────────────
@@ -118,21 +133,28 @@ class PEAScalingRunner(ValidationRunner):
     def _section_n10(self) -> dict:
         """N=10 PEA on FakeTorino — reference only. Loads FakeTorino on demand."""
         from qiskit_ibm_runtime.fake_provider import FakeTorino
+
         from qmbp_simulation.execution import NoiselessBackend
         from qmbp_simulation.execution.noisy_utils import (
-            NoisyEstimatorConfig, build_adjacency, find_layouts_bfs,
-            noisy_estimate, run_gate_folding_zne, run_pea_zne, select_layouts_low_ces,
+            NoisyEstimatorConfig,
+            build_adjacency,
+            find_layouts_bfs,
+            noisy_estimate,
+            run_gate_folding_zne,
+            run_pea_zne,
+            select_layouts_low_ces,
         )
 
         fake_backend = FakeTorino()
         config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=SEED)
         adj = build_adjacency(fake_backend)
         candidates = find_layouts_bfs(adj, 10, n_candidates=20)
-        noiseless = NoiselessBackend()
+        NoiselessBackend()
 
         circuit, _ = self.hva.create(10, 1, self.make_lattice("chain_1d", 10, J=1.0, h=4.0))
         theta_map = self.vqe_descending_sweep(
-            "chain_1d", 10, H_VALUES_N10, SEED, p_layers=1, n_restarts=1, maxiter=500)
+            "chain_1d", 10, H_VALUES_N10, SEED, p_layers=1, n_restarts=1, maxiter=500
+        )
 
         results = []
         for h in sorted(H_VALUES_N10, reverse=True):
@@ -149,19 +171,29 @@ class PEAScalingRunner(ValidationRunner):
             de_n = abs(e_noisy - e_exact) / max(gap, 1e-10)
             de_pea = abs(pea.extrapolated_value - e_exact) / max(gap, 1e-10)
             de_gf = abs(gf.extrapolated_value - e_exact) / max(gap, 1e-10)
-            results.append({"h": h, "n_2q": n_2q, "de_noisy": de_n,
-                            "de_pea": de_pea, "de_gf": de_gf,
-                            "pea_r2": pea.r_squared, "gf_r2": gf.r_squared,
-                            "pea_gain": (de_n - de_pea) / max(de_n, 1e-10),
-                            "gf_gain": (de_n - de_gf) / max(de_n, 1e-10)})
+            results.append(
+                {
+                    "h": h,
+                    "n_2q": n_2q,
+                    "de_noisy": de_n,
+                    "de_pea": de_pea,
+                    "de_gf": de_gf,
+                    "pea_r2": pea.r_squared,
+                    "gf_r2": gf.r_squared,
+                    "pea_gain": (de_n - de_pea) / max(de_n, 1e-10),
+                    "gf_gain": (de_n - de_gf) / max(de_n, 1e-10),
+                }
+            )
             logger.info(f"  N=10 h={h}: PEA +{results[-1]['pea_gain']:.1%} R²={pea.r_squared:.3f}")
 
         self._results[10] = results
         # Free FakeTorino memory
         del fake_backend
-        return {"pass": all(r["pea_gain"] > 0 for r in results),
-                "mean_pea_gain": float(np.mean([r["pea_gain"] for r in results])),
-                "results": results}
+        return {
+            "pass": all(r["pea_gain"] > 0 for r in results),
+            "mean_pea_gain": float(np.mean([r["pea_gain"] for r in results])),
+            "results": results,
+        }
 
     # ─── N=40 MPS noisy ──────────────────────────────────────────────────
 
@@ -170,9 +202,13 @@ class PEAScalingRunner(ValidationRunner):
         self._results[40] = results
         r2s = [r["pea_r2"] for r in results]
         gains = [r["pea_gain"] for r in results]
-        return {"pass": float(np.mean(r2s)) > 0.8 and all(g > 0 for g in gains),
-                "n_qubits": 40, "mean_pea_r2": float(np.mean(r2s)),
-                "mean_pea_gain": float(np.mean(gains)), "results": results}
+        return {
+            "pass": float(np.mean(r2s)) > 0.8 and all(g > 0 for g in gains),
+            "n_qubits": 40,
+            "mean_pea_r2": float(np.mean(r2s)),
+            "mean_pea_gain": float(np.mean(gains)),
+            "results": results,
+        }
 
     # ─── N=50 MPS noisy ──────────────────────────────────────────────────
 
@@ -181,23 +217,33 @@ class PEAScalingRunner(ValidationRunner):
         self._results[50] = results
         r2s = [r["pea_r2"] for r in results]
         gains = [r["pea_gain"] for r in results]
-        return {"pass": float(np.mean(r2s)) > 0.8 and all(g > 0 for g in gains),
-                "n_qubits": 50, "mean_pea_r2": float(np.mean(r2s)),
-                "mean_pea_gain": float(np.mean(gains)), "results": results}
+        return {
+            "pass": float(np.mean(r2s)) > 0.8 and all(g > 0 for g in gains),
+            "n_qubits": 50,
+            "mean_pea_r2": float(np.mean(r2s)),
+            "mean_pea_gain": float(np.mean(gains)),
+            "results": results,
+        }
 
     # ─── Comparison ───────────────────────────────────────────────────────
 
     def _section_comparison(self) -> dict:
         scaling = []
         for n, res in sorted(self._results.items()):
-            scaling.append({"N": n,
-                            "mean_pea_gain": float(np.mean([r["pea_gain"] for r in res])),
-                            "mean_gf_gain": float(np.mean([r["gf_gain"] for r in res])),
-                            "mean_pea_r2": float(np.mean([r["pea_r2"] for r in res]))})
+            scaling.append(
+                {
+                    "N": n,
+                    "mean_pea_gain": float(np.mean([r["pea_gain"] for r in res])),
+                    "mean_gf_gain": float(np.mean([r["gf_gain"] for r in res])),
+                    "mean_pea_r2": float(np.mean([r["pea_r2"] for r in res])),
+                }
+            )
         logger.info("\n  ═══ PEA SCALING ═══")
         for s in scaling:
-            logger.info(f"  N={s['N']:>3}: PEA +{s['mean_pea_gain']:.1%} (R²={s['mean_pea_r2']:.3f}), "
-                        f"GF +{s['mean_gf_gain']:.1%}")
+            logger.info(
+                f"  N={s['N']:>3}: PEA +{s['mean_pea_gain']:.1%} (R²={s['mean_pea_r2']:.3f}), "
+                f"GF +{s['mean_gf_gain']:.1%}"
+            )
         return {"pass": True, "scaling": scaling}
 
     # ─── MPS noisy sweep (memory-safe for N≥20) ──────────────────────────
@@ -213,8 +259,8 @@ class PEAScalingRunner(ValidationRunner):
 
         # VQE via MPS deterministic (exact, no noise) for ground truth params
         mps_backend = MPSBackend(strategy="aer_mps", chi_max=MPS_CHI, seed=SEED)
-        from qmbp_simulation.optimizers import VQEOptimizer
         from qmbp_simulation.models import VQEConfig
+        from qmbp_simulation.optimizers import VQEOptimizer
 
         vqe_config = VQEConfig(method="COBYLA", p_layers=1, n_restarts=1, maxiter=300)
         optimizer = VQEOptimizer(config=vqe_config, backend=mps_backend, seed=SEED)
@@ -224,7 +270,8 @@ class PEAScalingRunner(ValidationRunner):
 
         # Descending sweep for theta_opt
         from qmbp_simulation import ClassicalSolver
-        solver = ClassicalSolver()
+
+        ClassicalSolver()
         rng = np.random.default_rng(SEED)
         prev_theta = rng.uniform(-0.01, 0.01, circuit.num_parameters)
         theta_map: dict[float, np.ndarray] = {}
@@ -235,7 +282,9 @@ class PEAScalingRunner(ValidationRunner):
             result = optimizer.optimize(H, circuit, prev_theta.copy())
             theta_map[h] = result.theta_opt.copy()
             prev_theta = result.theta_opt.copy()
-            logger.info(f"  VQE N={n} h={h:.1f}: E={result.energy:.6f}, iters={result.n_iterations}")
+            logger.info(
+                f"  VQE N={n} h={h:.1f}: E={result.energy:.6f}, iters={result.n_iterations}"
+            )
 
         # Per-bond noise rates (Torino-realistic)
         bond_errors = TORINO_MEAN_CZ_ERROR * (1 + 0.3 * rng.standard_normal(n - 1))
@@ -272,18 +321,32 @@ class PEAScalingRunner(ValidationRunner):
             pea_gain = (de_noisy - de_pea) / max(de_noisy, 1e-10)
             gf_gain = (de_noisy - de_gf) / max(de_noisy, 1e-10)
 
-            results.append({"h": h, "n_2q": n_2q, "de_noisy": de_noisy,
-                            "de_pea": de_pea, "de_gf": de_gf,
-                            "pea_r2": r2_pea, "gf_r2": r2_gf,
-                            "pea_gain": pea_gain, "gf_gain": gf_gain})
-            logger.info(f"  N={n} h={h:.1f}: {n_2q} CZ, PEA +{pea_gain:.1%}(R²={r2_pea:.3f}), "
-                        f"GF +{gf_gain:.1%}(R²={r2_gf:.3f})")
+            results.append(
+                {
+                    "h": h,
+                    "n_2q": n_2q,
+                    "de_noisy": de_noisy,
+                    "de_pea": de_pea,
+                    "de_gf": de_gf,
+                    "pea_r2": r2_pea,
+                    "gf_r2": r2_gf,
+                    "pea_gain": pea_gain,
+                    "gf_gain": gf_gain,
+                }
+            )
+            logger.info(
+                f"  N={n} h={h:.1f}: {n_2q} CZ, PEA +{pea_gain:.1%}(R²={r2_pea:.3f}), "
+                f"GF +{gf_gain:.1%}(R²={r2_gf:.3f})"
+            )
         return results
 
     @staticmethod
     def _mps_noisy_eval(
-        circuit, hamiltonian, n_qubits: int,
-        bond_errors: np.ndarray, noise_factor: float,
+        circuit,
+        hamiltonian,
+        n_qubits: int,
+        bond_errors: np.ndarray,
+        noise_factor: float,
     ) -> float:
         """Exact noisy evaluation via MPS + depolarizing noise.
 

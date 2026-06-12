@@ -387,7 +387,7 @@ def fig_pea_vs_gf_comparison(data: dict, cfg: FigureConfig) -> bool:
         for t in all_topos
     ]
 
-    bars1 = ax.bar(
+    ax.bar(
         x - width / 2,
         pea_means,
         width,
@@ -397,7 +397,7 @@ def fig_pea_vs_gf_comparison(data: dict, cfg: FigureConfig) -> bool:
         alpha=0.8,
         capsize=4,
     )
-    bars2 = ax.bar(
+    ax.bar(
         x + width / 2,
         gf_means,
         width,
@@ -685,7 +685,7 @@ def fig_cross_n_performance_heatmap(data: dict, cfg: FigureConfig) -> bool:
     ax.set_xticklabels(h_labels[::step], rotation=45)
     ax.set_xlabel("Transverse Field (h)")
 
-    cbar = plt.colorbar(im, ax=ax, label=r"$\Delta E / \mathrm{gap}$")
+    plt.colorbar(im, ax=ax, label=r"$\Delta E / \mathrm{gap}$")
 
     if not cfg.no_titles:
         ax.set_title("Pipeline Accuracy Heatmap: N vs h")

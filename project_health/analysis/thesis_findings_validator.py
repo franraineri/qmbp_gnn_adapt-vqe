@@ -1332,7 +1332,9 @@ def _validate_cross_topo_transfer_fails(noiseless, **_) -> FindingValidation:
                             category="topology",
                             claim="Cross-topology transfer fails: >5% ΔE/gap across topologies",
                             verdict=verdict,
-                            strength=EvidenceStrength.STRONG if total >= 6 else EvidenceStrength.MODERATE,
+                            strength=EvidenceStrength.STRONG
+                            if total >= 6
+                            else EvidenceStrength.MODERATE,
                             evidence=evidence,
                             n_supporting_runs=total,
                         )
@@ -1366,7 +1368,7 @@ def _validate_cross_topo_transfer_fails(noiseless, **_) -> FindingValidation:
 def _validate_kitaev_incompatible(**_) -> FindingValidation:
     """Validate Kitaev chain is incompatible with the framework."""
     # Check for Kitaev verification script output
-    kitaev_data = RESULTS_DIR / "experiments" / "kitaev_verification"
+    RESULTS_DIR / "experiments" / "kitaev_verification"
     evidence_list = [
         StatisticalEvidence(
             test_name="kitaev_fidelity",
@@ -1611,8 +1613,10 @@ def _validate_pca_convergence_hc(**_) -> FindingValidation:
 
     # Also check that paramagnetic regime shows no spurious detection
     n_paramagnetic_correct = sum(
-        1 for s in stats
-        if not s["covers_hc"] and s["n_qubits"] >= 40
+        1
+        for s in stats
+        if not s["covers_hc"]
+        and s["n_qubits"] >= 40
         and s["pca_peak_mean"] > s["h_range"][0] - 0.5  # Peak near lowest h (edge)
     )
     n_paramagnetic_total = sum(1 for s in stats if not s["covers_hc"] and s["n_qubits"] >= 40)

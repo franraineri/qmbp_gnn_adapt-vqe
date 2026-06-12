@@ -1,6 +1,8 @@
 """Analyze ALL N=100 boundary probing results (combined view)."""
-import json
+
 import glob
+import json
+
 import numpy as np
 
 h_min_pred = 1.5 + 0.020 * 100**1.31
@@ -24,7 +26,9 @@ print()
 
 # Aggregate per h-value
 unique_h = sorted(set(d[0] for d in all_data), reverse=True)
-print(f"{'h':>6} {'margin':>8} {'pass':>6} {'mean_dE%':>10} {'max_dE%':>10} {'iters':>12} {'status'}")
+print(
+    f"{'h':>6} {'margin':>8} {'pass':>6} {'mean_dE%':>10} {'max_dE%':>10} {'iters':>12} {'status'}"
+)
 print("-" * 70)
 
 for h in unique_h:
@@ -35,9 +39,11 @@ for h in unique_h:
     margin = h - h_min_pred
     mean_de = np.mean(de_vals) * 100
     max_de = np.max(de_vals) * 100
-    status = "PASS" if n_pass == len(pts) else f"FAIL({len(pts)-n_pass})"
-    print(f"{h:6.2f} {margin:+8.2f} {n_pass}/{len(pts):>3} {mean_de:10.4f} "
-          f"{max_de:10.4f} [{min(it_vals):>3},{max(it_vals):>3}] {status}")
+    status = "PASS" if n_pass == len(pts) else f"FAIL({len(pts) - n_pass})"
+    print(
+        f"{h:6.2f} {margin:+8.2f} {n_pass}/{len(pts):>3} {mean_de:10.4f} "
+        f"{max_de:10.4f} [{min(it_vals):>3},{max(it_vals):>3}] {status}"
+    )
 
 # Summary
 all_de = [d[1] for d in all_data]
@@ -45,6 +51,7 @@ n_total = len(all_data)
 n_pass = sum(1 for x in all_de if x < 0.05)
 print(f"\nSUMMARY: {n_pass}/{n_total} pass (all pass)")
 print(f"  Formula h_min={h_min_pred:.2f} is CONSERVATIVE by {h_min_pred - min(unique_h):.2f} units")
-print(f"  Real failure point: NOT FOUND (even h=4.0 passes at 1.95%)")
-print(f"  Scaling law over-estimates h_min by factor ~{h_min_pred/max(4.0, min(unique_h)):.1f}x at N=100")
-
+print("  Real failure point: NOT FOUND (even h=4.0 passes at 1.95%)")
+print(
+    f"  Scaling law over-estimates h_min by factor ~{h_min_pred / max(4.0, min(unique_h)):.1f}x at N=100"
+)

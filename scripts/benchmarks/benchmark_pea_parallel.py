@@ -24,18 +24,18 @@ def benchmark_measurement_only(n_qubits: int, h: float, shots: int = 4096) -> di
     a clean signal of parallel speedup.
     """
     from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+    from qiskit_ibm_runtime.fake_provider import FakeTorino
 
     from qmbp_simulation import HamiltonianBuilder, HVACircuitBuilder, make_lattice
     from qmbp_simulation.execution.noisy_utils import (
+        _PEA_PARALLEL_QUBIT_THRESHOLD,
         NoisyEstimatorConfig,
         _build_amplified_noise_model,
         _filter_rates_to_circuit,
         _get_circuit_qubits,
         _learn_noise_rates,
         _measure_noise_factors,
-        _PEA_PARALLEL_QUBIT_THRESHOLD,
     )
-    from qiskit_ibm_runtime.fake_provider import FakeTorino
 
     np.random.seed(42)
     noise_factors = (1, 3, 5)
@@ -99,7 +99,7 @@ def benchmark_measurement_only(n_qubits: int, h: float, shots: int = 4096) -> di
     t_par = time.time() - t0
 
     # Verify correctness
-    bit_exact = all(abs(a - b) < 1e-10 for a, b in zip(results_seq, results_par))
+    bit_exact = all(abs(a - b) < 1e-10 for a, b in zip(results_seq, results_par, strict=False))
 
     speedup = t_seq / t_par if t_par > 0.001 else 1.0
     auto_parallel = len(circuit_qubits) >= _PEA_PARALLEL_QUBIT_THRESHOLD
@@ -123,10 +123,10 @@ def benchmark_measurement_only(n_qubits: int, h: float, shots: int = 4096) -> di
 def benchmark_full_pea(n_qubits: int, h: float, shots: int = 4096) -> dict:
     """Benchmark full run_pea_zne (end-to-end including auto-parallel decision)."""
     from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+    from qiskit_ibm_runtime.fake_provider import FakeTorino
 
     from qmbp_simulation import HamiltonianBuilder, HVACircuitBuilder, make_lattice
     from qmbp_simulation.execution.noisy_utils import NoisyEstimatorConfig, run_pea_zne
-    from qiskit_ibm_runtime.fake_provider import FakeTorino
 
     np.random.seed(42)
     config = NoisyEstimatorConfig(shots=shots, seed_simulator=42)
@@ -190,8 +190,10 @@ def main():
     print("=" * 70)
     print("  MEASUREMENT PHASE COMPARISON (excludes setup)")
     print("=" * 70)
-    print(f"  {'N':>3} | {'Pairs':>5} | {'Seq':>7} | {'Par':>7} | {'Speedup':>7} | {'Exact':>5} | Auto")
-    print(f"  {'-'*3}-+-{'-'*5}-+-{'-'*7}-+-{'-'*7}-+-{'-'*7}-+-{'-'*5}-+-----")
+    print(
+        f"  {'N':>3} | {'Pairs':>5} | {'Seq':>7} | {'Par':>7} | {'Speedup':>7} | {'Exact':>5} | Auto"
+    )
+    print(f"  {'-' * 3}-+-{'-' * 5}-+-{'-' * 7}-+-{'-' * 7}-+-{'-' * 7}-+-{'-' * 5}-+-----")
     for r in results:
         print(
             f"  {r['n_qubits']:>3} | {r['relevant_pairs']:>5} | "
@@ -201,21 +203,20 @@ def main():
         )
 
     # Full PEA end-to-end (includes auto-parallel decision)
-    print(f"\n\n{'='*70}")
+    print(f"\n\n{'=' * 70}")
     print("  FULL run_pea_zne END-TO-END")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
     for n, h, label in [(6, 1.5, "N=6"), (10, 2.0, "N=10")]:
         r = benchmark_full_pea(n, h)
-        print(f"  {label}: {r['t_total']}s, R²={r['r_squared']}, "
-              f"pairs={r['n_pairs_relevant']}")
+        print(f"  {label}: {r['t_total']}s, R²={r['r_squared']}, pairs={r['n_pairs_relevant']}")
 
     # Correctness gate
     all_exact = all(r["bit_exact"] for r in results)
     if not all_exact:
         print("\n  ❌ REGRESSION: Parallel results differ from sequential!")
         sys.exit(1)
-    print(f"\n  ✅ All results bit-exact (parallel == sequential)")
-    print(f"  ✅ Parallel auto-enabled for N ≥ 14 (threshold validated)")
+    print("\n  ✅ All results bit-exact (parallel == sequential)")
+    print("  ✅ Parallel auto-enabled for N ≥ 14 (threshold validated)")
 
 
 if __name__ == "__main__":

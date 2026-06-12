@@ -490,7 +490,7 @@ def run_tier_3(config: HardwareConfig, lattice, slogger: StructuredLogger) -> di
     circuit, _ = spec.create_circuit(N_QUBITS, P_LAYERS, lattice, **spec.circuit_kwargs)
 
     solver = ClassicalSolver()
-    builder = HamiltonianBuilder()
+    HamiltonianBuilder()
     h = TIER_3_H[0]
     H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs, h=h)
     exact = solver.solve(H)

@@ -1,6 +1,8 @@
 """Temporary deep verification using ResultScanner."""
-from project_health.digest import ResultScanner
+
 from pathlib import Path
+
+from project_health.digest import ResultScanner
 
 scanner = ResultScanner(Path("results"))
 noiseless, noisy, experiments = scanner.scan_all()
@@ -25,7 +27,7 @@ if n_with_smoothness:
     max_s = max(vals)
     print(f"θ-smoothness > 1.0: {above}/{n_with_smoothness} ({pct:.0f}%)")
     print(f"  Mean: {mean_s:.4f}, Max: {max_s:.4f}")
-    print(f"  Claimed: 96/329 (29%), mean=1.05, max=6.14")
+    print("  Claimed: 96/329 (29%), mean=1.05, max=6.14")
     print()
 
 # Verify gen_gap claim
@@ -37,7 +39,7 @@ if n_with_gen_gap:
     median_g = sorted(vals)[len(vals) // 2]
     print(f"gen_gap > 0.01: {above}/{n_with_gen_gap} ({pct:.0f}%)")
     print(f"  Mean: {mean_g:.6f}, Median: {median_g:.6f}")
-    print(f"  Claimed: 41/279 (15%), mean=0.0049, median=0.00028")
+    print("  Claimed: 41/279 (15%), mean=0.0049, median=0.00028")
     print()
 
 # Verify convergence_rate claim
@@ -46,7 +48,7 @@ if n_with_conv:
     mean_r = sum(rates) / len(rates)
     min_r = min(rates)
     print(f"Convergence rate: n={len(rates)}, mean={mean_r:.4f}, min={min_r:.4f}")
-    print(f"  Claimed: mean=0.9958, min=0.75")
+    print("  Claimed: mean=0.9958, min=0.75")
     print()
 
 # Verify error decomposition
@@ -59,7 +61,7 @@ for r in noiseless:
             n_circuit_zero += 1
 
 print(f"Error decomposition: {n_with_ed} runs have data, {n_circuit_zero} with circuit=0")
-print(f"  Claimed: 100% from MPNN (circuit=0 everywhere)")
+print("  Claimed: 100% from MPNN (circuit=0 everywhere)")
 print()
 
 # Verify noisy gains
@@ -68,6 +70,6 @@ if noisy:
     r2s = [r.r_squared for r in noisy if r.r_squared is not None]
     print(f"Noisy runs: {len(noisy)}")
     if gains:
-        print(f"  Mean gain: {sum(gains)/len(gains):.1f}% (claimed: +28.5%)")
+        print(f"  Mean gain: {sum(gains) / len(gains):.1f}% (claimed: +28.5%)")
     if r2s:
-        print(f"  Mean R2: {sum(r2s)/len(r2s):.4f} (claimed: 0.968)")
+        print(f"  Mean R2: {sum(r2s) / len(r2s):.4f} (claimed: 0.968)")

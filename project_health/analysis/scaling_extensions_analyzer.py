@@ -580,7 +580,7 @@ def generate_nlce_convergence_data(summary: ScalingExtensionsSummary) -> dict[st
                 continue
 
             # Build L → E/N series
-            ls = sorted(int(k) for k in partial_sums.keys())
+            ls = sorted(int(k) for k in partial_sums)
             energies = [partial_sums[str(l)] for l in ls]
 
             e_analytical = r.get("e_analytical_per_site")

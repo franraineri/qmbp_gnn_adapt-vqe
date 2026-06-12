@@ -965,7 +965,7 @@ def check_nlce_convergence(verbose: bool = False) -> list[CheckResult]:
             continue
 
         # Check last 3 weights decrease in magnitude
-        sorted_keys = sorted(int(k) for k in weights.keys())
+        sorted_keys = sorted(int(k) for k in weights)
         last_3 = [abs(weights[str(k)]) for k in sorted_keys[-3:]]
         monotone = last_3[0] >= last_3[1] >= last_3[2]
 

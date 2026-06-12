@@ -242,9 +242,8 @@ def _extract_findings(lines: list[str], sections: list[Section], max_count: int 
                 i += 1
             combined = " ".join(bq_parts)
             # Only keep substantial assertions (not single-word or short refs)
-            if len(combined) >= 25:
-                if not _add(combined):
-                    return findings
+            if len(combined) >= 25 and not _add(combined):
+                return findings
         else:
             i += 1
 
@@ -252,9 +251,8 @@ def _extract_findings(lines: list[str], sections: list[Section], max_count: int 
     for line in lines:
         for pat in _FINDING_PATTERNS[1:3]:  # bold findings + ✅❌
             m = pat.match(line.strip())
-            if m:
-                if not _add(m.group(1)):
-                    return findings
+            if m and not _add(m.group(1)):
+                return findings
 
     # Pass 2: Bullets from finding-related sections
     finding_ranges: list[tuple[int, int]] = []

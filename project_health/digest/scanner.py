@@ -355,7 +355,7 @@ class ResultScanner:
 
         experiment = data.get("experiment", "")
         meta = data.get("metadata", {})
-        env = data.get("environment", {})
+        data.get("environment", {})
         summary = data.get("summary", data.get("verdict", {}))
 
         # Determine experiment type from filename or experiment field
@@ -431,7 +431,7 @@ class ResultScanner:
 
         elif exp_type == "ablation_study":
             pred_comp = data.get("predictor_comparison", {})
-            norm_abl = data.get("norm_ablation", {})
+            data.get("norm_ablation", {})
             verdict_data = data.get("verdict", {})
             # Graph-essential flag
             essential_map = verdict_data.get("graph_structure_essential", {})
@@ -444,7 +444,7 @@ class ResultScanner:
                 norm_counts = Counter(best_norms.values())
                 best_norm = norm_counts.most_common(1)[0][0] if norm_counts else ""
             # Extract GNN metrics from first predictor comparison
-            for exp_label, comp in pred_comp.items():
+            for _exp_label, comp in pred_comp.items():
                 if isinstance(comp, dict) and "predictors" in comp:
                     gnn_data = comp["predictors"].get("GNN", {})
                     mlp_data = comp["predictors"].get("MLP", {})

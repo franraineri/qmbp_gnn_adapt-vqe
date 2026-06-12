@@ -314,12 +314,8 @@ def main():
     logger.info(
         f"  Cross-topo (no E_noisy): rate={eval_pred['rate']:.1f}%, MAE={eval_pred['mae_before']:.3f}→{eval_pred['mae_after']:.3f} ({eval_pred['reduction_pct']:+.1f}%)"
     )
-    logger.info(
-        "  NOTE: 'correction mode' metrics are NOT meaningful without E_noisy."
-    )
-    logger.info(
-        "  The valid metric for predictive mode is circuit selection ranking (Step 5)."
-    )
+    logger.info("  NOTE: 'correction mode' metrics are NOT meaningful without E_noisy.")
+    logger.info("  The valid metric for predictive mode is circuit selection ranking (Step 5).")
 
     save_qem_checkpoint(
         model_pred,
@@ -389,7 +385,7 @@ def main():
 
     # Per-seed breakdown (informational — N=4 per seed is too small for robust ρ)
     n_per_seed = len(TEST_H)
-    for i, seed in enumerate(SEEDS):
+    for i, _seed in enumerate(SEEDS):
         start = i * n_per_seed
         end = start + n_per_seed
         if end <= len(predicted_errors):
@@ -405,7 +401,9 @@ def main():
 
     logger.info(f"  Spearman rank correlation: ρ={rho:.3f} (p={p_val:.4f})")
     logger.info(f"  Bootstrap 95% CI for ρ: [{rho_ci_lo:.3f}, {rho_ci_hi:.3f}]")
-    logger.info(f"  Binary classification: {accuracy:.1f}% (CI: [{acc_ci_lo:.1f}%, {acc_ci_hi:.1f}%])")
+    logger.info(
+        f"  Binary classification: {accuracy:.1f}% (CI: [{acc_ci_lo:.1f}%, {acc_ci_hi:.1f}%])"
+    )
     logger.info(f"  Per-seed ρ (N=4 each, informational): {per_seed_rho}")
     logger.info(
         f"  Practical: model can {'✅ rank' if rho > 0.5 else '❌ NOT rank'} circuits by expected error"
@@ -429,10 +427,10 @@ def main():
     logger.info(
         f"  EXP 1 (correction): {eval_full['rate']:.1f}% improvement, {eval_full['reduction_pct']:+.1f}% reduction"
     )
+    logger.info(f"  EXP 2 (predictive): ranking ρ={rho:.3f}, binary accuracy={accuracy:.1f}%")
     logger.info(
-        f"  EXP 2 (predictive): ranking ρ={rho:.3f}, binary accuracy={accuracy:.1f}%"
+        f"  Circuit selection: ρ={rho:.3f} [{rho_ci_lo:.3f}, {rho_ci_hi:.3f}], accuracy={accuracy:.1f}% [{acc_ci_lo:.1f}%, {acc_ci_hi:.1f}%]"
     )
-    logger.info(f"  Circuit selection: ρ={rho:.3f} [{rho_ci_lo:.3f}, {rho_ci_hi:.3f}], accuracy={accuracy:.1f}% [{acc_ci_lo:.1f}%, {acc_ci_hi:.1f}%]")
     logger.info(f"  Time: data={t_data:.1f}s, total={time.time() - t0:.1f}s")
     logger.info("=" * 60)
 

@@ -93,7 +93,7 @@ def load_scaling_results(results_dir: Path) -> list[ScalingDataPoint]:
         by_n.setdefault(p.n, []).append(p)
 
     deduped = []
-    for n_val, group in sorted(by_n.items()):
+    for _n_val, group in sorted(by_n.items()):
         best = max(group, key=lambda p: len(p.seeds))
         deduped.append(best)
 

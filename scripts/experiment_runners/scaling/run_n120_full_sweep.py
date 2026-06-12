@@ -8,6 +8,7 @@ and only vary VQE seeds. This reduces 15 DMRG calls to 5.
 
 Expected time: ~10-15 min.
 """
+
 import json
 import logging
 import time
@@ -19,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logging.getLogger("qiskit.passmanager").setLevel(logging.WARNING)
 logging.getLogger("tenpy").setLevel(logging.WARNING)
 
-from qmbp_simulation import HamiltonianBuilder, ClassicalSolver, make_lattice
+from qmbp_simulation import ClassicalSolver, HamiltonianBuilder, make_lattice
 from qmbp_simulation.circuits import HVACircuitBuilder
 from qmbp_simulation.execution import MPSBackend
 from qmbp_simulation.models import VQEConfig
@@ -32,14 +33,14 @@ H_MIN_SAFE = 1.5 + 0.020 * N**1.31  # ~12.09
 
 # 5 h-points: from h_min_safe+0.5 to h_min_safe+3.0
 H_VALUES = [
-    round(H_MIN_SAFE + 0.5, 2),   # ~12.59 — closest to boundary
-    round(H_MIN_SAFE + 1.0, 2),   # ~13.09
-    round(H_MIN_SAFE + 1.5, 2),   # ~13.59
-    round(H_MIN_SAFE + 2.0, 2),   # ~14.09
-    round(H_MIN_SAFE + 3.0, 2),   # ~15.09 — deep paramagnetic
+    round(H_MIN_SAFE + 0.5, 2),  # ~12.59 — closest to boundary
+    round(H_MIN_SAFE + 1.0, 2),  # ~13.09
+    round(H_MIN_SAFE + 1.5, 2),  # ~13.59
+    round(H_MIN_SAFE + 2.0, 2),  # ~14.09
+    round(H_MIN_SAFE + 3.0, 2),  # ~15.09 — deep paramagnetic
 ]
 
-print(f"N=120 Full VQE Sweep")
+print("N=120 Full VQE Sweep")
 print(f"  h_min_safe = {H_MIN_SAFE:.4f}")
 print(f"  h_values = {H_VALUES}")
 print(f"  seeds = {SEEDS}")
@@ -83,8 +84,11 @@ for seed in SEEDS:
 
         backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=0.005, seed=seed)
         config = VQEConfig(
-            method="COBYLA", p_layers=1, n_restarts=3,
-            maxiter=500, enable_callbacks=False,
+            method="COBYLA",
+            p_layers=1,
+            n_restarts=3,
+            maxiter=500,
+            enable_callbacks=False,
         )
         optimizer = VQEOptimizer(config=config, backend=backend, seed=seed)
 
@@ -96,32 +100,40 @@ for seed in SEEDS:
         passed = de_gap < 0.05
         prev_theta = result.theta_opt.copy()
 
-        results_all.append({
-            "seed": seed, "h": h,
-            "e_exact": float(e_exact), "gap": float(gap),
-            "e_vqe": float(result.energy), "de_gap": float(de_gap),
-            "n_iterations": result.n_iterations,
-            "theta_opt": result.theta_opt.tolist(),
-            "time_s": round(t_vqe, 2), "passed": passed,
-        })
+        results_all.append(
+            {
+                "seed": seed,
+                "h": h,
+                "e_exact": float(e_exact),
+                "gap": float(gap),
+                "e_vqe": float(result.energy),
+                "de_gap": float(de_gap),
+                "n_iterations": result.n_iterations,
+                "theta_opt": result.theta_opt.tolist(),
+                "time_s": round(t_vqe, 2),
+                "passed": passed,
+            }
+        )
 
         status = "PASS" if passed else "FAIL"
-        print(f"    h={h:.2f}: dE/gap={de_gap:.6f}, iters={result.n_iterations}, "
-              f"{t_vqe:.1f}s [{status}]")
+        print(
+            f"    h={h:.2f}: dE/gap={de_gap:.6f}, iters={result.n_iterations}, "
+            f"{t_vqe:.1f}s [{status}]"
+        )
 
 total_time = time.time() - t_start
 
 
 # Step 3: Summary
-print(f"\nTotal VQE time: {total_time:.1f}s ({total_time/60:.1f} min)")
+print(f"\nTotal VQE time: {total_time:.1f}s ({total_time / 60:.1f} min)")
 
 n_total = len(results_all)
 n_pass = sum(1 for r in results_all if r["passed"])
 de_gaps = [r["de_gap"] for r in results_all]
 
-print(f"\n{'='*60}")
-print(f"  N=120 SWEEP SUMMARY")
-print(f"{'='*60}")
+print(f"\n{'=' * 60}")
+print("  N=120 SWEEP SUMMARY")
+print(f"{'=' * 60}")
 print(f"  Total points: {n_total} ({len(SEEDS)} seeds x {len(H_VALUES)} h-points)")
 print(f"  Passed: {n_pass}/{n_total} (threshold: dE/gap < 5%)")
 print(f"  Mean dE/gap: {np.mean(de_gaps):.6f}")
@@ -129,25 +141,28 @@ print(f"  Max dE/gap: {np.max(de_gaps):.6f}")
 print(f"  Std dE/gap: {np.std(de_gaps):.6f}")
 
 # Per-h summary
-print(f"\n  Per-h breakdown:")
+print("\n  Per-h breakdown:")
 for h in sorted(H_VALUES):
     h_results = [r for r in results_all if r["h"] == h]
     h_de = [r["de_gap"] for r in h_results]
     h_pass = sum(1 for r in h_results if r["passed"])
-    print(f"    h={h:.2f}: mean={np.mean(h_de):.6f}, "
-          f"std={np.std(h_de):.6f}, pass={h_pass}/{len(h_results)}")
+    print(
+        f"    h={h:.2f}: mean={np.mean(h_de):.6f}, "
+        f"std={np.std(h_de):.6f}, pass={h_pass}/{len(h_results)}"
+    )
 
 # Bootstrap CI on mean dE/gap
 boot_rng = np.random.default_rng(99)
-boot_means = [float(np.mean(boot_rng.choice(de_gaps, size=len(de_gaps), replace=True)))
-              for _ in range(1000)]
+boot_means = [
+    float(np.mean(boot_rng.choice(de_gaps, size=len(de_gaps), replace=True))) for _ in range(1000)
+]
 ci_lo, ci_hi = np.percentile(boot_means, [2.5, 97.5])
 print(f"\n  Bootstrap 95% CI on mean dE/gap: [{ci_lo:.6f}, {ci_hi:.6f}]")
 
 # Scaling law validation
-print(f"\n  Scaling law check:")
+print("\n  Scaling law check:")
 print(f"    Formula: h_min = 1.5 + 0.020 * N^1.31 = {H_MIN_SAFE:.4f}")
-print(f"    Lowest h tested: {min(H_VALUES):.2f} (margin: +{min(H_VALUES)-H_MIN_SAFE:.2f})")
+print(f"    Lowest h tested: {min(H_VALUES):.2f} (margin: +{min(H_VALUES) - H_MIN_SAFE:.2f})")
 lowest_h_results = [r for r in results_all if r["h"] == min(H_VALUES)]
 if lowest_h_results:
     lowest_pass = all(r["passed"] for r in lowest_h_results)
@@ -199,5 +214,7 @@ out_dir = Path("results/scaling")
 out_dir.mkdir(parents=True, exist_ok=True)
 out_path = out_dir / "scaling_N120_full_sweep.json"
 with open(out_path, "w") as f:
-    json.dump(output, f, indent=2, default=lambda o: float(o) if hasattr(o, '__float__') else str(o))
+    json.dump(
+        output, f, indent=2, default=lambda o: float(o) if hasattr(o, "__float__") else str(o)
+    )
 print(f"\n  Saved to {out_path}")

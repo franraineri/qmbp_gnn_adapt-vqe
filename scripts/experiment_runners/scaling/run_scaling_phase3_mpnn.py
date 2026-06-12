@@ -202,7 +202,7 @@ def train_scaling_mpnn(
     """
     n_qubits = data["n_qubits"]
     topology = data["topology"]
-    p_layers = data["p_layers"]
+    data["p_layers"]
     h_values = data["h_values"]
     theta_opt = data["theta_opt"]
     e_dmrg = data["e_dmrg"]

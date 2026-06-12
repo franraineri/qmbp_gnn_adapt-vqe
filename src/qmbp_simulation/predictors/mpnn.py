@@ -835,7 +835,7 @@ class BondResolvedMPNN(nn.Module):
 
 
 def build_bond_resolved_graph(
-    lattice: "LatticeConfig",
+    lattice: LatticeConfig,
     h_value: float,
     theta_opt: np.ndarray | None = None,
     n_feature: bool = True,

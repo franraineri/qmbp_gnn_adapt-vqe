@@ -102,7 +102,7 @@ def analyze_trajectory(traj: dict) -> dict | None:
     for i in range(n_params):
         grad_i = np.gradient(theta_opt[:, i], h_values)
         grad_i = np.where(np.isfinite(grad_i), grad_i, 0.0)
-        dtheta_dh += grad_i ** 2
+        dtheta_dh += grad_i**2
     dtheta_dh = np.sqrt(dtheta_dh / n_params)  # RMS per param (fair cross-N)
     theta_deriv_peak_idx = np.argmax(dtheta_dh)
     theta_deriv_peak_h = float(h_values[theta_deriv_peak_idx])
@@ -306,9 +306,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_scaling_analysis(
-    results: list[dict], fmt: str = "png", theme: str = "default"
-) -> dict:
+def run_scaling_analysis(results: list[dict], fmt: str = "png", theme: str = "default") -> dict:
     """Analyze how PCA peak position and |∂θ/∂h| amplitude scale with N.
 
     Key questions:
@@ -342,8 +340,10 @@ def run_scaling_analysis(
     n_values = sorted(by_n.keys())
     stats_per_n: list[dict] = []
 
-    logger.info(f"\n  {'N':>4} | {'PCA peak h':>10} | {'|∂θ/∂h| max':>12} | "
-                f"{'h_range':>12} | {'Covers h_c?':>11} | {'Seeds':>5}")
+    logger.info(
+        f"\n  {'N':>4} | {'PCA peak h':>10} | {'|∂θ/∂h| max':>12} | "
+        f"{'h_range':>12} | {'Covers h_c?':>11} | {'Seeds':>5}"
+    )
     logger.info(f"  {'─' * 65}")
 
     for n in n_values:
@@ -354,7 +354,9 @@ def run_scaling_analysis(
         if not reliable:
             reliable = n_results  # Fall back to all
         deriv_maxes = [
-            max(d for d in r["dtheta_dh"] if np.isfinite(d)) if any(np.isfinite(d) for d in r["dtheta_dh"]) else 0.0
+            max(d for d in r["dtheta_dh"] if np.isfinite(d))
+            if any(np.isfinite(d) for d in r["dtheta_dh"])
+            else 0.0
             for r in reliable
         ]
         h_ranges = [(min(r["h_values"]), max(r["h_values"])) for r in n_results]
@@ -378,31 +380,33 @@ def run_scaling_analysis(
             f"[{h_lo_best:.1f},{h_hi_best:.1f}] | {covers_str:>11} | {len(n_results):>5}"
         )
 
-        stats_per_n.append({
-            "n_qubits": n,
-            "n_seeds": len(n_results),
-            "pca_peak_mean": mean_peak,
-            "pca_peak_std": std_peak,
-            "pca_peaks": pca_peaks,
-            "deriv_max_mean": mean_deriv_max,
-            "deriv_max_std": std_deriv_max,
-            "h_range": [h_lo_best, h_hi_best],
-            "covers_hc": covers_hc,
-            "closest_to_hc": closest_to_hc,
-        })
+        stats_per_n.append(
+            {
+                "n_qubits": n,
+                "n_seeds": len(n_results),
+                "pca_peak_mean": mean_peak,
+                "pca_peak_std": std_peak,
+                "pca_peaks": pca_peaks,
+                "deriv_max_mean": mean_deriv_max,
+                "deriv_max_std": std_deriv_max,
+                "h_range": [h_lo_best, h_hi_best],
+                "covers_hc": covers_hc,
+                "closest_to_hc": closest_to_hc,
+            }
+        )
 
     # ── Key findings ─────────────────────────────────────────────────
     # Classify results by regime
     regime_near_hc = [s for s in stats_per_n if s["covers_hc"]]
     regime_paramagnetic = [s for s in stats_per_n if not s["covers_hc"]]
 
-    logger.info(f"\n  ── Key Findings ──")
+    logger.info("\n  ── Key Findings ──")
     logger.info(f"  Trajectories covering h_c: {len(regime_near_hc)} system sizes")
     logger.info(f"  Trajectories in paramagnetic only: {len(regime_paramagnetic)} system sizes")
 
     if regime_near_hc:
         peaks_near_hc = [(s["n_qubits"], s["pca_peak_mean"]) for s in regime_near_hc]
-        logger.info(f"\n  PCA peaks when h-range covers h_c (detectable regime):")
+        logger.info("\n  PCA peaks when h-range covers h_c (detectable regime):")
         for n, peak in peaks_near_hc:
             delta = abs(peak - H_C)
             status = "✅" if delta <= 0.3 else "⚠️"
@@ -423,7 +427,7 @@ def run_scaling_analysis(
                     logger.info("  → Convergence toward thermodynamic limit h_c=1.0 ✅")
 
     if regime_paramagnetic:
-        logger.info(f"\n  In paramagnetic regime (h >> h_c), PCA peak = lowest h tested:")
+        logger.info("\n  In paramagnetic regime (h >> h_c), PCA peak = lowest h tested:")
         for s in regime_paramagnetic[:5]:  # Show first 5
             logger.info(
                 f"    N={s['n_qubits']:>3}: peak={s['pca_peak_mean']:.2f}, "
@@ -432,7 +436,7 @@ def run_scaling_analysis(
         logger.info("  → Expected: no phase transition in valid regime (trivial landscape)")
 
     # Derivative amplitude scaling
-    logger.info(f"\n  |∂θ/∂h| maximum amplitude vs N:")
+    logger.info("\n  |∂θ/∂h| maximum amplitude vs N:")
     for s in stats_per_n:
         logger.info(f"    N={s['n_qubits']:>3}: max|∂θ/∂h| = {s['deriv_max_mean']:.4f}")
 
@@ -492,12 +496,19 @@ def _generate_scaling_figure(
         return False
 
     if theme == "thesis":
-        plt.rcParams.update({
-            "font.family": "serif", "font.size": 11,
-            "axes.labelsize": 12, "axes.titlesize": 13,
-            "legend.fontsize": 9, "figure.dpi": 150,
-            "savefig.dpi": 300, "axes.grid": True, "grid.alpha": 0.3,
-        })
+        plt.rcParams.update(
+            {
+                "font.family": "serif",
+                "font.size": 11,
+                "axes.labelsize": 12,
+                "axes.titlesize": 13,
+                "legend.fontsize": 9,
+                "figure.dpi": 150,
+                "savefig.dpi": 300,
+                "axes.grid": True,
+                "grid.alpha": 0.3,
+            }
+        )
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
@@ -513,7 +524,9 @@ def _generate_scaling_figure(
     colors = ["#2196F3" if c else "#9E9E9E" for c in covers]
     markers = ["o" if c else "^" for c in covers]
 
-    for i, (n, p, e, c, m) in enumerate(zip(n_vals, peaks, peak_errs, colors, markers)):
+    for i, (n, p, e, c, m) in enumerate(
+        zip(n_vals, peaks, peak_errs, colors, markers, strict=False)
+    ):
         ax1.errorbar(n, p, yerr=e, fmt=m, color=c, markersize=8, capsize=3, linewidth=1.5)
 
     # Reference line at h_c
@@ -530,19 +543,43 @@ def _generate_scaling_figure(
     ax1.set_title("PCA Peak Position vs System Size")
     ax1.legend(
         handles=[
-            plt.Line2D([0], [0], marker="o", color="#2196F3", linestyle="", markersize=8,
-                       label="h-range covers $h_c$"),
-            plt.Line2D([0], [0], marker="^", color="#9E9E9E", linestyle="", markersize=8,
-                       label="Paramagnetic only"),
-            plt.Line2D([0], [0], color="red", linestyle="--", linewidth=1.5, label=f"$h_c = {H_C}$"),
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="#2196F3",
+                linestyle="",
+                markersize=8,
+                label="h-range covers $h_c$",
+            ),
+            plt.Line2D(
+                [0],
+                [0],
+                marker="^",
+                color="#9E9E9E",
+                linestyle="",
+                markersize=8,
+                label="Paramagnetic only",
+            ),
+            plt.Line2D(
+                [0], [0], color="red", linestyle="--", linewidth=1.5, label=f"$h_c = {H_C}$"
+            ),
         ],
         loc="upper right",
     )
     ax1.set_xscale("log")
 
     # ── Panel 2: |∂θ/∂h| amplitude vs N ─────────────────────────────
-    ax2.errorbar(n_vals, derivs, yerr=deriv_errs, fmt="s-", color="#E53935",
-                 markersize=7, capsize=3, linewidth=1.5)
+    ax2.errorbar(
+        n_vals,
+        derivs,
+        yerr=deriv_errs,
+        fmt="s-",
+        color="#E53935",
+        markersize=7,
+        capsize=3,
+        linewidth=1.5,
+    )
     ax2.set_xlabel("System size $N$ (qubits)")
     ax2.set_ylabel("max $|\\partial\\theta/\\partial h|$")
     ax2.set_title("θ-Derivative Amplitude vs System Size")
@@ -552,8 +589,13 @@ def _generate_scaling_figure(
     # Annotate key N values
     for i, n in enumerate(n_vals):
         if n in (6, 10, 40, 100, 200):
-            ax2.annotate(f"N={n}", (n_vals[i], derivs[i]),
-                         textcoords="offset points", xytext=(5, 5), fontsize=8)
+            ax2.annotate(
+                f"N={n}",
+                (n_vals[i], derivs[i]),
+                textcoords="offset points",
+                xytext=(5, 5),
+                fontsize=8,
+            )
 
     plt.tight_layout()
     FIGURES_DIR.mkdir(parents=True, exist_ok=True)

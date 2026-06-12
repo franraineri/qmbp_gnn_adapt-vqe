@@ -163,10 +163,7 @@ def scan_scaling_results() -> list[dict]:
             results = seed_run.get("results", [])
 
             # Only include if theta_opt is present
-            valid_points = [
-                r for r in results
-                if r.get("theta_opt") and len(r["theta_opt"]) > 0
-            ]
+            valid_points = [r for r in results if r.get("theta_opt") and len(r["theta_opt"]) > 0]
             if len(valid_points) < 3:
                 continue
 
@@ -178,19 +175,21 @@ def scan_scaling_results() -> list[dict]:
                 continue
             seen_keys.add(key)
 
-            trajectories.append({
-                "topology": topology,
-                "n_qubits": n_qubits,
-                "p_layers": p_layers,
-                "seed": seed,
-                "h_values": h_values,
-                "theta_opt": theta_opt,
-                "n_points": len(valid_points),
-                "n_params": len(theta_opt[0]),
-                "mean_fidelity": None,
-                "source_file": str(filepath.relative_to(ROOT)),
-                "source_type": "scaling_validation",
-            })
+            trajectories.append(
+                {
+                    "topology": topology,
+                    "n_qubits": n_qubits,
+                    "p_layers": p_layers,
+                    "seed": seed,
+                    "h_values": h_values,
+                    "theta_opt": theta_opt,
+                    "n_points": len(valid_points),
+                    "n_params": len(theta_opt[0]),
+                    "mean_fidelity": None,
+                    "source_file": str(filepath.relative_to(ROOT)),
+                    "source_type": "scaling_validation",
+                }
+            )
 
     # ── Format 2: scaling_N120_full_sweep.json ───────────────────────
     sweep_file = SCALING_DIR / "scaling_N120_full_sweep.json"
@@ -203,11 +202,12 @@ def scan_scaling_results() -> list[dict]:
 
         if data and data.get("experiment") == "N120_full_sweep":
             n_qubits = data.get("n_qubits", 120)
-            seeds = data.get("seeds", [42, 43, 44])
+            data.get("seeds", [42, 43, 44])
             per_point = data.get("per_point", [])
 
             # Group by seed
             from collections import defaultdict
+
             by_seed: dict[int, list[dict]] = defaultdict(list)
             for pt in per_point:
                 if pt.get("theta_opt") and len(pt["theta_opt"]) > 0:
@@ -226,19 +226,21 @@ def scan_scaling_results() -> list[dict]:
                     continue
                 seen_keys.add(key)
 
-                trajectories.append({
-                    "topology": "chain_1d",
-                    "n_qubits": n_qubits,
-                    "p_layers": 1,
-                    "seed": seed,
-                    "h_values": h_values,
-                    "theta_opt": theta_opt,
-                    "n_points": len(points),
-                    "n_params": len(theta_opt[0]),
-                    "mean_fidelity": None,
-                    "source_file": str(sweep_file.relative_to(ROOT)),
-                    "source_type": "n120_full_sweep",
-                })
+                trajectories.append(
+                    {
+                        "topology": "chain_1d",
+                        "n_qubits": n_qubits,
+                        "p_layers": 1,
+                        "seed": seed,
+                        "h_values": h_values,
+                        "theta_opt": theta_opt,
+                        "n_points": len(points),
+                        "n_params": len(theta_opt[0]),
+                        "mean_fidelity": None,
+                        "source_file": str(sweep_file.relative_to(ROOT)),
+                        "source_type": "n120_full_sweep",
+                    }
+                )
 
     return trajectories
 
@@ -271,11 +273,14 @@ def main() -> None:
     """Extract, filter, and save theta trajectories."""
     parser = argparse.ArgumentParser(description="Extract θ_opt(h) trajectories")
     parser.add_argument(
-        "--include-scaling", action="store_true", default=True,
+        "--include-scaling",
+        action="store_true",
+        default=True,
         help="Include MPS scaling results (N=40-200). Default: True.",
     )
     parser.add_argument(
-        "--only-scaling", action="store_true",
+        "--only-scaling",
+        action="store_true",
         help="Only scan scaling results (skip thesis/ pipeline data).",
     )
     args = parser.parse_args()

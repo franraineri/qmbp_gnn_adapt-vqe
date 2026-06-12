@@ -72,7 +72,7 @@ def generate_post_zne_samples(n_samples: int = 50, seed: int = 42) -> list[QEMSa
 
             # Post-ZNE residual: small error (2-10% of gap)
             # This mimics PEA-ZNE output: mostly correct but with small bias
-            for trial in range(3):
+            for _trial in range(3):
                 residual_pct = rng.uniform(0.02, 0.15)  # 2-15% of gap
                 sign = rng.choice([-1, 1])
                 e_noisy = e_exact + sign * residual_pct * gap

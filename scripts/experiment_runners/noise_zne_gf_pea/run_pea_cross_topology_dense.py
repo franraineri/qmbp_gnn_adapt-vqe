@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import time
 
 import numpy as np
 
@@ -152,18 +151,22 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
         for i, topo in enumerate(TOPOLOGY_CONFIGS.keys(), start=1):
             cfg = TOPOLOGY_CONFIGS[topo]
             n_evals = len(SEEDS) * len(cfg["h_values"])
-            sections.append(Section(
-                id=i,
-                name=f"{topo} N={cfg['n_qubits']} ({n_evals} evals)",
-                fn=lambda t=topo: self._section_topology(t),
-                hypothesis=f"PEA gain > GF gain on {topo} (5 seeds)",
-            ))
-        sections.append(Section(
-            id=len(TOPOLOGY_CONFIGS) + 1,
-            name="Statistical Verdict",
-            fn=self._section_verdict,
-            hypothesis="PEA is universally superior (p < 0.001)",
-        ))
+            sections.append(
+                Section(
+                    id=i,
+                    name=f"{topo} N={cfg['n_qubits']} ({n_evals} evals)",
+                    fn=lambda t=topo: self._section_topology(t),
+                    hypothesis=f"PEA gain > GF gain on {topo} (5 seeds)",
+                )
+            )
+        sections.append(
+            Section(
+                id=len(TOPOLOGY_CONFIGS) + 1,
+                name="Statistical Verdict",
+                fn=self._section_verdict,
+                hypothesis="PEA is universally superior (p < 0.001)",
+            )
+        )
         return sections
 
     # ─── Core sweep (reused per topology) ─────────────────────────────────
@@ -176,6 +179,7 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
         candidates = self._candidates[topology]
 
         from qmbp_simulation.models.model_registry import get_model_spec
+
         spec = get_model_spec("tfim")
         lattice_ref = self.make_lattice(topology, n_qubits, J=1.0, h=max(h_values))
         circuit, _ = spec.create_circuit(n_qubits, 1, lattice_ref)
@@ -183,8 +187,13 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
         results = []
         for seed in SEEDS:
             theta_map = self.vqe_descending_sweep(
-                topology=topology, n_qubits=n_qubits, h_values=h_values,
-                seed=seed, p_layers=1, n_restarts=1, maxiter=500,
+                topology=topology,
+                n_qubits=n_qubits,
+                h_values=h_values,
+                seed=seed,
+                p_layers=1,
+                n_restarts=1,
+                maxiter=500,
             )
             for h in sorted(h_values, reverse=True):
                 e_exact, gap = self.exact_ground_state(topology, n_qubits, h)
@@ -192,45 +201,68 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
                 bound = circuit.assign_parameters(theta_opt)
 
                 layout_sel = self._select_low_ces(
-                    bound, self.fake_backend, candidates,
-                    n_select=1, optimization_level=2, max_ces=0.5,
+                    bound,
+                    self.fake_backend,
+                    candidates,
+                    n_select=1,
+                    optimization_level=2,
+                    max_ces=0.5,
                 )
                 transpiled = layout_sel.transpiled_circuits[0]
                 H = self.builder.build(self.make_lattice(topology, n_qubits, J=1.0, h=h))
                 H_mapped = H.apply_layout(transpiled.layout)
 
                 e_noisy = self._noisy_estimate(
-                    transpiled, H_mapped, self.fake_backend, self._noisy_config,
+                    transpiled,
+                    H_mapped,
+                    self.fake_backend,
+                    self._noisy_config,
                     seed_offset=seed,
                 )
                 de_noisy = abs(e_noisy - e_exact) / max(gap, 1e-10)
 
                 gf = self._run_gf_zne(
-                    transpiled, H_mapped, self.fake_backend, self._noisy_config,
-                    noise_factors=NOISE_FACTORS, seed_offset=seed * 100,
+                    transpiled,
+                    H_mapped,
+                    self.fake_backend,
+                    self._noisy_config,
+                    noise_factors=NOISE_FACTORS,
+                    seed_offset=seed * 100,
                 )
                 de_gf = abs(gf.extrapolated_value - e_exact) / max(gap, 1e-10)
 
                 pea = self._run_pea_zne(
-                    transpiled, H_mapped, self.fake_backend, self._noisy_config,
-                    noise_factors=NOISE_FACTORS, seed_offset=seed * 200,
+                    transpiled,
+                    H_mapped,
+                    self.fake_backend,
+                    self._noisy_config,
+                    noise_factors=NOISE_FACTORS,
+                    seed_offset=seed * 200,
                 )
                 de_pea = abs(pea.extrapolated_value - e_exact) / max(gap, 1e-10)
 
                 gf_gain = (de_noisy - de_gf) / max(de_noisy, 1e-10)
                 pea_gain = (de_noisy - de_pea) / max(de_noisy, 1e-10)
 
-                results.append({
-                    "topology": topology, "n_qubits": n_qubits,
-                    "seed": seed, "h": h,
-                    "de_noisy": de_noisy, "de_gf": de_gf, "de_pea": de_pea,
-                    "gf_r2": gf.r_squared, "pea_r2": pea.r_squared,
-                    "gf_gain": gf_gain, "pea_gain": pea_gain,
-                })
+                results.append(
+                    {
+                        "topology": topology,
+                        "n_qubits": n_qubits,
+                        "seed": seed,
+                        "h": h,
+                        "de_noisy": de_noisy,
+                        "de_gf": de_gf,
+                        "de_pea": de_pea,
+                        "gf_r2": gf.r_squared,
+                        "pea_r2": pea.r_squared,
+                        "gf_gain": gf_gain,
+                        "pea_gain": pea_gain,
+                    }
+                )
 
             logger.info(
                 f"  {topology} seed={seed}: "
-                f"PEA mean={np.mean([r['pea_gain'] for r in results if r['seed']==seed]):+.1%}"
+                f"PEA mean={np.mean([r['pea_gain'] for r in results if r['seed'] == seed]):+.1%}"
             )
 
         self._all_results[topology] = results
@@ -238,11 +270,12 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
         gf_gains = [r["gf_gain"] for r in results]
 
         summary = {
-            "topology": topology, "n_evaluations": len(results),
+            "topology": topology,
+            "n_evaluations": len(results),
             "mean_pea_gain": float(np.mean(pea_gains)),
             "mean_gf_gain": float(np.mean(gf_gains)),
             "mean_pea_r2": float(np.mean([r["pea_r2"] for r in results])),
-            "pea_wins": sum(1 for p, g in zip(pea_gains, gf_gains) if p > g),
+            "pea_wins": sum(1 for p, g in zip(pea_gains, gf_gains, strict=False) if p > g),
             "all_pea_positive": all(g > 0 for g in pea_gains),
         }
         logger.info(
@@ -276,13 +309,16 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
         # Bootstrap 95% CI on mean PEA advantage
         rng = np.random.default_rng(99)
         diffs = pea_gains - gf_gains
-        boot_means = [float(np.mean(rng.choice(diffs, size=len(diffs), replace=True)))
-                      for _ in range(1000)]
+        boot_means = [
+            float(np.mean(rng.choice(diffs, size=len(diffs), replace=True))) for _ in range(1000)
+        ]
         ci_lo, ci_hi = np.percentile(boot_means, [2.5, 97.5])
 
         logger.info(f"\n  ═══ DENSE VERDICT ({len(all_results)} evaluations) ═══")
         logger.info(f"  Paired t-test: t={t_stat:.2f}, p={p_value:.2e}")
-        logger.info(f"  Cohen's d: {cohens_d:.2f} ({'large' if abs(cohens_d)>0.8 else 'medium' if abs(cohens_d)>0.5 else 'small'})")
+        logger.info(
+            f"  Cohen's d: {cohens_d:.2f} ({'large' if abs(cohens_d) > 0.8 else 'medium' if abs(cohens_d) > 0.5 else 'small'})"
+        )
         logger.info(f"  Bootstrap 95% CI: [{ci_lo:.4f}, {ci_hi:.4f}]")
         logger.info(f"  PEA wins: {int(np.sum(pea_gains > gf_gains))}/{len(all_results)}")
         logger.info(f"  Mean PEA gain: {np.mean(pea_gains):+.1%}")

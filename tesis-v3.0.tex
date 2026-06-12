@@ -638,7 +638,7 @@ Se definen formalmente las métricas empleadas a lo largo de este capítulo:
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_global_de_gap_distribution.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_global_de_gap_distribution.pdf}
 \caption{Distribución de $\Delta E/\text{gap}$ para las 329 ejecuciones noiseless del pipeline. La línea vertical punteada marca el umbral de éxito (5\%). El 62\% de los runs pasan el criterio; el 38\% restante corresponde a ejecuciones fuera del régimen válido ($h < h_{\min}$) incluidas para caracterizar los límites del framework.}
 \label{fig:global_de_gap}
 \end{figure}
@@ -671,7 +671,7 @@ El framework logra $\Delta E/\text{gap} < 5\%$ en las cuatro topologías con los
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_topology_performance_violin.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_topology_performance_violin.pdf}
 \caption{Distribución de $\Delta E/\text{gap}$ por topología a $N = 10$ (régimen válido, $\Delta E/\text{gap} < 20\%$). Las medianas no difieren significativamente entre topologías (todos los pairwise $p > 0.05$, $|d| < 0.3$), confirmando que el pipeline es genuinamente agnóstico a la topología.}
 \label{fig:topology_violin}
 \end{figure}
@@ -717,7 +717,7 @@ h_{\min} = 1.5 + 0.020 \cdot N^{1.31} \quad (R^2 = 1.0000)
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_scaling_law_comprehensive.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_scaling_law_comprehensive.pdf}
 \caption{Escalamiento del pipeline con el tamaño del sistema. La precisión mejora con $N$ (de 2.7\% a 0.08\%) debido a la simplificación del paisaje energético en la fase paramagnética profunda. La frontera del régimen válido sigue $h_{\min} = 1.5 + 0.020 \cdot N^{1.31}$ ($R^2 = 1.0$).}
 \label{fig:scaling_law}
 \end{figure}
@@ -749,7 +749,7 @@ El hallazgo clave es que \textbf{BatchNorm es perjudicial para generalización c
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_cross_n_performance_heatmap.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_cross_n_performance_heatmap.pdf}
 \caption{Mapa de calor de $\Delta E/\text{gap}$ para la generalización zero-shot cross-N. La MPNN entrenada con $N = 40 + 80$ predice correctamente para todos los tamaños intermedios y extrapolados (30/30 PASS, media 0.15\%).}
 \label{fig:cross_n_heatmap}
 \end{figure}
@@ -874,7 +874,7 @@ PEA-ZNE supera a gate-folding ZNE por un factor $5.5\times$ en ganancia media (9
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_pea_vs_gf_comparison.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_pea_vs_gf_comparison.pdf}
 \caption{Comparación PEA-ZNE vs Gate-Folding ZNE por topología. PEA supera a GF en las 4 topologías validadas ($t = 169.7$, $p < 10^{-113}$, 90/90 puntos). La ganancia media de PEA (+96.6\%) es $5.5\times$ superior a GF (+17.7\%).}
 \label{fig:pea_vs_gf}
 \end{figure}
@@ -1020,7 +1020,7 @@ GNN-QEM post-PEA-ZNE & 0/15 & $-31{,}000\%$ \\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.95\textwidth]{documentation/thesis_figures/fig_gnn_qem_summary_panel.pdf}
+\includegraphics[width=0.95\textwidth]{tesis-figures/fig_gnn_qem_summary_panel.pdf}
 \caption{Resumen de GNN-QEM en tres modos. Izquierda: corrección in-distribution ($+99.4\%$ reducción). Centro: transferencia zero-shot a heavy-hex ($+72.3\%$, 15/15 puntos). Derecha: regresión post-PEA ($0/15$ mejoran --- ambos métodos eliminan ruido estructurado).}
 \label{fig:gnn_qem_panel}
 \end{figure}
@@ -1352,7 +1352,7 @@ La tasa de resultados útiles (confirmados + rechazados con resultado negativo v
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.80\textwidth]{documentation/thesis_figures/fig_experiment_verdicts_overview.pdf}
+\includegraphics[width=0.80\textwidth]{tesis-figures/fig_experiment_verdicts_overview.pdf}
 \caption{Distribución de veredictos de la campaña experimental por categoría. De 49 experimentos formales, 33 confirman su hipótesis, 8 producen resultados negativos válidos (contribuciones a los límites del framework), y 8 fallan genuinamente.}
 \label{fig:experiment_verdicts}
 \end{figure}
@@ -1388,7 +1388,7 @@ La evaluación sistemática demuestra que el pipeline GNN-HVA resuelve el proble
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_pipeline_timing_stacked.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_pipeline_timing_stacked.pdf}
 \caption{Tiempo de cómputo por fase del pipeline en función del tamaño del sistema. La Fase 2 (VQE) domina en todos los tamaños. El tiempo total para un barrido completo ($N = 80$, 5 puntos) es de solo 109 segundos gracias a la trivialidad del paisaje en la fase paramagnética profunda.}
 \label{fig:pipeline_timing}
 \end{figure}
@@ -1477,7 +1477,7 @@ Los objetivos OE1--OE5 y OE7 se cumplen íntegramente. El OE6 se cumple parcialm
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.85\textwidth]{documentation/thesis_figures/fig_findings_corroboration_summary.pdf}
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_findings_corroboration_summary.pdf}
 \caption{Estado de corroboración de los 22 hallazgos principales de la tesis, validados mediante tests estadísticos automatizados contra datos crudos. 21/22 findings están corroborados con evidencia fuerte; 1 (transferencia cross-topology) se clasifica como cualificado por tratarse de un resultado negativo documentado cualitativamente.}
 \label{fig:findings_corroboration}
 \end{figure}

@@ -623,7 +623,6 @@ class BondResolvedCrossNRunner(ValidationRunner):
             "pass": gnn_better and improvement_factor > 5.0,
         }
 
-
     # ── Section 5: Dense Multi-Seed Sweep ───────────────────────────────────
 
     def section_dense_sweep(self) -> dict:
@@ -663,10 +662,7 @@ class BondResolvedCrossNRunner(ValidationRunner):
         # Determine which (seed, h) combos are missing
         existing_keys = {(r["seed"], round(r["h"], 4)) for r in all_sweep_results}
         needed = [
-            (seed, h)
-            for seed in seeds
-            for h in h_dense
-            if (seed, round(h, 4)) not in existing_keys
+            (seed, h) for seed in seeds for h in h_dense if (seed, round(h, 4)) not in existing_keys
         ]
 
         if not needed:
@@ -776,7 +772,6 @@ class BondResolvedCrossNRunner(ValidationRunner):
             build_bond_resolved_graph,
             train_bond_resolved_mpnn,
         )
-        from qmbp_simulation.predictors import save_mpnn_checkpoint
 
         # Use dense results if available, otherwise fall back to Section 1 data
         if hasattr(self, "_dense_results") and self._dense_results:
@@ -786,9 +781,7 @@ class BondResolvedCrossNRunner(ValidationRunner):
             train_data = self._sweep_results
             source = "section_1_sweep"
         else:
-            raise RuntimeError(
-                "No training data. Run Section 1 or Section 5 first."
-            )
+            raise RuntimeError("No training data. Run Section 1 or Section 5 first.")
 
         # Filter passing points
         N = self._args.n_qubits
@@ -842,6 +835,7 @@ class BondResolvedCrossNRunner(ValidationRunner):
         ckpt_path = output_dir / f"bond_resolved_mpnn_N{N}_{int(time.time())}.pt"
 
         import torch
+
         torch.save(
             {
                 "state_dict": model.state_dict(),
