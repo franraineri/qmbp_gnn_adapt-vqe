@@ -11,10 +11,11 @@ provides detailed analysis including:
 
 Usage:
     python scripts/analyze_hw_rehearsal_v2.py
-    python scripts/analyze_hw_rehearsal_v2.py --latest       # Only latest run
     python scripts/analyze_hw_rehearsal_v2.py --all          # All runs (comparison)
     python scripts/analyze_hw_rehearsal_v2.py --json         # Machine-readable output
     python scripts/analyze_hw_rehearsal_v2.py --exp-dir results/experiments/exp_hw_rehearsal_v2
+    python scripts/analyze_hw_rehearsal_v2.py --threshold 0.03
+    python scripts/analyze_hw_rehearsal_v2.py --section-filter 1 2 3
 """
 
 from __future__ import annotations
@@ -40,8 +41,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--latest",
         action="store_true",
-        default=True,
-        help="Analyze only the latest run (default)",
+        help="Analyze only the latest run (use --all to override)",
     )
     parser.add_argument(
         "--all",
@@ -52,6 +52,19 @@ def parse_args() -> argparse.Namespace:
         "--json",
         action="store_true",
         help="Output as JSON (machine-readable)",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.05,
+        help="ΔE/gap pass threshold (default: 0.05)",
+    )
+    parser.add_argument(
+        "--section-filter",
+        type=int,
+        nargs="+",
+        default=None,
+        help="Only show these section numbers in the report",
     )
     return parser.parse_args()
 
@@ -147,11 +160,19 @@ def analyze_single_run(data: dict) -> dict:
             sec_analysis["pea_better"] = sec_data.get("pea_better_energy")
             sec_analysis["pea_overhead"] = sec_data.get("pea_time_overhead")
 
-        # Section 6: Shot noise
-        if "std_de_gap" in sec_data and "n_reps" in sec_data:
-            sec_analysis["std_de_gap"] = sec_data["std_de_gap"]
+        # Section 6: Shot noise — only section 6 has n_reps
+        if "n_reps" in sec_data:
+            sec_analysis["std_de_gap"] = sec_data.get("std_de_gap")
             sec_analysis["n_reps"] = sec_data["n_reps"]
             sec_analysis["reproducible"] = sec_data.get("reproducible")
+
+        # Section 7: Phase classification
+        if "all_correct" in sec_data and "mean_confidence" in sec_data:
+            sec_analysis["all_correct"] = sec_data["all_correct"]
+            sec_analysis["n_correct"] = sec_data.get("n_correct")
+            sec_analysis["n_total"] = sec_data.get("n_total")
+            sec_analysis["mean_confidence"] = sec_data.get("mean_confidence")
+            sec_analysis["all_snr_ok"] = sec_data.get("all_snr_ok")
 
         # Section 8: Cost estimation
         if "est_grand_total_s" in sec_data:
@@ -184,27 +205,56 @@ def analyze_single_run(data: dict) -> dict:
 
         analysis["sections"][sec_key] = sec_analysis
 
+    # ZNE regression warning: check if ZNE made energy error worse than noiseless
+    s2_data = results.get("section_2", {}).get("data", {})
+    s1_data = results.get("section_1", {}).get("data", {})
+    de_zne = s2_data.get("mean_de_gap_zne")
+    de_noiseless = s1_data.get("mean_de_gap")
+    if de_zne is not None and de_noiseless is not None:
+        s2_sec = analysis["sections"].get("section_2")
+        if s2_sec is not None:
+            s2_sec["zne_regression_warning"] = de_zne > de_noiseless
+
     return analysis
 
 
-def compute_hardware_readiness(analysis: dict) -> dict:
-    """Compute hardware readiness verdict from analysis."""
+def compute_hardware_readiness(analysis: dict, threshold: float = 0.05) -> dict:
+    """Compute hardware readiness verdict from analysis.
+
+    Parameters
+    ----------
+    analysis : dict
+        Single run analysis from analyze_single_run.
+    threshold : float
+        ΔE/gap pass threshold (default: 0.05).
+    """
     sections = analysis.get("sections", {})
 
     # Check critical sections
     s1 = sections.get("section_1", {})
     s2 = sections.get("section_2", {})
     s3 = sections.get("section_3", {})
+    s7 = sections.get("section_7", {})
+    s9 = sections.get("section_9", {})
+
+    mean_de_gap_zne = s2.get("mean_de_gap_zne")
 
     readiness = {
         "mpnn_ready": s1.get("success", False),
         "zne_pipeline_ready": s2.get("success", False),
         "full_deployment_ready": s3.get("success", False),
+        "phase_classification_ready": s7.get("success", False),
+        "circuit_audit_ready": s9.get("success", False),
         "mean_de_gap_noiseless": s1.get("mean_de_gap"),
-        "mean_de_gap_zne": s2.get("mean_de_gap_zne"),
+        "mean_de_gap_zne": mean_de_gap_zne,
         "deployment_verdict": s3.get("verdict"),
         "deployment_r2": s3.get("zne_r2"),
+        "threshold_used": threshold,
     }
+
+    # Additional threshold check on ZNE error
+    if mean_de_gap_zne is not None:
+        readiness["zne_below_threshold"] = mean_de_gap_zne < threshold
 
     # GO/NO-GO decision
     all_critical_pass = all(
@@ -212,6 +262,8 @@ def compute_hardware_readiness(analysis: dict) -> dict:
             readiness["mpnn_ready"],
             readiness["zne_pipeline_ready"],
             readiness["full_deployment_ready"],
+            readiness["phase_classification_ready"],
+            readiness["circuit_audit_ready"],
         ]
     )
     readiness["hardware_go"] = all_critical_pass
@@ -224,7 +276,10 @@ def compute_hardware_readiness(analysis: dict) -> dict:
     return readiness
 
 
-def print_text_report(analyses: list[dict]) -> None:
+def print_text_report(
+    analyses: list[dict],
+    section_filter: list[int] | None = None,
+) -> None:
     """Print human-readable analysis report."""
     print("=" * 65)
     print("  HW_REHEARSAL_V2 — Post-Run Analysis")
@@ -246,6 +301,15 @@ def print_text_report(analyses: list[dict]) -> None:
         print()
 
         for sec_key in sorted(analysis["sections"].keys()):
+            # Apply section filter if provided
+            if section_filter is not None:
+                try:
+                    sec_num = int(sec_key.replace("section_", ""))
+                    if sec_num not in section_filter:
+                        continue
+                except (ValueError, AttributeError):
+                    pass
+
             sec = analysis["sections"][sec_key]
             status = "✅" if sec["success"] else "❌"
             print(f"  {status} {sec['name']} ({sec['elapsed_s']:.1f}s)")
@@ -265,6 +329,11 @@ def print_text_report(analyses: list[dict]) -> None:
                 print(
                     f"     ZNE:  mean_ΔE/gap={sec['mean_de_gap_zne']:.4f}, noise_overhead={noise_s}"
                 )
+                if sec.get("zne_regression_warning"):
+                    print(
+                        "     ⚠️  WARNING: ZNE increased error vs noiseless baseline "
+                        "(mitigation regressed)"
+                    )
             if "verdict" in sec:
                 r2_val = sec.get("zne_r2")
                 r2_s = f"{r2_val:.4f}" if isinstance(r2_val, (int, float)) else "?"
@@ -292,11 +361,19 @@ def print_text_report(analyses: list[dict]) -> None:
                 pea_oh_s = f"{pea_oh:.1f}x" if isinstance(pea_oh, (int, float)) else "N/A"
                 print(f"     GF:  ΔE/gap={sec['gf_de_gap']:.4f}, R²={gf_r2_s}")
                 print(f"     PEA: ΔE/gap={pea_de_s}, R²={pea_r2_s}, overhead={pea_oh_s}")
-            if "std_de_gap" in sec and "n_reps" in sec:
+            if "n_reps" in sec:
+                std_de = sec.get("std_de_gap")
+                std_s = f"{std_de:.4f}" if isinstance(std_de, (int, float)) else "?"
                 print(
-                    f"     Shot noise: std(ΔE/gap)={sec['std_de_gap']:.4f} "
+                    f"     Shot noise: std(ΔE/gap)={std_s} "
                     f"({sec['n_reps']} reps), "
                     f"reproducible={sec.get('reproducible', '?')}"
+                )
+            if "all_correct" in sec and "mean_confidence" in sec:
+                print(
+                    f"     Phase: {sec.get('n_correct', '?')}/{sec.get('n_total', '?')} correct, "
+                    f"mean_confidence={sec['mean_confidence']:.1f}σ, "
+                    f"all_snr_ok={sec.get('all_snr_ok', '?')}"
                 )
             if "est_total_min" in sec:
                 print(
@@ -305,11 +382,13 @@ def print_text_report(analyses: list[dict]) -> None:
                     f"fits_job={sec.get('fits_single_job', '?')}"
                 )
             if "all_zne_viable" in sec:
+                mean_ces = sec.get("mean_ces")
+                ces_s = f"{mean_ces:.4f}" if isinstance(mean_ces, (int, float)) else "?"
                 print(
                     f"     Audit: mean_2Q={sec.get('mean_2q_gates', '?'):.0f}, "
                     f"max_2Q={sec.get('max_2q_gates', '?')}, "
                     f"all_viable={sec.get('all_zne_viable', '?')}, "
-                    f"CES={sec.get('mean_ces', '?'):.4f}"
+                    f"CES={ces_s}"
                 )
 
             if "per_h" in sec:
@@ -332,16 +411,19 @@ def print_text_report(analyses: list[dict]) -> None:
         print("─── Cross-Run Comparison ───")
         print(
             f"  {'Run':<6} {'Topology':<12} {'Amplifier':<12} "
-            f"{'Pass%':<8} {'Time':<8} {'ZNE ΔE/gap':<12}"
+            f"{'Pass%':<8} {'Time':<8} {'ZNE ΔE/gap':<12} {'ZNE Reg':<8}"
         )
-        print(f"  {'-' * 6} {'-' * 12} {'-' * 12} {'-' * 8} {'-' * 8} {'-' * 12}")
+        print(f"  {'-' * 6} {'-' * 12} {'-' * 12} {'-' * 8} {'-' * 8} {'-' * 12} {'-' * 8}")
         for i, a in enumerate(analyses):
             s2 = a["sections"].get("section_2", {})
             de_zne = s2.get("mean_de_gap_zne", "?")
             de_str = f"{de_zne:.4f}" if isinstance(de_zne, float) else str(de_zne)
+            zne_reg = s2.get("zne_regression_warning", False)
+            reg_str = "⚠️" if zne_reg else "ok"
             print(
                 f"  {i + 1:<6} {a['topology']:<12} {a['amplifier']:<12} "
-                f"{a['pass_rate'] * 100:<8.0f} {a['total_time_s']:<8.1f} {de_str:<12}"
+                f"{a['pass_rate'] * 100:<8.0f} {a['total_time_s']:<8.1f} "
+                f"{de_str:<12} {reg_str:<8}"
             )
         print()
 
@@ -359,11 +441,13 @@ def main():
         output = {
             "n_runs": len(analyses),
             "analyses": analyses,
-            "hardware_readiness": compute_hardware_readiness(analyses[0]),
+            "hardware_readiness": [
+                compute_hardware_readiness(a, threshold=args.threshold) for a in analyses
+            ],
         }
         print(json.dumps(output, indent=2, default=str))
     else:
-        print_text_report(analyses)
+        print_text_report(analyses, section_filter=args.section_filter)
 
 
 if __name__ == "__main__":

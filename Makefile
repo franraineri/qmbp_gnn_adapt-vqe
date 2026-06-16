@@ -153,11 +153,43 @@ figures:  ## Generate all analysis figures (PNG, default theme)
 figures-thesis:  ## Generate thesis-quality figures (PDF, 300dpi, no titles)
 	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/
 	$(PYTHON) -m project_health.analysis.thesis_figures --format pdf --dpi 300 --verbose
+	@cp -f documentation/thesis_figures/fig_*.pdf tesis-figures/ 2>/dev/null || true
 
 # ── Thesis Compilation ───────────────────────────────────────
 
 validate-findings:  ## Validate all thesis findings against raw data
 	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose
+
+# ── Hardware Deployment ──────────────────────────────────────
+
+hw-cost:  ## Estimate QPU cost. Use N=10 H=3 PROFILE=kingston SPSA=default AMPLIFIER=pea
+	$(PYTHON) scripts/hardware.py cost --n-qubits $(or $(N),10) --h-points $(or $(H),3) \
+		--profile $(or $(PROFILE),kingston) --spsa $(or $(SPSA),default) \
+		--amplifier $(or $(AMPLIFIER),pea)
+
+hw-preflight:  ## Run preflight checks on FakeTorino. Use N=10
+	$(PYTHON) scripts/hardware.py preflight --n-qubits $(or $(N),10)
+
+hw-rehearsal:  ## Run full hardware rehearsal. Use ARGS for extra flags.
+	$(PYTHON) scripts/hardware.py rehearsal $(ARGS)
+
+hw-rehearsal-quick:  ## Rehearsal sections 8+9 only (cost + circuit audit, ~2s)
+	$(PYTHON) scripts/hardware.py rehearsal --section 8 9
+
+hw-analyze:  ## Analyze latest rehearsal results (GO/NO-GO)
+	$(PYTHON) scripts/hardware.py analyze
+
+hw-analyze-all:  ## Analyze all rehearsal runs with cross-comparison
+	$(PYTHON) scripts/hardware.py analyze --all
+
+hw-deploy-dry:  ## Dry-run deployment (preflight + cost only, no QPU)
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+
+hw-deploy-calibrate:  ## Session 1: calibration run (Tier 0 only, measures T_one_job)
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+
+hw-deploy:  ## Session 2: full deployment (Tier 0→3, auto-advancing, no SPSA)
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
 
 validate-findings-latex:  ## Validate findings + generate LaTeX table
 	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose --latex documentation/thesis_tables/findings_validation.tex

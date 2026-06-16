@@ -75,7 +75,86 @@ def submit_all_then_collect(
     logger: StructuredLogger,
     estimator: Any | None = None,
 ) -> list[dict[str, Any]]:
-    """Submit all jobs then collect. Raises RuntimeError if >1 job fails."""
+    """Submit all jobs then collect. Raises RuntimeError if >1 job fails.
+
+    For hardware mode, wraps submissions in a Batch context to batch all
+    layout jobs into a single QPU session (reduces queue wait from N× to 1×).
+    For fake_backend mode, submits locally without Batch (not supported).
+    """
+    if config.mode == "hardware" and estimator is None:
+        return _submit_all_batched(isa_circuits, hamiltonian, backend, config, logger)
+    return _submit_all_sequential(isa_circuits, hamiltonian, backend, config, logger, estimator)
+
+
+def _submit_all_batched(
+    isa_circuits: list[QuantumCircuit],
+    hamiltonian: SparsePauliOp,
+    backend: Any,
+    config: HardwareConfig,
+    logger: StructuredLogger,
+) -> list[dict[str, Any]]:
+    """Submit all layout jobs within a single Batch context (hardware only).
+
+    Creates one Batch → one EstimatorV2 → submits all PUBs → collects results.
+    This avoids N separate queue waits for N layouts.
+    """
+    from qiskit_ibm_runtime import Batch, EstimatorV2
+
+    submitted: list[tuple[int, Any]] = []
+    results: list[dict[str, Any]] = []
+    failed_count = 0
+
+    try:
+        with Batch(backend=backend) as batch:
+            # Create one estimator for the entire batch
+            est = EstimatorV2(mode=batch)
+            # Apply options via structured API
+            _apply_estimator_options(est, config)
+
+            # Phase 1: Submit all PUBs
+            for idx, isa_circ in enumerate(isa_circuits):
+                h_mapped = hamiltonian.apply_layout(isa_circ.layout)
+                try:
+                    job = est.run([(isa_circ, h_mapped)])
+                    submitted.append((idx, job))
+                    logger.log(
+                        "job_submitted",
+                        data={
+                            "layout_idx": idx,
+                            "job_id": job.job_id() if hasattr(job, "job_id") else str(idx),
+                            "batch_mode": True,
+                        },
+                    )
+                except Exception as e:
+                    logger.log(
+                        "submit_error",
+                        data={"layout_idx": idx, "error": str(e), "batch_mode": True},
+                    )
+    except Exception as e:
+        # Batch creation failed — fall back to sequential submission
+        logger.log("batch_creation_failed", data={"error": str(e), "fallback": "sequential"})
+        return _submit_all_sequential(isa_circuits, hamiltonian, backend, config, logger, None)
+
+    # Phase 2: Collect all results
+    results, failed_count = _collect_results(submitted, config, logger)
+
+    if failed_count > 1:
+        raise RuntimeError(
+            f"More than 1 job failed ({failed_count}/{len(submitted)}). "
+            f"Batch aborted. Check execution_log for details."
+        )
+    return results
+
+
+def _submit_all_sequential(
+    isa_circuits: list[QuantumCircuit],
+    hamiltonian: SparsePauliOp,
+    backend: Any,
+    config: HardwareConfig,
+    logger: StructuredLogger,
+    estimator: Any | None = None,
+) -> list[dict[str, Any]]:
+    """Submit jobs sequentially (for fake_backend or when a pre-built estimator is given)."""
     # Phase 1: Submit all
     submitted: list[tuple[int, Any]] = []
     for idx, isa_circ in enumerate(isa_circuits):
@@ -97,16 +176,39 @@ def submit_all_then_collect(
                     "job_id": job.job_id() if hasattr(job, "job_id") else str(idx),
                 },
             )
+
     # Phase 2: Collect all
+    results, failed_count = _collect_results(submitted, config, logger)
+
+    if failed_count > 1:
+        raise RuntimeError(
+            f"More than 1 job failed ({failed_count}/{len(submitted)}). "
+            f"Session aborted. Check execution_log for details."
+        )
+    return results
+
+
+def _collect_results(
+    submitted: list[tuple[int, Any]],
+    config: HardwareConfig,
+    logger: StructuredLogger,
+) -> tuple[list[dict[str, Any]], int]:
+    """Collect results from submitted jobs. Returns (results, failed_count)."""
     results: list[dict[str, Any]] = []
     failed_count = 0
+
     for idx, job in submitted:
         try:
             # Local PrimitiveJob (fake_backend) has no wait_for_final_state;
             # IBM Runtime jobs do. Handle both gracefully.
             if hasattr(job, "wait_for_final_state"):
                 job.wait_for_final_state(timeout=config.job_timeout_s)
-                status = job.status().name if hasattr(job.status(), "name") else str(job.status())
+                # Handle both enum-style and string-style status returns
+                raw_status = job.status()
+                if hasattr(raw_status, "name"):
+                    status = raw_status.name
+                else:
+                    status = str(raw_status).upper()
                 if status != "DONE":
                     failed_count += 1
                     logger.log("job_failed", data={"layout_idx": idx, "status": status})
@@ -122,10 +224,15 @@ def submit_all_then_collect(
                 if hasattr(job, "metrics"):
                     try:
                         metrics = job.metrics()
-                        usage_info = {
-                            "qpu_seconds": metrics.get("usage", {}).get("quantum_seconds", None),
-                            "total_time_s": metrics.get("timestamps", {}).get("running", None),
-                        }
+                        # quantum_seconds is numeric (int/float)
+                        qs = metrics.get("usage", {}).get("quantum_seconds", None)
+                        usage_info["qpu_seconds"] = qs if isinstance(qs, (int, float)) else None
+                        # "running" timestamp is an ISO string, NOT numeric seconds
+                        # Store as-is for provenance, never sum it
+                        running_ts = metrics.get("timestamps", {}).get("running", None)
+                        usage_info["running_timestamp"] = running_ts
+                    except Exception:
+                        pass  # metrics() not available for local jobs
                     except Exception:
                         pass  # metrics() not available for local jobs
                 results.append(
@@ -160,12 +267,43 @@ def submit_all_then_collect(
             failed_count += 1
             logger.log("job_error", data={"layout_idx": idx, "error": str(e)})
 
-    if failed_count > 1:
-        raise RuntimeError(
-            f"More than 1 job failed ({failed_count}/{len(submitted)}). "
-            f"Session aborted. Check execution_log for details."
-        )
-    return results
+    return results, failed_count
+
+
+def _apply_estimator_options(estimator: Any, config: HardwareConfig) -> None:
+    """Apply mitigation options to an EstimatorV2 via the structured API."""
+    options_dict = build_estimator_options(config)
+    if "default_shots" in options_dict:
+        estimator.options.default_shots = options_dict["default_shots"]
+    if "dynamical_decoupling" in options_dict:
+        dd = options_dict["dynamical_decoupling"]
+        estimator.options.dynamical_decoupling.enable = dd.get("enable", True)
+        estimator.options.dynamical_decoupling.sequence_type = dd.get("sequence_type", "XpXm")
+    if "twirling" in options_dict:
+        tw = options_dict["twirling"]
+        estimator.options.twirling.enable_gates = tw.get("enable_gates", True)
+        estimator.options.twirling.enable_measure = tw.get("enable_measure", True)
+        estimator.options.twirling.num_randomizations = tw.get("num_randomizations", 32)
+    if "resilience" in options_dict:
+        res = options_dict["resilience"]
+        if "measure_mitigation" in res:
+            estimator.options.resilience.measure_mitigation = res["measure_mitigation"]
+        if "zne_mitigation" in res:
+            estimator.options.resilience.zne_mitigation = res["zne_mitigation"]
+        if "zne" in res:
+            zne = res["zne"]
+            if "amplifier" in zne:
+                estimator.options.resilience.zne.amplifier = zne["amplifier"]
+            if "noise_factors" in zne:
+                estimator.options.resilience.zne.noise_factors = zne["noise_factors"]
+        if "layer_noise_learning" in res:
+            lnl = res["layer_noise_learning"]
+            estimator.options.resilience.layer_noise_learning.num_randomizations = lnl.get(
+                "num_randomizations", 32
+            )
+            estimator.options.resilience.layer_noise_learning.shots_per_randomization = lnl.get(
+                "shots_per_randomization", 128
+            )
 
 
 def build_estimator_options(config: HardwareConfig) -> dict[str, Any]:
@@ -247,8 +385,7 @@ def _get_estimator(backend: Any, config: HardwareConfig) -> Any:
     """Create a configured estimator for the given backend and config.
 
     For fake_backend: uses Qiskit's local BackendEstimatorV2 with dict options.
-    For hardware: uses IBM Runtime EstimatorV2 with EstimatorOptions object,
-    applying mitigation settings via the structured options API.
+    For hardware: uses IBM Runtime EstimatorV2 with structured options API.
     """
     options_dict = build_estimator_options(config)
     if config.mode == "fake_backend":
@@ -258,37 +395,6 @@ def _get_estimator(backend: Any, config: HardwareConfig) -> Any:
 
     from qiskit_ibm_runtime import EstimatorV2
 
-    estimator = EstimatorV2(backend=backend)
-    # Apply options via the structured API (resilience, execution, etc.)
-    if "default_shots" in options_dict:
-        estimator.options.default_shots = options_dict["default_shots"]
-    if "dynamical_decoupling" in options_dict:
-        dd = options_dict["dynamical_decoupling"]
-        estimator.options.dynamical_decoupling.enable = dd.get("enable", True)
-        estimator.options.dynamical_decoupling.sequence_type = dd.get("sequence_type", "XpXm")
-    if "twirling" in options_dict:
-        tw = options_dict["twirling"]
-        estimator.options.twirling.enable_gates = tw.get("enable_gates", True)
-        estimator.options.twirling.enable_measure = tw.get("enable_measure", True)
-        estimator.options.twirling.num_randomizations = tw.get("num_randomizations", 32)
-    if "resilience" in options_dict:
-        res = options_dict["resilience"]
-        if "measure_mitigation" in res:
-            estimator.options.resilience.measure_mitigation = res["measure_mitigation"]
-        if "zne_mitigation" in res:
-            estimator.options.resilience.zne_mitigation = res["zne_mitigation"]
-        if "zne" in res:
-            zne = res["zne"]
-            if "amplifier" in zne:
-                estimator.options.resilience.zne.amplifier = zne["amplifier"]
-            if "noise_factors" in zne:
-                estimator.options.resilience.zne.noise_factors = zne["noise_factors"]
-        if "layer_noise_learning" in res:
-            lnl = res["layer_noise_learning"]
-            estimator.options.resilience.layer_noise_learning.num_randomizations = lnl.get(
-                "num_randomizations", 32
-            )
-            estimator.options.resilience.layer_noise_learning.shots_per_randomization = lnl.get(
-                "shots_per_randomization", 128
-            )
+    estimator = EstimatorV2(mode=backend)
+    _apply_estimator_options(estimator, config)
     return estimator

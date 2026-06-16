@@ -21,7 +21,7 @@ class HardwareConfig:
     field to avoid ambiguity between overlapping configs.
     """
 
-    backend_name: str = "ibm_torino"
+    backend_name: str = "ibm_kingston"
     mode: Literal["hardware", "fake_backend"] = "hardware"
     n_qubits: int = 10
     shots: int = 16384

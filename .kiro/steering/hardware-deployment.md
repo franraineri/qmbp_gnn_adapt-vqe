@@ -5,12 +5,17 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 
 # Hardware Deployment — Phase 4 Guidelines
 
-## IBM Torino Target (133 qubits, Eagle r3)
+## IBM Kingston Target (156 qubits, Heron r2)
 
 ### Connection
 - Use `QiskitRuntimeService` with `channel="ibm_quantum_platform"`
 - Token from `os.environ["IBM_KEY"]`, instance from `os.environ["IBM_INSTANCE_CRN"]`
-- Backend: `"ibm_torino"` (or latest Eagle r3 processor)
+- Backend: `"ibm_kingston"` (Heron r2, 156 qubits). Override with `--backend <name>`.
+- Alternative: `"ibm_boston"` (Heron r3, if on paid plan — better error rates, EPLG=2.15×10⁻³).
+- **API (qiskit-ibm-runtime 0.47.0)**:
+  - `EstimatorV2(mode=backend)` — NOT `backend=` (changed ~v0.40)
+  - Multi-job submissions MUST use `Batch(backend=backend)` context (prevents CANCELLED jobs)
+  - `job.metrics()["timestamps"]["running"]` is ISO string, NOT numeric seconds
 
 ### Circuit Preparation
 - `generate_preset_pass_manager(backend=backend, optimization_level=2)`
@@ -171,20 +176,73 @@ result = backend.run_deployment(circuit, H, params, h, e_exact, gap)  # Full pip
 
 ### Rehearsal (mandatory before real QPU)
 ```bash
-# Full rehearsal (9 sections, ~60s)
-python scripts/experiment_runners/run_hardware_rehearsal_v2.py
+# Full rehearsal (9 sections, ~60s) — via unified CLI
+python scripts/hardware.py rehearsal
+make hw-rehearsal
 
-# Quick check (sections 1-3 only)
-python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 1 2 3
+# With optional Section 0 (backend preflight)
+python scripts/hardware.py rehearsal --run-preflight
+
+# Quick check (cost + circuit audit, ~2s)
+python scripts/hardware.py rehearsal --section 8 9
+make hw-rehearsal-quick
+
+# Analyze results → GO/NO-GO verdict
+python scripts/hardware.py analyze
+make hw-analyze
 ```
 
-### Deployment Script (real QPU)
+### Deployment Script (real QPU — calibration-first)
 ```bash
-# Tiered deployment on IBM Torino
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py  # Full auto
+# Step 0: Cost estimate (no QPU)
+make hw-deploy-dry
+
+# Step 1: Calibration run — with PEA preset selection
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+    --no-spsa --tier 0 --pea-config balanced --backend ibm_kingston
+# → Output: "Full sweep will take X min based on measured T_one_job"
+
+# PEA preset options (from calibration study):
+#   --pea-config default        → 32×128=4K learning (fast, may fail on degraded cal)
+#   --pea-config balanced       → 48×192=9K learning (recommended sweet spot)
+#   --pea-config aggressive     → 64×256=16K learning + 3 layouts (slow, max accuracy)
+#   --pea-config default_3layout → 32×128 + 3 layouts (tests variance reduction)
+
+# Step 2: Full deployment (recommended with --no-spsa safety)
+make hw-deploy
+# Equivalent to:
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
+
+# Manual options:
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0      # Calibration
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 1 2 3  # Execution
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa     # No SPSA (safe)
 ```
+
+### Real QPU Findings (2026-06-14, ibm_kingston)
+
+| Config | ΔE/gap | Wall-clock | Verdict | Note |
+|--------|--------|-----------|---------|------|
+| default (32×128, 1 layout) | 32.5% | 12.4 min | FAIL | PEA model too coarse for 3.4% error |
+| aggressive (64×256, 3 layouts) | — | >17 min (cancelled) | — | Too expensive for iterative testing |
+
+**Lesson**: IBM default PEA budget is insufficient when chip-wide 2Q error > 2%.
+The `balanced` preset (48×192, [1,1.5,3]) targets the sweet spot between accuracy and QPU cost.
+
+### Preflight Thresholds (updated 2026-06-14)
+
+| Check | Abort threshold | Warning threshold | Rationale |
+|-------|:-:|:-:|---|
+| Mean 2Q error (chip-wide) | >5% | >3% | Large chips (150+q) have degraded outliers; layout selection avoids them |
+| P5 T1 | <30 μs | — | Widespread decoherence |
+| Min T1 | — | <50 μs | Isolated TLS defect (layout avoids) |
+| Queue depth | — | >50 jobs | Execute during off-peak |
+
+### SPSA Budget Warning
+On real hardware with T_one_job ≈ 60s:
+- SPSA trigger on ONE h-point = 200 iters × 2 evals × 60s = **400 min**
+- Always use `--no-spsa` unless you specifically need refinement
+- If MPNN predictions pass rehearsal (ΔE/gap < 5%), SPSA is unnecessary
 
 ---
 
@@ -223,6 +281,14 @@ class MyHWRunner(HardwareValidationRunner):
 --zne-amplifier gate_folding|pea|adaptive  # ZNE noise amplification strategy
 --zne-noise-factors 1 3 5      # Noise amplification factors
 --zne-r2-threshold 0.90        # R² threshold for adaptive fallback
+--run-preflight                 # Include Section 0 (HardwareBackend preflight)
+--no-spsa                       # Disable SPSA refinement (deployment script)
+--p-layers 1                    # HVA layers (rehearsal)
+--h-test 4.0 3.25 3.0          # Override test h-values (rehearsal)
+--h-train 4.5 4.25 ...         # Override training h-values (rehearsal)
+--vqe-restarts 1               # VQE restart count (rehearsal)
+--mpnn-epochs 6000             # MPNN training epochs (rehearsal)
+--mpnn-hidden-dim 128          # MPNN hidden dimension (rehearsal)
 ```
 
 ### Dual Persistence

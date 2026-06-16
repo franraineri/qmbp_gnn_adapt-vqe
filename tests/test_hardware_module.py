@@ -80,7 +80,7 @@ def hw_config(tmp_output):
 class TestConfig:
     def test_defaults(self):
         cfg = HardwareConfig()
-        assert cfg.backend_name == "ibm_torino"
+        assert cfg.backend_name == "ibm_kingston"
         assert cfg.mode == "hardware"
         assert cfg.n_qubits == 10
         assert cfg.shots == 16384

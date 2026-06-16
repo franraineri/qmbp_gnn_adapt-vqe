@@ -704,6 +704,114 @@ field achieves fid≥0.98 at g=0.5 with zero hardware overhead (10 CZ at N=6 p=1
 to standard TFIM). Models requiring additional 2-body interactions (XX, YY) such as the
 Kitaev chain exceed the CX budget by 2× and are not viable under p≤2 constraints."
 
+---
+
+## Table 5.22b — Model Extensibility: Applicability Boundary of HVA p≤2
+
+> **Context**: Analysis of 2026-06-15 session. Full detail:
+> `documentation/binnacles/binnacle-hamiltonian-candidates.md` (Addenda 1 & 2),
+> `documentation/analysis/21_future_work_techniques.md` §8.
+
+### Scalability of TFIM + Longitudinal Field
+
+The TFIM+longitudinal model scales identically to standard TFIM at the hardware level,
+since the additional g·Z term maps to single-qubit RZ rotations (zero 2Q gate overhead).
+At p=1, the CX count across all system sizes is unchanged:
+
+| N | CX (TFIM p=1) | CX (Long. p=1) | ZNE/PEA viable |
+|---|:---:|:---:|:---:|
+| 6 | 10 | 10 | ✅ |
+| 10 | 18 | 18 | ✅ |
+| 40 | 78 (transpiled) | 78 (transpiled) | ✅ PEA |
+| 50 | 98 (transpiled) | 98 (transpiled) | ✅ PEA |
+
+The scalability bottleneck is not hardware depth but **ansatz expressibility**. At p=1,
+the valid range of g shrinks rapidly with h:
+
+| h | g_max (p=1, fid≥0.93) | g_max (p=2, fid≥0.93) |
+|---|:---:|:---:|
+| 2.00 | 0.1 | ≥0.5 |
+| 1.50 | 0.0 | ≥0.5 |
+
+The regime where the model is physically meaningful (g≥0.3, visible Z₂ breaking) is
+exactly the regime where p=1 is expressibility-limited. The constraint p≤2 (Mele et al.,
+Nature Physics 2026) prevents access to the more expressive p=2 in hardware at N≥6.
+Consequently, the longitudinal extension delivers **demonstrative value** (confirms
+framework extensibility) rather than operational value (no new physics observable
+beyond TFIM standard at g≤0.1).
+
+The θ-smoothness of the longitudinal landscape is 10× better than standard TFIM
+(θ_smooth = 0.03 vs 0.30 for TFIM; Section 7, E4b hardware readiness).
+This unexpected advantage — the RZ layer adds a degree of freedom that smooths
+the optimization landscape — means that any future hardware run at g≤0.1 would
+converge more reliably than a standard TFIM run.
+
+### Why XX+YY Models Are Incompatible with the Framework
+
+A systematic evaluation of models with XX+YY interactions reveals a shared physical
+barrier. The ground state of the Heisenberg XXZ chain (XX+YY+Δ·ZZ) requires
+entanglement entropy that scales as S(L/2) ≈ 2.2 bits (antiferromagnetic phase).
+The Kitaev chain requires pairing correlations (BCS-like ground state) with
+S(L/2) ≈ 1.0–1.5 bits. In contrast, the TFIM family has S(L/2) ≈ 0.5–1.0 bits
+in the valid operating regime (h≥1.2):
+
+| Model | S(L/2) estimate | HVA p=2 fidelity | Hardware viable |
+|-------|:---:|:---:|:---:|
+| TFIM (h=2) | ~0.5 | ≥0.99 | ✅ |
+| TFIM+Longitudinal (g=0.3) | ~0.5 | ≥0.98 | ✅ (g≤0.1 at p=1) |
+| TFIM Frustrated (J₂=0.3) | ~0.5 | ≥0.999 | ⚠️ sim only (27 CZ) |
+| Heisenberg (h=3, Δ=1) | ~2.2 | 0.48% (p=6) | ❌ |
+| Kitaev chain (μ=1.5) | ~1.0–1.5 | 16% max (p=1) | ❌ |
+
+The Heisenberg model fails not for lack of parameters or optimization restarts —
+V9 (30 runs, depth scaling to p=6, N=6/10/16) demonstrates that fidelity saturates
+at 48% regardless of depth, with energy gap scaling as ΔE ≈ 3.8N (linear in N).
+The Kitaev chain simultaneously fails on three independent constraints: wrong initial
+state (|+⟩^N has exponentially small overlap with BCS ground state), 2× CX budget
+(RXX+RYY per bond = 20 CZ at N=6, vs 18 CZ threshold), and global parameters
+unable to capture per-bond pairing structure.
+
+This establishes a **predictive rule for model viability under HVA p≤2**:
+
+> A Hamiltonian is compatible with the GNN-HVA framework if and only if its ground
+> state entanglement entropy in the operating regime satisfies S(L/2) ≲ log(p+1).
+> For p=2, this limits compatible models to those solvable by p≤2 layers of ZZ+RX
+> gates — precisely the free-fermion and weakly-frustrated Ising universality classes.
+
+The frustrated TFIM (J₁-J₂) is the boundary case: fid≥0.999 in simulation (lowest
+entanglement of all extension models) but not hardware-deployable at N≥6 due to
+NNN bond overhead (27 CZ). It represents the maximally expressive model accessible
+to the framework in simulation.
+
+### Boundary Diagram: Viable Operating Regimes
+
+```
+                Hardware viable?
+                    YES         NO
+HVA p=2      ┌──────────────────────────────┐
+expressive?  │ TFIM          TFIM Frustrated │
+     YES     │ TFIM+Long (g≤0.5)   (sim-only)│
+             ├──────────────────────────────┤
+     NO      │ [empty]      Heisenberg XYZ  │
+             │              Kitaev chain    │
+             │              XY model        │
+             └──────────────────────────────┘
+```
+
+The framework occupies the upper-left quadrant. Extending to the upper-right requires
+reducing the 2Q gate count per interaction (e.g., PauliEvolutionGate scheduling gives
+−11% 2Q depth but does not change the gate count for NNN interactions). Extending to
+the lower-left is the future work direction: symmetry-preserving ansätze for Heisenberg
+(Sharma et al., arXiv:2512.23009) — see `documentation/analysis/21_future_work_techniques.md` §8.
+
+**Thesis statement (scalability)**: "The TFIM+longitudinal extension scales to arbitrary
+N without hardware overhead, since the additional term maps to single-qubit gates.
+However, the operationally useful regime (g≥0.3) requires p=2, which exceeds the ZNE
+budget for N≥6. At p=1, only g≤0.1 is expressible, providing demonstrative value
+(confirms framework extensibility) but no new observable physics. The fundamental
+scalability limit for all XX+YY models is entanglement entropy: S(L/2)≳log(p+1)
+renders these models incompatible with HVA p≤2, independent of system size or
+optimization strategy."
 
 ---
 

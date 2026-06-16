@@ -131,7 +131,122 @@ in Large-Scale VQE," arXiv:2509.15193 (2025).
 
 ---
 
-## 7. GNN for Quantum Chip Parameter Design
+## 7. Probing the p≤2 Expressibility Boundary for XX+YY Models
+
+> **Origen**: Análisis de sesión 2026-06-15 — extensibilidad de modelos y límites del HVA.
+> **Contexto completo**: `documentation/binnacles/binnacle-hamiltonian-candidates.md` (Addendum 2).
+
+### El límite conocido
+
+Los modelos con interacciones XX+YY (Heisenberg, Kitaev, XY) requieren entanglement
+que escala linealmente con N. HVA p≤2 no puede producir este entanglement — confirmado
+en V9 (Heisenberg: fid_max=48% a p=6, ΔE_gap ≈ 3.8N) y en el análisis de Kitaev
+(fid_max=16% a N=4 p=1). Esta es una limitación física, no de implementación.
+
+### Qué estudiar y cómo (si tiene sentido ejecutarlo)
+
+**Objetivo**: Confirmar (o refutar) que el límite viene del entanglement y no de
+otros factores subsanables como el estado inicial o la cantidad de parámetros.
+
+#### Experimento FW-A: Depth Scaling en punto de alta simetría
+
+**Hipótesis**: Si el límite es de entanglement, la fidelidad debe saturar antes
+de alcanzar p=N/2 (límite teórico para reproduir el estado exacto con HVA tipo brick-wall).
+
+**Protocolo**:
+- Modelo: Heisenberg XXZ (Δ=1), N=6, estado Néel, h=3 (régimen estudiado)
+- Barrer p ∈ {1, 2, 3, 4, 5, 6, 8, 10} (ya tenemos p=2..6 de V9)
+- Medir: fidelidad, entanglement entropy S(L/2), gap de energía ΔE/gap
+- Resultado esperado: S(L/2) crece logarítmicamente con p, satura antes de fid≥0.90
+
+**Por qué tiene sentido**: V9 ya tiene p=2..6. Solo hay que extender a p=8, p=10.
+El experimento toma ~30min. Si la fidelidad satura en p=5-6 (como sugiere V9),
+eso confirma que el problema no se resuelve con más profundidad dentro del HVA.
+
+**Condición para ejecutarlo**: Solo si el capítulo 5/6 necesita un gráfico de
+"depth scaling saturation" para sostener la claim de límite físico. Los datos de V9 (p≤6)
+ya son suficientes para el argumento textual.
+
+#### Experimento FW-B: Symmetry-Preserving Ansatz para Heisenberg
+
+**Hipótesis**: Un ansatz que preserve el sector S_z=0 por construcción evita la
+trampa del estado Néel (gradient=0 fuera del sector correcto).
+
+**Protocolo**:
+- Implementar `create_heisenberg_symmetric()` con gates que conserven S_z
+- Referencia: Sharma et al. (arXiv:2512.23009) — validado en IQM Garnet
+- Comparar fidelidad con HVA estándar a p=2 y p=4
+- N=6, h=2 (régimen donde HVA falla más claramente)
+
+**Por qué tiene sentido**: Esfuerzo ~1 semana. Si la hipótesis es correcta
+(S_z-preserving llega a fid≥0.90 con p=3-4), entonces el Heisenberg pasa de
+"no viable" a "viable con ansatz especializado". Eso es una nueva contribución.
+
+**Condición para ejecutarlo**: El proyecto ya tiene toda la infraestructura.
+Solo requiere `create_heisenberg_symmetric()` en `circuits/hva.py` y registrar
+en el registry como `heisenberg_symmetric`. El registro es el lugar correcto:
+no viola el Code Map "Stable" vs "Active Development" (circuits/ está en Stable,
+pero el model registry acepta nuevas entradas sin modificar los builders existentes).
+
+**ATENCIÓN**: No ejecutar antes del hardware deployment. Es trabajo post-tesis.
+
+#### Experimento FW-C: Entanglement Entropy como predictor de viabilidad HVA
+
+**Hipótesis**: La entropía de entrelazamiento del ground state exacto (S_exact)
+predice si el HVA p≤2 puede expresarlo. Criterio propuesto: si S(L/2) ≤ log(2)
+(un bit de entanglement), HVA p=1 es suficiente. Si S(L/2) ≤ 2·log(2), p=2 suficiente.
+
+**Protocolo**:
+- Para cada modelo del registry: calcular S(L/2) del ground state exacto (Phase 1, N=6)
+- Correlacionar con fidelidad VQE real de Phase 2
+- TFIM: S(L/2) ≈ 0.5 (h=2) → 1.0 (h=1.0). Heisenberg: S(L/2) ≈ 2.2 (antiferro)
+- Si la correlación R²>0.9: el criterio es predictivo y se puede publicar
+
+**Por qué tiene sentido**: Costo ~0 QPU (solo análisis de datos ya calculados en
+Phase 1). ClassicalSolver ya devuelve el ground state exacto — solo añadir
+`compute_entanglement_entropy(psi, cut=N//2)` en el análisis. Resultado:
+una **regla predictiva de viabilidad de modelos** sin necesidad de ejecutar VQE.
+
+**Prioridad**: ALTA. Bajo costo, alto valor científico, y los datos ya existen
+(V9 y el binnacle de Heisenberg tienen todo lo necesario).
+
+### Estado actual de la evidencia
+
+| Modelo | S(L/2) estimada | HVA p=2 fid | Veredicto |
+|--------|:-:|:---:|:---:|
+| TFIM (h=2) | ~0.5 | ≥0.99 | ✅ |
+| TFIM+Long (h=2, g=0.3) | ~0.5 | ≥0.98 | ✅ |
+| TFIM frustrated (h=2, J₂=0.3) | ~0.5 | ≥0.999 | ✅ |
+| Heisenberg (h=3) | ~2.2 | 0.48% (p=6) | ❌ |
+| Kitaev (μ=1.5) | ~1.0-1.5 | 0.16 (p=1) | ❌ |
+
+La correlación ya es visible. El FW-C solo requiere calcular S explícitamente
+y ajustar el umbral.
+
+### Conexión con literatura
+
+- **Mele et al. (Nature Physics 2026)**: El límite de profundidad O(log N) en
+  presencia de ruido no-unital es la restricción dura que hace que HVA p=2 sea
+  el límite práctico. No es negociable para hardware NISQ.
+- **Sumeet et al. (arXiv:2310.07600)**: Demuestran que se necesitan N/2 capas para
+  alcanzar el límite termodinámico exacto — para N=6 eso es p=3, que ya excede el
+  presupuesto de ZNE.
+- **Tripathi et al. (arXiv:2604.20961)**: Confirman que HVA p=2 lucha con la
+  entropía de entrelazamiento en la criticidad — validación independiente de nuestro resultado.
+
+### Refs
+
+- Sharma et al., arXiv:2512.23009 (symmetry-preserving para Heisenberg)
+- Javanmard et al., arXiv:2401.02355 (MPS-inspired ansatz para Kagome)
+- Mele et al., Nature Physics 2026 (límite de profundidad — regla p≤2)
+- Sumeet et al., arXiv:2310.07600 (N/2 layers para límite termodinámico)
+- Binnacle detallado: `documentation/binnacles/binnacle-hamiltonian-candidates.md` (Addendum 2)
+- Resultados Heisenberg: `documentation/binnacles/binnacle-heisenberg-extension.md`
+- Análisis de sesión: `documentation/analysis/15_heisenberg_future_work.md`
+
+---
+
+## 8. GNN for Quantum Chip Parameter Design
 
 **What it is**: Use GNN to design parameters of superconducting quantum chips
 (junction frequencies, coupling strengths). Achieves 51% fewer errors than

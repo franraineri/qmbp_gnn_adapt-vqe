@@ -1,0 +1,34 @@
+{
+  "backend_name": "ibm_kingston",
+  "mode": "hardware",
+  "n_qubits": 10,
+  "shots": 16384,
+  "n_layouts": 3,
+  "n_candidates": 40,
+  "max_ces": 0.5,
+  "optimization_level": 2,
+  "layout_seed": 42,
+  "job_timeout_s": 900,
+  "max_retries": 3,
+  "retry_delay_s": 60,
+  "max_total_shots": 10000000,
+  "spsa_enabled": false,
+  "spsa_threshold": 0.05,
+  "output_dir": "results/hardware/run_20260614_195523",
+  "mitigation": {
+    "zne_enabled": true,
+    "zne_noise_factors": [
+      1,
+      1.5,
+      2,
+      3
+    ],
+    "zne_amplifier": "pea",
+    "zne_r2_fallback_threshold": 0.9,
+    "dd_enabled": true,
+    "trex_enabled": true,
+    "twirling_enabled": true,
+    "num_randomizations": 64,
+    "shots_per_randomization": 256
+  }
+}

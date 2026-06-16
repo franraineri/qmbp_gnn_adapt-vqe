@@ -328,7 +328,10 @@ make thesis-figures                                                     # Quick 
 Available figures: `global_de_gap_distribution`, `scaling_law_comprehensive`,
 `topology_performance_violin`, `pea_vs_gf_comparison`, `gnn_qem_summary_panel`,
 `experiment_verdicts_overview`, `pipeline_timing_stacked`, `cross_n_performance_heatmap`,
-`findings_corroboration_summary`, `zne_gain_by_topology_and_strategy`.
+`findings_corroboration_summary`, `zne_gain_by_topology_and_strategy`,
+`pca_phase_detection`, `cross_n_zero_shot_bar`, `gnn_qem_ablation_bar`,
+`failure_mode_treemap`, `scaling_timing_power_law`, `zne_pea_forest_plot`,
+`mpnn_generalization_scatter`, `vqe_convergence_landscape`.
 
 ### 15. Full Thesis Compilation (`make thesis-all`)
 

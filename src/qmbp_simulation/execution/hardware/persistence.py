@@ -75,7 +75,12 @@ def save_run(
             "n_qubits": config.n_qubits,
             "layout_selection_seed": config.layout_seed,
             # QPU usage (from job.metrics(), populated for real hardware jobs)
-            "total_qpu_seconds": sum(r.get("qpu_seconds", 0) or 0 for r in raw_per_layout) or None,
+            "total_qpu_seconds": sum(
+                r.get("qpu_seconds", 0)
+                for r in raw_per_layout
+                if isinstance(r.get("qpu_seconds"), (int, float))
+            )
+            or None,
         },
         run_dir / "provenance.json",
     )

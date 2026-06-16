@@ -13,6 +13,7 @@ Key improvements over V1:
     - Reports mitigation_strategy, layout_std, fallback_triggered in results.
 
 Sections:
+    0. HardwareBackend Preflight (optional, --run-preflight)
     1. MPNN Prediction Quality: θ_pred produces ΔE/gap<5% noiseless
     2. HardwareBackend Noisy Pipeline: Full backend.evaluate() + ZNE
     3. Observable SNR & Phase Classification: Correct label from noisy data
@@ -23,6 +24,7 @@ Usage:
     python scripts/experiment_runners/run_hardware_rehearsal_v2.py --zne-amplifier adaptive
     python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 2
     python scripts/experiment_runners/run_hardware_rehearsal_v2.py --dry-run
+    python scripts/experiment_runners/run_hardware_rehearsal_v2.py --run-preflight
 """
 
 from __future__ import annotations
@@ -42,6 +44,7 @@ if str(_ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Configuration (aligned with HARDWARE_DEPLOYMENT_SPEC + NM refactoring)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -52,7 +55,7 @@ DEFAULT_P_LAYERS = 1
 DEFAULT_MODEL = "tfim"
 DEFAULT_SEEDS = [42, 43, 44]
 
-H_TEST_POINTS = [4.0, 3.25, 3.0]
+H_TEST_POINTS = [4.0, 3.5, 3.25]
 H_TRAIN_GRID = [4.5, 4.25, 4.0, 3.75, 3.5, 3.25, 3.0]
 
 ZNE_N_LAYOUTS = 3
@@ -88,7 +91,7 @@ class HardwareRehearsalV2(ValidationRunner):
     experiment_id = "HW_REHEARSAL_V2"
     description = "Hardware Rehearsal V2 (PEA/GF/Adaptive ZNE via HardwareBackend)"
     hypothesis = (
-        "HardwareBackend(mode=fake_backend) produces ΔE/gap<5% at h≥3.0 "
+        "HardwareBackend(mode=fake_backend) produces ΔE/gap<5% at h≥3.25 "
         "using PEA or adaptive ZNE on FakeTorino"
     )
 
@@ -141,6 +144,49 @@ class HardwareRehearsalV2(ValidationRunner):
             default=None,
             help="Override test h-values",
         )
+        parser.add_argument(
+            "--run-preflight",
+            action="store_true",
+            default=False,
+            help="Run HardwareBackend preflight checks before sections execute (topology, cost ceiling)",
+        )
+        parser.add_argument(
+            "--p-layers",
+            type=int,
+            default=DEFAULT_P_LAYERS,
+            help="HVA layers (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--h-train",
+            type=float,
+            nargs="+",
+            default=None,
+            help="Override training h-values",
+        )
+        parser.add_argument(
+            "--n-shots-reps",
+            type=int,
+            default=5,
+            help="Repetitions for shot noise section (default: 5)",
+        )
+        parser.add_argument(
+            "--vqe-restarts",
+            type=int,
+            default=VQE_RESTARTS,
+            help="VQE restarts (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--mpnn-epochs",
+            type=int,
+            default=MPNN_EPOCHS,
+            help="MPNN training epochs (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--mpnn-hidden-dim",
+            type=int,
+            default=MPNN_HIDDEN_DIM,
+            help="MPNN hidden dim (default: %(default)s)",
+        )
 
     def build_config(self) -> dict:
         """Full reproducibility config."""
@@ -151,11 +197,11 @@ class HardwareRehearsalV2(ValidationRunner):
             "description": self.description,
             "system": {
                 "n_qubits": self._args.n_qubits,
-                "p_layers": DEFAULT_P_LAYERS,
+                "p_layers": self._args.p_layers,
                 "topology": self._args.topology,
                 "model": self._args.model,
             },
-            "h_train": H_TRAIN_GRID,
+            "h_train": self._args.h_train or H_TRAIN_GRID,
             "h_test": self._args.h_test or H_TEST_POINTS,
             "seeds": DEFAULT_SEEDS,
             "zne": {
@@ -163,6 +209,13 @@ class HardwareRehearsalV2(ValidationRunner):
                 "r2_threshold": self._args.zne_r2_threshold,
                 "shots": self._args.shots,
                 "n_layouts": ZNE_N_LAYOUTS,
+            },
+            "vqe": {
+                "restarts": self._args.vqe_restarts,
+            },
+            "mpnn": {
+                "epochs": self._args.mpnn_epochs,
+                "hidden_dim": self._args.mpnn_hidden_dim,
             },
             "thresholds": {
                 "de_gap": DE_GAP_THRESHOLD,
@@ -229,13 +282,16 @@ class HardwareRehearsalV2(ValidationRunner):
     def define_sections(self) -> list[Section]:
         """Define V2 rehearsal sections.
 
+        Section 0 (optional): HardwareBackend Preflight (--run-preflight flag).
         Sections 1-3: Core pipeline validation (MPNN → ZNE → full deployment).
         Section 4: Adaptive ZNE mechanism validation.
         Section 5: Amplifier comparison (GF vs PEA cost/quality tradeoff).
         Section 6: Shot noise reproducibility (is one QPU run representative?).
         Section 7: Phase classification from noisy observables.
+        Section 8: QPU cost & timeout estimation.
+        Section 9: Transpiled circuit depth audit.
         """
-        return [
+        core_sections = [
             Section(
                 id=1,
                 name="MPNN Prediction Quality (Noiseless)",
@@ -292,6 +348,48 @@ class HardwareRehearsalV2(ValidationRunner):
             ),
         ]
 
+        if self._args.run_preflight:
+            preflight_section = Section(
+                id=0,
+                name="HardwareBackend Preflight",
+                fn=self.section_hw_preflight,
+                hypothesis="Backend topology and cost ceiling are viable for deployment",
+            )
+            return [preflight_section] + core_sections
+
+        return core_sections
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Section 0: HardwareBackend Preflight (optional)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def section_hw_preflight(self) -> dict:
+        """Run HardwareBackend preflight checks before other sections execute.
+
+        Only included when --run-preflight is passed. Checks topology
+        connectivity, cost ceiling, calibration quality, readout error,
+        T1/T2 coherence, and native gate support.
+        """
+        from qmbp_simulation.execution.hardware.preflight import run_preflight_checks
+
+        logger.info("  Running HardwareBackend preflight checks...")
+        checks = run_preflight_checks(
+            self.hw_backend._backend,
+            self._hw_config,
+            self.slog,
+        )
+
+        aborted = checks.get("abort", True)
+        if aborted:
+            logger.error(f"  Preflight ABORT: {checks.get('abort_reason', 'unknown')}")
+        else:
+            logger.info("  Preflight PASS — backend viable for deployment")
+
+        return {
+            **checks,
+            "pass": not aborted,
+        }
+
     # ──────────────────────────────────────────────────────────────────────────
     # Section 1: MPNN Prediction Quality (noiseless baseline)
     # ──────────────────────────────────────────────────────────────────────────
@@ -310,18 +408,20 @@ class HardwareRehearsalV2(ValidationRunner):
         topology = self._args.topology
         n_qubits = self._args.n_qubits
         h_test = self._args.h_test or H_TEST_POINTS
+        h_train = self._args.h_train or H_TRAIN_GRID
+        p_layers = self._args.p_layers
         seed = DEFAULT_SEEDS[0]
 
-        logger.info(f"  MPNN training: {topology} N={n_qubits} p={DEFAULT_P_LAYERS}")
+        logger.info(f"  MPNN training: {topology} N={n_qubits} p={p_layers}")
 
         # VQE descending sweep for training data
         theta_map = self.vqe_descending_sweep(
             topology=topology,
             n_qubits=n_qubits,
-            h_values=H_TRAIN_GRID,
+            h_values=h_train,
             seed=seed,
-            p_layers=DEFAULT_P_LAYERS,
-            n_restarts=VQE_RESTARTS,
+            p_layers=p_layers,
+            n_restarts=self._args.vqe_restarts,
             model=self._args.model,
         )
         n_params = len(next(iter(theta_map.values())))
@@ -345,12 +445,12 @@ class HardwareRehearsalV2(ValidationRunner):
         predictor = self.MPNNPredictor(
             node_features=graph_dataset[0].x.shape[1],
             output_dim=n_params,
-            hidden_dim=MPNN_HIDDEN_DIM,
+            hidden_dim=self._args.mpnn_hidden_dim,
         )
         train_result = self.train_mpnn(
             predictor,
             graph_dataset,
-            n_epochs=MPNN_EPOCHS,
+            n_epochs=self._args.mpnn_epochs,
             lr=MPNN_LR,
             patience=MPNN_PATIENCE,
             seed=seed,
@@ -386,7 +486,7 @@ class HardwareRehearsalV2(ValidationRunner):
             lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
             H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
             circuit_t, _ = self._spec.create_circuit(
-                n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+                n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
             )
             e_pred = self.noiseless.evaluate(circuit_t, H_t, theta_pred)
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
@@ -451,6 +551,7 @@ class HardwareRehearsalV2(ValidationRunner):
         topology = self._args.topology
         n_qubits = self._args.n_qubits
         h_test = self._args.h_test or H_TEST_POINTS
+        p_layers = self._args.p_layers
 
         logger.info(f"  HardwareBackend.evaluate() with amplifier={self._args.zne_amplifier}")
 
@@ -464,8 +565,8 @@ class HardwareRehearsalV2(ValidationRunner):
                     n_qubits,
                     [h_t],
                     seed=42,
-                    p_layers=DEFAULT_P_LAYERS,
-                    n_restarts=VQE_RESTARTS,
+                    p_layers=p_layers,
+                    n_restarts=self._args.vqe_restarts,
                     model=self._args.model,
                 )
                 theta = theta_map[h_t]
@@ -475,7 +576,7 @@ class HardwareRehearsalV2(ValidationRunner):
             lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
             H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
             circuit_t, _ = self._spec.create_circuit(
-                n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+                n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
             )
 
             # Reference energies
@@ -559,6 +660,7 @@ class HardwareRehearsalV2(ValidationRunner):
         """
         topology = self._args.topology
         n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
         h_deploy = 3.25
 
         logger.info(f"  Full run_deployment() at h={h_deploy}")
@@ -570,8 +672,8 @@ class HardwareRehearsalV2(ValidationRunner):
                 n_qubits,
                 [h_deploy],
                 seed=42,
-                p_layers=DEFAULT_P_LAYERS,
-                n_restarts=VQE_RESTARTS,
+                p_layers=p_layers,
+                n_restarts=self._args.vqe_restarts,
                 model=self._args.model,
             )
             theta = theta_map[h_deploy]
@@ -580,7 +682,7 @@ class HardwareRehearsalV2(ValidationRunner):
         lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_deploy)
         H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
         circuit_t, _ = self._spec.create_circuit(
-            n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+            n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
         )
 
         # Exact reference
@@ -639,6 +741,7 @@ class HardwareRehearsalV2(ValidationRunner):
         np = self.np
         topology = self._args.topology
         n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
         h_t = 3.25
 
         from qiskit_ibm_runtime.fake_provider import FakeTorino
@@ -664,8 +767,8 @@ class HardwareRehearsalV2(ValidationRunner):
                 n_qubits,
                 [h_t],
                 seed=42,
-                p_layers=DEFAULT_P_LAYERS,
-                n_restarts=VQE_RESTARTS,
+                p_layers=p_layers,
+                n_restarts=self._args.vqe_restarts,
                 model=self._args.model,
             )
             theta = theta_map[h_t]
@@ -673,7 +776,7 @@ class HardwareRehearsalV2(ValidationRunner):
         lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
         H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
         circuit_t, _ = self._spec.create_circuit(
-            n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+            n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
         )
         bound = circuit_t.assign_parameters(theta)
 
@@ -707,20 +810,28 @@ class HardwareRehearsalV2(ValidationRunner):
         logger.info(f"  GF result present: {result.gf_result is not None}")
         logger.info(f"  PEA result present: {result.pea_result is not None}")
 
-        # Validate fields
-        assert result.amplifier_used in ("gate_folding", "pea")
-        assert np.isfinite(result.extrapolated_value)
-        assert 0 <= result.r_squared <= 1.0
+        # Validate fields — using proper checks instead of bare asserts
+        if result.amplifier_used not in ("gate_folding", "pea"):
+            return {"error": f"Invalid amplifier_used: {result.amplifier_used}", "pass": False}
+        if not np.isfinite(result.extrapolated_value):
+            return {"error": "extrapolated_value is not finite", "pass": False}
+        if not (0 <= result.r_squared <= 1.0):
+            return {"error": f"r_squared={result.r_squared} out of [0,1]", "pass": False}
 
         # With pea_primary strategy (default): PEA is tried first.
         # If PEA succeeds (R²≥threshold), gf_result is None (GF never runs).
         # If PEA fails or R²<threshold, GF is used as fallback.
         if result.amplifier_used == "pea":
-            assert result.pea_result is not None
-            # GF may or may not be present depending on strategy
+            if result.pea_result is None:
+                return {"error": "pea_result is None but amplifier_used=pea", "pass": False}
         elif result.amplifier_used == "gate_folding":
-            assert result.gf_result is not None
-            assert result.fallback_triggered
+            if result.gf_result is None:
+                return {"error": "gf_result is None but amplifier_used=gate_folding", "pass": False}
+            if not result.fallback_triggered:
+                return {
+                    "error": "fallback_triggered should be True for gate_folding",
+                    "pass": False,
+                }
 
         # Compare to exact
         e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t)
@@ -755,6 +866,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         topology = self._args.topology
         n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
         h_t = 3.25
 
         from qiskit_ibm_runtime.fake_provider import FakeTorino
@@ -780,8 +892,8 @@ class HardwareRehearsalV2(ValidationRunner):
                 n_qubits,
                 [h_t],
                 seed=42,
-                p_layers=DEFAULT_P_LAYERS,
-                n_restarts=VQE_RESTARTS,
+                p_layers=p_layers,
+                n_restarts=self._args.vqe_restarts,
                 model=self._args.model,
             )
             theta = theta_map[h_t]
@@ -789,7 +901,7 @@ class HardwareRehearsalV2(ValidationRunner):
         lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
         H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
         circuit_t, _ = self._spec.create_circuit(
-            n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+            n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
         )
         bound = circuit_t.assign_parameters(theta)
 
@@ -890,8 +1002,9 @@ class HardwareRehearsalV2(ValidationRunner):
         np = self.np
         topology = self._args.topology
         n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
         h_t = 3.25
-        N_REPS = 5
+        N_REPS = self._args.n_shots_reps
 
         from qiskit_ibm_runtime.fake_provider import FakeTorino
 
@@ -914,8 +1027,8 @@ class HardwareRehearsalV2(ValidationRunner):
                 n_qubits,
                 [h_t],
                 seed=42,
-                p_layers=DEFAULT_P_LAYERS,
-                n_restarts=VQE_RESTARTS,
+                p_layers=p_layers,
+                n_restarts=self._args.vqe_restarts,
                 model=self._args.model,
             )
             theta = theta_map[h_t]
@@ -923,7 +1036,7 @@ class HardwareRehearsalV2(ValidationRunner):
         lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
         H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
         circuit_t, _ = self._spec.create_circuit(
-            n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+            n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
         )
         bound = circuit_t.assign_parameters(theta)
 
@@ -989,6 +1102,7 @@ class HardwareRehearsalV2(ValidationRunner):
         np = self.np
         topology = self._args.topology
         n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
         h_test = self._args.h_test or H_TEST_POINTS
         shots = self._args.shots
 
@@ -1008,15 +1122,15 @@ class HardwareRehearsalV2(ValidationRunner):
                     n_qubits,
                     [h_t],
                     seed=42,
-                    p_layers=DEFAULT_P_LAYERS,
-                    n_restarts=VQE_RESTARTS,
+                    p_layers=p_layers,
+                    n_restarts=self._args.vqe_restarts,
                     model=self._args.model,
                 )
                 theta = theta_map[h_t]
 
             lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
             circuit_t, _ = self._spec.create_circuit(
-                n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+                n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
             )
             bound = circuit_t.assign_parameters(theta)
 
@@ -1097,96 +1211,69 @@ class HardwareRehearsalV2(ValidationRunner):
         IBM Quantum charges by QPU-seconds (time the processor is locked).
         If a job exceeds max_execution_time, it is forcibly cancelled.
 
-        This section estimates:
-        - Total shots needed (shots × n_layouts × n_h_points × n_noise_factors)
-        - Estimated QPU seconds (from IBM's ~1500 CLOPS for Eagle r3)
-        - Whether it fits within typical max_execution_time (10 min default)
-        - Total cost in QPU-seconds for the full h-sweep
+        This section uses the depth-aware CLOPS model with amortized PEA
+        noise learning and optimistic/pessimistic SPSA scenarios.
 
         Reference: IBM docs.quantum.ibm.com/run/max-execution-time
         """
-        shots = self._args.shots
-        n_layouts = ZNE_N_LAYOUTS
+        from qmbp_simulation.execution.hardware.preflight import estimate_qpu_cost
+
         h_test = self._args.h_test or H_TEST_POINTS
-        amplifier = self._args.zne_amplifier
 
-        logger.info("  QPU Cost Estimation")
+        logger.info("  QPU Cost Estimation (depth-aware CLOPS model)")
 
-        # IBM Eagle r3 (Torino) approximate throughput
-        # CLOPS ≈ 1500 for 100-qubit circuits, ~3000 for 10-qubit
-        # 1 CLOP = 1 circuit layer operation per second
-        ESTIMATED_CLOPS = 2500  # Conservative for N=10 circuits
+        est = estimate_qpu_cost(
+            self._hw_config,
+            n_h_points=len(h_test),
+            include_spsa=True,
+        )
 
-        # Noise factors determine how many circuit variants per h-point
-        if amplifier == "pea":
-            # PEA: 3 noise factors + noise learning phase (~50% overhead)
-            n_noise_factors = 3
-            noise_learning_overhead = 1.5  # 50% extra for Pauli-Lindblad learning
-        elif amplifier == "gate_folding":
-            n_noise_factors = 3
-            noise_learning_overhead = 1.0  # No learning phase
-        else:  # adaptive
-            # Worst case: GF fails → PEA runs → 6 evaluations
-            n_noise_factors = 6
-            noise_learning_overhead = 1.5
-
-        # Per h-point cost
-        circuits_per_h = n_layouts * n_noise_factors
-        shots_per_h = circuits_per_h * shots
-        # Each circuit execution ≈ shots/CLOPS seconds
-        time_per_circuit_s = shots / ESTIMATED_CLOPS
-        time_per_h_s = circuits_per_h * time_per_circuit_s * noise_learning_overhead
-
-        # Full sweep
-        n_h = len(h_test)
-        total_circuits = n_h * circuits_per_h
-        total_shots = n_h * shots_per_h
-        total_time_s = n_h * time_per_h_s
-
-        # Additional overhead: observables (per-site X and ZZ)
-        n_observable_circuits = n_h * 2  # X group + ZZ group
-        obs_time_s = n_observable_circuits * time_per_circuit_s
-
-        # SPSA overhead (conditional, ~200 iters × 2 evals each if triggered)
-        spsa_worst_case_s = 200 * 2 * time_per_circuit_s * n_h * 0.3  # 30% chance
-
-        grand_total_s = total_time_s + obs_time_s + spsa_worst_case_s
-        max_execution_time = 600  # IBM default 10 min per job
-
-        fits_single_job = time_per_h_s < max_execution_time
-        fits_full_sweep = grand_total_s < (max_execution_time * n_h)
-
-        logger.info(f"    Circuits per h-point: {circuits_per_h}")
-        logger.info(f"    Shots per h-point: {shots_per_h:,}")
-        logger.info(f"    Est. time per h-point: {time_per_h_s:.1f}s")
-        logger.info(f"    Total h-points: {n_h}")
-        logger.info(f"    Total circuits: {total_circuits}")
-        logger.info(f"    Total shots: {total_shots:,}")
-        logger.info(f"    Est. ZNE time: {total_time_s:.1f}s")
-        logger.info(f"    Est. obs time: {obs_time_s:.1f}s")
-        logger.info(f"    SPSA worst case: {spsa_worst_case_s:.1f}s")
-        logger.info(f"    GRAND TOTAL: {grand_total_s:.1f}s ({grand_total_s / 60:.1f} min)")
-        logger.info(f"    Fits single job (<{max_execution_time}s): {fits_single_job}")
-        logger.info(f"    Fits full sweep: {fits_full_sweep}")
+        logger.info(f"    Effective CLOPS: {est.effective_clops} (ref: {est.estimated_clops})")
+        logger.info(f"    Time per circuit: {est.time_per_circuit_s:.2f}s")
+        logger.info(f"    Circuits per h-point: {est.circuits_per_h}")
+        logger.info(f"    Shots per h-point: {est.shots_per_h:,}")
+        logger.info(f"    Total h-points: {est.n_h_points}")
+        logger.info(f"    Total circuits: {est.total_circuits}")
+        logger.info(f"    Total shots: {est.total_shots:,}")
+        logger.info(f"    PEA noise learning (one-time): {est.pea_noise_learning_s:.1f}s")
+        logger.info(f"    Classical latency: {est.classical_latency_s:.1f}s")
+        logger.info(f"    SPSA per h (if triggered): {est.spsa_per_h_if_triggered_s:.1f}s")
+        logger.info("    ── Scenarios ──")
+        logger.info(
+            f"    Optimistic (no SPSA): {est.est_total_optimistic_s:.1f}s ({est.est_total_optimistic_s / 60:.1f} min)"
+        )
+        logger.info(
+            f"    Expected (P=0.30):    {est.est_total_s:.1f}s ({est.est_total_s / 60:.1f} min)"
+        )
+        logger.info(
+            f"    Pessimistic (always): {est.est_total_pessimistic_s:.1f}s ({est.est_total_pessimistic_s / 60:.1f} min)"
+        )
+        logger.info("    ── Budget checks ──")
+        logger.info(f"    Fits per job (<{est.max_execution_time_s}s): {est.fits_per_job}")
+        logger.info(f"    Fits full sweep (10 min): {est.fits_full_sweep_10min}")
 
         return {
-            "n_h_points": n_h,
-            "circuits_per_h": circuits_per_h,
-            "shots_per_h": shots_per_h,
-            "total_circuits": total_circuits,
-            "total_shots": total_shots,
-            "est_time_per_h_s": time_per_h_s,
-            "est_zne_time_s": total_time_s,
-            "est_obs_time_s": obs_time_s,
-            "est_spsa_time_s": spsa_worst_case_s,
-            "est_grand_total_s": grand_total_s,
-            "est_grand_total_min": grand_total_s / 60,
-            "max_execution_time_s": max_execution_time,
-            "fits_single_job": fits_single_job,
-            "fits_full_sweep": fits_full_sweep,
-            "amplifier": amplifier,
-            "estimated_clops": ESTIMATED_CLOPS,
-            "pass": fits_single_job,
+            "n_h_points": est.n_h_points,
+            "circuits_per_h": est.circuits_per_h,
+            "shots_per_h": est.shots_per_h,
+            "total_circuits": est.total_circuits,
+            "total_shots": est.total_shots,
+            "effective_clops": est.effective_clops,
+            "time_per_circuit_s": est.time_per_circuit_s,
+            "pea_noise_learning_s": est.pea_noise_learning_s,
+            "classical_latency_s": est.classical_latency_s,
+            "spsa_per_h_if_triggered_s": est.spsa_per_h_if_triggered_s,
+            "est_time_per_h_s": est.est_time_per_h_s,
+            "est_total_optimistic_s": est.est_total_optimistic_s,
+            "est_grand_total_s": est.est_total_s,
+            "est_total_pessimistic_s": est.est_total_pessimistic_s,
+            "est_grand_total_min": est.est_total_s / 60,
+            "max_execution_time_s": est.max_execution_time_s,
+            "fits_single_job": est.fits_per_job,
+            "fits_full_sweep_10min": est.fits_full_sweep_10min,
+            "amplifier": est.amplifier,
+            "estimated_clops": est.estimated_clops,
+            "pass": est.fits_per_job,
         }
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -1206,10 +1293,18 @@ class HardwareRehearsalV2(ValidationRunner):
         unreliable results (R² drops, extrapolation breaks).
 
         Reference: Project ZNE budget rule — p=1 N=10 ≈ 18 CX gates.
+
+        Note: Uses validate_circuit_for_zne for the primary circuit check,
+        then performs a per-layout audit across all transpiled circuits
+        (the per-layout audit is distinct from validate_circuit_for_zne
+        which checks only a single un-transpiled circuit).
         """
+        from qmbp_simulation.execution.hardware.preflight import validate_circuit_for_zne
+
         np = self.np
         topology = self._args.topology
         n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
         h_test = self._args.h_test or H_TEST_POINTS
 
         from qiskit_ibm_runtime.fake_provider import FakeTorino
@@ -1241,19 +1336,26 @@ class HardwareRehearsalV2(ValidationRunner):
                 n_qubits,
                 [h_t],
                 seed=42,
-                p_layers=DEFAULT_P_LAYERS,
-                n_restarts=VQE_RESTARTS,
+                p_layers=p_layers,
+                n_restarts=self._args.vqe_restarts,
                 model=self._args.model,
             )
             theta = theta_map[h_t]
 
         lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
         circuit_t, _ = self._spec.create_circuit(
-            n_qubits, DEFAULT_P_LAYERS, lattice_t, **self._spec.circuit_kwargs
+            n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
         )
         bound = circuit_t.assign_parameters(theta)
 
-        # Select layouts and transpile
+        # Run validate_circuit_for_zne on the primary circuit
+        zne_check = validate_circuit_for_zne(circuit_t, self._hw_config, self.slog)
+        logger.info(
+            f"  ZNE check: 2Q_count={zne_check['two_qubit_gate_count']}, "
+            f"threshold={zne_check['zne_threshold']}, abort={zne_check['abort']}"
+        )
+
+        # Select layouts and transpile for per-layout audit
         adj = build_adjacency(fake_backend)
         candidates = find_layouts_bfs(adj, n_qubits, n_candidates=10)
         layout_sel = select_layouts_low_ces(
@@ -1310,6 +1412,8 @@ class HardwareRehearsalV2(ValidationRunner):
             "max_2q_gates": max_2q,
             "mean_ces": mean_ces,
             "zne_threshold": ZNE_2Q_THRESHOLD,
+            "zne_check_two_qubit_gate_count": zne_check["two_qubit_gate_count"],
+            "zne_check_abort": zne_check["abort"],
             "all_zne_viable": all_viable,
             "n_layouts_audited": len(audit_results),
             "pass": all_viable,

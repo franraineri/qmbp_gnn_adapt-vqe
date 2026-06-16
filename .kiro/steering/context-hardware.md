@@ -1,31 +1,65 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*,**/ibm_torino*"
+fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*,**/ibm_*deployment*"
 ---
 
 # Hardware Context (invoke with #context-hardware)
 
-> Pre-digested context for IBM Torino deployment, hardware backend, and QPU execution.
+> Pre-digested context for IBM Kingston/Boston deployment, hardware backend, and QPU execution.
 
-## Status: READY FOR QPU
+## Status: ACTIVE QPU DEPLOYMENT (ibm_kingston)
 
-- Rehearsal V2 passed 3/3 after fixes (2026-06-06).
-- Hardware module: credential passing, TLS drift monitoring, QPU metrics, EstimatorV2 options.
-- Deployment script: `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py`.
-- Only IBM credentials needed (`IBM_KEY`, `IBM_INSTANCE_CRN`).
+- **First real QPU result (2026-06-14)**: Tier 0 completed on ibm_kingston (Heron r2).
+- E_ZNE = -38.64, E_exact = -40.57, **ΔE/gap = 32.5% (FAIL)** with IBM default PEA (32×128).
+- Root cause: PEA learning budget (4K shots) insufficient for 3.4% mean 2Q error.
+- PEA calibration study in progress: testing balanced (48×192) and default+3layout configs.
+- **Bugs fixed (2026-06-14)**:
+  - `EstimatorV2(backend=...)` → `EstimatorV2(mode=...)` (qiskit-ibm-runtime 0.47.0 API change)
+  - `_aggregate_qpu_metrics` TypeError: `sum()` on ISO timestamp strings → type-safe extraction
+  - Jobs submitted without Batch → CANCELLED by IBM. Now uses `Batch(backend=backend)` context.
+  - Observables job outside Batch → hung indefinitely. Now uses its own Batch.
+  - Preflight 2Q threshold: relaxed from 1% → abort at 5%, warn at 3% (large chips have degraded outlier qubits that layout selection avoids).
 
-## IBM Torino Specs
+## IBM Kingston Specs (Heron r2)
 
-- 133 qubits, Eagle r3, heavy-hex topology.
-- Backend name: `"ibm_torino"`.
-- Channel: `"ibm_quantum_platform"`.
-- Calibration: accessible via `backend.target[op_name].get(qargs).error`.
+- 156 qubits, Heron r2, heavy-hex topology.
+- Backend name: `"ibm_kingston"` (override: `--backend ibm_boston` for r3).
+- Native gates: **cz, rzz**, id, rx, rz, sx, x. **RZZ is native** for our HVA.
+- 2Q error median: 1.95×10⁻³. **Observed chip-wide mean: 3.36% (evening 2026-06-14).**
+- T1 median: 258.88 μs. Min observed: 6.5 μs (isolated TLS defect, p5=125.9 μs).
+- Channel: `"ibm_quantum_platform"` (qiskit-ibm-runtime 0.47.0).
+- CLOPS: 3750 effective (measured via job metrics).
+
+## ibm_boston (Heron r3, 156Q) — Premium Only
+
+- **EPLG (100q): 2.15×10⁻³** — best error rates in fleet.
+- 57/176 2Q gates below 10⁻³ error.
+- Same topology (heavy-hex) and native gates as Kingston.
+- **Access: Premium/Flex/PAYG plans only** — NOT available on Open Plan.
+- If available, prefer over Kingston for thesis data (lower error → better PEA model → better ZNE).
+
+## PEA Configuration (2026-06-14 calibration study)
+
+**Critical lesson**: IBM default PEA (32×128 = 4K learning shots) is INSUFFICIENT
+on processors with elevated calibration (>2% mean 2Q error).
+
+### PEA Presets (CLI: `--pea-config <preset>`)
+
+| Preset | num_rand | shots/rand | noise_factors | n_layouts | Learning shots | Status |
+|--------|:--------:|:----------:|:-------------:|:---------:|:--------------:|--------|
+| `default` | 32 | 128 | IBM default | 1 | 4,096 | ❌ ΔE/gap=32.5% |
+| `balanced` | 48 | 192 | [1,1.5,3] | 1 | 9,216 | Pending |
+| `aggressive` | 64 | 256 | [1,1.5,2,3] | 3 | 65,536 | ❌ >17min (cancelled) |
+| `default_3layout` | 32 | 128 | IBM default | 3 | 4,096 | Pending |
+
+Results stored in: `results/hardware/tier0_calibration/<pea_tag>/`
+Binnacle: `documentation/binnacles/binnacle-hardware-pea-calibration.md`
 
 ## Connection Pattern
 
 ```python
 import os
-from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2
+from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2, Batch
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
 service = QiskitRuntimeService(
@@ -33,8 +67,24 @@ service = QiskitRuntimeService(
     token=os.environ["IBM_KEY"],
     instance=os.environ["IBM_INSTANCE_CRN"],
 )
-backend = service.backend("ibm_torino")
+backend = service.backend("ibm_kingston")
+
+# CRITICAL: Use Batch for multi-job submissions (avoids CANCELLED jobs)
+with Batch(backend=backend) as batch:
+    estimator = EstimatorV2(mode=batch)  # NOTE: 'mode=' not 'backend='
+    # Apply options AFTER construction:
+    estimator.options.default_shots = 16384
+    estimator.options.resilience.zne_mitigation = True
+    estimator.options.resilience.zne.amplifier = "pea"
+    # Submit multiple PUBs within the batch
+    job = estimator.run([(isa_circuit, hamiltonian)])
 ```
+
+### API Version Notes (qiskit-ibm-runtime 0.47.0)
+- `EstimatorV2(mode=backend)` — NOT `backend=`. Changed in ~0.40.
+- `Batch(backend=backend)` — first positional arg IS still `backend`.
+- `job.metrics()["timestamps"]["running"]` returns ISO string, NOT seconds.
+- `job.status()` may return string or enum — handle both.
 
 ## Transpilation
 
@@ -58,13 +108,20 @@ isa_obs = [obs.apply_layout(isa_qc.layout) for obs in observables]
 ## EstimatorV2 Configuration
 
 ```python
-estimator = EstimatorV2(mode=backend)
+# CRITICAL: Use mode= (not backend=) for qiskit-ibm-runtime >= 0.40
+estimator = EstimatorV2(mode=backend)  # or EstimatorV2(mode=batch) inside Batch context
+estimator.options.default_shots = 16384
 estimator.options.dynamical_decoupling.enable = True
 estimator.options.dynamical_decoupling.sequence_type = "XpXm"
 estimator.options.twirling.enable_gates = True
+estimator.options.twirling.enable_measure = True
+estimator.options.twirling.num_randomizations = 64  # Increased from 32
+estimator.options.resilience.measure_mitigation = True  # TREX
 estimator.options.resilience.zne_mitigation = True
-estimator.options.resilience.zne.noise_factors = [1, 2, 3]
 estimator.options.resilience.zne.amplifier = "pea"
+estimator.options.resilience.zne.noise_factors = [1, 1.5, 2, 3]  # Better for short circuits
+estimator.options.resilience.layer_noise_learning.num_randomizations = 64  # 4× IBM default
+estimator.options.resilience.layer_noise_learning.shots_per_randomization = 256
 ```
 
 ## Shot Budget

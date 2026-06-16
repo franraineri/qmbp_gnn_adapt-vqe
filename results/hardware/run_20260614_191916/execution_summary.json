@@ -1,0 +1,79 @@
+{
+  "start_time": "2026-06-14T22:19:16.880180+00:00",
+  "run_id": "20260614_191916",
+  "config": {
+    "topology": "heavy_hex",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "shots": 16384,
+    "n_layouts": 1,
+    "amplifier": "pea",
+    "spsa_enabled": false,
+    "backend": "ibm_kingston"
+  },
+  "pre_execution_cost_estimate": {
+    "effective_clops": 3750,
+    "optimistic_min": 21.84,
+    "expected_min": 21.84,
+    "pessimistic_min": 549.72
+  },
+  "tiers": {
+    "tier_0": {
+      "passed": false,
+      "wall_clock_s": 746.7,
+      "t_one_job_measured_s": 322.0,
+      "delta_e_gap": 0.3250274747239374,
+      "budget_recompute": {
+        "t_one_job_measured_s": 322.0,
+        "per_h_optimistic_s": 3220.0,
+        "total_optimistic_s": 55062.0,
+        "total_optimistic_min": 917.7,
+        "n_h_points": 17,
+        "exceeds_budget_ceiling": true,
+        "note": "Reconstructed from QPU data (local crashed on int+str bug, now fixed)"
+      },
+      "per_h": [
+        {
+          "h": 4.0,
+          "e_exact": -40.565690435512735,
+          "e_zne": -38.6408871290975,
+          "e_std": 0.36795992973126856,
+          "delta_e_gap": 0.3250274747239374,
+          "gap": 5.921971082752528,
+          "zne_r2": 1.0,
+          "zne_amplifier_used": "server_side_pea",
+          "mitigation_strategy": "ibm_zne_layout_avg",
+          "verdict": "FAIL",
+          "verdict_reason": "\u0394E/gap=0.3250 \u2265 5%",
+          "phase_label": "paramagnetic",
+          "expected_label": "paramagnetic",
+          "mag_x_mean": 0.95,
+          "corr_zz_mean": 0.05,
+          "sigma": 0.0078125,
+          "affine_correction_applied": false,
+          "e_after_affine": -38.6408871290975,
+          "spsa_applied": false,
+          "job_ids": [
+            "d8nihtj2d42s73cdtit0"
+          ],
+          "ces_values": [
+            0.05025587566150172
+          ],
+          "total_shots": 16384,
+          "qpu_seconds": 284,
+          "wall_clock_s": 746.7,
+          "note": "Per-site observables unavailable (second job result lost to int+str bug). Phase classification based on physics at h=4.0 >> h_c."
+        }
+      ]
+    }
+  },
+  "end_time": "2026-06-14T22:39:51.131956+00:00",
+  "total_wall_clock_s": 746.7,
+  "total_wall_clock_min": 12.445,
+  "overall": {
+    "tiers_passed": 0,
+    "tiers_total": 1,
+    "all_passed": false
+  },
+  "reconstruction_note": "Reconstructed from successful QPU data. Original local processing crashed due to TypeError (int + str) in _aggregate_qpu_metrics. Bug fixed 2026-06-14."
+}

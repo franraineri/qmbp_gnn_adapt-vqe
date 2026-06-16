@@ -58,6 +58,12 @@ from qmbp_simulation.analysis.nlce import (
     nlce_convergence_analysis,
     tfim_analytical_energy_per_site,
 )
+from qmbp_simulation.analysis.circuit_visualizer import (
+    circuit_summary,
+    print_circuit,
+    print_circuit_comparison,
+    save_circuit_diagram,
+)
 
 __all__ = [
     "BaselineComparison",
@@ -82,6 +88,7 @@ __all__ = [
     "VQEValidator",
     "ValidationIssue",
     "WeightGradientAnalyzer",
+    "circuit_summary",
     "classify_outcome",
     "classify_result",
     "compute_classification_confidence",
@@ -99,5 +106,8 @@ __all__ = [
     "generate_comparison_table",
     "landscape_fluctuation",
     "nlce_convergence_analysis",
+    "print_circuit",
+    "print_circuit_comparison",
+    "save_circuit_diagram",
     "tfim_analytical_energy_per_site",
 ]

@@ -4,18 +4,125 @@ This module implements real quantum hardware execution via IBM Runtime,
 integrated into the `ExecutionBackend` ABC pattern. It supports both
 real IBM hardware and local FakeTorino simulation for validation.
 
+## Deployment Plan — How to Use This Toolset
+
+### The Big Picture
+
+The hardware deployment follows a **calibration-first, 3-phase protocol** that
+minimizes QPU credit risk while maximizing confidence in the results:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  PHASE A: LOCAL VALIDATION (no QPU, no credentials)                     │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  1. Cost estimate:   make hw-cost N=10 H=3                              │
+│  2. Preflight:       make hw-preflight N=10                             │
+│  3. Full rehearsal:  make hw-rehearsal          (9 sections, ~60s)      │
+│  4. GO/NO-GO:        make hw-analyze            (must show 🟢 GO)       │
+│                                                                         │
+│  Output: Confidence that software pipeline works end-to-end.            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  PHASE B: CALIBRATION RUN (~5 min QPU)                                  │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  5. Calibration:     make hw-deploy-calibrate                           │
+│                      (Tier 0: 1 circuit, measures T_one_job)            │
+│                                                                         │
+│  Output: Real T_one_job, budget recompute, GO/NO-GO for full sweep.     │
+│  Decision: Team reviews budget → approves or adjusts config.            │
+├─────────────────────────────────────────────────────────────────────────┤
+│  PHASE C: FULL EXECUTION (~30-120 min QPU)                              │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  6. Deployment:      make hw-deploy                                     │
+│                      (Tier 0→1→2→3, --no-spsa safety, auto-advancing)   │
+│                                                                         │
+│  Output: Thesis Table 5.23 data (4 h-points × 3 seeds × 2 models).     │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Reference — All Commands
+
+| Phase | Command | What it does | QPU time |
+|-------|---------|-------------|:--------:|
+| A | `make hw-cost N=10 H=3` | Estimate QPU budget (model-based) | 0 |
+| A | `make hw-preflight N=10` | Check FakeTorino topology & calibration | 0 |
+| A | `make hw-rehearsal` | Full 9-section validation on FakeTorino | 0 |
+| A | `make hw-rehearsal-quick` | Only cost + circuit audit (~2s) | 0 |
+| A | `make hw-analyze` | Parse latest results → GO/NO-GO | 0 |
+| B | `make hw-deploy-dry` | Verify config + credentials (no QPU) | 0 |
+| B | `make hw-deploy-calibrate` | Tier 0: measure T_one_job | ~5 min |
+| C | `make hw-deploy` | Full deployment (--no-spsa safety) | ~30-120 min |
+
+### Why Multiple h-Points?
+
+We measure at h = [4.0, 3.25, 3.0, 2.5] because:
+- **h=4.0**: Deep paramagnetic, trivial ground state — validates QPU connectivity
+- **h=3.25**: Primary thesis target — where MPNN accuracy is validated
+- **h=3.0**: Closer to crossover — tests ZNE robustness as the gap shrinks
+- **h=2.5**: Near boundary of valid regime — demonstrates pipeline limits
+
+The spectral gap decreases as h → h_c ≈ 1.0, amplifying any energy error in
+the ΔE/gap metric. This gradient validates that our pipeline works not just at
+the easiest point, but across the physically meaningful region.
+
+### Key Safety Features
+
+- **`--no-spsa`**: Disables SPSA refinement. On real hardware SPSA costs 400 min
+  per h-point if triggered. Since our MPNN achieves ΔE/gap < 5% (rehearsal-validated),
+  SPSA is unnecessary and the flag prevents budget blowouts.
+- **Tier auto-advancement**: Each tier only proceeds if the previous one passes.
+  If Tier 0 fails → everything stops (zero waste).
+- **Wall-clock timing**: Every QPU call is timed. If any h-point exceeds 600s,
+  a warning is logged (likely SPSA triggered or queue stalled).
+- **Budget recompute**: After Tier 0, the script replaces the theoretical CLOPS
+  estimate with the REAL measured T_one_job for accurate budget planning.
+
+### What Gets Saved
+
+Every execution saves comprehensive data for thesis analysis:
+
+| Data | Where | For what |
+|------|-------|----------|
+| Energy (E_zne) | `execution_summary.json` | Primary result |
+| Per-site ⟨X_i⟩ (10 values) | `per_h[].per_site_x` | Thesis figures |
+| Per-bond ⟨ZZ_ij⟩ (9 values) | `per_h[].per_bond_zz` | Phase transition |
+| ZNE R², gain, amplifier | `per_h[].zne_*` | Methodology validation |
+| Phase label + confidence | `per_h[].phase_label/sigma` | Classification |
+| Job IDs + layouts + CES | `per_h[].job_ids/layouts_used` | Reproducibility |
+| T1/T2 at execution time | `per_h[].calibration_snapshot` | Correlation analysis |
+| Transpiled depth/gates | `per_h[].transpiled_stats` | Circuit characterization |
+| QPU seconds (IBM-charged) | `per_h[].qpu_metrics` | Budget tracking |
+| Wall-clock per h-point | `per_h[].wall_clock_s` | Timing model validation |
+| Affine/GNN-QEM corrections | `per_h[].affine_*/gnn_qem_*` | Post-processing audit |
+
+Additionally, `HardwareBackend.run_deployment()` independently saves per-h-point
+directories in `results/hardware/run_*/` with full provenance (config, raw per-layout
+energies, ZNE analysis, input parameters, execution log).
+
+
 ## Architecture
 
 ```
 execution/hardware/
+├── __init__.py      # Public API exports (HardwareBackend, QPUThroughputProfile, etc.)
 ├── backend.py       # HardwareBackend class (evaluate, run_deployment, run_h_sweep)
 ├── config.py        # HardwareConfig, SPSAConfig, HardwareRunResult
-├── preflight.py     # Pre-execution checks (status, calibration, topology)
+├── preflight.py     # Pre-execution checks + QPU cost estimation + CLOPS model
 ├── submission.py    # Job submission with retry logic + layout selection
 ├── observables.py   # Per-site observable construction and extraction
 ├── phase.py         # Phase classification (paramagnetic/ordered/indeterminate)
 ├── spsa.py          # Conditional SPSA refinement
 └── persistence.py   # Result saving with full provenance
+```
+
+### Key exports from `__init__.py`
+
+```python
+from qmbp_simulation.execution.hardware import (
+    HardwareBackend, HardwareConfig, HardwareRunResult, SPSAConfig,
+    # Cost estimation (composable, pluggable)
+    QPUCostEstimate, QPUThroughputProfile, SPSACostModel,
+    estimate_effective_clops, estimate_qpu_cost,
+)
 ```
 
 ## Pipeline Flow
@@ -202,6 +309,8 @@ else:
     print(f"Backend operational: {checks.get('backend_operational', 'N/A')}")
     print(f"Queue depth: {checks.get('queue_pending_jobs', 'N/A')}")
     print(f"Mean 2Q error: {checks.get('mean_2q_error', 'N/A')}")
+    print(f"Mean readout error: {checks.get('mean_readout_error', 'N/A')}")
+    print(f"Min T1: {checks.get('min_t1_us', 'N/A')} μs")
     print(f"Shots/eval: {checks.get('shots_per_eval', 'N/A')}")
 ```
 
@@ -213,6 +322,9 @@ Additional checks (hardware mode only):
 - **Backend operational status** — QPU is active
 - **Queue depth** — warns if > 50 pending jobs
 - **Mean 2-qubit gate error** — aborts if > 1% (poor calibration)
+- **Mean readout error** — warns if > 3% (TREX mitigates, but increases variance)
+- **T1/T2 coherence** — aborts if min T1 < 50μs (decoherence dominates)
+- **Native gate support** — warns if ECR not in native set (transpiler overhead)
 
 ### Circuit-Level Validation
 
@@ -236,18 +348,27 @@ Thresholds are **amplifier-aware** (updated 2026-06-05):
 |-----------|:-----------------:|-----------|
 | `gate_folding` | 18 | Each gate folded 3×: 18 → 54 effective gates |
 | `pea` | 50 | Noise model amplification, circuit unchanged |
-| `adaptive` | 50 | Starts GF, falls back to PEA if R²<threshold |
+| `adaptive` | 50 | Uses PEA threshold (falls back to PEA if GF R²<0.90) |
 
 ### QPU Cost Estimation
 
-Estimate QPU time before committing credits:
+Depth-aware cost estimation with pluggable hardware profiles:
 
 ```python
-from qmbp_simulation.execution.hardware.preflight import estimate_qpu_cost
+from qmbp_simulation.execution.hardware import (
+    estimate_qpu_cost, QPUThroughputProfile, SPSACostModel,
+)
 
+# Default (Torino, P(SPSA)=0.30)
 est = estimate_qpu_cost(config, n_h_points=4)
-print(f"Total: {est.est_total_s/60:.1f} min, {est.total_shots:,} shots")
-print(f"Fits per job: {est.fits_per_job}")
+print(f"Optimistic: {est.est_total_optimistic_s/60:.1f} min")
+print(f"Expected:   {est.est_total_s/60:.1f} min")
+print(f"Pessimistic: {est.est_total_pessimistic_s/60:.1f} min")
+
+# Safe mode (no SPSA, recommended for hardware)
+est_safe = estimate_qpu_cost(config, n_h_points=4,
+    spsa_model=SPSACostModel.disabled())
+print(f"Safe: {est_safe.est_total_optimistic_s/60:.1f} min")
 ```
 
 ### Input Validation (run_deployment)
@@ -549,21 +670,28 @@ Before committing QPU time, run the full 9-section rehearsal:
 
 ```bash
 # Full rehearsal (all 9 sections, ~60s on FakeTorino N=10)
-python scripts/experiment_runners/run_hardware_rehearsal_v2.py \
-  --topology heavy_hex --n-qubits 10 --zne-amplifier pea
+python scripts/hardware.py rehearsal --topology heavy_hex
+
+# With optional backend preflight (Section 0)
+python scripts/hardware.py rehearsal --run-preflight
 
 # Quick check (cost + circuit audit only, ~2s)
-python scripts/experiment_runners/run_hardware_rehearsal_v2.py \
-  --section 8 9 --topology heavy_hex --n-qubits 10 --zne-amplifier pea
+python scripts/hardware.py rehearsal --section 8 9
+
+# Or via make:
+make hw-rehearsal
+make hw-rehearsal-quick
 
 # Analysis of results
-python scripts/analyze_hw_rehearsal_v2.py --all
+python scripts/hardware.py analyze --all
+make hw-analyze
 ```
 
 ### Rehearsal Sections
 
 | # | Section | What it validates | Pass criterion |
 |---|---------|-------------------|----------------|
+| 0 | HW Preflight (optional) | Topology, cost ceiling, T1/T2, readout | No abort |
 | 1 | MPNN Prediction | θ_pred quality (noiseless) | ΔE/gap < 5% all h_test |
 | 2 | HardwareBackend Noisy | evaluate() + ZNE pipeline | ΔE/gap < 5% |
 | 3 | Full run_deployment() | Complete verdict pipeline | verdict = PASS |
@@ -574,29 +702,216 @@ python scripts/analyze_hw_rehearsal_v2.py --all
 | 8 | QPU Cost Estimation | Fits IBM time limits | time_per_h < max_execution_time |
 | 9 | Circuit Depth Audit | 2Q gates ≤ ZNE threshold | All layouts viable |
 
+### Rehearsal CLI Parameters (scalable configuration)
+
+All hardcoded defaults can be overridden for different configurations:
+
+```bash
+python scripts/hardware.py rehearsal \
+  --n-qubits 10 \
+  --topology heavy_hex \
+  --p-layers 1 \
+  --zne-amplifier pea \
+  --shots 16384 \
+  --h-test 4.0 3.25 3.0 \
+  --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 \
+  --vqe-restarts 1 \
+  --mpnn-epochs 6000 \
+  --mpnn-hidden-dim 128 \
+  --n-shots-reps 5 \
+  --run-preflight
+```
+
 ### GO/NO-GO Decision
 
 After running all sections, `analyze_hw_rehearsal_v2.py` reports:
-- **🟢 GO**: Sections 1-3 all pass → safe to submit to IBM Torino
+- **🟢 GO**: Sections 1, 2, 3, 7, 9 all pass → safe to submit to IBM Torino
 - **🔴 NO-GO**: Any critical section fails → fix before QPU
 
-## Tiered QPU Deployment
+The analyzer also checks for ZNE regression (mitigation making things worse)
+and supports `--threshold` to tighten the pass criterion for thesis targets.
 
-For production hardware runs on IBM Torino, use the tiered deployment script:
+## Tiered QPU Deployment (Calibration-First Strategy)
 
-```bash
-# Full tiered deployment (recommended)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+For production hardware runs on IBM Torino, use the tiered deployment script.
+The strategy follows Hamed's calibration-first protocol: measure T_one_job first,
+then scale the budget with confidence.
 
-# Dry run (cost estimate + preflight only, no QPU)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+### 2-Session Protocol
 
-# Single tier
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0  # Smoke test
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 1  # Core validation
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Session 1: CALIBRATION (~5 min QPU)                            │
+│  ─────────────────────────────────────────────────────────────  │
+│  Tier 0: 1 circuit + full mitigation → measures T_one_job       │
+│  Output: "Full sweep will take X min based on measured time"    │
+│  Action: Team reviews, approves budget                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Session 2: EXECUTION (~30-120 min QPU)                         │
+│  ─────────────────────────────────────────────────────────────  │
+│  Tier 1: 4 h-points × 3 layouts × 3 ZNE factors (thesis data)  │
+│  Tier 2: Same × 3 seeds (statistical robustness)                │
+│  Tier 3: tfim_longitudinal at g=0.3 (model extensibility)       │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-The script implements automatic tier advancement: Tier 0 (smoke) → Tier 1 (core) → Tier 2 (seeds) → Tier 3 (extensibility). Each tier only proceeds if the previous one passes. Includes TLS calibration monitoring between h-points.
+### Usage
+
+```bash
+# Dry run (cost estimate + preflight, no QPU)
+make hw-deploy-dry
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+
+# Session 1: Calibration only (measures T_one_job)
+make hw-deploy-calibrate
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+
+# Session 2: Full deployment with SPSA disabled (recommended)
+make hw-deploy
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
+
+# Full deployment (all tiers, auto-advancing)
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+
+# Custom configuration
+python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+  --shots 32768 --zne-amplifier adaptive --tier 1 2
+```
+
+### Key Safety Features
+
+| Feature | Flag | Purpose |
+|---------|------|---------|
+| **SPSA kill-switch** | `--no-spsa` | Prevents 400-min budget blowout (200 iters × 2 evals × 60s/job) |
+| **Per-h timing** | automatic | Logs wall-clock for each h-point, warns if > 600s |
+| **Budget recompute** | after Tier 0 | Uses measured T_one_job to validate model estimate |
+| **Auto-abort** | automatic | Stops tier progression if smoke test fails |
+| **Budget ceiling** | 4h max | Warns if optimistic estimate exceeds 4 hours |
+
+### Tier Details
+
+| Tier | h-points | Seeds | Purpose | Pass criterion |
+|------|----------|-------|---------|----------------|
+| 0 | 1 (h=4.0) | 42 | Calibration, measure T_one_job | verdict=PASS |
+| 1 | 4 (4.0, 3.25, 3.0, 2.5) | 42 | Primary thesis data | ≥3/4 PASS |
+| 2 | 4 × 3 seeds | 42,43,44 | Statistical robustness | ≥75% pass rate |
+| 3 | 1 (h=3.25) | 42 | tfim_longitudinal extensibility | verdict=PASS |
+
+### Output Structure
+
+Each deployment run creates:
+```
+results/hardware/run_YYYYMMDD_HHMMSS/
+├── execution_summary.json   # Full metrics: timing, per-h results, budget recompute
+├── config.json              # Reproducibility config
+├── provenance.json          # Job IDs, layouts, CES values
+├── raw_results.json         # Per-layout raw EVs
+├── zne_analysis.json        # ZNE extrapolation details
+└── summary.json             # ΔE/gap, phase, verdict per h-point
+```
+
+### QPU Budget Estimate (from measured T_one_job)
+
+After Tier 0 measures T_one_job, the script prints:
+```
+T_total = PEA_learning + N_h × N_layouts × N_zne_factors × T_one_job
+        = 60s + 4h × 3 layouts × 3 factors × 60s
+        ≈ 37 min (optimistic, no SPSA)
+```
+
+If T_one_job ≈ 60s (typical for N=10, 16k shots, full mitigation):
+- Tier 1 alone: ~37 min
+- Tier 1+2: ~150 min
+- Full (Tier 0-3): ~190 min
+
+**Critical**: With `--no-spsa`, this is the hard ceiling. Without it,
+SPSA on ONE h-point adds 400 min.
+
+## QPU Cost Estimation
+
+The cost estimation module provides depth-aware, composable budget planning:
+
+```python
+from qmbp_simulation.execution.hardware import (
+    estimate_qpu_cost, QPUThroughputProfile, SPSACostModel, HardwareConfig,
+)
+
+# Default: IBM Torino, PEA amplifier, P(SPSA)=0.30
+config = HardwareConfig(n_qubits=10, shots=16384, n_layouts=3)
+est = estimate_qpu_cost(config, n_h_points=3)
+print(f"Optimistic: {est.est_total_optimistic_s/60:.1f} min")
+print(f"Expected:   {est.est_total_s/60:.1f} min")
+
+# Compare backends
+for profile_fn in [QPUThroughputProfile.ibm_torino,
+                   QPUThroughputProfile.ibm_heron_r2,
+                   QPUThroughputProfile.ibm_nighthawk]:
+    p = profile_fn()
+    e = estimate_qpu_cost(config, n_h_points=3, profile=p, spsa_model=SPSACostModel.disabled())
+    print(f"{p.name}: {e.est_total_optimistic_s/60:.1f} min, CLOPS={e.effective_clops}")
+```
+
+### Depth-Aware CLOPS Model
+
+CLOPS scales with circuit width and depth:
+```
+CLOPS(N, D) = base_clops × (ref_N / N)^α × (ref_D / D)^β
+```
+
+| N | Effective CLOPS (Torino) | Time/circuit (16k shots) |
+|---|:---:|:---:|
+| 6 | 3674 | 4.5s |
+| 10 | 2500 | 6.6s |
+| 20 | 1503 | 10.9s |
+| 40+ | 1000 | 16.4s |
+
+### SPSA Cost Models
+
+| Model | P(trigger) | Use case |
+|-------|:---:|---|
+| `SPSACostModel.disabled()` | 0% | Validated MPNN, `--no-spsa` flag |
+| `SPSACostModel()` | 30% | Default (good MPNN predictions) |
+| `SPSACostModel.conservative()` | 50% | First deployment, untested config |
+| `SPSACostModel.aggressive()` | 100% | Worst-case budget ceiling |
+
+### CLI
+
+```bash
+# Quick estimate
+python scripts/hardware.py cost -N 10 --h-points 3
+
+# Compare backends
+python scripts/hardware.py cost -N 10 --profile nighthawk --spsa disabled
+
+# JSON output for scripting
+python scripts/hardware.py cost -N 10 --json
+
+# Make target
+make hw-cost N=10 H=3 PROFILE=torino
+```
+
+## Unified Hardware CLI
+
+All hardware operations are available through a single entry point:
+
+```bash
+python scripts/hardware.py <command> [options]
+```
+
+| Command | Purpose | Make target |
+|---------|---------|-------------|
+| `cost` | QPU time/shot budget estimate | `make hw-cost` |
+| `preflight` | Backend checks (topology, T1/T2, readout) | `make hw-preflight` |
+| `rehearsal` | Full 9-section validation on FakeTorino | `make hw-rehearsal` |
+| `analyze` | Post-rehearsal GO/NO-GO verdict | `make hw-analyze` |
+
+Deployment uses a separate script (requires IBM credentials):
+
+| Target | Purpose |
+|--------|---------|
+| `make hw-deploy-dry` | Preflight + cost, no QPU |
+| `make hw-deploy-calibrate` | Session 1: Tier 0 only |
+| `make hw-deploy` | Session 2: Full sweep (--no-spsa) |
 
 ## Hardware Generations & Scaling
 

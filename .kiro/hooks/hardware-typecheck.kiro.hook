@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Hardware Type Safety Check",
+  "description": "Runs a type-safety validation of the hardware execution pipeline before any QPU deployment script is executed. Catches int+str, None arithmetic, and serialization errors before they waste QPU time.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/execution/hardware/*.py"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ".venv/bin/python -c \"from qmbp_simulation.execution.hardware.backend import HardwareBackend; from qmbp_simulation.execution.hardware.submission import submit_all_then_collect, _apply_estimator_options; import json; from qmbp_simulation.utils.helpers import json_serialize; cases = [[], [{'energy': -38.0}], [{'energy': -38.0, 'qpu_seconds': 284, 'running_timestamp': '2026-06-14T22:19:36Z'}], [{'energy': -38.0, 'qpu_seconds': 'bad'}]]; [json.dumps(HardwareBackend._aggregate_qpu_metrics(c), default=json_serialize) for c in cases]; print('Hardware type-safety: OK')\"",
+    "timeout": 15
+  }
+}

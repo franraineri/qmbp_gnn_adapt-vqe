@@ -1185,6 +1185,1959 @@ class ValidationRunner(ABC):
             psi_trunc = psi_trunc / norm
         return psi_trunc
 
+    # ── MPNN Evaluation Utilities ────────────────────────────────────────────
+
+    def benchmark_mpnn_warmstart(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_train: list[float],
+        h_test: list[float],
+        *,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 4000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        n_vqe_restarts_from_pred: int = 5,
+        maxiter_refine: int = 200,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Benchmark MPNN warm-start vs random init vs warm-start from previous h.
+
+        Answers: "Does the MPNN produce a better starting point for VQE than
+        alternatives, and how many iterations does each strategy need?"
+
+        Three strategies compared at each h_test point:
+          - ``random``: init from uniform(-0.01, 0.01), run VQE until convergence.
+          - ``prev_h``: init from θ_opt of the nearest training h (classical warm-start).
+          - ``mpnn``: init from MPNN prediction, run VQE until convergence.
+
+        For each strategy the reported metrics are:
+          - ``iters``: optimizer iterations to convergence (lower = faster).
+          - ``final_de_gap``: ΔE/gap after VQE refinement.
+          - ``init_de_gap``: ΔE/gap of the initial θ before any VQE (MPNN quality).
+          - ``speedup``: iters_random / iters_mpnn (only in mpnn entry).
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology name.
+        n_qubits : int
+            System size.
+        h_train : list[float]
+            Descending grid used for MPNN training data (VQE sweep).
+        h_test : list[float]
+            Unseen h-values for evaluation (should not overlap h_train).
+        p_layers : int
+            HVA depth (default: 1).
+        seed : int
+            Random seed (default: 42).
+        n_restarts_vqe : int
+            VQE restarts for training data generation (default: 1).
+        maxiter_vqe : int
+            Max iterations for training VQE sweep (default: 500).
+        mpnn_hidden_dim : int
+            MPNN hidden dimension (default: 64).
+        mpnn_epochs : int
+            MPNN training epochs (default: 4000).
+        mpnn_lr : float
+            MPNN learning rate (default: 1e-3).
+        mpnn_patience : int
+            MPNN early-stopping patience (default: 150).
+        n_vqe_restarts_from_pred : int
+            How many independent VQE runs per strategy at h_test (default: 5).
+            Higher = more reliable iteration count estimate.
+        maxiter_refine : int
+            Max iterations allowed for refinement VQE (default: 200).
+            Intentionally smaller than maxiter_vqe to stress-test warm-starts.
+        model : str
+            Hamiltonian model name (default: "tfim").
+        de_gap_threshold : float
+            Pass criterion for final ΔE/gap (default: 0.05).
+
+        Returns
+        -------
+        dict with keys:
+            ``per_h``: list of per-h-point results (one per h_test value).
+            ``summary``: aggregate speedup, win_rate, mean_de_gap per strategy.
+            ``mpnn_train_mse``: final MPNN training MSE.
+            ``n_train_points``: number of training graphs.
+            ``pass``: True if all h_test points pass ΔE/gap threshold with mpnn init.
+        """
+        import numpy as np
+        import torch
+        from scipy.optimize import minimize
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        spec = get_model_spec(model)
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+        rng = np.random.default_rng(seed)
+
+        # ── Step 1: VQE sweep on training grid ──────────────────────────────
+        theta_map = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_train,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+        h_arr = np.array(sorted(theta_map.keys(), reverse=True))
+        theta_arr = np.array([theta_map[h] for h in h_arr])
+        e_arr = np.array(
+            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
+        )
+        n_params = theta_arr.shape[1]
+
+        # ── Step 2: Train MPNN ───────────────────────────────────────────────
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=float(h_arr[0]))
+        from qmbp_simulation.models import HamiltonianBuilder
+
+        builder = HamiltonianBuilder()
+        dataset = build_graph_dataset(
+            lattice_ref,
+            h_values=h_arr,
+            theta_opt=theta_arr,
+            e_exact=e_arr,
+            fidelity_threshold=0.0,
+        )
+        predictor = MPNNPredictor(
+            node_features=dataset[0].x.shape[1],
+            output_dim=n_params,
+            hidden_dim=mpnn_hidden_dim,
+        )
+        train_result = train_mpnn(
+            predictor,
+            dataset,
+            n_epochs=mpnn_epochs,
+            lr=mpnn_lr,
+            patience=mpnn_patience,
+            seed=seed,
+        )
+        predictor.eval()
+
+        # ── Step 3: Benchmark at each h_test ────────────────────────────────
+        per_h: list[dict] = []
+        for h_t in h_test:
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t, model=model)
+            lattice_t = make_lattice(topology, n_qubits, J=1.0, h=h_t)
+            H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
+            circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
+
+            def _energy(params: np.ndarray) -> float:
+                return float(backend.evaluate(circuit_t, H_t, params))
+
+            # ── MPNN prediction (θ_pred) ─────────────────────────────────
+            edge_index_np, coord = builder.build_graph_data(lattice_t)
+            h_feat = np.full(n_qubits, float(h_t))
+            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
+            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+            graph = Data(x=x, edge_index=edge_index)
+            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+            with torch.no_grad():
+                theta_mpnn = predictor(graph).numpy().flatten()
+
+            # ΔE/gap before any VQE (raw MPNN quality)
+            e_mpnn_raw = _energy(theta_mpnn)
+            init_de_gap_mpnn = abs(e_mpnn_raw - e_exact) / max(gap, 1e-10)
+
+            # ── prev_h warm-start: nearest training θ ───────────────────
+            nearest_idx = int(np.argmin(np.abs(h_arr - h_t)))
+            theta_prev_h = theta_arr[nearest_idx].copy()
+            e_prev_h_raw = _energy(theta_prev_h)
+            init_de_gap_prev = abs(e_prev_h_raw - e_exact) / max(gap, 1e-10)
+
+            # ── Run VQE from each starting point, n_vqe_restarts_from_pred times ──
+            def _run_vqe_from(theta_init: np.ndarray) -> tuple[float, int]:
+                """Return (final_energy, n_iters) from a single VQE run."""
+                counter = [0]
+
+                def _counted(params: np.ndarray) -> float:
+                    counter[0] += 1
+                    return float(backend.evaluate(circuit_t, H_t, params))
+
+                res = minimize(
+                    _counted,
+                    theta_init.copy(),
+                    method="L-BFGS-B",
+                    bounds=[(-np.pi, np.pi)] * n_params,
+                    options={"maxiter": maxiter_refine, "ftol": 1e-12},
+                )
+                return float(res.fun), counter[0]
+
+            # Random init: average over n_vqe_restarts_from_pred trials
+            rand_energies, rand_iters = [], []
+            for _ in range(n_vqe_restarts_from_pred):
+                theta_rand = rng.uniform(-0.01, 0.01, n_params)
+                e_r, iters_r = _run_vqe_from(theta_rand)
+                rand_energies.append(e_r)
+                rand_iters.append(iters_r)
+            rand_mean_iters = float(np.mean(rand_iters))
+            rand_best_e = float(np.min(rand_energies))
+            rand_de_gap = abs(rand_best_e - e_exact) / max(gap, 1e-10)
+
+            # prev_h warm-start: single run (deterministic init)
+            e_prev_final, iters_prev = _run_vqe_from(theta_prev_h)
+            prev_de_gap = abs(e_prev_final - e_exact) / max(gap, 1e-10)
+
+            # MPNN warm-start: single run from prediction
+            e_mpnn_final, iters_mpnn = _run_vqe_from(theta_mpnn)
+            mpnn_de_gap = abs(e_mpnn_final - e_exact) / max(gap, 1e-10)
+
+            speedup = rand_mean_iters / max(iters_mpnn, 1)
+            speedup_vs_prev = iters_prev / max(iters_mpnn, 1)
+
+            per_h.append(
+                {
+                    "h": h_t,
+                    "e_exact": e_exact,
+                    "gap": gap,
+                    "random": {
+                        "mean_iters": rand_mean_iters,
+                        "best_de_gap": rand_de_gap,
+                        "iters_list": rand_iters,
+                    },
+                    "prev_h": {
+                        "nearest_h_train": float(h_arr[nearest_idx]),
+                        "init_de_gap": init_de_gap_prev,
+                        "final_de_gap": prev_de_gap,
+                        "iters": iters_prev,
+                    },
+                    "mpnn": {
+                        "init_de_gap": init_de_gap_mpnn,
+                        "final_de_gap": mpnn_de_gap,
+                        "iters": iters_mpnn,
+                        "speedup_vs_random": speedup,
+                        "speedup_vs_prev_h": speedup_vs_prev,
+                    },
+                    "pass": mpnn_de_gap < de_gap_threshold,
+                }
+            )
+            logger.info(
+                f"  h={h_t:.3f}: "
+                f"rand={rand_mean_iters:.0f}it/{rand_de_gap:.4f}, "
+                f"prev_h={iters_prev}it/{prev_de_gap:.4f}, "
+                f"mpnn_init={init_de_gap_mpnn:.4f} "
+                f"→ {iters_mpnn}it/{mpnn_de_gap:.4f} "
+                f"(speedup={speedup:.1f}x) "
+                f"[{'PASS' if mpnn_de_gap < de_gap_threshold else 'FAIL'}]"
+            )
+
+        # ── Summary ─────────────────────────────────────────────────────────
+        mean_speedup = float(np.mean([r["mpnn"]["speedup_vs_random"] for r in per_h]))
+        mean_speedup_vs_prev = float(np.mean([r["mpnn"]["speedup_vs_prev_h"] for r in per_h]))
+        mpnn_wins_vs_random = sum(r["mpnn"]["iters"] < r["random"]["mean_iters"] for r in per_h)
+        mpnn_wins_vs_prev = sum(r["mpnn"]["iters"] < r["prev_h"]["iters"] for r in per_h)
+        mean_init_de_gap = float(np.mean([r["mpnn"]["init_de_gap"] for r in per_h]))
+        all_pass = all(r["pass"] for r in per_h)
+
+        return {
+            "per_h": per_h,
+            "summary": {
+                "mean_speedup_vs_random": mean_speedup,
+                "mean_speedup_vs_prev_h": mean_speedup_vs_prev,
+                "mpnn_wins_vs_random": f"{mpnn_wins_vs_random}/{len(per_h)}",
+                "mpnn_wins_vs_prev_h": f"{mpnn_wins_vs_prev}/{len(per_h)}",
+                "mean_init_de_gap": mean_init_de_gap,
+                "mean_final_de_gap_mpnn": float(
+                    np.mean([r["mpnn"]["final_de_gap"] for r in per_h])
+                ),
+            },
+            "mpnn_train_mse": train_result["final_mse"],
+            "n_train_points": len(dataset),
+            "n_params": n_params,
+            "pass": all_pass,
+        }
+
+    def mpnn_leave_one_out_cv(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_train: list[float],
+        *,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 4000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+        min_train_size: int = 5,
+    ) -> dict:
+        """Leave-one-out cross-validation for MPNN generalization estimate.
+
+        For each point h_i in h_train:
+          1. Train MPNN on all other N-1 points.
+          2. Predict θ at h_i (unseen by the model).
+          3. Evaluate ΔE/gap(θ_pred) noiseless.
+
+        This gives an unbiased estimate of generalization without needing
+        a separate test set — useful when the h-grid is small (10-20 points).
+
+        The LOO-CV score complements ΔE/gap on a held-out h_test: while
+        h_test checks extrapolation/interpolation at a specific point,
+        LOO-CV characterizes the model's reliability across the entire
+        training distribution.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology name.
+        n_qubits : int
+            System size.
+        h_train : list[float]
+            Full training grid. Each point is held out once.
+        p_layers : int
+            HVA depth (default: 1).
+        seed : int
+            Random seed for MPNN weight initialization (default: 42).
+        n_restarts_vqe : int
+            VQE restarts for data generation (default: 1).
+        maxiter_vqe : int
+            Max VQE iterations (default: 500).
+        mpnn_hidden_dim : int
+            MPNN hidden dimension (default: 64).
+        mpnn_epochs : int
+            MPNN training epochs per fold (default: 4000).
+        mpnn_lr : float
+            Learning rate (default: 1e-3).
+        mpnn_patience : int
+            Early-stopping patience (default: 150).
+        model : str
+            Hamiltonian model (default: "tfim").
+        de_gap_threshold : float
+            Pass threshold (default: 0.05).
+        min_train_size : int
+            Minimum fold size to proceed with training (default: 5).
+            Folds with fewer training points are skipped.
+
+        Returns
+        -------
+        dict with keys:
+            ``per_fold``: per-h results (h_held_out, de_gap, pass, train_mse).
+            ``summary``: mean/max/std ΔE/gap, pass_rate, n_folds_run.
+            ``full_model_train_mse``: MSE of model trained on ALL points (reference).
+            ``pass``: True if pass_rate >= 0.80 (80% of folds pass threshold).
+        """
+        import numpy as np
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.models import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        spec = get_model_spec(model)
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+
+        # ── Step 1: VQE sweep on full grid ──────────────────────────────────
+        theta_map = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_train,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+        h_arr = np.array(sorted(theta_map.keys(), reverse=True))
+        theta_arr = np.array([theta_map[h] for h in h_arr])
+        e_arr = np.array(
+            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
+        )
+        n_params = theta_arr.shape[1]
+        n_total = len(h_arr)
+        builder = HamiltonianBuilder()
+
+        # ── Step 2: Train full model as reference ────────────────────────────
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=float(h_arr[0]))
+        full_dataset = build_graph_dataset(
+            lattice_ref,
+            h_values=h_arr,
+            theta_opt=theta_arr,
+            e_exact=e_arr,
+            fidelity_threshold=0.0,
+        )
+        full_model = MPNNPredictor(
+            node_features=full_dataset[0].x.shape[1],
+            output_dim=n_params,
+            hidden_dim=mpnn_hidden_dim,
+        )
+        full_train = train_mpnn(
+            full_model,
+            full_dataset,
+            n_epochs=mpnn_epochs,
+            lr=mpnn_lr,
+            patience=mpnn_patience,
+            seed=seed,
+        )
+        full_model_mse = full_train["final_mse"]
+        logger.info(f"  Full model MSE: {full_model_mse:.2e} ({n_total} points)")
+
+        # ── Step 3: LOO folds ────────────────────────────────────────────────
+        per_fold: list[dict] = []
+        for fold_idx in range(n_total):
+            h_held = float(h_arr[fold_idx])
+            mask = np.arange(n_total) != fold_idx
+            h_fold = h_arr[mask]
+            theta_fold = theta_arr[mask]
+            e_fold = e_arr[mask]
+
+            if len(h_fold) < min_train_size:
+                logger.warning(
+                    f"  Fold {fold_idx} (h={h_held:.3f}): only {len(h_fold)} train points "
+                    f"< min_train_size={min_train_size}. Skipping."
+                )
+                continue
+
+            # Build fold dataset
+            fold_dataset = build_graph_dataset(
+                lattice_ref,
+                h_values=h_fold,
+                theta_opt=theta_fold,
+                e_exact=e_fold,
+                fidelity_threshold=0.0,
+            )
+
+            # Train fold model — fresh weights each fold
+            fold_model = MPNNPredictor(
+                node_features=fold_dataset[0].x.shape[1],
+                output_dim=n_params,
+                hidden_dim=mpnn_hidden_dim,
+            )
+            fold_train = train_mpnn(
+                fold_model,
+                fold_dataset,
+                n_epochs=mpnn_epochs,
+                lr=mpnn_lr,
+                patience=mpnn_patience,
+                seed=seed + fold_idx,  # distinct seed per fold
+            )
+            fold_model.eval()
+
+            # Predict at held-out h
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, h_held, model=model)
+            lattice_t = make_lattice(topology, n_qubits, J=1.0, h=h_held)
+            H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
+            circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
+
+            edge_index_np, coord = builder.build_graph_data(lattice_t)
+            h_feat = np.full(n_qubits, float(h_held))
+            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
+            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+            graph = Data(x=x, edge_index=edge_index)
+            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+
+            with torch.no_grad():
+                theta_pred = fold_model(graph).numpy().flatten()
+
+            e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
+            de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+            passed = de_gap < de_gap_threshold
+
+            per_fold.append(
+                {
+                    "fold_idx": fold_idx,
+                    "h_held_out": h_held,
+                    "n_train_points": len(h_fold),
+                    "e_exact": e_exact,
+                    "gap": gap,
+                    "e_pred": e_pred,
+                    "de_gap": de_gap,
+                    "fold_train_mse": fold_train["final_mse"],
+                    "pass": passed,
+                }
+            )
+            logger.info(
+                f"  Fold {fold_idx:2d} h={h_held:.3f}: "
+                f"ΔE/gap={de_gap:.4f} mse={fold_train['final_mse']:.2e} "
+                f"[{'PASS' if passed else 'FAIL'}]"
+            )
+
+        # ── Summary ─────────────────────────────────────────────────────────
+        n_folds = len(per_fold)
+        n_pass = sum(f["pass"] for f in per_fold)
+        de_gaps = [f["de_gap"] for f in per_fold]
+        pass_rate = n_pass / max(n_folds, 1)
+
+        return {
+            "per_fold": per_fold,
+            "summary": {
+                "mean_de_gap": float(np.mean(de_gaps)) if de_gaps else float("nan"),
+                "max_de_gap": float(np.max(de_gaps)) if de_gaps else float("nan"),
+                "std_de_gap": float(np.std(de_gaps)) if de_gaps else float("nan"),
+                "n_pass": n_pass,
+                "n_folds": n_folds,
+                "pass_rate": pass_rate,
+            },
+            "full_model_train_mse": full_model_mse,
+            "n_train_points_full": n_total,
+            "n_params": n_params,
+            # Pass criterion: ≥80% of LOO folds pass ΔE/gap threshold
+            "pass": pass_rate >= 0.80,
+        }
+
+    def mpnn_landscape_quality(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_train: list[float],
+        h_test: list[float],
+        *,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 4000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Energy landscape quality check: decompose ΔE into circuit vs MPNN error.
+
+        Three energy references at each h_test point:
+          - ``E_exact``: exact ground state (theoretical ceiling).
+          - ``E(θ_opt)``: best VQE energy (circuit expressibility limit).
+          - ``E(θ_pred)``: MPNN-predicted energy.
+
+        This decomposition answers:
+          - ``error_circuit = |E(θ_opt) - E_exact| / gap``
+            → physics / ansatz limit (cannot be improved by ML)
+          - ``error_mpnn = |E(θ_pred) - E(θ_opt)| / gap``
+            → pure ML prediction error (improvable by more data / better arch)
+          - ``error_total = |E(θ_pred) - E_exact| / gap``
+            → combined error seen in deployment
+
+        Also computes ``θ_pred_deviation = ||θ_pred - θ_opt||₂`` and
+        ``landscape_curvature = ∂²E/∂θ²`` around θ_opt, which indicates
+        how sensitive the energy is to parameter errors (flat landscape =
+        large θ error tolerance, sharp landscape = precise θ_pred needed).
+
+        Parameters
+        ----------
+        topology, n_qubits, h_train, h_test, p_layers, seed,
+        n_restarts_vqe, maxiter_vqe, mpnn_hidden_dim, mpnn_epochs,
+        mpnn_lr, mpnn_patience, model, de_gap_threshold :
+            Same as benchmark_mpnn_warmstart.
+
+        Returns
+        -------
+        dict with keys:
+            ``per_h``: per-h decomposition with circuit/mpnn/total errors.
+            ``summary``: mean errors, mean curvature, fraction circuit-limited.
+            ``mpnn_train_mse``: MPNN training MSE.
+            ``pass``: True if mean error_total < de_gap_threshold.
+        """
+        import numpy as np
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.models import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        spec = get_model_spec(model)
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+        builder = HamiltonianBuilder()
+
+        # ── VQE sweep on training grid ───────────────────────────────────────
+        theta_map = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_train,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+        h_arr = np.array(sorted(theta_map.keys(), reverse=True))
+        theta_arr = np.array([theta_map[h] for h in h_arr])
+        e_arr = np.array(
+            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
+        )
+        n_params = theta_arr.shape[1]
+
+        # ── Train MPNN ───────────────────────────────────────────────────────
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=float(h_arr[0]))
+        dataset = build_graph_dataset(
+            lattice_ref,
+            h_values=h_arr,
+            theta_opt=theta_arr,
+            e_exact=e_arr,
+            fidelity_threshold=0.0,
+        )
+        predictor = MPNNPredictor(
+            node_features=dataset[0].x.shape[1],
+            output_dim=n_params,
+            hidden_dim=mpnn_hidden_dim,
+        )
+        train_result = train_mpnn(
+            predictor,
+            dataset,
+            n_epochs=mpnn_epochs,
+            lr=mpnn_lr,
+            patience=mpnn_patience,
+            seed=seed,
+        )
+        predictor.eval()
+
+        # ── Evaluate at each h_test ──────────────────────────────────────────
+        # Also run VQE at h_test to get θ_opt (the circuit-expressibility ceiling)
+        theta_map_test = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_test,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+
+        per_h: list[dict] = []
+        for h_t in h_test:
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t, model=model)
+            lattice_t = make_lattice(topology, n_qubits, J=1.0, h=h_t)
+            H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
+            circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
+
+            # θ_opt at h_test from VQE (circuit expressibility ceiling)
+            theta_opt_test = theta_map_test[h_t]
+            e_opt = float(backend.evaluate(circuit_t, H_t, theta_opt_test))
+
+            # MPNN prediction
+            edge_index_np, coord = builder.build_graph_data(lattice_t)
+            h_feat = np.full(n_qubits, float(h_t))
+            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
+            edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
+            graph = Data(x=x, edge_index=edge_index_t)
+            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+            with torch.no_grad():
+                theta_pred = predictor(graph).numpy().flatten()
+
+            e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
+
+            # Error decomposition (all normalized by gap)
+            gap_safe = max(gap, 1e-10)
+            error_circuit = abs(e_opt - e_exact) / gap_safe
+            error_mpnn = abs(e_pred - e_opt) / gap_safe
+            error_total = abs(e_pred - e_exact) / gap_safe
+            # θ deviation: how far MPNN prediction is from optimal parameters
+            theta_deviation = float(np.linalg.norm(theta_pred - theta_opt_test))
+
+            # Landscape curvature around θ_opt via finite differences:
+            # average |∂²E/∂θᵢ²| ≈ (E(θ+ε) - 2E(θ) + E(θ-ε)) / ε²
+            eps = 0.01
+            e_center = e_opt
+            curvatures = []
+            for i in range(n_params):
+                th_p = theta_opt_test.copy()
+                th_p[i] += eps
+                th_m = theta_opt_test.copy()
+                th_m[i] -= eps
+                e_p = float(backend.evaluate(circuit_t, H_t, th_p))
+                e_m = float(backend.evaluate(circuit_t, H_t, th_m))
+                curvatures.append(abs(e_p - 2.0 * e_center + e_m) / (eps**2))
+            mean_curvature = float(np.mean(curvatures))
+            max_curvature = float(np.max(curvatures))
+
+            passed = error_total < de_gap_threshold
+            per_h.append(
+                {
+                    "h": h_t,
+                    "e_exact": e_exact,
+                    "e_opt": e_opt,
+                    "e_pred": e_pred,
+                    "gap": gap,
+                    "error_circuit": error_circuit,  # ansatz expressibility limit
+                    "error_mpnn": error_mpnn,  # pure ML error
+                    "error_total": error_total,  # combined deployment error
+                    "theta_deviation": theta_deviation,
+                    "mean_curvature": mean_curvature,
+                    "max_curvature": max_curvature,
+                    "circuit_limited": error_circuit > de_gap_threshold,
+                    "pass": passed,
+                }
+            )
+            logger.info(
+                f"  h={h_t:.3f}: "
+                f"ΔE_circuit={error_circuit:.4f}, "
+                f"ΔE_mpnn={error_mpnn:.4f}, "
+                f"ΔE_total={error_total:.4f}, "
+                f"||Δθ||={theta_deviation:.4f}, "
+                f"κ={mean_curvature:.2f} "
+                f"[{'PASS' if passed else 'FAIL'}]"
+            )
+
+        # ── Summary ─────────────────────────────────────────────────────────
+        n_circuit_limited = sum(r["circuit_limited"] for r in per_h)
+        summary = {
+            "mean_error_circuit": float(np.mean([r["error_circuit"] for r in per_h])),
+            "mean_error_mpnn": float(np.mean([r["error_mpnn"] for r in per_h])),
+            "mean_error_total": float(np.mean([r["error_total"] for r in per_h])),
+            "mean_theta_deviation": float(np.mean([r["theta_deviation"] for r in per_h])),
+            "mean_curvature": float(np.mean([r["mean_curvature"] for r in per_h])),
+            "n_circuit_limited": f"{n_circuit_limited}/{len(per_h)}",
+            "mpnn_fraction_of_total_error": float(
+                np.mean([r["error_mpnn"] / max(r["error_total"], 1e-10) for r in per_h])
+            ),
+        }
+
+        mean_total = summary["mean_error_total"]
+        logger.info(
+            f"  Landscape quality: "
+            f"circuit={summary['mean_error_circuit']:.4f}, "
+            f"mpnn={summary['mean_error_mpnn']:.4f}, "
+            f"total={mean_total:.4f}, "
+            f"circuit-limited={n_circuit_limited}/{len(per_h)}"
+        )
+
+        return {
+            "per_h": per_h,
+            "summary": summary,
+            "mpnn_train_mse": train_result["final_mse"],
+            "n_train_points": len(dataset),
+            "n_params": n_params,
+            "pass": mean_total < de_gap_threshold,
+        }
+
+    def mpnn_interpolation_extrapolation(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_train: list[float],
+        h_interpolate: list[float],
+        h_extrapolate: list[float],
+        *,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 4000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Explicit interpolation vs extrapolation comparison for MPNN.
+
+        Characterizes how MPNN performance degrades when predicting outside
+        the training range (extrapolation) versus inside it (interpolation).
+
+        Definitions:
+          - ``h_interpolate``: h-values strictly between min(h_train) and
+            max(h_train). MPNN is *interpolating* — should be most accurate.
+          - ``h_extrapolate``: h-values outside the training range.
+            MPNN is *extrapolating* — expect accuracy degradation.
+
+        Metrics per point:
+          - ``de_gap``: ΔE/gap (primary quality metric).
+          - ``distance_to_train``: distance to nearest training h-value.
+          - ``relative_distance``: distance / mean_training_spacing.
+          - ``mode``: "interpolation" or "extrapolation".
+
+        The comparison reveals the MPNN's valid deployment range and
+        informs how far beyond the training grid one can safely use the
+        model — directly relevant to hardware deployment (h_test may not
+        always fall exactly on a training grid point).
+
+        Parameters
+        ----------
+        topology, n_qubits, h_train, p_layers, seed, n_restarts_vqe,
+        maxiter_vqe, mpnn_hidden_dim, mpnn_epochs, mpnn_lr, mpnn_patience,
+        model, de_gap_threshold :
+            Same as benchmark_mpnn_warmstart.
+        h_interpolate : list[float]
+            H-values inside the training range to test (interpolation mode).
+        h_extrapolate : list[float]
+            H-values outside the training range to test (extrapolation mode).
+
+        Returns
+        -------
+        dict with keys:
+            ``interpolation``: per-h results for h_interpolate.
+            ``extrapolation``: per-h results for h_extrapolate.
+            ``summary``: mean ΔE/gap and pass-rate per mode, degradation factor.
+            ``mpnn_train_mse``: MPNN training MSE (reference).
+            ``pass``: True if interpolation pass-rate ≥ 0.80.
+        """
+        import numpy as np
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.models import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        spec = get_model_spec(model)
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+        builder = HamiltonianBuilder()
+
+        # ── VQE sweep + MPNN training ────────────────────────────────────────
+        theta_map = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_train,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+        h_arr = np.array(sorted(theta_map.keys(), reverse=True))
+        theta_arr = np.array([theta_map[h] for h in h_arr])
+        e_arr = np.array(
+            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
+        )
+        n_params = theta_arr.shape[1]
+        h_min_train = float(np.min(h_arr))
+        h_max_train = float(np.max(h_arr))
+        mean_spacing = float(np.mean(np.abs(np.diff(sorted(h_arr)))))
+
+        # Validate that caller's h_interpolate/h_extrapolate are consistent
+        for h in h_interpolate:
+            if h < h_min_train or h > h_max_train:
+                logger.warning(
+                    f"  h_interpolate={h:.3f} is outside training range "
+                    f"[{h_min_train:.3f}, {h_max_train:.3f}]. "
+                    "Treating as extrapolation."
+                )
+        for h in h_extrapolate:
+            if h_min_train <= h <= h_max_train:
+                logger.warning(
+                    f"  h_extrapolate={h:.3f} is inside training range "
+                    f"[{h_min_train:.3f}, {h_max_train:.3f}]. "
+                    "Treating as interpolation."
+                )
+
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=float(h_arr[0]))
+        dataset = build_graph_dataset(
+            lattice_ref,
+            h_values=h_arr,
+            theta_opt=theta_arr,
+            e_exact=e_arr,
+            fidelity_threshold=0.0,
+        )
+        predictor = MPNNPredictor(
+            node_features=dataset[0].x.shape[1],
+            output_dim=n_params,
+            hidden_dim=mpnn_hidden_dim,
+        )
+        train_result = train_mpnn(
+            predictor,
+            dataset,
+            n_epochs=mpnn_epochs,
+            lr=mpnn_lr,
+            patience=mpnn_patience,
+            seed=seed,
+        )
+        predictor.eval()
+
+        def _evaluate_at_h(h_t: float, mode: str) -> dict:
+            """Predict and evaluate at a single h-value, annotated with mode."""
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t, model=model)
+            lattice_t = make_lattice(topology, n_qubits, J=1.0, h=h_t)
+            H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
+            circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
+            edge_index_np, coord = builder.build_graph_data(lattice_t)
+            h_feat = np.full(n_qubits, float(h_t))
+            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
+            edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
+            graph = Data(x=x, edge_index=edge_index_t)
+            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+            with torch.no_grad():
+                theta_pred = predictor(graph).numpy().flatten()
+
+            e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
+            de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+
+            # Distance to nearest training point
+            dist_to_train = float(np.min(np.abs(h_arr - h_t)))
+            rel_dist = dist_to_train / max(mean_spacing, 1e-10)
+
+            return {
+                "h": h_t,
+                "e_exact": e_exact,
+                "e_pred": e_pred,
+                "gap": gap,
+                "de_gap": de_gap,
+                "distance_to_nearest_train": dist_to_train,
+                "relative_distance": rel_dist,
+                "mode": mode,
+                "pass": de_gap < de_gap_threshold,
+            }
+
+        logger.info(
+            f"  Interp/extrap: {topology} N={n_qubits} "
+            f"| train=[{h_min_train:.2f},{h_max_train:.2f}] "
+            f"| {len(h_interpolate)} interp + {len(h_extrapolate)} extrap pts"
+        )
+
+        interp_results = [_evaluate_at_h(h, "interpolation") for h in h_interpolate]
+        extrap_results = [_evaluate_at_h(h, "extrapolation") for h in h_extrapolate]
+
+        for r in interp_results:
+            logger.info(
+                f"  [INTERP] h={r['h']:.3f}: ΔE/gap={r['de_gap']:.4f} "
+                f"(d={r['distance_to_nearest_train']:.3f}, rel={r['relative_distance']:.1f}x) "
+                f"[{'PASS' if r['pass'] else 'FAIL'}]"
+            )
+        for r in extrap_results:
+            logger.info(
+                f"  [EXTRAP] h={r['h']:.3f}: ΔE/gap={r['de_gap']:.4f} "
+                f"(d={r['distance_to_nearest_train']:.3f}, rel={r['relative_distance']:.1f}x) "
+                f"[{'PASS' if r['pass'] else 'FAIL'}]"
+            )
+
+        # ── Summary ─────────────────────────────────────────────────────────
+        interp_de = [r["de_gap"] for r in interp_results] if interp_results else [float("nan")]
+        extrap_de = [r["de_gap"] for r in extrap_results] if extrap_results else []
+        interp_pass_rate = (
+            sum(r["pass"] for r in interp_results) / len(interp_results)
+            if interp_results
+            else float("nan")
+        )
+        extrap_pass_rate = (
+            sum(r["pass"] for r in extrap_results) / len(extrap_results)
+            if extrap_results
+            else float("nan")
+        )
+
+        # Degradation: ratio of mean extrap error to mean interp error
+        mean_interp = float(np.nanmean(interp_de))
+        mean_extrap = float(np.nanmean(extrap_de)) if extrap_de else float("nan")
+        degradation = mean_extrap / max(mean_interp, 1e-10) if extrap_de else float("nan")
+
+        summary = {
+            "interpolation": {
+                "mean_de_gap": mean_interp,
+                "max_de_gap": float(np.nanmax(interp_de)),
+                "pass_rate": interp_pass_rate,
+                "n_points": len(interp_results),
+            },
+            "extrapolation": {
+                "mean_de_gap": mean_extrap,
+                "max_de_gap": float(np.nanmax(extrap_de)) if extrap_de else float("nan"),
+                "pass_rate": extrap_pass_rate,
+                "n_points": len(extrap_results),
+            },
+            "degradation_factor": degradation,
+            "h_train_range": [h_min_train, h_max_train],
+            "mean_training_spacing": mean_spacing,
+        }
+
+        logger.info(
+            f"  Interpolation: mean={mean_interp:.4f}, pass={interp_pass_rate:.0%} | "
+            f"Extrapolation: mean={mean_extrap:.4f}, pass={extrap_pass_rate:.0%} | "
+            f"Degradation={degradation:.2f}x"
+        )
+
+        return {
+            "interpolation": interp_results,
+            "extrapolation": extrap_results,
+            "summary": summary,
+            "mpnn_train_mse": train_result["final_mse"],
+            "n_train_points": len(dataset),
+            "n_params": n_params,
+            "h_train_range": [h_min_train, h_max_train],
+            # Pass: interpolation must work (≥80% pass); extrapolation degradation is informational
+            "pass": interp_pass_rate >= 0.80 if interp_results else True,
+        }
+
+    # ── Extended MPNN Evaluation Experiments ─────────────────────────────────
+
+    def mpnn_scaling_with_system_size(
+        self,
+        topology: str,
+        system_sizes: list[int],
+        h_train: list[float],
+        h_test: list[float],
+        *,
+        p_layers: int = 1,
+        p_layers_per_n: dict[int, int] | None = None,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        n_vqe_restarts_from_pred: int = 3,
+        maxiter_refine: int = 150,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 3000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Measure how MPNN warm-start speedup scales with system size N.
+
+        For each N in system_sizes, trains an MPNN on h_train and benchmarks
+        it against random init at h_test. Reports speedup(N) to reveal whether
+        the GNN advantage grows, shrinks, or stays constant with system size.
+
+        Scientific question:
+            Does the warm-start advantage of the GNN scale with N?
+            - If speedup(N) increases: GNN is more valuable at larger N.
+            - If speedup(N) ≈ constant: advantage is landscape-driven.
+            - If speedup(N) decreases: GNN loses value for large systems.
+
+        IMPORTANT — p_layers per N:
+            The default `p_layers` applies to ALL N. For hardware-realistic
+            comparisons, p=2 at N≥10 exceeds the ZNE threshold (36 CX ≫ 18).
+            Use `p_layers_per_n` to set per-N depth, e.g.:
+            ``p_layers_per_n={4: 2, 6: 2, 10: 1}``
+            If not provided and p_layers=2 is used with N≥10, a warning is emitted.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology. Use "chain_1d" for fair N comparison.
+        system_sizes : list[int]
+            System sizes to test (e.g. [4, 6, 10]).
+        p_layers_per_n : dict[int, int] | None
+            Per-N override for HVA depth. Overrides `p_layers` for specified N.
+            Keys not in this dict fall back to `p_layers`.
+        h_train, h_test, p_layers, seed, n_restarts_vqe, maxiter_vqe,
+        n_vqe_restarts_from_pred, maxiter_refine, mpnn_hidden_dim,
+        mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold :
+            Same as benchmark_mpnn_warmstart.
+
+        Returns
+        -------
+        dict with keys:
+            ``per_n``: list of per-N results (each is a benchmark_mpnn_warmstart output).
+            ``summary``: speedup trend statistics across N.
+            ``scaling_trend``: "increasing" | "decreasing" | "flat" based on linear fit slope.
+            ``pass``: True if all N pass ΔE/gap threshold.
+        """
+        import numpy as np
+
+        per_n: list[dict] = []
+        _p_override = p_layers_per_n or {}
+
+        for n in system_sizes:
+            # Per-N p_layers: hardware constraint p=1 for N≥10 (ZNE limit: ~18 CX)
+            n_p = _p_override.get(n, p_layers)
+            if n_p == 2 and n >= 10:
+                logger.warning(
+                    f"  [scaling N={n}] p_layers=2 with N={n} exceeds ZNE threshold "
+                    f"(~36 CX > 18 CX). Use p_layers_per_n={{{n}: 1}} for hardware-realistic "
+                    f"comparison. Continuing with p=2 for noiseless benchmark."
+                )
+
+            # Also adapt h_train and h_test if N requires different valid regime
+            # For N≥10 p=1: valid regime h≥1.9 (chain_1d) — use the provided grid as-is
+            logger.info(f"  [scaling N={n} p={n_p}] Benchmarking warm-start...")
+            result_n = self.benchmark_mpnn_warmstart(
+                topology=topology,
+                n_qubits=n,
+                h_train=h_train,
+                h_test=h_test,
+                p_layers=n_p,
+                seed=seed,
+                n_restarts_vqe=n_restarts_vqe,
+                maxiter_vqe=maxiter_vqe,
+                mpnn_hidden_dim=mpnn_hidden_dim,
+                mpnn_epochs=mpnn_epochs,
+                mpnn_lr=mpnn_lr,
+                mpnn_patience=mpnn_patience,
+                n_vqe_restarts_from_pred=n_vqe_restarts_from_pred,
+                maxiter_refine=maxiter_refine,
+                model=model,
+                de_gap_threshold=de_gap_threshold,
+            )
+            entry = {
+                "n_qubits": n,
+                "p_layers": n_p,
+                "n_params": result_n["n_params"],
+                "speedup_vs_random": result_n["summary"]["mean_speedup_vs_random"],
+                "speedup_vs_prev_h": result_n["summary"]["mean_speedup_vs_prev_h"],
+                "init_de_gap": result_n["summary"]["mean_init_de_gap"],
+                "final_de_gap": result_n["summary"]["mean_final_de_gap_mpnn"],
+                "train_mse": result_n["mpnn_train_mse"],
+                "pass": result_n["pass"],
+            }
+            per_n.append(entry)
+            logger.info(
+                f"  N={n} p={n_p}: speedup={entry['speedup_vs_random']:.2f}x, "
+                f"n_params={entry['n_params']}, "
+                f"init_ΔE/gap={entry['init_de_gap']:.4f} "
+                f"[{'PASS' if entry['pass'] else 'FAIL'}]"
+            )
+
+        # Fit linear trend: speedup vs N
+        ns = np.array([e["n_qubits"] for e in per_n], dtype=float)
+        speedups = np.array([e["speedup_vs_random"] for e in per_n])
+        slope = float(np.polyfit(ns, speedups, 1)[0]) if len(per_n) >= 2 else 0.0
+
+        if abs(slope) < 0.05:
+            trend = "flat"
+        elif slope > 0:
+            trend = "increasing"
+        else:
+            trend = "decreasing"
+
+        return {
+            "per_n": per_n,
+            "system_sizes": system_sizes,
+            "p_layers_per_n": _p_override or {"all": p_layers},
+            "summary": {
+                "mean_speedup": float(np.mean(speedups)),
+                "min_speedup": float(np.min(speedups)),
+                "max_speedup": float(np.max(speedups)),
+                "speedup_slope_per_N": slope,
+            },
+            "scaling_trend": trend,
+            "pass": all(e["pass"] for e in per_n),
+        }
+        """Measure how MPNN warm-start speedup scales with system size N.
+
+        For each N in system_sizes, trains an MPNN on h_train and benchmarks
+        it against random init at h_test. Reports speedup(N) to reveal whether
+        the GNN advantage grows, shrinks, or stays constant with system size.
+
+        Scientific question:
+            Does the warm-start advantage of the GNN scale with N?
+            - If speedup(N) increases: GNN is more valuable at larger N
+              (larger parameter spaces benefit more from a good initialization).
+            - If speedup(N) ≈ constant: the advantage is landscape-driven,
+              not dimensionality-driven.
+            - If speedup(N) decreases: GNN loses value for large systems
+              (unexpected — would suggest the model doesn't scale).
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology. Use "chain_1d" for fair N comparison.
+        system_sizes : list[int]
+            System sizes to test (e.g. [4, 6, 10]).
+            Each N produces one independent MPNN + benchmark.
+        h_train, h_test, p_layers, seed, n_restarts_vqe, maxiter_vqe,
+        n_vqe_restarts_from_pred, maxiter_refine, mpnn_hidden_dim,
+        mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold :
+            Same as benchmark_mpnn_warmstart.
+
+        Returns
+        -------
+        dict with keys:
+            ``per_n``: list of per-N results (each is a benchmark_mpnn_warmstart output).
+            ``summary``: speedup trend statistics across N.
+            ``scaling_trend``: "increasing" | "decreasing" | "flat" based on linear fit slope.
+            ``pass``: True if all N pass ΔE/gap threshold.
+        """
+        import numpy as np
+
+        per_n: list[dict] = []
+        for n in system_sizes:
+            logger.info(f"  [scaling N={n}] Benchmarking warm-start...")
+            result_n = self.benchmark_mpnn_warmstart(
+                topology=topology,
+                n_qubits=n,
+                h_train=h_train,
+                h_test=h_test,
+                p_layers=p_layers,
+                seed=seed,
+                n_restarts_vqe=n_restarts_vqe,
+                maxiter_vqe=maxiter_vqe,
+                mpnn_hidden_dim=mpnn_hidden_dim,
+                mpnn_epochs=mpnn_epochs,
+                mpnn_lr=mpnn_lr,
+                mpnn_patience=mpnn_patience,
+                n_vqe_restarts_from_pred=n_vqe_restarts_from_pred,
+                maxiter_refine=maxiter_refine,
+                model=model,
+                de_gap_threshold=de_gap_threshold,
+            )
+            entry = {
+                "n_qubits": n,
+                "n_params": result_n["n_params"],
+                "speedup_vs_random": result_n["summary"]["mean_speedup_vs_random"],
+                "speedup_vs_prev_h": result_n["summary"]["mean_speedup_vs_prev_h"],
+                "init_de_gap": result_n["summary"]["mean_init_de_gap"],
+                "final_de_gap": result_n["summary"]["mean_final_de_gap_mpnn"],
+                "train_mse": result_n["mpnn_train_mse"],
+                "pass": result_n["pass"],
+            }
+            per_n.append(entry)
+            logger.info(
+                f"  N={n}: speedup={entry['speedup_vs_random']:.2f}x, "
+                f"n_params={entry['n_params']}, "
+                f"init_ΔE/gap={entry['init_de_gap']:.4f} "
+                f"[{'PASS' if entry['pass'] else 'FAIL'}]"
+            )
+
+        # Fit linear trend: speedup vs N
+        ns = np.array([e["n_qubits"] for e in per_n], dtype=float)
+        speedups = np.array([e["speedup_vs_random"] for e in per_n])
+        slope = float(np.polyfit(ns, speedups, 1)[0]) if len(per_n) >= 2 else 0.0
+
+        if abs(slope) < 0.05:
+            trend = "flat"
+        elif slope > 0:
+            trend = "increasing"
+        else:
+            trend = "decreasing"
+
+        return {
+            "per_n": per_n,
+            "system_sizes": system_sizes,
+            "summary": {
+                "mean_speedup": float(np.mean(speedups)),
+                "min_speedup": float(np.min(speedups)),
+                "max_speedup": float(np.max(speedups)),
+                "speedup_slope_per_N": slope,
+            },
+            "scaling_trend": trend,
+            "pass": all(e["pass"] for e in per_n),
+        }
+
+    def mpnn_learning_curve(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_pool: list[float],
+        h_test: list[float],
+        *,
+        train_sizes: list[int] | None = None,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 3000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Measure MPNN prediction quality as a function of training set size.
+
+        Answers: "How many h-training points does the GNN need to achieve
+        ΔE/gap < 5%?" This is the sample-efficiency curve of the model.
+
+        Protocol:
+          1. Run VQE on the full h_pool to get all θ_opt values.
+          2. For each train_size k, sample the first k points from h_pool
+             (descending order — warm-start preserves trajectory structure).
+          3. Train MPNN on k points, evaluate at h_test.
+          4. Report ΔE/gap(k) — the learning curve.
+
+        The minimum k where ΔE/gap < 5% is the "critical training size" for
+        this system. Below it, the GNN cannot be relied upon for hardware.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology.
+        n_qubits : int
+            System size.
+        h_pool : list[float]
+            Full available h-grid (descending). Training subsets taken from here.
+        h_test : list[float]
+            Held-out test points (must NOT overlap h_pool).
+        train_sizes : list[int] | None
+            Subset sizes to test. Default: [3, 5, 7, 10, len(h_pool)] or similar.
+        p_layers, seed, n_restarts_vqe, maxiter_vqe, mpnn_hidden_dim,
+        mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold :
+            Standard MPNN configuration.
+
+        Returns
+        -------
+        dict with keys:
+            ``per_size``: per-k results with k, mean_de_gap, pass_rate, train_mse.
+            ``critical_size``: minimum k achieving pass_rate ≥ 0.80.
+            ``sample_efficiency``: ΔE/gap slope per additional training point.
+            ``pass``: True if full dataset (last entry) passes threshold.
+        """
+        import numpy as np
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.models import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        spec = get_model_spec(model)
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+        builder = HamiltonianBuilder()
+
+        # ── VQE on full pool ────────────────────────────────────────────────
+        theta_map = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_pool,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+        h_arr = np.array(sorted(theta_map.keys(), reverse=True))
+        theta_arr = np.array([theta_map[h] for h in h_arr])
+        e_arr = np.array(
+            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
+        )
+        n_params = theta_arr.shape[1]
+
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=float(h_arr[0]))
+
+        if train_sizes is None:
+            n_total = len(h_arr)
+            # Logarithmic spacing from 3 to n_total
+            raw = np.unique(np.round(np.geomspace(3, n_total, num=min(6, n_total - 2))).astype(int))
+            train_sizes = [int(k) for k in raw if 3 <= k <= n_total]
+            if n_total not in train_sizes:
+                train_sizes.append(n_total)
+
+        # Pre-compute test lattices/Hamiltonians/circuits
+        test_setups = []
+        for h_t in h_test:
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t, model=model)
+            lattice_t = make_lattice(topology, n_qubits, J=1.0, h=h_t)
+            H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
+            circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
+            edge_index_np, coord = builder.build_graph_data(lattice_t)
+            test_setups.append((h_t, e_exact, gap, H_t, circuit_t, edge_index_np, coord))
+
+        per_size: list[dict] = []
+        for k in sorted(train_sizes):
+            if k > len(h_arr):
+                logger.warning(f"  train_size={k} > pool size {len(h_arr)}, skipping.")
+                continue
+            if k < 3:
+                logger.warning(f"  train_size={k} < 3 (too small for MPNN), skipping.")
+                continue
+
+            # Take first k points (descending — preserves trajectory structure)
+            h_k = h_arr[:k]
+            theta_k = theta_arr[:k]
+            e_k = e_arr[:k]
+
+            try:
+                dataset_k = build_graph_dataset(
+                    lattice_ref,
+                    h_values=h_k,
+                    theta_opt=theta_k,
+                    e_exact=e_k,
+                    fidelity_threshold=0.0,
+                )
+            except ValueError:
+                logger.warning(f"  train_size={k}: dataset build failed, skipping.")
+                continue
+
+            model_k = MPNNPredictor(
+                node_features=dataset_k[0].x.shape[1],
+                output_dim=n_params,
+                hidden_dim=mpnn_hidden_dim,
+            )
+            train_k = train_mpnn(
+                model_k,
+                dataset_k,
+                n_epochs=mpnn_epochs,
+                lr=mpnn_lr,
+                patience=mpnn_patience,
+                seed=seed + k,  # distinct seed per size
+            )
+            model_k.eval()
+
+            # Evaluate at all h_test
+            de_gaps_k: list[float] = []
+            for h_t, e_exact, gap, H_t, circuit_t, edge_index_np, coord in test_setups:
+                h_feat = np.full(n_qubits, float(h_t))
+                x = torch.tensor(
+                    np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32
+                )
+                edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
+                graph = Data(x=x, edge_index=edge_index_t)
+                graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+                with torch.no_grad():
+                    theta_pred = model_k(graph).numpy().flatten()
+                e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
+                de_gaps_k.append(abs(e_pred - e_exact) / max(gap, 1e-10))
+
+            mean_de = float(np.mean(de_gaps_k))
+            pass_rate = float(np.mean([d < de_gap_threshold for d in de_gaps_k]))
+            per_size.append(
+                {
+                    "train_size": k,
+                    "n_params": n_params,
+                    "mean_de_gap": mean_de,
+                    "max_de_gap": float(np.max(de_gaps_k)),
+                    "pass_rate": pass_rate,
+                    "train_mse": train_k["final_mse"],
+                    "pass": pass_rate >= 0.80,
+                }
+            )
+            logger.info(
+                f"  k={k:2d}: mean_ΔE/gap={mean_de:.4f}, "
+                f"pass={pass_rate:.0%}, mse={train_k['final_mse']:.2e} "
+                f"[{'PASS' if pass_rate >= 0.80 else 'FAIL'}]"
+            )
+
+        # Critical training size: minimum k with pass_rate ≥ 0.80
+        critical_size: int | None = None
+        for entry in sorted(per_size, key=lambda x: x["train_size"]):
+            if entry["pass_rate"] >= 0.80:
+                critical_size = entry["train_size"]
+                break
+
+        # Sample efficiency: slope of mean_de_gap vs train_size (negative = improving)
+        ks = np.array([e["train_size"] for e in per_size], dtype=float)
+        des = np.array([e["mean_de_gap"] for e in per_size])
+        slope = float(np.polyfit(ks, des, 1)[0]) if len(per_size) >= 2 else 0.0
+
+        return {
+            "per_size": per_size,
+            "train_sizes_tested": [e["train_size"] for e in per_size],
+            "h_pool_size": len(h_arr),
+            "summary": {
+                "critical_size": critical_size,
+                "sample_efficiency_slope": slope,  # ΔE/gap reduction per extra training point
+                "best_mean_de_gap": float(np.min(des)) if len(des) > 0 else float("nan"),
+                "full_dataset_de_gap": float(des[-1]) if len(des) > 0 else float("nan"),
+            },
+            "pass": per_size[-1]["pass"] if per_size else False,
+        }
+
+    def mpnn_topology_transfer(
+        self,
+        source_topology: str,
+        target_topology: str,
+        n_qubits: int,
+        h_train: list[float],
+        h_test: list[float],
+        *,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 3000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Zero-shot topology transfer: train on source, deploy on target.
+
+        Trains the MPNN on source_topology data (same N, same h-values), then
+        evaluates it on target_topology — no retraining. Compares against:
+          - in-distribution (trained AND tested on target): the performance ceiling
+          - zero-shot transfer (trained on source, tested on target): this experiment
+          - random init baseline (no MPNN, random θ): the lower bound
+
+        This directly validates the GNN's lattice-agnosticism claim: the
+        message passing + global pooling architecture should generalize across
+        topologies because it encodes connectivity structure (edge_index), not
+        topology identity. A GNN that fails zero-shot transfer would be
+        memorizing topology-specific patterns rather than learning physics.
+
+        Parameters
+        ----------
+        source_topology : str
+            Topology used for training (e.g. "chain_1d").
+        target_topology : str
+            Topology used for evaluation (e.g. "ladder").
+        n_qubits : int
+            System size (same for both topologies).
+        h_train, h_test : list[float]
+            Training and test h-grids (same for both conditions).
+        p_layers, seed, n_restarts_vqe, maxiter_vqe, mpnn_hidden_dim,
+        mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold :
+            Standard MPNN config.
+
+        Returns
+        -------
+        dict with keys:
+            ``in_distribution``: result when trained on target (performance ceiling).
+            ``zero_shot``: result when trained on source, tested on target.
+            ``random_baseline``: random-init ΔE/gap on target (lower bound).
+            ``transfer_ratio``: zero_shot_de_gap / in_dist_de_gap (1.0 = perfect transfer).
+            ``pass``: True if zero_shot mean_de_gap < de_gap_threshold.
+        """
+        import numpy as np
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.models import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        spec = get_model_spec(model)
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+        builder = HamiltonianBuilder()
+        rng = np.random.default_rng(seed)
+
+        def _train_on(topo: str) -> tuple[MPNNPredictor, np.ndarray, np.ndarray, int]:
+            """Train MPNN on given topology. Returns (predictor, h_arr, theta_arr, n_params)."""
+            tmap = self.vqe_descending_sweep(
+                topo,
+                n_qubits,
+                h_train,
+                seed=seed,
+                p_layers=p_layers,
+                n_restarts=n_restarts_vqe,
+                maxiter=maxiter_vqe,
+                model=model,
+            )
+            h_a = np.array(sorted(tmap.keys(), reverse=True))
+            th_a = np.array([tmap[h] for h in h_a])
+            e_a = np.array(
+                [self.exact_ground_state(topo, n_qubits, float(h), model=model)[0] for h in h_a]
+            )
+            lattice_r = make_lattice(topo, n_qubits, J=1.0, h=float(h_a[0]))
+            ds = build_graph_dataset(
+                lattice_r,
+                h_values=h_a,
+                theta_opt=th_a,
+                e_exact=e_a,
+                fidelity_threshold=0.0,
+            )
+            n_p = th_a.shape[1]
+            pred = MPNNPredictor(
+                node_features=ds[0].x.shape[1],
+                output_dim=n_p,
+                hidden_dim=mpnn_hidden_dim,
+            )
+            train_mpnn(
+                pred, ds, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience, seed=seed
+            )
+            pred.eval()
+            return pred, h_a, th_a, n_p
+
+        def _eval_on(predictor: MPNNPredictor, topo: str, n_params: int) -> list[dict]:
+            """Evaluate predictor on target topology at h_test."""
+            results = []
+            for h_t in h_test:
+                e_exact, gap = self.exact_ground_state(topo, n_qubits, h_t, model=model)
+                lattice_t = make_lattice(topo, n_qubits, J=1.0, h=h_t)
+                H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
+                circuit_t, _ = spec.create_circuit(
+                    n_qubits, p_layers, lattice_t, **spec.circuit_kwargs
+                )
+                edge_index_np, coord = builder.build_graph_data(lattice_t)
+                h_feat = np.full(n_qubits, float(h_t))
+                x = torch.tensor(
+                    np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32
+                )
+                edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
+                graph = Data(x=x, edge_index=edge_index_t)
+                graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+                with torch.no_grad():
+                    theta_pred = predictor(graph).numpy().flatten()
+                e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
+                de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+                # Random baseline
+                theta_rand = rng.uniform(-0.01, 0.01, n_params)
+                e_rand = float(backend.evaluate(circuit_t, H_t, theta_rand))
+                de_gap_rand = abs(e_rand - e_exact) / max(gap, 1e-10)
+                results.append(
+                    {
+                        "h": h_t,
+                        "e_exact": e_exact,
+                        "gap": gap,
+                        "e_pred": e_pred,
+                        "de_gap": de_gap,
+                        "de_gap_random": de_gap_rand,
+                        "pass": de_gap < de_gap_threshold,
+                    }
+                )
+            return results
+
+        logger.info(f"  Training on {source_topology} (source)...")
+        source_pred, _, _, n_params = _train_on(source_topology)
+
+        logger.info(f"  Training on {target_topology} (in-distribution ceiling)...")
+        target_pred, _, _, _ = _train_on(target_topology)
+
+        logger.info(f"  Evaluating zero-shot transfer on {target_topology}...")
+        zero_shot_results = _eval_on(source_pred, target_topology, n_params)
+
+        logger.info(f"  Evaluating in-distribution on {target_topology}...")
+        in_dist_results = _eval_on(target_pred, target_topology, n_params)
+
+        zero_de_gaps = [r["de_gap"] for r in zero_shot_results]
+        in_dist_de_gaps = [r["de_gap"] for r in in_dist_results]
+        rand_de_gaps = [r["de_gap_random"] for r in zero_shot_results]
+
+        mean_zero = float(np.mean(zero_de_gaps))
+        mean_in_dist = float(np.mean(in_dist_de_gaps))
+        mean_rand = float(np.mean(rand_de_gaps))
+        transfer_ratio = mean_zero / max(mean_in_dist, 1e-10)
+
+        for r in zero_shot_results:
+            in_dist_match = next(
+                (x for x in in_dist_results if abs(x["h"] - r["h"]) < 1e-9),
+                None,
+            )
+            in_dist_de = in_dist_match["de_gap"] if in_dist_match else float("nan")
+            logger.info(
+                f"  h={r['h']:.3f}: zero_shot={r['de_gap']:.4f}, "
+                f"in_dist={in_dist_de:.4f} "
+                f"[{'PASS' if r['pass'] else 'FAIL'}]"
+            )
+
+        logger.info(
+            f"  Transfer: mean_zero={mean_zero:.4f}, mean_in_dist={mean_in_dist:.4f}, "
+            f"ratio={transfer_ratio:.2f}x, random={mean_rand:.4f}"
+        )
+
+        return {
+            "source_topology": source_topology,
+            "target_topology": target_topology,
+            "zero_shot": zero_shot_results,
+            "in_distribution": in_dist_results,
+            "summary": {
+                "mean_de_gap_zero_shot": mean_zero,
+                "mean_de_gap_in_distribution": mean_in_dist,
+                "mean_de_gap_random": mean_rand,
+                "transfer_ratio": transfer_ratio,  # 1.0 = perfect, > 1 = worse
+                "zero_shot_pass_rate": float(np.mean([r["pass"] for r in zero_shot_results])),
+                "in_dist_pass_rate": float(np.mean([r["pass"] for r in in_dist_results])),
+            },
+            "pass": mean_zero < de_gap_threshold,
+        }
+
+    def mpnn_data_efficiency_vs_loo(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_pool: list[float],
+        *,
+        n_seeds: int = 3,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 3000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        de_gap_threshold: float = 0.05,
+        min_train_size: int = 3,
+    ) -> dict:
+        """Multi-seed LOO-CV to quantify data efficiency with confidence intervals.
+
+        Runs LOO-CV n_seeds times with different MPNN weight initializations.
+        Unlike standard LOO (single seed), this reveals whether the LOO score is
+        stable or seed-dependent — an unstable score means the model is too
+        sensitive to initialization for the given dataset size.
+
+        Metrics:
+          - mean_pass_rate ± std_pass_rate across seeds
+          - per-fold mean_de_gap ± std across seeds (which h-values are hard?)
+          - coefficient_of_variation = std/mean (low = robust, high = fragile)
+
+        This answers: "Is the LOO-CV pass rate a reliable estimate of
+        generalization, or does it depend on random weight initialization?"
+
+        Parameters
+        ----------
+        topology, n_qubits, h_pool, p_layers, seed, n_restarts_vqe,
+        maxiter_vqe, mpnn_hidden_dim, mpnn_epochs, mpnn_lr, mpnn_patience,
+        model, de_gap_threshold :
+            Same as mpnn_leave_one_out_cv.
+        n_seeds : int
+            Number of independent MPNN random seeds (default: 3).
+
+        Returns
+        -------
+        dict with keys:
+            ``per_seed``: LOO-CV result for each seed.
+            ``summary``: mean/std pass_rate, per-fold stats, CV score.
+            ``robust``: True if std_pass_rate < 0.15 (stable across seeds).
+            ``pass``: True if mean_pass_rate ≥ 0.80.
+        """
+        import numpy as np
+
+        seeds = [seed + i * 7 for i in range(n_seeds)]  # deterministic seed sequence
+        per_seed: list[dict] = []
+
+        for i, s in enumerate(seeds):
+            logger.info(f"  LOO seed {i + 1}/{n_seeds} (seed={s})...")
+            result_s = self.mpnn_leave_one_out_cv(
+                topology=topology,
+                n_qubits=n_qubits,
+                h_train=h_pool,
+                p_layers=p_layers,
+                seed=s,
+                n_restarts_vqe=n_restarts_vqe,
+                maxiter_vqe=maxiter_vqe,
+                mpnn_hidden_dim=mpnn_hidden_dim,
+                mpnn_epochs=mpnn_epochs,
+                mpnn_lr=mpnn_lr,
+                mpnn_patience=mpnn_patience,
+                model=model,
+                de_gap_threshold=de_gap_threshold,
+                min_train_size=min_train_size,
+            )
+            per_seed.append(
+                {
+                    "seed": s,
+                    "pass_rate": result_s["summary"]["pass_rate"],
+                    "mean_de_gap": result_s["summary"]["mean_de_gap"],
+                    "max_de_gap": result_s["summary"]["max_de_gap"],
+                    "per_fold": result_s["per_fold"],
+                }
+            )
+            logger.info(
+                f"    pass_rate={result_s['summary']['pass_rate']:.0%}, "
+                f"mean_de={result_s['summary']['mean_de_gap']:.4f}"
+            )
+
+        pass_rates = np.array([s["pass_rate"] for s in per_seed])
+        mean_de_gaps = np.array([s["mean_de_gap"] for s in per_seed])
+
+        # Per-fold statistics across seeds
+        fold_h = [f["h_held_out"] for f in per_seed[0]["per_fold"]] if per_seed else []
+        per_fold_stats: list[dict] = []
+        for fi, h in enumerate(fold_h):
+            fold_de_gaps = [
+                s["per_fold"][fi]["de_gap"] for s in per_seed if fi < len(s["per_fold"])
+            ]
+            per_fold_stats.append(
+                {
+                    "h": h,
+                    "mean_de_gap": float(np.mean(fold_de_gaps)),
+                    "std_de_gap": float(np.std(fold_de_gaps)),
+                    "cv": float(np.std(fold_de_gaps) / max(np.mean(fold_de_gaps), 1e-10)),
+                }
+            )
+
+        mean_pr = float(np.mean(pass_rates))
+        std_pr = float(np.std(pass_rates))
+        cv_pr = std_pr / max(mean_pr, 1e-10)
+
+        return {
+            "per_seed": per_seed,
+            "per_fold_stats": per_fold_stats,
+            "summary": {
+                "mean_pass_rate": mean_pr,
+                "std_pass_rate": std_pr,
+                "cv_pass_rate": cv_pr,
+                "mean_de_gap": float(np.mean(mean_de_gaps)),
+                "std_de_gap": float(np.std(mean_de_gaps)),
+                "n_seeds": n_seeds,
+            },
+            "robust": std_pr < 0.15,
+            "pass": mean_pr >= 0.80,
+        }
+
+    def mpnn_curvature_noise_correlation(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_grid: list[float],
+        *,
+        p_layers: int = 1,
+        seed: int = 42,
+        n_restarts_vqe: int = 1,
+        maxiter_vqe: int = 500,
+        mpnn_hidden_dim: int = 64,
+        mpnn_epochs: int = 3000,
+        mpnn_lr: float = 1e-3,
+        mpnn_patience: int = 150,
+        model: str = "tfim",
+        noise_levels: list[float] | None = None,
+        de_gap_threshold: float = 0.05,
+    ) -> dict:
+        """Correlate landscape curvature κ with sensitivity to parameter perturbations.
+
+        For each h in h_grid, computes:
+          1. κ(h) = mean |∂²E/∂θ²| at θ_opt (landscape curvature)
+          2. ΔE_noise(h, σ) = E(θ_opt + ε) - E(θ_opt) for ε ~ N(0, σ²)
+             averaged over 20 random perturbations at each noise level σ.
+
+        This tests the hypothesis: "High κ predicts high sensitivity to
+        parameter errors" — if validated, κ is a cheap hardware-risk proxy
+        (compute from VQE data, no QPU needed).
+
+        Scientific value:
+          A strong Pearson r between κ(h) and ΔE_noise(h) validates κ as
+          a diagnostic for hardware deployment decisions. Before sending
+          a job to IBM Torino, compute κ from noiseless VQE data; if
+          κ > threshold, use more VQE restarts or tighter convergence.
+
+        Parameters
+        ----------
+        topology, n_qubits, h_grid, p_layers, seed, n_restarts_vqe,
+        maxiter_vqe, mpnn_hidden_dim, mpnn_epochs, mpnn_lr, mpnn_patience,
+        model, de_gap_threshold :
+            Standard config.
+        noise_levels : list[float] | None
+            Standard deviations of Gaussian noise applied to θ_opt.
+            Default: [0.01, 0.05, 0.10, 0.20].
+
+        Returns
+        -------
+        dict with keys:
+            ``per_h``: per-h curvature + noise sensitivity at each σ.
+            ``correlations``: Pearson r(κ, ΔE_noise) per noise level.
+            ``summary``: mean κ, mean Pearson r, κ is a reliable predictor (bool).
+            ``pass``: True if mean Pearson r ≥ 0.70 (κ predicts noise sensitivity).
+        """
+        import numpy as np
+
+        if noise_levels is None:
+            noise_levels = [0.01, 0.05, 0.10, 0.20]
+
+        spec_obj = None
+        try:
+            from qmbp_simulation.models.model_registry import get_model_spec
+
+            spec_obj = get_model_spec(model)
+        except Exception as exc:
+            raise RuntimeError(
+                f"mpnn_curvature_noise_correlation: failed to load model spec for "
+                f"'{model}'. Ensure the model is registered."
+            ) from exc
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoiselessBackend
+
+        _resolved = self._resolve_backend()
+        backend = _resolved if _resolved is not None else NoiselessBackend()
+        rng = np.random.default_rng(seed)
+        N_PERTURBATIONS = 20
+
+        # ── VQE sweep ──────────────────────────────────────────────────────
+        theta_map = self.vqe_descending_sweep(
+            topology,
+            n_qubits,
+            h_grid,
+            seed=seed,
+            p_layers=p_layers,
+            n_restarts=n_restarts_vqe,
+            maxiter=maxiter_vqe,
+            model=model,
+        )
+
+        per_h: list[dict] = []
+        for h in sorted(theta_map.keys(), reverse=True):
+            theta_opt = theta_map[h]
+            n_params = len(theta_opt)
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, float(h), model=model)
+            lattice_h = make_lattice(topology, n_qubits, J=1.0, h=float(h))
+            H_h = spec_obj.build_hamiltonian(lattice_h, **spec_obj.hamiltonian_kwargs)
+            circuit_h, _ = spec_obj.create_circuit(
+                n_qubits, p_layers, lattice_h, **spec_obj.circuit_kwargs
+            )
+
+            def _energy(theta: np.ndarray) -> float:
+                return float(backend.evaluate(circuit_h, H_h, theta))
+
+            e_opt = _energy(theta_opt)
+
+            # ── Curvature: mean |∂²E/∂θᵢ²| via finite differences ────────
+            # Guarded per-parameter: a single eval failure yields nan for that param.
+            eps = 0.01
+            curvatures = []
+            for i in range(n_params):
+                try:
+                    th_p = theta_opt.copy()
+                    th_p[i] += eps
+                    th_m = theta_opt.copy()
+                    th_m[i] -= eps
+                    curv_i = abs(_energy(th_p) - 2 * e_opt + _energy(th_m)) / (eps**2)
+                except Exception as exc_curv:
+                    logger.warning(
+                        f"  h={h:.3f}, param {i}: curvature eval failed ({exc_curv}), using nan"
+                    )
+                    curv_i = float("nan")
+                curvatures.append(curv_i)
+            kappa = float(np.nanmean(curvatures))
+
+            # ── Noise sensitivity: mean ΔE over random perturbations ──────
+            noise_sensitivity: dict[float, float] = {}
+            for sigma in noise_levels:
+                de_list = []
+                for _ in range(N_PERTURBATIONS):
+                    try:
+                        eps_vec = rng.normal(0, sigma, n_params)
+                        e_perturbed = _energy(theta_opt + eps_vec)
+                        de_list.append(abs(e_perturbed - e_opt) / max(gap, 1e-10))
+                    except Exception:
+                        de_list.append(float("nan"))
+                noise_sensitivity[sigma] = float(np.nanmean(de_list))
+
+            per_h.append(
+                {
+                    "h": float(h),
+                    "kappa": kappa,
+                    "e_opt": e_opt,
+                    "e_exact": e_exact,
+                    "gap": gap,
+                    "de_gap_opt": abs(e_opt - e_exact) / max(gap, 1e-10),
+                    "noise_sensitivity": {str(s): v for s, v in noise_sensitivity.items()},
+                }
+            )
+            logger.info(
+                f"  h={h:.3f}: κ={kappa:.2f}, "
+                + ", ".join(f"σ={s}→{noise_sensitivity[s]:.4f}" for s in noise_levels)
+            )
+
+        # ── Pearson r(κ, ΔE_noise) per noise level ───────────────────────
+        kappas = np.array([r["kappa"] for r in per_h])
+        correlations: dict[str, float] = {}
+        for sigma in noise_levels:
+            sensitivities = np.array([r["noise_sensitivity"][str(sigma)] for r in per_h])
+            if len(kappas) >= 3:
+                r_val = float(np.corrcoef(kappas, sensitivities)[0, 1])
+            else:
+                r_val = float("nan")
+            correlations[str(sigma)] = r_val
+            logger.info(f"  Pearson r(κ, ΔE_noise@σ={sigma}): {r_val:.4f}")
+
+        mean_r = float(np.nanmean(list(correlations.values())))
+
+        return {
+            "per_h": per_h,
+            "correlations": correlations,
+            "noise_levels": noise_levels,
+            "summary": {
+                "mean_kappa": float(np.mean(kappas)),
+                "max_kappa": float(np.max(kappas)),
+                "mean_pearson_r": mean_r,
+                "kappa_is_reliable_predictor": abs(mean_r) >= 0.70,
+            },
+            "pass": abs(mean_r) >= 0.70,
+        }
+
     @staticmethod
     def validate_vqe_results(
         vqe_results: list,
@@ -1759,7 +3712,7 @@ class HardwareValidationRunner(ValidationRunner):
                 "mode": self._args.mode,
                 "shots": self._args.shots,
                 "n_layouts": self._args.n_layouts,
-                "backend": "ibm_torino",
+                "backend": getattr(self._args, "backend", "ibm_kingston"),
                 "zne_amplifier": getattr(self._args, "zne_amplifier", "pea"),
                 "zne_noise_factors": getattr(self._args, "zne_noise_factors", None),
                 "zne_r2_threshold": getattr(self._args, "zne_r2_threshold", 0.90),

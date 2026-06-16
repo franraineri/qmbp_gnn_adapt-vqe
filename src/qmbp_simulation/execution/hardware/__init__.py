@@ -8,10 +8,23 @@ from __future__ import annotations
 
 from .backend import HardwareBackend
 from .config import HardwareConfig, HardwareRunResult, SPSAConfig
+from .preflight import (
+    QPUCostEstimate,
+    QPUThroughputProfile,
+    SPSACostModel,
+    estimate_effective_clops,
+    estimate_qpu_cost,
+)
 
 __all__ = [
     "HardwareBackend",
     "HardwareConfig",
     "HardwareRunResult",
     "SPSAConfig",
+    # Cost estimation
+    "QPUCostEstimate",
+    "QPUThroughputProfile",
+    "SPSACostModel",
+    "estimate_effective_clops",
+    "estimate_qpu_cost",
 ]

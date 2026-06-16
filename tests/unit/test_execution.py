@@ -46,9 +46,9 @@ class TestHardwareBackend:
     def test_name_property(self):
         from qmbp_simulation.execution.hardware import HardwareConfig
 
-        config = HardwareConfig(mode="fake_backend", backend_name="ibm_torino")
+        config = HardwareConfig(mode="fake_backend", backend_name="ibm_kingston")
         backend = HardwareBackend(config=config)
-        assert "ibm_torino" in backend.name
+        assert "ibm_kingston" in backend.name
 
 
 class TestBackendPolymorphism:

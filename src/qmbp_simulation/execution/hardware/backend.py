@@ -15,6 +15,7 @@ ZNE Strategy (2026-06-04 update, per 13_hardware_zne_improvements.md):
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -135,7 +136,28 @@ class HardwareBackend(ExecutionBackend):
                 token=key,
                 instance=crn,
             )
-            self._backend = self._service.backend(self._config.backend_name)
+            try:
+                self._backend = self._service.backend(self._config.backend_name)
+            except Exception as exc:
+                # Backend name not found — list available backends to help user
+                available = []
+                try:
+                    backends = self._service.backends(
+                        min_num_qubits=self._config.n_qubits,
+                        operational=True,
+                    )
+                    available = [b.name for b in backends]
+                except Exception:
+                    pass
+                available_str = ", ".join(available) if available else "(unable to list)"
+                raise ValueError(
+                    f"Backend '{self._config.backend_name}' not found for your instance.\n"
+                    f"  Original error: {exc}\n"
+                    f"  Available backends (≥{self._config.n_qubits} qubits): {available_str}\n"
+                    f"  Fix: set --backend <name> or update BACKEND_NAME in the deployment script.\n"
+                    f"  Hint: IBM may have renamed the backend. Check "
+                    f"https://quantum.cloud.ibm.com/services/resources"
+                ) from exc
         self._execution_mode = self._detect_execution_mode()
 
     def _detect_execution_mode(self) -> type:
@@ -288,6 +310,53 @@ class HardwareBackend(ExecutionBackend):
 
             bound = circuit.assign_parameters(params)
             layout_selection = self._get_cached_layouts(bound)
+
+            # ── Layout-aware 2Q error verification (2026-06-14) ───────
+            # The global preflight checks chip-wide mean (3.36% on Kingston).
+            # Here we verify the ACTUAL qubits selected by BFS+CES layout.
+            # If our 10-qubit subgraph has >1.5% mean 2Q error, we warn
+            # (the layout selection should have avoided bad qubits, but
+            # calibration data can be stale).
+            if self._config.mode == "hardware" and layout_selection.layouts:
+                from .preflight import compute_layout_2q_error
+
+                best_layout = layout_selection.layouts[0]
+                layout_error = compute_layout_2q_error(self.backend, best_layout)
+                if layout_error is not None:
+                    self._logger.log(
+                        "layout_2q_error",
+                        data={
+                            "layout_qubits": best_layout[: self._config.n_qubits],
+                            "mean_2q_error": layout_error,
+                            "threshold": 0.015,
+                        },
+                    )
+                    if layout_error > 0.015:
+                        self._logger.log(
+                            "layout_2q_error_elevated",
+                            data={
+                                "error": layout_error,
+                                "warning": (
+                                    f"Selected layout has {layout_error * 100:.2f}% mean 2Q error "
+                                    f"(>1.5%). ZNE accuracy may be degraded."
+                                ),
+                            },
+                        )
+
+            # ── Capture calibration snapshot at execution time ─────────
+            # This records the actual T1/T2/error rates when the circuit ran,
+            # enabling post-hoc correlation of result quality vs calibration.
+            calibration_snapshot = self._capture_calibration_snapshot(layout_selection)
+
+            # ── Capture transpiled circuit stats ──────────────────────
+            transpiled_stats = self._capture_transpiled_stats(layout_selection)
+
+            # ── Save circuit diagram BEFORE QPU submission ────────────
+            # Generates a PNG of the bound circuit for provenance and debugging.
+            # Saved to the run output directory so every hardware execution has
+            # a visual record of exactly what was submitted.
+            self._save_pre_execution_circuit(circuit, params, h_value, layout_selection)
+
             raw_results = submit_all_then_collect(
                 layout_selection.transpiled_circuits,
                 hamiltonian,
@@ -318,8 +387,29 @@ class HardwareBackend(ExecutionBackend):
             x_ops, zz_ops = build_per_site_observables(self._config.n_qubits, edges)
             isa_circ = layout_selection.transpiled_circuits[0]
             mapped_obs = map_observables_to_layout(x_ops + zz_ops, isa_circ)
-            estimator = self._get_configured_estimator()
-            evs = estimator.run([(isa_circ, mapped_obs)]).result()[0].data.evs
+
+            # Submit observables within a Batch (hardware) or directly (fake_backend)
+            if self._config.mode == "hardware":
+                from qiskit_ibm_runtime import Batch as _Batch
+                from qiskit_ibm_runtime import EstimatorV2 as _EstV2
+
+                with _Batch(backend=self.backend) as obs_batch:
+                    obs_est = _EstV2(mode=obs_batch)
+                    from .submission import _apply_estimator_options
+
+                    _apply_estimator_options(obs_est, self._config)
+                    obs_job = obs_est.run([(isa_circ, mapped_obs)])
+
+                # Wait for result outside the batch context
+                if hasattr(obs_job, "wait_for_final_state"):
+                    obs_job.wait_for_final_state(timeout=self._config.job_timeout_s)
+                obs_result = obs_job.result()
+                evs = obs_result[0].data.evs
+            else:
+                estimator = self._get_configured_estimator()
+                evs = estimator.run([(isa_circ, mapped_obs)]).result()[0].data.evs
+
+            evs = np.atleast_1d(evs)
             x_values = [float(evs[i]) for i in range(len(x_ops))]
             zz_values = [float(evs[len(x_ops) + i]) for i in range(len(zz_ops))]
 
@@ -470,11 +560,14 @@ class HardwareBackend(ExecutionBackend):
                 "amplifier": zne_amplifier_used,
                 "n_layouts": len(raw_results),
             }
+            # Aggregate QPU metrics from raw results
+            qpu_metrics = self._aggregate_qpu_metrics(raw_results)
+
             save_run(
                 result,
                 self._config,
                 self._logger,
-                calibration_info={},
+                calibration_info=calibration_snapshot,
                 options_dict=build_estimator_options(self._config),
                 execution_mode_name=(
                     self._execution_mode.__name__ if self._execution_mode else "unknown"
@@ -483,6 +576,10 @@ class HardwareBackend(ExecutionBackend):
                 zne_data=zne_data,
                 input_params=params,
             )
+            # Attach extra metadata for external consumers (deployment script)
+            result._calibration_snapshot = calibration_snapshot
+            result._transpiled_stats = transpiled_stats
+            result._qpu_metrics = qpu_metrics
             return result
 
         except Exception as exc:
@@ -594,6 +691,63 @@ class HardwareBackend(ExecutionBackend):
 
         return run_preflight_checks(self.backend, self._config, self._logger)
 
+    # ─── Circuit Visualization ──────────────────────────────────────
+
+    def _save_pre_execution_circuit(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+        h_value: float,
+        layout_selection,
+    ) -> None:
+        """Save a PNG diagram of the circuit BEFORE submitting to QPU.
+
+        Creates two images in the output directory:
+        - circuit_logical_h{h}.png: The bound logical circuit (as designed)
+        - circuit_transpiled_h{h}.png: The first transpiled ISA circuit (as executed)
+
+        This provides a visual provenance record for every hardware execution,
+        enabling quick debugging and thesis figure generation.
+        """
+        from pathlib import Path
+
+        try:
+            from qmbp_simulation.analysis.circuit_visualizer import save_circuit_diagram
+
+            output_dir = Path(self._config.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            h_tag = f"h{h_value:.1f}".replace(".", "p")
+
+            # Save the logical (bound) circuit
+            save_circuit_diagram(
+                circuit,
+                output_dir / f"circuit_logical_{h_tag}.png",
+                params=params,
+                title=f"Logical HVA p={circuit.num_parameters // 2} N={self._config.n_qubits} h={h_value}",
+                fold=40,
+            )
+
+            # Save the first transpiled (ISA) circuit
+            if layout_selection.transpiled_circuits:
+                save_circuit_diagram(
+                    layout_selection.transpiled_circuits[0],
+                    output_dir / f"circuit_transpiled_{h_tag}.png",
+                    title=f"Transpiled (layout 0, CES={layout_selection.ces_values[0]:.3f}) h={h_value}",
+                    fold=60,
+                )
+
+            self._logger.log(
+                "circuit_diagram_saved",
+                data={"output_dir": str(output_dir), "h_value": h_value},
+            )
+        except Exception as exc:
+            # Never let diagram generation block QPU execution
+            self._logger.log(
+                "circuit_diagram_error",
+                data={"error": str(exc), "h_value": h_value},
+            )
+
     # ─── ZNE Aggregation ─────────────────────────────────────────────
 
     def _resolve_mitigation_strategy(self, amplifier_used: str) -> str:
@@ -607,6 +761,111 @@ class HardwareBackend(ExecutionBackend):
         if amplifier_used == "average":
             return "ces_zne"
         return amplifier_used or "ces_zne"
+
+    def _capture_calibration_snapshot(self, layout_selection) -> dict[str, Any]:
+        """Capture backend calibration data at execution time.
+
+        Records T1/T2 and 2Q error rates for the qubits actually used,
+        enabling post-hoc correlation between result quality and calibration.
+        """
+        snapshot: dict[str, Any] = {"timestamp": datetime.now(UTC).isoformat()}
+        try:
+            target = self.backend.target
+            # Per-qubit T1/T2 for used qubits
+            qubit_props = target.qubit_properties
+            if qubit_props and layout_selection.layouts:
+                used_qubits = set()
+                for layout in layout_selection.layouts:
+                    used_qubits.update(layout[: self._config.n_qubits])
+                t1_values = {}
+                t2_values = {}
+                for q in sorted(used_qubits):
+                    if q < len(qubit_props) and qubit_props[q] is not None:
+                        t1 = getattr(qubit_props[q], "t1", None)
+                        t2 = getattr(qubit_props[q], "t2", None)
+                        if t1 is not None:
+                            t1_values[q] = t1 * 1e6  # Convert to μs
+                        if t2 is not None:
+                            t2_values[q] = t2 * 1e6
+                snapshot["t1_us_per_qubit"] = t1_values
+                snapshot["t2_us_per_qubit"] = t2_values
+                snapshot["min_t1_us"] = min(t1_values.values()) if t1_values else None
+                snapshot["min_t2_us"] = min(t2_values.values()) if t2_values else None
+
+            # 2Q error rates for edges used
+            for gate_name in ["ecr", "cz", "cx"]:
+                if gate_name not in target.operation_names:
+                    continue
+                error_map = {}
+                try:
+                    qargs_list = target.qargs_for_operation_name(gate_name)
+                    if qargs_list:
+                        for qargs in qargs_list:
+                            if len(qargs) == 2:
+                                props = target[gate_name].get(qargs)
+                                if props and props.error is not None:
+                                    error_map[f"{qargs[0]}-{qargs[1]}"] = props.error
+                except Exception:
+                    pass
+                if error_map:
+                    snapshot[f"{gate_name}_error_rates"] = error_map
+                    vals = list(error_map.values())
+                    snapshot[f"mean_{gate_name}_error"] = sum(vals) / len(vals)
+                    break  # Only need one 2Q gate type
+        except Exception as exc:
+            snapshot["capture_error"] = str(exc)
+        return snapshot
+
+    def _capture_transpiled_stats(self, layout_selection) -> dict[str, Any]:
+        """Capture circuit statistics after transpilation.
+
+        Records depth, 2Q gate count, and 1Q gate count for each layout.
+        """
+        stats: dict[str, Any] = {"per_layout": []}
+        try:
+            for i, circ in enumerate(layout_selection.transpiled_circuits):
+                n_2q = sum(1 for inst in circ.data if inst.operation.num_qubits == 2)
+                n_1q = sum(1 for inst in circ.data if inst.operation.num_qubits == 1)
+                depth = circ.depth()
+                stats["per_layout"].append(
+                    {
+                        "layout_idx": i,
+                        "depth": depth,
+                        "n_2q_gates": n_2q,
+                        "n_1q_gates": n_1q,
+                        "total_gates": len(circ.data),
+                    }
+                )
+            if stats["per_layout"]:
+                stats["mean_depth"] = np.mean([s["depth"] for s in stats["per_layout"]])
+                stats["mean_2q_gates"] = np.mean([s["n_2q_gates"] for s in stats["per_layout"]])
+        except Exception as exc:
+            stats["capture_error"] = str(exc)
+        return stats
+
+    @staticmethod
+    def _aggregate_qpu_metrics(raw_results: list[dict[str, Any]]) -> dict[str, Any]:
+        """Aggregate QPU usage metrics from per-layout job results.
+
+        IBM Runtime provides qpu_seconds (numeric) per job and running_timestamp
+        (ISO string) for provenance. Only numeric values are summed.
+        """
+        qpu_seconds_list = [
+            r.get("qpu_seconds")
+            for r in raw_results
+            if isinstance(r.get("qpu_seconds"), (int, float))
+        ]
+        timestamps = [
+            r.get("running_timestamp")
+            for r in raw_results
+            if r.get("running_timestamp") is not None
+        ]
+        return {
+            "total_qpu_seconds": sum(qpu_seconds_list) if qpu_seconds_list else None,
+            "n_jobs_with_metrics": len(qpu_seconds_list),
+            "per_layout_qpu_s": qpu_seconds_list or None,
+            "running_timestamps": timestamps or None,
+        }
 
     def _aggregate_zne_results(
         self,
@@ -682,8 +941,10 @@ class HardwareBackend(ExecutionBackend):
                     r2_threshold=r2_threshold,
                 )
                 return result.extrapolated_value, result.r_squared, result.amplifier_used
-            except Exception:
-                pass  # Fall through to PEA/GF
+            except Exception as exc:
+                self._logger.log(
+                    "zne_adaptive_fallback", data={"error": str(exc), "fallback": "pea_or_gf"}
+                )
 
         if amplifier == "pea":
             # Try PEA on the best (first) transpiled circuit
@@ -704,9 +965,10 @@ class HardwareBackend(ExecutionBackend):
                     noise_factors=(1, 3, 5),
                 )
                 return pea.extrapolated_value, pea.r_squared, "pea"
-            except Exception:
-                # Fall through to GF if PEA fails
-                pass
+            except Exception as exc:
+                self._logger.log(
+                    "zne_pea_fallback", data={"error": str(exc), "fallback": "gate_folding"}
+                )
 
         # Gate-folding ZNE: use CES spread if available, else noise factors
         ces_used = [layout_selection.ces_values[r["layout_idx"]] for r in raw_results]
@@ -728,22 +990,22 @@ class HardwareBackend(ExecutionBackend):
             )
             gf = run_gate_folding_zne(isa_circ, h_mapped, self.backend, gf_config)
             return gf.extrapolated_value, gf.r_squared, "gate_folding"
-        except Exception:
+        except Exception as exc:
             # Last resort: simple average
+            self._logger.log(
+                "zne_all_failed", data={"error": str(exc), "fallback": "simple_average"}
+            )
             e_avg = float(np.mean(energies))
             return e_avg, 0.5, "average"
 
     # ─── Estimator Configuration ──────────────────────────────────────
 
     def _get_configured_estimator(self) -> Any:
-        """Create estimator with full mitigation options."""
-        from .submission import build_estimator_options
+        """Create estimator with full mitigation options.
 
-        options = build_estimator_options(self._config)
-        if self._config.mode == "fake_backend":
-            from qiskit.primitives import BackendEstimatorV2
+        For hardware mode, uses the structured options API (same pattern as
+        submission._get_estimator) to avoid dict-format incompatibilities.
+        """
+        from .submission import _get_estimator
 
-            return BackendEstimatorV2(backend=self.backend, options=options)
-        from qiskit_ibm_runtime import EstimatorV2
-
-        return EstimatorV2(backend=self.backend, options=options)
+        return _get_estimator(self.backend, self._config)

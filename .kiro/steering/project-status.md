@@ -171,6 +171,7 @@
 - `project_health/` — health reports, figures, digest, analysis tools
 - `tests/test_project_health_coverage.py` — 72 tests: state, coverage, verify, sanity, scaling, reporter, models
 - `scripts/run_hardware_rehearsal.py` — Hardware deployment rehearsal (5 sections)
+- MPNN evaluation helpers (4 reusable methods in `ValidationRunner`): `benchmark_mpnn_warmstart`, `mpnn_leave_one_out_cv`, `mpnn_landscape_quality`, `mpnn_interpolation_extrapolation`. Used by V3 sections 10-13, inheritable by any runner.
 - `.github/workflows/ci.yml` — CI gate (lint + mypy strict + test + smoke)
 - `analysis/` — coverage scanner, diagnostics, verification
 
@@ -197,6 +198,7 @@
 | Hardware run checklist | `.kiro/steering/hardware-checklist.md` (manual: #hardware-checklist) |
 | Hardware deployment script | `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` |
 | Hardware rehearsal V2 | `scripts/experiment_runners/run_hardware_rehearsal_v2.py` |
+| Hardware rehearsal V3 (MPNN eval sections 10-13) | `scripts/experiment_runners/run_hardware_rehearsal_v3.py` |
 | Physics constraints (full) | `.kiro/skills/quantum/SKILL.md` |
 | Code style | `.kiro/steering/code-style.md` |
 | Error patterns | `.kiro/knowledge/error-patterns.md` |

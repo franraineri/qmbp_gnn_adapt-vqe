@@ -12,10 +12,10 @@ inclusion: manual
   ```python
   from qiskit_ibm_runtime import QiskitRuntimeService
   service = QiskitRuntimeService(channel="ibm_quantum_platform", token=..., instance=...)
-  backend = service.backend("ibm_torino")
+  backend = service.backend("ibm_kingston")
   print(backend.status())
   ```
-- [ ] Check Torino queue depth (< 50 jobs ideal, execute UTC 2-6 AM)
+- [ ] Check Kingston queue depth (< 50 jobs ideal, execute UTC 2-6 AM)
 - [ ] Confirm calibration: `compute_mean_2q_error(backend)` < 1%
 - [ ] Run smoke test: `python tests/smoke_test.py`
 - [ ] Run rehearsal V2 (green light):

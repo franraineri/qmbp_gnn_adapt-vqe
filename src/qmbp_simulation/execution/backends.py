@@ -16,17 +16,31 @@ from qiskit.quantum_info import SparsePauliOp
 
 @dataclass
 class MitigationOptions:
-    """Error mitigation configuration for noisy/hardware backends."""
+    """Error mitigation configuration for noisy/hardware backends.
+
+    PEA learning budget (2026-06-14 update):
+    - num_randomizations × shots_per_randomization = total learning shots
+    - Increased from 32×128=4K to 64×256=16K for better noise model accuracy
+      on processors with elevated 2Q error (>2%). Adds ~1 min QPU/h-point
+      but dramatically improves ZNE extrapolation quality.
+
+    noise_factors (2026-06-14 update):
+    - For short circuits (≤18 CZ), use (1, 1.5, 2, 3) to capture the linear
+      regime better. Default IBM (1, 2, 3) can miss curvature at low factors.
+    - For longer circuits, stick with default.
+    """
 
     zne_enabled: bool = False
-    zne_noise_factors: list[float] | None = None  # e.g. [1, 3, 5]
+    zne_noise_factors: list[float] | None = None  # e.g. [1, 1.5, 2, 3]
     zne_amplifier: str = "gate_folding"  # "gate_folding" | "pea" | "adaptive"
     zne_r2_fallback_threshold: float = 0.90  # R² threshold for adaptive GF→PEA fallback
     dd_enabled: bool = False  # Dynamical decoupling
     trex_enabled: bool = False  # Twirled readout error extinction
     twirling_enabled: bool = False
-    num_randomizations: int = 32
-    shots_per_randomization: int = 128
+    # PEA noise learning budget: higher = better noise model, more QPU cost
+    # 64 randomizations × 256 shots = 16K learning shots (~4× IBM default)
+    num_randomizations: int = 64
+    shots_per_randomization: int = 256
 
 
 class ExecutionBackend(ABC):
@@ -232,7 +246,7 @@ class HardwareBackend(ExecutionBackend):
 
     def __init__(
         self,
-        backend_name: str = "ibm_torino",
+        backend_name: str = "ibm_kingston",
         mitigation: MitigationOptions | None = None,
     ) -> None:
         self._backend_name = backend_name

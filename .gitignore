@@ -55,3 +55,7 @@ digest_poc/*
 *.pdf
 *.txt
 */figures/*
+*.png
+*.jpeg
+*exp_hw_rehearsal*
+*.json

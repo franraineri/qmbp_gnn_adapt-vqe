@@ -503,7 +503,7 @@ Se implementa un sistema de diagnóstico que clasifica automáticamente las ejec
     \item \textbf{VQE\_DIVERGENCE}: No convergencia del optimizador.
 \end{itemize}
 
-El pipeline de early-stopping (alertar si $\theta_{\text{smooth}} > 1.0$, abortar si gen\_gap $> 0.01$) previene el 69\% de los fallos sin rechazar ninguna configuración exitosa (véase Tabla~\ref{tab:root_cause} en Capítulo~4).
+El pipeline de early-stopping (alertar si $\theta_{\text{smooth}} > 1.0$, abortar si gen\_gap $> 0.01$) previene el 69\% de los fallos sin rechazar ninguna configuración exitosa (véase Figura~\ref{fig:failure_treemap} en Capítulo~5).
 
 \section{Herramientas y Entorno de Desarrollo}
 
@@ -754,6 +754,13 @@ El hallazgo clave es que \textbf{BatchNorm es perjudicial para generalización c
 \label{fig:cross_n_heatmap}
 \end{figure}
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_cross_n_zero_shot_bar.pdf}
+\caption{Comparación GNN (sin BatchNorm) vs. interpolación de scipy para generalización cross-N. Ambos métodos logran $\Delta E/\text{gap} \ll 5\%$ en el régimen de 2 parámetros ($p = 1$), pero la MPNN es la única opción viable para el régimen bond-resolved de 79 dimensiones donde scipy no puede operar.}
+\label{fig:cross_n_bar}
+\end{figure}
+
 \subsection{Bond-Resolved HVA: Necesidad de la GNN en Alta Dimensionalidad}
 
 \textbf{Tipo de experimento:} Simulación noiseless MPS ($\chi = 64$, $N = 40$, $p = 2$ bond-resolved, cadena 1D, COBYLA). Se evalúa si la arquitectura GNN es \emph{necesaria} cuando el HVA tiene parámetros independientes por enlace (79 dimensiones), donde la interpolación clásica no es aplicable.
@@ -783,24 +790,18 @@ La GNN intra-N funciona correctamente (factor $4414\times$ mejor que inicializac
 
 \textbf{Tipo de experimento:} Simulación noiseless (\texttt{StatevectorEstimator}). Estas ejecuciones validan la cadena completa Fases 1--3 (ground truth + VQE + MPNN) sin considerar ruido de hardware. El objetivo es establecer el rendimiento intrínseco del pipeline antes de la degradación por ruido.
 
+La calidad de la Fase 2 (VQE) se caracteriza mediante la suavidad de los parámetros $\theta_{\text{smooth}}$ (Figura~\ref{fig:vqe_landscape}): valores $> 1.0$ indican ``chain breaks'' que degradan el entrenamiento posterior de la MPNN. El 29\% de las ejecuciones presenta chain breaks, pero el sistema de early-stopping los detecta en tiempo real.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.95\textwidth]{tesis-figures/fig_vqe_convergence_landscape.pdf}
+\caption{Calidad de convergencia VQE. Izquierda: distribución de $\theta_{\text{smooth}}$ para 329 runs; el 29\% supera el umbral de chain break ($\theta > 1.0$). Derecha: correlación entre $\theta$-smoothness y $\Delta E/\text{gap}$ final --- los chain breaks (puntos rojos) generan errores significativamente mayores.}
+\label{fig:vqe_landscape}
+\end{figure}
+
 \subsection{Resultados a $N = 6$ (Cadena 1D, HVA $p = 2$)}
 
-El pipeline se validó sobre cadena de $N = 6$ espines con HVA $p = 2$, barrido de 27 puntos en $h \in [0, 2]$, y predictor MPNN (GINConv, hidden\_dim $= 64$, 3 capas, 6000 epochs). Se ejecutaron 40+ experimentos sobre 14 configuraciones.
-
-\begin{table}[h]
-\centering
-\caption{Pipeline GNN-HVA para $N = 6$, $p = 2$ (media $\pm$ std sobre 3 semillas).}
-\label{tab:results_n6}
-\begin{tabular}{lccc}
-\toprule
-\textbf{$h_{\text{test}}$} & \textbf{$\Delta E/\text{gap}$} & \textbf{Checklist (4 métricas)} & \textbf{Estado} \\
-\midrule
-1.25 & $3.77\% \pm 0.53\%$ & 4/4 & \checkmark \\
-1.40 & $1.71\% \pm 0.14\%$ & 4/4 & \checkmark \\
-1.50 & $1.19\% \pm 0.23\%$ & 4/4 & \checkmark \\
-\bottomrule
-\end{tabular}
-\end{table}
+El pipeline se validó sobre cadena de $N = 6$ espines con HVA $p = 2$, barrido de 27 puntos en $h \in [0, 2]$, y predictor MPNN (GINConv, hidden\_dim $= 64$, 3 capas, 6000 epochs). Se ejecutaron 40+ experimentos sobre 14 configuraciones. Los resultados (Tabla~\ref{tab:results_baseline}) muestran que el pipeline logra $\Delta E/\text{gap} < 5\%$ para todos los puntos de test, con precisión decreciente al acercarse a la frontera de expresividad ($h = 1.25$).
 
 \subsection{Resultados a $N = 10$ (Cadena 1D, HVA $p = 2$)}
 
@@ -808,14 +809,18 @@ Al pasar a $N = 10$, el espacio de Hilbert crece $16\times$ ($2^{10} = 1024$ dim
 
 \begin{table}[h]
 \centering
-\caption{Pipeline GNN-HVA para $N = 10$, $p = 2$ (media $\pm$ std sobre 3 semillas).}
-\label{tab:results_n10}
-\begin{tabular}{lccc}
+\caption{Pipeline GNN-HVA: resultados consolidados $N = 6$ y $N = 10$, cadena 1D, $p = 2$ (media $\pm$ std sobre 3 semillas).}
+\label{tab:results_baseline}
+\begin{tabular}{clccc}
 \toprule
-\textbf{$h_{\text{test}}$} & \textbf{$\Delta E/\text{gap}$} & \textbf{Checklist (4 métricas)} & \textbf{Estado} \\
+\textbf{$N$} & \textbf{$h_{\text{test}}$} & \textbf{$\Delta E/\text{gap}$} & \textbf{Checklist} & \textbf{Estado} \\
 \midrule
-1.40 & $4.79\% \pm 0.50\%$ & 4/4 & \checkmark \\
-1.50 & $2.96\% \pm 0.33\%$ & 4/4 & \checkmark \\
+6 & 1.25 & $3.77\% \pm 0.53\%$ & 4/4 & \checkmark \\
+6 & 1.40 & $1.71\% \pm 0.14\%$ & 4/4 & \checkmark \\
+6 & 1.50 & $1.19\% \pm 0.23\%$ & 4/4 & \checkmark \\
+\midrule
+10 & 1.40 & $4.79\% \pm 0.50\%$ & 4/4 & \checkmark \\
+10 & 1.50 & $2.96\% \pm 0.33\%$ & 4/4 & \checkmark \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -879,6 +884,13 @@ PEA-ZNE supera a gate-folding ZNE por un factor $5.5\times$ en ganancia media (9
 \label{fig:pea_vs_gf}
 \end{figure}
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_zne_pea_forest_plot.pdf}
+\caption{Forest plot de ganancia ZNE por topología con intervalos de confianza al 95\%. PEA (círculos) supera consistentemente a Gate-Folding (cuadrados) en todas las topologías, con intervalos no solapantes. La menor varianza de PEA confirma su robustez como estrategia primaria de mitigación.}
+\label{fig:zne_forest_plot}
+\end{figure}
+
 \subsection{Regla del Presupuesto CX para ZNE}
 
 La efectividad de ZNE depende críticamente del número total de compuertas CX:
@@ -902,6 +914,13 @@ $N=10$, $p=2$, cadena & $\sim$36 & $-$14.4\% & 0.944 \\
 \end{table}
 
 Este resultado confirma que $p = 1$ + ZNE es la estrategia recomendada para hardware a $N \geq 10$: mantiene el circuito dentro del presupuesto CX donde la extrapolación lineal es válida. El umbral de $\sim$18 CX se corresponde con una fidelidad de circuito $\geq 80\%$ (asumiendo error por CX de $\sim$1\% en procesadores IBM actuales \citep{kim2023}), condición necesaria para que la señal sea extraíble del ruido.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.75\textwidth]{tesis-figures/fig_zne_gain_heatmap.pdf}
+\caption{Ganancia ZNE por topología y estrategia (PEA vs. Gate-Folding). PEA logra ganancias $>90\%$ en todas las topologías, mientras que Gate-Folding se limita a $+17$--$24\%$. El número entre paréntesis indica las evaluaciones disponibles por celda.}
+\label{fig:zne_heatmap}
+\end{figure}
 
 \section{Extensibilidad a Hamiltonianos de Ising}
 
@@ -1025,6 +1044,15 @@ GNN-QEM post-PEA-ZNE & 0/15 & $-31{,}000\%$ \\
 \label{fig:gnn_qem_panel}
 \end{figure}
 
+Adicionalmente, la ablación del componente de grafo demuestra su esencialidad en modo predictivo (sin $E_{\text{noisy}}$ como entrada): la GNN (GINConv) logra 100\% de improvement rate, frente al 67\% del MLP y 0\% del modelo lineal (Figura~\ref{fig:gnn_ablation}). Este resultado confirma que la topología del Hamiltoniano ---capturada por el paso de mensajes--- es información necesaria para la corrección de errores cuando no se dispone de la energía ruidosa como feature.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_gnn_qem_ablation_bar.pdf}
+\caption{Ablación de GNN-QEM en modo predictivo (sin $E_{\text{noisy}}$): la arquitectura de grafos es esencial. GNN: 100\% improvement rate (+65\% reducción de error); MLP: 67\% (+20\%); Lineal: 0\% ($-$12\%, empeora). La estructura del grafo captura patrones de propagación de ruido inaccesibles a modelos no-grafos.}
+\label{fig:gnn_ablation}
+\end{figure}
+
 \subsection{Extracción de Exponente Crítico $\nu$ desde Pesos de la Red (S8/S8b)}
 
 \textbf{Tipo de experimento:} Simulación noiseless (StatevectorEstimator, $N = 4$, $6$, $8$, $10$; cadena 1D, $p = 2$; 5 semillas $\times$ 4 tamaños $= 20$ configuraciones por variante). Se evalúa si la posición del pico de gradiente de pesos $\|\partial W / \partial h\|$ sigue la ley de escalamiento finito $h_{\text{peak}}(N) = h_c + a \cdot N^{-1/\nu}$ con $\nu = 1$ (clase de universalidad del TFIM).
@@ -1067,25 +1095,9 @@ S8b (MPNN) & 0.500 (borde del rango) & 5.0 & Ninguna & RECHAZADO \\
 
 \subsection{Optimización de Transpilación: PauliEvolutionGate}
 
-\textbf{Tipo de experimento:} Análisis de compilación de circuitos (FakeTorino, $N = 10$, $p = 1$, heavy-hex, \texttt{optimization\_level=2}). Se evalúan estrategias de transpilación alternativas para reducir la profundidad del circuito HVA en hardware.
+\textbf{Tipo de experimento:} Análisis de compilación de circuitos (FakeTorino, $N = 10$, $p = 1$, heavy-hex, \texttt{optimization\_level=2}). Se evaluaron 4 estrategias de transpilación para reducir la profundidad del circuito HVA en hardware.
 
-\begin{table}[h]
-\centering
-\caption{Comparación de estrategias de transpilación para HVA $p = 1$, $N = 10$, heavy-hex (FakeTorino, opt\_level=2). Se reporta la profundidad de compuertas de dos qubits (2Q-depth).}
-\label{tab:transpilation}
-\begin{tabular}{lcccl}
-\toprule
-\textbf{Método} & \textbf{2Q-depth} & \textbf{$n_{2Q}$ gates} & \textbf{CES} & \textbf{Veredicto} \\
-\midrule
-HVA original + level 2 & 27 & 34 & 0.1271 & Baseline \\
-\textbf{PauliEvolutionGate + level 2} & \textbf{24} & 34 & \textbf{0.1251} & \textbf{$-$11\% depth} \\
-Level 3 (KAK) & 27 & 34 & 0.1271 & Sin mejora \\
-Rustiq plugin & 50 & 67 & — & Contraproducente \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{Hallazgos:} (1) \texttt{PauliEvolutionGate} reduce la 2Q-depth en 11\% sin cambiar el conteo de compuertas, porque el transpilador reconoce que las rotaciones ZZ dentro de una capa conmutan y las programa en paralelo. (2) Level 3 (resíntesis KAK) no ofrece beneficio porque el HVA ya usa compuertas individuales $R_{ZZ}$ ---no hay bloques multi-gate que consolidar. (3) El plugin Rustiq es contraproducente (duplica las compuertas) porque está diseñado para redes densas de Paulis, no para circuitos ya estructurados por capas. La representación \texttt{PauliEvolutionGate} se adopta como estándar para el despliegue en hardware.
+\textbf{Hallazgos:} La representación \texttt{PauliEvolutionGate} reduce la profundidad 2Q en 11\% (de 27 a 24) sin cambiar el conteo de compuertas (34 gates 2Q), porque el transpilador reconoce que las rotaciones ZZ conmutan y las programa en paralelo. Level 3 (KAK resynthesis) no ofrece beneficio y el plugin Rustiq es contraproducente (duplica las compuertas). Se adopta \texttt{PauliEvolutionGate} como estándar para despliegue. Los resultados cuantitativos completos se detallan en el Anexo A (auditoría de transpilación).
 
 \subsection{Hamiltonianos Candidatos Evaluados y Descartados}
 
@@ -1119,48 +1131,28 @@ Se presentan los resultados del diagnóstico automatizado, proporcionando eviden
 
 \subsection{Análisis de Causa Raíz}
 
-\begin{table}[h]
-\centering
-\caption{Diagnóstico de causa raíz sobre 174 ejecuciones del pipeline (76 no-passing clasificadas).}
-\label{tab:root_cause}
-\begin{tabular}{lccl}
-\toprule
-\textbf{Causa raíz} & \textbf{Conteo} & \textbf{\%} & \textbf{Detectable en} \\
-\midrule
-CHAIN\_BREAK ($\theta > 1.0$) & 34 & 45\% & Fase 2 \\
-MPNN\_OVERFIT (gen\_gap $> 0.01$) & 19 & 25\% & Fase 3 \\
-BOUNDARY\_EFFECT & 11 & 14\% & Pre-ejecución \\
-OUTSIDE\_REGIME & 7 & 9\% & Pre-ejecución \\
-VQE\_DIVERGENCE & 5 & 7\% & Fase 2 \\
-\bottomrule
-\end{tabular}
-\end{table}
+El diagnóstico automatizado sobre 174 ejecuciones clasificó 76 fallos por causa raíz. La Figura~\ref{fig:failure_treemap} muestra la distribución: el 69\% de los fallos es prevenible sin perder ningún run exitoso (CHAIN\_BREAK 45\% detectable en Fase 2 + MPNN\_OVERFIT 25\% detectable en Fase 3). La tasa de resultados útiles (confirmados + negativos válidos) es del 84\% (41/49 experimentos formales producen conocimiento accionable), comparado con una tasa típica del 50--70\% reportada en estudios de benchmarking VQE \citep{tilly2022}.
 
-El 69\% de los fallos es prevenible mediante el early-stopping implementado (Tabla~\ref{tab:root_cause}: CHAIN\_BREAK 45\% + MPNN\_OVERFIT 25\% detectable y prevenible). La tasa de resultados útiles (confirmados + negativos válidos) es del 84\% (41/49 experimentos formales producen conocimiento accionable), comparado con una tasa típica del 50--70\% reportada en estudios de benchmarking VQE \citep{tilly2022}.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.90\textwidth]{tesis-figures/fig_failure_mode_treemap.pdf}
+\caption{Análisis de causa raíz sobre 174 ejecuciones del pipeline. El 69\% de los fallos es prevenible: CHAIN\_BREAK ($\theta_{\text{smooth}} > 1.0$, detectable en Fase 2) y MPNN\_OVERFIT (gen\_gap $> 0.01$, detectable en Fase 3). El 23\% restante (BOUNDARY\_EFFECT + OUTSIDE\_REGIME) es prevenible en pre-ejecución con la regla de $h_{\min}$.}
+\label{fig:failure_treemap}
+\end{figure}
+
+La relación entre calidad de la MPNN y resultado final del pipeline se visualiza en la Figura~\ref{fig:mpnn_scatter}: existe correlación log-log ($r = 0.46$) entre el generalization gap de la MPNN y el $\Delta E/\text{gap}$ final, confirmando que el gen\_gap $> 0.01$ es un predictor confiable de fallo.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_mpnn_generalization_scatter.pdf}
+\caption{Correlación entre la calidad de la MPNN (generalization gap) y la precisión final del pipeline ($\Delta E/\text{gap}$). El umbral gen\_gap $= 0.01$ separa eficazmente ejecuciones exitosas ($< 5\%$) de fallidas, justificando su uso como criterio de aborto temprano en Fase 3.}
+\label{fig:mpnn_scatter}
+\end{figure}
 
 \subsection{Eficiencia de Datos}
+\label{sec:eficiencia_datos}
 
-Se evalúa el número mínimo de puntos de entrenamiento necesarios:
-
-\begin{table}[h]
-\centering
-\caption{Eficiencia de datos de la MPNN a $N = 10$ ($\Delta E/\text{gap}$ medio sobre 3 semillas, cadena 1D, $p = 2$).}
-\label{tab:data_efficiency}
-\begin{tabular}{cccc}
-\toprule
-\textbf{$k$ (puntos training)} & \textbf{Media $\Delta E/\text{gap}$} & \textbf{Pasan todos} & \textbf{Reducción vs. 17 pts} \\
-\midrule
-5 & 3.37\% & \checkmark & 71\% \\
-7 & 2.99\% & \checkmark & 59\% \\
-9 & 3.00\% & \checkmark & 47\% \\
-11 & 2.97\% & \checkmark & 35\% \\
-13 & 2.95\% & \checkmark & 24\% \\
-17 (completo) & 2.94\% & \checkmark & — \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-La MPNN logra $\Delta E/\text{gap} < 5\%$ con tan solo 5 puntos de entrenamiento para semillas favorables. La recomendación conservadora es $k = 7$--$9$ para robustez cross-seed (reducción de 47--59\% respecto al grid estándar).
+La MPNN demuestra alta eficiencia de datos: logra $\Delta E/\text{gap} < 5\%$ con tan solo 5 puntos de entrenamiento para semillas favorables, y la recomendación conservadora es $k = 7$--$9$ puntos para robustez cross-seed (reducción de 47--59\% respecto al grid estándar de 17 puntos). A $N = 10$, el $\Delta E/\text{gap}$ medio varía solo entre 2.94\% ($k = 17$, completo) y 3.37\% ($k = 5$, mínimo viable), confirmando que la función $h \mapsto \theta^*$ es suficientemente suave para aprenderse con pocas muestras (véase Anexo A para la tabla completa por $k$).
 
 \section{Comparativa Sistemática con la Literatura}
 
@@ -1200,7 +1192,7 @@ Lee et al. \citep{lee2026} & GAE+NN & Ising & 8 & $\sim$3$\times$ & No \\
 
 \subsection{Comparación Cuantitativa: Warm-Start VQE vs. Predicción Directa}
 
-La estrategia de warm-start descendente ---propuesta teóricamente por \citet{mele2022} y formalizada por \citet{puig2025}--- reduce las iteraciones de 500--1000 (inicialización aleatoria \citep{tilly2022}) a 20--50 por punto. La predicción MPNN, siguiendo el paradigma propuesto por \citet{miao2024} y \citet{zhang2025}, produce $\Delta E/\text{gap} < 5\%$ sin refinamiento en el 95\% de los casos (Tablas~\ref{tab:results_n6}--\ref{tab:results_p1}). La diferencia cuantitativa respecto a Qracle \citep{zhang2025} ---que reduce un 64\% las iteraciones pero mantiene refinamiento--- se atribuye a la mayor calidad de los datos de entrenamiento producidos por el warm-start descendente \citep{puig2025, schiffer2026}, que genera $\theta^*$ de alta fidelidad para entrenar la MPNN.
+La estrategia de warm-start descendente ---propuesta teóricamente por \citet{mele2022} y formalizada por \citet{puig2025}--- reduce las iteraciones de 500--1000 (inicialización aleatoria \citep{tilly2022}) a 20--50 por punto. La predicción MPNN, siguiendo el paradigma propuesto por \citet{miao2024} y \citet{zhang2025}, produce $\Delta E/\text{gap} < 5\%$ sin refinamiento en el 95\% de los casos (Tabla~\ref{tab:results_baseline} y Tabla~\ref{tab:results_p1}). La diferencia cuantitativa respecto a Qracle \citep{zhang2025} ---que reduce un 64\% las iteraciones pero mantiene refinamiento--- se atribuye a la mayor calidad de los datos de entrenamiento producidos por el warm-start descendente \citep{puig2025, schiffer2026}, que genera $\theta^*$ de alta fidelidad para entrenar la MPNN.
 
 \subsection{Comparación con Interpolación Clásica}
 
@@ -1264,22 +1256,16 @@ $|\partial\theta/\partial h|$ derivada numérica & 1.25 & 0.25 & 0 \\
 
 El análisis PCA revela que el espacio de parámetros del HVA $p = 2$ es efectivamente unidimensional: PC1 explica el 99.96\% de la varianza total de $\theta_{\text{opt}}$ a lo largo de todo el barrido en $h$. Esto implica que los 4 parámetros HVA están altamente correlacionados bajo evolución VQE óptima ---la física restringe el manifold de parámetros a una curva 1D incrustada en $\mathbb{R}^4$. La derivada $|d\text{PC1}/dh|$ y la derivada numérica $|\partial\theta/\partial h|$ pican ambas en $h = 1.25$ ---el valor más bajo del grid de entrenamiento, indicando que el pico real se encuentra en $h_c$ pero está limitado por la resolución del muestreo.
 
-La convergencia del pico PCA hacia $h_c = 1.0$ se confirma cuando el grid de $h$ cubre la transición: a $N = 100$ con $h \in [1.0, 3.0]$, el pico PCA se localiza en $h = 1.033 \pm 0.047$ (3 semillas, Tabla~\ref{tab:pca_convergence}), a solo $\Delta h = 0.033$ del valor teórico \citep{dutta2015}. En contraste, a $N = 40$--$80$, el grid operativo ($h \geq h_{\min} \approx 4$--$8$) no cruza $h_c$, por lo que el pico aparece en el borde del grid (no detección). Este resultado confirma que la detección PCA es un método válido de costo cero cuántico, pero requiere datos VQE que abarquen la región crítica ---condición satisfecha solo para $N \leq 10$ bajo la restricción de régimen válido ($h_{\min}$).
+La convergencia del pico PCA hacia $h_c = 1.0$ se confirma cuando el grid de $h$ cubre la transición: a $N = 100$ con $h \in [1.0, 3.0]$, el pico PCA se localiza en $h = 1.033 \pm 0.047$ (3 semillas), a solo $\Delta h = 0.033$ del valor teórico \citep{dutta2015}. En contraste, a $N = 40$--$80$, el grid operativo ($h \geq h_{\min} \approx 4$--$8$) no cruza $h_c$, por lo que el pico aparece en el borde del grid (no detección). La Figura~\ref{fig:pca_detection} muestra esta convergencia y la amplitud de la derivada $|\partial\theta/\partial h|$ en función de $N$.
 
-\begin{table}[h]
+\begin{figure}[h]
 \centering
-\caption{Convergencia del pico PCA a $h_c = 1.0$ en función de $N$. Solo $N = 100$ (con grid extendido $h \in [1.0, 3.0]$) cubre la transición.}
-\label{tab:pca_convergence}
-\begin{tabular}{rcccl}
-\toprule
-\textbf{$N$} & \textbf{Pico PCA} & \textbf{$\Delta h$ de $h_c$} & \textbf{Grid cubre $h_c$} & \textbf{Veredicto} \\
-\midrule
-6 & 1.65 $\pm$ 0.27 & 0.65 & No (grid: $[1.25, 2.0]$) & Pico de borde \\
-10 & 1.44 $\pm$ 0.32 & 0.44 & No (grid: $[1.25, 2.0]$) & Pico de borde \\
-100 & 1.033 $\pm$ 0.047 & 0.033 & \textbf{Sí} (grid: $[1.0, 3.0]$) & \textbf{Converge a $h_c$} \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=0.95\textwidth]{tesis-figures/fig_pca_phase_detection.pdf}
+\caption{Detección no supervisada de la transición de fase vía PCA de $\theta_{\text{opt}}(h)$. Izquierda: el pico PCA converge a $h_c = 1.0$ con $N$ (a $N = 100$: $\Delta h = 0.033$). Derecha: amplitud de $|\partial\theta/\partial h|_{\max}$ por tamaño de sistema. La detección requiere que el grid de $h$ cubra la región crítica --- condición satisfecha solo para $N \leq 10$ bajo la restricción de régimen válido.}
+\label{fig:pca_detection}
+\end{figure}
+
+Este resultado confirma que la detección PCA es un método válido de costo cero cuántico, pero requiere datos VQE que abarquen la región crítica ---condición satisfecha solo para $N \leq 10$ bajo la restricción de régimen válido ($h_{\min}$).
 
 Sin embargo, el análisis de escalamiento finito (experimentos S8/S8b, 5 semillas $\times$ 4 tamaños de sistema) demuestra que este método es \emph{cualitativo}: detecta que una transición existe pero no puede extraer el exponente crítico $\nu$ a partir de los pesos de la red. La señal del gradiente está dominada por la transición de calidad de los datos VQE en $h < 1.0$ (fuera del régimen válido), que enmascara la señal física genuina. El contraste con \citet{hernandes2025}, quienes extraen exitosamente fronteras de fase desde el espacio de pesos de Neural Quantum States, se explica por su uso de estados fundamentales exactos y métricas de distancia en el espacio de pesos, en lugar de parámetros optimizados por VQE y normas de gradiente.
 
@@ -1310,7 +1296,7 @@ MC-Dropout \citep{gal2016} alcanza $r = 0.82$ entre varianza predicha y error re
 
 La eficacia del pipeline GNN-HVA se fundamenta en la convergencia de cuatro propiedades teóricas y empíricas:
 
-\textbf{1. El paisaje del HVA es suave dentro de una fase.} \citet{mele2022} demostraron que $\theta^*(h)$ varía continuamente con $h$ para Hamiltonianos parametrizados con gap espectral. Esto implica que la función $h \mapsto \theta^*$ es altamente predecible ---una red neuronal con pocas decenas de puntos de entrenamiento puede interpolar con precisión suficiente. Nuestros resultados de eficiencia de datos (Tabla~\ref{tab:data_efficiency}: 5 puntos bastan para semillas favorables) confirman empíricamente esta suavidad.
+\textbf{1. El paisaje del HVA es suave dentro de una fase.} \citet{mele2022} demostraron que $\theta^*(h)$ varía continuamente con $h$ para Hamiltonianos parametrizados con gap espectral. Esto implica que la función $h \mapsto \theta^*$ es altamente predecible ---una red neuronal con pocas decenas de puntos de entrenamiento puede interpolar con precisión suficiente. Nuestros resultados de eficiencia de datos (5 puntos bastan para semillas favorables, Sección~\ref{sec:eficiencia_datos}) confirman empíricamente esta suavidad.
 
 \textbf{2. La estructura de grafo informa la predicción.} El mecanismo de paso de mensajes de GINConv captura la topología del Hamiltoniano ---qué qubits interactúan y con qué intensidad--- sin codificación manual de features. Esto explica por qué topologías con mayor conectividad (heavy-hex, escalera) producen mejores predicciones: más aristas $=$ más canales de información para la GNN. \citet{slavin2025} confirman independientemente que la geometría de la red es suficiente para predecir magnetización en sistemas de Ising.
 
@@ -1385,6 +1371,13 @@ La evaluación sistemática demuestra que el pipeline GNN-HVA resuelve el proble
     \item La región crítica exacta ($h \approx h_c$), donde el HVA superficial carece de expresividad \citep{tripathi2026, sumeet2025}.
     \item Sistemas donde la transición no se manifiesta en observables locales (fases topológicas puras).
 \end{itemize}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{tesis-figures/fig_scaling_timing_power_law.pdf}
+\caption{Escalamiento del costo computacional de la Fase 2 (VQE) con el tamaño del sistema en escala log-log. El fit de ley de potencias muestra $T(N) \propto N^{\alpha}$, con $\alpha \approx 2.5$. A $N = 80$ el costo es de solo 109s gracias a la trivialidad del paisaje paramagnético profundo.}
+\label{fig:timing_power_law}
+\end{figure}
 
 \begin{figure}[h]
 \centering
