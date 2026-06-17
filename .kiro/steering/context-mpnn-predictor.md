@@ -140,3 +140,71 @@ model, optimizer, epoch, loss = load_mpnn_checkpoint(path, model_class=MPNNPredi
 - #[[file:src/qmbp_simulation/predictors/__init__.py]]
 - #[[file:.kiro/knowledge/gnn-architecture.md]]
 - #[[file:documentation/binnacles/binnacle-cross-n-zero-shot.md]]
+- #[[file:documentation/binnacles/binnacle-mpnn-eval-suite.md]]
+
+## MPNN Evaluation Suite (ValidationRunner helpers, 2026-06-15)
+
+9 reusable evaluation methods available on any `ValidationRunner` subclass:
+
+### Basic suite (sections 10-14)
+```python
+# S10: Compare warm-start speedup vs random and prev-h
+result = runner.benchmark_mpnn_warmstart(topology, n, h_train, h_test, ...)
+# → speedup_vs_random, speedup_vs_prev_h, init_de_gap, per_h
+
+# S11: LOO cross-validation (generalization estimate)
+result = runner.mpnn_leave_one_out_cv(topology, n, h_train, ...)
+# → pass_rate, per_fold de_gap, full_model_train_mse
+
+# S12: Landscape decomposition (circuit vs ML error)
+result = runner.mpnn_landscape_quality(topology, n, h_train, h_test, ...)
+# → error_circuit, error_mpnn, error_total, mean_curvature, theta_deviation
+
+# S13: Interpolation vs extrapolation boundary
+result = runner.mpnn_interpolation_extrapolation(topology, n, h_train, h_interp, h_extrap, ...)
+# → interp/extrap pass_rate, degradation_factor
+```
+
+### Extended suite (sections 15-19)
+```python
+# S15: Speedup scaling with N (p_layers_per_n for hardware-realistic comparison)
+result = runner.mpnn_scaling_with_system_size(topology, [4,6,10], h_train, h_test,
+    p_layers_per_n={4:2, 6:2, 10:1}, ...)  # p=1 for N≥10 (ZNE limit)
+# → per_n speedup, scaling_trend, speedup_slope_per_N
+
+# S16: Sample efficiency curve
+result = runner.mpnn_learning_curve(topology, n, h_pool, h_test, ...)
+# → per_size de_gap, critical_size (min k for 80% pass rate)
+
+# S17: Zero-shot cross-topology transfer
+result = runner.mpnn_topology_transfer(source_topo, target_topo, n, h_train, h_test, ...)
+# → transfer_ratio, zero_shot/in_dist pass_rate
+
+# S18: Multi-seed LOO stability
+result = runner.mpnn_data_efficiency_vs_loo(topology, n, h_pool, n_seeds=3, ...)
+# → mean/std pass_rate, cv, robust flag
+
+# S19: κ(h) as hardware risk proxy
+result = runner.mpnn_curvature_noise_correlation(topology, n, h_grid, noise_levels=[0.01,0.1], ...)
+# → per_h kappa + noise_sensitivity, Pearson r per sigma
+```
+
+### Run via V3 runner
+```bash
+# All 10 MPNN sections for production config
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+  --skip-hardware-sections \
+  --n-qubits 10 --topology heavy_hex --p-layers 1 \
+  --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 --h-test 4.0 3.25 \
+  --scaling-sizes 4 6 10 --scaling-p-layers 2 2 1 \
+  --mpnn-epochs 3000 --vqe-restarts 1
+
+# Analyze
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+```
+
+### Validated results (heavy_hex N=10 p=1, 2026-06-15)
+- S10: speedup=2.45x, init ΔE/gap=**0.39%** (hardware-ready without any VQE)
+- S11: LOO 100% (7 folds), mean ΔE/gap=**0.38%**
+- S17: chain→ladder transfer FAILS (ratio=200x — GNN is NOT cross-topology for params)
+- S19: |r|=0.52 (heavy_hex κ range [111-174] — use V2 go/no-go, not κ-based)

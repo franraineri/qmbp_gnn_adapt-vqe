@@ -41,6 +41,12 @@ Need to...
 ├── θ-derivative vs D1?            → python scripts/analysis/theta_derivative_analysis.py
 ├── Full analysis pipeline?         → python analysis/run_analysis.py
 ├── Deep raw-data audit (29 checks)?→ PYTHONPATH=. python project_health/analysis/audit_findings.py
+├── Analyze MPNN eval suite (S10-19)?→ python -m project_health.analysis.mpnn_eval_analyzer
+├── MPNN eval with thesis table?    → python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+├── MPNN eval JSON export?          → python -m project_health.analysis.mpnn_eval_analyzer --json out.json
+├── Analyze flow warmstart results? → python -m project_health.analysis.flow_warmstart_analyzer
+├── Run full flow→deployment pipeline? → make hw-flow-full
+├── Deploy with σ_flow safety net?  → make hw-flow-deploy-dry (then hw-flow-deploy)
 │
 │ ─── THESIS COMPILATION (global aggregation) ─────────────────
 ├── Corroborate ALL findings?       → python -m project_health.analysis.thesis_findings_validator
@@ -347,6 +353,22 @@ Output:
 - `documentation/thesis_tables/*.tex` — Per-table LaTeX + `all_tables.tex`
 - `documentation/thesis_figures/*.pdf` — All global + registry figures
 
+### 16. Flow Warmstart Analyzer (`python -m project_health.analysis.flow_warmstart_analyzer`)
+
+Analyzes hardware-extension-integration results: flow warmstart, bond-resolved, σ_flow boost.
+
+```bash
+python -m project_health.analysis.flow_warmstart_analyzer              # Console report
+python -m project_health.analysis.flow_warmstart_analyzer --verbose     # With per-h detail
+python -m project_health.analysis.flow_warmstart_analyzer --json out.json  # Machine-readable
+```
+
+Scans:
+- `results/experiments/exp_hw_rehearsal_v3/` → flow_warmstart and bond_resolved data
+- `results/experiments/exp_ext1b_p1/` → p=1 revalidation
+
+Reports: ΔE/gap, σ_flow distribution, convergence status, speedup, boost impact.
+
 ## Data Architecture
 
 ### Single Source of Truth: Valid Regime Boundaries
@@ -466,6 +488,38 @@ results/experiments/exp_zne_cross_topo/run_*.json
 │   ├── section_1..3: {name, success, data: {pass, results, summary}}
 │   └── section_4: {data: {comparison: [{topology,h,de_pea,de_gf,pea_gain,...}], summary: {paired_t_stat, paired_p_value, pea_wins_total, ...}}}
 └── summary: {n_sections, n_passed, all_passed}
+```
+
+### Flow Warmstart JSON Schema (§10 mode d)
+
+```
+results/experiments/exp_hw_rehearsal_v3/run_*.json
+└── results.section_10.data.flow_warmstart:
+    ├── de_gap: float                    # Mean ΔE/gap across h_test points
+    ├── n_iterations: float              # Mean VQE iterations from flow init
+    ├── speedup_vs_random: float|null    # Compared to random init baseline
+    ├── sigma_flow_per_h: {h: σ, ...}   # Per-h uncertainty (key signal)
+    ├── per_h: [{h, iters, de_gap, sigma_flow}, ...]
+    ├── train_nll_history: [float, ...]  # Full NLL training curve
+    ├── trainable_params: int            # EmbeddingMAF param count
+    ├── train_elapsed_s: float           # Training wall-clock
+    ├── bench_elapsed_s: float           # Benchmark wall-clock
+    ├── converged: bool                  # final_nll < 2.0
+    ├── best_seed: int                   # Best of 3 seeds
+    ├── all_seed_nlls: [{seed, final_nll}, ...]
+    └── config: {embedding_dim, theta_dim, n_flow_layers, hidden_dim, ...}
+```
+
+Flow checkpoint: `results/flow_checkpoints/flow_{topology}_N{n}_p{p}.pt`
+
+### Hardware Deployment with σ_flow Schema
+
+```
+results/hardware/run_*/execution_summary.json
+└── tiers.tier_1:
+    ├── ... (existing keys)
+    ├── kappa_recommendations: {h: {kappa, risk_level, n_layouts, shots, ...}}
+    └── sigma_flow_per_h: {h: σ, ...} | null
 ```
 
 ## Thesis Compilation Workflow (Full Pipeline)

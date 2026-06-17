@@ -49,6 +49,8 @@ src/qmbp_simulation/
     ├── diagnostics.py
     ├── metrics.py
     ├── landscape.py
+    ├── normalizing_flow.py  ← EmbeddingMAF, MAFLayer (Architecture B)
+    ├── flow_warmstart.py    ← FlowWarmstartManager (σ_flow uncertainty)
     └── data_models.py
 ```
 

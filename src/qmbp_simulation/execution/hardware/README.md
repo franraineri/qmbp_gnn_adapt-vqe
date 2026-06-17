@@ -193,7 +193,9 @@ config = HardwareConfig(
 
 # Build circuit and Hamiltonian
 lattice = make_lattice("heavy_hex", 10)
-circuit, _ = HVACircuitBuilder().create(10, 1, lattice)
+# Use create_pauli_evolution() for hardware — 6-10% lower total_depth
+# (noiseless VQE training still uses create())
+circuit, _ = HVACircuitBuilder().create_pauli_evolution(10, 1, lattice)
 H = HamiltonianBuilder().build_tfim(lattice, h=3.25)
 
 # MPNN-predicted parameters (example)
@@ -232,7 +234,8 @@ config = HardwareConfig(
 
 # Build circuit and Hamiltonian
 lattice = make_lattice("heavy_hex", 10)
-circuit, _ = HVACircuitBuilder().create(10, 1, lattice)
+# Use create_pauli_evolution() for hardware deployment (6-10% lower total_depth)
+circuit, _ = HVACircuitBuilder().create_pauli_evolution(10, 1, lattice)
 
 # Get exact reference values (from local simulation)
 solver = ClassicalSolver()
@@ -385,22 +388,32 @@ All validations fail with `ValueError` — zero QPU cost on misconfiguration.
 
 **optimization_level=2** with explicit `initial_layout` (BFS-selected, CES < 0.5).
 
-### Explored options (2026-06-05)
+### Explored options (2026-06-05, corrected 2026-06-15)
 
-| Method | 2Q-Depth | n_2Q | CES | Verdict |
-|--------|:--------:|:----:|:---:|---------|
-| **PauliEvol + SABRE lvl2** ✅ | 24 | 34 | 0.1251 | **Best** |
-| Orig HVA + SABRE lvl2 | 27 | 34 | 0.1271 | Previous default |
-| Orig HVA + SABRE lvl3 | 25 | 34 | 0.1271 | No benefit |
-| PauliEvol + Rustiq | 50 | 67 | — | **Counterproductive** |
+| Method | Total Depth | n_2Q | CES | Verdict |
+|--------|:-----------:|:----:|:---:|---------|
+| **PauliEvol + SABRE lvl2** ✅ | 82–90 | 34 | 0.1251 | **Best — in production** |
+| Orig HVA + SABRE lvl2 | 89–90 | 34 | 0.1271 | Previous default |
+| Orig HVA + SABRE lvl3 | ~88 | 34 | 0.1271 | No benefit |
+| PauliEvol + Rustiq | — | 67 | — | **Counterproductive** |
+
+> **Note (2026-06-15)**: The original 2026-06-05 report measured *2Q-depth* (27→24,
+> −11%). The correct metric for hardware decoherence is *total_depth*, which differs
+> by 6–10% at non-trivial theta values (Section 20 validation). On heavy_hex N=10 p=1,
+> all ZZ bonds are non-overlapping, so 2Q-depth = 1 for both representations (already
+> fully parallelized by the scheduler). The total_depth reduction (82–81 vs 89–90)
+> reduces time-domain decoherence exposure on real hardware.
 
 **Use `HVACircuitBuilder.create_pauli_evolution()`** for hardware deployment.
-It uses `PauliEvolutionGate` to expose commuting structure, giving the transpiler
-better scheduling information → 11% lower 2Q-depth with identical gate count.
+This is already the default in `run_ibm_torino_deployment.py` (Tiers 0, 1, 2).
 
-- Level 3 (KAK decomposition): no benefit for HVA (individual RZZ gates, no multi-gate blocks to resynthesize)
-- Rustiq plugin: counterproductive (designed for dense Pauli networks, not sparse HVA)
-- AI transpiler: not tested locally but IBM tutorial shows potential for TFIM
+> **Important**: `create_pauli_evolution()` uses coefficient `0.5` for ZZ and X
+> operators so that `PauliEvolutionGate(H, time=2θ) = e^{-iθ·ZZ} = RZZ(2θ)`. Bug
+> in original 2026-06-05 version (coefficient=1.0) produced wrong energies — fixed
+> 2026-06-15. See `binnacle-pauli-evolution-transpilation.md` for full details.
+
+Noiseless VQE training (StatevectorEstimator) still uses `create()` — there is
+no transpilation in that path and no benefit from the PauliEvolutionGate form.
 
 ## Error Mitigation Stack
 

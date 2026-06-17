@@ -12,6 +12,32 @@ Runner Types:
     - ExperimentRunner: Wraps BaseExperiment subclasses (simple lifecycle).
     - ValidationRunner: Multi-section validation suites (complex, table-driven).
     - VariantPipelineRunner: Thin wrapper over existing VariantRunner infrastructure.
+    - HardwareValidationRunner: ValidationRunner + HardwareBackend integration.
+
+MPNN Evaluation Helpers (ValidationRunner instance methods — reusable by any subclass):
+    Sections 10-13 (basic):
+    - benchmark_mpnn_warmstart(): Compare MPNN warm-start vs random vs prev-h init.
+    - mpnn_leave_one_out_cv(): LOO cross-validation for generalization estimate.
+    - mpnn_landscape_quality(): Decompose ΔE into circuit vs ML error components.
+    - mpnn_interpolation_extrapolation(): Measure accuracy inside vs outside h_train range.
+
+    Sections 15-19 (extended):
+    - mpnn_scaling_with_system_size(): Warm-start speedup as a function of N (p_layers_per_n supported).
+    - mpnn_learning_curve(): ΔE/gap vs training set size (sample efficiency curve).
+    - mpnn_topology_transfer(): Zero-shot cross-topology prediction test.
+    - mpnn_data_efficiency_vs_loo(): Multi-seed LOO to quantify stability.
+    - mpnn_curvature_noise_correlation(): κ(h) vs noise sensitivity — hardware risk proxy.
+
+    Hardware deployment utilities:
+    - compute_kappa_per_h(): Landscape curvature κ(h) via finite differences (noiseless).
+    - kappa_go_no_go(): Per-h deployment recommendations from κ profile.
+
+    All helpers are topology/model-agnostic and topology-aware (kappa_go_no_go
+    auto-calibrates percentile-based thresholds for any topology).
+
+    Runner IDs:
+        HW_REHEARSAL_V3 — MPNN Evaluation Suite (sections 10-19)
+        Results saved to: results/experiments/exp_hw_rehearsal_v3/
 
 Usage (ValidationRunner — most common for new scripts):
 
@@ -1312,7 +1338,7 @@ class ValidationRunner(ABC):
             h_values=h_arr,
             theta_opt=theta_arr,
             e_exact=e_arr,
-            fidelity_threshold=0.0,
+            fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
         )
         predictor = MPNNPredictor(
             node_features=dataset[0].x.shape[1],
@@ -1576,7 +1602,7 @@ class ValidationRunner(ABC):
             h_values=h_arr,
             theta_opt=theta_arr,
             e_exact=e_arr,
-            fidelity_threshold=0.0,
+            fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
         )
         full_model = MPNNPredictor(
             node_features=full_dataset[0].x.shape[1],
@@ -1616,7 +1642,7 @@ class ValidationRunner(ABC):
                 h_values=h_fold,
                 theta_opt=theta_fold,
                 e_exact=e_fold,
-                fidelity_threshold=0.0,
+                fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
             )
 
             # Train fold model — fresh weights each fold
@@ -1790,7 +1816,7 @@ class ValidationRunner(ABC):
             h_values=h_arr,
             theta_opt=theta_arr,
             e_exact=e_arr,
-            fidelity_threshold=0.0,
+            fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
         )
         predictor = MPNNPredictor(
             node_features=dataset[0].x.shape[1],
@@ -2046,7 +2072,7 @@ class ValidationRunner(ABC):
             h_values=h_arr,
             theta_opt=theta_arr,
             e_exact=e_arr,
-            fidelity_threshold=0.0,
+            fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
         )
         predictor = MPNNPredictor(
             node_features=dataset[0].x.shape[1],
@@ -2550,7 +2576,7 @@ class ValidationRunner(ABC):
                     h_values=h_k,
                     theta_opt=theta_k,
                     e_exact=e_k,
-                    fidelity_threshold=0.0,
+                    fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
                 )
             except ValueError:
                 logger.warning(f"  train_size={k}: dataset build failed, skipping.")
@@ -2725,7 +2751,7 @@ class ValidationRunner(ABC):
                 h_values=h_a,
                 theta_opt=th_a,
                 e_exact=e_a,
-                fidelity_threshold=0.0,
+                fidelity_threshold=0.0,  # noqa: noiseless VQE data — no filtering needed
             )
             n_p = th_a.shape[1]
             pred = MPNNPredictor(

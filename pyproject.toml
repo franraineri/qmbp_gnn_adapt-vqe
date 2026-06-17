@@ -44,6 +44,7 @@ ignore = [
 "__init__.py" = ["F401", "I001"]
 "experiments/**/*.py" = ["E402"]
 "scripts/*.py" = ["E402"]
+"project_health/analysis/audit_findings.py" = ["SIM115"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "qiskit.opflow".msg = "Deprecated: use qiskit.quantum_info.SparsePauliOp"

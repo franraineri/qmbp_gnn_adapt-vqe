@@ -134,6 +134,37 @@ When a result fails (ΔE/gap > 5%), check in this order:
 - Experiment protocol: #[[file:.kiro/steering/experiment-protocol.md]]
 - Tool invocation reference: #[[file:.kiro/steering/analysis-tooling.md]]
 
+## MPNN Evaluation Diagnostics
+
+When MPNN prediction quality is suspect, use the dedicated analyzer:
+
+```bash
+# Full report across all V3 runs
+python -m project_health.analysis.mpnn_eval_analyzer
+
+# Thesis-ready table (latest run)
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+
+# JSON for programmatic analysis
+python -m project_health.analysis.mpnn_eval_analyzer --json report.json
+```
+
+**Diagnostic indicators:**
+
+| Metric | Good | Marginal | Action |
+|--------|------|---------|--------|
+| S10 speedup_vs_random | ≥ 1.5x | 1.0-1.5x | More training data / epochs |
+| S11 LOO pass_rate | ≥ 80% | 60-80% | Extend h_train grid |
+| S12 ML fraction | < 30% | 30-60% | More training pts near h_test |
+| S13 interp pass_rate | ≥ 80% | 60-80% | Check h_test inside h_train range |
+| S19 |r| κ-noise | ≥ 0.70 | 0.50-0.70 | Only valid for chain_1d topology |
+
+Auto-generated warnings flag:
+- speedup < 1x → GNN HURTS, retrain before QPU
+- LOO pass_rate < 60% → insufficient data, extend h_train  
+- topology_transfer ratio > 3x → GNN is topology-specific
+- LOO std > 15% → result seed-sensitive, more epochs needed
+
 ## Additional Diagnostic Tools
 
 ### Sanity Check (`python -m project_health.analysis.sanity_check`)

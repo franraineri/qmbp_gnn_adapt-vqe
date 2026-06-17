@@ -31,7 +31,8 @@ class MaskedLinear(nn.Linear):
         self.register_buffer("mask", mask)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
-        return nn.functional.linear(x, self.weight * self.mask, self.bias)
+        mask: torch.Tensor = self.mask  # type: ignore[assignment]
+        return nn.functional.linear(x, self.weight * mask, self.bias)
 
 
 def _build_maf_mask(dim: int, hidden_dim: int, layer: int) -> torch.Tensor:
@@ -185,7 +186,7 @@ class FlowHead(nn.Module):
             log_det_total = log_det_total + log_det
         # Log prob under standard normal base
         log_base = self._base.log_prob(x).sum(dim=-1)
-        return log_base + log_det_total
+        return log_base + log_det_total  # type: ignore[no-any-return]
 
     def sample(self, z: torch.Tensor, n_samples: int = 50) -> torch.Tensor:
         """Sample θ ~ p(θ|z).
@@ -203,14 +204,13 @@ class FlowHead(nn.Module):
         # Sample from base distribution
         x = torch.randn(n_samples, self.output_dim, device=z.device)
         # Invert through all layers (reversed order)
-        for layer in reversed(self.layers):
-            x = layer.inverse(x, ctx)
+        for layer in reversed(list(self.layers)):
+            layer_: MAFLayer = layer  # type: ignore[assignment]
+            x = layer_.inverse(x, ctx)
         # Clamp to [-π, π] per ThetaValidator L1 (Req 3.4)
-        return torch.clamp(x, -math.pi, math.pi)
+        return torch.clamp(x, -math.pi, math.pi)  # type: ignore[return-value,no-any-return]
 
 
-# ---------------------------------------------------------------------------
-# Architecture B: EmbeddingMAF
 # ---------------------------------------------------------------------------
 
 
@@ -272,7 +272,7 @@ class EmbeddingMAF(nn.Module):
             x, log_det = layer(x, context)
             log_det_total = log_det_total + log_det
         log_base = self._base.log_prob(x).sum(dim=-1)
-        return log_base + log_det_total
+        return log_base + log_det_total  # type: ignore[no-any-return]
 
     def sample(self, z: torch.Tensor, n_samples: int = 50) -> torch.Tensor:
         """Sample θ ~ p(θ|z_frozen), clamped to [-π, π].
@@ -287,9 +287,10 @@ class EmbeddingMAF(nn.Module):
         context = self._get_context(z)
         ctx = context.repeat(n_samples, 1) if context.shape[0] == 1 else context
         x = torch.randn(n_samples, self.theta_dim, device=z.device)
-        for layer in reversed(self.layers):
-            x = layer.inverse(x, ctx)
-        return torch.clamp(x, -math.pi, math.pi)
+        for layer in reversed(list(self.layers)):
+            layer_: MAFLayer = layer  # type: ignore[assignment]
+            x = layer_.inverse(x, ctx)
+        return torch.clamp(x, -math.pi, math.pi)  # type: ignore[return-value,no-any-return]
 
     def trainable_param_count(self) -> int:
         """Count trainable parameters (used by OverparameterizationGuard)."""

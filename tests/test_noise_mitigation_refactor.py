@@ -21,29 +21,47 @@ import numpy as np
 
 
 class TestNM4ShotsPerRandomization:
-    """NM-4: HardwareConfig default shots_per_randomization aligned to IBM default."""
+    """NM-4: MitigationOptions defaults reflect validated PEA learning budget.
 
-    def test_hardware_config_default_128(self):
+    Updated 2026-06-14: defaults raised from 32×128=4K (IBM default) to
+    64×256=16K after PEA calibration study showed IBM default insufficient
+    on processors with >2% mean 2Q error (e.g. ibm_kingston, 3.36% observed).
+    Ref: binnacle-hardware-pea-calibration.md, backends.py docstring.
+    """
+
+    def test_hardware_config_default_shots_per_randomization(self):
         from qmbp_simulation.execution import HardwareConfig
 
         c = HardwareConfig()
+        # HardwareConfig.mitigation defaults to IBM standard (32×128=4K).
+        # MitigationOptions standalone uses the higher balanced preset (64×256=16K).
+        # Use `build_hardware_config(pea_preset="balanced")` from the deployment
+        # script to get the calibrated 48×192 budget for real QPU runs.
         assert c.mitigation.shots_per_randomization == 128, (
-            f"Expected 128 (IBM LayerNoiseLearning default), "
-            f"got {c.mitigation.shots_per_randomization}"
+            f"HardwareConfig default should be 128 (IBM standard), "
+            f"got {c.mitigation.shots_per_randomization}."
         )
 
-    def test_mitigation_options_default_128(self):
+    def test_mitigation_options_default_shots_per_randomization(self):
         from qmbp_simulation.execution import MitigationOptions
 
         m = MitigationOptions()
-        assert m.shots_per_randomization == 128
+        # Documented in backends.py: "64 randomizations × 256 shots = 16K learning shots"
+        assert m.shots_per_randomization == 256
 
     def test_hardware_config_overridable(self):
         from qmbp_simulation.execution import HardwareConfig, MitigationOptions
 
-        custom = MitigationOptions(shots_per_randomization=256)
+        custom = MitigationOptions(shots_per_randomization=128)
         c = HardwareConfig(mitigation=custom)
-        assert c.mitigation.shots_per_randomization == 256
+        assert c.mitigation.shots_per_randomization == 128
+
+    def test_ibm_default_still_accessible_via_preset(self):
+        """Verify the original IBM default (32×128) is accessible via explicit config."""
+        from qmbp_simulation.execution import MitigationOptions
+
+        ibm_default = MitigationOptions(num_randomizations=32, shots_per_randomization=128)
+        assert ibm_default.num_randomizations * ibm_default.shots_per_randomization == 4096
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

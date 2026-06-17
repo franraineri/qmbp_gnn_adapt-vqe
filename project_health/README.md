@@ -66,6 +66,7 @@ project_health/
 │   ├── scaling_analyzer.py            MPS scaling law validation (N=40-120)
 │   ├── scaling_extensions_analyzer.py E5 extensions (bond-dim, HE, NLCE)
 │   ├── statistical_tests.py           Shared statistical test utilities
+│   ├── flow_warmstart_analyzer.py     ★ Flow/σ_flow/bond-resolved analysis
 │   ├── thesis_findings_validator.py   ★ Corroborate ALL thesis findings
 │   ├── thesis_tables_compiler.py      ★ Auto-generate thesis tables (MD+LaTeX)
 │   └── thesis_figures.py              ★ Global thesis figures (PDF/PNG)
@@ -411,3 +412,60 @@ pytest tests/test_thesis_tools.py -v
 
 Tests validate: imports, crash-free execution, output structure, JSON serialization,
 schema integrity of result files, and cross-tool consistency.
+
+---
+
+## MPNN Evaluation Suite Analyzer (`analysis/mpnn_eval_analyzer.py`)
+
+Dedicated analyzer for `HW_REHEARSAL_V3` MPNN evaluation results (sections 10-19).
+
+### Usage
+
+```bash
+# Full report (all runs)
+python -m project_health.analysis.mpnn_eval_analyzer
+
+# With thesis table (latest run)
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+
+# JSON output for further analysis
+python -m project_health.analysis.mpnn_eval_analyzer --json report.json
+
+# Verbose (shows learning curve per-k details)
+python -m project_health.analysis.mpnn_eval_analyzer --verbose
+```
+
+### What It Analyzes
+
+Parses `results/experiments/exp_hw_rehearsal_v3/run_*.json` and produces:
+
+| Section | Metric | Status (N=6 chain) | Status (N=10 heavy_hex) |
+|---------|--------|--------------------|------------------------|
+| S10 Warm-start | Speedup vs random | 2.81 ± 0.23x ✅ | 2.45x ✅ |
+| S11 LOO-CV | Pass rate | 100% (8 pts) ✅ | 100% (7 pts) ✅ |
+| S12 Landscape | ML frac of error | 13% (circuit-limited) ✅ | — |
+| S13 Interp/Extrap | Interpolation pass | 100% ✅ | — |
+| S14 Noisy eval | noisy_raw ΔE/gap | 113% ❌ (gate-fold only) | 106% ❌ |
+| S15 Scaling | Speedup trend | flat (-0.03/N) ✅ | — |
+| S17 Transfer | chain→ladder | 200x FAIL ❌ | — |
+| S19 κ-noise | Pearson \|r\| | 0.84 ✅ (chain_1d) | 0.52 ❌ (heavy_hex) |
+
+### Key Findings (2026-06-15)
+
+1. **MPNN warm-start confirmed**: 2.72 ± 0.26x speedup across all configs
+2. **LOO-CV reliable with 7+ training pts**: 100% pass rate at both N=6 and N=10
+3. **S14 noisy fails for both configs**: gate-folding ZNE alone insufficient; use full V2 pipeline (PEA+DD+twirling)
+4. **κ-noise correlation only valid for chain_1d**: |r|=0.84 (chain), |r|=0.52 (heavy_hex) — different noise physics
+5. **Topology transfer fails**: chain→ladder ratio=200x; GNN is NOT topology-agnostic for parameter prediction
+6. **N=10 heavy_hex**: better than N=6 on most metrics (LOO mean ΔE/gap=0.38% vs 1.34%)
+
+### κ Thresholds (calibrated at N=6 chain_1d only)
+
+| κ | Risk | Applies to |
+|---|------|-----------|
+| ≥ 50 | LOW | chain_1d |
+| 45-50 | MEDIUM | chain_1d |
+| < 45 | HIGH | chain_1d |
+
+**For heavy_hex N=10**: κ ∈ [111, 174] — scale is completely different. κ thresholds
+don't apply. Use V2 hardware rehearsal (sections 1-9) for go/no-go decisions.

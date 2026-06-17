@@ -887,6 +887,49 @@ def run_gate_folding_zne(
             f"Bind parameters before calling run_gate_folding_zne()."
         )
 
+    # ── Depth guard: warn when shallow circuits exit the ZNE linear regime ──
+    # For gate-folding ZNE, the effective 2Q gate count at the deepest fold is
+    # n_2q * max_factor. The linear regime limit is ~18 CX (project constraint).
+    # Beyond this, the linear E(noise_factor) assumption breaks down and ZNE
+    # can overcorrect, yielding negative improvement. See project-status.md §ZNE.
+    n_2q_orig = sum(1 for inst in transpiled_circuit.data if inst.operation.num_qubits == 2)
+    max_factor = max(noise_factors)
+    folded_2q_at_max = n_2q_orig * max_factor
+    ZNE_LINEAR_REGIME_LIMIT = 18  # validated CX budget for linear ZNE (project-status.md)
+
+    if n_2q_orig < 6:
+        # Very shallow circuit: folding makes the circuit deeper than the original
+        # by a large multiple. Gate-folding ZNE is unreliable in this regime.
+        # Cap noise factors to keep folded depth within linear regime.
+        safe_max_factor = max(1, ZNE_LINEAR_REGIME_LIMIT // max(n_2q_orig, 1))
+        # Ensure safe_max_factor is odd
+        if safe_max_factor % 2 == 0:
+            safe_max_factor -= 1
+        safe_max_factor = max(1, safe_max_factor)
+        if safe_max_factor < max_factor:
+            _logger.warning(
+                f"[gate_folding_zne] Shallow circuit: {n_2q_orig} 2Q gates × "
+                f"max_factor={max_factor} = {folded_2q_at_max} effective 2Q gates. "
+                f"Exceeds linear regime ({ZNE_LINEAR_REGIME_LIMIT}). "
+                f"Auto-capping noise_factors to max={safe_max_factor} to avoid "
+                f"negative ZNE improvement. "
+                f"Consider using PEA-ZNE instead (not depth-limited)."
+            )
+            # Filter noise_factors to only include odd factors ≤ safe_max_factor
+            noise_factors = tuple(nf for nf in noise_factors if nf <= safe_max_factor)
+            if len(noise_factors) < 2:
+                # Fallback: use (1, safe_max_factor) — minimum viable ZNE
+                noise_factors = (1, safe_max_factor) if safe_max_factor >= 3 else (1, 3)
+            _logger.info(f"[gate_folding_zne] Using capped noise_factors={noise_factors}")
+    elif folded_2q_at_max > ZNE_LINEAR_REGIME_LIMIT:
+        _logger.warning(
+            f"[gate_folding_zne] Circuit has {n_2q_orig} 2Q gates × "
+            f"max_factor={max_factor} = {folded_2q_at_max} effective 2Q gates. "
+            f"Exceeds linear regime ({ZNE_LINEAR_REGIME_LIMIT}). ZNE linearity "
+            f"may be degraded. Consider reducing max noise_factor to "
+            f"{max(1, ZNE_LINEAR_REGIME_LIMIT // n_2q_orig)!s}."
+        )
+
     measured_values: list[float] = []
 
     for i, nf in enumerate(noise_factors):
@@ -1439,6 +1482,7 @@ def _measure_noise_factors(
     list[float]
         Measured energies in the same order as noise_factors.
     """
+
     def _run_single(args: tuple) -> float:
         i, nf = args
         return _pea_estimate(
@@ -1457,15 +1501,13 @@ def _measure_noise_factors(
 
         n_workers = min(len(noise_factors), 4)
         _logger.info(
-            f"[pea_zne] Parallel execution: {len(noise_factors)} factors, "
-            f"{n_workers} threads"
+            f"[pea_zne] Parallel execution: {len(noise_factors)} factors, {n_workers} threads"
         )
         # Use submit + index tracking to preserve order (map already preserves
         # order, but explicit indexing is clearer for debugging)
         with ThreadPoolExecutor(max_workers=n_workers) as executor:
             future_to_idx = {
-                executor.submit(_run_single, (i, nf)): i
-                for i, nf in enumerate(noise_factors)
+                executor.submit(_run_single, (i, nf)): i for i, nf in enumerate(noise_factors)
             }
             results = [0.0] * len(noise_factors)
             for future in as_completed(future_to_idx):
@@ -1473,9 +1515,7 @@ def _measure_noise_factors(
                 try:
                     results[idx] = future.result()
                 except Exception as exc:
-                    _logger.error(
-                        f"[pea_zne] Thread for factor={noise_factors[idx]} failed: {exc}"
-                    )
+                    _logger.error(f"[pea_zne] Thread for factor={noise_factors[idx]} failed: {exc}")
                     # Propagate NaN so extrapolation degrades gracefully
                     results[idx] = float("nan")
         return results

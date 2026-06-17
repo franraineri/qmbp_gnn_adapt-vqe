@@ -463,6 +463,7 @@ class PipelineRunner:
             hidden_dim=cfg.get("hidden_dim", default_hidden_dim),
             n_layers=cfg.get("n_layers", 3),
             output_dim=n_params,
+            norm_type=cfg.get("norm_type", "batch"),  # cross-N zero-shot needs "none"
         )
 
         train_mpnn(

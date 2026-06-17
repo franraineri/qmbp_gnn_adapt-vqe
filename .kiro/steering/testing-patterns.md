@@ -92,6 +92,7 @@ When adding a new feature to `src/qmbp_simulation/`:
 | `qmbp_simulation.pipeline` | `tests/unit/test_pipeline.py` |
 | `qmbp_simulation.framework` | `tests/unit/test_framework.py` |
 | MPNN evaluation helpers (runner_base) | `tests/test_mpnn_eval_helpers.py` |
+| MPNN evaluation extended helpers (sections 15-19) | `tests/test_mpnn_eval_extended.py` |
 | `qmbp_simulation.analysis` | `tests/unit/test_analysis.py` |
 | Import dependency order | `tests/unit/test_imports.py` |
 | Smoke test (all imports) | `tests/integration/test_smoke.py` |

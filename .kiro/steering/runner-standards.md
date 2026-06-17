@@ -175,6 +175,54 @@ psi_trunc = self.truncate_statevector_mps(psi, n_qubits=10, chi_max=16)
 energy_noisy = float(np.real(psi_trunc.conj() @ H_mat @ psi_trunc))
 ```
 
+### MPNN Evaluation Helpers (9 methods, 2026-06-15)
+
+All 9 methods are available on every `ValidationRunner` subclass (no imports needed).
+They produce structured JSON-serializable dicts parseable by `mpnn_eval_analyzer.py`.
+
+**Basic suite (sections 10-14):**
+```python
+# S10: Warm-start speedup benchmark
+result = self.benchmark_mpnn_warmstart(topology, n_qubits, h_train, h_test, ...)
+
+# S11: LOO cross-validation
+result = self.mpnn_leave_one_out_cv(topology, n_qubits, h_train, ...)
+
+# S12: Landscape quality (circuit vs ML error decomposition + curvature)
+result = self.mpnn_landscape_quality(topology, n_qubits, h_train, h_test, ...)
+
+# S13: Interpolation vs extrapolation
+result = self.mpnn_interpolation_extrapolation(topology, n_qubits, h_train,
+                                               h_interpolate, h_extrapolate, ...)
+```
+
+**Extended suite (sections 15-19):**
+```python
+# S15: Speedup scaling with N — CRITICAL: use p_layers_per_n={N: p} for hardware
+result = self.mpnn_scaling_with_system_size(topology, [4,6,10], h_train, h_test,
+    p_layers_per_n={10: 1}, ...)  # p=1 for N=10 (ZNE limit 18 CX)
+
+# S16: Learning curve (sample efficiency)
+result = self.mpnn_learning_curve(topology, n_qubits, h_pool, h_test, ...)
+
+# S17: Zero-shot topology transfer
+result = self.mpnn_topology_transfer(source_topology, target_topology, n_qubits, ...)
+
+# S18: Multi-seed LOO robustness (min_train_size propagated to inner LOO)
+result = self.mpnn_data_efficiency_vs_loo(topology, n_qubits, h_pool,
+    n_seeds=3, min_train_size=3, ...)
+
+# S19: κ-noise correlation (hardware risk proxy)
+result = self.mpnn_curvature_noise_correlation(topology, n_qubits, h_grid,
+    noise_levels=[0.01, 0.05, 0.10, 0.20], ...)
+```
+
+**Key constraints:**
+- S17: chain→ladder transfer **FAILS** (ratio=200x) — GNN params are topology-specific
+- S19: `|r|` is absolute value — negative correlation (high κ = low risk) is CORRECT
+- S15: Always pass `p_layers_per_n` for N≥10 to respect ZNE 18-CX limit
+- κ thresholds auto-calibrate via percentiles for non-chain topologies
+
 ### Backend Resolution (`self._resolve_backend()`)
 Internally resolves which backend to use: `self.noiseless` → `self.backend` → new `NoiselessBackend()`.
 Called automatically by `vqe_descending_sweep`. No need to call explicitly.

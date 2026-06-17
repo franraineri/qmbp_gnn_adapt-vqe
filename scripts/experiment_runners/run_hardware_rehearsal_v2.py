@@ -438,7 +438,7 @@ class HardwareRehearsalV2(ValidationRunner):
             h_values=h_arr,
             theta_opt=theta_arr,
             e_exact=e_arr,
-            fidelity_threshold=0.0,  # noqa: disabled — VQE data pre-validated by ΔE/gap
+            fidelity_threshold=0.0,  # noqa  — VQE data pre-validated by ΔE/gap
         )
 
         # Train
@@ -491,6 +491,25 @@ class HardwareRehearsalV2(ValidationRunner):
             e_pred = self.noiseless.evaluate(circuit_t, H_t, theta_pred)
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
 
+            # ── Compute κ for hardware risk assessment ────────────────────
+            eps = 0.01
+            n_p = len(theta_pred)
+            e_center = e_pred
+            curvatures_h = []
+            for i in range(n_p):
+                try:
+                    th_p = theta_pred.copy()
+                    th_p[i] += eps
+                    th_m = theta_pred.copy()
+                    th_m[i] -= eps
+                    e_p = self.noiseless.evaluate(circuit_t, H_t, th_p)
+                    e_m = self.noiseless.evaluate(circuit_t, H_t, th_m)
+                    curvatures_h.append(abs(e_p - 2 * e_center + e_m) / (eps**2))
+                except Exception:
+                    curvatures_h.append(float("nan"))
+            kappa_h = float(np.nanmean(curvatures_h)) if curvatures_h else float("nan")
+            hw_risk = "high" if kappa_h < 45.0 else ("medium" if kappa_h < 50.0 else "low")
+
             results.append(
                 {
                     "h": h_t,
@@ -499,11 +518,14 @@ class HardwareRehearsalV2(ValidationRunner):
                     "gap": gap,
                     "de_gap": de_gap,
                     "theta_norm": float(np.linalg.norm(theta_pred)),
+                    "kappa": kappa_h,
+                    "hardware_risk": hw_risk,
                     "pass": de_gap < DE_GAP_THRESHOLD,
                 }
             )
             logger.info(
-                f"    h={h_t:.2f}: ΔE/gap={de_gap:.4f} "
+                f"    h={h_t:.2f}: ΔE/gap={de_gap:.4f} κ={kappa_h:.1f} "
+                f"risk={hw_risk} "
                 f"[{'PASS' if de_gap < DE_GAP_THRESHOLD else 'FAIL'}]"
             )
 

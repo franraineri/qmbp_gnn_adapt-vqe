@@ -709,33 +709,48 @@ class HardwareBackend(ExecutionBackend):
         This provides a visual provenance record for every hardware execution,
         enabling quick debugging and thesis figure generation.
         """
-        from pathlib import Path
 
         try:
-            from qmbp_simulation.analysis.circuit_visualizer import save_circuit_diagram
+            from pathlib import Path as _Path
 
-            output_dir = Path(self._config.output_dir)
+            from qiskit.visualization import circuit_drawer
+
+            output_dir = _Path(self._config.output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
 
             h_tag = f"h{h_value:.1f}".replace(".", "p")
 
             # Save the logical (bound) circuit
-            save_circuit_diagram(
-                circuit,
-                output_dir / f"circuit_logical_{h_tag}.png",
-                params=params,
-                title=f"Logical HVA p={circuit.num_parameters // 2} N={self._config.n_qubits} h={h_value}",
+            bound_qc = circuit.assign_parameters(params)
+            _diagram = circuit_drawer(
+                bound_qc,
+                output="mpl",
                 fold=40,
+                filename=str(output_dir / f"circuit_logical_{h_tag}.png"),
             )
+            if hasattr(_diagram, "savefig"):
+                _diagram.savefig(
+                    str(output_dir / f"circuit_logical_{h_tag}.png"), dpi=150, bbox_inches="tight"
+                )
+            import matplotlib.pyplot as _plt
+
+            _plt.close("all")
 
             # Save the first transpiled (ISA) circuit
             if layout_selection.transpiled_circuits:
-                save_circuit_diagram(
+                _diagram = circuit_drawer(
                     layout_selection.transpiled_circuits[0],
-                    output_dir / f"circuit_transpiled_{h_tag}.png",
-                    title=f"Transpiled (layout 0, CES={layout_selection.ces_values[0]:.3f}) h={h_value}",
+                    output="mpl",
                     fold=60,
+                    filename=str(output_dir / f"circuit_transpiled_{h_tag}.png"),
                 )
+                if hasattr(_diagram, "savefig"):
+                    _diagram.savefig(
+                        str(output_dir / f"circuit_transpiled_{h_tag}.png"),
+                        dpi=150,
+                        bbox_inches="tight",
+                    )
+                _plt.close("all")
 
             self._logger.log(
                 "circuit_diagram_saved",
@@ -892,15 +907,19 @@ class HardwareBackend(ExecutionBackend):
             # CES-based client-side extrapolation is removed — it fails on
             # heavy_hex where all CES≈0.15 (no spread → R²≈0.04).
             e_zne = float(np.mean(energies))
-            # R² proxy: consistency across layouts (high agreement = high quality)
-            if len(energies) > 1:
-                e_std = float(np.std(energies, ddof=1))
-                # Normalize by gap to get a dimensionless consistency metric
-                relative_std = e_std / max(abs(gap), 1e-10)
-                # Map to R²-like scale: std≈0 → R²≈1, std≈gap → R²≈0
-                r2 = max(0.0, 1.0 - relative_std)
+            # R² proxy: use inter-layout consistency as a quality signal.
+            # IBM applies ZNE independently per layout; consistent results
+            # indicate reliable mitigation. We map layout agreement → R²-like score:
+            #   - Perfect agreement (std ≈ 0): R² → 1.0
+            #   - Large spread (std > 5% of |e_zne|): R² → 0.0 (unreliable)
+            # This is conservative: a single-layout run gets R²=1.0 (trusted,
+            # since IBM's own quality check passed at submission time).
+            if len(energies) > 1 and abs(e_zne) > 1e-10:
+                relative_std = float(np.std(energies, ddof=1)) / abs(e_zne)
+                # 5% relative std → R²=0. Scale linearly in [0, 0.05] → [1, 0].
+                r2 = float(max(0.0, 1.0 - relative_std / 0.05))
             else:
-                r2 = 1.0  # Single layout — assume IBM's own quality check passed
+                r2 = 1.0  # Single layout: trust IBM's own ZNE quality
             amplifier = self._config.mitigation.zne_amplifier or "pea"
             return e_zne, r2, f"server_side_{amplifier}"
 

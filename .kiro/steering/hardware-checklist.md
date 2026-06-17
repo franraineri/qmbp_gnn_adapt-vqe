@@ -18,6 +18,16 @@ inclusion: manual
 - [ ] Check Kingston queue depth (< 50 jobs ideal, execute UTC 2-6 AM)
 - [ ] Confirm calibration: `compute_mean_2q_error(backend)` < 1%
 - [ ] Run smoke test: `python tests/smoke_test.py`
+- [ ] Run MPNN evaluation suite (confirms θ_pred quality before wasting QPU):
+  ```bash
+  python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+    --skip-hardware-sections --section 10 --section 11 \
+    --n-qubits 10 --topology heavy_hex --p-layers 1 \
+    --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 --h-test 4.0 3.25 \
+    --mpnn-epochs 3000 --vqe-restarts 1
+  ```
+  PASS criteria: S10 speedup ≥ 1.5x AND init ΔE/gap < 5%, S11 LOO pass ≥ 80%.
+  Reference validated results: S10=2.45x speedup, S11=100% LOO (7 pts), init=0.39%.
 - [ ] Run rehearsal V2 (green light):
   ```bash
   python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 1 2 3

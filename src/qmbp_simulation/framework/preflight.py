@@ -80,7 +80,10 @@ P1_VALID_REGIME: dict[tuple[str, int], float] = {
     ("chain_1d", 40): 4.0,  # Scaling law: 1.5+0.020·40^1.31≈4.51, validated MPS
     ("chain_1d", 50): 4.9,  # Scaling law: 1.5+0.020·50^1.31≈5.36, validated MPS
     ("chain_1d", 80): 7.7,  # Scaling law: 1.5+0.020·80^1.31≈8.22, validated MPS
-    ("heavy_hex", 6): 2.0,
+    ("heavy_hex", 6): 3.5,  # Empirical: S3 V3 rehearsal shows 23% ΔE/gap at h=3.25 (2026-06-16).
+    # heavy_hex has higher coordination than chain_1d → HVA p=1 expressibility degrades
+    # faster with N. N=6 subgraph has only 5 ZZ bonds; p=1 landscape is near-flat at h<3.5.
+    # Previously 2.0 (interpolated from chain_1d) but never empirically validated.
     ("heavy_hex", 10): 3.0,
     ("heavy_hex", 20): 3.5,  # Empirical estimate (extrapolated from N=10)
     ("ladder", 6): 2.0,

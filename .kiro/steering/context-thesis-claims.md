@@ -34,6 +34,14 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 - BatchNorm harmful for cross-N on symmetric topologies (discovery + fix).
 - GNN extrapolates to N=100 beyond training (0.18%), beats scipy 2.6×.
 
+### Contribution 6: MPNN Warm-Start (2026-06-15)
+- **2.81 ± 0.23x speedup** vs random init for VQE (chain_1d N=6, p=2).
+- **2.45x speedup** for production config (heavy_hex N=10, p=1).
+- **MPNN init ΔE/gap = 0.39%** without any VQE — hardware-ready noiseless.
+- LOO-CV 100% pass rate with 7+ training pts (both chain_1d and heavy_hex).
+- **Critical qualifier**: GNN does NOT generalize cross-topology for param prediction (chain→ladder ratio=200x). Each topology needs its own training data.
+- Ref: `documentation/binnacles/binnacle-mpnn-eval-suite.md`, sections 10-19.
+
 ## Thesis Tables Index (Chapter 5)
 
 | Table | Content | Source |
@@ -76,6 +84,9 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 | Affine overshoot | 0% in 102 records | Affine audit | — |
 | MPS N=80 | 0.08% ΔE/gap | scaling_N80 | 5/5 h-points |
 | PEA mean gain (all evals) | +86.8% | `python project_health/compare.py --zne` | 69/69 always positive |
+| MPNN warm-start speedup | 2.81 ± 0.23x (chain N=6) / 2.45x (heavy_hex N=10) | S10 MPNN eval suite | 3 runs |
+| MPNN LOO-CV (7+ pts) | 100% pass both configs | S11 MPNN eval suite | 7-8 folds |
+| MPNN init ΔE/gap | 0.39% (heavy_hex N=10, no VQE) | S10 MPNN eval suite | hardware-ready |
 
 ## Negative Results (valid scientific contributions)
 

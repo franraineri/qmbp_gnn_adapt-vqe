@@ -1,7 +1,30 @@
 # Índice Detallado — `documentation/binnacles`
 
-**Archivos**: 28 documentos markdown
-**Total**: 80,034 palabras, 11,406 líneas
+**Archivos**: 29 documentos markdown
+**Total**: ~82,000 palabras, ~11,600 líneas
+**Última actualización**: 2026-06-15
+
+---
+
+## 0. [binnacle-pauli-evolution-transpilation.md](binnacle-pauli-evolution-transpilation.md)
+**Binnacle — PauliEvolutionGate Transpilation Validation**
+
+| Fecha | Estado |
+|-------|--------|
+| 2026-06-15 | ✅ VALIDADO — en producción |
+
+**Tags**: `hardware`, `transpilation`, `circuits`, `deployment`
+
+> Validación formal de `HVACircuitBuilder.create_pauli_evolution()` para deployment en IBM Torino.
+> Incluye corrección de bug (coeficiente 1.0→0.5), datos de Section 20 del V3 rehearsal,
+> y documentación de los cambios aplicados al deployment script.
+
+**Hallazgos clave**:
+- Bug corregido: coeficiente ZZ/X era 1.0 (produce energías erróneas ±25 unidades) → ahora 0.5
+- total_depth reducción: −6.0% media (h=4.0: −7.9%, h=3.25: −10.0%, h=3.0: 0%)
+- n_2Q idéntico (34 gates) — solo scheduling de 1Q gates cambia
+- max|ΔE| = 3.55e-14 (equivalencia funcional confirmada)
+- En producción: Tiers 0, 1, 2 de `run_ibm_torino_deployment.py`
 
 ---
 
@@ -1728,3 +1751,27 @@
   - Tool Used
 
 ---
+
+
+---
+
+## 29. [binnacle-mpnn-eval-suite.md](binnacle-mpnn-eval-suite.md)
+
+**Binnacle — MPNN Evaluation Suite (Sections 10-19, HW Rehearsal V3)**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-15 | ~400 | ~3500 | ~25 KB | 18 | 5 |
+
+**Tags**: `mpnn`, `hardware`, `kappa`, `warm-start`, `loo-cv`, `thesis`
+
+> Validación completa del GNN en configuraciones N=6 chain_1d (referencia) y
+> N=10 heavy_hex p=1 (producción). Secciones 10-19 del runner V3.
+
+**Métricas clave**:
+- Warm-start speedup: 2.45x (heavy_hex N=10) / 2.81x (chain_1d N=6)
+- LOO-CV: 100% (7/7) heavy_hex N=10 — deployment-ready
+- MPNN init ΔE/gap: 0.39% — dentro del threshold 5% sin VQE
+- κ correlation: |r|=0.52 heavy_hex (weak) / |r|=0.74-0.85 chain_1d (valid)
+- Topology transfer: FAILS (chain→ladder, ratio=200x) — importante qualifier para la tesis
+- N=20 init fail: h_test fuera del valid regime (esperado)

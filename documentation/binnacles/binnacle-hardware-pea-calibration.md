@@ -104,3 +104,65 @@ Once the optimal config is identified:
 - Kim et al., Nature 618, pp. 500-505 (2023) — PEA original paper
 - QESEM, arXiv:2508.10997 — extended PEA validation
 - Project finding: `documentation/analysis/11_hardware_rehearsal_findings.md`
+
+---
+
+## Addendum 2026-06-15: κ-Based Deployment Optimization
+
+### Finding: κ Anti-correlates with Noise Sensitivity
+
+From MPNN Eval Suite Section 19 (binnacle-mpnn-eval-suite.md):
+- Pearson r(κ, ΔE_noise) = **-0.835** at N=6 chain_1d (|r| = 0.74-0.85 across grid)
+- Low κ → h near h_c → HIGH hardware risk (small gap amplifies θ errors)
+- High κ → deep paramagnetic regime → LOW risk
+
+### κ Go/No-Go Integration (2026-06-15)
+
+New functions added to `run_ibm_torino_deployment.py`:
+
+```python
+kappa_per_h = compute_kappa_per_h(params_per_h, lattice)  # zero QPU cost
+recommendations = kappa_go_no_go(kappa_per_h, shots_base=16384)
+# Per-h: risk_level, n_layouts, shots, spsa_recommended
+```
+
+**Decision table (N=6 calibration, to be validated at N=10):**
+
+| κ | Risk | n_layouts | Shots | SPSA |
+|---|------|-----------|-------|------|
+| ≥ 50 | LOW | 1 | 16K | No |
+| 45-50 | MEDIUM | 3 | 16K | No |
+| < 45 | HIGH | 3 | 32K | Recommended |
+
+**QPU impact:** For TIER_1_H=[4.0, 3.75, 3.5, 3.25] at N=10, all h-points are
+likely in the LOW/MEDIUM regime (far from h_c≈1.0). Expected QPU savings: ~40%
+vs baseline (use 1 layout for all instead of 3).
+
+### Pending Validation
+
+- S19 needs to be run at N=10 heavy_hex to calibrate κ thresholds for the
+  production deployment config. Current thresholds (κ<45=high) are from N=6
+  chain_1d and may need adjustment.
+- Ref: `binnacle-mpnn-eval-suite.md` § S19
+
+
+### Addendum 2026-06-15: κ Thresholds — heavy_hex N=10 Invalidated
+
+From S19 heavy_hex N=10 p=1 (binnacle-mpnn-eval-suite.md):
+- κ range: [111, 174] — 3x higher than chain_1d [41, 53]
+- Pearson r(κ, ΔE_noise) = -0.52 (|r| < 0.70 → WEAK correlation)
+
+**Conclusion:** The κ-based go/no-go thresholds (κ<45=HIGH risk) are ONLY
+valid for **chain_1d** topology. For **heavy_hex**, κ does NOT predict noise
+sensitivity reliably because routing SWAPs introduce incoherent noise that is
+independent of the VQE landscape curvature.
+
+**Decision for IBM Torino deployment:**
+- Do NOT use κ thresholds for heavy_hex go/no-go
+- Use V2 hardware rehearsal pass/fail (sections 1-9) as the deployment gate
+- κ is logged in per_h_results for reference but should not drive shots/layouts
+  decisions for heavy_hex
+
+**κ is still computed** in Tier 0, 1, 2 to track landscape quality — but
+`kappa_go_no_go()` recommendations should be treated as informational-only for
+heavy_hex until topology-specific thresholds are calibrated.

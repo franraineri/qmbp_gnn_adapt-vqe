@@ -25,7 +25,7 @@ This file helps Kiro quickly identify which papers to cite for specific claims, 
 10. Kitaev chain: 3-barrier incompatibility proof (CX budget + initial state + expressibility)
 11. DyPP fails (F1): warm-start is already near-optimal for 4-param HVA — no room for adaptive improvement
 12. Cross-N warm-start useless at p=1 (2 params): landscape is trivially convex → init irrelevant
-13. PauliEvolutionGate gives -11% 2Q-depth: adopted as standard for hardware deployment
+13. PauliEvolutionGate gives −6–10% total_depth (validated Section 20, 2026-06-15): adopted as standard for hardware deployment (Tiers 0-2). Bug fixed: coeff 1.0→0.5 in create_pauli_evolution(). Note: 2Q-depth=1 for both on heavy_hex (all ZZ bonds parallelized). Ref: binnacle-pauli-evolution-transpilation.md.
 14. 6 Hamiltonian candidates systematically evaluated (Table with viability criteria) → only longitudinal viable
 15. Cross-topology transfer fails (S2): same architecture, different learned representations per topology
 16. Unsupervised phase detection via PCA of θ_opt: PC1 explains 99.96% variance, peaks at h≈1.25

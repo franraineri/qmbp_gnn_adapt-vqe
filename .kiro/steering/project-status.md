@@ -1,6 +1,6 @@
 # Project Status — GNN-HVA Framework
 
-**Last updated**: 2026-06-09
+**Last updated**: 2026-06-17
 
 ## Experiment Discipline (ALWAYS ENFORCE)
 
@@ -28,6 +28,8 @@
 - **GNN-QEM ablation** (2026-06-06): Graph IS essential without E_noisy (GNN 100% vs MLP 67% vs Linear 0%). With E_noisy, correction is 99.96% linear — graph adds +11% precision only. Claim reframed: graph captures noise propagation in predictive mode; regularization in correction mode. Ref: `results/gnn_qem/ablation_no_enoisy_results.json`.
 - **GNN-QEM circuit selection validated** (2026-06-06): Predictive mode (no E_noisy) with VQE-realistic errors achieves Spearman ρ=0.945 for ranking circuits by expected error (100% binary accuracy). Cannot CORRECT but perfectly RANKS difficulty. Use for pre-execution layout/config selection. Ref: `results/gnn_qem/vqe_realistic_results.json`.
 - **PEA-ZNE now validated on ALL 4 topologies**: chain_1d (+97%), ladder (+91%), heavy_hex (+98%), triangular (+97%). Universal superiority confirmed.
+- **Hardware Extension Integration** (2026-06-16/17): FlowWarmstartManager + σ_flow boost validated. heavy_hex N=10 p=1: ΔE/gap=0.39%, σ_flow=0.47 (just below boost threshold). Flow is complementary to MPNN (same accuracy, adds uncertainty signal). Pipeline: `make hw-flow-full`. Ref: `documentation/binnacles/binnacle-hardware-extension-integration.md`.
+- **Flow Warmstart Extension** (2026-06-17): `FlowWarmstartManager` validated on heavy_hex N=10 p=1 (ΔE/gap=0.39%, σ_flow=0.47). Provides uncertainty signal for adaptive QPU resource allocation via `kappa_go_no_go(sigma_flow_per_h=...)`. Deployment script wired with `--sigma-flow-results`. Multi-seed training (3 seeds), checkpoint save/load, early stopping. Ref: `documentation/binnacles/binnacle-flow-warmstart-extensions.md`.
 
 ## Active Priority
 
@@ -38,6 +40,26 @@
    - Rehearsal V2 passed 3/3 after fixes (2026-06-06): Section 1 ΔE/gap 0.2-0.8%, Section 2 PEA-ZNE 2-4%, Section 3 verdict=PASS.
    - **Status: READY FOR QPU** — only IBM credentials needed.
 2. **Thesis writing** — Chapter 5 compilation from `documentation/analysis/09_thesis_tables.md`.
+
+## MPNN Evaluation Suite Results (2026-06-15)
+
+**Complete validation across N=6 chain_1d (reference) AND N=10 heavy_hex p=1 (production config).**
+Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
+
+| Metric | N=6 chain_1d p=2 | N=10 heavy_hex p=1 | Status |
+|--------|-------------------|---------------------|--------|
+| Warm-start speedup | 2.81x | **2.45x** | ✅ Both pass (>1.5x) |
+| MPNN init ΔE/gap | 0.42% | **0.39%** | ✅ Hardware-ready without VQE |
+| LOO-CV pass rate (7-8 pts) | 100% (8/8) | **100% (7/7)** | ✅ Both pass |
+| LOO mean ΔE/gap | 1.34% | **0.38%** | ✅ heavy_hex better |
+| FakeTorino noisy eval | 113% raw, +46.8% ZNE | **106% raw, +33.8% ZNE** | ❌ Use PEA-ZNE for real hardware |
+| Scaling trend (N=4,6,10,20) | decreasing | **flat** | ℹ️ Informational |
+| κ correlation (S19) | |r|=0.74-0.85 ✅ | |r|=0.52 ❌ (needs calibration) | |
+
+**Key findings for hardware:**
+- `kappa_go_no_go()` now auto-calibrates thresholds via percentiles (topology-agnostic)
+- For TIER_1_H=[4.0, 3.75, 3.5, 3.25]: all κ ∈ [133,158] → auto-calibrated thresholds give MEDIUM risk for h<3.5, LOW for h≥3.5
+- **N=20 init fails** at h=1.875 (outside valid regime for N=20 p=1) — always use h_test within valid regime
 3. **MPS Scaling to N>30** (2026-06-07) — Pipeline validated beyond statevector limits.
    - **N=40 PASS ✅**: 5/5 h-points, mean ΔE/gap=0.49%, max=0.60%, 26 min total.
    - **N=50 PASS ✅**: 5/5 h-points, mean ΔE/gap=0.36%, max=0.49%, 30 min total.
@@ -89,7 +111,7 @@
 - **PEA available as fallback**: If gate-folding ZNE gives R²<0.90 or ΔE/gap>5%, switch `zne_amplifier="pea"`. Learns actual noise model via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% extra QPU overhead. Use `--zne-amplifier pea` in CLI. Ref: IBM Nature 618 (2023).
 - **PEA local simulation valid ONLY at N≤10**: FakeTorino (133 qubits) OOMs at N≥20. Native chain_1d at N≥20 has insufficient noise for ZNE (no SWAP routing overhead). PEA N≥20 validation requires real QPU. Ref: `documentation/analysis/23_noisy_simulation_scalability_limits.md`.
 - **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
-- **PauliEvolutionGate gives 11% less 2Q-depth**: Use `create_pauli_evolution()` for hardware. Same n_2Q (34), same energy, better scheduling. Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/analysis/15_transpiler_exploration.md`.
+- **PauliEvolutionGate gives −6–10% total_depth** (validated 2026-06-15, Section 20): Use `create_pauli_evolution()` for hardware deployment circuits. Same n_2Q (34), same energy (|ΔE|<4e-14), shorter scheduling. On heavy_hex, 2Q-depth=1 for both (bonds non-overlapping — fully parallelized); benefit is in total_depth scheduling of 1Q gates. Bug in original 2026-06-05 version (coeff=1.0→0.5 fix). Applied to Tiers 0/1/2 of `run_ibm_torino_deployment.py`. VQE noiseless training still uses `create()` (no transpilation → no benefit). Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`, `documentation/analysis/15_transpiler_exploration.md`.
 
 ## Unsupervised Phase Detection (Task 2+3 findings)
 
@@ -152,7 +174,7 @@
 ### Stable (do NOT modify unless explicitly asked)
 - `src/qmbp_simulation/models/` — data models, Hamiltonians, lattices, constants
 - `src/qmbp_simulation/solvers/` — exact diag + DMRG
-- `src/qmbp_simulation/circuits/` — HVA construction (p≤2 enforced)
+- `src/qmbp_simulation/circuits/` — HVA construction (p≤2 enforced). Note: `create_pauli_evolution()` bug fixed 2026-06-15 (coeff 1.0→0.5); method now in production for hardware deployment.
 - `src/qmbp_simulation/execution/` — backend ABC + noiseless/noisy/hardware + PEA simulation
 - `src/qmbp_simulation/optimizers/` — multi-start VQE + SPSA
 - `src/qmbp_simulation/pipeline/` — dataset save/load, orchestration
@@ -172,6 +194,8 @@
 - `tests/test_project_health_coverage.py` — 72 tests: state, coverage, verify, sanity, scaling, reporter, models
 - `scripts/run_hardware_rehearsal.py` — Hardware deployment rehearsal (5 sections)
 - MPNN evaluation helpers (4 reusable methods in `ValidationRunner`): `benchmark_mpnn_warmstart`, `mpnn_leave_one_out_cv`, `mpnn_landscape_quality`, `mpnn_interpolation_extrapolation`. Used by V3 sections 10-13, inheritable by any runner.
+- MPNN evaluation extended (5 additional methods in `ValidationRunner`): `mpnn_scaling_with_system_size` (p_layers_per_n supported), `mpnn_learning_curve`, `mpnn_topology_transfer`, `mpnn_data_efficiency_vs_loo`, `mpnn_curvature_noise_correlation`. Used by V3 sections 15-19.
+- Hardware κ utilities in `run_ibm_torino_deployment.py`: `compute_kappa_per_h()` (noiseless finite-diff curvature, zero QPU cost), `kappa_go_no_go()` (auto-calibrates percentile-based thresholds — topology-agnostic, integrated in Tier 0/1/2).
 - `.github/workflows/ci.yml` — CI gate (lint + mypy strict + test + smoke)
 - `analysis/` — coverage scanner, diagnostics, verification
 
@@ -197,8 +221,12 @@
 | Hardware deployment strategy | `.kiro/steering/hardware-deployment.md` |
 | Hardware run checklist | `.kiro/steering/hardware-checklist.md` (manual: #hardware-checklist) |
 | Hardware deployment script | `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` |
+| Flow warmstart extensions binnacle | `documentation/binnacles/binnacle-hardware-extension-integration.md` |
+| Flow warmstart analyzer | `python -m project_health.analysis.flow_warmstart_analyzer` |
 | Hardware rehearsal V2 | `scripts/experiment_runners/run_hardware_rehearsal_v2.py` |
-| Hardware rehearsal V3 (MPNN eval sections 10-13) | `scripts/experiment_runners/run_hardware_rehearsal_v3.py` |
+| Hardware rehearsal V3 (MPNN eval sections 10-19) | `scripts/experiment_runners/run_hardware_rehearsal_v3.py` |
+| MPNN Evaluation Suite binnacle | `documentation/binnacles/binnacle-mpnn-eval-suite.md` |
+| MPNN Evaluation Suite analyzer | `python -m project_health.analysis.mpnn_eval_analyzer --thesis-table` |
 | Physics constraints (full) | `.kiro/skills/quantum/SKILL.md` |
 | Code style | `.kiro/steering/code-style.md` |
 | Error patterns | `.kiro/knowledge/error-patterns.md` |
@@ -212,6 +240,7 @@
 | Figure generation | `make figures` (PNG) or `make figures-thesis` (PDF 300dpi) |
 | θ_opt PCA unsupervised detection (Tasks 2+3) | `documentation/binnacles/binnacle-theta-pca-unsupervised-detection.md` |
 | Transpiler exploration findings | `documentation/analysis/15_transpiler_exploration.md` |
+| PauliEvolutionGate validation (Section 20) | `documentation/binnacles/binnacle-pauli-evolution-transpilation.md` |
 | Advanced mitigation techniques (2025-2026 lit.) | `documentation/analysis/15_advanced_mitigation_techniques.md` |
 | GNN-QEM validation (error correction GNN) | `documentation/binnacles/binnacle-gnn-qem-validation.md` |
 | GNN-QEM cross-topology results | `results/gnn_qem/cross_topology_results.json` |

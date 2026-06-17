@@ -784,6 +784,209 @@ def check_figures_generated(verbose: bool = False) -> list[CheckResult]:
     return results
 
 
+@register_check("mpnn_eval_suite_results", "data_integrity")
+def check_mpnn_eval_suite_results(verbose: bool = False) -> list[CheckResult]:
+    """Verify MPNN Evaluation Suite (S10-19) results exist for production config.
+
+    Checks that heavy_hex N=10 p=1 results exist (the production hardware config)
+    and that the key metrics (S10 speedup, S11 LOO) are within expected ranges.
+    """
+    results = []
+    v3_dir = ROOT / "results" / "experiments" / "exp_hw_rehearsal_v3"
+
+    if not v3_dir.exists():
+        results.append(
+            CheckResult(
+                name="mpnn_eval_v3_dir_exists",
+                category="data_integrity",
+                passed=False,
+                message="V3 rehearsal results directory missing: run_hardware_rehearsal_v3.py",
+                severity="warning",
+            )
+        )
+        return results
+
+    run_files = sorted(v3_dir.glob("run_*.json"))
+    results.append(
+        CheckResult(
+            name="mpnn_eval_v3_results_exist",
+            category="data_integrity",
+            passed=len(run_files) > 0,
+            message=f"Found {len(run_files)} V3 rehearsal runs",
+            details={"n_runs": len(run_files)},
+            severity="warning" if len(run_files) == 0 else "info",
+        )
+    )
+
+    if not run_files:
+        return results
+
+    # Find the most recent production config (heavy_hex N=10 p=1)
+    prod_runs = []
+    for rf in sorted(run_files, reverse=True):
+        try:
+            with open(rf) as f:
+                data = json.load(f)
+            cfg = data.get("config", {})
+            system = cfg.get("system", {})
+            if system.get("topology") == "heavy_hex" and system.get("n_qubits") == 10:
+                prod_runs.append((rf, data))
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    results.append(
+        CheckResult(
+            name="mpnn_eval_v3_prod_config_exists",
+            category="data_integrity",
+            passed=len(prod_runs) > 0,
+            message=(
+                f"Found {len(prod_runs)} heavy_hex N=10 p=1 runs"
+                if prod_runs
+                else "No heavy_hex N=10 p=1 V3 runs found — run with production config"
+            ),
+            severity="warning" if not prod_runs else "info",
+        )
+    )
+
+    if not prod_runs:
+        return results
+
+    # Check S10 warm-start speedup (should be ≥1.5x)
+    latest_rf, latest_data = prod_runs[0]
+    results_sections = latest_data.get("results", {})
+    s10 = results_sections.get("section_10", {}).get("data", {})
+    s10_summary = s10.get("summary", {})
+    s10_speedup = s10_summary.get("mean_speedup_vs_random")
+
+    results.append(
+        CheckResult(
+            name="mpnn_eval_s10_warmstart_speedup",
+            category="data_integrity",
+            passed=s10_speedup is not None and s10_speedup >= 1.5,
+            message=(
+                f"S10 warm-start speedup={s10_speedup:.2f}x (threshold: ≥1.5x)"
+                if s10_speedup is not None
+                else "S10 warm-start: no data (section not run)"
+            ),
+            details={"speedup": s10_speedup, "file": latest_rf.name},
+            severity="warning" if (s10_speedup is None or s10_speedup < 1.5) else "info",
+        )
+    )
+
+    # Check S11 LOO-CV pass rate (should be ≥80%)
+    s11 = results_sections.get("section_11", {}).get("data", {})
+    s11_summary = s11.get("summary", {})
+    s11_pass_rate = s11_summary.get("pass_rate")
+
+    results.append(
+        CheckResult(
+            name="mpnn_eval_s11_loo_cv_pass_rate",
+            category="data_integrity",
+            passed=s11_pass_rate is not None and s11_pass_rate >= 0.80,
+            message=(
+                f"S11 LOO-CV pass_rate={s11_pass_rate:.0%} (threshold: ≥80%)"
+                if s11_pass_rate is not None
+                else "S11 LOO-CV: no data (section not run)"
+            ),
+            details={"pass_rate": s11_pass_rate},
+            severity="warning" if (s11_pass_rate is None or s11_pass_rate < 0.80) else "info",
+        )
+    )
+
+    # Quick cross-check: init ΔE/gap should be < 5% (hardware-ready without VQE)
+    s10_init_de = s10_summary.get("mean_init_de_gap")
+    if s10_init_de is not None:
+        results.append(
+            CheckResult(
+                name="mpnn_eval_s10_init_de_gap",
+                category="data_integrity",
+                passed=s10_init_de < 0.05,
+                message=(
+                    f"S10 init ΔE/gap={s10_init_de:.4f} "
+                    f"({'hardware-ready' if s10_init_de < 0.05 else 'ABOVE 5% threshold'})"
+                ),
+                severity="warning" if s10_init_de >= 0.05 else "info",
+            )
+        )
+
+    return results
+
+
+@register_check("hardware_deployment_readiness", "data_integrity")
+def check_hardware_deployment_readiness(verbose: bool = False) -> list[CheckResult]:
+    """Check hardware deployment prerequisite files and configs are present.
+
+    Verifies key infrastructure for IBM Torino deployment:
+    - Deployment script exists
+    - Rehearsal V2 has a passing run
+    - MPNN eval results exist for production config
+    """
+    results = []
+    deploy_script = (
+        ROOT / "scripts" / "experiment_runners" / "hardware" / "run_ibm_torino_deployment.py"
+    )
+
+    results.append(
+        CheckResult(
+            name="hw_deploy_script_exists",
+            category="data_integrity",
+            passed=deploy_script.exists(),
+            message=(
+                "Deployment script found: run_ibm_torino_deployment.py"
+                if deploy_script.exists()
+                else "Deployment script MISSING"
+            ),
+            severity="error" if not deploy_script.exists() else "info",
+        )
+    )
+
+    # Check V2 rehearsal has a passing run
+    v2_exp_dir = ROOT / "results" / "experiments"
+    v2_runs = sorted(v2_exp_dir.glob("exp_hw_rehearsal_v2/run_*.json"), reverse=True)
+    v2_passing = 0
+    for rf in v2_runs[:5]:
+        try:
+            with open(rf) as f:
+                data = json.load(f)
+            if data.get("summary", {}).get("all_passed", False):
+                v2_passing += 1
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    results.append(
+        CheckResult(
+            name="hw_rehearsal_v2_passing_run",
+            category="data_integrity",
+            passed=v2_passing > 0,
+            message=(
+                f"V2 rehearsal: {v2_passing}/{min(len(v2_runs), 5)} passing runs found"
+                if v2_runs
+                else "V2 rehearsal: no runs found (run_hardware_rehearsal_v2.py first)"
+            ),
+            severity="warning" if v2_passing == 0 else "info",
+        )
+    )
+
+    # Check MPNN checkpoint for quick warm-start on hardware
+    ckpt_dir = ROOT / "results" / "hardware" / "mpnn_checkpoints"
+    ckpts = list(ckpt_dir.glob("mpnn_heavy_hex_n10_p1_seed*.pt")) if ckpt_dir.exists() else []
+    results.append(
+        CheckResult(
+            name="hw_mpnn_checkpoint_exists",
+            category="data_integrity",
+            passed=len(ckpts) > 0,
+            message=(
+                f"MPNN checkpoint found: {ckpts[0].name}"
+                if ckpts
+                else "No MPNN checkpoint — will be trained on first QPU run (~5 min)"
+            ),
+            severity="info",  # Not a blocking issue, just informational
+        )
+    )
+
+    return results
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Engine — Run All Checks
 # ═══════════════════════════════════════════════════════════════════════════════

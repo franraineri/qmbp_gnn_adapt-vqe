@@ -233,8 +233,6 @@ def _collect_results(
                         usage_info["running_timestamp"] = running_ts
                     except Exception:
                         pass  # metrics() not available for local jobs
-                    except Exception:
-                        pass  # metrics() not available for local jobs
                 results.append(
                     {
                         "layout_idx": idx,

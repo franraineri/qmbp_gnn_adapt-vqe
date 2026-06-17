@@ -76,9 +76,25 @@ Update these files (using REFERENCES, never duplicate data):
 | File | What to add |
 |------|-------------|
 | `documentation/binnacles/binnacle-<name>.md` | Full binnacle entry with tables + cross-references |
+| `documentation/binnacles/binnacle-mpnn-eval-suite.md` | Addendum if MPNN evaluation was run |
 | `analysis/10_key_findings_corrected.md` | New hallazgo # (if novel finding) |
 | `documentation/analysis/08_summary.md` | Session entry (date, experiments, verdicts) |
 | `documentation/analysis/09_thesis_tables.md` | Only if new table for Chapter 5 |
+
+### For Hardware-Adjacent Experiments
+
+After running MPNN evaluation suite (sections 10-19 via V3 runner):
+
+```bash
+# Analyze all V3 runs
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+
+# The analyzer auto-generates warnings for:
+# - speedup < 1.5x (retrain before QPU)
+# - LOO pass_rate < 60% (extend h_train)
+# - topology_transfer ratio > 3x (GNN is topology-specific)
+# - κ |r| < 0.50 (κ not reliable for this topology)
+```
 
 ### Quick-Reference Checklist
 

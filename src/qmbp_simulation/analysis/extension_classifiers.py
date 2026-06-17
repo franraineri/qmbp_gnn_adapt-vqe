@@ -1,7 +1,7 @@
-"""Pure classification functions for thesis extension analysis.
+"""Pure threshold-based classification engine for thesis extension analysis.
 
-All methods are stateless and deterministically testable.
-Correctness properties are validated via hypothesis property tests.
+All methods are static, stateless, and deterministically testable.
+No torch/qiskit imports — stdlib only.
 
 Req: 1.3, 1.5, 1.6, 1.7, 2.2, 2.4, 2.6, 3.2, 3.6, 3.7, 3.8
 """
@@ -15,50 +15,33 @@ from qmbp_simulation.analysis.extension_models import ExtensionClassification
 
 logger = logging.getLogger(__name__)
 
-# Practical ceiling for ExactDiag (N ≤ 18 → H.S. ≤ 262,144)
+#: Maximum N for practical ExactDiag on spin-1/2 systems (H.S. = 2^18 = 262,144).
+#: Exported so property tests can reference it without hard-coding 18.
 EXACT_DIAG_N_CEILING: int = 18
-
-# ZNE CX gate threshold: >18 gates → hardware incompatible
-ZNE_CX_THRESHOLD: int = 18
-
-# Overparameterization: trainable_params > 5000 AND n_data < 50
-OVERPARAMETERIZATION_PARAM_THRESHOLD: int = 5000
-OVERPARAMETERIZATION_DATA_THRESHOLD: int = 50
-
-# Flow viability thresholds
-COVERAGE_IMPROVEMENT_MIN: float = 0.02  # absolute coverage improvement
-DE_GAP_VIABLE_MAX: float = 0.05  # 5 % — primary threshold
-DE_GAP_DEGRADED_MIN: float = 0.10  # 10 % — 2× primary → DEGRADED
-
-# Intra-N pass thresholds
-INTRA_N_DE_GAP_MAX: float = 0.01  # ΔE/gap ≤ 1 %
-INTRA_N_PASS_FRACTION: float = 5.0 / 6.0  # ≥ 5/6 h-points
-
-# Expressibility fidelity threshold
-EXPRESSIBILITY_FIDELITY_MIN: float = 0.60
-
-# Data/param ratio requirement
-DATA_PARAM_RATIO_THRESHOLD: int = 1_000
 
 
 class ClassificationEngine:
     """Pure functions for threshold-based classification.
 
-    All methods are class-level static — no state, fully deterministic.
+    All methods are stateless and deterministically testable
+    (Req 1.3, 1.6, 1.7, 2.4, 2.6, 3.2, 3.6, 3.7, 3.8).
+    No instance state — use as a namespace of static methods.
     """
 
     @staticmethod
     def classify_cross_n(
         de_gap_all_sizes: list[float],
     ) -> ExtensionClassification:
-        """Req 1.3: REJECTED if ALL sizes ≥ 5 %; otherwise CONDITIONALLY_VIABLE.
+        """Req 1.3: REJECTED_INSUFFICIENT_DATA if ALL sizes have ΔE/gap ≥ 5%.
 
-        Property 1: For any list where all values ≥ 0.05 → REJECTED_INSUFFICIENT_DATA.
-                    For any list where at least one value < 0.05 → not REJECTED.
+        Args:
+            de_gap_all_sizes: ΔE/gap values (as fractions, e.g. 0.05 = 5%)
+                              for each test system size.
+
+        Returns:
+            REJECTED_INSUFFICIENT_DATA when every element ≥ 0.05;
+            CONDITIONALLY_VIABLE when at least one element is < 0.05.
         """
-        if not de_gap_all_sizes:
-            # Empty list: no evidence of generalization → reject
-            return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
         if all(v >= 0.05 for v in de_gap_all_sizes):
             return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
         return ExtensionClassification.CONDITIONALLY_VIABLE
@@ -71,26 +54,32 @@ class ClassificationEngine:
     ) -> ExtensionClassification:
         """Req 1.6: CONDITIONALLY_VIABLE if ΔE/gap ≤ 1% AND ≥ 5/6 h-points pass.
 
-        Property 3: Both conditions must hold simultaneously for CONDITIONALLY_VIABLE.
+        Args:
+            de_gap:   Mean ΔE/gap over test h-values (fraction, e.g. 0.01 = 1%).
+            n_pass:   Number of h-points where ΔE/gap ≤ threshold.
+            n_total:  Total number of h-points evaluated.
+
+        Returns:
+            CONDITIONALLY_VIABLE when both criteria are met;
+            REJECTED_INSUFFICIENT_DATA otherwise.
         """
-        if n_total == 0:
-            return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
-        threshold_pass = math.floor(INTRA_N_PASS_FRACTION * n_total)
-        # Use 5*n_total//6 exactly as in the design spec
-        threshold_pass = (5 * n_total) // 6
-        if de_gap <= INTRA_N_DE_GAP_MAX and n_pass >= threshold_pass:
+        if de_gap <= 0.01 and n_pass >= math.ceil(5 * n_total / 6):
             return ExtensionClassification.CONDITIONALLY_VIABLE
         return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
 
     @staticmethod
     def classify_hardware(
         cx_count: int,
-        threshold: int = ZNE_CX_THRESHOLD,
+        threshold: int = 18,
     ) -> ExtensionClassification:
-        """Req 1.7, 2.4: HARDWARE_INCOMPATIBLE if CX > threshold.
+        """Req 1.7, 2.4: HARDWARE_INCOMPATIBLE if CX count exceeds ZNE threshold.
 
-        Property 4: cx_count > 18 → HARDWARE_INCOMPATIBLE; ≤ 18 → VIABLE.
-        Applies equally to Ext1 and Ext2.
+        Args:
+            cx_count:  Number of CX (CNOT/CZ) gates in the circuit.
+            threshold: ZNE-viable CX ceiling (default 18).
+
+        Returns:
+            HARDWARE_INCOMPATIBLE when cx_count > threshold; VIABLE otherwise.
         """
         if cx_count > threshold:
             return ExtensionClassification.HARDWARE_INCOMPATIBLE
@@ -100,9 +89,13 @@ class ClassificationEngine:
     def classify_expressibility(fidelity: float) -> ExtensionClassification:
         """Req 2.6: EXPRESSIBILITY_INSUFFICIENT if fidelity < 0.60.
 
-        Property 6: f < 0.60 → EXPRESSIBILITY_INSUFFICIENT; f ≥ 0.60 → VIABLE.
+        Args:
+            fidelity: State-overlap fidelity ∈ [0, 1].
+
+        Returns:
+            EXPRESSIBILITY_INSUFFICIENT when fidelity < 0.60; VIABLE otherwise.
         """
-        if fidelity < EXPRESSIBILITY_FIDELITY_MIN:
+        if fidelity < 0.60:
             return ExtensionClassification.EXPRESSIBILITY_INSUFFICIENT
         return ExtensionClassification.VIABLE
 
@@ -113,54 +106,84 @@ class ClassificationEngine:
         n_params: int,
         n_data: int,
     ) -> ExtensionClassification:
-        """Req 3.2, 3.6, 3.7, 3.8: Flow architecture classification.
+        """Req 3.2, 3.6, 3.7, 3.8: Classify a normalizing-flow architecture.
 
-        Priority order (Property 7):
-          1. OVERPARAMETERIZED_FOR_DATASET   (n_params > 5000 AND n_data < 50)
-          2. DEGRADED_VS_BASELINE            (de_gap ≥ 0.10)
-          3. VIABLE                          (improvement ≥ 0.02 AND de_gap < 0.05)
-          4. CONDITIONALLY_VIABLE            (all other cases)
+        Priority order (evaluated top-to-bottom, first match wins):
+        1. OVERPARAMETERIZED_FOR_DATASET  — n_params > 5000 AND n_data < 50
+        2. DEGRADED_VS_BASELINE           — de_gap ≥ 0.10 (2× primary threshold)
+        3. VIABLE                         — calibration_improvement ≥ 0.02
+                                            AND de_gap < 0.05
+        4. CONDITIONALLY_VIABLE           — all other cases
+
+        Args:
+            calibration_improvement: Improvement in coverage-90 vs MC-Dropout
+                                     baseline (e.g. 0.03 = +3 pp).
+            de_gap:    ΔE/gap of the flow's mean prediction (fraction).
+            n_params:  Number of *trainable* parameters in the flow model.
+            n_data:    Number of training samples available.
+
+        Returns:
+            The highest-priority matching ExtensionClassification.
         """
-        if (
-            n_params > OVERPARAMETERIZATION_PARAM_THRESHOLD
-            and n_data < OVERPARAMETERIZATION_DATA_THRESHOLD
-        ):
+        if n_params > 5000 and n_data < 50:
             return ExtensionClassification.OVERPARAMETERIZED_FOR_DATASET
-        if de_gap >= DE_GAP_DEGRADED_MIN:
+        if de_gap >= 0.10:
             return ExtensionClassification.DEGRADED_VS_BASELINE
-        if calibration_improvement >= COVERAGE_IMPROVEMENT_MIN and de_gap < DE_GAP_VIABLE_MAX:
+        if calibration_improvement >= 0.02 and de_gap < 0.05:
             return ExtensionClassification.VIABLE
         return ExtensionClassification.CONDITIONALLY_VIABLE
 
     @staticmethod
     def compute_n_min_data(
         n_params: int,
-        ratio_threshold: int = DATA_PARAM_RATIO_THRESHOLD,
+        ratio_threshold: int = 1000,
     ) -> int:
-        """Req 1.5: N_min_data = ceil(n_params / ratio_threshold).
+        """Req 1.5: Minimum training samples s.t. params/data ≤ ratio_threshold.
 
-        Property 2: n_params / N_min_data ≤ ratio_threshold for all n_params > 0.
+        N_min_data = ceil(n_params / ratio_threshold)
+
+        Args:
+            n_params:        Total number of model parameters.
+            ratio_threshold: Maximum allowed params-to-data ratio (default 1000).
+
+        Returns:
+            Smallest integer N such that n_params / N ≤ ratio_threshold.
         """
-        if n_params <= 0:
-            raise ValueError(f"n_params must be positive, got {n_params}")
         return math.ceil(n_params / ratio_threshold)
 
     @staticmethod
     def hilbert_space_dimension(n_sites: int) -> int:
-        """Req 2.2: 2^N for spin-1/2 Kagomé.
+        """Req 2.2: Hilbert-space dimension 2^N for spin-1/2 systems.
 
-        Property 5: Exact 2**N for all positive N.
-        Emits a warning for N > EXACT_DIAG_N_CEILING (practical ExactDiag ceiling).
+        Args:
+            n_sites: Number of spin-1/2 sites N.
+
+        Returns:
+            dim = 2**n_sites (exact integer).
+
+        Note:
+            Emits a WARNING when N > EXACT_DIAG_N_CEILING (18) since full
+            Hilbert-space diagonalization becomes impractical beyond that point.
+            Use ``hilbert_space_dimension_flagged`` if you need the bool flag
+            programmatically without relying on log side-effects.
         """
-        if n_sites <= 0:
-            raise ValueError(f"n_sites must be positive, got {n_sites}")
-        dim = 2**n_sites
         if n_sites > EXACT_DIAG_N_CEILING:
             logger.warning(
-                "N=%d exceeds ExactDiag ceiling (N≤%d). "
-                "Hilbert space dimension = %d — ExactDiag not practical.",
+                "hilbert_space_dimension: N=%d exceeds ExactDiag ceiling "
+                "(N_max=%d, H.S.=2^%d=%d). Full diagonalization is impractical.",
                 n_sites,
                 EXACT_DIAG_N_CEILING,
-                dim,
+                EXACT_DIAG_N_CEILING,
+                2**EXACT_DIAG_N_CEILING,
             )
-        return dim
+        return 2**n_sites
+
+    @staticmethod
+    def hilbert_space_dimension_flagged(n_sites: int) -> tuple[int, bool]:
+        """Req 2.2 + Property 5: dimension plus ExactDiag ceiling flag.
+
+        Returns:
+            (dim, exceeds_ceiling) where exceeds_ceiling is True when n_sites > 18.
+        """
+        dim = 2**n_sites
+        return dim, n_sites > 18

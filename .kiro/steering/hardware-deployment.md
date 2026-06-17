@@ -176,20 +176,37 @@ result = backend.run_deployment(circuit, H, params, h, e_exact, gap)  # Full pip
 
 ### Rehearsal (mandatory before real QPU)
 ```bash
-# Full rehearsal (9 sections, ~60s) — via unified CLI
-python scripts/hardware.py rehearsal
+# Full rehearsal V2 (9 sections: ZNE, noise, circuit audit — ~60s)
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py
+make hw-rehearsal
+
+# MPNN Evaluation Suite V3 (sections 10-19 — MPNN-only, no FakeTorino)
+# Validates warm-start speedup, LOO-CV, landscape quality, interp/extrap, scaling
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+  --skip-hardware-sections \
+  --n-qubits 10 --topology heavy_hex --p-layers 1 \
+  --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 --h-test 4.0 3.25 \
+  --mpnn-epochs 3000 --vqe-restarts 1
+
+# V3 individual sections (useful for targeted re-validation)
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 10  # Warm-start speedup
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 11  # LOO-CV
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 19 \  # κ risk proxy
+  --h-kappa-grid 4.5 4.0 3.5 3.25 3.0 2.75   # Extended grid recommended for N=10
+
+# Full V2 rehearsal (sections 1-9) — required before any real QPU run
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py
 make hw-rehearsal
 
 # With optional Section 0 (backend preflight)
-python scripts/hardware.py rehearsal --run-preflight
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --run-preflight
 
 # Quick check (cost + circuit audit, ~2s)
-python scripts/hardware.py rehearsal --section 8 9
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 8 9
 make hw-rehearsal-quick
 
 # Analyze results → GO/NO-GO verdict
-python scripts/hardware.py analyze
-make hw-analyze
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
 ```
 
 ### Deployment Script (real QPU — calibration-first)
@@ -290,6 +307,95 @@ class MyHWRunner(HardwareValidationRunner):
 --mpnn-epochs 6000             # MPNN training epochs (rehearsal)
 --mpnn-hidden-dim 128          # MPNN hidden dimension (rehearsal)
 ```
+
+**V3 MPNN Evaluation Suite — additional flags** (sections 10-19):
+
+```bash
+--skip-hardware-sections        # Run only MPNN sections (10-19), skip ZNE sections (1-9)
+--skip-noisy-mpnn               # Skip section 14 (FakeTorino noisy eval)
+--skip-extended-sections        # Skip sections 15-19 (scaling, LOO, topology transfer, κ)
+--n-vqe-bench-restarts 5       # Random-init VQE runs to avg over (section 10)
+--maxiter-refine 200            # Max VQE iters in benchmark (section 10)
+--loo-min-train-size 5         # Min fold size for LOO-CV (section 11)
+--noisy-shots 8192              # Shots for FakeTorino eval (section 14)
+--noisy-n-layouts 3             # Layouts for FakeTorino eval (section 14)
+--scaling-sizes 4 6 10          # System sizes for scaling benchmark (section 15)
+--scaling-p-layers 2 2 1        # p_layers per size — CRITICAL: use p=1 for N≥10 (section 15)
+--source-topology chain_1d      # Source topology for transfer experiment (section 17)
+--loo-n-seeds 3                 # Seeds for multi-seed LOO robustness (section 18)
+--noise-sigmas 0.01 0.05 0.1 0.2  # σ values for κ-noise correlation (section 19)
+--h-kappa-grid 4.5 4.0 3.5 3.25 3.0 2.75  # Dedicated κ grid (section 19)
+                                # Extend below training range toward h_c for best results
+```
+
+### κ-Based Hardware Risk Assessment (validated 2026-06-15)
+
+The deployment script automatically computes `κ(h)` from the MPNN predictions
+(noiseless, zero QPU cost) and logs a per-h risk profile before each tier.
+
+```python
+# In run_ibm_torino_deployment.py — executed before every QPU submission:
+kappa_per_h = compute_kappa_per_h(params_per_h, lattice)
+recommendations = kappa_go_no_go(kappa_per_h, topology=TOPOLOGY, sigma_flow_per_h=sigma_flow_per_h)
+# → per-h: risk_level, n_layouts, shots, spsa_recommended, sigma_flow_boost
+```
+
+### σ_flow Adaptive Resource Allocation (2026-06-17)
+
+When `--sigma-flow-results <path>` is passed to the deployment script, the
+`FlowWarmstartManager`'s uncertainty estimate σ_flow is combined with κ for
+finer-grained shot/layout allocation:
+
+```bash
+# Full pipeline: rehearsal with flow → deployment with σ_flow
+make hw-flow-full
+
+# Or step by step:
+make hw-flow-rehearsal           # produces sigma_flow_per_h in run_*.json
+make hw-flow-deploy-dry          # loads σ_flow from latest rehearsal, dry-run
+make hw-flow-deploy              # real QPU with σ_flow safety net
+```
+
+**Decision logic (per h-point):**
+
+| Signal | Condition | Action |
+|--------|-----------|--------|
+| κ only | κ < P25 | HIGH: shots×2, 3 layouts |
+| κ only | κ ∈ [P25, P75) | MEDIUM: 3 layouts |
+| κ only | κ ≥ P75 | LOW: 1 layout |
+| σ_flow boost | σ_flow > 0.5 (configurable) | Additionally: shots×2, layouts≥3 |
+
+The σ_flow boost STACKS on top of κ-based allocation. A high-risk h-point with
+high σ_flow gets shots×4 (κ doubles + σ doubles again).
+
+**Result**: `sigma_flow_per_h` is saved in the tier_1 JSON, and every per-h
+recommendation includes `"sigma_flow_boost": true|false` for auditability.
+
+**Multi-seed training** (3 seeds): The flow model is trained 3 times with
+seeds [42, 43, 44] and the best (lowest NLL) is kept. Checkpoint is saved
+automatically at `results/flow_checkpoints/flow_{topology}_N{n}_p{p}.pt`.
+
+**Findings (2026-06-17)**:
+- heavy_hex N=10 p=1: σ_flow≈0.47 (below threshold → no boost by default)
+- chain_1d N=6 p=2: σ_flow≈0.26 (well below → high confidence)
+- The flow does NOT improve θ_init quality vs MPNN direct prediction
+- Its value is purely as an uncertainty signal for resource allocation
+
+**Key finding (Section 19, 2026-06-15):**
+
+| Config | κ range | Anti-correlation |r| | κ reliable? |
+|--------|---------|----------------------|------------|
+| chain_1d N=6 p=2 | [41, 53] | **0.84** | ✅ Valid proxy |
+| heavy_hex N=10 p=1 | [111, 174] | **0.52** | ❌ Weak (use V2 go/no-go) |
+
+For `chain_1d`, low κ → h near h_c → HIGH noise sensitivity → more resources.
+For `heavy_hex N=10 p=1`, κ thresholds are **auto-calibrated** via percentiles
+(P25 = high-risk threshold, P75 = medium-risk threshold) because the absolute κ
+scale differs from chain_1d. The `kappa_go_no_go()` function handles this
+automatically when `topology` parameter is passed.
+
+**Per-h results JSON now includes:** `kappa`, `hardware_risk` (high/medium/low),
+`spsa_recommended` — saved for every tier for post-run analysis.
 
 ### Dual Persistence
 

@@ -184,6 +184,12 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "threshold": 1.0,
         "desc": "HE (analytical θ_x) improves over cold-start VQE",
     },
+    "EXT1B": {
+        "description": "Ext1b p=1 revalidation of CONDITIONALLY_VIABLE h-points",
+        "hypothesis": "CONDITIONALLY_VIABLE h-points achieve ΔE/gap < 5% at p=1",
+        "pass_threshold": 1.0,  # All CV points must pass
+        "metric": "pass_rate",
+    },
 }
 
 # Experiments where hypothesis rejection IS a valid scientific finding

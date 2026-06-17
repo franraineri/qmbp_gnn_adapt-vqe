@@ -106,13 +106,27 @@ class HVACircuitBuilder:
     ) -> tuple[QuantumCircuit, ParameterVector]:
         """Build an HVA circuit using PauliEvolutionGate for better transpilation.
 
-        Functionally identical to ``create()`` but uses ``PauliEvolutionGate``
-        to represent each commuting layer (ZZ interactions, X field). This
-        gives the transpiler structural information about gate commutativity,
-        enabling ~11% lower 2Q-depth via better parallel scheduling.
+        Functionally identical to ``create()`` — produces the same unitary and
+        expectation values (|ΔE| < 1e-14, validated Section 20 of
+        run_hardware_rehearsal_v3.py). Uses ``PauliEvolutionGate`` to expose
+        commuting layer structure to the transpiler, giving 6–10% lower total
+        circuit depth on heavy_hex N=10 p=1 (92→82 gates at h=3.25).
 
-        Validated 2026-06-05: same layout, same n_2Q gates (34), but
-        2Q-depth 24 vs 27 (original). Recommended for hardware deployment.
+        On heavy_hex, all ZZ bonds are non-overlapping so the scheduler
+        already parallelizes them into a single 2Q cycle regardless of
+        representation. The benefit shows in total_depth (which includes
+        1Q gates between 2Q layers), reducing time-domain decoherence
+        exposure on real hardware.
+
+        Coefficient convention: PauliEvolutionGate(H, time=t) = e^{-itH}.
+        To match rzz(2θ) = e^{-iθ·ZZ}, we use coefficient=0.5 with time=2θ:
+          e^{-i·2θ·0.5·ZZ} = e^{-iθ·ZZ} ✓
+
+        Validated 2026-06-15 (Section 20): N=10 heavy_hex p=1, 3 h-points.
+        - total_depth RZZ: 89/90/90, PauliEvol: 82/81/90 (mean −6%)
+        - n_2Q: 34 in both (unchanged — same gate count)
+        - max|ΔE|: 3.55e-14 (machine precision)
+        Recommended for hardware deployment via run_ibm_torino_deployment.py.
 
         Parameters
         ----------
@@ -155,20 +169,33 @@ class HVACircuitBuilder:
             )
 
         # Build ZZ operator: sum of ZZ on each edge (commuting group)
+        # Use coefficient -1.0 to match the physical Hamiltonian H = -J·ZZ - h·X.
+        # PauliEvolutionGate(H, time=2θ) implements e^{-i·2θ·H}.
+        # create() uses rzz(2θ) which implements e^{-iθ·ZZ}.
+        # For these to match:
+        #   PauliEvol: e^{-i·2θ·(−1)·ZZ} = e^{+i·2θ·ZZ}  ← WRONG sign
+        # We need the coefficient to produce the same exponent as rzz(2θ) = e^{-iθ·ZZ}:
+        #   PauliEvol with H = (-0.5)·ZZ, time=2θ → e^{-i·2θ·(−0.5)·ZZ} = e^{+iθ·ZZ} ← also wrong
+        # Correct approach: PauliEvolutionGate(H, time=t) = e^{-it·H}.
+        # rzz(2θ) = e^{-iθ·ZZ} (Qiskit convention).
+        # To get the same: PauliEvolutionGate(H_zz_coeff, time=2θ) where H_zz_coeff·time = θ·ZZ
+        # → H_zz_coeff = 0.5·ZZ (positive), time = 2θ → e^{-i·2θ·0.5·ZZ} = e^{-iθ·ZZ} ✓
         zz_terms = []
         for i, j in lattice.edges:
             label = ["I"] * n_qubits
             label[n_qubits - 1 - i] = "Z"
             label[n_qubits - 1 - j] = "Z"
-            zz_terms.append(("".join(label), 1.0))
+            zz_terms.append(("".join(label), 0.5))  # 0.5 so that time=2θ → e^{-iθ·ZZ}
         H_zz = SparsePauliOp.from_list(zz_terms)
 
         # Build X operator: sum of X on each site (commuting group)
+        # rx(2θ) = e^{-iθ·X}. PauliEvol(H_x_coeff, time=2θ) = e^{-i·2θ·H_x_coeff}.
+        # For match: H_x_coeff = 0.5·X → e^{-i·2θ·0.5·X} = e^{-iθ·X} ✓
         x_terms = []
         for i in range(n_qubits):
             label = ["I"] * n_qubits
             label[n_qubits - 1 - i] = "X"
-            x_terms.append(("".join(label), 1.0))
+            x_terms.append(("".join(label), 0.5))  # 0.5 so that time=2θ → e^{-iθ·X}
         H_x = SparsePauliOp.from_list(x_terms)
 
         qc = QuantumCircuit(n_qubits)

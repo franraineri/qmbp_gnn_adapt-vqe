@@ -20,6 +20,7 @@
 | 2026-06-10 | Parallel noise factors (N≥14 auto) | `noisy_utils.py` | 1.2× (N=10) | ✅ bit-exact, scalability |
 | 2026-06-09 | AerSimulator caching (MPS) | `mps_backend.py` | ~50ms/eval | ✅ In production |
 | 2026-06-07 | COBYLA dispatch for MPS | `vqe.py` | ~3× fewer evals | ✅ In production |
+| **2026-06-15** | **PauliEvolutionGate circuit repr.** | **`hva.py`** | **−6–10% total_depth** | **✅ Section 20** |
 
 ---
 
@@ -221,6 +222,65 @@ on corrupted gradient estimates.
 ### Files
 
 - `src/qmbp_simulation/optimizers/vqe.py` — method dispatch in `_run_minimize()`
+
+---
+
+## 6. PauliEvolutionGate Circuit Representation (2026-06-15)
+
+### Problem
+
+`HVACircuitBuilder.create()` uses explicit `RZZ`/`RX` gate loops. The transpiler
+sees N sequential `RZZ` gates per layer without knowing they represent a commuting
+sum — it can't optimize their scheduling relative to the `RX` field layer.
+
+On heavy_hex N=10 p=1: `total_depth` after transpilation = 89–90 cycles.
+
+### Solution
+
+`HVACircuitBuilder.create_pauli_evolution()` wraps each commuting group (the full
+ZZ layer and the full X layer) in a `PauliEvolutionGate`. The Qiskit synthesizer
+then decomposes with awareness of the full operator structure, scheduling gates more
+compactly between 2Q cycles.
+
+**Coefficient convention** (important — bug in original 2026-06-05 version):
+```python
+# Correct: coefficient=0.5 so that e^{-i·2θ·0.5·ZZ} = e^{-iθ·ZZ} = RZZ(2θ)
+H_zz = SparsePauliOp.from_list([("...ZZ...", 0.5) for ...])
+H_x  = SparsePauliOp.from_list([("...X...", 0.5) for ...])
+```
+
+### Results (Section 20, run_hardware_rehearsal_v3.py)
+
+| h | RZZ total_depth | PauliEvol total_depth | Reduction | n_2Q | \|ΔE\| |
+|---|:---:|:---:|:---:|:---:|:---:|
+| 4.00 | 89 | 82 | **−7.9%** | 34 (equal) | 3.6e-14 |
+| 3.25 | 90 | 81 | **−10.0%** | 34 (equal) | 1.4e-14 |
+| 3.00 | 90 | 90 | 0.0% | 34 (equal) | 2.1e-14 |
+| **Mean** | **89.7** | **84.3** | **−6.0%** | **34** | |
+
+**2Q-depth = 1 for both** on heavy_hex (non-overlapping ZZ bonds, fully parallelized
+by scheduler regardless). The reduction is in total_depth (1Q scheduling between
+2Q cycles). On FakeTorino (per-gate noise), energy impact is ~0.67% (noise floor).
+On real hardware (time-based decoherence), the shorter circuit reduces T1/T2 errors.
+
+### Applicability
+
+- ✅ **Apply** when transpiling to real hardware or FakeTorino
+- ❌ **Don't apply** for noiseless StatevectorEstimator (no transpilation, no benefit)
+- ❌ **Not available** for `tfim_longitudinal`, `tfim_frustrated`, Heisenberg (each
+  has its own circuit builder without a PauliEvol variant)
+
+### Production Status
+
+Applied to `run_ibm_torino_deployment.py` Tiers 0, 1, 2. VQE training paths
+(noiseless) continue to use `create()`.
+
+### Files
+
+- `src/qmbp_simulation/circuits/hva.py` — bug fix + updated docstring
+- `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` — 3 call sites updated
+- `scripts/experiment_runners/run_hardware_rehearsal_v3.py` — Section 20 added
+- `documentation/binnacles/binnacle-pauli-evolution-transpilation.md` — full details
 
 ---
 

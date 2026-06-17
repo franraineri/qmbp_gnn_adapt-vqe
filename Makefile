@@ -210,3 +210,52 @@ thesis-all:  ## Full thesis compilation: validate + tables + figures
 	@echo "\n═══ Generating Registry Figures ═══"
 	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/
 	@echo "\n✅ Thesis compilation complete → documentation/thesis_tables/ + documentation/thesis_figures/"
+
+# ── Flow Warmstart Pipeline ──────────────────────────────────
+
+hw-flow-rehearsal:  ## Run V3 rehearsal with flow warmstart (generates σ_flow data)
+	$(PYTHON) scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+		--topology heavy_hex --n-qubits 10 --p-layers 1 \
+		--h-test 4.0 3.5 3.25 3.0 \
+		--use-flow-warmstart --verbose
+
+hw-flow-rehearsal-chain:  ## Run V3 rehearsal with flow + bond-resolved (chain_1d N=6 p=2)
+	$(PYTHON) scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+		--topology chain_1d --n-qubits 6 --p-layers 2 \
+		--use-flow-warmstart --use-bond-resolved --verbose
+
+hw-flow-analyze:  ## Analyze flow warmstart results
+	$(PYTHON) -m project_health.analysis.flow_warmstart_analyzer --verbose
+
+hw-flow-deploy-dry:  ## Dry-run deployment with σ_flow safety net from latest rehearsal
+	@LATEST=$$(ls -t results/experiments/exp_hw_rehearsal_v3/run_*.json 2>/dev/null | head -1); \
+	if [ -z "$$LATEST" ]; then echo "No rehearsal results found. Run make hw-flow-rehearsal first."; exit 1; fi; \
+	echo "Using σ_flow from: $$LATEST"; \
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+		--dry-run --sigma-flow-results "$$LATEST" --verbose
+
+hw-flow-deploy:  ## Full deployment with σ_flow safety net from latest rehearsal
+	@LATEST=$$(ls -t results/experiments/exp_hw_rehearsal_v3/run_*.json 2>/dev/null | head -1); \
+	if [ -z "$$LATEST" ]; then echo "No rehearsal results found. Run make hw-flow-rehearsal first."; exit 1; fi; \
+	echo "Using σ_flow from: $$LATEST"; \
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+		--sigma-flow-results "$$LATEST" --no-spsa
+
+hw-flow-full:  ## Full pipeline: rehearsal → analyze → deploy (dry-run)
+	@echo "═══ Step 1: V3 Rehearsal with Flow Warmstart ═══"
+	$(MAKE) hw-flow-rehearsal
+	@echo "\n═══ Step 2: Analyze Flow Results ═══"
+	$(MAKE) hw-flow-analyze
+	@echo "\n═══ Step 3: Deployment Dry-Run with σ_flow ═══"
+	$(MAKE) hw-flow-deploy-dry
+	@echo "\n✅ Full flow pipeline complete. Review results, then run: make hw-flow-deploy"
+
+hw-flow-from-checkpoint:  ## Deploy using saved flow checkpoint (skip re-training)
+	@CKPT=$$(ls -t results/flow_checkpoints/flow_heavy_hex_N10_p1.pt 2>/dev/null | head -1); \
+	LATEST=$$(ls -t results/experiments/exp_hw_rehearsal_v3/run_*.json 2>/dev/null | head -1); \
+	if [ -z "$$CKPT" ]; then echo "No flow checkpoint found. Run make hw-flow-rehearsal first."; exit 1; fi; \
+	if [ -z "$$LATEST" ]; then echo "No rehearsal results found."; exit 1; fi; \
+	echo "Using checkpoint: $$CKPT"; \
+	echo "Using σ_flow from: $$LATEST"; \
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+		--dry-run --sigma-flow-results "$$LATEST" --flow-checkpoint "$$CKPT" --verbose

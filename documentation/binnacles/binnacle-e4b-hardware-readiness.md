@@ -378,3 +378,36 @@ scanner no rastrea modelos no-TFIM en los thesis variants.
 
 **Veredicto final: La validación está completa y consistente con todas las
 herramientas de análisis del proyecto.**
+
+---
+
+## Addendum 2026-06-15: MPNN Warm-Start Validation (HW Rehearsal V3)
+
+From MPNN Eval Suite (binnacle-mpnn-eval-suite.md):
+
+### MPNN Quality at Deployment Config (chain_1d N=6 p=2)
+
+| Métrica | Valor |
+|---------|-------|
+| MPNN init ΔE/gap (no VQE) | **0.42%** — hardware ready |
+| Speedup vs random init | **2.81 ± 0.23x** |
+| Error decomposition: ML frac | **13%** — circuit limit dominates |
+| LOO pass rate (8 training pts) | **100%** |
+
+### Key Addition for Hardware Deployment
+
+The MPNN Eval Suite established that:
+1. 3 training points minimum, 8 points optimal for reliable LOO-CV
+2. MPNN θ_pred passes the 5% threshold without any VQE refinement
+3. κ < 45 indicates high hardware risk (near h_c) → use more resources
+
+This directly impacts the Tier 0 calibration strategy:
+- During Tier 0, κ is computed for h=4.0 (expected: κ≈52, LOW risk)
+- Tier 1 h-points [4.0, 3.75, 3.5, 3.25] are all in LOW-MEDIUM regime
+- SPSA should NOT be needed if MPNN predictions are used
+
+### Topology Transfer FAIL (Important Qualifier)
+
+Section 17 of the eval suite showed chain_1d→ladder transfer ratio=200x (FAIL).
+For the thesis: GNN generalizes cross-N but NOT cross-topology for parameter
+prediction. Hardware deployment uses heavy_hex natively (no cross-topology needed).

@@ -1,4 +1,9 @@
-"""Analysis submodule — gradient analysis, diagnostics, landscape, and entanglement."""
+"""Analysis submodule — gradient analysis, diagnostics, landscape, and entanglement.
+
+Also includes thesis extension analysis modules:
+  extension_models, extension_classifiers, extension_ranker,
+  extension_analyzer, normalizing_flow
+"""
 
 from qmbp_simulation.analysis.comparative import (
     ComparativeMetrics,

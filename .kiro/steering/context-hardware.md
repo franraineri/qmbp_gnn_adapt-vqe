@@ -94,7 +94,7 @@ isa_qc = pm.run(circuit.assign_parameters(theta))
 isa_obs = [obs.apply_layout(isa_qc.layout) for obs in observables]
 ```
 
-- PauliEvolutionGate gives 11% less 2Q-depth (same n_2Q=34).
+- PauliEvolutionGate gives −6–10% total_depth (validated 2026-06-15, Section 20): same n_2Q=34, same energy (|ΔE|<4e-14), shorter circuit via better 1Q gate scheduling. On heavy_hex N=10 p=1, 2Q-depth=1 for both (all ZZ bonds non-overlapping → fully parallelized by scheduler); benefit is in total_depth. Bug fixed 2026-06-15: coeff 1.0→0.5 in `create_pauli_evolution()`. Applied to Tiers 0/1/2 of `run_ibm_torino_deployment.py`. Ref: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`.
 - Level 3 / Rustiq provide NO benefit for HVA.
 
 ## Error Mitigation Stack (applied in order)
@@ -184,8 +184,48 @@ estimator.options.resilience.layer_noise_learning.shots_per_randomization = 256
 - #[[file:src/qmbp_simulation/execution/hardware.py]]
 - #[[file:scripts/experiment_runners/hardware/run_ibm_torino_deployment.py]]
 - #[[file:scripts/experiment_runners/run_hardware_rehearsal_v2.py]]
+- #[[file:scripts/experiment_runners/run_hardware_rehearsal_v3.py]]
 - #[[file:documentation/analysis/11_hardware_rehearsal_findings.md]]
 - #[[file:documentation/analysis/18_ibm_hardware_generations.md]]
+- #[[file:documentation/binnacles/binnacle-mpnn-eval-suite.md]]
 - #[[file:.kiro/steering/hardware-deployment.md]]
 - #[[file:.kiro/steering/hardware-checklist.md]]
 - #[[file:HARDWARE_DEPLOYMENT_SPEC.md]]
+
+## MPNN Warm-Start Quality (pre-QPU checkpoint)
+
+Before submitting jobs, run the MPNN evaluation suite to confirm prediction quality:
+
+```bash
+# Validate MPNN quality for production config (heavy_hex N=10 p=1)
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+  --skip-hardware-sections --section 10 --section 11 \
+  --n-qubits 10 --topology heavy_hex --p-layers 1 \
+  --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 --h-test 4.0 3.25 \
+  --mpnn-epochs 3000 --vqe-restarts 1
+
+# Check results
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+```
+
+**Validated results (2026-06-15):**
+- S10: speedup=2.45x, init ΔE/gap=0.39% (hardware-ready without VQE)
+- S11: LOO 100% (7/7) with 7-point training grid
+- S14: FakeTorino noisy raw=106% (gate-folding ZNE only — use V2 PEA for real QPU)
+- S19: |r|=0.52 (weak, heavy_hex κ thresholds auto-calibrated via percentiles)
+
+## κ Risk Profile (zero QPU cost)
+
+`compute_kappa_per_h()` and `kappa_go_no_go()` run automatically in Tier 0/1/2:
+
+```python
+# Auto-executed before every QPU tier in run_ibm_torino_deployment.py
+kappa_per_h = compute_kappa_per_h(params_per_h, lattice)
+recommendations = kappa_go_no_go(kappa_per_h, topology=TOPOLOGY)
+# → per-h: risk_level, n_layouts, shots, spsa_recommended
+```
+
+For TIER_1_H=[4.0, 3.75, 3.5, 3.25] on heavy_hex N=10:
+- κ ∈ [133, 158] (well above h_c)
+- Auto-calibrated thresholds: high<134, medium<154
+- All h-points expected MEDIUM-LOW risk → standard shots (16K), 3 layouts

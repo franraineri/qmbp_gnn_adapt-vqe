@@ -102,6 +102,7 @@ project-root/
 │   │   ├── sanity_check.py         # 26 automated checks (physics + data integrity)
 │   │   ├── scaling_analyzer.py     # MPS scaling law validation (N=40-120)
 │   │   ├── scaling_extensions_analyzer.py  # E5: bond-dim, HE, NLCE analysis
+│   │   ├── mpnn_eval_analyzer.py   # HW_REHEARSAL_V3 MPNN eval suite (S10-S19)
 │   │   └── statistical_tests.py    # Shared statistical test utilities
 │   └── digest/                     # Result digest & scanning
 │       ├── scanner.py              # ResultScanner (parse all results)
@@ -221,6 +222,89 @@ make preflight SCRIPT=scripts/experiment_runners/run_p1_pipeline_variants_r2.py
 Checks: h_test not in training set, h_test within valid regime, descending order,
 interpolation (not extrapolation), no duplicate IDs, fresh output directories.
 
+### `scripts/experiment_runners/run_hardware_rehearsal_v2.py` — Hardware Rehearsal V2
+
+Multi-section rehearsal suite that exercises the full HardwareBackend+ZNE pipeline
+locally using FakeTorino. Mandatory before any real QPU run. Sections 1-9 cover
+MPNN prediction quality, noisy ZNE pipeline, phase classification, adaptive ZNE,
+amplifier comparison, shot noise reproducibility, cost estimation, and circuit audit.
+
+```bash
+# Full rehearsal (9 sections, ~60s)
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py
+
+# Specific topology/config for production deployment
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py \
+  --n-qubits 10 --topology heavy_hex --p-layers 1 \
+  --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 --h-test 4.0 3.25
+
+# Single section
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 1
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 8 9  # Cost + audit only
+
+# ZNE amplifier selection
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --zne-amplifier pea
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --zne-amplifier adaptive
+
+# Dry run
+python scripts/experiment_runners/run_hardware_rehearsal_v2.py --dry-run
+```
+
+### `scripts/experiment_runners/run_hardware_rehearsal_v3.py` — MPNN Evaluation Suite (V3)
+
+Extends V2 with sections 10-19 that characterize MPNN prediction quality
+independently of hardware noise (zero QPU cost). Run before deployment to confirm
+the GNN is deployment-ready. All 9 MPNN helpers live in `ValidationRunner` and
+are reusable from any future runner.
+
+**Sections 10-19:**
+
+| Section | Name | Key metric | Typical pass |
+|---------|------|------------|-------------|
+| S10 | Warm-Start Benchmark | Speedup vs random | ≥1.5x ✅ |
+| S11 | LOO Cross-Validation | Pass rate (7+ training pts) | 100% ✅ |
+| S12 | Landscape Quality | ML fraction of error | 13% ✅ |
+| S13 | Interpolation vs Extrapolation | Interp pass rate | 100% ✅ |
+| S14 | Noisy Eval (FakeTorino) | Gate-fold ZNE improvement | +34% info |
+| S15 | Scaling with N | Speedup trend | flat/decreasing |
+| S16 | Learning Curve | Critical training size | 3-7 pts ✅ |
+| S17 | Zero-Shot Topology Transfer | Transfer ratio | FAILS chain→ladder |
+| S18 | Multi-Seed LOO Robustness | Std pass-rate | <15% ✅ |
+| S19 | Curvature κ Risk Proxy | Pearson \|r\| | 0.84 (chain_1d) ✅ |
+
+```bash
+# All MPNN sections for production config (heavy_hex N=10 p=1)
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+  --skip-hardware-sections --skip-noisy-mpnn \
+  --n-qubits 10 --topology heavy_hex --p-layers 1 \
+  --h-train 4.5 4.25 4.0 3.75 3.5 3.25 3.0 --h-test 4.0 3.25 \
+  --mpnn-epochs 3000 --vqe-restarts 1
+
+# Scaling benchmark with proper p_layers per N (REQUIRED: p=1 for N≥10)
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+  --section 15 --skip-hardware-sections \
+  --scaling-sizes 4 6 10 --scaling-p-layers 2 2 1
+
+# κ risk proxy with dedicated extended grid
+python scripts/experiment_runners/run_hardware_rehearsal_v3.py \
+  --section 19 --skip-hardware-sections \
+  --h-kappa-grid 4.5 4.0 3.5 3.25 3.0 2.75
+
+# Analyze all results
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
+python -m project_health.analysis.mpnn_eval_analyzer --json results.json
+```
+
+**Key validated results (2026-06-15, heavy_hex N=10 p=1):**
+
+| Metric | Result |
+|--------|--------|
+| MPNN warm-start speedup | **2.45x** vs random |
+| MPNN init ΔE/gap (no VQE) | **0.39%** — hardware-ready |
+| LOO-CV pass rate (7 folds) | **100%** |
+| LOO-CV mean ΔE/gap | **0.38%** |
+| κ-noise correlation | **|r|=0.52** (heavy_hex) — auto-calibrated thresholds |
+
 ### `scripts/experiment_runners/bond_resolved/run_scaling_extensions.py` — Scaling Extensions (E5)
 
 Multi-section validation runner for N=120 bond-dimension test, Hamiltonian engineering
@@ -278,6 +362,7 @@ The `src/qmbp_simulation/framework/` subpackage provides reusable infrastructure
 | `config.py` | Typed experiment configs | `ExperimentConfig`, `SystemConfig`, `VQEConfig`, `MPNNConfig` |
 | `base.py` | Experiment lifecycle | `BaseExperiment` |
 | `metrics.py` | Result dataclasses | `ExperimentMetrics`, `WarmColdComparison` |
+| `runner_base.py` | Multi-section runner base | `ValidationRunner` (9 MPNN eval helpers), `ExperimentRunner`, `HardwareValidationRunner` |
 
 ### Usage Examples
 

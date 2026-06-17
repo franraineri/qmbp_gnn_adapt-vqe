@@ -8,11 +8,12 @@ Req: 4.4, 4.5
 
 from __future__ import annotations
 
-import json
-import os
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any
+
+from qmbp_simulation.utils.helpers import json_dump
 
 # ---------------------------------------------------------------------------
 # Enumerations
@@ -181,15 +182,4 @@ class ExtensionAnalysisResult:
 
     def to_json(self, path: str) -> None:
         """Serialize to a JSON file, creating parent directories if needed."""
-        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(self.to_dict(), fh, indent=2, default=_json_default)
-
-
-def _json_default(obj: Any) -> Any:
-    """Fallback serializer for json.dump."""
-    if hasattr(obj, "to_dict"):
-        return obj.to_dict()
-    if hasattr(obj, "value"):  # Enum
-        return obj.value
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+        json_dump(self.to_dict(), Path(path))
