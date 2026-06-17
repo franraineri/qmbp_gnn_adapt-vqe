@@ -22,7 +22,7 @@ This ensures every execution is:
 | Type | When to use | Base class |
 |------|-------------|------------|
 | `ValidationRunner` | Multi-section suites (VQE sweeps, cross-topology, ZNE, MPS) | Most common |
-| `HardwareValidationRunner` | Hardware QPU execution (IBM Torino / FakeTorino) | Hardware deployment |
+| `HardwareValidationRunner` | Hardware QPU execution (IBM Heron / FakeTorino) | Hardware deployment |
 | `ExperimentRunner` | Wrapping a single `BaseExperiment` subclass | Simplest |
 | `VariantPipelineRunner` | Running many pipeline variants (topology × seed × params) | Batch jobs |
 
@@ -347,13 +347,13 @@ n_qubits synchronization between preflight and actual run.
 
 ## HardwareValidationRunner Pattern
 
-For runners that execute on IBM Torino or FakeTorino:
+For runners that execute on IBM Heron or FakeTorino:
 
 ```python
 class HardwareDeployment(HardwareValidationRunner):
     runner_id = "hw_deploy_n10"
     experiment_id = "HW_DEPLOY"
-    description = "IBM Torino deployment validation"
+    description = "IBM Heron deployment validation"
     hypothesis = "ΔE/gap<5% and correct phase at h=3.25"
 
     def setup(self):

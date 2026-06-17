@@ -24,7 +24,7 @@ Local noisy simulation (FakeTorino + AerSimulator) has two hard limits:
 
 ### Configuration
 - N=10 (FakeTorino, reference), N=40 (MPS+noise), N=50 (MPS+noise)
-- noise_factors = (1, 3, 5), Torino-realistic depolarizing (0.8% mean CZ error)
+- noise_factors = (1, 3, 5), Heron-realistic depolarizing (0.8% mean CZ error)
 - MPS χ=64, save_expectation_value (exact Tr(ρ·H), deterministic)
 
 ### Results
@@ -61,7 +61,7 @@ computing the energy (maximum signal-to-noise ratio).
 
 ### Implication for Hardware
 
-On IBM Torino with heavy_hex topology:
+On IBM Heron with heavy_hex topology:
 - N=40 chain_1d would route through ~80 physical qubits → ~78 CZ after SWAP
 - Noise would be ~78 × 0.8% = 62% total → ZNE highly relevant
 - PEA gain on real hardware WILL be significant (estimated +50-80%)
@@ -99,7 +99,7 @@ On IBM Torino with heavy_hex topology:
 3. ❌ Do NOT expect ZNE to show effect on native chain_1d at N≥20 (no routing overhead)
 4. ❌ Do NOT use rehearsal at N>10 (FakeTorino is the bottleneck, not the code)
 5. ✅ DO use MPS+noise for noisy simulation research at N≥20
-6. ✅ DO validate PEA N≥20 ONLY on real IBM Torino QPU
+6. ✅ DO validate PEA N≥20 ONLY on real IBM Heron QPU
 7. ✅ DO use N=10 FakeTorino as the definitive PEA local validation (97% gain, R²=0.997)
 
 ---

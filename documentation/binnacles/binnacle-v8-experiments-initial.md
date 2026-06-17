@@ -336,13 +336,13 @@ The landscape geometry tells a complete story:
 
 ### Implications for Hardware Deployment
 
-1. **N=6 on IBM Torino**: h≥1.25 is the valid regime. The landscape is well-conditioned
+1. **N=6 on IBM Heron**: h≥1.25 is the valid regime. The landscape is well-conditioned
    (cond=23) so SPSA should converge reliably.
 
-2. **N=10 on IBM Torino**: h≥1.50 is the valid regime. Condition number ~36 means
+2. **N=10 on IBM Heron**: h≥1.50 is the valid regime. Condition number ~36 means
    SPSA needs careful step-size tuning (already done in V7 4A: a=0.1, c=0.05).
 
-3. **N=20 p=1 on IBM Torino**: h≥2.25 is the valid regime. With 38 CX gates
+3. **N=20 p=1 on IBM Heron**: h≥2.25 is the valid regime. With 38 CX gates
    (same as p=2 N=10), this is the scaling demonstration target.
 
 ---

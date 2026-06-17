@@ -73,7 +73,7 @@ p=1 ZNE funciona a N=10 en **TODAS las topologías** testeadas:
 
 ## Implicación para Hardware Deployment
 
-1. **p=1 N=10 es viable en IBM Torino** para TODAS las topologías
+1. **p=1 N=10 es viable en IBM Heron** para TODAS las topologías
 2. **Ladder es la opción más segura** (3/3 seeds, gain consistente)
 3. **Usar `select_layouts_low_ces()`** para maximizar probabilidad de éxito
 4. **Expected gain**: +50% en promedio, +77% en el mejor caso

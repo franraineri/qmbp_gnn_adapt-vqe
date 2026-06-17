@@ -305,7 +305,7 @@ estimator = StatevectorEstimator()
 bound_qc = circuit.assign_parameters(theta)
 energy = float(estimator.run([(bound_qc, hamiltonian)]).result()[0].data.evs)
 
-# HARDWARE execution (IBM Torino)
+# HARDWARE execution (IBM Heron)
 from qiskit_ibm_runtime import QiskitRuntimeService, EstimatorV2
 from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 

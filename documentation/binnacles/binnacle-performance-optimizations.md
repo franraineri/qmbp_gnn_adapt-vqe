@@ -272,13 +272,13 @@ On real hardware (time-based decoherence), the shorter circuit reduces T1/T2 err
 
 ### Production Status
 
-Applied to `run_ibm_torino_deployment.py` Tiers 0, 1, 2. VQE training paths
+Applied to `run_ibm_deployment.py` Tiers 0, 1, 2. VQE training paths
 (noiseless) continue to use `create()`.
 
 ### Files
 
 - `src/qmbp_simulation/circuits/hva.py` — bug fix + updated docstring
-- `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` — 3 call sites updated
+- `scripts/experiment_runners/hardware/run_ibm_deployment.py` — 3 call sites updated
 - `scripts/experiment_runners/run_hardware_rehearsal_v3.py` — Section 20 added
 - `documentation/binnacles/binnacle-pauli-evolution-transpilation.md` — full details
 

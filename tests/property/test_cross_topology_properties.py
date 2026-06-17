@@ -782,16 +782,20 @@ class TestVariationalPrincipleFlagCorrectness:
         ),
         offset=st.floats(
             min_value=0.0,
-            max_value=1e-6,
+            max_value=9e-7,
             allow_nan=False,
             allow_infinity=False,
         ),
     )
     @settings(max_examples=50, deadline=None)
     def test_within_tolerance_passes(self, e_exact: float, offset: float):
-        """e_pred slightly below e_exact but within 1e-6 tolerance passes."""
-        e_pred = e_exact - offset  # offset in [0, 1e-6]
-        energy_error = e_pred - e_exact  # in [-1e-6, 0]
+        """e_pred slightly below e_exact but within 1e-6 tolerance passes.
+
+        Note: offset capped at 9e-7 (not 1e-6) to avoid FP rounding pushing
+        energy_error below the -1e-6 threshold at boundary.
+        """
+        e_pred = e_exact - offset  # offset in [0, 9e-7]
+        energy_error = e_pred - e_exact  # in [-9e-7, 0] (with FP noise)
         variational_ok = energy_error >= -1e-6
 
         assert variational_ok is True, (

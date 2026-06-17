@@ -152,7 +152,7 @@ Filtered for **high confidence** (verified source, accessible URL) and **direct 
 
 🔑 Rabinovich, D. et al. (2025). Zero-noise extrapolation via cyclic permutations of quantum circuit layouts. *arXiv preprint arXiv:2511.02901v2*. https://arxiv.org/abs/2511.02901
 
-> CLP-ZNE: uses O(n) cyclic layout permutations for n-qubit 1D circuits. Validated on IBM Torino noise model at n=12, achieving order-of-magnitude error reduction over standard ZNE. Directly addresses our N=10 failure — the fix is more layouts with systematic (not random) coverage of CES space.
+> CLP-ZNE: uses O(n) cyclic layout permutations for n-qubit 1D circuits. Validated on IBM Heron noise model at n=12, achieving order-of-magnitude error reduction over standard ZNE. Directly addresses our N=10 failure — the fix is more layouts with systematic (not random) coverage of CES space.
 
 ✅ Sun, W. et al. (2025). Noise-mitigated variational quantum eigensolver with pre-training and zero-noise extrapolation. *arXiv preprint arXiv:2501.01646*. https://arxiv.org/abs/2501.01646
 

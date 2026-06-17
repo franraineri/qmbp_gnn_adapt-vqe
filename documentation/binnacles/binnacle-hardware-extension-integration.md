@@ -144,8 +144,8 @@ Load with: `FlowWarmstartManager.load(path, mpnn_model)` → ready to sample imm
 |--------|------|---------|
 | `run_hardware_rehearsal_v3.py` | `--use-flow-warmstart` | Enable flow mode (d) in §10 |
 | `run_hardware_rehearsal_v3.py` | `--use-bond-resolved` | Enable BondResolved mode (e) |
-| `run_ibm_torino_deployment.py` | `--sigma-flow-results <path>` | Load σ_flow from V3 JSON |
-| `run_ibm_torino_deployment.py` | `--flow-checkpoint <path>` | Load flow model directly |
+| `run_ibm_deployment.py` | `--sigma-flow-results <path>` | Load σ_flow from V3 JSON |
+| `run_ibm_deployment.py` | `--flow-checkpoint <path>` | Load flow model directly |
 
 ### Make Targets
 
@@ -229,7 +229,7 @@ Load with: `FlowWarmstartManager.load(path, mpnn_model)` → ready to sample imm
 | Spec (design + requirements) | `.kiro/specs/hardware-extension-integration/` |
 | FlowWarmstartManager | `src/qmbp_simulation/analysis/flow_warmstart.py` |
 | V3 rehearsal (§10 flow) | `scripts/experiment_runners/run_hardware_rehearsal_v3.py` |
-| Deployment script | `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` |
+| Deployment script | `scripts/experiment_runners/hardware/run_ibm_deployment.py` |
 | Ext1b runner | `scripts/experiment_runners/run_ext1_intra_n_p1.py` |
 | Flow analyzer | `project_health/analysis/flow_warmstart_analyzer.py` |
 | Tests (PBT) | `tests/test_flow_warmstart.py` |

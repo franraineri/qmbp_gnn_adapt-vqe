@@ -40,16 +40,16 @@ Use the tiered deployment script:
 
 ```bash
 # Dry run first (no QPU usage)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run
 
 # Tier 0: Smoke test (h=4.0, ~5 min QPU)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0
 
 # Tier 1: Core validation (4 h-points, ~25 min QPU)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 1
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 1
 
 # Full auto (Tier 0 → 1 → 2 → 3, auto-advancing on success)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+python scripts/experiment_runners/hardware/run_ibm_deployment.py
 ```
 
 ### Tier Details
@@ -65,7 +65,7 @@ python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| Topology | heavy_hex | IBM Torino native |
+| Topology | heavy_hex | IBM Heron native |
 | N | 10 | Validated scaling point |
 | p | 1 | Within ZNE perturbative regime (18 CX) |
 | Shots | 16,384 | σ=7.8e-3, below ⟨X⟩ signal |

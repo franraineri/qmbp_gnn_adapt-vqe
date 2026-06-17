@@ -12,7 +12,7 @@
 
 ## Current Phase
 
-**All simulation work complete.** Next: IBM Torino hardware deployment + thesis writing.
+**All simulation work complete.** Next: IBM Kingston hardware deployment + thesis writing.
 - V7 (12/22 experiments), V8 (18/19), V9 Heisenberg (30 runs), S-series (6 experiments) — all done.
 - Tier 1 extensions (T1a/T1b/T1c) — executed 2026-06-03, 3 confirmed.
 - Hardware rehearsal — critical finding: CES-ZNE fails on heavy_hex, need gate-folding ZNE.
@@ -20,23 +20,24 @@
 - **PEA_TRIANGULAR** (2026-06-05) — PEA +96.8% on triangular, t=111.22, 9/9 wins. All 4 topologies now have PEA validation.
 - **GNN-QEM cross-topology** (2026-06-05) — 100% improvement on unseen heavy_hex (zero-shot: +72.3% error reduction). Thesis contribution validated.
 - **Affine overshoot audit** (2026-06-05) — 0% overshoot in 102 ZNE records. Safety net confirmed (zero-cost insurance).
-- Confirmed: 33 experiments. Rejected: 8 (valid negative results). Failed: 8.
-- Useful-outcome rate: 84% (41/49 formal experiments produce actionable knowledge).
-- 430+ pipeline runs executed across 5 topologies (329 noiseless + 93 noisy/ZNE + 8 MPS scaling).
+- Confirmed: 33 experiments. Rejected: 8 (valid negative results). Failed: 13.
+- Useful-outcome rate: 76% (41/54 formal experiments produce actionable knowledge).
+- 476+ pipeline runs executed across 5 topologies (329 noiseless + 93 noisy/ZNE + 28 MPS scaling + 54 experiments).
 - **GNN-QEM cross-topology validated** (2026-06-05): Zero-shot transfer from chain_1d+ladder → heavy_hex gives 100% improvement rate (+72.3% error reduction). Model: GINConv(3L, h=64), 30K params. Ref: `results/gnn_qem/cross_topology_results.json`.
 - **GNN-QEM NOT composable with PEA** (2026-06-05): Post-ZNE pipeline shows GNN regresses 15/15 points. Model trained on large errors (10-25 units) over-corrects post-PEA residuals (0.01 units). Use as ALTERNATIVE to ZNE, not after it. Ref: `results/gnn_qem/post_zne_validation.json`.
 - **GNN-QEM ablation** (2026-06-06): Graph IS essential without E_noisy (GNN 100% vs MLP 67% vs Linear 0%). With E_noisy, correction is 99.96% linear — graph adds +11% precision only. Claim reframed: graph captures noise propagation in predictive mode; regularization in correction mode. Ref: `results/gnn_qem/ablation_no_enoisy_results.json`.
 - **GNN-QEM circuit selection validated** (2026-06-06): Predictive mode (no E_noisy) with VQE-realistic errors achieves Spearman ρ=0.945 for ranking circuits by expected error (100% binary accuracy). Cannot CORRECT but perfectly RANKS difficulty. Use for pre-execution layout/config selection. Ref: `results/gnn_qem/vqe_realistic_results.json`.
 - **PEA-ZNE now validated on ALL 4 topologies**: chain_1d (+97%), ladder (+91%), heavy_hex (+98%), triangular (+97%). Universal superiority confirmed.
 - **Hardware Extension Integration** (2026-06-16/17): FlowWarmstartManager + σ_flow boost validated. heavy_hex N=10 p=1: ΔE/gap=0.39%, σ_flow=0.47 (just below boost threshold). Flow is complementary to MPNN (same accuracy, adds uncertainty signal). Pipeline: `make hw-flow-full`. Ref: `documentation/binnacles/binnacle-hardware-extension-integration.md`.
-- **Flow Warmstart Extension** (2026-06-17): `FlowWarmstartManager` validated on heavy_hex N=10 p=1 (ΔE/gap=0.39%, σ_flow=0.47). Provides uncertainty signal for adaptive QPU resource allocation via `kappa_go_no_go(sigma_flow_per_h=...)`. Deployment script wired with `--sigma-flow-results`. Multi-seed training (3 seeds), checkpoint save/load, early stopping. Ref: `documentation/binnacles/binnacle-flow-warmstart-extensions.md`.
+- **Flow Warmstart Extension** (2026-06-17): `FlowWarmstartManager` validated on heavy_hex N=10 p=1 (ΔE/gap=0.39%, σ_flow=0.47). Provides uncertainty signal for adaptive QPU resource allocation via `kappa_go_no_go(sigma_flow_per_h=...)`. Deployment script wired with `--sigma-flow-results`. Multi-seed training (3 seeds), checkpoint save/load, early stopping. Ref: `documentation/binnacles/binnacle-hardware-extension-integration.md`.
 
 ## Active Priority
 
-1. **Hardware deployment on IBM Torino** — local simulation exhausted, hardware is the only remaining validation.
+1. **Hardware deployment on IBM Kingston** — local simulation exhausted, hardware is the only remaining validation.
+   - **Target**: ibm_kingston (Heron R2, 156q, CZ median 0.18%). Alternative: ibm_boston (Heron R3, 0.13%) for thesis-quality data.
    - Hardware module fixes applied (2026-06-06): credential passing, TLS drift monitoring, QPU metrics, structured EstimatorV2 options.
    - Persistence enhanced: summary.json now saves 13 additional fields (mitigation_strategy, per_site_x, affine, GNN-QEM, etc.).
-   - Deployment script: `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` (Tier 0→3 auto-advancing).
+   - Deployment script: `scripts/experiment_runners/hardware/run_ibm_deployment.py` (Tier 0→3 auto-advancing).
    - Rehearsal V2 passed 3/3 after fixes (2026-06-06): Section 1 ΔE/gap 0.2-0.8%, Section 2 PEA-ZNE 2-4%, Section 3 verdict=PASS.
    - **Status: READY FOR QPU** — only IBM credentials needed.
 2. **Thesis writing** — Chapter 5 compilation from `documentation/analysis/09_thesis_tables.md`.
@@ -61,12 +62,15 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 - For TIER_1_H=[4.0, 3.75, 3.5, 3.25]: all κ ∈ [133,158] → auto-calibrated thresholds give MEDIUM risk for h<3.5, LOW for h≥3.5
 - **N=20 init fails** at h=1.875 (outside valid regime for N=20 p=1) — always use h_test within valid regime
 3. **MPS Scaling to N>30** (2026-06-07) — Pipeline validated beyond statevector limits.
-   - **N=40 PASS ✅**: 5/5 h-points, mean ΔE/gap=0.49%, max=0.60%, 26 min total.
-   - **N=50 PASS ✅**: 5/5 h-points, mean ΔE/gap=0.36%, max=0.49%, 30 min total.
-   - **N=80 PASS ✅**: 5/5 h-points, mean ΔE/gap=0.08%, max=0.10%, 109s total.
-   - **Scaling law confirmed** at N=40, 50, 80: consistent +0.50 offset from prediction.
+   - **N=40 PASS ✅**: 45/45 h-points (3 seeds), mean ΔE/gap=0.38%, max=0.68%.
+   - **N=50 PASS ✅**: 15/15 h-points (3 seeds), mean ΔE/gap=0.29%, max=0.42%.
+   - **N=80 PASS ✅**: 15/15 h-points (3 seeds), mean ΔE/gap=0.08%, max=0.10%.
+   - **N=120 PASS ✅**: 15/15 h-points (3 seeds), mean ΔE/gap=0.02%, Bootstrap CI=[0.018%,0.021%].
+   - **N=150 PASS ✅**: 15/15 h-points (3 seeds), mean ΔE/gap=0.016%.
+   - **N=200 PASS ✅**: 15/15 h-points (3 seeds), mean ΔE/gap=0.019%.
+   - **Scaling law confirmed** at N=40-200: `h_min = 1.5 + 0.020·N^1.31` (+0.50 offset from original).
    - Infrastructure: `MPSBackend` (aer_mps + direct path for N>63), COBYLA dispatch, dynamic χ.
-   - Multi-seed run (42,43,44) at N=40 in progress for Phase 3 MPNN training data.
+   - MPS deterministic mode: 1268× faster than stochastic, bit-exact results.
    - Ref: `documentation/binnacles/binnacle-mps-scaling.md`.
 4. **θ_pred Validation Module** (2026-06-07) — 7-level modular quality assurance for MPNN outputs.
    - Auto-integrated in `PipelineRunner.run_phase4()` (L1-L4 default, configurable up to L7).
@@ -111,7 +115,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 - **PEA available as fallback**: If gate-folding ZNE gives R²<0.90 or ΔE/gap>5%, switch `zne_amplifier="pea"`. Learns actual noise model via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% extra QPU overhead. Use `--zne-amplifier pea` in CLI. Ref: IBM Nature 618 (2023).
 - **PEA local simulation valid ONLY at N≤10**: FakeTorino (133 qubits) OOMs at N≥20. Native chain_1d at N≥20 has insufficient noise for ZNE (no SWAP routing overhead). PEA N≥20 validation requires real QPU. Ref: `documentation/analysis/23_noisy_simulation_scalability_limits.md`.
 - **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
-- **PauliEvolutionGate gives −6–10% total_depth** (validated 2026-06-15, Section 20): Use `create_pauli_evolution()` for hardware deployment circuits. Same n_2Q (34), same energy (|ΔE|<4e-14), shorter scheduling. On heavy_hex, 2Q-depth=1 for both (bonds non-overlapping — fully parallelized); benefit is in total_depth scheduling of 1Q gates. Bug in original 2026-06-05 version (coeff=1.0→0.5 fix). Applied to Tiers 0/1/2 of `run_ibm_torino_deployment.py`. VQE noiseless training still uses `create()` (no transpilation → no benefit). Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`, `documentation/analysis/15_transpiler_exploration.md`.
+- **PauliEvolutionGate gives −6–10% total_depth** (validated 2026-06-15, Section 20): Use `create_pauli_evolution()` for hardware deployment circuits. Same n_2Q (34), same energy (|ΔE|<4e-14), shorter scheduling. On heavy_hex, 2Q-depth=1 for both (bonds non-overlapping — fully parallelized); benefit is in total_depth scheduling of 1Q gates. Bug in original 2026-06-05 version (coeff=1.0→0.5 fix). Applied to Tiers 0/1/2 of `run_ibm_deployment.py`. VQE noiseless training still uses `create()` (no transpilation → no benefit). Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`, `documentation/analysis/15_transpiler_exploration.md`.
 
 ## Unsupervised Phase Detection (Task 2+3 findings)
 
@@ -132,6 +136,9 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 | N=40 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥4.0 (chain, aer_mps) |
 | N=50 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥4.9 (chain, validated) |
 | N=80 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥7.7 (chain, validated) |
+| N=120 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥12.1 (chain, validated) |
+| N=150 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥16.2 (chain, validated) |
+| N=200 | h=128, MPS chi=64, COBYLA | 3 (p=1) | — | h≥22.7 (chain, validated) |
 
 - **MPS Scaling**: Use `MPSBackend(strategy="aer_mps")` for N>22. COBYLA optimizer (L-BFGS-B fails with shots).
 - **MPS evaluation mode** (2026-06-10): Default `deterministic=True` — exact ⟨H⟩ via `save_expectation_value`, 12ms/eval, no shot noise. Use `deterministic=False` only for noise-tolerance testing (6s/eval, σ≈precision). New results tagged with `metadata.mps_evaluation_mode`.
@@ -164,10 +171,10 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 
 ## Scaling Law
 
-`h_min = 1.5 + 0.020·N^1.31` (corrected, validated N=40-120). Original fit: `1.0 + 0.020·N^1.31` (N=4-20, R²=1.0000).
+`h_min = 1.5 + 0.020·N^1.31` (corrected, validated N=40-200). Original fit: `1.0 + 0.020·N^1.31` (N=4-20, R²=1.0000).
 - p=1 scales better: β(p=1)=0.60 < β(p=2)=1.33.
 - Exponent ≠ ν=1 (expressibility limit, not critical exponent).
-- +0.50 offset consistently observed at ALL MPS-regime sizes (N=40/50/80/120).
+- +0.50 offset consistently observed at ALL MPS-regime sizes (N=40/50/80/120/150/200).
 
 ## Code Map
 
@@ -184,7 +191,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 
 ### Active Development
 - `src/qmbp_simulation/predictors/mpnn.py` — MPNN architecture
-- `src/qmbp_simulation/analysis/` — gradient, diagnostics, metrics, theta_validator, vqe_validator
+- `src/qmbp_simulation/analysis/` — gradient, diagnostics, metrics, theta_validator, vqe_validator, circuit_visualizer (ResourceEstimation + error budget)
 - `src/qmbp_simulation/framework/` — experiment engine, CLI, benchmarking, logging, preflight, validation args
 - `src/qmbp_simulation/pipeline/runner.py` — PipelineRunner
 - `experiments/` — categorized experiment scripts
@@ -195,7 +202,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 - `scripts/run_hardware_rehearsal.py` — Hardware deployment rehearsal (5 sections)
 - MPNN evaluation helpers (4 reusable methods in `ValidationRunner`): `benchmark_mpnn_warmstart`, `mpnn_leave_one_out_cv`, `mpnn_landscape_quality`, `mpnn_interpolation_extrapolation`. Used by V3 sections 10-13, inheritable by any runner.
 - MPNN evaluation extended (5 additional methods in `ValidationRunner`): `mpnn_scaling_with_system_size` (p_layers_per_n supported), `mpnn_learning_curve`, `mpnn_topology_transfer`, `mpnn_data_efficiency_vs_loo`, `mpnn_curvature_noise_correlation`. Used by V3 sections 15-19.
-- Hardware κ utilities in `run_ibm_torino_deployment.py`: `compute_kappa_per_h()` (noiseless finite-diff curvature, zero QPU cost), `kappa_go_no_go()` (auto-calibrates percentile-based thresholds — topology-agnostic, integrated in Tier 0/1/2).
+- Hardware κ utilities in `run_ibm_deployment.py`: `compute_kappa_per_h()` (noiseless finite-diff curvature, zero QPU cost), `kappa_go_no_go()` (auto-calibrates percentile-based thresholds — topology-agnostic, integrated in Tier 0/1/2).
 - `.github/workflows/ci.yml` — CI gate (lint + mypy strict + test + smoke)
 - `analysis/` — coverage scanner, diagnostics, verification
 
@@ -220,7 +227,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 | Experiment framework guide | `.kiro/steering/v8-experiments.md` (conditional: experiments/**) |
 | Hardware deployment strategy | `.kiro/steering/hardware-deployment.md` |
 | Hardware run checklist | `.kiro/steering/hardware-checklist.md` (manual: #hardware-checklist) |
-| Hardware deployment script | `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py` |
+| Hardware deployment script | `scripts/experiment_runners/hardware/run_ibm_deployment.py` |
 | Flow warmstart extensions binnacle | `documentation/binnacles/binnacle-hardware-extension-integration.md` |
 | Flow warmstart analyzer | `python -m project_health.analysis.flow_warmstart_analyzer` |
 | Hardware rehearsal V2 | `scripts/experiment_runners/run_hardware_rehearsal_v2.py` |
@@ -236,7 +243,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 | Gate-folding ZNE validation | `documentation/binnacles/binnacle-gate-folding-zne.md` |
 | ZNE cross-topology (PEA definitive) | `results/experiments/exp_zne_cross_topo/run_20260604_155548.json` |
 | Hardware ZNE improvements plan | `documentation/analysis/13_hardware_zne_improvements.md` |
-| Thesis figures (21 PDF, vector) | `documentation/thesis_figures/` |
+| Thesis figures (44 PDF + 18 PNG, vector) | `documentation/thesis_figures/` |
 | Figure generation | `make figures` (PNG) or `make figures-thesis` (PDF 300dpi) |
 | θ_opt PCA unsupervised detection (Tasks 2+3) | `documentation/binnacles/binnacle-theta-pca-unsupervised-detection.md` |
 | Transpiler exploration findings | `documentation/analysis/15_transpiler_exploration.md` |
@@ -257,6 +264,10 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 | VQE result validation (variational principle, bounds, sweep) | `src/qmbp_simulation/analysis/vqe_validator.py` |
 | θ_pred validation module | `src/qmbp_simulation/analysis/theta_validator.py` |
 | θ_pred validation tests | `tests/test_theta_validator.py` |
+| Circuit resource estimation (unified) | `src/qmbp_simulation/analysis/circuit_visualizer.py` (`transpiled_circuit_stats`, `compute_error_budget`, `build_error_prediction`, `rank_layouts_by_depth_2q`) |
+| Post-transpilation quality check | `src/qmbp_simulation/execution/hardware/preflight.py` (`validate_transpiled_circuit_quality`) |
+| ResourceEstimation comparison script | `scripts/compare_resource_estimation.py` |
+| ResourceEstimation tests (37 tests) | `tests/unit/test_resource_estimation.py` |
 | NLCE module (cluster expansion) | `src/qmbp_simulation/analysis/nlce.py` |
 | Scaling extensions runner (E5) | `scripts/experiment_runners/bond_resolved/run_scaling_extensions.py` |
 | Scaling extensions analyzer | `python -m project_health.analysis.scaling_extensions_analyzer` |

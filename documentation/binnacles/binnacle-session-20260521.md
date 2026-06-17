@@ -189,7 +189,7 @@ scripts/notebook_results/
 
 ## 10. Next Steps (Recommended)
 
-1. **Hardware deployment on IBM Torino** — validate Proof 2 on real QPU
+1. **Hardware deployment on IBM Heron** — validate Proof 2 on real QPU
 2. **Run full parametric with baseline** — get gain metrics for all existing configs
 3. **Document in thesis Chapter 4** — use these results as the core evidence
 4. **Consider SPSA refinement proof** — quantify shot savings on FakeTorino

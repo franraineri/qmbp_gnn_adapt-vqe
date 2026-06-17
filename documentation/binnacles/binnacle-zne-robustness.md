@@ -161,7 +161,7 @@ Even when ZNE doesn't improve the energy estimate, it provides:
 
 ### 5. For hardware deployment
 
-On real IBM Torino:
+On real IBM Heron:
 - DD + twirling + TREX reduce the effective CES of ALL layouts
 - This brings the CES range into [0.1, 1.0] (all perturbative)
 - In this regime, ZNE should work reliably (like N=6 with R²>0.99)

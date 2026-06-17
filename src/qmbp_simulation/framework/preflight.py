@@ -1080,6 +1080,80 @@ class ExperimentChecker:
                 )
         return issues
 
+    def check_hardware_circuit_budget(self) -> list[Issue]:
+        """Estimate hardware viability from system config (no transpilation needed).
+
+        Uses empirical formulas to predict 2Q gate count and ZNE viability
+        based on topology, N, and p. Warns if the configuration is likely
+        to exceed hardware thresholds.
+
+        Estimation rules (from validated data):
+          - chain_1d p=1: n_2q_logical = N-1, transpiled ≈ N-1 (no SWAPs on heavy-hex)
+          - heavy_hex p=1: n_2q_logical = n_edges, transpiled ≈ n_edges (native)
+          - ladder p=1: n_2q_logical = 2*(N/2 - 1) + N/2, transpiled ≈ 2.5× logical
+          - triangular: n_2q ≈ 4× logical (many SWAPs from dense connectivity)
+          - p=2: multiply by 2
+        """
+        issues: list[Issue] = []
+
+        # ZNE threshold: PEA handles up to ~50 CX, GF handles up to ~18
+        ZNE_THRESHOLD_PEA = 50
+
+        # Empirical n_2q estimates per topology (from compare_resource_estimation.py data)
+        TOPOLOGY_2Q_FACTOR = {
+            "chain_1d": 1.0,  # n_2q ≈ N-1 (perfect layout on heavy-hex)
+            "heavy_hex": 1.0,  # n_2q = n_edges (native topology, no SWAPs)
+            "ladder": 2.5,  # SWAP overhead for non-native connectivity
+            "triangular": 4.0,  # Heavy SWAP overhead
+        }
+
+        for spec in self.specs:
+            factor = TOPOLOGY_2Q_FACTOR.get(spec.topology, 2.0)
+            # Logical 2Q gates: approximately N-1 bonds for chain_1d, more for others
+            if spec.topology == "chain_1d":
+                n_2q_logical = spec.n_qubits - 1
+            elif spec.topology == "heavy_hex":
+                # heavy_hex N=10 has 9 edges
+                n_2q_logical = spec.n_qubits - 1
+            elif spec.topology == "ladder":
+                half = spec.n_qubits // 2
+                n_2q_logical = 2 * (half - 1) + half  # rungs + legs
+            else:
+                n_2q_logical = int(spec.n_qubits * 1.5)
+
+            n_2q_estimated = int(n_2q_logical * factor * spec.p_layers)
+
+            if n_2q_estimated > ZNE_THRESHOLD_PEA:
+                issues.append(
+                    Issue(
+                        severity=Severity.ERROR,
+                        check_name="hardware_circuit_budget",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"Estimated {n_2q_estimated} 2Q gates "
+                            f"({spec.topology} N={spec.n_qubits} p={spec.p_layers}) "
+                            f"exceeds PEA threshold ({ZNE_THRESHOLD_PEA}). "
+                            f"Circuit too deep for ZNE recovery."
+                        ),
+                    )
+                )
+            elif n_2q_estimated > ZNE_THRESHOLD_PEA * 0.7:
+                issues.append(
+                    Issue(
+                        severity=Severity.WARNING,
+                        check_name="hardware_circuit_budget",
+                        variant_id=spec.experiment_id,
+                        message=(
+                            f"Estimated {n_2q_estimated} 2Q gates "
+                            f"({spec.topology} N={spec.n_qubits} p={spec.p_layers}) "
+                            f"is {n_2q_estimated / ZNE_THRESHOLD_PEA:.0%} of PEA threshold. "
+                            f"ZNE marginal — monitor R²."
+                        ),
+                    )
+                )
+
+        return issues
+
     # ─── Orchestration ─────────────────────────────────────────────────────
 
     def run_all(self, *, verbose: bool = True) -> PreflightReport:
@@ -1099,6 +1173,7 @@ class ExperimentChecker:
             ("mpnn_capacity", self.check_mpnn_capacity),
             ("seeds", self.check_seeds),
             ("restarts", self.check_restarts),
+            ("hardware_circuit_budget", self.check_hardware_circuit_budget),
         ]
 
         if verbose:

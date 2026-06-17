@@ -359,7 +359,7 @@ python scripts/.../run_e3_bond_resolved_scaling.py \
 | GNN necessity | Unlikely (landscape is ~2D) | Likely (39D with structure) |
 | Compute cost | 12-18h (MPS) | 30-60 min (statevector) |
 | Thesis chapter | Ch.5 (scaling demo) | Ch.6 (necessity proof) |
-| Hardware relevance | Low (chain not native) | High (heavy_hex = IBM Torino) |
+| Hardware relevance | Low (chain not native) | High (heavy_hex = IBM Heron) |
 
 ---
 

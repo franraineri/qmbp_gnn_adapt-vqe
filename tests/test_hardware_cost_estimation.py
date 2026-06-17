@@ -423,7 +423,7 @@ class TestBudgetRecompute:
                 / "hardware"
             ),
         )
-        from run_ibm_torino_deployment import recompute_budget_from_measurement
+        from run_ibm_deployment import recompute_budget_from_measurement
 
         budget = recompute_budget_from_measurement(
             t_one_job_s=60.0,
@@ -451,7 +451,7 @@ class TestBudgetRecompute:
                 / "hardware"
             ),
         )
-        from run_ibm_torino_deployment import recompute_budget_from_measurement
+        from run_ibm_deployment import recompute_budget_from_measurement
 
         budget = recompute_budget_from_measurement(
             t_one_job_s=60.0,
@@ -477,7 +477,7 @@ class TestBudgetRecompute:
                 / "hardware"
             ),
         )
-        from run_ibm_torino_deployment import recompute_budget_from_measurement
+        from run_ibm_deployment import recompute_budget_from_measurement
 
         b4 = recompute_budget_from_measurement(60.0, 4, 3, spsa_enabled=False)
         b8 = recompute_budget_from_measurement(60.0, 8, 3, spsa_enabled=False)

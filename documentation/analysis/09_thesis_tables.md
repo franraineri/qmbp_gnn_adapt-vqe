@@ -206,7 +206,7 @@ ansatz on higher-connectivity graphs."
 
 ---
 
-## Table 5.13 — Heavy-Hex Topology (IBM Torino Native, N=10, 2026-05-31)
+## Table 5.13 — Heavy-Hex Topology (IBM Heron Native, N=10, 2026-05-31)
 
 ### p=1 Heavy-Hex — Hardware Deployment Candidate
 
@@ -233,7 +233,7 @@ ansatz on higher-connectivity graphs."
 **Thesis statement**: "The GNN-HVA framework achieves its best performance on IBM's
 native heavy-hex topology (median ΔE/gap=0.001 at p=2, 0.006 at p=1), with the
 critical advantage of zero SWAP routing overhead. The p=1 configuration is
-seed-independent (std=0.0003) and directly deployable on IBM Torino without
+seed-independent (std=0.0003) and directly deployable on IBM Heron without
 circuit transpilation, making it the recommended hardware deployment strategy."
 
 ### p=1 Heavy-Hex ZNE (Noisy Simulation, 2026-05-31)
@@ -264,7 +264,7 @@ heavy-hex with inhomogeneous ZNE."
 | p=2 + 5 layouts | — | 5 layouts | FAIL (gain=-27%, R²=0.79) | **p=2 unrescuable** |
 
 **Thesis statement**: "Pre-hardware optimization on heavy-hex determines the minimum
-resource budget for IBM Torino deployment: p=1, 1 VQE restart, 3 transpilation layouts,
+resource budget for IBM Heron deployment: p=1, 1 VQE restart, 3 transpilation layouts,
 16384 shots, h_test≥3.0. This configuration achieves ΔE/gap=0.56% (noiseless) with
 +76% ZNE gain (noisy simulation), using the minimum possible QPU resources. Increasing
 shots to 32k or layouts to 5 provides no measurable improvement, confirming that the

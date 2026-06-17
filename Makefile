@@ -183,13 +183,13 @@ hw-analyze-all:  ## Analyze all rehearsal runs with cross-comparison
 	$(PYTHON) scripts/hardware.py analyze --all
 
 hw-deploy-dry:  ## Dry-run deployment (preflight + cost only, no QPU)
-	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run
 
 hw-deploy-calibrate:  ## Session 1: calibration run (Tier 0 only, measures T_one_job)
-	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0
 
 hw-deploy:  ## Session 2: full deployment (Tier 0→3, auto-advancing, no SPSA)
-	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
 
 validate-findings-latex:  ## Validate findings + generate LaTeX table
 	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose --latex documentation/thesis_tables/findings_validation.tex
@@ -231,14 +231,14 @@ hw-flow-deploy-dry:  ## Dry-run deployment with σ_flow safety net from latest r
 	@LATEST=$$(ls -t results/experiments/exp_hw_rehearsal_v3/run_*.json 2>/dev/null | head -1); \
 	if [ -z "$$LATEST" ]; then echo "No rehearsal results found. Run make hw-flow-rehearsal first."; exit 1; fi; \
 	echo "Using σ_flow from: $$LATEST"; \
-	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py \
 		--dry-run --sigma-flow-results "$$LATEST" --verbose
 
 hw-flow-deploy:  ## Full deployment with σ_flow safety net from latest rehearsal
 	@LATEST=$$(ls -t results/experiments/exp_hw_rehearsal_v3/run_*.json 2>/dev/null | head -1); \
 	if [ -z "$$LATEST" ]; then echo "No rehearsal results found. Run make hw-flow-rehearsal first."; exit 1; fi; \
 	echo "Using σ_flow from: $$LATEST"; \
-	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py \
 		--sigma-flow-results "$$LATEST" --no-spsa
 
 hw-flow-full:  ## Full pipeline: rehearsal → analyze → deploy (dry-run)
@@ -257,5 +257,5 @@ hw-flow-from-checkpoint:  ## Deploy using saved flow checkpoint (skip re-trainin
 	if [ -z "$$LATEST" ]; then echo "No rehearsal results found."; exit 1; fi; \
 	echo "Using checkpoint: $$CKPT"; \
 	echo "Using σ_flow from: $$LATEST"; \
-	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py \
 		--dry-run --sigma-flow-results "$$LATEST" --flow-checkpoint "$$CKPT" --verbose

@@ -122,7 +122,7 @@ The production pipeline: Phase 1 (exact diag/DMRG) → Phase 2 (VQE descending s
 | H-grid | **Valid regime only** | N=6: h≥0.8; N=10: h≥0.8; N=20: h≥1.5 |
 | Filter | Fidelity≥0.93 (N≤14) / None (N≥15) | At N≥15, restrict h-grid instead |
 
-### For Hardware (IBM Torino deployment)
+### For Hardware (IBM Heron deployment)
 
 | Phase | Best Technique | Config |
 |-------|---------------|--------|
@@ -186,4 +186,4 @@ The production pipeline: Phase 1 (exact diag/DMRG) → Phase 2 (VQE descending s
 | 20 | 2.0 | **1.75% ✅** | V7 (valid regime, 7 rst, σ=0.3) | 50 min |
 
 The pipeline resolves the quantum phase (ΔE/gap < 5%) at every system size tested.
-The remaining frontier is real hardware deployment on IBM Torino.
+The remaining frontier is real hardware deployment on IBM Heron.

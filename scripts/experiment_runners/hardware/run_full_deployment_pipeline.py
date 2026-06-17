@@ -4,7 +4,7 @@
 Orchestrates the two-step flow:
   1. Run V3 rehearsal with --use-flow-warmstart to generate σ_flow data
   2. Find the most recent rehearsal result JSON
-  3. Pass it to run_ibm_torino_deployment.py --sigma-flow-results <path>
+  3. Pass it to run_ibm_deployment.py --sigma-flow-results <path>
 
 Usage:
     python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py
@@ -76,7 +76,7 @@ def main() -> None:
 
     # ── Step 3: Launch deployment ─────────────────────────────────────────
     print("\n═══ Step 3: Launching IBM Torino deployment ═══\n")
-    deploy_script = str(SCRIPT_DIR / "run_ibm_torino_deployment.py")
+    deploy_script = str(SCRIPT_DIR / "run_ibm_deployment.py")
     cmd = [
         python,
         deploy_script,

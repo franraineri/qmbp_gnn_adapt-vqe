@@ -129,17 +129,20 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 
 ---
 
-## Noisy Simulation Mode (FakeTorino)
+## Noisy Simulation Mode (FakeKingston)
 
 ### Overview
-`mode="fake_backend"` exercises the full ZNE pipeline locally using `FakeTorino` +
+`mode="fake_backend"` exercises the full ZNE pipeline locally using `FakeKingston` +
 `BackendEstimatorV2`. No IBM credentials required. Validates that PEA-ZNE reduces
 errors before real QPU deployment.
 
 ### Backend & Estimator
-- Backend: `FakeTorino` from `qiskit_ibm_runtime.fake_provider` (133 qubits, heavy-hex)
+- Backend: `FakeKingston` from `qiskit_ibm_runtime.fake_provider` (156 qubits, Heron R2, heavy-hex)
+- Alternative: `FakeBoston` (Heron R3, best calibration snapshot — 350/352 good edges)
 - Estimator: `BackendEstimatorV2` from `qiskit.primitives` (local simulation)
 - Uses `default_precision = 1/sqrt(shots)` parameter
+- **Note**: FakeKingston calibration is a snapshot — CZ error median 0.18% but some edges at 100%.
+  Real ibm_kingston has ~0.18% median on all functional edges.
 
 ### ZNE Strategy (2026-06-06 — post-refactoring)
 - **Primary**: PEA-ZNE via `run_pea_zne()` — validated +94.4% gain, R²=0.998
@@ -215,7 +218,7 @@ python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
 make hw-deploy-dry
 
 # Step 1: Calibration run — with PEA preset selection
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+python scripts/experiment_runners/hardware/run_ibm_deployment.py \
     --no-spsa --tier 0 --pea-config balanced --backend ibm_kingston
 # → Output: "Full sweep will take X min based on measured T_one_job"
 
@@ -228,12 +231,12 @@ python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
 # Step 2: Full deployment (recommended with --no-spsa safety)
 make hw-deploy
 # Equivalent to:
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
 
 # Manual options:
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0      # Calibration
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 1 2 3  # Execution
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa     # No SPSA (safe)
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0      # Calibration
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 1 2 3  # Execution
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa     # No SPSA (safe)
 ```
 
 ### Real QPU Findings (2026-06-14, ibm_kingston)
@@ -334,7 +337,7 @@ The deployment script automatically computes `κ(h)` from the MPNN predictions
 (noiseless, zero QPU cost) and logs a per-h risk profile before each tier.
 
 ```python
-# In run_ibm_torino_deployment.py — executed before every QPU submission:
+# In run_ibm_deployment.py — executed before every QPU submission:
 kappa_per_h = compute_kappa_per_h(params_per_h, lattice)
 recommendations = kappa_go_no_go(kappa_per_h, topology=TOPOLOGY, sigma_flow_per_h=sigma_flow_per_h)
 # → per-h: risk_level, n_layouts, shots, spsa_recommended, sigma_flow_boost
@@ -408,3 +411,94 @@ Results are saved in TWO locations:
 - `--skip-preflight` is available for FakeTorino debugging only.
 - For `--mode hardware`, preflight is MANDATORY — it prevents wasting IBM credits on misconfigured runs.
 - If preflight aborts, fix the underlying issue. Do not bypass.
+
+
+---
+
+## Circuit Resource Estimation & Quality Validation (2026-06-17)
+
+### ResourceEstimation Integration
+
+Qiskit's `ResourceEstimation` pass is integrated into `_capture_transpiled_stats()`
+in `HardwareBackend`. Every hardware execution now records per-layout:
+
+```json
+{
+  "depth": 59, "depth_2q": 14,
+  "n_2q_gates": 18, "n_1q_gates": 129, "total_gates": 147,
+  "count_ops": {"cz": 18, "rz": 64, "sx": 57, "x": 8},
+  "num_tensor_factors": 124, "width": 156, "active_qubits": 10
+}
+```
+
+- **depth_2q** = critical path through 2Q gates only. Strongest predictor of hardware error.
+- **count_ops** = per-gate-type breakdown for error budget calculation.
+- **active_qubits** = `width - num_tensor_factors + 1`. Sanity check against routing expansion.
+
+### Post-Transpilation Quality Check (NEW)
+
+Call `validate_transpiled_circuit_quality()` AFTER layout selection, BEFORE QPU submission:
+
+```python
+from qmbp_simulation.execution.hardware.preflight import validate_transpiled_circuit_quality
+
+quality = validate_transpiled_circuit_quality(
+    transpiled_circuit, backend, layout=layout_qubits, logger=logger,
+)
+if quality["abort"]:
+    raise RuntimeError(quality["abort_reason"])
+```
+
+Or from a `HardwareValidationRunner` section:
+```python
+quality = self.validate_transpiled_quality(transpiled, layout=layout_qubits)
+```
+
+### Error Budget Prediction (analysis module)
+
+```python
+from qmbp_simulation.analysis import compute_error_budget, build_error_prediction
+
+# Pre-QPU fidelity estimate:
+budget = compute_error_budget(transpiled, backend=backend, layout=layout)
+# → {"error_budget": 0.095, "fidelity_estimate": 0.91, "source": "calibration"}
+
+# Combined prediction (κ + error budget):
+pred = build_error_prediction(transpiled, h_value=4.0, backend=backend, kappa=155.0)
+# → {"predicted_risk": "low", "explanation": "..."}
+```
+
+### Layout Ranking by depth_2q
+
+```python
+from qmbp_simulation.analysis import select_best_layout_for_zne
+
+best_idx, info = select_best_layout_for_zne(layout_selection.transpiled_circuits)
+# → best_idx=0, info={"depth_2q": 14, ...}
+```
+
+Use the layout with lowest depth_2q as ZNE primary (less decoherence accumulation).
+
+### Full Preflight Stack (chronological)
+
+| Stage | Module | Checks | When |
+|-------|--------|--------|------|
+| Experiment preflight | `framework/preflight.py` | p≤2, regime, seeds, hardware_circuit_budget | Before any execution |
+| QPU preflight | `execution/hardware/preflight.py` | topology, calibration, T1/T2, native gates | Before session |
+| Circuit ZNE check | `execution/hardware/preflight.py` | n_2q vs ZNE threshold | After circuit build |
+| **Transpiled quality** | `execution/hardware/preflight.py` | **depth_2q, error_budget, defective edges, active_qubits** | **After transpilation** |
+| Post-execution | `analysis/circuit_visualizer.py` | prediction vs actual correlation | After QPU result |
+
+### Hardware Backend Comparison (fake providers, snapshot data)
+
+| Backend | Gen | Qubits | CZ error median | CZ gate time | T1 median | T2 median |
+|---------|-----|:------:|:---------------:|:------------:|:---------:|:---------:|
+| ibm_boston | Heron R3 | 156 | **0.13%** | 68ns | 292µs | **353µs** |
+| ibm_aachen | Heron R2 | 156 | 0.15% | 68ns | 232µs | 255µs |
+| ibm_pittsburgh | Heron R2 | 156 | 0.15% | 88ns | 299µs | 317µs |
+| ibm_kingston | Heron R2 | 156 | 0.18% | 68ns | 283µs | 144µs |
+| ibm_marrakesh | Heron R2 | 156 | 0.33% | 68ns | 197µs | 119µs |
+| ibm_torino | Heron R1 | 133 | 0.41% | 68ns | 185µs | 141µs |
+| Nighthawk | NH | 120 | ~0.1% | 68ns | 350µs | — |
+
+**Current default**: `ibm_kingston` (Open Plan, free). For thesis: `ibm_boston` (paid, best quality).

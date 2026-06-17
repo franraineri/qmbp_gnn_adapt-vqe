@@ -330,7 +330,7 @@ Initial state |ψ_0⟩ = |+⟩^N (para TFIM) o Néel state (para Heisenberg).
 
 - Para cada h en grid [h_min, h_max]:
   - Construir D circuitos Krylov (D=8 típicamente)
-  - Ejecutar en IBM Torino con 10⁴-10⁶ shots totales
+  - Ejecutar en IBM Heron con 10⁴-10⁶ shots totales
   - Combinar bitstrings de todos los circuitos
   - Aplicar configuration recovery (qiskit-addon-sqd)
 

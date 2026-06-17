@@ -65,9 +65,15 @@ from qmbp_simulation.analysis.nlce import (
 )
 from qmbp_simulation.analysis.circuit_visualizer import (
     circuit_summary,
+    compute_error_budget,
+    build_error_prediction,
+    validate_prediction_vs_result,
     print_circuit,
     print_circuit_comparison,
+    rank_layouts_by_depth_2q,
     save_circuit_diagram,
+    select_best_layout_for_zne,
+    transpiled_circuit_stats,
 )
 
 __all__ = [
@@ -94,6 +100,12 @@ __all__ = [
     "ValidationIssue",
     "WeightGradientAnalyzer",
     "circuit_summary",
+    "compute_error_budget",
+    "build_error_prediction",
+    "validate_prediction_vs_result",
+    "rank_layouts_by_depth_2q",
+    "select_best_layout_for_zne",
+    "transpiled_circuit_stats",
     "classify_outcome",
     "classify_result",
     "compute_classification_confidence",

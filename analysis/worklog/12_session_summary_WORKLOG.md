@@ -129,4 +129,4 @@ analysis/
 | 2 | Correlación n_restarts vs θ_smoothness por topología | Media | Script |
 | 3 | Layout selection strategy para p=1 ZNE | Alta | Implementación |
 | 4 | Redacción del capítulo de resultados con tablas/figuras | Alta | Escritura |
-| 5 | Hardware deployment p=1 N=10 en IBM Torino | Alta | Requiere acceso |
+| 5 | Hardware deployment p=1 N=10 en IBM Heron | Alta | Requiere acceso |

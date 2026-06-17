@@ -78,6 +78,11 @@ from qmbp_simulation.execution import (
     ExecutionBackend, NoiselessBackend, NoisyBackend,
     HardwareBackend, MitigationOptions,
 )
+# Hardware preflight (post-transpilation quality check)
+from qmbp_simulation.execution.hardware.preflight import (
+    validate_transpiled_circuit_quality,
+    compute_layout_2q_error,
+)
 ```
 
 ### Noisy simulation utilities
@@ -163,6 +168,12 @@ from qmbp_simulation.analysis import (
     # NLCE — Numerical Linked-Cluster Expansion (thermodynamic limit)
     NLCERunner, NLCEConfig, NLCEResult, ClusterSolver, VQEClusterSolver,
     nlce_convergence_analysis, tfim_analytical_energy_per_site,
+    # Circuit resource stats (unified: ad-hoc + ResourceEstimation pass)
+    circuit_summary, transpiled_circuit_stats,
+    # Hardware error prediction (calibration-aware)
+    compute_error_budget, build_error_prediction, validate_prediction_vs_result,
+    # Layout optimization (depth_2q based)
+    rank_layouts_by_depth_2q, select_best_layout_for_zne,
 )
 ```
 

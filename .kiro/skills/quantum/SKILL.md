@@ -78,7 +78,7 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 - **Hardware noise broadens critical crossover** (Sharma, 2026, arXiv:2601.17515): IQM Garnet experiments show noise smears the phase transition. Expected behavior for our Phase 4.
 
 ### Error Mitigation Validation
-- **Inhomogeneous ZNE** (Uvarov et al., 2024, arXiv:2307.11156): Linear energy-CES extrapolation using different qubit mappings. Applicable to IBM Torino.
+- **Inhomogeneous ZNE** (Uvarov et al., 2024, arXiv:2307.11156): Linear energy-CES extrapolation using different qubit mappings. Applicable to IBM Heron.
 - **Learned DD on IBM** (Pokharel et al., 2025, arXiv:2403.02294): Genetic algorithm DD sequences on 100 qubits. Scalable, no retraining needed.
 - **NN-enhanced ZNE** (Sun et al., 2025, arXiv:2501.01646): MLP extrapolation constrains errors to O(10⁻²). Better than polynomial fit.
 - **Experimental VQE+ZNE on Ising** (Ma et al., 2025, arXiv:2504.06554): 4-spin Ising on superconducting processor with analog ZNE.
@@ -239,7 +239,7 @@ The noisy simulation workflow validates ZNE effectiveness locally before real QP
 from qiskit_ibm_runtime.fake_provider import FakeTorino
 from qiskit.primitives import BackendEstimatorV2
 
-# FakeTorino provides real Torino calibration data (133 qubits, heavy-hex)
+# FakeTorino provides real Heron calibration data (133 qubits, heavy-hex)
 # BackendEstimatorV2 executes circuits through the noise model locally
 # No DD/twirling/TREX — isolates ZNE contribution
 from qmbp_simulation.execution import NoisyBackend

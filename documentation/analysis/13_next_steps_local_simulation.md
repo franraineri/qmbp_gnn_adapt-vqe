@@ -2,7 +2,7 @@
 
 **Date**: 2026-06-03 (updated with deep ROI analysis)
 **Context**: All thesis-critical simulation work complete (430+ runs, 49 experiments,
-84% useful-outcome rate). Hardware deployment on IBM Torino is the primary remaining task.
+84% useful-outcome rate). Hardware deployment on IBM Heron is the primary remaining task.
 This document identifies what local simulation work could still add value.
 
 ---
@@ -168,7 +168,7 @@ the D1 finding with a literature-backed theoretical justification.
 ```
 Current state ──→ Gate-folding ZNE validation (2-3h)
                        │
-                       ├── SUCCESS → IBM Torino hardware (Chapter 4)
+                       ├── SUCCESS → IBM Heron hardware (Chapter 4)
                        │                  └── Thesis complete
                        │
                        └── FAILURE → Need alternative mitigation

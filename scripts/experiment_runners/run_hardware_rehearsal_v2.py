@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hardware Deployment Rehearsal V2 — PEA/GF/Adaptive ZNE on FakeTorino.
+"""Hardware Deployment Rehearsal V2 — PEA/GF/Adaptive ZNE on FakeKingston.
 
 Updated version of run_hardware_rehearsal.py that uses the NM-refactored
 pipeline (2026-06-05): mode-aware ZNE branching via HardwareBackend.
@@ -92,7 +92,7 @@ class HardwareRehearsalV2(ValidationRunner):
     description = "Hardware Rehearsal V2 (PEA/GF/Adaptive ZNE via HardwareBackend)"
     hypothesis = (
         "HardwareBackend(mode=fake_backend) produces ΔE/gap<5% at h≥3.25 "
-        "using PEA or adaptive ZNE on FakeTorino"
+        "using PEA or adaptive ZNE on FakeKingston"
     )
 
     @classmethod
@@ -320,7 +320,7 @@ class HardwareRehearsalV2(ValidationRunner):
                 id=5,
                 name="Amplifier Comparison (GF vs PEA)",
                 fn=self.section_amplifier_comparison,
-                hypothesis="PEA and GF produce comparable results on FakeTorino",
+                hypothesis="PEA and GF produce comparable results on FakeKingston",
             ),
             Section(
                 id=6,
@@ -766,7 +766,7 @@ class HardwareRehearsalV2(ValidationRunner):
         p_layers = self._args.p_layers
         h_t = 3.25
 
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
+        from qiskit_ibm_runtime.fake_provider import FakeKingston
 
         from qmbp_simulation.execution.noisy_utils import (
             NoisyEstimatorConfig,
@@ -778,7 +778,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         logger.info("  Testing run_adaptive_zne() directly")
 
-        fake_backend = FakeTorino()
+        fake_backend = FakeKingston()
         config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
 
         # Build transpiled circuit
@@ -891,7 +891,7 @@ class HardwareRehearsalV2(ValidationRunner):
         p_layers = self._args.p_layers
         h_t = 3.25
 
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
+        from qiskit_ibm_runtime.fake_provider import FakeKingston
 
         from qmbp_simulation.execution.noisy_utils import (
             NoisyEstimatorConfig,
@@ -904,7 +904,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         logger.info("  Comparing GF vs PEA on same circuit at h=3.25")
 
-        fake_backend = FakeTorino()
+        fake_backend = FakeKingston()
         config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
 
         theta = self._theta_predictions.get(h_t)
@@ -1028,7 +1028,7 @@ class HardwareRehearsalV2(ValidationRunner):
         h_t = 3.25
         N_REPS = self._args.n_shots_reps
 
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
+        from qiskit_ibm_runtime.fake_provider import FakeKingston
 
         from qmbp_simulation.execution.noisy_utils import (
             NoisyEstimatorConfig,
@@ -1040,7 +1040,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         logger.info(f"  Shot noise: {N_REPS} reps at h={h_t} (different seeds)")
 
-        fake_backend = FakeTorino()
+        fake_backend = FakeKingston()
 
         theta = self._theta_predictions.get(h_t)
         if theta is None:
@@ -1329,7 +1329,7 @@ class HardwareRehearsalV2(ValidationRunner):
         p_layers = self._args.p_layers
         h_test = self._args.h_test or H_TEST_POINTS
 
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
+        from qiskit_ibm_runtime.fake_provider import FakeKingston
 
         from qmbp_simulation.execution.noisy_utils import (
             build_adjacency,
@@ -1340,7 +1340,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         logger.info(f"  Circuit audit: {topology} N={n_qubits}")
 
-        fake_backend = FakeTorino()
+        fake_backend = FakeKingston()
         # Threshold is amplifier-aware: GF=18, PEA/adaptive=50
         amplifier = self._args.zne_amplifier
         if amplifier == "pea" or amplifier == "adaptive":
@@ -1388,17 +1388,18 @@ class HardwareRehearsalV2(ValidationRunner):
             max_ces=0.5,
         )
 
-        # Audit each transpiled circuit
+        # Audit each transpiled circuit using unified resource stats
+        from qmbp_simulation.analysis.circuit_visualizer import transpiled_circuit_stats
+
         audit_results = []
         all_viable = True
 
         for i, transpiled in enumerate(layout_sel.transpiled_circuits):
             ces, n_2q = compute_circuit_ces(transpiled, fake_backend)
-            depth = transpiled.depth()
-            n_1q = sum(1 for inst in transpiled.data if inst.operation.num_qubits == 1)
+            stats = transpiled_circuit_stats(transpiled)
 
             viable = n_2q <= ZNE_2Q_THRESHOLD
-            deep = depth > DEPTH_WARNING
+            deep = stats["depth"] > DEPTH_WARNING
             if not viable:
                 all_viable = False
 
@@ -1408,23 +1409,31 @@ class HardwareRehearsalV2(ValidationRunner):
                     "layout_qubits": layout_sel.layouts[i][:5],  # First 5 for brevity
                     "ces": ces,
                     "n_2q_gates": n_2q,
-                    "n_1q_gates": n_1q,
-                    "depth": depth,
+                    "n_1q_gates": stats["n_1q_gates"],
+                    "depth": stats["depth"],
+                    "depth_2q": stats["depth_2q"],
+                    "count_ops": stats["count_ops"],
+                    "active_qubits": stats.get("active_qubits"),
                     "zne_viable": viable,
                     "depth_warning": deep,
                 }
             )
 
             status = "✓" if viable else "✗"
-            logger.info(f"    Layout {i}: 2Q={n_2q} [{status}], depth={depth}, CES={ces:.4f}")
+            logger.info(
+                f"    Layout {i}: 2Q={n_2q} [{status}], depth={stats['depth']}, "
+                f"depth_2q={stats['depth_2q']}, CES={ces:.4f}"
+            )
 
         # Summary
         mean_2q = float(np.mean([r["n_2q_gates"] for r in audit_results]))
         max_2q = max(r["n_2q_gates"] for r in audit_results)
         mean_ces = float(np.mean([r["ces"] for r in audit_results]))
+        mean_depth_2q = float(np.mean([r["depth_2q"] for r in audit_results]))
 
         logger.info(f"\n    Mean 2Q gates: {mean_2q:.0f} (threshold: {ZNE_2Q_THRESHOLD})")
         logger.info(f"    Max 2Q gates: {max_2q}")
+        logger.info(f"    Mean depth_2q: {mean_depth_2q:.0f}")
         logger.info(f"    Mean CES: {mean_ces:.4f}")
         logger.info(f"    All ZNE-viable: {all_viable}")
 
@@ -1432,6 +1441,7 @@ class HardwareRehearsalV2(ValidationRunner):
             "layouts": audit_results,
             "mean_2q_gates": mean_2q,
             "max_2q_gates": max_2q,
+            "mean_depth_2q": mean_depth_2q,
             "mean_ces": mean_ces,
             "zne_threshold": ZNE_2Q_THRESHOLD,
             "zne_check_two_qubit_gate_count": zne_check["two_qubit_gate_count"],

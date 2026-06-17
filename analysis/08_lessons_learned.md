@@ -177,7 +177,7 @@ La aparente "restart paradox" en chain_1d (3rst=0.123 vs 1rst=0.029) es un
 |---|--------|-----------|----------|
 | 1 | Investigar por qué ladder N=6 tiene 50% chain breaks vs 16% a N=10 | Media | Análisis |
 | 2 | Correlación n_restarts vs θ_smoothness por topología | Media | Script |
-| 3 | Hardware deployment p=1 N=10 en IBM Torino | Alta | Requiere acceso |
+| 3 | Hardware deployment p=1 N=10 en IBM Heron | Alta | Requiere acceso |
 | 4 | Validar `select_layouts_low_ces` con noisy simulation | Media | ~5 min |
 | 5 | Redacción final del capítulo (LaTeX) | Alta | Escritura |
 

@@ -26,7 +26,7 @@ that rigorously validate prediction quality before spending QPU time.
       Reports degradation factor = mean_extrap / mean_interp.
       Pass: interpolation pass-rate ≥ 80%.
 
-  Section 14 — MPNN Noisy Evaluation (FakeTorino)
+  Section 14 — MPNN Noisy Evaluation (FakeKingston)
       Evaluates MPNN θ_pred via noisy simulation instead of noiseless.
       Compares: noiseless_de_gap vs noisy_raw_de_gap vs noisy_zne_de_gap.
       Answers: "Does MPNN θ_pred still work under realistic noise?"
@@ -43,7 +43,7 @@ Usage:
     # Full run (sections 1-14):
     python scripts/experiment_runners/run_hardware_rehearsal_v3.py
 
-    # MPNN sections only (no FakeTorino ZNE, fast):
+    # MPNN sections only (no FakeKingston ZNE, fast):
     python scripts/experiment_runners/run_hardware_rehearsal_v3.py --skip-hardware-sections
 
     # Single section:
@@ -56,7 +56,7 @@ Usage:
         --h-train 2.0 1.75 1.5 1.25 --h-test 1.875 \\
         --mpnn-epochs 1000 --n-vqe-bench-restarts 2
 
-    # With noisy section (FakeTorino):
+    # With noisy section (FakeKingston):
     python scripts/experiment_runners/run_hardware_rehearsal_v3.py \\
         --section 14 --n-qubits 6 --topology chain_1d \\
         --h-train 2.0 1.75 1.5 1.25 --h-test 1.875 --mpnn-epochs 1000
@@ -170,12 +170,12 @@ SECTION_CRITERIA: dict[int, dict] = {
         "ref": "NN-VQE (Miao 2024): valid interpolation range is the deployment range",
     },
     14: {
-        "name": "Noisy Evaluation (FakeTorino)",
+        "name": "Noisy Evaluation (FakeKingston)",
         "primary_metric": "mean_noisy_raw_de_gap",
         "threshold": NOISY_DE_GAP_THRESHOLD,
         "direction": "le",
         "secondary": "ZNE improvement ≥ 0 (ZNE must not hurt)",
-        "ref": "Hardware noise model: FakeTorino calibration data",
+        "ref": "Hardware noise model: FakeKingston calibration data",
     },
     15: {
         "name": "Warm-Start Scaling with N",
@@ -224,7 +224,7 @@ SECTION_CRITERIA: dict[int, dict] = {
         "direction": "le",
         "secondary": (
             "2Q-depth reduction ≥ 5% (meaningful scheduling improvement); "
-            "noisy ΔE/gap difference < 1% (functionally equivalent under FakeTorino)"
+            "noisy ΔE/gap difference < 1% (functionally equivalent under FakeKingston)"
         ),
         "ref": (
             "IBM tutorial 'Compilation methods for Hamiltonian simulation circuits'; "
@@ -242,8 +242,8 @@ SECTION_CRITERIA: dict[int, dict] = {
 class HardwareRehearsalV3(HardwareRehearsalV2):
     """Hardware Rehearsal V3: V2 sections 1-9 + MPNN evaluation sections 10-14.
 
-    Sections 10-13 run noiseless (no FakeTorino needed).
-    Section 14 runs noisy via FakeTorino + noisy_estimate.
+    Sections 10-13 run noiseless (no FakeKingston needed).
+    Section 14 runs noisy via FakeKingston + noisy_estimate.
 
     All sections delegate to ValidationRunner helper methods
     (benchmark_mpnn_warmstart, mpnn_leave_one_out_cv, mpnn_landscape_quality,
@@ -309,7 +309,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             "--skip-noisy-mpnn",
             action="store_true",
             default=False,
-            help="Skip section 14 (noisy MPNN eval). Useful when FakeTorino is slow.",
+            help="Skip section 14 (noisy MPNN eval). Useful when FakeKingston is slow.",
         )
         # Sections 15-19 system sizes for scaling experiment
         parser.add_argument(
@@ -486,10 +486,10 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             v3_sections.append(
                 Section(
                     id=14,
-                    name="MPNN Noisy Evaluation (FakeTorino)",
+                    name="MPNN Noisy Evaluation (FakeKingston)",
                     fn=self.section_noisy_mpnn_eval,
                     hypothesis=(
-                        f"MPNN θ_pred gives ΔE/gap < {NOISY_DE_GAP_THRESHOLD:.0%} under FakeTorino noise"
+                        f"MPNN θ_pred gives ΔE/gap < {NOISY_DE_GAP_THRESHOLD:.0%} under FakeKingston noise"
                     ),
                 )
             )
@@ -554,8 +554,8 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
                     hypothesis=(
                         "PauliEvolutionGate representation gives ≥5% 2Q-depth reduction "
                         "vs explicit RZZ/RX, identical noiseless energy (|ΔE|<1e-8), "
-                        "and equivalent noisy ΔE/gap (diff <1%) under FakeTorino. "
-                        "Confirms integration is safe before IBM Torino deployment."
+                        "and equivalent noisy ΔE/gap (diff <1%) under FakeKingston. "
+                        "Confirms integration is safe before IBM Kingston deployment."
                     ),
                 )
             )
@@ -1830,22 +1830,22 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
         return {**result, "criteria": SECTION_CRITERIA[19]}
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Section 14: MPNN Noisy Evaluation (FakeTorino)
+    # Section 14: MPNN Noisy Evaluation (FakeKingston)
     # ──────────────────────────────────────────────────────────────────────────
 
     def section_noisy_mpnn_eval(self) -> dict:
-        """Evaluate MPNN θ_pred under FakeTorino noise with optional ZNE.
+        """Evaluate MPNN θ_pred under FakeKingston noise with optional ZNE.
 
         Compares three energy references at each h_test:
           - E_noiseless: StatevectorEstimator with θ_pred (noiseless baseline)
-          - E_noisy_raw: FakeTorino BackendEstimatorV2, no mitigation
-          - E_noisy_zne: FakeTorino + gate-folding ZNE (3 layouts)
+          - E_noisy_raw: FakeKingston BackendEstimatorV2, no mitigation
+          - E_noisy_zne: FakeKingston + gate-folding ZNE (3 layouts)
 
         Criteria (from SECTION_CRITERIA[14]):
           PASS: mean noisy_raw ΔE/gap < 10% (relaxed for shot noise)
           INFO: ZNE improvement = (noisy_raw - noisy_zne) / noisy_raw
 
-        NOTE: This section uses FakeTorino which requires qiskit-aer.
+        NOTE: This section uses FakeKingston which requires qiskit-aer.
         If qiskit-aer is not installed it falls back to a warning skip.
         """
         import time
@@ -1871,9 +1871,9 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             f"  Config: {topology} N={n_qubits} p={p_layers} | shots={shots}, layouts={n_layouts}"
         )
 
-        # Try importing FakeTorino — fail gracefully if aer not available
+        # Try importing FakeKingston — fail gracefully if aer not available
         try:
-            from qiskit_ibm_runtime.fake_provider import FakeTorino
+            from qiskit_ibm_runtime.fake_provider import FakeKingston
 
             from qmbp_simulation.execution.noisy_utils import (
                 NoisyEstimatorConfig,
@@ -1884,13 +1884,13 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
                 select_layouts_low_ces,
             )
         except ImportError as exc:
-            logger.warning(f"  FakeTorino not available: {exc}. Skipping noisy eval.")
-            return {"error": f"FakeTorino unavailable: {exc}", "pass": False, "skipped": True}
+            logger.warning(f"  FakeKingston not available: {exc}. Skipping noisy eval.")
+            return {"error": f"FakeKingston unavailable: {exc}", "pass": False, "skipped": True}
 
         spec = get_model_spec(self._args.model)
         noiseless_backend = NoiselessBackend()
         builder = HamiltonianBuilder()
-        fake_backend = FakeTorino()
+        fake_backend = FakeKingston()
         noisy_config = NoisyEstimatorConfig(shots=shots, seed_simulator=42)
 
         # ── Build/reuse MPNN ────────────────────────────────────────────────
@@ -1924,7 +1924,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             e_noiseless = float(noiseless_backend.evaluate(circuit_t, H_t, theta_pred))
             de_gap_noiseless = abs(e_noiseless - e_exact) / max(gap, 1e-10)
 
-            # ── Noisy evaluation — transpile to FakeTorino layout ───────────
+            # ── Noisy evaluation — transpile to FakeKingston layout ───────────
             t0 = time.time()
             try:
                 bound = circuit_t.assign_parameters(theta_pred)
@@ -2066,7 +2066,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
         """Compare PauliEvolutionGate vs explicit RZZ/RX circuit representations.
 
         Measures three things on the same VQE θ_opt parameters and the same
-        FakeTorino layout:
+        FakeKingston layout:
 
           1. Transpilation metrics (2Q-depth, CES, total depth, n_2Q gates).
              Hypothesis: PauliEvol has lower 2Q-depth (≥5%) with same n_2Q.
@@ -2074,20 +2074,20 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
           2. Noiseless energy identity.
              Hypothesis: |E_pauli - E_rzz| < 1e-8 (functionally identical).
 
-          3. Noisy ΔE/gap under FakeTorino noise.
+          3. Noisy ΔE/gap under FakeKingston noise.
              Hypothesis: |ΔE/gap_pauli - ΔE/gap_rzz| < 1% (same noise impact,
-             since FakeTorino models gate-level noise and n_2Q is unchanged).
+             since FakeKingston models gate-level noise and n_2Q is unchanged).
 
         Pass criteria (from SECTION_CRITERIA[20]):
           PASS:  energy_max_abs_diff < 1e-8
                  AND 2Q-depth_pauli < 2Q-depth_rzz (any reduction)
           WARN:  2Q-depth reduction < 5% (below expected −11%)
-          INFO:  noisy_de_gap diff (informational, not pass/fail; FakeTorino
+          INFO:  noisy_de_gap diff (informational, not pass/fail; FakeKingston
                  models per-gate noise so reduction may be small in simulation)
 
-        This confirms PauliEvolutionGate integration is safe for IBM Torino
+        This confirms PauliEvolutionGate integration is safe for IBM Kingston
         deployment. The depth reduction matters on real hardware (time-domain
-        decoherence) but is expected to have minimal impact in FakeTorino
+        decoherence) but is expected to have minimal impact in FakeKingston
         (gate-error model, not time-based).
 
         Ref: 15_transpiler_exploration.md — 2Q-depth 24 vs 27 at N=10 p=1
@@ -2097,7 +2097,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
         import numpy as np
         from qiskit.primitives import StatevectorEstimator
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
+        from qiskit_ibm_runtime.fake_provider import FakeKingston
 
         from qmbp_simulation import HVACircuitBuilder, make_lattice
         from qmbp_simulation.execution.noisy_utils import (
@@ -2124,13 +2124,13 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             "  Comparing: (A) explicit RZZ/RX gates  vs  (B) PauliEvolutionGate representation"
         )
         logger.info(
-            "  Note: FakeTorino uses per-gate noise → depth reduction may not "
-            "affect ΔE/gap in simulation. Real hardware (Torino) will show "
+            "  Note: FakeKingston uses per-gate noise → depth reduction may not "
+            "affect ΔE/gap in simulation. Real hardware (Kingston) will show "
             "decoherence improvement from shorter time-domain depth."
         )
 
         hva = HVACircuitBuilder()
-        fake_backend = FakeTorino()
+        fake_backend = FakeKingston()
         noisy_cfg = NoisyEstimatorConfig(shots=shots, seed_simulator=42, optimization_level=2)
 
         # Shared layout: use lowest-CES layout from the first h-test point
@@ -2213,47 +2213,20 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             t_pauli = pm.run(bound_pauli)
 
             # ── Transpilation metrics ──────────────────────────────────────
-            # Note: On heavy_hex, all ZZ bonds are non-overlapping in the chosen
-            # layout → the transpiler already parallelizes them into a single cycle
-            # regardless of representation. The 2Q-depth (DAG critical path through
-            # 2Q gates only) is therefore 1 for BOTH representations. The meaningful
-            # metric is TOTAL depth, which includes single-qubit gates between 2Q
-            # layers. PauliEvolutionGate reduces total depth by exposing commuting
-            # structure to the scheduler (validated: 92→86 at theta≠0, −6.5%).
-            def _count_2q(circ):
-                return sum(1 for inst in circ.data if inst.operation.num_qubits == 2)
+            # Use unified transpiled_circuit_stats for consistent metrics.
+            from qmbp_simulation.analysis.circuit_visualizer import transpiled_circuit_stats
 
-            n_2q_rzz = _count_2q(t_rzz)
-            n_2q_pauli = _count_2q(t_pauli)
+            stats_rzz = transpiled_circuit_stats(t_rzz)
+            stats_pauli = transpiled_circuit_stats(t_pauli)
+
+            n_2q_rzz = stats_rzz["n_2q_gates"]
+            n_2q_pauli = stats_pauli["n_2q_gates"]
             ces_rzz, _ = compute_circuit_ces(t_rzz, fake_backend)
             ces_pauli, _ = compute_circuit_ces(t_pauli, fake_backend)
-            depth_rzz = t_rzz.depth()
-            depth_pauli = t_pauli.depth()
-
-            # 2Q-depth via DAG critical path (informational; equals 1 on heavy_hex
-            # because non-overlapping ZZ bonds are fully parallelized by the scheduler)
-            from qiskit.converters import circuit_to_dag
-
-            dag_rzz = circuit_to_dag(t_rzz)
-            dag_pauli = circuit_to_dag(t_pauli)
-
-            def _dag_2q_depth(dag) -> int:
-                """Count the critical-path length through 2Q gates only.
-
-                DAGOpNode in Qiskit 2.x (Rust-accelerated) exposes
-                num_qubits directly on the node object.
-                """
-                two_q_depth: dict = {}
-                for node in dag.topological_op_nodes():
-                    if node.num_qubits == 2:
-                        pred_depths = [
-                            two_q_depth.get(id(pred), 0) for pred in dag.predecessors(node)
-                        ]
-                        two_q_depth[id(node)] = (max(pred_depths) + 1) if pred_depths else 1
-                return max(two_q_depth.values(), default=0)
-
-            depth_2q_rzz = _dag_2q_depth(dag_rzz)
-            depth_2q_pauli = _dag_2q_depth(dag_pauli)
+            depth_rzz = stats_rzz["depth"]
+            depth_pauli = stats_pauli["depth"]
+            depth_2q_rzz = stats_rzz["depth_2q"]
+            depth_2q_pauli = stats_pauli["depth_2q"]
 
             # ── Noiseless energy (StatevectorEstimator, no noise) ──────────
             # Build Hamiltonian for this h
@@ -2278,7 +2251,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             de_gap_nl_rzz = abs(e_nl_rzz - e_exact) / max(gap, 1e-10)
             de_gap_nl_pauli = abs(e_nl_pauli - e_exact) / max(gap, 1e-10)
 
-            # ── Noisy ΔE/gap (FakeTorino, single layout, no ZNE) ──────────
+            # ── Noisy ΔE/gap (FakeKingston, single layout, no ZNE) ──────────
             try:
                 H_rzz = H_t.apply_layout(t_rzz.layout)
                 H_pauli = H_t.apply_layout(t_pauli.layout)
@@ -2404,7 +2377,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
                 "  [Note: 2Q-depth is always 1 on heavy_hex — all ZZ bonds parallelized]",
                 f"n_2Q gate count unchanged: {n_2q_unchanged} ({'✓' if n_2q_unchanged else '✗ MISMATCH'})",
                 f"noisy ΔE/gap diff: mean={mean_noisy_diff:.4f} "
-                f"({'informational — FakeTorino per-gate noise model'})",
+                f"({'informational — FakeKingston per-gate noise model'})",
                 f"verdict: {'SAFE — use PauliEvolutionGate for hardware deployment' if passed else 'UNSAFE — investigate before deployment'}",
             ],
         )
@@ -2424,7 +2397,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
                 "Total depth (includes 1Q gates) is the correct hardware decoherence metric."
             ),
             "recommendation": (
-                "USE PauliEvolutionGate for IBM Torino deployment"
+                "USE PauliEvolutionGate for IBM Kingston deployment"
                 if passed
                 else "INVESTIGATE — energy mismatch or no total depth reduction"
             ),

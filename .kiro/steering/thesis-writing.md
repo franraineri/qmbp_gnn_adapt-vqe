@@ -185,11 +185,11 @@ fileMatchPattern: "**/*.tex"
 - Lines: 1790 | Chapters: 10 | Tables: 31 | Table refs: 23
 - Citations: 49 unique keys | Bibitems: 49 (balanced)
 - Environments: 88/88 (balanced)
-- Verification: 22 findings, 95% corroboration rate (21 CORROBORATED, 1 QUALIFIED, 0 CONTRADICTED)
+- Verification: 23 findings, 100% corroboration rate (21 CORROBORATED, 2 QUALIFIED, 0 CONTRADICTED)
 
 ### Pending Actions for Final Submission
 1. **Insert figures**: Run `make figures-thesis` → insert `\includegraphics` in appropriate sections
-2. **Hardware execution (OE6)**: Run on IBM Torino when credentials available → add results to Ch.5
+2. **Hardware execution (OE6)**: Run on IBM Heron when credentials available → add results to Ch.5
 3. **Compile LaTeX**: Verify with `pdflatex tesis-v3.0.tex` (requires `estilo_unir-1.sty`)
 
 ### Known Verification Issues (RESOLVED 2026-06-09)
@@ -216,6 +216,6 @@ fileMatchPattern: "**/*.tex"
 | Project status (comprehensive) | `.kiro/steering/project-status.md` |
 | Bibliography curated (56 papers) | `documentation/bibliography/bibliography_curated.md` |
 | Verification plan | `documentation/analysis/21_thesis_compilation_verification_plan.md` |
-| Findings validator (22 findings) | `project_health/analysis/thesis_findings_validator.py` |
+| Findings validator (23 findings) | `project_health/analysis/thesis_findings_validator.py` |
 | Tables compiler (10 tables) | `project_health/analysis/thesis_tables_compiler.py` |
-| Figures generator (10 figs) | `project_health/analysis/thesis_figures.py` |
+| Figures generator (18 figs) | `project_health/analysis/thesis_figures.py` |

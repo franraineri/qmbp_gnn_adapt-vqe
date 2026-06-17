@@ -5,7 +5,7 @@
 >
 > **Core hypothesis**: p=1 (2 parameters) provides sufficient expressibility
 > in the deep paramagnetic regime (h >> h_c) while halving circuit depth,
-> making N=20+ viable on IBM Torino.
+> making N=20+ viable on IBM Heron.
 
 ---
 
@@ -264,7 +264,7 @@ With p=1:
 The p=1 results support a compelling scaling story:
 1. **p=2 at N=6-10**: Full expressibility, validates the methodology
 2. **p=1 at N=20**: Demonstrates hardware-viable scaling with controlled tradeoff
-3. **Hardware deployment**: p=1 N=20 on IBM Torino (38 CX ≈ same as validated p=2 N=10)
+3. **Hardware deployment**: p=1 N=20 on IBM Heron (38 CX ≈ same as validated p=2 N=10)
 
 The depth-expressibility tradeoff is quantified: each layer of depth buys ~0.25-0.40 in h-range. For hardware where depth is the limiting factor, p=1 is optimal.
 
@@ -369,7 +369,7 @@ The VQE is seed-independent for N≤10 but requires careful initialization at N=
 2. **Canonicalize θ signs**: Enforce θ_x > 0 (or θ_zz > 0) before MPNN training
 3. **Increase training density**: Use 15-20 h-points in [2.25, 4.0] for N=20 MPNN
 4. **Re-run 6B with fixes**: Expect all 3 seeds to pass deployment at h≥2.5
-5. Test p=1 N=20 on IBM Torino hardware (same CX budget as p=2 N=10)
+5. Test p=1 N=20 on IBM Heron hardware (same CX budget as p=2 N=10)
 6. Document the scaling law in thesis Chapter 4 (Results)
 7. Add p=1 scaling results to `RESULTS_SUMMARY_V61_V7.md`
 

@@ -34,9 +34,9 @@ If DD reduces CES from 6.29 to <1.0, ZNE should recover R²>0.8.
 
 **Implementation:** `PadDynamicalDecoupling` pass in Qiskit's transpilation pipeline.
 Already available in `generate_preset_pass_manager`. Cannot test locally (YGate not
-in FakeTorino basis gates) — requires real IBM Torino.
+in FakeTorino basis gates) — requires real IBM Heron.
 
-**Status:** Blocked on hardware access. First priority when IBM Torino is available.
+**Status:** Blocked on hardware access. First priority when IBM Heron is available.
 
 ---
 
@@ -60,7 +60,7 @@ and use the full `VQEOptimizer.descending_sweep` with MPS backend.
 
 ### 1.3 SPSA with Optimal Config on Real Hardware — Hardware
 
-**What:** Deploy MPNN prediction → SPSA refinement (a=0.1, c=0.05, A=10) on IBM Torino
+**What:** Deploy MPNN prediction → SPSA refinement (a=0.1, c=0.05, A=10) on IBM Heron
 at N=6, h=1.5 with 8192 shots.
 
 **Why it helps:** 4A found optimal SPSA config. 4C confirmed SPSA 3× better than COBYLA
@@ -73,7 +73,7 @@ correct, unlike random shot noise).
 **Implementation:** Use `HardwareDeployerV61(mode="hardware")` with SPSA post-processing.
 Config ready from 4A results.
 
-**Status:** Blocked on IBM Torino access.
+**Status:** Blocked on IBM Heron access.
 
 ---
 
@@ -195,8 +195,8 @@ with no benefit for our small parameter space.
 
 | Priority | Technique | Where | Time | Blocked? |
 |----------|-----------|-------|------|----------|
-| 1 | DD + ZNE on IBM Torino (N=6) | Hardware | 30 min | IBM access |
-| 2 | SPSA refinement on IBM Torino (N=6) | Hardware | 15 min | IBM access |
+| 1 | DD + ZNE on IBM Heron (N=6) | Hardware | 30 min | IBM access |
+| 2 | SPSA refinement on IBM Heron (N=6) | Hardware | 15 min | IBM access |
 | 3 | Full V6.1 pipeline at N=20 via MPS | Simulation | 30 min | No |
 | 4 | CLP-ZNE with 10 layouts (N=10) | Hardware | 60 min | IBM access |
 | 5 | Noise-aware with FakeTorino coherent errors | Simulation | 90 min | No |
@@ -215,4 +215,4 @@ are NOT the bottleneck. The bottleneck is:
 2. **On hardware:** Noise mitigation effectiveness (DD + ZNE + TREX stack)
 
 The path forward is NOT better ML — it's better error mitigation on real hardware.
-This aligns with the project's active priority: IBM Torino deployment.
+This aligns with the project's active priority: IBM Heron deployment.

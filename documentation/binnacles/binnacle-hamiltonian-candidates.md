@@ -6,7 +6,7 @@
 
 Determinar qué Hamiltonianos adicionales son viables para el framework GNN-HVA bajo las
 restricciones existentes (HVA p≤2, |+⟩^N o Néel, shallow circuits, local observables,
-IBM Torino hardware).
+IBM Heron hardware).
 
 ### Metodología
 
@@ -403,7 +403,7 @@ preparación, empeorando el problema del budget CX.
 **Origen de la regla:**
 La extrapolación ZNE (Zero-Noise Extrapolation) inhomogénea requiere que el circuito
 sea lo suficientemente corto para que la relación señal/ruido permita un fit lineal
-confiable (R² > 0.99). Empíricamente, con el ruido de IBM Torino:
+confiable (R² > 0.99). Empíricamente, con el ruido de IBM Heron:
 - ≤18 CX: ZNE lineal funciona (R²>0.99, gain +48-62%)
 - 19-25 CX: ZNE degradado (R²<0.9, gain variable)
 - >25 CX: ZNE inútil (señal enterrada en ruido)

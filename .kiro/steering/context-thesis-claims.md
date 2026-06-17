@@ -74,16 +74,16 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 
 | Claim | Value | Evidence | Stat sig |
 |-------|-------|----------|----------|
-| Experiments completed | 33 confirmed, 8 rejected, 8 failed (49 total) | `python -m project_health --compact` | — |
-| Pipeline runs | 430+ (329 noiseless + 93 noisy + 8 MPS) | `python -m project_health --compact` | — |
-| Useful-outcome rate | 84% (41/49) | `python -m project_health.analysis.thesis_findings_validator` | — |
+| Experiments completed | 33 confirmed, 8 rejected, 13 failed (54 total) | `python -m project_health --compact` | — |
+| Pipeline runs | 476+ (329 noiseless + 93 noisy + 28 MPS + 54 experiments) | `python -m project_health --compact` | — |
+| Useful-outcome rate | 76% (41/54) | `python -m project_health.analysis.thesis_findings_validator` | — |
 | PEA vs GF | 4.6× better | ZNE_CROSS_TOPO | t=46.32, p<10⁻¹⁹ |
 | GNN-QEM zero-shot | +72.3% | cross_topology_results.json | t=13.28, p<10⁻⁶ |
 | PEA on triangular | +96.8% | PEA_TRIANGULAR | t=111.22, 9/9 wins |
 | Cross-N GNN | 30/30 PASS, 0.15% | zero_shot_v3 results | 3 seeds |
 | Affine overshoot | 0% in 102 records | Affine audit | — |
 | MPS N=80 | 0.08% ΔE/gap | scaling_N80 | 5/5 h-points |
-| PEA mean gain (all evals) | +86.8% | `python project_health/compare.py --zne` | 69/69 always positive |
+| PEA mean gain (all evals) | +90.2% | `python project_health/compare.py --zne` | 105/105 always positive |
 | MPNN warm-start speedup | 2.81 ± 0.23x (chain N=6) / 2.45x (heavy_hex N=10) | S10 MPNN eval suite | 3 runs |
 | MPNN LOO-CV (7+ pts) | 100% pass both configs | S11 MPNN eval suite | 7-8 folds |
 | MPNN init ΔE/gap | 0.39% (heavy_hex N=10, no VQE) | S10 MPNN eval suite | hardware-ready |
@@ -100,7 +100,7 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 | GNN-QEM not composable with PEA | Clarifies deployment strategy |
 | Noise-aware training fails (V7 5B) | Shot noise corrupts targets |
 
-## Figures (21 vector PDFs in `documentation/thesis_figures/`)
+## Figures (44 vector PDFs + 18 PNGs in `documentation/thesis_figures/`)
 
 Generate with: `make figures-thesis` (PDF 300dpi) or `make figures` (PNG).
 

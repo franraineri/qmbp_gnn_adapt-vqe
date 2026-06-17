@@ -136,7 +136,7 @@ Alternative: use built-in sequences ("XX", "XpXm", "XY4") via `options.dynamical
 
 ### CLP-ZNE: Cyclic Layout Permutations (Rabinovich et al. 2025, arXiv:2511.02901)
 - Uses O(n) cyclic permutations for 1D circuits (vs our 3 random layouts)
-- Validated on IBM Torino noise model at n=12 qubits
+- Validated on IBM Heron noise model at n=12 qubits
 - Achieves order-of-magnitude error reduction, outperforms standard unitary folding ZNE
 - **Next implementation target** for fixing N=10 ZNE failure
 

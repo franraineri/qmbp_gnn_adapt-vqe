@@ -31,19 +31,19 @@ the ~1% subgraphs.
 | Property | Value | Impact for HVA |
 |----------|-------|---------------|
 | Processor | Heron r2 | Current generation, best available |
-| Qubits | 156 | More layout options than Torino (133) |
+| Qubits | 156 | More layout options than Heron (133) |
 | Topology | Heavy-hex | Same as our `heavy_hex` lattice topology |
 | Couplers | 176 tunable | Low crosstalk (~10⁻⁵) |
 | Native 2Q gate | **CZ** | Our HVA uses RZZ → decomposes to CZ natively |
 | Native gates | cz, id, rx, rz, **rzz**, sx, x | **RZZ is native** — HVA executes directly |
-| 2Q error (median) | 1.95×10⁻³ | 2× better than Torino (~4×10⁻³) |
+| 2Q error (median) | 1.95×10⁻³ | 2× better than Heron (~4×10⁻³) |
 | 2Q error (best) | 8.28×10⁻⁴ | Excellent for selected layouts |
 | Readout error (median) | 8.30×10⁻³ | TREX mitigates this |
 | CZ error (median) | 1.947×10⁻³ | Key metric for ZNE budget |
 | SX error (median) | 2.637×10⁻⁴ | Negligible vs 2Q error |
-| T1 (median) | 258.88 μs | Better than Torino (~200 μs) |
-| T2 (median) | 131.6 μs | Better than Torino (~100 μs) |
-| CLOPS | 340K | ~1.5× faster than Torino |
+| T1 (median) | 258.88 μs | Better than Heron (~200 μs) |
+| T2 (median) | 131.6 μs | Better than Heron (~100 μs) |
+| CLOPS | 340K | ~1.5× faster than Heron |
 | Region | Washington DC (us-east) | Low latency from Americas |
 | Status | Online | Available on Open Plan |
 | TLS mitigation | Built-in (Heron r2 feature) | Improved coherence stability |
@@ -53,7 +53,7 @@ the ~1% subgraphs.
 Our HVA circuit uses `qc.rzz(2*θ_zz, i, j)` for ZZ interaction terms. On Kingston,
 **RZZ is a native basis gate** — the transpiler keeps it as-is without decomposition.
 
-- **On Torino (Eagle)**: RZZ → 2 CX + RZ rotations (2× gate overhead)
+- **On Heron (Eagle)**: RZZ → 2 CX + RZ rotations (2× gate overhead)
 - **On Kingston (Heron r2)**: RZZ → RZZ (no decomposition, 1 native pulse)
 
 This means our N=10 p=1 circuit with 9 ZZ bonds uses **9 native RZZ gates** instead
@@ -149,7 +149,7 @@ Is ibm_boston available (paid plan)?
     NO  → Check ibm_torino (legacy fallback)
 ```
 
-CLI: `python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --backend <name>`
+CLI: `python scripts/experiment_runners/hardware/run_ibm_deployment.py --backend <name>`
 
 ---
 
@@ -158,7 +158,7 @@ CLI: `python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --
 | Backend | Native 2Q | HVA RZZ handling | Expected 2Q gates (N=10 p=1) |
 |---------|-----------|------------------|:---:|
 | Kingston/Boston | CZ + RZZ | RZZ native, no decomposition | 9 |
-| Torino | ECR (+ rzz fractional) | RZZ via fractional gate | 9-18 |
+| Heron | ECR (+ rzz fractional) | RZZ via fractional gate | 9-18 |
 | Nighthawk | CZ + RZZ | RZZ native + better routing | 9 |
 | FakeTorino (local) | ECR | RZZ → 2 CX + rotations | ~18 |
 
@@ -193,7 +193,7 @@ HardwareConfig(
     ...
 )
 
-# In scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+# In scripts/experiment_runners/hardware/run_ibm_deployment.py
 BACKEND_NAME = "ibm_kingston"
 
 # QPU throughput profile

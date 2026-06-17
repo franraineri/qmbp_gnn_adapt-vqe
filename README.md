@@ -851,7 +851,7 @@ and the `PipelineRunner` accept any backend — same code runs noiseless, noisy,
 |---------|----------|-------|----------|
 | `NoiselessBackend` | Development, validation, thesis results | Fast | Exact |
 | `NoisyBackend` | Shot noise studies, noise-aware training | Medium | Approximate |
-| `HardwareBackend` | IBM Torino deployment | Slow | Real device |
+| `HardwareBackend` | IBM Heron deployment | Slow | Real device |
 
 #### Noiseless Simulation (default)
 
@@ -1193,14 +1193,14 @@ print(f"Critical region detected: {grad_result.critical_region_detected}")
 | Test at N=10 p=1 | Noiseless | 1 restart, h≥1.9 (chain) | `run_p1_pipeline_variants_r2.py` |
 | Test at N=20 p=2 | Noiseless (MPS) | 7 restarts, no freeze | `run_experiment.py --exp G3` |
 | Test at N=20 p=1 | Noiseless (MPS) | 5 restarts, h≥2.25 | S5 experiment |
-| Heavy-hex (IBM Torino native) | Noiseless | 1 restart (p=1), h≥3.25 | `run_thesis_variants-heavy_hex.py` |
+| Heavy-hex (IBM Heron native) | Noiseless | 1 restart (p=1), h≥3.25 | `run_thesis_variants-heavy_hex.py` |
 | Check for saddle points | Noiseless | Hessian check | `run_experiment.py --exp B4` |
 | Reduce VQE cost at h≥1.5 | Noiseless | Parameter freezing | `run_experiment.py --exp B2` |
 | Detect phase transition | Noiseless | Weight gradient (D1) | `run_experiment.py --exp D1` |
 | Test ZNE at N=6 p=2 | Noisy (FakeTorino) | ZNE + layout selection | Use `run_zne_deployment()` |
 | Test ZNE at N=10 p=1 | Noisy (FakeTorino) | ZNE + 3 layouts (gain=+49%) | p=1 ZNE variants |
 | Validate noise resilience | Noisy (Gaussian) | SPSA optimizer | Use `NoisyBackend(shots=8192)` |
-| Hardware deployment | Hardware | p=1 heavy-hex + PEA-ZNE | `run_ibm_torino_deployment.py` |
+| Hardware deployment | Hardware | p=1 heavy-hex + PEA-ZNE | `run_ibm_deployment.py` |
 | Landscape analysis | Noiseless | Random sampling | `run_experiment.py --exp F3` |
 | Scaling law | Noiseless | Multi-N sweep | `run_experiment.py --exp A3` |
 | Data efficiency | Noiseless | Reduced training set | `run_experiment.py --exp G1` |
@@ -1323,7 +1323,7 @@ make check-full        # lint + test + smoke-test (~15s)
 | N=10 p=1, h≥1.9 (chain), h≥3.25 (ladder/heavy-hex) | < 5% | ✅ Thesis-ready |
 | N=20 p=1, h≥2.25 (chain) | 2.48% | ✅ Validated (MPNN) |
 | N=20 p=2, h≥2.0 (chain) | 1.75% | ✅ Validated (MPS) |
-| Heavy-hex p=1 N=10 (IBM Torino native) | 0.56% | ✅ Hardware-ready (module validated) |
+| Heavy-hex p=1 N=10 (IBM Heron native) | 0.56% | ✅ Hardware-ready (module validated) |
 | ZNE p=1 N=10 (heavy-hex, 3 layouts) | +62.7% gain | ✅ Confirmed |
 | Heisenberg XXZ (all Δ, all topologies) | fidelity ≈ 0% | ❌ HVA p≤2 cannot express |
 
@@ -1367,7 +1367,7 @@ make check-full        # lint + test + smoke-test (~15s)
 | Thesis findings corroborated | 15/22 (68%) strong |
 | Compute time (total) | 17.6 hours |
 
-**Next**: IBM Torino hardware deployment (QPU credentials needed) + thesis compilation.
+**Next**: IBM Heron hardware deployment (QPU credentials needed) + thesis compilation.
 
 For detailed status see [`documentation/ESTADO_PROYECTO.md`](documentation/ESTADO_PROYECTO.md).
 

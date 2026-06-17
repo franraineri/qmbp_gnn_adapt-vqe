@@ -221,7 +221,7 @@ Razones:
 ### Recomendación
 
 Dedicar el tiempo a:
-1. **Hardware deployment** (IBM Torino) — el único gap real que queda.
+1. **Hardware deployment** (IBM Heron) — el único gap real que queda.
 2. **Thesis writing** — compilar con `make thesis-all` y escribir Chapter 5.
 3. No ejecutar experimentos adicionales de simulación.
 
@@ -333,7 +333,7 @@ Dedicar el tiempo a:
 **Hardware Rehearsal Ready**:
 - Full deployment code path (HardwareBackend mode=fake_backend) passes all 9 checks
 - PEA correctly selected as primary (not GF), adaptive fallback works
-- Ready for IBM Torino credentials
+- Ready for IBM Heron credentials
 
 ### Correcciones Aplicadas al Código
 

@@ -537,6 +537,207 @@ def validate_circuit_for_zne(
     return checks
 
 
+def validate_transpiled_circuit_quality(
+    transpiled_circuit,
+    backend,
+    layout: list[int] | None,
+    logger: StructuredLogger,
+    *,
+    error_budget_abort_threshold: float = 0.50,
+    error_budget_warn_threshold: float = 0.30,
+    depth_2q_warn_threshold: int = 30,
+    defective_edge_threshold: float = 0.10,
+) -> dict[str, Any]:
+    """Validate transpiled circuit quality before QPU submission.
+
+    Runs AFTER transpilation and layout selection but BEFORE job submission.
+    Uses ResourceEstimation-derived metrics (depth_2q, count_ops) combined
+    with calibration data to predict whether the circuit will produce usable
+    results.
+
+    Checks:
+      1. Error budget (Σ n_gate_i × ε_i from calibration) — abort if > 0.50
+      2. depth_2q — warn if critical path through 2Q gates is too long
+      3. Defective edges — abort if layout uses edges with error > threshold
+      4. Active qubits — sanity check that routing didn't expand circuit
+
+    Parameters
+    ----------
+    transpiled_circuit : QuantumCircuit
+        The transpiled (ISA) circuit for one layout.
+    backend : BackendV2
+        Backend with calibration data.
+    layout : list[int] | None
+        Physical qubit indices for this layout.
+    logger : StructuredLogger
+        Logger for recording check events.
+    error_budget_abort_threshold : float
+        Abort if error budget exceeds this (default: 0.50, F < 60%).
+    error_budget_warn_threshold : float
+        Warn if error budget exceeds this (default: 0.30, F < 74%).
+    depth_2q_warn_threshold : int
+        Warn if depth_2q exceeds this (default: 30 layers).
+    defective_edge_threshold : float
+        An edge is "defective" if its error rate exceeds this (default: 10%).
+
+    Returns
+    -------
+    dict[str, Any]
+        Check results with "abort" boolean if quality is insufficient.
+    """
+    import numpy as np
+
+    checks: dict[str, Any] = {"abort": False}
+
+    # ── depth_2q check ──
+    try:
+        depth_2q = transpiled_circuit.depth(filter_function=lambda x: x.operation.num_qubits == 2)
+        depth_total = transpiled_circuit.depth()
+        n_2q = sum(1 for inst in transpiled_circuit.data if inst.operation.num_qubits == 2)
+        checks["depth_2q"] = depth_2q
+        checks["depth_total"] = depth_total
+        checks["n_2q_gates"] = n_2q
+
+        if depth_2q > depth_2q_warn_threshold:
+            checks["depth_2q_warning"] = (
+                f"depth_2q={depth_2q} exceeds {depth_2q_warn_threshold}. "
+                f"Circuit may suffer significant decoherence during 2Q layers. "
+                f"Consider p=1 or smaller N."
+            )
+            logger.log("preflight_depth_2q_warning", data=checks)
+    except Exception as exc:
+        checks["depth_2q_error"] = str(exc)
+
+    # ── Error budget from calibration ──
+    try:
+        target = backend.target
+        layout_set = set(layout) if layout else None
+
+        # Collect per-gate-type error rate (layout-filtered)
+        gate_errors: dict[str, float] = {}
+        for gate_name in target.operation_names:
+            try:
+                qargs_list = target.qargs_for_operation_name(gate_name)
+            except Exception:
+                continue
+            if qargs_list is None:
+                continue
+            errs = []
+            for qa in qargs_list:
+                if layout_set and not all(q in layout_set for q in qa):
+                    continue
+                try:
+                    props = target[gate_name].get(qa)
+                    if props and props.error is not None and props.error < 0.5:
+                        errs.append(props.error)
+                except Exception:
+                    continue
+            if errs:
+                gate_errors[gate_name] = float(np.mean(errs))
+
+        # Count ops in circuit
+        count_ops: dict[str, int] = {}
+        for inst in transpiled_circuit.data:
+            name = inst.operation.name
+            count_ops[name] = count_ops.get(name, 0) + 1
+
+        # Compute budget
+        error_budget = 0.0
+        for gate, count in count_ops.items():
+            rate = gate_errors.get(gate, 0.0)
+            error_budget += count * rate
+
+        fidelity_estimate = float(np.exp(-error_budget))
+        checks["error_budget"] = error_budget
+        checks["fidelity_estimate"] = fidelity_estimate
+        checks["error_budget_source"] = "calibration"
+
+        if error_budget > error_budget_abort_threshold:
+            checks["abort"] = True
+            checks["abort_reason"] = (
+                f"Error budget {error_budget:.3f} exceeds {error_budget_abort_threshold} "
+                f"(predicted fidelity {fidelity_estimate:.1%}). "
+                f"Circuit is too deep for this calibration state."
+            )
+            logger.log("preflight_error_budget_abort", data=checks)
+        elif error_budget > error_budget_warn_threshold:
+            checks["error_budget_warning"] = (
+                f"Error budget {error_budget:.3f} is elevated "
+                f"(predicted fidelity {fidelity_estimate:.1%}). "
+                f"PEA-ZNE recommended for recovery."
+            )
+            logger.log("preflight_error_budget_warning", data=checks)
+    except Exception as exc:
+        checks["error_budget_error"] = str(exc)
+
+    # ── Defective edge detection ──
+    if layout is not None:
+        try:
+            layout_set = set(layout)
+            defective_edges: list[tuple] = []
+            for gate_name in ["cz", "ecr", "cx"]:
+                if gate_name not in target.operation_names:
+                    continue
+                try:
+                    qargs_list = target.qargs_for_operation_name(gate_name)
+                except Exception:
+                    continue
+                if qargs_list is None:
+                    continue
+                for qa in qargs_list:
+                    if len(qa) != 2:
+                        continue
+                    if qa[0] in layout_set and qa[1] in layout_set:
+                        props = target[gate_name].get(qa)
+                        if props and props.error is not None:
+                            if props.error > defective_edge_threshold:
+                                defective_edges.append((qa[0], qa[1], props.error))
+
+            checks["defective_edges_in_layout"] = len(defective_edges)
+            if defective_edges:
+                checks["abort"] = True
+                worst = max(defective_edges, key=lambda x: x[2])
+                checks["abort_reason"] = (
+                    f"{len(defective_edges)} edge(s) in layout have error > "
+                    f"{defective_edge_threshold:.0%}. "
+                    f"Worst: qubits ({worst[0]},{worst[1]}) error={worst[2]:.3f}. "
+                    f"Select a different layout or wait for recalibration."
+                )
+                checks["defective_edge_details"] = [
+                    {"q0": e[0], "q1": e[1], "error": e[2]} for e in defective_edges
+                ]
+                logger.log("preflight_defective_edges", data=checks)
+        except Exception as exc:
+            checks["defective_edge_check_error"] = str(exc)
+
+    # ── Active qubits sanity ──
+    try:
+        from qiskit.transpiler import PassManager
+        from qiskit.transpiler.passes import ResourceEstimation
+
+        re_pm = PassManager([ResourceEstimation()])
+        re_pm.run(transpiled_circuit)
+        prop = re_pm.property_set
+        width = prop.get("width")
+        num_tf = prop.get("num_tensor_factors")
+        if width is not None and num_tf is not None:
+            active_qubits = width - num_tf + 1
+            checks["active_qubits"] = active_qubits
+            expected_n = len(layout) if layout else None
+            if expected_n and active_qubits > expected_n:
+                checks["routing_expansion_warning"] = (
+                    f"Transpiled circuit uses {active_qubits} active qubits "
+                    f"(expected {expected_n}). "
+                    f"Routing may have introduced SWAP chains to non-layout qubits."
+                )
+                logger.log("preflight_routing_expansion", data=checks)
+    except Exception:
+        pass  # ResourceEstimation is best-effort
+
+    logger.log("preflight_transpiled_quality", data=checks)
+    return checks
+
+
 @dataclass
 class QPUCostEstimate:
     """Estimated QPU cost for a hardware deployment run.
@@ -1062,7 +1263,7 @@ def estimate_qpu_cost(
 
     # ── 9. Budget checks ─────────────────────────────────────────────────────
     max_exec = config.job_timeout_s
-    fits_per_job = per_h_optimistic < max_exec
+    fits_per_job = max_exec is None or per_h_optimistic < max_exec
     fits_full_sweep_10min = total_optimistic < 600
 
     return QPUCostEstimate(

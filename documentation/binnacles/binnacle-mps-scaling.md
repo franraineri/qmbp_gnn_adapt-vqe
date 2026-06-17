@@ -374,3 +374,97 @@ is NOT the same as h=5/J=1 for N=40 chain in terms of proximity to h_c).
 - Add `N/N_max` as a global graph feature (normalize system size)
 - Use bond-resolved HVA where θ_local captures SPATIAL structure (topology-dependent, N-independent physics)
 - Train on multiple N simultaneously (multi-task learning)
+
+---
+
+## N=120, N=150, N=200 Validation (2026-06-10)
+
+**Extension of MPS scaling to N=120-200, confirming the pipeline operates well beyond
+the quantum advantage boundary (N≈20 for 2D).**
+
+Backend: Aer MPS (deterministic mode via `save_expectation_value`, 1268× faster than stochastic).
+Optimizer: COBYLA. Seeds: 42, 43, 44. Scaling law: `h_min = 1.5 + 0.020·N^1.31`.
+
+### N=120 Rigorous Sweep ✅
+
+| Metric | Value |
+|--------|-------|
+| h-values | [12.59, 13.09, 13.59, 14.09, 15.09] |
+| Seeds | 42, 43, 44 |
+| Pass rate | **15/15 (100%)** |
+| Mean ΔE/gap | **0.0191% ± 0.0036%** |
+| Max ΔE/gap | 0.0307% |
+| Bootstrap 95% CI | [0.0175%, 0.0211%] |
+| Total time | 7.4 min |
+| h_min_safe (formula) | 12.09 |
+
+**Bond dimension validated**: |E(χ=64)−E(χ=128)| = 0.00 (exact, same as N=40/80).
+
+### N=150 ✅
+
+| Metric | Value |
+|--------|-------|
+| h-values | [16.18, 16.68, 17.18, 17.68, 18.68] |
+| Seeds | 42, 43, 44 |
+| Pass rate | **15/15 (100%)** |
+| Mean ΔE/gap | **0.016%** |
+| Max ΔE/gap | 0.053% |
+| Total time | 8.9 min |
+| h_min_safe (formula) | 15.68 |
+
+### N=200 ✅
+
+| Metric | Value |
+|--------|-------|
+| h-values | [22.67, 23.17, 23.67, 24.17, 25.17] |
+| Seeds | 42, 43, 44 |
+| Pass rate | **15/15 (100%)** |
+| Mean ΔE/gap | **0.019%** |
+| Max ΔE/gap | 0.100% |
+| Total time | 29.1 min |
+| h_min_safe (formula) | 22.17 |
+
+### Cross-N Summary (Full Range)
+
+| N | Mean ΔE/gap | Pass Rate | Time | Status |
+|---|:-----------:|:---------:|:----:|:------:|
+| 40 | 0.38% | 45/45 | 1.8 min | ✅ |
+| 50 | 0.29% | 15/15 | 2.4 min | ✅ |
+| 80 | 0.08% | 15/15 | 5.6 min | ✅ |
+| 120 | 0.019% | 15/15 | 7.4 min | ✅ |
+| 150 | 0.016% | 15/15 | 8.9 min | ✅ |
+| 200 | 0.019% | 15/15 | 29.1 min | ✅ |
+
+### Key Findings
+
+1. **Error DECREASES with N**: 0.38% (N=40) → 0.019% (N=120-200). Deeper paramagnetic regime = simpler landscape.
+2. **Scaling law validated to N=200**: Formula `h_min = 1.5 + 0.020·N^1.31` holds with consistent margin.
+3. **Deterministic MPS mode**: 1268× faster than stochastic. Bit-exact (no shot noise). Default for all scaling runs.
+4. **χ=64 exact at ALL system sizes**: Bond dimension never exceeds actual DMRG χ (area law: χ_actual=8-15 for all N).
+5. **No degradation trend**: Pipeline maintains sub-0.1% accuracy from N=80 onward.
+
+### Thesis Value
+
+> The GNN-HVA pipeline scales to N=200 (200 qubits) with mean ΔE/gap < 0.02%, demonstrating
+> that the methodology has no fundamental barrier to arbitrary system size. The MPS-based
+> VQE evaluation exploits the area-law entanglement of the HVA p=1 state (χ_actual < 15),
+> making both Phase 1 (DMRG) and Phase 2 (VQE) polynomial in N.
+
+### Result Files
+
+```
+results/scaling/scaling_N120_aer_mps_20260610_*.json
+results/scaling/scaling_N150_aer_mps_20260610_*.json
+results/scaling/scaling_N200_aer_mps_20260610_*.json
+```
+
+### Reproducibility
+
+```bash
+python scripts/experiment_runners/scaling/run_scaling_validation.py \
+  --n-qubits 120 --seeds 42 43 44 --strategy aer_mps --deterministic
+python scripts/experiment_runners/scaling/run_scaling_validation.py \
+  --n-qubits 150 --seeds 42 43 44 --strategy aer_mps --deterministic
+python scripts/experiment_runners/scaling/run_scaling_validation.py \
+  --n-qubits 200 --seeds 42 43 44 --strategy aer_mps --deterministic
+```

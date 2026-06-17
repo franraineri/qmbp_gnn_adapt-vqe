@@ -118,7 +118,7 @@ From MPNN Eval Suite Section 19 (binnacle-mpnn-eval-suite.md):
 
 ### κ Go/No-Go Integration (2026-06-15)
 
-New functions added to `run_ibm_torino_deployment.py`:
+New functions added to `run_ibm_deployment.py`:
 
 ```python
 kappa_per_h = compute_kappa_per_h(params_per_h, lattice)  # zero QPU cost
@@ -157,7 +157,7 @@ valid for **chain_1d** topology. For **heavy_hex**, κ does NOT predict noise
 sensitivity reliably because routing SWAPs introduce incoherent noise that is
 independent of the VQE landscape curvature.
 
-**Decision for IBM Torino deployment:**
+**Decision for IBM Heron deployment:**
 - Do NOT use κ thresholds for heavy_hex go/no-go
 - Use V2 hardware rehearsal pass/fail (sections 1-9) as the deployment gate
 - κ is logged in per_h_results for reference but should not drive shots/layouts

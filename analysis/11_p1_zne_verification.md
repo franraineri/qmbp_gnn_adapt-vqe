@@ -36,7 +36,7 @@ La variabilidad entre seeds se debe a la **selección de layouts de transpilaci�
 
 ## Implicación para Hardware
 
-- **p=1 N=10 triangular** es un candidato viable para IBM Torino
+- **p=1 N=10 triangular** es un candidato viable para IBM Heron
 - Usar **multiple transpilation seeds** y seleccionar el layout con menor CES total
 - El gain de +73% (seed 42) demuestra que ZNE puede ser muy efectivo con el layout correcto
 - Combinar con DD + twirling en hardware real para maximizar el beneficio

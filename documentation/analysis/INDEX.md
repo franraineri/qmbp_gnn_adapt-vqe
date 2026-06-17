@@ -1,7 +1,7 @@
 # Índice Detallado — `documentation/analysis`
 
-**Archivos**: 29 documentos markdown
-**Total**: 54,998 palabras, 8,252 líneas
+**Archivos**: 31 documentos markdown
+**Total**: 62,871 palabras, 9,309 líneas
 
 ---
 
@@ -261,7 +261,7 @@
   - p=1 N=10 Definitive Results (R2, corrected h_test)
   - p=1 N=6 Verification Results (2026-05-30)
   - p=1 Ladder N=10 Boundary Verification (2026-05-30)
-- **5c. Heavy-Hex Topology Results (IBM Torino Native, 2026-05-31)** (L203)
+- **5c. Heavy-Hex Topology Results (IBM Heron Native, 2026-05-31)** (L203)
   - p=2 Heavy-Hex N=10 (14 runs, 7 min total)
   - p=1 Heavy-Hex N=10 — Hardware Deployment Candidate
   - N=16 Heavy-Hex (scaling limit)
@@ -303,7 +303,7 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-05-27 | 789 | 6,838 | 38.6 KB | 256 | 0 |
+| 2026-05-27 | 897 | 7,655 | 44.3 KB | 270 | 1 |
 
 **Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `heisenberg`, `tfim`
 
@@ -311,12 +311,14 @@
 
 **Métricas clave**: ΔE/gap = 0.028 · ΔE/gap < 3% · ΔE/gap = 0.017 · ΔE/gap = 0.037 · ΔE/gap < 5% · ΔE/gap > 8
 
-**Hallazgos / Aseveraciones** (2):
+**Hallazgos / Aseveraciones** (4):
 
+- *Context**: Analysis of 2026-06-15 session. Full detail: `documentation/binnacles/binnacle-hamiltonian-candidates.md` (Addenda 1 & 2), `documentation/analysis/21_future_work_techni…
+- A Hamiltonian is compatible with the GNN-HVA framework if and only if its ground state entanglement entropy in the operating regime satisfies S(L/2) ≲ log(p+1). For p=2, this limit…
 - The GNN-HVA pipeline operates at utility scale (N=40-50) with ΔE/gap < 1% across the valid operating regime. The MPS-based VQE evaluation scales polynomially with system size, and …
 - The valid regime boundary for ladder p=1 N=10 is h≥3.0 (not h≥2.0
 
-**Contenido** (24 secciones):
+**Contenido** (25 secciones):
 
 - **Table 5.1 — Chain 1D, N=10 (Baseline Topology)** (L9)
 - **Table 5.2 — Ladder, N=10 (Higher Connectivity)** (L31)
@@ -327,7 +329,7 @@
 - **Table 5.7 — p=1 Pipeline Performance (N=10, 3 seeds each) — 2026-05-30** (L131)
 - **Table 5.11 — p=1 Pipeline at N=6 (Verification R1, 2026-05-30)** (L158)
 - **Table 5.12 — p=1 Ladder N=10 Boundary Verification (2026-05-30)** (L185)
-- **Table 5.13 — Heavy-Hex Topology (IBM Torino Native, N=10, 2026-05-31)** (L209)
+- **Table 5.13 — Heavy-Hex Topology (IBM Heron Native, N=10, 2026-05-31)** (L209)
   - p=1 Heavy-Hex — Hardware Deployment Candidate
   - p=2 Heavy-Hex — Cross-Topology Comparison
   - p=1 Heavy-Hex ZNE (Noisy Simulation, 2026-05-31)
@@ -358,7 +360,11 @@
   - Fidelity Comparison: Standard HVA vs Extended HVA
   - Cross-Topology at g=0.3
   - Hardware Viability (2Q Gate Count, FakeTorino)
-- **Table 5.23 — MPS Scaling: N=40/50 Pipeline Performance (2026-06-07)** (L710)
+- **Table 5.22b — Model Extensibility: Applicability Boundary of HVA p≤2** (L709)
+  - Scalability of TFIM + Longitudinal Field
+  - Why XX+YY Models Are Incompatible with the Framework
+  - Boundary Diagram: Viable Operating Regimes
+- **Table 5.23 — MPS Scaling: N=40/50 Pipeline Performance (2026-06-07)** (L818)
   - N=40, p=1, chain_1d (seed=42, 5 h-points)
   - N=50, p=1, chain_1d (seed=42, 5 h-points)
   - Scaling Law Validation
@@ -603,7 +609,7 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-03 (updated with deep ROI analysis) | 257 | 1,779 | 11.9 KB | 42 | 2 |
+| 2026-06-03 (updated with deep ROI analysis) | 326 | 2,199 | 14.9 KB | 42 | 2 |
 
 **Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `heisenberg`, `tfim`
 
@@ -615,7 +621,7 @@
 
 - Only ONE simulation has genuine thesis-blocking value: gate-folding ZNE
 
-**Contenido** (10 secciones):
+**Contenido** (11 secciones):
 
 - **0. Deep ROI Analysis — What Actually Moves the Thesis Forward?** (L10)
   - Thesis Claims That Need Support (from tesis-v2.1.tex)
@@ -643,6 +649,13 @@
   - 9.1 Unsupervised Phase Detection from θ_opt(h) — arXiv:2506.06678
   - 9.2 Noise-Robust Phase Signatures — arXiv:2402.18953
   - 9.3 Phase Diagram Sketching from Low-Depth VQE — arXiv:2301.09369
+- **10. Post-Hamiltonian-Extension Next Steps (2026-06-03)** (L262)
+  - 10.1 2D MPNN Predictor (train across J₂ grid) — HIGH VALUE
+  - 10.2 Noisy Simulation for TFIM+Longitudinal (ZNE transfer) — MEDIUM VALUE
+  - 10.3 Weight-Space Phase Detection for Frustrated TFIM (D1 analog) — MEDIUM VALUE
+  - 10.4 Finite-Size Scaling for Extended Models — LOW-MEDIUM VALUE
+  - 10.5 Cross-Model MPNN Transfer — EXPLORATORY
+  - Priority Order
 
 ---
 
@@ -826,7 +839,7 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| — | 73 | 390 | 2.9 KB | 10 | 0 |
+| — | 124 | 669 | 4.8 KB | 15 | 2 |
 
 **Tags**: `zne`, `hardware`, `thesis`, `pea`, `noise`
 
@@ -834,7 +847,7 @@
 
 **Métricas clave**: R²=0.998
 
-**Contenido** (6 secciones):
+**Contenido** (7 secciones):
 
 - **Objective** (L3)
 - **Methods Tested** (L8)
@@ -845,6 +858,10 @@
 - **Implementation** (L52)
 - **Noise Suppression Stack (unchanged)** (L58)
 - **References** (L68)
+- **Addendum: Validación Formal y Corrección de Bug (2026-06-15)** (L77)
+  - Bug en `create_pauli_evolution()` — Corregido
+  - Corrección de la Métrica "2Q-depth"
+  - Estado de Producción (2026-06-15)
 
 ---
 
@@ -897,7 +914,7 @@
 - **7. Decision Points** (L185)
   - D1: Is GNN-QEM worth pursuing for the thesis?
   - D2: Should block-ZNE be formally validated?
-  - D3: What if PEA amplifier is unavailable on IBM Torino?
+  - D3: What if PEA amplifier is unavailable on IBM Heron?
 - **8. Summary of Findings** (L219)
   - What We Know (established, no further simulation needed)
   - What We Don't Know (requires hardware or further work)
@@ -1175,17 +1192,20 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-08 | 149 | 928 | 6.7 KB | 0 | 0 |
+| 2026-06-08 | 264 | 1,783 | 12.4 KB | 6 | 0 |
 
-**Tags**: `zne`, `hardware`, `thesis`, `tfim`, `pea`, `scaling`
+**Tags**: `zne`, `hardware`, `tesis`, `heisenberg`, `tfim`, `pea`
 
 > > Techniques identified as promising extensions beyond the scope of this thesis.
 
-**Hallazgos / Aseveraciones** (1):
+**Métricas clave**: R²>0.9
+
+**Hallazgos / Aseveraciones** (2):
 
 - Techniques identified as promising extensions beyond the scope of this thesis. Included for Chapter 7 (Future Work) discussion with literature references. Date: 2026-06-08
+- *Origen: Análisis de sesión 2026-06-15 — extensibilidad de modelos y límites del HVA. Contexto completo**: `documentation/binnacles/binnacle-hamiltonian-candidates.md` (Addendum 2)
 
-**Contenido** (7 secciones):
+**Contenido** (8 secciones):
 
 - **1. Neighbor-Informed Learning (NIL) for Error Mitigation** (L10)
 - **2. ML-QEM: Machine Learning for Practical QEM** (L31)
@@ -1193,7 +1213,13 @@
 - **4. SC-ADAPT-VQE: Scalable Circuits for Translationally Invariant Systems** (L75)
 - **5. Utility-Scale Hamiltonian Engineering (103 qubits Kagome)** (L94)
 - **6. Parameter Freezing (TITAN)** (L114)
-- **7. GNN for Quantum Chip Parameter Design** (L134)
+- **7. Probing the p≤2 Expressibility Boundary for XX+YY Models** (L134)
+  - El límite conocido
+  - Qué estudiar y cómo (si tiene sentido ejecutarlo)
+  - Estado actual de la evidencia
+  - Conexión con literatura
+  - Refs
+- **8. GNN for Quantum Chip Parameter Design** (L249)
 
 ---
 
@@ -1202,34 +1228,55 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-09 | 144 | 769 | 5.7 KB | 8 | 6 |
+| 2026-06-09 | 369 | 2,477 | 17.3 KB | 34 | 6 |
 
-**Tags**: `zne`, `mpnn`, `tesis`, `heisenberg`, `tfim`, `pea`
+**Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `heisenberg`, `tfim`
 
 > Fecha: 2026-06-09
 
-**Métricas clave**: ΔE/gap < 5%
+**Métricas clave**: ΔE/gap < 5% · ΔE/gap=30.9% · gain: +17.7% · R²=0.999 · ΔE/gap=1.066 · ΔE/gap=0.038
 
-**Contenido** (6 secciones):
+**Hallazgos / Aseveraciones** (1):
+
+- *CRITICAL STATEMENT for thesis: All performance optimizations applied in this session (noise pair filtering, MPS deterministic mode, parallel execution) are bit-exact** — they prod…
+
+**Contenido** (10 secciones):
 
 - **A. Findings a Corroborar** (L9)
-  - Findings ya cubiertos por `thesis_findings_validator.py` (22 — todos implementados y corroborados):
-  - Estado actual (2026-06-09): 21/22 CORROBORATED, 1 QUALIFIED (F16)
-- **B. Tablas Globales para la Tesis** (L42)
+  - Findings ya cubiertos por `thesis_findings_validator.py` (23 — todos implementados):
+  - Estado actual (2026-06-10): 22/23 CORROBORATED, 1 QUALIFIED (F16)
+- **B. Tablas Globales para la Tesis** (L43)
   - Tablas existentes (T1-T10):
   - Tablas NUEVAS a considerar:
-- **C. Figuras Globales para la Tesis** (L63)
+- **C. Figuras Globales para la Tesis** (L64)
   - Figuras existentes (10):
   - Figuras NUEVAS a considerar:
-- **D. Plan de Ejecución** (L83)
+- **D. Plan de Ejecución** (L84)
   - Paso 1: Ejecutar validador actual
   - Paso 1b: Deep raw-data audit
   - Paso 2: Ejecutar tablas
   - Paso 3: Ejecutar figuras
   - Paso 4: Verificar claims de la tesis contra datos
   - Paso 5: Full thesis compilation
-- **E. Criterios de Aceptación del Plan** (L119)
-- **F. Estado Actual (post-sesión 2026-06-09)** (L133)
+- **E. Criterios de Aceptación del Plan** (L120)
+- **F. Estado Actual (post-sesión 2026-06-09)** (L136)
+- **G. Findings y Confirmaciones Sesión 2026-06-10** (L151)
+  - Infraestructura: MPS Deterministic Mode (375× speedup)
+  - Scaling Law — Nuevos Validated System Sizes
+  - B4 Bond-Resolved Cross-N — GNN NECESSITY PROOF ✅
+  - PEA-ZNE Coverage Complete (all 4 topologies)
+  - GNN-QEM Circuit Selection — Bootstrap CI
+  - Deep Audit Score: 23/25 VERIFIED + 2 PARTIAL
+  - … (+1 más)
+- **H. Pendiente Agregar en Tesis (★ = nueva contribución de esta sesión)** (L227)
+- **I. Findings Sesión PEA Optimization (2026-06-10, continuación)** (L274)
+  - PEA-ZNE Optimización de Rendimiento (Implemented & Validated)
+  - Hardware Rehearsal V2: 9/9 PASS ✅ (post-fix)
+  - ★ PEA Cross-Topology Dense: 90/90 wins, p=1.5×10⁻¹¹³
+  - ★ Cross-Topology Transfer + Noisy PEA: 4/4 PASS, +96.2% noise reduction
+  - PEA Scaling N=40/50 — Technical Limitation Documented
+- **J. ★ Pendiente Agregar en Tesis (consolidado 2026-06-10)** (L335)
+  - Notas sobre cache improvements y rigor científico:
 
 ---
 
@@ -1238,20 +1285,21 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| — | 165 | 1,184 | 10.4 KB | 22 | 1 |
+| — | 366 | 2,931 | 21.6 KB | 81 | 1 |
 
 **Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `tfim`, `pea`
 
 > Propósito: Verificación end-to-end de todas las herramientas de `project_health/`, validación de orden de ejecución, y consolidación de findings no documentados
 
-**Métricas clave**: ΔE/gap=501% · ΔE/gap=719%
+**Métricas clave**: ΔE/gap=501% · ΔE/gap=719% · R²=0.999
 
-**Hallazgos / Aseveraciones** (2):
+**Hallazgos / Aseveraciones** (3):
 
+- *Nota importante sobre evaluación MPS**: Todos los resultados generados a partir del 2026-06-10 usan `save_expectation_value` (evaluación exacta, sin shot noise). Esto NO invalida …
 - *Estado actual**: ✅ CORROBORATED (STRONG) — "no statistically significant performance difference between topologies
 - *Estado actual**: ✅ CORROBORATED (STRONG) — ρ=0.9452, binary_accuracy=100%
 
-**Contenido** (7 secciones):
+**Contenido** (10 secciones):
 
 - **1. Herramientas Ejecutadas (en orden)** (L7)
 - **2. Bug Corregido** (L25)
@@ -1269,5 +1317,106 @@
   - 5.3 Distribución de resultados: p=1 under-represented
 - **6. Recomendaciones** (L143)
 - **7. Verificación de Integridad** (L153)
+- **8. Análisis de Robustez — ¿Qué experimentos adicionales darían más confianza?** (L169)
+  - Estado: Auditoría deep (23/23 VERIFIED, 2026-06-09)
+  - Findings con robustez máxima (no requieren nada):
+  - Findings con robustez buena (suficiente para tesis):
+  - Findings donde un experimento adicional PODRÍA fortalecer la tesis:
+  - Veredicto final: ¿Se necesita re-ejecutar algo?
+  - Recomendación
+- **9. Actualización Post-Sesión 2026-06-10** (L232)
+  - Nuevos Hallazgos Confirmados
+  - Scores Actualizados
+  - ★ Pendiente Agregar en Tesis (actualizado)
+  - Findings Definitivos NO Ejecutar (evaluados como bajo valor):
+  - Scores Actualizados
+  - ★ Pendiente Agregar en Tesis
+- **10. Actualización Sesión PEA Optimization (2026-06-10, afternoon)** (L308)
+  - Nuevos Resultados Confirmados
+  - Datos Clave para la Tesis
+  - Correcciones Aplicadas al Código
+  - Verificación: Optimizaciones NO Afectan Resultados
+  - Limitación Documentada: PEA a N≥20 requiere MPS
+
+---
+
+## 30. [23_noisy_simulation_scalability_limits.md](23_noisy_simulation_scalability_limits.md)
+**Noisy Simulation Scalability Limits (2026-06-10)**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-10 | 112 | 719 | 4.7 KB | 12 | 1 |
+
+**Tags**: `zne`, `hardware`, `pea`, `scaling`, `topology`, `noise`
+
+> > Definitive findings on what CAN and CANNOT be validated locally for
+
+**Métricas clave**: gain = 0% · R²=0.997
+
+**Hallazgos / Aseveraciones** (4):
+
+- Definitive findings on what CAN and CANNOT be validated locally for noise suppression at N≥20. Prevents future repetition of invalid experiments
+- PEA scalability to N≥20 can ONLY be validated on real QPU
+- *Memory limit (N≥20)**: FakeTorino (133 qubits) causes OOM when used with
+- *Physics limit (N≥20 without routing)**: Native chain_1d circuits have only
+
+**Contenido** (5 secciones):
+
+- **Executive Summary** (L8)
+- **Experiment: PEA_SCALING (2026-06-10)** (L23)
+  - Configuration
+  - Results
+  - Root Cause Analysis
+  - Implication for Hardware
+- **Memory Constraints (Definitive)** (L73)
+  - HardwareBackend Rehearsal Constraint
+- **DO NOT REPEAT** (L95)
+- **References** (L107)
+
+---
+
+## 31. [24_mpnn_eval_suite_results.md](24_mpnn_eval_suite_results.md)
+**MPNN Evaluation Suite — Results & Analysis**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-15 | 176 | 1,328 | 9.1 KB | 27 | 0 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `thesis`, `tfim`, `pea`
+
+> Date: 2026-06-15
+
+**Métricas clave**: ΔE/gap = 0.42%
+
+**Hallazgos / Aseveraciones** (8):
+
+- speedup_vs_random = 2.98x, speedup_vs_prev_h = 0.87x
+- ΔE_circuit = 0.24%, ΔE_MPNN = 0.04%, ΔE_total = 0.28%
+- interp pass = 100% (3/3), extrap pass = 33%, degradation = 20.96x
+- zero_shot ΔE/gap = 695%, in_dist = 0.035%, transfer_ratio = 200x
+- noiseless=0.65%, noisy_raw=113%, noisy_zne=60%, ZNE improvement=+46.8%
+- Use heavy_hex N=10 p=1 native topology for hardware (18 CX, already validated in V2)
+- *GNN warm-start works**: 2.98x speedup vs random at N=6 ✅
+- *3 training points minimum, 8 points optimal** for reliable LOO-CV (critical_size=3, but LOO requires 7+ for 80% pass rate)
+
+**Contenido** (6 secciones):
+
+- **Executive Summary (Final — 2026-06-15)** (L11)
+- **Section-by-Section Analysis** (L28)
+  - Section 10 — MPNN Warm-Start Benchmark ✅
+  - Section 11 — LOO Cross-Validation
+  - Section 12 — Landscape Quality ✅
+  - Section 13 — Interpolation vs Extrapolation ✅
+  - Section 17 — Zero-Shot Topology Transfer ❌ (NEW FINDING)
+  - Section 18 — Multi-Seed LOO Robustness ✅
+  - … (+1 más)
+- **Updated Conclusions for Thesis** (L112)
+- **Files** (L124)
+- **New Results (2026-06-15, final batch)** (L138)
+  - Section 14 — Noisy Eval (FakeTorino) ❌ (IMPORTANT FINDING)
+  - Section 15 — Scaling with N (4,6,10 with correct p_layers) ✅
+  - Section 19 — κ Extended Through Phase Transition ✅
+  - Hardware Deployment Integration (New)
+- **Final Bug Fixes Applied** (L167)
 
 ---

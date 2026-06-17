@@ -198,7 +198,7 @@ A p=1, solo se probó chain_1d. Sin embargo:
 
 #### 2. Heavy-hex topology ZNE a p=1 (⚠️ MEDIO IMPACTO)
 
-El hardware deployment usa heavy-hex (IBM Torino). Section 6 solo probó chain_1d.
+El hardware deployment usa heavy-hex (IBM Heron). Section 6 solo probó chain_1d.
 Sin embargo:
 - El TFIM estándar en heavy-hex tiene gain=+62.7% (mejor que chain_1d)
 - El longitudinal tiene idéntico gate count → mismo noise profile

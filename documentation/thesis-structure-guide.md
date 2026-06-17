@@ -34,7 +34,7 @@
 - 4.2 N=6 Chain: Best Configuration Results (5/6 at h=1.5)
 - 4.3 N=10 Chain: Scaling Validation (3/6 at h=1.5)
 - 4.4 Physics Limit Analysis (h=1.25 ceiling as HVA expressibility bound)
-- 4.5 Hardware Deployment (IBM Torino/Heron — Phase 4 results)
+- 4.5 Hardware Deployment (IBM Heron/Heron — Phase 4 results)
 - 4.6 QRC Fallback Route (R²=0.97, gradient-free validation)
 
 ### 5. Discussion (8-12 pages)

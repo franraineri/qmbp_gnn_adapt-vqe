@@ -118,7 +118,7 @@ fijo de heavy_hex production). La métrica relevante para hardware es `total_dep
 ### Estado de Producción (2026-06-15)
 
 `create_pauli_evolution()` ya está integrada en:
-- `run_ibm_torino_deployment.py` Tiers 0, 1, 2 (circuitos que van al QPU real)
+- `run_ibm_deployment.py` Tiers 0, 1, 2 (circuitos que van al QPU real)
 - Validada con Section 20 de `run_hardware_rehearsal_v3.py`
 
 Ver detalles completos: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`

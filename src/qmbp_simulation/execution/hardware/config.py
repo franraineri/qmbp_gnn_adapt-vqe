@@ -30,7 +30,7 @@ class HardwareConfig:
     max_ces: float = 0.5
     optimization_level: int = 2
     layout_seed: int = 42
-    job_timeout_s: int = 600
+    job_timeout_s: int | None = 600
     max_retries: int = 3
     retry_delay_s: int = 30
     max_total_shots: int = 10_000_000

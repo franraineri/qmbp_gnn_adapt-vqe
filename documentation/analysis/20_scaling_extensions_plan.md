@@ -123,7 +123,7 @@ NLCE Framework
 
 ### Combined with hardware
 
-The strongest version: execute NLCE clusters (L=6-10) on IBM Torino with PEA-ZNE,
+The strongest version: execute NLCE clusters (L=6-10) on IBM Heron with PEA-ZNE,
 then sum to get thermodynamic-limit energy from HARDWARE data.
 
 ```
@@ -131,7 +131,7 @@ Hardware NLCE pipeline:
 1. For each cluster size L ∈ {4, 6, 8, 10}:
    a. Prepare bond-resolved HVA circuit (L qubits, ≤18 CX → ZNE works)
    b. GNN predicts θ_opt(h, L)
-   c. Execute on IBM Torino with PEA-ZNE
+   c. Execute on IBM Heron with PEA-ZNE
    d. Get E(L, h) ± error bars
 2. NLCE sum → E(∞, h) ± propagated error
 3. Compare with DMRG/analytical → validate hardware NLCE
@@ -144,7 +144,7 @@ Hardware NLCE pipeline:
 | NLCE framework implementation | Classical | 3-5 days |
 | Validation (1D TFIM, L=4-10) | MPS or exact | 30 min |
 | Frustrated TFIM (J₁-J₂, L=4-8) | Exact (N≤8) | 10 min |
-| Hardware NLCE (if QPU available) | IBM Torino | ~2h QPU time |
+| Hardware NLCE (if QPU available) | IBM Heron | ~2h QPU time |
 
 ---
 

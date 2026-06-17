@@ -1,7 +1,7 @@
 # Resumen del Análisis — GNN-HVA Framework
 
 > **⚠️ NOTA (2026-06-09)**: Las estadísticas globales de este encabezado reflejan el estado a 2026-05-28 (135 runs, 15 experiments).
-> El estado actual verificado es: **329 noiseless, 93 noisy, 49 experiments, 33 confirmed, 84% useful-outcome rate**.
+> El estado actual verificado es: **329 noiseless, 93 noisy, 54 experiments, 33 confirmed, 76% useful-outcome rate**.
 > Para estadísticas actualizadas, consultar `documentation/ESTADO_PROYECTO.md` o ejecutar `python -m project_health --compact`.
 > Las secciones por sesión (§5b en adelante) contienen datos incrementales válidos de cada momento.
 
@@ -53,7 +53,7 @@
 - **R²**: PEA=0.998, GF=0.997 (ambos excelentes en este run).
 - **Por topología**: ladder +91%, heavy_hex +98%, chain_1d +97%.
 - **Confianza**: ALTA (3 seeds en ladder, 2 en heavy_hex, consistente con 5 exps previos).
-- **Implicación**: PEA es la estrategia PRIMARY para IBM Torino. GF es fallback.
+- **Implicación**: PEA es la estrategia PRIMARY para IBM Heron. GF es fallback.
 - **Ref**: `binnacle-gate-folding-zne.md` § Cross-Topology Validation, `ZNE_CROSS_TOPO`.
 
 ### 2.4 100% del error es MPNN prediction (no HVA)
@@ -200,7 +200,7 @@ seed-dependent (~33% chain break rate). This matches the p=2 pattern at N=6.
 **Conclusion**: Valid regime for ladder p=1 N=10 is **h≥3.0** (2/3 pass) with
 **h≥3.25** as the reliable boundary (3/3 pass). This is a +1.0 shift vs p=2 (h≥2.0).
 
-## 5c. Heavy-Hex Topology Results (IBM Torino Native, 2026-05-31)
+## 5c. Heavy-Hex Topology Results (IBM Heron Native, 2026-05-31)
 
 ### p=2 Heavy-Hex N=10 (14 runs, 7 min total)
 
@@ -231,7 +231,7 @@ seed-dependent (~33% chain break rate). This matches the p=2 pattern at N=6.
 
 **Key finding**: p=1 heavy-hex is the most consistent topology tested — std=0.0003
 across seeds (vs 0.019 for chain_1d, 0.002 for triangular). Zero SWAP overhead
-on IBM Torino makes this the optimal hardware deployment configuration.
+on IBM Heron makes this the optimal hardware deployment configuration.
 
 ### N=16 Heavy-Hex (scaling limit)
 
@@ -242,7 +242,7 @@ h_min = 1.0 + 0.020·N^1.31 applies uniformly across all topologies.
 ### Heavy-Hex Key Findings
 
 1. **p=1 is hardware-ready**: 3/3 seeds pass (ΔE/gap=0.56%, std=0.0003)
-2. **Zero SWAP overhead**: HVA maps directly to IBM Torino coupling map
+2. **Zero SWAP overhead**: HVA maps directly to IBM Heron coupling map
 3. **Restart paradox present**: 3 restarts → chain break (same mechanism as other topologies)
 4. **Valid regime h≥3.0 for p=1**: h=2.625 fails catastrophically (ΔE/gap=10.67). Confirmed boundary.
 5. **Valid regime h≥2.375 for p=2**: Wider than expected (similar to chain_1d h≥1.5)
@@ -544,7 +544,7 @@ Experiments (33 parsed): 15 confirmed, 5 rejected, 13 failed
 2. **Longitudinal extension viable but limited**: g≤0.1 at p=1, g≤0.5 at p=2
 3. **MPS confirms low-entanglement robustness**: HVA p=1 TFIM is inherently noise-tolerant
 4. **Preflight now catches regime violations**: All topology-specific boundaries enforced
-5. **Hardware rehearsal ready**: `run_hardware_rehearsal.py` implements exact IBM Torino flow
+5. **Hardware rehearsal ready**: `run_hardware_rehearsal.py` implements exact IBM Heron flow
 
 ### References
 

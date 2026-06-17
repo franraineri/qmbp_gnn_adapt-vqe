@@ -29,19 +29,19 @@ Prerequisites:
 
 Usage:
     # Full deployment (Tier 0 → 1 → 2 → 3, auto-advancing)
-    python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+    python scripts/experiment_runners/hardware/run_ibm_deployment.py
 
     # Calibration only (Tier 0 + budget estimate)
-    python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+    python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0
 
     # Safe mode (no SPSA, prevents 400-min budget blowout)
-    python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
+    python scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
 
     # Dry run (preflight + cost estimate only, no QPU usage)
-    python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+    python scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run
 
     # Custom configuration
-    python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \\
+    python scripts/experiment_runners/hardware/run_ibm_deployment.py \\
         --shots 32768 --zne-amplifier adaptive --tier 1
 """
 
@@ -327,6 +327,7 @@ def build_hardware_config(
     spsa_enabled: bool = True,
     backend_name: str = BACKEND_NAME,
     pea_preset: str = "balanced",
+    job_timeout_s: int = 900,
 ) -> HardwareConfig:
     """Build HardwareConfig for real QPU execution.
 
@@ -358,7 +359,7 @@ def build_hardware_config(
         max_ces=0.5,
         optimization_level=2,
         layout_seed=42,
-        job_timeout_s=900,  # 15 min per job (generous for PEA noise learning)
+        job_timeout_s=job_timeout_s if job_timeout_s > 0 else None,
         max_retries=3,
         retry_delay_s=60,
         max_total_shots=10_000_000,
@@ -1654,6 +1655,15 @@ Safety:
             "h-points with σ_flow above this receive 2× shots and ≥3 layouts."
         ),
     )
+    parser.add_argument(
+        "--job-timeout",
+        type=int,
+        default=900,
+        help=(
+            "Timeout in seconds per QPU job (default: 900). "
+            "Set to 0 to disable timeout (wait indefinitely for job completion)."
+        ),
+    )
     args = parser.parse_args()
 
     # ── Setup logging ─────────────────────────────────────────────────────
@@ -1721,6 +1731,7 @@ Safety:
         spsa_enabled=spsa_enabled,
         backend_name=args.backend,
         pea_preset=pea_preset,
+        job_timeout_s=args.job_timeout,
     )
 
     # ── Pre-execution cost estimate (model-based) ─────────────────────────

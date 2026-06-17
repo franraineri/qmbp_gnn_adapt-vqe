@@ -922,9 +922,7 @@ def check_hardware_deployment_readiness(verbose: bool = False) -> list[CheckResu
     - MPNN eval results exist for production config
     """
     results = []
-    deploy_script = (
-        ROOT / "scripts" / "experiment_runners" / "hardware" / "run_ibm_torino_deployment.py"
-    )
+    deploy_script = ROOT / "scripts" / "experiment_runners" / "hardware" / "run_ibm_deployment.py"
 
     results.append(
         CheckResult(
@@ -932,7 +930,7 @@ def check_hardware_deployment_readiness(verbose: bool = False) -> list[CheckResu
             category="data_integrity",
             passed=deploy_script.exists(),
             message=(
-                "Deployment script found: run_ibm_torino_deployment.py"
+                "Deployment script found: run_ibm_deployment.py"
                 if deploy_script.exists()
                 else "Deployment script MISSING"
             ),

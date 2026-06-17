@@ -211,7 +211,7 @@ The key insight: Phases 1–3 prepare a near-optimal parameter prediction (θ_pr
 
 ### 4.2 QPU Time Estimates
 
-For a single test point deployment on IBM Torino (133 qubits, Eagle r3):
+For a single test point deployment on IBM Heron (133 qubits, Eagle r3):
 
 | System | Circuit gates (native) | Shots | Observables | Est. QPU time | Est. wall time |
 |--------|----------------------|-------|-------------|---------------|----------------|
@@ -353,7 +353,7 @@ El pipeline está diseñado para que **solo la Fase 4 toque hardware cuántico**
 
 ### 4.2 Estimación de tiempo en QPU
 
-Para un punto de test en IBM Torino (133 qubits, Eagle r3):
+Para un punto de test en IBM Heron (133 qubits, Eagle r3):
 
 | Sistema | Compuertas nativas | Shots | Observables | Tiempo QPU | Tiempo total |
 |---------|-------------------|-------|-------------|------------|--------------|
@@ -524,7 +524,7 @@ In two dimensions, entanglement scales as the **perimeter** of the region: S ∝
 
 | System | Topology | N range (exact diag) | N range (DMRG) | N range (QPU) |
 |--------|----------|---------------------|----------------|---------------|
-| 1D chain | N sites in a line | N ≤ 14 | N ≤ 100 | N ≤ 133 (IBM Torino) |
+| 1D chain | N sites in a line | N ≤ 14 | N ≤ 100 | N ≤ 133 (IBM Heron) |
 | Ladder | 2 × L | N ≤ 14 | N ≤ 40–60 | N ≤ 133 |
 | Triangular | √N × √N | N ≤ 14 | N ≤ 20–30 | N ≤ 133 |
 | Kagome | 3 sites/cell | N ≤ 12 | N ≤ 18–24 | N ≤ 133 |

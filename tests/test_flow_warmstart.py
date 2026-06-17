@@ -364,12 +364,12 @@ _DEPLOY_PATH = _os.path.join(
     "scripts",
     "experiment_runners",
     "hardware",
-    "run_ibm_torino_deployment.py",
+    "run_ibm_deployment.py",
 )
 
-_deploy_spec = _ilib.spec_from_file_location("run_ibm_torino_deployment", _DEPLOY_PATH)
+_deploy_spec = _ilib.spec_from_file_location("run_ibm_deployment", _DEPLOY_PATH)
 _deploy_mod = _ilib.module_from_spec(_deploy_spec)  # type: ignore[arg-type]
-_sys.modules["run_ibm_torino_deployment"] = _deploy_mod  # required for @dataclass
+_sys.modules["run_ibm_deployment"] = _deploy_mod  # required for @dataclass
 _deploy_spec.loader.exec_module(_deploy_mod)  # type: ignore[union-attr]
 kappa_go_no_go = _deploy_mod.kappa_go_no_go
 DEFAULT_SHOTS = _deploy_mod.DEFAULT_SHOTS

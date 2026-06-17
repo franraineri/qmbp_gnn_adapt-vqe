@@ -1,30 +1,7 @@
 # Índice Detallado — `documentation/binnacles`
 
-**Archivos**: 29 documentos markdown
-**Total**: ~82,000 palabras, ~11,600 líneas
-**Última actualización**: 2026-06-15
-
----
-
-## 0. [binnacle-pauli-evolution-transpilation.md](binnacle-pauli-evolution-transpilation.md)
-**Binnacle — PauliEvolutionGate Transpilation Validation**
-
-| Fecha | Estado |
-|-------|--------|
-| 2026-06-15 | ✅ VALIDADO — en producción |
-
-**Tags**: `hardware`, `transpilation`, `circuits`, `deployment`
-
-> Validación formal de `HVACircuitBuilder.create_pauli_evolution()` para deployment en IBM Torino.
-> Incluye corrección de bug (coeficiente 1.0→0.5), datos de Section 20 del V3 rehearsal,
-> y documentación de los cambios aplicados al deployment script.
-
-**Hallazgos clave**:
-- Bug corregido: coeficiente ZZ/X era 1.0 (produce energías erróneas ±25 unidades) → ahora 0.5
-- total_depth reducción: −6.0% media (h=4.0: −7.9%, h=3.25: −10.0%, h=3.0: 0%)
-- n_2Q idéntico (34 gates) — solo scheduling de 1Q gates cambia
-- max|ΔE| = 3.55e-14 (equivalencia funcional confirmada)
-- En producción: Tiers 0, 1, 2 de `run_ibm_torino_deployment.py`
+**Archivos**: 33 documentos markdown
+**Total**: 90,969 palabras, 13,229 líneas
 
 ---
 
@@ -334,7 +311,7 @@
 - θ_zz shows very little spatial variation (std < 0.002), but θ_x shows
 - Bond-resolved HVA on 2D square lattice converges excellently
 - N=12 (3×4) with 29 bond-resolved parameters converges to fid > 0.997
-- *+49.7% improvement on heavy-hex** (IBM Torino native topology) — a free lunch
+- *+49.7% improvement on heavy-hex** (IBM Heron native topology) — a free lunch
 - *GNN predicts 19-dim θ_opt** with ΔE/gap < 0.23% — proves GNN is viable at high dim
 
 **Contenido** (11 secciones):
@@ -544,7 +521,7 @@
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-03 | 380 | 2,607 | 15.8 KB | 70 | 0 |
+| 2026-06-03 | 413 | 2,811 | 17.1 KB | 75 | 0 |
 
 **Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `tfim`, `scaling`
 
@@ -563,7 +540,7 @@
 - Longitudinal mean gain: +88.8%
 - *Diferencia: 2.9% < 5%** → ZNE funciona equivalentemente
 
-**Contenido** (9 secciones):
+**Contenido** (10 secciones):
 
 - **Contexto** (L11)
 - **Resultados** (L28)
@@ -591,6 +568,10 @@
   - analysis/verify_claims.py
   - analysis/scan_coverage.py
 - **Conclusión del Análisis Cruzado** (L368)
+- **Addendum 2026-06-15: MPNN Warm-Start Validation (HW Rehearsal V3)** (L384)
+  - MPNN Quality at Deployment Config (chain_1d N=6 p=2)
+  - Key Addition for Hardware Deployment
+  - Topology Transfer FAIL (Important Qualifier)
 
 ---
 
@@ -1064,7 +1045,89 @@
 
 ---
 
-## 15. [binnacle-heisenberg-extension.md](binnacle-heisenberg-extension.md)
+## 15. [binnacle-hardware-extension-integration.md](binnacle-hardware-extension-integration.md)
+**Binnacle — Hardware Extension Integration**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-16 | 238 | 1,443 | 11.7 KB | 60 | 1 |
+
+**Tags**: `hardware`, `mpnn`, `thesis`
+
+> Date: 2026-06-16/17
+
+**Hallazgos / Aseveraciones** (1):
+
+- σ_flow from a normalizing flow (EmbeddingMAF) trained on frozen GNN embeddings provides a per-h uncertainty signal that can guide adaptive QPU resource allocation, complementing th…
+
+**Contenido** (8 secciones):
+
+- **Hypothesis** (L10)
+- **Main Findings** (L21)
+  - Finding 1: Flow warmstart matches MPNN direct prediction (not better)
+  - Finding 2: σ_flow correlates with landscape difficulty
+  - Finding 3: Adaptive guard was essential for production configs
+  - Finding 4: Multi-seed training reduces NLL variance
+  - Finding 5: chain_1d p=2 needs more VQE refinement budget
+- **Technical Integration Details** (L93)
+  - Complete Data Flow (Production)
+  - Checkpoint System
+  - CLI Flags Added
+  - Make Targets
+- **Bugs Fixed (5 total)** (L164)
+- **Test Coverage (32 tests, 2.0s)** (L176)
+- **Learnings for Thesis** (L192)
+- **Remaining Before QPU** (L214)
+- **References** (L225)
+
+---
+
+## 16. [binnacle-hardware-pea-calibration.md](binnacle-hardware-pea-calibration.md)
+**Binnacle: Hardware PEA Calibration Study**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-14 | 168 | 1,036 | 6.8 KB | 16 | 1 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `thesis`, `tfim`, `pea`
+
+> Started: 2026-06-14
+
+**Métricas clave**: ΔE/gap < 5% · ΔE/gap = 32.5%
+
+**Hallazgos / Aseveraciones** (8):
+
+- *ΔE/gap = 32.5%** ❌ FAIL
+- *Config**: num_rand=32, shots/rand=128, noise_factors=IBM default, 1 layout
+- *Learning budget**: 4,096 shots
+- *Wall-clock**: 746.7s (~12.4 min)
+- *Result**: E_ZNE = -38.641, E_exact = -40.566
+- *Analysis**: PEA learned an inaccurate noise model. Error = 1.92 units (raw
+- *Ref**: `results/hardware/tier0_calibration/pea_32x128/`
+- *Config**: num_rand=64, shots/rand=256, noise_factors=[1, 1.5, 2, 3], 3 layouts
+
+**Contenido** (8 secciones):
+
+- **Objective** (L8)
+- **Background** (L14)
+- **Hardware Conditions (2026-06-14, 19:00-20:00 UTC-3)** (L24)
+- **Results** (L35)
+  - EXP-1: IBM Default (32×128, 1 layout)
+  - EXP-2: Aggressive (64×256, 3 layouts, 4 noise factors)
+  - EXP-3: Balanced (48×192, 1 layout, 3 noise factors) — PENDING
+  - EXP-4: IBM Default + 3 layouts (32×128, 3 layouts) — PENDING
+- **Decision Framework** (L83)
+- **Deployment Impact** (L94)
+- **References** (L102)
+- **Addendum 2026-06-15: κ-Based Deployment Optimization** (L110)
+  - Finding: κ Anti-correlates with Noise Sensitivity
+  - κ Go/No-Go Integration (2026-06-15)
+  - Pending Validation
+  - Addendum 2026-06-15: κ Thresholds — heavy_hex N=10 Invalidated
+
+---
+
+## 17. [binnacle-heisenberg-extension.md](binnacle-heisenberg-extension.md)
 **Binnacle — Heisenberg Model Extension & Baseline Comparison**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1140,31 +1203,93 @@
 
 ---
 
-## 16. [binnacle-mps-scaling.md](binnacle-mps-scaling.md)
+## 18. [binnacle-mpnn-eval-suite.md](binnacle-mpnn-eval-suite.md)
+**Binnacle — MPNN Evaluation Suite (Sections 10-19)**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-15 | 605 | 3,897 | 23.6 KB | 145 | 2 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `tesis`, `tfim`, `pea`
+
+> > Fecha: 2026-06-15
+
+**Métricas clave**: ΔE/gap=0.42% · ΔE/gap=19.6% · ΔE/gap<5% · ΔE/gap < 5% · ΔE/gap=0.22% · ΔE/gap = 0.39%
+
+**Hallazgos / Aseveraciones** (8):
+
+- Fecha: 2026-06-15 Runner: `scripts/experiment_runners/run_hardware_rehearsal_v3.py` Sistema: N=6, chain_1d, p=2, TFIM, seeds {42,43,44} Referencia JSON: `results/experiments/exp_hw…
+- Runs: `run_20260615_215821.json` (S10), `run_20260615_215935.json` (S11), `run_20260615_215812.json` (S19), `run_20260615_215931.json` (S14), `run_20260615_220109.json` (S15 N=4,6,…
+- Script: `run_hardware_rehearsal_v3.py` sections 10, 11, 14, 19 Config: `--n-qubits 10 --topology heavy_hex --p-layers 1` h_train: [4.5, 4.25, 4.0, 3.75, 3.5, 3.25, 3.0] — IBM Torin…
+- N=4 p=2: h_test=1.875 ✅
+- N=6 p=2: h_test=1.875 ✅
+- N=10 p=1: h_test=3.25 ✅ (válido)
+- chain_1d N=6 p=2 tiene 20 CX gates
+- Mapeado a heavy_hex con routing → más SWAP gates → overhead de ruido severo
+
+**Contenido** (11 secciones):
+
+- **Contexto** (L11)
+- **Hallazgos Establecidos (10 runs, N=6)** (L23)
+  - S10 — Warm-Start Benchmark ✅
+  - S11 — LOO Cross-Validation
+  - S12 — Landscape Quality (Descomposición de Error) ✅
+  - S13 — Interpolación vs Extrapolación ✅
+  - S14 — Noisy Eval (FakeTorino) ❌ (Resultado informativo)
+  - S15 — Scaling con N (N=4, 6, 10) ✅
+  - … (+4 más)
+- **Integraciones Implementadas** (L226)
+  - En `run_ibm_deployment.py`
+  - Bugs corregidos en deployment
+- **Pruebas Pendientes (antes de hardware real)** (L248)
+  - Prioridad ALTA (bloquean hardware)
+  - Prioridad MEDIA (mejoran confianza)
+  - Prioridad BAJA (no bloquean)
+- **Archivos de Resultados** (L273)
+- **Reproducción** (L285)
+- **Resultados heavy_hex N=10 p=1 (2026-06-15, config de producción QPU)** (L311)
+  - S10 — heavy_hex N=10 p=1 ✅
+  - S11 — LOO heavy_hex N=10 p=1 ✅ (resultado crítico)
+  - S14 — Noisy Eval heavy_hex N=10 p=1 ❌ (mismo patrón que N=6)
+  - S15 — Scaling N=4,6,10,20 (resultado definitivo) ✅→❌
+  - S19 — Curvatura κ heavy_hex N=10 p=1 ❌ (hallazgo)
+- **Tabla Comparativa Final N=6 vs N=10** (L403)
+- **Bug corregido: section_20 siempre se ejecutaba** (L424)
+- **Addendum 2026-06-15: Heavy-Hex N=10 p=1 Validation (Production Config)** (L441)
+  - S10 — Warm-Start Benchmark ✅ (heavy_hex N=10 p=1)
+  - S11 — LOO Cross-Validation ✅ (heavy_hex N=10 p=1, 7 training pts)
+  - S14 — Noisy Eval (FakeTorino, heavy_hex N=10 p=1) ❌
+  - S15 — Scaling con N (N=4,6,10,20, chain_1d) — ❌ FAIL (N=20)
+  - S19 — Curvatura κ (heavy_hex N=10 p=1) ❌ FAIL (|r|=0.52)
+- **Summary Table: Production Config vs Chain_1d Reference** (L590)
+
+---
+
+## 19. [binnacle-mps-scaling.md](binnacle-mps-scaling.md)
 **Binnacle — MPS Scaling to N>30**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-07 | 376 | 2,348 | 13.9 KB | 79 | 0 |
+| 2026-06-07 | 470 | 2,873 | 17.1 KB | 111 | 2 |
 
 **Tags**: `zne`, `hardware`, `mpnn`, `thesis`, `tfim`, `pea`
 
 > > First demonstration of the GNN-HVA pipeline operating beyond statevector
 
-**Métricas clave**: ΔE/gap < 1% · ΔE/gap < 0.1% · ΔE/gap < 5% · ΔE/gap = 324%
+**Métricas clave**: ΔE/gap < 1% · ΔE/gap < 0.1% · ΔE/gap < 5% · ΔE/gap = 324% · ΔE/gap < 0.02%
 
 **Hallazgos / Aseveraciones** (8):
 
 - First demonstration of the GNN-HVA pipeline operating beyond statevector limits (N>22) using MPS-based VQE evaluation. Validates Phase 1 (DMRG) and Phase 2 (VQE) at N=40 and N=50 f…
+- The GNN-HVA pipeline scales to N=200 (200 qubits) with mean ΔE/gap < 0.02%, demonstrating that the methodology has no fundamental barrier to arbitrary system size. The MPS-based VQ…
 - P1: TeNPy exact vs statevector cross-validation (diff<1e-10) ✅
 - P2: Aer MPS within 10×precision statistical bound ✅
 - P3: Seed reproducibility (identical results) ✅
 - P4: VQEConfig rejects invalid method names ✅
 - P5: COBYLA dispatch works without TypeError ✅
 - P6: Default VQEConfig backward compatibility ✅
-- P7: Dynamic chi_max formula correctness ✅
 
-**Contenido** (16 secciones):
+**Contenido** (17 secciones):
 
 - **Motivation** (L12)
 - **Implementation Summary** (L25)
@@ -1195,10 +1320,18 @@
   - Run 2: Single-seed extrapolation (9 points, h-test at boundary)
 - **Experiments Running (2026-06-08)** (L330)
 - **A1: Zero-Shot Cross-N GNN — NEGATIVE RESULT ❌ (2026-06-08)** (L338)
+- **N=120, N=150, N=200 Validation (2026-06-10)** (L380)
+  - N=120 Rigorous Sweep ✅
+  - N=150 ✅
+  - N=200 ✅
+  - Cross-N Summary (Full Range)
+  - Key Findings
+  - Thesis Value
+  - … (+2 más)
 
 ---
 
-## 17. [binnacle-noisy-variants.md](binnacle-noisy-variants.md)
+## 20. [binnacle-noisy-variants.md](binnacle-noisy-variants.md)
 **Binnacle — Noisy Simulation Variants (2026-05-25)**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1240,7 +1373,7 @@
 
 ---
 
-## 18. [binnacle-p1-scaling.md](binnacle-p1-scaling.md)
+## 21. [binnacle-p1-scaling.md](binnacle-p1-scaling.md)
 **Binnacle — HVA p=1 Scaling Experiments**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1300,7 +1433,121 @@
 
 ---
 
-## 19. [binnacle-s-series-results.md](binnacle-s-series-results.md)
+## 22. [binnacle-pauli-evolution-transpilation.md](binnacle-pauli-evolution-transpilation.md)
+**Binnacle — PauliEvolutionGate Transpilation Validation**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-15 | 195 | 1,042 | 7.8 KB | 10 | 4 |
+
+**Tags**: `hardware`, `mpnn`, `thesis`, `tfim`, `scaling`, `topology`
+
+> > Fecha: 2026-06-15
+
+**Hallazgos / Aseveraciones** (3):
+
+- *Fecha: 2026-06-15 Sección relevante: Section 20 de `run_hardware_rehearsal_v3.py` Script de validación: `run_hardware_rehearsal_v3.py --section 20` Archivos modificados: `src/qmbp…
+- `2Q-depth` del camino crítico = 1 para RZZ/RX y PauliEvol
+- El beneficio es de scheduling de los gates de 1 qubit entre ciclos, no de
+
+**Contenido** (9 secciones):
+
+- **Resumen Ejecutivo** (L12)
+- **Contexto y Motivación** (L25)
+- **Bug Corregido: Coeficiente en `create_pauli_evolution()`** (L42)
+  - Antes (incorrecto — 2026-06-05 hasta 2026-06-15)
+  - Después (correcto — 2026-06-15)
+- **Resultados de Section 20 (validación formal)** (L72)
+  - Tabla de métricas transpiladas (optimization_level=2, FakeTorino)
+  - Nota sobre 2Q-depth = 1 en ambos casos
+- **Veredicto Section 20 (FakeTorino)** (L97)
+- **Cambios en Producción** (L118)
+  - 1. `src/qmbp_simulation/circuits/hva.py`
+  - 2. `scripts/experiment_runners/hardware/run_ibm_deployment.py`
+  - 3. `scripts/experiment_runners/run_hardware_rehearsal_v3.py`
+- **Por Qué los Scripts de Simulación No Cambian** (L154)
+- **Recomendaciones para Trabajo Futuro** (L172)
+- **Referencias** (L188)
+
+---
+
+## 23. [binnacle-performance-optimizations.md](binnacle-performance-optimizations.md)
+**Binnacle — Performance Optimizations**
+
+| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
+|-------|--------|----------|--------|--------|--------|
+| 2026-06-10 | 415 | 2,272 | 16.5 KB | 46 | 7 |
+
+**Tags**: `zne`, `hardware`, `mpnn`, `thesis`, `heisenberg`, `tfim`
+
+> > Registry of all performance optimizations applied to the qmbp_simulation
+
+**Métricas clave**: gain = 0% · R² = 0.0
+
+**Hallazgos / Aseveraciones** (8):
+
+- Registry of all performance optimizations applied to the qmbp_simulation pipeline. Tracks profiling data, speedup measurements, validation evidence, and rejected approaches with ju…
+- *WRONG**. BackendEstimatorV2 does NOT transpile. It only applies
+- No optimization opportunity here
+- `save_expectation_value` computes Tr(ρ·H) deterministically —
+- Rejected for production PEA. Valid for deterministic MPS
+- Each pair×factor combination has a unique rate, so there's no
+- Superseded by filtering optimization
+- After filter optimization, per-factor time is ~60ms. Parallelism
+
+**Contenido** (11 secciones):
+
+- **Summary Table** (L14)
+- **1. MPS Deterministic Mode (2026-06-10)** (L27)
+  - Problem
+  - Solution
+  - Results
+  - Impact on Experiments
+  - Design Decisions
+  - Validation
+  - … (+1 más)
+- **2. PEA-ZNE Noise Pair Filtering (2026-06-10)** (L90)
+  - Problem
+  - Root Cause
+  - Solution
+  - Results
+  - Impact on Experiment Sweeps
+  - Why Bit-Exact
+  - … (+1 más)
+- **3. AerSimulator Backend Caching (2026-06-09)** (L181)
+  - Problem
+  - Solution
+  - Result
+  - Files
+- **4. COBYLA Dispatch for Shot-Based VQE (2026-06-07)** (L206)
+  - Problem
+  - Solution
+  - Files
+- **6. PauliEvolutionGate Circuit Representation (2026-06-15)** (L228)
+  - Problem
+  - Solution
+  - Results (Section 20, run_hardware_rehearsal_v3.py)
+  - Applicability
+  - Production Status
+  - Files
+- **Rejected Approaches (with justification)** (L287)
+  - Pre-transpiling the circuit once for PEA noise factors
+  - Using `save_expectation_value` for PEA (bypass BackendEstimatorV2)
+  - Caching `depolarizing_error()` objects across factors
+  - Parallel noise factor execution (ProcessPoolExecutor)
+- **Available (Not Yet Applied)** (L322)
+- **Benchmark Script** (L331)
+- **Análisis Final: Qué Ayudó y Qué No (2026-06-10)** (L345)
+  - Optimizaciones que SÍ ayudan (impacto medido)
+  - Optimizaciones marginales (no justifican complejidad)
+  - Métricas Consolidadas (benchmarks ejecutados 2026-06-10)
+  - Lección Principal
+- **Appendix: PEA N≥20 Scalability Limit (2026-06-10)** (L395)
+  - Experiment PEA_SCALING — Valid Negative Result
+
+---
+
+## 24. [binnacle-s-series-results.md](binnacle-s-series-results.md)
 **Binnacle — S-Series Experiment Results**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1337,7 +1584,7 @@
 
 ---
 
-## 20. [binnacle-s8-negative-result.md](binnacle-s8-negative-result.md)
+## 25. [binnacle-s8-negative-result.md](binnacle-s8-negative-result.md)
 **EXP-S8/S8b: Finite-Size Scaling of h_c via Weight Gradients — NEGATIVE RESULT**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1378,7 +1625,7 @@
 
 ---
 
-## 21. [binnacle-scaling-improvements.md](binnacle-scaling-improvements.md)
+## 26. [binnacle-scaling-improvements.md](binnacle-scaling-improvements.md)
 **Binnacle — Mejoras de Escalabilidad (Análisis Pre-Ejecución)**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1416,7 +1663,7 @@
 
 ---
 
-## 22. [binnacle-session-20260521.md](binnacle-session-20260521.md)
+## 27. [binnacle-session-20260521.md](binnacle-session-20260521.md)
 **Binnacle — Session 2026-05-21**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1464,14 +1711,14 @@
 
 ---
 
-## 23. [binnacle-theta-pca-unsupervised-detection.md](binnacle-theta-pca-unsupervised-detection.md)
+## 28. [binnacle-theta-pca-unsupervised-detection.md](binnacle-theta-pca-unsupervised-detection.md)
 **Binnacle: Unsupervised Phase Detection from θ_opt(h) — Tasks 2 & 3**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
 |-------|--------|----------|--------|--------|--------|
-| 2026-06-04 | 284 | 2,104 | 13.8 KB | 41 | 1 |
+| 2026-06-04 | 359 | 2,620 | 17.3 KB | 49 | 2 |
 
-**Tags**: `mpnn`, `thesis`, `tfim`, `pea`, `topology`, `noise`
+**Tags**: `mpnn`, `thesis`, `tfim`, `pea`, `scaling`, `topology`
 
 > > Date: 2026-06-04
 
@@ -1482,11 +1729,11 @@
 - The raw VQE parameter derivative |∂θ_opt/∂h| independently corroborates the D1 weight-gradient phase detection. For chain_1d (N=6, p=2), |∂θ/∂h| peaks at h=1.25 (Δh=0.25 from h_c),…
 - The HVA p=2 parameter space for the 1D TFIM is effectively one-dimensional: PC1 explains 99.96% of total θ_opt variance across the entire h-sweep. This implies that the four HVA pa…
 - The VQE parameter derivative |∂θ_opt/∂h| independently corroborates the D1 weight-gradient phase detection. For chain_1d (N=6, p=2), |∂θ/∂h| peaks at h=1.25 (Δh=0.25 from h_c=1.0),…
+- Scripts: `scripts/analysis/extract_theta_trajectories.py` (extended), `theta_pca_phase_detection.py --scaling-analysis` Data: `analysis/raw_data/pca_peak_vs_N.json` Figure: `projec…
 - PCA detection: 1/2 topologies pass (chain_1d: ✅, ladder: ✗)
 - Normalize θ_opt(h) to unit variance (StandardScaler)
-- K-means (k=2) → cluster boundary location
 
-**Contenido** (14 secciones):
+**Contenido** (15 secciones):
 
 - **Executive Summary** (L10)
 - **Thesis Statements** (L35)
@@ -1513,10 +1760,18 @@
 - **10. Lessons Learned** (L255)
 - **11. What This Does NOT Prove** (L270)
 - **12. Potential Extensions (not executed — for future work if needed)** (L279)
+- **9. Extension: PCA Peak vs System Size N (2026-06-10)** (L288)
+  - Question
+  - Method
+  - Results
+  - Key Findings
+  - Thesis Contribution
+  - Bugs Fixed (in this extension)
+  - … (+2 más)
 
 ---
 
-## 24. [binnacle-v8-experiments-initial.md](binnacle-v8-experiments-initial.md)
+## 29. [binnacle-v8-experiments-initial.md](binnacle-v8-experiments-initial.md)
 **Binnacle — V8 Noiseless Simulation Experiments**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1576,7 +1831,7 @@
 
 ---
 
-## 25. [binnacle-v8-experiments-round1.md](binnacle-v8-experiments-round1.md)
+## 30. [binnacle-v8-experiments-round1.md](binnacle-v8-experiments-round1.md)
 **Binnacle: V8 Experiments — Round 1 Results**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1623,7 +1878,7 @@
 
 ---
 
-## 26. [binnacle-v8-experiments-round2.md](binnacle-v8-experiments-round2.md)
+## 31. [binnacle-v8-experiments-round2.md](binnacle-v8-experiments-round2.md)
 **Binnacle: V8 Experiments — Round 2 Results**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1660,7 +1915,7 @@
 
 ---
 
-## 27. [binnacle-v8-round2-pipeline-characterization.md](binnacle-v8-round2-pipeline-characterization.md)
+## 32. [binnacle-v8-round2-pipeline-characterization.md](binnacle-v8-round2-pipeline-characterization.md)
 **Binnacle: V8 Round 2 — Pipeline Characterization (G-Series)**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1696,7 +1951,7 @@
 
 ---
 
-## 28. [binnacle-zne-robustness.md](binnacle-zne-robustness.md)
+## 33. [binnacle-zne-robustness.md](binnacle-zne-robustness.md)
 **Binnacle — ZNE Robustness Validation at N=10 (2026-05-25)**
 
 | Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
@@ -1751,27 +2006,3 @@
   - Tool Used
 
 ---
-
-
----
-
-## 29. [binnacle-mpnn-eval-suite.md](binnacle-mpnn-eval-suite.md)
-
-**Binnacle — MPNN Evaluation Suite (Sections 10-19, HW Rehearsal V3)**
-
-| Fecha | Líneas | Palabras | Tamaño | Tablas | Código |
-|-------|--------|----------|--------|--------|--------|
-| 2026-06-15 | ~400 | ~3500 | ~25 KB | 18 | 5 |
-
-**Tags**: `mpnn`, `hardware`, `kappa`, `warm-start`, `loo-cv`, `thesis`
-
-> Validación completa del GNN en configuraciones N=6 chain_1d (referencia) y
-> N=10 heavy_hex p=1 (producción). Secciones 10-19 del runner V3.
-
-**Métricas clave**:
-- Warm-start speedup: 2.45x (heavy_hex N=10) / 2.81x (chain_1d N=6)
-- LOO-CV: 100% (7/7) heavy_hex N=10 — deployment-ready
-- MPNN init ΔE/gap: 0.39% — dentro del threshold 5% sin VQE
-- κ correlation: |r|=0.52 heavy_hex (weak) / |r|=0.74-0.85 chain_1d (valid)
-- Topology transfer: FAILS (chain→ladder, ratio=200x) — importante qualifier para la tesis
-- N=20 init fail: h_test fuera del valid regime (esperado)

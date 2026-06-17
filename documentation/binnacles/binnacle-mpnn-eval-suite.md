@@ -219,13 +219,13 @@ perturbaciones en θ se traduzcan en grandes errores ΔE/gap (gap chico normaliz
 - κ < 45 → HIGH risk: 3 layouts + 2× shots (32K) + SPSA recomendado
 
 Esta regla está implementada en `compute_kappa_per_h()` y `kappa_go_no_go()`
-en `run_ibm_torino_deployment.py` y se ejecuta antes de cada tier.
+en `run_ibm_deployment.py` y se ejecuta antes de cada tier.
 
 ---
 
 ## Integraciones Implementadas
 
-### En `run_ibm_torino_deployment.py`
+### En `run_ibm_deployment.py`
 
 | Función | Tier | Descripción |
 |---------|------|-------------|
@@ -442,7 +442,7 @@ python run_hardware_rehearsal_v3.py --no-skip-pauli-evolution
 
 > Script: `run_hardware_rehearsal_v3.py` sections 10, 11, 14, 19
 > Config: `--n-qubits 10 --topology heavy_hex --p-layers 1`
-> h_train: [4.5, 4.25, 4.0, 3.75, 3.5, 3.25, 3.0] — IBM Torino deployment grid
+> h_train: [4.5, 4.25, 4.0, 3.75, 3.5, 3.25, 3.0] — IBM Heron deployment grid
 > h_test: [4.0, 3.25]
 
 ### S10 — Warm-Start Benchmark ✅ (heavy_hex N=10 p=1)
@@ -486,7 +486,7 @@ monotónicamente hacia h_c como se esperaba.
 
 **Conclusión crítica:** 7 puntos de entrenamiento en el grid de producción
 [3.0, 3.25, 3.5, 3.75, 4.0, 4.25, 4.5] dan **LOO 100%** con ΔE/gap < 1%
-en todos los folds. El GNN es deployment-ready para IBM Torino.
+en todos los folds. El GNN es deployment-ready para IBM Heron.
 
 ---
 

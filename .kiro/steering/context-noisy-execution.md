@@ -15,7 +15,7 @@ execution/
 ├── backends.py         ← ExecutionBackend ABC, NoiselessBackend, NoisyBackend, MPSBackend re-export
 ├── mps_backend.py      ← MPSBackend (N>22, deterministic default, χ=64)
 ├── noisy_utils.py      ← ALL ZNE strategies + layout selection + calibration
-└── hardware/           ← IBM Torino deployment orchestration
+└── hardware/           ← IBM Heron deployment orchestration
     ├── backend.py      ← HardwareBackend (evaluate, run_deployment, run_h_sweep)
     ├── config.py       ← HardwareConfig, SPSAConfig, HardwareRunResult
     ├── preflight.py    ← validate_circuit_for_zne, run_preflight_checks

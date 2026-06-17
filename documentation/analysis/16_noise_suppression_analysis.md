@@ -57,7 +57,7 @@ t=46.32, p=2.5×10⁻¹⁹. This is not marginal — it's definitive.
 
 | # | Gap | Impact | Current State | Action Required |
 |---|-----|--------|---------------|-----------------|
-| G1 | **No real hardware execution** | Cannot claim "hardware validated" | All 60+ runs on FakeTorino | Execute on IBM Torino (p=1 N=10 heavy_hex) |
+| G1 | **No real hardware execution** | Cannot claim "hardware validated" | All 60+ runs on FakeTorino | Execute on IBM Heron (p=1 N=10 heavy_hex) |
 | G2 | **Hardware backend refactor not implemented** | CES-ZNE code still active in `backend.py` | Plan in doc 13, feasibility verified | Implement Issues 1+2+4 from doc 13 |
 | G3 | **`run_adaptive_zne()` default changed but HardwareBackend not updated** | Mismatch between local utils and deployment path | `noisy_utils.py` uses PEA primary; `backend.py` still does CES extrapolation | Align `run_deployment()` with new default |
 
@@ -166,8 +166,8 @@ GNN-QEM is a **valid thesis contribution** with properly bounded claims:
 
 | Priority | Action | Effort | Dependency |
 |:--------:|--------|:------:|:----------:|
-| **P0** | Execute on IBM Torino: p=1 N=10 heavy_hex, 3 h-points, PEA primary | 1-2 hrs QPU | Phase A |
-| **P1** | If PEA unavailable on Torino: fall back to GF-ZNE, accept lower gain | — | Phase C above |
+| **P0** | Execute on IBM Heron: p=1 N=10 heavy_hex, 3 h-points, PEA primary | 1-2 hrs QPU | Phase A |
+| **P1** | If PEA unavailable on Heron: fall back to GF-ZNE, accept lower gain | — | Phase C above |
 | **P1** | Run TLS monitoring during hardware execution (G9) | 0 (automatic) | Phase C |
 | **P2** | If GNN-QEM validated: apply as post-ZNE correction on hardware results | 10 min | Phase B + C |
 
@@ -205,7 +205,7 @@ GNN-QEM is a **valid thesis contribution** with properly bounded claims:
 
 **Recommendation**: Quick 10-min experiment to complete the inventory, but mark as "implemented, not deployed" in the thesis. No chapter section needed.
 
-### D3: What if PEA amplifier is unavailable on IBM Torino?
+### D3: What if PEA amplifier is unavailable on IBM Heron?
 
 **Mitigation plan**:
 1. Check IBM Runtime docs for current PEA availability
@@ -230,7 +230,7 @@ GNN-QEM is a **valid thesis contribution** with properly bounded claims:
 ### What We Don't Know (requires hardware or further work)
 
 1. **Real hardware PEA gain** — simulation predicts 83%, reality likely 30-60%
-2. **IBM Torino PEA amplifier availability** — must check before submission
+2. **IBM Heron PEA amplifier availability** — must check before submission
 3. **GNN-QEM generalization** — does the correction help after PEA on unseen topology?
 4. **TLS stability** — will calibration drift affect our 1-2 hour run window?
 5. **SPSA refinement utility** — is it worth the QPU cost given PEA's strong mitigation?
@@ -314,7 +314,7 @@ insurance with zero downside.
 
 | Gap | Status | Evidence |
 |-----|:------:|---------|
-| G1 (No real hardware) | ⏳ PENDING | Requires IBM Torino access |
+| G1 (No real hardware) | ⏳ PENDING | Requires IBM Heron access |
 | G2 (Backend refactor) | ✅ DONE | `backend.py` already uses PEA primary + layout avg |
 | G3 (Backend alignment) | ✅ DONE | `_aggregate_zne_results()` mode-aware |
 | G4 (GNN-QEM cross-topo) | ✅ CLOSED | 100% improvement on unseen heavy_hex |
@@ -431,7 +431,7 @@ GNN-QEM Role (revised):
 
 | # | Action | Priority | Blocker |
 |---|--------|:--------:|:-------:|
-| 1 | **Execute on IBM Torino** (p=1 N=10 heavy_hex, PEA primary) | P0 | QPU access |
+| 1 | **Execute on IBM Heron** (p=1 N=10 heavy_hex, PEA primary) | P0 | QPU access |
 | 2 | Thesis Chapter 5 writing (ZNE hierarchy + GNN-QEM positioning) | P1 | None |
 | 3 | Figure generation: `make figures-thesis` for ZNE comparison bar chart | P2 | None |
 

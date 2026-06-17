@@ -10,7 +10,7 @@ de ejecución del proyecto.
 |------|-------------|-------------------|
 | `ExperimentRunner` | Script que envuelve un solo `BaseExperiment` | `run_e4b_e4c_standard.py` |
 | `ValidationRunner` | Suite multi-sección con tablas y métricas | `run_mps_pseudo_hardware.py` |
-| `HardwareValidationRunner` | Ejecución en IBM Torino o FakeTorino | Deployment scripts |
+| `HardwareValidationRunner` | Ejecución en IBM Heron o FakeTorino | Deployment scripts |
 | `VariantPipelineRunner` | Muchas variantes del pipeline en lote | `run_p1_pipeline_variants.py` |
 
 ## Garantías del framework

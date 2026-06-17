@@ -1,4 +1,4 @@
-# Hardware Execution Module — IBM Torino QPU
+# Hardware Execution Module — IBM Heron QPU
 
 This module implements real quantum hardware execution via IBM Runtime,
 integrated into the `ExecutionBackend` ABC pattern. It supports both
@@ -207,7 +207,7 @@ energy = backend.evaluate(circuit, H, params)
 print(f"ZNE energy: {energy:.6f}")
 ```
 
-### 2. Real Hardware Execution (IBM Torino)
+### 2. Real Hardware Execution (IBM Heron)
 
 ```bash
 # Set credentials (REQUIRED — passed directly to QiskitRuntimeService)
@@ -362,7 +362,7 @@ from qmbp_simulation.execution.hardware import (
     estimate_qpu_cost, QPUThroughputProfile, SPSACostModel,
 )
 
-# Default (Torino, P(SPSA)=0.30)
+# Default (Heron, P(SPSA)=0.30)
 est = estimate_qpu_cost(config, n_h_points=4)
 print(f"Optimistic: {est.est_total_optimistic_s/60:.1f} min")
 print(f"Expected:   {est.est_total_s/60:.1f} min")
@@ -405,7 +405,7 @@ All validations fail with `ValueError` — zero QPU cost on misconfiguration.
 > reduces time-domain decoherence exposure on real hardware.
 
 **Use `HVACircuitBuilder.create_pauli_evolution()`** for hardware deployment.
-This is already the default in `run_ibm_torino_deployment.py` (Tiers 0, 1, 2).
+This is already the default in `run_ibm_deployment.py` (Tiers 0, 1, 2).
 
 > **Important**: `create_pauli_evolution()` uses coefficient `0.5` for ZZ and X
 > operators so that `PauliEvolutionGate(H, time=2θ) = e^{-iθ·ZZ} = RZZ(2θ)`. Bug
@@ -738,7 +738,7 @@ python scripts/hardware.py rehearsal \
 ### GO/NO-GO Decision
 
 After running all sections, `analyze_hw_rehearsal_v2.py` reports:
-- **🟢 GO**: Sections 1, 2, 3, 7, 9 all pass → safe to submit to IBM Torino
+- **🟢 GO**: Sections 1, 2, 3, 7, 9 all pass → safe to submit to IBM Heron
 - **🔴 NO-GO**: Any critical section fails → fix before QPU
 
 The analyzer also checks for ZNE regression (mitigation making things worse)
@@ -746,7 +746,7 @@ and supports `--threshold` to tighten the pass criterion for thesis targets.
 
 ## Tiered QPU Deployment (Calibration-First Strategy)
 
-For production hardware runs on IBM Torino, use the tiered deployment script.
+For production hardware runs on IBM Heron, use the tiered deployment script.
 The strategy follows Hamed's calibration-first protocol: measure T_one_job first,
 then scale the budget with confidence.
 
@@ -773,21 +773,21 @@ then scale the budget with confidence.
 ```bash
 # Dry run (cost estimate + preflight, no QPU)
 make hw-deploy-dry
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --dry-run
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run
 
 # Session 1: Calibration only (measures T_one_job)
 make hw-deploy-calibrate
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --tier 0
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0
 
 # Session 2: Full deployment with SPSA disabled (recommended)
 make hw-deploy
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py --no-spsa
+python scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
 
 # Full deployment (all tiers, auto-advancing)
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py
+python scripts/experiment_runners/hardware/run_ibm_deployment.py
 
 # Custom configuration
-python scripts/experiment_runners/hardware/run_ibm_torino_deployment.py \
+python scripts/experiment_runners/hardware/run_ibm_deployment.py \
   --shots 32768 --zne-amplifier adaptive --tier 1 2
 ```
 
@@ -849,7 +849,7 @@ from qmbp_simulation.execution.hardware import (
     estimate_qpu_cost, QPUThroughputProfile, SPSACostModel, HardwareConfig,
 )
 
-# Default: IBM Torino, PEA amplifier, P(SPSA)=0.30
+# Default: IBM Heron, PEA amplifier, P(SPSA)=0.30
 config = HardwareConfig(n_qubits=10, shots=16384, n_layouts=3)
 est = estimate_qpu_cost(config, n_h_points=3)
 print(f"Optimistic: {est.est_total_optimistic_s/60:.1f} min")
@@ -871,7 +871,7 @@ CLOPS scales with circuit width and depth:
 CLOPS(N, D) = base_clops × (ref_N / N)^α × (ref_D / D)^β
 ```
 
-| N | Effective CLOPS (Torino) | Time/circuit (16k shots) |
+| N | Effective CLOPS (Heron) | Time/circuit (16k shots) |
 |---|:---:|:---:|
 | 6 | 3674 | 4.5s |
 | 10 | 2500 | 6.6s |
@@ -900,7 +900,7 @@ python scripts/hardware.py cost -N 10 --profile nighthawk --spsa disabled
 python scripts/hardware.py cost -N 10 --json
 
 # Make target
-make hw-cost N=10 H=3 PROFILE=torino
+make hw-cost N=10 H=3 PROFILE=heron
 ```
 
 ## Unified Hardware CLI
@@ -960,7 +960,7 @@ class MyHWRunner(HardwareValidationRunner):
     runner_id = "hw_deploy"
     experiment_id = "HW_DEPLOY"
     description = "Hardware deployment validation"
-    hypothesis = "ΔE/gap<5% at h=3.25 on IBM Torino"
+    hypothesis = "ΔE/gap<5% at h=3.25 on IBM Heron"
 
     def setup(self):
         super().setup()  # Creates self.hw_backend

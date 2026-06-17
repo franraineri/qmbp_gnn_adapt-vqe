@@ -100,7 +100,7 @@ Data source: verification test 5 (FakeTorino transpilation)
 | p=2 | 20 CZ | 20 CZ | ❌ Exceeds |
 
 **The RZ layer adds ZERO 2-qubit gates.** Hardware overhead is identical to standard TFIM HVA.
-p=1 + ZNE remains the viable strategy for IBM Torino deployment.
+p=1 + ZNE remains the viable strategy for IBM Heron deployment.
 
 ---
 
@@ -205,7 +205,7 @@ E4b: H = -J·ZZ - h·X - g·Z  +  circuit = RZZ + RX + RZ     → PASSES (fid=0.
 
 ---
 
-*Binnacle entry complete. Next: hardware deployment of TFIM+longitudinal at g=0.3 on IBM Torino (p=1, 10 CZ gates, within ZNE budget).*
+*Binnacle entry complete. Next: hardware deployment of TFIM+longitudinal at g=0.3 on IBM Heron (p=1, 10 CZ gates, within ZNE budget).*
 
 
 ---

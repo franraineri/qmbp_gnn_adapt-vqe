@@ -115,11 +115,11 @@ class HardwareBackend(ExecutionBackend):
         return self._backend
 
     def _connect(self) -> None:
-        """Establish connection to IBM Quantum or initialize FakeTorino."""
+        """Establish connection to IBM Quantum or initialize fake backend."""
         if self._config.mode == "fake_backend":
-            from qiskit_ibm_runtime.fake_provider import FakeTorino
+            from qiskit_ibm_runtime.fake_provider import FakeKingston
 
-            self._backend = FakeTorino()
+            self._backend = FakeKingston()
         else:
             import os
 
@@ -834,26 +834,73 @@ class HardwareBackend(ExecutionBackend):
     def _capture_transpiled_stats(self, layout_selection) -> dict[str, Any]:
         """Capture circuit statistics after transpilation.
 
-        Records depth, 2Q gate count, and 1Q gate count for each layout.
+        Records per-layout:
+          - depth, depth_2q (critical path of 2Q gates only)
+          - n_2q_gates, n_1q_gates, total_gates
+          - count_ops: per-gate-type breakdown (from ResourceEstimation)
+          - num_tensor_factors: disconnected sub-circuits (sanity check)
+          - width: physical qubits in transpiled circuit
+          - active_qubits: width − num_tensor_factors + 1
+
+        The depth_2q metric is the strongest predictor of hardware error
+        accumulation (2Q gates dominate noise budget on IBM devices).
+
+        Note: This mirrors `transpiled_circuit_stats` from
+        `analysis.circuit_visualizer` but is kept inline to respect the
+        module dependency DAG (execution cannot import analysis).
         """
+        from qiskit.transpiler import PassManager
+        from qiskit.transpiler.passes import ResourceEstimation
+
         stats: dict[str, Any] = {"per_layout": []}
         try:
             for i, circ in enumerate(layout_selection.transpiled_circuits):
+                # ── Ad-hoc stats (fast, no DAG conversion) ──
                 n_2q = sum(1 for inst in circ.data if inst.operation.num_qubits == 2)
                 n_1q = sum(1 for inst in circ.data if inst.operation.num_qubits == 1)
                 depth = circ.depth()
-                stats["per_layout"].append(
-                    {
-                        "layout_idx": i,
-                        "depth": depth,
-                        "n_2q_gates": n_2q,
-                        "n_1q_gates": n_1q,
-                        "total_gates": len(circ.data),
-                    }
-                )
+                depth_2q = circ.depth(filter_function=lambda x: x.operation.num_qubits == 2)
+
+                layout_stats: dict[str, Any] = {
+                    "layout_idx": i,
+                    "depth": depth,
+                    "depth_2q": depth_2q,
+                    "n_2q_gates": n_2q,
+                    "n_1q_gates": n_1q,
+                    "total_gates": len(circ.data),
+                }
+
+                # ── ResourceEstimation pass (count_ops + tensor factors) ──
+                try:
+                    re_pm = PassManager([ResourceEstimation()])
+                    re_pm.run(circ)
+                    prop = re_pm.property_set
+                    count_ops = prop.get("count_ops")
+                    layout_stats["count_ops"] = dict(count_ops) if count_ops else {}
+                    num_tf = prop.get("num_tensor_factors")
+                    width = prop.get("width")
+                    layout_stats["num_tensor_factors"] = num_tf
+                    layout_stats["width"] = width
+                    if width is not None and num_tf is not None:
+                        layout_stats["active_qubits"] = width - num_tf + 1
+                except Exception:
+                    # Fallback: build count_ops manually
+                    gate_counts: dict[str, int] = {}
+                    for inst in circ.data:
+                        name = inst.operation.name
+                        gate_counts[name] = gate_counts.get(name, 0) + 1
+                    layout_stats["count_ops"] = gate_counts
+
+                stats["per_layout"].append(layout_stats)
+
             if stats["per_layout"]:
                 stats["mean_depth"] = np.mean([s["depth"] for s in stats["per_layout"]])
+                stats["mean_depth_2q"] = np.mean([s["depth_2q"] for s in stats["per_layout"]])
                 stats["mean_2q_gates"] = np.mean([s["n_2q_gates"] for s in stats["per_layout"]])
+                # Aggregate count_ops across layouts (use first layout as representative)
+                first_ops = stats["per_layout"][0].get("count_ops")
+                if first_ops:
+                    stats["basis_gates"] = sorted(first_ops.keys())
         except Exception as exc:
             stats["capture_error"] = str(exc)
         return stats

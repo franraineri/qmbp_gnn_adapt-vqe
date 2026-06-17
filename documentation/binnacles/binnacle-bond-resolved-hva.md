@@ -17,7 +17,7 @@ bond (θ_zz_k) and each site (θ_x_i), increasing the parameter count from 2
 to (N_edges + N_qubits) without adding any quantum gates or circuit depth.
 
 **Key results**:
-- **+49.7% improvement on heavy-hex** (IBM Torino native topology) — a free lunch
+- **+49.7% improvement on heavy-hex** (IBM Heron native topology) — a free lunch
 - **GNN predicts 19-dim θ_opt** with ΔE/gap < 0.23% — proves GNN is viable at high dim
 - **ZNE still works** (R²=0.997, gain=+30.8%) — same CX budget, same noise profile
 - **N=16 VQE fails without warm-start** (8-14% error) — proves GNN is NECESSARY
@@ -30,7 +30,7 @@ to (N_edges + N_qubits) without adding any quantum gates or circuit depth.
 
 **Statement 1 (Bond-resolved expressibility)**:
 "Per-bond parametrization of HVA at constant depth achieves 49.7% lower
-ΔE/gap on the IBM Torino native heavy-hex topology compared to global HVA,
+ΔE/gap on the IBM Heron native heavy-hex topology compared to global HVA,
 with zero additional quantum gate cost. The improvement is topology-dependent:
 non-uniform lattices (heavy-hex: +49.7%) benefit far more than uniform ones
 (chain: +1.8%, ladder: +0.1%), confirming that bond-resolved parameters capture
@@ -228,7 +228,7 @@ This is because heavy-hex has non-equivalent bonds (degree-2 and degree-3 nodes)
 have (near-)uniform bonds → minimal improvement.
 
 **Thesis implication**: Bond-resolved HVA adds significant value specifically on
-the IBM Torino native topology (heavy-hex), which is exactly where we deploy.
+the IBM Heron native topology (heavy-hex), which is exactly where we deploy.
 
 ### Section 4: Parameter Spatial Structure ✅ PASS (35.9s)
 
@@ -369,7 +369,7 @@ All simulation-testable hypotheses for bond-resolved HVA have been evaluated:
 - ⚠️ N=16 VQE without warm-start: 8-14% error (justifies GNN necessity)
 
 ### Remaining (hardware-only)
-- IBM Torino deployment with bond-resolved p=1 heavy-hex N=10
+- IBM Heron deployment with bond-resolved p=1 heavy-hex N=10
 - GNN transfer learning: train on N=10 → warm-start N=16 VQE
 
 

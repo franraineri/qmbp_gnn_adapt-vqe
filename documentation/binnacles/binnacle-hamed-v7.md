@@ -581,7 +581,7 @@ Training quality: Noiseless MSE=5.87e-04, Noise-aware MSE=1.76e-02 (30× worse f
 **4. Noise-aware training doesn't work under shot noise**
 - θ_noisy are scattered (not systematically shifted) → unlearnable
 - Only coherent gate errors (real hardware) could make this useful
-- This closes the question for simulation; revisit only on IBM Torino
+- This closes the question for simulation; revisit only on IBM Heron
 
 **5. The remaining frontier is hardware deployment**
 - All simulation-testable questions are answered
@@ -628,7 +628,7 @@ Training quality: Noiseless MSE=5.87e-04, Noise-aware MSE=1.76e-02 (30× worse f
 | 1.50 | 7.28e-02 | 7.71e-02 | -6% (worse) |
 | 2.00 | 4.39e-02 | 3.95e-02 | +10% |
 
-**Conclusion:** ZNE provides marginal benefit in simulation (~10% at best, sometimes worse). This is expected — ZNE's value is in mitigating coherent hardware errors, not shot noise. The real test is on IBM Torino where ZNE showed +40% gain at N=6 (V6.1 noisy simulation results).
+**Conclusion:** ZNE provides marginal benefit in simulation (~10% at best, sometimes worse). This is expected — ZNE's value is in mitigating coherent hardware errors, not shot noise. The real test is on IBM Heron where ZNE showed +40% gain at N=6 (V6.1 noisy simulation results).
 
 ---
 
@@ -709,7 +709,7 @@ Training quality: Noiseless MSE=5.87e-04, Noise-aware MSE=1.76e-02 (30× worse f
 
 6. **Iterative refinement provides modest gains** (~9%) — useful for data-scarce scenarios but doesn't beat proper training.
 
-7. **The remaining frontier is real hardware** — all simulation-testable questions are answered. IBM Torino deployment is the next step.
+7. **The remaining frontier is real hardware** — all simulation-testable questions are answered. IBM Heron deployment is the next step.
 
 
 ---

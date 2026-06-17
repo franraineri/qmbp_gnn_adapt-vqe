@@ -172,7 +172,7 @@ However, **spatial dimension determines how much entanglement the ground state c
 
 **2D systems (triangular, Kagome):** Entanglement scales as the perimeter of the region (area law in 2D — the boundary is a line of length L). For a square lattice of side L, the MPS bond dimension needed grows as e^L — exponentially with system width. DMRG becomes impractical for widths > 4–6. This is precisely where quantum hardware provides its advantage: a quantum processor naturally handles the exponential entanglement that defeats classical methods.
 
-**The quantum advantage window:** As spatial dimension increases, classical methods fail at progressively smaller N, while the QPU limit stays constant (133 qubits on IBM Torino). For 2D frustrated lattices like Kagome with N > 16–20, no classical method can find the ground state — only quantum simulation can.
+**The quantum advantage window:** As spatial dimension increases, classical methods fail at progressively smaller N, while the QPU limit stays constant (133 qubits on IBM Heron). For 2D frustrated lattices like Kagome with N > 16–20, no classical method can find the ground state — only quantum simulation can.
 
 ### 6.3 Impact on Our HVA Circuit
 
@@ -246,7 +246,7 @@ Our approach is independently validated by:
 
 ### 7.4 Hardware Deployment Strategy (Phase 4 — Planned)
 
-Target: IBM Torino (Eagle r3, 133 qubits) or IBM Heron r2 (156 qubits, lower gate errors)
+Target: IBM Heron (Eagle r3, 133 qubits) or IBM Heron r2 (156 qubits, lower gate errors)
 
 Error mitigation stack:
 1. Dynamical decoupling (free — suppresses idle decoherence)

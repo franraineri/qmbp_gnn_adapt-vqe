@@ -1,7 +1,7 @@
 # Estado Actual del Proyecto — GNN-HVA Framework
 
 **Fecha**: 2026-06-09  
-**Fase**: Trabajo de simulación COMPLETO. Próximo: despliegue en hardware IBM Torino + escritura de tesis.
+**Fase**: Trabajo de simulación COMPLETO. Próximo: despliegue en hardware IBM Heron + escritura de tesis.
 
 ---
 
@@ -261,7 +261,7 @@ Cross-check: HE works en régimen paramagnético profundo → consistente con co
 
 | # | Prioridad | Estado |
 |---|-----------|--------|
-| 1 | **Hardware IBM Torino** | READY FOR QPU — solo faltan credenciales |
+| 1 | **Hardware IBM Heron** | READY FOR QPU — solo faltan credenciales |
 | 2 | **Escritura de tesis** | Tablas T1-T10 auto-generadas, figuras PDF listas |
 | 3 | MPS Scaling multi-seed | N=40 27/27 PASS, N=50 5/5, N=80 5/5 |
 | 4 | θ_pred Validation Module | 7 niveles implementados, auto-integrado |

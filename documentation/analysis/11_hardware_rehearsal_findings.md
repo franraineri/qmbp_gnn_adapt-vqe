@@ -214,7 +214,7 @@ Alternative approaches for hardware:
 
 ### Updated Recommendation
 
-For IBM Torino heavy_hex N=10 p=1:
+For IBM Heron heavy_hex N=10 p=1:
 - **Primary**: Enable IBM's built-in ZNE (`options.resilience.zne_mitigation = True`)
   which uses gate folding (noise factors [1, 3, 5]). This works regardless of
   layout CES uniformity.

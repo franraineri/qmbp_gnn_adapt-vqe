@@ -252,7 +252,7 @@ y reportar la mediana.
 
 **Hallazgos clave**:
 1. **p=1 heavy-hex es la mejor configuración para hardware**: 3/3 pass, std=0.0003,
-   zero SWAP overhead en IBM Torino.
+   zero SWAP overhead en IBM Heron.
 2. **Mejor performance absoluta**: median ΔE/gap=0.001 (p=2) y 0.006 (p=1) — mejor
    que chain_1d (0.028), ladder (0.017), y triangular (0.037).
 3. **Restart paradox presente**: 3 restarts → chain break (ΔE/gap=6.45). 1 y 5 funcionan.
@@ -262,7 +262,7 @@ y reportar la mediana.
 
 **Implicación para la tesis**: Heavy-hex demuestra que el framework se adapta a la
 topología nativa del hardware real. La combinación p=1 + heavy-hex + ZNE es la
-estrategia óptima para deployment en IBM Torino: zero SWAP, seed-independent,
+estrategia óptima para deployment en IBM Heron: zero SWAP, seed-independent,
 y compatible con error mitigation (18 CX gates, at ZNE threshold).
 
 **Corrección al P1_VALID_REGIME**: `("heavy_hex", 10): 3.0` (confirmado: h=2.625 falla con ΔE/gap=10.67).
@@ -297,11 +297,11 @@ y compatible con error mitigation (18 CX gates, at ZNE threshold).
 **Implicación**: La estrategia completa de hardware deployment está validada localmente:
 1. Pipeline noiseless: p=1 heavy-hex 3/3 PASS (ΔE/gap=0.56%)
 2. ZNE mitigation: 3/3 positive gain (mean +62.7%, R²=0.998)
-3. Zero SWAP overhead: HVA maps directly to IBM Torino coupling map
+3. Zero SWAP overhead: HVA maps directly to IBM Heron coupling map
 4. Seed-independent: std=0.0003 (noiseless), all seeds positive (ZNE)
 5. Minimum resources: 1 restart, 3 layouts, 16k shots
 
-**No quedan simulaciones locales pendientes. El siguiente paso es IBM Torino.**
+**No quedan simulaciones locales pendientes. El siguiente paso es IBM Heron.**
 
 ---
 

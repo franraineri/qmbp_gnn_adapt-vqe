@@ -126,7 +126,7 @@ class HVACircuitBuilder:
         - total_depth RZZ: 89/90/90, PauliEvol: 82/81/90 (mean −6%)
         - n_2Q: 34 in both (unchanged — same gate count)
         - max|ΔE|: 3.55e-14 (machine precision)
-        Recommended for hardware deployment via run_ibm_torino_deployment.py.
+        Recommended for hardware deployment via run_ibm_deployment.py.
 
         Parameters
         ----------

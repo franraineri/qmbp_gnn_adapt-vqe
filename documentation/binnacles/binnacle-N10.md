@@ -335,7 +335,7 @@ The V6.1 deployer uses a 4-metric checklist (ΔE/gap, ⟨X⟩, ⟨ZZ⟩, ADAPT i
 ### Next Steps
 
 1. **Thesis results**: Use seed=43, patience=500, h_test∈{1.4, 1.5} as primary N=10 results
-2. **Hardware deployment**: Run on IBM Torino with the V6.1 error mitigation stack (DD + twirling + TREX + inhomogeneous ZNE)
+2. **Hardware deployment**: Run on IBM Heron with the V6.1 error mitigation stack (DD + twirling + TREX + inhomogeneous ZNE)
 3. **Ladder with non-uniform J**: Test edge features (NNConv) with J_leg=1.0, J_rung=0.5 — the only scenario where edge features add information
 4. **Gradient analysis paper figure**: Use seed 43 model to generate gradient norm vs h plot for thesis (peak at h≈1.2 validates Hernandes et al.)
 
@@ -527,7 +527,7 @@ The gradient analyzer requires MSE < ~1e-03 to detect phase transition signature
 ### Status: Thesis-Ready
 
 All simulation experiments are complete. The remaining work is:
-1. **Hardware deployment** (IBM Torino) — code ready, needs credentials
+1. **Hardware deployment** (IBM Heron) — code ready, needs credentials
 2. **Thesis writing** — data is consolidated, tables are generated
 3. **Figures** — gradient norm vs h plot (use dense grid run), scaling plot (N=6 vs N=10)
 
@@ -538,7 +538,7 @@ All simulation experiments are complete. The remaining work is:
 What Actually Moves the Thesis Forward
 Ranked by impact-to-effort ratio:
 
-1. Hardware Deployment (IBM Torino) — HIGHEST IMPACT
+1. Hardware Deployment (IBM Heron) — HIGHEST IMPACT
 This is the missing chapter section (4.5). Everything else is simulation — hardware is what makes this a quantum computing thesis, not just a classical ML thesis. The code is ready (HardwareDeployerV61), you just need credentials. Even a single successful run at N=6, h=1.5 with the full mitigation stack (DD + twirling + TREX + ZNE) would be a strong result.
 
 Do you have IBM Quantum access? If yes, this is the clear next step.
@@ -794,7 +794,7 @@ The project went through a clear progression of failures and insights:
 |-----------|-----------|-------------------|----------|
 | N=10 noisy with n_layouts=5-7 | More layouts improve ZNE R² at N=10 | Whether the failure is statistical (too few points) or fundamental (no linear relationship) | **HIGH** |
 | N=10 noisy with DD+twirling pre-ZNE | Complementary mitigation restores linearity | Whether noise reduction before ZNE enables the linear extrapolation | **HIGH** |
-| N=6 hardware (IBM Torino) | Real QPU validates simulation predictions | First real quantum result — thesis Section 4.5 | **HIGHEST** (needs credentials) |
+| N=6 hardware (IBM Heron) | Real QPU validates simulation predictions | First real quantum result — thesis Section 4.5 | **HIGHEST** (needs credentials) |
 | N=10 with p=1 noisy sweep | Shallower circuit has better ZNE linearity | Whether depth is the root cause of ZNE failure | MEDIUM |
 | Gradient analysis figure (dense grid, seed 43) | Publication-quality plot of ∂L/∂W vs h | Thesis Figure 4.x — already have the data, just needs plotting | LOW effort, HIGH value |
 
@@ -838,7 +838,7 @@ Uvarov, A. et al. (2024). Mitigating quantum gate errors for variational eigenso
 
 Rabinovich, D. et al. (2025). Zero-noise extrapolation via cyclic permutations of quantum circuit layouts. arXiv:2511.02901.
 
-**What they propose:** CLP-ZNE uses O(n) cyclic layout permutations (not just 3 random layouts) and averages over them before extrapolating. Benchmarked specifically on IBM Torino noise model at n=12 qubits, achieving an order of magnitude error reduction — outperforming standard unitary folding ZNE.
+**What they propose:** CLP-ZNE uses O(n) cyclic layout permutations (not just 3 random layouts) and averages over them before extrapolating. Benchmarked specifically on IBM Heron noise model at n=12 qubits, achieving an order of magnitude error reduction — outperforming standard unitary folding ZNE.
 
 **Why it works where our approach fails:** With O(n)=10 layouts instead of 3, the averaging over cyclic permutations produces a smoother noise-energy curve. The cyclic structure ensures systematic coverage of the CES space rather than random sampling. This directly addresses our failure mode (too few points, no linear correlation).
 
@@ -861,7 +861,7 @@ Wang, S. et al. (2021). Noise-induced barren plateaus in variational quantum alg
 
 The ZNE failure at N=10 is not a bug — it's a well-predicted scaling limitation. The path forward is clear from the literature:
 
-1. **CLP-ZNE (Rabinovich et al. 2025):** Use O(n)=10 cyclic layout permutations instead of 3 random layouts. This is the most directly applicable fix and has been validated on IBM Torino noise at n=12.
+1. **CLP-ZNE (Rabinovich et al. 2025):** Use O(n)=10 cyclic layout permutations instead of 3 random layouts. This is the most directly applicable fix and has been validated on IBM Heron noise at n=12.
 
 2. **DD + Twirling before ZNE:** Reduce the effective noise strength (CES) before attempting extrapolation. If DD brings the circuit back into the perturbative regime (total CES < 0.5), linear ZNE may work again.
 
@@ -901,7 +901,7 @@ Based on the literature analysis and experimental findings, here are the experim
 
 ### Priority 2: Validate N=6 on Real QPU (Needs Credentials)
 
-**Experiment D: N=6, h=1.5, IBM Torino, full mitigation stack**
+**Experiment D: N=6, h=1.5, IBM Heron, full mitigation stack**
 - Configuration: DD + twirling + TREX + inhomogeneous ZNE (3 layouts)
 - Expected outcome: ΔE/gap < 10% (relaxed from simulation's 5% due to real noise)
 - Success criterion: Correct phase label + ΔE/gap < 5% (hardware criterion from project-status)
@@ -937,7 +937,7 @@ Based on the literature analysis and experimental findings, here are the experim
 The following papers should be added to `bibliography_curated.md` Section 10 (Error Mitigation):
 
 1. **Tsubouchi et al. (2023)** — fundamental cost bound (exponential scaling proof)
-2. **Rabinovich et al. (2025)** — CLP-ZNE with O(n) layouts on IBM Torino noise
+2. **Rabinovich et al. (2025)** — CLP-ZNE with O(n) layouts on IBM Heron noise
 
 These directly inform our experimental findings and next steps.
 
@@ -1037,7 +1037,7 @@ Both Experiment A (more layouts) and Experiment B (DD) have been attempted:
 - **A**: More layouts don't help (R² stays <0.08). Failure is fundamental.
 - **B**: DD can't be tested locally. Must be tested on real hardware.
 
-**The path forward is clear: go to real hardware.** On IBM Torino/Heron, the full mitigation stack (DD + twirling + TREX + ZNE) is applied natively via `EstimatorV2` options. The local FakeTorino simulation cannot replicate this stack — it only simulates the noise model, not the mitigation infrastructure.
+**The path forward is clear: go to real hardware.** On IBM Heron/Heron, the full mitigation stack (DD + twirling + TREX + ZNE) is applied natively via `EstimatorV2` options. The local FakeTorino simulation cannot replicate this stack — it only simulates the noise model, not the mitigation infrastructure.
 
 ### Do NOT Repeat
 
@@ -1359,7 +1359,7 @@ The N=10 noisy sweep (`noisy_sweep_20260514_141418_963d7c2e.json`) reveals a con
 
 Sites 2 and 9 suffer catastrophic degradation (62% and 87% loss). This is a **layout-dependent effect** — these qubits are mapped to high-error positions on the FakeTorino heavy-hex topology. The pattern is consistent across all h-values in the sweep.
 
-**Implication for hardware:** On real IBM Torino, the `LayoutSelector` should explicitly avoid these pathological qubit positions. The CES metric partially captures this (high-CES layouts include these bad qubits), but a per-qubit error filter would be more targeted.
+**Implication for hardware:** On real IBM Heron, the `LayoutSelector` should explicitly avoid these pathological qubit positions. The CES metric partially captures this (high-CES layouts include these bad qubits), but a per-qubit error filter would be more targeted.
 
 **Implication for ZNE failure:** The extreme per-site variance means the "average" energy is dominated by a few badly-mapped qubits. Different layouts produce different "bad qubit" patterns, making the energy-vs-CES relationship non-monotonic (explaining R² < 0.05).
 

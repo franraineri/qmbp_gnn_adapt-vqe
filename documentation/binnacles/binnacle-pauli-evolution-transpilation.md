@@ -4,7 +4,7 @@
 > **Sección relevante**: Section 20 de `run_hardware_rehearsal_v3.py`
 > **Script de validación**: `run_hardware_rehearsal_v3.py --section 20`
 > **Archivos modificados**: `src/qmbp_simulation/circuits/hva.py`,
-> `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py`
+> `scripts/experiment_runners/hardware/run_ibm_deployment.py`
 > **Estado**: ✅ VALIDADO — en producción (Tiers 0-2 del deployment script)
 
 ---
@@ -18,7 +18,7 @@ transpilador de Qiskit, permitiendo mejor scheduling paralelo y reduciendo el
 
 **Resultado clave**: Funcionalmente idéntico (`|ΔE| < 1e-13` en todos los casos),
 pero con un circuito más corto que reduce la exposición a decoherencia temporal en
-hardware real. Los Tiers 0, 1, y 2 de IBM Torino deployment ya usan esta representación.
+hardware real. Los Tiers 0, 1, y 2 de IBM Heron deployment ya usan esta representación.
 
 ---
 
@@ -104,13 +104,13 @@ independientemente de la representación. Por eso:
     n_2Q unchanged:     True                  (✓ same gate count)
     noisy ΔE/gap diff:  0.67%                 (informational)
 
-    Recommendation: USE PauliEvolutionGate for IBM Torino deployment
+    Recommendation: USE PauliEvolutionGate for IBM Heron deployment
 ```
 
 **Por qué `noisy_de_gap_diff = 0.67%` es esperado**:
 FakeTorino modela ruido **por gate** (no por tiempo). Si n_2Q = 34 igual en
 ambos, el ruido acumulado es el mismo. La diferencia del 0.67% es ruido
-estadístico de shot noise (shots=16384). En hardware **real** (IBM Torino), el
+estadístico de shot noise (shots=16384). En hardware **real** (IBM Heron), el
 ruido depende del tiempo de ejecución → la reducción de total_depth SÍ importa.
 
 ---
@@ -123,7 +123,7 @@ ruido depende del tiempo de ejecución → la reducción de total_depth SÍ impo
 - **Docstring**: Actualizado con datos reales de Section 20, convención del
   coeficiente, nota sobre 2Q-depth=1 en heavy_hex
 
-### 2. `scripts/experiment_runners/hardware/run_ibm_torino_deployment.py`
+### 2. `scripts/experiment_runners/hardware/run_ibm_deployment.py`
 
 Aplicado en todos los Tiers que van al QPU real:
 
@@ -180,7 +180,7 @@ Esto incluye todos los scripts en:
    triviales), el transpilador ya cancela gates y ambas representaciones colapsan.
    A theta no triviales (h más cercano a h_c), la ganancia es mayor.
 
-3. **En hardware real (IBM Torino)**, se espera un impacto más visible que en
+3. **En hardware real (IBM Heron)**, se espera un impacto más visible que en
    FakeTorino porque el modelo de ruido es temporal (T1/T2), no solo por gate.
 
 ---

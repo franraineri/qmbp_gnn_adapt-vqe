@@ -33,7 +33,7 @@
 
 3. **Phase 3 (MPNN)**: SIN bottleneck. GNN opera sobre grafo de N nodos — O(N) forward pass.
 
-4. **Phase 4 (Deploy/Hardware)**: Simulación noisy local imposible a N>30. Hardware real: N=40-50 viable en IBM Torino (133 qubits).
+4. **Phase 4 (Deploy/Hardware)**: Simulación noisy local imposible a N>30. Hardware real: N=40-50 viable en IBM Heron (133 qubits).
 
 ---
 
@@ -256,7 +256,7 @@ SC-ADAPT-VQE genera circuitos adaptativamente — pierde la estructura HVA que e
 
 **NO**. Evidencia interna (binnacle-N10): "N=10 noisy simulation cancelled after 44 min at 500% CPU". A N=40 sería literalmente imposible localmente.
 
-**Estrategia**: Validar pipeline noiseless a N=40-50 localmente. Luego deploy directo en hardware real (IBM Torino, 133 qubits) con PEA-ZNE (ya validado en simulación a N=6-10).
+**Estrategia**: Validar pipeline noiseless a N=40-50 localmente. Luego deploy directo en hardware real (IBM Heron, 133 qubits) con PEA-ZNE (ya validado en simulación a N=6-10).
 
 ---
 
@@ -362,7 +362,7 @@ Para N=40 chain_1d con HVA p=1, **el plan es viable**. VQE converge dentro del 5
 ## Valor para la Tesis
 
 - **Capítulo 5**: Table 5.23 — "N=40 Pipeline Performance"
-- **Capítulo 6 (Future Work)**: Scaling demostrado, hardware deployment a N=40-50 en IBM Torino como siguiente paso
+- **Capítulo 6 (Future Work)**: Scaling demostrado, hardware deployment a N=40-50 en IBM Heron como siguiente paso
 - **Contribución**: Primera demostración de GNN warm-start VQE pipeline end-to-end a N=40+ para TFIM phase characterization
 - **Novelty vs literature**: VTNE (Rader 2024) pre-optimiza con TN pero NO predice params sin re-optimización. Nuestro GNN PREDICE θ directamente → zero quantum optimization cost en deployment.
 
@@ -386,8 +386,8 @@ Para N=40 chain_1d con HVA p=1, **el plan es viable**. VQE converge dentro del 5
 | Phase 3 | MPNN training (GINConv h=128) | ✅ ~30 min | ✅ ~30 min | ✅ ~35 min | O(N·L·h²) forward. Grafo más grande pero dataset size domina |
 | Phase 3 | MPNN inference | ✅ <1s | ✅ <1s | ✅ <1s | Un forward pass. Negligible |
 | Phase 4-sim | Noisy MPS (depol. local) | ⚠️ ~2-4× noiseless | ⚠️ ~3-5× | ✅ ~5-8× | χ crece con noise (depol local ≈ ×2-3χ). Manejable en 1D |
-| Phase 4-sim | Noisy MPS (full Torino noise) | ❌ | ❌ | ❌ | Crosstalk, leakage → χ explota. Imposible a cualquier N>20 |
-| Phase 4-hw | Hardware IBM Torino | ✅ 39 CX | ✅ 49 CX | ⚠️ 79 CX | 79 CX con PEA: viable pero ~20% residual error. Marginal |
+| Phase 4-sim | Noisy MPS (full Heron noise) | ❌ | ❌ | ❌ | Crosstalk, leakage → χ explota. Imposible a cualquier N>20 |
+| Phase 4-hw | Hardware IBM Heron | ✅ 39 CX | ✅ 49 CX | ⚠️ 79 CX | 79 CX con PEA: viable pero ~20% residual error. Marginal |
 | Phase 4-hw | Transpilación a heavy-hex | ⚠️ +SWAPs | ⚠️ +SWAPs | ❌ Alto SWAP overhead | N=80 chain en heavy-hex: ~20-30 SWAPs extra → depth ×2 |
 
 ### Análisis detallado por fase
@@ -449,7 +449,7 @@ Para TFIM 1D:
 ```
 Esto da una estimación rápida sin simular MPS noisy completo.
 
-**Full Torino noise**: IMPOSIBLE a cualquier N>20 con MPS (crosstalk es non-local → destruye area-law).
+**Full Heron noise**: IMPOSIBLE a cualquier N>20 con MPS (crosstalk es non-local → destruye area-law).
 
 #### Phase 4-hw — Hardware: ⚠️ MARGINAL A N=80
 
@@ -484,7 +484,7 @@ Dado el objetivo de validación exhaustiva local ANTES de hardware:
 **Método**: Usar `NoisyBackend` con shot-noise Gaussiano calibrado:
 ```python
 # Calibración: σ = sqrt(N_CX) × σ_per_CX
-# Para IBM Torino: σ_per_CX ≈ 0.008 (from hardware rehearsal data)
+# Para IBM Heron: σ_per_CX ≈ 0.008 (from hardware rehearsal data)
 sigma_total = np.sqrt(n_cx) * 0.008
 
 # Evaluar: ¿PEA-ZNE recupera suficiente señal?
@@ -528,7 +528,7 @@ n_swaps = (n_cx_real - n_cx_logical) // 3  # Approximate
 
 ### Fase 2d: Qubit Selection a N=40+ (NUEVO)
 
-**Objetivo**: Seleccionar el sub-grafo de qubits óptimo en Torino (133 qubits).
+**Objetivo**: Seleccionar el sub-grafo de qubits óptimo en Heron (133 qubits).
 
 **Método**: Usar calibration data pública de IBM para seleccionar qubits con:
 1. Menor median CX error rate
@@ -573,14 +573,14 @@ Fase 4:  Analysis + thesis              — Scaling tables, comparison figures
 | Hamiltonian (SparsePauliOp) | **N ~ ∞** | `from_sparse_list` es O(N terms), polynomial |
 | MPNN Training (GINConv) | **N ~ 10,000+** | Linear en N per message pass. GPU batch processing |
 | MPNN Inference | **N ~ 100,000+** | Single forward pass, O(N·h²) |
-| Hardware (IBM Torino, chain) | **N ~ 50-60** (PEA viable) | CX budget + SWAP overhead. N=60 → ~100-130 CX → PEA ok |
-| Hardware (IBM Torino, ΔE<5%) | **N ~ 40-50** | Beyond this, noise residual exceeds 5% even post-PEA |
+| Hardware (IBM Heron, chain) | **N ~ 50-60** (PEA viable) | CX budget + SWAP overhead. N=60 → ~100-130 CX → PEA ok |
+| Hardware (IBM Heron, ΔE<5%) | **N ~ 40-50** | Beyond this, noise residual exceeds 5% even post-PEA |
 | Hardware (IBM Heron, chain) | **N ~ 80-100** | Heron has lower error rates (~0.3%/CX). Future hardware |
 | Hardware (Nighthawk, square) | **N ~ 100-120** | EPLG=2.15e-3, square lattice, T₁=350μs. Ref: `documentation/analysis/18_ibm_hardware_generations.md` |
 
 ### Implicación para la tesis
 
-El pipeline **en simulación** escala cómodamente a N=80+ y el bottleneck es VQE compute time (no memoria). El pipeline **en hardware** está limitado a N=50-60 en Torino por el presupuesto CX + SWAP overhead.
+El pipeline **en simulación** escala cómodamente a N=80+ y el bottleneck es VQE compute time (no memoria). El pipeline **en hardware** está limitado a N=50-60 en Heron por el presupuesto CX + SWAP overhead.
 
 **Resultado novel más fuerte posible**:
 - Simulación: demostrar GNN prediction a N=80 (cero QPU cost en deployment)

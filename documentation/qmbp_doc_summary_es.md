@@ -268,7 +268,7 @@ Sin embargo, **la dimensión espacial determina cuánto entrelazamiento contiene
 
 **Sistemas 2D (triangular, Kagome):** El entrelazamiento escala como el perímetro de la región (ley de área en 2D — la frontera es una línea de longitud L). Para una red cuadrada de lado L, la dimensión de enlace del MPS necesaria crece como e^L — exponencialmente con el ancho del sistema. DMRG se vuelve impracticable para anchos > 4–6. Aquí es precisamente donde el hardware cuántico proporciona su ventaja: un procesador cuántico maneja naturalmente el entrelazamiento exponencial que derrota a los métodos clásicos.
 
-**La ventana de ventaja cuántica:** A medida que la dimensión espacial aumenta, los métodos clásicos fallan en N progresivamente más pequeños, mientras que el límite del QPU se mantiene constante (133 qubits en IBM Torino). Para redes 2D frustradas como Kagome con N > 16–20, ningún método clásico puede encontrar el estado fundamental — solo la simulación cuántica puede.
+**La ventana de ventaja cuántica:** A medida que la dimensión espacial aumenta, los métodos clásicos fallan en N progresivamente más pequeños, mientras que el límite del QPU se mantiene constante (133 qubits en IBM Heron). Para redes 2D frustradas como Kagome con N > 16–20, ningún método clásico puede encontrar el estado fundamental — solo la simulación cuántica puede.
 
 ### 6.3 Impacto en Nuestro Circuito HVA
 

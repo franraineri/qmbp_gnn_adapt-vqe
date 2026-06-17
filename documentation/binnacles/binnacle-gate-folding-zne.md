@@ -168,7 +168,7 @@ find layouts with diverse CES without picking catastrophic outliers.
 
 ## Recommendation for Hardware Deployment
 
-**Use GF-ZNE as the primary ZNE strategy on IBM Torino:**
+**Use GF-ZNE as the primary ZNE strategy on IBM Heron:**
 
 1. **Primary**: Gate-folding ZNE on the single lowest-CES layout
    - Noise factors [1, 3, 5]
@@ -477,7 +477,7 @@ of circuit depth, enabling accurate linear extrapolation (R²=0.94).
 
 ### Implications for Real Hardware
 
-On IBM Torino, the situation will be different:
+On IBM Heron, the situation will be different:
 - **GF-ZNE should work better** because real hardware noise accumulates with
   folding (the folded gates are physically executed, not simulated).
 - **PEA will use IBM Runtime's learned noise** (`amplifier="pea"`) which does
@@ -792,7 +792,7 @@ This investigation contributes to Chapter 5 (Hardware Deployment):
 
 These results directly inform the hardware deployment configuration:
 ```python
-# IBM Torino deployment (recommended):
+# IBM Heron deployment (recommended):
 estimator.options.resilience.zne_mitigation = True
 estimator.options.resilience.zne.amplifier = "pea"
 estimator.options.resilience.zne.noise_factors = (1, 3, 5)

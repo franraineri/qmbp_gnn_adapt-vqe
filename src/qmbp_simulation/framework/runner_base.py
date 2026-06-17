@@ -3543,7 +3543,7 @@ class HardwareValidationRunner(ValidationRunner):
     - Shared StructuredLogger between runner and hardware backend.
     - CLI args for --mode (hardware/fake_backend) and --shots.
 
-    Use this for runners that execute on real QPU or FakeTorino simulation.
+    Use this for runners that execute on real QPU or FakeKingston simulation.
 
     Example::
 
@@ -3699,7 +3699,7 @@ class HardwareValidationRunner(ValidationRunner):
         if not super().run_preflight():
             return False
 
-        # Hardware preflight only in hardware mode (FakeTorino always passes)
+        # Hardware preflight only in hardware mode (FakeKingston always passes)
         if self._args.mode == "hardware":
             logger.info("  Hardware preflight: checking QPU status...")
             from qmbp_simulation.execution.hardware import HardwareBackend
@@ -3756,3 +3756,53 @@ class HardwareValidationRunner(ValidationRunner):
             envelope["hardware_output_dir"] = self.hw_backend._config.output_dir
 
         return envelope
+
+    def validate_transpiled_quality(
+        self,
+        transpiled_circuit,
+        layout: list[int] | None = None,
+        *,
+        error_budget_abort: float = 0.50,
+        error_budget_warn: float = 0.30,
+        depth_2q_warn: int = 30,
+    ) -> dict[str, Any]:
+        """Post-transpilation quality check (call from sections after layout selection).
+
+        Wraps ``validate_transpiled_circuit_quality`` from the hardware preflight
+        module, using this runner's backend and logger.
+
+        Parameters
+        ----------
+        transpiled_circuit : QuantumCircuit
+            The transpiled (ISA) circuit for one layout.
+        layout : list[int] | None
+            Physical qubit indices (from layout_selection.layouts[i]).
+        error_budget_abort : float
+            Abort threshold for error budget (default: 0.50).
+        error_budget_warn : float
+            Warning threshold for error budget (default: 0.30).
+        depth_2q_warn : int
+            Warning threshold for 2Q critical path depth.
+
+        Returns
+        -------
+        dict[str, Any]
+            Quality checks with "abort" boolean.
+        """
+        from qmbp_simulation.execution.hardware.preflight import (
+            validate_transpiled_circuit_quality,
+        )
+
+        backend = self.hw_backend.backend if self.hw_backend else None
+        if backend is None:
+            return {"abort": False, "skipped": True, "reason": "no backend available"}
+
+        return validate_transpiled_circuit_quality(
+            transpiled_circuit,
+            backend,
+            layout=layout,
+            logger=self.slog,
+            error_budget_abort_threshold=error_budget_abort,
+            error_budget_warn_threshold=error_budget_warn,
+            depth_2q_warn_threshold=depth_2q_warn,
+        )
