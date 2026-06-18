@@ -104,6 +104,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 - **TFIM frustrated (J1-J2) WORKS in simulation** — fid≥0.99 at J₂=0.5, but 27 CZ@N=6 (no ZNE for N≥6).
 - **ZNE threshold**: ~18 CX gates. p=2 N=10 (36 CX) fails. Use p=1 for N≥10 hardware.
 - **CES-ZNE fails on heavy_hex**: All good layouts have CES≈0.15 (no spread). Use IBM gate-folding ZNE instead. Ref: `documentation/analysis/11_hardware_rehearsal_findings.md`.
+- **Mapomatic VF2 layout optimizer** (2026-06-17): 6.1× lower CES than BFS (0.031 vs 0.190 on FakeTorino N=10). SWAP-free layouts via subgraph isomorphism. Enabled by default (`HardwareConfig.use_mapomatic=True`). Ref: `src/qmbp_simulation/execution/hardware/layout_optimizer.py`.
 - **Gate-folding ZNE validated**: +12% mean gain, R²>0.99, wins 9/12 h-points vs CES-ZNE (t=3.28, p<0.01). Robust across chain_1d/heavy_hex/ladder. Ref: `documentation/binnacles/binnacle-gate-folding-zne.md`.
 - **PEA-ZNE validated**: +95% mean gain (8.4× GF-ZNE), R²=0.998, std=2.9% (3 seeds × 4 h-points). Requires qiskit-aer. Recommended primary strategy for hardware. Ref: `documentation/binnacles/binnacle-gate-folding-zne.md`.
 - **Adaptive ZNE default changed to pea_primary** (2026-06-05): `run_adaptive_zne()` now uses PEA as primary (not GF). GF R²>0.99 does NOT guarantee accuracy (89.8% ΔE/gap observed). Use `strategy="gf_primary"` only for legacy compat. Ref: Kim et al. Nature 618 (2023), QESEM arXiv:2508.10997.
@@ -116,6 +117,8 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 - **PEA local simulation valid ONLY at N≤10**: FakeTorino (133 qubits) OOMs at N≥20. Native chain_1d at N≥20 has insufficient noise for ZNE (no SWAP routing overhead). PEA N≥20 validation requires real QPU. Ref: `documentation/analysis/23_noisy_simulation_scalability_limits.md`.
 - **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
 - **PauliEvolutionGate gives −6–10% total_depth** (validated 2026-06-15, Section 20): Use `create_pauli_evolution()` for hardware deployment circuits. Same n_2Q (34), same energy (|ΔE|<4e-14), shorter scheduling. On heavy_hex, 2Q-depth=1 for both (bonds non-overlapping — fully parallelized); benefit is in total_depth scheduling of 1Q gates. Bug in original 2026-06-05 version (coeff=1.0→0.5 fix). Applied to Tiers 0/1/2 of `run_ibm_deployment.py`. VQE noiseless training still uses `create()` (no transpilation → no benefit). Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`, `documentation/analysis/15_transpiler_exploration.md`.
+- **Mitiq integration** (2026-06-17): Complementary error mitigation via CDR, DDD+ZNE, random-folding ZNE. `optimization_level=0` mandatory (Qiskit 2.x cancels folded gates at level≥1). CDR: 58.8% improvement (N=4 benchmark). ZNE random: 76.5%. Strategy: PEA primary → Mitiq CDR verification. Ref: `documentation/analysis/24_mitiq_integration_plan.md`, `src/qmbp_simulation/execution/mitiq_utils.py`.
+- **Mitigation Benchmark** (2026-06-18): 21 configs × 15 h-points on FakeTorino (V2, θ_opt corrected). **ALL PEA variants achieve ΔE/gap=0.37% (PASS <5%)** in paramagnetic regime. DD/Twirling have ZERO effect in depolarizing simulation. GF-ZNE reduces to 28.7% (31% reduction vs raw). Mitiq ZNE **destructive** at N=10 with routing (opt_level=0 → 45 CZ, 81% ΔE/gap). AQC+PEA is global champion (2.1% h≥3.0, best in critical regime at 70%). PEA budget indistinguishable in sim (all converge). Definitive config: **C5_full_pea_balanced, opt_level=2, depth_2q=14, n_2q=18**. Hardware order: C0→C1→C3→C4→C5→C6→C16. Ref: `documentation/binnacles/binnacle-mitigation-benchmark-v2.md`.
 
 ## Unsupervised Phase Detection (Task 2+3 findings)
 
@@ -181,7 +184,7 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 ### Stable (do NOT modify unless explicitly asked)
 - `src/qmbp_simulation/models/` — data models, Hamiltonians, lattices, constants
 - `src/qmbp_simulation/solvers/` — exact diag + DMRG
-- `src/qmbp_simulation/circuits/` — HVA construction (p≤2 enforced). Note: `create_pauli_evolution()` bug fixed 2026-06-15 (coeff 1.0→0.5); method now in production for hardware deployment.
+- `src/qmbp_simulation/circuits/` — HVA construction (p≤2 enforced). Note: `create_pauli_evolution()` bug fixed 2026-06-15 (coeff 1.0→0.5); method now in production for hardware deployment. `aqc_compression.py` provides optional AQC-Tensor circuit depth reduction (lazy import, requires qiskit-addon-aqc-tensor).
 - `src/qmbp_simulation/execution/` — backend ABC + noiseless/noisy/hardware + PEA simulation
 - `src/qmbp_simulation/optimizers/` — multi-start VQE + SPSA
 - `src/qmbp_simulation/pipeline/` — dataset save/load, orchestration
@@ -205,6 +208,11 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 - Hardware κ utilities in `run_ibm_deployment.py`: `compute_kappa_per_h()` (noiseless finite-diff curvature, zero QPU cost), `kappa_go_no_go()` (auto-calibrates percentile-based thresholds — topology-agnostic, integrated in Tier 0/1/2).
 - `.github/workflows/ci.yml` — CI gate (lint + mypy strict + test + smoke)
 - `analysis/` — coverage scanner, diagnostics, verification
+- `src/qmbp_simulation/execution/hardware/layout_optimizer.py` — Mapomatic VF2 layout optimization (multi-layer filtering: CouplingMap pruning → VF2 discovery → fidelity scoring → top-N selection). Optional dep: `mapomatic>=0.14`.
+- `tests/unit/test_layout_optimizer.py` — 19 unit tests (layers 0-2 + strategy + degradation)
+- `src/qmbp_simulation/execution/mitiq_utils.py` — Mitiq error mitigation integration (ZNE/CDR/DDD/PEC + multi-method comparison). Optional dep: `mitiq>=0.38`. CRITICAL: forces `optimization_level=0` (Qiskit 2.x cancels folded gates at level≥1).
+- `tests/test_mitiq_integration.py` — 27 tests (all techniques + edge cases + validation)
+- `tests/integration/test_layout_optimizer_integration.py` — 8 integration tests (FakeTorino full pipeline)
 
 ### Do NOT Overwrite
 - `results/thesis/` — committed definitive results
@@ -272,6 +280,26 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
 | Scaling extensions runner (E5) | `scripts/experiment_runners/bond_resolved/run_scaling_extensions.py` |
 | Scaling extensions analyzer | `python -m project_health.analysis.scaling_extensions_analyzer` |
 | Scaling extensions plan | `documentation/analysis/20_scaling_extensions_plan.md` |
+| AQC-Tensor integration plan + results | `documentation/analysis/24_aqc_tensor_integration_plan.md` |
+| AQC-Tensor POC/cross-topology results | `results/aqc_tensor/` |
+| AQC-Tensor module | `src/qmbp_simulation/circuits/aqc_compression.py` |
+| AQC-Tensor experiment scripts | `scripts/experiment_runners/aqc_tensor/` |
+| Mitigation Benchmark binnacle | `documentation/binnacles/binnacle-mitigation-benchmark.md` |
+| Mitigation Benchmark runner | `scripts/experiment_runners/hardware/run_mitigation_benchmark.py` |
+| Mitigation Benchmark analyzer | `python -m project_health.analysis.mitigation_benchmark_analyzer` |
+| Mitigation Benchmark configs (19) | `scripts/experiment_runners/hardware/benchmark_configs.py` |
+| Mapomatic layout optimizer module | `src/qmbp_simulation/execution/hardware/layout_optimizer.py` |
+| Mapomatic integration tasks | `documentation/tasks/mapomatic-integration-tasks.md` |
+| Layout optimizer analyzer | `python -m project_health.analysis.layout_optimizer_analyzer [--benchmark]` |
+| Mitiq integration plan | `documentation/analysis/24_mitiq_integration_plan.md` |
+| Mitiq module | `src/qmbp_simulation/execution/mitiq_utils.py` |
+| Mitiq steering | `.kiro/steering/mitiq-integration.md` |
+| Mitiq tests (27) | `tests/test_mitiq_integration.py` |
+| Mitiq analyzer | `python -m project_health.analysis.mitiq_analyzer` |
+| Mitigation benchmark binnacle | `documentation/binnacles/binnacle-mitigation-benchmark.md` |
+| Mitigation Benchmark V2 binnacle (θ_opt corrected) | `documentation/binnacles/binnacle-mitigation-benchmark-v2.md` |
+| Mitigation benchmark runner | `scripts/experiment_runners/hardware/run_mitigation_benchmark.py` |
+| Mitigation benchmark analyzer | `python -m project_health.analysis.mitigation_benchmark_analyzer` |
 
 ## CI & Quality Gates
 

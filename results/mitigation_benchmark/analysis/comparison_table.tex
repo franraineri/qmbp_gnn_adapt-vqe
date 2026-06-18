@@ -1,0 +1,29 @@
+\begin{table}[htbp]
+  \centering
+  \caption{Mitigation configuration ranking by mean $\Delta E / \text{gap}$. Lower is better.}
+  \label{tab:mitigation_ranking}
+  \begin{tabular}{r l r r r r}
+    \toprule
+    Rank & Config & $\Delta E$/gap (\%) & Overhead & Prec./Shot & Net Benefit \\
+    \midrule
+    1 & C10\_kitchen\_sink & 21.08 & 3.2x & 1.61e-05 & 0.1784 \\
+    2 & C15\_pea\_no\_affine & 21.08 & 3.2x & 1.61e-05 & 0.1784 \\
+    3 & C4\_full\_pea\_light & 21.08 & 3.2x & 1.61e-05 & 0.1784 \\
+    4 & C6\_full\_pea\_heavy & 21.08 & 3.2x & 1.61e-05 & 0.1784 \\
+    5 & C7\_pea\_no\_dd & 21.08 & 3.2x & 1.61e-05 & 0.1784 \\
+    6 & C8\_pea\_xy4 & 21.08 & 3.2x & 1.61e-05 & 0.1784 \\
+    7 & C5\_full\_pea\_balanced & 25.29 & 3.0x & 4.30e-05 & 0.1689 \\
+    8 & C16\_aqc\_pea & 27.17 & 2.9x & 3.86e-05 & 0.1004 \\
+    9 & C9\_gnn\_qem & 76.35 & 3.2x & 4.81e-06 & 0.0535 \\
+    10 & C3\_full\_gf & 95.64 & 3.1x & 6.64e-06 & 0.0099 \\
+    11 & C1\_dd\_only & 99.22 & 1.1x & 4.79e-07 & 0.0018 \\
+    12 & C2\_dd\_tw & 99.22 & 1.1x & 4.79e-07 & 0.0018 \\
+    13 & C19\_aqc\_gf & 107.51 & 2.7x & 2.70e-06 & -0.0104 \\
+    14 & C0\_raw & 112.07 & 1.0x & 2.62e-05 & -0.0273 \\
+    15 & C20\_aqc\_dd\_tw & 143.20 & 0.9x & -1.83e-05 & -0.0598 \\
+    16 & C18\_aqc\_raw & 143.43 & 0.9x & -1.83e-05 & -0.0601 \\
+    17 & C11\_mitiq\_zne & 168.42 & 3.2x & -1.39e-05 & -0.0171 \\
+    18 & C13\_mitiq\_ddd\_zne & 171.32 & 3.2x & -1.45e-05 & -0.0179 \\
+    \bottomrule
+  \end{tabular}
+\end{table}

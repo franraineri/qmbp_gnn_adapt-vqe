@@ -30,7 +30,7 @@
     "results/experiments/exp_gf_zne_cmp/run_20260604_115923.json",
     "results/experiments/exp_hw_rehearsal/run_20260603_132415.json",
     "results/experiments/exp_hw_rehearsal_v2/run_20260616_165157.json",
-    "results/experiments/exp_hw_rehearsal_v3/run_20260617_104208.json",
+    "results/experiments/exp_hw_rehearsal_v3/run_20260617_145440.json",
     "results/experiments/exp_mps_hw/run_20260605_012256.json",
     "results/experiments/exp_n16_square_dmrg2d/run_20260605_233717.json",
     "results/experiments/exp_pea_cross_dense/run_20260610_144101.json",
@@ -479,7 +479,7 @@
   ],
   "n_files": 476,
   "metadata": {
-    "timestamp": "2026-06-17T14:21:33+00:00",
+    "timestamp": "2026-06-18T04:38:22+00:00",
     "n_noiseless": 329,
     "n_noisy": 93,
     "n_experiments": 54

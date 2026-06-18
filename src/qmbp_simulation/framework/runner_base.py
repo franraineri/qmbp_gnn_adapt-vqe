@@ -3633,6 +3633,19 @@ class HardwareValidationRunner(ValidationRunner):
             default=0.90,
             help="R² threshold for adaptive ZNE fallback (default: %(default)s)",
         )
+        # Layout optimizer (mapomatic VF2)
+        parser.add_argument(
+            "--no-mapomatic",
+            action="store_true",
+            default=False,
+            help="Disable mapomatic VF2 layout optimization (use BFS fallback)",
+        )
+        parser.add_argument(
+            "--layout-strategy",
+            choices=["lowest_cost", "ces_spread", "hybrid"],
+            default="lowest_cost",
+            help="Layout selection strategy (default: %(default)s)",
+        )
 
     def build_hardware_config(self):
         """Build HardwareConfig from CLI args.
@@ -3670,6 +3683,8 @@ class HardwareValidationRunner(ValidationRunner):
             shots=self._args.shots,
             n_layouts=self._args.n_layouts,
             output_dir=f"results/hardware/{self.runner_id}",
+            use_mapomatic=not getattr(self._args, "no_mapomatic", False),
+            layout_strategy=getattr(self._args, "layout_strategy", "lowest_cost"),
             mitigation=mitigation,
         )
 

@@ -357,6 +357,28 @@ class HardwareBackend(ExecutionBackend):
             # a visual record of exactly what was submitted.
             self._save_pre_execution_circuit(circuit, params, h_value, layout_selection)
 
+            # ── Print circuit before QPU submission ─────────────────────
+            # Shows the first transpiled ISA circuit that will be sent to the
+            # QPU, including gate counts and depth. DD/twirling are applied
+            # server-side and are NOT visible here (see circuit_with_dd_*.png
+            # for an approximation).
+            first_isa = layout_selection.transpiled_circuits[0]
+            print("\n" + "=" * 70)
+            print(f"  CIRCUIT BEING SENT TO QPU — h={h_value:.3f}")
+            print("=" * 70)
+            print(f"  Qubits: {first_isa.num_qubits}")
+            print(f"  Depth: {first_isa.depth()}")
+            print(f"  Gate counts: {dict(first_isa.count_ops())}")
+            print(f"  Layouts: {len(layout_selection.transpiled_circuits)}")
+            print(f"  Shots/layout: {self._config.shots}")
+            print(
+                f"  DD: XpXm (server-side)  |  Twirling: {'ON' if self._config.mitigation.twirling_enabled else 'OFF'}"
+            )
+            print(f"  ZNE amplifier: {self._config.mitigation.zne_amplifier}")
+            print("-" * 70)
+            print(first_isa.draw(output="text", fold=100))
+            print("=" * 70 + "\n")
+
             raw_results = submit_all_then_collect(
                 layout_selection.transpiled_circuits,
                 hamiltonian,
@@ -559,6 +581,16 @@ class HardwareBackend(ExecutionBackend):
                 "r_squared": zne_r2,
                 "amplifier": zne_amplifier_used,
                 "n_layouts": len(raw_results),
+                # ── Quality metrics (derived, for post-hoc analysis) ──
+                "quality_metrics": self._compute_quality_metrics(
+                    e_zne=e_zne,
+                    e_exact=e_exact,
+                    gap=gap,
+                    raw_results=raw_results,
+                    x_values=x_values,
+                    zz_values=zz_values,
+                    hamiltonian=hamiltonian,
+                ),
             }
             # Aggregate QPU metrics from raw results
             qpu_metrics = self._aggregate_qpu_metrics(raw_results)
@@ -575,6 +607,7 @@ class HardwareBackend(ExecutionBackend):
                 raw_per_layout=raw_results,
                 zne_data=zne_data,
                 input_params=params,
+                transpiled_stats=transpiled_stats,
             )
             # Attach extra metadata for external consumers (deployment script)
             result._calibration_snapshot = calibration_snapshot
@@ -752,6 +785,15 @@ class HardwareBackend(ExecutionBackend):
                     )
                 _plt.close("all")
 
+                # Save the circuit with DD applied (approximation of server-side DD)
+                # IBM Runtime applies DD server-side; this shows what DD insertions
+                # would look like using the same sequence_type we configured.
+                self._save_circuit_with_dd(
+                    layout_selection.transpiled_circuits[0],
+                    h_tag,
+                    output_dir,
+                )
+
             self._logger.log(
                 "circuit_diagram_saved",
                 data={"output_dir": str(output_dir), "h_value": h_value},
@@ -761,6 +803,82 @@ class HardwareBackend(ExecutionBackend):
             self._logger.log(
                 "circuit_diagram_error",
                 data={"error": str(exc), "h_value": h_value},
+            )
+
+    def _save_circuit_with_dd(
+        self,
+        isa_circuit: QuantumCircuit,
+        h_tag: str,
+        output_dir: Path,
+    ) -> None:
+        """Save a PNG of the transpiled circuit with DD pulses inserted locally.
+
+        IBM Runtime applies DD server-side, so we cannot see the actual
+        post-DD circuit. This method applies PadDynamicalDecoupling locally
+        to produce an *approximation* of what the server does, useful for
+        visual inspection and thesis figures.
+
+        The image is saved as circuit_with_dd_h{h}.png in the output directory.
+        """
+        try:
+            from qiskit.circuit.library import XGate
+            from qiskit.transpiler import PassManager
+            from qiskit.transpiler.passes import (
+                ALAPScheduleAnalysis,
+                PadDynamicalDecoupling,
+            )
+            from qiskit.visualization import circuit_drawer
+
+            # Build the DD sequence matching our config (XpXm = X, Xdg)
+            dd_sequence = [XGate(), XGate()]  # XpXm approximation
+
+            # Schedule and insert DD
+            target = self.backend.target if hasattr(self.backend, "target") else None
+            if target is None:
+                # Cannot schedule without backend target info
+                return
+
+            pm = PassManager(
+                [
+                    ALAPScheduleAnalysis(target=target),
+                    PadDynamicalDecoupling(
+                        target=target,
+                        dd_sequence=dd_sequence,
+                    ),
+                ]
+            )
+            circuit_with_dd = pm.run(isa_circuit)
+
+            import matplotlib.pyplot as _plt
+
+            _diagram = circuit_drawer(
+                circuit_with_dd,
+                output="mpl",
+                fold=60,
+                filename=str(output_dir / f"circuit_with_dd_{h_tag}.png"),
+            )
+            if hasattr(_diagram, "savefig"):
+                _diagram.savefig(
+                    str(output_dir / f"circuit_with_dd_{h_tag}.png"),
+                    dpi=150,
+                    bbox_inches="tight",
+                )
+            _plt.close("all")
+
+            self._logger.log(
+                "circuit_dd_diagram_saved",
+                data={
+                    "file": f"circuit_with_dd_{h_tag}.png",
+                    "dd_sequence": "XpXm",
+                    "n_ops_before": isa_circuit.size(),
+                    "n_ops_after": circuit_with_dd.size(),
+                },
+            )
+        except Exception as exc:
+            # Never block QPU execution for visualization failures
+            self._logger.log(
+                "circuit_dd_diagram_error",
+                data={"error": str(exc)},
             )
 
     # ─── ZNE Aggregation ─────────────────────────────────────────────
@@ -780,13 +898,14 @@ class HardwareBackend(ExecutionBackend):
     def _capture_calibration_snapshot(self, layout_selection) -> dict[str, Any]:
         """Capture backend calibration data at execution time.
 
-        Records T1/T2 and 2Q error rates for the qubits actually used,
-        enabling post-hoc correlation between result quality and calibration.
+        Records T1/T2, readout error, and 2Q error rates for the qubits
+        actually used, enabling post-hoc correlation between result quality
+        and calibration state.
         """
         snapshot: dict[str, Any] = {"timestamp": datetime.now(UTC).isoformat()}
         try:
             target = self.backend.target
-            # Per-qubit T1/T2 for used qubits
+            # Per-qubit T1/T2 and readout error for used qubits
             qubit_props = target.qubit_properties
             if qubit_props and layout_selection.layouts:
                 used_qubits = set()
@@ -794,6 +913,7 @@ class HardwareBackend(ExecutionBackend):
                     used_qubits.update(layout[: self._config.n_qubits])
                 t1_values = {}
                 t2_values = {}
+                readout_errors = {}
                 for q in sorted(used_qubits):
                     if q < len(qubit_props) and qubit_props[q] is not None:
                         t1 = getattr(qubit_props[q], "t1", None)
@@ -802,10 +922,21 @@ class HardwareBackend(ExecutionBackend):
                             t1_values[q] = t1 * 1e6  # Convert to μs
                         if t2 is not None:
                             t2_values[q] = t2 * 1e6
+                    # Readout error from measure gate properties
+                    try:
+                        meas_props = target["measure"].get((q,))
+                        if meas_props and meas_props.error is not None:
+                            readout_errors[q] = meas_props.error
+                    except (KeyError, TypeError):
+                        pass
                 snapshot["t1_us_per_qubit"] = t1_values
                 snapshot["t2_us_per_qubit"] = t2_values
                 snapshot["min_t1_us"] = min(t1_values.values()) if t1_values else None
                 snapshot["min_t2_us"] = min(t2_values.values()) if t2_values else None
+                snapshot["readout_error_per_qubit"] = readout_errors
+                snapshot["mean_readout_error"] = (
+                    sum(readout_errors.values()) / len(readout_errors) if readout_errors else None
+                )
 
             # 2Q error rates for edges used
             for gate_name in ["ecr", "cz", "cx"]:
@@ -827,6 +958,35 @@ class HardwareBackend(ExecutionBackend):
                     vals = list(error_map.values())
                     snapshot[f"mean_{gate_name}_error"] = sum(vals) / len(vals)
                     break  # Only need one 2Q gate type
+
+            # Calibration age: seconds since last backend calibration update
+            try:
+                if hasattr(self.backend, "properties"):
+                    props = self.backend.properties()
+                    if props and hasattr(props, "last_update_date"):
+                        last_cal = props.last_update_date
+                        if last_cal:
+                            now = datetime.now(UTC)
+                            if hasattr(last_cal, "timestamp"):
+                                age_s = (now - last_cal).total_seconds()
+                            else:
+                                age_s = None
+                            snapshot["calibration_age_s"] = age_s
+                            snapshot["last_calibration_time"] = str(last_cal)
+            except Exception:
+                snapshot["calibration_age_s"] = None
+
+            # Session and backend version metadata
+            try:
+                if hasattr(self.backend, "name"):
+                    snapshot["backend_name"] = self.backend.name
+                if hasattr(self.backend, "version"):
+                    snapshot["backend_version"] = self.backend.version
+                if hasattr(self.backend, "session") and self.backend.session:
+                    snapshot["session_id"] = getattr(self.backend.session, "session_id", None)
+            except Exception:
+                pass
+
         except Exception as exc:
             snapshot["capture_error"] = str(exc)
         return snapshot
@@ -904,6 +1064,89 @@ class HardwareBackend(ExecutionBackend):
         except Exception as exc:
             stats["capture_error"] = str(exc)
         return stats
+
+    def _compute_quality_metrics(
+        self,
+        e_zne: float,
+        e_exact: float,
+        gap: float,
+        raw_results: list[dict[str, Any]],
+        x_values: list[float],
+        zz_values: list[float],
+        hamiltonian: SparsePauliOp,
+    ) -> dict[str, Any]:
+        """Compute derived quality metrics for post-hoc analysis.
+
+        These metrics are NOT used for pass/fail decisions — they provide
+        insight into result reliability and error sources.
+        """
+        metrics: dict[str, Any] = {}
+
+        # ── SNR (Signal-to-Noise Ratio) per observable type ──
+        # SNR = |⟨O⟩| × √shots. If SNR < 1, signal is buried in shot noise.
+        shots = self._config.shots
+        sqrt_shots = np.sqrt(shots)
+        if x_values:
+            x_snr = [abs(v) * sqrt_shots for v in x_values]
+            metrics["snr_x_per_site"] = x_snr
+            metrics["snr_x_min"] = min(x_snr) if x_snr else None
+            metrics["snr_x_mean"] = float(np.mean(x_snr)) if x_snr else None
+        if zz_values:
+            zz_snr = [abs(v) * sqrt_shots for v in zz_values]
+            metrics["snr_zz_per_bond"] = zz_snr
+            metrics["snr_zz_min"] = min(zz_snr) if zz_snr else None
+            metrics["snr_zz_mean"] = float(np.mean(zz_snr)) if zz_snr else None
+
+        # ── Variational principle check ──
+        # E_hw should be ≥ E_exact (within tolerance). Violation indicates bias.
+        energy_error = e_zne - e_exact
+        metrics["variational_principle_violated"] = energy_error < -1e-6 * abs(e_exact)
+        metrics["energy_error_signed"] = energy_error
+
+        # ── Observable consistency ──
+        # Compare energy from local observables vs ZNE energy.
+        # For TFIM: E = -J·Σ⟨ZiZi+1⟩ - h·Σ⟨Xi⟩
+        # This checks if observables tell a consistent story.
+        try:
+            n_qubits = self._config.n_qubits
+            # Reconstruct E from local observables (TFIM: E = -Σzz - h·Σx)
+            # h is encoded in the Hamiltonian — extract from coefficients
+            h_coeffs = [
+                abs(float(c))
+                for op, c in zip(hamiltonian.paulis.to_labels(), hamiltonian.coeffs, strict=False)
+                if op.count("X") == 1 and op.count("I") == len(op) - 1
+            ]
+            h_field = h_coeffs[0] if h_coeffs else None
+            if h_field and x_values and zz_values:
+                e_from_obs = -sum(zz_values) - h_field * sum(x_values)
+                metrics["e_from_local_observables"] = e_from_obs
+                metrics["observable_energy_discrepancy"] = abs(e_from_obs - e_zne)
+        except Exception:
+            metrics["observable_consistency_error"] = "Could not compute"
+
+        # ── ZNE extrapolation residual ──
+        # For server-side ZNE, we don't have the raw noise-factor data.
+        # Use inter-layout spread as proxy for extrapolation quality.
+        if len(raw_results) > 1:
+            energies = [r["energy"] for r in raw_results]
+            metrics["zne_max_residual"] = float(max(energies) - min(energies))
+            metrics["zne_layout_energies"] = energies
+
+        # ── Queue time estimation ──
+        # Calculate from running_timestamps if available.
+        timestamps = [r.get("running_timestamp") for r in raw_results if r.get("running_timestamp")]
+        if len(timestamps) >= 2:
+            try:
+                from datetime import datetime as _dt
+
+                parsed = sorted(_dt.fromisoformat(t.replace("Z", "+00:00")) for t in timestamps)
+                metrics["queue_span_s"] = (parsed[-1] - parsed[0]).total_seconds()
+                metrics["first_job_started"] = str(parsed[0])
+                metrics["last_job_started"] = str(parsed[-1])
+            except Exception:
+                pass
+
+        return metrics
 
     @staticmethod
     def _aggregate_qpu_metrics(raw_results: list[dict[str, Any]]) -> dict[str, Any]:

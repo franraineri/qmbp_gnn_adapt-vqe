@@ -231,6 +231,17 @@ SECTION_CRITERIA: dict[int, dict] = {
             "15_transpiler_exploration.md: 11% 2Q-depth reduction validated 2026-06-05"
         ),
     },
+    21: {
+        "name": "Mitiq Multi-Method Comparison",
+        "primary_metric": "best_mitiq_de_gap",
+        "threshold": 0.10,
+        "direction": "le",
+        "secondary": "Mitiq CDR or ZNE must improve over raw noisy (at least 1 method wins)",
+        "ref": (
+            "Mitiq 1.0: CDR (Czarnik 2021), ZNE random fold, DDD+ZNE composition. "
+            "24_mitiq_integration_plan.md"
+        ),
+    },
 }
 
 
@@ -382,6 +393,12 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             action="store_false",
             dest="skip_pauli_evolution",
             help="Include section 20 (PauliEvolutionGate comparison)",
+        )
+        parser.add_argument(
+            "--skip-mitiq",
+            action="store_true",
+            default=False,
+            help="Skip section 21 (Mitiq multi-method comparison)",
         )
         parser.add_argument(
             "--h-kappa-grid",
@@ -556,6 +573,21 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
                         "vs explicit RZZ/RX, identical noiseless energy (|ΔE|<1e-8), "
                         "and equivalent noisy ΔE/gap (diff <1%) under FakeKingston. "
                         "Confirms integration is safe before IBM Kingston deployment."
+                    ),
+                )
+            )
+
+        # Section 21: Mitiq multi-method comparison (optional, skip if no mitiq)
+        if not getattr(self._args, "skip_mitiq", False):
+            v3_sections.append(
+                Section(
+                    id=21,
+                    name="Mitiq Multi-Method Error Mitigation Comparison",
+                    fn=self.section_mitiq_comparison,
+                    hypothesis=(
+                        "At least one Mitiq method (CDR, ZNE random, DDD+ZNE) achieves "
+                        "ΔE/gap < 10% under FakeKingston noise, providing an independent "
+                        "verification channel for hardware deployment beyond PEA-ZNE."
                     ),
                 )
             )
@@ -2414,6 +2446,184 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
             "p_layers": p_layers,
             "shots": shots,
             "criteria": SECTION_CRITERIA[20],
+            "pass": passed,
+        }
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Section 21: Mitiq Multi-Method Error Mitigation Comparison
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def section_mitiq_comparison(self) -> dict:
+        """Compare Mitiq error mitigation methods vs native GF-ZNE on FakeKingston.
+
+        Runs compare_mitigation_strategies at each h_test point and produces
+        a ranked table of: raw, Mitiq ZNE (linear), Mitiq CDR, Mitiq DDD+ZNE,
+        and native gate-folding ZNE.
+
+        Criteria (from SECTION_CRITERIA[21]):
+          PASS: at least one Mitiq method achieves ΔE/gap < 10%
+          KEY:  ranking of methods (thesis Table material)
+
+        Requires: pip install mitiq AND qiskit-aer (FakeKingston).
+        """
+        import time
+
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.execution import NoisyEstimatorConfig
+        from qmbp_simulation.models import HamiltonianBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        topology = self._args.topology
+        n_qubits = self._args.n_qubits
+        h_test = self._args.h_test or H_TEST_POINTS
+        p_layers = self._args.p_layers
+        shots = self._args.noisy_shots
+
+        self._log_section_criteria(21)
+        logger.info(f"  Config: {topology} N={n_qubits} p={p_layers} | shots={shots}")
+
+        # Check mitiq availability
+        try:
+            from qmbp_simulation.execution.mitiq_utils import (
+                compare_mitigation_strategies,
+                is_mitiq_available,
+            )
+
+            if not is_mitiq_available():
+                raise ImportError("mitiq not installed")
+        except ImportError as exc:
+            logger.warning(f"  Mitiq not available: {exc}. Skipping section 21.")
+            return {"error": str(exc), "pass": False, "skipped": True}
+
+        # Check FakeKingston
+        try:
+            from qiskit_ibm_runtime.fake_provider import FakeKingston
+        except ImportError as exc:
+            logger.warning(f"  FakeKingston not available: {exc}. Skipping.")
+            return {"error": str(exc), "pass": False, "skipped": True}
+
+        spec = get_model_spec(self._args.model)
+        builder = HamiltonianBuilder()
+        fake_backend = FakeKingston()
+        noisy_config = NoisyEstimatorConfig(shots=shots, seed_simulator=42)
+
+        # Get shared MPNN from cache
+        cache = self._get_or_build_mpnn()
+        predictor = cache["predictor"]
+        predictor.eval()
+
+        # Limit to 3 h-points (Mitiq CDR is slow: ~10 extra circuit executions per h)
+        h_test_limited = h_test[:3]
+        per_h = []
+
+        for h_t in h_test_limited:
+            t0 = time.time()
+
+            # Build lattice, Hamiltonian, circuit for this h
+            lattice = make_lattice(topology, n_qubits, h=h_t)
+            H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+            qc, _ = spec.create_circuit(n_qubits, p_layers, lattice, **spec.circuit_kwargs)
+
+            # Get exact energy + gap
+            e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t, model=self._args.model)
+
+            # Build correct graph for MPNN prediction (same pattern as section 14)
+            edge_index_np, coord = builder.build_graph_data(lattice)
+            h_feat = np.full(n_qubits, float(h_t))
+            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
+            edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
+            graph = Data(x=x, edge_index=edge_index_t)
+            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+
+            with torch.no_grad():
+                theta_pred = predictor(graph).numpy().flatten()
+
+            # Bind parameters to circuit
+            bound_circuit = qc.assign_parameters(theta_pred)
+
+            # Run multi-method comparison
+            try:
+                result = compare_mitigation_strategies(
+                    bound_circuit,
+                    H,
+                    fake_backend,
+                    noisy_config,
+                    exact_energy=e_exact,
+                    gap=gap,
+                    h_value=h_t,
+                    strategies=["raw", "mitiq_zne_linear", "mitiq_cdr", "native_gf_zne"],
+                )
+                elapsed = time.time() - t0
+
+                per_h.append(
+                    {
+                        "h": h_t,
+                        "e_exact": e_exact,
+                        "gap": gap,
+                        "results": result.results,
+                        "delta_e_gaps": result.delta_e_gaps,
+                        "rankings": result.rankings,
+                        "best_method": result.best_method,
+                        "best_delta_e_gap": result.best_delta_e_gap,
+                        "elapsed_s": elapsed,
+                    }
+                )
+                logger.info(
+                    f"  h={h_t:.3f}: best={result.best_method} "
+                    f"(ΔE/gap={result.best_delta_e_gap:.4f}), "
+                    f"rankings={result.rankings} ({elapsed:.1f}s)"
+                )
+            except Exception as e:
+                elapsed = time.time() - t0
+                logger.warning(f"  h={h_t:.3f}: comparison failed ({elapsed:.1f}s): {e}")
+                per_h.append({"h": h_t, "error": str(e), "elapsed_s": elapsed})
+
+        # Compute summary
+        valid = [r for r in per_h if "best_delta_e_gap" in r]
+        if not valid:
+            self._log_pass_fail(21, False, ["No valid comparisons completed"])
+            return {"per_h": per_h, "pass": False, "error": "No valid comparisons"}
+
+        best_overall = min(r["best_delta_e_gap"] for r in valid)
+        mean_best = float(np.mean([r["best_delta_e_gap"] for r in valid]))
+        total_elapsed = sum(r.get("elapsed_s", 0) for r in per_h)
+
+        # Method win counts across h-points
+        win_counts: dict[str, int] = {}
+        for r in valid:
+            m = r["best_method"]
+            win_counts[m] = win_counts.get(m, 0) + 1
+
+        # Check if pass criteria met
+        passed = best_overall < SECTION_CRITERIA[21]["threshold"]
+
+        self._log_pass_fail(
+            21,
+            passed,
+            [
+                f"best_mitiq_de_gap={best_overall:.4f} "
+                f"(threshold={SECTION_CRITERIA[21]['threshold']})",
+                f"mean_best_de_gap={mean_best:.4f}",
+                f"n_h_tested={len(valid)}/{len(h_test_limited)}",
+                f"win_counts={win_counts}",
+                f"total_time={total_elapsed:.1f}s",
+            ],
+        )
+
+        return {
+            "per_h": per_h,
+            "summary": {
+                "best_de_gap": best_overall,
+                "mean_best_de_gap": mean_best,
+                "n_valid": len(valid),
+                "n_total": len(h_test_limited),
+                "win_counts": win_counts,
+                "total_elapsed_s": total_elapsed,
+            },
+            "criteria": SECTION_CRITERIA[21],
             "pass": passed,
         }
 

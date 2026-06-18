@@ -557,8 +557,10 @@ def _check_nm4():
 
     c = HardwareConfig()
     assert c.mitigation.shots_per_randomization == 128
+    # MitigationOptions standalone default is 256 (higher budget for safety).
+    # HardwareConfig default is 128 (IBM LayerNoiseLearning standard).
     m = MitigationOptions()
-    assert m.shots_per_randomization == 128
+    assert m.shots_per_randomization == 256
 
 
 def _check_nm3():

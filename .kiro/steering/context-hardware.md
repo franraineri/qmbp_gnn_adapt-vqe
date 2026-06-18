@@ -156,7 +156,7 @@ estimator.options.resilience.layer_noise_learning.shots_per_randomization = 256
 ## Hardware Config (p=1 heavy-hex N=10)
 
 - 1 restart (p=1 has single basin).
-- 3 layouts (low-CES, BFS selection).
+- 3 layouts (VF2 mapomatic primary, BFS fallback). VF2 gives 6× lower CES.
 - 16k shots.
 - h_test ≥ 3.25 (valid regime boundary).
 - SPSA optimizer: a=0.1, c=0.05, A=10.
@@ -168,7 +168,7 @@ estimator.options.resilience.layer_noise_learning.shots_per_randomization = 256
 2. **Don't reconstruct energy manually**: submit full H as PUB → get energy directly.
 3. **CES types**: topology CES for selection, circuit CES for extrapolation. Never mix.
 4. **Calibration may be None**: modern Target API doesn't always expose `last_update_date`.
-5. **Layout selection needs seed**: use `random.Random(seed)`, not module-level.
+5. **Layout selection**: VF2 mapomatic (primary, SWAP-free) or BFS (fallback). Use `--no-mapomatic` to disable. Ref: `context-layout-optimizer.md`.
 
 ## DO NOT
 

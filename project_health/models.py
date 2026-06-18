@@ -168,6 +168,12 @@ class HealthReport:
     # Energy error decomposition
     energy_decomposition: EnergyDecompositionStats = field(default_factory=EnergyDecompositionStats)
 
+    # AQC-Tensor compression status
+    aqc_status: dict[str, Any] = field(default_factory=dict)
+
+    # Mitiq integration status
+    mitiq_status: dict[str, Any] = field(default_factory=dict)
+
     # Coverage analysis
     gaps: list[CoverageGap] = field(default_factory=list)
 

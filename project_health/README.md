@@ -67,6 +67,10 @@ project_health/
 │   ├── scaling_extensions_analyzer.py E5 extensions (bond-dim, HE, NLCE)
 │   ├── statistical_tests.py           Shared statistical test utilities
 │   ├── flow_warmstart_analyzer.py     ★ Flow/σ_flow/bond-resolved analysis
+│   ├── aqc_tensor_analyzer.py         ★ AQC-Tensor compression analysis
+│   ├── layout_optimizer_analyzer.py   ★ Mapomatic VF2 layout optimization analysis
+│   ├── mitiq_analyzer.py              ★ Mitiq multi-method mitigation comparison
+│   ├── mitigation_benchmark_analyzer.py ★ Systematic 19-config benchmark analysis
 │   ├── thesis_findings_validator.py   ★ Corroborate ALL thesis findings
 │   ├── thesis_tables_compiler.py      ★ Auto-generate thesis tables (MD+LaTeX)
 │   └── thesis_figures.py              ★ Global thesis figures (PDF/PNG)
@@ -123,6 +127,10 @@ project_health/
 | Timing breakdown | `.elapsed_s` across all result types | ✅ |
 | Result distribution | By model, topology, N-qubits, p-layers | ✅ |
 | Energy error decomposition | Circuit vs MPNN error attribution | ✅ |
+| AQC-Tensor compression | Status, fidelity, 2Q reduction, expressibility benefit | ✅ |
+| Mitiq integration | Best method, win rates, statistical significance | ✅ |
+| Mitigation benchmark | 19-config comparison, ranking, Pareto, hypothesis verdicts | ✅ |
+| Transpilation analysis | depth_2q, n_2q, fidelity per opt_level, routing overhead | ✅ |
 | Coverage gaps | Logic in `coverage.py` over scan results | |
 | Delta since last run (new + removed) | File-set diff via `state.py` | |
 | Actionable items (multi-source) | Gaps + VQE + MPNN + distribution + experiments | ✅ |
@@ -412,6 +420,196 @@ pytest tests/test_thesis_tools.py -v
 
 Tests validate: imports, crash-free execution, output structure, JSON serialization,
 schema integrity of result files, and cross-tool consistency.
+
+---
+
+## AQC-Tensor Compression Analyzer (`analysis/aqc_tensor_analyzer.py`)
+
+Dedicated analyzer for AQC-Tensor circuit compression results. Integrated into
+the main health report (Step 6b in `engine.py`) and available standalone.
+
+### Usage
+
+```bash
+# Full report
+python -m project_health.analysis.aqc_tensor_analyzer
+
+# With thesis summary table
+python -m project_health.analysis.aqc_tensor_analyzer --thesis-table
+
+# With rigorous statistical tests (paired t-test, Cohen's d)
+python -m project_health.analysis.aqc_tensor_analyzer --statistical
+
+# Health-check compatible summary dict
+python -m project_health.analysis.aqc_tensor_analyzer --health-summary
+
+# JSON export (includes statistical analysis)
+python -m project_health.analysis.aqc_tensor_analyzer --json report.json
+```
+
+### What It Analyzes
+
+| Source | What | Key Metric |
+|--------|------|-----------|
+| `results/aqc_tensor/poc_*.json` | Bond-dim sweep | best_chi, fidelity, verdict |
+| `results/aqc_tensor/cross_topology_*.json` | Multi-topology validation | per-topology pass rate |
+| `results/aqc_tensor/aqc_vs_direct_*.json` | Comparison vs p=1 | win_rate, improvement % |
+| `results/hardware/run_*/execution_summary.json` | Hardware deployments | AQC usage count |
+
+### Integration with Health Report
+
+The AQC status appears automatically in `python -m project_health`:
+
+```
+─── AQC-TENSOR COMPRESSION ────────────────────────────────────────
+  Status:                  ✅ validated
+  Heavy-hex (HW target):   ✅ validated (100% pass)
+  vs direct p=1:           +benefit (AQC wins)
+  2Q gate reduction:       50%
+```
+
+### Statistical Analysis (--statistical)
+
+- **Paired t-test**: H₁: AQC ΔE/gap < p=1 ΔE/gap (t=4.12, p=0.027)
+- **Cohen's d**: 2.38 (large effect)
+- **Improvement rate**: 3/3 wins, mean reduction 15.5%
+
+Uses `project_health.analysis.statistical_tests.paired_ttest()`.
+
+### Programmatic Usage
+
+```python
+from project_health.analysis.aqc_tensor_analyzer import (
+    analyze, get_aqc_health_summary, run_statistical_analysis,
+)
+
+# For health report integration (called by engine.py Step 6b)
+summary = get_aqc_health_summary()
+
+# For standalone analysis
+report = analyze()
+stats = run_statistical_analysis(report)
+```
+
+### Key Results (2026-06-17)
+
+| Topology | Fidelity | ΔE/gap | 2Q↓ | vs p=1 |
+|----------|:--------:|:------:|:---:|:------:|
+| heavy_hex | 0.9996 | 0.42% | 50% | +15.6% (t=4.12, d=2.38) |
+| chain_1d | 0.9992 | 0.29% | 50% | +14% |
+| ladder | 0.9979 | 0.96% | 50% | better near h_c |
+| triangular | 0.9986 | 1.63% | 50% | better near h_c |
+
+---
+
+## Mitiq Integration Analyzer (`analysis/mitiq_analyzer.py`)
+
+Dedicated analyzer for Mitiq multi-method error mitigation comparison results.
+Integrated into the main health report (Step 6c in `engine.py`) and available standalone.
+
+### Usage
+
+```bash
+# Full report
+python -m project_health.analysis.mitiq_analyzer
+
+# With thesis summary table
+python -m project_health.analysis.mitiq_analyzer --thesis-table
+
+# With rigorous statistical tests (paired t-test per method vs raw)
+python -m project_health.analysis.mitiq_analyzer --statistical
+
+# Health-check compatible summary dict
+python -m project_health.analysis.mitiq_analyzer --health-summary
+
+# JSON export
+python -m project_health.analysis.mitiq_analyzer --json report.json
+```
+
+### What It Analyzes
+
+| Source | What | Key Metric |
+|--------|------|-----------|
+| `results/experiments/exp_hw_rehearsal_v3/` | Section 21 (Mitiq comparison) | per-method ΔE/gap |
+| `results/mitiq/comparison_*.json` | Standalone benchmarks | method rankings |
+| `results/hardware/run_*/execution_summary.json` | Hardware Mitiq verifications | CDR cross-check |
+
+### Integration with Health Report
+
+The Mitiq status appears automatically in `python -m project_health`:
+
+```
+─── MITIQ INTEGRATION ─────────────────────────────────────────────
+  Status:          ✅ validated (or not_run)
+  Best method:     mitiq_zne_linear (ΔE/gap = 0.103)
+  Methods ranked:  mitiq_zne > mitiq_cdr > native_gf > raw
+  Mitiq beats raw: ✅ Yes
+```
+
+### Statistical Analysis (--statistical)
+
+Uses `project_health.analysis.statistical_tests.paired_ttest()` to test
+whether each Mitiq method is statistically better than raw (unmitigated).
+
+### Programmatic Usage
+
+```python
+from project_health.analysis.mitiq_analyzer import (
+    scan_mitiq_results, get_mitiq_health_summary, run_statistical_analysis,
+)
+
+# For health report integration (called by engine.py Step 6c)
+summary = get_mitiq_health_summary()
+
+# For standalone analysis
+report = scan_mitiq_results()
+stats = run_statistical_analysis(report)
+```
+
+---
+
+## Mitigation Benchmark Analyzer (`analysis/mitigation_benchmark_analyzer.py`)
+
+Systematic 19-config mitigation/suppression comparison with ranking, Pareto frontier,
+ablation study, hypothesis verdicts, and transpilation analysis.
+
+### Usage
+
+```bash
+python -m project_health.analysis.mitigation_benchmark_analyzer
+python -m project_health.analysis.mitigation_benchmark_analyzer --thesis-table --figures
+python -m project_health.analysis.mitigation_benchmark_analyzer --statistical
+```
+
+### Transpilation Analysis
+
+Available both standalone and programmatically:
+
+```bash
+# Standalone CLI
+python scripts/analyze_transpilation.py
+python scripts/analyze_transpilation.py --json results/transpilation_analysis.json
+
+# Via analyzer (programmatic)
+python scripts/analyze_transpilation.py --use-analyzer
+```
+
+```python
+from project_health.analysis.mitigation_benchmark_analyzer import MitigationBenchmarkAnalyzer
+a = MitigationBenchmarkAnalyzer()
+a.scan()
+summary = a.compute_transpilation_summary()
+# → per_config (18 configs), by_opt_level (grouped stats), conclusion
+```
+
+### Key Finding (2026-06-18)
+
+| opt_level | depth_2q | n_2q | fidelity | Best ΔE/gap |
+|:---------:|:--------:|:----:|:--------:|:-----------:|
+| 2 (PEA)  | 14       | 18   | 0.226    | 0.33%       |
+| 0 (Mitiq) | 32       | 45   | 0.025    | 81.5%       |
+
+**Conclusion**: opt_level=2 produces 2.3× fewer depth_2q cycles. Use for hardware.
 
 ---
 

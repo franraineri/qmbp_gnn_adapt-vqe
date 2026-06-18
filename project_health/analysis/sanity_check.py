@@ -985,6 +985,106 @@ def check_hardware_deployment_readiness(verbose: bool = False) -> list[CheckResu
     return results
 
 
+@register_check("layout_optimizer_integration", "hardware_readiness")
+def check_layout_optimizer_integration(verbose: bool = False) -> list[CheckResult]:
+    """Check layout optimizer (mapomatic VF2) integration health.
+
+    Verifies:
+    - layout_optimizer.py module is importable
+    - MAPOMATIC_AVAILABLE flag is accessible
+    - HardwareConfig has mapomatic fields
+    - select_layouts_for_hardware is wired to use mapomatic
+    """
+    results = []
+
+    # Check module importable
+    try:
+        from qmbp_simulation.execution.hardware.layout_optimizer import (
+            MAPOMATIC_AVAILABLE,
+            select_optimal_layouts,  # noqa: F401
+        )
+
+        results.append(
+            CheckResult(
+                name="layout_optimizer_importable",
+                category="hardware_readiness",
+                passed=True,
+                message="layout_optimizer.py importable, "
+                f"MAPOMATIC_AVAILABLE={MAPOMATIC_AVAILABLE}",
+                severity="info",
+            )
+        )
+    except ImportError as e:
+        results.append(
+            CheckResult(
+                name="layout_optimizer_importable",
+                category="hardware_readiness",
+                passed=False,
+                message=f"layout_optimizer.py import failed: {e}",
+                severity="error",
+            )
+        )
+        return results
+
+    # Check HardwareConfig has mapomatic fields
+    try:
+        from qmbp_simulation.execution.hardware.config import HardwareConfig
+
+        config = HardwareConfig()
+        has_fields = all(
+            hasattr(config, f)
+            for f in [
+                "use_mapomatic",
+                "layout_max_2q_error",
+                "layout_min_t1_us",
+                "layout_call_limit",
+                "layout_exclude_qubits",
+                "layout_strategy",
+            ]
+        )
+        results.append(
+            CheckResult(
+                name="hw_config_mapomatic_fields",
+                category="hardware_readiness",
+                passed=has_fields,
+                message=(
+                    "HardwareConfig has all mapomatic fields"
+                    if has_fields
+                    else "HardwareConfig MISSING mapomatic fields"
+                ),
+                severity="error" if not has_fields else "info",
+            )
+        )
+    except Exception as e:
+        results.append(
+            CheckResult(
+                name="hw_config_mapomatic_fields",
+                category="hardware_readiness",
+                passed=False,
+                message=f"HardwareConfig check failed: {e}",
+                severity="error",
+            )
+        )
+
+    # Check mapomatic is installed (warning if not — not blocking)
+    results.append(
+        CheckResult(
+            name="mapomatic_installed",
+            category="hardware_readiness",
+            passed=MAPOMATIC_AVAILABLE,
+            message=(
+                "mapomatic installed (VF2 active)"
+                if MAPOMATIC_AVAILABLE
+                else "mapomatic NOT installed — BFS fallback will be used. "
+                "Install: pip install 'mapomatic>=0.14'"
+            ),
+            severity="warning" if not MAPOMATIC_AVAILABLE else "info",
+        )
+    )
+
+    return results
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Engine — Run All Checks
 # ═══════════════════════════════════════════════════════════════════════════════

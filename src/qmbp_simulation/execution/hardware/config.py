@@ -37,6 +37,13 @@ class HardwareConfig:
     spsa_enabled: bool = True
     spsa_threshold: float = 0.05
     output_dir: str = "results/hardware"
+    # Layout optimizer settings (mapomatic VF2 integration)
+    use_mapomatic: bool = True
+    layout_max_2q_error: float = 0.01
+    layout_min_t1_us: float = 50.0
+    layout_call_limit: int = 100_000
+    layout_exclude_qubits: list[int] = field(default_factory=list)
+    layout_strategy: Literal["lowest_cost", "ces_spread", "hybrid"] = "lowest_cost"
     mitigation: MitigationOptions = field(
         default_factory=lambda: MitigationOptions(
             dd_enabled=True,
@@ -46,6 +53,11 @@ class HardwareConfig:
             zne_amplifier="pea",  # Primary: PEA (+94.4% gain, R²=0.998)
             num_randomizations=32,
             shots_per_randomization=128,  # IBM LayerNoiseLearning default=128
+            # HVA p=1: 1 layer of 2Q gates → shorter pair_depths suffice.
+            # None = let Runtime use its default. Explicit: [0, 1, 2, 4, 8].
+            layer_pair_depths=None,
+            # "active-circuit" avoids twirling idle qubits (IBM recommendation).
+            twirling_strategy="active-circuit",
         )
     )
 

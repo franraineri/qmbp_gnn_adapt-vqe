@@ -18,10 +18,16 @@ src/qmbp_simulation/
 │   └── hamiltonian.py       ← HamiltonianBuilder, make_lattice
 ├── solvers/                 ← ExactDiag, DMRG
 │   └── classical.py
-├── circuits/                ← HVA builder
-│   └── hva.py
+├── circuits/                ← HVA builder + AQC compression
+│   ├── hva.py
+│   └── aqc_compression.py  ← Optional: AQC-Tensor circuit depth reduction
 ├── execution/               ← Backend ABC + implementations
 │   └── backends.py
+├── execution/hardware/      ← IBM QPU deployment
+│   ├── layout_optimizer.py  ← Mapomatic VF2 + multi-layer filtering
+│   ├── preflight.py         ← Post-transpilation quality check
+│   ├── submission.py        ← Job submission + layout selection
+│   └── config.py            ← HardwareConfig, SPSAConfig
 ├── optimizers/              ← VQE, SPSA
 │   ├── vqe.py
 │   └── spsa.py
@@ -83,6 +89,16 @@ from qmbp_simulation.execution.hardware.preflight import (
     validate_transpiled_circuit_quality,
     compute_layout_2q_error,
 )
+# Layout optimizer (mapomatic VF2 integration)
+from qmbp_simulation.execution.hardware import (
+    MAPOMATIC_AVAILABLE,
+    build_filtered_coupling_map,
+    find_vf2_layouts,
+    compute_layout_fidelity_cost,
+    select_optimal_layouts,
+    rank_backends,
+    LayoutOptimizationResult,
+)
 ```
 
 ### Noisy simulation utilities
@@ -121,6 +137,26 @@ from qmbp_simulation.predictors import (
     generate_qem_training_data,
     save_qem_checkpoint, load_qem_checkpoint,
     save_qem_samples, load_qem_samples,
+)
+```
+
+### Mitiq integration (optional — pip install mitiq)
+```python
+from qmbp_simulation.execution import (
+    # Check availability
+    is_mitiq_available,
+    # Executor factories
+    make_mitiq_executor, make_noiseless_executor,
+    # ZNE (random/global/all folding + linear/richardson/poly/exp factories)
+    run_mitiq_zne, MitiqZNEResult,
+    # CDR (Clifford Data Regression — learning-based)
+    run_mitiq_cdr, MitiqCDRResult,
+    # DDD+ZNE composition (xx/yy/xyxy rules)
+    run_mitiq_ddd_zne, MitiqDDDZNEResult,
+    # PEC (benchmark only — exponential overhead)
+    run_mitiq_pec, MitiqPECResult,
+    # Multi-method comparison
+    compare_mitigation_strategies, MitiqComparisonResult,
 )
 ```
 

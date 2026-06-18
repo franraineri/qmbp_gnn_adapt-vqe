@@ -33,7 +33,7 @@ Examples:
     parser.add_argument(
         "--components",
         nargs="+",
-        choices=["solver", "vqe", "circuit", "mpnn"],
+        choices=["solver", "vqe", "circuit", "mpnn", "layout", "aqc", "mitiq"],
         default=None,
         help="Components to benchmark (default: all)",
     )

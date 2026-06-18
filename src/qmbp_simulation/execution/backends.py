@@ -28,6 +28,21 @@ class MitigationOptions:
     - For short circuits (≤18 CZ), use (1, 1.5, 2, 3) to capture the linear
       regime better. Default IBM (1, 2, 3) can miss curvature at low factors.
     - For longer circuits, stick with default.
+
+    layer_pair_depths (2026-06-17 update):
+    - Controls the identity-pair insertion depths used by IBM Runtime to learn
+      the per-layer noise model for PEA. IBM tutorial uses [0,1,2,4,6,12,24]
+      for deep Trotter circuits (18 layers). For shallow circuits (HVA p=1,
+      1 layer of 2Q gates), fewer depths suffice: [0, 1, 2, 4, 8].
+    - None → let Runtime use its default (recommended for most cases).
+    - Explicit list → fine-grained control for calibration studies.
+    - Ref: IBM PEA tutorial (2026), Kim et al. Nature 618 (2023).
+
+    twirling_strategy (2026-06-17 update):
+    - "active-circuit": twirl only gates in the active circuit (IBM default
+      for utility-scale). Avoids inserting Pauli twirls on idle qubits that
+      could add unnecessary noise. Recommended for dense circuits.
+    - None → let Runtime choose (defaults to "active-circuit" on Heron r2+).
     """
 
     zne_enabled: bool = False
@@ -35,12 +50,26 @@ class MitigationOptions:
     zne_amplifier: str = "gate_folding"  # "gate_folding" | "pea" | "adaptive"
     zne_r2_fallback_threshold: float = 0.90  # R² threshold for adaptive GF→PEA fallback
     dd_enabled: bool = False  # Dynamical decoupling
+    dd_sequence: str = "XpXm"  # "XX" | "XpXm" | "XY4"
     trex_enabled: bool = False  # Twirled readout error extinction
     twirling_enabled: bool = False
     # PEA noise learning budget: higher = better noise model, more QPU cost
     # 64 randomizations × 256 shots = 16K learning shots (~4× IBM default)
     num_randomizations: int = 64
     shots_per_randomization: int = 256
+    # PEA layer noise learning: identity-pair depths for exponential decay fit.
+    # None = Runtime default. For HVA p=1 (1 layer): [0, 1, 2, 4, 8] is sufficient.
+    # For deep circuits (Trotter 6+ steps): [0, 1, 2, 4, 6, 12, 24] per IBM tutorial.
+    layer_pair_depths: list[int] | None = None
+    # Twirling strategy: "active-circuit" avoids twirling idle qubits.
+    # None = let Runtime decide (Heron r2+ defaults to "active-circuit").
+    twirling_strategy: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.dd_enabled and self.dd_sequence not in ("XX", "XpXm", "XY4"):
+            raise ValueError(
+                f"Invalid dd_sequence '{self.dd_sequence}'. Valid values: 'XX', 'XpXm', 'XY4'"
+            )
 
 
 class ExecutionBackend(ABC):

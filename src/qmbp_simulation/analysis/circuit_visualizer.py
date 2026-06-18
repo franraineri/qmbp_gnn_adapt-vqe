@@ -267,6 +267,88 @@ def print_circuit_comparison(
     }
 
 
+def _layer_gap(dag, node_a, node_b) -> int:
+    """Compute idle cycles between two consecutive ops on the same wire.
+
+    Returns the number of DAG layers between node_a and node_b minus 1
+    (i.e., the number of idle cycles between two ops on a qubit).
+    Uses topological sorting to assign layer indices to nodes.
+    """
+    # Build a map from node._node_id to its layer index
+    # dag.layers() returns layers in topological order
+    node_to_layer: dict[int, int] = {}
+    for layer_idx, layer in enumerate(dag.layers()):
+        for node in layer["graph"].op_nodes():
+            node_to_layer[node._node_id] = layer_idx
+
+    layer_a = node_to_layer.get(node_a._node_id, 0)
+    layer_b = node_to_layer.get(node_b._node_id, 0)
+    gap = layer_b - layer_a - 1
+    return max(0, gap)
+
+
+def _compute_idle_metrics(circuit: QuantumCircuit) -> dict[str, Any]:
+    """Compute idle-time metrics via DAG analysis.
+
+    Analyzes the circuit DAG to determine how many cycles each qubit
+    spends idle (not participating in any gate), and the longest
+    consecutive idle stretch on any qubit.
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        A transpiled circuit to analyze.
+
+    Returns
+    -------
+    dict[str, Any]
+        idle_cycles_per_qubit: float average idle cycles per active qubit.
+        max_idle_stretch: int longest consecutive idle on any qubit.
+    """
+    from qiskit.converters import circuit_to_dag
+
+    dag = circuit_to_dag(circuit)
+    idle_wires = set(dag.idle_wires())
+    active_qubits = [q for q in dag.qubits if q not in idle_wires]
+
+    if not active_qubits:
+        return {"idle_cycles_per_qubit": 0.0, "max_idle_stretch": 0}
+
+    # Pre-compute node-to-layer mapping once for efficiency
+    node_to_layer: dict[int, int] = {}
+    for layer_idx, layer in enumerate(dag.layers()):
+        for node in layer["graph"].op_nodes():
+            node_to_layer[node._node_id] = layer_idx
+
+    total_idle = 0
+    max_stretch = 0
+    depth = circuit.depth()
+
+    for qubit in active_qubits:
+        nodes = list(dag.nodes_on_wire(qubit, only_ops=True))
+        if len(nodes) <= 1:
+            idle_for_qubit = max(0, depth - 1)
+            total_idle += idle_for_qubit
+            max_stretch = max(max_stretch, idle_for_qubit)
+            continue
+        # Compute gaps between consecutive ops using pre-built layer map
+        stretches = []
+        for i in range(len(nodes) - 1):
+            layer_a = node_to_layer.get(nodes[i]._node_id, 0)
+            layer_b = node_to_layer.get(nodes[i + 1]._node_id, 0)
+            gap = max(0, layer_b - layer_a - 1)
+            stretches.append(gap)
+        total_idle += sum(stretches)
+        if stretches:
+            max_stretch = max(max_stretch, max(stretches))
+
+    n_active = len(active_qubits)
+    return {
+        "idle_cycles_per_qubit": total_idle / n_active if n_active > 0 else 0.0,
+        "max_idle_stretch": max_stretch,
+    }
+
+
 def transpiled_circuit_stats(circuit: QuantumCircuit) -> dict[str, Any]:
     """Unified resource statistics for a transpiled (ISA) circuit.
 
@@ -340,6 +422,17 @@ def transpiled_circuit_stats(circuit: QuantumCircuit) -> dict[str, Any]:
         stats["num_tensor_factors"] = None
         stats["width"] = circuit.num_qubits
         stats["active_qubits"] = None
+
+    # ── Idle/parallelism metrics (§6.1-6.5) ──
+    idle_metrics = _compute_idle_metrics(circuit)
+    stats["idle_cycles_per_qubit"] = idle_metrics["idle_cycles_per_qubit"]
+    stats["max_idle_stretch"] = idle_metrics["max_idle_stretch"]
+    n_2q_for_ratio = stats["n_2q_gates"]
+    active = stats.get("active_qubits") or circuit.num_qubits
+    stats["parallelism_ratio"] = n_2q_for_ratio / depth_2q if depth_2q > 0 else 0.0
+    stats["gate_density_2q"] = (
+        n_2q_for_ratio / (active * depth_2q) if (depth_2q > 0 and active > 0) else 0.0
+    )
 
     return stats
 

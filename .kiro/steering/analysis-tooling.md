@@ -45,6 +45,21 @@ Need to...
 ├── MPNN eval with thesis table?    → python -m project_health.analysis.mpnn_eval_analyzer --thesis-table
 ├── MPNN eval JSON export?          → python -m project_health.analysis.mpnn_eval_analyzer --json out.json
 ├── Analyze flow warmstart results? → python -m project_health.analysis.flow_warmstart_analyzer
+├── Analyze AQC-Tensor compression?→ python -m project_health.analysis.aqc_tensor_analyzer
+├── AQC thesis summary table?      → python -m project_health.analysis.aqc_tensor_analyzer --thesis-table
+├── Analyze layout optimizer (VF2)?→ python -m project_health.analysis.layout_optimizer_analyzer
+├── Layout optimizer verbose report?→ python -m project_health.analysis.layout_optimizer_analyzer --verbose
+├── Analyze Mitiq comparisons?     → python -m project_health.analysis.mitiq_analyzer
+├── Mitiq thesis summary table?    → python -m project_health.analysis.mitiq_analyzer --thesis-table
+├── Mitiq JSON export?             → python -m project_health.analysis.mitiq_analyzer --json out.json
+├── Analyze mitigation benchmark?  → python -m project_health.analysis.mitigation_benchmark_analyzer
+├── Benchmark thesis table+figures?→ python -m project_health.analysis.mitigation_benchmark_analyzer --thesis-table --figures
+├── Benchmark per-regime analysis? → python -m project_health.analysis.mitigation_benchmark_analyzer --detailed
+├── Benchmark h-sweep table?       → python -m project_health.analysis.mitigation_benchmark_analyzer --h-sweep
+├── Benchmark shot sensitivity?    → python -m project_health.analysis.mitigation_benchmark_analyzer --shot-sensitivity
+├── Benchmark full JSON export?    → python -m project_health.analysis.mitigation_benchmark_analyzer --json out.json
+├── Analyze transpilation metrics? → python scripts/analyze_transpilation.py
+├── Transpilation JSON export?     → python scripts/analyze_transpilation.py --json out.json
 ├── Run full flow→deployment pipeline? → make hw-flow-full
 ├── Deploy with σ_flow safety net?  → make hw-flow-deploy-dry (then hw-flow-deploy)
 │
@@ -521,6 +536,89 @@ results/hardware/run_*/execution_summary.json
     ├── kappa_recommendations: {h: {kappa, risk_level, n_layouts, shots, ...}}
     └── sigma_flow_per_h: {h: σ, ...} | null
 ```
+
+### AQC-Tensor Results JSON Schema
+
+```
+results/aqc_tensor/poc_{topology}_N{n}_p{p}_h{h}_{timestamp}.json
+├── experiment: "aqc_tensor_poc"
+├── config: {topology, n_qubits, p_layers_target, h_value, seed}
+├── reference: {e_exact, gap, e_vqe_p2, depth_p2_original, n_2q_p2_original, ...}
+├── bond_dim_sweep: [{chi, fidelity_init, fidelity_final, e_compressed, delta_e_gap,
+│                     depth_original, depth_compressed, n_2q_original, n_2q_compressed,
+│                     n_iterations, wall_clock_s, converged, n_params}, ...]
+├── verdict: "GO" | "CONDITIONAL" | "NO-GO"
+└── best_chi: int | null
+
+results/aqc_tensor/cross_topology_N{n}_p{p}_{timestamp}.json
+├── experiment: "aqc_tensor_cross_topology"
+├── config: {n_qubits, p_layers_target, bond_dim, seeds, topologies}
+├── topology_summaries: {topology: {pass_rate, mean_fidelity, mean_de_gap, verdict, ...}}
+├── overall_verdict: "GO" | "CONDITIONAL" | "NO-GO"
+└── detailed_results: [{topology, h, seed, fidelity, de_gap_compressed, n_2q_reduction_pct, ...}]
+
+results/aqc_tensor/aqc_vs_direct_{topology}_N{n}_{timestamp}.json
+├── experiment: "aqc_vs_direct"
+├── config: {topology, n_qubits, h_values, seeds, bond_dim}
+├── summary: {n_aqc_wins, n_total, win_rate, mean_improvement_pct, verdict}
+└── detailed_results: [{h, seed, de_gap_p1, de_gap_compressed, fidelity, aqc_wins, ...}]
+```
+
+AQC compression cache: `results/aqc_cache/{topology}_N{n}_h{h}_chi{bond_dim}_{theta_hash}.npz`
+
+Analyzer: `python -m project_health.analysis.aqc_tensor_analyzer [--verbose] [--json out.json] [--thesis-table]`
+
+### Layout Optimizer Results Schema
+
+Layout selection events are logged in structured logs during hardware runs:
+
+```
+results/hardware/run_*/execution_log.json → events with event_type="layout_selection"
+└── data:
+    ├── method: "mapomatic_vf2" | "bfs" | "bfs_fallback"
+    ├── n_selected: int
+    ├── ces_values: [float, ...]
+    └── strategy: "lowest_cost" | "ces_spread" | "hybrid" (VF2 only)
+```
+
+Additional fields logged by `layout_method` event:
+```
+event_type: "layout_method"
+└── data:
+    ├── method: "mapomatic_vf2" | "bfs_fallback"
+    ├── strategy: str (VF2 only)
+    └── reason: str (fallback only — "mapomatic not installed" or "returned empty")
+```
+
+Analyzer: `python -m project_health.analysis.layout_optimizer_analyzer [--verbose] [--json out.json]`
+
+### Mitiq Comparison Results Schema
+
+```
+results/mitiq/comparison_*.json (standalone benchmark)
+├── h_value: float
+├── e_exact: float
+├── gap: float
+├── raw_energy: float
+├── results: {method_name: energy, ...}
+├── delta_e_gaps: {method_name: float, ...}
+├── rankings: [str, ...]  (best → worst)
+├── best_method: str
+├── best_delta_e_gap: float
+└── execution_time_s: float
+
+results/experiments/exp_hw_rehearsal_v3/run_*.json → Section 21
+└── results.section_21:
+    ├── per_h: [{h, e_exact, gap, results, delta_e_gaps, rankings, best_method, best_delta_e_gap, elapsed_s}, ...]
+    ├── summary: {best_de_gap, mean_best_de_gap, n_valid}
+    ├── criteria: {name, primary_metric, threshold, direction, ...}
+    └── pass: bool
+```
+
+Methods available in delta_e_gaps: `raw`, `mitiq_zne_linear`, `mitiq_zne_richardson`,
+`mitiq_cdr`, `mitiq_ddd_zne`, `mitiq_pec`, `native_gf_zne`, `native_pea_zne`.
+
+Analyzer: `python -m project_health.analysis.mitiq_analyzer [--verbose] [--json out.json] [--thesis-table]`
 
 ## Thesis Compilation Workflow (Full Pipeline)
 

@@ -103,22 +103,66 @@ energies, ZNE analysis, input parameters, execution log).
 
 ```
 execution/hardware/
-├── __init__.py      # Public API exports (HardwareBackend, QPUThroughputProfile, etc.)
-├── backend.py       # HardwareBackend class (evaluate, run_deployment, run_h_sweep)
-├── config.py        # HardwareConfig, SPSAConfig, HardwareRunResult
-├── preflight.py     # Pre-execution checks + QPU cost estimation + CLOPS model
-├── submission.py    # Job submission with retry logic + layout selection
-├── observables.py   # Per-site observable construction and extraction
-├── phase.py         # Phase classification (paramagnetic/ordered/indeterminate)
-├── spsa.py          # Conditional SPSA refinement
-└── persistence.py   # Result saving with full provenance
+├── __init__.py           # Public API exports (HardwareBackend, layout optimizer, QPU cost)
+├── backend.py            # HardwareBackend class (evaluate, run_deployment, run_h_sweep)
+├── config.py             # HardwareConfig, SPSAConfig, HardwareRunResult
+├── layout_optimizer.py   # Mapomatic VF2 layout optimization (multi-layer filtering)
+├── preflight.py          # Pre-execution checks + QPU cost estimation + CLOPS model
+├── submission.py         # Job submission with retry logic + layout selection dispatcher
+├── observables.py        # Per-site observable construction and extraction
+├── phase.py              # Phase classification (paramagnetic/ordered/indeterminate)
+├── spsa.py               # Conditional SPSA refinement
+└── persistence.py        # Result saving with full provenance
 ```
+
+### Layout Optimizer (`layout_optimizer.py`) — NEW 2026-06-17
+
+Noise-aware layout selection using VF2 subgraph isomorphism (via mapomatic):
+
+```
+Circuit → [Layer 0: Filter CouplingMap] → [Layer 1: VF2 Search] →
+          [Layer 2: Fidelity Scoring]  → [Layer 3: Top-N + Transpile] → LayoutSelection
+```
+
+- **Layer 0**: Prune edges by 2Q error > 1%, qubits by T1 < 50µs, manual blacklist
+- **Layer 1**: VF2 finds all SWAP-free isomorphic subgraphs (via `mapomatic>=0.14`)
+- **Layer 2**: Score by fidelity product using `backend.target` (BackendV2 API only)
+- **Layer 3**: Strategy-based selection → transpile only top-N
+
+Key advantage: VF2 produces ~6× lower CES than BFS (0 SWAPs vs routing overhead).
+Graceful fallback to BFS if mapomatic not installed.
+
+CLI: `--no-mapomatic`, `--layout-strategy {lowest_cost,ces_spread,hybrid}`, `--layout-max-2q-error`
+
+### Analyzing Layout Optimizer Results
+
+```bash
+# Quick summary (scans historical runs)
+python -m project_health.analysis.layout_optimizer_analyzer
+
+# Live benchmark: VF2 vs BFS head-to-head on FakeTorino
+python -m project_health.analysis.layout_optimizer_analyzer --benchmark --verbose
+
+# JSON export for thesis tables
+python -m project_health.analysis.layout_optimizer_analyzer --benchmark --json report.json
+```
+
+Validated result (2026-06-17): VF2 achieves **6.1× lower CES** than BFS on FakeTorino N=10
+(CES 0.031 vs 0.190). Zero extra SWAPs, <200ms total time.
 
 ### Key exports from `__init__.py`
 
 ```python
 from qmbp_simulation.execution.hardware import (
     HardwareBackend, HardwareConfig, HardwareRunResult, SPSAConfig,
+    # Layout optimizer (mapomatic VF2 integration)
+    MAPOMATIC_AVAILABLE,
+    LayoutOptimizationResult,
+    build_filtered_coupling_map,
+    compute_layout_fidelity_cost,
+    find_vf2_layouts,
+    rank_backends,
+    select_optimal_layouts,
     # Cost estimation (composable, pluggable)
     QPUCostEstimate, QPUThroughputProfile, SPSACostModel,
     estimate_effective_clops, estimate_qpu_cost,
@@ -134,7 +178,7 @@ MPNN θ_opt → HardwareBackend.run_deployment(circuit, H, params, h, e_exact, g
                 ├─ 2. Preflight checks (status, calibration, topology, cost ceiling)
                 ├─ 3. Circuit ZNE check (2Q gate count ≤ 18 threshold)
                 ├─ 4. Bind parameters to HVA circuit
-                ├─ 5. Select 3 lowest-CES layouts (cached)
+                ├─ 5. Select 3 lowest-noise layouts (VF2 mapomatic or BFS fallback, cached)
                 ├─ 6. Transpile circuit to each layout
                 ├─ 7. Submit all 3 energy PUBs (parallel, with retry)
                 ├─ 8. Collect results + discard NaN/Inf (timeout-aware)
@@ -153,7 +197,7 @@ For simple energy evaluation only (no phase classification or persistence):
 MPNN θ_opt → HardwareBackend.evaluate(circuit, H, params)
                 │
                 ├─ 1. Bind parameters to HVA circuit
-                ├─ 2. Select 3 lowest-CES layouts (cached)
+                ├─ 2. Select 3 lowest-noise layouts (VF2 mapomatic or BFS fallback, cached)
                 ├─ 3. Transpile circuit to each layout
                 ├─ 4. Submit all 3 energy PUBs (parallel)
                 ├─ 5. Collect results + discard NaN/Inf

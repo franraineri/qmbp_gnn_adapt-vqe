@@ -15,6 +15,10 @@ import numpy as np
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
 
+from qmbp_simulation.execution.hardware.layout_optimizer import (
+    MAPOMATIC_AVAILABLE,
+    select_optimal_layouts,
+)
 from qmbp_simulation.execution.noisy_utils import (
     LayoutSelection,
     build_adjacency,
@@ -33,7 +37,55 @@ def select_layouts_for_hardware(
     config: HardwareConfig,
     logger: StructuredLogger,
 ) -> LayoutSelection:
-    """Select lowest-CES layouts via noisy_utils pipeline."""
+    """Select optimal layouts for hardware execution.
+
+    Uses mapomatic VF2 subgraph isomorphism when available and enabled
+    (config.use_mapomatic=True). Falls back to BFS + CES selection otherwise.
+    """
+    if config.use_mapomatic and MAPOMATIC_AVAILABLE:
+        logger.log(
+            "layout_method",
+            data={"method": "mapomatic_vf2", "strategy": config.layout_strategy},
+        )
+        layout_selection = select_optimal_layouts(
+            bound_circuit,
+            backend,
+            n_select=config.n_layouts,
+            max_ces=config.max_ces,
+            max_2q_error=config.layout_max_2q_error,
+            min_t1_us=config.layout_min_t1_us,
+            optimization_level=config.optimization_level,
+            call_limit=config.layout_call_limit,
+            exclude_qubits=set(config.layout_exclude_qubits),
+            defective_edge_threshold=0.10,
+            strategy=config.layout_strategy,
+        )
+        if layout_selection.layouts:
+            logger.log(
+                "layout_selection",
+                data={
+                    "n_selected": len(layout_selection.layouts),
+                    "ces_values": layout_selection.ces_values,
+                    "method": "mapomatic_vf2",
+                },
+            )
+            return layout_selection
+        # VF2 found nothing usable — fall through to BFS
+        logger.log(
+            "layout_fallback",
+            data={"reason": "mapomatic returned empty, using BFS"},
+        )
+
+    # ── BFS fallback (original path) ──
+    if config.use_mapomatic and not MAPOMATIC_AVAILABLE:
+        logger.log(
+            "layout_method",
+            data={
+                "method": "bfs_fallback",
+                "reason": "mapomatic not installed",
+            },
+        )
+
     adj = build_adjacency(backend)
     candidates = find_layouts_bfs(
         adj,
@@ -62,6 +114,7 @@ def select_layouts_for_hardware(
         data={
             "n_selected": len(layout_selection.layouts),
             "ces_values": layout_selection.ces_values,
+            "method": "bfs",
         },
     )
     return layout_selection
@@ -110,6 +163,24 @@ def _submit_all_batched(
             est = EstimatorV2(mode=batch)
             # Apply options via structured API
             _apply_estimator_options(est, config)
+
+            # ── Warm-up shot (QPU session primer) ──────────────────────
+            # Submit a small (100-shot) execution of the first circuit to
+            # stabilize the QPU session. Result is discarded. This helps
+            # avoid transient errors at session start on some IBM devices.
+            try:
+                warmup_circ = isa_circuits[0]
+                h_warmup = hamiltonian.apply_layout(warmup_circ.layout)
+                warmup_est = EstimatorV2(mode=batch)
+                warmup_est.options.default_shots = 100
+                warmup_job = warmup_est.run([(warmup_circ, h_warmup)])
+                # Wait for warmup but don't use the result
+                if hasattr(warmup_job, "wait_for_final_state"):
+                    warmup_job.wait_for_final_state(timeout=60)
+                logger.log("warmup_completed", data={"shots": 100})
+            except Exception as warmup_exc:
+                # Warmup failure is non-fatal — continue with real jobs
+                logger.log("warmup_skipped", data={"error": str(warmup_exc)})
 
             # Phase 1: Submit all PUBs
             for idx, isa_circ in enumerate(isa_circuits):
@@ -277,11 +348,18 @@ def _apply_estimator_options(estimator: Any, config: HardwareConfig) -> None:
         dd = options_dict["dynamical_decoupling"]
         estimator.options.dynamical_decoupling.enable = dd.get("enable", True)
         estimator.options.dynamical_decoupling.sequence_type = dd.get("sequence_type", "XpXm")
+        if "skip_reset_qubits" in dd:
+            estimator.options.dynamical_decoupling.skip_reset_qubits = dd["skip_reset_qubits"]
     if "twirling" in options_dict:
         tw = options_dict["twirling"]
         estimator.options.twirling.enable_gates = tw.get("enable_gates", True)
-        estimator.options.twirling.enable_measure = tw.get("enable_measure", True)
-        estimator.options.twirling.num_randomizations = tw.get("num_randomizations", 32)
+        estimator.options.twirling.enable_measure = tw.get("enable_measure", False)
+        if "num_randomizations" in tw:
+            estimator.options.twirling.num_randomizations = tw["num_randomizations"]
+        if "shots_per_randomization" in tw:
+            estimator.options.twirling.shots_per_randomization = tw["shots_per_randomization"]
+        if "strategy" in tw:
+            estimator.options.twirling.strategy = tw["strategy"]
     if "resilience" in options_dict:
         res = options_dict["resilience"]
         if "measure_mitigation" in res:
@@ -294,6 +372,8 @@ def _apply_estimator_options(estimator: Any, config: HardwareConfig) -> None:
                 estimator.options.resilience.zne.amplifier = zne["amplifier"]
             if "noise_factors" in zne:
                 estimator.options.resilience.zne.noise_factors = zne["noise_factors"]
+            if "extrapolator" in zne:
+                estimator.options.resilience.zne.extrapolator = zne["extrapolator"]
         if "layer_noise_learning" in res:
             lnl = res["layer_noise_learning"]
             estimator.options.resilience.layer_noise_learning.num_randomizations = lnl.get(
@@ -302,6 +382,10 @@ def _apply_estimator_options(estimator: Any, config: HardwareConfig) -> None:
             estimator.options.resilience.layer_noise_learning.shots_per_randomization = lnl.get(
                 "shots_per_randomization", 128
             )
+            if "layer_pair_depths" in lnl:
+                estimator.options.resilience.layer_noise_learning.layer_pair_depths = lnl[
+                    "layer_pair_depths"
+                ]
 
 
 def build_estimator_options(config: HardwareConfig) -> dict[str, Any]:
@@ -318,13 +402,27 @@ def build_estimator_options(config: HardwareConfig) -> dict[str, Any]:
         }
     options: dict[str, Any] = {"default_shots": config.shots}
     if config.mitigation.dd_enabled:
-        options["dynamical_decoupling"] = {"enable": True, "sequence_type": "XpXm"}
-    if config.mitigation.twirling_enabled:
-        options["twirling"] = {
-            "enable_gates": True,
-            "enable_measure": True,
-            "num_randomizations": config.mitigation.num_randomizations,
+        options["dynamical_decoupling"] = {
+            "enable": True,
+            "sequence_type": "XpXm",
+            "skip_reset_qubits": True,  # |0⟩ qubits post-reset need no DD
         }
+    if config.mitigation.twirling_enabled:
+        twirl_opts: dict[str, Any] = {
+            "enable_gates": True,
+            "enable_measure": config.mitigation.trex_enabled,  # measure twirling for TREX
+        }
+        # Only set num_randomizations when PEA is active (it controls the noise
+        # learning budget). For gate_folding, let Runtime auto-distribute shots.
+        # "adaptive" maps to "pea" on Runtime, so it also needs the budget.
+        if config.mitigation.zne_amplifier in ("pea", "adaptive"):
+            twirl_opts["num_randomizations"] = config.mitigation.num_randomizations
+            twirl_opts["shots_per_randomization"] = config.mitigation.shots_per_randomization
+        # Twirling strategy: "active-circuit" avoids twirling idle qubits in
+        # dense circuits (IBM tutorial recommendation for utility-scale).
+        if config.mitigation.twirling_strategy:
+            twirl_opts["strategy"] = config.mitigation.twirling_strategy
+        options["twirling"] = twirl_opts
     if config.mitigation.trex_enabled:
         options.setdefault("resilience", {})["measure_mitigation"] = True
 
@@ -332,21 +430,37 @@ def build_estimator_options(config: HardwareConfig) -> dict[str, Any]:
     if config.mitigation.zne_enabled:
         options.setdefault("resilience", {})["zne_mitigation"] = True
         zne_opts: dict[str, Any] = {}
-        # Amplifier selection
+        # Amplifier selection: map framework values to IBM Runtime values.
+        # "adaptive" is a local-only strategy (GF→PEA fallback) — on real hardware,
+        # use "pea" for server-side ZNE since PEA is the validated primary.
         amplifier = config.mitigation.zne_amplifier
-        if amplifier and amplifier != "gate_folding":
-            zne_opts["amplifier"] = amplifier
+        runtime_amplifier = "pea" if amplifier == "adaptive" else amplifier
+        if runtime_amplifier and runtime_amplifier != "gate_folding":
+            zne_opts["amplifier"] = runtime_amplifier
         # Custom noise factors
         if config.mitigation.zne_noise_factors:
             zne_opts["noise_factors"] = config.mitigation.zne_noise_factors
+        # Extrapolator: always send both exponential and linear for PEA.
+        # IBM Runtime heuristically picks the best ("automatic"), but having
+        # both available in the result data enables post-hoc comparison.
+        # Ref: IBM PEA tutorial (2026) uses ("exponential", "linear").
+        if runtime_amplifier == "pea":
+            zne_opts["extrapolator"] = ("exponential", "linear")
         if zne_opts:
             options.setdefault("resilience", {})["zne"] = zne_opts
         # PEA-specific: layer noise learning options
-        if amplifier == "pea":
-            options.setdefault("resilience", {})["layer_noise_learning"] = {
+        if runtime_amplifier == "pea":
+            lnl_opts: dict[str, Any] = {
                 "num_randomizations": config.mitigation.num_randomizations,
                 "shots_per_randomization": config.mitigation.shots_per_randomization,
             }
+            # layer_pair_depths controls the identity-pair insertion depths used
+            # to learn the exponential noise decay per layer. IBM tutorial uses
+            # [0,1,2,4,6,12,24] for deep circuits. For HVA p=1 (1 layer of 2Q
+            # gates), [0,1,2,4,8] suffices. None = Runtime default.
+            if config.mitigation.layer_pair_depths is not None:
+                lnl_opts["layer_pair_depths"] = config.mitigation.layer_pair_depths
+            options.setdefault("resilience", {})["layer_noise_learning"] = lnl_opts
     else:
         options.setdefault("resilience", {})["zne_mitigation"] = False
     return options

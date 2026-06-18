@@ -193,6 +193,32 @@ def format_text(report: HealthReport, *, compact: bool = False) -> str:
         )
         lines.append("")
 
+    # ── AQC-Tensor Compression ────────────────────────────────────────────
+    aqc = report.aqc_status
+    if aqc and aqc.get("status") not in (None, "unavailable"):
+        lines.append("─── AQC-TENSOR COMPRESSION ────────────────────────────────────────")
+        status = aqc.get("status", "unknown")
+        icon = {"validated": "✅", "partial": "⚠️", "not_run": "⬜", "not_validated": "❌"}.get(
+            status, "?"
+        )
+        lines.append(f"  Status:                  {icon} {status}")
+        if aqc.get("n_poc_experiments", 0) > 0:
+            lines.append(f"  POC experiments:         {aqc['n_poc_experiments']}")
+        if aqc.get("n_topologies_tested", 0) > 0:
+            lines.append(f"  Topologies tested:       {aqc['n_topologies_tested']}")
+        if aqc.get("heavy_hex_validated"):
+            lines.append("  Heavy-hex (HW target):   ✅ validated (100% pass)")
+        if aqc.get("expressibility_benefit"):
+            lines.append("  vs direct p=1:           +benefit (AQC wins)")
+        if aqc.get("mean_2q_reduction_pct", 0) > 0:
+            lines.append(f"  2Q gate reduction:       {aqc['mean_2q_reduction_pct']:.0f}%")
+        if aqc.get("n_hardware_deployments", 0) > 0:
+            lines.append(f"  Hardware deployments:    {aqc['n_hardware_deployments']}")
+        if aqc.get("warnings"):
+            for w in aqc["warnings"]:
+                lines.append(f"  ⚠️  {w}")
+        lines.append("")
+
     # ── Coverage Gaps ─────────────────────────────────────────────────────
     if report.gaps:
         lines.append("─── COVERAGE GAPS ─────────────────────────────────────────────────")

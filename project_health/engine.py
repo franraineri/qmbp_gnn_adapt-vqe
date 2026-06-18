@@ -115,6 +115,26 @@ def run_health_check(
     report.gaps = detect_coverage_gaps(noiseless, noisy, experiments)
     logger.info("  Coverage gaps detected: %d", len(report.gaps))
 
+    # ─── Step 6b: AQC-Tensor compression status ─────────────────────────
+    try:
+        from project_health.analysis.aqc_tensor_analyzer import get_aqc_health_summary
+
+        report.aqc_status = get_aqc_health_summary()
+        logger.info("  AQC-Tensor status: %s", report.aqc_status.get("status", "unknown"))
+    except Exception as e:
+        logger.debug("  AQC-Tensor status unavailable: %s", e)
+        report.aqc_status = {"status": "unavailable", "error": str(e)}
+
+    # ─── Step 6c: Mitiq integration status ───────────────────────────────
+    try:
+        from project_health.analysis.mitiq_analyzer import get_mitiq_health_summary
+
+        report.mitiq_status = get_mitiq_health_summary()
+        logger.info("  Mitiq status: %s", report.mitiq_status.get("status", "unknown"))
+    except Exception as e:
+        logger.debug("  Mitiq status unavailable: %s", e)
+        report.mitiq_status = {"status": "unavailable", "error": str(e)}
+
     # ─── Step 7: Delta since last run ────────────────────────────────────
     current_files = _collect_source_files(noiseless, noisy, experiments)
     new_results, removed_results = detect_delta(current_files, state_file)

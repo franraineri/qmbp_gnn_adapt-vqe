@@ -101,3 +101,40 @@ __all__ = [
     "CalibrationSnapshot",
     "DriftReport",
 ]
+
+# ── Mitiq integration (optional — pip install 'qmbp-simulation[mitiq]') ──
+try:
+    from qmbp_simulation.execution.mitiq_utils import (
+        MitiqCDRResult,
+        MitiqComparisonResult,
+        MitiqDDDZNEResult,
+        MitiqPECResult,
+        MitiqZNEResult,
+        compare_mitigation_strategies,
+        is_mitiq_available,
+        make_mitiq_executor,
+        make_noiseless_executor,
+        run_mitiq_cdr,
+        run_mitiq_ddd_zne,
+        run_mitiq_pec,
+        run_mitiq_zne,
+    )
+
+    __all__ += [
+        # Mitiq integration
+        "is_mitiq_available",
+        "make_mitiq_executor",
+        "make_noiseless_executor",
+        "run_mitiq_zne",
+        "run_mitiq_cdr",
+        "run_mitiq_ddd_zne",
+        "run_mitiq_pec",
+        "compare_mitigation_strategies",
+        "MitiqZNEResult",
+        "MitiqCDRResult",
+        "MitiqDDDZNEResult",
+        "MitiqPECResult",
+        "MitiqComparisonResult",
+    ]
+except ImportError:
+    pass

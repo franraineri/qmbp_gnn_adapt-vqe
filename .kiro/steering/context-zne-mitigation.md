@@ -16,6 +16,37 @@ fileMatchPattern: "**/noisy_utils*,**/zne*,**/mitigation*,**/gate_folding*,**/bi
 4. GNN-QEM (only if PEA unavailable) → +72% zero-shot, but NOT after PEA
 ```
 
+## Mitigation Benchmark V2 (2026-06-18, 21 configs × 15 h-values, θ_opt corrected)
+
+V2 fixes critical V1 bug: θ=zeros → transpiler cancelled all 2Q gates → no noise.
+V2 uses VQE-optimized parameters (θ_opt) producing non-trivial circuits (18 CZ real).
+
+**Per-regime results (526 entries, 18 valid configs):**
+
+| Config | ΔE/gap h≥3.0 | ΔE/gap 2.0-3.0 | ΔE/gap 1.0-2.0 | Notes |
+|--------|:-----------:|:--------------:|:--------------:|-------|
+| All PEA (C4-C8,C10,C15) | **0.37%** | 1.9% | 71% | All equivalent in sim |
+| C16_aqc_pea | 2.1% | 2.7% | **70%** (best!) | AQC p=2 expressibility |
+| C3_full_gf | 27-30% | 38% | 129% | GF-ZNE fallback |
+| C0_raw | 40-44% | 56% | 166% | Baseline |
+| C11_mitiq_zne | 81% | — | — | **Destructive** (opt_level=0 → 45 CZ) |
+
+**Critical V2 findings:**
+- DD/Twirling: ZERO effect in depolarizing simulation (confirmed, hardware-only value)
+- PEA budget: ALL budgets converge to 0.37% in sim (depolarizing perfectly learned)
+  On real HW: budget WILL differentiate (noise fluctuations need more samples)
+- Mitiq ZNE: **contraproducente** at N=10 (opt_level=0 routing → 45 CZ vs 18)
+- AQC+PEA: global champion (1.02% overall), wins in critical regime (p=2 expressibility)
+- AQC without PEA: WORSE than raw (27 CZ > 18 CZ → more noise)
+- GNN-QEM after PEA: still 0% improvement (post-PEA residual is unstructured)
+
+**Hardware execution order (7 configs × 4 h × 16K shots):**
+C0 → C1 → C3 → C4 → C5★ → C6 → C16
+
+Ref: `documentation/binnacles/binnacle-mitigation-benchmark-v2.md`
+Runner: `python scripts/experiment_runners/hardware/run_mitigation_benchmark.py`
+Analyzer: `python -m project_health.analysis.mitigation_benchmark_analyzer`
+
 ## PEA (Probabilistic Error Amplification)
 
 - Learns noise model via Pauli-Lindblad fitting, amplifies probabilistically.

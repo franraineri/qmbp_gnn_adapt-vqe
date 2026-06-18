@@ -132,6 +132,11 @@ DEFAULT_AMPLIFIER = "pea"
 PEA_PRESETS = {
     # IBM default — baseline. Fast but insufficient on degraded calibration.
     "default": (32, 128, None, 1),
+    # IBM canonical (PEA tutorial) — gentle noise factors for PEA's precise
+    # amplification. PEA doesn't need large factors because it amplifies the
+    # *learned* noise model probabilistically (no extra circuit depth).
+    # Ref: IBM PEA tutorial (2026), factors [1, 1.3, 1.6] on ibm_fez 149q.
+    "ibm_canonical": (40, 64, [1, 1.3, 1.6], 3),
     # Balanced — 2.3× IBM default learning. Sweet spot for elevated error.
     "balanced": (48, 192, [1, 1.5, 3], 1),
     # Aggressive — 16× IBM default. Maximum accuracy, slow.
@@ -147,6 +152,11 @@ ZNE_R2_THRESHOLD = 0.80
 
 # σ_flow threshold: h-points with σ_flow above this get boosted shots/layouts
 SIGMA_FLOW_THRESHOLD = 0.5
+
+# AQC-Tensor compression defaults
+AQC_DEFAULT_BOND_DIM = 64
+AQC_DEFAULT_FIDELITY_THRESHOLD = 0.998
+AQC_DEFAULT_P_SOURCE = 2
 
 # Budget safety: max wall-clock per h-point before auto-abort (10 min)
 MAX_WALL_CLOCK_PER_H_S = 600.0
@@ -328,16 +338,26 @@ def build_hardware_config(
     backend_name: str = BACKEND_NAME,
     pea_preset: str = "balanced",
     job_timeout_s: int = 900,
+    layer_pair_depths: list[int] | None = None,
 ) -> HardwareConfig:
     """Build HardwareConfig for real QPU execution.
 
     PEA presets (2026-06-14 — from PEA calibration study):
     - "default": IBM default (32×128=4K). Fast, but fails on degraded calibration.
+    - "ibm_canonical": IBM PEA tutorial (40×64=2.5K + [1,1.3,1.6] + 3 layouts).
+      Gentle noise factors optimized for PEA's precise probabilistic amplification.
     - "balanced": 48×192=9K + [1,1.5,3]. Sweet spot for 2-4% error rates.
     - "aggressive": 64×256=16K + [1,1.5,2,3] + 3 layouts. Maximum accuracy, slow.
     - "default_3layout": IBM default + 3 layouts. Tests variance vs bias.
 
     The preset can be overridden by --pea-config CLI flag.
+
+    Parameters
+    ----------
+    layer_pair_depths : list[int] | None
+        Identity-pair depths for PEA noise learning. None = Runtime default.
+        For HVA p=1 (1 layer): [0, 1, 2, 4, 8] recommended.
+        For deep circuits: [0, 1, 2, 4, 6, 12, 24] per IBM tutorial.
     """
     from qmbp_simulation.execution.backends import MitigationOptions
 
@@ -375,6 +395,8 @@ def build_hardware_config(
             zne_noise_factors=noise_factors,
             num_randomizations=num_rand,
             shots_per_randomization=shots_rand,
+            layer_pair_depths=layer_pair_depths,
+            twirling_strategy="active-circuit",
         ),
     )
 
@@ -590,6 +612,108 @@ def prepare_mpnn_predictions(
         params_per_h[h] = theta_pred
 
     return params_per_h, e_exact_per_h, gap_per_h
+
+
+def prepare_aqc_compressed_circuit(
+    h_values: list[float],
+    lattice,
+    params_per_h: dict[float, np.ndarray],
+    *,
+    p_source: int = AQC_DEFAULT_P_SOURCE,
+    bond_dim: int = AQC_DEFAULT_BOND_DIM,
+    fidelity_threshold: float = AQC_DEFAULT_FIDELITY_THRESHOLD,
+    seed: int = 42,
+) -> dict[float, dict]:
+    """Compress HVA p=p_source circuits via AQC-Tensor for hardware deployment.
+
+    For each h-value, builds an HVA p=p_source circuit with MPNN-predicted params,
+    compresses it to a shallower circuit, and validates the compression quality.
+
+    Parameters
+    ----------
+    h_values : list[float]
+        h-values to compress circuits for.
+    lattice : LatticeConfig
+        Lattice configuration.
+    params_per_h : dict[float, np.ndarray]
+        MPNN-predicted parameters for each h (must be for p=p_source).
+    p_source : int
+        Source p_layers of the circuit to compress (default: 2).
+    bond_dim : int
+        MPS bond dimension for compression (default: 64).
+    fidelity_threshold : float
+        Minimum acceptable fidelity (default: 0.998).
+    seed : int
+        Random seed for the internal VQE used to build the good circuit.
+
+    Returns
+    -------
+    dict[float, dict]
+        Mapping h → compression result info with keys:
+        - "circuit": compressed QuantumCircuit (bound)
+        - "fidelity": achieved fidelity
+        - "n_2q_original": original 2Q gate count
+        - "n_2q_compressed": compressed 2Q gate count
+        - "wall_clock_s": compression time
+        - "acceptable": bool (meets quality threshold)
+        - "fallback_to_p1": bool (True if compression failed, use p=1 instead)
+    """
+    from qmbp_simulation.circuits.aqc_compression import (
+        AQCCircuitCompressor,
+        AQCCompressionConfig,
+    )
+
+    config = AQCCompressionConfig(
+        max_bond_dim=bond_dim,
+        fidelity_threshold=fidelity_threshold,
+        max_iterations=200,
+    )
+    compressor = AQCCircuitCompressor(config)
+    circuit_builder = HVACircuitBuilder()
+
+    results: dict[float, dict] = {}
+    for h in h_values:
+        logger.info(f"  AQC compression for h={h:.3f}...")
+        # Build p=p_source circuit bound with MPNN predictions
+        lattice_h = make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)
+        circuit_p, _ = circuit_builder.create(N_QUBITS, p_source, lattice_h)
+        target_circuit = circuit_p.assign_parameters(params_per_h[h])
+
+        try:
+            result = compressor.compress_circuit(target_circuit, lattice_h)
+            acceptable = result.fidelity >= fidelity_threshold
+            results[h] = {
+                "circuit": result.compressed_circuit,
+                "fidelity": result.fidelity,
+                "n_2q_original": result.n_2q_original,
+                "n_2q_compressed": result.n_2q_compressed,
+                "n_2q_reduction_pct": result.n_2q_reduction_pct,
+                "wall_clock_s": result.wall_clock_s,
+                "acceptable": acceptable,
+                "fallback_to_p1": not acceptable,
+                "n_iterations": result.n_iterations,
+            }
+            status = "✅" if acceptable else "⚠️ fallback to p=1"
+            logger.info(
+                f"    {status} F={result.fidelity:.5f}, "
+                f"2Q: {result.n_2q_original}→{result.n_2q_compressed}, "
+                f"{result.wall_clock_s:.1f}s"
+            )
+        except Exception as exc:
+            logger.warning(f"    ❌ AQC compression failed for h={h}: {exc}")
+            results[h] = {
+                "circuit": None,
+                "fidelity": 0.0,
+                "n_2q_original": 0,
+                "n_2q_compressed": 0,
+                "n_2q_reduction_pct": 0.0,
+                "wall_clock_s": 0.0,
+                "acceptable": False,
+                "fallback_to_p1": True,
+                "error": str(exc),
+            }
+
+    return results
 
 
 def compute_kappa_per_h(
@@ -1664,6 +1788,73 @@ Safety:
             "Set to 0 to disable timeout (wait indefinitely for job completion)."
         ),
     )
+    # ── AQC-Tensor compression options ────────────────────────────────────
+    parser.add_argument(
+        "--aqc-compress",
+        action="store_true",
+        help=(
+            "Enable AQC-Tensor circuit compression. Compresses a p=2 HVA circuit "
+            "to p=1-equivalent 2Q-gate count, retaining p=2 expressibility. "
+            "Requires: pip install 'qiskit-addon-aqc-tensor[quimb-jax]'"
+        ),
+    )
+    parser.add_argument(
+        "--aqc-bond-dim",
+        type=int,
+        default=AQC_DEFAULT_BOND_DIM,
+        help=f"MPS bond dimension for AQC compression (default: {AQC_DEFAULT_BOND_DIM})",
+    )
+    parser.add_argument(
+        "--aqc-fidelity",
+        type=float,
+        default=AQC_DEFAULT_FIDELITY_THRESHOLD,
+        help=f"Minimum fidelity for accepting compressed circuit (default: {AQC_DEFAULT_FIDELITY_THRESHOLD})",
+    )
+    parser.add_argument(
+        "--aqc-p-source",
+        type=int,
+        default=AQC_DEFAULT_P_SOURCE,
+        choices=[1, 2],
+        help=f"Source p_layers to compress from (default: {AQC_DEFAULT_P_SOURCE})",
+    )
+    # ── Layout optimizer (mapomatic VF2) options ──────────────────────────
+    parser.add_argument(
+        "--no-mapomatic",
+        action="store_true",
+        help="Disable mapomatic VF2 layout optimization (use BFS fallback)",
+    )
+    parser.add_argument(
+        "--layout-strategy",
+        choices=["lowest_cost", "ces_spread", "hybrid"],
+        default="lowest_cost",
+        help="Layout selection strategy (default: lowest_cost). "
+        "'ces_spread' for ZNE diversity, 'hybrid' for adaptive.",
+    )
+    parser.add_argument(
+        "--layout-max-2q-error",
+        type=float,
+        default=0.01,
+        help="Max 2Q gate error for layout CouplingMap filtering (default: 0.01)",
+    )
+    # ── Mitiq complementary mitigation options ────────────────────────────
+    parser.add_argument(
+        "--mitiq-verify",
+        action="store_true",
+        help=(
+            "Enable Mitiq CDR verification after PEA-ZNE. "
+            "Provides an independent cross-check without noise model. "
+            "Adds ~150%% overhead per h-point (10 near-Clifford circuits)."
+        ),
+    )
+    parser.add_argument(
+        "--mitiq-benchmark",
+        action="store_true",
+        help=(
+            "Run full Mitiq multi-method comparison (ZNE/CDR/DDD+ZNE). "
+            "Produces thesis table comparing all mitigation strategies. "
+            "Significantly slower — use only for offline analysis."
+        ),
+    )
     args = parser.parse_args()
 
     # ── Setup logging ─────────────────────────────────────────────────────
@@ -1698,6 +1889,16 @@ Safety:
     print(f"║  PEA preset: {pea_preset:<52}║")
     sigma_note = f"from {Path(args.sigma_flow_results).name}" if sigma_flow_per_h else "disabled"
     print(f"║  σ_flow safety net: {sigma_note:<46}║")
+    aqc_note = (
+        f"p={args.aqc_p_source}→shallow, χ={args.aqc_bond_dim}" if args.aqc_compress else "disabled"
+    )
+    print(f"║  AQC compression: {aqc_note:<47}║")
+    mapo_note = (
+        "disabled (--no-mapomatic)"
+        if args.no_mapomatic
+        else f"VF2, strategy={args.layout_strategy}"
+    )
+    print(f"║  Layout optimizer: {mapo_note:<47}║")
     print("╚══════════════════════════════════════════════════════════════════╝")
 
     # ── Credential check ──────────────────────────────────────────────────
@@ -1733,6 +1934,11 @@ Safety:
         pea_preset=pea_preset,
         job_timeout_s=args.job_timeout,
     )
+    # Apply mapomatic CLI overrides
+    if args.no_mapomatic:
+        config.use_mapomatic = False
+    config.layout_strategy = args.layout_strategy
+    config.layout_max_2q_error = args.layout_max_2q_error
 
     # ── Pre-execution cost estimate (model-based) ─────────────────────────
     n_h_full = len(TIER_1_H) * (1 + len(TIER_2_SEEDS)) + len(TIER_3_H) + len(TIER_0_H)
@@ -1786,6 +1992,10 @@ Safety:
             "n_layouts": args.n_layouts,
             "amplifier": args.zne_amplifier,
             "spsa_enabled": spsa_enabled,
+            "aqc_compress": args.aqc_compress,
+            "aqc_bond_dim": args.aqc_bond_dim if args.aqc_compress else None,
+            "aqc_fidelity_threshold": args.aqc_fidelity if args.aqc_compress else None,
+            "aqc_p_source": args.aqc_p_source if args.aqc_compress else None,
         },
         "pre_execution_cost_estimate": {
             "effective_clops": cost.effective_clops,
@@ -1847,6 +2057,95 @@ Safety:
             if tier_metrics.pass_rate < 0.5 and args.tier is None:
                 print("\n  ⛔ Tier 1 pass rate < 50%. Skipping Tier 2/3.")
                 break
+
+            # ── Mitiq verification (--mitiq-verify or --mitiq-benchmark) ──
+            if getattr(args, "mitiq_verify", False) or getattr(args, "mitiq_benchmark", False):
+                try:
+                    from qmbp_simulation.execution.mitiq_utils import (
+                        compare_mitigation_strategies,
+                        is_mitiq_available,
+                    )
+
+                    if is_mitiq_available():
+                        from qmbp_simulation.execution import NoisyEstimatorConfig
+
+                        logger.info("\n  ── Mitiq Verification (post-Tier-1) ──")
+                        mitiq_config = NoisyEstimatorConfig(shots=config.shots, seed_simulator=42)
+                        # Get the noisy backend from tier 1 config
+                        # For fake_backend mode, use local comparison
+                        # For hardware mode, mitiq verification runs locally
+                        # against FakeTorino as independent check
+                        try:
+                            from qiskit_ibm_runtime.fake_provider import FakeKingston
+
+                            mitiq_backend = FakeKingston()
+                        except ImportError:
+                            mitiq_backend = None
+
+                        if mitiq_backend is not None:
+                            mitiq_results = []
+                            strategies = (
+                                [
+                                    "raw",
+                                    "mitiq_zne_linear",
+                                    "mitiq_cdr",
+                                    "mitiq_ddd_zne",
+                                    "native_gf_zne",
+                                ]
+                                if getattr(args, "mitiq_benchmark", False)
+                                else ["raw", "mitiq_cdr"]
+                            )
+                            circuit_builder = HVACircuitBuilder()
+                            circuit, _ = circuit_builder.create_pauli_evolution(
+                                N_QUBITS, P_LAYERS, lattice
+                            )
+                            for h in TIER_1_H[:2]:  # Limit to 2 h-points
+                                h_lattice = make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)
+                                H_h = HamiltonianBuilder().build(h_lattice)
+                                params = params_per_h.get(h)
+                                if params is None:
+                                    continue
+                                bound = circuit.assign_parameters(params)
+                                try:
+                                    mr = compare_mitigation_strategies(
+                                        bound,
+                                        H_h,
+                                        mitiq_backend,
+                                        mitiq_config,
+                                        exact_energy=e_exact_per_h[h],
+                                        gap=gap_per_h[h],
+                                        h_value=h,
+                                        strategies=strategies,
+                                    )
+                                    mitiq_results.append(
+                                        {
+                                            "h": h,
+                                            "best_method": mr.best_method,
+                                            "best_delta_e_gap": mr.best_delta_e_gap,
+                                            "rankings": mr.rankings,
+                                            "delta_e_gaps": mr.delta_e_gaps,
+                                        }
+                                    )
+                                    logger.info(
+                                        f"    h={h:.2f}: best={mr.best_method} "
+                                        f"(ΔE/gap={mr.best_delta_e_gap:.4f})"
+                                    )
+                                except Exception as me:
+                                    logger.warning(f"    h={h:.2f}: mitiq failed: {me}")
+
+                            execution_summary["mitiq_verification"] = {
+                                "per_h": mitiq_results,
+                                "n_tested": len(mitiq_results),
+                                "mode": "benchmark"
+                                if getattr(args, "mitiq_benchmark", False)
+                                else "verify",
+                            }
+                        else:
+                            logger.warning("    FakeKingston not available for Mitiq verification")
+                    else:
+                        logger.warning("    Mitiq not installed — skipping verification")
+                except Exception as mitiq_err:
+                    logger.warning(f"    Mitiq verification failed: {mitiq_err}")
 
         elif tier == 2:
             tier_metrics = run_tier_2(

@@ -21,6 +21,8 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 - `generate_preset_pass_manager(backend=backend, optimization_level=2)`
 - Apply layout to observables: `obs.apply_layout(isa_qc.layout)`
 - Add dynamical decoupling: `PadDynamicalDecoupling` pass after transpilation
+- **AQC-Tensor compression** (optional, `--aqc-compress`): compresses p=2 circuits to
+  p=1-equivalent 2Q-gate count while retaining expressibility. Ref: `.kiro/steering/context-aqc-compression.md`
 
 ### Error Mitigation Stack (in order of application)
 1. **Dynamical Decoupling** — free, always apply. Use optimized sequences if available.
@@ -42,6 +44,42 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 5. **NN-enhanced extrapolation** — optional improvement:
    - After collecting ZNE data, fit 2-layer MLP instead of linear regression
    - `MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=1000)`
+
+### Mitigation Benchmark V2 Findings (2026-06-18, FakeTorino, θ_opt corrected)
+
+Systematic evaluation of 21 configs × 15 h-values (V2 fixes critical θ=zeros bug from V1).
+Ref: `documentation/binnacles/binnacle-mitigation-benchmark-v2.md`.
+
+**Circuit metrics (post-transpilation):**
+- Standard (opt_level=2): n_2Q=18, depth_2q=14, total_depth=59-62
+- AQC (opt_level=2): n_2Q=27, depth_2q=21, total_depth=103
+- Mitiq (opt_level=0): n_2Q=45, depth_2q=32, total_depth=136 ← destructive
+
+**Per-regime results (h≥3.0 = production target):**
+- **All PEA variants (C4-C8, C10, C15): 0.37% ΔE/gap** — hardware-viable ✅
+- C16_aqc_pea: 2.1% — global champion, best in critical regime (p=2 expressibility)
+- C3_full_gf: 27-30% — GF-ZNE fallback (31% reduction vs raw)
+- C0_raw: 40-44% — baseline
+- C11_mitiq_zne: 81% — **destructive** (opt_level=0 routing → 45 CZ)
+
+**Key findings relevant to hardware deployment:**
+- **PEA budget does NOT differentiate in simulation** (all converge to 0.37% — depolarizing perfectly learned). On real HW with noise fluctuations, budget WILL matter. Test C4 vs C5 vs C6.
+- **DD/Twirling: zero effect in sim** (depolarizing only). Enable on hardware anyway (free, helps coherent errors).
+- **GNN-QEM after PEA: 0% improvement** (post-PEA residual is unstructured shot noise).
+- **AQC+PEA wins in critical regime (h<2.0)**: 70% vs 71% for standard PEA. The p=2 compressed target provides more expressibility.
+- **AQC without PEA is WORSE than raw**: 27 CZ > 18 CZ → more noise without mitigation.
+- **Mitiq ZNE is contraproducente at N≥10**: opt_level=0 forces routing → 45 CZ (2.5× more gates). Do NOT use.
+- **Phase classification: 100% correct** regardless of ΔE/gap (H19 CONFIRMED).
+
+**Hardware execution order (7 configs × 4 h × 16K shots):**
+```bash
+python scripts/experiment_runners/hardware/run_mitigation_benchmark.py \
+    --mode hardware --configs C0,C1,C3,C4,C5,C6,C16 \
+    --h-values 3.25,3.5,3.75,4.0 --shots 16384
+```
+
+Runner: `python scripts/experiment_runners/hardware/run_mitigation_benchmark.py`
+Analyzer: `python -m project_health.analysis.mitigation_benchmark_analyzer --thesis-table`
 
 ### Shot Budget
 - Minimum: **8192 shots** (σ ≈ 1.1e-2, comparable to ⟨X⟩ signal)
@@ -106,10 +144,13 @@ fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
 - BFS-based subset search uses random starting nodes
 - Always use a seeded `random.Random(seed)` instance, not module-level `random.sample()`
 - This ensures reproducible layout selection across runs
+- **Mapomatic VF2** (2026-06-17): VF2 subgraph isomorphism finds SWAP-free layouts
+  with ~6× lower CES than BFS. Enabled by default via `HardwareConfig(use_mapomatic=True)`.
+  See: `.kiro/steering/context-layout-optimizer.md`
 
 ### No Libraries Exist For
 - Inhomogeneous ZNE (Uvarov 2024) — must implement ourselves
-- Layout selection on heavy-hex topology — must implement ourselves
+- ~~Layout selection on heavy-hex topology~~ — **SOLVED**: mapomatic VF2 (`layout_optimizer.py`, 2026-06-17)
 - Weight gradient analysis (Hernandes 2025) — must implement ourselves
 - Mitiq does gate-folding ZNE only (different paradigm, not applicable)
 - PEA local simulation — implemented in `noisy_utils.py` (IBM Runtime handles it on hardware)
@@ -156,7 +197,7 @@ Applied automatically by `run_deployment()`:
 2. **Affine correction** (always) — Clips to [E_ground, E_upper]. Zero cost.
 
 ### What's Included (same as hardware)
-- Layout selection via BFS on heavy-hex topology (`select_layouts_low_ces`)
+- Layout selection via VF2 mapomatic (primary) or BFS (fallback) on heavy-hex topology
 - Transpilation with `generate_preset_pass_manager(optimization_level=2)`
 - PEA noise amplification (learned from FakeTorino calibration data)
 - Observable grouping (commuting Paulis — 2 circuit executions total)
@@ -301,6 +342,8 @@ class MyHWRunner(HardwareValidationRunner):
 --zne-amplifier gate_folding|pea|adaptive  # ZNE noise amplification strategy
 --zne-noise-factors 1 3 5      # Noise amplification factors
 --zne-r2-threshold 0.90        # R² threshold for adaptive fallback
+--no-mapomatic                  # Disable VF2 layout optimization (use BFS fallback)
+--layout-strategy lowest_cost|ces_spread|hybrid  # Layout selection strategy
 --run-preflight                 # Include Section 0 (HardwareBackend preflight)
 --no-spsa                       # Disable SPSA refinement (deployment script)
 --p-layers 1                    # HVA layers (rehearsal)

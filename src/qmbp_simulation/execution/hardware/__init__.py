@@ -8,6 +8,15 @@ from __future__ import annotations
 
 from .backend import HardwareBackend
 from .config import HardwareConfig, HardwareRunResult, SPSAConfig
+from .layout_optimizer import (
+    MAPOMATIC_AVAILABLE,
+    LayoutOptimizationResult,
+    build_filtered_coupling_map,
+    compute_layout_fidelity_cost,
+    find_vf2_layouts,
+    rank_backends,
+    select_optimal_layouts,
+)
 from .preflight import (
     QPUCostEstimate,
     QPUThroughputProfile,
@@ -21,6 +30,14 @@ __all__ = [
     "HardwareConfig",
     "HardwareRunResult",
     "SPSAConfig",
+    # Layout optimizer (mapomatic VF2 integration)
+    "MAPOMATIC_AVAILABLE",
+    "LayoutOptimizationResult",
+    "build_filtered_coupling_map",
+    "compute_layout_fidelity_cost",
+    "find_vf2_layouts",
+    "rank_backends",
+    "select_optimal_layouts",
     # Cost estimation
     "QPUCostEstimate",
     "QPUThroughputProfile",

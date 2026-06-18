@@ -418,10 +418,10 @@ El pipeline se organiza en cuatro fases secuenciales, cada una produciendo artef
 
 \textbf{Arquitectura:}
 \begin{itemize}
-    \item 3 capas GINConv \citep{xu2019} + \texttt{global\_mean\_pool} + MLP de salida.
+    \item 3 capas GINConv \citep{xu2019} + \texttt{global\_mean\_pool} (agregación que promedia las representaciones de todos los nodos para producir un vector de tamaño fijo independiente de $N$) + MLP de salida.
     \item Framework: PyTorch Geometric \citep{fey2019}.
     \item Representación: nodos = qubits (atributo: $h_i$), aristas = interacciones ($J_{ij}$).
-    \item Hiperparámetros: hidden\_dim $= 64$--$128$ (según $N$); epochs $= 6000$; lr $= 10^{-3}$; dropout $= 0.1$; patience $= 300$--$500$.
+    \item Hiperparámetros: hidden\_dim $= 64$--$128$ (según $N$); epochs $= 6000$; lr $= 10^{-3}$; dropout $= 0.1$ (desactivación aleatoria del 10\% de neuronas durante entrenamiento para prevenir sobreajuste \citep{gal2016}); patience $= 300$--$500$.
 \end{itemize}
 
 \textbf{Procedimiento:}
@@ -647,7 +647,7 @@ Se definen formalmente las métricas empleadas a lo largo de este capítulo:
 
 \textbf{Tipo de experimento:} Simulación noiseless (sin ruido). Backend: \texttt{StatevectorEstimator} (Qiskit Primitives V2), que calcula valores esperados de forma exacta sin shots ni modelo de ruido. Los resultados representan el techo teórico del pipeline ---el rendimiento máximo alcanzable antes de considerar efectos de hardware.
 
-El pipeline se evaluó sobre cuatro topologías a $N = 10$ con configuración unificada (hidden\_dim $= 128$, restarts $= 5$, patience $= 500$, epochs $= 6000$, lr $= 10^{-3}$, dropout $= 0.1$). La Tabla~\ref{tab:cross_topo} resume los resultados de las 15 mejores variantes por topología.
+El pipeline se evaluó sobre cuatro topologías a $N = 10$ con configuración unificada (hidden\_dim $= 128$, restarts $= 5$, patience $= 500$ (epochs sin mejora en validación antes de parada temprana), epochs $= 6000$, lr $= 10^{-3}$, dropout $= 0.1$). La Tabla~\ref{tab:cross_topo} resume los resultados de las 15 mejores variantes por topología.
 
 \begin{table}[h]
 \centering
@@ -718,7 +718,7 @@ h_{\min} = 1.5 + 0.020 \cdot N^{1.31} \quad (R^2 = 1.0000)
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.85\textwidth]{tesis-figures/fig_scaling_law_comprehensive.pdf}
-\caption{Escalamiento del pipeline con el tamaño del sistema. La precisión mejora con $N$ (de 2.7\% a 0.08\%) debido a la simplificación del paisaje energético en la fase paramagnética profunda. La frontera del régimen válido sigue $h_{\min} = 1.5 + 0.020 \cdot N^{1.31}$ ($R^2 = 1.0$).}
+\caption{Escalamiento del pipeline con el tamaño del sistema. La precisión mejora con $N$ (de 2.7\% a 0.019\%) debido a la simplificación del paisaje energético en la fase paramagnética profunda. La frontera del régimen válido sigue $h_{\min} = 1.5 + 0.020 \cdot N^{1.31}$ ($R^2 = 1.0$), validada de $N = 40$ a $N = 200$.}
 \label{fig:scaling_law}
 \end{figure}
 
@@ -745,7 +745,7 @@ Multi-seed ($N=50$) & 0.16\% $\pm$ 0.07\% & 15/15 & 42, 43, 44 \\
 \end{tabular}
 \end{table}
 
-El hallazgo clave es que \textbf{BatchNorm es perjudicial para generalización cross-N} en topologías con simetría nodal: en cadena 1D, todos los nodos son idénticos post-GINConv (la cadena es un grafo regular), causando varianza intra-grafo nula que corrompe las estadísticas de normalización por lotes. Este comportamiento es consistente con la observación de \citet{xu2019} de que GIN opera sobre grafos regulares mediante sumas globales ---la normalización destruye la señal cuando todos los nodos tienen representaciones idénticas. La solución empírica es \texttt{norm\_type="none"}, que reduce el error de 18.5\% a 0.13\% (factor $142\times$ de mejora).
+El hallazgo clave es que \textbf{BatchNorm es perjudicial para generalización cross-N} en topologías con simetría nodal. La normalización por lotes (BatchNorm) es una técnica estándar en redes neuronales profundas que re-escala las activaciones internas de cada capa para que tengan media cero y varianza unitaria, estabilizando y acelerando el entrenamiento. Sin embargo, en cadena 1D todos los nodos son idénticos post-GINConv (la cadena es un grafo regular donde cada nodo interior tiene exactamente 2 vecinos con el mismo atributo $h$), causando que todas las representaciones nodales sean numéricamente iguales. Bajo esta condición, la varianza intra-grafo es exactamente cero, y BatchNorm intenta dividir por esta varianza nula ---produciendo activaciones corrompidas o indefinidas que degradan la predicción. Además, durante inferencia en grafos de tamaño $N$ distinto al de entrenamiento, las estadísticas acumuladas (\emph{running mean/var}) capturan artefactos del tamaño de grafo de entrenamiento, no variación física genuina. Este comportamiento es consistente con la observación de \citet{xu2019} de que GIN opera sobre grafos regulares mediante sumas globales ---la normalización destruye la señal cuando todos los nodos tienen representaciones idénticas. La solución empírica es desactivar la normalización (\texttt{norm\_type="none"}), que reduce el error de 18.5\% a 0.13\% (factor $142\times$ de mejora).
 
 \begin{figure}[h]
 \centering
@@ -757,7 +757,7 @@ El hallazgo clave es que \textbf{BatchNorm es perjudicial para generalización c
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.85\textwidth]{tesis-figures/fig_cross_n_zero_shot_bar.pdf}
-\caption{Comparación GNN (sin BatchNorm) vs. interpolación de scipy para generalización cross-N. Ambos métodos logran $\Delta E/\text{gap} \ll 5\%$ en el régimen de 2 parámetros ($p = 1$), pero la MPNN es la única opción viable para el régimen bond-resolved de 79 dimensiones donde scipy no puede operar.}
+\caption{Comparación GNN (sin BatchNorm) vs. interpolación clásica (scipy, que computa interpolación lineal 1D punto a punto entre los $h$-valores de entrenamiento) para generalización cross-N. Ambos métodos logran $\Delta E/\text{gap} \ll 5\%$ en el régimen de 2 parámetros ($p = 1$), pero la MPNN es la única opción viable para el régimen bond-resolved de 79 dimensiones donde la interpolación clásica no puede operar.}
 \label{fig:cross_n_bar}
 \end{figure}
 
@@ -765,7 +765,7 @@ El hallazgo clave es que \textbf{BatchNorm es perjudicial para generalización c
 
 \textbf{Tipo de experimento:} Simulación noiseless MPS ($\chi = 64$, $N = 40$, $p = 2$ bond-resolved, cadena 1D, COBYLA). Se evalúa si la arquitectura GNN es \emph{necesaria} cuando el HVA tiene parámetros independientes por enlace (79 dimensiones), donde la interpolación clásica no es aplicable.
 
-Para topologías complejas o valores de $p$ donde se requieren parámetros por enlace (bond-resolved), el espacio paramétrico escala como $2p \cdot |E|$ dimensiones ($|E|$ = número de aristas del grafo). A $N = 40$, $p = 2$ sobre cadena 1D, esto produce 79 parámetros ---un régimen donde la interpolación de scipy es geométricamente impracticable.
+Para topologías complejas o valores de $p$ donde se requieren parámetros por enlace (bond-resolved), el espacio paramétrico escala como $2p \cdot |E|$ dimensiones ($|E|$ = número de aristas del grafo). A $N = 40$, $p = 2$ sobre cadena 1D, esto produce 79 parámetros ---un régimen donde la interpolación clásica (scipy: interpolación lineal multidimensional a partir de puntos vecinos) es geométricamente impracticable por la maldición de la dimensionalidad.
 
 \begin{table}[h]
 \centering
@@ -1196,7 +1196,7 @@ La estrategia de warm-start descendente ---propuesta teóricamente por \citet{me
 
 \subsection{Comparación con Interpolación Clásica}
 
-Un baseline importante es la interpolación lineal de $\theta^*(h)$ a partir de los puntos de entrenamiento:
+Un baseline importante es la interpolación lineal de $\theta^*(h)$ a partir de los puntos de entrenamiento. La interpolación (implementada con \texttt{scipy.interpolate.interp1d}) construye una función lineal a tramos entre los puntos de entrenamiento conocidos $(h_i, \theta^*_i)$ y evalúa en puntos intermedios sin entrenamiento de modelo:
 
 \begin{table}[h]
 \centering
@@ -1223,6 +1223,8 @@ Para $p = 1$ (2 parámetros), la interpolación es suficiente y preferible por s
 
 \subsection{Frontera de Expresividad del HVA $p = 2$}
 
+\textbf{Tipo de análisis:} Derivado de simulación noiseless (StatevectorEstimator, $N = 4$--$10$, $p = 2$, todas las topologías). Se identifica la frontera de expresividad del ansatz HVA a partir de la fidelidad entre el estado preparado y el ground truth exacto en función de $h$.
+
 Un resultado fundamental es la identificación de la frontera donde el HVA $p = 2$ no puede representar el estado fundamental, independientemente de la estrategia de optimización. Esta frontera se localiza en $h \approx 1.25$ para $N = 6$ y $h \approx 1.40$ para $N = 10$, coincidiendo con la región donde la entropía de entrelazamiento excede la capacidad del circuito superficial.
 
 Este resultado ha sido confirmado independientemente por \citet{tripathi2026}, quienes observaron el mismo comportamiento en su estudio comparativo de ansätze para el TFIM. La frontera de expresividad no es un fallo del pipeline sino un \emph{resultado positivo}: demuestra que el pipeline detecta correctamente los límites físicos del hardware.
@@ -1230,6 +1232,8 @@ Este resultado ha sido confirmado independientemente por \citet{tripathi2026}, q
 La entropía de entrelazamiento en la frontera del régimen válido se sitúa en un rango estrecho $S \in [0.25, 0.45]$ para $N = 4$--$10$, sugiriendo que $h_{\min}$ corresponde a una entropía moderada donde el HVA opera cerca de su límite de expresividad. \citet{kumar2026} confirmaron independientemente que la entropía de entrelazamiento en el TFIM excede la capacidad de circuitos variacionales superficiales en la región crítica, validando nuestra identificación de la frontera $h_{\min}$. \citet{sumeet2025} demuestran teóricamente que para el límite termodinámico se requieren $N/2$ capas ---nuestro $p = 2$ es inherentemente insuficiente en la región crítica para cualquier $N$, lo cual es consistente con la restricción de \citet{mele2026}.
 
 \subsection{Detección de Fases en el Espacio de Pesos}
+
+\textbf{Tipo de análisis:} Post-procesamiento clásico sobre parámetros de la MPNN entrenada con datos noiseless (StatevectorEstimator). No requiere evaluaciones adicionales de circuito --- análisis puramente clásico del modelo entrenado. Costo QPU: cero (reutiliza datos existentes de Fase 2).
 
 Siguiendo la metodología de \citet{hernandes2025}, se analizan los gradientes de los pesos de la MPNN entrenada respecto a $h$. Para las semillas 43 y 44, se detectan picos pronunciados en $\|\partial W / \partial h\|$ en la región $h \approx 1.0$--$1.2$, indicando que la red ha codificado internamente la transición de fase cuántica. Este resultado:
 \begin{enumerate}
@@ -1270,6 +1274,8 @@ Este resultado confirma que la detección PCA es un método válido de costo cer
 Sin embargo, el análisis de escalamiento finito (experimentos S8/S8b, 5 semillas $\times$ 4 tamaños de sistema) demuestra que este método es \emph{cualitativo}: detecta que una transición existe pero no puede extraer el exponente crítico $\nu$ a partir de los pesos de la red. La señal del gradiente está dominada por la transición de calidad de los datos VQE en $h < 1.0$ (fuera del régimen válido), que enmascara la señal física genuina. El contraste con \citet{hernandes2025}, quienes extraen exitosamente fronteras de fase desde el espacio de pesos de Neural Quantum States, se explica por su uso de estados fundamentales exactos y métricas de distancia en el espacio de pesos, en lugar de parámetros optimizados por VQE y normas de gradiente.
 
 \subsection{Cuantificación de Incertidumbre (MC-Dropout)}
+
+\textbf{Tipo de análisis:} Evaluación clásica de la MPNN entrenada (50 pasadas forward con dropout activo). Los datos subyacentes provienen de simulación noiseless (StatevectorEstimator, $N = 6$, $p = 2$, cadena 1D, 3 semillas). El MC-Dropout opera exclusivamente sobre la red neuronal --- no requiere evaluaciones de circuito cuántico.
 
 Se implementa MC-Dropout \citep{gal2016} (50 pasadas forward con dropout activo en inferencia) para cuantificar la incertidumbre epistémica de las predicciones:
 
@@ -1772,12 +1778,15 @@ nl\_hidden\_256 & 0.0389 & 100\% & 0.021 & 8.8e-04 & 36s \\
 chain\_1d & 42 & 2.75 & 0.042 & PASS & 0.021 \\
 chain\_1d & 43 & 2.75 & 0.041 & PASS & 0.021 \\
 chain\_1d & 44 & 2.75 & 0.008 & PASS & 0.021 \\
+ladder & 42 & 3.25 & 0.033 & PASS & 0.014 \\
+ladder & 43 & 3.25 & 0.025 & PASS & 0.014 \\
+ladder & 44 & 3.25 & 0.029 & PASS & 0.014 \\
 triangular & 42 & 4.25 & 0.032 & PASS & 0.011 \\
 triangular & 43 & 4.25 & 0.035 & PASS & 0.011 \\
 triangular & 44 & 4.25 & 0.033 & PASS & 0.011 \\
-heavy-hex & 42 & 3.25 & 0.006 & PASS & — \\
-heavy-hex & 43 & 3.25 & 0.006 & PASS & — \\
-heavy-hex & 44 & 3.25 & 0.006 & PASS & — \\
+heavy-hex & 42 & 3.25 & 0.006 & PASS & 0.014 \\
+heavy-hex & 43 & 3.25 & 0.006 & PASS & 0.014 \\
+heavy-hex & 44 & 3.25 & 0.006 & PASS & 0.014 \\
 \bottomrule
 \end{tabular}
 \end{table}

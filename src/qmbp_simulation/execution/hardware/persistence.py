@@ -33,6 +33,85 @@ def _write_json(data: Any, path: Path) -> None:
         json.dump(data, f, indent=2, default=json_serialize)
 
 
+def _build_mitigation_snapshot(config: HardwareConfig) -> dict[str, Any]:
+    """Build a scalable mitigation config snapshot from HardwareConfig.
+
+    Auto-serializes the entire MitigationOptions dataclass plus execution
+    parameters. When new techniques or parameters are added to MitigationOptions,
+    they appear here automatically without editing persistence code.
+
+    The snapshot also includes derived/computed fields useful for analysis
+    (e.g. total_learning_shots, effective twirling mode).
+    """
+    # Base: full dataclass serialization (captures ALL current and future fields)
+    mitigation_raw = asdict(config.mitigation)
+
+    # Structured view organized by technique (for human readability)
+    snapshot: dict[str, Any] = {
+        # Raw dataclass dump — captures everything, even fields added later
+        "_raw_mitigation_options": mitigation_raw,
+        # Execution parameters
+        "execution": {
+            "shots_per_layout": config.shots,
+            "n_layouts": config.n_layouts,
+            "job_timeout_s": config.job_timeout_s,
+            "optimization_level": config.optimization_level,
+            "backend_name": config.backend_name,
+            "mode": config.mode,
+        },
+        # Per-technique structured view (for easy querying)
+        "techniques": {
+            "dynamical_decoupling": {
+                "enabled": config.mitigation.dd_enabled,
+                "sequence_type": "XpXm",
+                "skip_reset_qubits": True,
+                "scheduling_method": "alap",
+            },
+            "pauli_twirling": {
+                "enabled": config.mitigation.twirling_enabled,
+                "enable_gates": config.mitigation.twirling_enabled,
+                "enable_measure": (
+                    config.mitigation.twirling_enabled and config.mitigation.trex_enabled
+                ),
+                "num_randomizations": (
+                    config.mitigation.num_randomizations
+                    if config.mitigation.zne_amplifier == "pea"
+                    else None
+                ),
+                "shots_per_randomization": (
+                    config.mitigation.shots_per_randomization
+                    if config.mitigation.zne_amplifier == "pea"
+                    else None
+                ),
+                "strategy": config.mitigation.twirling_strategy,
+            },
+            "trex": {
+                "enabled": config.mitigation.trex_enabled,
+                "measure_mitigation": config.mitigation.trex_enabled,
+            },
+            "zne": {
+                "enabled": config.mitigation.zne_enabled,
+                "amplifier": config.mitigation.zne_amplifier,
+                "noise_factors": config.mitigation.zne_noise_factors,
+                "r2_fallback_threshold": config.mitigation.zne_r2_fallback_threshold,
+            },
+        },
+    }
+
+    # Conditional technique sections (only appear when relevant)
+    if config.mitigation.zne_amplifier == "pea":
+        snapshot["techniques"]["pea_noise_learning"] = {
+            "num_randomizations": config.mitigation.num_randomizations,
+            "shots_per_randomization": config.mitigation.shots_per_randomization,
+            "total_learning_shots": (
+                config.mitigation.num_randomizations * config.mitigation.shots_per_randomization
+            ),
+            "layer_pair_depths": config.mitigation.layer_pair_depths,
+        }
+
+    return snapshot
+
+
 def save_run(
     result: HardwareRunResult,
     config: HardwareConfig,
@@ -43,18 +122,23 @@ def save_run(
     raw_per_layout: list[dict],
     zne_data: dict[str, Any],
     input_params: Any | None = None,
+    transpiled_stats: dict[str, Any] | None = None,
 ) -> Path:
     """Persist all artifacts from a single hardware execution.
 
     Creates ``{output_dir}/run_YYYYMMDD_HHMMSS/`` with config.json, provenance.json,
-    raw_results.json, zne_analysis.json, summary.json, input_params.json, and
-    execution_log.json.
+    raw_results.json, zne_analysis.json, summary.json, input_params.json,
+    transpiled_circuit.json, and execution_log.json.
 
     Parameters
     ----------
     input_params : array-like | None
         The input parameters used for this execution. Saved for full
         reproducibility — allows re-running the exact same point.
+    transpiled_stats : dict | None
+        Circuit statistics post-transpilation (depth, depth_2q, gate counts,
+        etc.). Saved to transpiled_circuit.json for analysis of suppression
+        technique impact on circuit structure.
     """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path(config.output_dir) / f"run_{ts}"
@@ -123,6 +207,10 @@ def save_run(
             # Per-site observables (for thesis analysis)
             "per_site_x": result.per_site_x,
             "per_bond_zz": result.per_bond_zz,
+            # Full mitigation configuration snapshot (auto-generated from dataclass).
+            # Scalable: any new field added to MitigationOptions appears here
+            # automatically. Includes execution parameters for reproducibility.
+            "mitigation_config": _build_mitigation_snapshot(config),
         },
         run_dir / "summary.json",
     )
@@ -135,6 +223,10 @@ def save_run(
             {"params": np.asarray(input_params).tolist(), "n_params": len(input_params)},
             run_dir / "input_params.json",
         )
+
+    # Save transpiled circuit statistics (depth, 2Q-depth, gate counts per layout)
+    if transpiled_stats is not None:
+        _write_json(transpiled_stats, run_dir / "transpiled_circuit.json")
 
     logger.log("run_saved", data={"run_dir": str(run_dir)})
     logger.save(run_dir / "execution_log.json")

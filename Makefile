@@ -191,6 +191,23 @@ hw-deploy-calibrate:  ## Session 1: calibration run (Tier 0 only, measures T_one
 hw-deploy:  ## Session 2: full deployment (Tier 0→3, auto-advancing, no SPSA)
 	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
 
+# ── Mitigation Benchmark ─────────────────────────────────────
+
+mitigation-bench-p0:  ## Run mitigation benchmark P0 (baseline + GF + PEA)
+	@find . -path "*/__pycache__/run_mitigation*" -delete 2>/dev/null || true
+	@find . -path "*/__pycache__/benchmark_configs*" -delete 2>/dev/null || true
+	$(PYTHON) scripts/experiment_runners/hardware/run_mitigation_benchmark.py --priority P0 --h-values 3.25,3.5,4.0
+
+mitigation-bench-p1:  ## Run mitigation benchmark P1 (ablation configs)
+	$(PYTHON) scripts/experiment_runners/hardware/run_mitigation_benchmark.py --priority P1 --h-values 3.25,3.5,4.0
+
+mitigation-bench-all:  ## Run ALL mitigation benchmark configs (P0-P3)
+	@find . -path "*/__pycache__/run_mitigation*" -delete 2>/dev/null || true
+	$(PYTHON) scripts/experiment_runners/hardware/run_mitigation_benchmark.py --h-values 3.25,3.5,4.0
+
+mitigation-analyze:  ## Analyze mitigation benchmark results (thesis table + figures)
+	$(PYTHON) -m project_health.analysis.mitigation_benchmark_analyzer --thesis-table --figures
+
 validate-findings-latex:  ## Validate findings + generate LaTeX table
 	$(PYTHON) -m project_health.analysis.thesis_findings_validator --verbose --latex documentation/thesis_tables/findings_validation.tex
 

@@ -379,6 +379,7 @@ Extends ValidationRunner with:
 - Shared StructuredLogger between runner and hardware backend.
 - Hardware output cross-reference in result envelope.
 - CLI: `--mode hardware|fake_backend`, `--shots`, `--n-layouts`, `--n-qubits`, `--topology`.
+- CLI (layout): `--no-mapomatic`, `--layout-strategy {lowest_cost,ces_spread,hybrid}`.
 - Always call `super().setup()` in subclass to retain hw_backend initialization.
 
 ## Anti-Patterns (NEVER DO)
