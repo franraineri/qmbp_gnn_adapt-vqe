@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "results/**,project_health/digest/**,scripts/compare*,analysis/**,documentation/analysis/**"
+fileMatchPattern: "results/**,documentation/analysis/**"
 ---
 
 # Results Analysis — Interpretation & Decision Guide
@@ -134,3 +134,97 @@ python -m project_health.digest --compare folder_A folder_B   # A/B comparison
 4. Check topology — triangular has worst ZNE performance but p=1 still works (+50%)
 
 For detailed JSON schemas, see #[[file:.kiro/knowledge/result-schemas.md]]
+
+## Detecting Broken or Corrupted Results
+
+### Required Fields (if missing → result is broken)
+
+**Noiseless pipeline_run_*.json MUST have:**
+- `config.n_qubits` or `system.n_qubits` (int > 0)
+- `config.h_values` (non-empty list, descending)
+- `phase4_results` (non-empty list with at least one entry)
+- `phase4_results[0].delta_e_over_gap` (float, not null)
+- `diagnostics.phase2.convergence_rate` (float 0–1)
+- `elapsed_s` (float > 0)
+
+**Noisy noisy_*.json MUST have:**
+- `config.n_qubits` or `system.n_qubits` (int > 0)
+- `summary.mean_r2` (float 0–1)
+- `summary.n_total` (int > 0)
+- `results_per_h` (non-empty list)
+
+**Experiment run_*.json MUST have:**
+- `config.experiment_id` (non-empty string)
+- `analysis.summary` (dict without "error" key)
+- `analysis.summary.pass_rate` or `analysis.summary.mean_de_gap`
+
+### Common Corruption Patterns
+
+1. **Empty phase4_results**: Run crashed during Phase 4 → re-run needed
+2. **delta_e_over_gap = null**: Phase 4 prediction failed → check MPNN checkpoint
+3. **convergence_rate = 0**: All VQE runs failed → check h-grid (too close to h_c?)
+4. **elapsed_s = 0**: Timer not started → file was created but run didn't execute
+5. **Multiple run files, latest has worse results**: Regression → compare configs
+
+## Using the Digest Tool — Quick Reference
+
+| Situation | Command |
+|-----------|---------|
+| "What's the overall status?" | `python -m project_health.digest` |
+| "How does ladder compare to chain?" | `--kind noiseless --group-by topology` |
+| "What's failing and why?" | `--kind noiseless --outliers` |
+| "Is this statistically significant?" | `--kind noiseless --stats --topology X` |
+| "Did config A improve over B?" | `--compare folder_A folder_B` |
+| "Show me only the best results" | `--sort delta_e --top 10` |
+| "What's the ZNE situation?" | `--kind noisy --group-by n_qubits` |
+| "Which experiments confirmed?" | `--kind experiment --sort verdict` |
+| "Export for thesis table" | `--markdown -o thesis_table.md` |
+| "Feed to another script" | `--json results.json` |
+
+### Interpreting Group-By Output
+
+- **Median vs Mean**: Large difference = outliers pulling the mean
+- **Worst > 1.0**: Catastrophic failure in that group → use `--outliers`
+- **Pass/Fail ratio**: Quick health check per group
+
+### Outlier "Why?" Column
+
+- `high gen.gap` → MPNN overfitting (reduce epochs or add data)
+- `rough θ-sweep` → warm-start chain broke (check h-grid density)
+- `only N restart(s)` → insufficient VQE exploration
+- `small hidden=X` → MPNN capacity too low
+- `investigate manually` → no obvious automated diagnosis
+
+## Failure Diagnosis Priority
+
+When multiple results fail, root causes by frequency:
+
+| Root Cause | % | Detection |
+|-----------|---|-----------|
+| CHAIN_BREAK (θ>1.0) | 45% | `theta_smoothness > 1.0` in Phase 2 |
+| MPNN_OVERFIT (gen_gap>0.01) | 25% | `generalization_gap > 0.01` in Phase 3 |
+| BOUNDARY_EFFECT | 14% | h_test near valid regime boundary |
+| OUTSIDE_REGIME | 9% | h_test below h_min_safe |
+| VQE_DIVERGENCE | 7% | `convergence_rate < 0.8` |
+
+## MPNN Evaluation Diagnostics
+
+```bash
+python -m project_health.analysis.mpnn_eval_analyzer              # Full report
+python -m project_health.analysis.mpnn_eval_analyzer --thesis-table  # Thesis table
+python -m project_health.analysis.mpnn_eval_analyzer --json report.json
+```
+
+| Metric | Good | Marginal | Action |
+|--------|------|---------|--------|
+| S10 speedup_vs_random | ≥ 1.5x | 1.0-1.5x | More training data / epochs |
+| S11 LOO pass_rate | ≥ 80% | 60-80% | Extend h_train grid |
+| S12 ML fraction | < 30% | 30-60% | More training pts near h_test |
+| S13 interp pass_rate | ≥ 80% | 60-80% | Check h_test inside h_train range |
+| S19 |r| κ-noise | ≥ 0.70 | 0.50-0.70 | Only valid for chain_1d topology |
+
+## Cross-Reference
+
+- JSON field reference: #[[file:.kiro/knowledge/result-schemas.md]]
+- Known error patterns: #[[file:.kiro/knowledge/error-patterns.md]]
+- Tool invocation reference: #[[file:.kiro/steering/analysis-tooling.md]]

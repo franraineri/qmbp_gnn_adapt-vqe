@@ -401,7 +401,9 @@ def noisy_estimate(
     backend,
     config: NoisyEstimatorConfig,
     seed_offset: int = 0,
-) -> float:
+    *,
+    return_job: bool = False,
+) -> float | tuple[float, Any]:
     """Execute a single noisy estimation with correct seed and precision.
 
     This is the ONLY correct way to call BackendEstimatorV2 in this project.
@@ -421,11 +423,17 @@ def noisy_estimate(
         Estimation configuration (shots, seed, etc.)
     seed_offset : int
         Added to config.seed_simulator for per-call independence.
+    return_job : bool
+        If True, return (energy, job) tuple for QPU metrics extraction.
+        Default False for backward compatibility.
 
     Returns
     -------
     float
-        Expectation value ⟨O⟩.
+        Expectation value ⟨O⟩ (when return_job=False).
+    tuple[float, Any]
+        (energy, job) when return_job=True. The job object exposes
+        .metrics() for QPU time extraction on real hardware.
     """
     from qiskit.primitives import BackendEstimatorV2
 
@@ -437,7 +445,10 @@ def noisy_estimate(
         },
     )
     job = estimator.run([(transpiled, observable)])
-    return float(job.result()[0].data.evs)
+    energy = float(job.result()[0].data.evs)
+    if return_job:
+        return energy, job
+    return energy
 
 
 def noisy_estimate_batch(

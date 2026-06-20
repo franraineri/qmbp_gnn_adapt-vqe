@@ -11,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from project_health.compare import *  # noqa: E402, F401, F403
-from project_health.compare import main
+from project_health.cli.compare import *  # noqa: E402, F401, F403
+from project_health.cli.compare import main
 
 if __name__ == "__main__":
     main()

@@ -79,6 +79,20 @@ assert "shots" in envelope
 assert "mitigation_config" in envelope
 assert "hardware_calibration" in envelope
 
+# Verify timing sub-keys
+timing = envelope["timing"]
+required_timing_keys = {
+    "wall_time_s",
+    "qpu_seconds",
+    "noise_learning_time_s",
+    "pea_total_wall_time_s",
+    "gf_wall_time_s",
+    "classical_overhead_s",
+}
+assert required_timing_keys.issubset(set(timing.keys())), (
+    f"Missing timing keys: {required_timing_keys - set(timing.keys())}"
+)
+
 # Verify benchmark_metadata
 meta = envelope["benchmark_metadata"]
 assert meta["config_id"] == "C5_full_pea_balanced"
@@ -128,7 +142,8 @@ hw_calib = {
     "cx_error_mean_layout": 0.005,
     "readout_error_mean": 0.012,
     "calibration_age_hours": 2.5,
-    "job_execution_time_s": 120.0,
+    "job_qpu_seconds": 120.0,
+    "job_usage_details": {"quantum_seconds": 120.0, "seconds": 135.0},
 }
 envelope_hw = _build_envelope(
     config=config,

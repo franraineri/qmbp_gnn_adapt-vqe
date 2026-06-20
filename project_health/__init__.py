@@ -18,7 +18,7 @@ Usage:
     python -m project_health -o reports/  # Timestamped file in directory
 """
 
-from project_health.models import (
+from project_health.core.models import (
     ActionItem,
     CoverageGap,
     EnergyDecompositionStats,

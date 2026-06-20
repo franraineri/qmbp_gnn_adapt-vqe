@@ -74,8 +74,8 @@ from scripts.experiment_runners.hardware.benchmark_configs import (
 # Path constants
 # ---------------------------------------------------------------------------
 
-BENCHMARK_VERSION = "1.0"
-RESULTS_BASE = Path("results/mitigation_benchmark")
+BENCHMARK_VERSION = "2.0"
+RESULTS_BASE = Path("results/mitigation_benchmark_v2")
 MANIFEST_PATH = RESULTS_BASE / "manifest.json"
 
 
@@ -286,11 +286,25 @@ def _build_envelope(
             **circuit_stats,
             "optimization_level": config.optimization_level,
             "fidelity_estimate": error_budget.get("fidelity_estimate"),
+            "error_budget": error_budget.get("error_budget"),
+            "error_budget_source": error_budget.get("source"),
+            "error_budget_per_gate": error_budget.get("per_gate_contribution"),
         },
         "timing": {
             "wall_time_s": wall_time_s,
             "qpu_seconds": execution_result.get("qpu_seconds"),
             "noise_learning_time_s": execution_result.get("noise_learning_time_s"),
+            # PEA total wall-clock (client-side, includes all estimation + fitting)
+            "pea_total_wall_time_s": execution_result.get("pea_total_wall_time_s"),
+            # GF-ZNE wall-clock (client-side, includes all noise factor estimations)
+            "gf_wall_time_s": execution_result.get("gf_wall_time_s"),
+            # Classical overhead = wall_time - qpu_seconds (queue + compile + network)
+            # Only computable when qpu_seconds is available (hardware mode)
+            "classical_overhead_s": (
+                wall_time_s - execution_result.get("qpu_seconds")
+                if execution_result.get("qpu_seconds") is not None
+                else None
+            ),
         },
         "results": {
             "e_mitigated": execution_result.get("e_mitigated"),
@@ -324,7 +338,7 @@ def _collect_hardware_calibration(backend: Any, job: Any) -> dict[str, Any] | No
     """Extract hardware calibration metrics for ResultEnvelope.
 
     Collects T1, T2, CX error, readout error averaged over layout qubits,
-    calibration age, and job execution time from the backend and job objects.
+    calibration age, and QPU time from the backend and job objects.
 
     Parameters
     ----------
@@ -337,8 +351,10 @@ def _collect_hardware_calibration(backend: Any, job: Any) -> dict[str, Any] | No
     -------
     dict or None
         Dict with keys: t1_mean_layout, t2_mean_layout, cx_error_mean_layout,
-        readout_error_mean, calibration_age_hours, job_execution_time_s.
-        Returns None if properties() returns None or layout_qubits is empty.
+        readout_error_mean, calibration_age_hours, job_qpu_seconds,
+        job_usage_details.
+        Returns dict with None values if properties() returns None or
+        layout_qubits is empty.
     """
     # Get backend properties
     props = getattr(backend, "properties", None)
@@ -395,11 +411,46 @@ def _collect_hardware_calibration(backend: Any, job: Any) -> dict[str, Any] | No
     except Exception:
         pass
 
-    # Job execution time from metrics
-    job_execution_time_s: float | None = None
+    # Job execution time from metrics — use proven "usage.quantum_seconds" path
+    # (Fix: metrics.get("execution_time") does not exist in newer IBM Runtime API;
+    #  "usage.quantum_seconds" is the stable numeric field for QPU time.)
+    job_qpu_seconds: float | None = None
+    job_usage_details: dict[str, Any] | None = None
+    job_timestamps: dict[str, str | None] | None = None
+    queue_wait_s: float | None = None
     try:
         metrics = job.metrics()
-        job_execution_time_s = metrics.get("execution_time", None)
+        if isinstance(metrics, dict):
+            usage = metrics.get("usage", {})
+            qs = usage.get("quantum_seconds", None)
+            job_qpu_seconds = qs if isinstance(qs, (int, float)) else None
+            # Capture full usage breakdown for diagnostics
+            if usage:
+                job_usage_details = {
+                    "quantum_seconds": job_qpu_seconds,
+                    "seconds": usage.get("seconds", None),  # Total billed seconds
+                }
+            # Capture timestamps for queue wait derivation
+            timestamps = metrics.get("timestamps", {})
+            if timestamps:
+                created_ts = timestamps.get("created")
+                running_ts = timestamps.get("running")
+                finished_ts = timestamps.get("finished")
+                job_timestamps = {
+                    "created": created_ts,
+                    "running": running_ts,
+                    "finished": finished_ts,
+                }
+                # Derive queue wait time (time in queue before QPU execution)
+                if created_ts and running_ts:
+                    try:
+                        from datetime import datetime as _dt
+
+                        t_created = _dt.fromisoformat(created_ts.replace("Z", "+00:00"))
+                        t_running = _dt.fromisoformat(running_ts.replace("Z", "+00:00"))
+                        queue_wait_s = (t_running - t_created).total_seconds()
+                    except (ValueError, TypeError):
+                        pass
     except Exception:
         pass
 
@@ -409,7 +460,10 @@ def _collect_hardware_calibration(backend: Any, job: Any) -> dict[str, Any] | No
         "cx_error_mean_layout": float(np.mean(cx_errors)) if cx_errors else None,
         "readout_error_mean": float(np.mean(readout_errors)) if readout_errors else None,
         "calibration_age_hours": calibration_age_hours,
-        "job_execution_time_s": job_execution_time_s,
+        "job_qpu_seconds": job_qpu_seconds,
+        "job_usage_details": job_usage_details,
+        "job_timestamps": job_timestamps,
+        "queue_wait_s": queue_wait_s,
     }
 
 
@@ -439,6 +493,89 @@ def _save_result(envelope: dict[str, Any], result_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Derived circuit statistics
 # ---------------------------------------------------------------------------
+
+
+def _write_execution_log(
+    log_path: Path,
+    config: BenchmarkConfig,
+    h_value: float,
+    seed: int,
+    stats: dict[str, Any],
+    error_budget: dict[str, Any],
+    execution_result: dict[str, Any],
+    wall_time_s: float,
+    budget_tracking: dict[str, Any],
+    hw_calibration: dict[str, Any] | None,
+) -> None:
+    """Write a human-readable execution log for debugging and tracking.
+
+    Contains only high-value information: circuit metrics, timing, energy,
+    budget comparison, and any anomalies detected.
+    """
+    try:
+        lines = [
+            f"=== EXECUTION LOG: {config.config_id} h={h_value} seed={seed} ===",
+            f"Timestamp: {datetime.now(UTC).isoformat()}",
+            "",
+            "-- Circuit --",
+            f"  n_2q={stats.get('n_2q_gates')}, depth_2q={stats.get('depth_2q')}, "
+            f"depth={stats.get('depth')}, opt_level={config.optimization_level}",
+            f"  fidelity_estimate={error_budget.get('fidelity_estimate', '?'):.3f}",
+            f"  error_budget={error_budget.get('error_budget', '?'):.4f}",
+            "",
+            "-- Mitigation --",
+            f"  zne_method={config.zne_method or 'none'}",
+            f"  dd={config.dd_enabled} ({config.dd_sequence})",
+            f"  twirling={config.twirling_num_randomizations or 'off'}",
+            "",
+            "-- Timing --",
+            f"  wall_time={wall_time_s:.1f}s",
+            f"  qpu_seconds={execution_result.get('qpu_seconds', '?')}",
+            f"  noise_learning_time_s={execution_result.get('noise_learning_time_s', '?')}",
+            f"  model_predicted={budget_tracking['pre_estimate']['model_qpu_time_s']:.1f}s",
+            f"  model_breakdown: base={budget_tracking['pre_estimate']['model_breakdown']['base_circuit_s']:.1f}s"
+            f" × {budget_tracking['pre_estimate']['model_breakdown']['n_noise_factors']}nf"
+            f" + {budget_tracking['pre_estimate']['model_breakdown']['pea_learning_time_s']:.1f}s(PEA)"
+            f" × {budget_tracking['pre_estimate']['model_breakdown']['ibm_overhead_factor']}(overhead)",
+            f"  ratio={budget_tracking.get('ratio_actual_vs_model', '?')}",
+            "",
+            "-- Energy --",
+            f"  e_raw={execution_result.get('e_raw')}",
+            f"  e_mitigated={execution_result.get('e_mitigated')}",
+            f"  e_exact={execution_result.get('e_exact')}",
+            f"  delta_e_gap={execution_result.get('delta_e_gap')}",
+            f"  zne_r2={execution_result.get('zne_r2')}",
+            "",
+            "-- Verdict --",
+            f"  phase={execution_result.get('phase_label')}",
+            f"  correct={execution_result.get('correct_label')}",
+            f"  within_bounds={execution_result.get('energy_within_physical_bounds')}",
+        ]
+
+        # Anomaly detection
+        anomalies = []
+        de = execution_result.get("delta_e_gap")
+        if de is not None and de > 0.50:
+            anomalies.append(f"HIGH ERROR: ΔE/gap={de * 100:.1f}% > 50%")
+        qpu = execution_result.get("qpu_seconds")
+        if qpu and qpu > 500:
+            anomalies.append(f"LONG QPU: {qpu}s (PEA noise learning?)")
+        e_raw = execution_result.get("e_raw")
+        e_exact = execution_result.get("e_exact")
+        if e_raw and e_exact and e_raw < e_exact - 1.0:
+            anomalies.append(f"VARIATIONAL VIOLATION: e_raw={e_raw:.3f} < e_exact={e_exact:.3f}")
+
+        if anomalies:
+            lines.append("")
+            lines.append("-- ANOMALIES --")
+            for a in anomalies:
+                lines.append(f"  ⚠ {a}")
+
+        lines.append("")
+        lines.append("=== END ===")
+        log_path.write_text("\n".join(lines))
+    except Exception:
+        pass  # Never block execution for logging
 
 
 def compute_derived_circuit_stats(stats: dict[str, Any], n_2q_logical: int) -> dict[str, Any]:
@@ -539,6 +676,8 @@ def _execute_raw(
     H_mapped: SparsePauliOp,
     backend: Any,
     shots: int,
+    *,
+    mode: str = "fake_backend",
 ) -> dict[str, Any]:
     """Execute without ZNE — raw estimation with DD/Twirling/TREX only.
 
@@ -549,8 +688,8 @@ def _execute_raw(
     that reflect the backend's noise model, unlike StatevectorEstimator
     which gives exact results and defeats the benchmarking purpose.
 
-    For hardware backends, the _job key provides the RuntimeJobV2 object
-    for QPU metrics extraction (qpu_seconds from job.metrics()).
+    For hardware backends, captures the RuntimeJobV2 for QPU metrics
+    extraction (qpu_seconds from job.metrics().usage.quantum_seconds).
 
     Parameters
     ----------
@@ -562,31 +701,45 @@ def _execute_raw(
         Noisy backend (FakeTorino or real hardware).
     shots : int
         Number of shots for the estimation.
+    mode : str
+        Execution mode ("fake_backend" or "hardware"). When "hardware",
+        captures the job object for QPU time extraction.
 
     Returns
     -------
     dict
         Execution result with "e_raw", "e_mitigated" (None), "shots",
-        "_job" (None for simulation, RuntimeJobV2 for hardware) keys.
+        "qpu_seconds", "_job" keys.
     """
     noisy_config = NoisyEstimatorConfig(shots=shots)
 
-    e_raw = noisy_estimate(
+    # Capture job for QPU metrics on hardware
+    e_raw, job = noisy_estimate(
         transpiled=transpiled_circuit,
         observable=H_mapped,
         backend=backend,
         config=noisy_config,
+        return_job=True,
     )
 
-    # _job: On hardware, the RuntimeJobV2 from noisy_estimate's underlying
-    # EstimatorV2 execution. Currently None for FakeTorino (noisy_estimate
-    # returns only the float energy). When full hardware path is wired in
-    # task 5.1 completion, this will carry the real job for metrics capture.
+    # Extract QPU seconds from IBM Runtime job metrics (hardware only)
+    qpu_seconds = None
+    if mode == "hardware" and job is not None:
+        try:
+            metrics = job.metrics()
+            if isinstance(metrics, dict):
+                qpu_seconds = metrics.get("usage", {}).get("quantum_seconds")
+                if not isinstance(qpu_seconds, (int, float)):
+                    qpu_seconds = None
+        except Exception:
+            pass
+
     return {
         "e_raw": e_raw,
         "e_mitigated": None,
         "shots": shots,
-        "_job": None,
+        "qpu_seconds": qpu_seconds,
+        "_job": job if mode == "hardware" else None,
     }
 
 
@@ -596,6 +749,8 @@ def _execute_gate_folding(
     H_mapped: SparsePauliOp,
     backend: Any,
     shots: int = 16384,
+    *,
+    mode: str = "fake_backend",
 ) -> dict[str, Any]:
     """Execute via gate-folding ZNE.
 
@@ -617,11 +772,14 @@ def _execute_gate_folding(
         Noisy backend.
     shots : int
         Number of shots per noise factor estimation.
+    mode : str
+        Execution mode ("fake_backend" or "hardware").
 
     Returns
     -------
     dict
-        Execution result with "e_mitigated", "e_raw", "zne_r2", "shots" keys.
+        Execution result with "e_mitigated", "e_raw", "zne_r2", "shots",
+        "qpu_seconds", "gf_wall_time_s" keys.
     """
     # Resolve noise factors: round to nearest odd integer for gate-folding
     raw_factors = config.zne_noise_factors or [1, 3, 5]
@@ -635,6 +793,7 @@ def _execute_gate_folding(
 
     noisy_config = NoisyEstimatorConfig(shots=shots)
 
+    t0_gf = time.time()
     gf_result = run_gate_folding_zne(
         transpiled_circuit=transpiled_circuit,
         observable=H_mapped,
@@ -642,13 +801,16 @@ def _execute_gate_folding(
         config=noisy_config,
         noise_factors=noise_factors_int,
     )
+    gf_wall_time_s = time.time() - t0_gf
 
     return {
         "e_mitigated": gf_result.extrapolated_value,
         "e_raw": gf_result.measured_values[0],
         "zne_r2": gf_result.r_squared,
         "shots": noisy_config.shots * len(noise_factors_int),
-        "_job": None,  # Hardware job captured by run_gate_folding_zne internally
+        "qpu_seconds": None,  # GF-ZNE per-factor jobs don't expose individual metrics
+        "gf_wall_time_s": gf_wall_time_s,
+        "_job": None,
     }
 
 
@@ -667,6 +829,13 @@ def _execute_pea(
     shots come from the CLI --shots parameter. PEA noise learning uses
     pea_shots_per_randomization from config for model fitting only.
 
+    Timing note:
+      - In fake_backend mode: pea_total_wall_time_s = local CPU time for
+        noise model fitting + estimation (NOT QPU time).
+      - In hardware mode via IBM Runtime server-side PEA: noise learning is
+        part of quantum_seconds and cannot be separated client-side. The
+        pea_total_wall_time_s captures the full client-side wait.
+
     Parameters
     ----------
     config : BenchmarkConfig
@@ -684,7 +853,8 @@ def _execute_pea(
     -------
     dict
         Execution result with "e_mitigated", "e_raw", "zne_r2",
-        "noise_learning_time_s", "shots" keys.
+        "pea_total_wall_time_s", "noise_learning_time_s" (legacy compat),
+        "shots" keys.
     """
     # Estimation shots from CLI (not pea_shots_per_randomization which is for learning)
     noisy_config = NoisyEstimatorConfig(shots=shots)
@@ -701,7 +871,7 @@ def _execute_pea(
         config=noisy_config,
         noise_factors=noise_factors,
     )
-    noise_learning_time_s = time.time() - t0
+    pea_total_wall_time_s = time.time() - t0
 
     # Total shots: estimation shots × number of noise factors
     total_shots = shots * len(noise_factors)
@@ -710,9 +880,10 @@ def _execute_pea(
         "e_mitigated": pea_result.extrapolated_value,
         "e_raw": pea_result.measured_values[0],
         "zne_r2": pea_result.r_squared,
-        "noise_learning_time_s": getattr(
-            pea_result, "noise_learning_time_s", noise_learning_time_s
-        ),
+        # Primary: clearly named wall-clock metric
+        "pea_total_wall_time_s": pea_total_wall_time_s,
+        # Legacy compat: keep noise_learning_time_s for downstream consumers
+        "noise_learning_time_s": pea_total_wall_time_s,
         "shots": total_shots,
         "_job": None,  # Hardware job captured by run_pea_zne internally
     }
@@ -948,7 +1119,7 @@ def _execute_hardware_batched(
     for idx, (config, transpiled, H_mapped, h_val) in enumerate(jobs_spec):
         groups[config.config_id].append((idx, transpiled, H_mapped))
 
-    results: list[dict[str, Any]] = [{}] * len(jobs_spec)
+    results: list[dict[str, Any]] = [{} for _ in range(len(jobs_spec))]
     total_submitted = 0
 
     print(f"  [BATCH] {len(jobs_spec)} jobs in {len(groups)} config groups", flush=True)
@@ -1266,9 +1437,11 @@ def route_execution(
         # Simulation mode (FakeTorino) or Mitiq paths
         match config.zne_method:
             case None:
-                result = _execute_raw(transpiled_circuit, H_mapped, backend, shots)
+                result = _execute_raw(transpiled_circuit, H_mapped, backend, shots, mode=mode)
             case "gf":
-                result = _execute_gate_folding(config, transpiled_circuit, H_mapped, backend, shots)
+                result = _execute_gate_folding(
+                    config, transpiled_circuit, H_mapped, backend, shots, mode=mode
+                )
             case "pea":
                 result = _execute_pea(config, transpiled_circuit, H_mapped, backend, shots)
             case "mitiq_zne":
@@ -1531,11 +1704,15 @@ def resolve_configs(args: argparse.Namespace) -> list[str]:
         all_configs = [c for c in all_configs if BENCHMARK_CONFIGS[c].priority in levels]
 
     # Step 2: shortname prefix filter
+    # Match logic: "C5" should match "C5_full_pea_balanced" but NOT "C50_..."
+    # We match if config starts with "{short}_" OR config == short (exact match).
+    # This prevents "C1" from matching "C10", "C11", etc.
     if args.configs is not None:
         shortnames = [s.strip() for s in args.configs.split(",")]
         resolved: list[str] = []
         for short in shortnames:
-            matches = [c for c in all_configs if c.startswith(short)]
+            # Exact match first, then prefix + underscore boundary match
+            matches = [c for c in all_configs if c == short or c.startswith(short + "_")]
             if not matches:
                 raise ValueError(f"No config matches shortname '{short}'")
             resolved.extend(matches)
@@ -2179,6 +2356,65 @@ def run_single_config(
 
     error_budget = compute_error_budget(transpiled, backend=backend)
 
+    # ── 7b. Pre-submission quality gate (hardware mode) ──────────────────
+    # Validates the transpiled circuit against calibration data BEFORE QPU
+    # submission. Checks error budget thresholds, defective edges, depth_2q.
+    # In hardware mode: abort if catastrophic. In fake_backend: log only.
+    pre_submission_audit: dict[str, Any] = {}
+    if mode == "hardware":
+        from qmbp_simulation.execution.hardware.preflight import (
+            validate_transpiled_circuit_quality,
+        )
+        from qmbp_simulation.framework.logging import StructuredLogger
+
+        _audit_logger = StructuredLogger("benchmark_audit")
+        # Get layout from transpiled circuit metadata
+        _layout_qubits = None
+        if hasattr(transpiled, "layout") and transpiled.layout is not None:
+            try:
+                _layout_qubits = [
+                    transpiled.layout.final_index_layout(filter_ancillas=False)[i]
+                    for i in range(transpiled.num_qubits)
+                ]
+            except Exception:
+                pass
+
+        quality_check = validate_transpiled_circuit_quality(
+            transpiled, backend, _layout_qubits, _audit_logger
+        )
+        pre_submission_audit["transpiled_quality"] = quality_check
+
+        if quality_check.get("abort"):
+            raise RuntimeError(
+                f"{config.config_id} h={h_value}: Transpiled circuit quality abort — "
+                f"{quality_check.get('abort_reason')}"
+            )
+
+        # Capture calibration snapshot BEFORE execution (not after)
+        try:
+            from qmbp_simulation.execution.noisy_utils import take_calibration_snapshot
+
+            cal_snap = take_calibration_snapshot(backend)
+            pre_submission_audit["calibration_pre_execution"] = {
+                "timestamp": cal_snap.timestamp,
+                "mean_t1_us": cal_snap.mean_t1_us,
+                "mean_t2_us": cal_snap.mean_t2_us,
+            }
+        except Exception:
+            pass
+
+    # ── 7c. Circuit fingerprint for provenance ───────────────────────────
+    import hashlib
+
+    _fp_data = (
+        f"nq={transpiled.num_qubits};"
+        f"depth={transpiled.depth()};"
+        f"ops={sorted(transpiled.count_ops().items())};"
+        f"size={transpiled.size()}"
+    )
+    circuit_fingerprint = hashlib.sha256(_fp_data.encode()).hexdigest()[:16]
+    pre_submission_audit["circuit_fingerprint"] = circuit_fingerprint
+
     # ── 8. Build Hamiltonian mapped to physical layout ───────────────────
     lattice_h = make_lattice(_TOPOLOGY, _N_QUBITS, J=1.0, h=h_value)
     H = HamiltonianBuilder().build(lattice_h)
@@ -2235,6 +2471,78 @@ def run_single_config(
     # ── 12. Timing + envelope assembly ──────────────────────────────────
     wall_time_s = time.time() - t0
 
+    # ── 12b. Budget tracking (pre-estimate vs actual) ─────────────────
+    # Improved QPU time model (fixes: PEA overhead, noise_factors multiplier,
+    # IBM compilation/scheduling overhead).
+    #
+    # Components:
+    #   1. Base circuit execution: shots / effective_CLOPS
+    #   2. ZNE multiplier: n_noise_factors circuits sent for GF/PEA ZNE
+    #   3. PEA noise learning: num_randomizations × shots_per_randomization / CLOPS
+    #   4. IBM overhead factor: compilation + scheduling + classical (~2.5×)
+    #
+    # Effective CLOPS = 3750 for Heron R2 at our circuit size (N=10, depth~25).
+    EFFECTIVE_CLOPS = 3750
+
+    # Overhead factor depends on amplifier (calibrated from QPU measurements):
+    #   - Raw/DD/Twirl: ~2× (compilation + job dispatch)
+    #   - GF-ZNE: ~3× (transpilation per folded circuit + scheduling)
+    #   - PEA: ~7× (Pauli-Lindblad fitting + internal amplification + scheduling)
+    _OVERHEAD_BY_METHOD: dict[str | None, float] = {
+        None: 2.0,
+        "none": 2.0,
+        "gf": 3.0,
+        "pea": 7.0,
+        "mitiq_zne": 3.0,
+        "mitiq_cdr": 4.0,
+        "mitiq_ddd_zne": 3.5,
+    }
+    ibm_overhead_factor = _OVERHEAD_BY_METHOD.get(config.zne_method, 3.0)
+
+    # Base: one circuit execution
+    base_time_s = shots / EFFECTIVE_CLOPS
+
+    # ZNE noise_factors multiplier (C3/C5 send 3× more circuits than C0)
+    n_noise_factors = len(config.zne_noise_factors) if config.zne_noise_factors else 1
+    zne_circuit_time_s = base_time_s * n_noise_factors
+
+    # PEA noise learning overhead (one-time per job, amortized)
+    pea_learning_time_s = 0.0
+    if config.zne_method == "pea" and config.pea_num_randomizations:
+        pea_shots = config.pea_shots_per_randomization or 128
+        pea_learning_time_s = config.pea_num_randomizations * pea_shots / EFFECTIVE_CLOPS
+
+    # Total predicted QPU time (including IBM overhead)
+    model_qpu_time_s = (zne_circuit_time_s + pea_learning_time_s) * ibm_overhead_factor
+
+    budget_tracking = {
+        "pre_estimate": {
+            "model_qpu_time_s": model_qpu_time_s,
+            "model_breakdown": {
+                "base_circuit_s": base_time_s,
+                "n_noise_factors": n_noise_factors,
+                "zne_circuit_time_s": zne_circuit_time_s,
+                "pea_learning_time_s": pea_learning_time_s,
+                "ibm_overhead_factor": ibm_overhead_factor,
+                "effective_clops": EFFECTIVE_CLOPS,
+            },
+            "model_total_shots": shots * n_noise_factors,
+            "amplifier": config.zne_method or "none",
+            "n_2q_gates": stats.get("n_2q_gates"),
+            "depth_2q": stats.get("depth_2q"),
+        },
+        "actual": {
+            "wall_time_s": wall_time_s,
+            "qpu_seconds": execution_result.get("qpu_seconds"),
+            "noise_learning_time_s": execution_result.get("noise_learning_time_s"),
+            "shots_used": execution_result.get("shots", shots),
+        },
+    }
+    if budget_tracking["actual"]["qpu_seconds"] and model_qpu_time_s > 0:
+        budget_tracking["ratio_actual_vs_model"] = (
+            budget_tracking["actual"]["qpu_seconds"] / model_qpu_time_s
+        )
+
     envelope = _build_envelope(
         config=config,
         h_value=h_value,
@@ -2247,9 +2555,31 @@ def run_single_config(
         hardware_calibration=hw_calibration,
         aqc_metrics=aqc_metrics,
     )
+    # Inject budget tracking into envelope
+    envelope["budget_tracking"] = budget_tracking
+
+    # Inject pre-submission audit data (quality gate, fingerprint, calibration)
+    if pre_submission_audit:
+        envelope["pre_submission_audit"] = pre_submission_audit
 
     # ── 13. Persist + manifest ──────────────────────────────────────────
     _save_result(envelope, result_path)
+
+    # ── 13b. Execution log (hardware mode only) ─────────────────────────
+    if mode == "hardware":
+        log_path = result_path.with_suffix(".log")
+        _write_execution_log(
+            log_path,
+            config,
+            h_value,
+            seed,
+            stats,
+            error_budget,
+            execution_result,
+            wall_time_s,
+            budget_tracking,
+            hw_calibration,
+        )
 
     manifest_entry = _build_manifest_entry(
         config_id=config.config_id,
@@ -2458,7 +2788,15 @@ def run_benchmark(
 
     # All configs use the CLI-provided h_values (no hardcoded overrides)
     all_h: set[float] = set(h_values)
-    all_h_sorted = sorted(all_h)
+    # Hardware mode: descending order (h=4.0 first) for fail-fast strategy.
+    # The easiest point (deep paramagnetic, large gap) runs first — if it fails,
+    # abort immediately without wasting QPU on harder points near h_c.
+    # Simulation mode: ascending order preserved for backward compatibility
+    # (cache efficiency, no real cost of failure).
+    if mode == "hardware":
+        all_h_sorted = sorted(all_h, reverse=True)
+    else:
+        all_h_sorted = sorted(all_h)
 
     # Pre-warm ClassicalSolver cache
     for h in all_h_sorted:
@@ -2485,6 +2823,15 @@ def run_benchmark(
     # When batch=True and mode=hardware, collect all (config, h) pairs,
     # transpile them, then submit everything in ONE Batch session.
     if batch and mode == "hardware":
+        # Warn about configs that won't be included in batch mode
+        batch_excluded = [
+            c for c in configs if BENCHMARK_CONFIGS[c].zne_method not in (None, "gf", "pea")
+        ]
+        if batch_excluded:
+            print(
+                f"  ⚠ Batch mode: {len(batch_excluded)} Mitiq configs excluded "
+                f"(not supported): {batch_excluded}"
+            )
         print("\n  [BATCH MODE] Collecting all jobs before submission...")
         jobs_spec = []  # list of (config, transpiled_circuit, H_mapped, h_value)
         job_metadata = []  # parallel list of (config_id, h_value) for result routing
@@ -2496,6 +2843,10 @@ def run_benchmark(
             logical_depth_hva = circuit_hva.depth()
 
             # Transpile with mapomatic if available
+            # NOTE: Batch mode uses opt_level=2 for all configs because only
+            # IBM-native methods (raw/gf/pea) are supported in batch, and all
+            # those configs use optimization_level=2. Mitiq configs (opt_level=0)
+            # are skipped by the filter below.
             transpiled = None
             try:
                 from qmbp_simulation.execution.hardware.layout_optimizer import (
@@ -2628,7 +2979,49 @@ def run_benchmark(
 
     # Main execution: h-outer loop for maximum cache reuse (sequential mode)
     total_skipped_adaptive = 0
+    # Hardware fail-fast: track C0_raw result at first h-point.
+    # If the easiest point (h_max, deep paramagnetic) gives catastrophic error,
+    # abort immediately — all subsequent points will be worse.
+    _hw_first_h_done = False
+    _hw_abort = False
+    _HW_ABORT_THRESHOLD = 1.0  # ΔE/gap > 100% = catastrophic
+
+    # TLS drift monitoring baseline (hardware mode only)
+    _calibration_baseline = None
+    if mode == "hardware":
+        try:
+            from qmbp_simulation.execution.noisy_utils import take_calibration_snapshot
+
+            _calibration_baseline = take_calibration_snapshot(backend)
+            print(
+                f"  [TLS] Calibration baseline: T1={_calibration_baseline.mean_t1_us:.0f}μs, "
+                f"T2={_calibration_baseline.mean_t2_us:.0f}μs"
+            )
+        except Exception:
+            pass
+
     for h in all_h_sorted:
+        # TLS drift check between h-points (hardware mode, skip first)
+        if mode == "hardware" and _calibration_baseline is not None and _hw_first_h_done:
+            try:
+                from qmbp_simulation.execution.noisy_utils import (
+                    check_calibration_drift,
+                    take_calibration_snapshot,
+                )
+
+                current_snap = take_calibration_snapshot(backend)
+                drift = check_calibration_drift(_calibration_baseline, current_snap)
+                if drift.abort_recommended:
+                    print(
+                        f"\n  ⚠️  TLS DRIFT WARNING at h={h:.2f}: "
+                        f"T1 degraded {drift.t1_drift_pct:.0f}% "
+                        f"(>{drift.threshold_pct:.0f}% threshold). "
+                        f"Results may be unreliable."
+                    )
+                    # Don't abort — just warn. The per-point calibration snapshot
+                    # in pre_submission_audit will record the degraded state.
+            except Exception:
+                pass
         # Build logical circuit once per h (non-AQC)
         warm_params = _get_warm_start_params(h, warm_start_path)
         circuit_hva = _build_hva_circuit(h, warm_start_params=warm_params)
@@ -2692,10 +3085,15 @@ def run_benchmark(
 
         # Execute configs for this h-value
         for config_id in configs_for_h:
+            # Hardware fail-fast: abort if first h-point was catastrophic
+            if _hw_abort:
+                print(f"[{config_id}] h={h:.2f} ... SKIPPED (fail-fast abort)")
+                continue
+
             config = BENCHMARK_CONFIGS[config_id]
             print(f"[{config_id}] h={h:.2f} ...", end=" ", flush=True)
             try:
-                run_single_config(
+                envelope = run_single_config(
                     config,
                     h,
                     mode,
@@ -2709,12 +3107,43 @@ def run_benchmark(
                     n_2q_logical_precomputed=n_2q_logical_hva if not config.aqc_enabled else None,
                 )
                 print("DONE")
+
+                # Hardware fail-fast check: if C0_raw at first h-point is catastrophic,
+                # abort the entire benchmark (all subsequent points will be worse).
+                if (
+                    mode == "hardware"
+                    and not _hw_first_h_done
+                    and config_id == "C0_raw"
+                    and envelope
+                ):
+                    _hw_first_h_done = True
+                    de_gap = envelope.get("results", {}).get("delta_e_gap")
+                    if de_gap is not None and de_gap > _HW_ABORT_THRESHOLD:
+                        _hw_abort = True
+                        print(
+                            f"\n  ❌ FAIL-FAST ABORT: C0_raw h={h} ΔE/gap={de_gap:.1%} "
+                            f"> {_HW_ABORT_THRESHOLD:.0%} — hardware/calibration broken."
+                        )
+                        print(
+                            "  ACTION: Check backend calibration, retry during off-peak, "
+                            "or use --backend <alternative>."
+                        )
+
             except Exception as e:
                 print(f"ERROR: {e}")
                 try:
                     _save_error_result(config, h, mode, seed, e)
                 except Exception:
                     pass  # Best-effort error persistence
+
+                # Hardware fail-fast on exception at first h-point
+                if mode == "hardware" and not _hw_first_h_done and config_id == "C0_raw":
+                    _hw_first_h_done = True
+                    _hw_abort = True
+                    print(
+                        f"\n  ❌ FAIL-FAST ABORT: C0_raw h={h} crashed — "
+                        "hardware pipeline broken. Aborting remaining jobs."
+                    )
 
     if adaptive and total_skipped_adaptive > 0:
         logger.info(
@@ -2779,12 +3208,15 @@ def main() -> None:
 
     print(f"Mitigation Benchmark v{BENCHMARK_VERSION}")
     print(f"  Mode: {args.mode}")
-    print(f"  Configs: {len(config_ids)} ({config_ids[0]}...{config_ids[-1]})")
+    print(f"  Configs ({len(config_ids)}): {', '.join(config_ids)}")
     print(f"  h-values: {h_values}")
     print(f"  Shots: {args.shots}")
     print(f"  Seed: {args.seed}")
     if args.batch and args.mode == "hardware":
         print("  Batch mode: ON (single Batch session for all jobs)")
+    print(
+        f"  Total executions: {len(config_ids)} × {len(h_values)} = {len(config_ids) * len(h_values)}"
+    )
     print()
 
     run_benchmark(

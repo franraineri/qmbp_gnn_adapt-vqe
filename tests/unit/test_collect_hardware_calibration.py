@@ -37,9 +37,26 @@ def _make_mock_backend(props, layout_qubits=None, layout_cx_pairs=None):
 
 
 def _make_mock_job(execution_time=42.5):
-    """Create a mock job with metrics()."""
+    """Create a mock job with metrics() matching IBM Runtime API.
+
+    IBM Runtime job.metrics() returns:
+    {
+        "usage": {"quantum_seconds": <float>, "seconds": <float>},
+        "timestamps": {"created": <iso>, "running": <iso>, "finished": <iso>}
+    }
+    """
     job = MagicMock()
-    job.metrics.return_value = {"execution_time": execution_time}
+    job.metrics.return_value = {
+        "usage": {
+            "quantum_seconds": execution_time,
+            "seconds": execution_time * 1.1,  # billed slightly more
+        },
+        "timestamps": {
+            "created": "2026-06-18T10:00:00Z",
+            "running": "2026-06-18T10:00:05Z",
+            "finished": "2026-06-18T10:01:00Z",
+        },
+    }
     return job
 
 
@@ -74,7 +91,10 @@ class TestCollectHardwareCalibrationHappyPath:
             "cx_error_mean_layout",
             "readout_error_mean",
             "calibration_age_hours",
-            "job_execution_time_s",
+            "job_qpu_seconds",
+            "job_usage_details",
+            "job_timestamps",
+            "queue_wait_s",
         }
         assert result is not None
         assert set(result.keys()) == expected_keys
@@ -154,7 +174,7 @@ class TestCollectHardwareCalibrationHappyPath:
         assert result["calibration_age_hours"] == pytest.approx(3.5, abs=0.01)
 
     def test_job_execution_time(self):
-        """Job execution time extracted from job.metrics()."""
+        """Job QPU seconds extracted from job.metrics().usage.quantum_seconds."""
         cal_time = datetime.now(UTC)
         props = _make_mock_props(
             t1_vals={0: 100e-6},
@@ -168,7 +188,12 @@ class TestCollectHardwareCalibrationHappyPath:
 
         result = _collect_hardware_calibration(backend, job)
 
-        assert result["job_execution_time_s"] == 123.4
+        assert result["job_qpu_seconds"] == 123.4
+        assert result["job_usage_details"]["quantum_seconds"] == 123.4
+        assert result["job_usage_details"]["seconds"] == pytest.approx(123.4 * 1.1)
+        # Queue wait: 5 seconds between created and running timestamps
+        assert result["queue_wait_s"] == pytest.approx(5.0)
+        assert result["job_timestamps"]["created"] == "2026-06-18T10:00:00Z"
 
 
 class TestCollectHardwareCalibrationEdgeCases:
@@ -260,7 +285,10 @@ class TestCollectHardwareCalibrationEdgeCases:
 
         result = _collect_hardware_calibration(backend, job)
 
-        assert result["job_execution_time_s"] is None
+        assert result["job_qpu_seconds"] is None
+        assert result["job_usage_details"] is None
+        assert result["job_timestamps"] is None
+        assert result["queue_wait_s"] is None
 
     def test_last_update_date_none(self):
         """calibration_age_hours is None when last_update_date is None."""

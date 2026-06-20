@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "**/execution/noisy_utils*,**/execution/hardware/**,**/execution/backends*,**/noise_zne*,**/run_pea*,**/run_zne*,**/run_gate_folding*,**/run_adaptive*,**/noisy*"
+fileMatchPattern: "**/execution/noisy_utils*,**/execution/hardware/**,**/execution/backends*,**/execution/mps_backend*"
 ---
 
 # Noisy Execution — Methodology & Invariants

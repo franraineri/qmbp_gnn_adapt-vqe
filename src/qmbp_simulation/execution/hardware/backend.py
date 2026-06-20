@@ -343,6 +343,27 @@ class HardwareBackend(ExecutionBackend):
                             },
                         )
 
+            # ── Post-transpilation quality gate (2026-06-18) ─────────
+            # Validates each transpiled circuit against calibration data BEFORE
+            # any QPU interaction. Checks: error budget, depth_2q, defective
+            # edges, routing expansion. Aborts if quality is catastrophic.
+            from .preflight import validate_transpiled_circuit_quality
+
+            transpiled_quality_checks: list[dict] = []
+            for i, isa_circ in enumerate(layout_selection.transpiled_circuits):
+                layout_qubits = (
+                    layout_selection.layouts[i] if i < len(layout_selection.layouts) else None
+                )
+                quality_check = validate_transpiled_circuit_quality(
+                    isa_circ, self.backend, layout_qubits, self._logger
+                )
+                transpiled_quality_checks.append(quality_check)
+                if quality_check.get("abort"):
+                    raise RuntimeError(
+                        f"Transpiled circuit quality check failed (layout {i}): "
+                        f"{quality_check.get('abort_reason')}"
+                    )
+
             # ── Capture calibration snapshot at execution time ─────────
             # This records the actual T1/T2/error rates when the circuit ran,
             # enabling post-hoc correlation of result quality vs calibration.
@@ -356,6 +377,31 @@ class HardwareBackend(ExecutionBackend):
             # Saved to the run output directory so every hardware execution has
             # a visual record of exactly what was submitted.
             self._save_pre_execution_circuit(circuit, params, h_value, layout_selection)
+
+            # ── Save circuit serialization (QASM3) for reproducibility ────
+            # If QPU submission fails, this allows exact retry without
+            # re-transpilation. Also enables post-hoc circuit fingerprinting.
+            circuit_qasm_paths = self._save_circuit_qasm(layout_selection, h_value)
+
+            # ── Save consolidated pre-submission manifest ─────────────
+            # Single atomic JSON capturing everything about what is about to
+            # be sent to the QPU: params, transpiled stats, calibration,
+            # error budget, quality checks, circuit hashes, and config.
+            pre_submission_manifest = self._build_pre_submission_manifest(
+                circuit=circuit,
+                params=params,
+                h_value=h_value,
+                e_exact=e_exact,
+                gap=gap,
+                expected_label=expected_label,
+                layout_selection=layout_selection,
+                calibration_snapshot=calibration_snapshot,
+                transpiled_stats=transpiled_stats,
+                circuit_check=circuit_check,
+                transpiled_quality_checks=transpiled_quality_checks,
+                circuit_qasm_paths=circuit_qasm_paths,
+            )
+            self._save_pre_submission_manifest(pre_submission_manifest, h_value)
 
             # ── Print circuit before QPU submission ─────────────────────
             # Shows the first transpiled ISA circuit that will be sent to the
@@ -375,6 +421,11 @@ class HardwareBackend(ExecutionBackend):
                 f"  DD: XpXm (server-side)  |  Twirling: {'ON' if self._config.mitigation.twirling_enabled else 'OFF'}"
             )
             print(f"  ZNE amplifier: {self._config.mitigation.zne_amplifier}")
+            if transpiled_quality_checks:
+                eb = transpiled_quality_checks[0].get("error_budget")
+                fid = transpiled_quality_checks[0].get("fidelity_estimate")
+                if eb is not None:
+                    print(f"  Error budget: {eb:.3f} (predicted fidelity: {fid:.1%})")
             print("-" * 70)
             print(first_isa.draw(output="text", fold=100))
             print("=" * 70 + "\n")
@@ -608,6 +659,7 @@ class HardwareBackend(ExecutionBackend):
                 zne_data=zne_data,
                 input_params=params,
                 transpiled_stats=transpiled_stats,
+                qpu_metrics=qpu_metrics,
             )
             # Attach extra metadata for external consumers (deployment script)
             result._calibration_snapshot = calibration_snapshot
@@ -735,12 +787,11 @@ class HardwareBackend(ExecutionBackend):
     ) -> None:
         """Save a PNG diagram of the circuit BEFORE submitting to QPU.
 
-        Creates two images in the output directory:
-        - circuit_logical_h{h}.png: The bound logical circuit (as designed)
-        - circuit_transpiled_h{h}.png: The first transpiled ISA circuit (as executed)
+        Creates two images in a timestamped subdirectory:
+        - circuit_logical_h{h}_{ts}.png: The bound logical circuit (as designed)
+        - circuit_transpiled_h{h}_{ts}.png: The first transpiled ISA circuit (as executed)
 
-        This provides a visual provenance record for every hardware execution,
-        enabling quick debugging and thesis figure generation.
+        Timestamped naming prevents overwriting on repeated runs of the same h-value.
         """
 
         try:
@@ -752,37 +803,34 @@ class HardwareBackend(ExecutionBackend):
             output_dir.mkdir(parents=True, exist_ok=True)
 
             h_tag = f"h{h_value:.1f}".replace(".", "p")
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
             # Save the logical (bound) circuit
             bound_qc = circuit.assign_parameters(params)
+            logical_path = output_dir / f"circuit_logical_{h_tag}_{ts}.png"
             _diagram = circuit_drawer(
                 bound_qc,
                 output="mpl",
                 fold=40,
-                filename=str(output_dir / f"circuit_logical_{h_tag}.png"),
+                filename=str(logical_path),
             )
             if hasattr(_diagram, "savefig"):
-                _diagram.savefig(
-                    str(output_dir / f"circuit_logical_{h_tag}.png"), dpi=150, bbox_inches="tight"
-                )
+                _diagram.savefig(str(logical_path), dpi=150, bbox_inches="tight")
             import matplotlib.pyplot as _plt
 
             _plt.close("all")
 
             # Save the first transpiled (ISA) circuit
             if layout_selection.transpiled_circuits:
+                transpiled_path = output_dir / f"circuit_transpiled_{h_tag}_{ts}.png"
                 _diagram = circuit_drawer(
                     layout_selection.transpiled_circuits[0],
                     output="mpl",
                     fold=60,
-                    filename=str(output_dir / f"circuit_transpiled_{h_tag}.png"),
+                    filename=str(transpiled_path),
                 )
                 if hasattr(_diagram, "savefig"):
-                    _diagram.savefig(
-                        str(output_dir / f"circuit_transpiled_{h_tag}.png"),
-                        dpi=150,
-                        bbox_inches="tight",
-                    )
+                    _diagram.savefig(str(transpiled_path), dpi=150, bbox_inches="tight")
                 _plt.close("all")
 
                 # Save the circuit with DD applied (approximation of server-side DD)
@@ -790,13 +838,18 @@ class HardwareBackend(ExecutionBackend):
                 # would look like using the same sequence_type we configured.
                 self._save_circuit_with_dd(
                     layout_selection.transpiled_circuits[0],
-                    h_tag,
+                    f"{h_tag}_{ts}",
                     output_dir,
                 )
 
             self._logger.log(
                 "circuit_diagram_saved",
-                data={"output_dir": str(output_dir), "h_value": h_value},
+                data={
+                    "output_dir": str(output_dir),
+                    "h_value": h_value,
+                    "timestamp": ts,
+                    "logical_path": str(logical_path),
+                },
             )
         except Exception as exc:
             # Never let diagram generation block QPU execution
@@ -879,6 +932,200 @@ class HardwareBackend(ExecutionBackend):
             self._logger.log(
                 "circuit_dd_diagram_error",
                 data={"error": str(exc)},
+            )
+
+    # ─── Circuit Serialization & Pre-Submission Manifest ──────────────
+
+    def _save_circuit_qasm(
+        self,
+        layout_selection,
+        h_value: float,
+    ) -> list[str]:
+        """Serialize transpiled circuits as QASM3 for exact reproducibility.
+
+        If QPU submission fails, these files allow exact retry without
+        re-transpilation. Also enables post-hoc circuit fingerprinting.
+
+        Returns list of saved file paths (empty on failure — never blocks QPU).
+        """
+        saved_paths: list[str] = []
+        try:
+            from qiskit.qasm3 import dumps as qasm3_dumps
+
+            output_dir = Path(self._config.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            h_tag = f"h{h_value:.1f}".replace(".", "p")
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+            for i, circ in enumerate(layout_selection.transpiled_circuits):
+                qasm_path = output_dir / f"circuit_isa_layout{i}_{h_tag}_{ts}.qasm"
+                qasm_str = qasm3_dumps(circ)
+                qasm_path.write_text(qasm_str)
+                saved_paths.append(str(qasm_path))
+
+            self._logger.log(
+                "circuit_qasm_saved",
+                data={
+                    "n_circuits": len(saved_paths),
+                    "h_value": h_value,
+                    "paths": saved_paths,
+                },
+            )
+        except Exception as exc:
+            # QASM3 export may fail for some gate types — never block QPU
+            self._logger.log(
+                "circuit_qasm_error",
+                data={"error": str(exc), "h_value": h_value},
+            )
+        return saved_paths
+
+    def _compute_circuit_fingerprint(self, circuit: QuantumCircuit) -> str:
+        """Compute a deterministic fingerprint of a quantum circuit.
+
+        Uses gate counts + depth + qubit count to create a stable hash.
+        This enables matching results to exact circuit versions without
+        serializing the full object.
+        """
+        import hashlib
+
+        ops = sorted(circuit.count_ops().items())
+        fingerprint_data = (
+            f"nq={circuit.num_qubits};depth={circuit.depth()};ops={ops};size={circuit.size()}"
+        )
+        return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
+
+    def _build_pre_submission_manifest(
+        self,
+        *,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+        h_value: float,
+        e_exact: float,
+        gap: float,
+        expected_label: str,
+        layout_selection,
+        calibration_snapshot: dict[str, Any],
+        transpiled_stats: dict[str, Any],
+        circuit_check: dict[str, Any],
+        transpiled_quality_checks: list[dict],
+        circuit_qasm_paths: list[str],
+        sigma_flow: float | None = None,
+        kappa: float | None = None,
+    ) -> dict[str, Any]:
+        """Build a consolidated pre-submission manifest.
+
+        Single atomic record of everything about to be sent to the QPU.
+        Enables complete audit trail without parsing multiple log files.
+        """
+        # Compute fingerprints for each transpiled circuit
+        fingerprints = []
+        for circ in layout_selection.transpiled_circuits:
+            fingerprints.append(self._compute_circuit_fingerprint(circ))
+
+        manifest: dict[str, Any] = {
+            "manifest_version": "1.0",
+            "timestamp": datetime.now(UTC).isoformat(),
+            # ── What we're executing ──
+            "execution_target": {
+                "h_value": h_value,
+                "e_exact": e_exact,
+                "gap": gap,
+                "expected_label": expected_label,
+                "n_qubits": circuit.num_qubits,
+                "n_params": circuit.num_parameters,
+                "params": params.tolist(),
+                "params_norm": float(np.linalg.norm(params)),
+            },
+            # ── Hardware configuration ──
+            "hardware_config": {
+                "backend_name": self._config.backend_name,
+                "mode": self._config.mode,
+                "shots": self._config.shots,
+                "n_layouts": self._config.n_layouts,
+                "optimization_level": self._config.optimization_level,
+                "zne_amplifier": self._config.mitigation.zne_amplifier,
+                "zne_noise_factors": self._config.mitigation.zne_noise_factors,
+                "dd_enabled": self._config.mitigation.dd_enabled,
+                "twirling_enabled": self._config.mitigation.twirling_enabled,
+                "trex_enabled": self._config.mitigation.trex_enabled,
+                "num_randomizations": self._config.mitigation.num_randomizations,
+                "shots_per_randomization": self._config.mitigation.shots_per_randomization,
+            },
+            # ── Layout selection results ──
+            "layouts": {
+                "n_layouts_selected": len(layout_selection.layouts),
+                "physical_qubits": layout_selection.layouts,
+                "ces_values": layout_selection.ces_values,
+                "circuit_fingerprints": fingerprints,
+            },
+            # ── Pre-flight validation results ──
+            "validation": {
+                "circuit_zne_check": {
+                    "two_qubit_gate_count": circuit_check.get("two_qubit_gate_count"),
+                    "zne_threshold": circuit_check.get("zne_threshold"),
+                    "amplifier": circuit_check.get("amplifier"),
+                    "abort": circuit_check.get("abort", False),
+                },
+                "transpiled_quality_per_layout": [
+                    {
+                        "layout_idx": i,
+                        "error_budget": qc.get("error_budget"),
+                        "fidelity_estimate": qc.get("fidelity_estimate"),
+                        "depth_2q": qc.get("depth_2q"),
+                        "n_2q_gates": qc.get("n_2q_gates"),
+                        "defective_edges_in_layout": qc.get("defective_edges_in_layout", 0),
+                        "abort": qc.get("abort", False),
+                    }
+                    for i, qc in enumerate(transpiled_quality_checks)
+                ],
+            },
+            # ── Calibration state at execution time ──
+            "calibration_snapshot": calibration_snapshot,
+            # ── Transpiled circuit statistics ──
+            "transpiled_stats": transpiled_stats,
+            # ── Risk assessment (noiseless metrics) ──
+            "risk_assessment": {
+                "sigma_flow": sigma_flow,
+                "kappa": kappa,
+                "sigma_flow_boosted": sigma_flow is not None and sigma_flow > 0.5,
+            },
+            # ── Layout depth_2q ranking ──
+            # Ranked by depth_2q ascending (best first). The layout with
+            # lowest 2Q critical path accumulates less decoherence error.
+            "layout_depth_2q_ranking": self._rank_layouts_by_depth_2q(layout_selection),
+            # ── Provenance ──
+            "provenance": {
+                "circuit_qasm_paths": circuit_qasm_paths,
+            },
+        }
+        return manifest
+
+    def _save_pre_submission_manifest(self, manifest: dict[str, Any], h_value: float) -> None:
+        """Persist the pre-submission manifest as a JSON file.
+
+        Saved BEFORE QPU submission so data is never lost even if the job fails.
+        """
+        import json
+
+        from qmbp_simulation.utils.helpers import json_serialize
+
+        try:
+            output_dir = Path(self._config.output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            h_tag = f"h{h_value:.1f}".replace(".", "p")
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            manifest_path = output_dir / f"pre_submission_manifest_{h_tag}_{ts}.json"
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f, indent=2, default=json_serialize)
+            self._logger.log(
+                "pre_submission_manifest_saved",
+                data={"path": str(manifest_path), "h_value": h_value},
+            )
+        except Exception as exc:
+            # Never block QPU execution for manifest save failures
+            self._logger.log(
+                "pre_submission_manifest_error",
+                data={"error": str(exc), "h_value": h_value},
             )
 
     # ─── ZNE Aggregation ─────────────────────────────────────────────
@@ -1001,13 +1248,19 @@ class HardwareBackend(ExecutionBackend):
           - num_tensor_factors: disconnected sub-circuits (sanity check)
           - width: physical qubits in transpiled circuit
           - active_qubits: width − num_tensor_factors + 1
+          - idle_cycles_per_qubit: average idle cycles per active qubit (decoherence risk)
+          - max_idle_stretch: longest consecutive idle on any qubit
+          - parallelism_ratio: 2Q gates / depth_2q (gate-level parallelism)
+          - error_budget: calibration-aware predicted total error probability
+          - fidelity_estimate: exp(-error_budget)
 
         The depth_2q metric is the strongest predictor of hardware error
         accumulation (2Q gates dominate noise budget on IBM devices).
 
-        Note: This mirrors `transpiled_circuit_stats` from
-        `analysis.circuit_visualizer` but is kept inline to respect the
-        module dependency DAG (execution cannot import analysis).
+        Note: idle metrics use DAG analysis (same algorithm as
+        `analysis.circuit_visualizer.transpiled_circuit_stats`) but are
+        computed inline to respect the module dependency DAG
+        (execution cannot import analysis).
         """
         from qiskit.transpiler import PassManager
         from qiskit.transpiler.passes import ResourceEstimation
@@ -1051,12 +1304,80 @@ class HardwareBackend(ExecutionBackend):
                         gate_counts[name] = gate_counts.get(name, 0) + 1
                     layout_stats["count_ops"] = gate_counts
 
+                # ── Idle/decoherence metrics via DAG analysis ──
+                # Computes how many cycles each qubit spends idle (not in any
+                # gate), and the longest consecutive idle stretch. Long idle
+                # stretches → T1/T2 decoherence accumulation.
+                try:
+                    idle_metrics = self._compute_idle_metrics(circ)
+                    layout_stats["idle_cycles_per_qubit"] = idle_metrics["idle_cycles_per_qubit"]
+                    layout_stats["max_idle_stretch"] = idle_metrics["max_idle_stretch"]
+                except Exception:
+                    layout_stats["idle_cycles_per_qubit"] = None
+                    layout_stats["max_idle_stretch"] = None
+
+                # ── Parallelism ratio ──
+                # How many 2Q gates execute per depth layer on average.
+                # Higher = better hardware utilization, less idle time.
+                active = layout_stats.get("active_qubits") or circ.num_qubits
+                layout_stats["parallelism_ratio"] = n_2q / depth_2q if depth_2q > 0 else 0.0
+                layout_stats["gate_density_2q"] = (
+                    n_2q / (active * depth_2q) if (depth_2q > 0 and active > 0) else 0.0
+                )
+
+                # ── Calibration-aware error budget per layout ──
+                # Uses actual backend error rates for the specific qubits in
+                # this layout to predict total accumulated error probability.
+                try:
+                    layout_qubits = (
+                        layout_selection.layouts[i] if i < len(layout_selection.layouts) else None
+                    )
+                    error_budget_data = self._compute_error_budget_for_layout(circ, layout_qubits)
+                    layout_stats["error_budget"] = error_budget_data["error_budget"]
+                    layout_stats["fidelity_estimate"] = error_budget_data["fidelity_estimate"]
+                    layout_stats["error_budget_source"] = error_budget_data["source"]
+                except Exception:
+                    layout_stats["error_budget"] = None
+                    layout_stats["fidelity_estimate"] = None
+
+                # ── Circuit fingerprint ──
+                layout_stats["circuit_fingerprint"] = self._compute_circuit_fingerprint(circ)
+
                 stats["per_layout"].append(layout_stats)
 
             if stats["per_layout"]:
-                stats["mean_depth"] = np.mean([s["depth"] for s in stats["per_layout"]])
-                stats["mean_depth_2q"] = np.mean([s["depth_2q"] for s in stats["per_layout"]])
-                stats["mean_2q_gates"] = np.mean([s["n_2q_gates"] for s in stats["per_layout"]])
+                stats["mean_depth"] = float(np.mean([s["depth"] for s in stats["per_layout"]]))
+                stats["mean_depth_2q"] = float(
+                    np.mean([s["depth_2q"] for s in stats["per_layout"]])
+                )
+                stats["mean_2q_gates"] = float(
+                    np.mean([s["n_2q_gates"] for s in stats["per_layout"]])
+                )
+                # Aggregate error budget (use worst-case for safety assessment)
+                budgets = [
+                    s["error_budget"]
+                    for s in stats["per_layout"]
+                    if s.get("error_budget") is not None
+                ]
+                if budgets:
+                    stats["mean_error_budget"] = float(np.mean(budgets))
+                    stats["max_error_budget"] = float(np.max(budgets))
+                    stats["mean_fidelity_estimate"] = float(np.exp(-np.mean(budgets)))
+                # Aggregate idle metrics
+                idle_vals = [
+                    s["idle_cycles_per_qubit"]
+                    for s in stats["per_layout"]
+                    if s.get("idle_cycles_per_qubit") is not None
+                ]
+                if idle_vals:
+                    stats["mean_idle_cycles_per_qubit"] = float(np.mean(idle_vals))
+                max_stretches = [
+                    s["max_idle_stretch"]
+                    for s in stats["per_layout"]
+                    if s.get("max_idle_stretch") is not None
+                ]
+                if max_stretches:
+                    stats["max_idle_stretch_across_layouts"] = int(max(max_stretches))
                 # Aggregate count_ops across layouts (use first layout as representative)
                 first_ops = stats["per_layout"][0].get("count_ops")
                 if first_ops:
@@ -1064,6 +1385,192 @@ class HardwareBackend(ExecutionBackend):
         except Exception as exc:
             stats["capture_error"] = str(exc)
         return stats
+
+    @staticmethod
+    def _compute_idle_metrics(circuit: QuantumCircuit) -> dict[str, Any]:
+        """Compute idle-time metrics via DAG analysis.
+
+        Analyzes the circuit DAG to determine how many cycles each qubit
+        spends idle (not participating in any gate), and the longest
+        consecutive idle stretch on any qubit. Long idle stretches correlate
+        with T1/T2 decoherence accumulation on hardware.
+
+        Parameters
+        ----------
+        circuit : QuantumCircuit
+            A transpiled circuit to analyze.
+
+        Returns
+        -------
+        dict[str, Any]
+            idle_cycles_per_qubit: float average idle cycles per active qubit.
+            max_idle_stretch: int longest consecutive idle on any qubit.
+        """
+        from qiskit.converters import circuit_to_dag
+
+        dag = circuit_to_dag(circuit)
+        idle_wires = set(dag.idle_wires())
+        active_qubits = [q for q in dag.qubits if q not in idle_wires]
+
+        if not active_qubits:
+            return {"idle_cycles_per_qubit": 0.0, "max_idle_stretch": 0}
+
+        # Pre-compute node-to-layer mapping once for efficiency
+        node_to_layer: dict[int, int] = {}
+        for layer_idx, layer in enumerate(dag.layers()):
+            for node in layer["graph"].op_nodes():
+                node_to_layer[node._node_id] = layer_idx
+
+        total_idle = 0
+        max_stretch = 0
+        depth = circuit.depth()
+
+        for qubit in active_qubits:
+            nodes = list(dag.nodes_on_wire(qubit, only_ops=True))
+            if len(nodes) <= 1:
+                idle_for_qubit = max(0, depth - 1)
+                total_idle += idle_for_qubit
+                max_stretch = max(max_stretch, idle_for_qubit)
+                continue
+            # Compute gaps between consecutive ops using pre-built layer map
+            stretches = []
+            for j in range(len(nodes) - 1):
+                layer_a = node_to_layer.get(nodes[j]._node_id, 0)
+                layer_b = node_to_layer.get(nodes[j + 1]._node_id, 0)
+                gap = max(0, layer_b - layer_a - 1)
+                stretches.append(gap)
+            total_idle += sum(stretches)
+            if stretches:
+                max_stretch = max(max_stretch, max(stretches))
+
+        n_active = len(active_qubits)
+        return {
+            "idle_cycles_per_qubit": total_idle / n_active if n_active > 0 else 0.0,
+            "max_idle_stretch": max_stretch,
+        }
+
+    @staticmethod
+    def _rank_layouts_by_depth_2q(layout_selection) -> list[dict[str, Any]]:
+        """Rank transpiled circuits by depth_2q (lowest = best for hardware).
+
+        The layout with the lowest 2Q critical path accumulates less
+        decoherence error. This ranking is stored in the pre-submission
+        manifest to record which layout is optimal for ZNE primary execution.
+
+        Returns
+        -------
+        list[dict[str, Any]]
+            Per-layout stats sorted by depth_2q ascending (best first).
+        """
+        ranked: list[dict[str, Any]] = []
+        for i, circ in enumerate(layout_selection.transpiled_circuits):
+            depth_2q = circ.depth(filter_function=lambda x: x.operation.num_qubits == 2)
+            depth = circ.depth()
+            n_2q = sum(1 for inst in circ.data if inst.operation.num_qubits == 2)
+            entry: dict[str, Any] = {
+                "layout_idx": i,
+                "depth_2q": depth_2q,
+                "depth": depth,
+                "n_2q_gates": n_2q,
+            }
+            if i < len(layout_selection.layouts):
+                entry["layout"] = layout_selection.layouts[i]
+            if i < len(layout_selection.ces_values):
+                entry["ces"] = layout_selection.ces_values[i]
+            ranked.append(entry)
+
+        ranked.sort(key=lambda x: (x["depth_2q"], x["n_2q_gates"]))
+        return ranked
+
+    def _compute_error_budget_for_layout(
+        self,
+        circuit: QuantumCircuit,
+        layout: list[int] | None,
+    ) -> dict[str, Any]:
+        """Compute calibration-aware error budget for a transpiled circuit.
+
+        Uses actual error rates from the backend's Target API for the
+        specific qubits in the selected layout.
+
+        Parameters
+        ----------
+        circuit : QuantumCircuit
+            Transpiled (ISA) circuit.
+        layout : list[int] | None
+            Physical qubit indices used in this layout.
+
+        Returns
+        -------
+        dict[str, Any]
+            error_budget, fidelity_estimate, source ("calibration" or "typical_fallback")
+        """
+        # Count ops in circuit
+        count_ops: dict[str, int] = {}
+        for inst in circuit.data:
+            name = inst.operation.name
+            count_ops[name] = count_ops.get(name, 0) + 1
+
+        # Get error rates from backend target (layout-filtered)
+        error_rates: dict[str, float] = {}
+        source = "typical_fallback"
+
+        try:
+            target = self.backend.target
+            layout_set = set(layout) if layout else None
+
+            for gate_name in target.operation_names:
+                try:
+                    qargs_list = target.qargs_for_operation_name(gate_name)
+                except Exception:
+                    continue
+                if qargs_list is None:
+                    continue
+                errs: list[float] = []
+                for qargs in qargs_list:
+                    if layout_set is not None:
+                        if not all(q in layout_set for q in qargs):
+                            continue
+                    try:
+                        props = target[gate_name].get(qargs)
+                        if props is not None and props.error is not None:
+                            errs.append(props.error)
+                    except Exception:
+                        continue
+                if errs:
+                    error_rates[gate_name] = sum(errs) / len(errs)
+            if error_rates:
+                source = "calibration"
+        except Exception:
+            pass
+
+        # Fallback rates for gates not found in calibration
+        TYPICAL_RATES = {
+            "cz": 8e-3,
+            "ecr": 8e-3,
+            "cx": 8e-3,
+            "sx": 2.5e-4,
+            "x": 2.5e-4,
+            "rz": 0.0,
+            "id": 0.0,
+            "delay": 0.0,
+            "barrier": 0.0,
+            "measure": 0.0,
+        }
+        for gate in count_ops:
+            if gate not in error_rates:
+                error_rates[gate] = TYPICAL_RATES.get(gate, 1e-4)
+
+        # Compute budget
+        total_error = 0.0
+        for gate, count in count_ops.items():
+            rate = error_rates.get(gate, 0.0)
+            total_error += count * rate
+
+        return {
+            "error_budget": total_error,
+            "fidelity_estimate": float(np.exp(-total_error)),
+            "source": source,
+        }
 
     def _compute_quality_metrics(
         self,
@@ -1152,13 +1659,19 @@ class HardwareBackend(ExecutionBackend):
     def _aggregate_qpu_metrics(raw_results: list[dict[str, Any]]) -> dict[str, Any]:
         """Aggregate QPU usage metrics from per-layout job results.
 
-        IBM Runtime provides qpu_seconds (numeric) per job and running_timestamp
-        (ISO string) for provenance. Only numeric values are summed.
+        IBM Runtime provides qpu_seconds (numeric) per job, billed_seconds
+        (total including classical), and running_timestamp (ISO string) for
+        provenance. Only numeric values are summed.
         """
         qpu_seconds_list = [
             r.get("qpu_seconds")
             for r in raw_results
             if isinstance(r.get("qpu_seconds"), (int, float))
+        ]
+        billed_seconds_list = [
+            r.get("billed_seconds")
+            for r in raw_results
+            if isinstance(r.get("billed_seconds"), (int, float))
         ]
         timestamps = [
             r.get("running_timestamp")
@@ -1167,6 +1680,7 @@ class HardwareBackend(ExecutionBackend):
         ]
         return {
             "total_qpu_seconds": sum(qpu_seconds_list) if qpu_seconds_list else None,
+            "total_billed_seconds": sum(billed_seconds_list) if billed_seconds_list else None,
             "n_jobs_with_metrics": len(qpu_seconds_list),
             "per_layout_qpu_s": qpu_seconds_list or None,
             "running_timestamps": timestamps or None,

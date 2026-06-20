@@ -298,10 +298,18 @@ def _collect_results(
                         # quantum_seconds is numeric (int/float)
                         qs = metrics.get("usage", {}).get("quantum_seconds", None)
                         usage_info["qpu_seconds"] = qs if isinstance(qs, (int, float)) else None
+                        # Total billed seconds (QPU + classical)
+                        billed = metrics.get("usage", {}).get("seconds", None)
+                        usage_info["billed_seconds"] = (
+                            billed if isinstance(billed, (int, float)) else None
+                        )
                         # "running" timestamp is an ISO string, NOT numeric seconds
                         # Store as-is for provenance, never sum it
                         running_ts = metrics.get("timestamps", {}).get("running", None)
                         usage_info["running_timestamp"] = running_ts
+                        # Created timestamp for queue wait derivation
+                        created_ts = metrics.get("timestamps", {}).get("created", None)
+                        usage_info["created_timestamp"] = created_ts
                     except Exception:
                         pass  # metrics() not available for local jobs
                 results.append(

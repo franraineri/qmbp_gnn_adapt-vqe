@@ -1,6 +1,5 @@
 ---
-inclusion: fileMatch
-fileMatchPattern: "**/hardware/**,**/hardware_deployer*,scripts/run_hardware*"
+inclusion: manual
 ---
 
 # Hardware Deployment — Phase 4 Guidelines

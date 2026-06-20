@@ -1462,15 +1462,41 @@ def run_tier_2(
                     {
                         "seed": seed,
                         "h": h,
+                        # Energy & quality
+                        "e_exact": result.e_exact,
                         "e_zne": result.e_zne,
                         "delta_e_gap": result.delta_e_gap,
+                        "gap": result.gap,
+                        "zne_gain": result.zne_gain,
+                        # Verdict
                         "verdict": result.verdict,
+                        "verdict_reason": result.verdict_reason,
+                        # Phase classification
                         "phase_label": result.phase_label,
-                        "zne_r2": result.zne_r2,
                         "mag_x_mean": result.mag_x_mean,
                         "corr_zz_mean": result.corr_zz_mean,
+                        "sigma": result.sigma,
+                        # ZNE details
+                        "zne_r2": result.zne_r2,
+                        "mitigation_strategy": result.mitigation_strategy,
+                        "layout_std": result.layout_std,
+                        # SPSA & provenance
                         "spsa_applied": result.spsa_applied,
                         "job_ids": result.job_ids,
+                        "ces_values": result.ces_values,
+                        "total_shots": result.total_shots,
+                        # Per-site observables (thesis data)
+                        "per_site_x": result.per_site_x,
+                        "per_bond_zz": result.per_bond_zz,
+                        # Post-correction
+                        "gnn_qem_applied": result.gnn_qem_applied,
+                        "affine_correction_applied": result.affine_correction_applied,
+                        "e_after_affine": result.e_after_affine,
+                        # QPU & calibration (real hardware only)
+                        "qpu_metrics": getattr(result, "_qpu_metrics", None),
+                        "calibration_snapshot": getattr(result, "_calibration_snapshot", None),
+                        "transpiled_stats": getattr(result, "_transpiled_stats", None),
+                        # Timing
                         "wall_clock_s": t_h,
                         "pass": passed,
                         # κ risk profile (noiseless, shared across seeds)

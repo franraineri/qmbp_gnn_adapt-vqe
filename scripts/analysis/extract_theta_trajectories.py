@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 RESULTS_DIR = ROOT / "results" / "thesis"
 SCALING_DIR = ROOT / "results" / "scaling"
-OUTPUT_FILE = ROOT / "analysis" / "raw_data" / "theta_trajectories.json"
+OUTPUT_FILE = ROOT / "results" / "analysis" / "raw_data" / "theta_trajectories.json"
 
 
 def extract_trajectory(filepath: Path) -> dict | None:

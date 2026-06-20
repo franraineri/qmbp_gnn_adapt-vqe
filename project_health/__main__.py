@@ -19,15 +19,15 @@ import logging
 import sys
 from pathlib import Path
 
-from project_health.engine import run_health_check
-from project_health.models import HealthReport
-from project_health.reporter import (
+from project_health.core.engine import run_health_check
+from project_health.core.models import HealthReport
+from project_health.core.reporter import (
     format_json,
     format_markdown,
     format_text,
     generate_timestamped_filename,
 )
-from project_health.state import DEFAULT_STATE_FILE
+from project_health.core.state import DEFAULT_STATE_FILE
 
 
 def parse_args() -> argparse.Namespace:
@@ -195,7 +195,7 @@ def main() -> None:
 
     # CI exit code: non-zero if CRITICAL actions exist
     if args.ci:
-        from project_health.models import Priority
+        from project_health.core.models import Priority
 
         has_critical = any(a.priority == Priority.CRITICAL for a in report.actions)
         sys.exit(1 if has_critical else 0)

@@ -285,3 +285,84 @@ python -m project_health.analysis.mitigation_benchmark_analyzer --thesis-table -
 **Status: PENDIENTE** — requiere IBM_KEY + IBM_INSTANCE_CRN.
 
 Ver configuración en "Recomendaciones para Hardware" arriba.
+
+---
+
+## Sección 2: AQC Depth Crossover Analysis (2026-06-19)
+
+> Fecha: 2026-06-19
+> Datos: 66 runs C16_aqc_pea × 15 h-values × seeds 42/43/44/55/56/57/100
+> Script: `python inspect_results.py --configs C16_aqc_pea --h-values <all>`
+
+### Hallazgo F9: AQC tiene un crossover abrupto a h ≈ 1.6
+
+El compresor AQC-Tensor (bond_dim=64, fidelity_threshold=0.998) comprime un
+circuito HVA p=2 VQE-optimizado a profundidad variable según el entanglement
+del estado target:
+
+| Régimen h | n_2q AQC | n_2q Std (p=1) | Overhead | Comportamiento |
+|:---------:|:--------:|:--------------:|:--------:|----------------|
+| h ≤ 1.50  | **18**   | 18             | 0%       | AQC colapsa a p=1 (trivial compress) |
+| h ≥ 1.75  | **27**   | 18             | +50%     | AQC preserva estructura p=2 |
+
+**Crossover**: Entre h=1.50 y h=1.75 hay una transición discreta de 18→27 CZ.
+Esto refleja el cambio en la entropía de entanglement del ground state:
+- h ≤ 1.5: el state p=2 VQE es tan entangled que AQC con bond_dim=64 no puede
+  representar la diferencia con p=1 → comprime a exactamente p=1.
+- h ≥ 1.75: el state p=2 tiene estructura de correlaciones que AQC captura con
+  9 CZ gates extras (de 18 a 27).
+
+### Tabla: AQC Circuit Properties vs h-value
+
+| h | n_2q | d_2q | depth | ΔE/gap (AQC+PEA) | ΔE/gap (Std+PEA) | AQC ventaja |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---------:|
+| 1.00 | 18 | 14 | 60 | 277% | 277% | ❌ Ninguna |
+| 1.15 | 18 | 14 | 59 | 99% | 99% | ❌ Ninguna |
+| 1.25 | 18 | 14 | 59 | 59% | 59% | ❌ Ninguna |
+| 1.50 | 18 | 14 | 62 | 23% | 24% | ❌ Mismo circuito |
+| **1.75** | **27** | **21** | **103** | **3.9%** | **9.3%** | **✅ +58% mejora** |
+| 1.90 | 27 | 21 | 103 | 3.0% | 6.0% | ✅ +50% mejora |
+| 2.00 | 27 | 21 | 103 | 2.9% | 5.6% | ✅ +48% mejora |
+| 2.50 | 27 | 21 | 103 | 2.3% | 0.2% | ❌ Std gana (p=1 suficiente) |
+| 3.00 | 27 | 21 | 103 | 3.1% | 0.3% | ❌ Std gana |
+| 3.50 | 27 | 21 | 104 | 1.9% | 0.7% | ❌ Std gana |
+| 4.00 | 27 | 21 | 104 | 2.1% | 0.7% | ❌ Std gana |
+
+### Interpretación
+
+1. **AQC gana solo en h ∈ [1.75, 2.0]** — la "zona de transición" donde:
+   - p=1 es insuficiente para expresar el ground state (14% ΔE/gap con PEA)
+   - AQC p=2 comprimido tiene +50% gates pero captura correlaciones extras
+   - PEA recupera la energía a 3-4% (bajo el threshold de 5%)
+
+2. **AQC pierde en h ≥ 2.5** — p=1 estándar ya alcanza <1% con PEA, y los 9
+   gates extras de AQC solo agregan decoherencia sin beneficio de expresividad.
+
+3. **AQC es inútil en h ≤ 1.5** — el compresor no puede capturar la diferencia
+   entre p=1 y p=2 con bond_dim=64, produciendo el mismo circuito.
+
+### Implicaciones para Hardware
+
+**Para los h-values de deployment (3.25-4.0)**:
+- ❌ NO usar C16 (AQC) como primary — peor que C5 (standard+PEA)
+- ✅ Ejecutar C16 como validación de que el método funciona (thesis completeness)
+
+**Para contribución extra de la tesis** (si hay QPU budget):
+- ✅ Ejecutar C16 en h=1.75 y h=2.0 — demuestra que AQC+PEA extiende el rango
+  válido del framework 0.5 unidades más allá del valid regime de p=1
+- Claim potencial: "AQC-Tensor compression extends hardware-viable regime from
+  h≥3.0 (p=1 alone) to h≥1.75 (AQC p=2 compressed)"
+
+### Circuito Fingerprints (seed=100, determinísticos)
+
+| h | Fingerprint | n_2q | Nota |
+|:---:|:---:|:---:|------|
+| 1.50 | `44284b37d78c63d5` | 18 | Colapsó a p=1 |
+| 1.75 | `d3a0ce8d9b4ef64b` | 27 | AQC p=2 comprimido |
+| 2.00 | `d3a0ce8d9b4ef64b` | 27 | Mismo circuito que h=1.75 |
+| 3.25 | `d3a0ce8d9b4ef64b` | 27 | Estable en todo el rango paramagnético |
+| 4.00 | `739e79ef0dc1c759` | 27 | Diferente (θ_opt cambia gates) |
+
+El fingerprint constante `d3a0ce8d9b4ef64b` para h∈[1.75, 3.25] sugiere que
+AQC produce un circuito topológicamente similar en todo ese rango (misma
+estructura de gates, diferentes ángulos).

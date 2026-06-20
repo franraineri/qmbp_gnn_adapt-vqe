@@ -33,9 +33,9 @@ sys.path.insert(0, str(ROOT))
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-THETA_FILE = ROOT / "analysis" / "raw_data" / "theta_trajectories.json"
+THETA_FILE = ROOT / "results" / "analysis" / "raw_data" / "theta_trajectories.json"
 D1_DIR = ROOT / "results" / "experiments" / "exp_d1"
-OUTPUT_RESULTS = ROOT / "analysis" / "raw_data" / "theta_derivative_vs_d1.json"
+OUTPUT_RESULTS = ROOT / "results" / "analysis" / "raw_data" / "theta_derivative_vs_d1.json"
 FIGURES_DIR = ROOT / "project_health" / "figures"
 
 H_C = 1.0

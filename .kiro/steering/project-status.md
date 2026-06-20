@@ -1,14 +1,11 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "src/**,scripts/**,experiments/**,project_health/**,documentation/**,results/**,tests/**"
+---
+
 # Project Status — GNN-HVA Framework
 
 **Last updated**: 2026-06-17
-
-## Experiment Discipline (ALWAYS ENFORCE)
-
-1. State the hypothesis being tested. No hypothesis → no execution.
-2. Check binnacles and poc-results.md — if the result is already established, do NOT re-run.
-3. Every run must produce new learning. "Confirming what we know" is not learning after 3 seeds.
-4. Do not duplicate information across binnacles — reference existing entries, don't copy them.
-5. Known physics limits cannot be tuned past. See `experiment-protocol.md` for the full list.
 
 ## Current Phase
 
@@ -87,38 +84,6 @@ Reference: `documentation/binnacles/binnacle-mpnn-eval-suite.md`
    - **Bond-resolved 79D VALIDATED** (2026-06-10): GNN is ESSENTIAL for 79-param prediction. Intra-N: 6/6 PASS (ΔE/gap=0.7%), GNN 4414× better than random init. Cross-N 79D FAILS (45 training pts insufficient for 494K-param model). Ref: `results/experiments/exp_B4_BR_CROSS_N/run_20260610_165650.json`.
    - Scripts: `run_zero_shot_cross_n_v3.py`, `run_cross_n_ablation_suite.py`, `run_bond_resolved_cross_n.py`.
    - Ref: `documentation/binnacles/binnacle-cross-n-zero-shot.md`, `documentation/analysis/19_cross_n_validation_plan.md`.
-
-## Key Constraints (always enforce)
-
-> Full list with rationale: `.kiro/skills/quantum/SKILL.md`
-
-- HVA only, never HEA. p ≤ 2 layers. |+⟩^N initial state (TFIM). Néel state (Heisenberg).
-- Descending sweep h_max→h_min. No angle wrapping. Pure energy cost in Phase 2.
-- SparsePauliOp only. Primitives V2 only. Local observables on hardware.
-- Fidelity filter ≥ 0.93 (TFIM), ≥ 0.60 (Heisenberg) in Phase 3 training data.
-- Hardware success: ΔE/gap < 5% AND correct phase label (not fidelity).
-- **VQE validation runs automatically** after Phase 2: variational principle, energy bounds, θ bounds, convergence rate, sweep quality. Results in `diagnostics.vqe_validation`. CLI: `--no-validate-vqe` to disable, `--strict-validation` to abort on CRITICAL.
-- **Heisenberg HVA p≤2 CANNOT work** — do not attempt (V9: 30 runs + N=10/16 scaling confirm).
-- **Kitaev chain NOT viable** — 20 CZ@N=6 (exceeds ZNE), fid=16% max. Do not implement.
-- **TFIM+longitudinal WORKS** — fid≥0.98 at g=0.5, 0 extra CX gates (E4b validated).
-- **TFIM frustrated (J1-J2) WORKS in simulation** — fid≥0.99 at J₂=0.5, but 27 CZ@N=6 (no ZNE for N≥6).
-- **ZNE threshold**: ~18 CX gates. p=2 N=10 (36 CX) fails. Use p=1 for N≥10 hardware.
-- **CES-ZNE fails on heavy_hex**: All good layouts have CES≈0.15 (no spread). Use IBM gate-folding ZNE instead. Ref: `documentation/analysis/11_hardware_rehearsal_findings.md`.
-- **Mapomatic VF2 layout optimizer** (2026-06-17): 6.1× lower CES than BFS (0.031 vs 0.190 on FakeTorino N=10). SWAP-free layouts via subgraph isomorphism. Enabled by default (`HardwareConfig.use_mapomatic=True`). Ref: `src/qmbp_simulation/execution/hardware/layout_optimizer.py`.
-- **Gate-folding ZNE validated**: +12% mean gain, R²>0.99, wins 9/12 h-points vs CES-ZNE (t=3.28, p<0.01). Robust across chain_1d/heavy_hex/ladder. Ref: `documentation/binnacles/binnacle-gate-folding-zne.md`.
-- **PEA-ZNE validated**: +95% mean gain (8.4× GF-ZNE), R²=0.998, std=2.9% (3 seeds × 4 h-points). Requires qiskit-aer. Recommended primary strategy for hardware. Ref: `documentation/binnacles/binnacle-gate-folding-zne.md`.
-- **Adaptive ZNE default changed to pea_primary** (2026-06-05): `run_adaptive_zne()` now uses PEA as primary (not GF). GF R²>0.99 does NOT guarantee accuracy (89.8% ΔE/gap observed). Use `strategy="gf_primary"` only for legacy compat. Ref: Kim et al. Nature 618 (2023), QESEM arXiv:2508.10997.
-- **Block-level ZNE available for p≥2**: `run_block_zne()` folds only 1 HVA layer → shallower folded depth, better linearity. Ref: arXiv:2507.23314.
-- **Affine correction**: `affine_correct_energy()` clips ZNE energies to [E_ground, E_upper]. Zero cost. Ref: Wang et al. arXiv:2604.16815.
-- **TLS drift monitoring**: `take_calibration_snapshot()` + `check_calibration_drift()` for hardware runs. Abort if T1 drift > 20%. Ref: Nature Comms 2025 (arXiv:2407.02467).
-- **GNN-QEM validated** (2026-06-06): +99.4% error reduction in-distribution, 100% zero-shot transfer to heavy_hex N=10 (t=13.28, p<10⁻⁶). BUT: does NOT help after PEA-ZNE (0% improvement on post-ZNE residuals). Use only when PEA unavailable. Ref: Wang et al. arXiv:2604.16815.
-- **GNN-QEM + PEA are alternatives, not complements**: Both remove structured noise. After one removes structure, residual is unstructured shot noise. Deploy: PEA (primary) → affine (always). GNN-QEM only if PEA unavailable.
-- **PEA available as fallback**: If gate-folding ZNE gives R²<0.90 or ΔE/gap>5%, switch `zne_amplifier="pea"`. Learns actual noise model via Pauli-Lindblad fitting, then amplifies probabilistically. ~50% extra QPU overhead. Use `--zne-amplifier pea` in CLI. Ref: IBM Nature 618 (2023).
-- **PEA local simulation valid ONLY at N≤10**: FakeTorino (133 qubits) OOMs at N≥20. Native chain_1d at N≥20 has insufficient noise for ZNE (no SWAP routing overhead). PEA N≥20 validation requires real QPU. Ref: `documentation/analysis/23_noisy_simulation_scalability_limits.md`.
-- **D1 generalizes to frustrated TFIM**: Weight gradient peaks track crossover for all J₂ tested (T1c: 100% agreement).
-- **PauliEvolutionGate gives −6–10% total_depth** (validated 2026-06-15, Section 20): Use `create_pauli_evolution()` for hardware deployment circuits. Same n_2Q (34), same energy (|ΔE|<4e-14), shorter scheduling. On heavy_hex, 2Q-depth=1 for both (bonds non-overlapping — fully parallelized); benefit is in total_depth scheduling of 1Q gates. Bug in original 2026-06-05 version (coeff=1.0→0.5 fix). Applied to Tiers 0/1/2 of `run_ibm_deployment.py`. VQE noiseless training still uses `create()` (no transpilation → no benefit). Level 3 / Rustiq provide no benefit for HVA. Ref: `documentation/binnacles/binnacle-pauli-evolution-transpilation.md`, `documentation/analysis/15_transpiler_exploration.md`.
-- **Mitiq integration** (2026-06-17): Complementary error mitigation via CDR, DDD+ZNE, random-folding ZNE. `optimization_level=0` mandatory (Qiskit 2.x cancels folded gates at level≥1). CDR: 58.8% improvement (N=4 benchmark). ZNE random: 76.5%. Strategy: PEA primary → Mitiq CDR verification. Ref: `documentation/analysis/24_mitiq_integration_plan.md`, `src/qmbp_simulation/execution/mitiq_utils.py`.
-- **Mitigation Benchmark** (2026-06-18): 21 configs × 15 h-points on FakeTorino (V2, θ_opt corrected). **ALL PEA variants achieve ΔE/gap=0.37% (PASS <5%)** in paramagnetic regime. DD/Twirling have ZERO effect in depolarizing simulation. GF-ZNE reduces to 28.7% (31% reduction vs raw). Mitiq ZNE **destructive** at N=10 with routing (opt_level=0 → 45 CZ, 81% ΔE/gap). AQC+PEA is global champion (2.1% h≥3.0, best in critical regime at 70%). PEA budget indistinguishable in sim (all converge). Definitive config: **C5_full_pea_balanced, opt_level=2, depth_2q=14, n_2q=18**. Hardware order: C0→C1→C3→C4→C5→C6→C16. Ref: `documentation/binnacles/binnacle-mitigation-benchmark-v2.md`.
 
 ## Unsupervised Phase Detection (Task 2+3 findings)
 

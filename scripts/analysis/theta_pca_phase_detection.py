@@ -30,8 +30,8 @@ sys.path.insert(0, str(ROOT))
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-INPUT_FILE = ROOT / "analysis" / "raw_data" / "theta_trajectories.json"
-OUTPUT_RESULTS = ROOT / "analysis" / "raw_data" / "theta_pca_results.json"
+INPUT_FILE = ROOT / "results" / "analysis" / "raw_data" / "theta_trajectories.json"
+OUTPUT_RESULTS = ROOT / "results" / "analysis" / "raw_data" / "theta_pca_results.json"
 FIGURES_DIR = ROOT / "project_health" / "figures"
 
 # Known critical field for TFIM
@@ -473,7 +473,7 @@ def run_scaling_analysis(results: list[dict], fmt: str = "png", theme: str = "de
         },
     }
 
-    out_path = ROOT / "analysis" / "raw_data" / "pca_peak_vs_N.json"
+    out_path = ROOT / "results" / "analysis" / "raw_data" / "pca_peak_vs_N.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2, default=str)

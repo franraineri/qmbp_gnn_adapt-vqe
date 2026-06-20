@@ -123,6 +123,7 @@ def save_run(
     zne_data: dict[str, Any],
     input_params: Any | None = None,
     transpiled_stats: dict[str, Any] | None = None,
+    qpu_metrics: dict[str, Any] | None = None,
 ) -> Path:
     """Persist all artifacts from a single hardware execution.
 
@@ -139,6 +140,11 @@ def save_run(
         Circuit statistics post-transpilation (depth, depth_2q, gate counts,
         etc.). Saved to transpiled_circuit.json for analysis of suppression
         technique impact on circuit structure.
+    qpu_metrics : dict | None
+        Aggregated QPU usage metrics from _aggregate_qpu_metrics(). Contains
+        total_qpu_seconds, total_billed_seconds, per_layout_qpu_s, and
+        running_timestamps. Persisted in provenance.json for complete cost
+        tracking. If None, falls back to inline derivation from raw_per_layout.
     """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path(config.output_dir) / f"run_{ts}"
@@ -158,13 +164,24 @@ def save_run(
             "options_snapshot": options_dict,
             "n_qubits": config.n_qubits,
             "layout_selection_seed": config.layout_seed,
-            # QPU usage (from job.metrics(), populated for real hardware jobs)
-            "total_qpu_seconds": sum(
-                r.get("qpu_seconds", 0)
-                for r in raw_per_layout
-                if isinstance(r.get("qpu_seconds"), (int, float))
-            )
-            or None,
+            # QPU usage — use structured qpu_metrics if provided, else derive inline
+            "total_qpu_seconds": (
+                qpu_metrics.get("total_qpu_seconds")
+                if qpu_metrics
+                else (
+                    sum(
+                        r.get("qpu_seconds", 0)
+                        for r in raw_per_layout
+                        if isinstance(r.get("qpu_seconds"), (int, float))
+                    )
+                    or None
+                )
+            ),
+            "total_billed_seconds": (
+                qpu_metrics.get("total_billed_seconds") if qpu_metrics else None
+            ),
+            "per_layout_qpu_s": (qpu_metrics.get("per_layout_qpu_s") if qpu_metrics else None),
+            "running_timestamps": (qpu_metrics.get("running_timestamps") if qpu_metrics else None),
         },
         run_dir / "provenance.json",
     )
