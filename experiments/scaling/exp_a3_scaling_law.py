@@ -70,7 +70,7 @@ class ExperimentA3(BaseExperiment):
                 h_test=[],  # No MPNN deployment — boundary search only
             ),
             analysis=AnalysisConfig(scaling_n_values=[4, 6, 8, 10]),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

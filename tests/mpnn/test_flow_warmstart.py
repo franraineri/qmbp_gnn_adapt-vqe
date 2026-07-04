@@ -219,7 +219,7 @@ def test_property_6_trainable_param_count(
 
 # Import Ext1bP1ValidationRunner via importlib (scripts/ has no __init__.py)
 _RUNNER_PATH = _os.path.join(
-    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
     "scripts",
     "experiment_runners",
     "run_ext1_intra_n_p1.py",
@@ -295,7 +295,7 @@ class TestExt1bP1ValidationRunner:
 
 
 _V3_PATH = _os.path.join(
-    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
     "scripts",
     "experiment_runners",
     "run_hardware_rehearsal_v3.py",
@@ -360,7 +360,7 @@ class TestSection10Extensions:
 
 # Import kappa_go_no_go via importlib (scripts/ has no __init__.py)
 _DEPLOY_PATH = _os.path.join(
-    _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+    _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
     "scripts",
     "experiment_runners",
     "hardware",

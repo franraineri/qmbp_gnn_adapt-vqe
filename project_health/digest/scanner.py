@@ -58,6 +58,16 @@ class ResultScanner:
     def __init__(self, results_root: Path = Path("results")) -> None:
         self.root = results_root
         self._exclude_tests = False
+        self._index: Any = None
+
+    @property
+    def index(self):
+        """Lazily-initialized ResultIndex for fast experiment discovery."""
+        if self._index is None:
+            from qmbp_simulation.framework.result_index import ResultIndex
+            exp_root = self.root / "experiments"
+            self._index = ResultIndex(root=exp_root)
+        return self._index
 
     def scan_all(
         self,
@@ -371,7 +381,7 @@ class ResultScanner:
             exp_type = experiment or "unknown"
 
         # Extract common metadata
-        seeds = meta.get("seeds", [42, 43, 44])
+        seeds = meta.get("seeds", DEFAULT_SEEDS)
         target_n = meta.get("target_n", 10)
         threshold = meta.get("threshold", 0.10)
         norm_type = meta.get("norm_type", "none")
@@ -736,8 +746,11 @@ class ResultScanner:
         Handles both BaseExperiment and ValidationRunner result formats:
         - BaseExperiment: data["analysis"]["summary"] with mean_de_gap, pass_rate
         - ValidationRunner: data["summary"] with n_passed, pass_rate, hypotheses
+
+        Uses recursive glob to support nested directory structures
+        (e.g., exp_noiseless/tfim/heavy_hex/run_*.json).
         """
-        run_files = sorted(exp_dir.glob("run_*.json"), reverse=True)
+        run_files = sorted(exp_dir.rglob("run_*.json"), reverse=True)
         if not run_files:
             return None
 
@@ -897,11 +910,18 @@ def _synthesize_summary_from_analysis(
 
 
 def _load_json(path: Path) -> dict[str, Any] | None:
-    """Safely load a JSON file, returning None on failure."""
+    """Safely load a JSON file, returning None on failure.
+
+    Delegates to the canonical load_result from framework.result_io for
+    consistent error handling (size guard, corruption detection).
+    """
     try:
-        with open(path) as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+        from qmbp_simulation.framework.result_io import load_result
+        return load_result(path)
+    except (FileNotFoundError, ValueError) as e:
+        logger.debug("Failed to load %s: %s", path, e)
+        return None
+    except (OSError, UnicodeDecodeError) as e:
         logger.debug("Failed to load %s: %s", path, e)
         return None
 

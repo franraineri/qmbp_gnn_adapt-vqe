@@ -5,6 +5,7 @@ from qmbp_simulation.execution.backends import (
     MitigationOptions,
     NoiselessBackend,
     NoisyBackend,
+    select_backend,
 )
 from qmbp_simulation.execution.mps_backend import MPSBackend
 from qmbp_simulation.execution.hardware import (

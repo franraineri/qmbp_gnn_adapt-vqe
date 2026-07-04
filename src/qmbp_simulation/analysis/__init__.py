@@ -43,6 +43,17 @@ from qmbp_simulation.analysis.metrics import (
     compute_snr,
     compute_theta_smoothness,
 )
+from qmbp_simulation.analysis.theta_alignment import (
+    AlignmentReport,
+    EnergyGuardReport,
+    OutlierReport,
+    align_theta_array,
+    align_theta_sweep,
+    cross_h_energy_guard,
+    detect_jumps,
+    detect_theta_outliers,
+    filter_theta_outliers,
+)
 from qmbp_simulation.analysis.theta_validator import (
     ThetaValidationReport,
     ThetaValidator,
@@ -52,6 +63,15 @@ from qmbp_simulation.analysis.vqe_validator import (
     VQEValidator,
     ValidationIssue,
     Severity,
+)
+from qmbp_simulation.analysis.ground_truth_validator import (
+    GroundTruthValidationReport,
+    GroundTruthValidator,
+)
+from qmbp_simulation.analysis.cross_n_validator import (
+    CrossNValidationReport,
+    CrossNValidator,
+    preflight_cross_n,
 )
 from qmbp_simulation.analysis.nlce import (
     ClusterResult,
@@ -65,7 +85,11 @@ from qmbp_simulation.analysis.nlce import (
 )
 from qmbp_simulation.analysis.circuit_visualizer import (
     circuit_summary,
+    compute_circuit_feasibility,
+    compute_decoherence_penalty,
     compute_error_budget,
+    compute_parallelism_efficiency,
+    compute_shot_noise_floor,
     build_error_prediction,
     validate_prediction_vs_result,
     print_circuit,
@@ -77,6 +101,7 @@ from qmbp_simulation.analysis.circuit_visualizer import (
 )
 
 __all__ = [
+    "AlignmentReport",
     "BaselineComparison",
     "BaselineMetrics",
     "ClusterResult",
@@ -87,6 +112,8 @@ __all__ = [
     "EntanglementAnalyzer",
     "EntanglementResult",
     "GradientAnalysisResult",
+    "GroundTruthValidationReport",
+    "GroundTruthValidator",
     "NLCEConfig",
     "NLCEResult",
     "NLCERunner",
@@ -99,8 +126,14 @@ __all__ = [
     "VQEValidator",
     "ValidationIssue",
     "WeightGradientAnalyzer",
+    "align_theta_array",
+    "align_theta_sweep",
     "circuit_summary",
+    "compute_circuit_feasibility",
+    "compute_decoherence_penalty",
     "compute_error_budget",
+    "compute_parallelism_efficiency",
+    "compute_shot_noise_floor",
     "build_error_prediction",
     "validate_prediction_vs_result",
     "rank_layouts_by_depth_2q",
@@ -110,6 +143,7 @@ __all__ = [
     "classify_result",
     "compute_classification_confidence",
     "compute_cx_budget",
+    "detect_jumps",
     "compute_energy_decomposition",
     "compute_fraction_near_gs",
     "compute_hessian",

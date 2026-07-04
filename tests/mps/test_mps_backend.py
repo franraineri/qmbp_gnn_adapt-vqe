@@ -27,6 +27,7 @@ from qmbp_simulation.execution import MPSBackend, NoiselessBackend
 from qmbp_simulation.models import VQEConfig
 from qmbp_simulation.models.constants import (
     DMRG_QUBIT_LIMIT,
+    MPS_DEFAULT_CHI_MAX,
     SUPPORTED_VQE_METHODS,
 )
 
@@ -57,7 +58,7 @@ class TestPropertyTeNPyExactCrossValidation:
 
         theta = rng.uniform(-np.pi, np.pi, size=n_params)
 
-        mps_backend = MPSBackend(strategy="tenpy_exact", chi_max=64)
+        mps_backend = MPSBackend(strategy="tenpy_exact", chi_max=MPS_DEFAULT_CHI_MAX)
         noiseless = NoiselessBackend()
 
         e_mps = mps_backend.evaluate(circuit, H, theta)
@@ -102,7 +103,9 @@ class TestPropertyAerMPSPrecision:
         n_params = circuit.num_parameters
         theta = rng.uniform(-np.pi, np.pi, size=n_params)
 
-        mps_backend = MPSBackend(strategy="aer_mps", precision=precision, seed=42, chi_max=64)
+        mps_backend = MPSBackend(
+            strategy="aer_mps", precision=precision, seed=42, chi_max=MPS_DEFAULT_CHI_MAX
+        )
         noiseless = NoiselessBackend()
 
         e_mps = mps_backend.evaluate(circuit, H, theta)
@@ -309,7 +312,7 @@ class TestMPSBackendUnit:
 
     def test_name_format_tenpy(self):
         """MPSBackend('tenpy_exact') name must contain strategy info."""
-        backend = MPSBackend(strategy="tenpy_exact", chi_max=64)
+        backend = MPSBackend(strategy="tenpy_exact", chi_max=MPS_DEFAULT_CHI_MAX)
         assert "tenpy_exact" in backend.name
         assert "chi64" in backend.name
 
@@ -327,7 +330,7 @@ class TestMPSBackendUnit:
         H = builder.build(lattice)
         circuit, _ = hva.create(4, 1, lattice)
 
-        backend = MPSBackend(strategy="tenpy_exact", chi_max=64)
+        backend = MPSBackend(strategy="tenpy_exact", chi_max=MPS_DEFAULT_CHI_MAX)
         wrong_params = np.zeros(circuit.num_parameters + 3)
 
         with pytest.raises(ValueError, match="Parameter count mismatch"):
@@ -368,7 +371,7 @@ class TestMPSBackendIntegration:
         H = builder.build(lattice)
         circuit, _ = hva.create(4, 1, lattice)
 
-        mps_backend = MPSBackend(strategy="tenpy_exact", chi_max=64)
+        mps_backend = MPSBackend(strategy="tenpy_exact", chi_max=MPS_DEFAULT_CHI_MAX)
         noiseless = NoiselessBackend()
 
         rng = np.random.default_rng(42)
@@ -388,7 +391,9 @@ class TestMPSBackendIntegration:
         circuit, _ = hva.create(4, 1, lattice)
 
         precision = 0.01
-        mps_backend = MPSBackend(strategy="aer_mps", precision=precision, seed=42, chi_max=64)
+        mps_backend = MPSBackend(
+            strategy="aer_mps", precision=precision, seed=42, chi_max=MPS_DEFAULT_CHI_MAX
+        )
         noiseless = NoiselessBackend()
 
         rng = np.random.default_rng(42)
@@ -421,7 +426,9 @@ class TestMPSDirectPathLargeN:
         H = builder.build(lattice)
         circuit, _ = hva.create(N, 1, lattice)
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=0.01, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, precision=0.01, seed=42
+        )
         theta = np.array([1.0, 0.5])
         energy = backend.evaluate(circuit, H, theta)
 
@@ -440,7 +447,9 @@ class TestMPSDirectPathLargeN:
         H = builder.build(lattice)
         circuit, _ = hva.create(N, 1, lattice)
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=0.01, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, precision=0.01, seed=42
+        )
         theta = np.array([2.5, 1.0])
         energy = backend.evaluate(circuit, H, theta)
 

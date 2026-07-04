@@ -82,7 +82,7 @@ class ExperimentC1(BaseExperiment):
                 physics_loss_start_epoch=1000,
                 physics_loss_eval_every=100,
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

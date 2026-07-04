@@ -45,7 +45,7 @@ class ExperimentF3(BaseExperiment):
                 h_test=[],
             ),
             analysis=AnalysisConfig(fluctuation_n_samples=100),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

@@ -117,9 +117,13 @@ def run_vqe_sweep(
     """
     # Backend dispatch: NoiselessBackend for N<=15, MPSBackend for N=16+
     if n > 15:
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=0.005, seed=seed)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, precision=0.005, seed=seed
+        )
         method = "COBYLA"
-        logger.info("  Backend: MPSBackend(chi_max=64, strategy=aer_mps), method=COBYLA")
+        logger.info(
+            "  Backend: MPSBackend(chi_max=MPS_DEFAULT_CHI_MAX, strategy=aer_mps), method=COBYLA"
+        )
     else:
         backend = NoiselessBackend()
         method = "L-BFGS-B"

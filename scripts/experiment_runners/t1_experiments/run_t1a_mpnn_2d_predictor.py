@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 N_QUBITS = 6
 P_LAYERS = 2
 TOPOLOGY = "chain_1d"
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # 2D grid: h × J₂
 H_TRAIN = [2.5, 2.25, 2.0, 1.75, 1.5, 1.25, 1.0, 0.875, 0.75]

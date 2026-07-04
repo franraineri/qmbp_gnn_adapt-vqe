@@ -14,6 +14,8 @@ ZNE Strategy (2026-06-04 update, per 13_hardware_zne_improvements.md):
 
 from __future__ import annotations
 
+import logging
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import partial
@@ -27,6 +29,8 @@ from qiskit.quantum_info import SparsePauliOp
 from qmbp_simulation.execution.backends import ExecutionBackend
 from qmbp_simulation.execution.hardware.config import HardwareConfig, HardwareRunResult, SPSAConfig
 from qmbp_simulation.execution.noisy_utils import LayoutSelection, NoisyEstimatorConfig, linear_zne
+
+logger = logging.getLogger(__name__)
 
 # R² threshold below which the ZNE result is considered unreliable
 ZNE_R2_QUALITY_THRESHOLD = 0.80
@@ -383,6 +387,296 @@ class HardwareBackend(ExecutionBackend):
             # re-transpilation. Also enables post-hoc circuit fingerprinting.
             circuit_qasm_paths = self._save_circuit_qasm(layout_selection, h_value)
 
+            # ══════════════════════════════════════════════════════════════
+            # QESEM ALTERNATE PATH — bypasses local ZNE pipeline entirely
+            # ══════════════════════════════════════════════════════════════
+            if self._config.mitigation.qesem_enabled:
+                from .observables import build_per_site_observables
+                from .persistence import save_run
+                from .phase import classify_phase
+                from .qesem import check_qesem_available, run_qesem_deployment
+
+                # ── Guard: QESEM cannot run locally (requires real QPU) ──
+                if self._config.mode == "fake_backend":
+                    raise RuntimeError(
+                        "QESEM (qesem_enabled=True) cannot run in fake_backend mode. "
+                        "QESEM is a server-side Qiskit Function that requires a real QPU. "
+                        "Options: (1) Use mode='hardware' with real credentials, or "
+                        "(2) Disable QESEM (qesem_enabled=False) to use local PEA-ZNE."
+                    )
+
+                available, err_msg = check_qesem_available()
+                if not available:
+                    raise ImportError(
+                        f"QESEM enabled but dependencies missing: {err_msg}. "
+                        f"Install: pip install qiskit-ibm-catalog>=0.8.0"
+                    )
+
+                edges = [(i, i + 1) for i in range(self._config.n_qubits - 1)]
+                x_ops, zz_ops = build_per_site_observables(self._config.n_qubits, edges)
+
+                # ── Save QESEM pre-submission manifest ────────────────────
+                # Captures exactly what will be sent to QESEM for provenance,
+                # real-time monitoring, and post-hoc debugging.
+                qesem_manifest = {
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "strategy": "qesem_unbiased",
+                    "backend_name": self._config.backend_name,
+                    "h_value": h_value,
+                    "e_exact": e_exact,
+                    "gap": gap,
+                    "expected_label": expected_label,
+                    "qesem_config": {
+                        "precision": self._config.qesem_precision,
+                        "max_execution_time": self._config.qesem_max_execution_time,
+                        "client_timeout_s": self._config.qesem_max_execution_time * 2 + 300,
+                    },
+                    "circuit": {
+                        "n_qubits": bound.num_qubits,
+                        "depth": bound.depth(),
+                        "depth_2q": bound.depth(
+                            filter_function=lambda instr: len(instr.qubits) == 2
+                        ),
+                        "gate_counts": dict(bound.count_ops()),
+                        "params_bound": params.tolist(),
+                    },
+                    "observables": {
+                        "n_total": 1 + len(x_ops) + len(zz_ops),
+                        "energy_terms": len(hamiltonian),
+                        "n_x_ops": len(x_ops),
+                        "n_zz_ops": len(zz_ops),
+                    },
+                    "calibration_snapshot_available": calibration_snapshot is not None,
+                    "transpiled_stats_available": transpiled_stats is not None,
+                }
+                from qmbp_simulation.utils.helpers import json_dump
+
+                manifest_dir = Path(self._config.output_dir)
+                manifest_dir.mkdir(parents=True, exist_ok=True)
+                manifest_path = manifest_dir / f"qesem_pre_submission_h{h_value:.2f}.json"
+                json_dump(qesem_manifest, manifest_path)
+                self._logger.log(
+                    "qesem_pre_submission_manifest_saved",
+                    data={"path": str(manifest_path), "h_value": h_value},
+                )
+                print(f"\n  📋 QESEM pre-submission manifest saved: {manifest_path}")
+
+                qesem_result = run_qesem_deployment(
+                    circuit=bound,
+                    hamiltonian=hamiltonian,
+                    x_ops=x_ops,
+                    zz_ops=zz_ops,
+                    config=self._config,
+                    structured_logger=self._logger,
+                )
+
+                # Merge QESEM circuit_stats into transpiled_stats for validators.
+                # This gives post-execution analysis access to both the pre-submission
+                # logical circuit stats AND the QESEM-transpiled physical circuit info.
+                if qesem_result.circuit_stats:
+                    transpiled_stats = transpiled_stats or {}
+                    transpiled_stats["qesem_circuit_stats"] = qesem_result.circuit_stats
+
+                # Map QESEM output to HardwareRunResult format
+                e_mitigated = qesem_result.energy_mitigated
+                delta_e_gap = abs(e_mitigated - e_exact) / gap if gap > 0 else float("inf")
+                x_values = qesem_result.x_values
+                zz_values = qesem_result.zz_values
+
+                # ── Precision quality gate (analogous to R² gate in PEA path) ──
+                # If QESEM achieved std > 2× requested precision, warn. This can
+                # happen when max_execution_time is hit before convergence.
+                achieved_std = qesem_result.energy_std
+                if achieved_std > self._config.qesem_precision * 2:
+                    self._logger.log(
+                        "qesem_precision_degraded",
+                        data={
+                            "achieved_std": achieved_std,
+                            "requested_precision": self._config.qesem_precision,
+                            "ratio": achieved_std / self._config.qesem_precision,
+                            "warning": (
+                                f"QESEM achieved σ={achieved_std:.4f} > "
+                                f"2×ε={self._config.qesem_precision:.4f}. "
+                                f"QPU time cap may have been reached before convergence."
+                            ),
+                        },
+                    )
+
+                # Compute ZNE gain from noisy vs mitigated (comparable to PEA).
+                # Only valid when noisy data is genuinely available from QESEM.
+                # When noisy_data_available=False, noisy_energy is a sentinel (0.0)
+                # and zne_gain would be artificially inflated — report as None.
+                if qesem_result.noisy_data_available:
+                    raw_error = abs(qesem_result.noisy_energy - e_exact)
+                    mitigated_error = abs(e_mitigated - e_exact)
+                    zne_gain = 1.0 - (mitigated_error / raw_error) if raw_error > 1e-10 else 0.0
+                else:
+                    zne_gain = 0.0  # Cannot compute — noisy baseline unavailable
+
+                label, mag_x, corr_zz, sigma = classify_phase(
+                    x_values, zz_values, self._config.shots
+                )
+
+                # Verdict logic (same as local ZNE path)
+                if delta_e_gap < 0.05 and label == expected_label:
+                    verdict = "PASS"
+                    verdict_reason = f"ΔE/gap={delta_e_gap:.4f} < 5%, phase={label} correct"
+                elif delta_e_gap < 0.05:
+                    verdict = "PARTIAL"
+                    verdict_reason = (
+                        f"Energy good (ΔE/gap={delta_e_gap:.4f}) but "
+                        f"phase={label} ≠ {expected_label}"
+                    )
+                else:
+                    verdict = "FAIL"
+                    verdict_reason = f"ΔE/gap={delta_e_gap:.4f} ≥ 5%"
+
+                result = HardwareRunResult(
+                    h_value=h_value,
+                    e_exact=e_exact,
+                    e_zne=e_mitigated,  # QESEM energy stored in e_zne field
+                    e_zne_std=qesem_result.energy_std,  # Statistical uncertainty
+                    delta_e_gap=delta_e_gap,
+                    gap=gap,
+                    phase_label=label,
+                    expected_label=expected_label,
+                    zne_r2=1.0,  # QESEM is unbiased — no R² applicable
+                    zne_gain=zne_gain,
+                    mag_x_mean=mag_x,
+                    corr_zz_mean=corr_zz,
+                    sigma=sigma,
+                    total_shots=qesem_result.total_shots or 0,
+                    job_ids=[qesem_result.job_id],
+                    layouts_used=[],  # QESEM handles its own transpilation/layout
+                    ces_values=[],  # Not applicable to QESEM path
+                    per_site_x=x_values,
+                    per_bond_zz=zz_values,
+                    verdict=verdict,
+                    verdict_reason=verdict_reason,
+                    zne_amplifier_used="qesem",
+                    mitigation_strategy="qesem_unbiased",
+                    # Observable clipping (from QESEM's post-execution diagnostics)
+                    obs_bounds_clipped=(
+                        qesem_result.circuit_stats.get("post_execution", {}).get(
+                            "n_obs_violations", 0
+                        )
+                        > 0
+                        if qesem_result.circuit_stats
+                        else False
+                    ),
+                    n_obs_violations=(
+                        qesem_result.circuit_stats.get("post_execution", {}).get(
+                            "n_obs_violations", 0
+                        )
+                        if qesem_result.circuit_stats
+                        else 0
+                    ),
+                    qesem_used=True,
+                    qesem_job_id=qesem_result.job_id,
+                    qesem_total_qpu_time=qesem_result.total_qpu_time,
+                    qesem_gate_fidelities=qesem_result.gate_fidelities,
+                    qesem_total_shots=qesem_result.total_shots,
+                    qesem_mitigation_shots=qesem_result.mitigation_shots,
+                    qesem_noisy_evs=(
+                        [qesem_result.noisy_energy]
+                        + qesem_result.noisy_x_values
+                        + qesem_result.noisy_zz_values
+                    )
+                    if qesem_result.noisy_data_available
+                    else None,
+                    n_layouts_observables=0,  # QESEM manages its own layout strategy
+                )
+
+                save_run(
+                    result,
+                    self._config,
+                    self._logger,
+                    calibration_info=calibration_snapshot,
+                    options_dict={"qesem_enabled": True, "precision": self._config.qesem_precision},
+                    execution_mode_name="qesem",
+                    raw_per_layout=[],
+                    zne_data={"method": "qesem", "job_id": qesem_result.job_id},
+                    input_params=params,
+                    transpiled_stats=transpiled_stats,
+                    qpu_metrics={"total_qpu_time": qesem_result.total_qpu_time},
+                )
+                result._calibration_snapshot = calibration_snapshot
+                result._transpiled_stats = transpiled_stats
+                result._qpu_metrics = {"total_qpu_time": qesem_result.total_qpu_time}
+
+                # ── Automatic QET/QESEM post-execution validation ─────────
+                # Runs the QET validator on the fresh result to log diagnostics.
+                # Non-blocking: issues are logged but do NOT abort the pipeline.
+                try:
+                    from project_health.analysis.hardware.validate_qet import (
+                        validate_qet_result,
+                    )
+
+                    qet_validation_data = {
+                        "job_id": qesem_result.job_id,
+                        "energy_mitigated": qesem_result.energy_mitigated,
+                        "energy_std": qesem_result.energy_std,
+                        "x_values": qesem_result.x_values,
+                        "zz_values": qesem_result.zz_values,
+                        "noisy_energy": (
+                            qesem_result.noisy_energy if qesem_result.noisy_data_available else None
+                        ),
+                        "metadata": {
+                            "gate_fidelities": qesem_result.gate_fidelities,
+                            "total_shots": qesem_result.total_shots,
+                            "mitigation_shots": qesem_result.mitigation_shots,
+                            "total_qpu_time": qesem_result.total_qpu_time,
+                        },
+                    }
+                    # Inject noise_scaling from QESEMResult if available
+                    if qesem_result.noise_scale_results:
+                        # Rebuild metadata.results format for the validator
+                        _results_for_validator = []
+                        for obs_scales in qesem_result.noise_scale_results:
+                            rem_pts = [
+                                {"scale": s, "value": v, "error_bar": std}
+                                for s, (v, std) in obs_scales.items()
+                            ]
+                            _results_for_validator.append(
+                                [
+                                    "obs",
+                                    {"noise_scaling": {"results_with_REM": rem_pts}},
+                                ]
+                            )
+                        qet_validation_data["metadata"]["results"] = [_results_for_validator]
+
+                    qet_report = validate_qet_result(qet_validation_data, e_exact=e_exact, gap=gap)
+
+                    self._logger.log(
+                        "qet_post_execution_validation",
+                        data={
+                            "passed": qet_report.passed,
+                            "n_issues": len(qet_report.issues),
+                            "n_warnings": qet_report.n_warnings,
+                            "metrics": qet_report.metrics,
+                            "issues": [
+                                {"severity": i.severity, "check": i.check, "msg": i.message}
+                                for i in qet_report.issues
+                            ],
+                        },
+                    )
+                    if not qet_report.passed:
+                        logger.warning(
+                            f"QET validation FAILED for h={h_value}: "
+                            + "; ".join(
+                                i.message for i in qet_report.issues if i.severity == "error"
+                            )
+                        )
+                except ImportError:
+                    pass  # project_health not installed in minimal deployments
+                except Exception as exc:
+                    logger.debug(f"QET validator error (non-blocking): {exc}")
+
+                return result
+            # ══════════════════════════════════════════════════════════════
+            # END QESEM PATH — continue with local ZNE pipeline below
+            # ══════════════════════════════════════════════════════════════
+
             # ── Save consolidated pre-submission manifest ─────────────
             # Single atomic JSON capturing everything about what is about to
             # be sent to the QPU: params, transpiled stats, calibration,
@@ -455,36 +749,184 @@ class HardwareBackend(ExecutionBackend):
                 {"step": "energy", "e_zne": e_zne, "r2": zne_r2, "amplifier": zne_amplifier_used}
             )
 
-            # Per-site observables on first layout
+            # Per-site observables on ALL layouts (P1-A: multi-layout averaging)
+            # Submitting observables across all layouts within the same Batch
+            # reduces σ by √(n_layouts) at zero extra QPU cost (same Batch).
             edges = [(i, i + 1) for i in range(self._config.n_qubits - 1)]
             x_ops, zz_ops = build_per_site_observables(self._config.n_qubits, edges)
-            isa_circ = layout_selection.transpiled_circuits[0]
-            mapped_obs = map_observables_to_layout(x_ops + zz_ops, isa_circ)
+            n_obs = len(x_ops) + len(zz_ops)
 
-            # Submit observables within a Batch (hardware) or directly (fake_backend)
             if self._config.mode == "hardware":
                 from qiskit_ibm_runtime import Batch as _Batch
                 from qiskit_ibm_runtime import EstimatorV2 as _EstV2
 
+                from .submission import _apply_estimator_options
+
+                # Submit observables on each layout in a single Batch
+                all_evs: list[np.ndarray] = []
                 with _Batch(backend=self.backend) as obs_batch:
                     obs_est = _EstV2(mode=obs_batch)
-                    from .submission import _apply_estimator_options
-
                     _apply_estimator_options(obs_est, self._config)
-                    obs_job = obs_est.run([(isa_circ, mapped_obs)])
+                    obs_jobs = []
+                    for isa_circ in layout_selection.transpiled_circuits:
+                        mapped_obs = map_observables_to_layout(x_ops + zz_ops, isa_circ)
+                        # ── Multi-layout observable mapping validation ────────
+                        # Guard: verify mapped_obs has correct qubit count for
+                        # this ISA circuit. A mismatch here means apply_layout
+                        # produced an incompatible observable (silent corruption).
+                        for j, m_op in enumerate(mapped_obs):
+                            if m_op.num_qubits != isa_circ.num_qubits:
+                                raise RuntimeError(
+                                    f"Observable mapping error: mapped_obs[{j}] has "
+                                    f"{m_op.num_qubits} qubits but ISA circuit has "
+                                    f"{isa_circ.num_qubits}. Layout mismatch."
+                                )
+                        obs_jobs.append(obs_est.run([(isa_circ, mapped_obs)]))
 
-                # Wait for result outside the batch context
-                if hasattr(obs_job, "wait_for_final_state"):
-                    obs_job.wait_for_final_state(timeout=self._config.job_timeout_s)
-                obs_result = obs_job.result()
-                evs = obs_result[0].data.evs
+                # Collect all observable results
+                for layout_idx, obs_job in enumerate(obs_jobs):
+                    try:
+                        from .submission import wait_for_qpu_execution
+
+                        wait_for_qpu_execution(obs_job, qpu_timeout_s=self._config.job_timeout_s)
+                        obs_result = obs_job.result()
+                        evs_layout = np.atleast_1d(obs_result[0].data.evs)
+                        # Validate: result length must match submitted observables
+                        if len(evs_layout) != n_obs:
+                            self._logger.log(
+                                "obs_layout_dimension_mismatch",
+                                data={
+                                    "layout_idx": layout_idx,
+                                    "expected_n_obs": n_obs,
+                                    "received_n_obs": len(evs_layout),
+                                    "warning": "Observable result dimension mismatch. "
+                                    "Skipping this layout to prevent data corruption.",
+                                },
+                            )
+                            continue
+                        if not np.all(np.isfinite(evs_layout)):
+                            self._logger.log(
+                                "obs_layout_non_finite",
+                                data={
+                                    "layout_idx": layout_idx,
+                                    "n_non_finite": int(np.sum(~np.isfinite(evs_layout))),
+                                },
+                            )
+                            continue
+                        all_evs.append(evs_layout)
+                    except Exception as obs_exc:
+                        self._logger.log(
+                            "obs_layout_failed",
+                            data={"error": str(obs_exc), "layout_idx": layout_idx},
+                        )
+
+                if not all_evs:
+                    raise RuntimeError("All observable layout jobs failed.")
+
+                # Average across layouts: σ_avg = σ_single / √(n_layouts)
+                evs = np.mean(all_evs, axis=0)
+                self._logger.log(
+                    "multi_layout_observables",
+                    data={
+                        "n_layouts_used": len(all_evs),
+                        "n_layouts_total": len(layout_selection.transpiled_circuits),
+                        "sigma_reduction_factor": float(np.sqrt(len(all_evs))),
+                    },
+                )
             else:
+                # fake_backend: submit on first layout only (no Batch support)
+                isa_circ = layout_selection.transpiled_circuits[0]
+                mapped_obs = map_observables_to_layout(x_ops + zz_ops, isa_circ)
                 estimator = self._get_configured_estimator()
-                evs = estimator.run([(isa_circ, mapped_obs)]).result()[0].data.evs
+                evs = np.atleast_1d(estimator.run([(isa_circ, mapped_obs)]).result()[0].data.evs)
 
-            evs = np.atleast_1d(evs)
             x_values = [float(evs[i]) for i in range(len(x_ops))]
             zz_values = [float(evs[len(x_ops) + i]) for i in range(len(zz_ops))]
+
+            # ── Post-QPU result validation checks ─────────────────────────
+            # These are zero-cost sanity checks that catch corrupt or
+            # anomalous QPU results before they contaminate downstream logic.
+
+            # Check 1: Observable bounds (|⟨O⟩| ≤ 1 for single-term Pauli ops)
+            obs_out_of_bounds = []
+            for i, xv in enumerate(x_values):
+                if abs(xv) > 1.0 + 1e-6:
+                    obs_out_of_bounds.append(("X", i, xv))
+            for i, zzv in enumerate(zz_values):
+                if abs(zzv) > 1.0 + 1e-6:
+                    obs_out_of_bounds.append(("ZZ", i, zzv))
+            if obs_out_of_bounds:
+                self._logger.log(
+                    "observable_bounds_violation",
+                    data={
+                        "violations": [
+                            {"op": op, "idx": idx, "value": val}
+                            for op, idx, val in obs_out_of_bounds
+                        ],
+                        "warning": "Observable magnitudes exceed operator norm (|⟨O⟩| > 1). "
+                        "This indicates noise/estimation artifact. Clipping to [-1, 1].",
+                    },
+                )
+                # Clip to physical bounds (ZNE extrapolation can overshoot)
+                x_values = [max(-1.0, min(1.0, v)) for v in x_values]
+                zz_values = [max(-1.0, min(1.0, v)) for v in zz_values]
+
+            # Check 2: Layout energy outlier detection (>5σ from mean)
+            layout_outliers = []
+            if len(raw_results) > 1:
+                layout_energies = np.array([r["energy"] for r in raw_results])
+                layout_mean = np.mean(layout_energies)
+                layout_std_val = np.std(layout_energies, ddof=1)
+                # Theoretical σ for finite shots: ~gap/√shots (conservative estimate)
+                sigma_theoretical = gap / np.sqrt(self._config.shots) if gap > 0 else 0.01
+                # Use max(measured_std, 5×theoretical) as outlier threshold
+                outlier_threshold = max(layout_std_val, 5.0 * sigma_theoretical)
+                layout_outliers = []
+                for r in raw_results:
+                    if abs(r["energy"] - layout_mean) > outlier_threshold:
+                        layout_outliers.append(r)
+                if layout_outliers:
+                    self._logger.log(
+                        "layout_energy_outlier",
+                        data={
+                            "n_outliers": len(layout_outliers),
+                            "layout_mean": float(layout_mean),
+                            "layout_std": float(layout_std_val),
+                            "outlier_threshold": float(outlier_threshold),
+                            "outlier_layouts": [
+                                {"idx": r["layout_idx"], "energy": r["energy"]}
+                                for r in layout_outliers
+                            ],
+                            "warning": "One or more layouts returned energy far from the mean. "
+                            "May indicate degraded qubit subset.",
+                        },
+                    )
+
+            # Check 3: Energy-observable cross-validation
+            # For TFIM: H = -J·ΣZZ - h·ΣX, so E_reconstructed ≈ -J·Σ⟨ZZ⟩ - h·Σ⟨X⟩
+            # This catches corrupt QPU results where energy and observables are inconsistent.
+            # NOTE: ZNE is non-linear → ZNE(H) ≠ Σ cᵢ·ZNE(Oᵢ). Expected discrepancy
+            # is ~10% of |E| for PEA-ZNE with exponential extrapolation (validated
+            # empirically: QESEM job 82aa showed 5% discrepancy at h=4.0).
+            e_reconstructed = -1.0 * sum(zz_values) - h_value * sum(x_values)
+            e_obs_discrepancy = abs(e_zne - e_reconstructed)
+            # Adaptive threshold: 15% of |E_zne| or gap, whichever is larger.
+            # The 2×gap threshold was too permissive (11.84 for h=4.0, never triggers).
+            cross_validation_threshold = max(0.15 * abs(e_zne), gap) if gap > 0 else 1.0
+            if e_obs_discrepancy > cross_validation_threshold:
+                self._logger.log(
+                    "energy_observable_inconsistency",
+                    data={
+                        "e_zne": e_zne,
+                        "e_reconstructed": e_reconstructed,
+                        "discrepancy": e_obs_discrepancy,
+                        "threshold": cross_validation_threshold,
+                        "h_value": h_value,
+                        "warning": "Energy and observable measurements are inconsistent. "
+                        "This may indicate ZNE applied differently to energy vs observables, "
+                        "or a layout-dependent artifact.",
+                    },
+                )
 
             label, mag_x, corr_zz, sigma = classify_phase(
                 x_values,
@@ -570,7 +1012,16 @@ class HardwareBackend(ExecutionBackend):
                 )
                 if spsa_applied and abs(best_energy - e_exact) < abs(e_zne - e_exact):
                     e_zne = best_energy
-                    delta_e_gap = abs(e_zne - e_exact) / gap if gap > 0 else float("inf")
+                    # Re-apply affine correction on the SPSA-refined energy
+                    # to maintain physics bounds (variational principle).
+                    spsa_affine = affine_correct_energy(
+                        e_zne,
+                        e_ground=e_exact,
+                        n_qubits=self._config.n_qubits,
+                        h_value=h_value,
+                    )
+                    e_final = spsa_affine.corrected_energy
+                    delta_e_gap = abs(e_final - e_exact) / gap if gap > 0 else float("inf")
 
             # ── R²-gated verdict (Issue 4) ────────────────────────────
             if zne_r2 < ZNE_R2_QUALITY_THRESHOLD:
@@ -599,7 +1050,7 @@ class HardwareBackend(ExecutionBackend):
                 phase_label=label,
                 expected_label=expected_label,
                 zne_r2=zne_r2,
-                zne_gain=0.0,
+                zne_gain=self._compute_zne_gain(raw_results, e_zne, e_exact),
                 mag_x_mean=mag_x,
                 corr_zz_mean=corr_zz,
                 sigma=sigma,
@@ -625,6 +1076,13 @@ class HardwareBackend(ExecutionBackend):
                 e_after_gnn_qem=e_after_gnn if gnn_qem_applied else None,
                 affine_correction_applied=affine_applied,
                 e_after_affine=e_after_affine if affine_applied else None,
+                # Post-QPU validation metrics
+                obs_bounds_clipped=len(obs_out_of_bounds) > 0,
+                n_obs_violations=len(obs_out_of_bounds),
+                layout_energy_outliers=len(layout_outliers) if len(raw_results) > 1 else 0,
+                e_obs_discrepancy=e_obs_discrepancy,
+                e_obs_cross_valid_passed=(e_obs_discrepancy <= cross_validation_threshold),
+                n_layouts_observables=len(all_evs) if self._config.mode == "hardware" else 1,
             )
 
             zne_data = {
@@ -632,6 +1090,16 @@ class HardwareBackend(ExecutionBackend):
                 "r_squared": zne_r2,
                 "amplifier": zne_amplifier_used,
                 "n_layouts": len(raw_results),
+                # ── P0 improvements metadata (2026-06-22) ──
+                "p0_enhancements": {
+                    "wls_extrapolation": zne_amplifier_used in ("pea", "gate_folding", "pea_local"),
+                    "pauli_evolution_circuit": True,
+                    "ces_spread_guard": True,
+                    "ces_spread_sufficient": getattr(
+                        layout_selection, "ces_spread_sufficient", None
+                    ),
+                    "ces_spread_ratio": getattr(layout_selection, "ces_spread_ratio", None),
+                },
                 # ── Quality metrics (derived, for post-hoc analysis) ──
                 "quality_metrics": self._compute_quality_metrics(
                     e_zne=e_zne,
@@ -682,11 +1150,184 @@ class HardwareBackend(ExecutionBackend):
     ) -> list[HardwareRunResult]:
         """Execute multiple h-points in single Batch/Session.
 
-        Includes TLS calibration drift monitoring: takes a baseline snapshot
-        before the sweep and checks for drift (>20% T1 degradation) between
-        h-points. Aborts early if calibration drifts beyond safe thresholds.
+        When QESEM is enabled, uses multi-PUB batch mode (single device
+        characterization shared across all h-points). Otherwise falls back
+        to sequential per-h execution with TLS drift monitoring.
         """
         from .persistence import save_sweep_summary
+
+        if 4.0 in h_values:
+            h_values = [4.0] + [h for h in h_values if h != 4.0]
+
+        # ══════════════════════════════════════════════════════════════════
+        # QESEM BATCH PATH — multi-PUB sweep (preferred for Tier 1+)
+        # ══════════════════════════════════════════════════════════════════
+        if self._config.mitigation.qesem_enabled:
+            from .observables import build_per_site_observables
+            from .phase import classify_phase
+            from .qesem import check_qesem_available, run_qesem_sweep
+
+            if self._config.mode == "fake_backend":
+                raise RuntimeError("QESEM sweep cannot run in fake_backend mode.")
+
+            available, err_msg = check_qesem_available()
+            if not available:
+                raise ImportError(f"QESEM deps missing: {err_msg}")
+
+            edges = [(i, i + 1) for i in range(self._config.n_qubits - 1)]
+            x_ops, zz_ops = build_per_site_observables(self._config.n_qubits, edges)
+
+            # Build per-h inputs
+            hamiltonians = [hamiltonian_builder(h) for h in h_values]
+            x_ops_list = [x_ops] * len(h_values)  # Same topology → same obs
+            zz_ops_list = [zz_ops] * len(h_values)
+            params_list = [params_per_h[h] for h in h_values]
+
+            qesem_results = run_qesem_sweep(
+                circuit=circuit,
+                hamiltonians=hamiltonians,
+                x_ops_list=x_ops_list,
+                zz_ops_list=zz_ops_list,
+                params_per_h=params_list,
+                h_values=h_values,
+                config=self._config,
+                structured_logger=self._logger,
+            )
+
+            # Map QESEMResults → HardwareRunResults
+            results: list[HardwareRunResult] = []
+            for i, qr in enumerate(qesem_results):
+                h = h_values[i]
+                e_exact = e_exact_per_h[h]
+                gap = gap_per_h[h]
+                delta_e_gap = abs(qr.energy_mitigated - e_exact) / gap if gap > 0 else float("inf")
+
+                label, mag_x, corr_zz, sigma = classify_phase(
+                    qr.x_values, qr.zz_values, self._config.shots
+                )
+                expected_label = "paramagnetic" if h > 1.0 else "ferromagnetic"
+
+                # ZNE gain
+                if qr.noisy_data_available:
+                    raw_error = abs(qr.noisy_energy - e_exact)
+                    mit_error = abs(qr.energy_mitigated - e_exact)
+                    zne_gain = 1.0 - (mit_error / raw_error) if raw_error > 1e-10 else 0.0
+                else:
+                    zne_gain = 0.0
+
+                # Observable clipping metrics from circuit_stats
+                cs = qr.circuit_stats or {}
+                post_exec = cs.get("post_execution", {})
+                n_obs_clipped = post_exec.get("n_obs_clipped", 0)
+
+                # Verdict
+                if delta_e_gap < 0.05 and label == expected_label:
+                    verdict = "PASS"
+                    verdict_reason = f"ΔE/gap={delta_e_gap:.4f} < 5%, phase={label} correct"
+                elif delta_e_gap < 0.05:
+                    verdict = "PARTIAL"
+                    verdict_reason = f"Energy OK but phase={label} ≠ {expected_label}"
+                else:
+                    verdict = "FAIL"
+                    verdict_reason = f"ΔE/gap={delta_e_gap:.4f} ≥ 5%"
+
+                results.append(
+                    HardwareRunResult(
+                        h_value=h,
+                        e_exact=e_exact,
+                        e_zne=qr.energy_mitigated,
+                        e_zne_std=qr.energy_std,
+                        delta_e_gap=delta_e_gap,
+                        gap=gap,
+                        phase_label=label,
+                        expected_label=expected_label,
+                        zne_r2=1.0,
+                        zne_gain=zne_gain,
+                        mag_x_mean=mag_x,
+                        corr_zz_mean=corr_zz,
+                        sigma=sigma,
+                        total_shots=qr.total_shots or 0,
+                        job_ids=[qr.job_id],
+                        layouts_used=[],
+                        ces_values=[],
+                        per_site_x=qr.x_values,
+                        per_bond_zz=qr.zz_values,
+                        verdict=verdict,
+                        verdict_reason=verdict_reason,
+                        zne_amplifier_used="qesem",
+                        mitigation_strategy="qesem_unbiased",
+                        # Observable clipping (QESEM unbiased estimator artifact)
+                        obs_bounds_clipped=n_obs_clipped > 0,
+                        n_obs_violations=n_obs_clipped,
+                        # QESEM metadata
+                        qesem_used=True,
+                        qesem_job_id=qr.job_id,
+                        qesem_total_qpu_time=qr.total_qpu_time,
+                        qesem_gate_fidelities=qr.gate_fidelities,
+                        qesem_total_shots=qr.total_shots,
+                        qesem_mitigation_shots=qr.mitigation_shots,
+                        qesem_noisy_evs=([qr.noisy_energy] + qr.noisy_x_values + qr.noisy_zz_values)
+                        if qr.noisy_data_available
+                        else None,
+                        n_layouts_observables=0,
+                    )
+                )
+                # Attach circuit_stats for persistence (used by run_tier_1 per_h_results)
+                results[-1]._transpiled_stats = qr.circuit_stats
+                results[-1]._qpu_metrics = {"total_qpu_time": qr.total_qpu_time}
+
+            # ── Automatic QET post-execution validation (sweep) ───────────
+            try:
+                from project_health.analysis.hardware.validate_qet import (
+                    validate_qet_result,
+                )
+
+                for i, qr in enumerate(qesem_results):
+                    h = h_values[i]
+                    gt = {"e_exact": e_exact_per_h[h], "gap": gap_per_h[h]}
+                    qet_data = {
+                        "job_id": qr.job_id,
+                        "energy_mitigated": qr.energy_mitigated,
+                        "energy_std": qr.energy_std,
+                        "x_values": qr.x_values,
+                        "zz_values": qr.zz_values,
+                        "noisy_energy": qr.noisy_energy if qr.noisy_data_available else None,
+                        "metadata": {
+                            "gate_fidelities": qr.gate_fidelities,
+                            "total_shots": qr.total_shots,
+                            "total_qpu_time": qr.total_qpu_time,
+                        },
+                    }
+                    if qr.noise_scale_results:
+                        _rem = []
+                        for obs_scales in qr.noise_scale_results:
+                            pts = [
+                                {"scale": s, "value": v, "error_bar": std}
+                                for s, (v, std) in obs_scales.items()
+                            ]
+                            _rem.append(["obs", {"noise_scaling": {"results_with_REM": pts}}])
+                        qet_data["metadata"]["results"] = [_rem]
+
+                    report = validate_qet_result(qet_data, e_exact=gt["e_exact"], gap=gt["gap"])
+                    self._logger.log(
+                        "qet_sweep_validation",
+                        data={
+                            "h_value": h,
+                            "passed": report.passed,
+                            "n_issues": len(report.issues),
+                            "metrics": report.metrics,
+                        },
+                    )
+            except ImportError:
+                pass
+            except Exception as exc:
+                logger.debug(f"QET sweep validator error (non-blocking): {exc}")
+
+            return results
+
+        # ══════════════════════════════════════════════════════════════════
+        # LOCAL PEA/ZNE PATH — sequential per-h with TLS drift monitoring
+        # ══════════════════════════════════════════════════════════════════
 
         if 4.0 in h_values:
             h_values = [4.0] + [h for h in h_values if h != 4.0]
@@ -722,9 +1363,13 @@ class HardwareBackend(ExecutionBackend):
             # TLS drift check between h-points (skip for first point and fake_backend)
             if i > 0 and baseline_snapshot is not None and self._config.mode == "hardware":
                 try:
-                    from qmbp_simulation.execution.noisy_utils import check_calibration_drift
+                    from qmbp_simulation.execution.noisy_utils import (
+                        check_calibration_drift,
+                        take_calibration_snapshot,
+                    )
 
-                    drift = check_calibration_drift(self.backend, baseline_snapshot)
+                    current_snapshot = take_calibration_snapshot(self.backend)
+                    drift = check_calibration_drift(baseline_snapshot, current_snapshot)
                     self._logger.log(
                         "calibration_drift_check",
                         data={
@@ -766,6 +1411,101 @@ class HardwareBackend(ExecutionBackend):
                     },
                 )
                 break
+
+        # ── Sweep-level validation checks (post-execution) ────────────────
+        if len(results) >= 2:
+            # Check: Energy monotonicity (TFIM paramagnetic: E should decrease with h)
+            # For descending h sweep, E(h_large) < E(h_small) in the paramagnetic phase.
+            # Non-monotonic results indicate noise-corrupted points.
+            h_e_pairs = sorted(
+                [(r.h_value, r.e_zne) for r in results], key=lambda x: x[0], reverse=True
+            )
+            monotonicity_violations = []
+            for j in range(len(h_e_pairs) - 1):
+                h_high, e_high = h_e_pairs[j]
+                h_low, e_low = h_e_pairs[j + 1]
+                # In paramagnetic phase (h > h_c), E decreases with h
+                if e_high > e_low:  # Higher h should have lower (more negative) energy
+                    monotonicity_violations.append(
+                        {"h_pair": (h_high, h_low), "e_pair": (e_high, e_low)}
+                    )
+            if monotonicity_violations:
+                self._logger.log(
+                    "sweep_monotonicity_violation",
+                    data={
+                        "n_violations": len(monotonicity_violations),
+                        "violations": monotonicity_violations,
+                        "warning": "Energy is non-monotonic across h-sweep. "
+                        "Expected E(h_high) < E(h_low) in paramagnetic phase. "
+                        "May indicate noise-corrupted h-point(s).",
+                    },
+                )
+
+            # Check: Systematic affine correction (pattern detection)
+            # If affine clips on every h-point, ZNE is systematically failing.
+            n_affine_clipped = sum(
+                1 for r in results if getattr(r, "affine_correction_applied", False)
+            )
+            if n_affine_clipped == len(results) and len(results) >= 3:
+                self._logger.log(
+                    "sweep_systematic_affine_clipping",
+                    data={
+                        "n_clipped": n_affine_clipped,
+                        "n_total": len(results),
+                        "warning": "Affine correction triggered on EVERY h-point. "
+                        "This indicates systematic ZNE failure (e.g., PEA budget "
+                        "insufficient for current calibration). Consider increasing "
+                        "PEA learning budget or retrying at better calibration.",
+                    },
+                )
+
+        # ── Post-sweep stale calibration comparison (P2-C) ─────────────────
+        # For runs >1h, compare pre-sweep vs post-sweep calibration to tag
+        # results that may have been affected by calibration drift during
+        # the full sweep. This is a diagnostic — it does NOT abort, but
+        # attaches a drift_report to the sweep summary for post-hoc filtering.
+        if baseline_snapshot is not None and self._config.mode == "hardware":
+            try:
+                from qmbp_simulation.execution.noisy_utils import (
+                    check_calibration_drift,
+                    take_calibration_snapshot,
+                )
+
+                post_sweep_snapshot = take_calibration_snapshot(self.backend)
+                stale_drift = check_calibration_drift(baseline_snapshot, post_sweep_snapshot)
+                self._logger.log(
+                    "stale_calibration_comparison",
+                    data={
+                        "pre_sweep_timestamp": baseline_snapshot.timestamp,
+                        "post_sweep_timestamp": post_sweep_snapshot.timestamp,
+                        "t1_drift_pct": stale_drift.t1_drift_pct,
+                        "t2_drift_pct": stale_drift.t2_drift_pct,
+                        "gate_error_drift_pct": stale_drift.gate_error_drift_pct,
+                        "max_single_drift_pct": stale_drift.max_single_drift_pct,
+                        "is_stable": stale_drift.is_stable,
+                        "recommendation": stale_drift.recommendation,
+                        "n_h_points_completed": len(results),
+                        "pre_mean_t1_us": baseline_snapshot.mean_t1_us,
+                        "post_mean_t1_us": post_sweep_snapshot.mean_t1_us,
+                        "pre_mean_2q_error": baseline_snapshot.mean_2q_error,
+                        "post_mean_2q_error": post_sweep_snapshot.mean_2q_error,
+                    },
+                )
+                if not stale_drift.is_stable:
+                    self._logger.log(
+                        "stale_calibration_warning",
+                        data={
+                            "warning": (
+                                f"Calibration drifted during sweep: T1 {stale_drift.t1_drift_pct:.1f}%, "
+                                f"gates {stale_drift.gate_error_drift_pct:.1f}%. "
+                                f"Results from later h-points may be degraded. "
+                                f"Consider re-running affected points."
+                            ),
+                            "affected_h_points": [r.h_value for r in results[1:]],
+                        },
+                    )
+            except Exception as exc:
+                self._logger.log("stale_calibration_comparison_error", data={"error": str(exc)})
 
         save_sweep_summary(results, self._config, self._logger)
         return results
@@ -1607,8 +2347,33 @@ class HardwareBackend(ExecutionBackend):
         # ── Variational principle check ──
         # E_hw should be ≥ E_exact (within tolerance). Violation indicates bias.
         energy_error = e_zne - e_exact
-        metrics["variational_principle_violated"] = energy_error < -1e-6 * abs(e_exact)
+        variational_violation = energy_error < -1e-6 * abs(e_exact)
+        metrics["variational_principle_violated"] = variational_violation
         metrics["energy_error_signed"] = energy_error
+
+        # Escalate severity: hardware violations > 0.1 are always significant
+        # (unlike noiseless, where they could be numerical — on hardware
+        # a large sub-ground-state result indicates systematic bias).
+        if variational_violation:
+            violation_magnitude = abs(energy_error)
+            if violation_magnitude >= 0.1:
+                logger.error(
+                    "❌ CRITICAL variational principle violation on hardware: "
+                    "E_hw=%.6f < E_exact=%.6f (Δ=%.4e). "
+                    "ZNE/mitigation may be introducing systematic bias.",
+                    e_zne,
+                    e_exact,
+                    violation_magnitude,
+                )
+            else:
+                logger.warning(
+                    "⚠️  Variational principle violated on hardware: "
+                    "E_hw=%.6f < E_exact=%.6f (Δ=%.2e). "
+                    "Expected for ZNE overshoot — affine correction will clip.",
+                    e_zne,
+                    e_exact,
+                    violation_magnitude,
+                )
 
         # ── Observable consistency ──
         # Compare energy from local observables vs ZNE energy.
@@ -1685,6 +2450,54 @@ class HardwareBackend(ExecutionBackend):
             "per_layout_qpu_s": qpu_seconds_list or None,
             "running_timestamps": timestamps or None,
         }
+
+    @staticmethod
+    def _compute_zne_gain(raw_results: list[dict[str, Any]], e_zne: float, e_exact: float) -> float:
+        """Compute ZNE gain from noise-factor data when available.
+
+        For PEA-ZNE (IBM Runtime), the server applies ZNE and returns the
+        extrapolated energy directly. The raw (NF=1) energy is available in
+        evs_noise_factors[0][0] from the PUB result. We use it to compute:
+            gain = 1 - |e_zne - e_exact| / |e_nf1 - e_exact|
+
+        When noise-factor data is unavailable, returns 0.0 (not None) to
+        maintain backward compatibility with validators and thesis figures.
+        """
+        print("  [DEBUG] _compute_zne_gain: computing from noise-factor baseline")
+        if not raw_results:
+            return 0.0
+
+        # Try to extract NF=1 energy from the first layout's noise-factor data
+        first = raw_results[0]
+        evs_nf = first.get("evs_noise_factors")
+
+        if evs_nf is not None and len(evs_nf) > 0:
+            # evs_noise_factors is typically [[val_nf1, val_nf1.5, val_nf3], ...]
+            # For energy PUB, the first element is the NF array for the Hamiltonian
+            # In hardware mode, raw_results contain per-layout energy at NF=1
+            # which is stored in raw_results[i]["energy_nf1"] or derivable.
+            pass
+
+        # Fallback: use the layout mean at NF=1 if stored in raw_results
+        nf1_energies = [r.get("energy_nf1") for r in raw_results if r.get("energy_nf1") is not None]
+        if nf1_energies:
+            e_nf1 = float(np.mean(nf1_energies))
+        elif evs_nf is not None and isinstance(evs_nf, (list, np.ndarray)):
+            # evs_noise_factors[observable_idx][noise_factor_idx]
+            # For energy (single observable PUB): evs_nf[0] = NF=1 value
+            try:
+                e_nf1 = float(evs_nf[0]) if np.isscalar(evs_nf[0]) else float(evs_nf[0][0])
+            except (IndexError, TypeError):
+                return 0.0
+        else:
+            # No noise-factor baseline available — cannot compute gain
+            return 0.0
+
+        raw_error = abs(e_nf1 - e_exact)
+        mitigated_error = abs(e_zne - e_exact)
+        if raw_error < 1e-10:
+            return 0.0
+        return float(1.0 - mitigated_error / raw_error)
 
     def _aggregate_zne_results(
         self,
@@ -1793,11 +2606,21 @@ class HardwareBackend(ExecutionBackend):
                     "zne_pea_fallback", data={"error": str(exc), "fallback": "gate_folding"}
                 )
 
-        # Gate-folding ZNE: use CES spread if available, else noise factors
+        # Gate-folding ZNE: check CES spread using P0-A relative threshold
+        # (spread_ratio = (max-min)/mean ≥ 0.3). The old hardcoded 0.02 absolute
+        # threshold missed the heavy_hex failure mode where CES≈0.15 uniformly.
         ces_used = [layout_selection.ces_values[r["layout_idx"]] for r in raw_results]
-        ces_spread = max(ces_used) - min(ces_used)
+        ces_mean = float(np.mean(ces_used)) if ces_used else 0.0
+        ces_range = max(ces_used) - min(ces_used) if len(ces_used) >= 2 else 0.0
+        spread_ratio = ces_range / ces_mean if ces_mean > 1e-10 else 0.0
 
-        if ces_spread > 0.02:  # Enough CES spread for meaningful extrapolation
+        # Also check the P0-A metadata if available (from select_layouts_by_circuit_ces)
+        ces_spread_sufficient = getattr(layout_selection, "ces_spread_sufficient", None)
+        if ces_spread_sufficient is None:
+            # Fallback: compute locally with the same threshold as P0-A
+            ces_spread_sufficient = spread_ratio >= 0.3
+
+        if ces_spread_sufficient:
             zne_result = linear_zne(np.array(ces_used), np.array(energies))
             return zne_result.extrapolated_value, zne_result.r_squared, "ces_gf"
 

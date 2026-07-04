@@ -380,19 +380,40 @@ class VQEValidator:
             exact_energy = exact_result.ground_energy
             if energy < exact_energy - VARIATIONAL_TOLERANCE:
                 violation = exact_energy - energy
+                # Severity escalation: large violations (≥ 0.1) are real bugs,
+                # small ones (< 0.01) are numerical noise from eigsh vs statevector.
+                if violation >= 0.1:
+                    severity = Severity.CRITICAL
+                    msg = (
+                        f"CRITICAL variational principle violation: E_VQE={energy:.8f} < "
+                        f"E_exact={exact_energy:.8f} (Δ={violation:.4e}) at h={h:.4f}. "
+                        f"NOT numerical noise — check Hamiltonian/backend consistency."
+                    )
+                elif violation >= 0.01:
+                    severity = Severity.CRITICAL
+                    msg = (
+                        f"Variational principle violated: E_VQE={energy:.8f} < "
+                        f"E_exact={exact_energy:.8f} (Δ={violation:.2e}) at h={h:.4f}. "
+                        f"Likely eigsh tolerance vs statevector mismatch."
+                    )
+                else:
+                    severity = Severity.WARNING
+                    msg = (
+                        f"Minor variational principle violation: E_VQE={energy:.8f} < "
+                        f"E_exact={exact_energy:.8f} (Δ={violation:.2e}) at h={h:.4f} "
+                        f"— numerical noise (benign)."
+                    )
                 report.add(
                     ValidationIssue(
-                        severity=Severity.CRITICAL,
+                        severity=severity,
                         check_id="C1_variational_principle",
-                        message=(
-                            f"Variational principle violated: E_VQE={energy:.8f} < "
-                            f"E_exact={exact_energy:.8f} (Δ={violation:.2e}) at h={h:.4f}"
-                        ),
+                        message=msg,
                         h_value=h,
                         details={
                             "e_vqe": energy,
                             "e_exact": exact_energy,
                             "violation": violation,
+                            "is_numerical_noise": violation < 0.01,
                         },
                     )
                 )

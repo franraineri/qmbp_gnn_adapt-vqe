@@ -51,7 +51,7 @@ class ExperimentF1(BaseExperiment):
                 h_test=[],  # F1 evaluates at all h_values (no MPNN deployment)
             ),
             vqe=VQEConfig(use_dypp=True, dypp_order=2),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

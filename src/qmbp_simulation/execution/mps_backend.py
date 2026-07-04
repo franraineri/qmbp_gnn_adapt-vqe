@@ -131,8 +131,7 @@ class _AerMPSStrategy(_MPSStrategy):
             from qiskit_aer import AerSimulator
         except ImportError as exc:
             raise ImportError(
-                "qiskit-aer is required for 'aer_mps' strategy. "
-                "Install via: pip install qiskit-aer"
+                "qiskit-aer is required for 'aer_mps' strategy. Install via: pip install qiskit-aer"
             ) from exc
 
         backend = AerSimulator(
@@ -152,6 +151,11 @@ class _AerMPSStrategy(_MPSStrategy):
         hamiltonian: SparsePauliOp,
         params: np.ndarray,
     ) -> float:
+        if not np.all(np.isfinite(params)):
+            raise ValueError(
+                f"MPSBackend.evaluate: params contain NaN/Inf. "
+                f"Non-finite indices: {np.where(~np.isfinite(params))[0].tolist()}"
+            )
         n_qubits = circuit.num_qubits
         bound = circuit.assign_parameters(params)
         backend = self._get_backend(n_qubits)
@@ -452,3 +456,118 @@ class MPSBackend(ExecutionBackend):
     def name(self) -> str:
         """Human-readable backend identifier."""
         return f"mps_{self._strategy.name}"
+
+    def compute_fidelity(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+        exact_state: np.ndarray,
+    ) -> float:
+        """Compute fidelity via fast MPS statevector extraction."""
+        from qiskit.quantum_info import Statevector, state_fidelity
+
+        n = circuit.num_qubits
+        logger.debug("[%s] compute_fidelity: N=%d (MPS path)", self.name, n)
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        if n > STATEVECTOR_MAX_N:
+            logger.warning(
+                f"Cannot compute fidelity for N={n} > {STATEVECTOR_MAX_N} "
+                f"(statevector extraction infeasible). Returning 0.0."
+            )
+            return 0.0
+
+        sv_data = self.get_statevector(circuit, params)
+        return float(state_fidelity(Statevector(sv_data), Statevector(exact_state)))
+
+    def get_statevector(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+    ) -> np.ndarray:
+        """Extract the full statevector from MPS simulation.
+
+        Uses Aer MPS to evolve the circuit and reconstruct the 2^N statevector.
+        This is O(N·χ³) for the MPS simulation plus O(2^N) for the extraction,
+        but avoids Qiskit's native Statevector class which is O(2^N) per gate.
+
+        For N=20 with 57 RZZ gates:
+          - Qiskit Statevector: >60s per call (gate-by-gate on dense vector)
+          - Aer MPS extract: ~0.5s (MPS simulation + one-shot extraction)
+
+        Parameters
+        ----------
+        circuit : QuantumCircuit
+            Parameterized circuit (not yet bound).
+        params : np.ndarray
+            Parameter values to bind.
+
+        Returns
+        -------
+        np.ndarray
+            Complex statevector of shape (2^N,).
+
+        Raises
+        ------
+        ValueError
+            If N > 22 (extraction creates 2^N vector, too large for memory).
+        ImportError
+            If qiskit-aer is not installed.
+        """
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        n = circuit.num_qubits
+        logger.debug("[%s] get_statevector: N=%d (MPS extraction)", self.name, n)
+        if n > STATEVECTOR_MAX_N:
+            raise ValueError(
+                f"get_statevector not supported for N={n} > {STATEVECTOR_MAX_N}. "
+                f"Extraction would require {2**n * 16 / 1e9:.1f} GB."
+            )
+        if len(params) != circuit.num_parameters:
+            raise ValueError(
+                f"Parameter count mismatch in get_statevector: "
+                f"got {len(params)}, circuit expects {circuit.num_parameters}."
+            )
+
+        try:
+            from qiskit_aer import AerSimulator
+        except ImportError as exc:
+            raise ImportError(
+                "qiskit-aer is required for get_statevector. Install via: pip install qiskit-aer"
+            ) from exc
+
+        bound = circuit.assign_parameters(params)
+        qc = bound.copy()
+        qc.save_statevector()
+
+        backend = AerSimulator(
+            method="matrix_product_state",
+            matrix_product_state_max_bond_dimension=self._chi_max,
+            matrix_product_state_truncation_threshold=1e-12,
+        )
+        result = backend.run(qc).result()
+        sv = result.get_statevector()
+        sv_data = np.asarray(sv.data)
+
+        # Physics guard: MPS bond-dimension truncation can de-normalize the
+        # extracted statevector. A non-unit norm indicates information loss.
+        norm = float(np.linalg.norm(sv_data))
+        if abs(norm - 1.0) > 1e-3:
+            logger.error(
+                "[%s] get_statevector: norm=%.8f deviates significantly from 1.0 "
+                "(χ_max=%d too low for this circuit depth?). Normalizing, but "
+                "fidelity/energy results may be unreliable.",
+                self.name,
+                norm,
+                self._chi_max,
+            )
+            sv_data = sv_data / norm
+        elif abs(norm - 1.0) > 1e-8:
+            logger.warning(
+                "[%s] get_statevector: non-unit norm=%.10f (bond dim truncation). Normalizing.",
+                self.name,
+                norm,
+            )
+            sv_data = sv_data / norm
+
+        return sv_data

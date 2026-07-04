@@ -33,6 +33,7 @@ from cross_topology.helpers import (
     canonicalize_theta,
     load_source_data,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Strategies
@@ -42,7 +43,7 @@ n_points_st = st.integers(min_value=1, max_value=8)
 param_dim_st = st.sampled_from([2, 4])
 system_size_st = st.sampled_from([6, 8, 10, 12, 16])
 topology_st = st.sampled_from(["triangular", "heavy_hex", "chain_1d", "ladder"])
-seed_st = st.sampled_from([42, 43, 44])
+seed_st = st.sampled_from(DEFAULT_SEEDS)
 h_value_st = st.floats(min_value=0.5, max_value=8.0, allow_nan=False, allow_infinity=False)
 theta_st = st.floats(min_value=-3.14, max_value=3.14, allow_nan=False, allow_infinity=False)
 energy_st = st.floats(min_value=-500.0, max_value=-0.1, allow_nan=False, allow_infinity=False)
@@ -843,7 +844,7 @@ class TestBackendDispatchRule:
     **Validates: Requirements 7.2**
 
     For any system size N, calling `evaluate_theta` SHALL use
-    `NoiselessBackend` when N <= 15 and `MPSBackend(chi_max=64)` when N > 15.
+    `NoiselessBackend` when N <= 15 and `MPSBackend(chi_max=MPS_DEFAULT_CHI_MAX)` when N > 15.
     """
 
     @given(n_target=st.integers(min_value=4, max_value=15))
@@ -902,7 +903,7 @@ class TestBackendDispatchRule:
     @given(n_target=st.integers(min_value=16, max_value=30))
     @settings(max_examples=30, deadline=None)
     def test_mps_backend_used_for_n_gt_15(self, n_target: int):
-        """For N > 15, evaluate_theta SHALL use MPSBackend(chi_max=64)."""
+        """For N > 15, evaluate_theta SHALL use MPSBackend(chi_max=MPS_DEFAULT_CHI_MAX)."""
         from cross_topology.helpers import evaluate_theta
 
         theta_pred = np.array([0.5, 0.3])
@@ -951,7 +952,7 @@ class TestBackendDispatchRule:
         mock_mps_cls.assert_called_once()
         call_kwargs = mock_mps_cls.call_args
         assert call_kwargs[1]["chi_max"] == 64, (
-            f"MPSBackend not called with chi_max=64, got: {call_kwargs}"
+            f"MPSBackend not called with chi_max=MPS_DEFAULT_CHI_MAX, got: {call_kwargs}"
         )
         mock_noiseless_cls.assert_not_called()
         mock_mps_instance.evaluate.assert_called_once()

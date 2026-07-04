@@ -76,7 +76,7 @@ class ExperimentE4c(BaseExperiment):
                 sigma=0.1,
                 maxiter=VQE_MAXITER,
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
             auto_warm_cold_comparison=False,
         )

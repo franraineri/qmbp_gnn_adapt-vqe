@@ -63,7 +63,7 @@ from qmbp_simulation.framework.variant_runner import PipelineVariant, run_varian
 
 PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_pipeline.py"
 OUTPUT_BASE = "results/thesis/verification_r1"
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # Valid regime boundaries (corrected based on R2 data analysis)
 # These are the MINIMUM h_test values where p=1 HVA can express the ground state

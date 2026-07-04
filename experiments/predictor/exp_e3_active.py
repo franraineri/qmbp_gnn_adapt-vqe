@@ -48,7 +48,7 @@ class ExperimentE3(BaseExperiment):
                 use_active_learning=True,
                 acquisition="max_variance",
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

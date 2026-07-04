@@ -67,6 +67,11 @@ def get_model_spec(model_type: str) -> ModelSpec:
     if model_type not in _REGISTRY:
         available = list(_REGISTRY.keys())
         raise ValueError(f"Model '{model_type}' not registered. Available: {available}")
+    logger.debug(
+        "get_model_spec: model=%s, params_per_layer=%d",
+        model_type,
+        _REGISTRY[model_type].params_per_layer,
+    )
     return _REGISTRY[model_type]
 
 
@@ -121,10 +126,10 @@ def _register_builtins() -> None:
             build_hamiltonian=builder.build_heisenberg,
             build_observables=builder.build_heisenberg_observables,
             create_circuit=_create_heisenberg,
-            initial_state="neel",
+            initial_state="plus",
             vqe_defaults={"n_restarts": 10, "restart_sigma": 0.5, "maxiter": 1500},
             hamiltonian_kwargs={"delta": 1.0},
-            circuit_kwargs={"initial_state": "neel"},
+            circuit_kwargs={"initial_state": "plus"},
             description="Heisenberg XXZ: H = J(XX+YY+Δ·ZZ) - h·Z (Δ=1.0)",
             fidelity_threshold=0.60,  # noqa — Relaxed: HVA p=2 has limited expressibility for non-TFIM
             mpnn_hidden_dim=128,  # Larger output space (8 params) needs more capacity
@@ -139,12 +144,33 @@ def _register_builtins() -> None:
             build_hamiltonian=builder.build_heisenberg,
             build_observables=builder.build_heisenberg_observables,
             create_circuit=_create_heisenberg,
-            initial_state="neel",
+            initial_state="plus",
             vqe_defaults={"n_restarts": 10, "restart_sigma": 0.5, "maxiter": 1500},
             hamiltonian_kwargs={"delta": 0.0},
-            circuit_kwargs={"initial_state": "neel"},
+            circuit_kwargs={"initial_state": "plus"},
             description="XY Model: H = J(XX+YY) - h·Z (Δ=0)",
             fidelity_threshold=0.60,  # noqa — Relaxed: same expressibility limits as Heisenberg
+            mpnn_hidden_dim=128,
+        )
+    )
+
+    # Heisenberg XXZ with TRANSVERSE field: H = J(XX+YY+Δ·ZZ) - h·X
+    # Key difference from "heisenberg": field in X direction (transverse) instead of Z.
+    # This creates a QPT (AF→paramagnet) accessible to HVA with |+⟩^N initial state.
+    # Δ=0.5 reduces frustration vs isotropic (Δ=1), making shallow circuits viable.
+    register_model(
+        ModelSpec(
+            name="heisenberg_transverse",
+            params_per_layer=4,
+            build_hamiltonian=builder.build_heisenberg_transverse,
+            build_observables=builder.build_heisenberg_observables,
+            create_circuit=_create_heisenberg,
+            initial_state="plus",
+            vqe_defaults={"n_restarts": 10, "restart_sigma": 0.3, "maxiter": 1500},
+            hamiltonian_kwargs={"delta": 0.5},
+            circuit_kwargs={"initial_state": "plus"},
+            description="Heisenberg XXZ transverse: H = J(XX+YY+0.5·ZZ) - h·X",
+            fidelity_threshold=0.60,
             mpnn_hidden_dim=128,
         )
     )

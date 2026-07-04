@@ -466,12 +466,27 @@ class ValidationRunner(ABC):
         4. Save results + structured log to JSON.
         5. Print summary.
 
+        Handles KeyboardInterrupt (Ctrl+C) and SIGTERM (kill) gracefully:
+        partial results from completed sections are always saved.
+
         Returns
         -------
         int
             Exit code: 0 if all sections pass, 1 otherwise.
         """
+        import signal
+
         t_total = time.time()
+
+        # Register SIGTERM handler to convert to KeyboardInterrupt
+        # (so nohup kills and systemd stops trigger the same save logic)
+        _original_sigterm = signal.getsignal(signal.SIGTERM)
+
+        def _sigterm_handler(signum, frame):
+            logger.warning("SIGTERM received — triggering graceful shutdown...")
+            raise KeyboardInterrupt("SIGTERM received")
+
+        signal.signal(signal.SIGTERM, _sigterm_handler)
 
         # ─── Step 1: Preflight ───────────────────────────────────────────
         if not self._args.skip_preflight:
@@ -500,34 +515,111 @@ class ValidationRunner(ABC):
             return 1
         self.slog.log("setup_complete")
 
+        # ─── Step 2b: Resume from previous run ───────────────────────────
+        _resumed_sections: set[int] = set()
+        if getattr(self._args, "resume", None):
+            _resumed_sections = self._load_resume(self._args.resume)
+
         # ─── Step 3: Execute sections ────────────────────────────────────
         self._print_header(selected)
+        interrupted = False
+        _current_section_id = None
 
-        for section in selected:
-            result = self._execute_section(section)
-            self._section_results.append(result)
+        try:
+            for section in selected:
+                # Skip sections already completed in the resumed run
+                if section.id in _resumed_sections:
+                    logger.info(
+                        f"  ⏭️  Skipping Section {section.id} ({section.name}) — "
+                        f"already completed in resumed run."
+                    )
+                    continue
 
-            # Stop-on-failure: abort remaining sections
-            if not result.success and self._args.stop_on_failure:
-                logger.warning(
-                    f"  Stopping early (--stop-on-failure). Section {section.id} failed."
-                )
-                break
+                _current_section_id = section.id
+                result = self._execute_section(section)
+                self._section_results.append(result)
+                _current_section_id = None  # Section completed successfully
+
+                # Stop-on-failure: abort remaining sections
+                if not result.success and self._args.stop_on_failure:
+                    logger.warning(
+                        f"  Stopping early (--stop-on-failure). Section {section.id} failed."
+                    )
+                    break
+
+        except KeyboardInterrupt:
+            interrupted = True
+            msg = (
+                f"\n  ⚠️  INTERRUPTED (Ctrl+C) during section {_current_section_id}. "
+                f"Saving partial results..."
+            )
+            logger.warning(msg)
+            self.slog.log(
+                "interrupted",
+                data={
+                    "completed_sections": len(self._section_results),
+                    "interrupted_section": _current_section_id,
+                },
+            )
 
         # ─── Step 4: Save results ────────────────────────────────────────
+        # Always save — even on interrupt, so partial results are preserved.
+        # Wrap in try/except so a serialization failure doesn't lose the log.
         total_elapsed = time.time() - t_total
-        envelope = self._build_envelope(total_elapsed)
-        saved_path = save_experiment_result(envelope, experiment_id=self.experiment_id)
+        saved_path = None
+        try:
+            envelope = self._build_envelope(total_elapsed)
+            if interrupted:
+                envelope["interrupted"] = True
+                envelope["completed_sections"] = len(self._section_results)
+                envelope["interrupted_section"] = _current_section_id
+            saved_path = save_experiment_result(envelope, experiment_id=self.experiment_id)
+        except Exception as save_exc:
+            logger.error(
+                f"Failed to save results: {save_exc}. "
+                f"Completed sections: {len(self._section_results)}."
+            )
 
-        # Save structured log independently for post-hoc analysis
-        log_path = saved_path.parent / f"log_{saved_path.stem.replace('run_', '')}.json"
-        self.slog.save(log_path)
+        # Save structured log independently (even if result save failed)
+        try:
+            if saved_path is not None:
+                log_path = saved_path.parent / f"log_{saved_path.stem.replace('run_', '')}.json"
+            else:
+                # Fallback: save log to experiment dir root
+                from qmbp_simulation.framework.result_io import generate_timestamp
+                log_path = (
+                    Path("results") / "experiments" / f"exp_{self.experiment_id}"
+                    / f"log_emergency_{generate_timestamp()}.json"
+                )
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+            self.slog.save(log_path)
+        except Exception as log_exc:
+            logger.error(f"Failed to save structured log: {log_exc}")
+
+        # ─── Step 4b: Auto-refresh project status ────────────────────────
+        # Keep Kiro's steering context up-to-date after every run.
+        if saved_path is not None:
+            try:
+                from qmbp_simulation.framework.result_index import ResultIndex
+                ResultIndex().refresh_status()
+            except Exception:
+                pass  # Best-effort, never blocks run completion
 
         # ─── Step 5: Summary ─────────────────────────────────────────────
-        self._print_summary(total_elapsed, saved_path)
+        if interrupted:
+            logger.info(
+                f"\n  Partial results saved: {saved_path}"
+                f"\n  Completed {len(self._section_results)}/{len(selected)} sections."
+            )
+        elif saved_path is not None:
+            self._print_summary(total_elapsed, saved_path)
 
         n_fail = sum(1 for r in self._section_results if not r.success)
-        return 1 if n_fail > 0 else 0
+
+        # Restore original SIGTERM handler
+        signal.signal(signal.SIGTERM, _original_sigterm)
+
+        return 1 if n_fail > 0 or interrupted else 0
 
     # ── Class-level entry point ──────────────────────────────────────────────
 
@@ -639,6 +731,118 @@ class ValidationRunner(ABC):
             error=error,
         )
 
+    def _load_resume(self, resume_path: str) -> set[int]:
+        """Load a previous result file and restore completed section data.
+
+        Reads the result JSON, identifies which sections completed successfully,
+        injects their results into self._section_results, and calls the
+        overridable hook `restore_section_state()` so subclasses can restore
+        internal state (e.g., VQE theta_opt, ground truth data).
+
+        Parameters
+        ----------
+        resume_path : str
+            Path to the previous run_*.json to resume from.
+
+        Returns
+        -------
+        set[int]
+            Section IDs that were successfully loaded and should be skipped.
+        """
+        from qmbp_simulation.framework.result_io import load_result
+
+        path = Path(resume_path)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+
+        if not path.exists():
+            logger.error(f"Resume file not found: {path}")
+            return set()
+
+        try:
+            data = load_result(path)
+        except (ValueError, FileNotFoundError) as e:
+            logger.error(f"Cannot load resume file: {e}")
+            return set()
+
+        results = data.get("results", {})
+        resumed_ids: set[int] = set()
+
+        for key, section_data in results.items():
+            if not key.startswith("section_"):
+                continue
+            if not section_data.get("success", False):
+                continue  # Only restore sections that passed
+
+            # Extract section_id from key "section_N"
+            try:
+                section_id = int(key.split("_")[1])
+            except (IndexError, ValueError):
+                continue
+
+            # Create a SectionResult for the previously completed section
+            self._section_results.append(SectionResult(
+                section_id=section_id,
+                name=section_data.get("name", key),
+                success=True,
+                elapsed_s=section_data.get("elapsed_s", 0),
+                data=section_data.get("data", {}),
+                error=None,
+            ))
+            resumed_ids.add(section_id)
+
+        if resumed_ids:
+            logger.info(
+                f"  📂 Resumed from {path.name}: "
+                f"sections {sorted(resumed_ids)} loaded, will be skipped."
+            )
+            # Allow subclass to restore internal state from resumed data
+            self.restore_section_state(data, resumed_ids)
+            self.slog.log(
+                "resumed",
+                data={
+                    "source": str(path),
+                    "sections_restored": sorted(resumed_ids),
+                },
+            )
+        else:
+            logger.warning(
+                f"  Resume file {path.name} has no successfully completed sections. "
+                f"Running all sections from scratch."
+            )
+
+        return resumed_ids
+
+    def restore_section_state(
+        self, resumed_data: dict[str, Any], resumed_sections: set[int]
+    ) -> None:
+        """Hook for subclasses to restore internal state from a resumed run.
+
+        Override this to reload section-specific data (e.g., VQE theta_opt,
+        ground truth arrays) that downstream sections depend on.
+
+        Parameters
+        ----------
+        resumed_data : dict
+            The full result envelope from the resumed run.
+        resumed_sections : set[int]
+            Set of section IDs that were successfully restored.
+
+        Example (in NoiselessPipelineRunner)::
+
+            def restore_section_state(self, data, sections):
+                results = data["results"]
+                if 1 in sections:
+                    # Restore ground truth from section_1.data
+                    s1 = results["section_1"]["data"]
+                    ...
+                if 2 in sections:
+                    # Restore VQE results from section_2.data
+                    s2 = results["section_2"]["data"]
+                    ...
+        """
+        # Default: no-op. Subclasses override as needed.
+
     def _filter_sections(self, sections: list[Section]) -> list[Section]:
         """Filter sections based on CLI --section argument."""
         if self._args.section:
@@ -677,6 +881,25 @@ class ValidationRunner(ABC):
             "total_elapsed_s": round(total_elapsed, 2),
             "all_passed": n_fail == 0,
         }
+
+        # Add failure details to summary for quick diagnosis
+        if n_fail > 0:
+            failed_sections = []
+            for r in self._section_results:
+                if not r.success:
+                    entry = {
+                        "section_id": r.section_id,
+                        "name": r.name,
+                        "elapsed_s": round(r.elapsed_s, 2),
+                    }
+                    if r.error:
+                        entry["error"] = r.error
+                    # Include pass=False reason from data if available
+                    if r.data and isinstance(r.data, dict):
+                        if "pass" in r.data and not r.data["pass"]:
+                            entry["reason"] = "section returned pass=False"
+                    failed_sections.append(entry)
+            summary["failed_sections"] = failed_sections
 
         # Per-section results
         results = {}
@@ -720,6 +943,38 @@ class ValidationRunner(ABC):
             "summary": summary,
             "per_section": results,
         }
+
+        # Add baseline comparison: find previous best run with same config
+        # and record improvement metrics.
+        try:
+            from qmbp_simulation.framework.result_index import ResultIndex
+            system = config.get("system", {})
+            model = system.get("model", "")
+            topo_list = system.get("topologies", [])
+            topology = topo_list[0] if isinstance(topo_list, list) and topo_list else ""
+            n_qubits = system.get("n_qubits", 0)
+            p_layers = system.get("p_layers", 0)
+
+            if model and topology:
+                index = ResultIndex()
+                baseline = index.get_best_run(
+                    model=model, topology=topology,
+                    n_qubits=n_qubits, p_layers=p_layers,
+                )
+                if baseline:
+                    current_pass_rate = summary.get("pass_rate", 0)
+                    baseline_pass_rate = baseline.get("pass_rate", 0)
+                    envelope["baseline_ref"] = {
+                        "file": baseline.get("_file", ""),
+                        "pass_rate": baseline_pass_rate,
+                        "timestamp": baseline.get("timestamp", ""),
+                    }
+                    envelope["improvement"] = {
+                        "pass_rate_delta": round(current_pass_rate - baseline_pass_rate, 4),
+                        "is_improvement": current_pass_rate > baseline_pass_rate,
+                    }
+        except Exception:
+            pass  # Baseline lookup is best-effort
 
         return envelope
 
@@ -868,6 +1123,14 @@ class ValidationRunner(ABC):
             default=False,
             help="Abort on CRITICAL validation failures",
         )
+        # Resume from interrupted run
+        parser.add_argument(
+            "--resume",
+            type=str,
+            default=None,
+            help="Resume from a partial/interrupted result JSON. Completed sections "
+            "are loaded from the file and skipped. Only remaining sections run.",
+        )
         # Allow subclasses to add custom args
         cls._add_custom_args(parser)
         return parser.parse_args()
@@ -900,6 +1163,206 @@ class ValidationRunner(ABC):
         return (
             getattr(self, "noiseless", None) or getattr(self, "backend", None) or NoiselessBackend()
         )
+
+    def select_backend(self, n_qubits: int, *, for_vqe_loop: bool = False):
+        """Select the optimal noiseless backend for a given system size.
+
+        Delegates to the canonical select_backend() from execution module.
+        Automatically uses MPS for large N (>10 for VQE loops, >15 otherwise).
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits in the system.
+        for_vqe_loop : bool
+            If True, uses MPS threshold at N>10 (VQE is iterative, so
+            O(2^N) statevector becomes prohibitive faster). Default False.
+
+        Returns
+        -------
+        ExecutionBackend
+            NoiselessBackend or MPSBackend depending on N.
+        """
+        from qmbp_simulation.execution import select_backend as _select_backend
+
+        return _select_backend(n_qubits, for_vqe_loop=for_vqe_loop)
+
+    def setup_physics(self) -> None:
+        """Initialize standard physics objects used by most runners.
+
+        Sets up: builder, solver, hva, make_lattice, get_model_spec,
+        noiseless backend, and VQEOptimizer/VQEConfig imports.
+
+        After calling this method, the following attributes are available:
+            self.builder       — HamiltonianBuilder()
+            self.solver        — ClassicalSolver()
+            self.hva           — HVACircuitBuilder()
+            self.make_lattice  — make_lattice function
+            self.get_model_spec — get_model_spec function
+            self.noiseless     — NoiselessBackend()
+            self.NoiselessBackend — NoiselessBackend class
+            self.MPSBackend    — MPSBackend class (lazy, for large N)
+            self.VQEOptimizer  — VQEOptimizer class
+            self.VQEConfig     — VQEConfig class
+
+        Subclasses can call this in setup() to avoid repeating the same
+        8-line import block in every runner.
+        """
+        from qmbp_simulation import (
+            ClassicalSolver,
+            HamiltonianBuilder,
+            HVACircuitBuilder,
+            VQEConfig,
+            VQEOptimizer,
+            make_lattice,
+        )
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.execution.mps_backend import MPSBackend
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        self.builder = HamiltonianBuilder()
+        self.solver = ClassicalSolver()
+        self.hva = HVACircuitBuilder()
+        self.make_lattice = make_lattice
+        self.get_model_spec = get_model_spec
+        self.noiseless = NoiselessBackend()
+        self.NoiselessBackend = NoiselessBackend
+        self.MPSBackend = MPSBackend
+        self.VQEOptimizer = VQEOptimizer
+        self.VQEConfig = VQEConfig
+
+    # ── Checkpoint infrastructure (reusable by all subclasses) ───────────────
+
+    def _checkpoint_dir(self) -> Path:
+        """Return the checkpoint directory for this runner's experiment.
+
+        Creates the directory if it doesn't exist. Checkpoint files are hidden
+        (dot-prefixed) and removed on successful run completion.
+
+        Returns
+        -------
+        Path
+            Directory where checkpoint files are stored.
+        """
+        d = Path("results") / "experiments" / f"exp_{self.experiment_id.lower()}"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def save_checkpoint(
+        self,
+        label: str,
+        data: dict[str, Any],
+    ) -> None:
+        """Save a named checkpoint for crash recovery.
+
+        Checkpoints are best-effort — a save failure never interrupts the main
+        computation. Files are dot-prefixed to be hidden from result scanners.
+
+        Parameters
+        ----------
+        label : str
+            Checkpoint name (e.g., "vqe_chain_1d", "mpnn_epoch_5").
+            Used in the filename: .checkpoint_{label}.json
+        data : dict
+            Checkpoint payload. Must be JSON-serializable (numpy arrays
+            should be converted to lists before passing).
+        """
+        from datetime import datetime
+
+        from qmbp_simulation.utils.helpers import json_dump
+
+        cp_path = self._checkpoint_dir() / f".checkpoint_{label}.json"
+        payload = {
+            **data,
+            "_checkpoint_meta": {
+                "runner_id": self.runner_id,
+                "experiment_id": self.experiment_id,
+                "label": label,
+                "saved_at": datetime.now().isoformat(),
+            },
+        }
+        try:
+            json_dump(payload, cp_path)
+            logger.debug("💾 Checkpoint saved: %s", label)
+        except Exception as e:
+            logger.debug("Checkpoint save failed for %s: %s", label, e)
+
+    def load_checkpoint(self, label: str) -> dict[str, Any] | None:
+        """Load a named checkpoint if it exists.
+
+        Parameters
+        ----------
+        label : str
+            Checkpoint name (same as used in save_checkpoint).
+
+        Returns
+        -------
+        dict | None
+            Checkpoint data (without _checkpoint_meta), or None if not found
+            or corrupt.
+        """
+        import json as _json
+
+        cp_path = self._checkpoint_dir() / f".checkpoint_{label}.json"
+        if not cp_path.exists():
+            return None
+
+        try:
+            with open(cp_path) as f:
+                payload = _json.load(f)
+            meta = payload.pop("_checkpoint_meta", {})
+            saved_at = meta.get("saved_at", "unknown")
+            logger.info("♻️  Loaded checkpoint '%s' (saved %s)", label, saved_at)
+            return payload
+        except (ValueError, KeyError, OSError) as e:
+            logger.warning(
+                "⚠️  Corrupt checkpoint '%s', ignoring: %s", label, e
+            )
+            return None
+
+    def cleanup_checkpoints(self, pattern: str = "*") -> None:
+        """Remove checkpoint files after successful completion.
+
+        Parameters
+        ----------
+        pattern : str
+            Glob suffix pattern. Default "*" removes all checkpoints.
+            Use a specific label to remove one: e.g., "vqe_chain_1d".
+        """
+        cp_dir = self._checkpoint_dir()
+        if not cp_dir.exists():
+            return
+        glob_pattern = f".checkpoint_{pattern}.json"
+        for cp in cp_dir.glob(glob_pattern):
+            try:
+                cp.unlink()
+                logger.debug("🗑️  Removed checkpoint: %s", cp.name)
+            except OSError as e:
+                logger.debug("Could not remove checkpoint %s: %s", cp.name, e)
+
+    # ── Logging utilities (reusable by all subclasses) ───────────────────────
+
+    @staticmethod
+    def log_memory_estimate(n_qubits: int, label: str = "statevector") -> None:
+        """Log estimated memory footprint for a statevector computation.
+
+        Useful at section start for large-N runs to anticipate OOM before it
+        happens. Only logs at INFO when memory > 100 MB, otherwise DEBUG.
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits in the system.
+        label : str
+            Description of what the memory is for (default: "statevector").
+        """
+        # Complex128 statevector: 2^N * 16 bytes
+        mem_bytes = (2 ** n_qubits) * 16
+        mem_mb = mem_bytes / 1e6
+        if mem_mb > 100:
+            logger.info("    📐 Estimated %s memory: %.1f MB (N=%d)", label, mem_mb, n_qubits)
+        else:
+            logger.debug("    📐 Estimated %s memory: %.1f MB (N=%d)", label, mem_mb, n_qubits)
 
     def vqe_descending_sweep(
         self,
@@ -1139,6 +1602,113 @@ class ValidationRunner(ABC):
             graph_data=graph_data,
         )
         return report.to_dict()
+
+    # ── Cross-N / MPNN utility methods (reusable by subclasses) ────────────
+
+    @staticmethod
+    def compute_vqe_quality_metrics(
+        vqe_energies: list[float],
+        exact_energies: list[float],
+        gaps: list[float],
+    ) -> dict:
+        """Compute per-point ΔE/gap and summary quality metrics for VQE data.
+
+        Returns dict with 'de_gaps', 'n_pass', 'mean_de_gap', 'pass_rate'.
+        Reusable across all runners that generate VQE training data.
+        """
+        import numpy as np
+
+        de_gaps = [
+            abs(vqe_energies[i] - exact_energies[i]) / max(gaps[i], 1e-10)
+            for i in range(len(vqe_energies))
+        ]
+        n_pass = sum(1 for d in de_gaps if d < 0.05)
+        return {
+            "de_gaps": de_gaps,
+            "n_pass": n_pass,
+            "mean_de_gap": float(np.mean(de_gaps)) if de_gaps else 0.0,
+            "pass_rate": n_pass / len(de_gaps) if de_gaps else 0.0,
+        }
+
+    @staticmethod
+    def compute_theta_smoothness(theta_array) -> float:
+        """Compute max L-inf change between consecutive θ vectors.
+
+        A high value (>1.0) indicates the MPNN will struggle to learn
+        the mapping (discontinuous landscape). Used as learnability predictor.
+        """
+        import numpy as np
+
+        if len(theta_array) < 2:
+            return 0.0
+        return float(np.max(np.abs(np.diff(theta_array, axis=0))))
+
+    @staticmethod
+    def select_mpnn_hidden_dim(
+        n_training_graphs: int,
+        theta_dim: int,
+        max_hidden: int = 128,
+        min_hidden: int = 32,
+        max_param_ratio: int = 100,
+    ) -> int:
+        """Auto-select MPNN hidden_dim based on dataset size.
+
+        Prevents severe overparameterization (99K params for 27 graphs)
+        by selecting the largest hidden_dim where n_params < ratio × n_data.
+
+        Parameters
+        ----------
+        n_training_graphs : int
+            Number of graphs in training dataset.
+        theta_dim : int
+            Output dimension (number of VQE parameters to predict).
+        max_hidden : int
+            Maximum hidden dimension to try (default 128).
+        min_hidden : int
+            Minimum hidden dimension floor (default 32).
+        max_param_ratio : int
+            Maximum acceptable params/data ratio (default 100).
+
+        Returns
+        -------
+        int : Selected hidden dimension.
+        """
+        # Lazy import to avoid torch dependency in non-ML runners
+        try:
+            from qmbp_simulation.predictors import MPNNPredictor
+        except ImportError:
+            return min_hidden
+
+        for candidate in sorted(set([max_hidden, 64, min_hidden]), reverse=True):
+            if candidate < min_hidden:
+                continue
+            model = MPNNPredictor(
+                node_features=3,
+                hidden_dim=candidate,
+                n_layers=3,
+                output_dim=theta_dim,
+                norm_type="none",
+            )
+            n_params = sum(p.numel() for p in model.parameters())
+            if n_params < n_training_graphs * max_param_ratio:
+                return candidate
+
+        return min_hidden
+
+    @staticmethod
+    def check_variational_principle(
+        vqe_energies: list[float],
+        exact_energies: list[float],
+        tolerance: float = 1e-8,
+    ) -> int:
+        """Count variational principle violations (E_vqe < E_exact).
+
+        Returns the number of points where VQE energy is below exact
+        (indicating numerical noise or unconverged reference).
+        """
+        return sum(
+            1 for i in range(len(vqe_energies)) if vqe_energies[i] < exact_energies[i] - tolerance
+        )
 
     @staticmethod
     def truncate_statevector_mps(

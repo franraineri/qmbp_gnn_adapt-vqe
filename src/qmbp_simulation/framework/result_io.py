@@ -33,6 +33,45 @@ _DEFAULT_RESULTS_ROOT = Path("results/experiments")
 _DEFAULT_PIPELINE_ROOT = Path("results/pipeline")
 
 
+def build_experiment_id(
+    category: str,
+    model: str,
+    topology: str | list[str] | None = None,
+) -> str:
+    """Build a hierarchical experiment ID for organized folder output.
+
+    Produces IDs like "noiseless/tfim/heavy_hex" which result in folder
+    structures: results/experiments/exp_noiseless/tfim/heavy_hex/
+
+    Parameters
+    ----------
+    category : str
+        Top-level category. Standard values:
+        - "noiseless": exact statevector/MPS simulations
+        - "noisy": simulated noise (FakeTorino + ZNE/PEA)
+        - "hardware": real QPU (IBM Kingston/Torino)
+        - "experiment": general research experiments (scaling, cross-N, etc.)
+    model : str
+        Model name: "tfim", "tfim_longitudinal", "heisenberg_transverse", etc.
+    topology : str | list[str] | None
+        Topology name(s). If list with >1 element, uses "multi".
+        If None, topology level is omitted.
+
+    Returns
+    -------
+    str
+        Hierarchical experiment ID (e.g., "noiseless/tfim/heavy_hex").
+    """
+    parts = [category, model]
+    if topology is not None:
+        if isinstance(topology, list):
+            topo_str = topology[0] if len(topology) == 1 else "multi"
+        else:
+            topo_str = topology
+        parts.append(topo_str)
+    return "/".join(parts)
+
+
 def generate_timestamp() -> str:
     """Generate a timestamp string for file naming.
 
@@ -75,6 +114,7 @@ def build_result_envelope(
         Standardized result envelope.
     """
     envelope: dict[str, Any] = {
+        "schema_version": "2.0",
         "timestamp": datetime.now().isoformat(),
         "config": json_serialize(config),
         "elapsed_s": elapsed_s,
@@ -121,7 +161,25 @@ def save_experiment_result(
     ts = timestamp or generate_timestamp()
     filepath = exp_dir / f"run_{ts}.json"
 
+    # Collision prevention: if file already exists (two runs in same second),
+    # append a suffix to avoid overwriting.
+    if filepath.exists():
+        for suffix in range(1, 100):
+            alt = exp_dir / f"run_{ts}_{suffix}.json"
+            if not alt.exists():
+                filepath = alt
+                break
+
     _write_json(data, filepath)
+
+    # Auto-update the result index with the new entry
+    try:
+        from qmbp_simulation.framework.result_index import ResultIndex
+        index = ResultIndex(root=root)
+        index.add_entry(filepath, data)
+    except Exception:
+        pass  # Index update is best-effort, never blocks saving
+
     return filepath
 
 
@@ -201,19 +259,42 @@ def load_result(path: Path) -> dict[str, Any]:
     ------
     FileNotFoundError
         If the file does not exist.
-    json.JSONDecodeError
-        If the file is not valid JSON.
+    ValueError
+        If the file is not valid JSON (wraps JSONDecodeError with context).
     """
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Result file not found: {path}")
-    with open(path) as f:
-        result: dict[str, Any] = json.load(f)
+
+    file_size = path.stat().st_size
+    if file_size == 0:
+        raise ValueError(f"Result file is empty (0 bytes): {path}")
+
+    # Guard against accidentally loading huge files (e.g., raw datasets)
+    _MAX_RESULT_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
+    if file_size > _MAX_RESULT_FILE_SIZE:
+        raise ValueError(
+            f"Result file suspiciously large ({file_size / 1e6:.1f} MB): {path}. "
+            f"Max allowed: {_MAX_RESULT_FILE_SIZE / 1e6:.0f} MB."
+        )
+
+    try:
+        with open(path) as f:
+            result: dict[str, Any] = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"Corrupt JSON in {path} (size={file_size} bytes, "
+            f"error at line {e.lineno} col {e.colno}): {e.msg}"
+        ) from e
+
     return result
 
 
 def _write_json(data: dict[str, Any], path: Path) -> None:
     """Write data to JSON with numpy/dataclass serialization support.
+
+    Uses atomic write pattern (write to temp → rename) to prevent
+    corruption from interrupted writes. Validates the output is valid JSON.
 
     Parameters
     ----------
@@ -222,10 +303,39 @@ def _write_json(data: dict[str, Any], path: Path) -> None:
     path : Path
         Output file path.
     """
+    import tempfile
+
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=json_serialize)
+
+    # Atomic write: write to temp file in same directory, then rename.
+    # This prevents corrupt JSON from half-written files on crash/kill.
+    tmp_fd = None
+    tmp_path = None
+    try:
+        tmp_fd, tmp_path_str = tempfile.mkstemp(
+            dir=path.parent, suffix=".tmp", prefix=".run_"
+        )
+        tmp_path = Path(tmp_path_str)
+        with open(tmp_fd, "w", closefd=True) as f:
+            tmp_fd = None  # Prevent double-close
+            json.dump(data, f, indent=2, default=json_serialize)
+
+        # Validate: re-read to ensure valid JSON was written
+        with open(tmp_path) as f:
+            json.load(f)  # Raises JSONDecodeError if corrupt
+
+        # Atomic rename (POSIX guarantees this is atomic on same filesystem)
+        tmp_path.rename(path)
+
+    except Exception:
+        # Clean up temp file on failure
+        if tmp_path and tmp_path.exists():
+            tmp_path.unlink()
+        if tmp_fd is not None:
+            import os
+            os.close(tmp_fd)
+        raise
 
 
 def collect_run_metadata(seed: int | None = None) -> dict[str, Any]:
@@ -278,3 +388,98 @@ def collect_run_metadata(seed: int | None = None) -> dict[str, Any]:
         pass
 
     return metadata
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Batch loading utilities
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def load_results_from_dir(
+    directory: Path,
+    pattern: str = "run_*.json",
+    recursive: bool = True,
+) -> list[tuple[Path, dict[str, Any]]]:
+    """Load all matching JSON results from a directory.
+
+    Skips corrupt/empty files with a warning. Returns (path, data) tuples
+    sorted chronologically by filename.
+
+    Parameters
+    ----------
+    directory : Path
+        Directory to scan.
+    pattern : str
+        Glob pattern for result files. Default: "run_*.json".
+    recursive : bool
+        If True (default), searches subdirectories recursively.
+
+    Returns
+    -------
+    list[tuple[Path, dict]]
+        List of (file_path, parsed_data) for all successfully loaded files.
+    """
+    import logging
+
+    _log = logging.getLogger(__name__)
+
+    directory = Path(directory)
+    if not directory.exists():
+        return []
+
+    glob_fn = directory.rglob if recursive else directory.glob
+    results: list[tuple[Path, dict[str, Any]]] = []
+
+    for f in sorted(glob_fn(pattern)):
+        try:
+            data = load_result(f)
+            results.append((f, data))
+        except (FileNotFoundError, ValueError) as e:
+            _log.warning("Skipping %s: %s", f.name, e)
+            continue
+
+    return results
+
+
+def extract_run_metadata_summary(data: dict[str, Any]) -> dict[str, Any]:
+    """Extract lightweight metadata from a result envelope for indexing.
+
+    Returns only the fields needed for filtering/searching without loading
+    the full result data (VQE theta arrays, per-point data, etc.).
+
+    Parameters
+    ----------
+    data : dict
+        Full result envelope (as returned by load_result).
+
+    Returns
+    -------
+    dict
+        Lightweight summary with: model, topology, n_qubits, p_layers,
+        passed, timestamp, elapsed_s, schema_version, experiment_id.
+    """
+    config = data.get("config", {})
+    system = config.get("system", {})
+    summary = data.get("summary", {})
+
+    # Handle both old and new config structures
+    model = system.get("model", config.get("model", ""))
+    topologies = system.get("topologies", config.get("topologies", []))
+    topology = topologies[0] if isinstance(topologies, list) and topologies else str(topologies)
+    n_qubits = system.get("n_qubits", config.get("n_qubits", 0))
+    p_layers = system.get("p_layers", config.get("p_layers", 0))
+
+    return {
+        "model": model,
+        "topology": topology,
+        "n_qubits": n_qubits,
+        "p_layers": p_layers,
+        "passed": summary.get("all_passed", False),
+        "pass_rate": summary.get("pass_rate", 0.0),
+        "n_sections": summary.get("n_sections", 0),
+        "timestamp": data.get("timestamp", ""),
+        "elapsed_s": data.get("elapsed_s", 0.0),
+        "schema_version": data.get("schema_version", "1.0"),
+        "experiment_id": config.get("experiment_id", ""),
+        "interrupted": data.get("interrupted", False),
+    }

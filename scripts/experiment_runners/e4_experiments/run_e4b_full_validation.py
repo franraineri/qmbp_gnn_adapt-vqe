@@ -104,7 +104,7 @@ def test_cross_topology():
     topologies = ["chain_1d", "ladder", "triangular"]
     N, p, g = 6, 2, 0.3
     h_values = [2.0, 1.5, 1.0]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     results_table = []
 
@@ -370,7 +370,7 @@ def test_p1_validation():
 
     N, p, g = 6, 1, 0.3
     h_values = [2.0, 1.75, 1.5, 1.25]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     results_table = []
 

@@ -771,3 +771,435 @@ def select_best_layout_for_zne(
     ranked = rank_layouts_by_depth_2q(transpiled_circuits, layouts)
     best = ranked[0]
     return best["layout_idx"], best
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Improvement 4: Decoherence Penalty & Advanced Transpilation Metrics
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def compute_decoherence_penalty(
+    circuit: QuantumCircuit,
+    backend=None,
+    layout: list[int] | None = None,
+    *,
+    t_2q_gate_ns: float = 84.0,
+    t_1q_gate_ns: float = 28.0,
+) -> dict[str, Any]:
+    """Compute decoherence penalty from idle qubits and circuit duration.
+
+    Models T1-decay during circuit execution. Idle qubits lose coherence
+    proportional to their idle time / T1. This estimates the total
+    decoherence fraction that the error budget model (gate-error only) misses.
+
+    Based on the insight from Ma et al. (arXiv:2411.15631) that T1/T2
+    are the single most important predictor for simulator execution time,
+    and the physical model: P(decay) = 1 - exp(-t_idle / T1).
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        Transpiled (ISA) circuit.
+    backend : BackendV2 | None
+        Backend with qubit_properties for T1/T2 data. If None, uses
+        typical Heron r2 values (T1=258μs, T2=131μs).
+    layout : list[int] | None
+        Physical qubit indices. Used to select correct T1/T2 values.
+    t_2q_gate_ns : float
+        Duration of a 2Q gate in nanoseconds (Heron CZ: ~84ns).
+    t_1q_gate_ns : float
+        Duration of a 1Q gate in nanoseconds (Heron SX: ~28ns).
+
+    Returns
+    -------
+    dict[str, Any]
+        Keys:
+          - circuit_duration_ns: estimated total circuit execution time
+          - decoherence_fraction: mean P(decay) across active qubits
+          - worst_qubit_decay: maximum single-qubit decoherence probability
+          - t1_budget_ratio: circuit_duration / min_T1 (should be << 1)
+          - idle_decoherence_budget: contribution of idle time to total error
+          - depth_2q_time_ns: time spent in 2Q critical path
+    """
+    stats = transpiled_circuit_stats(circuit)
+    idle_metrics = _compute_idle_metrics(circuit)
+    depth = stats["depth"]
+    depth_2q = stats["depth_2q"]
+    n_2q = stats["n_2q_gates"]
+
+    # Estimate circuit duration: depth_2q layers of 2Q gates + remaining 1Q layers
+    depth_1q_only = max(0, depth - depth_2q)
+    circuit_duration_ns = depth_2q * t_2q_gate_ns + depth_1q_only * t_1q_gate_ns
+    depth_2q_time_ns = depth_2q * t_2q_gate_ns
+
+    # Get T1/T2 values for layout qubits
+    t1_values_s: list[float] = []
+    t2_values_s: list[float] = []
+    TYPICAL_T1_S = 258e-6  # Heron r2 median
+    TYPICAL_T2_S = 131e-6  # Heron r2 median
+
+    if backend is not None and layout is not None:
+        try:
+            qubit_props = backend.target.qubit_properties
+            if qubit_props is not None:
+                for phys_q in layout:
+                    if phys_q < len(qubit_props) and qubit_props[phys_q] is not None:
+                        t1 = getattr(qubit_props[phys_q], "t1", None)
+                        t2 = getattr(qubit_props[phys_q], "t2", None)
+                        t1_values_s.append(t1 if t1 is not None else TYPICAL_T1_S)
+                        t2_values_s.append(t2 if t2 is not None else TYPICAL_T2_S)
+                    else:
+                        t1_values_s.append(TYPICAL_T1_S)
+                        t2_values_s.append(TYPICAL_T2_S)
+        except Exception:
+            pass
+
+    # Fallback: fill with typical values if we couldn't read from backend
+    n_active = stats.get("active_qubits") or circuit.num_qubits
+    while len(t1_values_s) < n_active:
+        t1_values_s.append(TYPICAL_T1_S)
+        t2_values_s.append(TYPICAL_T2_S)
+
+    # Compute per-qubit decoherence probability
+    # P(decay_i) = 1 - exp(-t_idle_i / T1_i)
+    # Approximation: average idle fraction × circuit duration / T1
+    avg_idle_cycles = idle_metrics["idle_cycles_per_qubit"]
+    # Each idle cycle ≈ one gate-layer duration (mix of 1Q and 2Q)
+    avg_gate_ns = (t_2q_gate_ns + t_1q_gate_ns) / 2.0
+    avg_idle_time_ns = avg_idle_cycles * avg_gate_ns
+
+    per_qubit_decay: list[float] = []
+    for i in range(min(n_active, len(t1_values_s))):
+        t1_ns = t1_values_s[i] * 1e9
+        # Total time qubit exists: circuit_duration_ns
+        # Time qubit is idle: proportional to idle_cycles / depth
+        idle_frac = avg_idle_cycles / max(depth, 1)
+        qubit_idle_ns = circuit_duration_ns * idle_frac
+        decay_prob = 1.0 - np.exp(-qubit_idle_ns / t1_ns) if t1_ns > 0 else 1.0
+        per_qubit_decay.append(decay_prob)
+
+    mean_decay = float(np.mean(per_qubit_decay)) if per_qubit_decay else 0.0
+    worst_decay = float(np.max(per_qubit_decay)) if per_qubit_decay else 0.0
+
+    # T1 budget ratio: circuit_duration / min_T1 — must be << 1
+    min_t1_ns = min(t * 1e9 for t in t1_values_s) if t1_values_s else TYPICAL_T1_S * 1e9
+    t1_budget_ratio = circuit_duration_ns / min_t1_ns if min_t1_ns > 0 else float("inf")
+
+    # Idle decoherence budget: total error from idle decay (complement to gate errors)
+    idle_decoherence_budget = mean_decay * n_active
+
+    return {
+        "circuit_duration_ns": circuit_duration_ns,
+        "decoherence_fraction": mean_decay,
+        "worst_qubit_decay": worst_decay,
+        "t1_budget_ratio": t1_budget_ratio,
+        "idle_decoherence_budget": idle_decoherence_budget,
+        "depth_2q_time_ns": depth_2q_time_ns,
+        "avg_idle_time_ns": avg_idle_time_ns,
+        "n_active_qubits": n_active,
+    }
+
+
+def compute_parallelism_efficiency(circuit: QuantumCircuit) -> dict[str, Any]:
+    """Compute parallelism efficiency vs theoretical maximum.
+
+    Measures how well the transpiler parallelized 2Q gates. On heavy-hex
+    with N=10, at most floor(N/2)=5 CZ gates can execute simultaneously.
+    The actual utilization is n_2q / (depth_2q × max_parallel_2q).
+
+    Also computes gate cancellation rate: (logical_2q - actual_2q) / logical_2q
+    when logical gate count is inferable from the circuit structure.
+
+    Reference: The parallelism metric from Tomesh et al. (SupermarQ, 2022)
+    and gate-aware depth from arXiv:2505.16908.
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        Transpiled (ISA) circuit.
+
+    Returns
+    -------
+    dict[str, Any]
+        Keys:
+          - parallelism_efficiency: actual / theoretical max parallelism [0, 1]
+          - theoretical_max_parallel_2q: max simultaneous 2Q ops on layout
+          - actual_avg_parallel_2q: average 2Q ops per 2Q layer
+          - serialization_overhead: extra depth from imperfect scheduling
+          - liveness: fraction of qubit-time slots that are active
+          - gate_density: total_gates / (n_qubits × depth)
+    """
+    stats = transpiled_circuit_stats(circuit)
+    n_2q = stats["n_2q_gates"]
+    depth_2q = stats["depth_2q"]
+    depth = stats["depth"]
+    n_qubits = circuit.num_qubits
+    active = stats.get("active_qubits") or n_qubits
+
+    # Maximum parallel 2Q gates on a subgraph: floor(N/2) for linear chain
+    # (each 2Q gate consumes 2 qubits, so at most N/2 can be simultaneous)
+    theoretical_max_parallel_2q = max(1, active // 2)
+
+    # Actual average parallelism: n_2q / depth_2q
+    actual_avg_parallel = n_2q / depth_2q if depth_2q > 0 else 0.0
+
+    # Efficiency: how much of theoretical max we achieve
+    parallelism_efficiency = (
+        actual_avg_parallel / theoretical_max_parallel_2q
+        if theoretical_max_parallel_2q > 0
+        else 0.0
+    )
+
+    # Serialization overhead: minimum possible depth_2q vs actual
+    # Minimum depth_2q if perfectly parallelized = ceil(n_2q / max_parallel)
+    min_depth_2q = (
+        int(np.ceil(n_2q / theoretical_max_parallel_2q))
+        if theoretical_max_parallel_2q > 0
+        else n_2q
+    )
+    serialization_overhead = (depth_2q - min_depth_2q) / min_depth_2q if min_depth_2q > 0 else 0.0
+
+    # Liveness: fraction of (qubit × time) slots used by gates
+    total_slots = active * depth if (active > 0 and depth > 0) else 1
+    total_gates = stats["total_gates"]
+    # Each 2Q gate occupies 2 slots, each 1Q gate occupies 1 slot
+    n_1q = stats["n_1q_gates"]
+    occupied_slots = n_2q * 2 + n_1q
+    liveness = min(1.0, occupied_slots / total_slots)
+
+    # Gate density: total gates / (qubits × depth)
+    gate_density = total_gates / total_slots if total_slots > 0 else 0.0
+
+    return {
+        "parallelism_efficiency": min(1.0, parallelism_efficiency),
+        "theoretical_max_parallel_2q": theoretical_max_parallel_2q,
+        "actual_avg_parallel_2q": actual_avg_parallel,
+        "serialization_overhead": serialization_overhead,
+        "min_depth_2q": min_depth_2q,
+        "liveness": liveness,
+        "gate_density": gate_density,
+    }
+
+
+def compute_shot_noise_floor(
+    shots: int,
+    expected_observable: float | None = None,
+    n_qubits: int | None = None,
+) -> dict[str, Any]:
+    """Compute shot noise floor and signal-to-noise ratio.
+
+    Determines whether the shot budget is sufficient to resolve the
+    expected observable magnitude. Critical for near-critical h-values
+    where ⟨X⟩ ≈ 0.008 at N=10.
+
+    The estimator flags when σ_shot > |⟨O⟩|, meaning the measurement
+    is noise-dominated and more shots are needed.
+
+    Parameters
+    ----------
+    shots : int
+        Total shot budget per circuit.
+    expected_observable : float | None
+        Expected magnitude |⟨O⟩|. If None, uses conservative estimate
+        for TFIM near criticality (0.01 for N=10).
+    n_qubits : int | None
+        System size (used for default observable estimate).
+
+    Returns
+    -------
+    dict[str, Any]
+        Keys:
+          - sigma_shot: standard deviation from shot noise = 1/√shots
+          - expected_signal: |⟨O⟩| used for comparison
+          - snr: signal-to-noise ratio = |⟨O⟩| × √shots
+          - shots_sufficient: True if SNR > 2 (signal resolvable)
+          - min_shots_for_snr2: minimum shots for SNR=2
+          - min_shots_for_snr5: minimum shots for SNR=5
+          - noise_dominated: True if σ > |signal|
+    """
+    sigma = 1.0 / np.sqrt(shots) if shots > 0 else float("inf")
+
+    # Default signal estimate for TFIM N=10 near h_c ≈ 1.0
+    if expected_observable is None:
+        # Conservative: ⟨X⟩ per site near criticality scales as ~0.5/N
+        n = n_qubits if n_qubits is not None else 10
+        expected_observable = 0.5 / n  # ~0.05 for N=10, ~0.025 for N=20
+
+    signal = abs(expected_observable)
+    snr = signal * np.sqrt(shots) if shots > 0 else 0.0
+
+    # Minimum shots for target SNR
+    min_shots_snr2 = int(np.ceil((2.0 / signal) ** 2)) if signal > 0 else float("inf")
+    min_shots_snr5 = int(np.ceil((5.0 / signal) ** 2)) if signal > 0 else float("inf")
+
+    return {
+        "sigma_shot": float(sigma),
+        "expected_signal": signal,
+        "snr": float(snr),
+        "shots_sufficient": snr > 2.0,
+        "min_shots_for_snr2": min_shots_snr2,
+        "min_shots_for_snr5": min_shots_snr5,
+        "noise_dominated": sigma > signal,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Improvement 5: Unified Circuit Feasibility Score
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def compute_circuit_feasibility(
+    circuit: QuantumCircuit,
+    backend=None,
+    layout: list[int] | None = None,
+    shots: int = 16384,
+    expected_observable: float | None = None,
+    kappa: float | None = None,
+) -> dict[str, Any]:
+    """Unified go/no-go feasibility score combining fidelity + cost + decoherence.
+
+    Produces a single composite score in [0, 1] that integrates:
+      - Gate error budget (from compute_error_budget)
+      - Decoherence penalty (from compute_decoherence_penalty)
+      - Shot noise sufficiency (from compute_shot_noise_floor)
+      - Readout error contribution (from backend calibration)
+      - Parallelism efficiency (scheduling quality)
+
+    The score is weighted to reflect hardware deployment priorities:
+      - Gate fidelity: 40% (dominant noise source)
+      - Decoherence: 25% (idle time T1 decay)
+      - Shot noise: 20% (measurement resolution)
+      - Readout: 10% (TREX-mitigated, lower weight)
+      - Scheduling: 5% (overhead, not a hard blocker)
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        Transpiled (ISA) circuit.
+    backend : BackendV2 | None
+        Backend with calibration data.
+    layout : list[int] | None
+        Physical qubit indices.
+    shots : int
+        Shot budget per circuit.
+    expected_observable : float | None
+        Expected |⟨O⟩| for SNR calculation.
+    kappa : float | None
+        Landscape curvature (optional refinement).
+
+    Returns
+    -------
+    dict[str, Any]
+        Keys:
+          - feasibility_score: composite [0, 1] (higher = more feasible)
+          - verdict: "go" | "caution" | "no-go"
+          - component_scores: individual sub-scores
+          - bottleneck: name of lowest-scoring component
+          - recommendations: list of actionable suggestions
+    """
+    # ── Gather component metrics ──
+    error_budget = compute_error_budget(circuit, backend=backend, layout=layout)
+    decoherence = compute_decoherence_penalty(circuit, backend=backend, layout=layout)
+    shot_noise = compute_shot_noise_floor(
+        shots, expected_observable=expected_observable, n_qubits=circuit.num_qubits
+    )
+    parallelism = compute_parallelism_efficiency(circuit)
+
+    # ── Readout error (from backend or typical) ──
+    readout_error = 0.01  # Typical Heron r2
+    if backend is not None:
+        from qmbp_simulation.execution.hardware.preflight import compute_mean_readout_error
+
+        re = compute_mean_readout_error(backend)
+        if re is not None:
+            readout_error = re
+
+    # ── Component scores (each in [0, 1], higher = better) ──
+    # Gate fidelity score: exp(-error_budget) mapped to [0,1]
+    gate_score = error_budget["fidelity_estimate"]  # Already in [0, 1]
+
+    # Decoherence score: 1 - decoherence_fraction (capped at 1)
+    deco_score = max(0.0, 1.0 - decoherence["decoherence_fraction"] * 10)
+    # Scale ×10 because raw fraction is typically ~0.001-0.05
+
+    # Shot noise score: SNR-based, sigmoid mapping
+    snr = shot_noise["snr"]
+    shot_score = min(1.0, snr / 5.0)  # SNR=5 → perfect, SNR<1 → poor
+
+    # Readout score: 1 - readout_error × N_qubits (each qubit measured)
+    n_active = decoherence["n_active_qubits"]
+    readout_score = max(0.0, 1.0 - readout_error * n_active)
+
+    # Scheduling score: parallelism efficiency
+    sched_score = parallelism["parallelism_efficiency"]
+
+    # ── Weighted composite ──
+    weights = {
+        "gate_fidelity": 0.40,
+        "decoherence": 0.25,
+        "shot_noise": 0.20,
+        "readout": 0.10,
+        "scheduling": 0.05,
+    }
+    scores = {
+        "gate_fidelity": gate_score,
+        "decoherence": deco_score,
+        "shot_noise": shot_score,
+        "readout": readout_score,
+        "scheduling": sched_score,
+    }
+
+    feasibility = sum(weights[k] * scores[k] for k in weights)
+
+    # ── Verdict ──
+    if feasibility >= 0.70:
+        verdict = "go"
+    elif feasibility >= 0.45:
+        verdict = "caution"
+    else:
+        verdict = "no-go"
+
+    # Kappa refinement: near-critical landscape is harder
+    if kappa is not None and kappa < 45 and verdict == "caution":
+        verdict = "no-go"
+        feasibility *= 0.85  # Penalize flat landscape
+
+    # ── Bottleneck identification ──
+    bottleneck = min(scores, key=scores.get)  # type: ignore[arg-type]
+
+    # ── Recommendations ──
+    recommendations: list[str] = []
+    if scores["gate_fidelity"] < 0.60:
+        recommendations.append("Reduce circuit depth (use p=1) or wait for recalibration.")
+    if scores["decoherence"] < 0.50:
+        recommendations.append(
+            "High idle-time decoherence. Add dynamical decoupling or improve scheduling."
+        )
+    if scores["shot_noise"] < 0.50:
+        recommendations.append(
+            f"Insufficient shots for signal resolution. "
+            f"Minimum {shot_noise['min_shots_for_snr2']} shots for SNR=2."
+        )
+    if scores["readout"] < 0.70:
+        recommendations.append("Elevated readout errors. Ensure TREX is enabled.")
+    if scores["scheduling"] < 0.30:
+        recommendations.append(
+            "Poor gate parallelism. Consider alternative layout with less serialization."
+        )
+
+    return {
+        "feasibility_score": float(feasibility),
+        "verdict": verdict,
+        "component_scores": scores,
+        "bottleneck": bottleneck,
+        "recommendations": recommendations,
+        "details": {
+            "error_budget": error_budget["error_budget"],
+            "fidelity_estimate": error_budget["fidelity_estimate"],
+            "decoherence_fraction": decoherence["decoherence_fraction"],
+            "t1_budget_ratio": decoherence["t1_budget_ratio"],
+            "snr": shot_noise["snr"],
+            "readout_error": readout_error,
+            "parallelism_efficiency": parallelism["parallelism_efficiency"],
+        },
+    }

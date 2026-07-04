@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 P_LAYERS = 1
 VQE_RESTARTS = 1  # p=1 needs only 1 restart (validated)
 VQE_MAXITER = 500

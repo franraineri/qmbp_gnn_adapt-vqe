@@ -275,6 +275,8 @@ def build_graph_dataset(
     e_exact: np.ndarray,
     fidelities: np.ndarray | None = None,
     fidelity_threshold: float = 0.93,
+    de_gaps: np.ndarray | None = None,
+    de_gap_threshold: float = 0.20,
     include_edge_features: bool = False,
     extra_node_features: np.ndarray | None = None,
 ) -> list[Data]:
@@ -291,9 +293,17 @@ def build_graph_dataset(
     e_exact : np.ndarray [n_points]
         Exact ground state energies.
     fidelities : np.ndarray | None [n_points]
-        VQE fidelities for filtering.
+        VQE fidelities for filtering (used when available, typically N≤22).
     fidelity_threshold : float
         Minimum fidelity to include in dataset (default 0.93).
+    de_gaps : np.ndarray | None [n_points]
+        ΔE/gap values per point. Used as quality gate when fidelities are
+        unavailable (N>22, MPS backend). If both fidelities and de_gaps are
+        provided, a point must pass BOTH filters.
+    de_gap_threshold : float
+        Maximum ΔE/gap to include in dataset (default 0.20 = 20%).
+        Points with ΔE/gap > threshold are considered unconverged VQE
+        and excluded from training to prevent garbage-in/garbage-out.
     include_edge_features : bool
         When True, add ``edge_attr`` tensors containing coupling J_ij.
     extra_node_features : np.ndarray | None [n_points, n_extra]
@@ -313,8 +323,31 @@ def build_graph_dataset(
     Raises
     ------
     ValueError
-        If fewer than 3 data points pass the fidelity filter.
+        If fewer than 3 data points pass the quality filter.
     """
+    # ── Input shape validation ───────────────────────────────────────
+    if theta_opt.ndim != 2:
+        raise ValueError(f"theta_opt must be 2D (n_points, n_params), got shape {theta_opt.shape}.")
+    if len(h_values) != theta_opt.shape[0]:
+        raise ValueError(
+            f"h_values length ({len(h_values)}) must match theta_opt rows ({theta_opt.shape[0]})."
+        )
+    if len(e_exact) != len(h_values):
+        raise ValueError(f"e_exact length ({len(e_exact)}) must match h_values ({len(h_values)}).")
+    if np.any(~np.isfinite(theta_opt)):
+        raise ValueError(
+            "theta_opt contains NaN or Inf values. Check VQE convergence "
+            "before building training dataset."
+        )
+    logger.debug(
+        "build_graph_dataset: n_qubits=%d, n_h_points=%d, theta_shape=%s, "
+        "fidelity_threshold=%.2f, de_gap_threshold=%.2f",
+        lattice.n_qubits,
+        len(h_values),
+        theta_opt.shape,
+        fidelity_threshold,
+        de_gap_threshold,
+    )
     builder = HamiltonianBuilder()
     edge_index_np, coord = builder.build_graph_data(lattice)
     edge_index = torch.tensor(edge_index_np, dtype=torch.long)
@@ -337,9 +370,17 @@ def build_graph_dataset(
             include_edge_features = False  # Disable for this dataset
 
     dataset: list[Data] = []
+    n_fidelity_filtered = 0
+    n_de_gap_filtered = 0
     for i, h in enumerate(h_values):
-        # Fidelity filter: skip low-fidelity samples
+        # Quality gate: fidelity filter (for N≤22 with statevector)
         if fidelities is not None and fidelities[i] < fidelity_threshold:
+            n_fidelity_filtered += 1
+            continue
+
+        # Quality gate: ΔE/gap filter (for all N, especially N>22 with MPS)
+        if de_gaps is not None and de_gaps[i] > de_gap_threshold:
+            n_de_gap_filtered += 1
             continue
 
         # Node features: [h_i, coordination_number_i, ...extra...] per site
@@ -368,21 +409,27 @@ def build_graph_dataset(
 
         dataset.append(data)
 
-    # Enforce fidelity filter constraint: need at least 3 points
+    # Enforce quality filter constraint: need at least 3 points
     if len(dataset) < 3:
+        filter_details = []
+        if n_fidelity_filtered > 0:
+            filter_details.append(f"fidelity<{fidelity_threshold}: {n_fidelity_filtered} removed")
+        if n_de_gap_filtered > 0:
+            filter_details.append(
+                f"ΔE/gap>{de_gap_threshold * 100:.0f}%: {n_de_gap_filtered} removed"
+            )
         raise ValueError(
-            f"Fewer than 3 data points ({len(dataset)}) passed the fidelity "
-            f"filter (threshold={fidelity_threshold}). Cannot build a reliable "
-            f"training dataset. Consider widening the h-grid or lowering the "
-            f"fidelity threshold."
+            f"Fewer than 3 data points ({len(dataset)}) passed quality filters "
+            f"({', '.join(filter_details) if filter_details else 'no filter active'}). "
+            f"Cannot build a reliable training dataset. Consider widening the "
+            f"h-grid, increasing VQE maxiter/restarts, or relaxing thresholds."
         )
 
     n_features = 2 + (extra_node_features.shape[1] if extra_node_features is not None else 0)
     logger.info(
         f"Built graph dataset: {len(dataset)}/{len(h_values)} points "
-        f"(fidelity threshold={fidelity_threshold}, "
-        f"node_features={n_features}, "
-        f"edge_features={include_edge_features})"
+        f"(fidelity_filter={n_fidelity_filtered}, de_gap_filter={n_de_gap_filtered}, "
+        f"node_features={n_features}, edge_features={include_edge_features})"
     )
     return dataset
 
@@ -401,6 +448,10 @@ def train_mpnn(
     divergence_window: int = 5,
     divergence_threshold: float = 0.01,
     seed: int = 42,
+    physics_loss_fn: Callable[..., float] | None = None,
+    physics_loss_weight: float = 0.1,
+    physics_loss_start_epoch: int = 500,
+    weight_decay: float = 1e-4,
 ) -> dict:
     """Train the MPNN with MSE loss, ReduceLROnPlateau, and optional
     energy-driven validation.
@@ -418,6 +469,16 @@ def train_mpnn(
     divergence_window : int — window for divergence detection
     divergence_threshold : float — ΔE threshold for divergence detection.
     seed : int — random seed for reproducibility (torch + DataLoader).
+    physics_loss_fn : callable | None
+        Function(theta_pred_batch, data_batch) -> Tensor of physics penalty.
+        Adds a regularizer that penalizes predictions violating physical
+        constraints (e.g., energy > E_exact, wrong observable signs).
+        Activated after `physics_loss_start_epoch` epochs.
+    physics_loss_weight : float
+        Weight of the physics loss relative to MSE (default 0.1).
+    physics_loss_start_epoch : int
+        Epoch at which to start applying physics loss (default 500).
+        Allows MSE to converge first, then physics regularizes.
 
     Returns
     -------
@@ -432,6 +493,26 @@ def train_mpnn(
         If dataset has fewer than 3 points (insufficient for training).
     """
     # ── Dataset validation ────────────────────────────────────────────
+    logger.info(
+        "  🧠 train_mpnn: dataset=%d pts, epochs=%d, lr=%.1e, patience=%d, "
+        "physics_loss=%s (λ=%.2f, start=%d), weight_decay=%.1e",
+        len(dataset),
+        n_epochs,
+        lr,
+        patience,
+        "ON" if physics_loss_fn else "OFF",
+        physics_loss_weight,
+        physics_loss_start_epoch,
+        weight_decay,
+    )
+    logger.debug(
+        "train_mpnn: dataset_size=%d, n_epochs=%d, lr=%.1e, patience=%d, seed=%d",
+        len(dataset),
+        n_epochs,
+        lr,
+        patience,
+        seed,
+    )
     if len(dataset) == 0:
         raise ValueError(
             "Empty dataset passed to train_mpnn(). "
@@ -460,7 +541,7 @@ def train_mpnn(
     _loader_generator = torch.Generator().manual_seed(seed)
 
     loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True, generator=_loader_generator)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=patience, factor=0.5, min_lr=1e-6
     )
@@ -484,9 +565,26 @@ def train_mpnn(
             pred = model(batch)
             target = batch.y.view(pred.shape)
             loss = criterion(pred, target)
+
+            # Physics-informed regularization (after warm-up period)
+            if physics_loss_fn is not None and epoch >= physics_loss_start_epoch:
+                phys_loss = physics_loss_fn(pred, batch)
+                loss = loss + physics_loss_weight * phys_loss
+
             loss.backward()
             optimizer.step()
             epoch_loss = loss.item()
+
+        # ── NaN detection: abort early on degenerate training ────────
+        if not np.isfinite(epoch_loss):
+            logger.error(
+                f"NaN/Inf loss detected at epoch {epoch + 1}. "
+                f"Aborting training. Check input data for NaN in theta_opt "
+                f"or degenerate graph features."
+            )
+            stopped_early = True
+            stop_reason = "nan_loss"
+            break
 
         mse_history.append(epoch_loss)
         scheduler.step(epoch_loss)
@@ -531,8 +629,11 @@ def train_mpnn(
                 recent_de = energy_val_history[-divergence_window:]
                 recent_mse = mse_history[-divergence_window * energy_val_interval :]
                 mse_improving = recent_mse[-1] < recent_mse[0] * 0.99
+                # Guard against division-by-zero when recent_de[0] == 0
+                # (perfect energy → stagnancy check is meaningless)
+                ref_de = abs(recent_de[0]) if abs(recent_de[0]) > 1e-12 else 1e-12
                 de_stagnant = all(
-                    abs(recent_de[k] - recent_de[k - 1]) < 0.01 * abs(recent_de[0])
+                    abs(recent_de[k] - recent_de[k - 1]) < 0.01 * ref_de
                     for k in range(1, len(recent_de))
                 )
                 if mse_improving and de_stagnant and mean_de > divergence_threshold:

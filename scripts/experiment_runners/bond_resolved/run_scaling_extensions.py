@@ -366,7 +366,9 @@ class ScalingExtensionsRunner(ValidationRunner):
         logger.info(f"  DMRG: E₀={gt.ground_energy:.10f}, gap={gt.gap:.4f} ({t_dmrg:.1f}s)")
 
         # VQE with COBYLA + MPS
-        backend = self.MPSBackend(strategy=STRATEGY, chi_max=64, precision=0.005, seed=SEED)
+        backend = self.MPSBackend(
+            strategy=STRATEGY, chi_max=MPS_DEFAULT_CHI_MAX, precision=0.005, seed=SEED
+        )
         config = self.VQEConfig(
             method="COBYLA",
             p_layers=1,
@@ -464,7 +466,9 @@ class ScalingExtensionsRunner(ValidationRunner):
         if N <= 22:
             backend = self.NoiselessBackend()
         else:
-            backend = self.MPSBackend(strategy=STRATEGY, chi_max=64, precision=0.005, seed=SEED)
+            backend = self.MPSBackend(
+                strategy=STRATEGY, chi_max=MPS_DEFAULT_CHI_MAX, precision=0.005, seed=SEED
+            )
 
         results = {}
 

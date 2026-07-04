@@ -18,6 +18,7 @@ Unified orchestration of analysis, diagnostics, figures, and reporting for the G
 | `python -m project_health.analysis.thesis_tables_compiler` | Compile LaTeX/Markdown thesis tables |
 | `python -m project_health.analysis.thesis_figures` | Thesis-level global figures (cross-experiment) |
 | `python -m project_health.analysis.diagnose` | Automated failure root cause analysis |
+| `python -m project_health.analysis.hardware.post_execution_validator` | Post-execution validation (19 checks: QPU time, fidelity, transpilation, physics) |
 
 ## Package Structure
 
@@ -60,6 +61,7 @@ project_health/
 │   │   ├── mitigation_benchmark_analyzer.py MitigationBenchmarkAnalyzer (21 configs × 15 h-points)
 │   │   ├── mitiq_analyzer.py                Mitiq integration health (get_mitiq_health_summary)
 │   │   ├── layout_optimizer_analyzer.py     Mapomatic VF2 layout analysis (analyze())
+│   │   ├── post_execution_validator.py      Post-execution validation (19 checks, batch/JSON)
 │   │   └── transpilation_analyzer.py        Transpiled circuit properties audit
 │   │
 │   ├── scaling/              MPS scaling & extensions
@@ -124,6 +126,7 @@ Full alias mapping:
 - `analysis/mitiq_analyzer.py` → `analysis/hardware/mitiq_analyzer.py`
 - `analysis/layout_optimizer_analyzer.py` → `analysis/hardware/layout_optimizer_analyzer.py`
 - `analysis/transpilation_analyzer.py` → `analysis/hardware/transpilation_analyzer.py`
+- `analysis/post_execution_validator.py` → `analysis/hardware/post_execution_validator.py`
 - `analysis/scaling_analyzer.py` → `analysis/scaling/scaling_analyzer.py`
 - `analysis/scaling_extensions_analyzer.py` → `analysis/scaling/scaling_extensions_analyzer.py`
 - `analysis/flow_warmstart_analyzer.py` → `analysis/scaling/flow_warmstart_analyzer.py`

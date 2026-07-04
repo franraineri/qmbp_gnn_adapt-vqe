@@ -36,9 +36,11 @@ from qmbp_simulation.framework.criteria import (
 from qmbp_simulation.framework.logging import ProgressReporter, StructuredLogger
 from qmbp_simulation.framework.metrics import ExperimentMetrics, WarmColdComparison
 from qmbp_simulation.framework.result_io import (
+    build_experiment_id,
     build_result_envelope,
     generate_timestamp,
     load_result,
+    load_results_from_dir,
     save_benchmark_result,
     save_experiment_result,
     save_pipeline_result,
@@ -101,7 +103,9 @@ __all__ = [
     "save_experiment_result",
     "save_pipeline_result",
     "save_benchmark_result",
+    "build_experiment_id",
     "load_result",
+    "load_results_from_dir",
     "build_result_envelope",
     "generate_timestamp",
     # CLI

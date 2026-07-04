@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
+
 
 @dataclass
 class SystemConfig:
@@ -105,7 +107,7 @@ class ExperimentConfig:
     mpnn: MPNNConfig = field(default_factory=MPNNConfig)
     analysis: AnalysisConfig = field(default_factory=AnalysisConfig)
 
-    seeds: list[int] = field(default_factory=lambda: [42, 43, 44])
+    seeds: list[int] = field(default_factory=lambda: list(DEFAULT_SEEDS))
     verbose: bool = False
     debug: bool = False
 
@@ -144,7 +146,7 @@ class ExperimentConfig:
             vqe=VQEConfig(**data.get("vqe", {})),
             mpnn=MPNNConfig(**data.get("mpnn", {})),
             analysis=AnalysisConfig(**data.get("analysis", {})),
-            seeds=data.get("seeds", [42, 43, 44]),
+            seeds=data.get("seeds", DEFAULT_SEEDS),
             verbose=data.get("verbose", False),
             debug=data.get("debug", False),
             compare_with_baseline=data.get("compare_with_baseline", True),

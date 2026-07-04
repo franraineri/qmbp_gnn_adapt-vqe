@@ -122,7 +122,9 @@ def main() -> None:
     noiseless_backend = NoiselessBackend()
 
     base_lattice = make_lattice(topology, N, J=J, h=2.0)
-    circuit, _ = hva.create(N, p, base_lattice)
+    # P0-B: Use PauliEvolutionGate for better transpiler scheduling on heavy_hex.
+    # Validated Section 20: same unitary (|ΔE|<1e-14), 6-10% lower total_depth.
+    circuit, _ = hva.create_pauli_evolution(N, p, base_lattice)
 
     vqe_config = VQEConfig(p_layers=p, n_restarts=args.n_restarts, maxiter=1000)
     optimizer = VQEOptimizer(config=vqe_config, backend=noiseless_backend)

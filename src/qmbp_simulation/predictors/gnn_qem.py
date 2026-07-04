@@ -36,6 +36,8 @@ import torch.nn as nn
 from torch_geometric.data import Data
 from torch_geometric.nn import GINConv, global_mean_pool
 
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -769,7 +771,7 @@ def generate_qem_training_data(
     p_layers : int
         HVA layers (default: 1).
     seeds : list[int] | None
-        Random seeds for layout selection (default: [42, 43, 44]).
+        Random seeds for layout selection (default: DEFAULT_SEEDS).
     shots : int
         Shots per noisy estimation (default: 4096).
     model_name : str
@@ -802,7 +804,7 @@ def generate_qem_training_data(
     if h_values is None:
         h_values = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
     if seeds is None:
-        seeds = [42, 43, 44]
+        seeds = list(DEFAULT_SEEDS)
 
     spec = get_model_spec(model_name)
     solver = ClassicalSolver()

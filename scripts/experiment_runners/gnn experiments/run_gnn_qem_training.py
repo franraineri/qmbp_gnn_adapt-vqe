@@ -73,7 +73,7 @@ def main():
                 topologies=["chain_1d", "ladder"],
                 n_qubits_list=[6],
                 h_values=[1.5, 2.0, 2.5, 3.0, 3.5, 4.0],
-                seeds=[42, 43, 44],
+                seeds=DEFAULT_SEEDS,
                 shots=4096,
             )
         save_qem_samples(samples, data_path)

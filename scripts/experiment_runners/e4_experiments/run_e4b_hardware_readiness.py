@@ -56,7 +56,7 @@ N_QUBITS = 6
 P_LAYERS = 1  # Hardware-viable depth
 G_VALUE = 0.3  # Default longitudinal field strength
 TOPOLOGY = "chain_1d"
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 ZNE_N_LAYOUTS = 3
 ZNE_SHOTS = 16384
 

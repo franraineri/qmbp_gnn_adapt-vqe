@@ -68,7 +68,7 @@ def extract_trajectory(filepath: Path) -> dict | None:
     if seed is None:
         # Try to infer from parent directory name
         dirname = filepath.parent.name
-        for s in [42, 43, 44]:
+        for s in DEFAULT_SEEDS:
             if f"seed_{s}" in dirname or f"seed{s}" in dirname:
                 seed = s
                 break
@@ -202,7 +202,7 @@ def scan_scaling_results() -> list[dict]:
 
         if data and data.get("experiment") == "N120_full_sweep":
             n_qubits = data.get("n_qubits", 120)
-            data.get("seeds", [42, 43, 44])
+            data.get("seeds", DEFAULT_SEEDS)
             per_point = data.get("per_point", [])
 
             # Group by seed

@@ -1057,7 +1057,7 @@ class ExperimentChecker:
                         severity=Severity.INFO,
                         check_name="seeds",
                         variant_id=spec.experiment_id,
-                        message=(f"Non-standard seeds {spec.seeds} (convention: [42, 43, 44])"),
+                        message=(f"Non-standard seeds {spec.seeds} (convention: DEFAULT_SEEDS)"),
                     )
                 )
         return issues

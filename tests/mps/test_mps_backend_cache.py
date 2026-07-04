@@ -14,6 +14,7 @@ import pytest
 from qmbp_simulation import HamiltonianBuilder, make_lattice
 from qmbp_simulation.circuits import HVACircuitBuilder
 from qmbp_simulation.execution import MPSBackend, NoiselessBackend
+from qmbp_simulation.models.constants import MPS_DEFAULT_CHI_MAX
 
 
 @pytest.fixture
@@ -45,7 +46,9 @@ class TestMPSExactMode:
         theta = np.array([0.3, -0.2])
 
         sv_backend = NoiselessBackend()
-        mps_backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+        mps_backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+        )
 
         e_sv = sv_backend.evaluate(circuit, H, theta)
         e_mps = mps_backend.evaluate(circuit, H, theta)
@@ -60,7 +63,9 @@ class TestMPSExactMode:
         circuit, H, N = tfim_n6
         theta = np.array([0.15, -0.4])
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+        )
 
         results = [backend.evaluate(circuit, H, theta) for _ in range(5)]
 
@@ -71,7 +76,9 @@ class TestMPSExactMode:
         """Different parameters should give different energies."""
         circuit, H, N = tfim_n6
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+        )
 
         e1 = backend.evaluate(circuit, H, np.array([0.1, 0.1]))
         e2 = backend.evaluate(circuit, H, np.array([0.5, -0.5]))
@@ -84,7 +91,9 @@ class TestMPSExactMode:
         circuit_10, H_10, _ = tfim_n10
         theta_2 = np.array([0.2, -0.3])
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+        )
 
         # Evaluate N=6 first
         e6 = backend.evaluate(circuit_6, H_6, theta_2)
@@ -108,7 +117,9 @@ class TestMPSExactMode:
         gt = solver.solve(H, lattice)
         e_exact = gt.ground_energy
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+        )
 
         # Random params should give E >= E_exact (variational principle)
         rng = np.random.default_rng(42)
@@ -130,7 +141,7 @@ class TestMPSStochasticMode:
 
         backend = MPSBackend(
             strategy="aer_mps",
-            chi_max=64,
+            chi_max=MPS_DEFAULT_CHI_MAX,
             precision=0.005,
             deterministic=False,
             seed=42,
@@ -146,7 +157,7 @@ class TestMPSStochasticMode:
 
         backend = MPSBackend(
             strategy="aer_mps",
-            chi_max=64,
+            chi_max=MPS_DEFAULT_CHI_MAX,
             precision=0.01,
             deterministic=False,
             seed=None,  # No fixed seed → different each time
@@ -169,7 +180,9 @@ class TestMPSPerformance:
         import time
 
         circuit, H, N = tfim_n6
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+        )
         rng = np.random.default_rng(42)
 
         # Warmup
@@ -194,7 +207,7 @@ class TestMPSDefaultBehavior:
         theta = np.array([0.25, -0.15])
 
         # Default construction (no deterministic arg)
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, seed=42)
+        backend = MPSBackend(strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, seed=42)
 
         results = [backend.evaluate(circuit, H, theta) for _ in range(3)]
         assert len(set(results)) == 1, f"Default mode is not deterministic: {results}"

@@ -12,11 +12,15 @@ References
 
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 from qiskit.quantum_info import SparsePauliOp
 
 from qmbp_simulation.models.constants import SUPPORTED_TOPOLOGIES
 from qmbp_simulation.models.data_models import LatticeConfig
+
+logger = logging.getLogger(__name__)
 
 # ── Lattice generators ────────────────────────────────────────────────────
 
@@ -271,6 +275,7 @@ def make_lattice(
     """Convenience factory that generates edges and coordination numbers
     automatically from the topology name.
     """
+    logger.debug("make_lattice: topology=%s, n_qubits=%d, J=%s, h=%s", topology, n_qubits, J, h)
     if not isinstance(n_qubits, int | np.integer) or n_qubits < 2:
         raise ValueError(f"n_qubits must be an integer >= 2, got {n_qubits}")
 
@@ -288,6 +293,38 @@ def make_lattice(
         edges = generate_heavy_hex(n_qubits)
     else:
         raise ValueError(f"Unknown topology '{topology}'. Supported: {SUPPORTED_TOPOLOGIES}")
+    # Physics guard: detect self-loops and duplicate edges (unphysical).
+    # Self-loops are always invalid; duplicates silently double interaction strength.
+    edge_set: set[tuple[int, int]] = set()
+    for i, j in edges:
+        if i == j:
+            raise ValueError(
+                f"Self-loop detected at site {i} in topology '{topology}'. "
+                f"Self-interactions are unphysical for spin Hamiltonians."
+            )
+        key = (min(i, j), max(i, j))
+        if key in edge_set:
+            logger.warning(
+                "make_lattice: duplicate edge (%d, %d) in topology '%s'. "
+                "This doubles the ZZ interaction on that bond.",
+                i,
+                j,
+                topology,
+            )
+        edge_set.add(key)
+
+    # Disconnected site detection: every qubit should participate in ≥1 edge
+    sites_in_edges = {s for edge in edges for s in edge}
+    isolated = set(range(n_qubits)) - sites_in_edges
+    if isolated:
+        logger.warning(
+            "make_lattice: isolated sites %s in topology '%s' (N=%d). "
+            "These qubits have no ZZ interactions and act as free spins.",
+            sorted(isolated),
+            topology,
+            n_qubits,
+        )
+
     coord = compute_coordination_numbers(n_qubits, edges)
     return LatticeConfig(
         topology=topology,
@@ -325,6 +362,13 @@ class HamiltonianBuilder:
             The Hamiltonian as a Qiskit SparsePauliOp.
         """
         n = lattice.n_qubits
+        logger.debug(
+            "HamiltonianBuilder.build: topology=%s, n=%d, edges=%d, h=%s",
+            lattice.topology,
+            n,
+            len(lattice.edges),
+            lattice.h,
+        )
         terms: list[tuple[str, list[int], complex]] = []
 
         # ZZ interaction terms on lattice edges
@@ -362,6 +406,7 @@ class HamiltonianBuilder:
             ops_ZZ : list of SparsePauliOp, one per bond in lattice.edges.
         """
         n = lattice.n_qubits
+        logger.debug("build_local_observables: n=%d, n_bonds=%d", n, len(lattice.edges))
         ops_x = [SparsePauliOp.from_sparse_list([("X", [i], 1.0)], num_qubits=n) for i in range(n)]
         ops_zz = [
             SparsePauliOp.from_sparse_list([("ZZ", [i, j], 1.0)], num_qubits=n)
@@ -384,6 +429,7 @@ class HamiltonianBuilder:
             edge_index : np.ndarray of shape [2, 2*n_edges] — symmetric (undirected).
             coordination_numbers : np.ndarray of shape [n_qubits].
         """
+        logger.debug("build_graph_data: n=%d, edges=%d", lattice.n_qubits, len(lattice.edges))
         src = [i for i, j in lattice.edges]
         dst = [j for i, j in lattice.edges]
         # Make symmetric: add reverse edges
@@ -616,6 +662,55 @@ class HamiltonianBuilder:
             for i, j in lattice.edges
         ]
         return ops_z, ops_ss
+
+    # ── Heisenberg XXZ with transverse field ────────────────────────
+
+    def build_heisenberg_transverse(
+        self, lattice: LatticeConfig, delta: float = 0.5
+    ) -> SparsePauliOp:
+        """Build H = J Σ_{(i,j)} (X_iX_j + Y_iY_j + Δ·Z_iZ_j) - h Σ_i X_i.
+
+        Heisenberg XXZ model with external field in the X direction (transverse).
+        The transverse field breaks the U(1) symmetry of the XXZ model and creates
+        a QPT between an antiferromagnetic phase (low h) and a paramagnetic phase
+        (high h), analogous to the TFIM but with richer spin interactions.
+
+        At Δ=0.5 (default), this is the anisotropic XXZ in a transverse field —
+        a model that is genuinely distinct from TFIM while remaining accessible
+        to shallow HVA circuits with |+⟩^N initial state.
+
+        Parameters
+        ----------
+        lattice : LatticeConfig
+            Lattice specification (topology, edges, couplings, field).
+        delta : float
+            ZZ anisotropy. Δ=1 is isotropic XXX, Δ=0.5 is anisotropic (default),
+            Δ=0 reduces to XY model in transverse field.
+
+        Returns
+        -------
+        SparsePauliOp
+            The Heisenberg XXZ transverse-field Hamiltonian.
+        """
+        print("INFO: building heisenberg transverse on hamiltonian.py")
+        n = lattice.n_qubits
+        terms: list[tuple[str, list[int], complex]] = []
+
+        # Exchange interaction: J(XX + YY + Δ·ZZ) on lattice edges
+        for bond_idx, (i, j) in enumerate(lattice.edges):
+            j_val = lattice.J[bond_idx] if isinstance(lattice.J, np.ndarray) else lattice.J
+            terms.append(("XX", [i, j], j_val))
+            terms.append(("YY", [i, j], j_val))
+            terms.append(("ZZ", [i, j], j_val * delta))
+
+        # Transverse field in X direction on all sites
+        for site in range(n):
+            h_val = lattice.h[site] if isinstance(lattice.h, np.ndarray) else lattice.h
+            terms.append(("X", [site], -h_val))
+
+        H = SparsePauliOp.from_sparse_list(terms, num_qubits=n)
+        self.validate(H, n)
+        return H
 
     # ── Task 2.4: validate() ─────────────────────────────────────────
 

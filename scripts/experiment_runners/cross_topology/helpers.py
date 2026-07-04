@@ -832,8 +832,13 @@ def save_validation_checkpoint(
         ),
     }
 
-    with open(path, "w") as f:
-        json.dump(checkpoint, f, indent=2, default=str)
+    from qmbp_simulation.utils.helpers import json_dump
+
+    try:
+        json_dump(checkpoint, path)
+    except Exception as e:
+        logger.error(f"Failed to save validation checkpoint: {e}")
+        return path
 
     logger.error(f"Validation failure saved to: {path}")
     return path
@@ -1295,7 +1300,7 @@ def evaluate_theta(
 ) -> dict:
     """Evaluate predicted theta on target system.
 
-    Uses NoiselessBackend for N≤15, MPSBackend(chi_max=64) for N=16.
+    Uses NoiselessBackend for N≤15, MPSBackend(chi_max=MPS_DEFAULT_CHI_MAX) for N=16.
     Checks variational principle: E_pred ≥ E_exact - 1e-6.
 
     Parameters
@@ -1342,7 +1347,9 @@ def evaluate_theta(
     circuit, _ = hva.create(n_target, 1, lattice)
 
     if use_mps or n_target > 15:
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=precision, seed=seed)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, precision=precision, seed=seed
+        )
     else:
         backend = NoiselessBackend()
 

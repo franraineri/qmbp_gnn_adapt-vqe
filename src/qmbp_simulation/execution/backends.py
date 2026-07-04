@@ -6,12 +6,15 @@ for noiseless simulation, noisy simulation, and hardware execution.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import numpy as np
 from qiskit.circuit import QuantumCircuit
 from qiskit.quantum_info import SparsePauliOp
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,12 +67,33 @@ class MitigationOptions:
     # Twirling strategy: "active-circuit" avoids twirling idle qubits.
     # None = let Runtime decide (Heron r2+ defaults to "active-circuit").
     twirling_strategy: str | None = None
+    # ── QESEM integration (Qedma Qiskit Function, arXiv:2508.10997) ──────
+    # When enabled, bypasses local ZNE pipeline and delegates mitigation
+    # entirely to Qedma's QESEM function (characterization-based, unbiased,
+    # quasi-probabilistic mitigation). Requires IBM Premium/Flex plan access
+    # and qiskit-ibm-catalog package.
+    qesem_enabled: bool = False
 
     def __post_init__(self) -> None:
         if self.dd_enabled and self.dd_sequence not in ("XX", "XpXm", "XY4"):
             raise ValueError(
                 f"Invalid dd_sequence '{self.dd_sequence}'. Valid values: 'XX', 'XpXm', 'XY4'"
             )
+        if self.zne_noise_factors is not None:
+            if len(self.zne_noise_factors) < 2:
+                raise ValueError(
+                    f"zne_noise_factors must have at least 2 elements for extrapolation, "
+                    f"got {len(self.zne_noise_factors)}."
+                )
+            if self.zne_noise_factors != sorted(self.zne_noise_factors):
+                raise ValueError(
+                    f"zne_noise_factors must be in ascending order, got {self.zne_noise_factors}."
+                )
+            if self.zne_noise_factors[0] < 1.0:
+                raise ValueError(
+                    f"zne_noise_factors[0] must be >= 1.0 (base noise level), "
+                    f"got {self.zne_noise_factors[0]}."
+                )
 
 
 class ExecutionBackend(ABC):
@@ -111,6 +135,67 @@ class ExecutionBackend(ABC):
         """Human-readable backend identifier."""
         ...
 
+    def compute_fidelity(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+        exact_state: np.ndarray,
+    ) -> float:
+        """Compute state fidelity |⟨ψ_exact|ψ(params)⟩|²."""
+        logger.debug(
+            "[%s] compute_fidelity: N=%d, n_params=%d",
+            self.name,
+            circuit.num_qubits,
+            len(params),
+        )
+        from qiskit.quantum_info import Statevector, state_fidelity
+
+        sv_ansatz = Statevector(circuit.assign_parameters(params))
+        fid = float(state_fidelity(sv_ansatz, Statevector(exact_state)))
+
+        # Physics guard: fidelity must be in [0, 1]. Numerical noise can push
+        # it slightly outside due to floating-point arithmetic in inner products.
+        if fid > 1.0 + 1e-6 or fid < -1e-6:
+            logger.error(
+                "[%s] compute_fidelity: value %.8f far outside [0, 1] — "
+                "possible bug in circuit or exact_state (not a valid quantum state).",
+                self.name,
+                fid,
+            )
+        elif fid > 1.0 + 1e-10 or fid < -1e-10:
+            logger.warning(
+                "[%s] compute_fidelity: value %.8f slightly outside [0, 1] — "
+                "numerical noise, clipping.",
+                self.name,
+                fid,
+            )
+        fid = float(np.clip(fid, 0.0, 1.0))
+
+        logger.debug("[%s] compute_fidelity: result=%.6f", self.name, fid)
+        return fid
+
+    def get_statevector(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+    ) -> np.ndarray:
+        """Extract the full statevector for the given circuit and parameters."""
+        logger.debug(
+            "[%s] get_statevector: N=%d, n_params=%d",
+            self.name,
+            circuit.num_qubits,
+            len(params),
+        )
+        if len(params) != circuit.num_parameters:
+            raise ValueError(
+                f"Parameter count mismatch in get_statevector: "
+                f"got {len(params)}, circuit expects {circuit.num_parameters}."
+            )
+        from qiskit.quantum_info import Statevector
+
+        sv = Statevector(circuit.assign_parameters(params))
+        return np.asarray(sv.data)
+
 
 class NoiselessBackend(ExecutionBackend):
     """Exact statevector simulation via StatevectorEstimator.
@@ -130,9 +215,20 @@ class NoiselessBackend(ExecutionBackend):
         params: np.ndarray,
     ) -> float:
         """Evaluate expectation value using exact statevector simulation."""
+        logger.debug(
+            "NoiselessBackend.evaluate: n_qubits=%d, n_params=%d, H_terms=%d",
+            circuit.num_qubits,
+            len(params),
+            len(hamiltonian),
+        )
         if len(params) != circuit.num_parameters:
             raise ValueError(
                 f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
+            )
+        if not np.all(np.isfinite(params)):
+            raise ValueError(
+                f"NoiselessBackend.evaluate: params contain NaN/Inf. "
+                f"Non-finite indices: {np.where(~np.isfinite(params))[0].tolist()}"
             )
         bound = circuit.assign_parameters(params)
         job = self._estimator.run([(bound, hamiltonian)])
@@ -297,3 +393,82 @@ class HardwareBackend(ExecutionBackend):
     @property
     def name(self) -> str:
         return f"hardware_{self._backend_name}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Backend Factory
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Threshold: N ≤ EXACT_DIAG_QUBIT_LIMIT → StatevectorEstimator (exact, fastest).
+#            N > EXACT_DIAG_QUBIT_LIMIT → MPSBackend (Aer MPS, χ=64, O(N·χ³) per eval).
+# Rationale: StatevectorEstimator is O(2^N) per gate application. At N=20 with
+# 57 RZZ gates, a single eval takes >60s. MPSBackend at χ=64 does ~127ms/eval
+# and is exact for HVA p≤2 on 1D-like topologies (validated |MPS-SV|≈1e-14).
+
+
+def select_backend(
+    n_qubits: int,
+    *,
+    chi_max: int = 64,
+    deterministic: bool = True,
+    seed: int | None = None,
+    for_vqe_loop: bool = False,
+) -> ExecutionBackend:
+    """Auto-select the optimal noiseless backend based on system size.
+
+    Parameters
+    ----------
+    n_qubits : int
+        Number of qubits in the circuit.
+    chi_max : int
+        MPS bond dimension (only used when N > EXACT_DIAG_QUBIT_LIMIT).
+        Default 64 is exact for HVA p≤2 on 1D TFIM at any N.
+    deterministic : bool
+        If True (default), MPS uses exact expectation value computation.
+        If False, uses shot-based sampling (for noise-tolerance testing).
+    seed : int | None
+        Random seed for reproducibility.
+    for_vqe_loop : bool
+        If True, optimizes for iterative evaluation (VQE optimization loops).
+        Uses MPS for N>10 instead of N>15, because StatevectorEstimator's
+        O(2^N) scaling makes VQE prohibitively slow at N≥12 (~60s/point vs
+        ~0.1s/point with MPS at N=12). Default False preserves original
+        behavior for single evaluations.
+
+    Returns
+    -------
+    ExecutionBackend
+        NoiselessBackend for small N, MPSBackend for larger N.
+
+    Examples
+    --------
+    >>> from qmbp_simulation.execution import select_backend
+    >>> backend = select_backend(n_qubits=20)  # → MPSBackend
+    >>> backend = select_backend(n_qubits=6)   # → NoiselessBackend
+    >>> backend = select_backend(n_qubits=12, for_vqe_loop=True)  # → MPSBackend
+    """
+    from qmbp_simulation.models.constants import EXACT_DIAG_QUBIT_LIMIT, MPS_DEFAULT_CHI_MAX
+
+    if n_qubits < 1:
+        raise ValueError(f"n_qubits must be >= 1, got {n_qubits}.")
+
+    if chi_max == 64:
+        chi_max = MPS_DEFAULT_CHI_MAX  # Use canonical constant
+
+    # For VQE loops, use a lower threshold (N>10) because StatevectorEstimator
+    # is O(2^N) per eval and VQE does thousands of evals per h-point.
+    threshold = 10 if for_vqe_loop else EXACT_DIAG_QUBIT_LIMIT
+
+    if n_qubits <= threshold:
+        logger.debug("select_backend: N=%d ≤ %d → NoiselessBackend", n_qubits, threshold)
+        return NoiselessBackend()
+    else:
+        from qmbp_simulation.execution.mps_backend import MPSBackend
+
+        logger.debug("select_backend: N=%d > %d → MPSBackend(χ=%d)", n_qubits, threshold, chi_max)
+        return MPSBackend(
+            strategy="aer_mps",
+            chi_max=chi_max,
+            deterministic=deterministic,
+            seed=seed,
+        )

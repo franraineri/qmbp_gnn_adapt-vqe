@@ -53,7 +53,7 @@ class BondResolvedValidationRunner(ValidationRunner):
     @classmethod
     def _add_custom_args(cls, parser):
         parser.add_argument("--n-qubits", type=int, default=6)
-        parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44])
+        parser.add_argument("--seeds", type=int, nargs="+", default=DEFAULT_SEEDS)
 
     def build_config(self) -> dict:
         return {

@@ -53,7 +53,7 @@ class ExperimentG2(BaseExperiment):
             ),
             vqe=VQEConfig(n_restarts=5, maxiter=500),
             mpnn=MPNNConfig(hidden_dim=64, n_layers=3, n_epochs=4000, lr=1e-3),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
             auto_warm_cold_comparison=False,
         )

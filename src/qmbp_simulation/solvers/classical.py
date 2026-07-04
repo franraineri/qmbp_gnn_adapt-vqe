@@ -67,6 +67,13 @@ class ClassicalSolver:
 
         if method == "auto":
             method = "exact" if n <= EXACT_DIAG_QUBIT_LIMIT else "dmrg"
+        logger.debug(
+            "ClassicalSolver.solve: n=%d, method=%s, topology=%s, h=%s",
+            n,
+            method,
+            lattice.topology,
+            lattice.h,
+        )
 
         # Build observables if not provided
         if obs_x is None or obs_zz is None:
@@ -83,6 +90,224 @@ class ClassicalSolver:
             return self._solve_dmrg(hamiltonian, lattice, obs_x, obs_zz)
         else:
             raise ValueError(f"Unknown method '{method}'. Use 'exact', 'dmrg', or 'auto'.")
+
+    def ground_state_vector(
+        self,
+        hamiltonian: SparsePauliOp,
+        n_qubits: int | None = None,
+    ) -> np.ndarray:
+        """Return the ground state eigenvector as a numpy array.
+
+        Selects the best algorithm based on system size:
+          - N ≤ 15: dense ``np.linalg.eigh`` (full spectrum, instant)
+          - 15 < N ≤ 22: sparse Lanczos via ``scipy.sparse.linalg.eigsh``
+            using ``SparsePauliOp.to_matrix(sparse=True)``
+          - N > 22: raises ValueError (use DMRG + MPS; no statevector available)
+
+        This method is intended for fidelity computation where the full 2^N
+        ground state vector is needed. For energy-only ground truth, use
+        ``solve()`` which dispatches to DMRG for large N.
+
+        Parameters
+        ----------
+        hamiltonian : SparsePauliOp
+            The spin Hamiltonian.
+        n_qubits : int | None
+            Number of qubits. Inferred from hamiltonian if None.
+
+        Returns
+        -------
+        np.ndarray
+            Ground state vector of shape (2^N,), complex128.
+
+        Raises
+        ------
+        ValueError
+            If N > 22 (statevector too large even for sparse methods).
+        """
+        from scipy.sparse.linalg import eigsh
+
+        n = n_qubits if n_qubits is not None else hamiltonian.num_qubits
+
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        if n > STATEVECTOR_MAX_N:
+            raise ValueError(
+                f"ground_state_vector not supported for N={n} > {STATEVECTOR_MAX_N}. "
+                f"Statevector requires 2^{n} amplitudes ({2**n * 16 / 1e9:.1f} GB). "
+                f"Use DMRG (solve method) for energy/gap, skip fidelity for N>{STATEVECTOR_MAX_N}."
+            )
+
+        if n <= EXACT_DIAG_QUBIT_LIMIT:
+            logger.debug("ground_state_vector: N=%d → dense eigh (exact)", n)
+            mat = np.asarray(hamiltonian.to_matrix())
+            _, evecs = np.linalg.eigh(mat)
+            return np.ascontiguousarray(evecs[:, 0])
+        else:
+            logger.debug("ground_state_vector: N=%d → sparse eigsh (Lanczos)", n)
+            H_sparse = hamiltonian.to_matrix(sparse=True)
+            try:
+                _, evecs = eigsh(H_sparse, k=1, which="SA")
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Sparse eigsh failed for N={n} ({H_sparse.shape[0]}×{H_sparse.shape[1]}, "
+                    f"nnz={H_sparse.nnz}). This may indicate a non-Hermitian Hamiltonian "
+                    f"or insufficient memory for Lanczos workspace."
+                ) from exc
+            gs = evecs[:, 0]
+            # Sanity: eigenvector should be normalized
+            norm = float(np.linalg.norm(gs))
+            if abs(norm - 1.0) > 1e-6:
+                logger.warning(
+                    "ground_state_vector: eigsh returned non-unit vector (norm=%.6f), normalizing",
+                    norm,
+                )
+                gs = gs / norm
+            return gs
+
+    @staticmethod
+    def validate_ground_truth(
+        results: list[GroundTruthResult],
+        *,
+        model: str = "tfim",
+        n_qubits: int | None = None,
+        n_edges: int | None = None,
+    ) -> dict:
+        """Validate Phase 1 (exact diag / DMRG) results for physical consistency.
+
+        Checks:
+          1. Gap positivity: gap > 0 for all points
+          2. Energy bounds: E ∈ [E_lower, E_upper] (spectral bounds)
+          3. Observable bounds: ⟨X⟩ ∈ [0, 1], ⟨ZZ⟩ ∈ [-1, 1]
+          4. Energy monotonicity: for TFIM, E(h) should be monotonically
+             decreasing as h increases (more negative)
+          5. Gap floor warning: if gap == 2π/N for all points, flag as
+             "fallback gap" (DMRG excited state failed)
+
+        Parameters
+        ----------
+        results : list[GroundTruthResult]
+            Phase 1 results (ordered by h, descending sweep).
+        model : str
+            Model name for bound computation.
+        n_qubits : int | None
+            System size (inferred from results if None).
+        n_edges : int | None
+            Number of edges (for energy bound computation).
+
+        Returns
+        -------
+        dict
+            Validation report with keys: passed, warnings, errors, details.
+        """
+        if not results:
+            return {"passed": False, "warnings": [], "errors": ["Empty results list"]}
+
+        warnings_list = []
+        errors_list = []
+
+        n = (
+            n_qubits or len(results[0].per_site_mag_x)
+            if results[0].per_site_mag_x is not None
+            else 0
+        )
+        n_e = n_edges or (n - 1)  # Default: open chain
+
+        # 1. Gap positivity
+        zero_gaps = [r for r in results if r.gap <= 0]
+        if zero_gaps:
+            errors_list.append(
+                f"Gap ≤ 0 at {len(zero_gaps)} points: h={[r.h_value for r in zero_gaps[:3]]}"
+            )
+
+        # 2. Energy bounds
+        for r in results:
+            h_abs = abs(r.h_value)
+            if model in ("tfim", "tfim_longitudinal", "tfim_frustrated"):
+                e_lower = -abs(1.0) * n_e - h_abs * n
+                e_upper = abs(1.0) * n_e + h_abs * n
+            else:
+                e_lower = -3 * abs(1.0) * n_e - h_abs * n
+                e_upper = 3 * abs(1.0) * n_e + h_abs * n
+
+            if r.ground_energy < e_lower - 1e-6:
+                errors_list.append(
+                    f"E={r.ground_energy:.6f} below lower bound {e_lower:.6f} at h={r.h_value:.3f}"
+                )
+            if r.ground_energy > e_upper + 1e-6:
+                errors_list.append(
+                    f"E={r.ground_energy:.6f} above upper bound {e_upper:.6f} at h={r.h_value:.3f}"
+                )
+
+        # 3. Observable bounds
+        for r in results:
+            if r.per_site_mag_x is not None:
+                mx_max = float(np.max(np.abs(r.per_site_mag_x)))
+                if mx_max > 1.0 + 1e-6:
+                    errors_list.append(f"|⟨X⟩| = {mx_max:.4f} > 1 at h={r.h_value:.3f}")
+            if r.per_bond_corr_zz is not None:
+                zz_max = float(np.max(np.abs(r.per_bond_corr_zz)))
+                if zz_max > 1.0 + 1e-6:
+                    errors_list.append(f"|⟨ZZ⟩| = {zz_max:.4f} > 1 at h={r.h_value:.3f}")
+
+        # 4. Energy monotonicity (TFIM: E decreases as h increases)
+        if model in ("tfim", "tfim_longitudinal") and len(results) >= 3:
+            # Results are in descending h order
+            h_vals = [r.h_value for r in results]
+            e_vals = [r.ground_energy for r in results]
+            # In descending h sweep: h decreases, E should become less negative
+            # Check: no large non-monotonic jumps (> 10% of range)
+            e_range = max(e_vals) - min(e_vals) if max(e_vals) != min(e_vals) else 1.0
+            for i in range(len(e_vals) - 1):
+                if h_vals[i] > h_vals[i + 1]:  # h decreasing
+                    # E should increase (become less negative)
+                    if e_vals[i + 1] < e_vals[i] - 0.1 * e_range:
+                        warnings_list.append(
+                            f"Non-monotonic E: E({h_vals[i]:.3f})={e_vals[i]:.4f} → "
+                            f"E({h_vals[i + 1]:.3f})={e_vals[i + 1]:.4f}"
+                        )
+
+        # 5. Gap floor warning (DMRG fallback detection)
+        if n > 0:
+            finite_floor = 2 * np.pi / n
+            gaps = [r.gap for r in results]
+            n_at_floor = sum(1 for g in gaps if abs(g - finite_floor) < 1e-6)
+            if n_at_floor == len(results) and len(results) > 1:
+                warnings_list.append(
+                    f"All {len(results)} gaps = 2π/N = {finite_floor:.4f} "
+                    f"(DMRG excited-state likely failed — using finite-size floor)"
+                )
+            elif n_at_floor > len(results) * 0.5:
+                warnings_list.append(
+                    f"{n_at_floor}/{len(results)} gaps at finite-size floor "
+                    f"2π/N = {finite_floor:.4f}"
+                )
+
+        # 6. ⟨X⟩ ≈ 0 in paramagnetic phase (symmetry breaking)
+        for r in results:
+            if r.h_value > 2.0 and r.mag_x < 0.1:
+                warnings_list.append(
+                    f"⟨X⟩={r.mag_x:.4f} ≈ 0 at h={r.h_value:.3f} (expect ≈1 in PM phase) "
+                    f"— likely DMRG symmetry breaking"
+                )
+                break  # Only warn once
+
+        passed = len(errors_list) == 0
+        return {
+            "passed": passed,
+            "n_points": len(results),
+            "warnings": warnings_list,
+            "errors": errors_list,
+            "details": {
+                "gap_min": min(r.gap for r in results),
+                "gap_max": max(r.gap for r in results),
+                "e_min": min(r.ground_energy for r in results),
+                "e_max": max(r.ground_energy for r in results),
+                "n_at_gap_floor": sum(
+                    1 for r in results if n > 0 and abs(r.gap - 2 * np.pi / n) < 1e-6
+                ),
+            },
+        }
 
     def _solve_exact(
         self,
@@ -107,12 +332,59 @@ class ClassicalSolver:
         e0 = float(evals[0])
         gap = float(evals[1] - evals[0])
 
+        # Physics guard: near-degeneracy makes ΔE/gap metrics meaningless.
+        # Also detect non-finite eigenvalues (corrupted Hamiltonian).
+        if not np.isfinite(e0):
+            raise RuntimeError(
+                f"Non-finite ground energy E₀={e0} from eigh at h={h_val:.4f}. "
+                f"Hamiltonian may be corrupted (check hermiticity/construction)."
+            )
+        if gap < 1e-12 and gap >= 0:
+            logger.error(
+                "Near-degenerate ground state: gap=%.2e at h=%.4f. "
+                "ΔE/gap metrics will be unreliable. This may indicate a "
+                "first-order QPT or accidental degeneracy.",
+                gap,
+                h_val,
+            )
+        elif gap < 1e-6:
+            logger.warning(
+                "Very small gap=%.2e at h=%.4f — ΔE/gap metrics may be "
+                "numerically unstable at this point.",
+                gap,
+                h_val,
+            )
+
         sv = Statevector(psi_gs)
 
         # Per-site ⟨Xᵢ⟩
         per_site_mx = np.array([sv.expectation_value(op).real for op in obs_x])
         # Per-bond ⟨ZᵢZⱼ⟩
         per_bond_zz = np.array([sv.expectation_value(op).real for op in obs_zz])
+
+        # Physics guard: observable bounds — Pauli expectation values ∈ [-1, 1]
+        mx_max = float(np.max(np.abs(per_site_mx))) if len(per_site_mx) > 0 else 0
+        zz_max = float(np.max(np.abs(per_bond_zz))) if len(per_bond_zz) > 0 else 0
+        if mx_max > 1.0 + 1e-6:
+            logger.error(
+                "Observable bound violated: |⟨X⟩|_max=%.6f > 1 at h=%.4f. "
+                "Eigenvector may not be a valid quantum state.",
+                mx_max,
+                h_val,
+            )
+        elif mx_max > 1.0 + 1e-10:
+            logger.warning(
+                "Observable slightly out of bounds: |⟨X⟩|_max=%.10f at h=%.4f (numerical noise).",
+                mx_max,
+                h_val,
+            )
+        if zz_max > 1.0 + 1e-6:
+            logger.error(
+                "Observable bound violated: |⟨ZZ⟩|_max=%.6f > 1 at h=%.4f. "
+                "Eigenvector may not be a valid quantum state.",
+                zz_max,
+                h_val,
+            )
 
         return GroundTruthResult(
             h_value=h_val,

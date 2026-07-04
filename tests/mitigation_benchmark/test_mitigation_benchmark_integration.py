@@ -343,7 +343,7 @@ def test_idempotency_skip_existing(tmp_path, monkeypatch):
 
     # Patch _build_result_path to return our fake existing file
     fake_result_file = fake_result_dir / "h3p5_run_20260618_103000.json"
-    fake_result_file.write_text(json.dumps({"existing": True}))
+    fake_result_file.write_text(json.dumps({"existing": True, "results": {"e_raw": -5.0}}))
 
     monkeypatch.setattr(
         "scripts.experiment_runners.hardware.run_mitigation_benchmark._build_result_path",
@@ -356,7 +356,9 @@ def test_idempotency_skip_existing(tmp_path, monkeypatch):
 
     # Verify original file content unchanged
     data = json.loads(fake_result_file.read_text())
-    assert data == {"existing": True}, "File content should not be modified"
+    assert data == {"existing": True, "results": {"e_raw": -5.0}}, (
+        "File content should not be modified"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

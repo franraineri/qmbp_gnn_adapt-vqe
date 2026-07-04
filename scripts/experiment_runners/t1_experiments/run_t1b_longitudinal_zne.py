@@ -55,7 +55,7 @@ N_QUBITS = 6
 P_LAYERS = 1  # Hardware-viable depth
 TOPOLOGY = "chain_1d"
 G_DEFAULT = 0.3
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # h-values for ZNE evaluation (descending, inside valid regime)
 H_VALUES = [2.5, 2.0, 1.75, 1.5]

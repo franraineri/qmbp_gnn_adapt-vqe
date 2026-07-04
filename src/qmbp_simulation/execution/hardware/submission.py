@@ -41,7 +41,69 @@ def select_layouts_for_hardware(
 
     Uses mapomatic VF2 subgraph isomorphism when available and enabled
     (config.use_mapomatic=True). Falls back to BFS + CES selection otherwise.
+
+    P2-A: Dynamic n_layouts escalation — if CES spread across selected layouts
+    is insufficient for reliable ZNE extrapolation (spread < min_ces_spread),
+    escalates from config.n_layouts to config.n_layouts_max (default 5) to
+    improve diversity. This only triggers when additional layouts are available.
     """
+    # P2-A: Dynamic layout count parameters
+    min_ces_spread = getattr(config, "min_ces_spread", 0.02)
+    n_layouts_max = getattr(config, "n_layouts_max", 5)
+
+    # ── PRIORITY 1: Try known SWAP-free layout FIRST ──
+    # This is the highest-priority path because it guarantees zero routing
+    # overhead (verified: all 9 logical edges map to physical CZ).
+    # Only skipped if the layout produces high n_2q (calibration changed topology).
+    fallback = getattr(config, "fallback_layout_kingston", None)
+    if fallback and len(fallback) >= config.n_qubits:
+        try:
+            layout_selection = select_layouts_low_ces(
+                bound_circuit,
+                backend,
+                [fallback],  # Single known-good layout as only candidate
+                n_select=1,
+                optimization_level=config.optimization_level,
+                max_ces=config.max_ces,
+            )
+            if layout_selection.layouts:
+                # Verify the transpiled circuit has low 2Q count (SWAP-free)
+                tc = layout_selection.transpiled_circuits[0]
+                n_2q = sum(dict(tc.count_ops()).get(g, 0) for g in ["cz", "cx", "ecr"])
+                if n_2q <= config.n_qubits * 2:  # Heuristic: ≤2× logical edges = minimal routing
+                    logger.log(
+                        "layout_method",
+                        data={
+                            "method": "known_swap_free",
+                            "layout": fallback,
+                            "n_2q": n_2q,
+                            "swap_free": n_2q <= len(fallback),
+                        },
+                    )
+                    logger.log(
+                        "layout_selection",
+                        data={
+                            "n_selected": 1,
+                            "ces_values": layout_selection.ces_values,
+                            "method": "known_swap_free",
+                        },
+                    )
+                    return layout_selection
+                else:
+                    logger.log(
+                        "layout_fallback_rejected",
+                        data={
+                            "reason": f"n_2q={n_2q} > threshold={config.n_qubits * 2}",
+                            "layout": fallback,
+                        },
+                    )
+        except Exception as exc:
+            logger.log(
+                "layout_fallback_error",
+                data={"error": str(exc), "layout": fallback},
+            )
+
+    # ── PRIORITY 2: VF2 (mapomatic) ──
     if config.use_mapomatic and MAPOMATIC_AVAILABLE:
         logger.log(
             "layout_method",
@@ -61,6 +123,17 @@ def select_layouts_for_hardware(
             strategy=config.layout_strategy,
         )
         if layout_selection.layouts:
+            # P2-A: Check CES spread and escalate if insufficient
+            layout_selection = _maybe_escalate_layouts(
+                layout_selection,
+                bound_circuit,
+                backend,
+                config,
+                logger,
+                min_ces_spread=min_ces_spread,
+                n_layouts_max=n_layouts_max,
+                method="mapomatic_vf2",
+            )
             logger.log(
                 "layout_selection",
                 data={
@@ -76,7 +149,7 @@ def select_layouts_for_hardware(
             data={"reason": "mapomatic returned empty, using BFS"},
         )
 
-    # ── BFS fallback (original path) ──
+    # ── PRIORITY 3: BFS fallback ──
     if config.use_mapomatic and not MAPOMATIC_AVAILABLE:
         logger.log(
             "layout_method",
@@ -109,6 +182,19 @@ def select_layouts_for_hardware(
         optimization_level=config.optimization_level,
         max_ces=config.max_ces,
     )
+
+    # P2-A: Check CES spread and escalate if insufficient (BFS path)
+    layout_selection = _maybe_escalate_layouts(
+        layout_selection,
+        bound_circuit,
+        backend,
+        config,
+        logger,
+        min_ces_spread=min_ces_spread,
+        n_layouts_max=n_layouts_max,
+        method="bfs",
+    )
+
     logger.log(
         "layout_selection",
         data={
@@ -116,6 +202,138 @@ def select_layouts_for_hardware(
             "ces_values": layout_selection.ces_values,
             "method": "bfs",
         },
+    )
+    return layout_selection
+
+
+def _maybe_escalate_layouts(
+    layout_selection: LayoutSelection,
+    bound_circuit: QuantumCircuit,
+    backend: Any,
+    config: HardwareConfig,
+    logger: StructuredLogger,
+    *,
+    min_ces_spread: float = 0.02,
+    n_layouts_max: int = 5,
+    method: str = "unknown",
+) -> LayoutSelection:
+    """P2-A: Escalate n_layouts from 3→5 if CES spread is insufficient.
+
+    CES spread is defined as max(CES) - min(CES) across selected layouts.
+    Insufficient spread means ZNE extrapolation has poor leverage (all points
+    cluster at similar noise levels). Escalating to more layouts increases the
+    chance of finding diverse CES values.
+
+    Only escalates when:
+    1. Current spread < min_ces_spread
+    2. Current n_layouts < n_layouts_max
+    3. Additional layouts are actually available
+
+    Parameters
+    ----------
+    layout_selection : LayoutSelection
+        Initial layout selection with n_layouts layouts.
+    min_ces_spread : float
+        Minimum acceptable CES spread (default 0.02).
+    n_layouts_max : int
+        Maximum layouts to select on escalation (default 5).
+    method : str
+        Selection method for logging ("mapomatic_vf2" or "bfs").
+
+    Returns
+    -------
+    LayoutSelection
+        Original selection if spread is OK, or expanded selection if escalated.
+    """
+    ces_values = layout_selection.ces_values
+    n_current = len(ces_values)
+
+    # Guard: need at least 2 layouts to compute spread
+    if n_current < 2:
+        return layout_selection
+
+    # Guard: already at or above maximum
+    if n_current >= n_layouts_max:
+        return layout_selection
+
+    ces_spread = max(ces_values) - min(ces_values)
+    if ces_spread >= min_ces_spread:
+        return layout_selection
+
+    # CES spread insufficient → escalate
+    logger.log(
+        "layout_escalation_triggered",
+        data={
+            "reason": "ces_spread_insufficient",
+            "ces_spread": ces_spread,
+            "min_ces_spread": min_ces_spread,
+            "n_current": n_current,
+            "n_target": n_layouts_max,
+            "method": method,
+        },
+    )
+
+    # Re-select with more layouts
+    if method == "mapomatic_vf2" and MAPOMATIC_AVAILABLE:
+        expanded = select_optimal_layouts(
+            bound_circuit,
+            backend,
+            n_select=n_layouts_max,
+            max_ces=config.max_ces,
+            max_2q_error=getattr(config, "layout_max_2q_error", 0.01),
+            min_t1_us=getattr(config, "layout_min_t1_us", 50.0),
+            optimization_level=config.optimization_level,
+            call_limit=getattr(config, "layout_call_limit", 100_000),
+            exclude_qubits=set(getattr(config, "layout_exclude_qubits", [])),
+            defective_edge_threshold=0.10,
+            strategy=getattr(config, "layout_strategy", "lowest_cost"),
+        )
+        if expanded.layouts and len(expanded.layouts) > n_current:
+            new_spread = max(expanded.ces_values) - min(expanded.ces_values)
+            logger.log(
+                "layout_escalation_result",
+                data={
+                    "n_layouts_new": len(expanded.layouts),
+                    "ces_spread_new": new_spread,
+                    "ces_spread_old": ces_spread,
+                    "improvement": new_spread > ces_spread,
+                },
+            )
+            return expanded
+    else:
+        # BFS path: re-select with expanded count
+        adj = build_adjacency(backend)
+        candidates = find_layouts_bfs(
+            adj,
+            config.n_qubits,
+            n_candidates=config.n_candidates,
+            seed=config.layout_seed,
+        )
+        expanded = select_layouts_low_ces(
+            bound_circuit,
+            backend,
+            candidates,
+            n_select=n_layouts_max,
+            optimization_level=config.optimization_level,
+            max_ces=config.max_ces,
+        )
+        if expanded.layouts and len(expanded.layouts) > n_current:
+            new_spread = max(expanded.ces_values) - min(expanded.ces_values)
+            logger.log(
+                "layout_escalation_result",
+                data={
+                    "n_layouts_new": len(expanded.layouts),
+                    "ces_spread_new": new_spread,
+                    "ces_spread_old": ces_spread,
+                    "improvement": new_spread > ces_spread,
+                },
+            )
+            return expanded
+
+    # Escalation didn't help — keep original
+    logger.log(
+        "layout_escalation_no_improvement",
+        data={"n_current": n_current, "method": method},
     )
     return layout_selection
 
@@ -259,6 +477,170 @@ def _submit_all_sequential(
     return results
 
 
+def wait_for_qpu_execution(
+    job: Any,
+    qpu_timeout_s: int | None = 900,
+    poll_interval_s: float = 5.0,
+) -> None:
+    """Wait for a job to finish, timing out only on QPU execution time.
+
+    Unlike ``job.wait_for_final_state(timeout=T)`` which counts queue wait
+    time against the timeout, this function:
+      1. Waits indefinitely for the job to leave QUEUED state.
+      2. Once the job enters RUNNING, starts a QPU-only timer.
+      3. Raises TimeoutError only if QPU execution exceeds ``qpu_timeout_s``.
+
+    For local/fake-backend jobs that lack ``status()`` or ``wait_for_final_state``,
+    falls back to ``job.wait_for_final_state()`` without timeout.
+
+    Parameters
+    ----------
+    job : RuntimeJobV2 or PrimitiveJob
+        The submitted job object.
+    qpu_timeout_s : int | None
+        Maximum seconds to wait after the job starts running on QPU.
+        None means wait indefinitely (no timeout even on QPU execution).
+    poll_interval_s : float
+        Seconds between status polls while waiting (default: 5.0).
+
+    Raises
+    ------
+    TimeoutError
+        If the QPU execution phase exceeds ``qpu_timeout_s``.
+    """
+    # Local PrimitiveJob (fake_backend) — no polling needed
+    if not hasattr(job, "status"):
+        if hasattr(job, "wait_for_final_state"):
+            job.wait_for_final_state()
+        return
+
+    # Phase 1: Wait for job to leave QUEUED (no timeout on queue)
+    _QUEUED_STATES = {"QUEUED", "VALIDATING", "INITIALIZING"}
+    _TERMINAL_STATES = {"DONE", "ERROR", "CANCELLED"}
+
+    while True:
+        raw_status = job.status()
+        status = raw_status.name if hasattr(raw_status, "name") else str(raw_status).upper()
+        if status not in _QUEUED_STATES:
+            break
+        time.sleep(poll_interval_s)
+
+    # If already terminal (e.g., cancelled while in queue), return
+    if status in _TERMINAL_STATES:
+        return
+
+    # Phase 2: Job is RUNNING — apply QPU execution timeout
+    if qpu_timeout_s is None:
+        # No timeout: wait indefinitely for completion
+        if hasattr(job, "wait_for_final_state"):
+            job.wait_for_final_state()
+        return
+
+    t_running_start = time.time()
+    while True:
+        raw_status = job.status()
+        status = raw_status.name if hasattr(raw_status, "name") else str(raw_status).upper()
+        if status in _TERMINAL_STATES:
+            return
+        elapsed = time.time() - t_running_start
+        if elapsed > qpu_timeout_s:
+            raise TimeoutError(
+                f"QPU execution exceeded {qpu_timeout_s}s "
+                f"(running for {elapsed:.0f}s). "
+                f"Queue wait was excluded from this timeout."
+            )
+        time.sleep(poll_interval_s)
+
+
+def _save_raw_job_to_disk(job: Any, save_dir: Any, label: str = "") -> None:
+    """Persist full raw QPU output from a completed job to disk.
+
+    Saves: evs, stds, ZNE noise-factor data, ensemble_stds, metrics,
+    submitted options, session_id — everything IBM provides.
+    Non-blocking: never raises, silently returns on failure.
+    """
+    from datetime import UTC, datetime
+    from pathlib import Path
+
+    import numpy as np
+
+    save_dir = Path(save_dir)
+    job_id = job.job_id() if hasattr(job, "job_id") else "local"
+
+    # Metrics
+    metrics_data: dict[str, Any] = {}
+    if hasattr(job, "metrics"):
+        try:
+            metrics = job.metrics()
+            if isinstance(metrics, dict):
+                usage = metrics.get("usage", {})
+                timestamps = metrics.get("timestamps", {})
+                metrics_data = {
+                    "qpu_seconds": usage.get("quantum_seconds"),
+                    "billed_seconds": usage.get("seconds"),
+                    "created": timestamps.get("created"),
+                    "running": timestamps.get("running"),
+                    "finished": timestamps.get("finished"),
+                }
+        except Exception:
+            pass
+
+    # Job metadata
+    job_metadata: dict[str, Any] = {}
+    for attr in ("program_id", "session_id", "tags"):
+        val = getattr(job, attr, None)
+        if val is not None:
+            job_metadata[attr] = val
+    try:
+        inputs = getattr(job, "inputs", None)
+        if isinstance(inputs, dict):
+            options_input = inputs.get("options", {})
+            if options_input:
+                job_metadata["submitted_options"] = options_input
+    except Exception:
+        pass
+
+    # PUB results with all available data
+    pub_results: list[dict[str, Any]] = []
+    try:
+        job_result = job.result()
+        for pub_idx, pub_result in enumerate(job_result):
+            evs = pub_result.data.evs
+            stds = getattr(pub_result.data, "stds", None)
+            evs_val = float(evs) if np.isscalar(evs) else evs.tolist()
+            stds_val = (
+                float(stds)
+                if stds is not None and np.isscalar(stds)
+                else (stds.tolist() if stds is not None else None)
+            )
+            pub_data: dict[str, Any] = {"pub_idx": pub_idx, "evs": evs_val, "stds": stds_val}
+            for extra in ("evs_noise_factors", "stds_noise_factors", "ensemble_stds", "metadata"):
+                val = getattr(pub_result.data, extra, None)
+                if val is not None:
+                    pub_data[extra] = val.tolist() if hasattr(val, "tolist") else val
+            pub_results.append(pub_data)
+    except Exception:
+        pass
+
+    output = {
+        "job_id": job_id,
+        "saved_at": datetime.now(UTC).isoformat(),
+        "metrics": metrics_data,
+        "job_metadata": job_metadata,
+        "pub_results": pub_results,
+        "n_pubs": len(pub_results),
+    }
+
+    prefix = f"{label}_" if label else ""
+    out_path = save_dir / f"{prefix}raw_qpu_{job_id}.json"
+    try:
+        from qmbp_simulation.utils.helpers import json_dump
+
+        json_dump(output, out_path)
+    except Exception:
+        pass
+
+
 def _collect_results(
     submitted: list[tuple[int, Any]],
     config: HardwareConfig,
@@ -270,11 +652,11 @@ def _collect_results(
 
     for idx, job in submitted:
         try:
-            # Local PrimitiveJob (fake_backend) has no wait_for_final_state;
-            # IBM Runtime jobs do. Handle both gracefully.
-            if hasattr(job, "wait_for_final_state"):
-                job.wait_for_final_state(timeout=config.job_timeout_s)
-                # Handle both enum-style and string-style status returns
+            # Use QPU-only timeout: waits indefinitely in queue, then
+            # applies job_timeout_s only to actual QPU execution time.
+            wait_for_qpu_execution(job, qpu_timeout_s=config.job_timeout_s)
+            # Handle both enum-style and string-style status returns
+            if hasattr(job, "status"):
                 raw_status = job.status()
                 if hasattr(raw_status, "name"):
                     status = raw_status.name
@@ -321,6 +703,16 @@ def _collect_results(
                         **usage_info,
                     }
                 )
+                # Save full raw QPU output for post-hoc analysis
+                if config.mode == "hardware" and config.output_dir:
+                    try:
+                        from pathlib import Path as _Path
+
+                        _raw_dir = _Path(config.output_dir) / "raw_qpu_output"
+                        _raw_dir.mkdir(parents=True, exist_ok=True)
+                        _save_raw_job_to_disk(job, _raw_dir, f"layout{idx}")
+                    except Exception:
+                        pass  # Never block execution for raw save
                 logger.log(
                     "job_completion",
                     data={

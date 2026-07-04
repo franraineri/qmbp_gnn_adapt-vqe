@@ -1,9 +1,12 @@
 """Models submodule — data models, Hamiltonians, constants, and model registry."""
 
 from qmbp_simulation.models.constants import (
+    DEFAULT_SEEDS,
     DMRG_QUBIT_LIMIT,
     EXACT_DIAG_QUBIT_LIMIT,
     MAX_P_LAYERS,
+    MPS_DEFAULT_CHI_MAX,
+    STATEVECTOR_MAX_N,
     SUPPORTED_TOPOLOGIES,
     SUPPORTED_VQE_METHODS,
 )
@@ -24,9 +27,12 @@ from qmbp_simulation.models.model_registry import (
 from qmbp_simulation.models.model_spec import ModelSpec
 
 __all__ = [
+    "DEFAULT_SEEDS",
     "DMRG_QUBIT_LIMIT",
     "EXACT_DIAG_QUBIT_LIMIT",
     "MAX_P_LAYERS",
+    "MPS_DEFAULT_CHI_MAX",
+    "STATEVECTOR_MAX_N",
     "SUPPORTED_VQE_METHODS",
     "ModelSpec",
     "SUPPORTED_TOPOLOGIES",

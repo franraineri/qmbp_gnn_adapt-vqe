@@ -95,6 +95,12 @@ Total for Tier 1 (4 h-points, no SPSA): ~15 min QPU time.
 ## Post-run
 
 - [ ] Verify results in `results/hardware/run_*/summary.json`
+- [ ] Run automated post-execution validation:
+  ```bash
+  .venv/bin/python scripts/verify_affine_bug.py --validate results/hardware/run_XXXXXXXX_XXXXXX
+  ```
+  Checks: energy bounds, affine consistency, observable bounds, cross-validation,
+  ZNE R², variational principle, SNR, phase confidence, circuit metrics, QPU time.
 - [ ] Check `provenance.json` for `total_qpu_seconds`
 - [ ] Update `documentation/binnacles/` with hardware session binnacle
 - [ ] Update `.kiro/steering/project-status.md` with hardware results

@@ -1341,7 +1341,10 @@ def test_regression_build_hva_circuit_non_trivial():
 
     for h in [3.25, 3.5, 3.75, 4.0]:
         circ = _build_hva_circuit(h)
-        n_2q = sum(1 for i in circ.data if i.operation.num_qubits == 2)
+        # PauliEvolutionGate wraps interactions as a single N-qubit gate;
+        # decompose once to expose the underlying RZZ 2Q gates.
+        circ_decomposed = circ.decompose()
+        n_2q = sum(1 for i in circ_decomposed.data if i.operation.num_qubits == 2)
         assert n_2q > 0, (
             f"h={h}: circuit has {n_2q} 2Q gates (must be >0 to avoid "
             f"transpiler cancellation at opt_level≥1)"
@@ -1350,7 +1353,7 @@ def test_regression_build_hva_circuit_non_trivial():
         # Also verify that binding params are non-zero
         # (the circuit is already bound, so check gate params)
         has_nonzero_rzz = False
-        for inst in circ.data:
+        for inst in circ_decomposed.data:
             if inst.operation.name == "rzz" and len(inst.operation.params) > 0:
                 if abs(float(inst.operation.params[0])) > 1e-10:
                     has_nonzero_rzz = True

@@ -204,3 +204,90 @@ Do NOT duplicate this content in other files — reference this document instead
 | Method is zero-cost (uses existing VQE data) | No additional QPU or VQE runs needed | Tasks 2+3 |
 
 **Binnacle**: `documentation/binnacles/binnacle-theta-pca-unsupervised-detection.md`
+
+---
+
+## Hardware Pipeline Improvements (2026-06-22) — Bug Fix + P0-P2 Enhancements
+
+### Critical Bug Fix: Affine Correction
+
+| Decision | Evidence | Impact |
+|----------|----------|--------|
+| Affine soft-correction formula was WRONG (614× amplification) | 3/18 hardware runs verdict-flipped PASS→FAIL | CRITICAL |
+| Simple clip to bounds is correct (not soft interpolation) | Monotonicity test over 200 points passes | Fix applied |
+| Hardware success rate: 15/18 → 18/18 with fix | All 3 affected runs had ΔE/gap<0.3% pre-affine | Verified |
+| `e_zne` field always preserved (pre-affine) | All runs auditable post-hoc via `abs(e_zne - e_exact)/gap` | Data integrity |
+
+**Affected file**: `src/qmbp_simulation/execution/noisy_utils.py` → `affine_correct_energy()`
+**Test file**: `tests/unit/test_affine_correction.py` (69 regression tests)
+**Verification**: `scripts/verify_affine_bug.py`
+
+### P0 Enhancements (zero QPU cost)
+
+| Enhancement | Implementation | Validation |
+|-------------|---------------|------------|
+| **WLS ZNE extrapolation** | `linear_zne()` supports `sigmas` param; σ_i ∝ √(nf_i) | Passes existing ZNE tests |
+| **PauliEvolution default** | `create_pauli_evolution()` used in hardware path | 6-10% lower depth, validated identical unitary |
+| **CES spread guard** | `min_ces_spread=0.02` in HardwareConfig | `test_p2a_guard.py` (3 tests) |
+
+### P1-A: Multi-Layout Observables
+
+| Decision | Evidence | Impact |
+|----------|----------|--------|
+| Submit observables on ALL layouts (not just first) | Reduces σ by √n_layouts (√3 ≈ 1.7×) | Zero extra QPU (same Batch) |
+| Average EVs across layouts before phase classification | Hardware mode: in single Batch context | Logged: "multi_layout_observables" |
+
+### P2-A: Dynamic Layout Escalation
+
+| Decision | Evidence | Impact |
+|----------|----------|--------|
+| Escalate 3→5 layouts when CES spread < 0.02 | BFS/VF2 re-select with n_layouts_max=5 | Conditional (only when needed) |
+| No escalation if already at max or spread sufficient | Guard conditions: n≥max OR spread≥threshold | test_p2a_guard.py |
+
+### Post-QPU Result Validation (zero-cost)
+
+| Check | Threshold | Action |
+|-------|-----------|--------|
+| Observable bounds (|⟨O⟩| ≤ 1) | Clip + log warning | Prevents corrupt data propagating |
+| Layout energy outliers (>5σ from mean) | Log + count | Saved in `layout_energy_outliers` field |
+| Energy-observable cross-validation | |E_ZNE - E_reconstructed| ≤ 2×gap | Saved in `e_obs_cross_valid_passed` |
+
+### New HardwareRunResult Fields (all persisted in summary.json)
+
+| Field | Type | Source |
+|-------|------|--------|
+| `obs_bounds_clipped` | bool | Post-QPU validation |
+| `n_obs_violations` | int | Post-QPU validation |
+| `layout_energy_outliers` | int | Post-QPU validation |
+| `e_obs_discrepancy` | float | Cross-validation check |
+| `e_obs_cross_valid_passed` | bool | Cross-validation check |
+| `n_layouts_observables` | int | Multi-layout obs (P1-A) |
+| `stale_calibration_t1_drift_pct` | float | P2-C: calibration drift |
+| `stale_calibration_stable` | bool | P2-C: calibration drift |
+| `effective_shots` | int | P3: adaptive shot budget |
+| `adaptive_shot_reason` | str | P3: reason for boost |
+
+**DO NOT re-run**: The 3 affected hardware runs do NOT need re-execution. Their `e_zne` values were correct (0.04-0.29% ΔE/gap). Only `e_after_affine` and `delta_e_gap` in the stored summary.json are wrong — use `e_zne` for analysis.
+
+
+---
+
+## Layout Routing Analysis (2026-06-23)
+
+| Decision | Evidence | Impact |
+|----------|----------|--------|
+| BFS layouts produce 34-44 CZ for 9-RZZ circuit | Transpilation audit on FakeKingston | CRITICAL — 75% fidelity wasted on routing |
+| Known SWAP-free layout: [22,23,24,25,26,27,28,16,37,17] | All 9 edges verified physically present on Kingston coupling map | 9 CZ vs 40 CZ (4.4× reduction) |
+| Kingston row 2 has degree-3 spacing=2 (matches heavy_hex N=10) | Q23(d3)-Q24-Q25(d3)-Q26-Q27(d3) verified | Perfect topology match |
+| Previous runs (Jun 14-17) used 1/9 edges physically present | Layout [22,21,23,20,36,16,24,41,3,25] analyzed — only edge (22,21) present | Explains 83% raw error |
+| VF2 (mapomatic) mandatory for optimal layout | BFS cannot verify edge isomorphism | Use VF2 or fallback_layout_kingston |
+| 8192 shots ≈ 16384 for PEA quality | 0.69% vs 0.94% (within seed variation) | Can halve QPU cost |
+| PEA robust to layout variation (3 seeds) | Max ΔE/gap = 1.78% across seeds 42/43/44 | No layout-dependent failures |
+
+**CRITICAL for next QPU run**:
+1. `use_mapomatic=True` (default) → VF2 should find SWAP-free layouts
+2. If VF2 times out → fallback_layout_kingston=[22,23,24,25,26,27,28,16,37,17] used automatically
+3. With 9 CZ (not 40), fidelity improves from 93% to 98.4% → PEA should achieve <0.5% ΔE/gap on real QPU
+4. Consider 8192 shots to reduce cost (validated: no quality loss vs 16384 in simulation)
+
+**DO NOT use BFS for heavy_hex N=10 on Kingston** — it produces catastrophically bad layouts.

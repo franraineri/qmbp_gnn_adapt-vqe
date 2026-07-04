@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOPOLOGY = "chain_1d"
 DEFAULT_N_QUBITS = 6
 DEFAULT_P_LAYERS = 1
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 H_TEST_VALUES = [2.5, 2.0, 1.75, 1.5]  # 4 h-points for better statistics
 NOISE_FACTORS = (1, 3, 5)

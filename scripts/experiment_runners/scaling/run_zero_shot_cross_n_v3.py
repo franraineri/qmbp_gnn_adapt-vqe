@@ -185,7 +185,9 @@ def evaluate_theta(
     builder = HamiltonianBuilder()
     hva = HVACircuitBuilder()
     solver = ClassicalSolver()
-    backend = MPSBackend(strategy=strategy, chi_max=64, precision=precision, seed=42)
+    backend = MPSBackend(
+        strategy=strategy, chi_max=MPS_DEFAULT_CHI_MAX, precision=precision, seed=42
+    )
 
     lattice = make_lattice(topology, n_target, J=1.0, h=h_val)
     H = builder.build(lattice)
@@ -261,6 +263,23 @@ def main() -> int:
     logger.info(f"  Sources: N={n_source_sizes}, Target: N={n_target}")
     logger.info(f"  h_test = {[f'{h:.3f}' for h in h_test]}")
     logger.info("=" * 60)
+
+    # ── Preflight: verify cross-N viability ──────────────────────────
+    from qmbp_simulation.analysis.cross_n_validator import preflight_cross_n
+
+    preflight_issues = preflight_cross_n(
+        model=None,  # Not created yet
+        topology_train=topology,
+        topology_predict=topology,
+        n_target=n_target,
+        training_sizes=n_source_sizes,
+        n_training_points=sum(len(s["h_values"]) for s in sources),
+        output_dim=theta_dim,
+    )
+    critical = [i for i in preflight_issues if "CRITICAL" in i]
+    if critical:
+        logger.error(f"Cross-N preflight FAILED: {critical}")
+        return 1
 
     t_experiment_start = time.time()
 

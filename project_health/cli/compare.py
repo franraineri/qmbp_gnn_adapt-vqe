@@ -173,12 +173,10 @@ def _run_zne_analysis(args) -> None:
         exp_dir = results_root / dirname
         if not exp_dir.exists():
             continue
-        for f in sorted(exp_dir.glob("run_*.json")):
-            try:
-                with open(f) as fh:
-                    data = json.load(fh)
-            except (json.JSONDecodeError, OSError):
-                continue
+
+        from qmbp_simulation.framework.result_io import load_results_from_dir
+
+        for f, data in load_results_from_dir(exp_dir, recursive=True):
 
             config = data.get("config", {})
             system = config.get("system", {})

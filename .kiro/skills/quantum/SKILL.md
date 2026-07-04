@@ -22,6 +22,7 @@ Expert in quantum computing, variational quantum algorithms, condensed matter ph
 - **AdaptVQE**: max_iterations ≤ 2.
 - **Observables**: `SparsePauliOp`, local quantities only on hardware.
 - **Fallbacks**: 2D → quasi-1D spin ladders. Noise → SPT phases.
+- **Always** Import and reuse the already written code. Don't copy paste duplicate or repeat code. I want you import and reuse the already written code.
 
 ## Qiskit 2.x Rules
 

@@ -165,7 +165,7 @@ def build_noiseless_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineV
         )
 
     # ─── Group C: Seed Robustness ──────────────────────────────────────────
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"NL-C-seed{seed_val}",
@@ -260,7 +260,7 @@ def build_noiseless_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineV
 
     # ─── Group E: p=1 on Heavy-Hex ────────────────────────────────────────
     # p=1 on heavy-hex: the hardware deployment candidate
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"NL-E-p1-s{seed_val}",
@@ -322,7 +322,7 @@ def build_noisy_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineVaria
     # ─── p=1 ZNE on Heavy-Hex (the hardware deployment test) ──────────────
     # This is THE key experiment: p=1 on heavy-hex with ZNE.
     # If this works, we can deploy directly on IBM Torino without SWAP routing.
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"NY-A-p1-zne-s{seed_val}",

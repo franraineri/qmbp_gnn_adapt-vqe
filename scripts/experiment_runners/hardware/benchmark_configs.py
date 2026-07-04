@@ -46,6 +46,7 @@ _VALID_CONFIG_IDS: frozenset[str] = frozenset(
         "C18_aqc_raw",
         "C19_aqc_gf",
         "C20_aqc_dd_tw",
+        "C21_qesem",
     }
 )
 
@@ -94,6 +95,9 @@ class BenchmarkConfig:
     affine_enabled: bool = True
     gnn_qem_enabled: bool = False
     aqc_enabled: bool = False
+    qesem_enabled: bool = False  # Use QESEM (Qedma) — hardware-only, requires Premium plan
+    qesem_precision: float = 0.01  # Target ε per observable (when qesem_enabled=True)
+    qesem_max_execution_time: int = 300  # Max QPU time per PUB in seconds
     optimization_level: int = 2
     priority: int = 2
     n_layouts: int = 3
@@ -401,5 +405,20 @@ BENCHMARK_CONFIGS: dict[str, BenchmarkConfig] = {
         aqc_enabled=True,
         priority=2,
         description="AQC-compressed + DD + Twirling only (no ZNE)",
+    ),
+    # ── P1: QESEM (Qedma) — hardware-only, unbiased mitigation ───────────
+    # QESEM is a server-side Qiskit Function that handles its own
+    # transpilation, characterization, and quasi-probabilistic mitigation.
+    # It cannot run locally (fake_backend) — hardware mode only.
+    # Ref: arXiv:2508.10997
+    "C21_qesem": BenchmarkConfig(
+        "C21_qesem",
+        qesem_enabled=True,
+        qesem_precision=0.01,
+        qesem_max_execution_time=300,
+        affine_enabled=False,  # QESEM output is already unbiased — no affine needed
+        priority=1,
+        n_layouts=3,  # Layout selection still used for provenance recording
+        description="QESEM (Qedma) unbiased quasi-probabilistic mitigation",
     ),
 }

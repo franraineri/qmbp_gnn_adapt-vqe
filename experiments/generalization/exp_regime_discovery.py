@@ -74,7 +74,7 @@ class RegimeDiscoveryExperiment(BaseExperiment):
                 restart_sigma=0.5,
                 maxiter=1500,
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
         )
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:

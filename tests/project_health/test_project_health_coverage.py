@@ -22,6 +22,8 @@ import json
 
 import pytest
 
+from qmbp_simulation.models.constants import MPS_DEFAULT_CHI_MAX
+
 # ═══════════════════════════════════════════════════════════════════════════
 # project_health.state — persistence and delta detection
 # ═══════════════════════════════════════════════════════════════════════════
@@ -639,7 +641,7 @@ class TestScalingAnalyzer:
             n_qubits=40,
             topology="chain_1d",
             strategy="aer_mps",
-            chi_max=64,
+            chi_max=MPS_DEFAULT_CHI_MAX,
             precision=0.005,
             seed=42,
             p_layers=1,
@@ -701,7 +703,7 @@ class TestScalingAnalyzer:
             n_qubits=40,
             topology="chain_1d",
             strategy="aer_mps",
-            chi_max=64,
+            chi_max=MPS_DEFAULT_CHI_MAX,
             precision=0.005,
             seed=42,
             p_layers=1,
@@ -731,7 +733,7 @@ class TestScalingAnalyzer:
             n_qubits=40,
             topology="chain_1d",
             strategy="aer_mps",
-            chi_max=64,
+            chi_max=MPS_DEFAULT_CHI_MAX,
             precision=0.005,
             seed=42,
             p_layers=1,

@@ -65,7 +65,7 @@ class ExperimentS3(BaseExperiment):
                 fluctuation_n_samples=50,
                 compute_hessian=True,
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
             auto_warm_cold_comparison=False,
         )

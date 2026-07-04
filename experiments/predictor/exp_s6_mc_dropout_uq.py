@@ -60,7 +60,7 @@ class ExperimentS6(BaseExperiment):
             ),
             vqe=VQEConfig(n_restarts=5, maxiter=1000, sigma=0.1),
             mpnn=MPNNConfig(hidden_dim=64, n_layers=3, n_epochs=6000, lr=1e-3, dropout=0.1),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

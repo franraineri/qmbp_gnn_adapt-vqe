@@ -59,7 +59,7 @@ def run_comparison(
     if h_values is None:
         h_values = [3.25, 3.5, 3.75, 4.0]
     if seeds is None:
-        seeds = [42, 43, 44]
+        seeds = DEFAULT_SEEDS
 
     print("=" * 70)
     print("  AQC-COMPRESSED p=2 vs DIRECT p=1 COMPARISON")
@@ -207,7 +207,7 @@ def main():
     parser.add_argument("--n-qubits", type=int, default=10)
     parser.add_argument("--h-values", type=float, nargs="+", default=[3.25, 3.5, 3.75, 4.0])
     parser.add_argument("--bond-dim", type=int, default=64)
-    parser.add_argument("--seeds", type=int, nargs="+", default=[42, 43, 44])
+    parser.add_argument("--seeds", type=int, nargs="+", default=DEFAULT_SEEDS)
     parser.add_argument("--single-seed", action="store_true")
     args = parser.parse_args()
 

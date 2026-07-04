@@ -163,6 +163,53 @@ corrected = affine_correct_energy(e_zne, e_ground=e_exact, n_qubits=N, h_value=h
 # Always apply after ZNE. Zero cost. No false positives in 102 records.
 ```
 
+### CalibrationSnapshot — Backend State Capture
+
+```python
+from qmbp_simulation.execution import take_calibration_snapshot, CalibrationSnapshot
+
+snap = take_calibration_snapshot(backend)  # or with qubits=[0,1,2,...] filter
+snap.timestamp          # ISO string
+snap.qubit_t1           # dict[int, float] — T1 in µs per qubit
+snap.qubit_t2           # dict[int, float] — T2 in µs per qubit
+snap.gate_errors_2q     # dict[str, float] — keyed by "q0-q1"
+snap.readout_errors     # dict[int, float] — per qubit
+# Properties (computed):
+snap.mean_t1_us         # float — average T1 across captured qubits
+snap.mean_t2_us         # float — average T2 across captured qubits
+snap.mean_2q_error      # float — average 2Q gate error
+```
+
+### DriftReport — Calibration Comparison
+
+```python
+from qmbp_simulation.execution import check_calibration_drift, DriftReport
+
+drift = check_calibration_drift(snap_before, snap_after, t1_threshold_pct=20.0)
+drift.t1_drift_pct         # float — mean |ΔT1/T1| %
+drift.t2_drift_pct         # float — mean |ΔT2/T2| %
+drift.gate_error_drift_pct # float — mean |Δerr/err| %
+drift.max_single_drift_pct # float — worst single-qubit drift %
+drift.is_stable            # bool — all below thresholds
+drift.recommendation       # "proceed" | "re-calibrate" | "abort"
+drift.t1_threshold_pct     # float — threshold used (default 20.0)
+# Properties (computed):
+drift.should_abort         # bool — True if recommendation == "abort"
+drift.abort_recommended    # bool — True if recommendation in ("abort", "re-calibrate")
+drift.threshold_pct        # float — alias for t1_threshold_pct
+```
+
+### Multi-Layout Observable Validation
+
+When measuring observables on multiple layouts (`run_deployment` hardware mode),
+each mapped observable is validated BEFORE submission:
+```python
+for m_op in mapped_obs:
+    assert m_op.num_qubits == isa_circ.num_qubits  # layout mismatch guard
+```
+Result collection validates dimension match (`len(evs) == n_obs`) and finiteness
+per layout. Mismatches are logged and the layout is SKIPPED (not included in average).
+
 ## Hardware Backend Orchestration
 
 The `HardwareBackend.run_deployment()` pipeline:

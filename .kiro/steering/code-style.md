@@ -5,6 +5,8 @@ fileMatchPattern: "src/qmbp_simulation/**/*.py"
 
 # Code Style — qmbp_simulation Package
 
+I want you import and reuse the already written code.I do not want you copy paste code. I want you import and reuse the already written code.
+
 ## Package Structure
 
 ```
@@ -208,6 +210,9 @@ from qmbp_simulation.analysis import (
     circuit_summary, transpiled_circuit_stats,
     # Hardware error prediction (calibration-aware)
     compute_error_budget, build_error_prediction, validate_prediction_vs_result,
+    # Decoherence & feasibility analysis
+    compute_decoherence_penalty, compute_parallelism_efficiency,
+    compute_shot_noise_floor, compute_circuit_feasibility,
     # Layout optimization (depth_2q based)
     rank_layouts_by_depth_2q, select_best_layout_for_zne,
 )

@@ -54,7 +54,7 @@ _H_TEST_MAP = {
     "ladder": [3.5, 3.25, 3.0],
     "heavy_hex": [3.5, 3.25, 3.0],
 }
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -181,7 +181,9 @@ class PEATriangularRunner(ValidationRunner):
         self._candidates = find_layouts_bfs(adj, n, n_candidates=N_CANDIDATE_LAYOUTS)
         self._all_results: list[dict] = []
 
-        logger.info(f"[setup] FakeTorino loaded, {len(self._candidates)} candidates for {topo} N={n} p={p}")
+        logger.info(
+            f"[setup] FakeTorino loaded, {len(self._candidates)} candidates for {topo} N={n} p={p}"
+        )
 
     def _section_sweep(self) -> dict:
         """Run PEA vs GF on configured topology across all seeds and h-points."""

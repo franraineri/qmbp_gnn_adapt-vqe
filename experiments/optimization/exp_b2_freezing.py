@@ -49,7 +49,7 @@ class ExperimentB2(BaseExperiment):
                 h_test=[],  # B2 evaluates at all h_values (no MPNN deployment)
             ),
             vqe=VQEConfig(n_restarts=5, sigma=0.1),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

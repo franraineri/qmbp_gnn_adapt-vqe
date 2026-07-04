@@ -71,7 +71,7 @@ class ComparativeAnalysisExperiment(BaseExperiment):
                 sigma=0.1,
                 maxiter=1000,
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
         )
 
     def run_single(self, seed: int) -> list[ExperimentMetrics]:

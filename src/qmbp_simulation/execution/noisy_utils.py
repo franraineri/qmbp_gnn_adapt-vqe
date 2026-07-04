@@ -250,6 +250,7 @@ def select_layouts_by_circuit_ces(
     candidate_layouts: list[list[int]],
     n_select: int = 3,
     optimization_level: int = 2,
+    ces_spread_threshold: float = 0.3,
 ) -> LayoutSelection:
     """Select layouts by ACTUAL circuit CES with maximum spread.
 
@@ -259,6 +260,16 @@ def select_layouts_by_circuit_ces(
 
     This is more expensive than topology CES but gives TRUE diversity.
     The transpiled circuits are cached in the result to avoid re-transpilation.
+
+    CES Spread Guard (P0-A):
+        After selection, checks whether the CES spread is sufficient for
+        reliable ZNE extrapolation. The spread ratio is defined as:
+            spread_ratio = (max_ces - min_ces) / mean_ces
+        If spread_ratio < ces_spread_threshold (default 0.3), the returned
+        LayoutSelection has `ces_spread_sufficient = False`, signaling
+        the caller to fall back to gate-folding ZNE instead of CES-ZNE.
+        This prevents the known failure mode on heavy_hex where all layouts
+        have nearly uniform CES (~0.15), giving R²≈0.04 for CES-ZNE.
 
     Parameters
     ----------
@@ -272,11 +283,17 @@ def select_layouts_by_circuit_ces(
         Number of layouts to select.
     optimization_level : int
         Transpiler optimization level.
+    ces_spread_threshold : float
+        Minimum relative spread (max-min)/mean for CES-ZNE to be
+        considered reliable. Default 0.3 (validated: heavy_hex uniform
+        CES has spread_ratio ≈ 0.05, chain_1d has spread_ratio ≈ 1.2).
 
     Returns
     -------
     LayoutSelection
         Selected layouts with CES values and pre-transpiled circuits.
+        The `ces_spread_sufficient` attribute indicates whether CES
+        spread is adequate for inhomogeneous ZNE extrapolation.
     """
     circuit_ces_list: list[float] = []
     transpiled_list: list[QuantumCircuit] = []
@@ -305,11 +322,32 @@ def select_layouts_by_circuit_ces(
     else:
         indices = list(sorted_idx)
 
-    return LayoutSelection(
+    selected_ces = [circuit_ces_list[i] for i in indices]
+
+    # CES spread guard: check if spread is sufficient for ZNE extrapolation
+    ces_mean = float(np.mean(selected_ces)) if selected_ces else 0.0
+    ces_range = (max(selected_ces) - min(selected_ces)) if len(selected_ces) >= 2 else 0.0
+    spread_ratio = ces_range / ces_mean if ces_mean > 1e-10 else 0.0
+    ces_spread_sufficient = spread_ratio >= ces_spread_threshold
+
+    if not ces_spread_sufficient:
+        _logger.warning(
+            f"[select_layouts_by_circuit_ces] CES spread insufficient for ZNE: "
+            f"spread_ratio={spread_ratio:.3f} < threshold={ces_spread_threshold}. "
+            f"CES values: {[f'{c:.4f}' for c in selected_ces]}. "
+            f"Recommend falling back to gate-folding ZNE."
+        )
+
+    result = LayoutSelection(
         layouts=[candidate_layouts[i] for i in indices],
-        ces_values=[circuit_ces_list[i] for i in indices],
+        ces_values=selected_ces,
         transpiled_circuits=[transpiled_list[i] for i in indices],
     )
+    # Attach spread metadata (used by run_zne_deployment for fallback logic)
+    result.ces_spread_sufficient = ces_spread_sufficient  # type: ignore[attr-defined]
+    result.ces_spread_ratio = spread_ratio  # type: ignore[attr-defined]
+
+    return result
 
 
 def select_layouts_low_ces(
@@ -527,10 +565,17 @@ class ZNEResult:
     measured_values: np.ndarray
 
 
-def linear_zne(ces_values: np.ndarray, measured_values: np.ndarray) -> ZNEResult:
+def linear_zne(
+    ces_values: np.ndarray,
+    measured_values: np.ndarray,
+    sigmas: np.ndarray | None = None,
+) -> ZNEResult:
     """Linear ZNE extrapolation to CES=0.
 
     Fits a line E(CES) = a*CES + b and extrapolates to CES=0.
+    Supports Weighted Least Squares (WLS) when per-point uncertainties
+    (sigmas) are provided — the statistically optimal estimator for
+    heteroscedastic shot-noise data.
 
     Parameters
     ----------
@@ -538,6 +583,10 @@ def linear_zne(ces_values: np.ndarray, measured_values: np.ndarray) -> ZNEResult
         Circuit Error Scores for each layout.
     measured_values : np.ndarray
         Measured expectation values at each CES point.
+    sigmas : np.ndarray or None
+        Per-point standard deviations for WLS weighting. Computed as
+        1/√shots per layout when shots differ, or from bootstrap.
+        If None or all-equal, OLS is used (equivalent result).
 
     Returns
     -------
@@ -556,7 +605,21 @@ def linear_zne(ces_values: np.ndarray, measured_values: np.ndarray) -> ZNEResult
             measured_values=vals_arr,
         )
 
-    coeffs = np.polyfit(ces_arr, vals_arr, 1)
+    # Use WLS when valid per-point sigmas are provided
+    use_wls = (
+        sigmas is not None
+        and len(sigmas) == len(vals_arr)
+        and np.all(np.isfinite(sigmas))
+        and np.all(sigmas > 0)
+        and np.std(sigmas) > 1e-15
+    )
+
+    if use_wls:
+        weights = 1.0 / (sigmas**2)
+        coeffs = np.polyfit(ces_arr, vals_arr, 1, w=np.sqrt(weights))
+    else:
+        coeffs = np.polyfit(ces_arr, vals_arr, 1)
+
     extrap = float(np.polyval(coeffs, 0.0))
     y_pred = np.polyval(coeffs, ces_arr)
     ss_res = np.sum((vals_arr - y_pred) ** 2)
@@ -604,9 +667,19 @@ def run_zne_deployment(
     config: NoisyEstimatorConfig,
     n_qubits: int,
     per_site: bool = False,
+    fallback_to_gf: bool = True,
+    gf_noise_factors: tuple[int, ...] = (1, 3, 5),
 ) -> ZNEDeploymentResult:
     """Run full ZNE deployment: measure energy (and optionally per-site X)
     across multiple layouts, then extrapolate to CES=0.
+
+    CES Spread Guard (P0-A):
+        When `fallback_to_gf=True` (default), checks whether the layout
+        selection has sufficient CES spread for reliable inhomogeneous ZNE.
+        If spread is insufficient (spread_ratio < 0.3, typical on heavy_hex),
+        automatically falls back to gate-folding ZNE on the lowest-CES
+        layout. This prevents the known failure mode where uniform CES
+        produces R²≈0.04.
 
     Parameters
     ----------
@@ -625,12 +698,69 @@ def run_zne_deployment(
         Number of logical qubits.
     per_site : bool
         If True, also measure per-site ⟨X_i⟩ for each layout.
+    fallback_to_gf : bool
+        If True (default), fall back to gate-folding ZNE when CES spread
+        is insufficient for reliable inhomogeneous ZNE extrapolation.
+    gf_noise_factors : tuple[int, ...]
+        Noise factors for the gate-folding fallback (default [1,3,5]).
 
     Returns
     -------
     ZNEDeploymentResult
         Complete ZNE results including extrapolation and raw data.
+        When fallback is triggered, the result uses GF-ZNE on the best
+        layout. The `fallback_triggered` attribute indicates this case.
     """
+    # ── P0-A: CES spread soft guard — fallback to GF-ZNE if spread insufficient ──
+    ces_spread_ok = getattr(layout_selection, "ces_spread_sufficient", True)
+    if fallback_to_gf and not ces_spread_ok:
+        spread_ratio = getattr(layout_selection, "ces_spread_ratio", 0.0)
+        _logger.warning(
+            f"[run_zne_deployment] CES spread insufficient "
+            f"(ratio={spread_ratio:.3f}). Falling back to gate-folding ZNE "
+            f"with noise_factors={gf_noise_factors} on lowest-CES layout."
+        )
+        # Use the lowest-CES layout (index 0, sorted by select_layouts_*)
+        best_transpiled = layout_selection.transpiled_circuits[0]
+        h_mapped_best = hamiltonian.apply_layout(best_transpiled.layout)
+
+        gf_result = run_gate_folding_zne(
+            best_transpiled,
+            h_mapped_best,
+            backend,
+            config,
+            noise_factors=gf_noise_factors,
+            seed_offset=0,
+        )
+
+        # Convert GateFoldingZNEResult to ZNEResult for interface compatibility
+        energy_zne = ZNEResult(
+            extrapolated_value=gf_result.extrapolated_value,
+            r_squared=gf_result.r_squared,
+            slope=gf_result.slope,
+            ces_values=np.array(layout_selection.ces_values),
+            measured_values=np.array([gf_result.measured_values[0]]),
+        )
+
+        result = ZNEDeploymentResult(
+            energy_zne=energy_zne,
+            per_site_zne=None,
+            per_layout_data=[
+                {
+                    "ces": layout_selection.ces_values[0],
+                    "n_2q": sum(
+                        1 for inst in best_transpiled.data if inst.operation.num_qubits == 2
+                    ),
+                    "energy": gf_result.measured_values[0],
+                    "per_site_x": None,
+                }
+            ],
+        )
+        result.fallback_triggered = True  # type: ignore[attr-defined]
+        result.fallback_method = "gate_folding"  # type: ignore[attr-defined]
+        result.gf_result = gf_result  # type: ignore[attr-defined]
+        return result
+
     per_layout_data = []
 
     for li, transpiled in enumerate(layout_selection.transpiled_circuits):
@@ -661,9 +791,11 @@ def run_zne_deployment(
             }
         )
 
-    # ZNE extrapolation — energy
+    # ZNE extrapolation — energy (with WLS using shot-noise sigma per layout)
     ces_arr = np.array([d["ces"] for d in per_layout_data])
     e_arr = np.array([d["energy"] for d in per_layout_data])
+    # σ per layout: precision is uniform (same shots), so OLS is appropriate
+    # for CES-ZNE unless layouts use different shot counts.
     energy_zne = linear_zne(ces_arr, e_arr)
 
     # ZNE extrapolation — per-site (if requested)
@@ -674,11 +806,13 @@ def run_zne_deployment(
             site_vals = np.array([d["per_site_x"][site_i] for d in per_layout_data])  # type: ignore[index]
             per_site_zne_results.append(linear_zne(ces_arr, site_vals))
 
-    return ZNEDeploymentResult(
+    result = ZNEDeploymentResult(
         energy_zne=energy_zne,
         per_site_zne=per_site_zne_results,
         per_layout_data=per_layout_data,
     )
+    result.fallback_triggered = False  # type: ignore[attr-defined]
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -793,10 +927,47 @@ class GateFoldingZNEResult:
 
 
 def _extrapolate_linear(
-    noise_factors: np.ndarray, measured: np.ndarray
+    noise_factors: np.ndarray,
+    measured: np.ndarray,
+    sigmas: np.ndarray | None = None,
 ) -> tuple[float, float, float]:
-    """Linear extrapolation E(nf) = a*nf + b → E(0) = b."""
-    coeffs = np.polyfit(noise_factors, measured, 1)
+    """Linear extrapolation E(nf) = a*nf + b → E(0) = b.
+
+    Supports Weighted Least Squares (WLS) when per-point uncertainties
+    are provided. WLS is the statistically optimal estimator for
+    heteroscedastic data (different noise at each amplification factor).
+
+    Parameters
+    ----------
+    noise_factors : np.ndarray
+        Noise amplification factors (x-axis).
+    measured : np.ndarray
+        Measured energies at each noise factor (y-axis).
+    sigmas : np.ndarray or None
+        Per-point standard deviations (1/σ² weighting). If None or
+        all-equal, falls back to OLS (equivalent result).
+
+    Returns
+    -------
+    tuple[float, float, float]
+        (extrapolated_value, r_squared, slope).
+    """
+    # Use WLS when valid per-point sigmas are provided
+    use_wls = (
+        sigmas is not None
+        and len(sigmas) == len(measured)
+        and np.all(np.isfinite(sigmas))
+        and np.all(sigmas > 0)
+        and np.std(sigmas) > 1e-15  # Skip WLS if all sigmas are identical
+    )
+
+    if use_wls:
+        # WLS: weight_i = 1/σ_i² (inverse-variance weighting)
+        weights = 1.0 / (sigmas**2)
+        coeffs = np.polyfit(noise_factors, measured, 1, w=np.sqrt(weights))
+    else:
+        coeffs = np.polyfit(noise_factors, measured, 1)
+
     extrap = float(np.polyval(coeffs, 0.0))
     y_pred = np.polyval(coeffs, noise_factors)
     ss_res = np.sum((measured - y_pred) ** 2)
@@ -806,7 +977,9 @@ def _extrapolate_linear(
 
 
 def _extrapolate_exponential(
-    noise_factors: np.ndarray, measured: np.ndarray
+    noise_factors: np.ndarray,
+    measured: np.ndarray,
+    sigmas: np.ndarray | None = None,
 ) -> tuple[float, float, float]:
     """Exponential extrapolation E(nf) = a * exp(b*nf) + c → E(0) = a + c.
 
@@ -837,7 +1010,7 @@ def _extrapolate_exponential(
         _logger.warning(
             f"[gate_folding_zne] Exponential fit failed ({e}), falling back to linear extrapolation"
         )
-        return _extrapolate_linear(noise_factors, measured)
+        return _extrapolate_linear(noise_factors, measured, sigmas=sigmas)
 
 
 def run_gate_folding_zne(
@@ -959,11 +1132,17 @@ def run_gate_folding_zne(
     nf_arr = np.array(noise_factors, dtype=float)
     meas_arr = np.array(measured_values, dtype=float)
 
+    # Compute per-noise-factor sigmas for WLS (shot noise scales with √nf
+    # because folded circuits have nf× more 2Q gates → more depolarization →
+    # larger variance). σ_i = precision × √(nf_i) is a first-order estimate.
+    # This gives higher weight to the less-noisy (low nf) data points.
+    sigmas = np.array([config.precision * np.sqrt(float(nf)) for nf in noise_factors])
+
     if extrapolator == "exponential":
-        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr)
+        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr, sigmas=sigmas)
         method_used = "exponential"
     else:
-        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr)
+        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr, sigmas=sigmas)
         method_used = "linear"
 
     _logger.info(
@@ -1655,11 +1834,15 @@ def run_pea_zne(
     nf_arr = np.array(noise_factors, dtype=float)
     meas_arr = np.array(measured_values, dtype=float)
 
+    # WLS sigmas for PEA: noise amplification increases variance proportionally
+    # to the noise factor (σ_i ∝ √nf_i for depolarizing noise).
+    sigmas = np.array([config.precision * np.sqrt(float(nf)) for nf in noise_factors])
+
     if extrapolator == "exponential":
-        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr)
+        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr, sigmas=sigmas)
         method_used = "exponential"
     else:
-        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr)
+        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr, sigmas=sigmas)
         method_used = "linear"
 
     _logger.info(
@@ -2119,6 +2302,7 @@ def affine_correct_energy(
     e_upper: float | None = None,
     n_qubits: int | None = None,
     h_value: float | None = None,
+    n_bonds: int | None = None,
 ) -> AffineCorrectedResult:
     """Apply dual-branch affine correction to a ZNE-mitigated energy.
 
@@ -2150,6 +2334,10 @@ def affine_correct_energy(
         Number of qubits (used to estimate e_upper if not provided).
     h_value : float | None
         Transverse field value (used to estimate e_upper if not provided).
+    n_bonds : int | None
+        Number of ZZ bonds in the lattice. If None, defaults to n_qubits-1
+        (1D chain). For heavy_hex N=10: n_bonds=11. Pass explicitly for
+        non-1D topologies to get correct upper bounds.
 
     Returns
     -------
@@ -2160,8 +2348,9 @@ def affine_correct_energy(
     if e_upper is None:
         if n_qubits is not None and h_value is not None:
             # TFIM trivial upper bound: all eigenvalues ≤ |J|*N_bonds + |h|*N
-            n_bonds = n_qubits - 1  # 1D chain
-            e_upper = float(abs(1.0) * n_bonds + abs(h_value) * n_qubits)
+            # For 1D chain: n_bonds = N-1. For heavy_hex: pass n_bonds explicitly.
+            effective_n_bonds = n_bonds if n_bonds is not None else (n_qubits - 1)
+            e_upper = float(abs(1.0) * effective_n_bonds + abs(h_value) * n_qubits)
         else:
             # Fallback: use 0 as upper bound (valid for h > J paramagnetic)
             e_upper = 0.0
@@ -2187,16 +2376,24 @@ def affine_correct_energy(
 
     corrected = mitigated_energy
     if mitigated_energy < e_ground - margin:
+        # Far below ground state: hard clip to lower bound
         corrected = e_ground
     elif mitigated_energy > e_upper + margin:
+        # Far above upper bound: hard clip to upper bound
         corrected = e_upper
     elif mitigated_energy < e_ground:
-        # Soft correction: linear interpolation to bound
-        alpha = (e_ground - mitigated_energy) / margin
-        corrected = e_ground - margin * (1 - alpha) * 0.5
+        # Slightly below ground state (within margin): clip to lower bound.
+        # Physics: variational principle forbids E < E_ground. Any sub-ground
+        # estimate is ZNE overshoot — clip to the rigorous bound.
+        # BUG FIX (2026-06-22): Previous "soft interpolation" formula
+        # (corrected = e_ground - margin*(1-alpha)*0.5) moved energy FURTHER
+        # below e_ground instead of toward it, amplifying errors up to 614×.
+        # Affected 3/18 hardware runs (verdict flipped PASS→FAIL).
+        corrected = e_ground
     elif mitigated_energy > e_upper:
-        alpha = (mitigated_energy - e_upper) / margin
-        corrected = e_upper + margin * (1 - alpha) * 0.5
+        # Slightly above upper bound (within margin): clip to upper bound.
+        # Same fix as lower bound — simple clip is correct and safe.
+        corrected = e_upper
 
     correction_applied = abs(corrected - mitigated_energy) > 1e-10
     correction_mag = abs(corrected - mitigated_energy)
@@ -2420,10 +2617,14 @@ def run_block_zne(
     nf_arr = np.array(noise_factors, dtype=float)
     meas_arr = np.array(measured_values, dtype=float)
 
+    # WLS sigmas: same principle as gate-folding ZNE — higher noise factors
+    # produce noisier measurements (σ_i ∝ √nf_i).
+    sigmas = np.array([config.precision * np.sqrt(float(nf)) for nf in noise_factors])
+
     if extrapolator == "exponential":
-        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr)
+        extrap, r2, slope = _extrapolate_exponential(nf_arr, meas_arr, sigmas=sigmas)
     else:
-        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr)
+        extrap, r2, slope = _extrapolate_linear(nf_arr, meas_arr, sigmas=sigmas)
 
     _logger.info(f"[block_zne] Result: E={extrap:.6f}, R²={r2:.4f}, slope={slope:.6f}")
 
@@ -2480,6 +2681,27 @@ class CalibrationSnapshot:
     gate_errors_2q: dict[str, float]
     readout_errors: dict[int, float]
 
+    @property
+    def mean_t1_us(self) -> float:
+        """Mean T1 across all captured qubits (µs)."""
+        if not self.qubit_t1:
+            return 0.0
+        return float(np.mean(list(self.qubit_t1.values())))
+
+    @property
+    def mean_t2_us(self) -> float:
+        """Mean T2 across all captured qubits (µs)."""
+        if not self.qubit_t2:
+            return 0.0
+        return float(np.mean(list(self.qubit_t2.values())))
+
+    @property
+    def mean_2q_error(self) -> float:
+        """Mean 2-qubit gate error across all captured gates."""
+        if not self.gate_errors_2q:
+            return 0.0
+        return float(np.mean(list(self.gate_errors_2q.values())))
+
 
 @dataclass
 class DriftReport:
@@ -2499,6 +2721,8 @@ class DriftReport:
         True if all drifts below thresholds.
     recommendation : str
         "proceed", "re-calibrate", or "abort".
+    t1_threshold_pct : float
+        T1 drift threshold used for this report (default 20%).
     """
 
     t1_drift_pct: float
@@ -2507,6 +2731,22 @@ class DriftReport:
     max_single_drift_pct: float
     is_stable: bool
     recommendation: str
+    t1_threshold_pct: float = 20.0
+
+    @property
+    def should_abort(self) -> bool:
+        """True if drift is severe enough to warrant aborting the run."""
+        return self.recommendation == "abort"
+
+    @property
+    def abort_recommended(self) -> bool:
+        """True if drift exceeds threshold (abort or re-calibrate)."""
+        return self.recommendation in ("abort", "re-calibrate")
+
+    @property
+    def threshold_pct(self) -> float:
+        """T1 drift threshold that was used for this assessment."""
+        return self.t1_threshold_pct
 
 
 def take_calibration_snapshot(
@@ -2666,4 +2906,5 @@ def check_calibration_drift(
         max_single_drift_pct=max_single,
         is_stable=is_stable,
         recommendation=recommendation,
+        t1_threshold_pct=t1_threshold_pct,
     )

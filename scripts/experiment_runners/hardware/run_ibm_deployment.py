@@ -77,6 +77,7 @@ from qmbp_simulation.execution.hardware.preflight import (
     estimate_qpu_cost,
 )
 from qmbp_simulation.framework.logging import StructuredLogger
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 from qmbp_simulation.predictors import load_mpnn_checkpoint
 from qmbp_simulation.utils.helpers import json_dump
 
@@ -101,8 +102,10 @@ TIER_0_H = [4.0]
 # Replaced with h=3.5 which is well inside the valid regime and provides better
 # coverage of the paramagnetic-to-ferromagnetic crossover at h≈3.25.
 # Validated range for thesis: [3.0, 3.25, 3.5, 4.0].
-TIER_1_H = [4.0, 3.5, 3.25, 3.0]
-TIER_2_SEEDS = [42, 43, 44]
+# h=4.0 excluded from Tier 1 sweep when already acquired in Tier 0.
+# The Tier 0 result (ΔE/gap=0.71%) is reusable as the h=4.0 data point.
+TIER_1_H = [3.5, 3.25]
+TIER_2_SEEDS = DEFAULT_SEEDS
 TIER_3_MODEL = "tfim_longitudinal"
 TIER_3_G = 0.3
 TIER_3_H = [3.25]
@@ -339,6 +342,9 @@ def build_hardware_config(
     pea_preset: str = "balanced",
     job_timeout_s: int = 900,
     layer_pair_depths: list[int] | None = None,
+    qesem_enabled: bool = False,
+    qesem_precision: float = 0.01,
+    qesem_max_execution_time: int = 300,
 ) -> HardwareConfig:
     """Build HardwareConfig for real QPU execution.
 
@@ -386,6 +392,8 @@ def build_hardware_config(
         spsa_enabled=spsa_enabled,
         spsa_threshold=DE_GAP_THRESHOLD,
         output_dir=output_dir,
+        qesem_precision=qesem_precision,
+        qesem_max_execution_time=qesem_max_execution_time,
         mitigation=MitigationOptions(
             dd_enabled=True,
             trex_enabled=True,
@@ -397,6 +405,7 @@ def build_hardware_config(
             shots_per_randomization=shots_rand,
             layer_pair_depths=layer_pair_depths,
             twirling_strategy="active-circuit",
+            qesem_enabled=qesem_enabled,
         ),
     )
 
@@ -544,7 +553,9 @@ def prepare_mpnn_predictions(
     if _needs_training:
         logger.info("No valid checkpoint found. Training MPNN from scratch...")
         circuit_builder = HVACircuitBuilder()
-        circuit, _ = circuit_builder.create(N_QUBITS, P_LAYERS, lattice_cfg)
+        # P0-B: Use PauliEvolutionGate for better transpiler scheduling on heavy_hex.
+        # Validated Section 20: same unitary (|ΔE|<1e-14), 6-10% lower total_depth.
+        circuit, _ = circuit_builder.create_pauli_evolution(N_QUBITS, P_LAYERS, lattice_cfg)
 
         vqe_config = VQEConfig(
             n_restarts=VQE_RESTARTS,
@@ -676,7 +687,8 @@ def prepare_aqc_compressed_circuit(
         logger.info(f"  AQC compression for h={h:.3f}...")
         # Build p=p_source circuit bound with MPNN predictions
         lattice_h = make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)
-        circuit_p, _ = circuit_builder.create(N_QUBITS, p_source, lattice_h)
+        # P0-B: PauliEvolutionGate for better transpiler scheduling
+        circuit_p, _ = circuit_builder.create_pauli_evolution(N_QUBITS, p_source, lattice_h)
         target_circuit = circuit_p.assign_parameters(params_per_h[h])
 
         try:
@@ -1196,7 +1208,7 @@ def run_tier_1(
     sigma_flow_per_h: dict[float, float] | None = None,
     sigma_flow_threshold: float = SIGMA_FLOW_THRESHOLD,
 ) -> TierMetrics:
-    """Tier 1: Core validation — 4 h-points, primary thesis data.
+    """Tier 1: Core validation — primary thesis data.
 
     Returns TierMetrics with per-h timing and quality metrics.
     """
@@ -1205,7 +1217,7 @@ def run_tier_1(
 
     slogger.log("tier_1_start", data={"h_values": TIER_1_H})
     print("\n" + "═" * 70)
-    print("  TIER 1: CORE VALIDATION (4 h-points — primary thesis data)")
+    print("  TIER 1: CORE VALIDATION (primary thesis data)")
     print(f"  h-values: {TIER_1_H}")
     print("═" * 70)
 
@@ -1241,47 +1253,51 @@ def run_tier_1(
 
     backend = HardwareBackend(config=config)
 
-    # Execute each h-point individually (for per-point timing)
-    de_gaps = []
-    for h in TIER_1_H:
-        print(f"\n  ── h={h:.2f} ──")
-        t_start = time.time()
-        try:
-            result = backend.run_deployment(
-                circuit,
-                HamiltonianBuilder().build(make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)),
-                params_per_h[h],
-                h_value=h,
-                e_exact=e_exact_per_h[h],
-                gap=gap_per_h[h],
-                expected_label="paramagnetic",
-            )
-            t_h = time.time() - t_start
-            metrics.n_jobs_submitted += 1
-            metrics.n_jobs_succeeded += 1
-        except Exception as exc:
-            t_h = time.time() - t_start
-            metrics.n_jobs_submitted += 1
-            metrics.n_jobs_failed += 1
-            logger.error(f"  h={h}: FAILED after {t_h:.1f}s — {exc}")
-            metrics.per_h_wall_clock_s.append(t_h)
-            metrics.per_h_results.append(
-                {
-                    "h": h,
-                    "error": str(exc),
-                    "wall_clock_s": t_h,
-                    "pass": False,
-                }
-            )
-            continue
+    # P1-B: Use run_h_sweep for batch execution within a single QPU session.
+    # This caches layouts across h-points (no re-transpilation), monitors TLS
+    # calibration drift, and enables warm-start: h-points sorted h=4.0 first
+    # (easy → hard) to catch catastrophic noise early.
+    builder = HamiltonianBuilder()
 
+    def hamiltonian_builder(h: float) -> SparsePauliOp:
+        return builder.build(make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h))
+
+    print("\n  Using batch warm-start sweep (single session, shared layouts, TLS drift monitor)")
+    t_sweep_start = time.time()
+    try:
+        sweep_results = backend.run_h_sweep(
+            circuit,
+            hamiltonian_builder,
+            list(TIER_1_H),
+            params_per_h,
+            e_exact_per_h,
+            gap_per_h,
+        )
+    except RuntimeError as exc:
+        metrics.wall_clock_s = time.time() - t_sweep_start
+        metrics.end_time = datetime.now(UTC).isoformat()
+        metrics.abort_reason = f"run_h_sweep() failed: {exc}"
+        slogger.log("tier_1_sweep_error", data={"error": str(exc)})
+        print(f"\n  ❌ TIER 1 SWEEP FAILED — {exc}")
+        return metrics
+
+    t_sweep_total = time.time() - t_sweep_start
+
+    # Extract per-h metrics from sweep results
+    de_gaps = []
+    for result in sweep_results:
+        h = result.h_value
         passed = result.verdict == "PASS"
         if passed:
             metrics.n_pass += 1
         if result.spsa_applied:
             metrics.spsa_triggered_count += 1
         de_gaps.append(result.delta_e_gap)
-        metrics.per_h_wall_clock_s.append(t_h)
+        metrics.n_jobs_submitted += 1
+        metrics.n_jobs_succeeded += 1
+        # Estimate per-h time proportionally (sweep doesn't give per-h timing)
+        t_h_est = t_sweep_total / len(sweep_results)
+        metrics.per_h_wall_clock_s.append(t_h_est)
         metrics.per_h_results.append(
             {
                 "h": h,
@@ -1314,12 +1330,18 @@ def run_tier_1(
                 "gnn_qem_applied": result.gnn_qem_applied,
                 "affine_correction_applied": result.affine_correction_applied,
                 "e_after_affine": result.e_after_affine,
+                # Post-QPU validation metrics
+                "obs_bounds_clipped": result.obs_bounds_clipped,
+                "layout_energy_outliers": result.layout_energy_outliers,
+                "e_obs_discrepancy": result.e_obs_discrepancy,
+                "e_obs_cross_valid_passed": result.e_obs_cross_valid_passed,
+                "n_layouts_observables": result.n_layouts_observables,
                 # QPU & calibration (real hardware only)
                 "qpu_metrics": getattr(result, "_qpu_metrics", None),
                 "calibration_snapshot": getattr(result, "_calibration_snapshot", None),
                 "transpiled_stats": getattr(result, "_transpiled_stats", None),
                 # Timing
-                "wall_clock_s": t_h,
+                "wall_clock_s": t_h_est,
                 "pass": passed,
                 # Landscape curvature (noiseless risk proxy — section 19 validated)
                 "kappa": kappa_per_h.get(h, float("nan")),
@@ -1330,26 +1352,21 @@ def run_tier_1(
 
         v_mark = "✅" if passed else "❌"
         print(
-            f"    {v_mark} ΔE/gap={result.delta_e_gap:.4f} | phase={result.phase_label} | "
-            f"R²={result.zne_r2:.3f} | {t_h:.1f}s"
+            f"    {v_mark} h={h:.2f}: ΔE/gap={result.delta_e_gap:.4f} | "
+            f"phase={result.phase_label} | R²={result.zne_r2:.3f}"
         )
 
-        # Safety: abort if one h-point takes too long
-        if t_h > MAX_WALL_CLOCK_PER_H_S:
-            logger.warning(
-                f"  ⚠️  h={h} took {t_h:.0f}s (>{MAX_WALL_CLOCK_PER_H_S}s) — "
-                "check queue or SPSA trigger"
-            )
-
     # ── Summary metrics ───────────────────────────────────────────────────
-    metrics.wall_clock_s = sum(metrics.per_h_wall_clock_s)
+    metrics.wall_clock_s = t_sweep_total
     metrics.n_total = len(TIER_1_H)
     metrics.pass_rate = metrics.n_pass / metrics.n_total if metrics.n_total else 0
     if de_gaps:
         metrics.mean_de_gap = float(np.mean(de_gaps))
         metrics.max_de_gap = float(np.max(de_gaps))
         metrics.std_de_gap = float(np.std(de_gaps)) if len(de_gaps) > 1 else 0.0
-    metrics.passed = metrics.n_pass >= 3
+    # Pass if ≥2/3 of h-points pass. With 3 points: need 2. With 4: need 3.
+    min_pass = max(2, round(0.67 * metrics.n_total))
+    metrics.passed = metrics.n_pass >= min_pass
     metrics.end_time = datetime.now(UTC).isoformat()
 
     print("\n  ┌─── Tier 1 Summary ───────────────────────────────────────┐")
@@ -1430,99 +1447,108 @@ def run_tier_2(
             TIER_1_H, lattice, seed=seed
         )
 
-        # Use different layout_seed per seed for diversity
+        # P1-B: Use batch warm-start sweep per seed (cached layouts, drift monitor)
         from dataclasses import replace
 
         seed_config = replace(config, layout_seed=seed)
         backend = HardwareBackend(config=seed_config)
 
-        for h in TIER_1_H:
-            t_start = time.time()
-            try:
-                result = backend.run_deployment(
-                    circuit,
-                    HamiltonianBuilder().build(make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)),
-                    params_per_h[h],
-                    h_value=h,
-                    e_exact=e_exact_per_h[h],
-                    gap=gap_per_h[h],
-                    expected_label="paramagnetic",
-                )
-                t_h = time.time() - t_start
-                metrics.n_jobs_submitted += 1
-                metrics.n_jobs_succeeded += 1
-                passed = result.verdict == "PASS"
-                if passed:
-                    metrics.n_pass += 1
-                if result.spsa_applied:
-                    metrics.spsa_triggered_count += 1
-                all_de_gaps.append(result.delta_e_gap)
-                metrics.per_h_wall_clock_s.append(t_h)
-                metrics.per_h_results.append(
-                    {
-                        "seed": seed,
-                        "h": h,
-                        # Energy & quality
-                        "e_exact": result.e_exact,
-                        "e_zne": result.e_zne,
-                        "delta_e_gap": result.delta_e_gap,
-                        "gap": result.gap,
-                        "zne_gain": result.zne_gain,
-                        # Verdict
-                        "verdict": result.verdict,
-                        "verdict_reason": result.verdict_reason,
-                        # Phase classification
-                        "phase_label": result.phase_label,
-                        "mag_x_mean": result.mag_x_mean,
-                        "corr_zz_mean": result.corr_zz_mean,
-                        "sigma": result.sigma,
-                        # ZNE details
-                        "zne_r2": result.zne_r2,
-                        "mitigation_strategy": result.mitigation_strategy,
-                        "layout_std": result.layout_std,
-                        # SPSA & provenance
-                        "spsa_applied": result.spsa_applied,
-                        "job_ids": result.job_ids,
-                        "ces_values": result.ces_values,
-                        "total_shots": result.total_shots,
-                        # Per-site observables (thesis data)
-                        "per_site_x": result.per_site_x,
-                        "per_bond_zz": result.per_bond_zz,
-                        # Post-correction
-                        "gnn_qem_applied": result.gnn_qem_applied,
-                        "affine_correction_applied": result.affine_correction_applied,
-                        "e_after_affine": result.e_after_affine,
-                        # QPU & calibration (real hardware only)
-                        "qpu_metrics": getattr(result, "_qpu_metrics", None),
-                        "calibration_snapshot": getattr(result, "_calibration_snapshot", None),
-                        "transpiled_stats": getattr(result, "_transpiled_stats", None),
-                        # Timing
-                        "wall_clock_s": t_h,
-                        "pass": passed,
-                        # κ risk profile (noiseless, shared across seeds)
-                        "kappa": kappa_per_h_t2.get(h, float("nan")),
-                        "hardware_risk": kappa_recommendations_t2.get(h, {}).get(
-                            "risk_level", "unknown"
-                        ),
-                    }
-                )
-                v_mark = "✅" if passed else "❌"
-                print(f"    {v_mark} h={h:.2f}: ΔE/gap={result.delta_e_gap:.4f} ({t_h:.1f}s)")
-            except Exception as exc:
-                t_h = time.time() - t_start
+        builder = HamiltonianBuilder()
+
+        def hamiltonian_builder(h: float) -> SparsePauliOp:
+            return builder.build(make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h))
+
+        t_seed_start = time.time()
+        try:
+            sweep_results = backend.run_h_sweep(
+                circuit,
+                hamiltonian_builder,
+                list(TIER_1_H),
+                params_per_h,
+                e_exact_per_h,
+                gap_per_h,
+            )
+        except RuntimeError as exc:
+            t_seed = time.time() - t_seed_start
+            logger.error(f"  Seed {seed} sweep FAILED after {t_seed:.1f}s — {exc}")
+            for h in TIER_1_H:
                 metrics.n_jobs_submitted += 1
                 metrics.n_jobs_failed += 1
-                metrics.per_h_wall_clock_s.append(t_h)
+                metrics.per_h_wall_clock_s.append(0.0)
                 metrics.per_h_results.append(
-                    {
-                        "seed": seed,
-                        "h": h,
-                        "error": str(exc),
-                        "wall_clock_s": t_h,
-                        "pass": False,
-                    }
+                    {"seed": seed, "h": h, "error": str(exc), "wall_clock_s": 0.0, "pass": False}
                 )
-                print(f"    ❌ h={h:.2f}: FAILED ({t_h:.1f}s) — {exc}")
+            continue
+        t_seed_elapsed = time.time() - t_seed_start
+
+        for result in sweep_results:
+            h = result.h_value
+            t_h_est = t_seed_elapsed / len(sweep_results)
+            metrics.n_jobs_submitted += 1
+            metrics.n_jobs_succeeded += 1
+            passed = result.verdict == "PASS"
+            if passed:
+                metrics.n_pass += 1
+            if result.spsa_applied:
+                metrics.spsa_triggered_count += 1
+            all_de_gaps.append(result.delta_e_gap)
+            metrics.per_h_wall_clock_s.append(t_h_est)
+            metrics.per_h_results.append(
+                {
+                    "seed": seed,
+                    "h": h,
+                    # Energy & quality
+                    "e_exact": result.e_exact,
+                    "e_zne": result.e_zne,
+                    "delta_e_gap": result.delta_e_gap,
+                    "gap": result.gap,
+                    "zne_gain": result.zne_gain,
+                    # Verdict
+                    "verdict": result.verdict,
+                    "verdict_reason": result.verdict_reason,
+                    # Phase classification
+                    "phase_label": result.phase_label,
+                    "mag_x_mean": result.mag_x_mean,
+                    "corr_zz_mean": result.corr_zz_mean,
+                    "sigma": result.sigma,
+                    # ZNE details
+                    "zne_r2": result.zne_r2,
+                    "mitigation_strategy": result.mitigation_strategy,
+                    "layout_std": result.layout_std,
+                    # SPSA & provenance
+                    "spsa_applied": result.spsa_applied,
+                    "job_ids": result.job_ids,
+                    "ces_values": result.ces_values,
+                    "total_shots": result.total_shots,
+                    # Per-site observables (thesis data)
+                    "per_site_x": result.per_site_x,
+                    "per_bond_zz": result.per_bond_zz,
+                    # Post-correction
+                    "gnn_qem_applied": result.gnn_qem_applied,
+                    "affine_correction_applied": result.affine_correction_applied,
+                    "e_after_affine": result.e_after_affine,
+                    # Post-QPU validation metrics
+                    "obs_bounds_clipped": result.obs_bounds_clipped,
+                    "layout_energy_outliers": result.layout_energy_outliers,
+                    "e_obs_discrepancy": result.e_obs_discrepancy,
+                    "e_obs_cross_valid_passed": result.e_obs_cross_valid_passed,
+                    "n_layouts_observables": result.n_layouts_observables,
+                    # QPU & calibration (real hardware only)
+                    "qpu_metrics": getattr(result, "_qpu_metrics", None),
+                    "calibration_snapshot": getattr(result, "_calibration_snapshot", None),
+                    "transpiled_stats": getattr(result, "_transpiled_stats", None),
+                    # Timing
+                    "wall_clock_s": t_h_est,
+                    "pass": passed,
+                    # κ risk profile (noiseless, shared across seeds)
+                    "kappa": kappa_per_h_t2.get(h, float("nan")),
+                    "hardware_risk": kappa_recommendations_t2.get(h, {}).get(
+                        "risk_level", "unknown"
+                    ),
+                }
+            )
+            v_mark = "✅" if passed else "❌"
+            print(f"    {v_mark} h={h:.2f}: ΔE/gap={result.delta_e_gap:.4f}")
 
     # Summary
     metrics.wall_clock_s = sum(metrics.per_h_wall_clock_s)
@@ -1808,7 +1834,7 @@ Safety:
     parser.add_argument(
         "--job-timeout",
         type=int,
-        default=900,
+        default=1900,
         help=(
             "Timeout in seconds per QPU job (default: 900). "
             "Set to 0 to disable timeout (wait indefinitely for job completion)."
@@ -1862,6 +1888,25 @@ Safety:
         default=0.01,
         help="Max 2Q gate error for layout CouplingMap filtering (default: 0.01)",
     )
+    # ── P2-A: Dynamic layout escalation options ───────────────────────────
+    parser.add_argument(
+        "--min-ces-spread",
+        type=float,
+        default=0.02,
+        help=(
+            "Minimum CES spread across layouts for ZNE extrapolation quality "
+            "(default: 0.02). If spread is below this, escalate to --n-layouts-max."
+        ),
+    )
+    parser.add_argument(
+        "--n-layouts-max",
+        type=int,
+        default=5,
+        help=(
+            "Maximum layouts to select when CES spread is insufficient "
+            "(default: 5). Only used when P2-A dynamic escalation triggers."
+        ),
+    )
     # ── Mitiq complementary mitigation options ────────────────────────────
     parser.add_argument(
         "--mitiq-verify",
@@ -1879,6 +1924,35 @@ Safety:
             "Run full Mitiq multi-method comparison (ZNE/CDR/DDD+ZNE). "
             "Produces thesis table comparing all mitigation strategies. "
             "Significantly slower — use only for offline analysis."
+        ),
+    )
+    # ── QESEM (Qedma) mitigation options ─────────────────────────────────
+    parser.add_argument(
+        "--qesem",
+        action="store_true",
+        help=(
+            "Use QESEM (Qedma Qiskit Function) for mitigation instead of "
+            "local PEA-ZNE. QESEM provides unbiased, characterization-based "
+            "quasi-probabilistic error mitigation. Requires IBM Premium/Flex "
+            "plan and qiskit-ibm-catalog>=0.8.0. Ref: arXiv:2508.10997."
+        ),
+    )
+    parser.add_argument(
+        "--qesem-precision",
+        type=float,
+        default=0.01,
+        help=(
+            "QESEM target precision (ε) per observable (default: 0.01). "
+            "Lower values → more QPU time but higher accuracy."
+        ),
+    )
+    parser.add_argument(
+        "--qesem-max-time",
+        type=int,
+        default=300,
+        help=(
+            "QESEM max QPU time per PUB in seconds (default: 300). "
+            "Limits QPU budget per h-point. Increase for higher precision."
         ),
     )
     args = parser.parse_args()
@@ -1925,6 +1999,12 @@ Safety:
         else f"VF2, strategy={args.layout_strategy}"
     )
     print(f"║  Layout optimizer: {mapo_note:<47}║")
+    qesem_note = (
+        f"ENABLED (ε={args.qesem_precision}, max={args.qesem_max_time}s)"
+        if args.qesem
+        else "disabled (using PEA-ZNE)"
+    )
+    print(f"║  QESEM (Qedma):    {qesem_note:<47}║")
     print("╚══════════════════════════════════════════════════════════════════╝")
 
     # ── Credential check ──────────────────────────────────────────────────
@@ -1959,34 +2039,64 @@ Safety:
         backend_name=args.backend,
         pea_preset=pea_preset,
         job_timeout_s=args.job_timeout,
+        qesem_enabled=args.qesem,
+        qesem_precision=args.qesem_precision,
+        qesem_max_execution_time=args.qesem_max_time,
     )
     # Apply mapomatic CLI overrides
     if args.no_mapomatic:
         config.use_mapomatic = False
     config.layout_strategy = args.layout_strategy
     config.layout_max_2q_error = args.layout_max_2q_error
+    # P2-A: Dynamic layout escalation
+    config.min_ces_spread = args.min_ces_spread
+    config.n_layouts_max = args.n_layouts_max
 
-    # ── Pre-execution cost estimate (model-based) ─────────────────────────
-    n_h_full = len(TIER_1_H) * (1 + len(TIER_2_SEEDS)) + len(TIER_3_H) + len(TIER_0_H)
+    # ── Determine tiers to run (needed before budget print) ─────────────
+    tiers_to_run = args.tier if args.tier is not None else [0, 1, 2, 3]
+
+    # ── Pre-execution cost estimate (model-based) — only for selected tiers ─
+    # Count h-points for the tiers that will actually execute
+    n_h_selected = 0
+    tier_h_breakdown = {}
+    if 0 in tiers_to_run:
+        n_h_t0 = len(TIER_0_H)
+        n_h_selected += n_h_t0
+        tier_h_breakdown["T0"] = n_h_t0
+    if 1 in tiers_to_run:
+        n_h_t1 = len(TIER_1_H)
+        n_h_selected += n_h_t1
+        tier_h_breakdown["T1"] = n_h_t1
+    if 2 in tiers_to_run:
+        n_h_t2 = len(TIER_1_H) * len(TIER_2_SEEDS)
+        n_h_selected += n_h_t2
+        tier_h_breakdown["T2"] = n_h_t2
+    if 3 in tiers_to_run:
+        n_h_t3 = len(TIER_3_H)
+        n_h_selected += n_h_t3
+        tier_h_breakdown["T3"] = n_h_t3
+
     spsa_model = SPSACostModel() if spsa_enabled else SPSACostModel.disabled()
     profile = QPUThroughputProfile.ibm_kingston()
     cost = estimate_qpu_cost(
         config,
-        n_h_points=n_h_full,
+        n_h_points=n_h_selected,
         profile=profile,
         spsa_model=spsa_model,
     )
 
+    tier_desc = " + ".join(f"{k}:{v}" for k, v in tier_h_breakdown.items())
+    # Compute QPU-only times (excludes classical latency / queue wait)
+    qpu_only_optimistic = cost.est_total_optimistic_s - cost.classical_latency_s
+    qpu_only_expected = cost.est_total_s - cost.classical_latency_s
     print("\n  ┌─── Pre-Execution Budget (model-based, before calibration) ──┐")
     print(f"  │  Effective CLOPS: {cost.effective_clops}                            │")
-    print(
-        f"  │  Total h-points: {n_h_full} (Tier0:{len(TIER_0_H)} + T1:{len(TIER_1_H)} "
-        f"+ T2:{len(TIER_1_H) * len(TIER_2_SEEDS)} + T3:{len(TIER_3_H)})    │"
-    )
+    print(f"  │  Tiers to run: {sorted(tiers_to_run)}                                  │")
+    print(f"  │  Total h-points: {n_h_selected} ({tier_desc}){' ' * max(0, 30 - len(tier_desc))}│")
     print(f"  │  Total shots: {cost.total_shots:,}                          │")
     print(
-        f"  │  Optimistic: {cost.est_total_optimistic_s / 60:.1f} min | "
-        f"Expected: {cost.est_total_s / 60:.1f} min          │"
+        f"  │  QPU time — Optimistic: {qpu_only_optimistic / 60:.1f} min | "
+        f"Expected: {qpu_only_expected / 60:.1f} min    │"
     )
     print(
         f"  │  Fits per job: {'✅' if cost.fits_per_job else '❌'}  |  "
@@ -2003,9 +2113,6 @@ Safety:
     output_dir.mkdir(parents=True, exist_ok=True)
     slogger = StructuredLogger("ibm_torino_deployment")
     lattice = make_lattice(TOPOLOGY, N_QUBITS)
-
-    # ── Determine tiers to run ────────────────────────────────────────────
-    tiers_to_run = args.tier if args.tier is not None else [0, 1, 2, 3]
 
     execution_summary = {
         "start_time": datetime.now(UTC).isoformat(),

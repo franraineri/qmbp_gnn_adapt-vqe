@@ -28,7 +28,7 @@ from qmbp_simulation.optimizers import VQEOptimizer
 
 # ═══════════════════════════════════════════════════════════════════════════════
 N = 120
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 H_MIN_SAFE = 1.5 + 0.020 * N**1.31  # ~12.09
 
 # 5 h-points: from h_min_safe+0.5 to h_min_safe+3.0
@@ -82,7 +82,9 @@ for seed in SEEDS:
         e_exact = ground_truths[h]["e_exact"]
         gap = ground_truths[h]["gap"]
 
-        backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=0.005, seed=seed)
+        backend = MPSBackend(
+            strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, precision=0.005, seed=seed
+        )
         config = VQEConfig(
             method="COBYLA",
             p_layers=1,

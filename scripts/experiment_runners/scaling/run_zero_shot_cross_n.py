@@ -399,7 +399,7 @@ def main() -> int:
     solver = ClassicalSolver()
     backend = MPSBackend(
         strategy=args.strategy,
-        chi_max=64,
+        chi_max=MPS_DEFAULT_CHI_MAX,
         precision=args.precision,
         seed=42,
     )

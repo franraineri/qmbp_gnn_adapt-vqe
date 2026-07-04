@@ -105,6 +105,28 @@ Examples:
         help="CI mode: exit with code 1 if CRITICAL actions exist",
     )
     parser.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="Run ResultIndex.diagnose() — quick failure classification by group",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Filter diagnose by model (e.g., --model tfim)",
+    )
+    parser.add_argument(
+        "--topology",
+        type=str,
+        default=None,
+        help="Filter diagnose by topology (e.g., --topology heavy_hex)",
+    )
+    parser.add_argument(
+        "--refresh-status",
+        action="store_true",
+        help="Regenerate .kiro/steering/project-status.md from ResultIndex",
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -158,6 +180,15 @@ def main() -> None:
     )
 
     # Run the health check
+    # ── Fast-path modes (don't require full health check engine) ──────
+    if args.diagnose:
+        _run_diagnose(args)
+        return
+
+    if args.refresh_status:
+        _run_refresh_status()
+        return
+
     report = run_health_check(
         results_dir=Path(args.results_dir),
         state_file=Path(args.state_file),
@@ -224,6 +255,78 @@ def _format_diff_only(report: HealthReport) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+def _run_diagnose(args: argparse.Namespace) -> None:
+    """Run ResultIndex.diagnose() and print results."""
+    from qmbp_simulation.framework.result_index import ResultIndex
+
+    idx = ResultIndex()
+    diag = idx.diagnose(model=args.model, topology=args.topology)
+    summary = diag["summary"]
+
+    # Header
+    filter_desc = ""
+    if args.model:
+        filter_desc += f" model={args.model}"
+    if args.topology:
+        filter_desc += f" topology={args.topology}"
+    print(f"\n{'═' * 60}")
+    print(f"  DIAGNOSIS{filter_desc}")
+    print(f"{'═' * 60}")
+    print(
+        f"  Groups: {summary['total_groups']} | "
+        f"Healthy: {summary['healthy']} | "
+        f"Degraded: {summary['degraded']} | "
+        f"Failing: {summary['failing']}"
+    )
+
+    # Groups table
+    print(f"\n  {'Config':<35} {'Health':<10} {'Rate':>6} {'Runs':>5}")
+    print(f"  {'-' * 35} {'-' * 10} {'-' * 6} {'-' * 5}")
+    for key, g in sorted(
+        diag["groups"].items(),
+        key=lambda kv: kv[1]["pass_rate"],
+    ):
+        health_icon = {"healthy": "✅", "degraded": "⚠️", "failing": "❌"}.get(
+            g["health"], "?"
+        )
+        print(
+            f"  {key:<35} {health_icon} {g['health']:<7} "
+            f"{g['pass_rate']:>5.0%} {g['n_runs']:>5}"
+        )
+
+    # Issues
+    if diag["issues"]:
+        print(f"\n  Issues ({len(diag['issues'])}):")
+        for issue in diag["issues"][:10]:
+            print(f"    • {issue}")
+
+    # Recommendations
+    if diag["recommendations"]:
+        print("\n  Recommendations:")
+        for rec in diag["recommendations"]:
+            print(f"    → {rec}")
+
+    print()
+
+    # JSON output if requested
+    if args.json:
+        import json
+        print(json.dumps(diag, indent=2))
+
+
+def _run_refresh_status() -> None:
+    """Regenerate project-status.md from ResultIndex."""
+    from qmbp_simulation.framework.result_index import ResultIndex
+
+    idx = ResultIndex()
+    path = idx.refresh_status()
+    if path:
+        print(f"✓ Project status updated: {path}")
+    else:
+        print("✗ Failed to refresh project status")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

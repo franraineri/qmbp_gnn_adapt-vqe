@@ -67,10 +67,25 @@ When asked to analyze data, inspect results, or understand outputs:
 | Need | Use |
 |------|-----|
 | "Does this work?" | `pytest tests/ -k <relevant>` |
-| "What does the result look like?" | `python -m project_health.digest --kind <kind>` |
+| "Quick health by model/topology?" | `python -m project_health --diagnose --model <m>` |
+| "What does the result look like?" | `python project_health/cli/inspect_noiseless_run.py --latest <exp>` |
 | "Is something broken?" | `python -m project_health.analysis.sanity_check` |
 | "Compare two runs" | `python -m project_health.digest --compare folder_A folder_B` |
+| "Load results programmatically?" | `from qmbp_simulation.framework import load_results_from_dir` |
+| "Query index fast?" | `from qmbp_simulation.framework.result_index import ResultIndex` |
 | "Validate new feature" | Add test cases to existing test file, run `make test` |
+
+## Rule 3: New Runners (ALWAYS subclass ValidationRunner)
+
+When creating a new experiment runner:
+
+1. **MUST** subclass `ValidationRunner` — never write standalone scripts with `main()`.
+2. **MUST** call `self.setup_physics()` in `setup()` — never duplicate imports.
+3. **MUST** use `self.select_backend(N)` — never `if N <= 22: NoiselessBackend() else: MPSBackend(...)`.
+4. **MUST** use `self.save_checkpoint()` for long loops — never raw `json_dump` to custom paths.
+5. **MUST** use `self.log_memory_estimate(N)` before large computations.
+6. **MUST** return `{"pass": bool, ...}` from section functions.
+7. See `infrastructure.md` for the full template.
 
 ## Anti-Patterns (NEVER DO)
 
@@ -80,3 +95,10 @@ When asked to analyze data, inspect results, or understand outputs:
 - ❌ Writing a new script to "quickly check" something — write a test or extend existing ones instead
 - ❌ `python -c "import json; ..."` for result inspection — use digest
 - ❌ Creating throwaway scripts for analysis — extend project_health tools
+- ❌ `with open(f) as fh: json.load(fh)` — use `load_result(path)` or `load_results_from_dir(dir)`
+- ❌ Standalone runner scripts without `ValidationRunner` — subclass it, get all features free
+- ❌ Manual `NoiselessBackend() if N <= 22 else MPSBackend(...)` — use `self.select_backend(N)`
+- ❌ Duplicating builder/solver/hva imports — use `self.setup_physics()`
+- ❌ `except Exception: pass` — at minimum `logger.debug("context: %s", e)`
+- ❌ Custom `_json_default` functions — use `json_serialize` from `utils.helpers`
+- ❌ Manual `update_project_status.py` — runners auto-refresh; use `--refresh-status` if needed

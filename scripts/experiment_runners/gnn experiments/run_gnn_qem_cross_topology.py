@@ -76,7 +76,7 @@ def main():
             topologies=["heavy_hex"],
             n_qubits_list=[10],
             h_values=[2.5, 3.0, 3.25, 3.5, 4.0],
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             shots=4096,
             p_layers=1,
         )

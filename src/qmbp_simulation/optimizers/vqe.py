@@ -14,11 +14,12 @@ References
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import Callable
 
 import numpy as np
 from qiskit.circuit import QuantumCircuit
-from qiskit.quantum_info import SparsePauliOp, Statevector, state_fidelity
+from qiskit.quantum_info import SparsePauliOp
 from scipy.optimize import minimize
 
 from qmbp_simulation.execution import ExecutionBackend, NoiselessBackend
@@ -29,6 +30,10 @@ from qmbp_simulation.models import (
     OptimizationTrajectory,
     VQEConfig,
     VQEResult,
+)
+from qmbp_simulation.models.constants import (
+    COBYLA_AUTO_SWITCH_THRESHOLD,
+    VQE_WALL_CLOCK_LIMIT_PER_POINT,
 )
 
 logger = logging.getLogger(__name__)
@@ -140,19 +145,44 @@ class VQEOptimizer:
         """
         cfg = self.config
         backend = self._backend
+        logger.debug(
+            "VQEOptimizer.optimize: n_params=%d, method=%s, maxiter=%d, "
+            "n_restarts=%d, exact_energy=%s",
+            len(initial_guess),
+            cfg.method,
+            cfg.maxiter,
+            cfg.n_restarts,
+            f"{exact_energy:.6f}" if exact_energy is not None else "None",
+        )
 
         def cost_fn(params: np.ndarray) -> float:
             """Pure energy cost function — evaluates ⟨H⟩ only."""
             return backend.evaluate(circuit, hamiltonian, params)
 
-        # Warn if L-BFGS-B is used on high-dimensional landscape
+        # Auto-select optimizer method for high-dimensional landscapes
+        # COBYLA avoids expensive finite-difference gradients (2n+1 evals/iter)
+        effective_method = cfg.method
         n_params = len(initial_guess)
-        if cfg.method == "L-BFGS-B" and n_params > 10:
+        if cfg.method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD:
+            effective_method = "COBYLA"
+            logger.info(
+                f"    ⚙️ Auto-switched to COBYLA (n_params={n_params} > "
+                f"{COBYLA_AUTO_SWITCH_THRESHOLD}, avoids {2 * n_params + 1} FD evals/iter)"
+            )
+
+        if effective_method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD + 2:
             evals_per_iter = 2 * n_params + 1
             logger.warning(
                 f"L-BFGS-B with {n_params} params: ~{evals_per_iter} evals/iter "
                 f"(finite-difference gradient). Consider COBYLA for n_params > 10."
             )
+
+        # Create effective config with possibly overridden method
+        from dataclasses import replace
+
+        effective_cfg = (
+            replace(cfg, method=effective_method) if effective_method != cfg.method else cfg
+        )
 
         # Lightweight progress callback: logs every 50 iterations so the
         # user sees activity during long-running VQE calls (even when
@@ -178,30 +208,53 @@ class VQEOptimizer:
             callback.param_vectors.append(initial_guess.copy())
             callback.grad_norms.append(float("nan"))
 
+        from qmbp_simulation.models.constants import (
+            VQE_RESTART_IMPROVEMENT_TOL,
+            VQE_RESTART_STAGNATION_THRESHOLD,
+        )
+
         # Effective callback for scipy: full trajectory OR lightweight progress
         effective_cb = callback or progress_cb
 
         bounds = [cfg.bounds] * len(initial_guess)
 
         # Warm-start run
-        best = self._run_minimize(cost_fn, initial_guess, cfg, bounds, effective_cb)
+        best = self._run_minimize(cost_fn, initial_guess, effective_cfg, bounds, effective_cb)
 
         n_restarts_used = 0
+        _consecutive_no_improvement = 0
 
-        # Random restarts
+        # Random restarts with stagnation detection
         for restart_idx in range(cfg.n_restarts):
+            # Early-stop: if N consecutive restarts failed to improve,
+            # the landscape is well-explored — skip remaining restarts.
+            if _consecutive_no_improvement >= VQE_RESTART_STAGNATION_THRESHOLD:
+                logger.debug(
+                    f"VQE early-stop: {_consecutive_no_improvement} consecutive restarts "
+                    f"without improvement (threshold={VQE_RESTART_STAGNATION_THRESHOLD}). "
+                    f"Skipping remaining {cfg.n_restarts - restart_idx} restarts."
+                )
+                break
+
             x0 = best.x + self._rng.normal(0, cfg.restart_sigma, len(best.x))
             # Clip to bounds
             x0 = np.clip(x0, cfg.bounds[0], cfg.bounds[1])
             # Reset iter counter for each restart
             if progress_cb is not None:
                 _iter_count[0] = 0
-            trial = self._run_minimize(cost_fn, x0, cfg, bounds, effective_cb)
+            trial = self._run_minimize(cost_fn, x0, effective_cfg, bounds, effective_cb)
             if not trial.success:
                 logger.debug(
                     f"VQE restart {restart_idx + 1}/{cfg.n_restarts} did not converge: "
                     f"{trial.message}"
                 )
+            # Stagnation detection: meaningful improvement resets counter
+            improvement = best.fun - trial.fun  # positive = trial is better
+            if improvement > VQE_RESTART_IMPROVEMENT_TOL:
+                _consecutive_no_improvement = 0
+            else:
+                _consecutive_no_improvement += 1
+            # Always track the absolute best energy (exact comparison)
             if trial.fun < best.fun:
                 best = trial
                 n_restarts_used += 1
@@ -219,9 +272,46 @@ class VQEOptimizer:
         fidelity = 0.0
         if exact_energy is not None:
             energy_error = abs(best.fun - exact_energy)
+            # Variational principle check at optimize level (covers non-sweep usage)
+            if np.isfinite(best.fun) and best.fun < exact_energy - 1e-8:
+                violation = exact_energy - best.fun
+                if violation >= 0.1:
+                    logger.error(
+                        "❌ CRITICAL variational principle violation in optimize(): "
+                        "E_VQE=%.8f < E_exact=%.8f (Δ=%.4e). "
+                        "Check Hamiltonian/backend consistency.",
+                        best.fun,
+                        exact_energy,
+                        violation,
+                    )
+                elif violation >= 1e-3:
+                    logger.warning(
+                        "⚠️  Variational principle violation in optimize(): "
+                        "E_VQE=%.8f < E_exact=%.8f (Δ=%.2e).",
+                        best.fun,
+                        exact_energy,
+                        violation,
+                    )
         if exact_state is not None:
-            sv_ansatz = Statevector(circuit.assign_parameters(best.x))
-            fidelity = float(state_fidelity(sv_ansatz, Statevector(exact_state)))
+            try:
+                fidelity = float(backend.compute_fidelity(circuit, best.x, exact_state))
+            except Exception as exc:
+                logger.warning(
+                    "compute_fidelity failed (N=%d): %s. Setting fidelity=0.0.",
+                    circuit.num_qubits,
+                    exc,
+                )
+                fidelity = 0.0
+            # Fidelity sanity guard (compute_fidelity should clip, but double-check)
+            if fidelity > 1.0 + 1e-6:
+                logger.error(
+                    "Fidelity %.8f > 1.0 — this should not happen. "
+                    "Possible bug in compute_fidelity or exact_state normalization.",
+                    fidelity,
+                )
+                fidelity = 1.0
+            elif fidelity > 1.0:
+                fidelity = 1.0
 
         # Build trajectory
         trajectory = None
@@ -249,17 +339,20 @@ class VQEOptimizer:
         - COBYLA: gradient-free, no bounds/ftol (TypeError if passed)
         - Nelder-Mead: simplex, no bounds, uses fatol
 
-        Note: L-BFGS-B uses finite-difference gradients (2*n_params+1 evals
-        per iteration). For high-dimensional problems (n_params > 10), this
-        becomes very expensive. A maxfun cap prevents indefinite hangs.
+        All methods have a function-evaluation cap to guarantee termination
+        even when convergence tolerance is unreachable (e.g., flat landscapes
+        near the critical point with high-dimensional parameter spaces).
+
+        The cap formula is: maxfun = maxiter * min(n_params + 5, 50).
+        For a typical case (n_params=4, maxiter=500): maxfun = 4500.
+        For high-dim (n_params=79, maxiter=500): maxfun = 25000.
         """
         method = cfg.method
         n_params = len(x0)
+        # Unified maxfun cap formula: generous but finite.
+        maxfun = cfg.maxiter * min(n_params + 5, 50)
+
         if method == "L-BFGS-B":
-            # Cap total function evaluations to prevent hangs on
-            # high-dimensional landscapes where ftol convergence is slow.
-            # Default: maxiter * (n_params + 5) — generous but finite.
-            maxfun = cfg.maxiter * min(n_params + 5, 50)
             return minimize(
                 cost_fn,
                 x0,
@@ -273,25 +366,48 @@ class VQEOptimizer:
                 },
             )
         elif method == "COBYLA":
-            # NOTE: rhobeg=restart_sigma is a semantic overload. restart_sigma
-            # controls random perturbation for restarts (default 0.1), while rhobeg
-            # is COBYLA's initial trust region radius. They happen to have the same
-            # good default (0.1) for this use case. Future refactor: add dedicated
-            # cobyla_rhobeg to VQEConfig.
-            return minimize(
-                cost_fn,
+            # COBYLA does not support maxfev in options — wrap cost_fn with
+            # an evaluation counter that forces termination.
+            _eval_count = [0]
+            _last_value = [0.0]
+
+            def _capped_cost(params):
+                _eval_count[0] += 1
+                if _eval_count[0] > maxfun:
+                    # Return last known value — COBYLA will treat this as
+                    # no improvement and terminate on its own within a few
+                    # more iterations (trust region shrinks to zero).
+                    return _last_value[0]
+                val = cost_fn(params)
+                _last_value[0] = val
+                return val
+
+            result = minimize(
+                _capped_cost,
                 x0,
                 method="COBYLA",
                 callback=callback,
-                options={"maxiter": cfg.maxiter, "rhobeg": cfg.restart_sigma},
+                options={
+                    "maxiter": cfg.maxiter,
+                    "rhobeg": cfg.restart_sigma,
+                    "catol": 1e-10,
+                },
             )
+            # Annotate result with actual eval count for diagnostics
+            result.nfev = _eval_count[0]
+            return result
         elif method == "Nelder-Mead":
             return minimize(
                 cost_fn,
                 x0,
                 method="Nelder-Mead",
                 callback=callback,
-                options={"maxiter": cfg.maxiter, "fatol": cfg.ftol},
+                options={
+                    "maxiter": cfg.maxiter,
+                    "maxfev": maxfun,
+                    "fatol": cfg.ftol,
+                    "xatol": 1e-10,
+                },
             )
         else:
             # Should not reach here — VQEConfig validates method
@@ -403,6 +519,7 @@ class VQEOptimizer:
             # Warm-start seeding
             current_guess = self.get_initial_guess(n_params, h, self.config, current_guess)
 
+            t_point_start = time.perf_counter()
             result = self.optimize(
                 H,
                 circuit,
@@ -410,7 +527,18 @@ class VQEOptimizer:
                 exact_energy=exact_e,
                 exact_state=exact_psi,
             )
+            t_point_elapsed = time.perf_counter() - t_point_start
             result.h_value = h
+
+            # Wall-clock timeout warning: detect when a single h-point
+            # takes unreasonably long (likely COBYLA spinning on flat landscape)
+            if t_point_elapsed > VQE_WALL_CLOCK_LIMIT_PER_POINT:
+                logger.warning(
+                    f"⏱️  VQE at h={h:.4f} took {t_point_elapsed:.1f}s "
+                    f"(limit={VQE_WALL_CLOCK_LIMIT_PER_POINT:.0f}s). "
+                    f"Possible flat landscape or excessive restarts. "
+                    f"n_params={n_params}, method={self.config.method}"
+                )
 
             # NaN detection: catch corrupted optimization early
             if np.any(~np.isfinite(result.theta_opt)):
@@ -425,16 +553,35 @@ class VQEOptimizer:
                 result.fidelity = 0.0
 
             # Variational principle check (lightweight, per-point)
+            # Severity escalation: small violations (< 0.01) are numerical noise
+            # from eigsh vs statevector mismatch. Large violations (≥ 0.1) indicate
+            # a real bug in the Hamiltonian, circuit, or solver.
             if (
                 exact_e is not None
                 and np.isfinite(result.energy)
                 and result.energy < exact_e - 1e-8
             ):
-                logger.warning(
-                    f"⚠️  Variational principle violated at h={h:.4f}: "
-                    f"E_VQE={result.energy:.8f} < E_exact={exact_e:.8f} "
-                    f"(Δ={exact_e - result.energy:.2e})"
-                )
+                violation = exact_e - result.energy
+                if violation >= 0.1:
+                    logger.error(
+                        f"❌ CRITICAL variational principle violation at h={h:.4f}: "
+                        f"E_VQE={result.energy:.8f} < E_exact={exact_e:.8f} "
+                        f"(Δ={violation:.4e}). This is NOT numerical noise — "
+                        f"check Hamiltonian consistency between solver and VQE backend."
+                    )
+                elif violation >= 0.01:
+                    logger.warning(
+                        f"⚠️  Variational principle violated at h={h:.4f}: "
+                        f"E_VQE={result.energy:.8f} < E_exact={exact_e:.8f} "
+                        f"(Δ={violation:.2e}). Likely eigsh tolerance vs statevector "
+                        f"mismatch for this system size."
+                    )
+                else:
+                    logger.warning(
+                        f"⚠️  Variational principle violated at h={h:.4f}: "
+                        f"E_VQE={result.energy:.8f} < E_exact={exact_e:.8f} "
+                        f"(Δ={violation:.2e}) — numerical noise (benign)."
+                    )
 
             status = "✅" if result.fidelity >= 0.995 else "⚠️"
             logger.info(
@@ -444,6 +591,138 @@ class VQEOptimizer:
 
             results.append(result)
             # Propagate θ_opt as warm-start (no wrapping — V4 lesson)
+            current_guess = result.theta_opt
+
+        return results
+
+    # ── Bidirectional sweep ──────────────────────────────────────────
+
+    def bidirectional_sweep(
+        self,
+        h_values: np.ndarray,
+        circuit: QuantumCircuit,
+        lattice: LatticeConfig,
+        exact_data: list[GroundTruthResult] | None = None,
+    ) -> list[VQEResult]:
+        """Run VQE with both descending and ascending sweeps, keeping the best.
+
+        For each h-point, takes the result with lower energy from the two
+        sweep directions. This eliminates warm-start propagation errors where
+        a bad local minimum in one direction infects all downstream points.
+
+        Parameters
+        ----------
+        h_values : np.ndarray
+            h-values in descending order (h_max → h_min).
+        circuit : QuantumCircuit
+            Parameterized HVA circuit.
+        lattice : LatticeConfig
+            Lattice specification.
+        exact_data : list[GroundTruthResult] | None
+            Exact results per h-point (same order as h_values).
+
+        Returns
+        -------
+        list[VQEResult]
+            Best results per h-point (same order as h_values).
+        """
+        logger.info(
+            "  🔄 Bidirectional VQE sweep: %d h-points, %d params, topology=%s",
+            len(h_values),
+            circuit.num_parameters,
+            lattice.topology,
+        )
+        logger.info("  Bidirectional sweep: running descending pass...")
+        results_desc = self.descending_sweep(h_values, circuit, lattice, exact_data)
+
+        # Ascending pass: reverse h-values and exact_data
+        h_ascending = h_values[::-1]
+        exact_ascending = list(reversed(exact_data)) if exact_data else None
+
+        # Temporarily allow ascending by using the internal loop directly
+        logger.info("  Bidirectional sweep: running ascending pass...")
+        results_asc_reversed = self._ascending_sweep(h_ascending, circuit, lattice, exact_ascending)
+        # Reverse back to match original h-order
+        results_asc = list(reversed(results_asc_reversed))
+
+        # Merge: take lower energy at each point
+        merged: list[VQEResult] = []
+        n_improved = 0
+        for i in range(len(h_values)):
+            if results_asc[i].energy < results_desc[i].energy:
+                merged.append(results_asc[i])
+                n_improved += 1
+            else:
+                merged.append(results_desc[i])
+
+        logger.info(
+            f"  Bidirectional merge: {n_improved}/{len(h_values)} points "
+            f"improved by ascending pass."
+        )
+        return merged
+
+    def _ascending_sweep(
+        self,
+        h_values: np.ndarray,
+        circuit: QuantumCircuit,
+        lattice: LatticeConfig,
+        exact_data: list[GroundTruthResult] | None = None,
+    ) -> list[VQEResult]:
+        """Internal ascending sweep (h_min → h_max) with warm-start.
+
+        Same logic as descending_sweep but without the descending-order check.
+        """
+        builder = HamiltonianBuilder()
+        n_params = circuit.num_parameters
+        results: list[VQEResult] = []
+
+        current_guess = self.get_initial_guess(n_params, h_values[0], self.config)
+
+        for idx, h in enumerate(h_values):
+            h = float(h)
+            lat_h = LatticeConfig(
+                topology=lattice.topology,
+                n_qubits=lattice.n_qubits,
+                J=lattice.J,
+                h=h,
+                edges=lattice.edges,
+                coordination_numbers=lattice.coordination_numbers,
+                periodic=lattice.periodic,
+            )
+            H = builder.build(lat_h)
+
+            exact_e = None
+            exact_psi = None
+            if exact_data is not None and idx < len(exact_data):
+                exact_e = exact_data[idx].ground_energy
+                exact_psi = exact_data[idx].ground_state
+
+            current_guess = self.get_initial_guess(n_params, h, self.config, current_guess)
+
+            t_point_start = time.perf_counter()
+            result = self.optimize(
+                H,
+                circuit,
+                current_guess,
+                exact_energy=exact_e,
+                exact_state=exact_psi,
+            )
+            t_point_elapsed = time.perf_counter() - t_point_start
+            result.h_value = h
+
+            if t_point_elapsed > VQE_WALL_CLOCK_LIMIT_PER_POINT:
+                logger.warning(
+                    f"⏱️  VQE ascending at h={h:.4f} took {t_point_elapsed:.1f}s "
+                    f"(limit={VQE_WALL_CLOCK_LIMIT_PER_POINT:.0f}s). "
+                    f"n_params={n_params}, method={self.config.method}"
+                )
+
+            if np.any(~np.isfinite(result.theta_opt)):
+                result.theta_opt = current_guess.copy()
+                result.energy = float("inf")
+                result.fidelity = 0.0
+
+            results.append(result)
             current_guess = result.theta_opt
 
         return results

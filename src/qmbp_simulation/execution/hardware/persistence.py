@@ -221,6 +221,19 @@ def save_run(
             # Affine correction
             "affine_correction_applied": result.affine_correction_applied,
             "e_after_affine": result.e_after_affine,
+            # Post-QPU validation metrics (zero-cost sanity checks)
+            "obs_bounds_clipped": result.obs_bounds_clipped,
+            "n_obs_violations": result.n_obs_violations,
+            "layout_energy_outliers": result.layout_energy_outliers,
+            "e_obs_discrepancy": result.e_obs_discrepancy,
+            "e_obs_cross_valid_passed": result.e_obs_cross_valid_passed,
+            "n_layouts_observables": result.n_layouts_observables,
+            # P2-C: Stale calibration drift (post-sweep comparison)
+            "stale_calibration_t1_drift_pct": result.stale_calibration_t1_drift_pct,
+            "stale_calibration_stable": result.stale_calibration_stable,
+            # P3: Adaptive shot budget
+            "effective_shots": result.effective_shots,
+            "adaptive_shot_reason": result.adaptive_shot_reason,
             # Per-site observables (for thesis analysis)
             "per_site_x": result.per_site_x,
             "per_bond_zz": result.per_bond_zz,
@@ -308,6 +321,12 @@ def save_sweep_summary(
             "gnn_qem_applied": r.gnn_qem_applied,
             "affine_correction_applied": r.affine_correction_applied,
             "e_after_affine": r.e_after_affine,
+            # Post-QPU validation
+            "obs_bounds_clipped": r.obs_bounds_clipped,
+            "layout_energy_outliers": r.layout_energy_outliers,
+            "e_obs_discrepancy": r.e_obs_discrepancy,
+            "e_obs_cross_valid_passed": r.e_obs_cross_valid_passed,
+            "n_layouts_observables": r.n_layouts_observables,
         }
         for r in results
     ]

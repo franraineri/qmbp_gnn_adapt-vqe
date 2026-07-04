@@ -388,7 +388,7 @@ class TestNM6PEADocumentation:
         from pathlib import Path
 
         readme = (
-            Path(__file__).parent.parent
+            Path(__file__).parent.parent.parent
             / "src"
             / "qmbp_simulation"
             / "execution"

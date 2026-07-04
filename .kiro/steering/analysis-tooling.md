@@ -10,7 +10,7 @@ fileMatchPattern: "analysis/**,scripts/**,experiments/**,results/**,project_heal
 When analyzing data, inspecting results, or producing output files:
 
 **ALWAYS use the existing analysis and digest scripts first.**
-Do NOT write ad-hoc one-off scripts or inline Python when an existing tool covers the need.
+Do NOT write ad-hoc one-off scripts or inline Python when an existing tool covers the need
 If the existing tool is close but not sufficient, **extend it** rather than creating a new file.
 
 ## Quick Decision Tree
@@ -47,7 +47,14 @@ Need to...
 ├── Analyze layout optimizer (VF2)?→ python -m project_health.analysis.layout_optimizer_analyzer
 ├── Analyze Mitiq comparisons?     → python -m project_health.analysis.mitiq_analyzer
 ├── Analyze mitigation benchmark?  → python -m project_health.analysis.mitigation_benchmark_analyzer
+├── Analyze noiseless pipeline?   → python -m project_health.analysis.noiseless_pipeline_analyzer
 ├── Analyze transpilation metrics? → python scripts/analyze_transpilation.py
+├── Validate hw run post-execution?→ .venv/bin/python scripts/verify_affine_bug.py --validate <run_dir>
+├── Quick post-exec check (1 file)?→ python -m project_health.analysis.hardware.post_execution_validator <path>
+├── Batch validate all hw results? → python -m project_health.analysis.hardware.post_execution_validator results/hardware/ --batch
+├── Check pipeline correction bugs?→ .venv/bin/python scripts/verify_affine_bug.py
+├── Ready for IBM hardware?         → .venv/bin/python scripts/preflight_hw.py
+├── Audit code-path consistency?  → .venv/bin/python scripts/verify_affine_bug.py --audit
 ├── Run full flow→deployment?       → make hw-flow-full
 │
 │ ─── THESIS COMPILATION ─────────────────
@@ -239,6 +246,117 @@ make thesis-all   # validate + tables + figures
 ```bash
 python -m project_health.analysis.flow_warmstart_analyzer [--verbose] [--json out.json]
 ```
+
+### 19. Pipeline Correction Verifier & Post-Execution Validator (`scripts/verify_affine_bug.py`)
+
+Unified script for verifying the energy correction pipeline (affine clipping, ZNE extrapolation, bounds consistency) and validating individual hardware run results post-execution.
+
+**Three modes:**
+
+```bash
+# Mode 1: Quick invariant check (Parts 1-4, ~instant, for CI/hooks)
+.venv/bin/python scripts/verify_affine_bug.py --quick
+
+# Mode 2: Full pipeline verification (Parts 1-9, ~2s, after code changes)
+.venv/bin/python scripts/verify_affine_bug.py
+
+# Mode 3: Post-execution validation of a specific run (after every QPU execution)
+.venv/bin/python scripts/verify_affine_bug.py --validate results/hardware/run_XXXXXXXX_XXXXXX
+.venv/bin/python scripts/verify_affine_bug.py --validate results/mitigation_benchmark/...
+```
+
+**Parts covered:**
+
+| Part | What | When to run |
+|------|------|-------------|
+| 1 | Bug reproduction (old formula) | After code changes |
+| 2 | Fixed affine_correct_energy() | After code changes |
+| 3 | Hardware runs audit (all 18+) | After code changes |
+| 4 | Monotonicity (never worsens) | After code changes |
+| 5 | Bounds consistency (3 impls) | After code changes |
+| 6 | ZNE extrapolation sanity | After code changes |
+| 7 | H8 invariant (never amplifies) | After code changes |
+| 8 | Edge-case detection (float64) | After code changes |
+| 9 | Benchmark regression scan | After code changes |
+| 10 | **Post-execution validation** | **After every QPU run** |
+| 11 | **Circuit metrics & QPU time** | **After every QPU run** |
+
+**Part 10 checks (per-run, via --validate):**
+- Energy finiteness and physics bounds (via `VQEValidator.compute_energy_bounds`)
+- Affine correction consistency (stale data detection)
+- Observable dimensions and Pauli bounds (|⟨O⟩| ≤ 1)
+- Energy-observable cross-validation (TFIM H reconstruction)
+- ZNE R² quality gate (≥ 0.80)
+- Variational principle (e_zne vs e_exact)
+- Measurement SNR (via `compute_snr`)
+- Phase classification confidence (via `compute_classification_confidence`)
+- Verdict consistency (via `classify_de_gap`)
+
+**Part 11 checks (circuit & timing, via --validate):**
+- CES spread ratio (>0.3 = CES-ZNE viable, <0.3 = PEA required)
+- Transpiled circuit depth, depth_2q, n_2q_gates, fidelity estimate
+- ZNE CX threshold viability (via `preflight._ZNE_CX_THRESHOLD_GF/PEA`)
+- QPU time estimate vs actual (depth-aware CLOPS model)
+- Routing overhead (transpiled_vs_logical_ratio)
+
+**Reuses (imports, no duplication):**
+- `qmbp_simulation.analysis.VQEValidator` — physics bounds
+- `qmbp_simulation.analysis.metrics.compute_snr` — SNR
+- `qmbp_simulation.analysis.metrics.compute_classification_confidence` — phase confidence
+- `qmbp_simulation.execution.affine_correct_energy` — canonical correction
+- `qmbp_simulation.execution.hardware.preflight` — ZNE CX thresholds (18 GF / 50 PEA)
+- `qmbp_simulation.framework.criteria.compute_verdict` — verdict evaluation
+- `project_health.analysis.validation.verify_results.classify_de_gap` — threshold classification
+- QPU time constants from `project_health.cli.qpu_time_estimator` — CLOPS model
+
+**Exit codes:** 0 = all checks pass, N>0 = N violations found.
+
+### 20. Post-Execution Validator (standalone module)
+
+Lightweight library module with 12 automated checks. Callable from CLI, runners, or hooks.
+
+```bash
+# Single file/directory
+python -m project_health.analysis.hardware.post_execution_validator <path>
+
+# JSON output (machine-readable, for CI)
+python -m project_health.analysis.hardware.post_execution_validator <path> --json
+
+# Batch mode (all results in a directory)
+python -m project_health.analysis.hardware.post_execution_validator results/hardware/ --batch
+```
+
+**Checks (C1–C12):**
+
+| ID | Check | Severity |
+|----|-------|----------|
+| C1 | QPU time estimate vs actual (CLOPS model) | WARNING/INFO |
+| C2 | Fidelity estimate vs ΔE/gap (optimistic prediction) | WARNING/INFO |
+| C3 | Error budget vs ΔE/gap correlation | WARNING/INFO |
+| C4 | Observable bounds (\|⟨O⟩\| ≤ 1) | ERROR |
+| C5 | Energy-observable cross-validation (TFIM) | WARNING |
+| C6 | Variational principle (E ≥ E_exact) | WARNING/INFO |
+| C7 | ZNE R² quality ([0,1], ≥ 0.80) | ERROR/WARNING |
+| C8 | Verdict consistency (stored vs recomputed) | WARNING |
+| C9 | Stale affine correction (2026-06-22 bug) | WARNING |
+| C10 | Phase label vs ⟨X⟩ consistency | WARNING |
+| C11 | Circuit depth vs ZNE viability (18/50 CX) | IMPROVEMENT/WARNING |
+| C12 | Shot noise floor / SNR sufficiency | INFO/IMPROVEMENT |
+
+**Programmatic API:**
+```python
+from project_health.analysis.hardware.post_execution_validator import (
+    validate_run, validate_envelope, validate_hardware_summary, print_report,
+)
+report = validate_run(Path("results/hardware/run_20260617_141440/"))
+print_report(report)        # Human-readable
+report.to_dict()            # JSON-serializable
+report.passed               # True if 0 ERRORs
+```
+
+**Relationship to verify_affine_bug.py:**
+- `verify_affine_bug.py --validate` calls this module as Part 11 (after its own 10 checks)
+- The standalone module is useful for quick validation, batch operations, or JSON export without the full 900-line regression suite
 
 ## Data Architecture & JSON Schemas
 

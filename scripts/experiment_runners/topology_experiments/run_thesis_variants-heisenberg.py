@@ -160,7 +160,7 @@ def build_noiseless_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineV
 
     # ─── Group B: Seed Robustness (isotropic Heisenberg) ─────────────────
     # Verify results are seed-independent for the base case
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"NL-B-seed{seed_val}",
@@ -541,7 +541,7 @@ def build_extended_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineVa
 
     # ─── EXT-4: Multi-seed XY on Ladder (best-case scenario) ─────────────
     # XY + ladder: if anything works for non-TFIM, this is it
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"EXT-4-xy-ladder-s{seed_val}",

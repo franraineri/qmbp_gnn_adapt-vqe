@@ -1287,3 +1287,239 @@ def estimate_qpu_cost(
         time_per_circuit_s=time_per_circuit_s,
         spsa_per_h_if_triggered_s=spsa_per_h_if_triggered,
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Extended QPU Cost Estimate with Decoherence & Shot Noise Awareness
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class QPUCostEstimateExtended(QPUCostEstimate):
+    """Extended cost estimate including decoherence budget and shot noise metrics.
+
+    Adds T1/T2 decoherence time budget, readout error contribution,
+    multi-layout shot distribution efficiency, and shot noise floor analysis.
+    Inherits all fields from QPUCostEstimate.
+
+    New Fields
+    ----------
+    decoherence_fraction : float
+        Fraction of circuit time / T1 (should be << 1 for valid results).
+    t1_budget_ratio : float
+        depth_2q × t_gate / min_T1. Values > 0.1 indicate significant
+        decoherence risk beyond what gate-error models capture.
+    readout_error_contribution : float
+        Expected readout-induced error per measurement (N_qubits × ε_readout).
+    shot_distribution_efficiency : float
+        Ratio of useful information per shot across layouts. Multi-layout
+        averaging gives √n_layouts improvement; this measures actual vs ideal.
+    shot_noise_sigma : float
+        Measurement uncertainty floor: 1/√(total_shots_per_observable).
+    snr_at_critical : float
+        Signal-to-noise ratio for ⟨X⟩ near h_c at given shot budget.
+    decoherence_aware_clops : int
+        CLOPS adjusted for decoherence penalty (lower than raw effective_clops
+        when T1 budget is tight, reflecting that results degrade faster).
+    """
+
+    decoherence_fraction: float = 0.0
+    t1_budget_ratio: float = 0.0
+    readout_error_contribution: float = 0.0
+    shot_distribution_efficiency: float = 1.0
+    shot_noise_sigma: float = 0.0
+    snr_at_critical: float = 0.0
+    decoherence_aware_clops: int = 0
+
+
+def estimate_qpu_cost_extended(
+    config: HardwareConfig,
+    n_h_points: int = 4,
+    include_spsa: bool = True,
+    circuit_depth: int | None = None,
+    cx_count: int | None = None,
+    depth_2q: int | None = None,
+    profile: QPUThroughputProfile | None = None,
+    spsa_model: SPSACostModel | None = None,
+    backend=None,
+    layout: list[int] | None = None,
+    expected_observable: float | None = None,
+) -> QPUCostEstimateExtended:
+    """Extended QPU cost estimate with decoherence and shot noise awareness.
+
+    Builds on estimate_qpu_cost() by adding:
+    1. T1 decoherence budget: depth_2q × t_gate / T1 gives the decoherence
+       fraction that gate-error-only models miss.
+    2. Readout error contribution: N_qubits × mean_readout_error.
+    3. Multi-layout shot distribution efficiency: measures how effectively
+       shots are distributed across layouts for √n averaging.
+    4. Shot noise floor: σ = 1/√shots vs expected |⟨O⟩| magnitude.
+    5. Decoherence-aware CLOPS: factors T1 constraint into throughput model
+       (circuits that exceed T1 budget produce degraded results regardless
+       of raw throughput speed).
+
+    The decoherence-aware CLOPS model:
+        CLOPS_deco = CLOPS_eff × (1 - t1_budget_ratio)  when ratio < 1
+        CLOPS_deco = CLOPS_floor                         when ratio >= 1
+
+    This penalizes the *effective* throughput because shots on decoherence-
+    limited circuits produce lower-quality information (need more shots to
+    achieve same precision → effective CLOPS is lower).
+
+    Parameters
+    ----------
+    config : HardwareConfig
+        Hardware configuration.
+    n_h_points : int
+        Number of h-values.
+    include_spsa : bool
+        Include SPSA overhead.
+    circuit_depth : int | None
+        Known circuit depth.
+    cx_count : int | None
+        Known 2Q gate count.
+    depth_2q : int | None
+        Known 2Q critical-path depth. If None, estimated as ~0.7 × depth.
+    profile : QPUThroughputProfile | None
+        Hardware throughput profile.
+    spsa_model : SPSACostModel | None
+        SPSA cost model.
+    backend : BackendV2 | None
+        Backend with calibration data (T1/T2, readout errors).
+    layout : list[int] | None
+        Physical qubit layout (for layout-specific T1/T2).
+    expected_observable : float | None
+        Expected |⟨O⟩| for SNR. None defaults to TFIM critical estimate.
+
+    Returns
+    -------
+    QPUCostEstimateExtended
+        Full cost estimate with decoherence and shot noise metrics.
+    """
+    import numpy as np
+
+    # Get base estimate
+    base = estimate_qpu_cost(
+        config=config,
+        n_h_points=n_h_points,
+        include_spsa=include_spsa,
+        circuit_depth=circuit_depth,
+        cx_count=cx_count,
+        profile=profile,
+        spsa_model=spsa_model,
+    )
+
+    if profile is None:
+        profile = QPUThroughputProfile.ibm_kingston()
+
+    n_qubits = config.n_qubits
+    shots = config.shots
+    n_layouts = config.n_layouts
+
+    # ── 1. Decoherence budget ─────────────────────────────────────────────
+    # Estimate depth_2q if not provided
+    if depth_2q is None:
+        if circuit_depth is not None:
+            depth_2q_est = int(circuit_depth * 0.5)  # ~50% of layers are 2Q
+        elif cx_count is not None:
+            depth_2q_est = max(3, int(cx_count * 0.7))  # empirical
+        else:
+            cx_est = _interpolate_cx_count(n_qubits)
+            depth_2q_est = max(3, int(cx_est * 0.7))
+    else:
+        depth_2q_est = depth_2q
+
+    # Gate time for Heron CZ: ~84ns = 84e-9s
+    t_2q_gate_s = 84e-9
+
+    # Get T1 from backend or use typical Heron values
+    min_t1_s = 258e-6  # Heron r2 median
+    if backend is not None:
+        from qmbp_simulation.execution.hardware.preflight import compute_min_t1_t2
+
+        t1_val, _ = compute_min_t1_t2(backend)
+        if t1_val is not None:
+            min_t1_s = t1_val
+
+    # T1 budget ratio: (depth_2q × t_gate) / T1
+    circuit_2q_time_s = depth_2q_est * t_2q_gate_s
+    t1_budget_ratio = circuit_2q_time_s / min_t1_s if min_t1_s > 0 else float("inf")
+
+    # Decoherence fraction: approximate P(any qubit decays) for idle time
+    # Model: idle qubits spend ~(depth - depth_2q) layers idle
+    # Each idle layer ≈ t_2q_gate_s long
+    if circuit_depth is not None:
+        idle_layers = max(0, circuit_depth - depth_2q_est)
+    else:
+        idle_layers = max(0, depth_2q_est)  # conservative: equal idle time
+    idle_time_s = idle_layers * t_2q_gate_s
+    # Mean per-qubit decoherence: 1 - exp(-t_idle / T1)
+    decoherence_fraction = 1.0 - float(np.exp(-idle_time_s / min_t1_s))
+
+    # ── 2. Readout error contribution ─────────────────────────────────────
+    readout_error = 0.01  # Typical Heron r2 mean readout error
+    if backend is not None:
+        re = compute_mean_readout_error(backend)
+        if re is not None:
+            readout_error = re
+    readout_contribution = n_qubits * readout_error
+
+    # ── 3. Multi-layout shot distribution efficiency ──────────────────────
+    # Ideal: √n_layouts variance reduction from independent layouts
+    # Actual: depends on CES spread (correlated layouts give less benefit)
+    # Efficiency = actual_variance_reduction / ideal_variance_reduction
+    # With min_ces_spread guard, assume ~80% efficiency for n_layouts=3
+    ideal_reduction = np.sqrt(n_layouts)
+    # Heuristic: efficiency drops if layouts are too similar (CES spread < threshold)
+    assumed_efficiency = 0.80 if n_layouts >= 3 else 0.65
+    shot_distribution_efficiency = assumed_efficiency
+
+    # ── 4. Shot noise floor ───────────────────────────────────────────────
+    total_shots_per_obs = shots * n_layouts
+    sigma_shot = 1.0 / np.sqrt(total_shots_per_obs)
+
+    # Expected observable at criticality
+    if expected_observable is None:
+        # TFIM ⟨X⟩ per site near h_c scales ~0.5/N for finite-size
+        expected_observable = 0.5 / n_qubits
+    snr = abs(expected_observable) * np.sqrt(total_shots_per_obs)
+
+    # ── 5. Decoherence-aware CLOPS ────────────────────────────────────────
+    # Concept: if T1 budget ratio is high, each shot produces lower-quality
+    # information. The "effective information per shot" degrades, so the
+    # practical throughput (useful CLOPS) is lower.
+    # Model: CLOPS_deco = CLOPS_eff × max(0.3, 1 - t1_budget_ratio)
+    deco_penalty = max(0.3, 1.0 - t1_budget_ratio)
+    decoherence_aware_clops = max(profile.clops_floor, int(base.effective_clops * deco_penalty))
+
+    # ── Assemble extended estimate ────────────────────────────────────────
+    return QPUCostEstimateExtended(
+        # Inherit all base fields
+        n_h_points=base.n_h_points,
+        circuits_per_h=base.circuits_per_h,
+        shots_per_h=base.shots_per_h,
+        total_circuits=base.total_circuits,
+        total_shots=base.total_shots,
+        est_time_per_h_s=base.est_time_per_h_s,
+        est_total_s=base.est_total_s,
+        est_total_optimistic_s=base.est_total_optimistic_s,
+        est_total_pessimistic_s=base.est_total_pessimistic_s,
+        max_execution_time_s=base.max_execution_time_s,
+        fits_per_job=base.fits_per_job,
+        fits_full_sweep_10min=base.fits_full_sweep_10min,
+        amplifier=base.amplifier,
+        estimated_clops=base.estimated_clops,
+        effective_clops=base.effective_clops,
+        pea_noise_learning_s=base.pea_noise_learning_s,
+        classical_latency_s=base.classical_latency_s,
+        time_per_circuit_s=base.time_per_circuit_s,
+        spsa_per_h_if_triggered_s=base.spsa_per_h_if_triggered_s,
+        # Extended fields
+        decoherence_fraction=float(decoherence_fraction),
+        t1_budget_ratio=float(t1_budget_ratio),
+        readout_error_contribution=float(readout_contribution),
+        shot_distribution_efficiency=float(shot_distribution_efficiency),
+        shot_noise_sigma=float(sigma_shot),
+        snr_at_critical=float(snr),
+        decoherence_aware_clops=decoherence_aware_clops,
+    )

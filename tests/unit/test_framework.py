@@ -111,7 +111,7 @@ class TestExperimentConfigValidate:
     def test_config_default_values(self):
         config = ExperimentConfig()
         assert config.experiment_id == "unnamed"
-        assert config.seeds == [42, 43, 44]
+        assert config.seeds == DEFAULT_SEEDS
         assert config.verbose is False
         assert config.system.p_layers == 2
         assert config.system.n_qubits == 6
@@ -336,7 +336,8 @@ class TestRunVQESweepFastProxy:
                     description="Fast",
                     hypothesis="Setup works",
                     system=SystemConfig(
-                        n_qubits=6, p_layers=2,
+                        n_qubits=6,
+                        p_layers=2,
                         h_values=[2.0, 1.5, 1.0],
                         h_test=[1.6],
                     ),

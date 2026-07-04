@@ -806,7 +806,7 @@ def report_gap_analysis(
             if r.topology == topo and r.n_qubits == n and r.seed is not None
         )
         if len(seeds) < 3:
-            missing = sorted(set([42, 43, 44]) - seeds)
+            missing = sorted(set(DEFAULT_SEEDS) - seeds)
             print(f"    → {topo} N={n}: {len(seeds)} seeds {sorted(seeds)} (missing: {missing})")
             recommendations.append(
                 {

@@ -107,7 +107,7 @@ class ExperimentE4(BaseExperiment):
                 model="tfim_longitudinal",
             ),
             vqe=VQEConfig(n_restarts=5, sigma=0.1),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

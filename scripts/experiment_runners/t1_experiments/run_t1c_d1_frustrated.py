@@ -54,7 +54,7 @@ logger = logging.getLogger(__name__)
 N_QUBITS = 6
 P_LAYERS = 2
 TOPOLOGY = "chain_1d"
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # J₂ values to compare (0 = standard TFIM for reference)
 J2_VALUES_DEFAULT = [0.0, 0.2, 0.3, 0.5]

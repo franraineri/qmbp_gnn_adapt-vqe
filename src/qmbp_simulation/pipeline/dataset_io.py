@@ -300,3 +300,101 @@ def _validate_dataset_integrity(data: dict, filepath: str | Path) -> None:
             RuntimeWarning,
             stacklevel=3,
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Non-uniform h-grid generation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def generate_nonuniform_h_grid(
+    h_min: float,
+    h_max: float,
+    n_points: int,
+    h_critical: float | None = None,
+    dense_fraction: float = 0.4,
+    dense_radius: float = 0.5,
+) -> np.ndarray:
+    """Generate a non-uniform h-grid with denser sampling near h_critical.
+
+    Produces a descending grid (h_max → h_min) with more points concentrated
+    around the critical region where the phase transition occurs and the VQE
+    landscape is most complex.
+
+    Parameters
+    ----------
+    h_min : float
+        Minimum field value.
+    h_max : float
+        Maximum field value.
+    n_points : int
+        Total number of grid points.
+    h_critical : float | None
+        Critical field value for dense sampling. If None, uses midpoint.
+    dense_fraction : float
+        Fraction of points allocated to the dense region (default 0.4 = 40%).
+    dense_radius : float
+        Half-width of the dense region around h_critical (default 0.5).
+
+    Returns
+    -------
+    np.ndarray
+        Sorted descending h-values with denser sampling near h_critical.
+
+    Examples
+    --------
+    >>> grid = generate_nonuniform_h_grid(1.0, 5.0, 30, h_critical=1.5)
+    >>> len(grid)
+    30
+    >>> grid[0] > grid[-1]  # descending
+    True
+    """
+    if h_critical is None:
+        h_critical = (h_min + h_max) / 2.0
+
+    logger.info(
+        "  📐 generate_nonuniform_h_grid: [%.2f, %.2f], n=%d, h_c=%.2f, "
+        "dense_frac=%.1f, radius=%.2f",
+        h_min,
+        h_max,
+        n_points,
+        h_critical,
+        dense_fraction,
+        dense_radius,
+    )
+
+    # Clamp h_critical to valid range
+    h_critical = max(h_min + dense_radius * 0.5, min(h_max - dense_radius * 0.5, h_critical))
+
+    # Split points between dense and sparse regions
+    n_dense = max(3, int(n_points * dense_fraction))
+    n_sparse = n_points - n_dense
+
+    # Dense region: ±dense_radius around h_critical
+    dense_lo = max(h_min, h_critical - dense_radius)
+    dense_hi = min(h_max, h_critical + dense_radius)
+    dense_points = np.linspace(dense_lo, dense_hi, n_dense)
+
+    # Sparse region: remainder of [h_min, h_max] excluding dense zone
+    sparse_points = []
+    n_below = n_sparse // 2
+    n_above = n_sparse - n_below
+
+    if dense_lo > h_min and n_below > 0:
+        sparse_points.extend(np.linspace(h_min, dense_lo, n_below + 1)[:-1].tolist())
+    if dense_hi < h_max and n_above > 0:
+        sparse_points.extend(np.linspace(dense_hi, h_max, n_above + 1)[1:].tolist())
+
+    # Combine, deduplicate, sort descending
+    all_points = np.concatenate([dense_points, np.array(sparse_points)])
+    all_points = np.unique(all_points)
+
+    # Ensure exactly n_points by resampling from the combined range
+    if len(all_points) != n_points:
+        # Interpolate to get exactly n_points from the non-uniform distribution
+        # This preserves the density pattern while guaranteeing exact count
+        target_indices = np.linspace(0, len(all_points) - 1, n_points)
+        all_points = np.interp(target_indices, np.arange(len(all_points)), all_points)
+
+    # Sort descending (for warm-start sweep)
+    return np.sort(all_points)[::-1]

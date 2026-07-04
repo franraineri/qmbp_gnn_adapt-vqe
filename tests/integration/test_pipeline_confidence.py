@@ -337,7 +337,7 @@ class TestSeedIndependence:
         config = VQEConfig(p_layers=1, n_restarts=3, maxiter=200)
 
         fidelities_per_seed = []
-        for seed in [42, 43, 44]:
+        for seed in DEFAULT_SEEDS:
             optimizer = VQEOptimizer(config, backend=backend, seed=seed)
             results = optimizer.descending_sweep(h_values, qc, lattice, exact_data=exact_data)
             fidelities_per_seed.append([r.fidelity for r in results])

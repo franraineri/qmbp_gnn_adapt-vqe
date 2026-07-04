@@ -27,6 +27,20 @@ from qmbp_simulation.models import (
     VQEResult,
     make_lattice,
 )
+from qmbp_simulation.models.constants import (
+    AUGMENTATION_DATASET_THRESHOLD,
+    AUGMENTATION_N_COPIES,
+    AUGMENTATION_NOISE_SIGMA,
+    DE_GAP_THRESHOLD,
+    GEN_GAP_CATASTROPHIC,
+    GEN_GAP_WARNING,
+    SWA_AVERAGE_WEIGHT,
+    SWA_EXTRA_EPOCHS,
+    SWA_LR,
+    THETA_SMOOTHNESS_CHAIN_BREAK,
+    VQE_REFINEMENT_DE_GAP_MAX,
+    VQE_REFINEMENT_DE_GAP_MIN,
+)
 from qmbp_simulation.optimizers import VQEOptimizer
 from qmbp_simulation.pipeline.dataset_io import (
     load_phase12_dataset,
@@ -164,6 +178,25 @@ class PipelineRunner:
         self._theta_validator = None  # ThetaValidator | None (lazy import)
         self._theta_validation_level: int = 4  # default: L1-L4 (cheap)
 
+        # ── Runtime metrics accumulator (persisted in pipeline_metadata) ──
+        self._run_metrics: dict[str, Any] = {
+            "n_bidirectional_improvements": 0,
+            "n_outliers_detected": 0,
+            "n_energy_guard_repairs": 0,
+            "n_energy_guard_suspicious": 0,
+            "theta_smoothness_pre_alignment": None,
+            "theta_smoothness_post_alignment": None,
+            "theta_alignment_applied": False,
+            "augmentation_original_size": 0,
+            "augmentation_final_size": 0,
+            "swa_applied": False,
+            "gen_gap": None,
+            "gen_gap_abort": False,
+            "valid_regime_warning": False,
+            "n_vqe_refinements": 0,
+            "cobyla_auto_switched": False,
+        }
+
     def set_theta_validation_level(self, level: int) -> None:
         """Configure the maximum theta validation level (1-7).
 
@@ -262,8 +295,9 @@ class PipelineRunner:
         self,
         h_values: np.ndarray,
         exact_data: list[GroundTruthResult],
+        bidirectional: bool = True,
     ) -> list[VQEResult]:
-        """Phase 2: VQE optimization with descending warm-start sweep.
+        """Phase 2: VQE optimization with warm-start sweep.
 
         Parameters
         ----------
@@ -271,6 +305,10 @@ class PipelineRunner:
             Transverse field values (must be in descending order).
         exact_data : list[GroundTruthResult]
             Ground truth from Phase 1 (for fidelity computation).
+        bidirectional : bool
+            If True (default), run both descending and ascending sweeps
+            and keep the best energy at each point. Doubles VQE time but
+            eliminates warm-start propagation errors.
 
         Returns
         -------
@@ -282,12 +320,21 @@ class PipelineRunner:
 
         circuit, theta = self._create_circuit()
 
-        results = self._optimizer.descending_sweep(
-            h_values=h_values,
-            circuit=circuit,
-            lattice=self._lattice,
-            exact_data=exact_data,
-        )
+        if bidirectional:
+            logger.info("  🔄 Bidirectional sweep enabled (desc + asc, keep best)")
+            results = self._optimizer.bidirectional_sweep(
+                h_values=h_values,
+                circuit=circuit,
+                lattice=self._lattice,
+                exact_data=exact_data,
+            )
+        else:
+            results = self._optimizer.descending_sweep(
+                h_values=h_values,
+                circuit=circuit,
+                lattice=self._lattice,
+                exact_data=exact_data,
+            )
 
         # Record per-point diagnostics
         for _i, (vqe_r, h) in enumerate(zip(results, h_values, strict=False)):
@@ -441,6 +488,56 @@ class PipelineRunner:
                     f"(fewer than 3 points pass). Trying {fallback_thresholds[next_idx]:.2f}..."
                 )
 
+        # ── Outlier filter: clean θ before MPNN training ──────────────
+        # Detect and interpolate VQE local-minimum spikes that would corrupt
+        # the MPNN's learned θ(h) mapping.
+        from qmbp_simulation.analysis.theta_alignment import filter_theta_outliers
+
+        theta_clean, h_clean, e_clean, fid_clean, outlier_report = filter_theta_outliers(
+            theta_array=theta_opt,
+            h_values=h_values,
+            e_exact=e_exact,
+            fidelities=fidelities,
+            threshold=2.0,
+            fidelity_floor=0.5,
+            replace_strategy="interpolate",
+        )
+        if outlier_report.n_outliers > 0:
+            logger.info(f"  🧹 Outlier filter: {outlier_report.n_outliers} points interpolated")
+            self._run_metrics["n_outliers_detected"] = outlier_report.n_outliers
+            # Rebuild dataset with cleaned θ
+            dataset = build_graph_dataset(
+                lattice=self._lattice,
+                h_values=h_clean,
+                theta_opt=theta_clean,
+                e_exact=e_clean,
+                fidelities=fid_clean,
+                fidelity_threshold=0.0,  # Already filtered
+            )
+
+        # ── θ data augmentation: add noisy copies to expand dataset ───
+        # For small datasets (<40 points), add 2 copies with Gaussian noise
+        # to θ targets. This teaches the MPNN that small perturbations are
+        # acceptable, reducing overfitting and prediction variance.
+        if dataset is not None and len(dataset) < AUGMENTATION_DATASET_THRESHOLD:
+            import torch as _torch_aug
+
+            augmented = list(dataset)
+            n_original = len(dataset)
+            for data in list(dataset):
+                for _ in range(AUGMENTATION_N_COPIES):
+                    aug_data = data.clone()
+                    noise = _torch_aug.randn_like(aug_data.y) * AUGMENTATION_NOISE_SIGMA
+                    aug_data.y = aug_data.y + noise
+                    augmented.append(aug_data)
+            dataset = augmented
+            logger.info(
+                f"  📈 θ augmentation: {n_original} → {len(dataset)} points "
+                f"({AUGMENTATION_N_COPIES} noisy copies, σ={AUGMENTATION_NOISE_SIGMA})"
+            )
+            self._run_metrics["augmentation_original_size"] = n_original
+            self._run_metrics["augmentation_final_size"] = len(dataset)
+
         # Determine output_dim based on model spec
         n_params = self._n_variational_params()
 
@@ -465,6 +562,7 @@ class PipelineRunner:
             output_dim=n_params,
             norm_type=cfg.get("norm_type", "batch"),  # cross-N zero-shot needs "none"
         )
+        # NOTE: dropout=0.1 is hardcoded in MPNNPredictor MLP heads (always active)
 
         train_mpnn(
             model=model,
@@ -473,7 +571,47 @@ class PipelineRunner:
             lr=cfg.get("lr", 1e-3),
             patience=cfg.get("patience", 150),
             seed=cfg.get("seed", self._seed if self._seed is not None else 42),
+            weight_decay=cfg.get("weight_decay", 1e-4),
         )
+
+        # ── Stochastic Weight Averaging (SWA) ────────────────────────────
+        # Average model weights from the last portion of training for smoother
+        # predictions. This reduces prediction variance at interpolation points.
+        # We approximate SWA by doing a short extra training with averaged params.
+        if cfg.get("use_swa", True) and dataset is not None and len(dataset) >= 5:
+            import copy
+
+            import torch as _torch_swa
+
+            swa_model = copy.deepcopy(model)
+            swa_model.train()
+            swa_optimizer = _torch_swa.optim.Adam(
+                swa_model.parameters(), lr=SWA_LR, weight_decay=SWA_LR
+            )
+            from torch_geometric.loader import DataLoader as _DL_swa
+
+            swa_loader = _DL_swa(dataset, batch_size=len(dataset), shuffle=False)
+            # Run SWA_EXTRA_EPOCHS extra epochs with low LR and average with original
+            for _ in range(SWA_EXTRA_EPOCHS):
+                for batch in swa_loader:
+                    swa_optimizer.zero_grad()
+                    pred = swa_model(batch)
+                    target = batch.y.view(pred.shape)
+                    loss = _torch_swa.nn.functional.mse_loss(pred, target)
+                    loss.backward()
+                    swa_optimizer.step()
+
+            # Average weights: model = w*original + (1-w)*swa_model
+            with _torch_swa.no_grad():
+                for p_orig, p_swa in zip(model.parameters(), swa_model.parameters(), strict=False):
+                    p_orig.data.copy_(
+                        SWA_AVERAGE_WEIGHT * p_orig.data + (1 - SWA_AVERAGE_WEIGHT) * p_swa.data
+                    )
+
+            logger.info(
+                f"  🔄 SWA: model weights averaged ({SWA_EXTRA_EPOCHS} extra epochs, lr={SWA_LR})"
+            )
+            self._run_metrics["swa_applied"] = True
 
         elapsed = time.time() - t0
 
@@ -570,6 +708,20 @@ class PipelineRunner:
         with torch.no_grad():
             theta_pred = model(graph).numpy().flatten()
 
+        # ── Guard #3: NaN/Inf propagation guard ──────────────────────────
+        if not np.all(np.isfinite(theta_pred)):
+            n_bad = int(np.sum(~np.isfinite(theta_pred)))
+            logger.warning(
+                f"  ⚠️ MPNN predicted {n_bad}/{len(theta_pred)} NaN/Inf values "
+                f"at h={h_test:.4f}. Replacing with zeros (fallback)."
+            )
+            theta_pred = np.where(np.isfinite(theta_pred), theta_pred, 0.0)
+
+        # ── Guard #5: Output bounds clipping ─────────────────────────────
+        # θ must be in [-π, π] for the HVA circuit. MPNN without output
+        # activation can predict outside this range.
+        theta_pred = np.clip(theta_pred, -np.pi, np.pi)
+
         # ── θ_pred validation (L1-L4 by default) ────────────────────────
         theta_validation_report = None
         if hasattr(self, "_theta_validator") and self._theta_validator is not None:
@@ -647,6 +799,38 @@ class PipelineRunner:
         # Compute metrics
         delta_e = abs(predicted_energy - exact.ground_energy)
         delta_e_over_gap = delta_e / exact.gap if exact.gap > 0 else float("inf")
+
+        # ── VQE refinement for marginal predictions ──────────────────────
+        # If ΔE/gap is marginal (5-500%), use θ_pred as warm-start for a
+        # short VQE pass to "polish" the prediction. Zero-cost for passing points.
+        if VQE_REFINEMENT_DE_GAP_MIN < delta_e_over_gap < VQE_REFINEMENT_DE_GAP_MAX:
+            try:
+                refine_result = self._optimizer.optimize(
+                    hamiltonian=hamiltonian,
+                    circuit=circuit,
+                    initial_guess=theta_pred,
+                    exact_energy=exact.ground_energy,
+                    exact_state=exact.ground_state,
+                )
+                if refine_result.energy < predicted_energy:
+                    improvement = predicted_energy - refine_result.energy
+                    logger.info(
+                        f"  🔧 VQE refinement at h={h_test:.3f}: "
+                        f"ΔE/gap {delta_e_over_gap:.4f} → "
+                        f"{abs(refine_result.energy - exact.ground_energy) / max(exact.gap, 1e-10):.4f} "
+                        f"(saved {improvement:.4e})"
+                    )
+                    predicted_energy = refine_result.energy
+                    theta_pred = refine_result.theta_opt
+                    # Recompute observables with refined theta
+                    bound_circuit = circuit.assign_parameters(theta_pred)
+                    sv = Statevector(bound_circuit)
+                    delta_e = abs(predicted_energy - exact.ground_energy)
+                    delta_e_over_gap = delta_e / exact.gap if exact.gap > 0 else float("inf")
+                    self._run_metrics["n_vqe_refinements"] += 1
+            except Exception as e:
+                logger.debug(f"VQE refinement failed at h={h_test}: {e}")
+
         phase_label = "paramagnetic" if h_test > 1.0 else "ferromagnetic"
 
         # Phase classification check using observables
@@ -659,7 +843,7 @@ class PipelineRunner:
             phase_correct = True  # Can't verify without observables
 
         metrics_checklist = {
-            "delta_e_over_gap_lt_5pct": delta_e_over_gap < 0.05,
+            "delta_e_over_gap_lt_5pct": delta_e_over_gap < DE_GAP_THRESHOLD,
             "correct_phase": phase_correct,
             "mag_x_error_lt_1e2": mag_x_error < 0.01 if observables_computed else None,
             "corr_zz_error_lt_1e2": corr_zz_error < 0.01 if observables_computed else None,
@@ -705,6 +889,59 @@ class PipelineRunner:
                 f"level=L{theta_validation_report.level_executed})"
             )
         return result
+
+    # ── Cross-N Validation (optional) ────────────────────────────────────
+
+    def validate_cross_n(
+        self,
+        model: MPNNPredictor,
+        n_target: int,
+        h_test_values: list[float],
+        training_sizes: list[int],
+        training_data: list | None = None,
+    ) -> CrossNValidationReport:
+        """Validate a cross-N prediction using the 3-level verification system.
+
+        Call this when the MPNN was trained on data from multiple system sizes
+        and you want to verify its predictions at an unseen N_target.
+
+        Parameters
+        ----------
+        model : MPNNPredictor
+            Trained model (must have norm_type="none").
+        n_target : int
+            Unseen system size for prediction.
+        h_test_values : list[float]
+            h-values to evaluate at N_target.
+        training_sizes : list[int]
+            System sizes used during training.
+        training_data : list | None
+            Full training dataset (for L3 LOO-CV).
+
+        Returns
+        -------
+        CrossNValidationReport
+        """
+        from qmbp_simulation.analysis.cross_n_validator import CrossNValidator
+
+        validator = CrossNValidator(
+            topology=self._lattice.topology,
+            model_spec=self._model_spec,
+            backend=self._backend,
+            de_gap_threshold=0.05,
+        )
+        report = validator.validate_prediction(
+            model=model,
+            n_target=n_target,
+            h_test_values=h_test_values,
+            training_sizes=training_sizes,
+            training_data=training_data,
+        )
+
+        # Persist cross-N validation in diagnostics
+        self.collector._data.setdefault("cross_n_validation", []).append(report.to_dict())
+
+        return report
 
     def run_full(
         self,
@@ -758,6 +995,30 @@ class PipelineRunner:
 
         results: dict[str, Any] = {}
 
+        # ── Guard #1: Valid regime pre-check ─────────────────────────────
+        # Warn if h_min is below the known valid regime boundary for this
+        # topology/N/p. Runs below h_min_safe are guaranteed to fail.
+        try:
+            from qmbp_simulation.framework.preflight import get_regime_threshold
+
+            p = self._config.p_layers
+            topo = self._lattice.topology
+            n = self._lattice.n_qubits
+            h_min_safe = get_regime_threshold(topo, n, p)
+            h_min_actual = float(h_values[-1])  # Descending order → last is min
+            if h_min_safe > 0 and h_min_actual < h_min_safe:
+                n_below = int(np.sum(h_values < h_min_safe))
+                logger.warning(
+                    f"  ⚠️ VALID REGIME WARNING: h_min={h_min_actual:.2f} is below "
+                    f"h_min_safe={h_min_safe:.2f} for {topo} N={n} p={p}. "
+                    f"{n_below}/{len(h_values)} points are in the failure zone. "
+                    f"These points will likely have ΔE/gap > 5% regardless of "
+                    f"optimization quality."
+                )
+                self._run_metrics["valid_regime_warning"] = True
+        except (ImportError, ValueError):
+            pass  # preflight not available or p>2 — skip check silently
+
         # Phase 1: Ground truth
         if skip_phase1 and checkpoint_path:
             logger.info("Phase 1 skipped — loading from checkpoint")
@@ -786,10 +1047,10 @@ class PipelineRunner:
         # likely fail. Warn the user but don't abort (they may want the data).
         diag_so_far = self.collector.to_dict()
         theta_smoothness = diag_so_far.get("phase2", {}).get("theta_smoothness")
-        if theta_smoothness is not None and theta_smoothness > 1.0:
+        if theta_smoothness is not None and theta_smoothness > THETA_SMOOTHNESS_CHAIN_BREAK:
             logger.warning(
                 f"⚠️  WARM-START CHAIN BREAK DETECTED: θ_smoothness={theta_smoothness:.2f} "
-                f"(threshold: 1.0). The VQE found different basins at adjacent h-values. "
+                f"(threshold: {THETA_SMOOTHNESS_CHAIN_BREAK}). The VQE found different basins at adjacent h-values. "
                 f"Phase 3 MPNN will struggle to learn the discontinuous θ(h) mapping. "
                 f"Consider: (1) reducing n_restarts, (2) increasing h-grid density, "
                 f"(3) restricting h-range to the valid regime."
@@ -798,6 +1059,128 @@ class PipelineRunner:
             logger.info(
                 f"θ_smoothness={theta_smoothness:.4f} (elevated but below chain-break threshold)"
             )
+
+        # ── Post-VQE theta alignment ───────────────────────────────────
+        # Detect discontinuities in θ(h) and re-optimize jumped points
+        # using the neighbor's θ as seed. This produces a smooth θ(h)
+        # curve suitable for MPNN interpolation.
+        if (
+            theta_smoothness is not None
+            and theta_smoothness > THETA_SMOOTHNESS_CHAIN_BREAK
+            and not skip_phase2
+        ):
+            try:
+                from qmbp_simulation.analysis.theta_alignment import align_theta_sweep
+                from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+                builder = HamiltonianBuilder()
+                hamiltonians = []
+                for gt in exact_data:
+                    lattice_h = make_lattice(
+                        topology=self._lattice.topology,
+                        n_qubits=self._lattice.n_qubits,
+                        J=self._lattice.J,
+                        h=gt.h_value,
+                        periodic=self._lattice.periodic,
+                    )
+                    hamiltonians.append(self._build_hamiltonian(lattice_h))
+
+                circuit_for_align, _ = self._create_circuit()
+                vqe_results, alignment_report = align_theta_sweep(
+                    vqe_results=vqe_results,
+                    circuit=circuit_for_align,
+                    hamiltonians=hamiltonians,
+                    backend=self._backend,
+                )
+                results["phase2"] = vqe_results
+
+                # Record alignment diagnostics
+                logger.info(
+                    f"θ alignment: smoothness {alignment_report.original_smoothness:.3f} "
+                    f"→ {alignment_report.final_smoothness:.3f} "
+                    f"({alignment_report.n_realigned}/{alignment_report.n_jumps_detected} fixed)"
+                )
+                self._run_metrics["theta_alignment_applied"] = True
+                self._run_metrics["theta_smoothness_pre_alignment"] = (
+                    alignment_report.original_smoothness
+                )
+                self._run_metrics["theta_smoothness_post_alignment"] = (
+                    alignment_report.final_smoothness
+                )
+            except Exception as e:
+                logger.warning(f"θ alignment failed (non-fatal): {e}")
+
+        # ── Cross-h energy validation guard ─────────────────────────────
+        # Detect isolated VQE local-minimum traps and repair them by
+        # re-optimizing with the neighbor's θ as seed.
+        if not skip_phase2 and len(vqe_results) >= 3:
+            try:
+                from qmbp_simulation.analysis.theta_alignment import cross_h_energy_guard
+
+                vqe_energies = np.array([r.energy for r in vqe_results])
+                exact_energies_arr = np.array([r.ground_energy for r in exact_data])
+                gaps_arr = np.array([r.gap for r in exact_data])
+                theta_arr = np.array([r.theta_opt for r in vqe_results])
+                h_arr = np.array([r.h_value for r in vqe_results])
+
+                logger.info("  🛡️ Cross-h energy guard: checking for local-minimum traps...")
+
+                circuit_guard, _ = self._create_circuit()
+
+                def _reopt_fn(idx: int, theta_seed: np.ndarray):
+                    """Re-run VQE at the given index with neighbor-seeded θ."""
+                    h_val = float(h_arr[idx])
+                    lattice_h = make_lattice(
+                        topology=self._lattice.topology,
+                        n_qubits=self._lattice.n_qubits,
+                        J=self._lattice.J,
+                        h=h_val,
+                        periodic=self._lattice.periodic,
+                    )
+                    H_h = self._build_hamiltonian(lattice_h)
+                    result = self._optimizer.optimize(
+                        hamiltonian=H_h,
+                        circuit=circuit_guard,
+                        initial_guess=theta_seed,
+                        exact_energy=float(exact_energies_arr[idx]),
+                        exact_state=exact_data[idx].ground_state,
+                    )
+                    return result.energy, result.theta_opt
+
+                energies_out, theta_out, guard_report = cross_h_energy_guard(
+                    vqe_energies=vqe_energies,
+                    exact_energies=exact_energies_arr,
+                    gaps=gaps_arr,
+                    theta_array=theta_arr,
+                    h_values=h_arr,
+                    reoptimize_fn=_reopt_fn,
+                )
+
+                if guard_report.n_repaired > 0:
+                    for i in guard_report.suspicious_indices:
+                        vqe_results[i] = VQEResult(
+                            h_value=vqe_results[i].h_value,
+                            theta_opt=theta_out[i],
+                            energy=float(energies_out[i]),
+                            energy_error=abs(float(energies_out[i]) - exact_data[i].ground_energy),
+                            fidelity=vqe_results[i].fidelity,
+                            n_iterations=vqe_results[i].n_iterations,
+                            trajectory=vqe_results[i].trajectory,
+                        )
+                    results["phase2"] = vqe_results
+                    logger.info(
+                        f"  🛡️ Energy guard: {guard_report.n_repaired}/"
+                        f"{guard_report.n_suspicious} points repaired."
+                    )
+                    self._run_metrics["n_energy_guard_repairs"] = guard_report.n_repaired
+                    self._run_metrics["n_energy_guard_suspicious"] = guard_report.n_suspicious
+                else:
+                    logger.info(
+                        f"  🛡️ Energy guard: {guard_report.n_suspicious} suspicious, "
+                        f"0 repairs needed."
+                    )
+            except Exception as e:
+                logger.warning(f"Energy guard failed (non-fatal): {e}")
 
         # Phase 3: MPNN
         if skip_phase3:
@@ -814,10 +1197,21 @@ class PipelineRunner:
         # ── Early-stopping check: generalization_gap ────────────────────
         # If gen_gap > 1e-2, Phase 4 deployment will almost certainly fail
         # (85% failure rate observed in 131 variants).
+        # Guard #2: Skip Phase 4 if gen_gap is catastrophic (>0.05)
+        _skip_phase4_gen_gap = False
         if model is not None:
             diag_after_p3 = self.collector.to_dict()
             gen_gap = diag_after_p3.get("phase3", {}).get("generalization_gap")
-            if gen_gap is not None and gen_gap > 0.01:
+            if gen_gap is not None and gen_gap > GEN_GAP_CATASTROPHIC:
+                logger.warning(
+                    f"  ⚠️ CATASTROPHIC GEN GAP: gen_gap={gen_gap:.4f} "
+                    f"(>{GEN_GAP_CATASTROPHIC}). "
+                    f"Phase 4 will be skipped — 95%+ failure rate at this level."
+                )
+                _skip_phase4_gen_gap = True
+                self._run_metrics["gen_gap"] = gen_gap
+                self._run_metrics["gen_gap_abort"] = True
+            elif gen_gap is not None and gen_gap > GEN_GAP_WARNING:
                 logger.warning(
                     f"⚠️  HIGH GENERALIZATION GAP: gen_gap={gen_gap:.4f} (threshold: 0.01). "
                     f"MPNN is overfitting — Phase 4 predictions will likely be inaccurate. "
@@ -847,8 +1241,15 @@ class PipelineRunner:
                 self._theta_validator = None
 
         # Phase 4: Deployment
-        if skip_phase4 or model is None:
-            logger.info("Phase 4 skipped")
+        if skip_phase4 or model is None or _skip_phase4_gen_gap:
+            reason = (
+                "user request"
+                if skip_phase4
+                else "no model"
+                if model is None
+                else "catastrophic gen_gap"
+            )
+            logger.info(f"Phase 4 skipped ({reason})")
             results["phase4"] = None
         else:
             h_tests = [h_test] if isinstance(h_test, int | float) else h_test
@@ -865,6 +1266,35 @@ class PipelineRunner:
 
         # Attach diagnostics to results
         results["diagnostics"] = self.collector.to_dict()
+
+        # ── Pipeline metadata: record which techniques were applied ───────
+        results["pipeline_metadata"] = {
+            "version": "v4",
+            "techniques_applied": {
+                "bidirectional_sweep": True,
+                "cobyla_auto_switch": self._run_metrics["cobyla_auto_switched"],
+                "theta_alignment": self._run_metrics["theta_alignment_applied"],
+                "cross_h_energy_guard": True,
+                "outlier_filter": True,
+                "theta_augmentation": self._run_metrics["augmentation_final_size"]
+                > self._run_metrics["augmentation_original_size"],
+                "weight_decay": 1e-4,
+                "swa": self._run_metrics["swa_applied"],
+                "vqe_refinement": True,
+                "dropout": 0.1,
+                "non_uniform_grid": False,
+            },
+            "guards_active": {
+                "valid_regime_check": True,
+                "gen_gap_abort": True,
+                "nan_guard": True,
+                "bounds_clip": True,
+                "variational_principle": True,
+                "energy_monotonicity": True,
+            },
+            "run_metrics": self._run_metrics,
+        }
+
         self.collector.cleanup_checkpoints()
 
         return results

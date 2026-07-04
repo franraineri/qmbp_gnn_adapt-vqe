@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 
 from qmbp_simulation.framework.criteria import compute_verdict
+from qmbp_simulation.framework.result_io import load_result, load_results_from_dir
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +55,22 @@ class ResultStore:
     - Experiment runs (from BaseExperiment): results/experiments/exp_<id>/run_*.json
     - Pipeline runs (from PipelineRunner): results/pipeline/pipeline_run_*.json
     - Noisy/ZNE results: results/experiments/exp_noisy_variants/*.json
+
+    Uses ResultIndex as the shared metadata cache for fast queries.
     """
 
     def __init__(self, results_root: Path | None = None) -> None:
         self.root = results_root or _DEFAULT_RESULTS_ROOT
         self.root.mkdir(parents=True, exist_ok=True)
+        self._index: "ResultIndex | None" = None
+
+    @property
+    def index(self):
+        """Lazily-initialized ResultIndex sharing the same root directory."""
+        if self._index is None:
+            from qmbp_simulation.framework.result_index import ResultIndex
+            self._index = ResultIndex(root=self.root)
+        return self._index
 
     # ── Discovery ────────────────────────────────────────────────────────
 
@@ -119,6 +131,9 @@ class ResultStore:
     def list_experiments(self, *, exclude_tests: bool = True) -> list[str]:
         """List experiment IDs that have at least one run_*.json file.
 
+        Supports both flat (exp_a3/) and nested (exp_noiseless/tfim/heavy_hex/)
+        directory structures. Recursively discovers run_*.json files.
+
         Parameters
         ----------
         exclude_tests : bool
@@ -127,15 +142,28 @@ class ResultStore:
         experiments: list[str] = []
         if not self.root.exists():
             return experiments
-        for d in sorted(self.root.iterdir()):
-            if d.is_dir() and d.name.startswith("exp_") and list(d.glob("run_*.json")):
-                exp_id = d.name.replace("exp_", "").upper()
-                if not exp_id:
-                    continue  # Skip empty IDs
-                if exclude_tests and exp_id in self._TEST_ARTIFACTS:
-                    continue
-                experiments.append(exp_id)
-        return experiments
+
+        # Find all directories containing run_*.json (recursive)
+        seen: set[str] = set()
+        for run_file in sorted(self.root.rglob("run_*.json")):
+            # The experiment ID is the path from root to the run file's parent,
+            # minus the "exp_" prefix at the top level.
+            rel = run_file.parent.relative_to(self.root)
+            rel_str = str(rel)
+            # Strip leading "exp_" from first component
+            parts = rel.parts
+            if parts and parts[0].startswith("exp_"):
+                parts = (parts[0][4:],) + parts[1:]
+            exp_id = "/".join(parts).upper()
+
+            if not exp_id or exp_id in seen:
+                continue
+            seen.add(exp_id)
+            if exclude_tests and exp_id in self._TEST_ARTIFACTS:
+                continue
+            experiments.append(exp_id)
+
+        return sorted(experiments)
 
     def list_pipeline_runs(self) -> list[Path]:
         """List pipeline run files (most recent first)."""
@@ -147,26 +175,30 @@ class ResultStore:
     # ── Loading ──────────────────────────────────────────────────────────
 
     def load_latest(self, experiment_id: str) -> dict[str, Any] | None:
-        """Load the most recent result for an experiment."""
+        """Load the most recent result for an experiment.
+
+        Supports nested paths (e.g., experiment_id="noiseless/tfim/heavy_hex").
+        """
         exp_dir = self.root / f"exp_{experiment_id.lower()}"
         if not exp_dir.exists():
             return None
-        runs = sorted(exp_dir.glob("run_*.json"), reverse=True)
+        runs = sorted(exp_dir.rglob("run_*.json"), reverse=True)
         if not runs:
             return None
-        with open(runs[0]) as f:
-            return json.load(f)  # type: ignore[no-any-return]
+        try:
+            return load_result(runs[0])
+        except (FileNotFoundError, ValueError) as e:
+            _log = logging.getLogger(__name__)
+            _log.warning("Could not load latest run %s: %s", runs[0].name, e)
+            return None
 
     def load_all_runs(self, experiment_id: str) -> list[dict[str, Any]]:
-        """Load all runs for an experiment (chronological)."""
+        """Load all runs for an experiment (chronological).
+
+        Supports nested paths (e.g., experiment_id="noiseless/tfim/heavy_hex").
+        """
         exp_dir = self.root / f"exp_{experiment_id.lower()}"
-        if not exp_dir.exists():
-            return []
-        results: list[dict[str, Any]] = []
-        for run_file in sorted(exp_dir.glob("run_*.json")):
-            with open(run_file) as f:
-                results.append(json.load(f))
-        return results
+        return [data for _, data in load_results_from_dir(exp_dir, recursive=True)]
 
     def load_noisy_results(self, filename: str | None = None) -> list[dict[str, Any]]:
         """Load noisy/ZNE experiment results.
@@ -189,11 +221,10 @@ class ResultStore:
 
         for f in files:
             try:
-                with open(f) as fh:
-                    data = json.load(fh)
+                data = load_result(f)
                 if isinstance(data.get("results"), list) and data["results"]:
                     return data["results"]  # type: ignore[no-any-return]
-            except (json.JSONDecodeError, OSError):
+            except (FileNotFoundError, ValueError):
                 continue
         return []
 
@@ -224,12 +255,7 @@ class ResultStore:
             exp_dir = self.root / dirname
             if not exp_dir.exists():
                 continue
-            for f in sorted(exp_dir.glob("run_*.json")):
-                try:
-                    with open(f) as fh:
-                        data = json.load(fh)
-                except (json.JSONDecodeError, OSError):
-                    continue
+            for f, data in load_results_from_dir(exp_dir, recursive=True):
 
                 config = data.get("config", {})
                 system = config.get("system", {})

@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Inspect Results After Run",
+  "description": "After a spec task completes, checks if there are new noiseless pipeline results and provides a per-h-point breakdown with pass/fail analysis.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check if there are new experiment results in results/experiments/ (look for run_*.json files modified in the last hour). If found, run the inspect tool on the latest one: .venv/bin/python project_health/cli/inspect_noiseless_run.py --latest exp_noiseless and report the per-h-point breakdown. Also check for regressions using: .venv/bin/python project_health/cli/query_index.py --regressions"
+  }
+}

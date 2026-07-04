@@ -50,6 +50,11 @@ digest_*
 */analysis/*.json
 */scaling/*.json
 
+# ── Secrets & credentials (NEVER commit) ─────────────────────
+.env
+.env.*
+*.env
+
 digest_poc/*
 *_TEMP.py
 *.pdf
@@ -59,3 +64,4 @@ digest_poc/*
 *.jpeg
 *exp_hw_rehearsal*
 *.json
+*.qasm

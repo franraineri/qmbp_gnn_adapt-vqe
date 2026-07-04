@@ -160,3 +160,133 @@ class TestSPSAOptimizer:
         # Parameters should be clipped to [-π, π]
         assert np.all(result.theta_opt >= -np.pi)
         assert np.all(result.theta_opt <= np.pi)
+
+class TestVQETerminationGuards:
+    """Test VQE termination guards: maxfev cap, stagnation detection, wall-clock timing."""
+
+    def test_cobyla_auto_switch_terminates(self, noiseless_backend):
+        """COBYLA auto-switch (n_params > 8) terminates via maxfev cap."""
+        import time
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.circuits import HVACircuitBuilder
+
+        lattice = make_lattice("chain_1d", 10, J=1.0, h=1.0)
+        builder = HamiltonianBuilder()
+        H = builder.build(lattice)
+        hva = HVACircuitBuilder()
+        circuit, _ = hva.create(10, 5, lattice)
+        n_params = circuit.num_parameters
+        assert n_params > 8  # Triggers COBYLA auto-switch
+
+        config = VQEConfig(
+            p_layers=5,
+            n_restarts=1,
+            maxiter=200,
+            method="L-BFGS-B",
+            enable_callbacks=False,
+        )
+        optimizer = VQEOptimizer(config=config, backend=noiseless_backend, seed=42)
+
+        t0 = time.perf_counter()
+        result = optimizer.optimize(H, circuit, np.random.default_rng(42).uniform(-0.01, 0.01, n_params))
+        elapsed = time.perf_counter() - t0
+
+        assert np.isfinite(result.energy)
+        assert elapsed < 30.0, f"COBYLA took {elapsed:.1f}s (expected < 30s)"
+
+    def test_stagnation_early_stop(self, small_lattice, small_circuit, noiseless_backend):
+        """Restarts that don't improve are detected and remaining restarts skipped."""
+        import time
+
+        config = VQEConfig(
+            p_layers=1,
+            n_restarts=20,  # Many restarts — stagnation should fire early
+            maxiter=500,
+            method="L-BFGS-B",
+            enable_callbacks=False,
+        )
+        optimizer = VQEOptimizer(config=config, backend=noiseless_backend, seed=42)
+        builder = HamiltonianBuilder()
+        # h=2.0 is the paramagnetic limit — easy landscape, warm-start converges immediately
+        from qmbp_simulation import make_lattice
+
+        lattice_easy = make_lattice("chain_1d", 4, J=1.0, h=2.0)
+        H = builder.build(lattice_easy)
+        qc, _ = small_circuit
+
+        t0 = time.perf_counter()
+        result = optimizer.optimize(H, qc, np.array([0.1, 0.2]))
+        elapsed = time.perf_counter() - t0
+
+        assert np.isfinite(result.energy)
+        # With 20 restarts but stagnation threshold=3, should terminate much faster
+        # than 20 full restarts. At 500 maxiter each, 20 restarts would take ~5s+.
+        # With early-stop it should be < 2s.
+        assert elapsed < 5.0, f"Stagnation detection failed: took {elapsed:.1f}s with 20 restarts"
+
+    def test_nelder_mead_maxfev_cap(self, small_lattice, small_circuit, noiseless_backend):
+        """Nelder-Mead terminates via maxfev cap even with tight ftol."""
+        import time
+
+        config = VQEConfig(
+            p_layers=1,
+            n_restarts=1,
+            maxiter=100,
+            method="Nelder-Mead",
+            enable_callbacks=False,
+        )
+        optimizer = VQEOptimizer(config=config, backend=noiseless_backend, seed=42)
+        builder = HamiltonianBuilder()
+        H = builder.build(small_lattice)
+        qc, _ = small_circuit
+
+        t0 = time.perf_counter()
+        result = optimizer.optimize(H, qc, np.array([0.1, 0.2]))
+        elapsed = time.perf_counter() - t0
+
+        assert np.isfinite(result.energy)
+        assert elapsed < 5.0, f"Nelder-Mead took {elapsed:.1f}s (expected < 5s)"
+
+    def test_cobyla_eval_count_bounded(self, noiseless_backend):
+        """COBYLA function evaluations are capped by maxfun formula."""
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.circuits import HVACircuitBuilder
+
+        lattice = make_lattice("chain_1d", 10, J=1.0, h=1.0)
+        builder = HamiltonianBuilder()
+        H = builder.build(lattice)
+        hva = HVACircuitBuilder()
+        circuit, _ = hva.create(10, 5, lattice)
+        n_params = circuit.num_parameters
+
+        # Track actual function evaluations
+        eval_count = [0]
+        original_evaluate = noiseless_backend.evaluate
+
+        def counting_evaluate(qc, H, params):
+            eval_count[0] += 1
+            return original_evaluate(qc, H, params)
+
+        noiseless_backend.evaluate = counting_evaluate
+
+        config = VQEConfig(
+            p_layers=5,
+            n_restarts=1,  # Minimum allowed
+            maxiter=100,
+            method="COBYLA",
+            enable_callbacks=False,
+        )
+        optimizer = VQEOptimizer(config=config, backend=noiseless_backend, seed=42)
+        optimizer.optimize(H, circuit, np.random.default_rng(42).uniform(-0.01, 0.01, n_params))
+
+        # maxfun = maxiter * min(n_params + 5, 50) = 100 * 15 = 1500
+        # With 1 restart: 2 COBYLA calls, each capped at maxfun
+        maxfun = 100 * min(n_params + 5, 50)
+        # Allow 2x for warm-start + 1 restart, plus some overhead
+        assert eval_count[0] <= 2 * maxfun + 200, (
+            f"COBYLA exceeded eval cap: {eval_count[0]} > {2 * maxfun + 200}"
+        )
+
+        # Restore original
+        noiseless_backend.evaluate = original_evaluate

@@ -37,6 +37,7 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -53,7 +54,6 @@ DEFAULT_TOPOLOGY = "heavy_hex"
 DEFAULT_N_QUBITS = 10
 DEFAULT_P_LAYERS = 1
 DEFAULT_MODEL = "tfim"
-DEFAULT_SEEDS = [42, 43, 44]
 
 H_TEST_POINTS = [4.0, 3.5, 3.25]
 H_TRAIN_GRID = [4.5, 4.25, 4.0, 3.75, 3.5, 3.25, 3.0]

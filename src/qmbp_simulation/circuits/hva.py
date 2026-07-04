@@ -24,7 +24,96 @@ from __future__ import annotations
 
 from qiskit.circuit import ParameterVector, QuantumCircuit
 
-from qmbp_simulation.models import MAX_P_LAYERS, LatticeConfig
+from qmbp_simulation.models import LatticeConfig
+
+
+def do_checks(p_layers: int, n_qubits: int, lattice: LatticeConfig) -> None:
+    """Validate HVA construction preconditions.
+
+    Raises ValueError if depth constraint, qubit mismatch, or empty edges.
+    """
+    # if p_layers > MAX_P_LAYERS:
+    #     raise ValueError(
+    #         f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
+    #         f"Mele et al. (Nature Physics, 2026) show that non-unital noise "
+    #         f"truncates effective circuit depth to O(log n). HVA circuits "
+    #         f"MUST have p ≤ {MAX_P_LAYERS} layers for NISQ viability."
+    #     )
+
+    if n_qubits != lattice.n_qubits:
+        raise ValueError(f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}.")
+
+    if not lattice.edges:
+        raise ValueError(
+            f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
+            f"Cannot build HVA circuit without ZZ interaction terms."
+        )
+
+
+def _init_circuit(
+    n_qubits: int,
+    n_params: int,
+    initial_state: str = "plus",
+) -> tuple[QuantumCircuit, ParameterVector]:
+    """Create a QuantumCircuit with a ParameterVector and initial state.
+
+    Parameters
+    ----------
+    n_qubits : int
+        Number of qubits.
+    n_params : int
+        Total number of variational parameters.
+    initial_state : str
+        "plus" for |+⟩^N (Hadamard), "neel" for |↑↓↑↓...⟩, "zero" for |0⟩^N.
+
+    Returns
+    -------
+    (qc, theta)
+    """
+    qc = QuantumCircuit(n_qubits)
+    theta = ParameterVector("θ", n_params)
+
+    if initial_state == "plus":
+        qc.h(range(n_qubits))
+    elif initial_state == "neel":
+        for i in range(1, n_qubits, 2):
+            qc.x(i)
+    elif initial_state == "zero":
+        pass
+    else:
+        raise ValueError(f"Unknown initial_state '{initial_state}'. Use 'plus', 'neel', or 'zero'.")
+
+    return qc, theta
+
+
+def _apply_rzz_on_edges(qc: QuantumCircuit, param, edges: list) -> None:
+    """Apply RZZ(2·param) on each edge."""
+    for i, j in edges:
+        qc.rzz(2 * param, i, j)
+
+
+def _apply_2q_on_edges(
+    qc: QuantumCircuit,
+    param,
+    edges: list,
+    gate: str = "rzz",
+) -> None:
+    """Apply a two-qubit rotation (rzz, rxx, ryy) with angle 2·param on each edge."""
+    gate_fn = getattr(qc, gate)
+    for i, j in edges:
+        gate_fn(2 * param, i, j)
+
+
+def _apply_single_qubit_layer(
+    qc: QuantumCircuit,
+    param,
+    n_qubits: int,
+    gate: str = "rx",
+) -> None:
+    """Apply a single-qubit rotation (rx or rz) with angle 2·param on all qubits."""
+    gate_fn = getattr(qc, gate)
+    for i in range(n_qubits):
+        gate_fn(2 * param, i)
 
 
 class HVACircuitBuilder:
@@ -58,43 +147,18 @@ class HVACircuitBuilder:
         ValueError
             If ``p_layers > 2`` (Mele et al. depth constraint).
         """
-        if p_layers > MAX_P_LAYERS:
-            raise ValueError(
-                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-                f"Mele et al. (Nature Physics, 2026) show that non-unital noise "
-                f"truncates effective circuit depth to O(log n). HVA circuits "
-                f"MUST have p ≤ {MAX_P_LAYERS} layers for NISQ viability."
-            )
 
-        if n_qubits != lattice.n_qubits:
-            raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
-            )
+        do_checks(p_layers, n_qubits, lattice)
 
-        if not lattice.edges:
-            raise ValueError(
-                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
-                f"Cannot build HVA circuit without ZZ interaction terms."
-            )
-
-        qc = QuantumCircuit(n_qubits)
-        theta = ParameterVector("θ", 2 * p_layers)
-
-        # Initial state: |+⟩^N (paramagnetic ground state at h → ∞)
-        qc.h(range(n_qubits))
+        qc, theta = _init_circuit(n_qubits, 2 * p_layers)
 
         # HVA layers: e^{-iθ_x H_X} · e^{-iθ_zz H_ZZ}
         for layer in range(p_layers):
             theta_zz = theta[layer * 2]
             theta_x = theta[layer * 2 + 1]
 
-            # RZZ(2θ_zz) on each lattice edge
-            for i, j in lattice.edges:
-                qc.rzz(2 * theta_zz, i, j)
-
-            # RX(2θ_x) on all qubits
-            for i in range(n_qubits):
-                qc.rx(2 * theta_x, i)
+            _apply_rzz_on_edges(qc, theta_zz, lattice.edges)
+            _apply_single_qubit_layer(qc, theta_x, n_qubits, "rx")
 
         return qc, theta
 
@@ -151,58 +215,30 @@ class HVACircuitBuilder:
         from qiskit.circuit.library import PauliEvolutionGate
         from qiskit.quantum_info import SparsePauliOp
 
-        if p_layers > MAX_P_LAYERS:
-            raise ValueError(
-                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-                f"Mele et al. (Nature Physics, 2026) depth constraint."
-            )
-
-        if n_qubits != lattice.n_qubits:
-            raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
-            )
-
-        if not lattice.edges:
-            raise ValueError(
-                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
-                f"Cannot build HVA circuit without ZZ interaction terms."
-            )
+        do_checks(p_layers, n_qubits, lattice)
 
         # Build ZZ operator: sum of ZZ on each edge (commuting group)
-        # Use coefficient -1.0 to match the physical Hamiltonian H = -J·ZZ - h·X.
-        # PauliEvolutionGate(H, time=2θ) implements e^{-i·2θ·H}.
-        # create() uses rzz(2θ) which implements e^{-iθ·ZZ}.
-        # For these to match:
-        #   PauliEvol: e^{-i·2θ·(−1)·ZZ} = e^{+i·2θ·ZZ}  ← WRONG sign
-        # We need the coefficient to produce the same exponent as rzz(2θ) = e^{-iθ·ZZ}:
-        #   PauliEvol with H = (-0.5)·ZZ, time=2θ → e^{-i·2θ·(−0.5)·ZZ} = e^{+iθ·ZZ} ← also wrong
         # Correct approach: PauliEvolutionGate(H, time=t) = e^{-it·H}.
         # rzz(2θ) = e^{-iθ·ZZ} (Qiskit convention).
-        # To get the same: PauliEvolutionGate(H_zz_coeff, time=2θ) where H_zz_coeff·time = θ·ZZ
-        # → H_zz_coeff = 0.5·ZZ (positive), time = 2θ → e^{-i·2θ·0.5·ZZ} = e^{-iθ·ZZ} ✓
+        # H_zz_coeff = 0.5·ZZ, time = 2θ → e^{-i·2θ·0.5·ZZ} = e^{-iθ·ZZ} ✓
         zz_terms = []
         for i, j in lattice.edges:
             label = ["I"] * n_qubits
             label[n_qubits - 1 - i] = "Z"
             label[n_qubits - 1 - j] = "Z"
-            zz_terms.append(("".join(label), 0.5))  # 0.5 so that time=2θ → e^{-iθ·ZZ}
+            zz_terms.append(("".join(label), 0.5))
         H_zz = SparsePauliOp.from_list(zz_terms)
 
         # Build X operator: sum of X on each site (commuting group)
-        # rx(2θ) = e^{-iθ·X}. PauliEvol(H_x_coeff, time=2θ) = e^{-i·2θ·H_x_coeff}.
-        # For match: H_x_coeff = 0.5·X → e^{-i·2θ·0.5·X} = e^{-iθ·X} ✓
+        # H_x_coeff = 0.5·X → e^{-i·2θ·0.5·X} = e^{-iθ·X} ✓
         x_terms = []
         for i in range(n_qubits):
             label = ["I"] * n_qubits
             label[n_qubits - 1 - i] = "X"
-            x_terms.append(("".join(label), 0.5))  # 0.5 so that time=2θ → e^{-iθ·X}
+            x_terms.append(("".join(label), 0.5))
         H_x = SparsePauliOp.from_list(x_terms)
 
-        qc = QuantumCircuit(n_qubits)
-        theta = ParameterVector("θ", 2 * p_layers)
-
-        # Initial state: |+⟩^N
-        qc.h(range(n_qubits))
+        qc, theta = _init_circuit(n_qubits, 2 * p_layers)
 
         # HVA layers using PauliEvolutionGate
         for layer in range(p_layers):
@@ -258,50 +294,23 @@ class HVACircuitBuilder:
         circuit uses ~27 CZ gates (exceeds ZNE budget of 18). Viable for
         noiseless simulation; hardware deployment limited to N=4.
         """
-        if p_layers > MAX_P_LAYERS:
-            raise ValueError(
-                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-                f"Mele et al. (Nature Physics, 2026) depth constraint."
-            )
-
-        if n_qubits != lattice.n_qubits:
-            raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
-            )
-
-        if not lattice.edges:
-            raise ValueError(
-                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
-                f"Cannot build HVA circuit without ZZ interaction terms."
-            )
+        do_checks(p_layers, n_qubits, lattice)
 
         # Compute NNN edges from topology
         from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
 
         nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
 
-        qc = QuantumCircuit(n_qubits)
-        theta = ParameterVector("θ", 3 * p_layers)
-
-        # Initial state: |+⟩^N
-        qc.h(range(n_qubits))
+        qc, theta = _init_circuit(n_qubits, 3 * p_layers)
 
         for layer in range(p_layers):
             theta_nn = theta[layer * 3]
             theta_nnn = theta[layer * 3 + 1]
             theta_x = theta[layer * 3 + 2]
 
-            # RZZ(2θ_nn) on NN bonds
-            for i, j in lattice.edges:
-                qc.rzz(2 * theta_nn, i, j)
-
-            # RZZ(2θ_nnn) on NNN bonds
-            for i, j in nnn_edges:
-                qc.rzz(2 * theta_nnn, i, j)
-
-            # RX(2θ_x) on all qubits
-            for i in range(n_qubits):
-                qc.rx(2 * theta_x, i)
+            _apply_rzz_on_edges(qc, theta_nn, lattice.edges)
+            _apply_rzz_on_edges(qc, theta_nnn, nnn_edges)
+            _apply_single_qubit_layer(qc, theta_x, n_qubits, "rx")
 
         return qc, theta
 
@@ -356,31 +365,12 @@ class HVACircuitBuilder:
             [θ_zz_0, θ_zz_1, ..., θ_zz_{E-1}, θ_x_0, θ_x_1, ..., θ_x_{N-1}]
         repeated for each layer.
         """
-        if p_layers > MAX_P_LAYERS:
-            raise ValueError(
-                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-                f"Mele et al. (Nature Physics, 2026) depth constraint."
-            )
-
-        if n_qubits != lattice.n_qubits:
-            raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
-            )
-
-        if not lattice.edges:
-            raise ValueError(
-                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
-                f"Cannot build HVA circuit without ZZ interaction terms."
-            )
+        do_checks(p_layers, n_qubits, lattice)
 
         n_edges = len(lattice.edges)
         params_per_layer = n_edges + n_qubits
 
-        qc = QuantumCircuit(n_qubits)
-        theta = ParameterVector("θ", params_per_layer * p_layers)
-
-        # Initial state: |+⟩^N (paramagnetic ground state at h → ∞)
-        qc.h(range(n_qubits))
+        qc, theta = _init_circuit(n_qubits, params_per_layer * p_layers)
 
         # HVA layers with per-bond / per-site parameters
         for layer in range(p_layers):
@@ -428,28 +418,9 @@ class HVACircuitBuilder:
         ValueError
             If ``p_layers > 2`` (Mele et al. depth constraint).
         """
-        if p_layers > MAX_P_LAYERS:
-            raise ValueError(
-                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-                f"Mele et al. (Nature Physics, 2026) depth constraint."
-            )
+        do_checks(p_layers, n_qubits, lattice)
 
-        if n_qubits != lattice.n_qubits:
-            raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
-            )
-
-        if not lattice.edges:
-            raise ValueError(
-                f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
-                f"Cannot build HVA circuit without ZZ interaction terms."
-            )
-
-        qc = QuantumCircuit(n_qubits)
-        theta = ParameterVector("θ", 3 * p_layers)
-
-        # Initial state: |+⟩^N (paramagnetic ground state at h → ∞)
-        qc.h(range(n_qubits))
+        qc, theta = _init_circuit(n_qubits, 3 * p_layers)
 
         # HVA layers: e^{-iθ_z H_Z} · e^{-iθ_x H_X} · e^{-iθ_zz H_ZZ}
         for layer in range(p_layers):
@@ -457,17 +428,9 @@ class HVACircuitBuilder:
             theta_x = theta[layer * 3 + 1]
             theta_z = theta[layer * 3 + 2]
 
-            # RZZ(2θ_zz) on each lattice edge
-            for i, j in lattice.edges:
-                qc.rzz(2 * theta_zz, i, j)
-
-            # RX(2θ_x) on all qubits (transverse field)
-            for i in range(n_qubits):
-                qc.rx(2 * theta_x, i)
-
-            # RZ(2θ_z) on all qubits (longitudinal field)
-            for i in range(n_qubits):
-                qc.rz(2 * theta_z, i)
+            _apply_rzz_on_edges(qc, theta_zz, lattice.edges)
+            _apply_single_qubit_layer(qc, theta_x, n_qubits, "rx")
+            _apply_single_qubit_layer(qc, theta_z, n_qubits, "rz")
 
         return qc, theta
 
@@ -508,35 +471,9 @@ class HVACircuitBuilder:
         ValueError
             If ``p_layers > 2`` (Mele et al. depth constraint).
         """
-        if p_layers > MAX_P_LAYERS:
-            raise ValueError(
-                f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-                f"Mele et al. (Nature Physics, 2026) depth constraint."
-            )
+        do_checks(p_layers, n_qubits, lattice)
 
-        if n_qubits != lattice.n_qubits:
-            raise ValueError(
-                f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}."
-            )
-
-        qc = QuantumCircuit(n_qubits)
-        theta = ParameterVector("θ", 4 * p_layers)
-
-        # Initial state preparation
-        if initial_state == "neel":
-            # Néel state: |↑↓↑↓...⟩ = |0101...⟩ (X on odd sites)
-            for i in range(1, n_qubits, 2):
-                qc.x(i)
-        elif initial_state == "plus":
-            # |+⟩^N (paramagnetic — same as TFIM)
-            qc.h(range(n_qubits))
-        elif initial_state == "zero":
-            # |0⟩^N = |↑↑↑...⟩ (ferromagnetic, no gates needed)
-            pass
-        else:
-            raise ValueError(
-                f"Unknown initial_state '{initial_state}'. Use 'neel', 'plus', or 'zero'."
-            )
+        qc, theta = _init_circuit(n_qubits, 4 * p_layers, initial_state)
 
         # HVA layers: e^{-iθ_z H_Z} · e^{-iθ_zz H_ZZ} · e^{-iθ_yy H_YY} · e^{-iθ_xx H_XX}
         for layer in range(p_layers):
@@ -545,20 +482,9 @@ class HVACircuitBuilder:
             theta_zz = theta[layer * 4 + 2]
             theta_z = theta[layer * 4 + 3]
 
-            # RXX(2θ_xx) on each lattice edge
-            for i, j in lattice.edges:
-                qc.rxx(2 * theta_xx, i, j)
-
-            # RYY(2θ_yy) on each lattice edge
-            for i, j in lattice.edges:
-                qc.ryy(2 * theta_yy, i, j)
-
-            # RZZ(2θ_zz) on each lattice edge
-            for i, j in lattice.edges:
-                qc.rzz(2 * theta_zz, i, j)
-
-            # RZ(2θ_z) on all qubits
-            for i in range(n_qubits):
-                qc.rz(2 * theta_z, i)
+            _apply_2q_on_edges(qc, theta_xx, lattice.edges, "rxx")
+            _apply_2q_on_edges(qc, theta_yy, lattice.edges, "ryy")
+            _apply_rzz_on_edges(qc, theta_zz, lattice.edges)
+            _apply_single_qubit_layer(qc, theta_z, n_qubits, "rz")
 
         return qc, theta

@@ -592,6 +592,29 @@ Gate-folding R²=0.996 produced ΔE/gap=89.8% while PEA R²=0.998 produced
 ΔE/gap=2.07% on the same circuit. High R² ≠ accuracy. The `run_adaptive_zne()`
 default strategy was changed from `gf_primary` to `pea_primary` accordingly.
 
+### QESEM Direct Execution (Cross-Validation Path)
+
+When `mitigation.qesem_enabled=True`, the pipeline delegates mitigation entirely
+to Qedma's QESEM Qiskit Function. This provides an independent, unbiased estimate
+that validates our PEA-ZNE results. Hardware results (ibm_kingston):
+- h=4.0: ΔE/gap = 0.71% (PASS), ZNE gain = 98%, 756K shots, 428s QPU
+- h=3.5: ΔE/gap = 3.46% (PASS), ZNE gain = 91%
+
+### QET (Quasi-probabilistic Error Tuning) — Explicit Noise Scales
+
+QET extends QESEM by returning values at multiple noise levels, enabling
+user-controlled extrapolation. Configured via `HardwareConfig.qesem_noise_scales`
+or the `noise_scale2precision` parameter in `run_qesem_deployment()`.
+
+Key features:
+- Fractional noise scales (0.3, 0.5, 0.7, 1.3, etc.) — PEA can't do this
+- Complementary pairs around 1.0 come free (request 0.5 → get 1.5)
+- Shared characterization across all scales (efficient)
+- WLS linear extrapolation to zero-noise limit (`extrapolate_qet_wls()`)
+- Automatic post-execution validation via `validate_qet_result()`
+
+Reference: GitHub Qedma/QET-tutorial (2026-06-30)
+
 **Post-processing stack** (applied after ZNE, from 2025-2026 literature):
 1. `affine_correct_energy()` — Physics bounds E ∈ [E₀, E_max] (arXiv:2604.16815)
 2. `run_block_zne()` — Block-level folding for p≥2 (arXiv:2507.23314)

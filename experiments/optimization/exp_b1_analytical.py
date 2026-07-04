@@ -42,7 +42,7 @@ class ExperimentB1(BaseExperiment):
                 p_layers=2,
                 h_values=[1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0],
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

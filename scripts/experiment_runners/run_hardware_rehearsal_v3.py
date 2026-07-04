@@ -976,7 +976,7 @@ class HardwareRehearsalV3(HardwareRehearsalV2):
 
         t0_train = _time.time()
         train_info = manager.train_multi_seed(
-            cache["predictor"], cache["dataset"], seeds=[42, 43, 44]
+            cache["predictor"], cache["dataset"], seeds=DEFAULT_SEEDS
         )
         train_elapsed_s = _time.time() - t0_train
 

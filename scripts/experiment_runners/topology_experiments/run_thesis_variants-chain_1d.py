@@ -309,7 +309,7 @@ def build_noiseless_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineV
 
     # ─── Group F: Seed Robustness ──────────────────────────────────────────
     # Hypothesis: Pipeline is seed-independent (confirmed in G5)
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"NL-F-seed{seed_val}",
@@ -793,7 +793,7 @@ def build_noisy_variants(n_qubits: int = DEFAULT_N_QUBITS) -> list[PipelineVaria
 
     # ─── Group NC: Seed Robustness (Noisy) ─────────────────────────────────
     # Hypothesis: ZNE results are reproducible across seeds
-    for seed_val in [42, 43, 44]:
+    for seed_val in DEFAULT_SEEDS:
         variants.append(
             PipelineVariant(
                 id=f"NY-C-seed{seed_val}",

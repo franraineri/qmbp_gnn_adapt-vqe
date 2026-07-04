@@ -49,7 +49,7 @@ n_edges = len(lattice.edges)
 n_params = qc.num_parameters
 print(f"Circuit: {n_params} params ({n_edges} edges + {N} sites)")
 
-backend = MPSBackend(strategy="aer_mps", chi_max=64, precision=0.005, seed=SEED)
+backend = MPSBackend(strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, precision=0.005, seed=SEED)
 
 # Warm-start: uniform params (from Section 0: gives 0.75% dE/gap)
 theta_warm = np.zeros(n_params)

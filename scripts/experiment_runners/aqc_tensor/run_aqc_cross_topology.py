@@ -55,7 +55,7 @@ from qmbp_simulation.utils.helpers import json_dump
 N_QUBITS = 10
 P_LAYERS_TARGET = 2
 BOND_DIM = 64  # Validated sufficient in POC (χ=32 identical to χ=128)
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # h-values per topology (within validated valid regime + safety margin)
 H_VALUES_PER_TOPOLOGY = {

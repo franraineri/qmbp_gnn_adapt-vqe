@@ -48,7 +48,7 @@ class ExperimentG4(BaseExperiment):
             ),
             vqe=VQEConfig(maxiter=500),
             analysis=AnalysisConfig(compute_hessian=True),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
             auto_warm_cold_comparison=False,
         )

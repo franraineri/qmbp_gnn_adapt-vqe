@@ -63,7 +63,9 @@ for case in TEST_CASES:
     print(f"  DMRG: E0={e_exact:.6f}, gap={gap:.4f}")
 
     # ── Deterministic mode (new default) ──────────────────────────────
-    backend_det = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True, seed=42)
+    backend_det = MPSBackend(
+        strategy="aer_mps", chi_max=MPS_DEFAULT_CHI_MAX, deterministic=True, seed=42
+    )
     config = VQEConfig(
         method="COBYLA",
         p_layers=1,
@@ -89,7 +91,7 @@ for case in TEST_CASES:
     # ── Stochastic mode (old behavior) ────────────────────────────────
     backend_sto = MPSBackend(
         strategy="aer_mps",
-        chi_max=64,
+        chi_max=MPS_DEFAULT_CHI_MAX,
         precision=0.005,
         deterministic=False,
         seed=42,

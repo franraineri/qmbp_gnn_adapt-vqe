@@ -50,7 +50,7 @@ class ExperimentB4(BaseExperiment):
                 h_test=[],  # No MPNN deployment — pure VQE comparison
             ),
             vqe=VQEConfig(n_restarts=5, use_hessian_check=True),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

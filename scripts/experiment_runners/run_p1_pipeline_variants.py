@@ -35,7 +35,7 @@ import sys
 from qmbp_simulation.framework.variant_runner import PipelineVariant, run_variant_script
 
 DEFAULT_N_QUBITS = 10
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # Pipeline script path (relative to project root)
 PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_pipeline.py"

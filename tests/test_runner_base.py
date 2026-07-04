@@ -455,7 +455,7 @@ def test_digest_scanner_can_parse_validation_runner_output(tmp_path, monkeypatch
                     "topology": "chain_1d",
                     "model": "tfim_longitudinal",
                 },
-                "seeds": [42, 43, 44],
+                "seeds": DEFAULT_SEEDS,
             }
 
     runner = _DigestCompatRunner(args=_make_args())

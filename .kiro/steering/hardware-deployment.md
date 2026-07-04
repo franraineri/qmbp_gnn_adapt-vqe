@@ -413,6 +413,54 @@ make hw-flow-deploy              # real QPU with σ_flow safety net
 The σ_flow boost STACKS on top of κ-based allocation. A high-risk h-point with
 high σ_flow gets shots×4 (κ doubles + σ doubles again).
 
+### P2-C: Stale Calibration Comparison (2026-06-22)
+
+Post-sweep diagnostic that compares pre-execution vs post-execution calibration
+to tag results affected by drift during long runs (>1h). Implemented in:
+- `HardwareBackend.run_h_sweep()` — logs `stale_calibration_comparison` event
+- `run_mitigation_benchmark.py` — prints comparison after h-loop (only if elapsed > 30 min)
+
+**Behavior:**
+- Takes snapshot before first h-point and after last h-point
+- Computes T1 drift %, gate error drift %, max single-qubit drift
+- Logs warning if `is_stable=False`, but does NOT abort (diagnostic only)
+- Saved in sweep summary JSON for post-hoc result filtering
+- `HardwareRunResult` now has `stale_calibration_t1_drift_pct` and `stale_calibration_stable`
+
+**When useful:** Runs >1h where TLS events can shift calibration mid-execution.
+For typical 30-min runs, calibration doesn't change significantly.
+
+**Consumed by:** `mitigation_benchmark_analyzer.py` can filter/flag results from
+runs where `stale_calibration_stable=False`.
+
+### P3: Adaptive Shot Budget in Mitigation Benchmark (2026-06-22)
+
+κ-based shot adjustment in `run_mitigation_benchmark.py` when `--adaptive` is enabled.
+Second-order optimization: inter-layout variance (0.25) >> intra-layout variance (0.16),
+so redistributing shots between h-points has modest impact. Implemented conservatively:
+
+**Decision logic:**
+- HIGH κ risk → shots × 2 (near h_c, more noise sensitivity)
+- MEDIUM κ risk → shots × 1 (unchanged)
+- LOW κ risk → shots × 1 (unchanged — NOT reduced, to avoid introducing risk)
+
+**Important constraints:**
+- Only active with `--adaptive` CLI flag (NOT default)
+- Envelope records `adaptive_shot_budget` metadata for post-hoc analysis
+- Total budget is approximately neutral (HIGH points get 2× but are minority)
+- Does NOT touch outlier detection (requires n_layouts≥4 for Grubbs, we use n_layouts=3)
+
+**New fields in ResultEnvelope:**
+- `adaptive_shot_budget.base_shots` — base shot count from CLI
+- `adaptive_shot_budget.effective_shots` — actual shots used
+- `adaptive_shot_budget.multiplier` — scaling factor applied
+- `adaptive_shot_budget.risk_level` — κ classification that triggered boost
+- `adaptive_shot_budget.reason` — "kappa_adaptive"
+
+**New fields in `HardwareRunResult`:**
+- `effective_shots: int | None` — actual shots used (None = base)
+- `adaptive_shot_reason: str` — "kappa_high", "sigma_flow", or ""
+
 **Result**: `sigma_flow_per_h` is saved in the tier_1 JSON, and every per-h
 recommendation includes `"sigma_flow_boost": true|false` for auditability.
 

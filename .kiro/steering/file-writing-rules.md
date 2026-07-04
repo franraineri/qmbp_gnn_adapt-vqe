@@ -11,12 +11,14 @@ When creating or writing files with content longer than 38 lines:
 1. **First call**: Use `fsWrite` with only the first ~38 lines of content.
 2. **Subsequent calls**: Use `fsAppend` to add the remaining content in chunks of ~40 lines each.
 3. **Never** attempt to write more than 50 lines in a single `fsWrite` call.
+4. **Always** Import and reuse the already written code. Don't copy paste duplicate or repeat code. I want you import and reuse the already written code.
 
 ## Editing Files
 
 - Before using `strReplace`, confirm the file exists and contains the `oldStr` you expect.
 - If a file creation failed or is incomplete, **delete it and start fresh** rather than trying to edit partial content.
 - Never retry the same failing edit more than once. If it fails, diagnose why before trying again.
+- Import and reuse the already written code.I do not want you copy paste code. I want you import and reuse the already written code.
 
 ## Retry Discipline
 

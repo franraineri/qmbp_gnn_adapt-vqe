@@ -107,7 +107,7 @@ class MyValidationRunner(ValidationRunner):
                 "p_layers": 2,
                 "topology": self._args.topology,
             },
-            "seeds": [42, 43, 44],
+            "seeds": DEFAULT_SEEDS,
         }
 
     # ── Optional: custom preflight ───────────────────────────────────────────

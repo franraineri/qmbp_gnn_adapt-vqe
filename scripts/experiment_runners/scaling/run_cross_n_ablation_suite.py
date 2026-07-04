@@ -124,7 +124,9 @@ def _deploy_and_evaluate(
     builder = HamiltonianBuilder()
     hva = HVACircuitBuilder()
     solver = ClassicalSolver()
-    backend = MPSBackend(strategy=strategy, chi_max=64, precision=precision, seed=42)
+    backend = MPSBackend(
+        strategy=strategy, chi_max=MPS_DEFAULT_CHI_MAX, precision=precision, seed=42
+    )
 
     # Pre-compute target graph structure
     lattice_ref = make_lattice(topology, n_target, J=1.0, h=h_test[0])
@@ -252,7 +254,7 @@ def run_multi_seed(sources, args) -> dict:
 
     topology = sources[0][1]
     theta_dim = sources[0][3].shape[1]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     dataset = _build_dataset(sources, use_n_feature=True)
     h_test = _compute_h_test(args.target_n)

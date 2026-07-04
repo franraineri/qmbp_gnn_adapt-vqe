@@ -83,7 +83,7 @@ def section_1():
 
     N, p, h = 6, 2, 1.5
     j2_values = [0.0, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     lattice = make_lattice("chain_1d", N, J=1.0, h=h)
     circuit, _ = hva.create_frustrated_tfim(N, p, lattice)
@@ -132,7 +132,7 @@ def section_2():
 
     N, p, J2 = 6, 2, 0.3
     h_sweep = [2.5, 2.0, 1.75, 1.5, 1.25, 1.0, 0.75]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     lattice_ref = make_lattice("chain_1d", N, J=1.0, h=2.0)
     circuit, _ = hva.create_frustrated_tfim(N, p, lattice_ref)
@@ -189,7 +189,7 @@ def section_3():
     N, p, J2 = 6, 2, 0.3
     h_values = [2.0, 1.5, 1.0]
     topologies = ["chain_1d", "ladder"]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     logger.info(f"  Config: N={N}, p={p}, J₂={J2}")
     logger.info(f"  h-values: {h_values}, topologies: {topologies}")
@@ -429,7 +429,7 @@ def section_7():
 
     N, p, J2 = 6, 2, 0.3
     h_values = [2.0, 1.75, 1.5, 1.25]
-    seeds = [42, 43, 44]
+    seeds = DEFAULT_SEEDS
 
     lattice = make_lattice("chain_1d", N, J=1.0, h=2.0)
     circuit, _ = hva.create_frustrated_tfim(N, p, lattice)
@@ -492,7 +492,7 @@ def save_results(all_results: dict, elapsed: float):
             "topology": "chain_1d",
             "model": "tfim_frustrated",
         },
-        "seeds": [42, 43, 44],
+        "seeds": DEFAULT_SEEDS,
     }
 
     # Compute pass_rate from scaling results (section 6 — main quantitative section)

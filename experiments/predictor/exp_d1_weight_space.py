@@ -46,7 +46,7 @@ class ExperimentD1(BaseExperiment):
                 lr=1e-3,
                 patience=300,
             ),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

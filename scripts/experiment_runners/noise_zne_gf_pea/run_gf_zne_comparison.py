@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_TOPOLOGY = "chain_1d"
 DEFAULT_N_QUBITS = 6
 DEFAULT_P_LAYERS = 1
-SEEDS = [42, 43, 44]
+SEEDS = DEFAULT_SEEDS
 
 # h-values inside valid regime (descending)
 H_TEST_VALUES = [2.5, 2.0, 1.75]

@@ -143,7 +143,7 @@ class BondResolvedCrossNRunner(ValidationRunner):
             "--seeds",
             type=int,
             nargs="+",
-            default=[42, 43, 44],
+            default=DEFAULT_SEEDS,
             help="Seeds for multi-seed dense sweep (Section 5). Default: 42 43 44",
         )
         parser.add_argument(

@@ -52,7 +52,7 @@ class ExperimentC3(BaseExperiment):
                 h_test=[2.625, 3.25],  # Interpolation points not in training set
             ),
             vqe=VQEConfig(n_restarts=3, sigma=0.3, maxiter=100),
-            seeds=[42, 43, 44],
+            seeds=DEFAULT_SEEDS,
             verbose=True,
         )
 

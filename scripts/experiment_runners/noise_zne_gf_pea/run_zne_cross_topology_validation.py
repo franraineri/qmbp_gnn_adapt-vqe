@@ -68,7 +68,7 @@ CONFIGS = {
 }
 
 # Seeds per section
-SEEDS_LADDER = [42, 43, 44]
+SEEDS_LADDER = DEFAULT_SEEDS
 SEEDS_HEAVY_HEX_NEW = [43, 44]  # seed=42 already validated in PEA_HW_READY
 SEEDS_CHAIN_CONTROL = [42]  # Control: verify consistency
 
