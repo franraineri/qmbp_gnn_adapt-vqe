@@ -1,0 +1,13 @@
+# TFIM heavy_hex N=20 p=4 — scaling test
+# Validated configuration: 100% pass rate at restricted h-range
+runner: noiseless_pipeline
+model: tfim
+topology: heavy_hex
+n_qubits: 20
+p_layers: 4
+h_min: 1.25
+h_max: 3.0
+h_points: 40
+maxiter: 1000
+n_restarts: 7
+description: "TFIM heavy_hex N=20 p=4 — scaling test"

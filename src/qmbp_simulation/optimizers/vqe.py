@@ -367,16 +367,22 @@ class VQEOptimizer:
             )
         elif method == "COBYLA":
             # COBYLA does not support maxfev in options — wrap cost_fn with
-            # an evaluation counter that forces termination.
+            # an evaluation counter AND wall-clock timeout that force termination.
             _eval_count = [0]
             _last_value = [0.0]
+            _start_time = time.monotonic()
+            # Wall-clock cap: use VQE_WALL_CLOCK_LIMIT_PER_POINT for a single
+            # optimize() call (restart included separately by the caller).
+            # Divide by (n_restarts + 1) to keep total per-point time bounded.
+            _timeout_s = VQE_WALL_CLOCK_LIMIT_PER_POINT / max(cfg.n_restarts + 1, 1)
 
             def _capped_cost(params):
                 _eval_count[0] += 1
+                # Eval cap
                 if _eval_count[0] > maxfun:
-                    # Return last known value — COBYLA will treat this as
-                    # no improvement and terminate on its own within a few
-                    # more iterations (trust region shrinks to zero).
+                    return _last_value[0]
+                # Wall-clock cap
+                if time.monotonic() - _start_time > _timeout_s:
                     return _last_value[0]
                 val = cost_fn(params)
                 _last_value[0] = val
@@ -395,6 +401,14 @@ class VQEOptimizer:
             )
             # Annotate result with actual eval count for diagnostics
             result.nfev = _eval_count[0]
+            elapsed = time.monotonic() - _start_time
+            if elapsed > _timeout_s * 0.9:
+                logger.debug(
+                    "COBYLA hit wall-clock cap (%.1fs / %.1fs limit, %d evals)",
+                    elapsed,
+                    _timeout_s,
+                    _eval_count[0],
+                )
             return result
         elif method == "Nelder-Mead":
             return minimize(
@@ -414,6 +428,75 @@ class VQEOptimizer:
             raise ValueError(f"Unsupported method: {method}")
 
     # ── warm-start seeding ───────────────────────────────────────────
+
+    @staticmethod
+    def compute_adaptive_restarts(
+        h_value: float,
+        gap: float | None = None,
+        n_restarts_base: int = 5,
+        *,
+        h_critical: float = 1.0,
+        gap_easy_threshold: float = 0.5,
+        gap_hard_threshold: float = 0.1,
+    ) -> int:
+        """Compute adaptive number of restarts based on landscape difficulty.
+
+        Near the critical point (small gap), the energy landscape is flat
+        and multi-restart search is essential. Far from criticality (large gap),
+        the warm-start converges immediately and extra restarts are wasted.
+
+        This implements the observation from B4 experiment: condition number
+        varies 14→1400 across the h-range, but NO saddle points exist.
+        More restarts help at high κ (small gap), not at low κ (easy regime).
+
+        Parameters
+        ----------
+        h_value : float
+            Current transverse field value.
+        gap : float | None
+            Spectral gap at this h-value (from exact diag). If None,
+            uses h-value heuristic only.
+        n_restarts_base : int
+            Configured n_restarts (the maximum; adaptive reduces from here).
+        h_critical : float
+            Estimated critical h (TFIM: ~1.0). Used for h-distance heuristic.
+        gap_easy_threshold : float
+            Gap above this = easy landscape → reduce restarts to 1.
+        gap_hard_threshold : float
+            Gap below this = hard landscape → use full n_restarts_base.
+
+        Returns
+        -------
+        int
+            Adaptive number of restarts (1 ≤ result ≤ n_restarts_base).
+        """
+        if n_restarts_base <= 1:
+            return 1
+
+        # If gap is available, use it directly (most reliable signal)
+        if gap is not None and gap > 0:
+            if gap >= gap_easy_threshold:
+                # Easy: paramagnetic limit, warm-start always converges
+                return 1
+            elif gap >= gap_hard_threshold:
+                # Medium: interpolate between 1 and base
+                frac = (gap - gap_hard_threshold) / (gap_easy_threshold - gap_hard_threshold)
+                return max(1, int(round(n_restarts_base * (1 - frac * 0.8))))
+            else:
+                # Hard: near/at critical point, use full budget
+                return n_restarts_base
+
+        # Fallback: h-distance heuristic (when gap is not available)
+        h_distance = abs(h_value - h_critical)
+        if h_distance > 1.0:
+            # Far from critical: very easy landscape
+            return max(1, n_restarts_base // 3)
+        elif h_distance > 0.3:
+            # Moderate distance
+            return max(1, n_restarts_base // 2)
+        else:
+            # Near critical: full budget
+            return n_restarts_base
 
     @staticmethod
     def get_initial_guess(

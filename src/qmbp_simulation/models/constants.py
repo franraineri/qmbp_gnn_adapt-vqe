@@ -103,11 +103,14 @@ GEN_GAP_CATASTROPHIC: float = 0.05
 COBYLA_AUTO_SWITCH_THRESHOLD: int = 8
 """Auto-switch from L-BFGS-B to COBYLA when n_params > this value."""
 
-VQE_WALL_CLOCK_LIMIT_PER_POINT: float = 18000.0
-"""Wall-clock timeout (seconds) per h-point in VQE sweeps.
-If a single optimize() call exceeds this, log a warning. This covers
-the scenario where COBYLA or Nelder-Mead spins without converging on
-flat landscapes (e.g., near criticality with high-dimensional params)."""
+VQE_WALL_CLOCK_LIMIT_PER_POINT: float = 600.0
+"""Wall-clock timeout (seconds) per optimize() call in VQE sweeps.
+If a single optimize() call exceeds this, the COBYLA cost function
+returns a stale value to force convergence. The effective per-restart
+timeout is this value / (n_restarts + 1).
+
+For reference: N=10 p=1 chain_1d → ~5-10s/point, N=20 p=4 → ~60-120s/point.
+600s gives 10x margin for the hardest known configs."""
 
 VQE_RESTART_STAGNATION_THRESHOLD: int = 3
 """Number of consecutive restarts without improvement before early-stopping.

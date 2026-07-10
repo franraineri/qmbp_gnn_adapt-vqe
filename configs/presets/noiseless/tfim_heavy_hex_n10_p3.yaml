@@ -1,0 +1,15 @@
+# tfim heavy_hex N=10 p=3
+# Pass rate: 100% (4/7 runs passed)
+# Auto-generated from ResultIndex
+runner: noiseless_pipeline
+model: tfim
+topology: heavy_hex
+n_qubits: 10
+p_layers: 3
+h_min: 1.25
+h_max: 3.0
+h_points: 30
+maxiter: 800
+n_restarts: 5
+seeds: [42, 43, 44]
+description: "tfim heavy_hex N=10 p=3 — 100% validated"

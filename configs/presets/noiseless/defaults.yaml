@@ -1,0 +1,8 @@
+# Noiseless category defaults
+# These values apply to all noiseless presets unless overridden.
+runner: noiseless_pipeline
+category: noiseless
+seeds: [42, 43, 44]
+maxiter: 500
+n_restarts: 5
+p_layers: 2

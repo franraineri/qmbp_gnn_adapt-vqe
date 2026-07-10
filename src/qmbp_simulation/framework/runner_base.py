@@ -164,6 +164,71 @@ def resolve_project_root(script_path: str | Path) -> Path:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Utility: preset defaults application
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def _apply_preset_defaults(parser: argparse.ArgumentParser, preset: dict) -> None:
+    """Apply preset values as parser defaults (CLI args still override).
+
+    For known physics args, maps preset YAML keys to argparse destinations.
+    For any other key in the preset, if a matching argparse dest exists in
+    the parser, it will also be applied as a default (auto-extensible).
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        The parser whose defaults to update.
+    preset : dict
+        Loaded preset configuration dict.
+    """
+    # Explicit mapping for keys that need transformation (name differs from dest)
+    KEY_TO_DEST = {
+        "n_qubits": "n_qubits",
+        "p_layers": "p_layers",
+        "topology": "topology",
+        "model": "model",
+        "model_params": "model_params",
+        "h_min": "h_min",
+        "h_max": "h_max",
+        "h_points": "h_points",
+        "seeds": "seeds",
+        "maxiter": "maxiter",
+        "n_restarts": "n_restarts",
+        "output": "output",
+    }
+
+    # Collect all known argparse destinations for auto-extension
+    known_dests = {action.dest for action in parser._actions if action.dest != "help"}
+
+    defaults = {}
+    for yaml_key, value in preset.items():
+        if yaml_key.startswith("_"):
+            continue  # Skip internal metadata (_preset_name, _preset_path)
+        if value is None:
+            continue
+
+        # Check explicit mapping first
+        dest = KEY_TO_DEST.get(yaml_key)
+        if dest is None:
+            # Auto-extension: if yaml_key (with - → _) matches a known dest, use it
+            normalized = yaml_key.replace("-", "_")
+            if normalized in known_dests:
+                dest = normalized
+
+        if dest is None:
+            continue
+
+        # Ensure topology is always a list
+        if yaml_key == "topology" and isinstance(value, str):
+            value = [value]
+        defaults[dest] = value
+
+    if defaults:
+        parser.set_defaults(**defaults)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ValidationRunner — Multi-section validation scripts
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -207,6 +272,10 @@ class ValidationRunner(ABC):
         self._section_results: list[SectionResult] = []
         # Cache sections once (avoid calling define_sections() multiple times)
         self._sections_cache: list[Section] | None = None
+        # Artifact collector (register during execution, persist at end)
+        from qmbp_simulation.framework.artifact_store import ArtifactCollector
+
+        self.artifacts = ArtifactCollector()
 
     # ── Abstract interface ───────────────────────────────────────────────────
 
@@ -587,8 +656,11 @@ class ValidationRunner(ABC):
             else:
                 # Fallback: save log to experiment dir root
                 from qmbp_simulation.framework.result_io import generate_timestamp
+
                 log_path = (
-                    Path("results") / "experiments" / f"exp_{self.experiment_id}"
+                    Path("results")
+                    / "experiments"
+                    / f"exp_{self.experiment_id}"
                     / f"log_emergency_{generate_timestamp()}.json"
                 )
                 log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -601,9 +673,30 @@ class ValidationRunner(ABC):
         if saved_path is not None:
             try:
                 from qmbp_simulation.framework.result_index import ResultIndex
+
                 ResultIndex().refresh_status()
             except Exception:
                 pass  # Best-effort, never blocks run completion
+
+        # ─── Step 4c: Persist artifacts ──────────────────────────────────
+        if saved_path is not None and self.artifacts.n_registered > 0:
+            save_mode = getattr(self._args, "save_artifacts", "never")
+            n_fail_check = sum(1 for r in self._section_results if not r.success)
+            should_save = save_mode == "always" or (
+                save_mode == "on-pass" and n_fail_check == 0 and not interrupted
+            )
+            if should_save:
+                try:
+                    # Update config fingerprint from build_config
+                    self.artifacts._config_fingerprint = self.build_config()
+                    self.artifacts.persist(saved_path)
+                except Exception as art_exc:
+                    logger.warning(f"Artifact persistence failed (non-blocking): {art_exc}")
+            elif save_mode != "never":
+                logger.info(
+                    f"  Artifacts not saved (mode='{save_mode}', "
+                    f"passed={'yes' if n_fail_check == 0 else 'no'})"
+                )
 
         # ─── Step 5: Summary ─────────────────────────────────────────────
         if interrupted:
@@ -781,14 +874,16 @@ class ValidationRunner(ABC):
                 continue
 
             # Create a SectionResult for the previously completed section
-            self._section_results.append(SectionResult(
-                section_id=section_id,
-                name=section_data.get("name", key),
-                success=True,
-                elapsed_s=section_data.get("elapsed_s", 0),
-                data=section_data.get("data", {}),
-                error=None,
-            ))
+            self._section_results.append(
+                SectionResult(
+                    section_id=section_id,
+                    name=section_data.get("name", key),
+                    success=True,
+                    elapsed_s=section_data.get("elapsed_s", 0),
+                    data=section_data.get("data", {}),
+                    error=None,
+                )
+            )
             resumed_ids.add(section_id)
 
         if resumed_ids:
@@ -948,6 +1043,7 @@ class ValidationRunner(ABC):
         # and record improvement metrics.
         try:
             from qmbp_simulation.framework.result_index import ResultIndex
+
             system = config.get("system", {})
             model = system.get("model", "")
             topo_list = system.get("topologies", [])
@@ -958,8 +1054,10 @@ class ValidationRunner(ABC):
             if model and topology:
                 index = ResultIndex()
                 baseline = index.get_best_run(
-                    model=model, topology=topology,
-                    n_qubits=n_qubits, p_layers=p_layers,
+                    model=model,
+                    topology=topology,
+                    n_qubits=n_qubits,
+                    p_layers=p_layers,
                 )
                 if baseline:
                     current_pass_rate = summary.get("pass_rate", 0)
@@ -1131,8 +1229,38 @@ class ValidationRunner(ABC):
             help="Resume from a partial/interrupted result JSON. Completed sections "
             "are loaded from the file and skipped. Only remaining sections run.",
         )
+        # Artifact persistence
+        parser.add_argument(
+            "--save-artifacts",
+            type=str,
+            choices=["never", "always", "on-pass"],
+            default="never",
+            help="Save run artifacts (MPNN model, circuit, theta). "
+            "'never': no artifacts (default). "
+            "'always': save regardless of outcome. "
+            "'on-pass': save only when all sections pass.",
+        )
+        # Config preset (loads YAML, CLI overrides preset values)
+        parser.add_argument(
+            "--preset",
+            type=str,
+            default=None,
+            help="Load a config preset by name (e.g. 'noiseless/tfim_heavy_hex_n20_p4'). "
+            "CLI args override preset values. See configs/presets/ for available presets.",
+        )
         # Allow subclasses to add custom args
         cls._add_custom_args(parser)
+
+        # If --preset is specified, inject preset values as defaults before parsing
+        # We do a preliminary parse to detect --preset, then set defaults from it
+        preliminary, _ = parser.parse_known_args()
+        if preliminary.preset:
+            from qmbp_simulation.framework.presets import load_preset
+
+            preset = load_preset(preliminary.preset)
+            # Convert preset to defaults dict for the parser
+            _apply_preset_defaults(parser, preset)
+
         return parser.parse_args()
 
     @classmethod
@@ -1146,9 +1274,141 @@ class ValidationRunner(ABC):
 
             @classmethod
             def _add_custom_args(cls, parser):
+                cls._add_standard_physics_args(parser)
                 parser.add_argument("--g-value", type=float, default=0.3)
-                parser.add_argument("--n-qubits", type=int, default=6)
         """
+
+    @classmethod
+    def _add_standard_physics_args(
+        cls,
+        parser: argparse.ArgumentParser,
+        *,
+        n_qubits: int = 6,
+        p_layers: int = 2,
+        topology: str = "chain_1d",
+        model: str = "tfim",
+        h_min: float = 0.5,
+        h_max: float = 2.0,
+        h_points: int = 15,
+        seeds: list[int] | None = None,
+        maxiter: int = 500,
+        n_restarts: int = 5,
+    ) -> None:
+        """Add standard physics experiment CLI args.
+
+        Provides the common set of arguments shared across most physics
+        runners (noiseless, noisy, scaling). Call from _add_custom_args
+        to avoid duplicating these definitions in every runner.
+
+        Keyword arguments set the defaults for this specific runner.
+        Users can still override any value from the command line.
+
+        Parameters
+        ----------
+        parser : argparse.ArgumentParser
+            Parser to add arguments to.
+        n_qubits : int
+            Default system size.
+        p_layers : int
+            Default HVA circuit depth.
+        topology : str
+            Default lattice topology.
+        model : str
+            Default Hamiltonian model name.
+        h_min : float
+            Default minimum transverse field value.
+        h_max : float
+            Default maximum transverse field value.
+        h_points : int
+            Default number of h-points in sweep.
+        seeds : list[int] | None
+            Default random seeds. None → [42, 43, 44].
+        maxiter : int
+            Default VQE optimizer max iterations per restart.
+        n_restarts : int
+            Default number of VQE restarts per h-point.
+        """
+        if seeds is None:
+            seeds = [42, 43, 44]
+
+        parser.add_argument(
+            "--n-qubits",
+            type=int,
+            default=n_qubits,
+            help="System size (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--p-layers",
+            type=int,
+            default=p_layers,
+            choices=[1, 2, 3, 4, 5, 6],
+            help="HVA circuit depth (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--topology",
+            type=str,
+            nargs="+",
+            default=[topology],
+            help="Lattice topology(ies) (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--model",
+            type=str,
+            default=model,
+            help="Model from registry: tfim, tfim_longitudinal, tfim_frustrated, "
+            "heisenberg, xy, tfim_bond_resolved (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--model-params",
+            type=str,
+            default=None,
+            help="Model-specific parameters as key=value pairs, comma-separated. "
+            "E.g. --model-params g=0.3 for tfim_longitudinal, "
+            "or --model-params J2=0.5 for tfim_frustrated",
+        )
+        parser.add_argument(
+            "--h-min",
+            type=float,
+            default=h_min,
+            help="Minimum h value (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--h-max",
+            type=float,
+            default=h_max,
+            help="Maximum h value (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--h-points",
+            type=int,
+            default=h_points,
+            help="Number of h-points in sweep (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--seeds",
+            type=int,
+            nargs="+",
+            default=seeds,
+            help="Random seeds (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--maxiter",
+            type=int,
+            default=maxiter,
+            help="VQE optimizer maxiter per restart (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--n-restarts",
+            type=int,
+            default=n_restarts,
+            help="VQE restarts per h-point (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--output",
+            type=str,
+            default=None,
+            help="Output directory (default: auto from experiment_id)",
+        )
 
     # ── Reusable utility methods (available to all subclasses) ───────────────
 
@@ -1231,6 +1491,135 @@ class ValidationRunner(ABC):
         self.VQEOptimizer = VQEOptimizer
         self.VQEConfig = VQEConfig
 
+    # ── Model spec helpers (reusable by all subclasses) ──────────────────────
+
+    def parse_model_params(self) -> dict[str, float]:
+        """Parse --model-params CLI arg into a dict.
+
+        Handles the comma-separated key=value format:
+            --model-params "g=0.3,J2=0.5"
+
+        Returns
+        -------
+        dict[str, float]
+            Parsed parameter dict. Empty if --model-params not provided.
+
+        Sets self._model_params as a side effect for reuse.
+
+        Raises
+        ------
+        ValueError
+            If the format is invalid (must be key=value pairs).
+        """
+        self._model_params: dict[str, float] = {}
+        raw = getattr(self._args, "model_params", None)
+        if raw:
+            for pair in raw.split(","):
+                pair = pair.strip()
+                if "=" not in pair:
+                    raise ValueError(
+                        f"Invalid --model-params format: '{pair}'. "
+                        f"Expected key=value (e.g. 'g=0.3,J2=0.5')."
+                    )
+                key, val = pair.split("=", 1)
+                try:
+                    self._model_params[key.strip()] = float(val.strip())
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid --model-params value for '{key.strip()}': "
+                        f"'{val.strip()}' is not a valid number."
+                    )
+            logger.info("  Model params override: %s", self._model_params)
+        return self._model_params
+
+    def get_spec(self):
+        """Get the ModelSpec for this runner's configured model.
+
+        Applies any --model-params overrides. Requires setup_physics()
+        to have been called (provides self.get_model_spec).
+
+        Returns
+        -------
+        ModelSpec
+            The model specification, with any parameter overrides applied.
+
+        Example
+        -------
+        >>> self.setup_physics()
+        >>> self.parse_model_params()
+        >>> spec = self.get_spec()
+        >>> H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+        """
+        spec = self.get_model_spec(self._args.model)
+        model_params = getattr(self, "_model_params", None)
+        if model_params:
+            spec = spec.with_params(**model_params)
+        return spec
+
+    # ── H-grid generation (reusable by all physics runners) ────────────────
+
+    # Known h_critical values per model (estimated from physics)
+    H_CRITICAL_ESTIMATES: dict[str, float] = {
+        "tfim": 1.0,
+        "tfim_longitudinal": 1.0,
+        "tfim_frustrated": 1.5,
+        "heisenberg_transverse": 2.5,
+    }
+
+    def generate_h_grid(
+        self,
+        *,
+        h_min: float | None = None,
+        h_max: float | None = None,
+        h_points: int | None = None,
+        model: str | None = None,
+        dense_fraction: float = 0.4,
+        dense_radius: float = 0.5,
+    ) -> list[float]:
+        """Generate a non-uniform h-grid for VQE sweeps.
+
+        Uses denser sampling near the model's critical point. Reads defaults
+        from self._args if not explicitly provided.
+
+        Parameters
+        ----------
+        h_min : float | None
+            Minimum h. Default: self._args.h_min.
+        h_max : float | None
+            Maximum h. Default: self._args.h_max.
+        h_points : int | None
+            Number of points. Default: self._args.h_points.
+        model : str | None
+            Model name for h_critical lookup. Default: self._args.model.
+        dense_fraction : float
+            Fraction of points in dense region (default 0.4).
+        dense_radius : float
+            Half-width of dense region around h_critical (default 0.5).
+
+        Returns
+        -------
+        list[float]
+            Descending h-values (h_max → h_min) for warm-start sweep.
+        """
+        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+
+        _h_min = h_min if h_min is not None else self._args.h_min
+        _h_max = h_max if h_max is not None else self._args.h_max
+        _h_points = h_points if h_points is not None else self._args.h_points
+        _model = model if model is not None else self._args.model
+
+        h_crit = self.H_CRITICAL_ESTIMATES.get(_model, (_h_min + _h_max) / 2)
+
+        grid = generate_nonuniform_h_grid(
+            h_min=_h_min,
+            h_max=_h_max,
+            n_points=_h_points,
+            h_critical=h_crit,
+            dense_fraction=dense_fraction,
+            dense_radius=dense_radius,
+        )
+        return grid.tolist()
+
     # ── Checkpoint infrastructure (reusable by all subclasses) ───────────────
 
     def _checkpoint_dir(self) -> Path:
@@ -1258,6 +1647,10 @@ class ValidationRunner(ABC):
         Checkpoints are best-effort — a save failure never interrupts the main
         computation. Files are dot-prefixed to be hidden from result scanners.
 
+        Includes a config fingerprint so stale checkpoints from previous runs
+        with different parameters (n_qubits, p_layers, model, topology) are
+        automatically detected and discarded on load.
+
         Parameters
         ----------
         label : str
@@ -1272,6 +1665,20 @@ class ValidationRunner(ABC):
         from qmbp_simulation.utils.helpers import json_dump
 
         cp_path = self._checkpoint_dir() / f".checkpoint_{label}.json"
+
+        # Build config fingerprint from args (if available)
+        _fingerprint = {}
+        if hasattr(self, "_args"):
+            _fingerprint = {
+                "n_qubits": getattr(self._args, "n_qubits", None),
+                "p_layers": getattr(self._args, "p_layers", None),
+                "model": getattr(self._args, "model", None),
+                "topology": getattr(self._args, "topology", None),
+                "h_min": getattr(self._args, "h_min", None),
+                "h_max": getattr(self._args, "h_max", None),
+                "h_points": getattr(self._args, "h_points", None),
+            }
+
         payload = {
             **data,
             "_checkpoint_meta": {
@@ -1279,6 +1686,7 @@ class ValidationRunner(ABC):
                 "experiment_id": self.experiment_id,
                 "label": label,
                 "saved_at": datetime.now().isoformat(),
+                "config_fingerprint": _fingerprint,
             },
         }
         try:
@@ -1288,7 +1696,11 @@ class ValidationRunner(ABC):
             logger.debug("Checkpoint save failed for %s: %s", label, e)
 
     def load_checkpoint(self, label: str) -> dict[str, Any] | None:
-        """Load a named checkpoint if it exists.
+        """Load a named checkpoint if it exists and matches current config.
+
+        Validates the config fingerprint (n_qubits, p_layers, model, topology)
+        against the current run parameters. If they don't match, the checkpoint
+        is from a previous run with different config and is discarded.
 
         Parameters
         ----------
@@ -1298,8 +1710,8 @@ class ValidationRunner(ABC):
         Returns
         -------
         dict | None
-            Checkpoint data (without _checkpoint_meta), or None if not found
-            or corrupt.
+            Checkpoint data (without _checkpoint_meta), or None if not found,
+            corrupt, or config-mismatched.
         """
         import json as _json
 
@@ -1312,12 +1724,53 @@ class ValidationRunner(ABC):
                 payload = _json.load(f)
             meta = payload.pop("_checkpoint_meta", {})
             saved_at = meta.get("saved_at", "unknown")
+
+            # Validate config fingerprint if available
+            saved_fingerprint = meta.get("config_fingerprint", {})
+            if saved_fingerprint and hasattr(self, "_args"):
+                mismatches = []
+                for key in ("n_qubits", "p_layers", "model"):
+                    saved_val = saved_fingerprint.get(key)
+                    current_val = getattr(self._args, key, None)
+                    if saved_val is not None and current_val is not None:
+                        if saved_val != current_val:
+                            mismatches.append(f"{key}: saved={saved_val}, current={current_val}")
+                # Topology: compare as sorted lists (--topology can be multi-valued)
+                saved_topo = saved_fingerprint.get("topology")
+                current_topo = getattr(self._args, "topology", None)
+                if saved_topo is not None and current_topo is not None:
+                    if (
+                        sorted(saved_topo)
+                        if isinstance(saved_topo, list)
+                        else [saved_topo]
+                        != (
+                            sorted(current_topo)
+                            if isinstance(current_topo, list)
+                            else [current_topo]
+                        )
+                    ):
+                        mismatches.append(f"topology: saved={saved_topo}, current={current_topo}")
+
+                if mismatches:
+                    logger.warning(
+                        "⚠️  Stale checkpoint '%s' (saved %s) — config mismatch:\n"
+                        "       %s\n"
+                        "       Discarding checkpoint. VQE will restart from scratch.",
+                        label,
+                        saved_at,
+                        "; ".join(mismatches),
+                    )
+                    # Remove stale checkpoint
+                    try:
+                        cp_path.unlink()
+                    except OSError:
+                        pass
+                    return None
+
             logger.info("♻️  Loaded checkpoint '%s' (saved %s)", label, saved_at)
             return payload
         except (ValueError, KeyError, OSError) as e:
-            logger.warning(
-                "⚠️  Corrupt checkpoint '%s', ignoring: %s", label, e
-            )
+            logger.warning("⚠️  Corrupt checkpoint '%s', ignoring: %s", label, e)
             return None
 
     def cleanup_checkpoints(self, pattern: str = "*") -> None:
@@ -1357,7 +1810,7 @@ class ValidationRunner(ABC):
             Description of what the memory is for (default: "statevector").
         """
         # Complex128 statevector: 2^N * 16 bytes
-        mem_bytes = (2 ** n_qubits) * 16
+        mem_bytes = (2**n_qubits) * 16
         mem_mb = mem_bytes / 1e6
         if mem_mb > 100:
             logger.info("    📐 Estimated %s memory: %.1f MB (N=%d)", label, mem_mb, n_qubits)
@@ -1435,6 +1888,8 @@ class ValidationRunner(ABC):
 
             best_energy = float("inf")
             best_theta = prev_theta.copy()
+            # Cap total function evaluations (same formula as VQEOptimizer._run_minimize)
+            maxfun = maxiter * min(n_params + 5, 50)
             for restart in range(n_restarts):
                 x0 = (
                     prev_theta + rng.normal(0, sigma, n_params)
@@ -1447,13 +1902,352 @@ class ValidationRunner(ABC):
                     x0,
                     method="L-BFGS-B",
                     bounds=[(-np.pi, np.pi)] * n_params,
-                    options={"maxiter": maxiter, "ftol": 1e-14},
+                    options={"maxiter": maxiter, "ftol": 1e-14, "maxfun": maxfun},
                 )
-                if res.fun < best_energy:
+                if np.isfinite(res.fun) and res.fun < best_energy:
                     best_energy = res.fun
                     best_theta = res.x.copy()
+
+            # NaN/Inf guard: if all restarts produced non-finite results,
+            # keep previous theta (warm-start chain preservation)
+            if not np.all(np.isfinite(best_theta)):
+                logger.warning(
+                    "vqe_descending_sweep: NaN/Inf at h=%.4f, preserving previous theta.",
+                    h,
+                )
+                best_theta = prev_theta.copy()
+
             prev_theta = best_theta.copy()
             results[h] = best_theta.copy()
+
+        return results
+
+    def vqe_adaptive_sweep(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_values: list[float],
+        seed: int,
+        *,
+        p_layers: int = 1,
+        n_restarts: int = 5,
+        maxiter: int = 500,
+        model: str = "tfim",
+        model_kwargs: dict | None = None,
+        adaptive_restarts: bool = True,
+        ascending_pass: bool = True,
+        selective_ascending: bool = True,
+        ascending_de_gap_threshold: float = 0.02,
+        checkpoint_label: str | None = None,
+        compute_fidelity: bool = True,
+    ) -> list[dict]:
+        """Run a full adaptive VQE sweep with optional selective ascending pass.
+
+        This is the reusable, feature-complete VQE sweep that includes:
+        - Descending warm-start sweep (h_max → h_min)
+        - Adaptive restarts per h-point (fewer for easy points, more near h_c)
+        - Selective ascending pass (only re-optimizes suspicious points)
+        - Per-point checkpointing for crash recovery
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology name.
+        n_qubits : int
+            Number of qubits.
+        h_values : list[float]
+            Transverse field values (descending order expected).
+        seed : int
+            Random seed for reproducibility.
+        p_layers : int
+            HVA circuit depth.
+        n_restarts : int
+            Maximum restarts per h-point. With adaptive_restarts=True,
+            actual restarts are ≤ this value.
+        maxiter : int
+            Maximum optimizer iterations per restart.
+        model : str
+            Model name from registry.
+        model_kwargs : dict | None
+            Extra kwargs for Hamiltonian construction.
+        adaptive_restarts : bool
+            If True, dynamically adjust restarts per point. Default True.
+        ascending_pass : bool
+            If True, run the ascending pass. Default True.
+        selective_ascending : bool
+            If True, only re-optimize suspicious points in ascending pass.
+            If False, re-optimize all points. Default True.
+        ascending_de_gap_threshold : float
+            ΔE/gap threshold for marking points as suspicious. Default 0.02.
+        checkpoint_label : str | None
+            If provided, save/load checkpoints with this label.
+        compute_fidelity : bool
+            If True, compute state fidelity (requires solver.ground_state_vector).
+            Disable for large N where eigsh is expensive. Default True.
+
+        Returns
+        -------
+        list[dict]
+            Per-point results with keys: h, energy_vqe, energy_exact, gap,
+            de_gap, fidelity, theta_opt, converged, n_iterations,
+            n_restarts_used, elapsed_s.
+        """
+        import time as _time
+
+        import numpy as np
+
+        from qmbp_simulation import VQEConfig, VQEOptimizer, make_lattice
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.optimizers.sweep_strategies import (
+            AdaptiveRestartConfig,
+            SelectiveAscendingConfig,
+            compute_adaptive_restarts,
+            select_suspicious_points,
+        )
+
+        spec = get_model_spec(model)
+        mkw = model_kwargs or {}
+        backend = self._resolve_backend()
+
+        # Build circuit
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=h_values[0])
+        circuit, _ = spec.create_circuit(n_qubits, p_layers, lattice_ref, **spec.circuit_kwargs)
+        n_params = circuit.num_parameters
+
+        # VQE optimizer
+        vqe_config = VQEConfig(
+            p_layers=p_layers,
+            n_restarts=n_restarts,
+            maxiter=maxiter,
+            method="L-BFGS-B",
+            enable_callbacks=False,
+        )
+        optimizer = VQEOptimizer(config=vqe_config, backend=backend, seed=seed)
+
+        # Adaptive restart config
+        h_crit = self.H_CRITICAL_ESTIMATES.get(model)
+        adaptive_cfg = AdaptiveRestartConfig(
+            base_restarts=max(1, n_restarts // 3),
+            max_restarts=n_restarts,
+            critical_restarts=max(2, n_restarts // 2),
+            h_critical=h_crit,
+        )
+
+        # Initialize
+        rng = np.random.default_rng(seed)
+        prev_theta = rng.uniform(-0.01, 0.01, n_params)
+        results: list[dict] = []
+
+        # Reusable solver for fidelity computation (avoid re-instantiation per point)
+        _solver = None
+        if compute_fidelity:
+            from qmbp_simulation.solvers.classical import ClassicalSolver
+
+            _solver = ClassicalSolver()
+
+        # Resume from checkpoint if available
+        start_idx = 0
+        if checkpoint_label:
+            cp = self.load_checkpoint(checkpoint_label)
+            if cp is not None:
+                results = cp.get("results", [])
+                prev_theta = np.array(cp.get("current_theta", prev_theta))
+                start_idx = len(results)
+                logger.info(
+                    "    ♻️ Resuming sweep: %d/%d points already computed",
+                    start_idx,
+                    len(h_values),
+                )
+
+        # ── Descending pass ──────────────────────────────────────────────
+        logger.info(
+            "    VQE sweep: %s N=%d p=%d, %d h-points, adaptive_restarts=%s",
+            topology,
+            n_qubits,
+            p_layers,
+            len(h_values),
+            adaptive_restarts,
+        )
+
+        for idx, h in enumerate(h_values):
+            if idx < start_idx:
+                continue
+            t0 = _time.perf_counter()
+
+            lattice_h = make_lattice(topology, n_qubits, J=1.0, h=h)
+            H = spec.build_hamiltonian(lattice_h, **{**spec.hamiltonian_kwargs, **mkw})
+
+            # Exact reference
+            e_exact, gap = self.exact_ground_state(
+                topology,
+                n_qubits,
+                h,
+                model=model,
+                model_kwargs=mkw,
+            )
+
+            # Fidelity (optional — expensive for large N)
+            gs = None
+            if compute_fidelity:
+                gs = _solver.ground_state_vector(H)
+
+            # Adaptive restarts
+            if adaptive_restarts:
+                prev_de_gap = results[-1]["de_gap"] if results else None
+                n_r = compute_adaptive_restarts(h, prev_de_gap=prev_de_gap, config=adaptive_cfg)
+                optimizer.config.n_restarts = n_r
+
+            # Optimize
+            vqe_result = optimizer.optimize(
+                hamiltonian=H,
+                circuit=circuit,
+                initial_guess=prev_theta,
+                exact_energy=e_exact,
+                exact_state=gs,
+            )
+
+            de_gap = abs(vqe_result.energy - e_exact) / max(gap, 1e-10)
+            elapsed = _time.perf_counter() - t0
+            prev_theta = vqe_result.theta_opt.copy()
+
+            results.append(
+                {
+                    "h": h,
+                    "energy_vqe": vqe_result.energy,
+                    "energy_exact": e_exact,
+                    "gap": gap,
+                    "de_gap": de_gap,
+                    "fidelity": vqe_result.fidelity,
+                    "theta_opt": vqe_result.theta_opt.tolist(),
+                    "converged": vqe_result.n_iterations > 0,
+                    "n_iterations": vqe_result.n_iterations,
+                    "n_restarts_used": (
+                        vqe_result.trajectory.n_restarts_used if vqe_result.trajectory else 0
+                    ),
+                    "elapsed_s": elapsed,
+                }
+            )
+
+            status = "✓" if de_gap < 0.01 else ("?" if de_gap < 0.05 else "✗")
+            logger.info(
+                "    [%s] h=%.4f: ΔE/gap=%.2e F=%.4f (%.1fs, r=%d)",
+                status,
+                h,
+                de_gap,
+                vqe_result.fidelity or 0,
+                elapsed,
+                optimizer.config.n_restarts,
+            )
+
+            # Checkpoint after each point
+            if checkpoint_label:
+                self.save_checkpoint(
+                    checkpoint_label,
+                    {
+                        "results": results,
+                        "current_theta": prev_theta.tolist(),
+                        "n_completed": len(results),
+                        "n_total": len(h_values),
+                    },
+                )
+
+        # ── Selective ascending pass ─────────────────────────────────────
+        if ascending_pass and results:
+            selective_cfg = SelectiveAscendingConfig(
+                de_gap_threshold=ascending_de_gap_threshold,
+                include_neighbors=True,
+            )
+
+            if selective_ascending:
+                target_indices, asc_report = select_suspicious_points(
+                    results,
+                    config=selective_cfg,
+                )
+            else:
+                # Full ascending: all points
+                target_indices = list(range(len(results) - 2, -1, -1))
+                asc_report = None
+
+            n_improved = 0
+            if target_indices:
+                n_targeted = len(target_indices)
+                logger.info(
+                    "    🔄 Ascending pass: targeting %d/%d points",
+                    n_targeted,
+                    len(results),
+                )
+
+                # Use fewer restarts for ascending pass
+                optimizer.config.n_restarts = max(1, adaptive_cfg.base_restarts)
+
+                for idx in target_indices:
+                    # Propagate from neighbor
+                    if idx < len(results) - 1:
+                        asc_theta = np.array(results[idx + 1]["theta_opt"])
+                    else:
+                        asc_theta = np.array(results[-1]["theta_opt"])
+
+                    h = h_values[idx]
+                    lattice_h = make_lattice(topology, n_qubits, J=1.0, h=h)
+                    H = spec.build_hamiltonian(lattice_h, **{**spec.hamiltonian_kwargs, **mkw})
+
+                    e_exact = results[idx]["energy_exact"]
+                    gs = None
+                    if compute_fidelity:
+                        gs = _solver.ground_state_vector(H)
+
+                    vqe_asc = optimizer.optimize(
+                        hamiltonian=H,
+                        circuit=circuit,
+                        initial_guess=asc_theta,
+                        exact_energy=e_exact,
+                        exact_state=gs,
+                    )
+
+                    if vqe_asc.energy < results[idx]["energy_vqe"]:
+                        old_energy = results[idx]["energy_vqe"]
+                        old_de_gap = results[idx]["de_gap"]
+                        # Only count as improvement if meaningful (>1e-8)
+                        energy_improvement = old_energy - vqe_asc.energy
+                        if energy_improvement < 1e-8:
+                            asc_theta = np.array(results[idx]["theta_opt"])
+                            continue
+                        gap = results[idx]["gap"]
+                        de_gap = abs(vqe_asc.energy - e_exact) / max(gap, 1e-10)
+                        results[idx]["energy_vqe"] = vqe_asc.energy
+                        results[idx]["theta_opt"] = vqe_asc.theta_opt.tolist()
+                        results[idx]["fidelity"] = vqe_asc.fidelity
+                        results[idx]["de_gap"] = de_gap
+                        n_improved += 1
+                        logger.info(
+                            "      ↑ h=%.4f improved: ΔE/gap %.2e → %.2e (ΔE=%.6f)",
+                            h,
+                            old_de_gap,
+                            de_gap,
+                            old_energy - vqe_asc.energy,
+                        )
+
+                logger.info("    🔄 Ascending result: %d/%d improved", n_improved, n_targeted)
+            else:
+                logger.info("    🔄 Ascending pass: no suspicious points, skipped")
+
+        # ── Sweep summary ────────────────────────────────────────────────
+        if results:
+            de_gaps = [r["de_gap"] for r in results if r["de_gap"] is not None]
+            total_time = sum(r["elapsed_s"] for r in results)
+            n_pass = sum(1 for d in de_gaps if d < 0.05)
+            logger.info(
+                "    📊 Sweep summary: %d/%d pass (ΔE/gap<5%%), avg=%.2e, max=%.2e, total=%.1fs",
+                n_pass,
+                len(de_gaps),
+                np.mean(de_gaps) if de_gaps else 0,
+                np.max(de_gaps) if de_gaps else 0,
+                total_time,
+            )
+
+        # Cleanup checkpoint on success
+        if checkpoint_label:
+            self.cleanup_checkpoints(checkpoint_label)
 
         return results
 
@@ -4177,10 +4971,29 @@ class HardwareValidationRunner(ValidationRunner):
             help="Number of qubits (default: %(default)s)",
         )
         parser.add_argument(
+            "--p-layers",
+            type=int,
+            default=1,
+            choices=[1, 2, 3, 4, 5, 6],
+            help="HVA circuit depth (default: %(default)s)",
+        )
+        parser.add_argument(
             "--topology",
             type=str,
             default="heavy_hex",
             help="Lattice topology (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--model",
+            type=str,
+            default="tfim",
+            help="Model from registry (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--model-params",
+            type=str,
+            default=None,
+            help="Model-specific parameters as key=value pairs, comma-separated.",
         )
         parser.add_argument(
             "--zne-amplifier",
@@ -4262,17 +5075,44 @@ class HardwareValidationRunner(ValidationRunner):
         """Initialize HardwareBackend + shared infrastructure.
 
         Override and call super().setup() first to retain hardware init.
+        Handles import errors and backend init failures gracefully.
         """
-        from qmbp_simulation.execution.hardware import HardwareBackend
+        try:
+            from qmbp_simulation.execution.hardware import HardwareBackend
+        except ImportError as e:
+            raise RuntimeError(
+                f"Hardware backend dependencies not installed: {e}. "
+                f"Install qiskit-ibm-runtime and qiskit-ibm-catalog."
+            ) from e
 
         hw_config = self.build_hardware_config()
-        self.hw_backend = HardwareBackend(config=hw_config)  # type: ignore[assignment, no-redef]
+
+        try:
+            self.hw_backend = HardwareBackend(config=hw_config)  # type: ignore[assignment, no-redef]
+        except Exception as e:
+            if self._args.mode == "hardware":
+                raise RuntimeError(
+                    f"Failed to initialize HardwareBackend in hardware mode: {e}. "
+                    f"Check IBM_KEY and IBM_INSTANCE_CRN environment variables."
+                ) from e
+            else:
+                raise RuntimeError(
+                    f"Failed to initialize HardwareBackend in fake_backend mode: {e}."
+                ) from e
 
         # Share the runner's StructuredLogger with the backend
-        self.hw_backend._logger = self.slog  # type: ignore[attr-defined]
+        if hasattr(self.hw_backend, "_logger"):
+            self.hw_backend._logger = self.slog  # type: ignore[attr-defined]
+
+        # Parse model params if --model-params provided
+        self.parse_model_params()
 
         logger.info(f"  Hardware backend: {hw_config.mode} ({hw_config.backend_name})")
         logger.info(f"  Shots: {hw_config.shots}, Layouts: {hw_config.n_layouts}")
+        logger.info(
+            f"  System: N={self._args.n_qubits}, p={getattr(self._args, 'p_layers', 1)}, "
+            f"model={getattr(self._args, 'model', 'tfim')}, topology={self._args.topology}"
+        )
 
     def run_preflight(self) -> bool:
         """Run structural preflight + hardware preflight (QPU status).
@@ -4315,9 +5155,10 @@ class HardwareValidationRunner(ValidationRunner):
             "hypothesis": self.hypothesis,
             "system": {
                 "n_qubits": self._args.n_qubits,
-                "p_layers": 1,
+                "p_layers": getattr(self._args, "p_layers", 1),
                 "topology": self._args.topology,
-                "model": "tfim",
+                "model": getattr(self._args, "model", "tfim"),
+                "model_params": getattr(self, "_model_params", {}),
             },
             "hardware": {
                 "mode": self._args.mode,
@@ -4327,8 +5168,10 @@ class HardwareValidationRunner(ValidationRunner):
                 "zne_amplifier": getattr(self._args, "zne_amplifier", "pea"),
                 "zne_noise_factors": getattr(self._args, "zne_noise_factors", None),
                 "zne_r2_threshold": getattr(self._args, "zne_r2_threshold", 0.90),
+                "layout_strategy": getattr(self._args, "layout_strategy", "lowest_cost"),
+                "use_mapomatic": not getattr(self._args, "no_mapomatic", False),
             },
-            "seeds": [],
+            "seeds": getattr(self._args, "seeds", []),
         }
         return config
 

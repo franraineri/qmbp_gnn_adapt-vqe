@@ -9,6 +9,7 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Test fixtures — concrete runner implementations for testing
@@ -119,6 +120,12 @@ def _make_args(**kwargs):
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Note: Result I/O isolation is handled globally by tests/conftest.py
+# (_isolate_results_io fixture with autouse=True). No module-level fixture needed.
+# ═══════════════════════════════════════════════════════════════════════════════
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

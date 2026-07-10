@@ -1,0 +1,10 @@
+# Hardware category defaults
+runner: ibm_deployment
+category: hardware
+seeds: [42]
+n_qubits: 10
+p_layers: 1
+topology: heavy_hex
+model: tfim
+h_min: 3.25
+h_max: 5.0

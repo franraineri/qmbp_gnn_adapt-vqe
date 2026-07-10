@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from qmbp_simulation.circuits import HVACircuitBuilder
-from qmbp_simulation.models import make_lattice
+from qmbp_simulation.models import VQEConfig, make_lattice
 
 
 class TestHVACircuitBuilder:
@@ -25,10 +25,18 @@ class TestHVACircuitBuilder:
         assert len(theta) == 4
         assert qc.num_parameters == 4
 
-    def test_p_greater_than_2_raises_value_error(self, small_lattice):
+    def test_p_greater_than_max_raises_value_error(self, small_lattice):
+        """p_layers above MAX_P_LAYERS is rejected by VQEConfig (not circuit builder)."""
+        from qmbp_simulation.models.constants import MAX_P_LAYERS
+
+        # Circuit builder allows any p (validation moved to VQEConfig)
         builder = HVACircuitBuilder()
-        with pytest.raises(ValueError, match="p_layers=3 exceeds"):
-            builder.create(4, 3, small_lattice)
+        qc, _ = builder.create(4, 3, small_lattice)
+        assert qc.num_parameters == 6  # 2 params/layer × 3 layers
+
+        # VQEConfig enforces the upper bound
+        with pytest.raises(ValueError, match="p_layers must be ≤"):
+            VQEConfig(p_layers=MAX_P_LAYERS + 1)
 
     def test_qubit_mismatch_raises(self):
         lattice = make_lattice("chain_1d", 4)

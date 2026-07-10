@@ -274,45 +274,66 @@ def _run_diagnose(args: argparse.Namespace) -> None:
     print(f"\n{'═' * 60}")
     print(f"  DIAGNOSIS{filter_desc}")
     print(f"{'═' * 60}")
-    print(
-        f"  Groups: {summary['total_groups']} | "
-        f"Healthy: {summary['healthy']} | "
-        f"Degraded: {summary['degraded']} | "
-        f"Failing: {summary['failing']}"
-    )
 
-    # Groups table
+    # Groups table (no emojis per row — clean output)
     print(f"\n  {'Config':<35} {'Health':<10} {'Rate':>6} {'Runs':>5}")
     print(f"  {'-' * 35} {'-' * 10} {'-' * 6} {'-' * 5}")
     for key, g in sorted(
         diag["groups"].items(),
         key=lambda kv: kv[1]["pass_rate"],
     ):
-        health_icon = {"healthy": "✅", "degraded": "⚠️", "failing": "❌"}.get(
-            g["health"], "?"
-        )
-        print(
-            f"  {key:<35} {health_icon} {g['health']:<7} "
-            f"{g['pass_rate']:>5.0%} {g['n_runs']:>5}"
-        )
+        print(f"  {key:<35} {g['health']:<10} {g['pass_rate']:>5.0%} {g['n_runs']:>5}")
 
     # Issues
     if diag["issues"]:
         print(f"\n  Issues ({len(diag['issues'])}):")
         for issue in diag["issues"][:10]:
-            print(f"    • {issue}")
+            print(f"    - {issue}")
 
     # Recommendations
     if diag["recommendations"]:
         print("\n  Recommendations:")
         for rec in diag["recommendations"]:
-            print(f"    → {rec}")
+            print(f"    > {rec}")
 
+    # Temporal drift analysis (new feature)
+    drift = idx.analyze_temporal_drift(model=args.model, topology=args.topology)
+    if drift["n_entries"] >= 4:
+        print(f"\n  {'─' * 56}")
+        print("  Temporal Analysis:")
+        print(f"    Date range:   {drift['date_range'][0]} to {drift['date_range'][1]}")
+        print(f"    Trend slope:  {drift['trend_slope']:+.4f} /window")
+        print(f"    Max drop:     {drift.get('max_single_drop', 0):.0%}")
+        if drift["breakpoint"]:
+            print(f"    Breakpoint:   {drift['breakpoint']} (largest single-window drop)")
+        if drift["regression_cluster"]:
+            rc = drift["regression_cluster"]
+            print(f"    Cluster:      {rc['n_regressions']} regressions on {rc['peak_date']}")
+        if drift["has_drift"]:
+            print("    DRIFT DETECTED — possible bug introduction at breakpoint date")
+        else:
+            print("    No significant temporal drift.")
+
+    # Summary statistics at the end (replaces per-row emojis)
+    print(f"\n  {'═' * 56}")
+    print("  Summary:")
+    print(
+        f"    Total groups: {summary['total_groups']}  |  "
+        f"Healthy: {summary['healthy']}  |  "
+        f"Degraded: {summary['degraded']}  |  "
+        f"Failing: {summary['failing']}"
+    )
+    total = summary["total_groups"]
+    if total > 0:
+        health_pct = summary["healthy"] / total
+        print(f"    Health rate:   {health_pct:.0%}")
     print()
 
     # JSON output if requested
     if args.json:
         import json
+
+        diag["temporal_drift"] = drift
         print(json.dumps(diag, indent=2))
 
 

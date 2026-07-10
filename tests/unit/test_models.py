@@ -155,9 +155,10 @@ class TestDataModelValidation:
 
     def test_vqe_config_rejects_p_layers_above_max(self):
         from qmbp_simulation.models import VQEConfig
+        from qmbp_simulation.models.constants import MAX_P_LAYERS
 
         with pytest.raises(ValueError, match="p_layers must be ≤"):
-            VQEConfig(p_layers=3)
+            VQEConfig(p_layers=MAX_P_LAYERS + 1)
 
     def test_vqe_config_rejects_ascending_sweep(self):
         from qmbp_simulation.models import VQEConfig

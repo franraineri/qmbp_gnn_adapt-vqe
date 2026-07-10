@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
 
 DEFAULT_EXPERIMENT_DIRS = [
     "exp_noiseless_heisenberg_transverse_v3",
@@ -153,6 +155,8 @@ def load_runs(dirs: list[Path]) -> list[dict[str, Any]]:
     Uses recursive glob (rglob) to support nested folder structures
     like exp_noiseless/tfim/heavy_hex/run_*.json.
     """
+    from qmbp_simulation.framework.result_io import load_result
+
     results = []
     seen_files: set[str] = set()
     for d in dirs:
@@ -168,16 +172,15 @@ def load_runs(dirs: list[Path]) -> list[dict[str, Any]]:
                 continue
             seen_files.add(abs_key)
             try:
-                with open(f) as fp:
-                    data = json.load(fp)
+                data = load_result(f)
                 data["_source_file"] = str(f.name)
                 data["_source_dir"] = d.name
                 data["_source_path"] = str(f)
                 results.append(data)
+            except (ValueError, OSError) as e:
+                print(f"  [ERROR] Cannot load {f.name}: {e}")
             except json.JSONDecodeError as e:
                 print(f"  [ERROR] Invalid JSON in {f.name}: {e}")
-            except OSError as e:
-                print(f"  [ERROR] Cannot read {f.name}: {e}")
     return results
 
 
@@ -257,7 +260,7 @@ def parse_run(data: dict[str, Any]) -> RunMetrics | None:
             deploy_corr_zz_error=s4_data.get("mean_corr_zz_error"),
         )
         return m
-    except (KeyError, TypeError, ValueError) as e:
+    except (KeyError, TypeError, ValueError, IndexError) as e:
         fname = data.get("_source_file", "unknown")
         print(f"  [ERROR] Failed to parse {fname}: {e}")
         return None

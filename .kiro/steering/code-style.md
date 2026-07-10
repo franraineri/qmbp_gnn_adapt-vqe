@@ -51,7 +51,9 @@ src/qmbp_simulation/
 │   ├── preflight.py       ← Pre-run validation (variants + experiments)
 │   ├── benchmarking.py    ← BenchmarkSuite, BenchmarkResult
 │   ├── variant_runner.py  ← PipelineVariant, RunResult, VariantRunner, run_variant_script
-│   └── runner_base.py     ← ValidationRunner, ExperimentRunner, VariantPipelineRunner
+│   ├── runner_base.py     ← ValidationRunner, ExperimentRunner, VariantPipelineRunner
+│   ├── artifact_store.py  ← ArtifactCollector, persist/load versioned artifacts
+│   └── artifact_serializers.py ← Serializer registry (QPY, PyTorch, NumPy, JSON)
 └── analysis/                ← Gradient analysis, diagnostics, comparison
     ├── gradient.py
     ├── diagnostics.py
@@ -189,6 +191,8 @@ from qmbp_simulation.framework import (
     # Runner bases (for all scripts/run_*.py)
     ExperimentRunner, ValidationRunner, VariantPipelineRunner,
     Section, SectionResult, resolve_project_root,
+    # Artifact store (versioned model/circuit persistence)
+    ArtifactCollector, load_artifact, load_manifest, find_artifacts_for_run,
 )
 ```
 

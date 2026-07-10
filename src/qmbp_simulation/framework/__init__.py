@@ -75,6 +75,17 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     VariantPipelineRunner,
 )
+from qmbp_simulation.framework.presets import (
+    list_presets,
+    load_preset,
+    preset_to_args,
+)
+from qmbp_simulation.framework.artifact_store import (
+    ArtifactCollector,
+    find_artifacts_for_run,
+    load_artifact,
+    load_manifest,
+)
 
 __all__ = [
     # Base
@@ -140,6 +151,10 @@ __all__ = [
     "HardwareValidationRunner",
     "Section",
     "SectionResult",
+    # Presets
+    "load_preset",
+    "list_presets",
+    "preset_to_args",
     # Preflight
     "PreflightChecker",
     "PreflightReport",
@@ -154,4 +169,9 @@ __all__ = [
     "specs_from_pipeline_variants",
     "specs_from_json",
     "specs_from_variant_runner",
+    # Artifact store
+    "ArtifactCollector",
+    "load_artifact",
+    "load_manifest",
+    "find_artifacts_for_run",
 ]

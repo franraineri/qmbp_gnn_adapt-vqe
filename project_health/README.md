@@ -7,6 +7,7 @@ Unified orchestration of analysis, diagnostics, figures, and reporting for the G
 | Command | Purpose |
 |---------|---------|
 | `python -m project_health` | Full health report (text/json/markdown/compact) |
+| `python -m project_health --diagnose` | Group-level failure diagnosis (with temporal drift) |
 | `python -m project_health.digest` | Result scanner by kind (noiseless/noisy/experiment/scaling/cross_topology) |
 | `python -m project_health.figures` | Figure generation (health + scaling figures, PNG/PDF) |
 | `python -m project_health.analysis.sanity_check` | Physics + data integrity checks |
@@ -86,9 +87,12 @@ project_health/
 │                              These are permanent re-exports used by Makefile and tests.
 │
 ├── cli/                      Auxiliary CLI tools
+│   ├── analyze_data_quality.py  Index health check: valid/borderline/garbage classification, --purge-garbage --yes
 │   ├── compare.py            Cross-experiment + ZNE technique comparison (--all/--noisy/--zne)
+│   ├── inspect_noiseless_run.py Per-h-point breakdown of noiseless pipeline results (--vqe-detail, --json)
 │   ├── inspect_results.py    Mitigation benchmark circuit audit (per-config, per-h)
-│   └── qpu_time_estimator.py QPU time estimation per circuit (IBM Kingston CLOPS model)
+│   ├── qpu_time_estimator.py QPU time estimation per circuit (IBM Kingston CLOPS model)
+│   └── query_index.py        Fast index queries: --stats, --coverage, --regressions, --suggest, --rebuild
 │
 ├── figures/                  Figure generation
 │   ├── __init__.py
@@ -169,6 +173,13 @@ from project_health.digest import ResultScanner, NoiselessResult, NoisyResult
 scanner = ResultScanner(Path("results"))
 noiseless, noisy, experiments = scanner.scan_all()
 scaling = scanner.scan_scaling()
+
+# ResultIndex diagnostics (fast metadata-based analysis)
+from qmbp_simulation.framework.result_index import ResultIndex
+idx = ResultIndex()
+idx.diagnose(model="tfim")                          # Group health classification
+idx.detect_regressions()                            # Median-based regression detection
+idx.analyze_temporal_drift(model="tfim", window_days=7)  # Date-correlated drift
 
 # Statistical tests
 from project_health.analysis.statistical_tests import paired_ttest, improvement_rate, effect_size_cohens_d

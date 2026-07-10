@@ -142,7 +142,6 @@ class ResultIndex:
         self._entries.append(summary)
         self._save()
 
-
     def query(
         self,
         *,
@@ -209,6 +208,59 @@ class ResultIndex:
         self._load_or_rebuild()
         return len(self._entries)
 
+    # ── Data quality filter ──────────────────────────────────────────────
+
+    @property
+    def valid_entries(self) -> list[dict[str, Any]]:
+        """Return only entries with sufficient metadata for analysis.
+
+        Excludes entries that are "garbage" — legacy runs from early
+        development (TEST, FAIL, NONE, XFAIL experiment_ids), runs
+        without proper topology/model/n_qubits, and zero-section runs.
+
+        Criteria for exclusion (ANY triggers exclusion):
+        - Empty or invalid topology ('' or '[]')
+        - Missing model name
+        - Missing or zero n_qubits
+        - Missing or zero p_layers
+        - Zero sections completed (crashed before any work)
+        - Experiment ID is a known test marker (TEST, FAIL, NONE, XFAIL, CNT)
+        - pass_rate is not a valid number in [0, 1]
+
+        Returns
+        -------
+        list[dict]
+            Filtered entries suitable for stats, coverage, regressions.
+        """
+        self._load_or_rebuild()
+        _GARBAGE_EXPERIMENT_IDS = {"TEST", "FAIL", "NONE", "XFAIL", "CNT", ""}
+
+        valid = []
+        for e in self._entries:
+            if not e.get("model"):
+                continue
+            if e.get("topology") in ("", "[]", None):
+                continue
+            if not e.get("n_qubits"):
+                continue
+            if not e.get("p_layers"):
+                continue
+            if e.get("n_sections", 0) <= 0:
+                continue
+            if e.get("experiment_id", "").upper() in _GARBAGE_EXPERIMENT_IDS:
+                continue
+            # Guard: pass_rate must be a valid float in [0, 1]
+            pr = e.get("pass_rate")
+            if pr is not None:
+                try:
+                    pr_f = float(pr)
+                    if not (0.0 <= pr_f <= 1.0):
+                        continue
+                except (ValueError, TypeError):
+                    continue
+            valid.append(e)
+        return valid
+
     # ── A1: Aggregate statistics ─────────────────────────────────────────
 
     def stats(self) -> dict[str, Any]:
@@ -216,27 +268,29 @@ class ResultIndex:
 
         Returns summary with: total_runs, n_passed, n_failed, best per config,
         models/topologies covered, date range.
+
+        Uses only valid entries (excludes garbage/legacy test data).
         """
-        self._load_or_rebuild()
-        if not self._entries:
+        valid = self.valid_entries
+        if not valid:
             return {"total_runs": 0}
 
-        n_passed = sum(1 for e in self._entries if e.get("passed"))
-        models = sorted(set(e.get("model", "") for e in self._entries if e.get("model")))
-        topologies = sorted(set(e.get("topology", "") for e in self._entries if e.get("topology")))
-        n_values = sorted(set(e.get("n_qubits", 0) for e in self._entries if e.get("n_qubits")))
-        timestamps = [e.get("timestamp", "") for e in self._entries if e.get("timestamp")]
+        n_passed = sum(1 for e in valid if e.get("passed"))
+        models = sorted(set(e.get("model", "") for e in valid if e.get("model")))
+        topologies = sorted(set(e.get("topology", "") for e in valid if e.get("topology")))
+        n_values = sorted(set(e.get("n_qubits", 0) for e in valid if e.get("n_qubits")))
+        timestamps = [e.get("timestamp", "") for e in valid if e.get("timestamp")]
 
         return {
-            "total_runs": len(self._entries),
+            "total_runs": len(valid),
             "n_passed": n_passed,
-            "n_failed": len(self._entries) - n_passed,
-            "pass_rate": n_passed / max(len(self._entries), 1),
+            "n_failed": len(valid) - n_passed,
+            "pass_rate": n_passed / max(len(valid), 1),
             "models": models,
             "topologies": topologies,
             "n_values": n_values,
             "date_range": [min(timestamps), max(timestamps)] if timestamps else [],
-            "total_compute_hours": sum(e.get("elapsed_s", 0) for e in self._entries) / 3600,
+            "total_compute_hours": sum(e.get("elapsed_s", 0) for e in valid) / 3600,
         }
 
     # ── A2: Deduplication ────────────────────────────────────────────────
@@ -297,8 +351,10 @@ class ResultIndex:
 
         # Known viable combinations (from documented findings)
         viable_configs = [
-            ("tfim", "chain_1d"), ("tfim", "heavy_hex"),
-            ("tfim_longitudinal", "chain_1d"), ("tfim_longitudinal", "heavy_hex"),
+            ("tfim", "chain_1d"),
+            ("tfim", "heavy_hex"),
+            ("tfim_longitudinal", "chain_1d"),
+            ("tfim_longitudinal", "heavy_hex"),
         ]
         target_n_values = [10, 16, 20]
 
@@ -306,9 +362,7 @@ class ResultIndex:
             for n in target_n_values:
                 runs = self.query(model=model, topology=topo, n_qubits=n)
                 if not runs:
-                    suggestions.append(
-                        f"NO DATA: {model} {topo} N={n} — never tested"
-                    )
+                    suggestions.append(f"NO DATA: {model} {topo} N={n} — never tested")
                 else:
                     best = max(runs, key=lambda r: r.get("pass_rate", 0))
                     rate = best.get("pass_rate", 0)
@@ -327,13 +381,17 @@ class ResultIndex:
 
         A regression is: latest run pass_rate < best previous pass_rate
         for the same (model, topology, N, p) config.
+
+        Uses only valid entries to avoid false positives from legacy/garbage data.
+        Compares against MEDIAN of previous runs (not outlier best) to reduce
+        false positives from one lucky run.
         """
-        self._load_or_rebuild()
+        valid = self.valid_entries
         from collections import defaultdict
 
         # Group by config
         groups: dict[str, list[dict]] = defaultdict(list)
-        for entry in self._entries:
+        for entry in valid:
             key = (
                 f"{entry.get('model', '')}|{entry.get('topology', '')}|"
                 f"{entry.get('n_qubits', '')}|{entry.get('p_layers', '')}"
@@ -344,25 +402,229 @@ class ResultIndex:
         for key, runs in groups.items():
             if len(runs) < 2:
                 continue
-            # Sort by timestamp
-            sorted_runs = sorted(runs, key=lambda r: r.get("timestamp", ""))
+            # Sort by timestamp (guard against missing/malformed timestamps)
+            sorted_runs = sorted(runs, key=lambda r: r.get("timestamp", "") or "")
             latest = sorted_runs[-1]
-            best_previous = max(sorted_runs[:-1], key=lambda r: r.get("pass_rate", 0))
+            previous_runs = sorted_runs[:-1]
+
+            # Use median of previous runs as baseline (robust to outliers)
+            prev_rates = sorted(r.get("pass_rate", 0) for r in previous_runs)
+            median_idx = len(prev_rates) // 2
+            median_rate = prev_rates[median_idx]
+            best_rate = max(prev_rates)
 
             latest_rate = latest.get("pass_rate", 0)
-            best_rate = best_previous.get("pass_rate", 0)
 
-            if latest_rate < best_rate - 0.05:  # 5% threshold
-                regressions.append({
-                    "config": key,
-                    "latest_pass_rate": latest_rate,
-                    "best_previous_pass_rate": best_rate,
-                    "delta": latest_rate - best_rate,
-                    "latest_file": latest.get("_file", ""),
-                    "best_file": best_previous.get("_file", ""),
-                })
+            # Regression = latest below median - threshold (not best)
+            if latest_rate < median_rate - 0.05:
+                regressions.append(
+                    {
+                        "config": key,
+                        "latest_pass_rate": latest_rate,
+                        "best_previous_pass_rate": best_rate,
+                        "median_previous_pass_rate": median_rate,
+                        "delta": latest_rate - median_rate,
+                        "latest_file": latest.get("_file", ""),
+                        "latest_timestamp": latest.get("timestamp", ""),
+                        "best_file": max(
+                            previous_runs,
+                            key=lambda r: r.get("pass_rate", 0),
+                        ).get("_file", ""),
+                        "n_previous_runs": len(previous_runs),
+                    }
+                )
 
         return regressions
+
+    # ── B5b: Temporal regression analysis ────────────────────────────────
+
+    def analyze_temporal_drift(
+        self,
+        *,
+        model: str | None = None,
+        topology: str | None = None,
+        window_days: int = 7,
+    ) -> dict[str, Any]:
+        """Analyze whether regressions correlate with time (temporal drift).
+
+        Groups runs by date windows and checks for systematic performance
+        degradation over time. Useful for detecting bugs introduced at a
+        specific point in time.
+
+        Parameters
+        ----------
+        model : str | None
+            Filter to a specific model (or all if None).
+        topology : str | None
+            Filter to a specific topology (or all if None).
+        window_days : int
+            Size of the time window (in days) for bucketing runs (default: 7).
+
+        Returns
+        -------
+        dict with:
+            - "has_drift": bool — whether significant temporal drift detected
+            - "windows": list of {date_start, date_end, n_runs, pass_rate}
+            - "trend_slope": float — pass_rate change per window (negative = degrading)
+            - "breakpoint": str | None — date where performance dropped most
+            - "correlation": float — Pearson-like time vs pass_rate correlation
+            - "regression_cluster": dict | None — if regressions cluster around a date
+        """
+        from collections import defaultdict
+        from datetime import datetime, timedelta
+
+        entries = self.valid_entries
+        if model:
+            entries = [e for e in entries if e.get("model") == model]
+        if topology:
+            entries = [e for e in entries if e.get("topology") == topology]
+
+        if len(entries) < 4:
+            return {
+                "has_drift": False,
+                "windows": [],
+                "trend_slope": 0.0,
+                "breakpoint": None,
+                "correlation": 0.0,
+                "regression_cluster": None,
+                "n_entries": len(entries),
+                "reason": "insufficient data (need >=4 entries)",
+            }
+
+        # Parse timestamps safely
+        dated_entries: list[tuple[datetime, dict]] = []
+        for e in entries:
+            ts = e.get("timestamp", "")
+            if not ts:
+                continue
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                dated_entries.append((dt, e))
+            except (ValueError, TypeError):
+                continue
+
+        if len(dated_entries) < 4:
+            return {
+                "has_drift": False,
+                "windows": [],
+                "trend_slope": 0.0,
+                "breakpoint": None,
+                "correlation": 0.0,
+                "regression_cluster": None,
+                "n_entries": len(dated_entries),
+                "reason": "insufficient dated entries (need >=4)",
+            }
+
+        dated_entries.sort(key=lambda x: x[0])
+        date_min = dated_entries[0][0]
+        date_max = dated_entries[-1][0]
+
+        # Bucket into time windows
+        window_delta = timedelta(days=window_days)
+        windows: list[dict[str, Any]] = []
+        current_start = date_min
+
+        while current_start <= date_max:
+            current_end = current_start + window_delta
+            bucket = [e for dt, e in dated_entries if current_start <= dt < current_end]
+            if bucket:
+                n_passed = sum(1 for e in bucket if e.get("passed"))
+                pass_rate = n_passed / len(bucket)
+                windows.append(
+                    {
+                        "date_start": current_start.strftime("%Y-%m-%d"),
+                        "date_end": current_end.strftime("%Y-%m-%d"),
+                        "n_runs": len(bucket),
+                        "pass_rate": round(pass_rate, 3),
+                        "n_passed": n_passed,
+                    }
+                )
+            current_start = current_end
+
+        if len(windows) < 2:
+            return {
+                "has_drift": False,
+                "windows": windows,
+                "trend_slope": 0.0,
+                "breakpoint": None,
+                "correlation": 0.0,
+                "regression_cluster": None,
+                "n_entries": len(dated_entries),
+                "reason": "only one time window",
+            }
+
+        # Compute trend: linear regression of pass_rate vs window index
+        n_w = len(windows)
+        x_vals = list(range(n_w))
+        y_vals = [w["pass_rate"] for w in windows]
+
+        x_mean = sum(x_vals) / n_w
+        y_mean = sum(y_vals) / n_w
+
+        # Slope via least squares
+        numerator = sum((x - x_mean) * (y - y_mean) for x, y in zip(x_vals, y_vals, strict=False))
+        denominator = sum((x - x_mean) ** 2 for x in x_vals)
+        slope = numerator / denominator if denominator > 0 else 0.0
+
+        # Pearson correlation
+        sy = sum((y - y_mean) ** 2 for y in y_vals)
+        correlation = numerator / (denominator * sy) ** 0.5 if denominator > 0 and sy > 0 else 0.0
+
+        # Detect breakpoint: largest single-window drop
+        max_drop = 0.0
+        breakpoint_date: str | None = None
+        for i in range(1, n_w):
+            drop = windows[i - 1]["pass_rate"] - windows[i]["pass_rate"]
+            if drop > max_drop:
+                max_drop = drop
+                breakpoint_date = windows[i]["date_start"]
+
+        # Check if regressions cluster temporally
+        regressions = self.detect_regressions()
+        if model:
+            regressions = [r for r in regressions if model in r.get("config", "")]
+        if topology:
+            regressions = [r for r in regressions if topology in r.get("config", "")]
+
+        regression_cluster: dict[str, Any] | None = None
+        if regressions:
+            reg_dates: list[str] = []
+            for r in regressions:
+                ts = r.get("latest_timestamp", "")
+                if ts:
+                    reg_dates.append(ts[:10])  # date portion only
+
+            if reg_dates:
+                # Count regressions per date
+                date_counts: dict[str, int] = defaultdict(int)
+                for d in reg_dates:
+                    date_counts[d] += 1
+
+                peak_date = max(date_counts, key=date_counts.get)  # type: ignore[arg-type]
+                if date_counts[peak_date] >= 2:
+                    regression_cluster = {
+                        "peak_date": peak_date,
+                        "n_regressions": date_counts[peak_date],
+                        "all_dates": dict(date_counts),
+                    }
+
+        # Drift threshold: slope < -0.05 per window (5% drop/week)
+        has_drift = slope < -0.05 or max_drop > 0.25
+
+        return {
+            "has_drift": has_drift,
+            "windows": windows,
+            "trend_slope": round(slope, 4),
+            "breakpoint": breakpoint_date if max_drop > 0.15 else None,
+            "max_single_drop": round(max_drop, 3),
+            "correlation": round(correlation, 3),
+            "regression_cluster": regression_cluster,
+            "n_entries": len(dated_entries),
+            "date_range": [
+                date_min.strftime("%Y-%m-%d"),
+                date_max.strftime("%Y-%m-%d"),
+            ],
+        }
 
     # ── B6: Time estimation ──────────────────────────────────────────────
 
@@ -405,14 +667,15 @@ class ResultIndex:
         """Generate a coverage matrix: (model, topology) → best status.
 
         Returns nested dict: matrix[model][topology] = "100% (N=20)" or "untested".
+        Uses only valid entries (excludes garbage/legacy data).
         """
-        self._load_or_rebuild()
+        valid = self.valid_entries
         from collections import defaultdict
 
         # Collect best pass_rate per (model, topology)
         best: dict[tuple[str, str], dict] = defaultdict(lambda: {"pass_rate": 0, "n": 0})
 
-        for entry in self._entries:
+        for entry in valid:
             model = entry.get("model", "")
             topo = entry.get("topology", "")
             if not model or not topo:
@@ -426,8 +689,8 @@ class ResultIndex:
                 best[key] = {"pass_rate": rate, "n": n}
 
         # Build matrix
-        models = sorted(set(k[0] for k in best.keys()))
-        topos = sorted(set(k[1] for k in best.keys()))
+        models = sorted(set(k[0] for k in best))
+        topos = sorted(set(k[1] for k in best))
         matrix: dict[str, dict[str, str]] = {}
         for model in models:
             matrix[model] = {}
@@ -496,10 +759,8 @@ class ResultIndex:
         """
         from collections import defaultdict
 
-        self._load_or_rebuild()
-
-        # Filter entries
-        entries = self._entries
+        # Use valid entries only (excludes garbage/legacy data)
+        entries = self.valid_entries
         if model:
             entries = [e for e in entries if e.get("model") == model]
         if topology:
@@ -549,14 +810,17 @@ class ResultIndex:
             if n == 1 and not runs[0].get("passed"):
                 group_issues.append("Single run, failed — retry with different seed")
 
-            # Detect regression within group
-            sorted_runs = sorted(runs, key=lambda r: r.get("timestamp", ""))
+            # Detect regression within group (use pass_rate, not binary passed)
+            sorted_runs = sorted(runs, key=lambda r: r.get("timestamp", "") or "")
             if len(sorted_runs) >= 2:
-                latest_rate = 1.0 if sorted_runs[-1].get("passed") else 0.0
-                prev_rates = [1.0 if r.get("passed") else 0.0 for r in sorted_runs[:-1]]
-                prev_avg = sum(prev_rates) / len(prev_rates)
-                if latest_rate < prev_avg - 0.3:
-                    group_issues.append("Latest run degraded vs history")
+                latest_run_rate = sorted_runs[-1].get("pass_rate", 0.0)
+                prev_run_rates = [r.get("pass_rate", 0.0) for r in sorted_runs[:-1]]
+                prev_avg = sum(prev_run_rates) / len(prev_run_rates)
+                if latest_run_rate < prev_avg - 0.2:
+                    group_issues.append(
+                        f"Latest run degraded vs history "
+                        f"({latest_run_rate:.0%} vs avg {prev_avg:.0%})"
+                    )
 
             group_diagnoses[key] = {
                 "n_runs": n,
@@ -666,9 +930,7 @@ class ResultIndex:
                 lines.append("")
 
             lines.append("---")
-            lines.append(
-                "*Generated by `ResultIndex.refresh_status()` from ResultIndex*"
-            )
+            lines.append("*Generated by `ResultIndex.refresh_status()` from ResultIndex*")
 
             # Write to steering file
             output_path = Path(".kiro") / "steering" / "project-status.md"

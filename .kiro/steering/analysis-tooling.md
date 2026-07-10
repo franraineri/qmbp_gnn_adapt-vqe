@@ -27,6 +27,9 @@ Need to...
 ├── Check what data exists?         → analysis/scan_coverage.py --discover
 ├── Find coverage gaps?             → analysis/scan_coverage.py --extended
 ├── Understand a failure?           → analysis/diagnose.py [path] [--all]
+├── Diagnose by group (quick)?     → python -m project_health --diagnose [--model X]
+├── Detect regressions?            → python project_health/cli/query_index.py --regressions
+├── Temporal drift (date-correlated)?→ python project_health/cli/query_index.py --temporal-drift
 ├── Compare experiments?            → scripts/compare.py [--all] [--category X]
 ├── Compare ZNE methods?            → project_health/compare.py --zne
 ├── Validate runner script?         → python scripts/preflight.py --from-script <path>

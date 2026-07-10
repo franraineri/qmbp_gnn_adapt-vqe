@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/qesem*,**/hardware/**,**/config.py,**/backends.py,scripts/recover_qesem*,scripts/convert_qesem*,scripts/estimate_qesem*,scripts/experiment_runners/hardware/**,tests/hardware/**,project_health/analysis/hardware/**"
+---
+
 # QESEM Integration — Architecture & Rules
 
 ## What is QESEM

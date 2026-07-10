@@ -1,0 +1,8 @@
+# Noisy category defaults
+runner: hardware_rehearsal
+category: noisy
+seeds: [42, 43, 44]
+n_qubits: 10
+p_layers: 1
+topology: heavy_hex
+model: tfim

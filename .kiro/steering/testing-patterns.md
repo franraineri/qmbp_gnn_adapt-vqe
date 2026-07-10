@@ -11,12 +11,12 @@ Tests live in `tests/` and use pytest. Run with `make test` (~8s) or `python -m 
 
 ### Fixture Hierarchy (conftest.py)
 
-- `builder` → `HamiltonianBuilder()` instance
-- `solver` → `ClassicalSolver()` instance
-- `hva` → `HVACircuitBuilder()` instance
-- `chain_6` → `LatticeConfig` for N=6 chain
-- `h_values_reduced` → 6-point h-grid for fast tests
-- `exact_data_reduced` → pre-computed ground truth for 6 points
+- `_isolate_results_io` → **GLOBAL, autouse=True** — redirects ALL `save_experiment_result()` calls to `tmp_path`. Prevents tests from polluting `results/experiments/` with garbage entries. Every test gets this automatically.
+- `seed_rng` → pins numpy/torch random seeds (autouse)
+- `small_lattice` → `LatticeConfig` for N=4 chain
+- `small_circuit` → N=4 p=1 HVA circuit
+- `noiseless_backend` → `NoiselessBackend()` instance
+- `mock_backend` → constant-energy backend for optimizer tests
 
 ### Test Classes
 
@@ -69,6 +69,8 @@ Tests live in `tests/` and use pytest. Run with `make test` (~8s) or `python -m 
 - Don't hardcode seeds in tests unless testing seed-specific behavior
 - Don't test against exact floating-point values — use tolerances
 - Don't import from `scripts/` in tests — test the `src/` modules directly
+- **Don't add module-level `_isolate_runner_output` fixtures** — the global `_isolate_results_io` in `tests/conftest.py` handles all result I/O isolation. Duplicate fixtures are redundant.
+- **Don't call `runner.run()` in tests without verifying the global isolation is active** — if you subclass `ValidationRunner` outside `tests/`, any `.run()` call writes real files.
 
 ## Adding New Tests
 

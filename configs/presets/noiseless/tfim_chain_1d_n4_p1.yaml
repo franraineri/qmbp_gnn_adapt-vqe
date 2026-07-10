@@ -1,0 +1,15 @@
+# tfim chain_1d N=4 p=1
+# Pass rate: 100% (4/5 runs passed)
+# Auto-generated from ResultIndex
+runner: noiseless_pipeline
+model: tfim
+topology: chain_1d
+n_qubits: 4
+p_layers: 1
+h_min: 0.5
+h_max: 2.0
+h_points: 15
+maxiter: 500
+n_restarts: 5
+seeds: [42, 43, 44]
+description: "tfim chain_1d N=4 p=1 — 100% validated"

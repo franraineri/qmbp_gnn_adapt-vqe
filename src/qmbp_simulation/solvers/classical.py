@@ -99,8 +99,8 @@ class ClassicalSolver:
         """Return the ground state eigenvector as a numpy array.
 
         Selects the best algorithm based on system size:
-          - N ≤ 15: dense ``np.linalg.eigh`` (full spectrum, instant)
-          - 15 < N ≤ 22: sparse Lanczos via ``scipy.sparse.linalg.eigsh``
+          - N ≤ 12: dense ``np.linalg.eigh`` (full spectrum, instant)
+          - 12 < N ≤ 22: sparse Lanczos via ``scipy.sparse.linalg.eigsh``
             using ``SparsePauliOp.to_matrix(sparse=True)``
           - N > 22: raises ValueError (use DMRG + MPS; no statevector available)
 
@@ -138,13 +138,21 @@ class ClassicalSolver:
                 f"Use DMRG (solve method) for energy/gap, skip fidelity for N>{STATEVECTOR_MAX_N}."
             )
 
-        if n <= EXACT_DIAG_QUBIT_LIMIT:
-            logger.debug("ground_state_vector: N=%d → dense eigh (exact)", n)
+        # Use sparse eigsh for N >= 13 (saves memory: sparse avoids 2^N × 2^N dense matrix)
+        _SPARSE_THRESHOLD = 13
+
+        if n < _SPARSE_THRESHOLD:
+            logger.debug("ground_state_vector: N=%d → dense eigh (2^%d matrix)", n, n)
             mat = np.asarray(hamiltonian.to_matrix())
             _, evecs = np.linalg.eigh(mat)
             return np.ascontiguousarray(evecs[:, 0])
         else:
-            logger.debug("ground_state_vector: N=%d → sparse eigsh (Lanczos)", n)
+            dim = 2**n
+            logger.info(
+                "ground_state_vector: N=%d → sparse eigsh (Lanczos, dim=%d)",
+                n,
+                dim,
+            )
             H_sparse = hamiltonian.to_matrix(sparse=True)
             try:
                 _, evecs = eigsh(H_sparse, k=1, which="SA")
@@ -316,21 +324,53 @@ class ClassicalSolver:
         obs_x: list[SparsePauliOp],
         obs_zz: list[SparsePauliOp],
     ) -> GroundTruthResult:
-        """Dense exact diagonalization via np.linalg.eigh.
+        """Exact diagonalization — dense for N≤12, sparse eigsh for N=13-15.
 
         Returns E₀, gap, ψ_gs, and bulk-averaged + per-site/per-bond observables.
         """
         h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))  # type: ignore[arg-type]
+        n = lattice.n_qubits
 
-        try:
-            mat = np.asarray(hamiltonian.to_matrix())
-            evals, evecs = np.linalg.eigh(mat)
-        except MemoryError:
-            return self._memory_fallback(hamiltonian, lattice, obs_x, obs_zz)
+        # Use sparse eigsh for N >= 13 (avoids 2^N × 2^N dense matrix)
+        _SPARSE_THRESHOLD = 13
 
-        psi_gs = np.ascontiguousarray(evecs[:, 0])
-        e0 = float(evals[0])
-        gap = float(evals[1] - evals[0])
+        if n < _SPARSE_THRESHOLD:
+            logger.debug("_solve_exact: N=%d → dense eigh (full spectrum)", n)
+            try:
+                mat = np.asarray(hamiltonian.to_matrix())
+                evals, evecs = np.linalg.eigh(mat)
+            except MemoryError:
+                return self._memory_fallback(hamiltonian, lattice, obs_x, obs_zz)
+
+            psi_gs = np.ascontiguousarray(evecs[:, 0])
+            e0 = float(evals[0])
+            gap = float(evals[1] - evals[0])
+        else:
+            from scipy.sparse.linalg import eigsh
+
+            logger.info(
+                "_solve_exact: N=%d → sparse eigsh (k=2, dim=%d) at h=%.4f",
+                n,
+                2**n,
+                h_val,
+            )
+            H_sparse = hamiltonian.to_matrix(sparse=True)
+            try:
+                evals, evecs = eigsh(H_sparse, k=2, which="SA")
+            except Exception as exc:
+                raise RuntimeError(
+                    f"Sparse eigsh failed for N={n} at h={h_val:.4f}. "
+                    f"Matrix: {H_sparse.shape[0]}×{H_sparse.shape[1]}, nnz={H_sparse.nnz}."
+                ) from exc
+
+            # Sort eigenvalues (eigsh doesn't guarantee order)
+            order = np.argsort(evals)
+            evals = evals[order]
+            evecs = evecs[:, order]
+
+            psi_gs = np.ascontiguousarray(evecs[:, 0])
+            e0 = float(evals[0])
+            gap = float(evals[1] - evals[0])
 
         # Physics guard: near-degeneracy makes ΔE/gap metrics meaningless.
         # Also detect non-finite eigenvalues (corrupted Hamiltonian).
@@ -621,25 +661,34 @@ class ClassicalSolver:
             # Only use the gap if e1 > e0 + tolerance
             if e1 > e0 + 1e-8:
                 gap = float(e1 - e0)
-        except Exception:
-            logger.warning("Could not compute gap via DMRG excitation.")
+                logger.debug(
+                    "DMRG gap via excitation: E1=%.8f, gap=%.6f at h=%.4f",
+                    e1,
+                    gap,
+                    h_val,
+                )
+        except Exception as exc:
+            logger.warning("Could not compute gap via DMRG excitation: %s", exc)
 
         # ── Analytical gap fallback for 1D TFIM ──────────────────────
         if gap == 0.0:
             if lattice.topology == "chain_1d":
-                # Analytical approximation: gap = 2|J - h| (exact in thermodynamic limit)
-                # with finite-size floor: gap >= 2*pi/N (minimum gap from dispersion)
-                gap = max(2 * abs(j_val - h_val), 2 * np.pi / n)
+                # Finite-size correction for 1D TFIM (open BC):
+                # Exact gap in thermodynamic limit: Δ_∞ = 2|J - h|
+                # Finite-size correction: Δ(N) ≈ Δ_∞ + π²·J/(N²·max(h,J))
+                # This is more accurate than bare 2|J-h| near h_c where Δ_∞→0
+                delta_inf = 2 * abs(j_val - h_val)
+                finite_size_correction = np.pi**2 * j_val / (n**2 * max(h_val, j_val))
+                gap = max(delta_inf + finite_size_correction, 2 * np.pi / n)
                 warnings.warn(
                     f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
-                    f"Using analytical gap={gap:.4f} (valid for 1D TFIM, "
-                    f"approximate near h_c=1.0).",
+                    f"Using analytical gap={gap:.4f} "
+                    f"(Δ_∞={delta_inf:.4f} + FS correction={finite_size_correction:.4f}).",
                     RuntimeWarning,
                     stacklevel=2,
                 )
             else:
                 # For non-1D topologies, use a conservative finite-size floor only.
-                # The 2|J-h| formula is NOT valid for ladder/triangular/kagome.
                 gap = 2 * np.pi / n
                 warnings.warn(
                     f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}, "

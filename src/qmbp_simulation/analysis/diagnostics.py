@@ -239,6 +239,82 @@ class DiagnosticCollector:
             # Log error with traceback, do not propagate
             self._log.exception(f"Error recording VQE point at h={h}")
 
+    # ── Phase 2 convergence events ──────────────────────────────────────
+
+    def record_vqe_convergence_event(
+        self,
+        h: float,
+        event_type: str,
+        *,
+        n_restarts_used: int = 0,
+        n_restarts_skipped: int = 0,
+        wall_clock_s: float = 0.0,
+        wall_clock_exceeded: bool = False,
+        stagnation_triggered: bool = False,
+        method: str = "L-BFGS-B",
+        n_params: int = 0,
+        maxfev_hit: bool = False,
+        best_energy: float | None = None,
+    ) -> None:
+        """Record VQE convergence/termination events for structured diagnostics.
+
+        Captures information about WHY VQE terminated (convergence, maxfev cap,
+        stagnation, wall-clock timeout) for post-hoc debugging of slow runs.
+
+        Parameters
+        ----------
+        h : float
+            Transverse field value.
+        event_type : str
+            One of: "converged", "maxiter_hit", "maxfev_hit", "stagnation_stop",
+            "wall_clock_warning", "nan_detected".
+        n_restarts_used : int
+            Number of restarts that improved the best energy.
+        n_restarts_skipped : int
+            Number of restarts skipped due to stagnation detection.
+        wall_clock_s : float
+            Wall-clock time for this h-point.
+        wall_clock_exceeded : bool
+            Whether the wall-clock limit was exceeded.
+        stagnation_triggered : bool
+            Whether stagnation early-stop fired.
+        method : str
+            Optimizer method used ("L-BFGS-B", "COBYLA", "Nelder-Mead").
+        n_params : int
+            Number of variational parameters.
+        maxfev_hit : bool
+            Whether the function evaluation cap was hit.
+        best_energy : float | None
+            Best energy found at this h-point.
+        """
+        try:
+            event = {
+                "h": float(h),
+                "event_type": event_type,
+                "method": method,
+                "n_params": n_params,
+                "n_restarts_used": n_restarts_used,
+                "n_restarts_skipped": n_restarts_skipped,
+                "wall_clock_s": round(wall_clock_s, 2),
+                "wall_clock_exceeded": wall_clock_exceeded,
+                "stagnation_triggered": stagnation_triggered,
+                "maxfev_hit": maxfev_hit,
+                "best_energy": float(best_energy) if best_energy is not None else None,
+            }
+
+            if not hasattr(self, "_vqe_convergence_events"):
+                self._vqe_convergence_events: list[dict] = []
+            self._vqe_convergence_events.append(event)
+
+            if self.verbose and event_type != "converged":
+                self._log.info(
+                    f"VQE event at h={h:.3f}: {event_type} "
+                    f"(method={method}, wall_clock={wall_clock_s:.1f}s, "
+                    f"restarts_used={n_restarts_used})"
+                )
+        except Exception:
+            self._log.exception(f"Error recording VQE convergence event at h={h}")
+
     # ── Phase 3 recording ────────────────────────────────────────────────
 
     def record_mpnn_epoch(
@@ -629,6 +705,7 @@ class DiagnosticCollector:
             "baseline_comparison": _to_json_safe(self._baseline_data),
             "vqe_validation": _to_json_safe(self._vqe_validation),
             "theta_validation": _to_json_safe(getattr(self, "_theta_validation_data", None)),
+            "vqe_convergence_events": _to_json_safe(getattr(self, "_vqe_convergence_events", [])),
         }
 
     # ── Checkpoint persistence ───────────────────────────────────────────

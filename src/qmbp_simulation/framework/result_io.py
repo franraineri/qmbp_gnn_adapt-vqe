@@ -23,11 +23,14 @@ Usage:
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from qmbp_simulation.utils.helpers import json_serialize
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_RESULTS_ROOT = Path("results/experiments")
 _DEFAULT_PIPELINE_ROOT = Path("results/pipeline")
@@ -155,6 +158,23 @@ def save_experiment_result(
         Path to the saved file.
     """
     root = results_dir or _DEFAULT_RESULTS_ROOT
+
+    # ── Guard: refuse to save empty/invalid envelopes ─────────────────────
+    # Prevents garbage from polluting the index. Interrupted runs with partial
+    # results are still saved (they have completed_sections > 0 or explicit
+    # interrupted=True flag).
+    results_dict = data.get("results", {})
+    is_interrupted = data.get("interrupted", False)
+    if not results_dict and not is_interrupted:
+        logger.warning(
+            "save_experiment_result: refusing to save envelope with zero sections "
+            f"(experiment_id={experiment_id!r}). This prevents index pollution. "
+            "If this is intentional, add at least one section result."
+        )
+        # Still return a path for API compatibility, but don't write the file
+        ts = timestamp or generate_timestamp()
+        return root / f"exp_{experiment_id.lower()}" / f"run_{ts}_REJECTED.json"
+
     exp_dir = root / f"exp_{experiment_id.lower()}"
     exp_dir.mkdir(parents=True, exist_ok=True)
 
@@ -175,6 +195,7 @@ def save_experiment_result(
     # Auto-update the result index with the new entry
     try:
         from qmbp_simulation.framework.result_index import ResultIndex
+
         index = ResultIndex(root=root)
         index.add_entry(filepath, data)
     except Exception:
@@ -313,9 +334,7 @@ def _write_json(data: dict[str, Any], path: Path) -> None:
     tmp_fd = None
     tmp_path = None
     try:
-        tmp_fd, tmp_path_str = tempfile.mkstemp(
-            dir=path.parent, suffix=".tmp", prefix=".run_"
-        )
+        tmp_fd, tmp_path_str = tempfile.mkstemp(dir=path.parent, suffix=".tmp", prefix=".run_")
         tmp_path = Path(tmp_path_str)
         with open(tmp_fd, "w", closefd=True) as f:
             tmp_fd = None  # Prevent double-close
@@ -334,6 +353,7 @@ def _write_json(data: dict[str, Any], path: Path) -> None:
             tmp_path.unlink()
         if tmp_fd is not None:
             import os
+
             os.close(tmp_fd)
         raise
 

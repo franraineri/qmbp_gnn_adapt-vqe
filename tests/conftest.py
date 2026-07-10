@@ -12,6 +12,28 @@ from qmbp_simulation.execution import ExecutionBackend, NoiselessBackend
 from qmbp_simulation.models import LatticeConfig, make_lattice
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Result I/O Isolation (GLOBAL — prevents all tests from polluting real index)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _isolate_results_io(tmp_path, monkeypatch):
+    """Redirect ALL result saves to tmp_path during tests.
+
+    This is the GLOBAL barrier that prevents test runners (TEST, FAIL,
+    CNT, NONE, XFAIL, etc.) from writing to results/experiments/ and
+    polluting the ResultIndex with garbage entries.
+
+    Applied to every test automatically via autouse=True at the top-level
+    conftest.py (session-wide scope).
+    """
+    monkeypatch.setattr(
+        "qmbp_simulation.framework.result_io._DEFAULT_RESULTS_ROOT",
+        tmp_path / "experiments",
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Reproducibility
 # ─────────────────────────────────────────────────────────────────────────────
 

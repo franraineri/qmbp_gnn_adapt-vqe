@@ -103,87 +103,35 @@ class NoiselessPipelineRunner(ValidationRunner):
 
     @classmethod
     def _add_custom_args(cls, parser):
-        parser.add_argument(
-            "--n-qubits",
-            type=int,
-            default=DEFAULT_N,
-            help=f"System size, max {STATEVECTOR_MAX_N} (default: %(default)s)",
+        cls._add_standard_physics_args(
+            parser,
+            n_qubits=DEFAULT_N,
+            p_layers=DEFAULT_P,
+            topology=DEFAULT_TOPOLOGY,
+            model=DEFAULT_MODEL,
+            h_min=DEFAULT_H_MIN,
+            h_max=DEFAULT_H_MAX,
+            h_points=DEFAULT_H_POINTS,
+            seeds=list(DEFAULT_SEEDS),
+            maxiter=DEFAULT_MAXITER,
+            n_restarts=DEFAULT_N_RESTARTS,
         )
         parser.add_argument(
-            "--p-layers",
-            type=int,
-            default=DEFAULT_P,
-            choices=[1, 2, 3, 4, 5, 6],
-            help="HVA circuit depth (default: %(default)s)",
+            "--no-bidirectional",
+            action="store_true",
+            default=False,
+            help="Skip the ascending bidirectional pass. "
+            "Auto-enabled for N>=16 (diminishing returns, 2x cost savings).",
         )
         parser.add_argument(
-            "--topology",
-            type=str,
-            nargs="+",
-            default=[DEFAULT_TOPOLOGY],
-            help="Lattice topology(ies) (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--model",
-            type=str,
-            default=DEFAULT_MODEL,
-            help="Model from registry: tfim, tfim_longitudinal, tfim_frustrated, "
-            "heisenberg, xy, tfim_bond_resolved (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--model-params",
-            type=str,
-            default=None,
-            help="Model-specific parameters as key=value pairs, comma-separated. "
-            "E.g. --model-params g=0.3 for tfim_longitudinal, "
-            "or --model-params J2=0.5 for tfim_frustrated",
-        )
-        parser.add_argument(
-            "--h-min",
-            type=float,
-            default=DEFAULT_H_MIN,
-            help="Minimum h value (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--h-max",
-            type=float,
-            default=DEFAULT_H_MAX,
-            help="Maximum h value (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--h-points",
-            type=int,
-            default=DEFAULT_H_POINTS,
-            help="Number of h-points in sweep (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--seeds",
-            type=int,
-            nargs="+",
-            default=DEFAULT_SEEDS,
-            help="Random seeds (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--maxiter",
-            type=int,
-            default=DEFAULT_MAXITER,
-            help="VQE optimizer maxiter per restart (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--n-restarts",
-            type=int,
-            default=DEFAULT_N_RESTARTS,
-            help="VQE restarts per h-point (default: %(default)s)",
-        )
-        parser.add_argument(
-            "--output",
-            type=str,
-            default=None,
-            help="Output directory (default: results/noiseless/)",
+            "--force-bidirectional",
+            action="store_true",
+            default=False,
+            help="Force the bidirectional pass even for N>=16. Overrides the automatic skip.",
         )
 
     def run_preflight(self) -> bool:
-        """Validate N ≤ 22 and descending sweep."""
+        """Validate configuration before execution."""
         n = self._args.n_qubits
         if n > STATEVECTOR_MAX_N:
             logger.error(
@@ -194,13 +142,27 @@ class NoiselessPipelineRunner(ValidationRunner):
         if n < 2:
             logger.error(f"N={n} too small. Minimum is 2.")
             return False
-        p = self._args.p_layers
-        # if p > 2:
-        #     logger.error(f"p={p} violates HVA constraint (max p=2).")
-        #     return False
         if self._args.h_min >= self._args.h_max:
-            logger.error("h_min must be < h_max.")
+            logger.error(f"h_min ({self._args.h_min}) must be < h_max ({self._args.h_max}).")
             return False
+        if self._args.h_points < 3:
+            logger.error(
+                f"h_points={self._args.h_points} too few. Minimum is 3 "
+                f"(need at least 3 points for meaningful VQE sweep + MPNN training)."
+            )
+            return False
+        if self._args.h_min < 0:
+            logger.error(f"h_min={self._args.h_min} invalid. Must be >= 0.")
+            return False
+        if self._args.h_max <= 0:
+            logger.error(f"h_max={self._args.h_max} invalid. Must be > 0.")
+            return False
+        if self._args.h_points < 5:
+            logger.warning(
+                f"h_points={self._args.h_points} is very low. "
+                f"MPNN training requires at least 5 points for meaningful interpolation. "
+                f"Consider using --h-points 10 or more."
+            )
         return True
 
     def build_config(self) -> dict:
@@ -256,16 +218,12 @@ class NoiselessPipelineRunner(ValidationRunner):
         )
 
         # Parse model params (e.g. "g=0.3" or "J2=0.5,g=0.1")
-        self._model_params: dict[str, float] = {}
-        if self._args.model_params:
-            for pair in self._args.model_params.split(","):
-                key, val = pair.strip().split("=")
-                self._model_params[key.strip()] = float(val.strip())
-            logger.info(f"  Model params override: {self._model_params}")
+        self.parse_model_params()
 
         # Set experiment_id dynamically based on model + topology for organized output.
         # Structure: results/experiments/exp_noiseless/{model}/{topology}/run_*.json
         from qmbp_simulation.framework.result_io import build_experiment_id
+
         self.experiment_id = build_experiment_id(
             category="noiseless",
             model=self._args.model,
@@ -273,28 +231,10 @@ class NoiselessPipelineRunner(ValidationRunner):
         )
 
         # Compute h-grid (descending for warm-start)
-        # Use non-uniform grid with denser sampling near criticality
-        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
-
-        # Estimate h_critical based on model (TFIM: ~1.0, others: midpoint)
-        h_crit_estimates = {
-            "tfim": 1.0,
-            "tfim_longitudinal": 1.0,
-            "tfim_frustrated": 1.5,
-            "heisenberg_transverse": 2.5,
-        }
-        h_crit = h_crit_estimates.get(self._args.model, (self._args.h_min + self._args.h_max) / 2)
-
-        self._h_values = generate_nonuniform_h_grid(
-            h_min=self._args.h_min,
-            h_max=self._args.h_max,
-            n_points=self._args.h_points,
-            h_critical=h_crit,
-            dense_fraction=0.4,
-            dense_radius=0.5,
-        ).tolist()
+        self._h_values = self.generate_h_grid()
         logger.info(
-            f"  📐 Non-uniform h-grid: {self._args.h_points} points, dense near h_c≈{h_crit:.1f}"
+            f"  📐 Non-uniform h-grid: {len(self._h_values)} points, "
+            f"dense near h_c≈{self.H_CRITICAL_ESTIMATES.get(self._args.model, '?')}"
         )
 
         # Shared state across sections
@@ -345,11 +285,11 @@ class NoiselessPipelineRunner(ValidationRunner):
                     )
 
     def _get_spec(self):
-        """Get model spec with any --model-params applied."""
-        spec = self.get_model_spec(self._args.model)
-        if self._model_params:
-            spec = spec.with_params(**self._model_params)
-        return spec
+        """Get model spec with any --model-params applied.
+
+        Delegates to base class get_spec() which handles parse + override.
+        """
+        return self.get_spec()
 
     @staticmethod
     def _compute_entanglement_entropy(statevector: np.ndarray, n_qubits: int) -> float:
@@ -379,13 +319,24 @@ class NoiselessPipelineRunner(ValidationRunner):
             },
         )
 
-    def _load_vqe_checkpoint(self, topology: str) -> tuple[list[dict], np.ndarray] | None:
+    def _load_vqe_checkpoint(
+        self, topology: str, n_params: int | None = None
+    ) -> tuple[list[dict], np.ndarray] | None:
         """Load VQE checkpoint for a topology if one exists.
+
+        Parameters
+        ----------
+        topology : str
+            Topology name used as checkpoint key.
+        n_params : int | None
+            Expected number of parameters. If provided, validates the
+            checkpoint data matches. Stale checkpoints from previous runs
+            with different p_layers are discarded with a warning.
 
         Returns
         -------
         tuple[list[dict], np.ndarray] | None
-            (results_so_far, current_theta) if checkpoint found, else None.
+            (results_so_far, current_theta) if checkpoint found and valid, else None.
         """
         cp = self.load_checkpoint(f"vqe_{topology}")
         if cp is None:
@@ -393,9 +344,39 @@ class NoiselessPipelineRunner(ValidationRunner):
         try:
             results = cp["results"]
             theta = np.array(cp["current_theta"])
+
+            # Validate parameter count if expected n_params provided
+            if n_params is not None and len(theta) != n_params:
+                logger.warning(
+                    "    ⚠️  Stale checkpoint for %s: param count mismatch "
+                    "(checkpoint has %d, current run expects %d). "
+                    "Discarding checkpoint — VQE will restart from scratch.",
+                    topology,
+                    len(theta),
+                    n_params,
+                )
+                # Remove the stale checkpoint to avoid re-loading it
+                self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+                return None
+
+            # Also validate theta_opt in results if any exist
+            if results and n_params is not None:
+                first_theta = results[0].get("theta_opt")
+                if first_theta is not None and len(first_theta) != n_params:
+                    logger.warning(
+                        "    ⚠️  Stale checkpoint for %s: results theta_opt has %d params, "
+                        "expected %d. Discarding.",
+                        topology,
+                        len(first_theta),
+                        n_params,
+                    )
+                    self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+                    return None
+
             logger.info(
                 "    Resuming VQE: %d/%d points already computed",
-                cp["n_completed"], len(self._h_values),
+                cp["n_completed"],
+                len(self._h_values),
             )
             return results, theta
         except (KeyError, TypeError) as e:
@@ -405,6 +386,59 @@ class NoiselessPipelineRunner(ValidationRunner):
     def _cleanup_vqe_checkpoints(self) -> None:
         """Remove VQE checkpoint files after successful section completion."""
         self.cleanup_checkpoints(pattern="vqe_*")
+
+    def _try_load_mpnn_checkpoint(self):
+        """Attempt to load a saved MPNN checkpoint matching current config.
+
+        Uses the same fingerprint hash as section_mpnn_train to find a
+        matching checkpoint. Validates output_dim matches expected n_params.
+
+        Returns
+        -------
+        MPNNPredictor | None
+            Loaded model if a valid checkpoint exists, else None.
+        """
+        import hashlib
+
+        from qmbp_simulation.predictors import load_mpnn_checkpoint
+
+        N = self._args.n_qubits
+        p = self._args.p_layers
+        model = self._args.model
+        topo = self._args.topology[0]
+
+        # Reconstruct fingerprint
+        n_h_points = len(self._h_values)
+        fp_str = f"{model}_{topo}_{N}_{p}_{n_h_points}"
+        fp_hash = hashlib.md5(fp_str.encode()).hexdigest()[:8]
+        mpnn_ckpt_dir = self._checkpoint_dir() / "mpnn_checkpoints"
+        mpnn_ckpt_path = mpnn_ckpt_dir / f"mpnn_{topo}_n{N}_p{p}_{fp_hash}.pt"
+
+        if not mpnn_ckpt_path.exists():
+            logger.debug("    No MPNN checkpoint found at %s", mpnn_ckpt_path)
+            return None
+
+        try:
+            loaded_model = load_mpnn_checkpoint(mpnn_ckpt_path)
+            # Validate output dimension matches current config
+            spec = self._get_spec()
+            expected_params = spec.total_params_for_p(p)
+            if hasattr(loaded_model, "output_dim") and loaded_model.output_dim != expected_params:
+                logger.warning(
+                    "    ⚠️  MPNN checkpoint output_dim=%d != expected %d. Discarding.",
+                    loaded_model.output_dim,
+                    expected_params,
+                )
+                return None
+            logger.info(
+                "    ♻️  Loaded MPNN checkpoint: %s (output_dim=%d)",
+                mpnn_ckpt_path.name,
+                expected_params,
+            )
+            return loaded_model
+        except Exception as e:
+            logger.warning("    ⚠️  MPNN checkpoint load failed: %s", e)
+            return None
 
     def define_sections(self) -> list[Section]:
         return [
@@ -491,6 +525,12 @@ class NoiselessPipelineRunner(ValidationRunner):
                 logger.info(f"    ✓ Phase 1 validation passed ({len(gt_objects)} points)")
 
             self._ground_truth[topo] = topo_results
+
+            # Cache ground state vectors for Section 2 fidelity (avoids re-computing eigsh)
+            # Only available for N ≤ STATEVECTOR_MAX_N (solver stores ψ_gs for N≤15)
+            if not hasattr(self, "_cached_ground_states"):
+                self._cached_ground_states: dict[str, list[np.ndarray | None]] = {}
+            self._cached_ground_states[topo] = [gt.ground_state for gt in gt_objects]
             all_results[topo] = {
                 "n_points": len(topo_results),
                 "e_min": min(r["energy"] for r in topo_results),
@@ -531,6 +571,12 @@ class NoiselessPipelineRunner(ValidationRunner):
     def section_vqe(self) -> dict:
         """Run descending warm-start VQE for all topologies using VQEOptimizer."""
         from qmbp_simulation import VQEConfig, VQEOptimizer
+        from qmbp_simulation.optimizers.sweep_strategies import (
+            AdaptiveRestartConfig,
+            SelectiveAscendingConfig,
+            compute_adaptive_restarts,
+            select_suspicious_points,
+        )
 
         N = self._args.n_qubits
         p = self._args.p_layers
@@ -540,7 +586,22 @@ class NoiselessPipelineRunner(ValidationRunner):
         maxiter = self._args.maxiter
         n_restarts = self._args.n_restarts
 
-        # Configure VQE via VQEConfig
+        # Adaptive restart config (uses n_restarts as max, reduces for easy points)
+        h_crit = self.H_CRITICAL_ESTIMATES.get(model)
+        adaptive_cfg = AdaptiveRestartConfig(
+            base_restarts=max(1, n_restarts // 3),
+            max_restarts=n_restarts,
+            critical_restarts=max(2, n_restarts // 2),
+            h_critical=h_crit,
+        )
+
+        # Selective ascending config
+        selective_asc_cfg = SelectiveAscendingConfig(
+            de_gap_threshold=0.02,
+            include_neighbors=True,
+        )
+
+        # Configure VQE via VQEConfig (uses max restarts — adaptive overrides per-point)
         vqe_config = VQEConfig(
             p_layers=p,
             n_restarts=n_restarts,
@@ -571,7 +632,7 @@ class NoiselessPipelineRunner(ValidationRunner):
 
             # ── Resume from checkpoint if available ────────────────────────
             start_idx = 0
-            checkpoint = self._load_vqe_checkpoint(topo)
+            checkpoint = self._load_vqe_checkpoint(topo, n_params=n_params)
             if checkpoint is not None:
                 topo_results, prev_theta = checkpoint
                 start_idx = len(topo_results)
@@ -593,8 +654,21 @@ class NoiselessPipelineRunner(ValidationRunner):
                 else:
                     e_exact, gap = self.exact_ground_state(topo, N, h, model=model)
 
-                # Get ground state vector for fidelity
-                gs = self.solver.ground_state_vector(H)
+                # Get ground state vector for fidelity (use cache from Section 1 if available)
+                cached_gs = getattr(self, "_cached_ground_states", {}).get(topo, [])
+                if cached_gs and idx < len(cached_gs) and cached_gs[idx] is not None:
+                    gs = cached_gs[idx]
+                else:
+                    gs = self.solver.ground_state_vector(H)
+
+                # Adaptive restarts: adjust n_restarts based on prev point quality
+                prev_de_gap = topo_results[-1]["de_gap"] if topo_results else None
+                adaptive_n_restarts = compute_adaptive_restarts(
+                    h,
+                    prev_de_gap=prev_de_gap,
+                    config=adaptive_cfg,
+                )
+                optimizer.config.n_restarts = adaptive_n_restarts
 
                 # Run VQE via VQEOptimizer (handles multi-restart + warm-start)
                 # Backend.compute_fidelity() handles N>15 via fast MPS path.
@@ -658,57 +732,105 @@ class NoiselessPipelineRunner(ValidationRunner):
                 self._save_vqe_checkpoint(topo, topo_results, prev_theta)
 
             # ── Bidirectional warm-start: ascending pass ──────────────────────
-            # Re-visit all points from h_min→h_max with warm-start propagation.
+            # Re-visit suspicious points from h_min→h_max with warm-start.
             # Keep the result with lower energy at each point.
-            logger.info("    🔄 Bidirectional sweep: running ascending pass...")
-            asc_theta = topo_results[-1]["theta_opt"] if topo_results else prev_theta
-            if isinstance(asc_theta, list):
-                asc_theta = np.array(asc_theta)
+            # Skip for N>=16 (diminishing returns, saves ~50% runtime).
+            skip_bidir = self._args.no_bidirectional or (
+                N >= 16 and not self._args.force_bidirectional
+            )
             n_improved = 0
 
-            for idx in range(len(self._h_values) - 2, -1, -1):
-                # Walk backwards through topo_results (ascending in h)
-                h = self._h_values[idx]
-                lattice_h = self.make_lattice(topo, N, J=1.0, h=h)
-                H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
-
-                gt = self._ground_truth.get(topo, [])
-                e_exact = gt[idx]["energy"] if gt and idx < len(gt) else None
-                gs = None
-                if e_exact is not None:
-                    gs = self.solver.ground_state_vector(H)
-
-                vqe_asc = optimizer.optimize(
-                    hamiltonian=H,
-                    circuit=circuit,
-                    initial_guess=asc_theta,
-                    exact_energy=e_exact,
-                    exact_state=gs,
-                )
-
-                # Keep if better energy
-                if vqe_asc.energy < topo_results[idx]["energy_vqe"]:
-                    gap = topo_results[idx]["gap"]
-                    sv_asc_data = self._vqe_backend.get_statevector(circuit, vqe_asc.theta_opt)
-                    ent_asc = self._compute_entanglement_entropy(sv_asc_data, N)
-                    de_gap = abs(vqe_asc.energy - e_exact) / max(gap, 1e-10) if e_exact else 0
-
-                    topo_results[idx]["energy_vqe"] = vqe_asc.energy
-                    topo_results[idx]["theta_opt"] = vqe_asc.theta_opt.tolist()
-                    topo_results[idx]["fidelity"] = vqe_asc.fidelity
-                    topo_results[idx]["de_gap"] = de_gap
-                    topo_results[idx]["entanglement_entropy"] = ent_asc
-                    n_improved += 1
-
-                asc_theta = np.array(topo_results[idx]["theta_opt"])
-
-            if n_improved > 0:
-                logger.info(
-                    f"    🔄 Bidirectional result: {n_improved}/{len(self._h_values)} "
-                    f"points improved by ascending pass."
-                )
+            if skip_bidir:
+                if N >= 16 and not self._args.no_bidirectional:
+                    logger.info(
+                        "    ⏭️  Skipping bidirectional pass (N=%d ≥ 16, auto-disabled for speed)", N
+                    )
+                else:
+                    logger.info("    ⏭️  Skipping bidirectional pass (--no-bidirectional)")
             else:
-                logger.info("    🔄 Bidirectional result: no improvements from ascending pass.")
+                # Selective: only re-optimize points with ΔE/gap > threshold
+                target_indices, asc_report = select_suspicious_points(
+                    topo_results,
+                    config=selective_asc_cfg,
+                )
+
+                if not target_indices:
+                    logger.info("    🔄 Ascending pass: no suspicious points (all ΔE/gap < 2%)")
+                else:
+                    n_targeted = asc_report.n_targeted
+                    n_suspicious = asc_report.n_suspicious
+                    mode = "full" if asc_report.fell_back_to_full else "selective"
+                    logger.info(
+                        f"    🔄 Ascending pass ({mode}): targeting "
+                        f"{n_targeted}/{len(topo_results)} points "
+                        f"({n_suspicious} suspicious + neighbors)"
+                    )
+
+                    asc_theta = topo_results[-1]["theta_opt"] if topo_results else prev_theta
+                    if isinstance(asc_theta, list):
+                        asc_theta = np.array(asc_theta)
+
+                    # Build a map of current theta for propagation
+                    # Walk in ascending h order (high index → low index)
+                    for idx in target_indices:
+                        # Propagate theta from the nearest lower-h neighbor
+                        if idx < len(topo_results) - 1:
+                            asc_theta = np.array(topo_results[idx + 1]["theta_opt"])
+
+                        h = self._h_values[idx]
+                        lattice_h = self.make_lattice(topo, N, J=1.0, h=h)
+                        H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
+
+                        gt = self._ground_truth.get(topo, [])
+                        e_exact = gt[idx]["energy"] if gt and idx < len(gt) else None
+                        gs = None
+                        if e_exact is not None:
+                            gs = self.solver.ground_state_vector(H)
+
+                        # Use fewer restarts for ascending (warm-start is already good)
+                        optimizer.config.n_restarts = max(1, adaptive_cfg.base_restarts)
+
+                        vqe_asc = optimizer.optimize(
+                            hamiltonian=H,
+                            circuit=circuit,
+                            initial_guess=asc_theta,
+                            exact_energy=e_exact,
+                            exact_state=gs,
+                        )
+
+                        # Keep if better energy (with meaningful improvement threshold)
+                        energy_improvement = topo_results[idx]["energy_vqe"] - vqe_asc.energy
+                        if energy_improvement > 1e-8:
+                            old_de_gap = topo_results[idx]["de_gap"]
+                            old_energy = topo_results[idx]["energy_vqe"]
+                            gap = topo_results[idx]["gap"]
+                            sv_asc_data = self._vqe_backend.get_statevector(
+                                circuit, vqe_asc.theta_opt
+                            )
+                            ent_asc = self._compute_entanglement_entropy(sv_asc_data, N)
+                            de_gap = (
+                                abs(vqe_asc.energy - e_exact) / max(gap, 1e-10) if e_exact else 0
+                            )
+
+                            topo_results[idx]["energy_vqe"] = vqe_asc.energy
+                            topo_results[idx]["theta_opt"] = vqe_asc.theta_opt.tolist()
+                            topo_results[idx]["fidelity"] = vqe_asc.fidelity
+                            topo_results[idx]["de_gap"] = de_gap
+                            topo_results[idx]["entanglement_entropy"] = ent_asc
+                            n_improved += 1
+                            logger.info(
+                                f"      ↑ h={h:.4f}: ΔE/gap {old_de_gap:.2e} → {de_gap:.2e} "
+                                f"(ΔE={old_energy - vqe_asc.energy:.6f})"
+                            )
+
+                        asc_theta = np.array(topo_results[idx]["theta_opt"])
+
+                    if n_improved > 0:
+                        logger.info(
+                            f"    🔄 Ascending result: {n_improved}/{n_targeted} points improved."
+                        )
+                    else:
+                        logger.info("    🔄 Ascending result: no improvements.")
 
             # Topology-level summary
             self._vqe_results[topo] = topo_results
@@ -770,6 +892,25 @@ class NoiselessPipelineRunner(ValidationRunner):
 
         # Clean up checkpoints on successful VQE completion
         self._cleanup_vqe_checkpoints()
+
+        # Register theta_opt array as artifact (all h-points × all params)
+        for topo_name, topo_data in self._vqe_results.items():
+            if topo_data:
+                theta_array = np.array([r["theta_opt"] for r in topo_data])
+                h_array = np.array([r["h"] for r in topo_data])
+                self.artifacts.register(
+                    f"theta_opt_{topo_name}",
+                    {
+                        "theta_opt": theta_array,
+                        "h_values": h_array,
+                    },
+                    format="npz",
+                    metadata={
+                        "topology": topo_name,
+                        "n_points": len(topo_data),
+                        "n_params": theta_array.shape[1] if len(theta_array.shape) > 1 else 0,
+                    },
+                )
 
         return {"pass": overall_pass, "topologies": all_results}
 
@@ -1042,6 +1183,63 @@ class NoiselessPipelineRunner(ValidationRunner):
         self._mpnn_model = predictor
         self._mpnn_train_loss = final_mse
 
+        # ── Register artifacts for versioned persistence ──────────────
+        self.artifacts.register(
+            "mpnn_model",
+            predictor,
+            format="pt",
+            metadata={
+                "n_qubits": N,
+                "p_layers": p,
+                "model": model,
+                "topology": topo,
+                "n_training_points": len(h_values),
+                "final_mse": float(final_mse),
+            },
+        )
+        self.artifacts.register(
+            "training_data",
+            {
+                "h_values": h_values if isinstance(h_values, np.ndarray) else np.array(h_values),
+                "theta_opt": theta_opt_array,
+                "e_exact": e_exact_array,
+            },
+            format="npz",
+            metadata={"n_points": len(h_values), "n_params": n_output},
+        )
+
+        # Register circuit (built earlier in section)
+        self.artifacts.register(
+            "circuit",
+            circuit,
+            format="qpy",
+            metadata={
+                "n_qubits": N,
+                "p_layers": p,
+                "topology": topo,
+                "n_params": n_output,
+            },
+        )
+
+        # ── Save MPNN checkpoint with config fingerprint ──────────────
+        # Allows Section 4 to load a trained MPNN without re-training
+        # if the run is resumed and Section 3 was already completed.
+        try:
+            import hashlib
+
+            from qmbp_simulation.predictors import save_mpnn_checkpoint
+
+            # Fingerprint: model + topology + n_qubits + p_layers + n_h_points
+            fp_str = f"{model}_{topo}_{N}_{p}_{len(h_values)}"
+            fp_hash = hashlib.md5(fp_str.encode()).hexdigest()[:8]
+            mpnn_ckpt_dir = self._checkpoint_dir() / "mpnn_checkpoints"
+            mpnn_ckpt_dir.mkdir(parents=True, exist_ok=True)
+            mpnn_ckpt_path = mpnn_ckpt_dir / f"mpnn_{topo}_n{N}_p{p}_{fp_hash}.pt"
+            save_mpnn_checkpoint(predictor, mpnn_ckpt_path)
+            logger.info(f"    💾 MPNN checkpoint saved: {mpnn_ckpt_path.name}")
+        except Exception as e:
+            logger.debug(f"    MPNN checkpoint save failed (non-fatal): {e}")
+
         # ── Record diagnostics via DiagnosticCollector ────────────────
 
         # Record per-epoch loss (every 10th to limit storage)
@@ -1117,6 +1315,10 @@ class NoiselessPipelineRunner(ValidationRunner):
         from torch_geometric.data import Data
 
         from qmbp_simulation import HamiltonianBuilder
+
+        # Try loading MPNN from checkpoint if not in memory (e.g., after --resume)
+        if self._mpnn_model is None:
+            self._mpnn_model = self._try_load_mpnn_checkpoint()
 
         if self._mpnn_model is None:
             return {"pass": False, "error": "No trained MPNN. Run Section 3 first."}

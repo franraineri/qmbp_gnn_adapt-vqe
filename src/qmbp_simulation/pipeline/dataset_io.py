@@ -349,12 +349,16 @@ def generate_nonuniform_h_grid(
     >>> grid[0] > grid[-1]  # descending
     True
     """
+    if h_min >= h_max:
+        raise ValueError(f"h_min ({h_min}) must be < h_max ({h_max}).")
+    if n_points < 1:
+        raise ValueError(f"n_points must be >= 1, got {n_points}.")
+
     if h_critical is None:
         h_critical = (h_min + h_max) / 2.0
 
-    logger.info(
-        "  📐 generate_nonuniform_h_grid: [%.2f, %.2f], n=%d, h_c=%.2f, "
-        "dense_frac=%.1f, radius=%.2f",
+    logger.debug(
+        "generate_nonuniform_h_grid: [%.2f, %.2f], n=%d, h_c=%.2f, dense_frac=%.1f, radius=%.2f",
         h_min,
         h_max,
         n_points,

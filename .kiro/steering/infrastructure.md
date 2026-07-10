@@ -170,6 +170,16 @@ eid = build_experiment_id("noiseless", "tfim", "heavy_hex")
 # → saves to: results/experiments/exp_noiseless/tfim/heavy_hex/run_*.json
 ```
 
+### Save Guard (index pollution prevention)
+
+`save_experiment_result()` refuses to write envelopes with `results={}` (zero completed
+sections) unless the run was interrupted (`interrupted=True`). This prevents:
+- Test runners from polluting the index (empty experiment_id, no model/topology)
+- Crashed runs from creating garbage entries
+
+If rejected, logs a warning and returns a `_REJECTED.json` path (no file on disk).
+Interrupted partial saves are always allowed (they contain completed section data).
+
 ## CLI Tools
 
 | Command | Purpose |
@@ -181,16 +191,37 @@ eid = build_experiment_id("noiseless", "tfim", "heavy_hex")
 | `python project_health/cli/query_index.py --stats` | Index statistics |
 | `python project_health/cli/query_index.py --coverage` | Coverage matrix |
 | `python project_health/cli/query_index.py --suggest` | Suggest next experiments |
-| `python project_health/cli/query_index.py --regressions` | Detect regressions |
+| `python project_health/cli/query_index.py --regressions` | Detect regressions (median-based) |
+| `python project_health/cli/query_index.py --temporal-drift` | Temporal drift analysis (date correlation) |
+| `python project_health/cli/query_index.py --temporal-drift --window-days 3` | Custom window size |
 | `python project_health/cli/query_index.py --best --model tfim --n-qubits 20` | Best run for config |
+| `python project_health/cli/query_index.py --rebuild` | Force rebuild index from disk |
+| `python project_health/cli/analyze_data_quality.py` | Index data quality audit (valid/garbage/borderline) |
+| `python project_health/cli/analyze_data_quality.py --verbose` | Detailed quality breakdown |
+| `python project_health/cli/analyze_data_quality.py --purge-garbage --yes` | Remove garbage entries (non-interactive) |
 | `python project_health/cli/inspect_noiseless_run.py --latest exp_noiseless_tfim_4` | Per-h-point breakdown |
+| `python project_health/cli/inspect_noiseless_run.py run.json --vqe-detail` | Per-h VQE table |
 | `python scripts/scan_new_runs.py --dirs exp_noiseless_tfim_4` | Deep per-run analysis |
+| `python scripts/scan_new_runs.py --filter-model tfim --json report.json` | Filtered JSON report |
+| `python scripts/analyze_noiseless_scaling.py` | Multi-axis scaling analysis (h, p, N, topology) |
+| `python scripts/analyze_noiseless_scaling.py --axis n-scaling` | N-dependence only |
+| `python scripts/verify_thesis_runs.py` | Verify thesis-grade runs (completeness + robustness) |
+| `python scripts/generate_presets_from_index.py` | Auto-generate presets from validated configs |
+| `python scripts/generate_presets_from_index.py --dry-run` | Preview preset generation |
 
 ## Runner Features (auto-applied to ALL ValidationRunner subclasses)
 
 1. **`--resume <file>`** — Skip completed sections, restore VQE data
 2. **KeyboardInterrupt** — Saves partial results (completed sections preserved)
 3. **SIGTERM** — Graceful shutdown with save (for nohup/kill)
+4. **Baseline comparison** — Finds previous best, records improvement delta
+5. **Atomic JSON write** — Prevents corrupt JSON on crash (temp + rename)
+6. **Auto-index update** — New runs instantly queryable
+7. **Auto-refresh status** — `.kiro/steering/project-status.md` always current
+8. **`--save-artifacts`** — Persist MPNN model, circuit (QPY), theta_opt alongside result
+9. **`--dry-run`** — Lists sections without executing
+10. **`--section N`** — Run specific section only
+11. **`--stop-on-failure`** — Abort on first failed section
 4. **Baseline comparison** — Auto-detects previous best from index
 5. **Checkpoint streaming** — `save_checkpoint()` / `load_checkpoint()` for crash recovery
 6. **Atomic write** — Prevents corrupt JSON on crash (temp + rename)
@@ -277,6 +308,51 @@ nohup .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeli
 python -m project_health --diagnose --model tfim
 ```
 
+## Artifact Store (versioned experiment artifacts)
+
+Persists trained models, circuits, and data alongside result JSONs for
+reproducibility and reuse (e.g., hardware deployment using a trained MPNN).
+
+```
+results/experiments/exp_noiseless/tfim/chain_1d/
+├── run_20260710_120000.json              ← result (always saved)
+└── run_20260710_120000.artifacts/        ← artifacts (--save-artifacts on-pass)
+    ├── manifest.json                     ← SHA256, config, git commit
+    ├── mpnn_model.pt                     ← Trained GINConv state_dict
+    ├── circuit.qpy                       ← QuantumCircuit (Qiskit QPY)
+    ├── training_data.npz                 ← h_values + theta_opt + e_exact
+    └── theta_opt_chain_1d.npz            ← Full VQE theta array
+```
+
+### Usage
+
+```python
+# During runner execution (automatic in NoiselessPipelineRunner):
+self.artifacts.register("mpnn_model", model, format="pt")
+self.artifacts.register("circuit", qc, format="qpy")
+
+# CLI flag controls persistence:
+#   --save-artifacts never    ← default (exploratory runs)
+#   --save-artifacts on-pass  ← thesis-grade runs
+#   --save-artifacts always   ← debugging
+
+# Loading artifacts later:
+from qmbp_simulation.framework.artifact_store import load_artifact, load_manifest
+manifest = load_manifest(artifact_dir)
+model = load_artifact(artifact_dir / "mpnn_model.pt")
+```
+
+### Supported Formats
+
+| Format | Extension | Use for |
+|--------|-----------|---------|
+| `qpy` | .qpy | QuantumCircuit (binary, exact) |
+| `qasm3` | .qasm3 | QuantumCircuit (human-readable) |
+| `pt` | .pt | PyTorch model state_dict |
+| `npy` | .npy | Single numpy array |
+| `npz` | .npz | Multiple numpy arrays (compressed) |
+| `json` | .json | Metadata, configs |
+
 ## Data Flow (end-to-end)
 
 ```
@@ -285,9 +361,12 @@ Runner.run() → save_experiment_result()
     → ResultIndex.add_entry() (instant queryable)
     → ResultIndex.refresh_status() (Kiro context updated)
     → project-status.md regenerated
+    → if --save-artifacts: ArtifactCollector.persist() (adjacent .artifacts/ dir)
 
 Later:
     python -m project_health --diagnose     → reads from ResultIndex (cached, fast)
     python -m project_health                → ResultScanner → full health report
     python scripts/scan_new_runs.py         → deep per-point analysis
+    python scripts/analyze_noiseless_scaling.py → multi-axis scaling study
+    python scripts/verify_thesis_runs.py    → thesis data integrity check
 ```
