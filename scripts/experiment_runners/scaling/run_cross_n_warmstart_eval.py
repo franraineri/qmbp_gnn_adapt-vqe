@@ -47,7 +47,7 @@ if str(_ROOT) not in sys.path:
 
 logger = logging.getLogger(__name__)
 
-from qmbp_simulation.models.constants import DEFAULT_SEEDS
+from qmbp_simulation.models.constants import DE_GAP_THRESHOLD, DEFAULT_SEEDS
 
 DEFAULT_TRAIN_SIZES = [10, 20, 40]
 DEFAULT_TARGET_N = 60
@@ -153,43 +153,24 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
 
     def setup(self):
         """Import dependencies and configure."""
-        from qmbp_simulation import (
-            ClassicalSolver,
-            HamiltonianBuilder,
-            HVACircuitBuilder,
-            VQEConfig,
-            VQEOptimizer,
-            make_lattice,
-        )
-        from qmbp_simulation.execution import select_backend
-        from qmbp_simulation.models.model_registry import get_model_spec
-        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+        self.setup_physics()
+
         from qmbp_simulation.predictors import MPNNPredictor, train_mpnn
 
-        self.builder = HamiltonianBuilder()
-        self.solver = ClassicalSolver()
-        self.hva = HVACircuitBuilder()
-        self.make_lattice = make_lattice
-        self.get_model_spec = get_model_spec
-        self.generate_nonuniform_h_grid = generate_nonuniform_h_grid
         self.MPNNPredictor = MPNNPredictor
         self.train_mpnn = train_mpnn
-        self.select_backend = select_backend
-        self.VQEConfig = VQEConfig
-        self.VQEOptimizer = VQEOptimizer
+
+        from qmbp_simulation.framework.result_io import build_experiment_id
 
         sizes_tag = "_".join(str(n) for n in sorted(self._args.train_sizes))
-        self.experiment_id = (
-            f"cross_n_warmstart_{self._args.topology}_{sizes_tag}_to_{self._args.target_n}"
+        self.experiment_id = build_experiment_id(
+            category=f"scaling/cross_n/{sizes_tag}_to_{self._args.target_n}",
+            model=self._args.model,
+            topology=self._args.topology,
         )
 
-        # h-grid (descending)
-        self._h_train = self.generate_nonuniform_h_grid(
-            h_min=self._args.h_min,
-            h_max=self._args.h_max,
-            n_points=self._args.h_points,
-            h_critical=1.0,
-        )
+        # h-grid (descending, dense near h_critical=1.0 for TFIM)
+        self._h_train = self.generate_h_grid()
         # Test h-values for deployment
         self._h_test = np.linspace(self._args.h_max, self._args.h_min, self._args.n_test)
 
@@ -267,7 +248,12 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
                 lattice_h = self.make_lattice(topo, n_train, J=1.0, h=float(h))
                 H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
                 gt = self.solver.solve(H, lattice_h)
-                gs = self.solver.ground_state_vector(H) if n_train <= 22 else None
+                gs = None
+                if n_train <= 22:
+                    try:
+                        gs = self.solver.ground_state_vector(H)
+                    except (ValueError, MemoryError):
+                        gs = None
 
                 vqe_result = optimizer.optimize(
                     hamiltonian=H,
@@ -284,13 +270,50 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
                 fids.append(vqe_result.fidelity if vqe_result.fidelity else 0.0)
                 vqe_energies.append(vqe_result.energy)
 
-            # ── Bidirectional ascending pass ──────────────────────────
+            # ── Selective ascending pass ──────────────────────────────
+            from qmbp_simulation.optimizers.sweep_strategies import (
+                SelectiveAscendingConfig,
+                select_suspicious_points,
+            )
+
+            # Compute preliminary de_gaps for selection
+            prelim_de_gaps = [
+                abs(vqe_energies[i] - energies[i]) / max(gaps[i], 1e-10) for i in range(len(h_vals))
+            ]
+            results_for_select = [
+                {"h": h_vals[i], "de_gap": prelim_de_gaps[i]} for i in range(len(h_vals))
+            ]
+            asc_cfg = SelectiveAscendingConfig(
+                de_gap_threshold=0.02,
+                include_neighbors=True,
+                max_fraction=0.5,
+            )
+            indices_to_reopt, asc_report = select_suspicious_points(
+                results_for_select, config=asc_cfg
+            )
+
             asc_theta = thetas[-1].copy()
             n_improved = 0
-            for idx in range(len(h_vals) - 2, -1, -1):
+
+            if asc_report.fell_back_to_full:
+                # Full ascending (>50% suspicious)
+                reopt_range = range(len(h_vals) - 2, -1, -1)
+            else:
+                reopt_range = indices_to_reopt
+                if reopt_range:
+                    logger.info(
+                        f"    Selective ascending: {asc_report.n_targeted}/{len(h_vals)} targeted"
+                    )
+
+            for idx in reopt_range:
                 lattice_h = self.make_lattice(topo, n_train, J=1.0, h=h_vals[idx])
                 H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
-                gs = self.solver.ground_state_vector(H) if n_train <= 22 else None
+                gs = None
+                if n_train <= 22:
+                    try:
+                        gs = self.solver.ground_state_vector(H)
+                    except (ValueError, MemoryError):
+                        gs = None
                 vqe_asc = optimizer.optimize(
                     hamiltonian=H,
                     circuit=circuit,
@@ -306,12 +329,11 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
                 asc_theta = thetas[idx].copy()
 
             if n_improved > 0:
-                logger.info(f"    🔄 Bidirectional: {n_improved}/{len(h_vals)} improved")
+                logger.info(f"    🔄 Ascending: {n_improved}/{len(reopt_range)} improved")
 
             # ── Compute per-point ΔE/gap ─────────────────────────────
-            de_gaps = [
-                abs(vqe_energies[i] - energies[i]) / max(gaps[i], 1e-10) for i in range(len(h_vals))
-            ]
+            quality = self.compute_vqe_quality_metrics(vqe_energies, energies, gaps)
+            de_gaps = quality["de_gaps"]
 
             self._training_data[n_train] = {
                 "h_values": np.array(h_vals),
@@ -323,7 +345,7 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
                 "n_params": n_params,
             }
 
-            n_pass = sum(1 for d in de_gaps if d < 0.05)
+            n_pass = quality["n_pass"]
             # Variational principle check
             n_violations = self.check_variational_principle(vqe_energies, energies)
             if n_violations > 0:
@@ -348,6 +370,20 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
                 f"    ✓ N={n_train}: {n_pass}/{len(h_vals)} pass, mean ΔE/gap={np.mean(de_gaps) * 100:.2f}%"
             )
 
+            # Checkpoint after each training size (long VQE loops can crash)
+            self.save_checkpoint(
+                f"train_N{n_train}",
+                {
+                    "n_train": n_train,
+                    "h_values": h_vals,
+                    "theta_opt": [t.tolist() for t in thetas],
+                    "e_exact": energies,
+                    "de_gaps": de_gaps,
+                },
+            )
+
+        # Clean up checkpoints on success
+        self.cleanup_checkpoints("train_*")
         total_pts = sum(d["h_values"].shape[0] for d in self._training_data.values())
         return {"pass": total_pts >= 14, "sizes": all_results, "total_points": total_pts}
 
@@ -616,8 +652,8 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
                 "theta_distance_l2": theta_distance,
                 "energy_improvement": energy_improvement,
                 "speedup": speedup,
-                "warm_passed": bool(de_gap_warm < 0.05),
-                "cold_passed": bool(de_gap_cold < 0.05),
+                "warm_passed": bool(de_gap_warm < DE_GAP_THRESHOLD),
+                "cold_passed": bool(de_gap_cold < DE_GAP_THRESHOLD),
             }
             results.append(result)
 
@@ -643,7 +679,7 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
             topology=topo,
             model_spec=spec,
             backend=backend,
-            de_gap_threshold=0.05,
+            de_gap_threshold=DE_GAP_THRESHOLD,
         )
         # Collect training dataset for L3 LOO-CV
         training_graphs = []

@@ -218,9 +218,10 @@ class TestTFIMLongitudinalCircuit:
         qc, _ = hva.create_tfim_longitudinal(6, 2, chain6)
         assert qc.num_qubits == 6
 
-    def test_p_greater_than_2_raises(self, hva, chain4):
-        with pytest.raises(ValueError, match="exceeds"):
-            hva.create_tfim_longitudinal(4, 3, chain4)
+    def test_p_greater_than_2_does_not_raise(self, hva, chain4):
+        """p>2 is allowed in simulation (constraint commented out for flexibility)."""
+        qc, theta = hva.create_tfim_longitudinal(4, 3, chain4)
+        assert qc.num_qubits == 4
 
     def test_qubit_mismatch_raises(self, hva, chain4):
         with pytest.raises(ValueError, match="does not match"):

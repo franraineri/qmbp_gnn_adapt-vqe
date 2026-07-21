@@ -56,8 +56,8 @@ H_TEST_BOUNDARY = "2.125"  # Between 2.25 and 2.0 in EXTENDED (boundary probe)
 H_TEST_D_SAFE = "3.125"  # Between 3.25 and 3.0 in EXTENDED (for Group D)
 H_TEST_D_BOUNDARY = "2.375"  # Between 2.5 and 2.25 in EXTENDED (for Group D)
 
-PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_pipeline.py"
-NOISY_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_noisy_pipeline.py"
+PIPELINE_SCRIPT = "scripts/experiment_runners/noiseless/run_noiseless_pipeline.py"
+NOISY_SCRIPT = "scripts/experiment_runners/_deprecated/experiment_run_helpers/run_noisy_pipeline.py"  # TODO: migrate to noise_zne_gf_pea runner
 
 
 # ═══════════════════════════════════════════════════════════════════════════

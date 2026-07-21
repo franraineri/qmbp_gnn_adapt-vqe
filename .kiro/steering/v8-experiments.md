@@ -169,7 +169,7 @@ verdict, desc = compute_verdict("G1", summary_dict)
 
 | ID | Name | Status |
 |----|------|--------|
-| A3 | Finite-size scaling law | ✅ Executed (3 runs, R²=1.0000) |
+| A3 | Finite-size scaling law | ⚠️ SUPERSEDED (valid N=4-20 only, see H_EXPR_MATRIX) |
 | B1 | Analytical initial guess | ✅ Executed (negative result) |
 | B2 | TITAN parameter freezing | ✅ Executed |
 | B4 | Hessian-guided restarts | ✅ Executed (N=6 + N=10) |
@@ -278,59 +278,26 @@ Warm-start descending sweep is definitively superior.
 
 ---
 
-### A3: Finite-Size Scaling Law
+### A3: Finite-Size Scaling Law ⚠️ SUPERSEDED
 
-**Execution date:** 2026-05-22
-**Noise model:** None (noiseless, StatevectorEstimator)
-**Time:** 152 seconds
+**Execution date:** 2026-05-22 | **Status:** Results valid for N=4-20 only. Extrapolation WRONG.
 
-| Parameter | Value |
-|-----------|-------|
-| N values tested | [4, 6, 8, 10] (measured) + [20] (from V7 binnacle) |
-| p (HVA layers) | 2 |
-| Topology | chain_1d (open boundary) |
-| J (coupling) | 1.0 |
-| h-grid resolution | Δh = 0.05 (descending from 3.0 to 0.5) |
-| Seeds | [42, 43] (N=4,6,8,10), [42,43,44] (N=20 from V7) |
-| VQE n_restarts | 5 |
-| VQE maxiter | 500 |
-| VQE ftol | 1e-14 |
-| VQE restart_sigma | 0.1 |
-| Boundary criterion | ΔE/gap < 0.05 (5%) |
-| Gap computation | exact diag for N≤10, analytical fallback for N=20 |
+**Data (N=4-20, p=2, StatevectorEstimator):**
 
-**Key numerical results:**
-
-| N | h_min (all seeds identical) | Hilbert dim | VQE time/point |
+| N | h_min | N | h_min |
 |---|---|---|---|
-| 4 | 0.95 | 16 | ~0.3s |
-| 6 | 1.20 | 64 | ~0.5s |
-| 8 | 1.30 | 256 | ~0.8s |
-| 10 | 1.40 | 1024 | ~2s |
-| 20 | 2.00 (known) | 1,048,576 | ~50s (MPS) |
+| 4 | 0.95 | 10 | 1.40 |
+| 6 | 1.20 | 20 | 2.00 |
+| 8 | 1.30 | | |
 
-**Scaling law fit:**
-```
-Power law: h_min = 1.0 + 0.0186 * N^1.331   (R² = 0.9998)
-Linear:    h_min = 0.774 + 0.062 * N         (R² = 0.9848)
-```
+**Original fit:** `h_min = 1.0 + 0.0186·N^1.331` (R²=0.9998 on N=4-20 only).
 
-**p=1 comparison (data from binnacle-p1-scaling):**
-```
-p=2: h_min = 1.0 + 0.0186 * N^1.331   (β = 1.33)
-p=1: h_min = 1.0 + 0.2116 * N^0.602   (β = 0.60)
-```
+**⚠️ SUPERSEDED by H_EXPR_MATRIX (MPS deterministic, N=20-250):**
+- p=1: h = 2.36 + 0.0073·N (linear, R²=0.91)
+- p=2: h = 1.57 + 0.005·N (linear, R²=0.95)
+- p≥3: h ≈ 1.4-1.6 (constant, independent of N — area law)
 
-**Predictions:**
-
-| N | p=2 prediction | p=1 prediction |
-|---|---|---|
-| 20 | 2.00 (validated ✅) | 2.25 (validated ✅) |
-| 30 | 2.72 | 2.64 |
-| 50 | 4.40 | 3.23 |
-
-**Conclusion:** Power law with β=1.33 fits perfectly. This is an expressibility
-exponent (not the TFIM critical exponent ν=1). p=1 scales better at large N.
+The power law overestimates 1.9× at N=60, 2.7× at N=100. Do NOT use for experiment design.
 
 ---
 

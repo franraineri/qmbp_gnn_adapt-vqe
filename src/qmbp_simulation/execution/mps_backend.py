@@ -571,3 +571,86 @@ class MPSBackend(ExecutionBackend):
             sv_data = sv_data / norm
 
         return sv_data
+
+    def compute_energy_variance(
+        self,
+        circuit: QuantumCircuit,
+        hamiltonian: SparsePauliOp,
+        params: np.ndarray,
+    ) -> float:
+        """Compute energy variance Var(H) = ⟨H²⟩ - ⟨H⟩² via MPS.
+
+        Uses save_expectation_value for both ⟨H⟩ and ⟨H²⟩, avoiding full
+        statevector extraction. Works at any N supported by the MPS backend.
+
+        For N≤22, falls back to the base class implementation (exact statevector)
+        which is slightly more numerically stable. For N>22, computes directly
+        via the MPS representation.
+
+        Complexity: O(N·χ³·|H|²) where |H| is the number of Pauli terms in H.
+        For TFIM 1D: |H| = 2N, so |H²| ≈ 4N² terms. At N=40: ~6400 terms,
+        ~150ms total.
+        """
+        n_qubits = circuit.num_qubits
+
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        # For small N, use the exact base class (statevector) approach
+        if n_qubits <= STATEVECTOR_MAX_N:
+            return super().compute_energy_variance(circuit, hamiltonian, params)
+
+        # For N > STATEVECTOR_MAX_N: use save_expectation_value on H and H²
+        if not self._deterministic or self._strategy_name != "aer_mps":
+            # Stochastic mode or tenpy: cannot easily compute H²
+            logger.debug(
+                "[%s] compute_energy_variance: non-deterministic aer_mps mode, "
+                "falling back to NaN for N=%d.",
+                self.name,
+                n_qubits,
+            )
+            return float("nan")
+
+        try:
+            from qiskit_aer import AerSimulator
+        except ImportError:
+            return float("nan")
+
+        bound = circuit.assign_parameters(params)
+
+        # ⟨H⟩ via save_expectation_value
+        qc_h = bound.copy()
+        qc_h.save_expectation_value(hamiltonian, list(range(n_qubits)), label="ev_h")
+
+        backend = AerSimulator(
+            method="matrix_product_state",
+            matrix_product_state_max_bond_dimension=self._chi_max,
+            matrix_product_state_truncation_threshold=1e-12,
+        )
+        result_h = backend.run(qc_h, shots=1).result()
+        e_mean = float(np.real(result_h.data()["ev_h"]))
+
+        # ⟨H²⟩ via save_expectation_value with H²
+        h_squared = hamiltonian @ hamiltonian
+        # Simplify H² to reduce term count (combine duplicate Paulis)
+        h_squared = h_squared.simplify(atol=1e-12)
+
+        qc_h2 = bound.copy()
+        qc_h2.save_expectation_value(h_squared, list(range(n_qubits)), label="ev_h2")
+
+        result_h2 = backend.run(qc_h2, shots=1).result()
+        e2_mean = float(np.real(result_h2.data()["ev_h2"]))
+
+        variance = e2_mean - e_mean**2
+
+        # Clip numerical noise
+        if variance < 0:
+            if variance < -1e-6:
+                logger.warning(
+                    "[%s] compute_energy_variance (MPS N=%d): negative variance %.2e",
+                    self.name,
+                    n_qubits,
+                    variance,
+                )
+            variance = 0.0
+
+        return float(variance)

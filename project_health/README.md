@@ -1,6 +1,6 @@
 # project_health/
 
-Unified orchestration of analysis, diagnostics, figures, and reporting for the GNN-HVA pipeline results. Produces health reports, thesis artifacts, and coverage analysis across 476+ pipeline runs.
+Unified orchestration of analysis, diagnostics, figures, and reporting for the GNN-HVA pipeline results. Produces health reports, thesis artifacts, and coverage analysis across ~470 pipeline runs.
 
 ## Entry Points (python -m)
 

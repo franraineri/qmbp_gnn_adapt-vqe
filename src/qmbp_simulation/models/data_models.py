@@ -115,6 +115,9 @@ class GroundTruthResult:
     corr_zz: float
     per_site_mag_x: np.ndarray
     per_bond_corr_zz: np.ndarray
+    gap_method: str = "unknown"
+    """How the gap was computed: 'exact_dense', 'exact_sparse', 'dmrg_excitation',
+    'analytical_1d', 'eigsh_fallback', 'floor_2pi_n'."""
 
     def __post_init__(self) -> None:
         if self.gap < 0:
@@ -153,7 +156,7 @@ class VQEConfig:
     Attributes
     ----------
     p_layers : int
-        HVA depth (MUST be ≤ 2 per Mele et al. constraint).
+        HVA depth (must be ≤ MAX_P_LAYERS).
     bounds : tuple[float, float]
         Symmetric parameter bounds for L-BFGS-B.
     n_restarts : int
@@ -274,6 +277,7 @@ class VQEResult:
     fidelity: float
     n_iterations: int
     trajectory: OptimizationTrajectory | None = None
+    energy_variance: float | None = None
 
     def validate(self) -> list[str]:
         """Run sanity checks on VQE result. Returns list of issues found.

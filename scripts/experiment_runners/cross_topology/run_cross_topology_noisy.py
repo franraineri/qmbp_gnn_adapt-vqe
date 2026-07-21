@@ -134,8 +134,8 @@ class CrossTopologyNoisyRunner(ValidationRunner):
 
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,
@@ -168,7 +168,9 @@ class CrossTopologyNoisyRunner(ValidationRunner):
         self._predictions: dict[float, np.ndarray] = {}
         self._model = None
 
-        logger.info(f"[setup] source={SOURCE_TOPOLOGY} N={SOURCE_N}, target={TARGET_TOPOLOGY} N={TARGET_N}")
+        logger.info(
+            f"[setup] source={SOURCE_TOPOLOGY} N={SOURCE_N}, target={TARGET_TOPOLOGY} N={TARGET_N}"
+        )
 
     def define_sections(self) -> list[Section]:
         return [
@@ -274,16 +276,16 @@ class CrossTopologyNoisyRunner(ValidationRunner):
 
         # Predict on TARGET topology using build_target_graph (correct cross-topology graph)
         self._model.eval()
-        lattice_target = self.make_lattice(TARGET_TOPOLOGY, TARGET_N, J=1.0, h=float(TARGET_H_TEST[0]))
+        lattice_target = self.make_lattice(
+            TARGET_TOPOLOGY, TARGET_N, J=1.0, h=float(TARGET_H_TEST[0])
+        )
         circuit_target, _ = spec.create_circuit(TARGET_N, 1, lattice_target)
 
         results = []
         for h in TARGET_H_TEST:
             # Build target graph with TARGET topology structure
             # build_target_graph returns Data with x=[h, coord] and correct edge_index
-            target_graph = build_target_graph(
-                TARGET_TOPOLOGY, TARGET_N, h, use_n_feature=False
-            )
+            target_graph = build_target_graph(TARGET_TOPOLOGY, TARGET_N, h, use_n_feature=False)
 
             with self.torch.no_grad():
                 theta_pred = self._model(target_graph).numpy().flatten()
@@ -297,10 +299,15 @@ class CrossTopologyNoisyRunner(ValidationRunner):
             e_exact, gap = self.exact_ground_state(TARGET_TOPOLOGY, TARGET_N, h)
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
 
-            results.append({
-                "h": h, "de_gap_noiseless": de_gap,
-                "e_pred": e_pred, "e_exact": e_exact, "gap": gap,
-            })
+            results.append(
+                {
+                    "h": h,
+                    "de_gap_noiseless": de_gap,
+                    "e_pred": e_pred,
+                    "e_exact": e_exact,
+                    "gap": gap,
+                }
+            )
             logger.info(f"  target h={h:.2f}: ΔE/gap(noiseless)={de_gap:.4f}")
 
         return {
@@ -318,6 +325,7 @@ class CrossTopologyNoisyRunner(ValidationRunner):
             raise RuntimeError("Run Section 2 first (no predictions available)")
 
         from qmbp_simulation.models.model_registry import get_model_spec
+
         spec = get_model_spec("tfim")
 
         results = []
@@ -332,8 +340,12 @@ class CrossTopologyNoisyRunner(ValidationRunner):
 
             # Transpile + layout
             layout_sel = self._select_low_ces(
-                bound, self.fake_backend, self._candidates,
-                n_select=1, optimization_level=2, max_ces=0.5,
+                bound,
+                self.fake_backend,
+                self._candidates,
+                n_select=1,
+                optimization_level=2,
+                max_ces=0.5,
             )
             transpiled = layout_sel.transpiled_circuits[0]
             H_mapped = H.apply_layout(transpiled.layout)
@@ -347,22 +359,28 @@ class CrossTopologyNoisyRunner(ValidationRunner):
             # PEA-ZNE
             t0 = time.time()
             pea = self._run_pea_zne(
-                transpiled, H_mapped, self.fake_backend, self._noisy_config,
-                noise_factors=NOISE_FACTORS, seed_offset=500,
+                transpiled,
+                H_mapped,
+                self.fake_backend,
+                self._noisy_config,
+                noise_factors=NOISE_FACTORS,
+                seed_offset=500,
             )
             t_pea = time.time() - t0
             de_pea = abs(pea.extrapolated_value - e_exact) / max(gap, 1e-10)
 
             noise_reduction = (de_noisy - de_pea) / max(de_noisy, 1e-10)
 
-            results.append({
-                "h": h,
-                "de_noisy": de_noisy,
-                "de_pea": de_pea,
-                "noise_reduction": noise_reduction,
-                "pea_r2": pea.r_squared,
-                "t_pea_s": round(t_pea, 2),
-            })
+            results.append(
+                {
+                    "h": h,
+                    "de_noisy": de_noisy,
+                    "de_pea": de_pea,
+                    "noise_reduction": noise_reduction,
+                    "pea_r2": pea.r_squared,
+                    "t_pea_s": round(t_pea, 2),
+                }
+            )
             logger.info(
                 f"  h={h:.2f}: noisy={de_noisy:.4f}, PEA={de_pea:.4f}, "
                 f"reduction={noise_reduction:+.1%}, R²={pea.r_squared:.3f}"
@@ -383,8 +401,10 @@ class CrossTopologyNoisyRunner(ValidationRunner):
         logger.info("\n  ═══ CROSS-TOPOLOGY NOISY VERDICT ═══")
         logger.info(f"  Source: {SOURCE_TOPOLOGY} N={SOURCE_N}")
         logger.info(f"  Target: {TARGET_TOPOLOGY} N={TARGET_N}")
-        logger.info(f"  {'h':>5} | {'Noiseless':>10} | {'Noisy':>8} | {'PEA':>8} | {'Reduction':>10}")
-        logger.info(f"  {'-'*5}-+-{'-'*10}-+-{'-'*8}-+-{'-'*8}-+-{'-'*10}")
+        logger.info(
+            f"  {'h':>5} | {'Noiseless':>10} | {'Noisy':>8} | {'PEA':>8} | {'Reduction':>10}"
+        )
+        logger.info(f"  {'-' * 5}-+-{'-' * 10}-+-{'-' * 8}-+-{'-' * 8}-+-{'-' * 10}")
 
         # Gather all data from previous sections
         # (simplified: we trust sections ran in order)

@@ -712,6 +712,73 @@ class HamiltonianBuilder:
         self.validate(H, n)
         return H
 
+    # ── Kitaev chain (p-wave superconductor in spin representation) ───
+
+    def build_kitaev(self, lattice: LatticeConfig, delta: float = 1.0) -> SparsePauliOp:
+        """Build H = -J Σ_{(i,j)} (X_iX_j + Y_iY_j) - h Σ_i Z_i.
+
+        Kitaev chain in spin representation (Jordan-Wigner). This is the
+        transverse-field XY model, equivalent to the p-wave superconductor.
+        The QPT occurs at |h| = 2J (topological ↔ trivial phase boundary).
+
+        In the topological phase (|h| < 2J), Majorana edge modes appear.
+        In the trivial phase (|h| > 2J), the system is a trivial paramagnet.
+
+        Parameters
+        ----------
+        lattice : LatticeConfig
+            Lattice specification (topology, edges, couplings, field).
+            h controls the chemical potential (μ = h).
+        delta : float
+            Pairing asymmetry: XX coupling = J*(1+delta)/2, YY = J*(1-delta)/2.
+            delta=1.0 (default) gives pure XX model (Kitaev sweet spot).
+            delta=0.0 gives isotropic XY (XX=YY).
+
+        Returns
+        -------
+        SparsePauliOp
+            The Kitaev chain Hamiltonian.
+        """
+        n = lattice.n_qubits
+        terms: list[tuple[str, list[int], complex]] = []
+
+        # Hopping + pairing: J·[(1+Δ)/2·XX + (1-Δ)/2·YY] on lattice edges
+        for bond_idx, (i, j) in enumerate(lattice.edges):
+            j_val = lattice.J[bond_idx] if isinstance(lattice.J, np.ndarray) else lattice.J
+            xx_coeff = -j_val * (1.0 + delta) / 2.0
+            yy_coeff = -j_val * (1.0 - delta) / 2.0
+            terms.append(("XX", [i, j], xx_coeff))
+            if abs(yy_coeff) > 1e-15:
+                terms.append(("YY", [i, j], yy_coeff))
+
+        # Chemical potential: -h·Z on all sites
+        for site in range(n):
+            h_val = lattice.h[site] if isinstance(lattice.h, np.ndarray) else lattice.h
+            terms.append(("Z", [site], -h_val))
+
+        H = SparsePauliOp.from_sparse_list(terms, num_qubits=n)
+        self.validate(H, n)
+        return H
+
+    def build_kitaev_observables(
+        self, lattice: LatticeConfig
+    ) -> tuple[list[SparsePauliOp], list[SparsePauliOp]]:
+        """Build local observables for Kitaev chain: ⟨Z_i⟩ and ⟨XX_ij + YY_ij⟩.
+
+        Returns
+        -------
+        (obs_z, obs_bond)
+            obs_z : list[SparsePauliOp] — per-site ⟨Z_i⟩ (occupation)
+            obs_bond : list[SparsePauliOp] — per-bond ⟨XX + YY⟩ (hopping)
+        """
+        n = lattice.n_qubits
+        obs_z = [SparsePauliOp.from_sparse_list([("Z", [i], 1.0)], num_qubits=n) for i in range(n)]
+        obs_bond = [
+            SparsePauliOp.from_sparse_list([("XX", [i, j], 1.0), ("YY", [i, j], 1.0)], num_qubits=n)
+            for i, j in lattice.edges
+        ]
+        return obs_z, obs_bond
+
     # ── Task 2.4: validate() ─────────────────────────────────────────
 
     @staticmethod

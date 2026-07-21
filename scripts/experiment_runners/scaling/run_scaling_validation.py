@@ -4,431 +4,522 @@
 Validates that MPS-based VQE converges to DMRG ground truth across
 a range of N values and h-points for 1D TFIM.
 
-Phases:
-    1. DMRG ground truth: Compute E₀ and gap for each h-point via ClassicalSolver
-    2. MPS-VQE: Descending sweep with MPSBackend, compute ΔE/gap per h-point
+Sections:
+    1. DMRG Ground Truth: Compute E₀ and gap for each h-point
+    2. MPS-VQE Sweep: Descending warm-start VQE with MPSBackend
 
 Success criterion: ΔE/gap < 5% for all h-points in valid regime.
 
 Usage:
     python scripts/experiment_runners/scaling/run_scaling_validation.py \\
-        --n 40 --topology chain_1d --strategy aer_mps --precision 0.005
-    python scripts/experiment_runners/scaling/run_scaling_validation.py \\
-        --n 50 --strategy tenpy_exact --h-values 3.0 2.5 2.0
+        --n-qubits 40 --topology chain_1d
 
-Output:
-    JSON file in --output-dir with metadata, timing, and per-h results.
+    python scripts/experiment_runners/scaling/run_scaling_validation.py \\
+        --n-qubits 100 --h-min 3.0 --h-max 5.0 --h-points 10
+
+    python scripts/experiment_runners/scaling/run_scaling_validation.py --dry-run
 """
 
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
 import time
-from pathlib import Path
-
-# Allow running from project root
-_ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "src"))
 
 import numpy as np
 
-from qmbp_simulation import (
-    ClassicalSolver,
-    HamiltonianBuilder,
-    HVACircuitBuilder,
-    VQEOptimizer,
-    make_lattice,
+from qmbp_simulation.framework.runner_base import (
+    Section,
+    ValidationRunner,
+    resolve_project_root,
 )
-from qmbp_simulation.execution import MPSBackend
-from qmbp_simulation.models import VQEConfig
-from qmbp_simulation.utils.helpers import json_dump
+
+_ROOT = resolve_project_root(__file__)
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 logger = logging.getLogger(__name__)
 
+from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
 
-def _get_version(package: str) -> str:
-    """Safely get package version, returning 'not installed' on failure."""
-    try:
-        import importlib.metadata
+# ═══════════════════════════════════════════════════════════════════════════════
+# Constants
+# ═══════════════════════════════════════════════════════════════════════════════
 
-        return importlib.metadata.version(package)
-    except Exception:
-        return "not installed"
+DEFAULT_N = 40
+DEFAULT_TOPOLOGY = "chain_1d"
+DEFAULT_MODEL = "tfim"
+DEFAULT_P = 1
+DEFAULT_MAXITER = 500
+DEFAULT_N_RESTARTS = 3
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CLI
+# Runner
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def build_parser() -> argparse.ArgumentParser:
-    """Build CLI argument parser."""
-    parser = argparse.ArgumentParser(
-        description="MPS Scaling Validation: DMRG ground truth + MPS-VQE",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument("--n", type=int, default=40, help="System size (qubits)")
-    parser.add_argument("--topology", type=str, default="chain_1d", help="Lattice topology")
-    parser.add_argument("--p-layers", type=int, default=1, help="HVA circuit depth")
-    parser.add_argument(
-        "--h-values",
-        type=float,
-        nargs="+",
-        default=None,
-        help="Transverse field values (descending). Auto-computed if not given.",
-    )
-    parser.add_argument("--seeds", type=int, nargs="+", default=[42], help="Random seeds")
-    parser.add_argument(
-        "--strategy",
-        type=str,
-        default="aer_mps",
-        choices=["aer_mps", "tenpy_exact"],
-        help="MPS backend strategy",
-    )
-    parser.add_argument("--chi-max", type=int, default=64, help="MPS bond dimension")
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="results/scaling",
-        help="Output directory for results JSON",
-    )
-    parser.add_argument(
-        "--precision",
-        type=float,
-        default=0.005,
-        help="Precision for aer_mps strategy (controls shot budget)",
-    )
-    parser.add_argument(
-        "--method",
-        type=str,
-        default=None,
-        choices=["COBYLA", "L-BFGS-B", "Nelder-Mead"],
-        help="VQE optimizer method. Default: auto (COBYLA for aer_mps, L-BFGS-B for tenpy).",
-    )
-    return parser
+class MPSScalingValidationRunner(ValidationRunner):
+    """Validate MPS-VQE convergence to DMRG ground truth at large N.
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Phase 1: DMRG Ground Truth
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def phase1_dmrg_ground_truth(n: int, topology: str, h_values: list[float]) -> list[dict]:
-    """Compute DMRG ground truth for each h-point.
-
-    Returns list of dicts with h, ground_energy, gap, and local observables.
+    Uses setup_physics() for all standard objects. The key difference from
+    NoiselessPipelineRunner is that this ALWAYS uses MPSBackend (N>22) and
+    only runs Phase 1+2 (no MPNN training or deployment).
     """
-    builder = HamiltonianBuilder()
-    solver = ClassicalSolver()
-    results = []
 
-    for h in h_values:
-        t0 = time.time()
-        lattice = make_lattice(topology, n, J=1.0, h=h)
-        H = builder.build(lattice)
-        gt = solver.solve(H, lattice, method="dmrg")
-        elapsed = time.time() - t0
+    runner_id = "mps_scaling_validation_v2"
+    experiment_id = "scaling/validation"
+    description = "MPS-VQE convergence validation at N>30 vs DMRG ground truth"
+    hypothesis = (
+        "MPS-VQE with chi=64 achieves ΔE/gap < 5% at all h-points "
+        "within the valid regime predicted by the scaling law."
+    )
 
-        results.append(
-            {
-                "h": h,
-                "ground_energy": gt.ground_energy,
-                "gap": gt.gap,
-                "mag_x": gt.mag_x,
-                "corr_zz": gt.corr_zz,
-                "per_site_mag_x": gt.per_site_mag_x.tolist()
-                if gt.per_site_mag_x is not None
-                else None,
-                "per_bond_corr_zz": gt.per_bond_corr_zz.tolist()
-                if gt.per_bond_corr_zz is not None
-                else None,
-                "time_s": elapsed,
-            }
+    @classmethod
+    def _add_custom_args(cls, parser):
+        parser.add_argument("--n-qubits", type=int, default=DEFAULT_N, help="System size")
+        parser.add_argument("--topology", type=str, default=DEFAULT_TOPOLOGY)
+        parser.add_argument("--model", type=str, default=DEFAULT_MODEL)
+        parser.add_argument("--p-layers", type=int, default=DEFAULT_P, choices=[1, 2, 3, 4])
+        parser.add_argument(
+            "--h-min", type=float, default=None, help="Min h (auto from scaling law if not given)"
         )
+        parser.add_argument("--h-max", type=float, default=None, help="Max h (auto: h_min + 1.5)")
+        parser.add_argument("--h-points", type=int, default=8, help="Number of h-values")
+        parser.add_argument(
+            "--chi-max", type=int, default=None, help="MPS bond dimension (default: from constants)"
+        )
+        parser.add_argument("--maxiter", type=int, default=DEFAULT_MAXITER)
+        parser.add_argument("--n-restarts", type=int, default=DEFAULT_N_RESTARTS)
+        parser.add_argument("--seeds", type=int, nargs="+", default=[42])
+        parser.add_argument(
+            "--verify-chi",
+            action="store_true",
+            help="Run chi-convergence test: re-evaluate best theta with 2×chi and compare energies.",
+        )
+
+    def run_preflight(self) -> bool:
+        """Validate scaling configuration."""
+        N = self._args.n_qubits
+        if N < 10:
+            logger.error("Scaling validation is for N>=10. Use noiseless pipeline for small N.")
+            return False
+        # Auto-warn for 2D topologies without --verify-chi
+        _2D_TOPOS = ("square", "triangular", "heavy_hex", "kagome")
+        chi = self._args.chi_max or 64
+        if self._args.topology in _2D_TOPOS and N > 16 and not self._args.verify_chi:
+            logger.warning(
+                "⚠️  Running 2D topology '%s' at N=%d without --verify-chi. "
+                "Chi=%d may be insufficient for 2D. Consider adding --verify-chi.",
+                self._args.topology,
+                N,
+                chi,
+            )
+        return True
+
+    def build_config(self) -> dict:
+        return {
+            "runner_id": self.runner_id,
+            "system": {
+                "n_qubits": self._args.n_qubits,
+                "topology": self._args.topology,
+                "model": self._args.model,
+                "p_layers": self._args.p_layers,
+            },
+            "mps": {"chi_max": getattr(self, "_chi_max", 64)},
+            "vqe": {"maxiter": self._args.maxiter, "n_restarts": self._args.n_restarts},
+            "seeds": self._args.seeds,
+            "h_grid": {
+                "h_min": self._h_min,
+                "h_max": self._h_max,
+                "h_points": self._args.h_points,
+            },
+            "scaling_law": {
+                "formula": "h_min_safe = 1.5 + 0.020 * N^1.31",
+                "predicted_h_min": self._h_min_predicted,
+            },
+        }
+
+    def setup(self):
+        """Initialize physics objects and compute h-grid."""
+        self.setup_physics()
+
+        N = self._args.n_qubits
+
+        # Compute h-grid from scaling law if not explicitly provided
+        # NOTE: This scaling law was calibrated for TFIM chain_1d p=1 only.
+        self._h_min_predicted = 1.5 + 0.020 * N**1.31
+        if self._args.h_min is None and (
+            self._args.model != "tfim"
+            or self._args.topology != "chain_1d"
+            or self._args.p_layers != 1
+        ):
+            logger.warning(
+                "  ⚠️  Scaling law h_min = 1.5 + 0.020·N^1.31 was calibrated for "
+                "TFIM chain_1d p=1 only. Current config: model=%s, topology=%s, p=%d. "
+                "Consider providing explicit --h-min/--h-max.",
+                self._args.model,
+                self._args.topology,
+                self._args.p_layers,
+            )
+        self._h_min = (
+            self._args.h_min if self._args.h_min is not None else self._h_min_predicted + 0.5
+        )
+        self._h_max = self._args.h_max if self._args.h_max is not None else self._h_min + 1.5
+        self._h_values = np.linspace(self._h_max, self._h_min, self._args.h_points).tolist()
+
+        logger.info(f"  Scaling law h_min_safe = {self._h_min_predicted:.3f} for N={N}")
         logger.info(
-            f"  DMRG h={h:.3f}: E₀={gt.ground_energy:.8f}, "
-            f"gap={gt.gap:.4f}, ⟨X⟩={gt.mag_x:.4f}, ⟨ZZ⟩={gt.corr_zz:.4f}, "
-            f"time={elapsed:.1f}s"
+            f"  h-grid: {self._args.h_points} points in [{self._h_min:.3f}, {self._h_max:.3f}]"
         )
 
-    return results
+        # Select MPS backend (forced — this is a scaling runner)
+        from qmbp_simulation.models.constants import MPS_DEFAULT_CHI_MAX
 
+        chi_max = self._args.chi_max if self._args.chi_max is not None else MPS_DEFAULT_CHI_MAX
+        self._chi_max = chi_max
+        self._backend = self.MPSBackend(
+            strategy="aer_mps",
+            chi_max=chi_max,
+            seed=self._args.seeds[0],
+        )
+        logger.info(f"  Backend: MPSBackend(chi={chi_max}, strategy=aer_mps)")
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Phase 2: MPS-VQE Descending Sweep
-# ═══════════════════════════════════════════════════════════════════════════════
+        # Set experiment_id dynamically
+        from qmbp_simulation.framework.result_io import build_experiment_id
 
+        self.experiment_id = build_experiment_id(
+            category="scaling/validation",
+            model=self._args.model,
+            topology=self._args.topology,
+        )
 
-def phase2_mps_vqe(
-    n: int,
-    topology: str,
-    p_layers: int,
-    h_values: list[float],
-    strategy: str,
-    chi_max: int,
-    precision: float,
-    seed: int,
-    dmrg_data: list[dict],
-    method_override: str | None = None,
-) -> list[dict]:
-    """Run MPS-VQE descending sweep and compute ΔE/gap vs DMRG.
+        # Shared state
+        self._dmrg_data: list[dict] = []
 
-    Returns list of per-h result dicts.
-    """
-    builder = HamiltonianBuilder()
-    hva = HVACircuitBuilder()
-
-    # Method selection: override > auto (COBYLA for stochastic, L-BFGS-B for deterministic)
-    if method_override:
-        method = method_override
-    else:
-        method = "COBYLA" if strategy == "aer_mps" else "L-BFGS-B"
-
-    backend = MPSBackend(strategy=strategy, chi_max=chi_max, precision=precision, seed=seed)
-    config = VQEConfig(
-        method=method,
-        p_layers=p_layers,
-        n_restarts=3,
-        maxiter=500,
-        enable_callbacks=False,
-    )
-    optimizer = VQEOptimizer(config=config, backend=backend, seed=seed)
-
-    # Build circuit once (topology-independent param count for TFIM)
-    base_lattice = make_lattice(topology, n, J=1.0, h=h_values[0])
-    circuit, _ = hva.create(n, p_layers, base_lattice)
-
-    # Record circuit structure (invariant across h-values)
-    circuit_info = {
-        "n_qubits": circuit.num_qubits,
-        "n_parameters": circuit.num_parameters,
-        "depth": circuit.depth(),
-        "n_gates": sum(circuit.count_ops().values()),
-        "gate_counts": dict(circuit.count_ops()),
-    }
-    logger.info(
-        f"  Circuit: {circuit_info['n_qubits']} qubits, "
-        f"{circuit_info['n_parameters']} params, depth={circuit_info['depth']}, "
-        f"gates={circuit_info['n_gates']}"
-    )
-
-    # Descending sweep with warm-start propagation
-    theta_prev = np.zeros(circuit.num_parameters)
-    theta_prev_for_smoothness = np.zeros(circuit.num_parameters)
-    results = []
-
-    for idx, h in enumerate(h_values):
-        t0 = time.time()
-        lattice_h = make_lattice(topology, n, J=1.0, h=h)
-        H = builder.build(lattice_h)
-
-        dmrg_entry = dmrg_data[idx]
-        e_exact = dmrg_entry["ground_energy"]
-        gap = dmrg_entry["gap"]
-
-        vqe_result = optimizer.optimize(H, circuit, theta_prev, exact_energy=e_exact)
-        elapsed = time.time() - t0
-
-        de_gap = abs(vqe_result.energy - e_exact) / max(gap, 1e-10)
-        theta_prev_for_smoothness = theta_prev.copy()
-        theta_prev = vqe_result.theta_opt.copy()
-
-        if de_gap > 0.05:
-            logger.warning(f"  ⚠ h={h:.3f}: ΔE/gap={de_gap:.4f} > 5%")
-
-        results.append(
-            {
-                "h": h,
-                "vqe_energy": vqe_result.energy,
-                "dmrg_energy": e_exact,
-                "gap": gap,
-                "de_gap": de_gap,
-                "energy_error": abs(vqe_result.energy - e_exact),
-                "n_iterations": vqe_result.n_iterations,
-                "converged": vqe_result.n_iterations < config.maxiter,
-                "theta_opt": vqe_result.theta_opt.tolist(),
-                "theta_init": theta_prev_for_smoothness.tolist(),
-                "theta_smoothness": float(
-                    np.max(np.abs(vqe_result.theta_opt - theta_prev_for_smoothness))
+    def define_sections(self) -> list[Section]:
+        sections = [
+            Section(
+                id=1,
+                name="DMRG Ground Truth",
+                fn=self.section_dmrg,
+                hypothesis="DMRG computes converged E₀ and gap for all h-points",
+            ),
+            Section(
+                id=2,
+                name="MPS-VQE Descending Sweep",
+                fn=self.section_vqe,
+                hypothesis=(
+                    f"MPS-VQE with chi={getattr(self, '_chi_max', 64)} achieves "
+                    f"ΔE/gap < {DE_GAP_THRESHOLD * 100:.0f}% at all h in valid regime"
+                ),
+            ),
+        ]
+        if self._args.verify_chi:
+            sections.append(
+                Section(
+                    id=3,
+                    name="Chi-Convergence Verification",
+                    fn=self.section_chi_convergence,
+                    hypothesis=(
+                        f"|E(chi={getattr(self, '_chi_max', 64)}) - E(chi={getattr(self, '_chi_max', 64) * 2})| < 1e-10 "
+                        f"at all h-points (chi is sufficient)"
+                    ),
                 )
-                if idx > 0
-                else 0.0,
-                "time_s": elapsed,
-                "passed": de_gap < 0.05,
-            }
+            )
+        return sections
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 1: DMRG Ground Truth
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_dmrg(self) -> dict:
+        """Compute DMRG ground truth for each h-point."""
+        N = self._args.n_qubits
+        topology = self._args.topology
+        model = self._args.model
+        spec = self.get_model_spec(model)
+
+        self._dmrg_data = []
+
+        for h in self._h_values:
+            t0 = time.perf_counter()
+            lattice = self.make_lattice(topology, N, J=1.0, h=h)
+            H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+            gt = self.solver.solve(H, lattice, method="dmrg")
+            elapsed = time.perf_counter() - t0
+
+            self._dmrg_data.append(
+                {
+                    "h": h,
+                    "ground_energy": gt.ground_energy,
+                    "gap": gt.gap,
+                    "mag_x": gt.mag_x,
+                    "corr_zz": gt.corr_zz,
+                    "time_s": elapsed,
+                }
+            )
+            logger.info(
+                f"    DMRG h={h:.3f}: E₀={gt.ground_energy:.8f}, "
+                f"gap={gt.gap:.4f}, time={elapsed:.1f}s"
+            )
+
+        return {
+            "pass": True,
+            "n_points": len(self._dmrg_data),
+            "e_range": [self._dmrg_data[-1]["ground_energy"], self._dmrg_data[0]["ground_energy"]],
+            "gap_range": [
+                min(d["gap"] for d in self._dmrg_data),
+                max(d["gap"] for d in self._dmrg_data),
+            ],
+            "per_point": self._dmrg_data,
+        }
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2: MPS-VQE Descending Sweep
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_vqe(self) -> dict:
+        """Run MPS-VQE descending sweep, compare to DMRG."""
+        from qmbp_simulation.optimizers.sweep_strategies import (
+            AdaptiveRestartConfig,
+            compute_adaptive_restarts,
         )
-        logger.info(
-            f"  VQE h={h:.3f}: E={vqe_result.energy:.8f}, ΔE/gap={de_gap:.4f}, time={elapsed:.1f}s"
+
+        N = self._args.n_qubits
+        p = self._args.p_layers
+        topology = self._args.topology
+        model = self._args.model
+        spec = self.get_model_spec(model)
+        seeds = self._args.seeds
+
+        # Build circuit once
+        lattice_ref = self.make_lattice(topology, N, J=1.0, h=self._h_values[0])
+        circuit, _ = spec.create_circuit(N, p, lattice_ref, **spec.circuit_kwargs)
+        n_params = circuit.num_parameters
+        logger.info(f"    Circuit: {n_params} params, depth={circuit.depth()}")
+
+        # Adaptive restart config: allocates more restarts near the boundary
+        adaptive_cfg = AdaptiveRestartConfig(
+            base_restarts=max(1, self._args.n_restarts // 3),
+            max_restarts=self._args.n_restarts,
+            critical_restarts=max(3, self._args.n_restarts - 1),
+            h_critical=2.6 if p == 1 else 1.6,  # expressibility boundary
+            critical_radius=0.5,
+            de_gap_threshold=0.02,
         )
 
-    return results, circuit_info
+        # Chi warning for p>2 (not validated exact)
+        if p > 2:
+            logger.warning(
+                f"    ⚠️  p={p} > 2: χ=64 exactness NOT validated for p>{2}. "
+                f"Results may have undetected MPS truncation error. "
+                f"Consider running with --verify-chi."
+            )
 
+        all_seed_results = []
 
-def main() -> int:
-    """Entry point for scaling validation."""
-    parser = build_parser()
-    args = parser.parse_args()
+        for seed in seeds:
+            logger.info(f"    ── VQE sweep seed={seed} ──")
+            rng = np.random.default_rng(seed)
+            prev_theta = rng.uniform(-0.01, 0.01, n_params)
+            prev_de_gap = None
+            seed_results = []
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-    )
+            for idx, h in enumerate(self._h_values):
+                t0 = time.perf_counter()
+                lattice_h = self.make_lattice(topology, N, J=1.0, h=h)
+                H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
 
-    n = args.n
-    topology = args.topology
-    p_layers = args.p_layers
-    strategy = args.strategy
-    chi_max = args.chi_max
-    precision = args.precision
-    seeds = args.seeds
-    output_dir = Path(args.output_dir)
-    # Method override: None = auto-select based on strategy
-    method_override = args.method
+                e_exact = self._dmrg_data[idx]["ground_energy"]
+                gap = self._dmrg_data[idx]["gap"]
 
-    # Auto-compute h-values if not provided (valid regime for this N)
-    if args.h_values is not None:
-        h_values = sorted(args.h_values, reverse=True)
-    else:
-        h_min = 1.5 + 0.020 * n**1.31  # Corrected formula (original + 0.50 offset)
-        h_max = h_min + 1.5
-        h_values = np.linspace(h_max, h_min + 0.5, 5).tolist()
+                # Adaptive restarts: more near boundary, fewer in trivial regime
+                n_restarts_h = compute_adaptive_restarts(
+                    h, prev_de_gap=prev_de_gap, config=adaptive_cfg
+                )
+                vqe_config_h = self.VQEConfig(
+                    p_layers=p,
+                    n_restarts=n_restarts_h,
+                    maxiter=self._args.maxiter,
+                    method="L-BFGS-B",
+                    enable_callbacks=False,
+                )
+                optimizer = self.VQEOptimizer(config=vqe_config_h, backend=self._backend, seed=seed)
 
-    logger.info("=" * 60)
-    logger.info(f"MPS Scaling Validation: N={n}, topology={topology}")
-    logger.info(f"Strategy={strategy}, chi_max={chi_max}, precision={precision}")
-    logger.info(f"h-values={[f'{h:.3f}' for h in h_values]}")
-    logger.info("=" * 60)
+                vqe_result = optimizer.optimize(
+                    hamiltonian=H,
+                    circuit=circuit,
+                    initial_guess=prev_theta,
+                    exact_energy=e_exact,
+                )
+                elapsed = time.perf_counter() - t0
 
-    # Phase 1: DMRG ground truth
-    logger.info("\n─── Phase 1: DMRG Ground Truth ───")
-    t_phase1 = time.time()
-    dmrg_data = phase1_dmrg_ground_truth(n, topology, h_values)
-    t_phase1 = time.time() - t_phase1
-    logger.info(f"  Phase 1 total: {t_phase1:.1f}s")
+                de_gap = abs(vqe_result.energy - e_exact) / max(gap, 1e-10)
+                delta_e_abs = abs(vqe_result.energy - e_exact)
+                theta_change = float(np.max(np.abs(vqe_result.theta_opt - prev_theta)))
+                prev_theta = vqe_result.theta_opt.copy()
+                prev_de_gap = de_gap
 
-    # Phase 2: MPS-VQE for each seed
-    all_seed_results = []
-    circuit_info = None
-    t_phase2 = time.time()
-    for seed in seeds:
-        logger.info(f"\n─── Phase 2: MPS-VQE (seed={seed}) ───")
-        vqe_results, c_info = phase2_mps_vqe(
-            n,
-            topology,
-            p_layers,
-            h_values,
-            strategy,
-            chi_max,
-            precision,
-            seed,
-            dmrg_data,
-            method_override=method_override,
-        )
-        if circuit_info is None:
-            circuit_info = c_info
-        all_seed_results.append({"seed": seed, "results": vqe_results})
-    t_phase2 = time.time() - t_phase2
+                seed_results.append(
+                    {
+                        "h": h,
+                        "vqe_energy": vqe_result.energy,
+                        "dmrg_energy": e_exact,
+                        "gap": gap,
+                        "de_gap": de_gap,
+                        "delta_e_abs": delta_e_abs,
+                        "delta_e_per_site": delta_e_abs / N,
+                        "energy_variance": vqe_result.energy_variance,
+                        "n_iterations": vqe_result.n_iterations,
+                        "n_restarts_used": n_restarts_h,
+                        "theta_opt": vqe_result.theta_opt.tolist(),
+                        "theta_change_linf": theta_change,
+                        "elapsed_s": elapsed,
+                        "passed": de_gap < DE_GAP_THRESHOLD,
+                    }
+                )
 
-    # Summary
-    all_passed = all(r["passed"] for seed_run in all_seed_results for r in seed_run["results"])
-    n_total = sum(len(sr["results"]) for sr in all_seed_results)
-    n_pass = sum(1 for sr in all_seed_results for r in sr["results"] if r["passed"])
+                status = "✓" if de_gap < DE_GAP_THRESHOLD else "✗"
+                logger.info(
+                    f"      [{status}] h={h:.3f}: E={vqe_result.energy:.8f} "
+                    f"ΔE/gap={de_gap:.4f} |ΔE|={delta_e_abs:.4f} "
+                    f"(r={n_restarts_h}, {elapsed:.1f}s)"
+                )
 
-    logger.info("\n─── Summary ───")
-    logger.info(f"  Passed: {n_pass}/{n_total}")
-    logger.info(f"  Phase 1 time: {t_phase1:.1f}s")
-    logger.info(f"  Phase 2 time: {t_phase2:.1f}s")
-    logger.info(f"  Overall: {'PASS' if all_passed else 'FAIL'}")
+                # Checkpoint after each h-point
+                self.save_checkpoint(
+                    f"vqe_s{seed}",
+                    {
+                        "seed": seed,
+                        "n_done": idx + 1,
+                        "results": seed_results,
+                        "prev_theta": prev_theta.tolist(),
+                    },
+                )
 
-    # Persist results
-    # Compute aggregate statistics for analysis
-    all_de_gaps = [r["de_gap"] for seed_run in all_seed_results for r in seed_run["results"]]
-    all_theta_smoothness = [
-        r.get("theta_smoothness", 0)
-        for seed_run in all_seed_results
-        for r in seed_run["results"]
-        if r.get("theta_smoothness", 0) > 0
-    ]
+            all_seed_results.append({"seed": seed, "results": seed_results})
+            self.cleanup_checkpoints(f"vqe_s{seed}")
 
-    # Scaling law prediction
-    h_min_predicted = 1.5 + 0.020 * n**1.31
+        # Aggregate
+        all_de_gaps = [r["de_gap"] for sr in all_seed_results for r in sr["results"]]
+        n_total = len(all_de_gaps)
+        n_pass = sum(1 for d in all_de_gaps if d < DE_GAP_THRESHOLD)
+        all_passed = n_pass == n_total
 
-    envelope = {
-        "experiment": "mps_scaling_validation",
-        "version": "2.0",
-        "metadata": {
-            "n": n,
-            "topology": topology,
-            "p_layers": p_layers,
-            "strategy": strategy,
-            "chi_max": chi_max,
-            "precision": precision,
-            "seeds": seeds,
-            "h_values": h_values,
-            "optimizer_method": method_override or ("COBYLA" if strategy == "aer_mps" else "L-BFGS-B"),
-            "n_restarts": 3,
-            "maxiter": 500,
-            "n_params": 2 * p_layers,
-            "model": "tfim",
-            "J": 1.0,
-            "mps_evaluation_mode": "deterministic",
-        },
-        "environment": {
-            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "python_version": sys.version.split()[0],
-            "qiskit_version": _get_version("qiskit"),
-            "qiskit_aer_version": _get_version("qiskit_aer"),
-            "tenpy_version": _get_version("tenpy"),
-            "numpy_version": np.__version__,
-        },
-        "scaling_law": {
-            "formula": "h_min = 1.5 + 0.020 * N^1.31",
-            "predicted_h_min": h_min_predicted,
-            "lowest_h_tested": min(h_values),
-            "highest_h_tested": max(h_values),
-        },
-        "circuit": circuit_info,
-        "timing": {
-            "phase1_dmrg_s": t_phase1,
-            "phase2_vqe_s": t_phase2,
-            "total_s": t_phase1 + t_phase2,
-            "avg_per_hpoint_s": t_phase2 / max(len(h_values) * len(seeds), 1),
-        },
-        "dmrg_data": dmrg_data,
-        "vqe_results": all_seed_results,
-        "summary": {
+        return {
+            "pass": all_passed,
             "n_pass": n_pass,
             "n_total": n_total,
-            "all_passed": all_passed,
-            "mean_de_gap": float(np.mean(all_de_gaps)) if all_de_gaps else None,
-            "max_de_gap": float(np.max(all_de_gaps)) if all_de_gaps else None,
-            "min_de_gap": float(np.min(all_de_gaps)) if all_de_gaps else None,
-            "std_de_gap": float(np.std(all_de_gaps)) if all_de_gaps else None,
-            "mean_theta_smoothness": float(np.mean(all_theta_smoothness))
-            if all_theta_smoothness
-            else None,
-            "max_theta_smoothness": float(np.max(all_theta_smoothness))
-            if all_theta_smoothness
-            else None,
-        },
-    }
+            "pass_rate": n_pass / max(n_total, 1),
+            "mean_de_gap": float(np.mean(all_de_gaps)),
+            "max_de_gap": float(np.max(all_de_gaps)),
+            "per_seed": all_seed_results,
+            "circuit_info": {
+                "n_params": n_params,
+                "depth": circuit.depth(),
+                "gate_counts": dict(circuit.count_ops()),
+            },
+        }
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    output_path = output_dir / f"scaling_N{n}_{strategy}_{timestamp}.json"
-    json_dump(envelope, output_path)
-    logger.info(f"  Results saved: {output_path}")
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 3: Chi-Convergence Verification (optional, --verify-chi)
+    # ═══════════════════════════════════════════════════════════════════════════
 
-    return 0 if all_passed else 1
+    def section_chi_convergence(self) -> dict:
+        """Verify chi sufficiency by comparing E(chi) vs E(2*chi).
+
+        For each h-point, re-evaluates the best theta_opt found in Section 2
+        using a backend with doubled chi. If |E(chi) - E(2*chi)| < 1e-10 at
+        all points, chi is sufficient (MPS truncation error is negligible).
+        """
+        N = self._args.n_qubits
+        p = self._args.p_layers
+        topology = self._args.topology
+        model = self._args.model
+        spec = self.get_model_spec(model)
+        chi_1x = self._chi_max
+        chi_2x = chi_1x * 2
+
+        logger.info(f"    Chi-convergence: comparing chi={chi_1x} vs chi={chi_2x}")
+
+        # Build 2x backend
+        backend_2x = self.MPSBackend(
+            strategy="aer_mps",
+            chi_max=chi_2x,
+            seed=self._args.seeds[0],
+        )
+
+        # Build circuit once
+        lattice_ref = self.make_lattice(topology, N, J=1.0, h=self._h_values[0])
+        circuit, _ = spec.create_circuit(N, p, lattice_ref, **spec.circuit_kwargs)
+
+        # Get theta_opt from Section 2 results (first seed)
+        sec2_result = None
+        for sr in self._section_results:
+            if sr.section_id == 2 and sr.data:
+                sec2_result = sr.data
+                break
+
+        if sec2_result is None or "per_seed" not in sec2_result:
+            logger.error("    Section 2 results not available — cannot verify chi.")
+            return {"pass": False, "error": "Section 2 results unavailable"}
+
+        first_seed_results = sec2_result["per_seed"][0]["results"]
+        convergence_results = []
+        all_converged = True
+        CHI_CONVERGENCE_TOL = 1e-10
+
+        for idx, h in enumerate(self._h_values):
+            theta_opt = np.array(first_seed_results[idx]["theta_opt"])
+            lattice_h = self.make_lattice(topology, N, J=1.0, h=h)
+            H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
+
+            # Evaluate with 1x chi (cached from Section 2)
+            e_1x = first_seed_results[idx]["vqe_energy"]
+
+            # Evaluate with 2x chi
+            t0 = time.perf_counter()
+            e_2x = backend_2x.evaluate(circuit, H, theta_opt)
+            elapsed = time.perf_counter() - t0
+
+            chi_error = abs(e_1x - e_2x)
+            converged = chi_error < CHI_CONVERGENCE_TOL
+
+            if not converged:
+                all_converged = False
+                logger.warning(
+                    f"      ⚠️  h={h:.3f}: |E(χ={chi_1x}) - E(χ={chi_2x})| = {chi_error:.2e} "
+                    f"> {CHI_CONVERGENCE_TOL:.0e}"
+                )
+            else:
+                logger.info(f"      ✓ h={h:.3f}: |ΔE| = {chi_error:.2e} ({elapsed:.1f}s)")
+
+            convergence_results.append(
+                {
+                    "h": h,
+                    "energy_chi_1x": e_1x,
+                    "energy_chi_2x": e_2x,
+                    "chi_error": chi_error,
+                    "converged": converged,
+                    "elapsed_s": elapsed,
+                }
+            )
+
+        max_chi_error = max(r["chi_error"] for r in convergence_results)
+        n_converged = sum(1 for r in convergence_results if r["converged"])
+
+        return {
+            "pass": all_converged,
+            "chi_1x": chi_1x,
+            "chi_2x": chi_2x,
+            "tolerance": CHI_CONVERGENCE_TOL,
+            "max_chi_error": max_chi_error,
+            "n_converged": n_converged,
+            "n_total": len(convergence_results),
+            "per_point": convergence_results,
+        }
 
 
 if __name__ == "__main__":
-    sys.exit(main())
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Main
-# ═══════════════════════════════════════════════════════════════════════════════
+    MPSScalingValidationRunner.main()

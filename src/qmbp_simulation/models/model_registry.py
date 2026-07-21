@@ -226,6 +226,32 @@ def _register_builtins() -> None:
         )
     )
 
+    # Kitaev chain: H = -J·(XX+YY) - μ·Z (p-wave superconductor in spin rep)
+    def _create_kitaev(n_qubits, p_layers, lattice, **kwargs):
+        mod = importlib.import_module("qmbp_simulation.circuits")
+        hva = mod.HVACircuitBuilder()
+        return hva.create_kitaev(n_qubits, p_layers, lattice, **kwargs)
+
+    register_model(
+        ModelSpec(
+            name="kitaev",
+            params_per_layer=3,
+            build_hamiltonian=builder.build_kitaev,
+            build_observables=builder.build_kitaev_observables,
+            create_circuit=_create_kitaev,
+            initial_state="plus",
+            vqe_defaults={"n_restarts": 7, "restart_sigma": 0.2, "maxiter": 1200},
+            hamiltonian_kwargs={"delta": 1.0},
+            description=(
+                "Kitaev chain (p-wave SC): H = -J·(XX+YY) - μ·Z. "
+                "Topological QPT at |μ|=2J. In spin representation via "
+                "Jordan-Wigner. delta=1 is Kitaev sweet spot (pure XX)."
+            ),
+            fidelity_threshold=0.70,
+            mpnn_hidden_dim=64,
+        )
+    )
+
     # Bond-Resolved TFIM: H = -J·ZZ - h·X (same Hamiltonian, local parameters)
     def _create_bond_resolved(n_qubits, p_layers, lattice, **kwargs):
         mod = importlib.import_module("qmbp_simulation.circuits")

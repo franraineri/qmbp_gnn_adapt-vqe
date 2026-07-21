@@ -99,6 +99,8 @@ class MPNNPredictor(nn.Module):
         edge_feature_dim: int = 1,
         norm_type: str = "batch",
         n_edges: int | None = None,
+        dropout_rate: float = 0.1,
+        dropout_between_layers: float = 0.0,
     ) -> None:
         super().__init__()
 
@@ -115,9 +117,18 @@ class MPNNPredictor(nn.Module):
         self.edge_feature_dim = edge_feature_dim
         self.norm_type = norm_type
         self.n_edges = n_edges
+        self.dropout_rate = dropout_rate
+        self.dropout_between_layers = dropout_between_layers
 
         self.convs = nn.ModuleList()
         self.norms = nn.ModuleList()
+
+        # Dropout between GINConv/NNConv layers (for MC-Dropout UQ)
+        # When dropout_between_layers > 0, enables meaningful variance
+        # estimation across the entire representation, not just the head.
+        self._inter_layer_dropout = (
+            nn.Dropout(dropout_between_layers) if dropout_between_layers > 0 else None
+        )
 
         def _make_norm(dim: int) -> nn.Module:
             """Create normalization layer based on norm_type."""
@@ -187,13 +198,13 @@ class MPNNPredictor(nn.Module):
             self.head_zz = nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
-                nn.Dropout(0.1),
+                nn.Dropout(dropout_rate),
                 nn.Linear(hidden_dim, dim_zz),
             )
             self.head_x = nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
-                nn.Dropout(0.1),
+                nn.Dropout(dropout_rate),
                 nn.Linear(hidden_dim, dim_x),
             )
             self.head = None  # Not used in per-parameter mode
@@ -202,7 +213,7 @@ class MPNNPredictor(nn.Module):
             self.head = nn.Sequential(
                 nn.Linear(hidden_dim, hidden_dim),
                 nn.ReLU(),
-                nn.Dropout(0.1),
+                nn.Dropout(dropout_rate),
                 nn.Linear(hidden_dim, output_dim),
             )
 
@@ -249,11 +260,15 @@ class MPNNPredictor(nn.Module):
                 x = conv(x, edge_index, edge_attr)
                 x = norm(x)
                 x = torch.relu(x)
+                if self._inter_layer_dropout is not None:
+                    x = self._inter_layer_dropout(x)
         else:
             for conv, norm in zip(self.convs, self.norms, strict=False):
                 x = conv(x, edge_index)
                 x = norm(x)
                 x = torch.relu(x)
+                if self._inter_layer_dropout is not None:
+                    x = self._inter_layer_dropout(x)
 
         # Global mean pooling: lattice-agnostic fixed-size output
         x = global_mean_pool(x, batch)
@@ -372,7 +387,30 @@ def build_graph_dataset(
     dataset: list[Data] = []
     n_fidelity_filtered = 0
     n_de_gap_filtered = 0
+    n_basin_filtered = 0
+
+    # ── Mandatory canonicalization + basin filtering ──────────────────
+    # HVA circuits have gauge symmetries (period π + Z₂) that produce
+    # multiple equivalent θ for the same state. Canonicalize to the
+    # fundamental domain BEFORE building the dataset.
+    from qmbp_simulation.utils import canonicalize_theta, filter_consistent_theta
+
+    theta_canonical = np.array([canonicalize_theta(t) for t in theta_opt])
+
+    # Filter periodic basin outliers (local minima with different θ)
+    _, basin_mask = filter_consistent_theta(theta_canonical)
+    n_basin_filtered = int((~basin_mask).sum())
+    if n_basin_filtered > 0:
+        logger.info(
+            f"  ⚠️  Theta basin filter: removed {n_basin_filtered}/{len(theta_opt)} "
+            f"outlier points (different periodic basins)."
+        )
+
     for i, h in enumerate(h_values):
+        # Basin filter: skip points in different local minima
+        if not basin_mask[i]:
+            continue
+
         # Quality gate: fidelity filter (for N≤22 with statevector)
         if fidelities is not None and fidelities[i] < fidelity_threshold:
             n_fidelity_filtered += 1
@@ -397,7 +435,7 @@ def build_graph_dataset(
             np.stack(base_features, axis=1),
             dtype=torch.float32,
         )
-        y = torch.tensor(theta_opt[i], dtype=torch.float32)
+        y = torch.tensor(theta_canonical[i], dtype=torch.float32)
 
         data = Data(x=x, edge_index=edge_index, y=y)
         data.e_exact = float(e_exact[i])
@@ -429,6 +467,7 @@ def build_graph_dataset(
     logger.info(
         f"Built graph dataset: {len(dataset)}/{len(h_values)} points "
         f"(fidelity_filter={n_fidelity_filtered}, de_gap_filter={n_de_gap_filtered}, "
+        f"basin_filter={n_basin_filtered}, "
         f"node_features={n_features}, edge_features={include_edge_features})"
     )
     return dataset
@@ -452,6 +491,7 @@ def train_mpnn(
     physics_loss_weight: float = 0.1,
     physics_loss_start_epoch: int = 500,
     weight_decay: float = 1e-4,
+    grad_clip_norm: float | None = 1.0,
 ) -> dict:
     """Train the MPNN with MSE loss, ReduceLROnPlateau, and optional
     energy-driven validation.
@@ -479,6 +519,10 @@ def train_mpnn(
     physics_loss_start_epoch : int
         Epoch at which to start applying physics loss (default 500).
         Allows MSE to converge first, then physics regularizes.
+    grad_clip_norm : float | None
+        Maximum L2 norm for gradient clipping. Prevents training divergence
+        from gradient spikes (common with discontinuous θ(h) data).
+        Default 1.0. Set to None to disable clipping.
 
     Returns
     -------
@@ -495,7 +539,7 @@ def train_mpnn(
     # ── Dataset validation ────────────────────────────────────────────
     logger.info(
         "  🧠 train_mpnn: dataset=%d pts, epochs=%d, lr=%.1e, patience=%d, "
-        "physics_loss=%s (λ=%.2f, start=%d), weight_decay=%.1e",
+        "physics_loss=%s (λ=%.2f, start=%d), weight_decay=%.1e, grad_clip=%.1f",
         len(dataset),
         n_epochs,
         lr,
@@ -504,6 +548,7 @@ def train_mpnn(
         physics_loss_weight,
         physics_loss_start_epoch,
         weight_decay,
+        grad_clip_norm if grad_clip_norm is not None else 0.0,
     )
     logger.debug(
         "train_mpnn: dataset_size=%d, n_epochs=%d, lr=%.1e, patience=%d, seed=%d",
@@ -572,6 +617,8 @@ def train_mpnn(
                 loss = loss + physics_loss_weight * phys_loss
 
             loss.backward()
+            if grad_clip_norm is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
             optimizer.step()
             epoch_loss = loss.item()
 

@@ -38,6 +38,7 @@ from qmbp_simulation.framework.metrics import ExperimentMetrics, WarmColdCompari
 from qmbp_simulation.framework.result_io import (
     build_experiment_id,
     build_result_envelope,
+    build_simulation_diagnostics,
     generate_timestamp,
     load_result,
     load_results_from_dir,
@@ -83,8 +84,11 @@ from qmbp_simulation.framework.presets import (
 from qmbp_simulation.framework.artifact_store import (
     ArtifactCollector,
     find_artifacts_for_run,
+    inspect_circuit_artifact,
     load_artifact,
     load_manifest,
+    print_circuit_summary,
+    save_circuit_png,
 )
 
 __all__ = [
@@ -174,4 +178,7 @@ __all__ = [
     "load_artifact",
     "load_manifest",
     "find_artifacts_for_run",
+    "inspect_circuit_artifact",
+    "print_circuit_summary",
+    "save_circuit_png",
 ]

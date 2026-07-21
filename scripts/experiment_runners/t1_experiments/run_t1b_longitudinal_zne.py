@@ -39,6 +39,7 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -145,8 +146,8 @@ class LongitudinalZNERunner(ValidationRunner):
 
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,
@@ -231,13 +232,8 @@ class LongitudinalZNERunner(ValidationRunner):
             lattice = self._make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)
             H = self.builder.build_tfim_longitudinal(lattice, g=self._g)
 
-            # Exact ground state energy + gap
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact = float(evals[0])
-            gap = float(evals[1] - evals[0])
+            # Exact ground state energy + gap (via solver with proper gap method)
+            e_exact, gap = self.exact_ground_state(TOPOLOGY, N_QUBITS, h)
 
             # Multi-restart VQE
             best_energy = float("inf")

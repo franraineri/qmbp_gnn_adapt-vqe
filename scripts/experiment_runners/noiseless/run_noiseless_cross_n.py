@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from qmbp_simulation.models.constants import DEFAULT_SEEDS
+from qmbp_simulation.models.constants import DE_GAP_THRESHOLD, DEFAULT_SEEDS
 
 DEFAULT_TRAIN_SIZES = [6, 10]
 DEFAULT_TARGET_N = 8
@@ -291,6 +291,7 @@ class NoiselessCrossNRunner(ValidationRunner):
         # Set experiment_id dynamically
         sizes_tag = "_".join(str(n) for n in sorted(self._args.train_sizes))
         from qmbp_simulation.framework.result_io import build_experiment_id
+
         self.experiment_id = build_experiment_id(
             category="noiseless",
             model=f"cross_n_{sizes_tag}_to_{self._args.target_n}",
@@ -410,6 +411,7 @@ class NoiselessCrossNRunner(ValidationRunner):
             fidelities = []
             de_gaps = []
             energies_vqe = []
+            energy_variances = []
 
             # ── Descending pass (h_max → h_min) ─────────────────────────
             for h in self._h_train:
@@ -435,6 +437,7 @@ class NoiselessCrossNRunner(ValidationRunner):
                 fidelities.append(vqe_result.fidelity)
                 de_gaps.append(de_gap)
                 energies_vqe.append(vqe_result.energy)
+                energy_variances.append(vqe_result.energy_variance)
 
             # ── Bidirectional ascending pass (h_min → h_max) ─────────────
             # Re-visit from the last point upward, keep better energy.
@@ -478,14 +481,19 @@ class NoiselessCrossNRunner(ValidationRunner):
                 "theta_opt": np.array(theta_opts),
                 "e_exact": np.array(e_exacts),
                 "fidelities": np.array(fidelities),
+                "energy_variances": energy_variances,
                 "n_params": n_params,
             }
 
             # Summary
             mean_fid = float(np.mean(fidelities))
             min_fid = float(np.min(fidelities))
-            n_pass = sum(1 for d in de_gaps if d < 0.05)
+            n_pass = sum(1 for d in de_gaps if d < DE_GAP_THRESHOLD)
             size_pass = n_pass >= len(de_gaps) * 0.8
+
+            # Energy variance summary (filter None/NaN)
+            valid_variances = [v for v in energy_variances if v is not None and np.isfinite(v)]
+            mean_variance = float(np.mean(valid_variances)) if valid_variances else None
 
             all_size_results[n_train] = {
                 "n_points": len(h_values),
@@ -494,6 +502,7 @@ class NoiselessCrossNRunner(ValidationRunner):
                 "min_fidelity": min_fid,
                 "mean_de_gap": float(np.mean(de_gaps)),
                 "max_de_gap": float(np.max(de_gaps)),
+                "mean_energy_variance": mean_variance,
                 "n_pass_5pct": n_pass,
                 "pass": size_pass,
             }
@@ -745,7 +754,7 @@ class NoiselessCrossNRunner(ValidationRunner):
                 "energy_error": energy_error,
                 "variational_ok": energy_error >= -1e-6,
                 "theta_pred": theta_pred.tolist(),
-                "passed": bool(de_gap < 0.05),
+                "passed": bool(de_gap < DE_GAP_THRESHOLD),
             }
             results_mpnn.append(result)
 
@@ -859,7 +868,7 @@ class NoiselessCrossNRunner(ValidationRunner):
                 "gap": float(gt.gap),
                 "de_gap": float(de_gap),
                 "theta_pred": theta_pred.tolist(),
-                "passed": bool(de_gap < 0.05),
+                "passed": bool(de_gap < DE_GAP_THRESHOLD),
             }
             results.append(result)
 

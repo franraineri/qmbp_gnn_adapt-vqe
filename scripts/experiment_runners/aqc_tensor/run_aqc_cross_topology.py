@@ -48,6 +48,7 @@ from qmbp_simulation.circuits.aqc_compression import (
     AQCCircuitCompressor,
     AQCCompressionConfig,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 from qmbp_simulation.utils.helpers import json_dump
 
 # ─── Configuration ─────────────────────────────────────────────────────────────

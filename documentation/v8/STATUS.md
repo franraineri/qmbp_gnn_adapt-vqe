@@ -293,7 +293,7 @@ DyPP works better for systems with more parameters and larger Δh steps.
 | fraction_near_gs predicts boundary | F3 | DEFINITIVE |
 | Weight gradients detect h_c (when well-trained) | D1 | HIGH |
 | Physics loss: safe, +3.9% at N=6 | C1 | HIGH |
-| Scaling law: h_min = 1.0 + 0.020·N^1.31 | A3 | DEFINITIVE |
+| Frontier: p=1 linear, p≥3 constant (supersedes power law) | A3+H_EXPR_MATRIX | DEFINITIVE |
 | p=1 scales better (β=0.60 < 1.33) | A3 | HIGH |
 | Optimal VQE at h≥1.5: 1 restart + 2 params | B4+B2 | DEFINITIVE |
 

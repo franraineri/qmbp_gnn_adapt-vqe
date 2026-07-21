@@ -61,7 +61,7 @@ from qmbp_simulation.framework.variant_runner import PipelineVariant, run_varian
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
-PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_pipeline.py"
+PIPELINE_SCRIPT = "scripts/experiment_runners/noiseless/run_noiseless_pipeline.py"
 OUTPUT_BASE = "results/thesis/verification_r1"
 SEEDS = DEFAULT_SEEDS
 

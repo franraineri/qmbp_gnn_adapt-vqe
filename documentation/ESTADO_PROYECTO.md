@@ -43,7 +43,7 @@ Ejecutado con `python -m project_health.analysis.thesis_findings_validator --ver
 |----|---------|-----------|--------|
 | F1 | Pipeline universality across topologies | ⚠️ QUALIFIED | WEAK |
 | F2 | PEA-ZNE superiority (+95%, 18/18 wins) | ✅ CORROBORATED | STRONG |
-| F3 | Scaling law h_min = 1.0 + 0.020·N^1.31 | ✅ CORROBORATED | STRONG |
+| F3 | Frontier: p=1 linear (0.007/qubit), p≥3 constant (~1.4-1.6) | ✅ SUPERSEDED | STRONG |
 | F4 | GNN-QEM cross-topology (100% improvement) | ✅ CORROBORATED | STRONG |
 | F5 | Cross-N zero-shot (30/30 PASS) | ✅ CORROBORATED | STRONG |
 | F6 | Topology ranking: ladder < chain < tri | 🚫 CONTRADICTED | MODERATE |

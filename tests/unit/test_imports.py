@@ -17,7 +17,7 @@ DEPENDENCY_ORDER = {
     "execution": ["circuits", "models", "utils", "framework", "predictors"],
     "optimizers": ["execution", "circuits", "models", "utils"],
     "predictors": ["models", "utils", "execution", "solvers", "circuits"],
-    "analysis": ["predictors", "models", "utils", "solvers"],
+    "analysis": ["predictors", "models", "utils", "solvers", "execution", "circuits"],
     "pipeline": [
         "analysis",
         "solvers",
@@ -27,6 +27,7 @@ DEPENDENCY_ORDER = {
         "circuits",
         "models",
         "utils",
+        "framework",
     ],
     "framework": [
         "pipeline",

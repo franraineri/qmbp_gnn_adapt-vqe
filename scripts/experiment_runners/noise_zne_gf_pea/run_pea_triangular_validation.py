@@ -38,6 +38,8 @@ logger = logging.getLogger(__name__)
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
+
 NOISE_FACTORS = (1, 3, 5)
 ZNE_SHOTS = 16384
 N_CANDIDATE_LAYOUTS = 20
@@ -152,7 +154,7 @@ class PEATriangularRunner(ValidationRunner):
         """Import dependencies and prepare backend."""
         from qiskit_ibm_runtime.fake_provider import FakeTorino
 
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,

@@ -83,7 +83,7 @@ H_TEST_SAFE = "3.25"  # Deep paramagnetic (interpolation in BASE)
 H_TEST_BOUNDARY = "2.25"  # Near expected valid regime boundary
 H_TEST_DEEP = "1.75"  # Deep in correlated regime (likely fails)
 
-PIPELINE_SCRIPT = "scripts/experiment_runners/experiment_run_helpers/run_heisenberg_pipeline.py"
+PIPELINE_SCRIPT = "scripts/experiment_runners/_deprecated/experiment_run_helpers/run_heisenberg_pipeline.py"  # TODO: migrate to noiseless runner --model heisenberg
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -10,7 +10,7 @@ fileMatchPattern: "**/mps_backend*,**/scaling/**,**/run_mps*,**/binnacle-mps*"
 ## What's Done
 
 - N=40, 50, 80 validated (5/5 h-points each, ΔE/gap < 0.60%).
-- Scaling law confirmed: `h_min_safe = 1.5 + 0.020·N^1.31` (+0.50 offset).
+- Frontier fits (MPS deterministic, N=20-250): p=1: h=2.36+0.0073·N (R²=0.91), p=2: h=1.57+0.005·N (R²=0.95), p≥3: quasi-constant ~1.4-1.6.
 - Multi-seed (42/43/44) at N=40: 27/27 pass, std=0.074%.
 - Phase 3 MPNN at N=40: 0.46% deploy error with 27 training points.
 - Zero-shot cross-N GNN validated with `norm_type="none"` (30/30 PASS).
@@ -43,11 +43,14 @@ Results before 2026-06-10 implicitly used stochastic mode (no field present).
 
 ## Configuration Quick Reference
 
-| N | chi | optimizer | restarts | h_min_safe | timing (boundary) |
-|---|-----|-----------|----------|------------|-------------------|
-| 40 | 64 | COBYLA | 3 | 3.5 | ~5 min/point |
-| 50 | 64 | COBYLA | 3 | 4.9 | ~6 min/point |
-| 80 | 64 | COBYLA | 3 | 7.7 | ~22s/point |
+| N | chi | optimizer | restarts | h tested (passed) | timing (boundary) |
+|---|-----|-----------|----------|-------------------|-------------------|
+| 40 | 64 | COBYLA | 3 | 3.5-5.0 | ~5 min/point |
+| 50 | 64 | COBYLA | 3 | 4.9-5.9 | ~6 min/point |
+| 80 | 64 | COBYLA | 3 | 7.7-8.7 | ~22s/point |
+
+Note: actual frontier at p=1 is h=2.36+0.0073·N (lower than tested). Experiments
+used conservative h-values from the old formula, which is safe (overestimates).
 | 100 | 64 | COBYLA | 3 | 9.9 (predicted) | untested |
 
 ## Constraints

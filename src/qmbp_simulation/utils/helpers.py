@@ -172,3 +172,129 @@ def timer(label: str = "") -> Generator[TimerResult, None, None]:
         yield result
     finally:
         result.elapsed_s = time.perf_counter() - start
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Theta Canonicalization (HVA parameter gauge symmetry)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def canonicalize_theta(theta: np.ndarray, *, period: float = np.pi) -> np.ndarray:
+    """Canonicalize VQE parameters to the fundamental domain.
+
+    The HVA circuit has gauge symmetries that make multiple θ values produce
+    the same quantum state:
+
+    1. **Periodicity**: RZZ(2θ) and RX(2θ) both have period π in θ.
+       Verified: |ψ(θ)⟩ = |ψ(θ+π)⟩ (fidelity=1.0, same state).
+    2. **Z₂ symmetry**: (-θ_zz, -θ_x) gives the same *energy* but a
+       different state (fidelity≈0.9998). We canonicalize by sign to ensure
+       consistent MPNN targets.
+
+    This function maps θ to a canonical representative:
+    - Wrap each parameter to [-period/2, period/2] using modular arithmetic.
+    - Apply Z₂ convention: ensure the last parameter is non-negative.
+
+    Parameters
+    ----------
+    theta : np.ndarray or array-like
+        Parameter vector from VQE optimization. Shape (n_params,).
+    period : float
+        Periodicity of the gate parameters. Default π for standard HVA
+        (RZZ(2θ) and RX(2θ) both have period π in θ). Use 2π for circuits
+        with single-angle rotations (RZ(θ), RX(θ)).
+
+    Returns
+    -------
+    np.ndarray
+        Canonicalized θ in the fundamental domain.
+
+    Notes
+    -----
+    This function handles the most common gauge equivalences in HVA circuits.
+    It does NOT detect genuine local minima with different energy — those must
+    be filtered by energy comparison or `filter_consistent_theta`.
+
+    For bond-resolved HVA (many parameters per layer), translational invariance
+    can create additional equivalences not handled here.
+    """
+    theta = np.asarray(theta, dtype=float)
+    if theta.size == 0:
+        return theta
+
+    result = theta.copy()
+    half_period = period / 2.0
+
+    # Step 1: Wrap each parameter to [-period/2, period/2]
+    result = ((result + half_period) % period) - half_period
+
+    # Step 2: Z₂ convention — ensure last parameter is non-negative
+    if result[-1] < 0:
+        result = -result
+
+    return result
+
+
+def filter_consistent_theta(
+    theta_array: np.ndarray,
+    *,
+    outlier_sigma: float = 5.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Filter θ_opt array to remove points in different local minima.
+
+    After canonicalization (mod-π + Z₂), most gauge-equivalent θ converge
+    to the same canonical value. However, the VQE can still find genuine
+    local minima (different state, different energy) that canonicalization
+    cannot fix. These appear as outliers far from the cluster of normal points.
+
+    Uses robust MAD-based outlier detection: removes points whose distance
+    from the median θ exceeds `outlier_sigma × MAD`.
+
+    Parameters
+    ----------
+    theta_array : np.ndarray
+        Array of canonicalized θ vectors, shape (n_points, n_params).
+        MUST be canonicalized first (call canonicalize_theta on each row).
+    outlier_sigma : float
+        Number of MAD-scaled deviations to consider as outlier. Default 5.0
+        (very conservative — only catches gross outliers like basin jumps
+        where Δθ ≈ π/2 or larger).
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        (filtered_theta, mask) where mask[i] = True if point i was kept.
+
+    Notes
+    -----
+    For typical TFIM HVA p=1 data:
+    - Normal cluster: θ_zz ∈ [0.04, 0.12], θ_x ≈ π/8. MAD ≈ 0.01.
+    - Periodic basin outliers: θ_x ≈ 3π/8 (distance ~0.8 from cluster).
+    - Threshold at 5σ: 0.01 × 5 × 1.48 ≈ 0.07 → catches outliers at 0.8.
+
+    For random/synthetic data (property tests):
+    - MAD is large (~0.3+) → threshold is large → nothing gets filtered.
+    """
+    theta_array = np.asarray(theta_array, dtype=float)
+
+    if len(theta_array) < 3:
+        return theta_array, np.ones(len(theta_array), dtype=bool)
+
+    # Compute distance of each point from the median (robust center)
+    median_theta = np.median(theta_array, axis=0)
+    distances = np.linalg.norm(theta_array - median_theta, axis=1)
+
+    # MAD (median absolute deviation) — robust scale estimator
+    med_dist = np.median(distances)
+    mad = np.median(np.abs(distances - med_dist))
+
+    if mad < 1e-10:
+        # All points are nearly identical — no outliers detectable
+        return theta_array, np.ones(len(theta_array), dtype=bool)
+
+    # Adaptive threshold: median_distance + sigma × scaled_MAD
+    # The 1.4826 factor converts MAD to Gaussian-equivalent σ
+    threshold = med_dist + outlier_sigma * 1.4826 * mad
+    mask = distances <= threshold
+
+    return theta_array[mask], mask

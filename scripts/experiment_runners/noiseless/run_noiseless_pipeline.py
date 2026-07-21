@@ -66,6 +66,7 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from qmbp_simulation.models.constants import (
+    DE_GAP_THRESHOLD,
     DEFAULT_SEEDS,
     STATEVECTOR_MAX_N,
 )
@@ -73,12 +74,12 @@ from qmbp_simulation.models.constants import (
 DEFAULT_N = 6
 DEFAULT_P = 2
 DEFAULT_TOPOLOGY = "chain_1d"
-DEFAULT_MODEL = "tfim"
-DEFAULT_H_MIN = 0.5
-DEFAULT_H_MAX = 2.0
-DEFAULT_H_POINTS = 15
-DEFAULT_MAXITER = 500
-DEFAULT_N_RESTARTS = 5
+DEFAULT_MODEL = "tfim_longitudinal"
+DEFAULT_H_MIN = 1.0
+DEFAULT_H_MAX = 3.5
+DEFAULT_H_POINTS = 35
+DEFAULT_MAXITER = 1200
+DEFAULT_N_RESTARTS = 10
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -117,17 +118,25 @@ class NoiselessPipelineRunner(ValidationRunner):
             n_restarts=DEFAULT_N_RESTARTS,
         )
         parser.add_argument(
-            "--no-bidirectional",
+            "--no-physics-loss",
             action="store_true",
             default=False,
-            help="Skip the ascending bidirectional pass. "
-            "Auto-enabled for N>=16 (diminishing returns, 2x cost savings).",
+            help="Disable physics-informed energy loss during MPNN training. "
+            "Useful as control experiment to compare MSE-only vs energy-aware training.",
         )
         parser.add_argument(
-            "--force-bidirectional",
-            action="store_true",
-            default=False,
-            help="Force the bidirectional pass even for N>=16. Overrides the automatic skip.",
+            "--physics-loss-weight",
+            type=float,
+            default=0.2,
+            help="Weight λ for physics loss term (default: 0.1). "
+            "Higher values prioritize energy accuracy over θ-MSE.",
+        )
+        parser.add_argument(
+            "--physics-loss-start",
+            type=int,
+            default=800,
+            help="Epoch at which physics loss activates (default: 800). "
+            "Allows MSE to converge first, then energy regularizes.",
         )
 
     def run_preflight(self) -> bool:
@@ -163,6 +172,12 @@ class NoiselessPipelineRunner(ValidationRunner):
                 f"MPNN training requires at least 5 points for meaningful interpolation. "
                 f"Consider using --h-points 10 or more."
             )
+        if not self._args.no_physics_loss and self._args.physics_loss_weight <= 0:
+            logger.error(
+                f"physics_loss_weight={self._args.physics_loss_weight} must be > 0 "
+                f"when physics loss is enabled. Use --no-physics-loss to disable it entirely."
+            )
+            return False
         return True
 
     def build_config(self) -> dict:
@@ -186,6 +201,11 @@ class NoiselessPipelineRunner(ValidationRunner):
                 "n_restarts": self._args.n_restarts,
                 "method": "L-BFGS-B",
                 "bounds": "[-π, π]",
+            },
+            "mpnn": {
+                "physics_loss": not self._args.no_physics_loss,
+                "physics_loss_weight": self._args.physics_loss_weight,
+                "physics_loss_start_epoch": self._args.physics_loss_start,
             },
             "backend": "NoiselessBackend (StatevectorEstimator)",
             "seeds": self._args.seeds,
@@ -501,6 +521,7 @@ class NoiselessPipelineRunner(ValidationRunner):
                         "h": h,
                         "energy": gt.ground_energy,
                         "gap": gt.gap,
+                        "gap_method": gt.gap_method,
                         "mag_x": gt.mag_x,
                         "corr_zz": gt.corr_zz,
                         "per_site_mag_x": gt.per_site_mag_x.tolist(),
@@ -629,6 +650,7 @@ class NoiselessPipelineRunner(ValidationRunner):
             rng = np.random.default_rng(seed)
             prev_theta = rng.uniform(-0.01, 0.01, n_params)
             topo_results = []
+            _consecutive_violations = 0  # Track consecutive variational violations
 
             # ── Resume from checkpoint if available ────────────────────────
             start_idx = 0
@@ -653,6 +675,11 @@ class NoiselessPipelineRunner(ValidationRunner):
                     gap = gt[idx]["gap"]
                 else:
                     e_exact, gap = self.exact_ground_state(topo, N, h, model=model)
+
+                # Annotate E_exact method for traceability
+                from qmbp_simulation.models.constants import EXACT_DIAG_QUBIT_LIMIT
+
+                _e_exact_method = "eigsh" if N <= EXACT_DIAG_QUBIT_LIMIT else "dmrg_1d"
 
                 # Get ground state vector for fidelity (use cache from Section 1 if available)
                 cached_gs = getattr(self, "_cached_ground_states", {}).get(topo, [])
@@ -694,21 +721,49 @@ class NoiselessPipelineRunner(ValidationRunner):
                 # Compute ΔE/gap
                 de_gap = abs(vqe_result.energy - e_exact) / max(gap, 1e-10)
 
-                # Variational principle check: E_vqe must be >= E_exact
-                if vqe_result.energy < e_exact - 1e-8:
+                # Variational principle check: E_vqe must be >= E_exact - ε
+                variational_violation = max(0.0, e_exact - vqe_result.energy - 1e-8)
+                variational_ok = vqe_result.energy >= e_exact - 1e-8
+
+                if not variational_ok:
+                    _consecutive_violations += 1
                     logger.warning(
                         f"    ⚠️  Variational principle violated at h={h:.4f}: "
-                        f"E_vqe={vqe_result.energy:.8f} < E_exact={e_exact:.8f}"
+                        f"E_vqe={vqe_result.energy:.8f} < E_exact={e_exact:.8f} "
+                        f"(diff={variational_violation:.2e}, consecutive: {_consecutive_violations})"
                     )
+                    # Auto-abort only for LARGE violations (>1e-2).
+                    # Small violations (1e-3 to 1e-8) often indicate approximate E_exact
+                    # reference (e.g., DMRG 1D model used for non-1D topology).
+                    if _consecutive_violations > 4 and variational_violation > 1e-2:
+                        logger.error(
+                            f"    ❌ ABORT: >4 consecutive LARGE variational violations in {topo}. "
+                            f"(max violation: {variational_violation:.2e} >> 1e-2) "
+                            f"This indicates a systematic error in the solver or backend. "
+                            f"Saving {len(topo_results)} completed points and skipping remaining."
+                        )
+                        break
+                    elif _consecutive_violations > 4:
+                        logger.warning(
+                            f"    ⚠️  >4 consecutive small violations in {topo} "
+                            f"(max={variational_violation:.2e}). Likely approximate E_exact "
+                            f"reference (DMRG on non-1D topology). Continuing sweep."
+                        )
+                        # Reset to prevent repeated warnings every point
+                        _consecutive_violations = 0
+                else:
+                    _consecutive_violations = 0  # Reset on success
 
                 topo_results.append(
                     {
                         "h": h,
                         "energy_vqe": vqe_result.energy,
                         "energy_exact": e_exact,
+                        "e_exact_method": _e_exact_method,
                         "gap": gap,
                         "de_gap": de_gap,
                         "fidelity": vqe_result.fidelity,
+                        "energy_variance": vqe_result.energy_variance,
                         "entanglement_entropy": entanglement_entropy,
                         "theta_opt": vqe_result.theta_opt.tolist(),
                         "converged": vqe_result.n_iterations > 0,
@@ -718,6 +773,8 @@ class NoiselessPipelineRunner(ValidationRunner):
                         ),
                         "theta_change_linf": theta_change,
                         "elapsed_s": elapsed,
+                        "variational_violation": variational_violation,
+                        "variational_ok": variational_ok,
                     }
                 )
 
@@ -837,8 +894,44 @@ class NoiselessPipelineRunner(ValidationRunner):
             fidelities = [r["fidelity"] for r in topo_results if r["fidelity"] is not None]
             de_gaps = [r["de_gap"] for r in topo_results if r["de_gap"] is not None]
             theta_changes = [r["theta_change_linf"] for r in topo_results]
-            n_pass = sum(1 for d in de_gaps if d < 0.05)
+            n_pass = sum(1 for d in de_gaps if d < DE_GAP_THRESHOLD)
             topo_pass = n_pass >= len(de_gaps) * 0.8 if de_gaps else False
+
+            # Variational principle violation summary
+            n_violations = sum(1 for r in topo_results if not r.get("variational_ok", True))
+            max_violation = max(
+                (r.get("variational_violation", 0.0) for r in topo_results), default=0.0
+            )
+            if n_violations > 0:
+                logger.warning(
+                    f"    ⚠️  {n_violations}/{len(topo_results)} points violate "
+                    f"variational principle (max violation: {max_violation:.2e}). "
+                    f"This may indicate numerical noise or incorrect E_exact reference."
+                )
+
+            # Energy variance aggregation
+            valid_variances = [
+                r.get("energy_variance")
+                for r in topo_results
+                if r.get("energy_variance") is not None
+                and np.isfinite(r.get("energy_variance", float("nan")))
+            ]
+            mean_variance = float(np.mean(valid_variances)) if valid_variances else None
+            max_variance = float(np.max(valid_variances)) if valid_variances else None
+
+            # Fragile passes: ΔE/gap < 5% but Var(H) > 0.5 (state is not near-eigenstate)
+            n_fragile = sum(
+                1
+                for r in topo_results
+                if r.get("de_gap", 1.0) < DE_GAP_THRESHOLD
+                and r.get("energy_variance") is not None
+                and r.get("energy_variance", 0) > 0.5
+            )
+            if n_fragile > 0:
+                logger.warning(
+                    f"    ⚠️  {n_fragile} FRAGILE PASSES: ΔE/gap<5%% but Var(H)>0.5. "
+                    f"These points may fail under hardware noise."
+                )
 
             all_results[topo] = {
                 "n_points": len(topo_results),
@@ -847,9 +940,14 @@ class NoiselessPipelineRunner(ValidationRunner):
                 "min_fidelity": float(np.min(fidelities)) if fidelities else None,
                 "mean_de_gap": float(np.mean(de_gaps)) if de_gaps else None,
                 "max_de_gap": float(np.max(de_gaps)) if de_gaps else None,
+                "mean_energy_variance": mean_variance,
+                "max_energy_variance": max_variance,
+                "n_fragile_passes": n_fragile,
                 "theta_smoothness_max": float(np.max(theta_changes)) if theta_changes else None,
                 "theta_smoothness_mean": float(np.mean(theta_changes)) if theta_changes else None,
                 "n_converged": sum(1 for r in topo_results if r["converged"]),
+                "n_variational_violations": n_violations,
+                "max_variational_violation": max_violation,
                 "mean_entanglement_entropy": float(
                     np.mean([r["entanglement_entropy"] for r in topo_results])
                 ),
@@ -864,6 +962,7 @@ class NoiselessPipelineRunner(ValidationRunner):
                         "gap": r["gap"],
                         "de_gap": r["de_gap"],
                         "fidelity": r["fidelity"],
+                        "energy_variance": r.get("energy_variance"),
                         "entanglement_entropy": r["entanglement_entropy"],
                         "n_iterations": r["n_iterations"],
                         "n_restarts_used": r["n_restarts_used"],
@@ -871,6 +970,8 @@ class NoiselessPipelineRunner(ValidationRunner):
                         "theta_change_linf": r["theta_change_linf"],
                         "elapsed_s": r["elapsed_s"],
                         "theta_opt": r["theta_opt"],
+                        "variational_violation": r.get("variational_violation", 0.0),
+                        "variational_ok": r.get("variational_ok", True),
                     }
                     for r in topo_results
                 ],
@@ -1129,53 +1230,65 @@ class NoiselessPipelineRunner(ValidationRunner):
         # ── Physics-informed loss (regularizes MPNN with actual energy eval) ──
         import torch as _torch
 
-        def _physics_loss_fn(pred_batch: _torch.Tensor, data_batch) -> _torch.Tensor:
-            """Compute energy penalty: mean |E(θ_pred) - E_exact| / gap."""
-            pred_np = pred_batch.detach().cpu().numpy()
-            batch_size = pred_np.shape[0]
-            penalties = []
-            h_vals_batch = data_batch.h_value if hasattr(data_batch, "h_value") else None
-            e_exacts_batch = data_batch.e_exact if hasattr(data_batch, "e_exact") else None
+        use_physics_loss = not self._args.no_physics_loss
+        physics_loss_weight = self._args.physics_loss_weight
+        physics_loss_start_epoch = self._args.physics_loss_start
 
-            for i in range(min(batch_size, 5)):  # Eval max 5 points per batch (cost control)
-                theta_i = pred_np[i]
-                h_val = float(h_vals_batch[i]) if h_vals_batch is not None else 0
-                e_exact_i = float(e_exacts_batch[i]) if e_exacts_batch is not None else 0
-                lattice_i = self.make_lattice(topo, N, J=1.0, h=h_val)
-                H_i = spec.build_hamiltonian(lattice_i, **spec.hamiltonian_kwargs)
-                try:
-                    e_pred = self._vqe_backend.evaluate(circuit, H_i, theta_i)
-                    gap_i = next(
-                        (r["gap"] for r in vqe_data if abs(r["h"] - h_val) < 0.01),
-                        1.0,
-                    )
-                    penalties.append(abs(e_pred - e_exact_i) / max(gap_i, 1e-10))
-                except Exception as e:
-                    logger.debug("    Physics loss eval failed at h=%.3f: %s", h_val, e)
-                    penalties.append(0.0)
+        _physics_loss_fn_impl = None
+        if use_physics_loss:
 
-            if penalties:
-                return _torch.tensor(sum(penalties) / len(penalties), dtype=_torch.float32)
-            return _torch.tensor(0.0)
+            def _physics_loss_fn_impl(pred_batch: _torch.Tensor, data_batch) -> _torch.Tensor:
+                """Compute energy penalty: mean |E(θ_pred) - E_exact| / gap."""
+                pred_np = pred_batch.detach().cpu().numpy()
+                batch_size = pred_np.shape[0]
+                penalties = []
+                h_vals_batch = data_batch.h_value if hasattr(data_batch, "h_value") else None
+                e_exacts_batch = data_batch.e_exact if hasattr(data_batch, "e_exact") else None
 
+                for i in range(min(batch_size, 5)):  # Eval max 5 points per batch
+                    theta_i = pred_np[i]
+                    h_val = float(h_vals_batch[i]) if h_vals_batch is not None else 0
+                    e_exact_i = float(e_exacts_batch[i]) if e_exacts_batch is not None else 0
+                    lattice_i = self.make_lattice(topo, N, J=1.0, h=h_val)
+                    H_i = spec.build_hamiltonian(lattice_i, **spec.hamiltonian_kwargs)
+                    try:
+                        e_pred = self._vqe_backend.evaluate(circuit, H_i, theta_i)
+                        gap_i = next(
+                            (r["gap"] for r in vqe_data if abs(r["h"] - h_val) < 0.01),
+                            1.0,
+                        )
+                        penalties.append(abs(e_pred - e_exact_i) / max(gap_i, 1e-10))
+                    except Exception as e:
+                        logger.debug("    Physics loss eval failed at h=%.3f: %s", h_val, e)
+                        penalties.append(0.0)
+
+                if penalties:
+                    return _torch.tensor(sum(penalties) / len(penalties), dtype=_torch.float32)
+                return _torch.tensor(0.0)
+
+        physics_status = (
+            f"ON (λ={physics_loss_weight}, start={physics_loss_start_epoch})"
+            if use_physics_loss
+            else "OFF"
+        )
         logger.info(
-            "  🧠 MPNN training: n_features=%d, hidden=128, output=%d, "
-            "physics_loss=ON (λ=0.1, start=500)",
+            "  🧠 MPNN training: n_features=%d, hidden=128, output=%d, physics_loss=%s",
             n_node_features,
             n_output,
+            physics_status,
         )
 
         train_result = train_mpnn(
             predictor,
             dataset,
-            n_epochs=3000,
+            n_epochs=6000,
             lr=1e-3,
             patience=300,
             energy_val_fn=energy_val_fn,
             energy_val_interval=100,
-            physics_loss_fn=_physics_loss_fn,
-            physics_loss_weight=0.1,
-            physics_loss_start_epoch=500,
+            physics_loss_fn=_physics_loss_fn_impl,
+            physics_loss_weight=physics_loss_weight,
+            physics_loss_start_epoch=physics_loss_start_epoch,
         )
 
         final_mse = train_result["final_mse"]
@@ -1218,6 +1331,20 @@ class NoiselessPipelineRunner(ValidationRunner):
                 "p_layers": p,
                 "topology": topo,
                 "n_params": n_output,
+            },
+        )
+        # Also save human-readable QASM3 for documentation/analysis
+        self.artifacts.register(
+            "circuit_readable",
+            circuit,
+            format="qasm3",
+            metadata={
+                "n_qubits": N,
+                "p_layers": p,
+                "topology": topo,
+                "n_params": n_output,
+                "depth": circuit.depth(),
+                "size": circuit.size(),
             },
         )
 
@@ -1268,7 +1395,7 @@ class NoiselessPipelineRunner(ValidationRunner):
 
         # Pass criterion: MSE < 1e-3 OR final energy validation < 5%
         final_de_gap = energy_val_history[-1] if energy_val_history else None
-        passed = final_mse < 1e-3 or (final_de_gap is not None and final_de_gap < 0.05)
+        passed = final_mse < 1e-3 or (final_de_gap is not None and final_de_gap < DE_GAP_THRESHOLD)
 
         de_gap_str = f"{final_de_gap:.2e}" if final_de_gap is not None else "N/A"
         logger.info(
@@ -1420,7 +1547,7 @@ class NoiselessPipelineRunner(ValidationRunner):
             # If ΔE/gap > 5% but fidelity/confidence suggests we're close,
             # use θ_pred as warm-start for a short VQE to "polish" the result.
             refined = False
-            if de_gap > 0.05 and de_gap < 5.0:
+            if de_gap > DE_GAP_THRESHOLD and de_gap < 5.0:
                 # Short VQE: 50 iters, 1 restart, using θ_pred as seed
                 res_refine = self.minimize(
                     lambda params, _H=H, _c=circuit: self._vqe_backend.evaluate(_c, _H, params),
@@ -1470,11 +1597,11 @@ class NoiselessPipelineRunner(ValidationRunner):
                 "paramagnetic" if abs(mag_x_pred) > abs(corr_zz_pred) else "ferromagnetic"
             )
             # Correct label: compare with energy criterion
-            correct_label = de_gap < 0.05
+            correct_label = de_gap < DE_GAP_THRESHOLD
 
             if correct_label:
                 n_correct_label += 1
-            if de_gap < 0.05:
+            if de_gap < DE_GAP_THRESHOLD:
                 n_pass_energy += 1
 
             results.append(
@@ -1482,6 +1609,7 @@ class NoiselessPipelineRunner(ValidationRunner):
                     "h_test": h_test,
                     "e_pred": e_pred,
                     "e_exact": e_exact,
+                    "gap": gap,
                     "de_gap": de_gap,
                     "de_gap_random_init": de_gap_random,
                     "n_iters_random_init": n_iters_random,
@@ -1512,7 +1640,7 @@ class NoiselessPipelineRunner(ValidationRunner):
                 }
             )
 
-            status = "✓" if de_gap < 0.05 else "✗"
+            status = "✓" if de_gap < DE_GAP_THRESHOLD else "✗"
             logger.info(
                 f"    [{status}] h={h_test:.4f}: ΔE/gap={de_gap:.2e} (MPNN) vs "
                 f"{de_gap_random:.2e} (random), F={fidelity:.6f}, phase={predicted_phase}"

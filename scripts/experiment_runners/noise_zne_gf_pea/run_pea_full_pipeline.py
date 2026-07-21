@@ -40,11 +40,16 @@ import sys
 
 import numpy as np
 
-from qmbp_simulation.execution.noisy_utils import NoisyEstimatorConfig
+from qmbp_simulation.execution import NoisyEstimatorConfig
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
     resolve_project_root,
+)
+from qmbp_simulation.models.constants import (
+    ZNE_DEFAULT_N_CANDIDATE_LAYOUTS,
+    ZNE_DEFAULT_NOISE_FACTORS,
+    ZNE_DEFAULT_SHOTS,
 )
 
 _ROOT = resolve_project_root(__file__)
@@ -67,9 +72,9 @@ H_TRAIN = [4.5, 4.0, 3.75, 3.5, 3.25, 3.0]
 # Test points (deployment targets)
 H_TEST = [4.0, 3.25, 3.0]
 
-NOISE_FACTORS = (1, 3, 5)
-ZNE_SHOTS = 16384
-N_CANDIDATE_LAYOUTS = 20
+NOISE_FACTORS = ZNE_DEFAULT_NOISE_FACTORS
+ZNE_SHOTS = ZNE_DEFAULT_SHOTS
+N_CANDIDATE_LAYOUTS = ZNE_DEFAULT_N_CANDIDATE_LAYOUTS
 
 VQE_RESTARTS = 1
 VQE_MAXITER = 500
@@ -158,8 +163,8 @@ class PEAFullPipelineRunner(ValidationRunner):
 
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             build_adjacency,
             find_layouts_bfs,
             noisy_estimate,
@@ -208,11 +213,7 @@ class PEAFullPipelineRunner(ValidationRunner):
             lattice = self.make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h)
             H = self.builder.build(lattice)
 
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact, gap = float(evals[0]), float(evals[1] - evals[0])
+            e_exact, gap = self.exact_ground_state(TOPOLOGY, N_QUBITS, h)
 
             best_energy = float("inf")
             best_theta = prev_theta.copy()
@@ -250,7 +251,6 @@ class PEAFullPipelineRunner(ValidationRunner):
 
     def _section_mpnn(self) -> dict:
         """Train MPNN on VQE data and predict theta at test h-values."""
-        import torch
 
         from qmbp_simulation.predictors import (
             MPNNPredictor,
@@ -297,34 +297,16 @@ class PEAFullPipelineRunner(ValidationRunner):
         predictor.eval()
         predictions = {}
 
-        from torch_geometric.data import Data
-
-        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder as HB
-
-        _hb = HB()
         for h_test in H_TEST:
-            lattice_t = self.make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h_test)
-            edge_index_np, coord = _hb.build_graph_data(lattice_t)
-            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-            h_feat = np.full(N_QUBITS, float(h_test))
-            x = torch.tensor(
-                np.stack([h_feat, coord.astype(float)], axis=1),
-                dtype=torch.float32,
+            theta_pred = self.predict_mpnn_at_h(
+                predictor, h_test, topology=TOPOLOGY, n_qubits=N_QUBITS
             )
-            test_data = Data(x=x, edge_index=edge_index)
-            test_data.batch = torch.zeros(N_QUBITS, dtype=torch.long)
-
-            with torch.no_grad():
-                theta_pred = predictor(test_data).numpy().flatten()
 
             # Evaluate noiseless quality of prediction
             lattice = self.make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h_test)
             H = self.builder.build(lattice)
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact, gap = float(evals[0]), float(evals[1] - evals[0])
+
+            e_exact, gap = self.exact_ground_state(TOPOLOGY, N_QUBITS, h_test)
 
             e_pred = self.noiseless.evaluate(self._circuit, H, theta_pred)
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)

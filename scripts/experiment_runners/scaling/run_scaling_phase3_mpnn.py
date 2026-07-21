@@ -1,78 +1,73 @@
 #!/usr/bin/env python3
-"""MPS Scaling Phase 3 — MPNN Training at N=40/50.
+"""MPS Scaling Phase 3+4 — MPNN Training + Deployment at N>30.
 
 Trains GINConv MPNN on θ_opt data from Phase 2 scaling runs,
-then evaluates deployment accuracy (Phase 4 simulation).
+then evaluates deployment accuracy (ΔE/gap at held-out h-values).
 
 Prerequisites:
     Run run_scaling_validation.py first to produce θ_opt data.
 
+Sections:
+    1. Data Loading: Load and canonicalize θ_opt from scaling result JSON
+    2. MPNN Training: GINConv (h=128, L=3, 6000 epochs, norm_type=none)
+    3. Deployment: Predict θ at held-out h-values → evaluate via MPS → ΔE/gap
+
 Usage:
     python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py \\
-        --result-file results/scaling/scaling_N40_aer_mps_*.json \\
-        --output-dir results/scaling/phase3
+        --result-file results/scaling/scaling_N40_aer_mps_*.json
 
-Strategy:
-    1. Load θ_opt from Phase 2 result JSON
-    2. Canonicalize θ signs (enforce θ_x > 0) to handle Z₂ symmetry
-    3. Build graph dataset from lattice + θ_opt
-    4. Train MPNN (GINConv h=128, L=3, 6000 epochs)
-    5. Deploy: predict θ at held-out h-values → evaluate energy → ΔE/gap
+    python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py \\
+        --result-file results/scaling/scaling_N50_*.json --use-all-seeds
+
+    python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py --dry-run
 """
 
 from __future__ import annotations
 
-import argparse
-import json
 import logging
 import sys
 import time
 from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parents[3]
-if str(_ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(_ROOT / "src"))
-
 import numpy as np
-import torch
 
-from qmbp_simulation import (
-    ClassicalSolver,
-    HamiltonianBuilder,
-    HVACircuitBuilder,
-    make_lattice,
+from qmbp_simulation.framework.runner_base import (
+    Section,
+    ValidationRunner,
+    resolve_project_root,
 )
-from qmbp_simulation.execution import MPSBackend
-from qmbp_simulation.predictors import (
-    MPNNPredictor,
-    build_graph_dataset,
-    train_mpnn,
-)
-from qmbp_simulation.utils.helpers import json_dump
+
+_ROOT = resolve_project_root(__file__)
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 logger = logging.getLogger(__name__)
 
+from qmbp_simulation.models.constants import DE_GAP_THRESHOLD, MPS_DEFAULT_CHI_MAX
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Data Loading & Preprocessing
+# Constants
+# ═══════════════════════════════════════════════════════════════════════════════
+
+DEFAULT_HIDDEN_DIM = 128
+DEFAULT_N_LAYERS = 3
+DEFAULT_N_EPOCHS = 6000
+DEFAULT_PATIENCE = 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Helpers (θ canonicalization + data loading from scaling result JSONs)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 def canonicalize_theta(theta: np.ndarray) -> np.ndarray:
-    """Enforce Z₂ sign convention: θ_x > 0.
+    """Canonicalize θ using HVA gauge symmetry (period π + Z₂).
 
-    HVA p=1 has symmetry (θ_zz, θ_x) ↔ (-θ_zz, -θ_x) giving same energy.
-    Different seeds may converge to opposite sign conventions.
-    Canonicalize by ensuring the last parameter (θ_x) is positive.
-
-    This is critical for MPNN training — inconsistent signs produce
-    high MSE even when all θ are physically equivalent.
-
-    Reference: binnacle-p1-scaling.md §Key Observations point 1.
+    Delegates to the canonical implementation in qmbp_simulation.utils.
     """
-    if theta[-1] < 0:
-        return -theta
-    return theta
+    from qmbp_simulation.utils import canonicalize_theta as _canon
+
+    return _canon(theta)
 
 
 def load_theta_from_result(
@@ -83,68 +78,81 @@ def load_theta_from_result(
     Parameters
     ----------
     result_file : Path
-        Path to scaling_N*_*.json from run_scaling_validation.py
+        Path to result JSON from run_scaling_validation.py (v1 or v2 format).
     seed : int | None
-        Which seed's results to use. If None and use_all_seeds=False, uses first.
+        Which seed to use. None = first available.
     use_all_seeds : bool
-        If True, aggregate ALL seeds' data (more training points).
-        Requires canonicalization to handle Z₂ sign symmetry.
+        Aggregate ALL seeds for more training data (with canonicalization).
 
     Returns
     -------
-    dict with keys: h_values, theta_opt, e_dmrg, n_qubits, topology, p_layers
+    dict with keys: h_values, theta_opt, e_dmrg, n_qubits, topology, p_layers, seed
     """
-    with open(result_file) as f:
-        data = json.load(f)
+    from qmbp_simulation.framework import load_result
 
-    meta = data["metadata"]
-    vqe_results = data["vqe_results"]
+    data = load_result(result_file)
+
+    # Support both v1 (flat metadata) and v2 (ValidationRunner envelope) formats
+    if "config" in data and "system" in data.get("config", {}):
+        # v2 format (from MPSScalingValidationRunner)
+        system = data["config"]["system"]
+        n_qubits = system["n_qubits"]
+        topology = system["topology"]
+        p_layers = system["p_layers"]
+        # VQE results in section_2.data.per_seed
+        s2_data = data.get("results", {}).get("section_2", {}).get("data", {})
+        vqe_results = s2_data.get("per_seed", [])
+    else:
+        # v1 format (from old run_scaling_validation.py)
+        meta = data["metadata"]
+        n_qubits = meta["n"]
+        topology = meta["topology"]
+        p_layers = meta["p_layers"]
+        vqe_results = data["vqe_results"]
 
     if use_all_seeds:
-        # Aggregate ALL seeds — more data for MPNN training
-        all_h = []
-        all_theta = []
-        all_e = []
+        all_h, all_theta, all_e = [], [], []
         for seed_run in vqe_results:
             for r in seed_run["results"]:
                 if "theta_opt" not in r:
                     continue
-                # Filter: only include points that passed (ΔE/gap < 5%)
                 if not r.get("passed", True):
-                    logger.warning(
-                        f"Skipping failed point: seed={seed_run['seed']}, "
-                        f"h={r['h']:.3f}, ΔE/gap={r['de_gap']:.4f}"
-                    )
                     continue
                 all_h.append(r["h"])
                 all_theta.append(canonicalize_theta(np.array(r["theta_opt"])))
-                all_e.append(r["dmrg_energy"])
+                e_key = "dmrg_energy" if "dmrg_energy" in r else "energy_exact"
+                all_e.append(r.get(e_key, r.get("vqe_energy", 0.0)))
 
         if not all_theta:
             raise ValueError(f"No valid theta_opt found in {result_file}")
 
-        h_values = np.array(all_h)
-        theta_opt = np.array(all_theta)
-        e_dmrg = np.array(all_e)
+        # Filter out points that landed in different periodic basins
+        # (local minima with θ far from the majority consensus)
+        from qmbp_simulation.utils import filter_consistent_theta
 
-        # Check sign consistency after canonicalization
-        if len(theta_opt) > 1:
-            theta_std = np.std(theta_opt, axis=0)
-            theta_mean = np.mean(np.abs(theta_opt), axis=0)
-            cv = theta_std / np.maximum(theta_mean, 1e-10)
-            if np.any(cv > 0.5):
-                logger.warning(
-                    f"High θ variance across seeds after canonicalization: "
-                    f"CV={cv}. Check Z₂ symmetry handling."
-                )
+        theta_array = np.array(all_theta)
+        filtered_theta, mask = filter_consistent_theta(theta_array)
+        n_removed = int((~mask).sum())
+        if n_removed > 0:
+            logger.info(
+                f"  ⚠️  Filtered {n_removed}/{len(mask)} points with inconsistent θ "
+                f"(periodic basin outliers). Keeping {mask.sum()} points."
+            )
+            all_h = [h for h, m in zip(all_h, mask, strict=False) if m]
+            all_theta = [t for t, m in zip(all_theta, mask, strict=False) if m]
+            all_e = [e for e, m in zip(all_e, mask, strict=False) if m]
 
-        logger.info(
-            f"Loaded {len(theta_opt)} points from {len(vqe_results)} seeds "
-            f"(filtered by ΔE/gap < 5%)"
-        )
-        seed_used = "all"
+        return {
+            "h_values": np.array(all_h),
+            "theta_opt": np.array(all_theta),
+            "e_dmrg": np.array(all_e),
+            "n_qubits": n_qubits,
+            "topology": topology,
+            "p_layers": p_layers,
+            "seed": "all",
+            "n_filtered": n_removed,
+        }
     else:
-        # Single seed
         if seed is not None:
             seed_run = next((r for r in vqe_results if r["seed"] == seed), None)
             if seed_run is None:
@@ -154,357 +162,292 @@ def load_theta_from_result(
             seed_run = vqe_results[0]
 
         results = seed_run["results"]
+        h_values = np.array([r["h"] for r in results])
+        theta_opt = np.array([canonicalize_theta(np.array(r["theta_opt"])) for r in results])
+        e_key = "dmrg_energy" if "dmrg_energy" in results[0] else "energy_exact"
+        e_dmrg = np.array([r.get(e_key, r.get("vqe_energy", 0.0)) for r in results])
 
-        if "theta_opt" not in results[0]:
-            raise ValueError(
-                f"theta_opt not found in {result_file}. "
-                f"Re-run scaling validation with the updated runner."
+        return {
+            "h_values": h_values,
+            "theta_opt": theta_opt,
+            "e_dmrg": e_dmrg,
+            "n_qubits": n_qubits,
+            "topology": topology,
+            "p_layers": p_layers,
+            "seed": seed_run["seed"],
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Runner
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class MPSScalingPhase3Runner(ValidationRunner):
+    """Train MPNN on scaling θ_opt data and evaluate deployment accuracy.
+
+    Loads θ_opt from run_scaling_validation.py output, trains GINConv MPNN,
+    then predicts θ at held-out h-values and evaluates ΔE/gap via MPS.
+    """
+
+    runner_id = "mps_scaling_phase3_v2"
+    experiment_id = "scaling/phase3"
+    description = "MPNN training + deployment on MPS scaling data (N>30)"
+    hypothesis = (
+        "MPNN trained on MPS-VQE θ_opt achieves ΔE/gap < 5% at held-out "
+        "h-values via direct prediction (zero-shot deployment)."
+    )
+
+    @classmethod
+    def _add_custom_args(cls, parser):
+        parser.add_argument(
+            "--result-file",
+            type=str,
+            required=True,
+            help="Path to scaling result JSON from run_scaling_validation.py",
+        )
+        parser.add_argument("--seed", type=int, default=42)
+        parser.add_argument(
+            "--use-all-seeds", action="store_true", help="Aggregate ALL seeds for training"
+        )
+        parser.add_argument(
+            "--h-test",
+            type=float,
+            nargs="+",
+            default=None,
+            help="Test h-values for deployment (auto if not given)",
+        )
+        parser.add_argument("--hidden-dim", type=int, default=DEFAULT_HIDDEN_DIM)
+        parser.add_argument("--n-epochs", type=int, default=DEFAULT_N_EPOCHS)
+        parser.add_argument("--chi-max", type=int, default=MPS_DEFAULT_CHI_MAX)
+
+    def run_preflight(self) -> bool:
+        """Validate that the result file exists and contains θ_opt."""
+        result_file = Path(self._args.result_file)
+        if not result_file.exists():
+            logger.error(f"Result file not found: {result_file}")
+            return False
+        return True
+
+    def build_config(self) -> dict:
+        return {
+            "runner_id": self.runner_id,
+            "source": {
+                "result_file": self._args.result_file,
+                "seed": self._args.seed,
+                "use_all_seeds": self._args.use_all_seeds,
+            },
+            "mpnn": {
+                "hidden_dim": self._args.hidden_dim,
+                "n_epochs": self._args.n_epochs,
+                "norm_type": "none",
+            },
+            "mps": {"chi_max": self._args.chi_max},
+            "system": getattr(self, "_source_meta", {}),
+        }
+
+    def setup(self):
+        """Load source data and initialize physics."""
+        self.setup_physics()
+
+        # Load θ_opt from result file
+        result_file = Path(self._args.result_file)
+        self._source_data = load_theta_from_result(
+            result_file, seed=self._args.seed, use_all_seeds=self._args.use_all_seeds
+        )
+
+        self._source_meta = {
+            "n_qubits": self._source_data["n_qubits"],
+            "topology": self._source_data["topology"],
+            "p_layers": self._source_data["p_layers"],
+        }
+
+        logger.info(
+            f"  Source: N={self._source_data['n_qubits']}, "
+            f"{len(self._source_data['h_values'])} points, "
+            f"θ shape={self._source_data['theta_opt'].shape}"
+        )
+
+        # Compute h_test (midpoints between training h-values = interpolation test)
+        if self._args.h_test is not None:
+            self._h_test = sorted(self._args.h_test, reverse=True)
+        else:
+            h_unique = sorted(
+                set(float(f"{h:.6f}") for h in self._source_data["h_values"]), reverse=True
+            )
+            self._h_test = [(h_unique[i] + h_unique[i + 1]) / 2 for i in range(len(h_unique) - 1)]
+
+        # Set experiment_id dynamically
+        from qmbp_simulation.framework.result_io import build_experiment_id
+
+        self.experiment_id = build_experiment_id(
+            category="scaling/phase3",
+            model="tfim",
+            topology=self._source_data["topology"],
+        )
+
+        self._mpnn_model = None
+        self._train_metrics = None
+
+    def define_sections(self) -> list[Section]:
+        return [
+            Section(
+                id=1,
+                name="MPNN Training",
+                fn=self.section_train,
+                hypothesis="GINConv MPNN achieves training MSE < 1e-4 on θ_opt data",
+            ),
+            Section(
+                id=2,
+                name="Deployment (Predict + Evaluate)",
+                fn=self.section_deploy,
+                hypothesis=f"MPNN θ_pred achieves ΔE/gap < {DE_GAP_THRESHOLD * 100:.0f}% at held-out h-values",
+            ),
+        ]
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 1: MPNN Training
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_train(self) -> dict:
+        """Train MPNN on Phase 2 θ_opt data."""
+        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, train_mpnn
+
+        data = self._source_data
+        n_qubits = data["n_qubits"]
+        topology = data["topology"]
+        h_values = data["h_values"]
+        theta_opt = data["theta_opt"]
+        e_dmrg = data["e_dmrg"]
+        output_dim = theta_opt.shape[1]
+
+        # Build graph dataset (reuses framework function)
+        lattice = self.make_lattice(topology, n_qubits, J=1.0, h=float(h_values[0]))
+        dataset = build_graph_dataset(
+            lattice=lattice,
+            h_values=h_values,
+            theta_opt=theta_opt,
+            e_exact=e_dmrg,
+            fidelities=None,
+            fidelity_threshold=0.0,
+        )
+
+        logger.info(
+            f"    Training: {len(dataset)} points, output_dim={output_dim}, "
+            f"hidden={self._args.hidden_dim}"
+        )
+
+        # Create and train model (reuses framework train_mpnn)
+        model = MPNNPredictor(
+            node_features=2,
+            hidden_dim=self._args.hidden_dim,
+            n_layers=DEFAULT_N_LAYERS,
+            output_dim=output_dim,
+            norm_type="none",  # Critical for cross-N generalization
+        )
+
+        t0 = time.perf_counter()
+        metrics = train_mpnn(
+            model=model,
+            dataset=dataset,
+            n_epochs=self._args.n_epochs,
+            lr=1e-3,
+            patience=DEFAULT_PATIENCE,
+            seed=self._args.seed,
+        )
+        train_time = time.perf_counter() - t0
+
+        self._mpnn_model = model
+        self._train_metrics = metrics
+
+        return {
+            "pass": metrics["final_mse"] < 1e-3,
+            "final_mse": metrics["final_mse"],
+            "n_train_points": len(dataset),
+            "output_dim": output_dim,
+            "train_time_s": train_time,
+            "stopped_early": metrics["stopped_early"],
+            "n_model_params": sum(p.numel() for p in model.parameters()),
+        }
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2: Deployment
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_deploy(self) -> dict:
+        """Deploy MPNN at held-out h-values, evaluate ΔE/gap via MPS."""
+        data = self._source_data
+        n_qubits = data["n_qubits"]
+        topology = data["topology"]
+        p_layers = data["p_layers"]
+        model = self._mpnn_model
+        spec = self.get_model_spec("tfim")
+
+        backend = self.MPSBackend(
+            strategy="aer_mps", chi_max=self._args.chi_max, seed=self._args.seed
+        )
+
+        model.eval()
+
+        def _deploy_at_h(h_val: float) -> dict | None:
+            t0 = time.perf_counter()
+
+            # Build lattice and Hamiltonian
+            lattice = self.make_lattice(topology, n_qubits, J=1.0, h=h_val)
+            H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+
+            # Predict θ via base class helper
+            theta_pred = self.predict_mpnn_at_h(model, h_val, topology=topology, n_qubits=n_qubits)
+            theta_pred = canonicalize_theta(theta_pred)
+
+            # Guard: skip if prediction contains NaN/Inf
+            if not np.all(np.isfinite(theta_pred)):
+                logger.warning(f"    ⚠️ h={h_val:.3f}: θ_pred contains NaN/Inf, skipping.")
+                return None
+
+            # Evaluate energy via MPS
+            circuit, _ = spec.create_circuit(n_qubits, p_layers, lattice, **spec.circuit_kwargs)
+            e_pred = backend.evaluate(circuit, H, theta_pred)
+
+            # DMRG reference
+            gt = self.solver.solve(H, lattice, method="dmrg")
+            delta_e_abs = abs(e_pred - gt.ground_energy)
+            de_gap = delta_e_abs / max(gt.gap, 1e-10)
+            elapsed = time.perf_counter() - t0
+
+            status = "✓" if de_gap < DE_GAP_THRESHOLD else "✗"
+            logger.info(
+                f"    [{status}] h={h_val:.3f}: ΔE/gap={de_gap:.4f} "
+                f"|ΔE|={delta_e_abs:.4f} ({elapsed:.1f}s)"
             )
 
-        h_values = np.array([r["h"] for r in results])
-        theta_opt = np.array([r["theta_opt"] for r in results])
-        e_dmrg = np.array([r["dmrg_energy"] for r in results])
-        seed_used = seed_run["seed"]
-
-    # Canonicalize signs (for single-seed case; multi-seed already done above)
-    if not use_all_seeds:
-        for i in range(len(theta_opt)):
-            theta_opt[i] = canonicalize_theta(theta_opt[i])
-
-    return {
-        "h_values": h_values,
-        "theta_opt": theta_opt,
-        "e_dmrg": e_dmrg,
-        "n_qubits": meta["n"],
-        "topology": meta["topology"],
-        "p_layers": meta["p_layers"],
-        "seed": seed_used,
-    }
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Phase 3: MPNN Training
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def train_scaling_mpnn(
-    data: dict,
-    hidden_dim: int = 128,
-    n_layers: int = 3,
-    n_epochs: int = 6000,
-    patience: int = 500,
-    lr: float = 1e-3,
-    seed: int = 42,
-) -> tuple[MPNNPredictor, dict]:
-    """Train MPNN on Phase 2 θ_opt data.
-
-    Returns (trained_model, training_metrics).
-    """
-    n_qubits = data["n_qubits"]
-    topology = data["topology"]
-    data["p_layers"]
-    h_values = data["h_values"]
-    theta_opt = data["theta_opt"]
-    e_dmrg = data["e_dmrg"]
-
-    # Build lattice (using first h-value for structure — only topology matters)
-    lattice = make_lattice(topology, n_qubits, J=1.0, h=float(h_values[0]))
-
-    # Build graph dataset (no fidelity filter — all points validated by ΔE/gap<5%)
-    output_dim = theta_opt.shape[1]
-    dataset = build_graph_dataset(
-        lattice=lattice,
-        h_values=h_values,
-        theta_opt=theta_opt,
-        e_exact=e_dmrg,
-        fidelities=None,  # No fidelity available from MPS (not needed — all <1% ΔE/gap)
-        fidelity_threshold=0.0,  # noqa: disabled — MPS data validated by ΔE/gap<1%, no fidelity available
-    )
-
-    logger.info(
-        f"Training MPNN: {len(dataset)} points, output_dim={output_dim}, "
-        f"hidden={hidden_dim}, layers={n_layers}"
-    )
-
-    # Create model
-    model = MPNNPredictor(
-        node_features=2,  # h_i + coordination_number
-        hidden_dim=hidden_dim,
-        n_layers=n_layers,
-        output_dim=output_dim,
-    )
-
-    # Train
-    t0 = time.time()
-    metrics = train_mpnn(
-        model=model,
-        dataset=dataset,
-        n_epochs=n_epochs,
-        lr=lr,
-        patience=patience,
-        seed=seed,
-    )
-    train_time = time.time() - t0
-
-    metrics["train_time_s"] = train_time
-    metrics["n_train_points"] = len(dataset)
-    metrics["output_dim"] = output_dim
-
-    logger.info(
-        f"Training complete: final_mse={metrics['final_mse']:.2e}, "
-        f"time={train_time:.1f}s, stopped_early={metrics['stopped_early']}"
-    )
-
-    # Generalization gap check (early warning for MPNN overfit)
-    # Per steering: gen_gap > 0.01 → 25% of failures
-    gen_gap = metrics.get("generalization_gap", None)
-    if gen_gap is not None and gen_gap > 0.01:
-        logger.warning(
-            f"⚠️  Generalization gap={gen_gap:.4f} > 0.01 threshold. "
-            f"MPNN may be overfitting. Consider more training points or "
-            f"reducing hidden_dim/n_layers."
-        )
-
-    # Data sufficiency check
-    n_model_params = sum(p.numel() for p in model.parameters())
-    data_ratio = n_model_params / max(len(dataset), 1)
-    if data_ratio > 5000:
-        logger.warning(
-            f"⚠️  Model/data ratio={data_ratio:.0f} (high). "
-            f"{n_model_params:,} params trained on {len(dataset)} points. "
-            f"Risk of memorization."
-        )
-
-    return model, metrics
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Phase 4 (Deployment Simulation): Predict θ → Evaluate energy → ΔE/gap
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def deploy_mpnn(
-    model: MPNNPredictor,
-    data: dict,
-    h_test: list[float],
-    strategy: str = "aer_mps",
-    chi_max: int = 64,
-    precision: float = 0.005,
-    seed: int = 42,
-) -> list[dict]:
-    """Deploy trained MPNN at held-out h-values.
-
-    Predicts θ from the graph, then evaluates energy via MPSBackend.
-    Compares with DMRG ground truth for ΔE/gap.
-    """
-    from torch_geometric.data import Data
-
-    n_qubits = data["n_qubits"]
-    topology = data["topology"]
-    p_layers = data["p_layers"]
-
-    builder = HamiltonianBuilder()
-    hva = HVACircuitBuilder()
-    solver = ClassicalSolver()
-
-    backend = MPSBackend(strategy=strategy, chi_max=chi_max, precision=precision, seed=seed)
-
-    results = []
-    model.eval()
-
-    for h_val in h_test:
-        t0 = time.time()
-
-        # Build graph for this h-value
-        lattice = make_lattice(topology, n_qubits, J=1.0, h=h_val)
-        H = builder.build(lattice)
-        edge_index_np, coord = builder.build_graph_data(lattice)
-
-        # Create Data object
-        edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-        h_feat = np.full(n_qubits, h_val)
-        x = torch.tensor(
-            np.stack([h_feat, coord.astype(float)], axis=1),
-            dtype=torch.float32,
-        )
-        graph = Data(x=x, edge_index=edge_index, batch=torch.zeros(n_qubits, dtype=torch.long))
-
-        # Predict θ
-        with torch.no_grad():
-            theta_pred = model(graph).numpy().flatten()
-
-        # Canonicalize
-        theta_pred = canonicalize_theta(theta_pred)
-
-        # Evaluate energy
-        circuit, _ = hva.create(n_qubits, p_layers, lattice)
-        e_pred = backend.evaluate(circuit, H, theta_pred)
-
-        # DMRG reference
-        gt = solver.solve(H, lattice, method="dmrg")
-        de_gap = abs(e_pred - gt.ground_energy) / max(gt.gap, 1e-10)
-        elapsed = time.time() - t0
-
-        results.append(
-            {
+            return {
                 "h": h_val,
-                "theta_pred": theta_pred.tolist(),
                 "e_pred": e_pred,
                 "e_dmrg": gt.ground_energy,
                 "gap": gt.gap,
                 "de_gap": de_gap,
-                "passed": de_gap < 0.05,
-                "time_s": elapsed,
+                "delta_e_abs": delta_e_abs,
+                "delta_e_per_site": delta_e_abs / n_qubits,
+                "passed": de_gap < DE_GAP_THRESHOLD,
+                "elapsed_s": elapsed,
             }
-        )
 
-        status = "✅" if de_gap < 0.05 else "❌"
-        logger.info(
-            f"  Deploy h={h_val:.3f}: ΔE/gap={de_gap:.4f} {status} "
-            f"(θ=[{theta_pred[0]:.4f}, {theta_pred[1]:.4f}])"
-        )
+        results = self.safe_per_h_loop(self._h_test, _deploy_at_h, label="MPNN deploy")
 
-    return results
+        n_pass = sum(1 for r in results if r["passed"])
+        n_total = len(results)
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CLI & Main
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Phase 3+4: MPNN Training + Deployment at N>30",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument(
-        "--result-file",
-        type=str,
-        required=True,
-        help="Path to scaling result JSON (from run_scaling_validation.py)",
-    )
-    parser.add_argument("--seed", type=int, default=42, help="Seed for data selection")
-    parser.add_argument(
-        "--use-all-seeds",
-        action="store_true",
-        help="Aggregate ALL seeds for training (more data, requires canonicalization)",
-    )
-    parser.add_argument(
-        "--h-test",
-        type=float,
-        nargs="+",
-        default=None,
-        help="Test h-values for deployment. Auto-computed if not given.",
-    )
-    parser.add_argument("--hidden-dim", type=int, default=128, help="MPNN hidden dim")
-    parser.add_argument("--n-epochs", type=int, default=6000, help="Training epochs")
-    parser.add_argument(
-        "--strategy",
-        type=str,
-        default="aer_mps",
-        choices=["aer_mps", "tenpy_exact"],
-    )
-    parser.add_argument("--output-dir", type=str, default="results/scaling/phase3")
-    return parser
-
-
-def main() -> int:
-    parser = build_parser()
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-
-    result_file = Path(args.result_file)
-    if not result_file.exists():
-        logger.error(f"Result file not found: {result_file}")
-        return 1
-
-    # Load data
-    logger.info(f"Loading θ_opt from {result_file}")
-    data = load_theta_from_result(result_file, seed=args.seed, use_all_seeds=args.use_all_seeds)
-    logger.info(
-        f"  N={data['n_qubits']}, {len(data['h_values'])} h-points, "
-        f"θ shape={data['theta_opt'].shape}, seed={data['seed']}"
-    )
-
-    # Phase 3: Train MPNN
-    logger.info("\n─── Phase 3: MPNN Training ───")
-    model, train_metrics = train_scaling_mpnn(
-        data,
-        hidden_dim=args.hidden_dim,
-        n_epochs=args.n_epochs,
-        seed=args.seed,
-    )
-
-    # Phase 4: Deploy at test h-values
-    if args.h_test is not None:
-        h_test = sorted(args.h_test, reverse=True)
-    else:
-        # Use midpoints between UNIQUE sorted training h-values (interpolation test)
-        h_vals_unique = sorted(set(float(f"{h:.6f}") for h in data["h_values"]), reverse=True)
-        h_test = [
-            (h_vals_unique[i] + h_vals_unique[i + 1]) / 2 for i in range(len(h_vals_unique) - 1)
-        ]
-
-    logger.info(f"\n─── Phase 4: Deployment (h_test={[f'{h:.2f}' for h in h_test]}) ───")
-    deploy_results = deploy_mpnn(
-        model,
-        data,
-        h_test,
-        strategy=args.strategy,
-        seed=args.seed,
-    )
-
-    # Summary
-    n_pass = sum(1 for r in deploy_results if r["passed"])
-    n_total = len(deploy_results)
-    mean_de = np.mean([r["de_gap"] for r in deploy_results])
-
-    logger.info("\n─── Summary ───")
-    logger.info(
-        f"  Training: MSE={train_metrics['final_mse']:.2e}, {train_metrics['n_train_points']} points"
-    )
-    logger.info(f"  Deploy: {n_pass}/{n_total} pass, mean ΔE/gap={mean_de:.4f}")
-
-    # Save results
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    output_path = output_dir / f"phase3_N{data['n_qubits']}_{timestamp}.json"
-
-    envelope = {
-        "experiment": "mps_scaling_phase3",
-        "metadata": {
-            "n_qubits": data["n_qubits"],
-            "topology": data["topology"],
-            "p_layers": data["p_layers"],
-            "source_file": str(result_file),
-            "seed": data["seed"],
-            "hidden_dim": args.hidden_dim,
-            "n_epochs": args.n_epochs,
-            "strategy": args.strategy,
-        },
-        "training": {
-            "final_mse": train_metrics["final_mse"],
-            "n_train_points": train_metrics["n_train_points"],
-            "train_time_s": train_metrics["train_time_s"],
-            "stopped_early": train_metrics["stopped_early"],
-        },
-        "deployment": {
-            "h_test": h_test,
-            "results": deploy_results,
+        return {
+            "pass": n_pass == n_total,
             "n_pass": n_pass,
             "n_total": n_total,
-            "mean_de_gap": float(mean_de),
-            "all_passed": n_pass == n_total,
-        },
-    }
-
-    json_dump(envelope, output_path)
-    logger.info(f"  Results saved: {output_path}")
-
-    return 0 if n_pass == n_total else 1
+            "pass_rate": n_pass / max(n_total, 1),
+            "mean_de_gap": float(np.mean([r["de_gap"] for r in results])),
+            "max_de_gap": float(np.max([r["de_gap"] for r in results])),
+            "per_point": results,
+        }
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    MPSScalingPhase3Runner.main()

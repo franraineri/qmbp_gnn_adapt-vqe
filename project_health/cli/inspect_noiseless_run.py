@@ -182,6 +182,17 @@ def print_report(data: dict, threshold: float = 0.05, vqe_detail: bool = False) 
     print(f"  Topology: {cfg['topologies']}")
     print(f"  h-grid: [{cfg['h_min']}, {cfg['h_max']}] × {cfg['h_points']} pts")
     print(f"  Total time: {elapsed:.0f}s ({elapsed / 3600:.1f}h)")
+
+    # Simulation diagnostics (if present)
+    sd = data.get("simulation_diagnostics")
+    if sd:
+        parts = [f"Backend: {sd.get('backend_type', '?')}"]
+        if sd.get("chi_max"):
+            parts.append(f"χ={sd['chi_max']}")
+        parts.append("exact" if sd.get("method_exact") else "approximate")
+        print(f"  {' | '.join(parts)}")
+        if sd.get("chi_sufficiency_warning"):
+            print(f"  ⚠️  {sd['chi_sufficiency_warning']}")
     print()
 
     # Section summary

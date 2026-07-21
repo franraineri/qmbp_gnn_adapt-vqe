@@ -1,10 +1,9 @@
 """
-HVA Circuit Builder — Shallow Hamiltonian Variational Ansatz with lattice-aware
+HVA Circuit Builder — Hamiltonian Variational Ansatz with lattice-aware
 gate placement.
 
 Constructs HVA circuits that respect the physical topology of arbitrary spin
-systems.  Enforces the Mele et al. (Nature Physics, 2026) depth constraint:
-p ≤ 2 layers.
+systems.
 
 Gate convention (matching V4 PoC):
   - Initial state: |+⟩^N  (Hadamard layer)
@@ -132,7 +131,7 @@ class HVACircuitBuilder:
         n_qubits : int
             Number of qubits (must match ``lattice.n_qubits``).
         p_layers : int
-            Number of HVA layers (MUST be ≤ 2).
+            Number of HVA layers.
         lattice : LatticeConfig
             Lattice specification with edge list.
 
@@ -145,7 +144,7 @@ class HVACircuitBuilder:
         Raises
         ------
         ValueError
-            If ``p_layers > 2`` (Mele et al. depth constraint).
+            If qubit mismatch or empty edges.
         """
 
         do_checks(p_layers, n_qubits, lattice)
@@ -197,7 +196,7 @@ class HVACircuitBuilder:
         n_qubits : int
             Number of qubits (must match ``lattice.n_qubits``).
         p_layers : int
-            Number of HVA layers (MUST be ≤ 2).
+            Number of HVA layers.
         lattice : LatticeConfig
             Lattice specification with edge list.
 
@@ -210,7 +209,7 @@ class HVACircuitBuilder:
         Raises
         ------
         ValueError
-            If ``p_layers > 2`` (Mele et al. depth constraint).
+            If qubit mismatch or empty edges.
         """
         from qiskit.circuit.library import PauliEvolutionGate
         from qiskit.quantum_info import SparsePauliOp
@@ -278,7 +277,7 @@ class HVACircuitBuilder:
         n_qubits : int
             Number of qubits.
         p_layers : int
-            Number of HVA layers (MUST be ≤ 2).
+            Number of HVA layers.
         lattice : LatticeConfig
             Lattice specification with edge list (defines NN bonds).
 
@@ -340,7 +339,7 @@ class HVACircuitBuilder:
         n_qubits : int
             Number of qubits (must match ``lattice.n_qubits``).
         p_layers : int
-            Number of HVA layers (MUST be ≤ 2).
+            Number of HVA layers.
         lattice : LatticeConfig
             Lattice specification with edge list.
 
@@ -353,7 +352,7 @@ class HVACircuitBuilder:
         Raises
         ------
         ValueError
-            If ``p_layers > 2`` (Mele et al. depth constraint).
+            If qubit mismatch or empty edges.
 
         Notes
         -----
@@ -403,7 +402,7 @@ class HVACircuitBuilder:
         n_qubits : int
             Number of qubits (must match ``lattice.n_qubits``).
         p_layers : int
-            Number of HVA layers (MUST be ≤ 2).
+            Number of HVA layers.
         lattice : LatticeConfig
             Lattice specification with edge list.
 
@@ -416,7 +415,7 @@ class HVACircuitBuilder:
         Raises
         ------
         ValueError
-            If ``p_layers > 2`` (Mele et al. depth constraint).
+            If qubit mismatch or empty edges.
         """
         do_checks(p_layers, n_qubits, lattice)
 
@@ -451,7 +450,7 @@ class HVACircuitBuilder:
         n_qubits : int
             Number of qubits.
         p_layers : int
-            Number of HVA layers (MUST be ≤ 2).
+            Number of HVA layers.
         lattice : LatticeConfig
             Lattice specification with edge list.
         initial_state : str
@@ -469,7 +468,7 @@ class HVACircuitBuilder:
         Raises
         ------
         ValueError
-            If ``p_layers > 2`` (Mele et al. depth constraint).
+            If qubit mismatch or empty edges.
         """
         do_checks(p_layers, n_qubits, lattice)
 
@@ -485,6 +484,53 @@ class HVACircuitBuilder:
             _apply_2q_on_edges(qc, theta_xx, lattice.edges, "rxx")
             _apply_2q_on_edges(qc, theta_yy, lattice.edges, "ryy")
             _apply_rzz_on_edges(qc, theta_zz, lattice.edges)
+            _apply_single_qubit_layer(qc, theta_z, n_qubits, "rz")
+
+        return qc, theta
+
+    def create_kitaev(
+        self,
+        n_qubits: int,
+        p_layers: int,
+        lattice: LatticeConfig,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Build an HVA circuit for the Kitaev chain (p-wave superconductor).
+
+        Gate structure per layer: RXX on edges, RYY on edges, RZ on sites.
+        This mirrors H = -J·(XX + YY) - μ·Z (Kitaev chain in spin rep).
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits (must match ``lattice.n_qubits``).
+        p_layers : int
+            Number of HVA layers.
+        lattice : LatticeConfig
+            Lattice specification with edge list.
+
+        Returns
+        -------
+        (qc, theta)
+            qc : QuantumCircuit with 3*p_layers parameters.
+            theta : ParameterVector of length 3*p_layers.
+
+        Raises
+        ------
+        ValueError
+            If qubit mismatch or empty edges.
+        """
+        do_checks(p_layers, n_qubits, lattice)
+
+        qc, theta = _init_circuit(n_qubits, 3 * p_layers)
+
+        # HVA layers: e^{-iθ_z H_Z} · e^{-iθ_yy H_YY} · e^{-iθ_xx H_XX}
+        for layer in range(p_layers):
+            theta_xx = theta[layer * 3]
+            theta_yy = theta[layer * 3 + 1]
+            theta_z = theta[layer * 3 + 2]
+
+            _apply_2q_on_edges(qc, theta_xx, lattice.edges, "rxx")
+            _apply_2q_on_edges(qc, theta_yy, lattice.edges, "ryy")
             _apply_single_qubit_layer(qc, theta_z, n_qubits, "rz")
 
         return qc, theta

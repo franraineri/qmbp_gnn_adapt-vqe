@@ -226,6 +226,48 @@ Reference for all result file formats. Use when parsing, validating, or extendin
 }
 ```
 
+## Simulation Diagnostics Block (auto-injected since 2026-07-13)
+
+Present in ALL `ValidationRunner` results. Old results (pre 2026-07-13) won't have this field.
+
+```json
+{
+  "simulation_diagnostics": {
+    "backend_type": "noiseless_statevector",
+    "n_qubits": 10,
+    "topology": "heavy_hex",
+    "method_exact": true,
+    "chi_max": 64,
+    "chi_sufficiency_warning": "2D topology 'square' with N=20: chi=64 may be insufficient.",
+    "shots": 16384,
+    "hardware_mode": "fake_backend",
+    "hardware_backend_name": "ibm_kingston",
+    "noise_sources": ["gate_error", "readout_error", "decoherence"]
+  }
+}
+```
+
+**Field presence depends on backend type:**
+
+| Backend | backend_type | method_exact | chi_max | shots | hardware_mode |
+|---------|:---:|:---:|:---:|:---:|:---:|
+| NoiselessBackend | `noiseless_statevector` | true | — | — | — |
+| MPSBackend | `mps_aer_mps_chi64_exact` | true | ✓ | — | — |
+| FakeTorino | `fake_torino` | false | — | — | — |
+| NoisyBackend | `noisy_shots=4096` | false | — | ✓ | — |
+| HardwareBackend | `hardware_ibm_kingston` | false | — | ✓ | ✓ |
+
+**VQE per-point new fields (noiseless pipeline Section 2):**
+- `variational_violation`: `max(0, E_exact - E_vqe - 1e-8)` — 0 = healthy
+- `variational_ok`: `E_vqe >= E_exact - 1e-8` — true = healthy
+
+**Interpretation thresholds:**
+- `variational_violation = 0`: Normal
+- `variational_violation < 1e-6`: Numerical noise, safe to ignore
+- `variational_violation > 1e-4`: Investigate (solver or backend issue)
+- `variational_violation > 1e-2`: Critical error (E_exact reference wrong?)
+- `>4 consecutive violations`: VQE sweep auto-aborts (since 2026-07-13)
+
 ## File Naming Conventions
 
 | Pattern | Meaning |
@@ -243,8 +285,8 @@ A result file is **valid** if:
 1. It parses as valid JSON (no truncation, no encoding errors)
 2. Required fields exist and have correct types (see schemas above)
 3. `h_values` are in descending order (ascending = wrong sweep)
-4. `n_qubits` ∈ {4, 6, 8, 10, 14, 20}
-5. `p_layers` ∈ {1, 2}
+4. `n_qubits` ∈ {4, 6, 8, 10, 16, 20, 40, 50, 80, 100, 120, 200} (any positive int)
+5. `p_layers` ∈ {1, 2, 3, 4, 5, 6} (thesis: p≤2; validation scripts allow more)
 6. `delta_e_over_gap` ∈ [0, 50] (>50 = catastrophic failure)
 7. `elapsed_s` > 0 (0 = run didn't execute)
 8. `convergence_rate` ∈ [0, 1]

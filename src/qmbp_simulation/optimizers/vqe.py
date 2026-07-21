@@ -319,6 +319,45 @@ class VQEOptimizer:
             converged = best.success
             trajectory = callback.to_trajectory(converged, n_restarts_used)
 
+        # Compute energy variance: Var(H) = ⟨H²⟩ - ⟨H⟩²
+        # This quantifies how close |ψ(θ_opt)⟩ is to an eigenstate of H.
+        energy_variance = None
+        try:
+            energy_variance = self._backend.compute_energy_variance(circuit, hamiltonian, best.x)
+        except Exception as e:
+            logger.debug("Energy variance computation failed: %s", e)
+
+        # Error prevention: unexpected NaN for small N on exact backends
+        if energy_variance is not None and np.isnan(energy_variance):
+            from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+            n = circuit.num_qubits
+            if n <= STATEVECTOR_MAX_N and "noiseless" in self._backend.name:
+                logger.error(
+                    "UNEXPECTED: energy_variance is NaN for N=%d on %s. "
+                    "This indicates a bug in compute_energy_variance or the backend.",
+                    n,
+                    self._backend.name,
+                )
+
+        # Error prevention: inconsistency between variance and de_gap
+        if (
+            energy_variance is not None
+            and np.isfinite(energy_variance)
+            and energy_variance < 0.001
+            and energy_error > 0
+            and exact_energy is not None
+        ):
+            gap_estimate = max(abs(exact_energy) * 0.01, 0.1)  # conservative gap estimate
+            de_gap_estimate = energy_error / gap_estimate
+            if de_gap_estimate > 0.10:
+                logger.warning(
+                    "Inconsistency: Var(H)≈%.2e (near-eigenstate) but energy_error=%.4f. "
+                    "Possible: excited eigenstate, incorrect E_exact, or gap mismatch.",
+                    energy_variance,
+                    energy_error,
+                )
+
         return VQEResult(
             h_value=0.0,  # Set by caller in sweep
             theta_opt=best.x.copy(),
@@ -327,6 +366,7 @@ class VQEOptimizer:
             fidelity=fidelity,
             n_iterations=int(getattr(best, "nit", getattr(best, "nfev", 0))),
             trajectory=trajectory,
+            energy_variance=energy_variance,
         )
 
     # ── optimizer dispatch ──────────────────────────────────────────

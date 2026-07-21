@@ -108,9 +108,44 @@ NOISELESS_DIRS = [
 ]
 
 
-def find_all_runs() -> list[Path]:
-    """Find all run_*.json files in noiseless experiment directories."""
+def find_all_runs(model_filter: str | None = None) -> list[Path]:
+    """Find run files using ResultIndex for fast pre-filtering.
+
+    Uses the index to identify runs with ≥4 sections (have deploy data)
+    and optionally filter by model before touching disk. Falls back to
+    glob scan if index is unavailable.
+    """
     base = ROOT / "results" / "experiments"
+
+    # Try index-based fast path
+    try:
+        from qmbp_simulation.framework.result_index import ResultIndex
+
+        index = ResultIndex(base)
+        # Query: noiseless runs with deploy data (n_sections >= 4)
+        entries = index.query(model=model_filter) if model_filter else index.query()
+        # Filter to noiseless experiment_ids and runs with section_4
+        noiseless_files = []
+        for entry in entries:
+            eid = entry.get("experiment_id", "")
+            n_sec = entry.get("n_sections", 0)
+            if n_sec < 4:
+                continue
+            # Only include noiseless runs
+            if "noiseless" not in eid.lower() and not any(
+                d in entry.get("_file", "") for d in NOISELESS_DIRS
+            ):
+                continue
+            fpath = base / entry["_file"]
+            if fpath.exists():
+                noiseless_files.append(fpath)
+
+        if noiseless_files:
+            return sorted(set(noiseless_files))
+    except Exception:
+        pass  # Fall back to glob scan
+
+    # Fallback: disk glob (slower but always works)
     seen: set[str] = set()
     files: list[Path] = []
     for d in NOISELESS_DIRS:
@@ -237,7 +272,7 @@ def parse_run(path: Path) -> RunSummary | None:
 
 def load_all_runs(model_filter: str | None = None) -> list[RunSummary]:
     """Load and parse all noiseless runs with deploy data."""
-    files = find_all_runs()
+    files = find_all_runs(model_filter=model_filter)
     runs: list[RunSummary] = []
     for f in files:
         r = parse_run(f)
@@ -572,6 +607,242 @@ def print_global_summary(runs: list[RunSummary]) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Speedup Scaling Fit (H5)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def fit_speedup_models(n_scaling_data: list[dict], verbose: bool = False) -> list[dict]:
+    """Fit speedup vs N for each config using model selection.
+
+    Tests three models per configuration:
+      1. Power law: S = a * N^b
+      2. Saturating: S = S_max * (1 - exp(-k*N))
+      3. Constant: S = c
+
+    Selects best model by AICc (corrected Akaike Information Criterion).
+
+    Parameters
+    ----------
+    n_scaling_data : list[dict]
+        Output from axis_n_scaling()["configs"]. Each entry has:
+        - model, topology, p_layers
+        - n_scaling: list of dicts with {n_qubits, speedup, ...}
+    verbose : bool
+        Print detailed fit info per config.
+
+    Returns
+    -------
+    list[dict]
+        Per-config fit results with best model, params, R², AICc.
+    """
+    import warnings as _warnings
+
+    import numpy as np
+    from scipy.optimize import curve_fit
+
+    def _power_law(n, a, b):
+        return a * np.power(n, b)
+
+    def _saturating(n, s_max, k):
+        return s_max * (1.0 - np.exp(-k * n))
+
+    def _constant(n, c):
+        return np.full_like(n, c, dtype=float)
+
+    def _aicc(n_points: int, n_params: int, rss: float) -> float:
+        """Corrected AIC for small samples."""
+        if n_points <= n_params + 1:
+            return float("inf")
+        ll = -n_points / 2 * np.log(rss / n_points + 1e-30)
+        aic = 2 * n_params - 2 * ll
+        correction = (2 * n_params * (n_params + 1)) / (n_points - n_params - 1)
+        return aic + correction
+
+    def _r_squared(y_true, y_pred):
+        ss_res = np.sum((y_true - y_pred) ** 2)
+        ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+        if ss_tot < 1e-30:
+            return 0.0
+        return 1.0 - ss_res / ss_tot
+
+    print("\n" + "═" * 70)
+    print("  SPEEDUP SCALING FIT (model selection per config)")
+    print("═" * 70)
+
+    results: list[dict] = []
+
+    for cfg in n_scaling_data:
+        model_name = cfg["model"]
+        topo = cfg["topology"]
+        p = cfg["p_layers"]
+        points = cfg["n_scaling"]
+
+        # Extract valid speedup data
+        ns = []
+        speedups = []
+        for pt in points:
+            s = pt.get("speedup")
+            if s is not None and s > 0:
+                ns.append(pt["n_qubits"])
+                speedups.append(s)
+
+        if len(ns) < 2:
+            continue
+
+        n_arr = np.array(ns, dtype=float)
+        s_arr = np.array(speedups, dtype=float)
+        n_pts = len(n_arr)
+
+        # Fit each model
+        fits: list[dict] = []
+
+        # 1. Power law: S = a * N^b
+        try:
+            with _warnings.catch_warnings():
+                _warnings.simplefilter("ignore")
+                popt, _ = curve_fit(_power_law, n_arr, s_arr, p0=[1.0, 1.5], maxfev=5000)
+            pred = _power_law(n_arr, *popt)
+            rss = float(np.sum((s_arr - pred) ** 2))
+            fits.append(
+                {
+                    "name": "power_law",
+                    "formula": f"S = {popt[0]:.2f} * N^{popt[1]:.2f}",
+                    "params": {"a": float(popt[0]), "b": float(popt[1])},
+                    "R2": _r_squared(s_arr, pred),
+                    "AICc": _aicc(n_pts, 2, rss),
+                    "rss": rss,
+                }
+            )
+        except Exception:
+            pass
+
+        # 2. Saturating: S = S_max * (1 - exp(-k*N))
+        try:
+            s_max_guess = float(np.max(s_arr)) * 1.2
+            k_guess = 0.1
+            with _warnings.catch_warnings():
+                _warnings.simplefilter("ignore")
+                popt, _ = curve_fit(
+                    _saturating,
+                    n_arr,
+                    s_arr,
+                    p0=[s_max_guess, k_guess],
+                    bounds=([0, 0], [np.inf, 10]),
+                    maxfev=5000,
+                )
+            pred = _saturating(n_arr, *popt)
+            rss = float(np.sum((s_arr - pred) ** 2))
+            fits.append(
+                {
+                    "name": "saturating",
+                    "formula": f"S = {popt[0]:.1f} * (1 - exp(-{popt[1]:.4f}*N))",
+                    "params": {"S_max": float(popt[0]), "k": float(popt[1])},
+                    "R2": _r_squared(s_arr, pred),
+                    "AICc": _aicc(n_pts, 2, rss),
+                    "rss": rss,
+                }
+            )
+        except Exception:
+            pass
+
+        # 3. Constant: S = c
+        c_mean = float(np.mean(s_arr))
+        pred_const = np.full_like(s_arr, c_mean)
+        rss_const = float(np.sum((s_arr - pred_const) ** 2))
+        fits.append(
+            {
+                "name": "constant",
+                "formula": f"S = {c_mean:.1f}",
+                "params": {"c": c_mean},
+                "R2": _r_squared(s_arr, pred_const),
+                "AICc": _aicc(n_pts, 1, rss_const),
+                "rss": rss_const,
+            }
+        )
+
+        if not fits:
+            continue
+
+        # Select best model.
+        # AICc requires n > k+1 (n=data points, k=params). With n≤3 and k=2,
+        # AICc is inf for 2-param models. In that case, use R² with a minimum
+        # threshold: prefer a 2-param model only if R²>0.90 and significantly
+        # better than constant.
+        finite_aicc = [f for f in fits if np.isfinite(f["AICc"])]
+        if finite_aicc:
+            best = min(finite_aicc, key=lambda f: f["AICc"])
+            # But check: if best is "constant" with R²=0, and a non-constant
+            # model has R²>0.90, prefer the better-fitting model.
+            if best["name"] == "constant":
+                better = [f for f in fits if f["name"] != "constant" and f["R2"] > 0.90]
+                if better:
+                    best = max(better, key=lambda f: f["R2"])
+        else:
+            # All AICc are inf (n=2 case) — use R² directly
+            best = max(fits, key=lambda f: f["R2"])
+
+        config_label = f"{model_name}|{topo}|p={p}"
+        # Confidence assessment: based on n_points and R²
+        if n_pts >= 4 and best["R2"] > 0.90:
+            confidence = "high"
+        elif n_pts >= 3 and best["R2"] > 0.80:
+            confidence = "medium"
+        elif n_pts == 2:
+            confidence = "underdetermined"
+        else:
+            confidence = "low"
+
+        entry = {
+            "config": config_label,
+            "model": model_name,
+            "topology": topo,
+            "p_layers": p,
+            "n_values": ns,
+            "speedups": speedups,
+            "n_points": n_pts,
+            "confidence": confidence,
+            "best_model": best["name"],
+            "best_formula": best["formula"],
+            "best_params": best["params"],
+            "R2": best["R2"],
+            "AICc": best["AICc"] if np.isfinite(best["AICc"]) else None,
+            "all_fits": [
+                {
+                    k: (v if k != "AICc" or np.isfinite(v) else None)
+                    for k, v in f.items()
+                    if k != "rss"
+                }
+                for f in fits
+            ],
+        }
+        results.append(entry)
+
+        # Print
+        print(f"\n  {config_label}  [{confidence}]")
+        print(f"    Data: N={ns}, S={[f'{s:.0f}x' for s in speedups]}")
+        print(f"    Best: {best['name']} → {best['formula']}  (R²={best['R2']:.4f})")
+        if verbose:
+            for f in fits:
+                marker = " ◀" if f["name"] == best["name"] else ""
+                print(
+                    f"      {f['name']:12s}: {f['formula']:40s} "
+                    f"R²={f['R2']:.4f}  AICc={f['AICc']:.1f}{marker}"
+                )
+
+    # Summary
+    if results:
+        print(f"\n  {'─' * 60}")
+        print(f"  Summary: {len(results)} configs analyzed")
+        by_model = defaultdict(int)
+        for r in results:
+            by_model[r["best_model"]] += 1
+        for m, count in sorted(by_model.items()):
+            print(f"    {m}: {count} config(s)")
+
+    return results
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -586,7 +857,7 @@ def main() -> int:
         "--axis",
         type=str,
         default=None,
-        choices=["h-dep", "p-dep", "n-scaling", "topology", "all"],
+        choices=["h-dep", "p-dep", "n-scaling", "topology", "speedup-fit", "all"],
         help="Run specific axis only (default: all)",
     )
     parser.add_argument("--json", type=str, default=None, help="Write JSON report")
@@ -617,6 +888,19 @@ def main() -> int:
         report["n_scaling"] = axis_n_scaling(runs, verbose=args.verbose)
     if axis in ("all", "topology"):
         report["topology"] = axis_topology_comparison(runs, verbose=args.verbose)
+
+    # Speedup scaling fit — runs after n-scaling (uses its output)
+    if axis in ("all", "n-scaling", "speedup-fit"):
+        n_data = report.get("n_scaling")
+        if n_data is None:
+            # Need to compute n-scaling first for speedup fit
+            n_data = axis_n_scaling(runs, verbose=args.verbose)
+            report["n_scaling"] = n_data
+        configs = n_data.get("configs", [])
+        if configs:
+            report["speedup_fit"] = fit_speedup_models(configs, verbose=args.verbose)
+        else:
+            print("\n  No N-scaling data available for speedup fit.")
 
     # JSON output
     if args.json:

@@ -34,6 +34,7 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -508,12 +509,8 @@ class DenseJ2Runner(ValidationRunner):
 
             lattice_t = self._make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h_t)
             H_t = self.builder.build_frustrated_tfim(lattice_t, J2=j2_t)
-            H_mat = H_t.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact = float(evals[0])
-            gap = float(evals[1] - evals[0])
+
+            e_exact, gap = self.exact_ground_state(TOPOLOGY, N_QUBITS, h_t)
 
             # Dense model prediction
             with torch.no_grad():

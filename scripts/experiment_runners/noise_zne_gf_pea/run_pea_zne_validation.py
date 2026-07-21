@@ -36,6 +36,7 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -148,8 +149,8 @@ class PEAZNEValidationRunner(ValidationRunner):
 
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             build_adjacency,
             find_layouts_bfs,
             noisy_estimate,
@@ -199,50 +200,37 @@ class PEAZNEValidationRunner(ValidationRunner):
         self._circuit = circuit
         n_params = circuit.num_parameters
 
+        backend = self._resolve_backend()
         for seed in SEEDS:
-            rng = np.random.default_rng(seed)
-            prev_theta = rng.uniform(-0.01, 0.01, n_params)
-            seed_results = []
+            # Use base class VQE sweep (warm-start, NaN guard, maxfun cap)
+            theta_map = self.vqe_descending_sweep(
+                topology=self.topology,
+                n_qubits=self.n_qubits,
+                h_values=list(H_TEST_VALUES),
+                seed=seed,
+                p_layers=self.p_layers,
+                n_restarts=VQE_RESTARTS,
+                maxiter=VQE_MAXITER,
+                sigma=0.1,
+            )
 
+            seed_results = []
             for h in sorted(H_TEST_VALUES, reverse=True):
+                e_exact, gap = self.exact_ground_state(self.topology, self.n_qubits, h)
+                theta_opt = theta_map[h]
+
                 lattice = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=h)
                 H = self.builder.build(lattice)
-
-                H_mat = H.to_matrix()
-                if hasattr(H_mat, "toarray"):
-                    H_mat = H_mat.toarray()
-                evals = np.sort(np.linalg.eigvalsh(H_mat))
-                e_exact, gap = float(evals[0]), float(evals[1] - evals[0])
-
-                best_energy = float("inf")
-                best_theta = prev_theta.copy()
-                for restart in range(VQE_RESTARTS):
-                    x0 = (
-                        prev_theta + rng.normal(0, 0.1, n_params)
-                        if restart > 0
-                        else prev_theta.copy()
-                    )
-                    x0 = np.clip(x0, -np.pi, np.pi)
-                    res = self.minimize(
-                        lambda p, _H=H, _c=circuit: self.noiseless.evaluate(_c, _H, p),
-                        x0,
-                        method="L-BFGS-B",
-                        bounds=[(-np.pi, np.pi)] * n_params,
-                        options={"maxiter": VQE_MAXITER, "ftol": 1e-14},
-                    )
-                    if res.fun < best_energy:
-                        best_energy = res.fun
-                        best_theta = res.x.copy()
-                prev_theta = best_theta.copy()
+                e_noiseless = float(backend.evaluate(circuit, H, theta_opt))
 
                 seed_results.append(
                     {
                         "h": h,
                         "e_exact": e_exact,
                         "gap": gap,
-                        "e_noiseless": best_energy,
-                        "de_gap": abs(best_energy - e_exact) / max(gap, 1e-10),
-                        "theta_opt": best_theta.tolist(),
+                        "e_noiseless": e_noiseless,
+                        "de_gap": abs(e_noiseless - e_exact) / max(gap, 1e-10),
+                        "theta_opt": theta_opt.tolist(),
                     }
                 )
 
@@ -501,7 +489,7 @@ class PEAZNEValidationRunner(ValidationRunner):
 # Missing import for NoisyEstimatorConfig in section methods
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from qmbp_simulation.execution.noisy_utils import NoisyEstimatorConfig  # noqa: E402
+from qmbp_simulation.execution import NoisyEstimatorConfig  # noqa: E402
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Entry point

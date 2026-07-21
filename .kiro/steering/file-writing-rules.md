@@ -51,3 +51,8 @@ When creating or writing files with content longer than 38 lines:
 - Maximum 2 retries on any shell command. After that, explain the error to the user.
 - If the same error appears twice, diagnose the root cause — do not make incremental tweaks.
 - NEVER retry a command that timed out with the exact same parameters.
+
+## No Throwaway Scripts (ALWAYS ENFORCE)
+
+- **Do not create new scripts** when an existing one in `scripts/analysis/` or `project_health/` already covers the need. Reuse with appropriate parameters, or extend with a new flag.
+- For ephemeral computations, use `/tmp/kiro_snippet.py` (never committed).

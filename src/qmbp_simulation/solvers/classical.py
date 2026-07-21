@@ -435,6 +435,7 @@ class ClassicalSolver:
             corr_zz=float(np.mean(per_bond_zz)),
             per_site_mag_x=per_site_mx,
             per_bond_corr_zz=per_bond_zz,
+            gap_method="exact_dense" if n < _SPARSE_THRESHOLD else "exact_sparse",
         )
 
     def _solve_dmrg(
@@ -547,12 +548,57 @@ class ClassicalSolver:
         eng = tenpy_dmrg.TwoSiteDMRGEngine(psi, model, dmrg_params)
         e0, _ = eng.run()
 
-        # Gap estimation via finite-size floor (excited-state DMRG unreliable for 2D)
-        gap = 2 * np.pi / n
-        logger.info(
-            f"DMRG 2D ({lattice.topology} {rows}x{cols}): E0={e0:.8f}, "
-            f"using finite-size gap floor={gap:.4f}"
-        )
+        # Gap estimation: prefer exact eigsh(k=2) when tractable, else floor
+        from qmbp_simulation.models.constants import EXACT_GAP_QUBIT_LIMIT
+
+        gap_method = "floor_2pi_n"
+        if n <= EXACT_GAP_QUBIT_LIMIT:
+            try:
+                from scipy.sparse.linalg import eigsh as _eigsh
+
+                H_sparse = hamiltonian.to_matrix(sparse=True)
+                evals_k2, _ = _eigsh(H_sparse, k=2, which="SA")
+                evals_k2 = np.sort(evals_k2)
+                gap = float(evals_k2[1] - evals_k2[0])
+                gap_method = "eigsh_fallback"
+                logger.info(
+                    "DMRG 2D (%s %dx%d): E0=%.8f, exact eigsh gap=%.6f (floor would be %.6f)",
+                    lattice.topology,
+                    rows,
+                    cols,
+                    e0,
+                    gap,
+                    2 * np.pi / n,
+                )
+                # Near-degeneracy guard
+                if gap < 1e-12:
+                    logger.warning(
+                        "eigsh gap fallback: near-degenerate gap=%.2e for "
+                        "%s N=%d at h=%.4f. ΔE/gap metrics unreliable.",
+                        gap,
+                        lattice.topology,
+                        n,
+                        h_val,
+                    )
+            except Exception as exc:
+                gap = 2 * np.pi / n
+                logger.warning(
+                    "eigsh(k=2) failed for %s %dx%d N=%d at h=%.4f: %s. "
+                    "Falling back to floor gap=%.4f.",
+                    lattice.topology,
+                    rows,
+                    cols,
+                    n,
+                    h_val,
+                    exc,
+                    gap,
+                )
+        else:
+            gap = 2 * np.pi / n
+            logger.info(
+                f"DMRG 2D ({lattice.topology} {rows}x{cols}): E0={e0:.8f}, "
+                f"N>{EXACT_GAP_QUBIT_LIMIT}, using finite-size gap floor={gap:.4f}"
+            )
 
         # Local observables via MPS expectation values
         # SpinModel with S=0.5, conserve=None uses: Sx, Sy, Sz (spin-1/2 operators)
@@ -581,6 +627,7 @@ class ClassicalSolver:
             corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
             per_site_mag_x=per_site_mx,
             per_bond_corr_zz=per_bond_zz,
+            gap_method=gap_method,
         )
 
     def _solve_dmrg_1d(
@@ -648,6 +695,7 @@ class ClassicalSolver:
 
         # ── Gap via excited-state DMRG ────────────────────────────────
         gap = 0.0
+        gap_method = "floor_2pi_n"  # default, overridden below
         try:
             psi_ex = MPS.from_lat_product_state(model.lat, [["down"]])
             dmrg_params_ex = {
@@ -661,6 +709,7 @@ class ClassicalSolver:
             # Only use the gap if e1 > e0 + tolerance
             if e1 > e0 + 1e-8:
                 gap = float(e1 - e0)
+                gap_method = "dmrg_excitation"
                 logger.debug(
                     "DMRG gap via excitation: E1=%.8f, gap=%.6f at h=%.4f",
                     e1,
@@ -680,6 +729,7 @@ class ClassicalSolver:
                 delta_inf = 2 * abs(j_val - h_val)
                 finite_size_correction = np.pi**2 * j_val / (n**2 * max(h_val, j_val))
                 gap = max(delta_inf + finite_size_correction, 2 * np.pi / n)
+                gap_method = "analytical_1d"
                 warnings.warn(
                     f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
                     f"Using analytical gap={gap:.4f} "
@@ -688,15 +738,60 @@ class ClassicalSolver:
                     stacklevel=2,
                 )
             else:
-                # For non-1D topologies, use a conservative finite-size floor only.
-                gap = 2 * np.pi / n
-                warnings.warn(
-                    f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}, "
-                    f"topology={lattice.topology}). Using finite-size floor "
-                    f"gap={gap:.4f}. This is a lower bound only.",
-                    RuntimeWarning,
-                    stacklevel=2,
-                )
+                # For non-chain topologies: use sparse eigsh(k=2) for exact gap
+                # if system size is tractable, otherwise fall back to floor.
+                from qmbp_simulation.models.constants import EXACT_GAP_QUBIT_LIMIT
+
+                if n <= EXACT_GAP_QUBIT_LIMIT:
+                    try:
+                        from scipy.sparse.linalg import eigsh as _eigsh
+
+                        H_sparse = hamiltonian.to_matrix(sparse=True)
+                        evals_k2, _ = _eigsh(H_sparse, k=2, which="SA")
+                        evals_k2 = np.sort(evals_k2)
+                        gap = float(evals_k2[1] - evals_k2[0])
+                        gap_method = "eigsh_fallback"
+                        floor_val = 2 * np.pi / n
+                        logger.info(
+                            "DMRG gap fallback: sparse eigsh(k=2) for %s N=%d → "
+                            "gap=%.6f (floor would have been %.6f)",
+                            lattice.topology,
+                            n,
+                            gap,
+                            floor_val,
+                        )
+                        # Near-degeneracy guard (same as _solve_exact)
+                        if gap < 1e-12:
+                            logger.warning(
+                                "eigsh gap fallback: near-degenerate gap=%.2e for "
+                                "%s N=%d at h=%.4f. ΔE/gap metrics unreliable.",
+                                gap,
+                                lattice.topology,
+                                n,
+                                h_val,
+                            )
+                    except Exception as exc:
+                        # eigsh failed — fall back to conservative floor
+                        gap = 2 * np.pi / n
+                        logger.warning(
+                            "eigsh(k=2) failed for %s N=%d at h=%.4f: %s. "
+                            "Falling back to floor gap=%.4f.",
+                            lattice.topology,
+                            n,
+                            h_val,
+                            exc,
+                            gap,
+                        )
+                else:
+                    gap = 2 * np.pi / n
+                    warnings.warn(
+                        f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}, "
+                        f"topology={lattice.topology}). N>{EXACT_GAP_QUBIT_LIMIT}, "
+                        f"cannot use eigsh fallback. Using finite-size floor "
+                        f"gap={gap:.4f}. This is a lower bound only.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
 
         # ── Local observables ─────────────────────────────────────────
         # Sigmax per site (array over all sites)
@@ -722,6 +817,7 @@ class ClassicalSolver:
             corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
             per_site_mag_x=per_site_mx,
             per_bond_corr_zz=per_bond_zz,
+            gap_method=gap_method,
         )
 
     def _memory_fallback(

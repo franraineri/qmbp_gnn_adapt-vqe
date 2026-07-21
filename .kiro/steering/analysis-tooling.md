@@ -60,6 +60,19 @@ Need to...
 ├── Audit code-path consistency?  → .venv/bin/python scripts/verify_affine_bug.py --audit
 ├── Run full flow→deployment?       → make hw-flow-full
 │
+│ ─── NEW METRICS & DIAGNOSTICS (2026-07-13) ──────
+├── Inspect simulation backend used? → check simulation_diagnostics in JSON (auto-present)
+├── Filter runs by backend type?    → python project_health/cli/query_index.py --backend mps
+├── Variational violations summary? → python scripts/scan_new_runs.py --verbose (shows ⚠️viol=N)
+├── Per-point violation detail?     → python project_health/cli/inspect_noiseless_run.py --latest <dir> --vqe-detail
+├── Chi-convergence (scaling 2D)?   → run_scaling_validation.py --verify-chi (MANDATORY for 2D N>16)
+├── Verify thesis run integrity?    → python scripts/verify_thesis_runs.py (12 checks + chi + violations)
+├── Cross-check E_exact consistency?→ scripts/verify_thesis_runs.py (Check 8b: S1 vs S2 mismatch)
+├── Error budget decomposition?     → see .kiro/steering/error-budget-decomposition.md
+├── Energy variance per-h analysis? → inspect_noiseless_run.py --latest <dir> --vqe-detail
+├── Fragile passes (Var>0.5+pass)?  → scripts/verify_thesis_runs.py (auto-checks)
+├── Go/No-Go for hardware?          → energy_variance(θ_pred) < 0.2 at all h_test
+│
 │ ─── THESIS COMPILATION ─────────────────
 ├── Corroborate ALL findings?       → python -m project_health.analysis.thesis_findings_validator
 ├── Generate thesis tables?         → python -m project_health.analysis.thesis_tables_compiler
@@ -168,7 +181,7 @@ python -m project_health.analysis.sanity_check --json out.json
 ### 8-9. Scaling Analyzers
 
 ```bash
-python -m project_health.analysis.scaling_analyzer                     # MPS scaling law
+python -m project_health.analysis.scaling_analyzer                     # MPS frontier analysis
 python -m project_health.analysis.scaling_extensions_analyzer          # E5 extensions
 python -m project_health.analysis.scaling_extensions_analyzer --thesis-tables  # Tables 5.25/5.26
 python -m project_health.analysis.scaling_extensions_analyzer --json report.json
@@ -374,14 +387,16 @@ src/qmbp_simulation/framework/preflight.py
 ```
 All consumers MUST import from there. Test `TestRegimeBoundaryConsistency` enforces via identity checks.
 
-### Scaling Law Formula (Two Regimes)
+### Frontier Fits (Canonical)
 
-| Regime | Formula | Valid range | Used by |
-|--------|---------|------------|---------|
-| Exact diag | `h_min = 1.0 + 0.020*N^1.31` | N=4-20 | `exp_a3_scaling_law.py` |
-| MPS (corrected) | `h_min = 1.5 + 0.020*N^1.31` | N=40-120 | Runner scripts, digest |
+| p | Formula | Valid range | Source |
+|---|---------|------------|--------|
+| 1 | `h_min = 2.36 + 0.0073*N` | N=20-250 (R²=0.91) | H_EXPR_MATRIX |
+| 2 | `h_min = 1.57 + 0.005*N` | N=20-120 (R²=0.95) | H_EXPR_MATRIX |
+| ≥3 | `h_min ≈ 1.6 ± 0.1` (constant) | N=20-120 | H_EXPR_MATRIX |
+| ≥4 | `h_min ≈ 1.4 ± 0.1` (constant) | N=20-80 | H_EXPR_MATRIX |
 
-**Rule**: N>30 MUST use the corrected formula (`1.5 + ...`). The +0.50 offset is validated at N=40/50/80/120.
+**DO NOT use** the old power-law `h_min = 1.5 + 0.020·N^1.31` — it overestimates by 1.9× at N=60, 2.7× at N=100. Some scripts still use it as a conservative h-grid estimator; this is safe (always overestimates → never underestimates valid regime) but not accurate.
 
 ## Anti-Patterns (DO NOT)
 

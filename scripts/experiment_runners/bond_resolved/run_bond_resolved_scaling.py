@@ -420,8 +420,8 @@ class BondResolvedScalingRunner(ValidationRunner):
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
         from qiskit_ibm_runtime.fake_provider import FakeTorino
 
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             NoisyEstimatorConfig,
             run_gate_folding_zne,
         )

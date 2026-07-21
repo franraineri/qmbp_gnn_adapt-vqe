@@ -34,6 +34,7 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -607,12 +608,8 @@ class MPNN2DPredictorRunner(ValidationRunner):
             for h_t in H_TEST:
                 lattice_t = self._make_lattice(TOPOLOGY, N_QUBITS, J=1.0, h=h_t)
                 H_t = self.builder.build_frustrated_tfim(lattice_t, J2=j2_fixed)
-                H_mat = H_t.to_matrix()
-                if hasattr(H_mat, "toarray"):
-                    H_mat = H_mat.toarray()
-                evals_t = np.sort(np.linalg.eigvalsh(H_mat))
-                e_exact_t = float(evals_t[0])
-                gap_t = float(evals_t[1] - evals_t[0])
+
+                e_exact_t, gap_t = self.exact_ground_state(TOPOLOGY, N_QUBITS, h_t)
 
                 # 1D prediction (standard 2-feature graph)
                 h_feat = np.full(N_QUBITS, float(h_t))

@@ -41,6 +41,12 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import (
+    DEFAULT_SEEDS,
+    ZNE_DEFAULT_N_CANDIDATE_LAYOUTS,
+    ZNE_DEFAULT_NOISE_FACTORS,
+    ZNE_DEFAULT_SHOTS,
+)
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -63,11 +69,11 @@ H_TEST_VALUES = [2.5, 2.0, 1.75]
 
 # ZNE configuration
 ZNE_N_LAYOUTS = 3
-ZNE_SHOTS = 16384
-N_CANDIDATE_LAYOUTS = 20
+ZNE_SHOTS = ZNE_DEFAULT_SHOTS
+N_CANDIDATE_LAYOUTS = ZNE_DEFAULT_N_CANDIDATE_LAYOUTS
 
 # Gate-folding noise factors
-GF_NOISE_FACTORS = (1, 3, 5)
+GF_NOISE_FACTORS = ZNE_DEFAULT_NOISE_FACTORS
 
 # VQE
 VQE_RESTARTS = 3
@@ -173,22 +179,15 @@ class GFZNEComparisonRunner(ValidationRunner):
 
     def setup(self) -> None:
         """Initialize backends and shared state."""
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
         from scipy.optimize import minimize
 
-        from qmbp_simulation import HamiltonianBuilder, make_lattice  # noqa: F401
-        from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
-            NoisyEstimatorConfig,
-            build_adjacency,
-            find_layouts_bfs,
-            noisy_estimate,
-            run_gate_folding_zne,
+        from qmbp_simulation.execution import (
             run_zne_deployment,
             select_layouts_by_circuit_ces,
-            select_layouts_low_ces,
         )
+
+        # Standard physics setup (builder, solver, hva, make_lattice, noiseless, etc.)
+        self.setup_physics()
 
         args = self._args
         self.topology = getattr(args, "topology", DEFAULT_TOPOLOGY)
@@ -196,29 +195,21 @@ class GFZNEComparisonRunner(ValidationRunner):
         self.p_layers = getattr(args, "p_layers", DEFAULT_P_LAYERS)
         self.extrapolator = getattr(args, "extrapolator", "linear")
 
-        self.builder = HamiltonianBuilder()
-        self.hva = HVACircuitBuilder()
-        self.noiseless = NoiselessBackend()
-        self.fake_backend = FakeTorino()
-        self.noisy_config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
-        self.make_lattice = make_lattice
+        # Noisy estimation setup (FakeTorino, config, candidates, utility functions)
+        self.setup_noisy_estimation(self.n_qubits, shots=ZNE_SHOTS, seed_simulator=42)
 
-        # Store callables
+        # Additional callables not in setup_noisy_estimation
         self.minimize = minimize
-        self.noisy_estimate = noisy_estimate
         self.run_zne_deployment = run_zne_deployment
-        self.run_gate_folding_zne = run_gate_folding_zne
         self.select_layouts_by_circuit_ces = select_layouts_by_circuit_ces
-        self.select_layouts_low_ces = select_layouts_low_ces
+        # Alias for backward compat with section methods
+        self.candidate_layouts = self.candidates
+        self.run_gate_folding_zne = self.run_gf_zne
+        self.select_layouts_low_ces = self.select_low_ces
 
-        # Find candidate layouts
-        adjacency = build_adjacency(self.fake_backend)
-        self.candidate_layouts = find_layouts_bfs(
-            adjacency, self.n_qubits, n_candidates=N_CANDIDATE_LAYOUTS
-        )
         logger.info(
             f"[setup] topology={self.topology}, N={self.n_qubits}, p={self.p_layers}, "
-            f"candidates={len(self.candidate_layouts)}"
+            f"candidates={len(self.candidates)}"
         )
 
         # Shared storage across sections
@@ -238,52 +229,41 @@ class GFZNEComparisonRunner(ValidationRunner):
         circuit, _ = self.hva.create(self.n_qubits, self.p_layers, lattice_ref)
         n_params = circuit.num_parameters
 
-        rng = np.random.default_rng(42)
-        prev_theta = rng.uniform(-0.01, 0.01, n_params)
-        results = []
+        # Use base class VQE sweep (warm-start, NaN guard, maxfun cap)
+        theta_map = self.vqe_descending_sweep(
+            topology=self.topology,
+            n_qubits=self.n_qubits,
+            h_values=list(H_TEST_VALUES),
+            seed=42,
+            p_layers=self.p_layers,
+            n_restarts=VQE_RESTARTS,
+            maxiter=VQE_MAXITER,
+            sigma=0.1,
+        )
 
+        # Build per-point results with exact reference
+        results = []
+        backend = self._resolve_backend()
         for h in sorted(H_TEST_VALUES, reverse=True):
+            e_exact, gap = self.exact_ground_state(self.topology, self.n_qubits, h)
+            theta_opt = theta_map[h]
+
             lattice = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=h)
             H = self.builder.build(lattice)
+            e_noiseless = float(backend.evaluate(circuit, H, theta_opt))
+            de_gap = abs(e_noiseless - e_exact) / max(gap, 1e-10)
 
-            # Exact energy + gap
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact = float(evals[0])
-            gap = float(evals[1] - evals[0])
-
-            # VQE optimization (descending warm-start)
-            best_energy = float("inf")
-            best_theta = prev_theta.copy()
-            for restart in range(VQE_RESTARTS):
-                x0 = prev_theta + rng.normal(0, 0.1, n_params) if restart > 0 else prev_theta.copy()
-                x0 = np.clip(x0, -np.pi, np.pi)
-                res = self.minimize(
-                    lambda params, _H=H, _c=circuit: self.noiseless.evaluate(_c, _H, params),
-                    x0,
-                    method="L-BFGS-B",
-                    bounds=[(-np.pi, np.pi)] * n_params,
-                    options={"maxiter": VQE_MAXITER, "ftol": 1e-14},
-                )
-                if res.fun < best_energy:
-                    best_energy = res.fun
-                    best_theta = res.x.copy()
-            prev_theta = best_theta.copy()
-
-            de_gap = abs(best_energy - e_exact) / max(gap, 1e-10)
             point = {
                 "h": h,
                 "e_exact": e_exact,
                 "gap": gap,
-                "e_noiseless": best_energy,
+                "e_noiseless": e_noiseless,
                 "de_gap_noiseless": de_gap,
-                "theta_opt": best_theta.tolist(),
+                "theta_opt": theta_opt.tolist(),
             }
             results.append(point)
             logger.info(
-                f"  h={h:.2f}: E_exact={e_exact:.6f}, E_vqe={best_energy:.6f}, ΔE/gap={de_gap:.4f}"
+                f"  h={h:.2f}: E_exact={e_exact:.6f}, E_vqe={e_noiseless:.6f}, ΔE/gap={de_gap:.4f}"
             )
 
         self._noiseless_data = results

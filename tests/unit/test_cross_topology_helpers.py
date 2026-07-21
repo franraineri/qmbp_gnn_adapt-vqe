@@ -146,12 +146,12 @@ class TestCanonicalizeTheta:
     def test_positive_last_unchanged(self):
         theta = np.array([0.1, 0.3])
         result = canonicalize_theta(theta)
-        np.testing.assert_array_equal(result, theta)
+        np.testing.assert_allclose(result, theta, atol=1e-14)
 
     def test_negative_last_flipped(self):
         theta = np.array([0.1, -0.3])
         result = canonicalize_theta(theta)
-        np.testing.assert_array_almost_equal(result, [-0.1, 0.3])
+        np.testing.assert_allclose(result, [-0.1, 0.3], atol=1e-14)
 
     def test_empty_array(self):
         result = canonicalize_theta(np.array([]))
@@ -160,12 +160,12 @@ class TestCanonicalizeTheta:
     def test_zero_last_unchanged(self):
         theta = np.array([0.1, 0.0])
         result = canonicalize_theta(theta)
-        np.testing.assert_array_equal(result, theta)
+        np.testing.assert_allclose(result, theta, atol=1e-14)
 
     def test_four_params(self):
         theta = np.array([0.1, 0.2, 0.3, -0.4])
         result = canonicalize_theta(theta)
-        np.testing.assert_array_almost_equal(result, [-0.1, -0.2, -0.3, 0.4])
+        np.testing.assert_allclose(result, [-0.1, -0.2, -0.3, 0.4], atol=1e-14)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -16,6 +16,7 @@ from qmbp_simulation.framework import (
     ValidationRunner,
 )
 from qmbp_simulation.framework.runner_base import resolve_project_root
+from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
 from qmbp_simulation.pipeline import PipelineRunner
 
 _ROOT = resolve_project_root(__file__)
@@ -130,9 +131,9 @@ class Ext1bP1ValidationRunner(ValidationRunner):
             solver = ClassicalSolver()
             H = HamiltonianBuilder().build(lattice)
             exact = solver.solve(H, lattice)
-            de_gap = abs(e_vqe - exact.ground_energy) / abs(exact.gap)
+            de_gap = abs(e_vqe - exact.ground_energy) / max(abs(exact.gap), 1e-10)
             elapsed = _time.time() - t0
-            passed = de_gap < 0.05
+            passed = de_gap < DE_GAP_THRESHOLD
             if passed:
                 passed_count += 1
             per_h[h] = {

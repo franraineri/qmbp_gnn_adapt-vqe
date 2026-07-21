@@ -1,5 +1,16 @@
 # Common Errors & Debugging Recipes
 
+## DMRG TFIChain E_exact Mismatch for Non-1D Topologies (N>15)
+
+**Symptom**: VQE energy E_vqe < E_exact by 1e-3 to 1e-2 on heavy_hex or ladder at N>15. Triggers variational violation warnings. Pattern: violations appear at lower h values and increase monotonically as h decreases.
+**Root cause**: `ClassicalSolver._solve_dmrg_1d()` uses TeNPy's `TFIChain` model which assumes sequential nearest-neighbor coupling (site i → site i+1). For heavy_hex/ladder, the actual Hamiltonian has non-sequential bonds. DMRG computes E₀ of the WRONG Hamiltonian (1D chain approximation), giving a result ~5-10 mEh higher than the true ground state.
+**Verification**: Compute `eigsh(H_actual.to_matrix(sparse=True), k=2)` for the REAL Hamiltonian and compare with the stored E_exact. The VQE energy should be ABOVE the true E_exact (variational principle satisfied).
+**Impact**: 57 runs affected (heavy_hex N=16-40). All these runs have artificially GOOD ΔE/gap metrics (because E_exact is too high). The actual VQE performance is slightly WORSE than reported.
+**NOT affected**: chain_1d (TFIChain is exact), N≤15 any topology (uses eigsh on actual H), square/triangular (use dedicated 2D DMRG).
+**Workaround** (current): Auto-abort threshold requires violation > 1e-2 to abort. `verify_thesis_runs.py` uses loose threshold (1e-2) for heavy_hex/ladder N>15. `e_exact_method` field in per-point data documents which method was used.
+**Proper fix** (TODO): Use eigsh on actual SparsePauliOp for N=16 (64K×64K sparse, tractable). For N=20+ where eigsh is too slow, implement topology-aware DMRG that maps the actual lattice graph to the TeNPy model (not just TFIChain).
+**Ref**: Discovered 2026-07-13 during simulation_diagnostics implementation.
+
 ## V5.x Failure Mode (Phase Coupling)
 
 **Symptom**: MSE converges but ΔE stagnates or increases.

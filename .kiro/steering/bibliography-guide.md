@@ -18,7 +18,7 @@ This file helps Kiro quickly identify which papers to cite for specific claims, 
 3. Cross-N generalization finding (BatchNorm harmful on regular graphs)
 4. Extensibility to Ising variants documented (longitudinal OK, Heisenberg negative, Kitaev negative)
 5. Diagnostic/early-stopping system (69% failure prevention)
-6. Scaling law h_min = 1.5 + 0.020·N^1.31
+6. Frontier fits: p=1 linear (0.007/qubit), p≥3 quasi-constant (~1.4-1.6, area-law consistent)
 7. GNN-QEM non-composability with PEA-ZNE (alternatives, not complements) — design rule for mitigation pipelines
 8. S8/S8b: weight-gradient phase detection is qualitative only (cannot extract ν from VQE data)
 9. Noise-aware MPNN training fails (V7 5B): shot noise corrupts training targets → noiseless training is necessary

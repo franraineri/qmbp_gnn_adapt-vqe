@@ -70,10 +70,16 @@ Primary question: "Does the MPNN predict well enough for phase characterization?
 | Metric | Good | Marginal | Bad | Meaning |
 |--------|------|----------|-----|---------|
 | `delta_e_over_gap` | <0.05 | 0.05–0.10 | >0.10 | Energy error relative to spectral gap |
+| `energy_variance` | <0.05 | 0.05–0.50 | >0.50 | Var(H) = ⟨H²⟩-⟨H⟩²; eigenstate proximity |
 | `convergence_rate` | 1.0 | 0.8–1.0 | <0.8 | Fraction of h-points where VQE converged |
 | `theta_smoothness` | <0.05 | 0.05–1.0 | >1.0 | Parameter variation between adjacent h |
 | `generalization_gap` | <1e-4 | 1e-4–1e-2 | >1e-2 | Train vs test MSE difference (overfitting) |
 | `phase_correct` | true | — | false | Correct paramagnetic/ferromagnetic label |
+| `n_fragile_passes` | 0 | 1-2 | >2 | Points with ΔE/gap<5% but Var(H)>0.5 |
+
+**New metric (2026-07-13)**: `energy_variance` measures how close |ψ(θ)⟩ is to an eigenstate.
+A "fragile pass" (low ΔE/gap + high variance) indicates the energy happens to be close but
+the state is a superposition — vulnerable to hardware noise. Use as Go/No-Go for hardware.
 
 ### Noisy/ZNE (noisy_*.json)
 Primary question: "Does ZNE improve the noisy estimate?"
@@ -122,10 +128,23 @@ python -m project_health.digest --compare folder_A folder_B   # A/B comparison
 ## Decision Flowchart
 
 **If ΔE/gap > 5%:**
-1. Check `convergence_rate` — if <1.0, VQE didn't converge → increase restarts
-2. Check `theta_smoothness` — if >1.0, warm-start broke → check h-grid density
-3. Check `generalization_gap` — if >0.01, MPNN overfitting → reduce epochs/increase data
-4. Check h_test value — if near h_c, it's a physics limit, not a bug
+1. Check `energy_variance` — if >1.0, state is far from eigenstate → ansatz limit (not optimizer)
+2. Check `convergence_rate` — if <1.0, VQE didn't converge → increase restarts
+3. Check `theta_smoothness` — if >1.0, warm-start broke → check h-grid density
+4. Check `generalization_gap` — if >0.01, MPNN overfitting → reduce epochs/increase data
+5. Check h_test value — if near h_c, it's a physics limit, not a bug
+
+**If ΔE/gap < 5% but energy_variance > 0.5 (FRAGILE PASS):**
+1. The energy is correct by coincidence — state is a superposition
+2. On hardware, noise will likely break this → do NOT deploy at this h-value
+3. Consider: is this h-point near the ansatz expressibility boundary?
+4. Recommendation: set h_test further into the valid regime (higher h)
+
+**If energy_variance ≈ 0 but ΔE/gap > 10% (INCONSISTENCY):**
+1. The state IS an eigenstate... but not the ground state (excited state)
+2. Or E_exact reference is wrong (DMRG didn't converge)
+3. Or gap was computed incorrectly
+4. Action: verify DMRG reference independently
 
 **If ZNE gain is negative:**
 1. Check N and p — if N≥10 AND p=2, this is expected (known failure at ~36 CX gates)

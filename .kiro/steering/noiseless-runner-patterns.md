@@ -26,6 +26,12 @@ All sections that generate VQE training data MUST include:
 6. **Theta canonicalization**: For sign-symmetric models (TFIM), canonicalize θ
    to enforce consistent sign convention (e.g., θ_x > 0).
 
+7. **Energy variance** (automatic): `VQEOptimizer.optimize()` computes `energy_variance`
+   per-point. Store it in the per-point result dict. Use for:
+   - Detecting fragile passes (ΔE/gap<5% but Var>0.5 → hardware-vulnerable)
+   - Identifying the ansatz expressibility boundary (Var spikes at h→h_c)
+   - Go/No-Go criterion for hardware deployment (Var(θ_pred) < 0.2 required)
+
 ## MPNN Training (Phase 3 sections)
 
 All sections that train MPNN MUST include:

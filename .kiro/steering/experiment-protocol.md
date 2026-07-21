@@ -269,7 +269,7 @@ See `.kiro/steering/project-status.md` → "Key Constraints" section for the com
 list of validated physics limits. The most critical ones for experiment design:
 
 - h_min valid regime shifts with N: N=6→h≥1.25, N=10→h≥1.5, N=20→h≥2.0 (p=2)
-- p=1 valid regime: h_min_safe = 1.5 + 0.020·N^1.31
+- p=1 valid regime: h_min = 2.36 + 0.0073·N (linear, R²=0.91); p≥3: ~1.6 constant
 - ZNE CX threshold: ~18 CX (p=2 N=10 = 36 CX → fails)
 - HVA is TFIM-specific (Heisenberg/XY fail with p≤2)
 - N=12 too slow for iteration (~30+ min)
@@ -277,3 +277,7 @@ list of validated physics limits. The most critical ones for experiment design:
 
 **Full table with evidence**: `.kiro/steering/project-status.md`
 **Full validated decisions**: `.kiro/knowledge/validated-decisions.md`
+
+## Analysis: Reuse Existing Scripts
+
+Do not create new analysis scripts when an existing one covers the need. See `scripts/analysis/` and `project_health/analysis/`.

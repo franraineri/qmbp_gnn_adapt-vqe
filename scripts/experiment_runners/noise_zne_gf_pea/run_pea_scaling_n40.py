@@ -134,8 +134,8 @@ class PEAScalingRunner(ValidationRunner):
         """N=10 PEA on FakeTorino — reference only. Loads FakeTorino on demand."""
         from qiskit_ibm_runtime.fake_provider import FakeTorino
 
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,

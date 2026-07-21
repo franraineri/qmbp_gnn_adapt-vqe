@@ -2,6 +2,8 @@
 
 from qmbp_simulation.utils.helpers import (
     TimerResult,
+    canonicalize_theta,
+    filter_consistent_theta,
     json_dump,
     json_serialize,
     set_global_seed,
@@ -10,6 +12,8 @@ from qmbp_simulation.utils.helpers import (
 
 __all__ = [
     "TimerResult",
+    "canonicalize_theta",
+    "filter_consistent_theta",
     "json_dump",
     "json_serialize",
     "set_global_seed",

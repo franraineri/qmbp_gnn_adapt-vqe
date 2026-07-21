@@ -113,8 +113,8 @@ class PEACrossTopologyDenseRunner(ValidationRunner):
 
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,

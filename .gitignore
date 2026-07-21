@@ -37,6 +37,18 @@ Thumbs.db
 # ── Kiro specs (local dev state) ─────────────────────────────
 .kiro/specs/
 
+# ── Historical documentation (local lab notebook) ────────────
+documentation/binnacles/
+documentation/analysis/
+documentation/v8/
+.hypothesis/
+
+# ── Deprecated / out-of-scope results (deleted) ──────────────
+_deprecated/
+results/hardware/
+results/experiments/exp_hw_rehearsal*
+results/experiments/exp_cross_topo_noisy/
+
 # ── Benchmark & notebook results ─────────────────────────────
 results/benchmarks/
 scripts/notebook_results/
@@ -47,8 +59,11 @@ tmp/
 checkpoint*
 log_*
 digest_*
+.project_health_state.json
 */analysis/*.json
 */scaling/*.json
+
+plot_*
 
 # ── Secrets & credentials (NEVER commit) ─────────────────────
 .env
@@ -65,3 +80,5 @@ digest_poc/*
 *exp_hw_rehearsal*
 *.json
 *.qasm
+*.sh
+*/binnacles/*

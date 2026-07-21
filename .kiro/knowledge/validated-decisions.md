@@ -38,7 +38,7 @@ Do NOT duplicate this content in other files — reference this document instead
 | Phase 3 MPNN works at N=40 (0.46% deploy) | 26/26 pass with 27 training points | Phase 3 run |
 | MPNN extrapolation fails at boundary | 1/3 fail at h=3.0 (h_min≈3.5) | Phase 3 extrapolation |
 | Seed-independent at N=40 | 27/27 pass, seeds 42/43/44 | Multi-seed run |
-| Scaling law h_min_safe = 1.5+0.020·N^1.31 | Consistent +0.50 offset at N=40/50/80 | Scaling law analysis |
+| Frontier: p=1 linear (0.0073·N), p≥3 quasi-constant | MPS deterministic N=20-250, R²=0.91/0.95 | H_EXPR_MATRIX analysis |
 | Hardware viable at N=40 (78 CX) and N=50 (98 CX) | Transpilation audit + B2 noisy rehearsal | Audit + B2 |
 | T(N) ≈ 0.08·N^2.56 at boundary h-values | Fit on N=6-50 data | C2 timing analysis |
 

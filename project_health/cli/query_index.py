@@ -49,6 +49,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--p-layers", type=int, help="Filter by circuit depth")
     p.add_argument("--passed", action="store_true", help="Only passing runs")
     p.add_argument("--failed", action="store_true", help="Only failing runs")
+    p.add_argument(
+        "--backend", type=str, help="Filter by backend_type (e.g. 'mps', 'noiseless', 'hardware')"
+    )
     # Actions
     p.add_argument("--best", action="store_true", help="Show only the best run per filter")
     p.add_argument("--coverage", action="store_true", help="Show coverage matrix")
@@ -242,6 +245,15 @@ def main() -> int:
         p_layers=args.p_layers,
         passed=passed_filter,
     )
+
+    # Post-filter by backend_type (substring match on simulation_diagnostics field)
+    if args.backend:
+        backend_filter = args.backend.lower()
+        results = [
+            r
+            for r in results
+            if r.get("backend_type") and backend_filter in r["backend_type"].lower()
+        ]
 
     if args.best and results:
         results = [max(results, key=lambda r: (r.get("pass_rate", 0), r.get("timestamp", "")))]

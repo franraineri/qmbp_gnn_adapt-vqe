@@ -50,30 +50,7 @@ class SourceData:
 # Theta Normalization
 # ═══════════════════════════════════════════════════════════════════════════════
 
-
-def canonicalize_theta(theta: np.ndarray) -> np.ndarray:
-    """Enforce theta_x > 0 sign convention.
-
-    For TFIM HVA, the energy landscape has a sign symmetry: theta and -theta
-    give the same energy. We canonicalize by requiring the last component
-    (theta_x for p=1) to be non-negative.
-
-    Parameters
-    ----------
-    theta : np.ndarray
-        Parameter vector (shape [2*p] for p layers).
-
-    Returns
-    -------
-    np.ndarray
-        Canonicalized theta with consistent sign.
-    """
-    if len(theta) == 0:
-        return theta
-    if theta[-1] < 0:
-        return -theta
-    return theta
-
+from qmbp_simulation.utils import canonicalize_theta  # noqa: F401 — re-export for compatibility
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Format Detection

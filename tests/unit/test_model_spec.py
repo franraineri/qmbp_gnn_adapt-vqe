@@ -73,10 +73,10 @@ class TestModelRegistry:
         assert spec.initial_state == "plus"
 
     def test_registry_get_heisenberg(self):
-        """Heisenberg spec has params_per_layer=4, initial_state='neel', delta=1.0."""
+        """Heisenberg spec has params_per_layer=4, initial_state='plus', delta=1.0."""
         spec = get_model_spec("heisenberg")
         assert spec.params_per_layer == 4
-        assert spec.initial_state == "neel"
+        assert spec.initial_state == "plus"
         assert spec.hamiltonian_kwargs["delta"] == 1.0
 
     def test_registry_get_xy(self):

@@ -175,15 +175,11 @@ class TestPrefixResolution:
         resolved = resolve_configs(args)
         assert resolved == ["C0_raw"]
 
-    def test_c1_resolves_multiple(self):
-        """C1 prefix matches C1_dd_only, C10_kitchen_sink, etc."""
+    def test_c1_resolves_single_with_boundary(self):
+        """C1 prefix matches only C1_dd_only (underscore boundary prevents C10-C19)."""
         args = argparse.Namespace(configs="C1", priority=None)
         resolved = resolve_configs(args)
-        # C1 prefix matches: C1_dd_only, C10_kitchen_sink, C11_mitiq_zne,
-        # C12_mitiq_cdr, C13_mitiq_ddd_zne, C14_dd_mitiq_cdr, C15_pea_no_affine,
-        # C16_aqc_pea, C17_aqc_mitiq_cdr, C18_aqc_raw
-        assert "C1_dd_only" in resolved
-        assert len(resolved) > 1
+        assert resolved == ["C1_dd_only"]
 
     def test_full_config_id_resolves_exactly(self):
         """Full config_id resolves to itself."""
@@ -362,7 +358,7 @@ class TestResultEnvelope:
         assert meta["config_id"] == "C5_full_pea_balanced"
         assert meta["execution_mode"] == "fake_backend"
         assert meta["h_value"] == 3.5
-        assert meta["benchmark_version"] == "1.0"
+        assert meta["benchmark_version"] == "2.1"
         assert meta["seed"] == 42
         assert "timestamp" in meta
 

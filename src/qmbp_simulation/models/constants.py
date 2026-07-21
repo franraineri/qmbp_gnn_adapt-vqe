@@ -35,8 +35,16 @@ MAX_P_LAYERS: int = 10
 EXACT_DIAG_QUBIT_LIMIT: int = 15
 """n_qubits ≤ 15 → exact diagonalization."""
 
-DMRG_QUBIT_LIMIT: int = 200
-"""n_qubits > 15 → DMRG (up to 200 qubits). 1D TFIM validated at N=120 with χ=64."""
+EXACT_GAP_QUBIT_LIMIT: int = 20
+"""n_qubits ≤ 20 → sparse eigsh(k=2) for exact gap computation.
+
+Used as fallback when DMRG excited-state fails on non-chain topologies.
+At N=20, sparse eigsh(k=2) on a 1M×1M matrix takes ~40-60s and ~4GB RAM.
+This is cheaper than full exact diag (which needs the eigenvector).
+"""
+
+DMRG_QUBIT_LIMIT: int = 500
+"""n_qubits > 15 → DMRG (up to 500 qubits). 1D TFIM validated at N=200 with χ=64."""
 
 # ---------------------------------------------------------------------------
 # VQE optimizer methods
@@ -186,3 +194,42 @@ OUTLIER_THRESHOLD: float = 2.0
 
 OUTLIER_FIDELITY_FLOOR: float = 0.5
 """Fidelity below this (with high-fidelity neighbors) = outlier."""
+
+# ---------------------------------------------------------------------------
+# ZNE / Noisy simulation defaults
+# ---------------------------------------------------------------------------
+
+ZNE_DEFAULT_SHOTS: int = 16384
+"""Default shot count for ZNE and noisy estimation experiments.
+
+Ensures SNR > 1 for local observables at N=10 heavy_hex. Matches
+NoisyEstimatorConfig.shots default. All ZNE runners MUST import
+this constant instead of redeclaring 16384 locally.
+"""
+
+ZNE_DEFAULT_NOISE_FACTORS: tuple[int, ...] = (1, 3, 5)
+"""Default noise amplification factors for gate-folding and PEA ZNE.
+
+(1, 3, 5) is the minimum viable set for reliable linear extrapolation.
+Use (1, 1.5, 2, 3) for short circuits (≤18 CZ) to capture curvature.
+"""
+
+ZNE_DEFAULT_N_CANDIDATE_LAYOUTS: int = 20
+"""Number of BFS candidate layouts to search on FakeTorino/FakeKingston.
+
+20 is sufficient for N≤10. Reduce to 10 for N≥16 (BFS search time).
+"""
+
+ZNE_LINEAR_REGIME_CX_LIMIT: int = 18
+"""Maximum effective 2Q gates for linear ZNE regime (project constraint).
+
+Above this, E(noise_factor) deviates from linearity and gate-folding
+ZNE overcorrects. PEA-ZNE is not subject to this limit.
+"""
+
+ZNE_CES_PERTURBATIVE_THRESHOLD: float = 0.3
+"""CES above this value exits the perturbative regime for GF-ZNE.
+
+Layouts with CES > 0.3 produce unreliable linear extrapolation.
+Used as a warning threshold in noisy runners.
+"""

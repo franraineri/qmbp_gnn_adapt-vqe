@@ -5,217 +5,170 @@ fileMatchPattern: "**/*.tex"
 
 # Thesis Writing — LaTeX Conventions & Quality Rules
 
+## Thesis General Objective (CANONICAL)
+
+"Demostrar que la integración de predicción GNN con HVA shallow en un pipeline unificado permite reducir el costo cuántico de la clasificación de fases entre 29× y 500×, manteniendo ΔE/gap < 5% dentro del régimen operativo válido, y documentar formalmente los límites de dicho régimen."
+
+Every chapter, section, and claim must serve this objective.
+
+## Scope: Noiseless Ideal Simulation ONLY
+
+- ALL results are from ideal simulation (StatevectorEstimator, no noise)
+- Noise/hardware is ONLY mentioned as context (Ch1 motivation, Ch2 state of art)
+- NO own noisy results, NO PEA-ZNE results, NO GNN-QEM results
+- Hardware deployment = future work line in Ch6
+- p is NOT restricted to ≤2 — we use p=1-4 freely
+- The p≤2 constraint is mentioned ONLY in Ch2 as a noise-related consideration from literature
+
 ## CRITICAL: Every Claim Must Be Grounded
 
-**Rule #1 (ALWAYS ENFORCE):** Every assertion, finding, decision, or claim in the thesis MUST be grounded by EITHER:
+**Rule #1 (ALWAYS ENFORCE):** Every assertion MUST be grounded by EITHER:
 - A `\citep{}` or `\citet{}` reference to published literature, OR
-- A `Tabla~\ref{}` / `Ec.~\ref{}` reference to own results in the Results chapter, OR
+- A `Tabla~\ref{}` / `Ec.~\ref{}` reference to own results in Chapter 5, OR
 - An explicit "experiment X, N seeds, condition Y" inline reference to own data.
 
-**No ungrounded claims.** If a statement cannot be referenced, either add the reference or rewrite as a hypothesis/proposal (using subjunctive mood).
-
 **Rule #2 (ALWAYS ENFORCE): No False Novelty Claims.**
-- If a technique, method, or finding was previously published by others, ALWAYS attribute it: "siguiendo el paradigma de X propuesto por \citet{Author}"
 - Our contribution is the INTEGRATION and SYSTEMATIC VALIDATION, not the individual techniques
-- Use language like "se integra", "se valida", "se extiende", NOT "se propone" or "se descubre" for pre-existing techniques
-- Specific techniques that are NOT ours (must always attribute): warm-start (Mele2022, Puig2025), GNN parameter prediction (Miao2024, Zhang2025), PEA-ZNE (Kim2023), GINConv (Xu2019), HVA design (Wiersema2020), DMRG (Hauschild2018), MC-Dropout (Gal2016)
-- What IS our contribution: (1) integration into unified pipeline, (2) systematic validation across 5 topologies + N=6-80, (3) cross-N generalization finding (BatchNorm issue), (4) extensibility to Ising variants documented, (5) diagnostic/early-stopping system
+- Use "se integra", "se valida", "se extiende", NOT "se propone" or "se descubre"
+- Techniques that are NOT ours: warm-start (Mele2022, Puig2025), GNN prediction (Miao2024, Zhang2025), GINConv (Xu2019), HVA (Wiersema2020), DMRG (Hauschild2018)
+- What IS ours: (1) integration into unified pipeline, (2) systematic validation across 5 topologies + p=1-4 + N=4-20, (3) cross-N generalization finding (BatchNorm), (4) extensibility documented, (5) formal limits documentation
 
-### Grounding Checklist (apply to every paragraph)
-- [ ] Strong verbs (demuestra, confirma, establece, garantiza) → MUST have \citep{} or \ref{}
-- [ ] Numerical claims (reduces 50×, achieves 95%) → MUST cite table/figure or source
-- [ ] Design decisions (chose X over Y) → MUST cite theoretical justification
-- [ ] Negative results (X fails, X is impossible) → MUST cite independent confirmation or own systematic evidence
-- [ ] Comparison claims (better than X by Y%) → MUST cite both own data AND the compared work
-
-## Document Structure (v3.0 — Director Approved)
+## Document Structure (v3.0 Refactored — 2026-07-15)
 
 | Chapter | Content | Rule |
 |---------|---------|------|
-| 1. Introducción | Problem, motivation, pipeline overview | NO numerical results |
-| 2. Marco Teórico | Physics + algorithms + GNN + mitigation | NO results, NO methodology |
-| 3. Desarrollo del Trabajo | Objectives, methodology, implementation | Describes HOW, not WHAT was found |
-| 4. Descripción Detallada e Identificación de Requisitos | Context, prior work, functional/non-functional requirements | Problem detail + requirements |
-| 5. Evaluación | ALL results + comparisons + discussion + ventaja + "Código desarrollado" | ALL numbers here + applicability |
-| 6. Conclusiones y Trabajo Futuro | Summary + validity + contributions vs objectives + future lines | References back to Ch.5 tables |
+| 1. Introducción | Problem, motivation, pipeline overview (3 phases) | NO results. Noise as context only |
+| 2. Marco Teórico | Physics + VQE + HVA + GNN + mitigation as literature | NO own results. Mitigation = state of art |
+| 3. Desarrollo del Trabajo | Objectives (OE1-OE6), methodology (3 phases), implementation | Describes HOW |
+| 4. Descripción Detallada | Context, prior work, requirements | Problem detail + constraints |
+| 5. Evaluación | ALL noiseless results + extensibility + comparisons + limits + code | ALL numbers here |
+| 6. Conclusiones | Summary + contributions + objectives + future (hardware as line 1) | Refs to Ch.5 tables |
 
-### Structural Rules
-- **No results in Chapter 2.** State of the art presents only published results from others.
-- **No methodology in Chapter 2.** Methodology belongs in Chapter 3.
-- **Chapter 4 establishes WHAT must be solved** — requirements, constraints, prior iterations.
-- **All own numerical data in Chapter 5.** Any number ΔE/gap, fidelity, timing → Chapter 5 only.
-- **Chapter 5 must include "Ventaja de la Solución y Aplicabilidad"** section.
-- **"Código desarrollado" section** at end of Chapter 5 with GitHub URL.
-- **Chapter 6 structure:** (1) Summary of problem+approach+validity, (2) Contributions list with table refs, (3) Cumplimiento de objetivos, (4) Líneas de trabajo futuro (with application fields).
-- **Conclusions reference tables.** Each conclusion must cite the specific table/figure from Ch.5.
+### Pipeline = 3 Phases (NOT 4)
+1. **Phase 1**: Ground Truth (ExactDiag / DMRG)
+2. **Phase 2**: VQE Warm-Start (descending sweep, HVA p=1-4)
+3. **Phase 3**: MPNN Predictor + Deployment evaluation (ideal simulation)
+
+### Key Structural Rules
+- All own numerical data in Chapter 5 only
+- Chapter 5 includes "Ventaja de la Solución" + "Código Desarrollado" sections
+- Conclusions reference specific tables from Ch.5
+- Extensibility section: ALL models (tfim, tfim_longitudinal, heisenberg, heisenberg_transverse, kitaev) — concise summary with key findings, not exhaustive data dumps
+- Topologies: cadena 1D, escalera, triangular, cuadrada, heavy-hex (NOT kagomé)
+
+## Metrics (Canonical Names — 2026-07-16)
+
+| Metric | Definition | Use |
+|--------|-----------|-----|
+| **ΔE/gap** | \|E_pred - E_exact\| / (E₁ - E₀) | PRIMARY success criterion (< 5%) |
+| **PassRate** | Fraction of h-points with ΔE/gap < 5% | Pipeline effectiveness. In tables: "PassRate" column |
+| **Speedup** | VQE iterations (random) / evaluations (pipeline) | Acceleration factor (29-500×) |
+| **Fidelidad** | \|⟨ψ(θ)\|ψ_exact⟩\|² | State quality (≥ 0.93 filter) |
+| **θ_smooth** | max‖θ*(hᵢ) - θ*(hᵢ₋₁)‖∞ | Chain-break detector |
+
+**DEPRECATED (do not use in thesis):** "Deploy", "deploy pass rate", "checklist n/4", "gen_gap", "labels accuracy".
+The term "Deploy %" was replaced by "PassRate" on 2026-07-16.
 
 ## Citation Style
 
-- Use `\citep{AuthorYear}` for parenthetical: "...confirmed independently \citep{tripathi2026}."
-- Use `\citet{AuthorYear}` for textual: "\citet{mele2026} demonstrated that..."
-- BibTeX keys: `authorYear` format lowercase (e.g., `mele2026`, `tripathi2026`)
-- Always cite the **specific result**, not just the paper
-- For multiple citations: `\citep{author1Year, author2Year}`
-- Every \bibitem must be cited at least once in the text
-- Every citation key must have a corresponding \bibitem
+- `\citep{authorYear}` for parenthetical, `\citet{authorYear}` for textual
+- BibTeX keys: `authorYear` lowercase (e.g., `mele2026`, `tripathi2026`)
+- Always cite the specific result, not just the paper
+- Every \bibitem must be \cited; every \cite must have a \bibitem
 
-## Reference Quality Hierarchy (prefer top → bottom)
+## Key References by Topic
 
-1. **Nature / Science / Nature Physics** (Kim2023, Mele2026) — maximum authority
-2. **Physical Review journals** (PRX Quantum, PRA, PRApplied) — (Puig2025, Mele2022, Miao2024)
-3. **npj Quantum Information** (Zou2026) — Nature group
-4. **Peer-reviewed journals** (Skogh2023 Electronic Structure, Tilly2022 Physics Reports)
-5. **ICLR/ICML proceedings** (Xu2019, Gilmer2017, Gal2016) — top-tier ML venues
-6. **arXiv preprints** (Tripathi2026, Zhang2025, etc.) — acceptable if 2024+, flag if sole evidence
-
-### Key Authoritative References by Topic
-| Topic | Primary Reference | Backup |
-|-------|-------------------|--------|
-| Depth truncation | Mele et al. 2026 (Nature Physics) | — |
-| Barren plateaus | McClean 2018 + Cerezo 2021 (Nat Commun) | — |
+| Topic | Primary | Backup |
+|-------|---------|--------|
+| Depth truncation / noise | Mele 2026 (Nature Physics) | — |
+| Barren plateaus | McClean 2018 + Cerezo 2021 | — |
 | HVA design | Wiersema 2020 (PRX Quantum) | Tripathi 2026 |
-| Warm-start theory | Puig 2025 (PRX Quantum) | Mele 2022 (PRA) |
+| Warm-start | Puig 2025 (PRX Quantum) | Mele 2022 (PRA) |
 | VQE review | Tilly 2022 (Physics Reports) | Peruzzo 2014 |
 | GNN expressivity | Xu 2019 (ICLR) | Meng 2025 |
 | TFIM physics | Dutta 2015 (Cambridge UP) | Sachdev 2011 |
-| PEA-ZNE | Kim 2023 (Nature 618) | Uvarov 2024 |
 | GNN for spins | Huang 2022 (Science) | Kochkov 2021 |
-| MC-Dropout | Gal & Ghahramani 2016 (ICML) | — |
-| Hardware validation | Kim 2023, Sharma 2026, Kiiamov 2026 | Ma 2025 |
+| Hardware validation (context) | Kim 2023, Sharma 2026 | Ma 2025 |
 | Quantum advantage boundary | Martin 2026 | — |
 
-## Results References (definitive data locations)
+## Narrative Framing
 
-| Data | Source File | Thesis Table |
-|------|-------------|-------------|
-| Cross-topology N=10 (chain/ladder/tri/heavy-hex) | `09_thesis_tables.md` Tables 5.1-5.4 | Table 4.1 |
-| Scaling N=6 to N=80 | `09_thesis_tables.md` Table 5.23 | Table 4.2 |
-| N=6 p=2 baseline (3 seeds × 3 h) | `09_thesis_tables.md` | Table 4.3 |
-| N=10 p=2 baseline (3 seeds × 2 h) | `09_thesis_tables.md` | Table 4.4 |
-| PEA-ZNE cross-topology (18/18 wins) | `binnacle-gate-folding-zne.md` | Table 4.5 |
-| CX budget rule | `09_thesis_tables.md` Table 5.5 | Table 4.6 |
-| TFIM + longitudinal (E4b) | `09_thesis_tables.md` Table 5.22 | Table 4.7 |
-| Heisenberg negative (V9) | `09_thesis_tables.md` Table 5.14 | Table 4.8 |
-| Root cause analysis (174 runs) | `09_thesis_tables.md` Table 5.9 | Table 4.9 |
-| Data efficiency (k=5-17) | `09_thesis_tables.md` Table 5.17 | Table 4.10 |
-| Literature comparison | Own analysis | Table 4.11 |
-| Cross-N zero-shot (30/30 PASS) | `binnacle-cross-n-zero-shot.md` | Table 4.12 |
-| MC-Dropout (r=0.82) | `09_thesis_tables.md` Table 5.20 | Table 4.13 |
-| Source JSON for all | `results/thesis/` | — |
-| GitHub repository | `https://github.com/franraineri/qmbp_gnn_adapt-vqe` | Section 4.7 |
-
-## Narrative Framing (each with mandatory citation)
-
-- h=1.25 ceiling → "physics limit of HVA p=2" (MUST cite Tripathi2026 + own Table)
-- Hardware noise broadening → "expected behavior" (MUST cite Sharma2026)
-- Pipeline value → "methodology demonstration, not quantum advantage" (MUST cite Martin2026)
-- GNN choice → "maximally expressive MPNN" (MUST cite Xu2019 + Meng2025)
-- Warm-start effectiveness → "provably larger gradients" (MUST cite Puig2025)
-- Triple synergy → depth + cost + ansatz (MUST cite Mele2026 + Cerezo2021 + Wiersema2020)
-- Heisenberg failure → "expressibility limit, requires p∝N" (MUST cite Wiersema2020 + own Table)
-- Cross-N BatchNorm issue → "regular graph destroys variance" (MUST cite Xu2019 + own experiment)
-- PEA > GF-ZNE → "4.6× gain, t=46.3" (MUST cite Kim2023 + own Table)
+- h≈1.3 ceiling → "expressibility boundary of HVA at moderate depth" (cite Tripathi2026 + own Table)
+- Pipeline value → "methodology for phase classification, not quantum advantage" (cite Martin2026)
+- GNN choice → "maximally expressive MPNN" (cite Xu2019 + Meng2025)
+- Warm-start → "provably larger gradients, smooth landscape" (cite Puig2025 + Mele2022)
+- Heisenberg failure → "expressibility limit confirmed p=1-4, requires p∝N" (cite Wiersema2020 + own Table)
+- Topology ranking → "connectivity determines difficulty" (cite own Table + noiseless_v2_analysis)
+- Bond-resolved → "necessity boundary of MPNN" — explained first (what/why), then result (4414×, cross-N fails). Ref via §\ref{subsec:bond_resolved}
+- Noise context only → "motivates shallow circuits" (cite Mele2026) — NO own noise results
 
 ## Numerical Precision
 
 - ΔE/gap: 2 decimal places (e.g., 3.77%)
-- Energies: 4 significant figures (e.g., -7.2734)
 - Fidelities: 3 decimal places (e.g., 0.997)
-- MSE: scientific notation (e.g., 3.2×10⁻³)
-- Always include ± std when reporting multi-seed results
-- Statistics: report t-statistic and p-value for comparative claims
-- Scaling laws: report R² value
-
-## Figure Conventions
-
-- Phase diagram plots: h on x-axis, observable on y-axis
-- Always mark h_c ≈ 1.0 with vertical dashed line
-- Use consistent colors: blue=paramagnetic, red=ferromagnetic, gray=critical region
-- Error bars from multi-seed runs (3 seeds minimum)
-- All figures generated via `make figures-thesis` (PDF 300dpi)
+- Speedup: integer or 1 decimal (e.g., 44×, 492×)
+- Always ± std for multi-seed results
+- Frontier fits: report R² value and slope
 
 ## Language
 
-- Write in Spanish (matching thesis document language)
-- Technical terms in English when no standard Spanish translation exists
-- Acronyms: define on first use, then use freely (VQE, MPNN, ZNE, HVA, TFIM, PEA)
-- Use third-person impersonal ("se demuestra", "se observa") for results
-- Use first-person plural ("proponemos", "nuestro pipeline") sparingly, for own contributions only
+- Spanish for main text
+- Technical terms in English when no standard translation exists
+- Third-person impersonal for results ("se demuestra", "se observa")
+- First-person plural sparingly for own contributions ("nuestro pipeline")
 
 ## Common Errors to Avoid
 
-1. **Putting results in Chapter 2** — Estado del Arte must only contain published literature results
-2. **Ungrounded strong claims** — "X is the only/best/unique" without citation
-3. **Missing table references in conclusions** — every conclusion must point to evidence
-4. **Citing the paper without the specific result** — say WHAT was demonstrated
-5. **Using "preliminar"** — the final thesis contains only definitive results
-6. **Orphaned bibliography entries** — every \bibitem must be \cited somewhere
-7. **Methodology in wrong chapter** — development/methodology goes in Chapter 3 only
-8. **Unreferenced numerical claims** — any number (50×, 95%, 430+ runs) needs source
+1. Putting results in Chapter 2
+2. Ungrounded strong claims without citation
+3. Missing table references in conclusions
+4. Using "preliminar" — thesis contains only definitive results
+5. Mentioning own noisy/hardware results (REMOVED from thesis)
+6. Using "p ≤ 2" as a constraint of this work (it's only context)
+7. Saying "kagomé" as a topology we tested (we didn't — it's future work)
+8. Exhaustive data dumps in extensibility — show concise findings, not all runs
+9. Re-explaining bond-resolved, ν/S8, or Hamiltonianos Candidatos in multiple places — each has ONE canonical location
+10. Introducing PCA/PC1 without explaining what it is and what the dataset is
+11. Mentioning Schwinger lattice or TFIM boundary fields (removed from thesis)
 
-## Bibliography Management
+## Results Data Sources
 
-- **Quick reference for which paper to cite:** Use `#bibliography-guide` steering (manual inclusion)
-- **Full curated list (56 papers):** `documentation/bibliography/bibliography_curated.md`
-- **Alternative approaches:** `documentation/bibliography/alternative_bibliography.md`
-- **Before citing a new paper:** verify arXiv ID, check date (2023+), classify (Core/Key/Supporting), add to curated list
+| Data | Source |
+|------|--------|
+| Cross-topology N=10 p=1-4 | `documentation/analysis/noiseless_v2_analysis.md` (Sections 1-4) |
+| Scaling N=4-20 | `noiseless_v2_analysis.md` (Sections 7, 9, 11) |
+| TFIM longitudinal multi-topo | `noiseless_v2_analysis.md` (Section 2) |
+| Heisenberg exhaustive (26 runs) | `noiseless_v2_analysis.md` (Section 3) |
+| Heisenberg transverse (20 runs) | `noiseless_v2_analysis.md` (Section 7.3) |
+| Expressibility p=5 study | `noiseless_v2_analysis.md` (Section 5) |
+| Physics loss experiment | `noiseless_v2_analysis.md` (Section 10) |
+| N=6/N=10 baseline | `documentation/analysis/09_thesis_tables.md` |
+| Cross-N zero-shot | `binnacle-cross-n-zero-shot.md` |
+| GitHub repository | `https://github.com/franraineri/qmbp_gnn_adapt-vqe` |
 
-## Appendices (Mandatory)
-
-### Anexo A: Resultados y Mediciones Detalladas
-- Contains extended tables NOT shown in Chapter 5 (full variant lists, per-seed breakdowns)
-- Transpilation audit tables (CX counts, SWAP counts, depth, estimated fidelity)
-- Heisenberg depth-scaling data (p=1 to p=6)
-- Hardware pre-deployment parameter optimization
-- Reference from Chapter 5: "véase Anexo A para tablas detalladas"
-- Data source: `documentation/analysis/09_thesis_tables.md` (Tables 5.1-5.23)
-
-### Anexo B: Artículo de Investigación (Obligatorio)
-- 6-8 pages, English or Spanish (currently English)
-- Follows provided template structure: Abstract, Introduction, Method, Results, Discussion, Conclusions
-- Self-contained summary of the full thesis work
-- Must include: problem statement, methodology overview, key numerical results, comparison with literature, conclusions
-- All claims must be referenced (same bibliography as main thesis)
-- GitHub URL included in conclusions
-- Target venue style: arXiv/conference paper (concise, quantitative)
-
-## Current Document Status (tesis-v3.0.tex — Updated 2026-06-09)
+## Current Document Status (tesis-v3.0.tex — Updated 2026-07-16)
 
 ### Stats
-- Lines: 1790 | Chapters: 10 | Tables: 31 | Table refs: 23
-- Citations: 49 unique keys | Bibitems: 49 (balanced)
-- Environments: 88/88 (balanced)
-- Verification: 23 findings, 100% corroboration rate (21 CORROBORATED, 2 QUALIFIED, 0 CONTRADICTED)
+- Lines: ~1750 | Chapters: 10 | Environments: balanced
+- Scope: Noiseless ideal simulation only
+- Models: tfim, tfim_longitudinal, heisenberg, heisenberg_transverse, kitaev (neg. results)
+- Topologies: chain_1d, ladder, triangular, square, heavy_hex
+- N range: 4-20 (primary), 40-200 (scaling with p=1, secondary)
+- p range: 1-4
 
-### Pending Actions for Final Submission
-1. **Insert figures**: Run `make figures-thesis` → insert `\includegraphics` in appropriate sections
-2. **Hardware execution (OE6)**: Run on IBM Heron when credentials available → add results to Ch.5
-3. **Compile LaTeX**: Verify with `pdflatex tesis-v3.0.tex` (requires `estilo_unir-1.sty`)
+### Structural Decisions (2026-07-16)
+- **Bond-Resolved HVA** (§5): Has \label{subsec:bond_resolved}. Explains WHAT it is (per-bond params vs shared), WHY tested (MPNN necessity boundary), THEN result.
+- **Extensibilidad section** (§5): Ends with "Resumen de Viabilidad por Modelo" subsection (table with 4 models: TFIM-long, frustrado, Heisenberg, Kitaev). Schwinger/boundary fields REMOVED.
+- **"Aproximaciones Alternativas"** (§5): Contains ONLY S8/S8b (ν extraction) and DyPP (F1). "Hamiltonianos Candidatos" subsection was moved to Extensibilidad.
+- **PCA/PC1** (§ Detección de Fases): Fully introduced — what PCA is, what PC1 means, why 99.96% → 1D manifold.
+- **Discusión "¿Por qué Funciona?"** (§5): Now 5 properties (was 4):
+  1. Smooth landscape (+ θ_smooth values 0.01-0.05, monotonicity)
+  2. Physics restricts space + minimal output_dim (2 numbers for p=1, 99K→2 scalars)
+  3. Graph structure informs prediction (GINConv, Slavin2025)
+  4. Warm-start + multi-seed data multiplication (9h×3seeds=27pts)
+  5. Moderate depth compatible with hardware (Mele2026)
 
-### Known Verification Issues (RESOLVED 2026-06-09)
-- **F1**: Fixed — now uses valid-regime filter (ΔE/gap<20%), CORROBORATED (STRONG)
-- **F6**: Reformulated from "topology ranking" to "topology-agnostic" — CORROBORATED (STRONG)
-- **F10**: Updated to 84% (41/49) — CORROBORATED (STRONG)
-- **F11**: Fixed path lookup (summary.n_zne_records) — CORROBORATED (STRONG)
-- **F14**: Fixed path lookup (circuit_selection.spearman_rho) — CORROBORATED (STRONG)
-- **F16**: QUALIFIED (MODERATE) — qualitative result from binnacle S2, valid as-is
-
-### Experiments NOT in Thesis (documented but excluded for brevity)
-- Per-observable site-selective ZNE (V3 noisy variants) — novel but superseded by PEA
-- Non-linear ZNE decision rule (quadratic only when R²_lin < 0.5) — implementation detail
-- K-means rejected for phase detection — PCA/derivative sufficient
-- seed_transpiler CES diversity failure — infrastructure fix, not thesis content
-- GNN-QEM ablation with E_noisy (correction is 99.96% linear) — detail in GNN-QEM binnacle
-- SKQD alternatives analysis (5 methods evaluated, all rejected) — in doc 14
-
-### Key Files for Context
-| Purpose | File |
-|---------|------|
-| Thesis document | `tesis-v3.0.tex` |
-| Definitive results data | `documentation/analysis/09_thesis_tables.md` |
-| Project status (comprehensive) | `.kiro/steering/project-status.md` |
-| Bibliography curated (56 papers) | `documentation/bibliography/bibliography_curated.md` |
-| Verification plan | `documentation/analysis/21_thesis_compilation_verification_plan.md` |
-| Findings validator (23 findings) | `project_health/analysis/thesis_findings_validator.py` |
-| Tables compiler (10 tables) | `project_health/analysis/thesis_tables_compiler.py` |
-| Figures generator (18 figs) | `project_health/analysis/thesis_figures.py` |
+### Pending Work
+- Review Anexo A for deprecated noise content
+- Compile LaTeX: `pdflatex tesis-v3.0.tex` (requires `estilo_unir-1.sty`)
+- Verify all \ref targets resolve (no `??` in PDF)

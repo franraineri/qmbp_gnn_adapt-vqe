@@ -37,7 +37,12 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
-from qmbp_simulation.models.constants import DEFAULT_SEEDS
+from qmbp_simulation.models.constants import (
+    DE_GAP_THRESHOLD,
+    DEFAULT_SEEDS,
+    ZNE_DEFAULT_NOISE_FACTORS,
+    ZNE_DEFAULT_SHOTS,
+)
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -59,7 +64,7 @@ H_TEST_POINTS = [4.0, 3.5, 3.25]
 H_TRAIN_GRID = [4.5, 4.25, 4.0, 3.75, 3.5, 3.25, 3.0]
 
 ZNE_N_LAYOUTS = 3
-ZNE_SHOTS = 16384
+ZNE_SHOTS = ZNE_DEFAULT_SHOTS
 
 VQE_RESTARTS = 1
 VQE_MAXITER = 500
@@ -69,7 +74,6 @@ MPNN_EPOCHS = 6000
 MPNN_LR = 1e-3
 MPNN_PATIENCE = 500
 
-DE_GAP_THRESHOLD = 0.05
 ZNE_R2_THRESHOLD = 0.80
 
 
@@ -227,32 +231,26 @@ class HardwareRehearsalV2(ValidationRunner):
         """Initialize shared components."""
         import numpy as np
 
-        from qmbp_simulation import HamiltonianBuilder, make_lattice
-        from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.execution import (
             HardwareBackend,
             HardwareConfig,
             MitigationOptions,
-            NoiselessBackend,
         )
-        from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors import (
             MPNNPredictor,
             build_graph_dataset,
             train_mpnn,
         )
 
+        # Standard physics setup (builder, solver, hva, make_lattice, noiseless, etc.)
+        self.setup_physics()
+
         self.np = np
-        self.make_lattice = make_lattice
-        self.builder = HamiltonianBuilder()
-        self.hva = HVACircuitBuilder()
-        self.noiseless = NoiselessBackend()
-        self.get_model_spec = get_model_spec
         self.MPNNPredictor = MPNNPredictor
         self.build_graph_dataset = build_graph_dataset
         self.train_mpnn = train_mpnn
 
-        self._spec = get_model_spec(self._args.model)
+        self._spec = self.get_model_spec(self._args.model)
 
         # Configure HardwareBackend in fake_backend mode with chosen amplifier
         mitigation = MitigationOptions(
@@ -460,24 +458,13 @@ class HardwareRehearsalV2(ValidationRunner):
         logger.info(f"  MPNN: mse={train_mse:.2e}, epochs={train_epochs}")
 
         # Predict and evaluate
-        import torch
-        from torch_geometric.data import Data
-
         predictor.eval()
         results = []
 
         for h_t in h_test:
-            edge_index_np, coord = self.builder.build_graph_data(
-                self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
+            theta_pred = self.predict_mpnn_at_h(
+                predictor, h_t, topology=topology, n_qubits=n_qubits
             )
-            h_feat = np.full(n_qubits, float(h_t))
-            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
-            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-            data = Data(x=x, edge_index=edge_index, y=torch.zeros(n_params))
-            data.batch = torch.zeros(n_qubits, dtype=torch.long)
-
-            with torch.no_grad():
-                theta_pred = predictor(data).numpy().flatten()
 
             self._theta_predictions[h_t] = theta_pred
 
@@ -749,60 +736,58 @@ class HardwareRehearsalV2(ValidationRunner):
         }
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Section 4: Adaptive ZNE Validation
+    # Helper: Prepare transpiled circuit for direct ZNE tests (sections 4-5)
     # ──────────────────────────────────────────────────────────────────────────
 
-    def section_adaptive(self) -> dict:
-        """Validate run_adaptive_zne() directly (independent of backend).
+    def _prepare_transpiled_for_zne_test(self, h: float):
+        """Build a transpiled circuit on FakeKingston for ZNE mechanism testing.
 
-        Tests:
-        1. With a normal circuit (good R²): GF should be accepted
-        2. Verifies AdaptiveZNEResult fields are populated correctly
-        3. Confirms the fallback mechanism works by checking the dataclass
+        Shared by sections 4 and 5 — avoids duplicating the same 25-line
+        pattern (VQE → build → transpile → layout select) twice.
+
+        Returns
+        -------
+        tuple[QuantumCircuit, SparsePauliOp, BackendV2, NoisyEstimatorConfig]
+            (transpiled, H_mapped, fake_backend, config) ready for ZNE calls.
         """
-        np = self.np
-        topology = self._args.topology
-        n_qubits = self._args.n_qubits
-        p_layers = self._args.p_layers
-        h_t = 3.25
-
         from qiskit_ibm_runtime.fake_provider import FakeKingston
 
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,
-            run_adaptive_zne,
             select_layouts_low_ces,
         )
 
-        logger.info("  Testing run_adaptive_zne() directly")
+        topology = self._args.topology
+        n_qubits = self._args.n_qubits
+        p_layers = self._args.p_layers
 
         fake_backend = FakeKingston()
         config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
 
-        # Build transpiled circuit
-        theta = self._theta_predictions.get(h_t)
+        # Get theta (from cache or compute)
+        theta = self._theta_predictions.get(h)
         if theta is None:
             theta_map = self.vqe_descending_sweep(
                 topology,
                 n_qubits,
-                [h_t],
+                [h],
                 seed=42,
                 p_layers=p_layers,
                 n_restarts=self._args.vqe_restarts,
                 model=self._args.model,
             )
-            theta = theta_map[h_t]
+            theta = theta_map[h]
+            self._theta_predictions[h] = theta
 
-        lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
+        lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h)
         H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
         circuit_t, _ = self._spec.create_circuit(
             n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
         )
         bound = circuit_t.assign_parameters(theta)
 
-        # Get transpiled circuit for one layout
         adj = build_adjacency(fake_backend)
         candidates = find_layouts_bfs(adj, n_qubits, n_candidates=10)
         layout_sel = select_layouts_low_ces(
@@ -815,6 +800,29 @@ class HardwareRehearsalV2(ValidationRunner):
         transpiled = layout_sel.transpiled_circuits[0]
         H_mapped = H_t.apply_layout(transpiled.layout)
 
+        return transpiled, H_mapped, fake_backend, config
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Section 4: Adaptive ZNE Validation
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def section_adaptive(self) -> dict:
+        """Validate run_adaptive_zne() directly (independent of backend).
+
+        Tests:
+        1. With a normal circuit (good R²): GF should be accepted
+        2. Verifies AdaptiveZNEResult fields are populated correctly
+        3. Confirms the fallback mechanism works by checking the dataclass
+        """
+        np = self.np
+        h_t = 3.25
+
+        from qmbp_simulation.execution import run_adaptive_zne
+
+        logger.info("  Testing run_adaptive_zne() directly")
+
+        transpiled, H_mapped, fake_backend, config = self._prepare_transpiled_for_zne_test(h_t)
+
         # Run adaptive ZNE
         logger.info("  Running run_adaptive_zne(r2_threshold=0.90)...")
         result = run_adaptive_zne(
@@ -822,7 +830,7 @@ class HardwareRehearsalV2(ValidationRunner):
             H_mapped,
             fake_backend,
             config,
-            noise_factors=(1, 3, 5),
+            noise_factors=ZNE_DEFAULT_NOISE_FACTORS,
             r2_threshold=0.90,
         )
 
@@ -886,58 +894,15 @@ class HardwareRehearsalV2(ValidationRunner):
         """
         import time
 
+        from qmbp_simulation.execution import run_gate_folding_zne, run_pea_zne
+
+        h_t = 3.25
         topology = self._args.topology
         n_qubits = self._args.n_qubits
-        p_layers = self._args.p_layers
-        h_t = 3.25
-
-        from qiskit_ibm_runtime.fake_provider import FakeKingston
-
-        from qmbp_simulation.execution.noisy_utils import (
-            NoisyEstimatorConfig,
-            build_adjacency,
-            find_layouts_bfs,
-            run_gate_folding_zne,
-            run_pea_zne,
-            select_layouts_low_ces,
-        )
 
         logger.info("  Comparing GF vs PEA on same circuit at h=3.25")
 
-        fake_backend = FakeKingston()
-        config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
-
-        theta = self._theta_predictions.get(h_t)
-        if theta is None:
-            theta_map = self.vqe_descending_sweep(
-                topology,
-                n_qubits,
-                [h_t],
-                seed=42,
-                p_layers=p_layers,
-                n_restarts=self._args.vqe_restarts,
-                model=self._args.model,
-            )
-            theta = theta_map[h_t]
-
-        lattice_t = self.make_lattice(topology, n_qubits, J=1.0, h=h_t)
-        H_t = self._spec.build_hamiltonian(lattice_t, **self._spec.hamiltonian_kwargs)
-        circuit_t, _ = self._spec.create_circuit(
-            n_qubits, p_layers, lattice_t, **self._spec.circuit_kwargs
-        )
-        bound = circuit_t.assign_parameters(theta)
-
-        adj = build_adjacency(fake_backend)
-        candidates = find_layouts_bfs(adj, n_qubits, n_candidates=10)
-        layout_sel = select_layouts_low_ces(
-            bound,
-            fake_backend,
-            candidates,
-            n_select=1,
-            max_ces=0.5,
-        )
-        transpiled = layout_sel.transpiled_circuits[0]
-        H_mapped = H_t.apply_layout(transpiled.layout)
+        transpiled, H_mapped, fake_backend, config = self._prepare_transpiled_for_zne_test(h_t)
 
         e_exact, gap = self.exact_ground_state(topology, n_qubits, h_t)
 
@@ -948,7 +913,7 @@ class HardwareRehearsalV2(ValidationRunner):
             H_mapped,
             fake_backend,
             config,
-            noise_factors=(1, 3, 5),
+            noise_factors=ZNE_DEFAULT_NOISE_FACTORS,
         )
         gf_time = time.time() - t0
         gf_de_gap = abs(gf_result.extrapolated_value - e_exact) / max(gap, 1e-10)
@@ -966,7 +931,7 @@ class HardwareRehearsalV2(ValidationRunner):
             H_mapped,
             fake_backend,
             config,
-            noise_factors=(1, 3, 5),
+            noise_factors=ZNE_DEFAULT_NOISE_FACTORS,
         )
         pea_time = time.time() - t0
         pea_de_gap = abs(pea_result.extrapolated_value - e_exact) / max(gap, 1e-10)
@@ -1030,7 +995,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         from qiskit_ibm_runtime.fake_provider import FakeKingston
 
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,
@@ -1331,7 +1296,7 @@ class HardwareRehearsalV2(ValidationRunner):
 
         from qiskit_ibm_runtime.fake_provider import FakeKingston
 
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
             build_adjacency,
             compute_circuit_ces,
             find_layouts_bfs,

@@ -56,6 +56,8 @@ logger = logging.getLogger(__name__)
 # Constants
 # ═══════════════════════════════════════════════════════════════════════════════
 
+from qmbp_simulation.models.constants import DE_GAP_THRESHOLD, DEFAULT_SEEDS
+
 SEEDS = DEFAULT_SEEDS
 P_LAYERS = 1
 VQE_RESTARTS = 1  # p=1 needs only 1 restart (validated)
@@ -149,11 +151,13 @@ class MPSPseudoHardwareRunner(ValidationRunner):
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.solvers import ClassicalSolver
 
         self.np = np
         self.builder = HamiltonianBuilder()
         self.hva = HVACircuitBuilder()
         self.noiseless = NoiselessBackend()
+        self.solver = ClassicalSolver()
         self.make_lattice = make_lattice
 
         # Shared calibrated chi (set by section 1, used by 2-5)
@@ -512,8 +516,11 @@ class MPSPseudoHardwareRunner(ValidationRunner):
             else:
                 # DMRG with calibrated chi as ground truth
                 e_ref = self._tenpy_mps_energy(topology, n_qubits, h_test_n, theta_test, chi)
-                # Gap approximation for large N (analytical for 1D TFIM)
-                gap = max(2 * abs(1.0 - h_test_n), 2 * np.pi / n_qubits)
+                # Gap via solver (uses eigsh fallback for non-chain N≤20, else analytical/floor)
+                lattice_gap = self.make_lattice(topology, n_qubits, J=1.0, h=h_test_n)
+                H_gap = self.builder.build(lattice_gap)
+                gt_result = self.solver.solve(H_gap, lattice_gap, method="dmrg")
+                gap = gt_result.gap
                 ref_method = f"dmrg_chi{chi}"
 
             # VQE energy (noiseless, using optimized theta)
@@ -523,7 +530,7 @@ class MPSPseudoHardwareRunner(ValidationRunner):
             e_vqe = self.noiseless.evaluate(circuit_t, H_t, theta_test)
 
             de_gap = abs(e_vqe - e_ref) / max(gap, 1e-10)
-            passed = de_gap < 0.05
+            passed = de_gap < DE_GAP_THRESHOLD
 
             point = {
                 "n_qubits": n_qubits,
@@ -816,7 +823,7 @@ class MPSPseudoHardwareRunner(ValidationRunner):
                 "de_gap_mps": de_gap_mps,
                 "de_gap_noiseless": de_gap_noiseless,
                 "truncation_overhead": de_gap_mps - de_gap_noiseless,
-                "vqe_passes": de_gap_noiseless < 0.05,
+                "vqe_passes": de_gap_noiseless < DE_GAP_THRESHOLD,
             }
             logger.info(
                 f"    {topo:<12}: ΔE/gap(noiseless)={de_gap_noiseless:.4f}, "

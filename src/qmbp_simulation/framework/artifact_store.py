@@ -278,6 +278,136 @@ def find_artifacts_for_run(run_path: Path) -> Path | None:
     return artifact_dir if artifact_dir.exists() else None
 
 
+def inspect_circuit_artifact(artifact_dir: Path) -> dict:
+    """Load and analyze a saved circuit artifact.
+
+    Delegates to the canonical `circuit_summary()` from
+    `qmbp_simulation.analysis.circuit_visualizer` for comprehensive analysis.
+
+    Parameters
+    ----------
+    artifact_dir : Path
+        Path to the .artifacts/ directory containing circuit.qpy.
+
+    Returns
+    -------
+    dict
+        Circuit analysis from `circuit_summary()` plus drawing string.
+        Keys: n_qubits, depth, n_parameters, n_gates_total, n_2q_gates,
+        n_1q_gates, gate_counts, drawing.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no circuit artifact exists in the directory.
+    """
+    qpy_path = artifact_dir / "circuit.qpy"
+    qasm_path = artifact_dir / "circuit_readable.qasm3"
+
+    if qpy_path.exists():
+        circuit = load_artifact(qpy_path, format="qpy")
+    elif qasm_path.exists():
+        circuit = load_artifact(qasm_path, format="qasm3")
+    else:
+        raise FileNotFoundError(
+            f"No circuit artifact (circuit.qpy or circuit_readable.qasm3) in {artifact_dir}"
+        )
+
+    from qmbp_simulation.analysis import circuit_summary
+
+    info = circuit_summary(circuit)
+    info["drawing"] = circuit.draw(output="text", fold=120).__str__()
+    return info
+
+
+def print_circuit_summary(artifact_dir: Path) -> None:
+    """Print a human-readable circuit analysis to stdout.
+
+    Uses `circuit_summary()` from the analysis module for consistent metrics.
+
+    Parameters
+    ----------
+    artifact_dir : Path
+        Path to the .artifacts/ directory.
+    """
+    info = inspect_circuit_artifact(artifact_dir)
+    print(f"Circuit Analysis ({artifact_dir.name})")
+    print("=" * 60)
+    print(f"  Qubits:          {info['n_qubits']}")
+    print(f"  Depth:           {info['depth']}")
+    print(f"  Total gates:     {info['n_gates_total']}")
+    print(f"  Parameters:      {info['n_parameters']}")
+    print(f"  2Q gates:        {info['n_2q_gates']}")
+    print(f"  1Q gates:        {info['n_1q_gates']}")
+    print("  Gate breakdown:")
+    for gate, count in sorted(info["gate_counts"].items(), key=lambda x: -x[1]):
+        print(f"    {gate:12s}: {count}")
+    print()
+    print("  Circuit drawing:")
+    print(info["drawing"])
+
+
+def save_circuit_png(
+    artifact_dir: Path,
+    output_path: Path | str | None = None,
+    params: np.ndarray | None = None,
+    title: str | None = None,
+    fold: int = 30,
+    dpi: int = 300,
+) -> Path:
+    """Save a PNG diagram of the circuit stored in an artifact directory.
+
+    Delegates to `save_circuit_diagram()` from the analysis module.
+
+    Parameters
+    ----------
+    artifact_dir : Path
+        Path to the .artifacts/ directory containing circuit.qpy.
+    output_path : Path | str | None
+        Output file path. If None, saves as circuit_diagram.png inside
+        the artifact directory itself.
+    params : np.ndarray | None
+        Parameter values to bind before drawing. If None, draws the
+        parameterized (symbolic) circuit.
+    title : str | None
+        Title for the figure.
+    fold : int
+        Gates per line before folding (default 30).
+    dpi : int
+        Resolution (default 300 for thesis quality).
+
+    Returns
+    -------
+    Path
+        The path where the PNG was saved.
+    """
+    from qmbp_simulation.analysis.circuit_visualizer import save_circuit_diagram
+
+    qpy_path = artifact_dir / "circuit.qpy"
+    qasm_path = artifact_dir / "circuit_readable.qasm3"
+
+    if qpy_path.exists():
+        circuit = load_artifact(qpy_path, format="qpy")
+    elif qasm_path.exists():
+        circuit = load_artifact(qasm_path, format="qasm3")
+    else:
+        raise FileNotFoundError(f"No circuit artifact in {artifact_dir}")
+
+    if output_path is None:
+        output_path = artifact_dir / "circuit_diagram.png"
+    else:
+        output_path = Path(output_path)
+
+    return save_circuit_diagram(
+        circuit,
+        output_path=output_path,
+        params=params,
+        title=title,
+        fold=fold,
+        dpi=dpi,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Private helpers
 # ═══════════════════════════════════════════════════════════════════════════════

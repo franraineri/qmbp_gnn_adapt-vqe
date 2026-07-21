@@ -49,6 +49,8 @@ _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
+
 logger = logging.getLogger(__name__)
 
 
@@ -162,7 +164,7 @@ class ZNECrossTopologyRunner(ValidationRunner):
         """
         from qiskit_ibm_runtime.fake_provider import FakeTorino
 
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,

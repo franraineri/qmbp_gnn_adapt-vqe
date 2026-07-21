@@ -219,6 +219,10 @@ class TestPreflightHValidation:
             "output": None,
             "no_bidirectional": False,
             "force_bidirectional": False,
+            "save_artifacts": "never",
+            "no_physics_loss": False,
+            "physics_loss_weight": 0.2,
+            "physics_loss_start": 800,
         }
         defaults.update(kwargs)
         args = argparse.Namespace(**defaults)

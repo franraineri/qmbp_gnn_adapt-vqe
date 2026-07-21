@@ -90,7 +90,7 @@ def run_poc(
 
     theta_opt = vqe_result.theta_opt
     e_vqe = vqe_result.energy
-    de_gap_vqe = abs(e_vqe - e_exact) / gap
+    de_gap_vqe = abs(e_vqe - e_exact) / max(gap, 1e-10)
 
     print(f"  VQE done in {t_vqe:.1f}s: E = {e_vqe:.8f}, ΔE/gap = {de_gap_vqe:.6f}")
     print(f"  θ_opt = {theta_opt}")
@@ -126,7 +126,7 @@ def run_poc(
     good_circuit = circuit_p1.assign_parameters(vqe_p1.theta_opt)
 
     print(
-        f"  p=1 reference: E = {vqe_p1.energy:.8f}, ΔE/gap = {abs(vqe_p1.energy - e_exact) / gap:.6f}"
+        f"  p=1 reference: E = {vqe_p1.energy:.8f}, ΔE/gap = {abs(vqe_p1.energy - e_exact) / max(gap, 1e-10):.6f}"
     )
     print(
         f"  p=1 circuit: depth={good_circuit.depth()}, 2Q gates="
@@ -188,7 +188,7 @@ def run_poc(
         estimator = StatevectorEstimator()
         pub = estimator.run([(compressed_circuit, H)]).result()
         e_compressed = pub[0].data.evs.item()
-        de_gap_compressed = abs(e_compressed - e_exact) / gap
+        de_gap_compressed = abs(e_compressed - e_exact) / max(gap, 1e-10)
 
         depth_reduction = (1.0 - depth_compressed / depth_original) * 100
 
@@ -288,7 +288,7 @@ def run_poc(
             "e_vqe_p2": e_vqe,
             "de_gap_vqe_p2": de_gap_vqe,
             "e_vqe_p1": vqe_p1.energy,
-            "de_gap_vqe_p1": abs(vqe_p1.energy - e_exact) / gap,
+            "de_gap_vqe_p1": abs(vqe_p1.energy - e_exact) / max(gap, 1e-10),
             "depth_p2_original": depth_original,
             "n_2q_p2_original": n_2q_original,
             "depth_ansatz": depth_ansatz,

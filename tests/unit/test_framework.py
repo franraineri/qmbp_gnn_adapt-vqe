@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from qmbp_simulation.framework import ExperimentConfig, ExperimentMetrics
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 
 class TestExperimentConfigJsonRoundTrip:
@@ -111,7 +112,7 @@ class TestExperimentConfigValidate:
     def test_config_default_values(self):
         config = ExperimentConfig()
         assert config.experiment_id == "unnamed"
-        assert config.seeds == DEFAULT_SEEDS
+        assert config.seeds == list(DEFAULT_SEEDS)
         assert config.verbose is False
         assert config.system.p_layers == 2
         assert config.system.n_qubits == 6

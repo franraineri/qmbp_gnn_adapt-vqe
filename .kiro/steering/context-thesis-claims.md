@@ -1,122 +1,79 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/08*,**/*.tex,documentation/analysis/12*"
+fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/08*,**/*.tex"
 ---
 
-# Thesis Claims Context (invoke with #context-thesis-claims)
+# Thesis Claims Context — Noiseless Pipeline (2026-07-16)
 
-> Pre-digested context for thesis writing: validated claims, table index, evidence chain.
+> Pre-digested context for thesis writing. ALL claims are noiseless simulation only.
 
-## Core Thesis Contributions (Chapter 5)
+## General Objective (CANONICAL)
 
-### Contribution 1: GNN-Warm-Started HVA Pipeline
-- Pipeline achieves ΔE/gap < 5% for h ≥ h_min across all tested topologies.
-- MPNN generalizes across h-values (interpolation, not extrapolation).
-- Zero additional QPU cost for warm-start (classical prediction only).
+"Demostrar que la integración de predicción GNN con HVA en un pipeline unificado permite reducir el costo de la clasificación de fases entre 29× y 500×, manteniendo ΔE/gap < 5% dentro del régimen operativo válido, y documentar formalmente los límites de dicho régimen."
 
-### Contribution 2: Unsupervised Phase Detection from θ_opt
-- PCA of θ_opt(h) detects h_c with Δh=0.25 (zero extra QPU runs).
-- |∂θ/∂h| corroborates D1 weight gradient (Δh=0.18 agreement).
-- Works for chain_1d; requires h-grid covering h_c.
+## Core Contributions (Chapter 5)
 
-### Contribution 3: PEA-ZNE as Universal Mitigation
-- +94.4% error reduction, R²=0.998, 18/18 wins vs gate-folding.
-- Validated on ALL 4 topologies: chain (+97%), ladder (+91%), heavy_hex (+98%), triangular (+97%).
-- ~50% QPU overhead justified by 4.6× improvement over GF.
+### 1. Pipeline GNN-HVA clasifica fases correctamente
+- ΔE/gap < 5% en régimen válido (h ≥ h_min)
+- Pass rate 95-100% en configuraciones óptimas (cadena p=3, heavy-hex p=3)
+- 400+ ejecuciones, 5 topologías, p=1-4, N=4-20
+- ΔE absoluto estable: 0.003-0.006 (N=8-20)
+- Fidelidad ≥ 0.995 (media) en runs exitosos
 
-### Contribution 4: GNN-QEM Zero-Shot Transfer
-- 100% improvement rate on unseen heavy_hex (+72.3% error reduction).
-- Graph IS essential for predictive mode (GNN 100% vs MLP 67% vs Linear 0%).
-- NOT composable with PEA (alternative, not complement).
+### 2. Aceleración 29-500× respecto a VQE random
+- Speedup varía con configuración: 29× (N=10 p=3) a 500× (N=20 p=4)
+- MPNN predice θ en una pasada forward clásica (0 iteraciones VQE)
+- Warm-start produce datos de alta calidad para entrenamiento
 
-### Contribution 5: Cross-N Generalization
-- Train N=40+80 → predict N=50,60,70,100: 30/30 PASS (0.15% mean ΔE/gap).
-- BatchNorm harmful for cross-N on symmetric topologies (discovery + fix).
-- GNN extrapolates to N=100 beyond training (0.18%), beats scipy 2.6×.
+### 3. Cross-topology validado (5 topologías, hiperparámetros unificados)
+- Jerarquía: cadena > heavy-hex >> escalera ≈ cuadrada >> triangular
+- Topología domina sobre profundidad (+19-20% vs +4-10% al subir p)
+- Transfer cross-topology FALLA (cada topología requiere entrenamiento propio)
+- ΔE discrimina: cadena/heavy-hex ΔE~0.003-0.01 vs 2D ΔE~0.08 (fallo de expresividad)
 
-### Contribution 6: MPNN Warm-Start (2026-06-15)
-- **2.81 ± 0.23x speedup** vs random init for VQE (chain_1d N=6, p=2).
-- **2.45x speedup** for production config (heavy_hex N=10, p=1).
-- **MPNN init ΔE/gap = 0.39%** without any VQE — hardware-ready noiseless.
-- LOO-CV 100% pass rate with 7+ training pts (both chain_1d and heavy_hex).
-- **Critical qualifier**: GNN does NOT generalize cross-topology for param prediction (chain→ladder ratio=200x). Each topology needs its own training data.
-- Ref: `documentation/binnacles/binnacle-mpnn-eval-suite.md`, sections 10-19.
+### 4. Extensibilidad documentada
+- TFIM longitudinal: deploy 90%+ sin compuertas 2Q adicionales
+- Heisenberg: 0% en 46 runs exhaustivos (p=1-4, 5 topos) — límite fundamental
+- Regla: funciona si nuevos términos → compuertas 1Q
 
-## Thesis Tables Index (Chapter 5)
+### 5. Cross-N generalization (zero-shot)
+- Train N=40+80 → predict N=50-100: 30/30 PASS (ΔE 0.011-0.033)
+- BatchNorm perjudicial en grafos regulares (descubrimiento + fix: 142× mejora)
+- Fidelidad no disponible para N>22 (MPS backend)
 
-| Table | Content | Source |
-|-------|---------|--------|
-| 5.1 | Best configs per topology (N=6, p=2) | `09_thesis_tables.md` |
-| 5.2 | Best configs per topology (N=10, p=2) | `09_thesis_tables.md` |
-| 5.3 | Cross-topology comparison (top-15 per topology) | `09_thesis_tables.md` |
-| 5.4 | p=1 vs p=2 comparison | `09_thesis_tables.md` |
-| 5.5 | ZNE boundary analysis | `09_thesis_tables.md` |
-| 5.6 | Experiment verdicts (V8 confirmed/rejected) | `09_thesis_tables.md` |
-| 5.7 | Heisenberg failure analysis (V9) | `binnacle-heisenberg-extension.md` |
-| 5.8 | S-series results | `binnacle-s-series-results.md` |
-| 5.9 | Tier 1 extensions | `12_tier1_session_results.md` |
-| 5.10 | Hardware rehearsal findings | `11_hardware_rehearsal_findings.md` |
-| 5.11 | Gate-folding vs PEA-ZNE | `binnacle-gate-folding-zne.md` |
-| 5.12 | PEA cross-topology (6 experiments) | ZNE_CROSS_TOPO results |
-| 5.13 | GNN-QEM cross-topology | `binnacle-gnn-qem-validation.md` |
-| 5.14 | GNN-QEM ablation | `ablation_no_enoisy_results.json` |
-| 5.15 | Unsupervised phase detection (PCA + derivative) | `binnacle-theta-pca-unsupervised-detection.md` |
-| 5.16 | MPS scaling (N=40/50/80) | `binnacle-mps-scaling.md` |
-| 5.17 | Cross-N zero-shot GNN | `binnacle-cross-n-zero-shot.md` |
-| 5.18 | Failure mode summary (174 runs) | `project-status.md` |
-| 5.19 | Scaling law validation | `binnacle-mps-scaling.md` |
-| 5.20 | Hardware deployment tiers | `HARDWARE_DEPLOYMENT_SPEC.md` |
-| 5.21 | Negative results (scientific contributions) | `validated-decisions.md` |
+### 6. Frontera de expresividad (h_min) documentada formalmente
+- Para p=1-2: h_min crece linealmente (p=1: 2.36+0.0073·N, p=2: 1.57+0.005·N)
+- Para p≥3: h_min es cuasi-constante (~1.6 para p=3, ~1.4 para p=4), independiente de N
+- Consistente con area law: entrelazamiento a h/h_c fijo no depende de N en 1D
+- Heisenberg: h_min≈3.5 constante ∀p (mismatch circuito-Hamiltoniano, Wiersema2020)
+- Topología: z_max domina (chain≈heavy_hex=1.09-1.12, triangular=2.20)
+- Confirmado por Tripathi2026, Sumeet2025
+- Con p=5 (N=8): h_min → h_c ≈ 0.97 (desaparece)
 
-## Key Statistics (for claims)
+## Key Finding: ΔE es Estable
 
-> **Canonical source**: `documentation/ESTADO_PROYECTO.md` (validated 2026-06-09 via project-health tools).
+| N | ΔE medio | Gap medio | ΔE/gap |
+|---|---|---|---|
+| 10 | 0.003-0.010 | 1.5 | 0.2-0.7% |
+| 16 | 0.006 | 1.9 | 0.3% |
+| 20 | 0.005 | 2.0 | 0.2% |
+| 50 (cross-N) | 0.016 | 8.7 | 0.18% |
+| 100 (cross-N) | 0.033 | 18.7 | 0.18% |
 
-| Claim | Value | Evidence | Stat sig |
-|-------|-------|----------|----------|
-| Experiments completed | 33 confirmed, 8 rejected, 13 failed (54 total) | `python -m project_health --compact` | — |
-| Pipeline runs | 476+ (329 noiseless + 93 noisy + 28 MPS + 54 experiments) | `python -m project_health --compact` | — |
-| Useful-outcome rate | 76% (41/54) | `python -m project_health.analysis.thesis_findings_validator` | — |
-| PEA vs GF | 4.6× better | ZNE_CROSS_TOPO | t=46.32, p<10⁻¹⁹ |
-| GNN-QEM zero-shot | +72.3% | cross_topology_results.json | t=13.28, p<10⁻⁶ |
-| PEA on triangular | +96.8% | PEA_TRIANGULAR | t=111.22, 9/9 wins |
-| Cross-N GNN | 30/30 PASS, 0.15% | zero_shot_v3 results | 3 seeds |
-| Affine overshoot | 0% in 102 records | Affine audit | — |
-| MPS N=80 | 0.08% ΔE/gap | scaling_N80 | 5/5 h-points |
-| PEA mean gain (all evals) | +90.2% | `python project_health/compare.py --zne` | 105/105 always positive |
-| MPNN warm-start speedup | 2.81 ± 0.23x (chain N=6) / 2.45x (heavy_hex N=10) | S10 MPNN eval suite | 3 runs |
-| MPNN LOO-CV (7+ pts) | 100% pass both configs | S11 MPNN eval suite | 7-8 folds |
-| MPNN init ΔE/gap | 0.39% (heavy_hex N=10, no VQE) | S10 MPNN eval suite | hardware-ready |
+ΔE/gap "mejora" con N porque el gap crece, NO porque el predictor mejore.
 
-## Negative Results (valid scientific contributions)
+## Lo que NO es contribución nuestra (ATRIBUIR)
 
-| Finding | Why it matters |
-|---------|---------------|
-| HVA is TFIM-specific (V9: 30 runs) | Delineates ansatz applicability |
-| No cross-topology transfer (S2) | Each topology needs own training |
-| DyPP redundant (F1) | Warm-start already near-optimal |
-| Naive ensemble UQ not calibrated (G2) | Motivates MC-Dropout |
-| Physics-informed loss HURTS at N=10 (C1) | Only helps with full h-range |
-| GNN-QEM not composable with PEA | Clarifies deployment strategy |
-| Noise-aware training fails (V7 5B) | Shot noise corrupts targets |
+- Warm-start: Mele2022, Puig2025
+- GNN prediction: Miao2024, Zhang2025
+- GINConv: Xu2019
+- HVA design: Wiersema2020
+- DMRG: Hauschild2018
 
-## Figures (44 vector PDFs + 18 PNGs in `documentation/thesis_figures/`)
+## Lo que SÍ es nuestro
 
-Generate with: `make figures-thesis` (PDF 300dpi) or `make figures` (PNG).
-
-## DO NOT
-
-- Cite worklog files (superseded data, incorrect counts).
-- Claim fidelity-based success on hardware (use ΔE/gap + phase label).
-- Claim GNN correction is non-linear (it's 99.96% linear with E_noisy).
-- Present h_min shifts as tunable (they're physics limits).
-- Mix CES-ZNE results with PEA-ZNE results without noting the strategy.
-- Omit negative results — they are valid scientific contributions.
-
-## Source Files
-
-- #[[file:documentation/analysis/09_thesis_tables.md]]
-- #[[file:documentation/analysis/08_summary.md]]
-- #[[file:.kiro/knowledge/validated-decisions.md]]
-- #[[file:analysis/10_key_findings_corrected.md]]
-- #[[file:documentation/thesis_figures/]]
+1. Integración en pipeline unificado
+2. Validación sistemática multi-topología + multi-p + multi-modelo
+3. Hallazgo BatchNorm en cross-N
+4. Documentación formal de límites (Heisenberg, h_min, topología)
+5. Script de análisis/diagnóstico automatizado

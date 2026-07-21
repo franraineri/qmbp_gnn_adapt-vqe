@@ -6,6 +6,7 @@ from qmbp_simulation.execution.backends import (
     NoiselessBackend,
     NoisyBackend,
     select_backend,
+    select_backend_with_topology_warning,
 )
 from qmbp_simulation.execution.mps_backend import MPSBackend
 from qmbp_simulation.execution.hardware import (

@@ -151,10 +151,18 @@ class ResultIndex:
         p_layers: int | None = None,
         passed: bool | None = None,
         experiment_id: str | None = None,
+        gap_method: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query the index with optional filters.
 
         All filters are AND-combined. None means "any value".
+
+        Parameters
+        ----------
+        gap_method : str | None
+            Filter by gap computation method. Matches if the specified method
+            appears in the run's gap_methods list. Use "eigsh_fallback" to find
+            post-fix runs, or "floor_2pi_n" for legacy runs.
 
         Returns
         -------
@@ -177,6 +185,8 @@ class ResultIndex:
         if experiment_id is not None:
             eid_lower = experiment_id.lower()
             results = [r for r in results if eid_lower in r.get("experiment_id", "").lower()]
+        if gap_method is not None:
+            results = [r for r in results if gap_method in (r.get("gap_methods") or [])]
         return results
 
     def get_best_run(

@@ -680,12 +680,8 @@ class PreflightChecker:
 # Experiment Checker — validates BaseExperiment files
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Known-bad model+ansatz combinations (V9 definitive results)
-_FORBIDDEN_MODEL_ANSATZ: list[tuple[str, int, str]] = [
-    # (model, max_p, reason)
-    ("heisenberg", 2, "HVA p≤2 cannot express Heisenberg ground states (V9: 30 runs, 0% fidelity)"),
-    ("xy", 2, "XY model on HVA p≤2 achieves max 31% fidelity (V9: only ladder seed=44 partial)"),
-]
+# Known-bad model+ansatz combinations (historical V9 results — informational only)
+_FORBIDDEN_MODEL_ANSATZ: list[tuple[str, int, str]] = []
 
 
 @dataclass
@@ -782,21 +778,8 @@ class ExperimentChecker:
     # ─── Individual checks ─────────────────────────────────────────────────
 
     def check_p_layers(self) -> list[Issue]:
-        """Verify p_layers ≤ 2 (hard constraint)."""
+        """Check p_layers for informational warnings (no hard constraint)."""
         issues: list[Issue] = []
-        for spec in self.specs:
-            if spec.p_layers > 2:
-                issues.append(
-                    Issue(
-                        severity=Severity.ERROR,
-                        check_name="p_layers",
-                        variant_id=spec.experiment_id,
-                        message=(
-                            f"p_layers={spec.p_layers} > 2 "
-                            f"(Mele et al. 2022: HVA depth limited to p≤2)"
-                        ),
-                    )
-                )
         return issues
 
     def check_model_ansatz_compatibility(self) -> list[Issue]:

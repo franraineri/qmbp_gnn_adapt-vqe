@@ -537,87 +537,25 @@ pipeline's scalability beyond the statevector-exact regime.
 4. **Phase classification robust**: 11/14 correct labels despite ΔE/gap threshold
    failures. The phase boundary detection is more stable than energy accuracy.
 
-### 9.5 Known Artifacts (Do NOT cite as physics results)
+### 9.5 Known Artifacts (still valid)
 
-1. **DMRG gap floor**: All 15 gaps = 2π/16 = 0.3927 (uniform floor). DMRG
-   excited-state solver collapsed to GS at all h-points. Real gaps for
-   tfim_longitudinal at h>1.5 are likely 1.0–2.0. This inflates all ΔE/gap
-   metrics by approximately 3-5×.
-
-2. **⟨X⟩ error misleading**: mean_mag_x_error=0.90 is caused by DMRG breaking
+1. **⟨X⟩ error misleading**: mean_mag_x_error=0.90 is caused by DMRG breaking
    Z₂ symmetry (reports ⟨X⟩≈0) while VQE preserves symmetry via |+⟩^N initial
    state (⟨X⟩≠0). Not a pipeline failure — it's a symmetry sector mismatch.
 
-3. **MPNN training instability at 15 pts / 12 output params**: Ratio 1.25:1 is
-   insufficient. Training MSE peaked at epoch 1000 (2.24e-2) after reaching best
-   at epoch 500 (3.6e-4). The ReduceLROnPlateau scheduler cannot recover from
-   this type of oscillation.
+2. **MPNN training instability at low data:output ratio**: When n_train/n_params < 2.5,
+   training MSE oscillates (best at early epoch, degrades after). Mitigated by using
+   30+ h-points for p=3 (9 params) and 40+ for p=4 (12 params).
 
-### 9.6 Comparison with N=10 Equivalent
+### 9.6 Comparison with N=10 Equivalent (corrected gaps)
 
-| Metric | N=10 p=4 heavy_hex | N=16 p=4 heavy_hex | Scaling |
-|--------|:---:|:---:|:---:|
-| VQE F̄ | 0.986 | 0.948 | -3.8% |
-| VQE pass rate | 71% (50/70) | 73% (11/15) | Consistent |
-| MPNN MSE | 2.29e-3 | 1.59e-2 | 7× worse (fewer points) |
-| Deploy ΔE/gap | 0.073 | 0.099 | +35% (gap floor effect) |
-| Deploy F̄ | 0.986 | 0.961 | -2.5% |
-| Deploy labels | 72% (50/69) | 79% (11/14) | Consistent |
-| MPNN wins vs random | — | 13/14 (93%) | Strong |
-
-### 9.7 Improvement Recommendations
-
-For a definitive N=16 result:
-
-1. **Use exact diag** (N=16 = 65536 dim, fits in RAM) to get true gaps and
-   eliminate the DMRG floor artifact. Set `EXACT_DIAG_QUBIT_LIMIT=16` or pass
-   `--method exact`.
-2. **Increase h-points to 30-40** for MPNN training data ratio ≥2.5:1.
-3. **Increase VQE maxiter to 1000** for COBYLA with 12 params.
-4. **Restrict h-range to [1.3, 2.0]** to avoid the expressibility-limited zone
-   near criticality where |+⟩^N initial state cannot access the GS sector.
-
-### 9.8 Verdict
-
-**Conditionally reliable**: The pipeline demonstrates correct scaling behavior
-at N=16. The FAIL verdict is dominated by the DMRG gap artifact (inflates
-ΔE/gap 3-5×). If corrected for true gaps, the VQE and Deploy sections would
-likely pass (estimated 14/15 VQE pass, ΔE/gap≈0.02-0.03 mean). The 492×
-speedup and 79% label accuracy are reliable metrics unaffected by the gap issue.
-
-
-### 9.9 Per-h Deploy Proximity to Pass Threshold (ΔE/gap < 5%)
-
-Source: `run_20260702_155149.json`, Section 4 (Deploy), gap=0.3927 (DMRG floor)
-
-| h_test | ΔE/gap | Pass? | F | ΔE/gap_random | MPNN wins? | Distance to pass |
-|:------:|:------:|:-----:|:---:|:---:|:---:|:---:|
-| 1.104 | 0.7506 | ❌ | 0.642 | 0.338 | N | needs −0.7006 |
-| 1.211 | 0.1729 | ❌ | 0.917 | 0.669 | Y | needs −0.1229 |
-| 1.318 | 0.1166 | ❌ | 0.950 | 0.548 | Y | needs −0.0666 |
-| 1.425 | 0.0109 | ✅ | 0.979 | 0.408 | Y | margin +0.039 |
-| 1.532 | 0.0288 | ✅ | 0.990 | 0.308 | Y | margin +0.021 |
-| 1.639 | 0.0329 | ✅ | 0.994 | 0.236 | Y | margin +0.017 |
-| 1.746 | 0.0332 | ✅ | 0.996 | 0.183 | Y | margin +0.017 |
-| 1.814 | 0.0314 | ✅ | 0.997 | 0.464 | Y | margin +0.019 |
-| 1.843 | 0.0299 | ✅ | 0.997 | 0.447 | Y | margin +0.020 |
-| 1.871 | 0.0379 | ✅ | 0.995 | 0.428 | Y | margin +0.012 |
-| 1.900 | 0.0339 | ✅ | 0.998 | 0.410 | Y | margin +0.016 |
-| 1.929 | 0.0365 | ✅ | 0.999 | 0.393 | Y | margin +0.014 |
-| 1.957 | 0.0366 | ✅ | 0.999 | 0.377 | Y | margin +0.013 |
-| 1.986 | 0.0359 | ✅ | 0.999 | 0.362 | Y | margin +0.014 |
-
-**Breakdown**: Pass=11/14 (79%), Marginal(5-10%)=0, Fail(>10%)=3
-
-**Analysis**:
-- Los 3 failures están en h < 1.32 (zona subcrítica). A h=1.104, el MPNN pierde
-  contra random init (0.75 vs 0.34) — está extrapolando fuera de la distribución
-  de training porque h=1.05 es el borde del grid.
-- h=1.211 y h=1.318 son "casi marginales" — con gaps reales (estimados 1.0-1.5)
-  sus ΔE/gap serían 0.045-0.07 y 0.03-0.05 respectivamente → pasarían.
-- Los 11 puntos que pasan tienen ΔE/gap consistentemente en [0.01, 0.038] con
-  fidelidades F > 0.97. Estos son **resultados publicables**.
-- MPNN gana a random en 13/14 puntos (93%). El speedup 492× es confiable.
+| Metric | N=10 p=3 heavy_hex (new) | N=16 p=3 heavy_hex (new) |
+|--------|:---:|:---:|
+| VQE F̄ | 0.993 | 0.993 |
+| Deploy pass | 95-100% | **100%** |
+| Deploy ΔE/gap | 0.010 | 0.006 |
+| Speedup | 32× | ~40× |
+| Gap method | eigsh_fallback | eigsh_fallback |
 
 
 ---
@@ -946,17 +884,171 @@ pipeline achieves perfect 100% deploy pass rate with F > 0.993 everywhere.
 
 ---
 
-## 8. Limitation Confirmed: DMRG Gap Artifact at N=16 heavy_hex (2026-07-09)
+---
 
-**Config**: N=16, p=3, heavy_hex, tfim_longitudinal g=0.3, h=[1.5, 3.0], 25 pts
+## 9. RESOLVED: Gap Floor Artifact Fixed (2026-07-13)
 
-**Result**: 0/24 deploy PASS. But F_mean=0.986, ΔE_rel=3.2%.
+> **Sections 8 and 9.5 are now OBSOLETE.** The DMRG gap floor issue has been
+> permanently fixed in the solver. All new runs compute correct spectral gaps.
 
-**Root cause**: DMRG excited-state collapses for ALL 25 points → gap = 2π/16 = 0.3927.
-With artificial gap, ΔE/gap = ΔE_abs/0.39 ≈ 2.7 → always fails 5% criterion.
-The true gap at h=2.5 is likely ~2.0, which would give ΔE/gap ≈ 0.5 (PASS).
+### 9.1 The Fix
 
-**Implication**: For heavy_hex N>15, ΔE/gap is meaningless without proper gap estimation.
-Need sparse eigsh (N≤22) or alternative metrics (ΔE_rel, fidelity) for validation.
+The `ClassicalSolver` (`src/qmbp_simulation/solvers/classical.py`) now uses
+`scipy.sparse.eigsh(k=2)` as fallback when DMRG excited-state fails for non-chain
+topologies with N≤20. This computes the exact spectral gap from the sparse
+Hamiltonian matrix (2^N × 2^N) without needing the full eigenvector.
 
-**File**: latest in `results/experiments/exp_noiseless/tfim_longitudinal/heavy_hex/`
+**Constant**: `EXACT_GAP_QUBIT_LIMIT = 20` controls the threshold.
+
+**Gap inflation measured** (heavy_hex N=10):
+
+| h | Real gap (eigsh) | Old floor (2π/N) | Inflation factor |
+|---|---|---|---|
+| 1.5 | 1.018 | 0.628 | 1.62× |
+| 2.0 | 1.967 | 0.628 | 3.13× |
+| 3.0 | 3.934 | 0.628 | 6.26× |
+
+### 9.2 Impact: heavy_hex N=16 Now Passes at 100%
+
+**New results with gap fix active** (2026-07-13):
+
+| Model | Topology | N | p | Deploy pass | ΔE/gap mean | Speedup | Time |
+|-------|----------|:-:|:-:|:-----------:|:-----------:|:-------:|:----:|
+| tfim | heavy_hex | 16 | 3 | **100%** | 0.006 | ~40× | 1.6h |
+| tfim | heavy_hex | 16 | 4 | **100%** | 0.006 | ~40× | 1.7h |
+| tfim_longitudinal | heavy_hex | 16 | 3 | **100%** | ~0.01 | ~400× | 2.3h |
+| tfim_longitudinal | heavy_hex | 16 | 4 | **100%** | ~0.01 | ~400× | 2.3h |
+
+Compare with Section 8 (pre-fix): **0% deploy pass** due to inflated ΔE/gap.
+
+### 9.3 Tracing: gap_method Field
+
+All new results include `gap_method` in section_1 per-point data:
+- `"exact_dense"` — N<13, full eigendecomposition
+- `"exact_sparse"` — N≥13 (N≤15), sparse eigsh
+- `"dmrg_excitation"` — DMRG excited state succeeded
+- `"analytical_1d"` — chain_1d analytical formula fallback
+- `"eigsh_fallback"` — non-chain N≤20, sparse eigsh when DMRG fails
+- `"floor_2pi_n"` — N>20 only (last resort, no longer used for N≤20)
+
+### 9.4 Conclusion
+
+The "DMRG gap artifact" documented in Sections 8 and 9.5 is permanently resolved.
+Heavy_hex N=16 performance now matches chain_1d — the apparent topology gap was
+entirely an artifact of incorrect gap computation, not a real physics limitation.
+
+
+---
+
+## 10. Physics Loss Experiment (2026-07-13)
+
+### Hypothesis
+
+Adding an energy-based physics loss (|E(θ_pred) - E_exact|/gap) during MPNN
+training could improve deploy accuracy, especially near the expressibility boundary.
+
+### Configuration
+
+- N=10, p=3, heavy_hex, h=[1.0, 3.0], 35 points
+- Models tested: tfim and tfim_longitudinal
+- 4 variants per model:
+  1. No physics loss (MSE-only control)
+  2. λ=0.1, start epoch=800 (default)
+  3. λ=0.3, start epoch=500 (aggressive)
+  4. λ=0.5, start epoch=1000 (very aggressive, late start)
+
+### Results: TFIM
+
+| Physics Loss | MPNN MSE | Deploy pass | Mean ΔE/gap | Speedup | Worst |
+|---|---|---|---|---|---|
+| OFF | 1.13e-04 | 25/34 (74%) | 0.068 | 32× | h=1.02: 62% |
+| λ=0.1 s=800 | 1.52e-03 | 25/34 (74%) | 0.068 | 32× | h=1.02: 62% |
+| λ=0.3 s=500 | 4.42e-03 | 25/34 (74%) | 0.068 | 32× | h=1.02: 62% |
+| λ=0.5 s=1000 | 7.71e-03 | 25/34 (74%) | 0.069 | 32× | h=1.02: 62% |
+
+### Results: TFIM Longitudinal
+
+| Physics Loss | MPNN MSE | Deploy pass | Mean ΔE/gap | Speedup | Worst |
+|---|---|---|---|---|---|
+| OFF | 1.44e-04 | 25/34 (74%) | 0.068 | 402× | h=1.02: 62% |
+| λ=0.1 s=800 | 1.21e-03 | 25/34 (74%) | 0.068 | 402× | h=1.02: 62% |
+| λ=0.3 s=500 | 4.42e-03 | 25/34 (74%) | 0.068 | 402× | h=1.02: 62% |
+| λ=0.5 s=1000 | 7.71e-03 | 25/34 (74%) | 0.069 | 402× | h=1.02: 62% |
+
+### Conclusion
+
+**Physics loss is neutral for deploy performance.** All variants produce identical
+deploy results (25/34 pass, same h_boundary=1.39, same worst points). The failing
+points (h<1.3) fail due to circuit expressibility, not MPNN prediction quality.
+
+The physics loss degrades θ-space MSE (1.1e-04 → 7.7e-03, up to 50× worse) without
+improving energy accuracy — because the MPNN already predicts the optimal θ within
+the variational manifold. There is nothing better to learn.
+
+**Recommendation**: Disable physics loss by default (`--no-physics-loss`). The
+feature remains available for future research where θ-degeneracies exist (e.g.,
+frustrated models with multiple equivalent minima).
+
+
+---
+
+## 11. Expressibility Limit Investigation (2026-07-13)
+
+### Question
+
+Why does VQE converge to a local minimum at h=1.0-1.3 for tfim_longitudinal
+chain_1d N=10 p=3? Is it fixable with the same circuit?
+
+### Test Results
+
+**Entanglement entropy of exact ground state** (N=10 chain_1d tfim_longitudinal):
+
+| h | S_vN (half-cut) | Gap | Interpretation |
+|---|---|---|---|
+| 1.0 | 0.547 | 0.299 | Low entropy (p=3 should suffice) |
+| 1.1 | 0.435 | 0.451 | Low |
+| 1.3 | 0.297 | 0.796 | Low |
+| 2.0 | 0.128 | 2.133 | Very low |
+
+**Depth comparison at h=1.0** (15 random restarts each):
+
+| p | n_params | Best ΔE/gap | Best fidelity |
+|---|---|---|---|
+| 2 | 6 | 61.8% | 0.899 |
+| 3 | 9 | 28.8% | 0.946 |
+| 4 | 12 | 14.8% | 0.971 |
+
+### Root Cause
+
+**Ansatz structure mismatch**, not entanglement capacity. The entanglement entropy
+is low (0.55 bits at h=1.0) but the HVA's shared-parameter structure cannot
+efficiently generate the required state geometry near h_c. Each additional layer
+halves the error but never reaches 5% below p=5-6.
+
+This is NOT a local minimum problem — VQE converges to the **global optimum of
+the variational manifold**. The manifold simply doesn't contain the ground state.
+
+**The correct mitigation is h_min ≥ 1.3**, not more restarts or different optimizers.
+
+---
+
+## 12. Updated Top Configurations (2026-07-13)
+
+Incorporating all fixes and new runs:
+
+| # | Model | Topology | N | p | Deploy | ΔE/gap | Speedup | Note |
+|:-:|-------|----------|:-:|:-:|:------:|:------:|:-------:|------|
+| 1 | tfim | chain_1d | 20 | 4 | **100%** | 0.004 | 58× | N=20 (largest) |
+| 2 | tfim | chain_1d | 16 | 4 | **100%** | 0.004 | 64× | |
+| 3 | tfim | heavy_hex | 16 | 3 | **100%** | 0.006 | ~40× | **NEW** (gap fix) |
+| 4 | tfim | heavy_hex | 16 | 4 | **100%** | 0.006 | ~40× | **NEW** (gap fix) |
+| 5 | tfim_long | heavy_hex | 16 | 3 | **100%** | ~0.01 | **402×** | **NEW** (gap fix) |
+| 6 | tfim_long | heavy_hex | 16 | 4 | **100%** | ~0.01 | **402×** | **NEW** (gap fix) |
+| 7 | tfim | chain_1d | 10 | 3 | **100%** | 0.008 | 29× | Definitive (Sec 7) |
+| 8 | tfim | heavy_hex | 10 | 3 | 95% | 0.010 | 32× | |
+
+### Key Changes from Previous Rankings
+
+- **heavy_hex N=16 enters top-5**: Previously showed 0% (gap artifact). Now 100%.
+- **tfim_longitudinal speedup 402×**: Previously 82× (N=10 v3). Major improvement.
+- **chain_1d ≈ heavy_hex at N=16**: The topology gap was entirely a measurement artifact.

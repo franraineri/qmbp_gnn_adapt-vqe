@@ -407,7 +407,116 @@ def collect_run_metadata(seed: int | None = None) -> dict[str, Any]:
     except ImportError:
         pass
 
+    # Git commit hash for traceability (best-effort)
+    try:
+        import subprocess
+
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode == 0:
+            metadata["git_commit"] = result.stdout.strip()
+    except Exception:
+        pass
+
     return metadata
+
+
+def build_simulation_diagnostics(
+    backend,
+    n_qubits: int,
+    topology: str | list[str],
+) -> dict[str, Any]:
+    """Build simulation method diagnostics for result envelope.
+
+    Documents the properties of the simulation backend used for a run,
+    enabling post-hoc assessment of numerical reliability.
+
+    Parameters
+    ----------
+    backend : ExecutionBackend | BackendV2 | Any
+        The backend instance used for evaluation. Supports both
+        qmbp_simulation ExecutionBackend instances and Qiskit BackendV2
+        instances (e.g. FakeTorino).
+    n_qubits : int
+        Number of qubits in the system.
+    topology : str | list[str]
+        Topology name(s) used in this run.
+
+    Returns
+    -------
+    dict
+        Diagnostics dict with backend_type, method_exact, chi info, and warnings.
+        Always JSON-serializable. Returns a valid dict even if backend inspection
+        raises an exception (defensive against unknown backend types).
+    """
+    topo_str = topology[0] if isinstance(topology, list) else topology
+
+    # Determine backend name safely
+    try:
+        if hasattr(backend, "name") and callable(getattr(type(backend), "name", None)):
+            # Property-style .name (ExecutionBackend subclasses)
+            backend_name = backend.name
+        elif hasattr(backend, "name"):
+            # Attribute-style .name (Qiskit BackendV2, FakeTorino)
+            backend_name = str(backend.name) if backend.name else type(backend).__name__
+        else:
+            backend_name = type(backend).__name__
+    except Exception:
+        backend_name = type(backend).__name__
+
+    diag: dict[str, Any] = {
+        "backend_type": backend_name,
+        "n_qubits": n_qubits,
+        "topology": topo_str,
+        "method_exact": True,  # Default: statevector/deterministic MPS are exact
+    }
+
+    # MPS-specific diagnostics
+    chi_max = getattr(backend, "_chi_max", None)
+    if chi_max is not None:
+        diag["chi_max"] = chi_max
+        # Deterministic MPS is exact for 1D with sufficient chi
+        diag["method_exact"] = True
+
+        # Flag: warn if topology is 2D and chi might be insufficient
+        _2D_TOPOLOGIES = ("square", "triangular", "heavy_hex", "kagome")
+        if topo_str in _2D_TOPOLOGIES and n_qubits > 16:
+            diag["chi_sufficiency_warning"] = (
+                f"2D topology '{topo_str}' with N={n_qubits}: chi={chi_max} "
+                f"may be insufficient. Run chi-convergence test (--verify-chi)."
+            )
+
+    # Noisy/fake/hardware backend detection
+    backend_name_lower = backend_name.lower()
+    is_noisy = (
+        "noisy" in backend_name_lower
+        or "fake" in backend_name_lower
+        or "hardware" in backend_name_lower
+        or hasattr(backend, "noise_model")
+        or "Fake" in type(backend).__name__
+    )
+    if is_noisy:
+        diag["method_exact"] = False
+        diag["noise_sources"] = ["gate_error", "readout_error", "decoherence"]
+        # Extract shot count if available
+        shots = getattr(backend, "_shots", None)
+        if shots is None and hasattr(backend, "_config"):
+            shots = getattr(backend._config, "shots", None)
+        if shots is not None:
+            diag["shots"] = shots
+        # Hardware-specific: record mode (hardware vs fake_backend)
+        if hasattr(backend, "_config"):
+            config = backend._config
+            if hasattr(config, "mode"):
+                diag["hardware_mode"] = config.mode
+            if hasattr(config, "backend_name"):
+                diag["hardware_backend_name"] = config.backend_name
+
+    return diag
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -489,6 +598,24 @@ def extract_run_metadata_summary(data: dict[str, Any]) -> dict[str, Any]:
     n_qubits = system.get("n_qubits", config.get("n_qubits", 0))
     p_layers = system.get("p_layers", config.get("p_layers", 0))
 
+    # Detect gap_method from section_1 data (post-fix runs will have this)
+    results_data = data.get("results", {})
+    if not isinstance(results_data, dict):
+        results_data = {}
+    s1_raw = results_data.get("section_1", {})
+    s1_data = s1_raw.get("data", {}) if isinstance(s1_raw, dict) else {}
+    if not isinstance(s1_data, dict):
+        s1_data = {}
+    gap_methods_found = set()
+    for topo_data in s1_data.get("topologies", {}).values():
+        if not isinstance(topo_data, dict):
+            continue
+        for pt in topo_data.get("points", []):
+            if isinstance(pt, dict):
+                gm = pt.get("gap_method")
+                if gm:
+                    gap_methods_found.add(gm)
+
     return {
         "model": model,
         "topology": topology,
@@ -502,4 +629,8 @@ def extract_run_metadata_summary(data: dict[str, Any]) -> dict[str, Any]:
         "schema_version": data.get("schema_version", "1.0"),
         "experiment_id": config.get("experiment_id", ""),
         "interrupted": data.get("interrupted", False),
+        "gap_methods": sorted(gap_methods_found) if gap_methods_found else None,
+        # Simulation diagnostics (populated for runs after 2026-07-13)
+        "backend_type": data.get("simulation_diagnostics", {}).get("backend_type"),
+        "method_exact": data.get("simulation_diagnostics", {}).get("method_exact"),
     }

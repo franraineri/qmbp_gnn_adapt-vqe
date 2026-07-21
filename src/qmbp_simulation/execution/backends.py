@@ -174,6 +174,104 @@ class ExecutionBackend(ABC):
         logger.debug("[%s] compute_fidelity: result=%.6f", self.name, fid)
         return fid
 
+    def compute_energy_variance(
+        self,
+        circuit: QuantumCircuit,
+        hamiltonian: SparsePauliOp,
+        params: np.ndarray,
+    ) -> float:
+        """Compute energy variance Var(H) = ⟨H²⟩ - ⟨H⟩².
+
+        The energy variance measures how close the state |ψ(θ)⟩ is to an
+        eigenstate of H. For an exact eigenstate, Var(H) = 0. A large
+        variance indicates the state is a superposition of eigenstates with
+        different energies.
+
+        This metric is independent of knowing E_exact and quantifies the
+        "eigenstate quality" of the VQE solution:
+        - Var(H) = 0: perfect eigenstate
+        - Var(H) < 10⁻⁶: essentially an eigenstate (numerical noise)
+        - Var(H) ~ 10⁻³: close to eigenstate (typical for good VQE)
+        - Var(H) ~ 10⁻¹: poor convergence or high entanglement mismatch
+
+        Parameters
+        ----------
+        circuit : QuantumCircuit
+            Parameterized circuit (not yet bound).
+        hamiltonian : SparsePauliOp
+            The Hamiltonian H.
+        params : np.ndarray
+            Parameter values to bind.
+
+        Returns
+        -------
+        float
+            Var(H) = ⟨H²⟩ - ⟨H⟩². Always ≥ 0 (clipped for numerical safety).
+
+        Notes
+        -----
+        Default implementation uses statevector extraction (O(2^N) memory).
+        MPSBackend overrides this for N>22 with an efficient MPS-based approach.
+        For backends where statevector extraction is infeasible and no override
+        exists, returns NaN.
+        """
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        n_qubits = circuit.num_qubits
+
+        if n_qubits > STATEVECTOR_MAX_N:
+            logger.debug(
+                "[%s] compute_energy_variance: N=%d > %d, returning NaN "
+                "(statevector extraction infeasible, no MPS override).",
+                self.name,
+                n_qubits,
+                STATEVECTOR_MAX_N,
+            )
+            return float("nan")
+
+        try:
+            sv_data = self.get_statevector(circuit, params)
+        except Exception as e:
+            logger.warning("[%s] compute_energy_variance: get_statevector failed: %s", self.name, e)
+            return float("nan")
+
+        # ⟨H⟩
+        from qiskit.quantum_info import Statevector
+
+        sv = Statevector(sv_data)
+        e_mean = float(np.real(sv.expectation_value(hamiltonian)))
+
+        # ⟨H²⟩ via H² operator
+        h_squared = hamiltonian @ hamiltonian
+        # Simplify H² to reduce term count (combine duplicate Paulis)
+        # Critical for large Hamiltonians where |H²| ∝ |H|² terms
+        h_squared = h_squared.simplify(atol=1e-12)
+        e2_mean = float(np.real(sv.expectation_value(h_squared)))
+
+        variance = e2_mean - e_mean**2
+
+        # Clip to ≥ 0 (numerical noise can produce tiny negatives)
+        if variance < 0:
+            if variance < -1e-8:
+                logger.warning(
+                    "[%s] compute_energy_variance: negative variance %.2e "
+                    "(possible numerical issue).",
+                    self.name,
+                    variance,
+                )
+            variance = 0.0
+
+        # Warning for unexpectedly large variance (possible poor VQE convergence)
+        if variance > 10.0:
+            logger.warning(
+                "[%s] compute_energy_variance: very large variance %.2f "
+                "(state is far from any eigenstate — check VQE convergence).",
+                self.name,
+                variance,
+            )
+
+        return float(variance)
+
     def get_statevector(
         self,
         circuit: QuantumCircuit,
@@ -390,6 +488,31 @@ class HardwareBackend(ExecutionBackend):
             "NoisyBackend for local development."
         )
 
+    def compute_energy_variance(
+        self,
+        circuit: QuantumCircuit,
+        hamiltonian: SparsePauliOp,
+        params: np.ndarray,
+    ) -> float:
+        """Return NaN — energy variance cannot be computed from hardware QPU.
+
+        On real hardware, we cannot extract the statevector and computing
+        ⟨H²⟩ would require a separate circuit execution with prohibitive
+        shot budget. This metric is only meaningful for classical simulation.
+        """
+        return float("nan")
+
+    def get_statevector(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+    ) -> np.ndarray:
+        """Raise error — statevector extraction not possible on real hardware."""
+        raise RuntimeError(
+            f"get_statevector() is not supported on HardwareBackend('{self._backend_name}'). "
+            "Statevector extraction is only possible in simulation."
+        )
+
     @property
     def name(self) -> str:
         return f"hardware_{self._backend_name}"
@@ -472,3 +595,60 @@ def select_backend(
             deterministic=deterministic,
             seed=seed,
         )
+
+
+def select_backend_with_topology_warning(
+    n_qubits: int,
+    *,
+    topology: str = "chain_1d",
+    chi_max: int = 64,
+    deterministic: bool = True,
+    seed: int | None = None,
+    for_vqe_loop: bool = False,
+) -> ExecutionBackend:
+    """Auto-select backend with 2D topology chi-sufficiency warning.
+
+    Wraps select_backend() and emits a warning when MPS is selected for
+    2D topologies with N>16, where chi=64 may be insufficient.
+
+    Parameters
+    ----------
+    n_qubits : int
+        Number of qubits.
+    topology : str
+        Topology name (used for 2D chi warning).
+    chi_max : int
+        MPS bond dimension.
+    deterministic : bool
+        MPS deterministic mode.
+    seed : int | None
+        Random seed.
+    for_vqe_loop : bool
+        VQE loop optimization flag.
+
+    Returns
+    -------
+    ExecutionBackend
+        Selected backend (same as select_backend).
+    """
+    backend = select_backend(
+        n_qubits,
+        chi_max=chi_max,
+        deterministic=deterministic,
+        seed=seed,
+        for_vqe_loop=for_vqe_loop,
+    )
+
+    # Warn for 2D topologies where MPS chi may be insufficient
+    _2D_TOPOLOGIES = ("square", "triangular", "heavy_hex", "kagome")
+    if topology in _2D_TOPOLOGIES and n_qubits > 16:
+        if hasattr(backend, "_chi_max"):
+            logger.warning(
+                "2D topology '%s' with N=%d: MPS chi=%d may be insufficient. "
+                "Results should include chi-convergence verification (--verify-chi).",
+                topology,
+                n_qubits,
+                backend._chi_max,
+            )
+
+    return backend

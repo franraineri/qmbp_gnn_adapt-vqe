@@ -7,6 +7,7 @@ Tests PEA-ZNE under conditions that match the actual IBM Torino deployment:
   - Measures absolute ΔE/gap (not just relative gain)
   - Compares PEA extrapolation against exact noiseless energy
   - Tests if PEA can achieve ΔE/gap < 5% (the hardware success criterion)
+  - Applies affine correction post-ZNE (zero cost, always beneficial)
 
 Key question: Can PEA-ZNE bring the noisy energy close enough to pass
 the hardware deployment criterion (ΔE/gap < 5%) on heavy_hex?
@@ -14,14 +15,14 @@ the hardware deployment criterion (ΔE/gap < 5%) on heavy_hex?
 Sections:
   1. Noiseless baseline — VQE θ_opt on heavy_hex N=10 p=1
   2. Full-noise baseline — FakeTorino native noise (factor=1)
-  3. GF-ZNE mitigation — gate folding [1,3,5]
-  4. PEA-ZNE mitigation — learned noise amplification [1,3,5]
+  3. GF-ZNE mitigation — gate folding [1,3,5] + affine correction
+  4. PEA-ZNE mitigation — learned noise amplification [1,3,5] + affine correction
   5. Hardware readiness verdict — ΔE/gap < 5% check
 
 Usage:
-    python scripts/experiment_runners/run_pea_hardware_readiness.py
-    python scripts/experiment_runners/run_pea_hardware_readiness.py --topology chain_1d --n-qubits 6
-    python scripts/experiment_runners/run_pea_hardware_readiness.py --dry-run
+    python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py
+    python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py --topology chain_1d --n-qubits 6
+    python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py --dry-run
 """
 
 from __future__ import annotations
@@ -29,14 +30,21 @@ from __future__ import annotations
 import logging
 import sys
 import time
+from typing import Any
 
 import numpy as np
 
-from qmbp_simulation.execution.noisy_utils import NoisyEstimatorConfig
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
     resolve_project_root,
+)
+from qmbp_simulation.models.constants import (
+    DE_GAP_THRESHOLD,
+    ZNE_CES_PERTURBATIVE_THRESHOLD,
+    ZNE_DEFAULT_N_CANDIDATE_LAYOUTS,
+    ZNE_DEFAULT_NOISE_FACTORS,
+    ZNE_DEFAULT_SHOTS,
 )
 
 _ROOT = resolve_project_root(__file__)
@@ -47,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Constants — match HARDWARE_DEPLOYMENT_SPEC exactly
+# Constants — hardware deployment spec values (not redeclaring framework defaults)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 DEFAULT_TOPOLOGY = "heavy_hex"
@@ -56,15 +64,8 @@ DEFAULT_P_LAYERS = 1
 
 # h-values from deployment spec (in-regime for heavy_hex p=1)
 H_TEST_HARDWARE = [4.0, 3.25, 3.0]
-NOISE_FACTORS = (1, 3, 5)
-ZNE_SHOTS = 16384
-N_CANDIDATE_LAYOUTS = 20
 
-VQE_RESTARTS = 1  # p=1 N=10 only needs 1 restart
 VQE_MAXITER = 500
-
-# Hardware success criterion
-DE_GAP_THRESHOLD = 0.05  # ΔE/gap < 5%
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -76,7 +77,7 @@ class PEAHardwareReadinessRunner(ValidationRunner):
     """PEA-ZNE hardware readiness: can it achieve ΔE/gap < 5% on heavy_hex?"""
 
     runner_id = "pea_hardware_readiness"
-    experiment_id = "PEA_HW_READY"
+    experiment_id = "noisy/tfim/heavy_hex"
     description = "PEA-ZNE Hardware Readiness (heavy_hex N=10 p=1)"
     hypothesis = (
         "PEA-ZNE on heavy_hex N=10 p=1 achieves ΔE/gap closer to noiseless "
@@ -85,13 +86,46 @@ class PEAHardwareReadinessRunner(ValidationRunner):
 
     @classmethod
     def _add_custom_args(cls, parser) -> None:
-        parser.add_argument(
-            "--topology",
-            default=DEFAULT_TOPOLOGY,
-            choices=["chain_1d", "ladder", "triangular", "heavy_hex"],
+        cls._add_standard_physics_args(
+            parser,
+            n_qubits=DEFAULT_N_QUBITS,
+            p_layers=DEFAULT_P_LAYERS,
+            topology=DEFAULT_TOPOLOGY,
+            model="tfim",
+            h_min=3.0,
+            h_max=4.0,
+            h_points=4,
+            seeds=[42],
+            maxiter=VQE_MAXITER,
+            n_restarts=1,
         )
-        parser.add_argument("--n-qubits", type=int, default=DEFAULT_N_QUBITS)
-        parser.add_argument("--p-layers", type=int, default=DEFAULT_P_LAYERS)
+        parser.add_argument(
+            "--h-values",
+            type=float,
+            nargs="+",
+            default=None,
+            help="Explicit h-values (overrides --h-min/--h-max/--h-points)",
+        )
+        parser.add_argument(
+            "--shots",
+            type=int,
+            default=ZNE_DEFAULT_SHOTS,
+            help=f"Shots per estimation (default: {ZNE_DEFAULT_SHOTS})",
+        )
+
+    def run_preflight(self) -> bool:
+        """Extended preflight: validate dependencies before setup()."""
+        if not super().run_preflight():
+            return False
+        try:
+            from qiskit_ibm_runtime.fake_provider import FakeTorino  # noqa: F401
+        except ImportError:
+            logger.error(
+                "  Preflight ERROR: qiskit-ibm-runtime is required for FakeTorino noise model. "
+                "Install with: pip install qiskit-ibm-runtime"
+            )
+            return False
+        return True
 
     def define_sections(self) -> list[Section]:
         return [
@@ -128,6 +162,9 @@ class PEAHardwareReadinessRunner(ValidationRunner):
         ]
 
     def build_config(self) -> dict:
+        topo = (
+            self._args.topology[0] if isinstance(self._args.topology, list) else self._args.topology
+        )
         return {
             "runner_id": self.runner_id,
             "experiment_id": self.experiment_id,
@@ -135,127 +172,207 @@ class PEAHardwareReadinessRunner(ValidationRunner):
             "description": self.description,
             "hypothesis": self.hypothesis,
             "system": {
-                "n_qubits": getattr(self, "n_qubits", DEFAULT_N_QUBITS),
-                "p_layers": getattr(self, "p_layers", DEFAULT_P_LAYERS),
-                "topology": getattr(self, "topology", DEFAULT_TOPOLOGY),
+                "n_qubits": self._args.n_qubits,
+                "p_layers": self._args.p_layers,
+                "topology": topo,
+                "topologies": [topo],
                 "model": "tfim",
             },
-            "seeds": [],
+            "zne": {
+                "noise_factors": list(ZNE_DEFAULT_NOISE_FACTORS),
+                "shots": getattr(self._args, "shots", ZNE_DEFAULT_SHOTS),
+                "n_candidate_layouts": ZNE_DEFAULT_N_CANDIDATE_LAYOUTS,
+                "method": "PEA + GF comparison",
+                "affine_correction": True,
+            },
+            "seeds": self._args.seeds if hasattr(self._args, "seeds") else [],
         }
 
     def setup(self) -> None:
-        from qiskit_ibm_runtime.fake_provider import FakeTorino
-        from scipy.optimize import minimize
+        """Initialize physics + noisy estimation infrastructure."""
+        self.setup_physics()
 
-        from qmbp_simulation import HamiltonianBuilder, make_lattice
-        from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
-            build_adjacency,
-            find_layouts_bfs,
-            noisy_estimate,
-            run_gate_folding_zne,
-            run_pea_zne,
-            select_layouts_low_ces,
+        self.topology = (
+            self._args.topology[0] if isinstance(self._args.topology, list) else self._args.topology
         )
+        self.n_qubits = self._args.n_qubits
+        self.p_layers = self._args.p_layers
+        self._vqe_restarts = self.compute_vqe_restarts(self.p_layers, self.n_qubits)
 
-        self.topology = getattr(self._args, "topology", DEFAULT_TOPOLOGY)
-        self.n_qubits = getattr(self._args, "n_qubits", DEFAULT_N_QUBITS)
-        self.p_layers = getattr(self._args, "p_layers", DEFAULT_P_LAYERS)
+        # h-values: explicit list > h-min/h-max/h-points > auto from p/topo
+        if self._args.h_values is not None:
+            self._h_test = sorted(self._args.h_values, reverse=True)
+        elif self._args.h_min != 3.0 or self._args.h_max != 4.0 or self._args.h_points != 4:
+            self._h_test = list(
+                np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)
+            )
+        else:
+            self._h_test = self.default_h_test_values(self.p_layers, self.topology)
 
-        self.builder = HamiltonianBuilder()
-        self.hva = HVACircuitBuilder()
-        self.noiseless = NoiselessBackend()
-        self.fake_backend = FakeTorino()
-        self.make_lattice = make_lattice
-        self.minimize = minimize
-        self.noisy_config = NoisyEstimatorConfig(shots=ZNE_SHOTS, seed_simulator=42)
+        # Noisy estimation setup (FakeTorino, config, candidates, utility functions)
+        self._shots = getattr(self._args, "shots", ZNE_DEFAULT_SHOTS)
+        self.setup_noisy_estimation(self.n_qubits, shots=self._shots, seed_simulator=42)
 
-        self._noisy_estimate = noisy_estimate
-        self._run_gf_zne = run_gate_folding_zne
-        self._run_pea_zne = run_pea_zne
-        self._select_low_ces = select_layouts_low_ces
-
-        adj = build_adjacency(self.fake_backend)
-        self.candidates = find_layouts_bfs(adj, self.n_qubits, n_candidates=N_CANDIDATE_LAYOUTS)
         logger.info(
             f"[setup] {self.topology} N={self.n_qubits} p={self.p_layers}, "
-            f"{len(self.candidates)} candidates"
+            f"{len(self.candidates)} candidates, restarts={self._vqe_restarts}, "
+            f"h_test={self._h_test}, shots={self._shots}"
         )
+        if self.n_qubits >= 16:
+            logger.info(
+                "  ⚠️  N≥16: noisy sections will be SLOW (FakeTorino transpilation "
+                "~2-5 min per h-point). This is expected, not a hang."
+            )
 
-        self._data: dict[str, list[dict]] = {}  # section_name → per-h results
-        self._transpiled_cache: dict[float, tuple] = {}  # h → (transpiled, H_mapped, ces)
+        # Shared mutable state across sections
+        self._data: dict[str, list[dict]] = {}
+        self._transpiled_cache: dict[float, tuple] = {}
+        self._circuit = None
+
+    def restore_section_state(
+        self, resumed_data: dict[str, Any], resumed_sections: set[int]
+    ) -> None:
+        """Restore internal state from a resumed run for downstream sections."""
+        results = resumed_data.get("results", {})
+
+        if 1 in resumed_sections:
+            s1_data = results.get("section_1", {}).get("data", {})
+            noiseless_results = s1_data.get("results", [])
+            if noiseless_results:
+                self._data["noiseless"] = noiseless_results
+                # Rebuild circuit from model spec
+                from qmbp_simulation.models.model_registry import get_model_spec
+
+                spec = get_model_spec("tfim")
+                lattice_ref = self.make_lattice(
+                    self.topology, self.n_qubits, J=1.0, h=max(self._h_test)
+                )
+                circuit, _ = spec.create_circuit(
+                    self.n_qubits, self.p_layers, lattice_ref, **spec.circuit_kwargs
+                )
+                self._circuit = circuit
+                logger.info(
+                    "  ♻️  Restored Section 1 state: %d noiseless results", len(noiseless_results)
+                )
+
+        if 2 in resumed_sections:
+            s2_data = results.get("section_2", {}).get("data", {})
+            noisy_results = s2_data.get("results", [])
+            if noisy_results:
+                self._data["noisy"] = noisy_results
+                # Note: _transpiled_cache cannot be serialized/restored
+                # Sections 3-4 will need to re-transpile if section 2 is skipped
+                logger.info("  ♻️  Restored Section 2 state: %d noisy results", len(noisy_results))
 
     def _section_noiseless(self) -> dict:
-        """Section 1: VQE noiseless baseline."""
-        lattice_ref = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=max(H_TEST_HARDWARE))
-        circuit, _ = self.hva.create(self.n_qubits, self.p_layers, lattice_ref)
+        """Section 1: VQE noiseless baseline using base class vqe_adaptive_sweep."""
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        spec = get_model_spec("tfim")
+        lattice_ref = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=max(self._h_test))
+        circuit, _ = spec.create_circuit(
+            self.n_qubits, self.p_layers, lattice_ref, **spec.circuit_kwargs
+        )
         self._circuit = circuit
         n_params = circuit.num_parameters
 
-        rng = np.random.default_rng(42)
-        prev_theta = rng.uniform(-0.01, 0.01, n_params)
-        results = []
+        # Use base class vqe_adaptive_sweep (includes bidirectional + adaptive restarts)
+        use_ascending = self.should_use_bidirectional(self.n_qubits)
 
-        for h in sorted(H_TEST_HARDWARE, reverse=True):
+        vqe_results = self.vqe_adaptive_sweep(
+            topology=self.topology,
+            n_qubits=self.n_qubits,
+            h_values=self._h_test,
+            seed=42,
+            p_layers=self.p_layers,
+            n_restarts=self._vqe_restarts,
+            maxiter=VQE_MAXITER,
+            model="tfim",
+            ascending_pass=use_ascending,
+            compute_fidelity=False,
+        )
+
+        # Build results with exact energies and variational principle check
+        results = []
+        for vqe_pt in vqe_results:
+            h = vqe_pt["h"]
+            e_exact, gap = self.exact_ground_state(self.topology, self.n_qubits, h)
+            theta_opt = np.array(vqe_pt["theta_opt"])
+
             lattice = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=h)
             H = self.builder.build(lattice)
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact, gap = float(evals[0]), float(evals[1] - evals[0])
+            e_vqe = float(self.noiseless.evaluate(circuit, H, theta_opt))
+            de_gap = abs(e_vqe - e_exact) / max(gap, 1e-10)
 
-            best_energy = float("inf")
-            best_theta = prev_theta.copy()
-            for _ in range(VQE_RESTARTS):
-                x0 = prev_theta + rng.normal(0, 0.1, n_params)
-                x0 = np.clip(x0, -np.pi, np.pi)
-                res = self.minimize(
-                    lambda p, _H=H, _c=circuit: self.noiseless.evaluate(_c, _H, p),
-                    x0,
-                    method="L-BFGS-B",
-                    bounds=[(-np.pi, np.pi)] * n_params,
-                    options={"maxiter": VQE_MAXITER, "ftol": 1e-14},
+            # Variational principle check
+            if e_vqe < e_exact - 1e-6:
+                logger.warning(
+                    f"  h={h:.2f}: VARIATIONAL PRINCIPLE VIOLATED! "
+                    f"E_vqe={e_vqe:.6f} < E_exact={e_exact:.6f}"
                 )
-                if res.fun < best_energy:
-                    best_energy = res.fun
-                    best_theta = res.x.copy()
-            prev_theta = best_theta.copy()
 
-            de_gap = abs(best_energy - e_exact) / max(gap, 1e-10)
             results.append(
                 {
                     "h": h,
                     "e_exact": e_exact,
                     "gap": gap,
-                    "e_noiseless": best_energy,
+                    "e_noiseless": e_vqe,
                     "de_gap_noiseless": de_gap,
-                    "theta_opt": best_theta.tolist(),
+                    "theta_opt": theta_opt.tolist(),
                 }
             )
             logger.info(f"  h={h:.2f}: E_exact={e_exact:.4f}, ΔE/gap={de_gap:.4f}")
+
+        # Register circuit artifact
+        self.artifacts.register(
+            "circuit",
+            circuit,
+            format="qpy",
+            metadata={
+                "n_qubits": self.n_qubits,
+                "p_layers": self.p_layers,
+                "topology": self.topology,
+                "n_params": n_params,
+            },
+        )
 
         self._data["noiseless"] = results
         return {"results": results, "n_params": n_params}
 
     def _section_noisy(self) -> dict:
-        """Section 2: Full FakeTorino noise — unmitigated baseline."""
+        """Section 2: Full FakeTorino noise — unmitigated baseline with checkpointing."""
         if "noiseless" not in self._data:
-            raise RuntimeError("Run Section 1 first")
+            raise RuntimeError("Run Section 1 first (no noiseless data)")
+        if self._circuit is None:
+            raise RuntimeError("Run Section 1 first (no circuit cached)")
 
-        results = []
-        self._transpiled_cache = {}  # Cache: h → (transpiled, H_mapped, ces)
+        # Check for resumed checkpoint
+        cp = self.load_checkpoint("noisy_baseline")
+        if cp:
+            self._transpiled_cache = {float(k): v for k, v in cp.get("transpiled_meta", {}).items()}
+            completed_results = cp.get("results", [])
+            done_h = {r["h"] for r in completed_results}
+        else:
+            self._transpiled_cache = {}
+            completed_results = []
+            done_h = set()
 
-        for pt in self._data["noiseless"]:
-            h, theta_opt = pt["h"], np.array(pt["theta_opt"])
+        def _estimate_noisy(h: float) -> dict | None:
+            if h in done_h:
+                return None  # Already done via checkpoint
+
+            pt = next((p for p in self._data["noiseless"] if p["h"] == h), None)
+            if pt is None:
+                return None
+            theta_opt = np.array(pt["theta_opt"])
             e_exact, gap = pt["e_exact"], pt["gap"]
 
+            logger.info(f"  h={h:.2f}: transpiling + layout selection...")
             lattice = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=h)
             H = self.builder.build(lattice)
             bound = self._circuit.assign_parameters(theta_opt)
 
-            layout_sel = self._select_low_ces(
+            layout_sel = self.select_low_ces(
                 bound,
                 self.fake_backend,
                 self.candidates,
@@ -266,121 +383,190 @@ class PEAHardwareReadinessRunner(ValidationRunner):
             transpiled = layout_sel.transpiled_circuits[0]
             ces = float(layout_sel.ces_values[0])
             H_mapped = H.apply_layout(transpiled.layout)
-
-            # Cache for reuse in sections 3 and 4 (same layout = fair comparison)
             self._transpiled_cache[h] = (transpiled, H_mapped, ces)
 
-            # Full noise measurement (no mitigation)
-            e_noisy = self._noisy_estimate(
+            # Warn if CES exceeds perturbative threshold
+            if ces > ZNE_CES_PERTURBATIVE_THRESHOLD:
+                logger.warning(
+                    f"  h={h:.2f}: CES={ces:.4f} > {ZNE_CES_PERTURBATIVE_THRESHOLD} "
+                    f"— outside perturbative regime for GF-ZNE"
+                )
+
+            e_noisy = self.noisy_estimate(
                 transpiled, H_mapped, self.fake_backend, self.noisy_config
             )
-            de_noisy = abs(e_noisy - e_exact) / max(gap, 1e-10)
+            if not np.isfinite(e_noisy):
+                return None
 
-            results.append(
-                {
-                    "h": h,
-                    "e_noisy": e_noisy,
-                    "de_gap_noisy": de_noisy,
-                    "layout_ces": ces,
-                    "circuit_depth": transpiled.depth(),
-                }
-            )
+            de_noisy = abs(e_noisy - e_exact) / max(gap, 1e-10)
             logger.info(
                 f"  h={h:.2f}: E_noisy={e_noisy:.4f}, ΔE/gap={de_noisy:.4f}, "
                 f"CES={ces:.4f}, depth={transpiled.depth()}"
             )
+            return {
+                "h": h,
+                "e_noisy": float(e_noisy),
+                "de_gap_noisy": float(de_noisy),
+                "layout_ces": ces,
+                "circuit_depth": transpiled.depth(),
+            }
 
-        self._data["noisy"] = results
-        return {"results": results}
+        h_values = [pt["h"] for pt in self._data["noiseless"]]
+        new_results = self.safe_per_h_loop(
+            [h for h in h_values if h not in done_h], _estimate_noisy, "noisy_estimate"
+        )
+
+        # Merge checkpoint results with new results
+        all_results = completed_results + new_results
+
+        # Save checkpoint after completing this section
+        if new_results:
+            self.save_checkpoint(
+                "noisy_baseline",
+                {
+                    "results": all_results,
+                    "transpiled_meta": {
+                        str(h): {"ces": t[2], "depth": t[0].depth()}
+                        for h, t in self._transpiled_cache.items()
+                        if isinstance(t, tuple)
+                    },
+                },
+            )
+
+        if not all_results:
+            return {"pass": False, "error": "All noisy estimations failed"}
+
+        self._data["noisy"] = all_results
+        return {"results": all_results}
 
     def _section_gf_zne(self) -> dict:
-        """Section 3: Gate-Folding ZNE — comparison baseline."""
+        """Section 3: Gate-Folding ZNE + affine correction — comparison baseline."""
         if "noiseless" not in self._data or not self._transpiled_cache:
             raise RuntimeError("Run Sections 1 and 2 first")
 
-        results = []
-        for pt in self._data["noiseless"]:
-            h = pt["h"]
+        def _run_gf(h: float) -> dict | None:
+            pt = next((p for p in self._data["noiseless"] if p["h"] == h), None)
+            if pt is None or h not in self._transpiled_cache:
+                return None
             e_exact, gap = pt["e_exact"], pt["gap"]
-
-            # Reuse SAME layout from Section 2 for fair comparison
             transpiled, H_mapped, _ = self._transpiled_cache[h]
 
             t0 = time.time()
-            gf = self._run_gf_zne(
+            gf = self.run_gf_zne(
                 transpiled,
                 H_mapped,
                 self.fake_backend,
                 self.noisy_config,
-                noise_factors=NOISE_FACTORS,
+                noise_factors=ZNE_DEFAULT_NOISE_FACTORS,
                 extrapolator="linear",
                 seed_offset=500,
             )
             elapsed = time.time() - t0
 
-            de_gf = abs(gf.extrapolated_value - e_exact) / max(gap, 1e-10)
-            results.append(
-                {
-                    "h": h,
-                    "e_gf_zne": gf.extrapolated_value,
-                    "de_gap_gf": de_gf,
-                    "gf_r2": gf.r_squared,
-                    "gf_slope": gf.slope,
-                    "elapsed_s": round(elapsed, 2),
-                    "measured": gf.measured_values,
-                }
-            )
-            logger.info(
-                f"  h={h:.2f}: E_gf={gf.extrapolated_value:.4f}, "
-                f"ΔE/gap={de_gf:.4f}, R²={gf.r_squared:.4f}, {elapsed:.1f}s"
+            if not np.isfinite(gf.extrapolated_value):
+                return None
+
+            # Apply affine correction (zero cost, always beneficial)
+            corrected = self.affine_correct_energy(
+                gf.extrapolated_value,
+                e_exact,
+                n_qubits=self.n_qubits,
+                h_value=h,
             )
 
+            de_gf_raw = abs(gf.extrapolated_value - e_exact) / max(gap, 1e-10)
+            de_gf_corrected = abs(corrected.corrected_energy - e_exact) / max(gap, 1e-10)
+
+            logger.info(
+                f"  h={h:.2f}: E_gf={gf.extrapolated_value:.4f} → "
+                f"E_corrected={corrected.corrected_energy:.4f}, "
+                f"ΔE/gap={de_gf_raw:.4f}→{de_gf_corrected:.4f}, "
+                f"R²={gf.r_squared:.4f}, {elapsed:.1f}s"
+            )
+            return {
+                "h": h,
+                "e_gf_zne_raw": float(gf.extrapolated_value),
+                "e_gf_zne": float(corrected.corrected_energy),
+                "de_gap_gf_raw": float(de_gf_raw),
+                "de_gap_gf": float(de_gf_corrected),
+                "gf_r2": float(gf.r_squared),
+                "gf_slope": float(gf.slope),
+                "elapsed_s": round(elapsed, 2),
+                "measured": gf.measured_values,
+                "affine_corrected": corrected.correction_applied,
+            }
+
+        h_values = list(self._transpiled_cache.keys())
+        results = self.safe_per_h_loop(h_values, _run_gf, "GF-ZNE")
+
+        if not results:
+            return {"pass": False, "error": "All GF-ZNE extrapolations failed"}
         self._data["gf_zne"] = results
         return {"results": results}
 
     def _section_pea_zne(self) -> dict:
-        """Section 4: PEA-ZNE — probabilistic error amplification."""
+        """Section 4: PEA-ZNE + affine correction — probabilistic error amplification."""
         if "noiseless" not in self._data or not self._transpiled_cache:
             raise RuntimeError("Run Sections 1 and 2 first")
 
-        results = []
-        for pt in self._data["noiseless"]:
-            h = pt["h"]
+        def _run_pea(h: float) -> dict | None:
+            pt = next((p for p in self._data["noiseless"] if p["h"] == h), None)
+            if pt is None or h not in self._transpiled_cache:
+                return None
             e_exact, gap = pt["e_exact"], pt["gap"]
-
-            # Reuse SAME layout from Section 2 for fair comparison
             transpiled, H_mapped, _ = self._transpiled_cache[h]
 
             t0 = time.time()
-            pea = self._run_pea_zne(
+            pea = self.run_pea_zne(
                 transpiled,
                 H_mapped,
                 self.fake_backend,
                 self.noisy_config,
-                noise_factors=NOISE_FACTORS,
+                noise_factors=ZNE_DEFAULT_NOISE_FACTORS,
                 extrapolator="linear",
                 seed_offset=2000,
             )
             elapsed = time.time() - t0
 
-            de_pea = abs(pea.extrapolated_value - e_exact) / max(gap, 1e-10)
-            results.append(
-                {
-                    "h": h,
-                    "e_pea_zne": pea.extrapolated_value,
-                    "de_gap_pea": de_pea,
-                    "pea_r2": pea.r_squared,
-                    "pea_slope": pea.slope,
-                    "elapsed_s": round(elapsed, 2),
-                    "measured": pea.measured_values,
-                    "learned_rates": pea.learned_error_rates,
-                }
-            )
-            logger.info(
-                f"  h={h:.2f}: E_pea={pea.extrapolated_value:.4f}, "
-                f"ΔE/gap={de_pea:.4f}, R²={pea.r_squared:.4f}, {elapsed:.1f}s"
+            if not np.isfinite(pea.extrapolated_value):
+                return None
+
+            # Apply affine correction (zero cost, always beneficial)
+            corrected = self.affine_correct_energy(
+                pea.extrapolated_value,
+                e_exact,
+                n_qubits=self.n_qubits,
+                h_value=h,
             )
 
+            de_pea_raw = abs(pea.extrapolated_value - e_exact) / max(gap, 1e-10)
+            de_pea_corrected = abs(corrected.corrected_energy - e_exact) / max(gap, 1e-10)
+
+            logger.info(
+                f"  h={h:.2f}: E_pea={pea.extrapolated_value:.4f} → "
+                f"E_corrected={corrected.corrected_energy:.4f}, "
+                f"ΔE/gap={de_pea_raw:.4f}→{de_pea_corrected:.4f}, "
+                f"R²={pea.r_squared:.4f}, {elapsed:.1f}s"
+            )
+            return {
+                "h": h,
+                "e_pea_zne_raw": float(pea.extrapolated_value),
+                "e_pea_zne": float(corrected.corrected_energy),
+                "de_gap_pea_raw": float(de_pea_raw),
+                "de_gap_pea": float(de_pea_corrected),
+                "pea_r2": float(pea.r_squared),
+                "pea_slope": float(pea.slope),
+                "elapsed_s": round(elapsed, 2),
+                "measured": pea.measured_values,
+                "learned_rates": pea.learned_error_rates,
+                "affine_corrected": corrected.correction_applied,
+            }
+
+        h_values = list(self._transpiled_cache.keys())
+        results = self.safe_per_h_loop(h_values, _run_pea, "PEA-ZNE")
+
+        if not results:
+            return {"pass": False, "error": "All PEA-ZNE extrapolations failed"}
         self._data["pea_zne"] = results
         return {"results": results}
 
@@ -391,32 +577,52 @@ class PEAHardwareReadinessRunner(ValidationRunner):
         gf = self._data.get("gf_zne", [])
         pea = self._data.get("pea_zne", [])
 
-        if not all([nl, ny, gf, pea]):
-            raise RuntimeError("All previous sections must complete")
+        if not nl:
+            return {"pass": False, "error": "No noiseless data"}
+        if not ny:
+            return {"pass": False, "error": "No noisy data"}
+        if not gf:
+            return {"pass": False, "error": "No GF-ZNE data (all failed)"}
+        if not pea:
+            return {"pass": False, "error": "No PEA-ZNE data (all failed)"}
+
+        # Build comparison using h-value matching (handles partial failures)
+        nl_by_h = {pt["h"]: pt for pt in nl}
+        ny_by_h = {pt["h"]: pt for pt in ny}
+        gf_by_h = {pt["h"]: pt for pt in gf}
+        pea_by_h = {pt["h"]: pt for pt in pea}
+
+        # Only compare h-points present in ALL four datasets
+        common_h = sorted(
+            set(nl_by_h) & set(ny_by_h) & set(gf_by_h) & set(pea_by_h),
+            reverse=True,
+        )
+
+        if not common_h:
+            return {"pass": False, "error": "No h-points with data in all 4 modes"}
 
         comparison = []
-        for i, h in enumerate(sorted(H_TEST_HARDWARE, reverse=True)):
+        for h in common_h:
             row = {
                 "h": h,
-                "e_exact": nl[i]["e_exact"],
-                "gap": nl[i]["gap"],
-                "de_noiseless": nl[i]["de_gap_noiseless"],
-                "de_noisy": ny[i]["de_gap_noisy"],
-                "de_gf": gf[i]["de_gap_gf"],
-                "de_pea": pea[i]["de_gap_pea"],
-                "gf_r2": gf[i]["gf_r2"],
-                "pea_r2": pea[i]["pea_r2"],
-                # Gains (relative to noisy)
+                "e_exact": nl_by_h[h]["e_exact"],
+                "gap": nl_by_h[h]["gap"],
+                "de_noiseless": nl_by_h[h]["de_gap_noiseless"],
+                "de_noisy": ny_by_h[h]["de_gap_noisy"],
+                "de_gf": gf_by_h[h]["de_gap_gf"],
+                "de_pea": pea_by_h[h]["de_gap_pea"],
+                "gf_r2": gf_by_h[h]["gf_r2"],
+                "pea_r2": pea_by_h[h]["pea_r2"],
                 "gf_gain": (
-                    (ny[i]["de_gap_noisy"] - gf[i]["de_gap_gf"]) / max(ny[i]["de_gap_noisy"], 1e-10)
+                    (ny_by_h[h]["de_gap_noisy"] - gf_by_h[h]["de_gap_gf"])
+                    / max(ny_by_h[h]["de_gap_noisy"], 1e-10)
                 ),
                 "pea_gain": (
-                    (ny[i]["de_gap_noisy"] - pea[i]["de_gap_pea"])
-                    / max(ny[i]["de_gap_noisy"], 1e-10)
+                    (ny_by_h[h]["de_gap_noisy"] - pea_by_h[h]["de_gap_pea"])
+                    / max(ny_by_h[h]["de_gap_noisy"], 1e-10)
                 ),
-                # Hardware criterion
-                "passes_hw_criterion": pea[i]["de_gap_pea"] < DE_GAP_THRESHOLD,
-                "gf_passes": gf[i]["de_gap_gf"] < DE_GAP_THRESHOLD,
+                "passes_hw_criterion": pea_by_h[h]["de_gap_pea"] < DE_GAP_THRESHOLD,
+                "gf_passes": gf_by_h[h]["de_gap_gf"] < DE_GAP_THRESHOLD,
             }
             comparison.append(row)
 
@@ -453,7 +659,8 @@ class PEAHardwareReadinessRunner(ValidationRunner):
         logger.info("  ─── HARDWARE READINESS VERDICT ───")
         logger.info(f"  Topology: {self.topology}, N={self.n_qubits}, p={self.p_layers}")
         logger.info(
-            f"  HW criterion (ΔE/gap < 5%): PEA passes {n_hw_pass_pea}/{len(comparison)}, "
+            f"  HW criterion (ΔE/gap < {DE_GAP_THRESHOLD * 100:.0f}%): "
+            f"PEA passes {n_hw_pass_pea}/{len(comparison)}, "
             f"GF passes {n_hw_pass_gf}/{len(comparison)}"
         )
         logger.info(
@@ -469,7 +676,8 @@ class PEAHardwareReadinessRunner(ValidationRunner):
         # not raw VQE at arbitrary h. But for ZNE comparison, relative gain matters.
         if mean_de_noiseless > DE_GAP_THRESHOLD:
             logger.info(
-                f"\n  NOTE: Even noiseless ΔE/gap={mean_de_noiseless:.4f} > 5% threshold."
+                f"\n  NOTE: Even noiseless ΔE/gap={mean_de_noiseless:.4f} > "
+                f"{DE_GAP_THRESHOLD * 100:.0f}% threshold."
                 f"\n  This is the p=1 expressibility limit, NOT a ZNE failure."
                 f"\n  ZNE effectiveness is measured by RELATIVE gain, not absolute ΔE/gap."
             )
@@ -489,6 +697,7 @@ class PEAHardwareReadinessRunner(ValidationRunner):
             "pea_better_than_gf": mean_pea_gain > mean_gf_gain,
             "n_hw_pass_pea": n_hw_pass_pea,
             "n_hw_pass_gf": n_hw_pass_gf,
+            "affine_correction_applied": True,
         }
 
         # Pass = PEA is better than GF and has good R²
@@ -499,6 +708,10 @@ class PEAHardwareReadinessRunner(ValidationRunner):
             "  ⚠ Note: Results are from depolarizing PEA approximation — "
             "real hardware may differ by ±10%."
         )
+
+        # Cleanup checkpoints on success
+        if passed:
+            self.cleanup_checkpoints("noisy_*")
 
         return {"pass": passed, "summary": summary}
 

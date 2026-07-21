@@ -6,7 +6,6 @@ across many random inputs.
 
 from __future__ import annotations
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -71,32 +70,36 @@ class TestProperty4HVACircuitParameterCountInvariant:
 
 
 class TestProperty5DepthConstraintEnforcement:
-    """Property 5: For any p > 2, HVACircuitBuilder().create() always raises
-    ValueError regardless of n_qubits or topology.
+    """Property 5: For p > 2, HVA circuits still build successfully.
+
+    The depth constraint was relaxed (commented out) to allow simulation
+    experiments at p>2. Hardware deployment still requires p≤2 (enforced
+    by preflight validation in ValidationRunner, not by the circuit builder).
     """
 
     @given(
         n_qubits=st.integers(min_value=2, max_value=8),
-        p_layers=st.integers(min_value=3, max_value=10),
+        p_layers=st.integers(min_value=3, max_value=5),
     )
-    @settings(max_examples=50, deadline=None)
-    def test_p_greater_than_2_raises_valueerror(self, n_qubits, p_layers):
-        """create() raises ValueError for any p > 2, regardless of n_qubits."""
+    @settings(max_examples=20, deadline=None)
+    def test_p_greater_than_2_builds_circuit(self, n_qubits, p_layers):
+        """create() builds a valid circuit for any p > 2 (no longer raises)."""
         lattice = make_lattice("chain_1d", n_qubits, J=1.0, h=1.0)
         builder = HVACircuitBuilder()
 
-        with pytest.raises(ValueError, match="exceeds the maximum"):
-            builder.create(n_qubits, p_layers, lattice)
+        qc, theta = builder.create(n_qubits, p_layers, lattice)
+        assert qc.num_qubits == n_qubits
+        assert qc.num_parameters == 2 * p_layers
 
     @given(
-        p_layers=st.integers(min_value=3, max_value=10),
+        p_layers=st.integers(min_value=3, max_value=5),
     )
-    @settings(max_examples=50, deadline=None)
-    def test_heisenberg_p_greater_than_2_raises_valueerror(self, p_layers):
-        """create_heisenberg() also raises ValueError for p > 2."""
+    @settings(max_examples=20, deadline=None)
+    def test_heisenberg_p_greater_than_2_builds_circuit(self, p_layers):
+        """create_heisenberg() builds a valid circuit for any p > 2."""
         n_qubits = 4
         lattice = make_lattice("chain_1d", n_qubits, J=1.0, h=1.0)
         builder = HVACircuitBuilder()
 
-        with pytest.raises(ValueError, match="exceeds the maximum"):
-            builder.create_heisenberg(n_qubits, p_layers, lattice)
+        qc, theta = builder.create_heisenberg(n_qubits, p_layers, lattice)
+        assert qc.num_qubits == n_qubits

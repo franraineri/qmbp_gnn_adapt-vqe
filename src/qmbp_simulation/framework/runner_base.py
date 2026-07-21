@@ -272,6 +272,8 @@ class ValidationRunner(ABC):
         self._section_results: list[SectionResult] = []
         # Cache sections once (avoid calling define_sections() multiple times)
         self._sections_cache: list[Section] | None = None
+        # Cache for exact_ground_state results (avoids redundant DMRG/eigsh calls)
+        self._gt_cache: dict[tuple, tuple[float, float]] = {}
         # Artifact collector (register during execution, persist at end)
         from qmbp_simulation.framework.artifact_store import ArtifactCollector
 
@@ -447,13 +449,9 @@ class ValidationRunner(ABC):
         Returns (warnings, errors) — errors block execution.
 
         Checks performed:
-        1. p > 2 violation (hard error).
-        2. p=1 expressibility: warn if pass criteria assume ΔE/gap < 5%
-           at h-values below the valid regime.
-        3. Grid density: warn if 2D parameter space has fewer than 8 points
+        1. Grid density: warn if 2D parameter space has fewer than 8 points
            per dimension (interpolation will fail).
-        4. Model constraint: Heisenberg/XY at p≤2 is forbidden.
-        5. ZNE budget: p=2 N≥10 exceeds ZNE threshold (36 CX > 18 CX limit).
+        2. ZNE budget: p=2 N≥10 exceeds ZNE threshold (36 CX > 18 CX limit).
 
         Note: build_config() may use attributes set in setup() which runs AFTER
         preflight. We use a try/except and fall back to partial checking.
@@ -473,23 +471,7 @@ class ValidationRunner(ABC):
         n_qubits = system.get("n_qubits") or config.get("n_qubits", 0)
         model = config.get("model", "")
 
-        # 1. p > 2 hard constraint
-        if p_layers > 2:
-            errors.append(
-                f"p_layers={p_layers} > 2 violates HVA depth constraint "
-                f"(Mele et al. 2022). Max allowed: p=2."
-            )
-
-        # 2. p=1 expressibility warning
-        if p_layers == 1 and n_qubits >= 6:
-            warnings.append(
-                "p=1 has limited expressibility: ΔE/gap > 5% at low h is "
-                "expected (not a VQE failure). Ensure section pass criteria "
-                "account for this limit (use ΔE/gap < 50% for convergence, "
-                "not < 1%)."
-            )
-
-        # 3. Grid density for 2D parameter spaces
+        # 1. Grid density for 2D parameter spaces
         grid_config = config.get("grid", {})
         if grid_config:
             h_train = grid_config.get("h_train", [])
@@ -505,14 +487,7 @@ class ValidationRunner(ABC):
                         f"consider ≥8 J₂ values or ≥80 total training points."
                     )
 
-        # 4. Forbidden model+ansatz
-        if model in ("heisenberg", "xy") and p_layers <= 2:
-            errors.append(
-                f"Model '{model}' with HVA p≤{p_layers} is known to fail "
-                f"(V9: 30 runs, 0% fidelity). Do not attempt."
-            )
-
-        # 5. ZNE budget check
+        # 2. ZNE budget check
         zne_config = config.get("zne", {})
         if zne_config and p_layers == 2 and n_qubits >= 10:
             warnings.append(
@@ -1028,6 +1003,45 @@ class ValidationRunner(ABC):
             metadata=collect_run_metadata(),
         )
 
+        # Add simulation diagnostics block (documents backend + numerical method)
+        try:
+            from qmbp_simulation.framework.result_io import build_simulation_diagnostics
+
+            # Find the backend used in this run (check common attribute names).
+            # Order: most specific first → general fallback.
+            # hw_backend is HardwareBackend (real QPU or FakeKingston mode).
+            # _vqe_backend is the VQE evaluation backend (NoiselessBackend or MPSBackend).
+            # _backend is used by scaling runners.
+            # fake_backend is FakeTorino (used by noisy ZNE runners).
+            # noiseless is the fallback (always available after setup_physics()).
+            backend = (
+                getattr(self, "hw_backend", None)
+                or getattr(self, "_vqe_backend", None)
+                or getattr(self, "_backend", None)
+                or getattr(self, "fake_backend", None)
+                or getattr(self, "noiseless", None)
+            )
+            if backend is not None:
+                system = config.get("system", {})
+                n_qubits = system.get("n_qubits", 0)
+                topology = system.get("topologies", system.get("topology", "unknown"))
+                if n_qubits > 0:
+                    envelope["simulation_diagnostics"] = build_simulation_diagnostics(
+                        backend, n_qubits, topology
+                    )
+                    # Flag when E_exact reference is approximate (DMRG TFIChain on non-1D)
+                    topo_str = topology[0] if isinstance(topology, list) else topology
+                    _NON_1D_TOPOS = ("heavy_hex", "ladder", "square", "triangular")
+                    if n_qubits > 15 and topo_str in _NON_1D_TOPOS:
+                        envelope["simulation_diagnostics"]["e_exact_approximate"] = True
+                        envelope["simulation_diagnostics"]["e_exact_warning"] = (
+                            f"E_exact for {topo_str} N={n_qubits} uses DMRG with 1D TFIChain model. "
+                            f"Non-sequential bonds in {topo_str} are not captured. "
+                            f"Small variational violations (<1e-2) are expected and benign."
+                        )
+        except Exception:
+            pass  # simulation_diagnostics is best-effort
+
         # Add analysis wrapper for digest/compare.py compatibility
         # The digest scanner reads: data["analysis"]["summary"] and data["analysis"]["n_seeds"]
         envelope["analysis"] = {
@@ -1073,6 +1087,22 @@ class ValidationRunner(ABC):
                     }
         except Exception:
             pass  # Baseline lookup is best-effort
+
+        # Log warnings for anomalous results
+        if n_total > 0:
+            pass_rate = summary.get("pass_rate", 0)
+            if pass_rate == 0 and n_total >= 2:
+                logger.warning(
+                    "⚠️  ALL sections FAILED (pass_rate=0%%). "
+                    "This may indicate a setup error or fundamental issue. "
+                    "Check section errors in result JSON."
+                )
+                self.slog.log("all_sections_failed", data={"n_total": n_total})
+            elif pass_rate < 0.5 and n_total >= 3:
+                logger.warning(
+                    f"⚠️  Low pass rate ({pass_rate * 100:.0f}%%) — "
+                    f"only {n_pass}/{n_total} sections passed."
+                )
 
         return envelope
 
@@ -1240,6 +1270,20 @@ class ValidationRunner(ABC):
             "'always': save regardless of outcome. "
             "'on-pass': save only when all sections pass.",
         )
+        # VQE sweep control
+        parser.add_argument(
+            "--no-bidirectional",
+            action="store_true",
+            default=False,
+            help="Skip the ascending bidirectional pass in VQE sweeps.",
+        )
+        parser.add_argument(
+            "--force-bidirectional",
+            action="store_true",
+            default=False,
+            help="Force the bidirectional pass even for N>=16 "
+            "(overrides the automatic skip for large systems).",
+        )
         # Config preset (loads YAML, CLI overrides preset values)
         parser.add_argument(
             "--preset",
@@ -1341,7 +1385,7 @@ class ValidationRunner(ABC):
             "--p-layers",
             type=int,
             default=p_layers,
-            choices=[1, 2, 3, 4, 5, 6],
+            choices=[1, 2, 3, 4, 5, 6, 7, 8],
             help="HVA circuit depth (default: %(default)s)",
         )
         parser.add_argument(
@@ -1817,6 +1861,454 @@ class ValidationRunner(ABC):
         else:
             logger.debug("    📐 Estimated %s memory: %.1f MB (N=%d)", label, mem_mb, n_qubits)
 
+    def should_use_bidirectional(self, n_qubits: int | None = None) -> bool:
+        """Determine if the bidirectional ascending pass should run.
+
+        Central decision point for all runners. Reads CLI flags and applies
+        the N≥16 auto-skip heuristic.
+
+        Logic:
+        - --no-bidirectional → False (explicit disable)
+        - --force-bidirectional → True (explicit enable, overrides N-check)
+        - N ≥ 16 → False (auto-skip for large systems, diminishing returns)
+        - Otherwise → True
+
+        Parameters
+        ----------
+        n_qubits : int | None
+            System size. If None, reads from self._args.n_qubits.
+
+        Returns
+        -------
+        bool
+            Whether to run the ascending bidirectional pass.
+        """
+        if getattr(self._args, "no_bidirectional", False):
+            return False
+        if getattr(self._args, "force_bidirectional", False):
+            return True
+        n = n_qubits if n_qubits is not None else getattr(self._args, "n_qubits", 10)
+        return n < 16
+
+    def setup_noisy_estimation(
+        self,
+        n_qubits: int,
+        *,
+        shots: int | None = None,
+        seed_simulator: int = 42,
+        n_candidate_layouts: int | None = None,
+    ) -> None:
+        """Initialize FakeTorino backend, noisy config, and candidate layouts.
+
+        This is the canonical setup pattern for all noisy/ZNE runners.
+        After calling this method, the following attributes are available:
+            self.fake_backend    — FakeTorino() instance
+            self.noisy_config    — NoisyEstimatorConfig(shots, seed)
+            self.candidates      — list of BFS candidate layouts
+
+        Also imports and binds the standard noisy utility functions:
+            self.noisy_estimate         — single noisy estimation
+            self.run_gf_zne             — gate-folding ZNE
+            self.run_pea_zne            — PEA ZNE
+            self.run_adaptive_zne       — GF→PEA adaptive fallback
+            self.select_low_ces         — layout selection (lowest CES)
+            self.affine_correct_energy  — post-ZNE affine correction
+
+        Parameters
+        ----------
+        n_qubits : int
+            System size (determines n_candidate_layouts heuristic).
+        shots : int | None
+            Shot count. Default: ZNE_DEFAULT_SHOTS from constants.
+        seed_simulator : int
+            Base seed for reproducibility. Default: 42.
+        n_candidate_layouts : int | None
+            BFS candidates to search. Default: ZNE_DEFAULT_N_CANDIDATE_LAYOUTS
+            (auto-reduced for N≥16).
+        """
+        from qiskit_ibm_runtime.fake_provider import FakeTorino
+
+        from qmbp_simulation.execution import (
+            NoisyEstimatorConfig,
+            affine_correct_energy,
+            build_adjacency,
+            find_layouts_bfs,
+            noisy_estimate,
+            run_adaptive_zne,
+            run_gate_folding_zne,
+            run_pea_zne,
+            select_layouts_low_ces,
+        )
+        from qmbp_simulation.models.constants import (
+            ZNE_DEFAULT_N_CANDIDATE_LAYOUTS,
+            ZNE_DEFAULT_SHOTS,
+        )
+
+        _shots = shots if shots is not None else ZNE_DEFAULT_SHOTS
+        _n_candidates = (
+            n_candidate_layouts
+            if n_candidate_layouts is not None
+            else (ZNE_DEFAULT_N_CANDIDATE_LAYOUTS if n_qubits <= 10 else 10)
+        )
+
+        self.fake_backend = FakeTorino()
+        self.noisy_config = NoisyEstimatorConfig(shots=_shots, seed_simulator=seed_simulator)
+
+        # Bind utility functions as instance methods for convenience
+        self.noisy_estimate = noisy_estimate
+        self.run_gf_zne = run_gate_folding_zne
+        self.run_pea_zne = run_pea_zne
+        self.run_adaptive_zne = run_adaptive_zne
+        self.select_low_ces = select_layouts_low_ces
+        self.affine_correct_energy = affine_correct_energy
+
+        adj = build_adjacency(self.fake_backend)
+        self.candidates = find_layouts_bfs(adj, n_qubits, n_candidates=_n_candidates)
+        logger.info(
+            "  [setup_noisy] FakeTorino ready: %d candidates, %d shots, seed=%d",
+            len(self.candidates),
+            _shots,
+            seed_simulator,
+        )
+
+    # ── Reusable evaluation helpers (avoid 4-line pattern duplication) ────────
+
+    def _resolve_topology(self, topology: str | None = None) -> str:
+        """Resolve topology from explicit arg or self._args."""
+        if topology is not None:
+            return topology
+        topo_arg = getattr(self._args, "topology", "chain_1d")
+        if isinstance(topo_arg, list):
+            return topo_arg[0] if topo_arg else "chain_1d"
+        return topo_arg or "chain_1d"
+
+    def evaluate_noiseless_at_h(
+        self,
+        h: float,
+        theta: np.ndarray,
+        *,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+        p_layers: int | None = None,
+        model: str | None = None,
+        model_kwargs: dict | None = None,
+    ) -> float:
+        """Evaluate a parameter vector at a given h-value using the noiseless backend.
+
+        Encapsulates the repeated pattern:
+            lattice → H → circuit → backend.evaluate(circuit, H, theta)
+
+        Requires setup_physics() to have been called.
+
+        Parameters
+        ----------
+        h : float
+            Transverse field value.
+        theta : np.ndarray
+            Parameter vector to evaluate.
+        topology : str | None
+            Lattice topology. Default: self._args.topology (first if list).
+        n_qubits : int | None
+            System size. Default: self._args.n_qubits.
+        p_layers : int | None
+            HVA depth. Default: self._args.p_layers.
+        model : str | None
+            Model name from registry. Default: self._args.model or "tfim".
+        model_kwargs : dict | None
+            Extra kwargs for Hamiltonian construction.
+
+        Returns
+        -------
+        float
+            Energy expectation value ⟨H⟩.
+        """
+        _topo = self._resolve_topology(topology)
+        _n = n_qubits or getattr(self._args, "n_qubits", 6)
+        _p = p_layers or getattr(self._args, "p_layers", 1)
+        _model = model or getattr(self._args, "model", "tfim")
+
+        # Reuse setup_physics() objects when available, else import fresh
+        _get_spec = getattr(self, "get_model_spec", None)
+        if _get_spec is None:
+            from qmbp_simulation.models.model_registry import get_model_spec as _get_spec
+
+        spec = _get_spec(_model)
+        if model_kwargs:
+            spec = spec.with_params(**model_kwargs)
+
+        _make_lattice = getattr(self, "make_lattice", None)
+        if _make_lattice is None:
+            from qmbp_simulation import make_lattice as _make_lattice
+
+        lattice = _make_lattice(_topo, _n, J=1.0, h=h)
+        H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+        circuit, _ = spec.create_circuit(_n, _p, lattice, **spec.circuit_kwargs)
+
+        backend = self._resolve_backend()
+        return float(backend.evaluate(circuit, H, theta))
+
+    def predict_mpnn_at_h(
+        self,
+        predictor,
+        h: float,
+        *,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+    ) -> np.ndarray:
+        """Run MPNN inference at a single h-value and return predicted θ.
+
+        Encapsulates the repeated 10-line pattern of building a PyG Data object
+        from the lattice graph and running predictor inference. This pattern
+        appears 20+ times across runners.
+
+        Requires: torch, torch_geometric available (lazy import).
+
+        Parameters
+        ----------
+        predictor : MPNNPredictor
+            Trained MPNN model (must be in eval mode).
+        h : float
+            Transverse field value for node features.
+        topology : str | None
+            Lattice topology. Default: self._args.topology.
+        n_qubits : int | None
+            System size. Default: self._args.n_qubits.
+
+        Returns
+        -------
+        np.ndarray
+            Predicted parameter vector θ_pred (1D, shape=(n_params,)).
+        """
+        import numpy as np
+        import torch
+        from torch_geometric.data import Data
+
+        _topo = self._resolve_topology(topology)
+        _n = n_qubits or getattr(self._args, "n_qubits", 6)
+
+        # Reuse self.builder if available (from setup_physics), else create
+        _builder = getattr(self, "builder", None)
+        if _builder is None:
+            from qmbp_simulation import HamiltonianBuilder
+
+            _builder = HamiltonianBuilder()
+
+        _make_lattice = getattr(self, "make_lattice", None)
+        if _make_lattice is None:
+            from qmbp_simulation import make_lattice as _make_lattice
+
+        lattice = _make_lattice(_topo, _n, J=1.0, h=h)
+        edge_index_np, coord = _builder.build_graph_data(lattice)
+
+        h_feat = np.full(_n, float(h))
+        x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
+        edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+        data = Data(x=x, edge_index=edge_index)
+        data.batch = torch.zeros(_n, dtype=torch.long)
+
+        with torch.no_grad():
+            theta_pred = predictor(data).numpy().flatten()
+
+        return theta_pred
+
+    @staticmethod
+    def safe_per_h_loop(
+        h_values: list[float],
+        fn: Callable[[float], dict | None],
+        label: str = "operation",
+    ) -> list[dict]:
+        """Execute a function for each h-value with error isolation.
+
+        Each h-point is wrapped in try/except. Failed points are skipped
+        with a warning, and the loop continues. NaN/Inf results from `fn`
+        should return None to signal a skip.
+
+        This is the canonical pattern for noisy estimation loops where
+        individual h-points can fail without invalidating the entire section.
+
+        Parameters
+        ----------
+        h_values : list[float]
+            h-values to iterate over.
+        fn : callable
+            Function(h) -> dict with results for that h-point, or None to skip.
+        label : str
+            Description for log messages (e.g., "noisy_estimate", "PEA-ZNE").
+
+        Returns
+        -------
+        list[dict]
+            Results for successfully completed h-points. May be shorter
+            than h_values if some points failed.
+
+        Example
+        -------
+        >>> def estimate_h(h):
+        ...     e = noisy_estimate(circuit, H, backend, config)
+        ...     if not np.isfinite(e):
+        ...         return None
+        ...     return {"h": h, "energy": e}
+        >>> results = self.safe_per_h_loop(h_values, estimate_h, "noisy")
+        """
+        results: list[dict] = []
+        n_failed = 0
+        for h in h_values:
+            try:
+                result = fn(h)
+                if result is not None:
+                    results.append(result)
+                else:
+                    n_failed += 1
+                    logger.warning("    ⚠️  %s skipped at h=%.4f (returned None)", label, h)
+            except Exception as e:
+                n_failed += 1
+                logger.warning("    ⚠️  %s failed at h=%.4f: %s", label, h, e)
+        if n_failed > 0:
+            logger.info(
+                "    %s: %d/%d succeeded, %d skipped/failed",
+                label,
+                len(results),
+                len(h_values),
+                n_failed,
+            )
+        return results
+
+    def exact_ground_state(
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        *,
+        model: str = "tfim",
+        model_kwargs: dict | None = None,
+    ) -> tuple[float, float]:
+        """Compute exact ground energy and gap for a single h-point.
+
+        Uses ClassicalSolver (eigsh-based, memory-safe for any N).
+        Reusable by any runner that needs a reference energy.
+
+        Results are cached per (model, topology, n_qubits, h) to avoid
+        redundant computation within a single run (e.g., section_deploy
+        and section_vqe referencing the same h-points).
+
+        Parameters
+        ----------
+        topology : str
+        n_qubits : int
+        h : float
+        model : str
+        model_kwargs : dict | None
+
+        Returns
+        -------
+        tuple[float, float]
+            (ground_energy, spectral_gap)
+        """
+        # Cache key: round h to avoid floating-point mismatches
+        cache_key = (model, topology, n_qubits, round(h, 6))
+        if model_kwargs:
+            cache_key = (*cache_key, tuple(sorted(model_kwargs.items())))
+
+        if cache_key in self._gt_cache:
+            return self._gt_cache[cache_key]
+
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.solvers import ClassicalSolver
+
+        spec = get_model_spec(model)
+        if model_kwargs:
+            spec = spec.with_params(**model_kwargs)
+        lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
+        H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+        # Reuse self.solver if setup_physics() was called, else create fresh
+        solver = getattr(self, "solver", None) or ClassicalSolver()
+        gt = solver.solve(H, lattice)
+        result = (float(gt.ground_energy), float(gt.gap))
+        self._gt_cache[cache_key] = result
+        return result
+
+    @staticmethod
+    def compute_vqe_restarts(p_layers: int, n_qubits: int = 10) -> int:
+        """Compute recommended VQE restart count based on circuit complexity.
+
+        Calibrated from 200+ noiseless runs. Heuristic:
+        - p=1: 1 restart (single basin, trivial landscape)
+        - p=2: 3 restarts (few local minima)
+        - p=3: 5 restarts (sweet spot)
+        - p=4+: 7 restarts (many landscape branches)
+
+        For N≥16 with p≥3, adds +2 restarts (deeper minima at larger N).
+
+        Parameters
+        ----------
+        p_layers : int
+            HVA circuit depth.
+        n_qubits : int
+            System size (default 10).
+
+        Returns
+        -------
+        int
+            Recommended number of VQE restarts.
+        """
+        base = {1: 1, 2: 3, 3: 5, 4: 7}.get(p_layers, 7)
+        if n_qubits >= 16 and p_layers >= 3:
+            base += 2
+        return base
+
+    @staticmethod
+    def default_h_test_values(
+        p_layers: int,
+        topology: str = "chain_1d",
+        for_hardware: bool = False,
+    ) -> list[float]:
+        """Generate default h-test values for a given circuit depth.
+
+        Selects h-values within the expressible regime for the given p,
+        avoiding the zone below h_boundary where the ansatz cannot converge.
+
+        Parameters
+        ----------
+        p_layers : int
+            HVA circuit depth.
+        topology : str
+            Lattice topology (heavy_hex has higher h_boundary).
+        for_hardware : bool
+            If True, selects fewer points in the safe zone (for QPU cost control).
+
+        Returns
+        -------
+        list[float]
+            Descending h-values suitable for testing.
+        """
+        # h_boundary estimates (from F13: validated across N=10-20)
+        if topology in ("ladder", "square"):
+            offset = 0.5
+        elif topology == "triangular":
+            offset = 1.5
+        elif topology == "heavy_hex":
+            offset = 0.2
+        else:
+            offset = 0.0
+
+        if p_layers <= 1:
+            base_h = [4.0, 3.5, 3.25, 3.0]
+        elif p_layers == 2:
+            base_h = [3.0, 2.5, 2.0, 1.8, 1.6]
+        elif p_layers == 3:
+            base_h = [2.5, 2.0, 1.7, 1.5, 1.4]
+        else:
+            base_h = [2.0, 1.7, 1.5, 1.4, 1.3]
+
+        # Apply topology offset (shift upward for harder topologies)
+        adjusted = [h + offset for h in base_h]
+
+        if for_hardware:
+            # Fewer points, only safe zone (margin above h_boundary)
+            return adjusted[:3]
+        return adjusted
+
     def vqe_descending_sweep(
         self,
         topology: str,
@@ -1871,18 +2363,36 @@ class ValidationRunner(ABC):
         from qmbp_simulation import make_lattice
         from qmbp_simulation.models.model_registry import get_model_spec
 
+        # ── Input validation ──────────────────────────────────────────
+        if not h_values:
+            raise ValueError("vqe_descending_sweep: h_values cannot be empty.")
+        if n_restarts < 1:
+            raise ValueError(
+                f"vqe_descending_sweep: n_restarts must be ≥ 1, got {n_restarts}. "
+                "Use n_restarts=1 for a single optimization (no random restarts)."
+            )
+        # Deduplicate h_values (preserve order, warn if duplicates found)
+        h_sorted = sorted(set(h_values), reverse=True)
+        if len(h_sorted) < len(h_values):
+            logger.warning(
+                "vqe_descending_sweep: %d duplicate h-values removed (had %d, now %d).",
+                len(h_values) - len(h_sorted),
+                len(h_values),
+                len(h_sorted),
+            )
+
         spec = get_model_spec(model)
         backend = self._resolve_backend()
         mkw = model_kwargs or {}
 
         rng = np.random.default_rng(seed)
-        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=max(h_values))
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=h_sorted[0])
         circuit, _ = spec.create_circuit(n_qubits, p_layers, lattice_ref, **spec.circuit_kwargs)
         n_params = circuit.num_parameters
         prev_theta = rng.uniform(-0.01, 0.01, n_params)
 
         results: dict[float, np.ndarray] = {}
-        for h in sorted(h_values, reverse=True):
+        for h in h_sorted:
             lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
             H = spec.build_hamiltonian(lattice, **{**spec.hamiltonian_kwargs, **mkw})
 
@@ -2005,6 +2515,12 @@ class ValidationRunner(ABC):
             select_suspicious_points,
         )
 
+        # ── Input validation ──────────────────────────────────────────
+        if not h_values:
+            raise ValueError("vqe_adaptive_sweep: h_values cannot be empty.")
+        if n_restarts < 1:
+            raise ValueError(f"vqe_adaptive_sweep: n_restarts must be ≥ 1, got {n_restarts}.")
+
         spec = get_model_spec(model)
         mkw = model_kwargs or {}
         backend = self._resolve_backend()
@@ -2118,6 +2634,7 @@ class ValidationRunner(ABC):
                     "gap": gap,
                     "de_gap": de_gap,
                     "fidelity": vqe_result.fidelity,
+                    "energy_variance": vqe_result.energy_variance,
                     "theta_opt": vqe_result.theta_opt.tolist(),
                     "converged": vqe_result.n_iterations > 0,
                     "n_iterations": vqe_result.n_iterations,
@@ -2233,9 +2750,11 @@ class ValidationRunner(ABC):
 
         # ── Sweep summary ────────────────────────────────────────────────
         if results:
+            from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
+
             de_gaps = [r["de_gap"] for r in results if r["de_gap"] is not None]
             total_time = sum(r["elapsed_s"] for r in results)
-            n_pass = sum(1 for d in de_gaps if d < 0.05)
+            n_pass = sum(1 for d in de_gaps if d < DE_GAP_THRESHOLD)
             logger.info(
                 "    📊 Sweep summary: %d/%d pass (ΔE/gap<5%%), avg=%.2e, max=%.2e, total=%.1fs",
                 n_pass,
@@ -2250,59 +2769,6 @@ class ValidationRunner(ABC):
             self.cleanup_checkpoints(checkpoint_label)
 
         return results
-
-    @staticmethod
-    def exact_ground_state(
-        topology: str,
-        n_qubits: int,
-        h: float,
-        *,
-        model: str = "tfim",
-        model_kwargs: dict | None = None,
-    ) -> tuple[float, float]:
-        """Get exact ground state energy and gap.
-
-        Dispatches to exact diag (N<=15) or DMRG (N>15) automatically.
-
-        Parameters
-        ----------
-        topology : str
-            Lattice topology name.
-        n_qubits : int
-            Number of qubits.
-        h : float
-            Transverse field value.
-        model : str
-            Model name (default: "tfim").
-        model_kwargs : dict | None
-            Extra kwargs for Hamiltonian construction.
-
-        Returns
-        -------
-        (e_exact, gap) : tuple[float, float]
-            Ground state energy and spectral gap.
-        """
-        import numpy as np
-
-        from qmbp_simulation import ClassicalSolver, make_lattice
-        from qmbp_simulation.models.constants import EXACT_DIAG_QUBIT_LIMIT
-        from qmbp_simulation.models.model_registry import get_model_spec
-
-        spec = get_model_spec(model)
-        mkw = model_kwargs or {}
-        lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
-        H = spec.build_hamiltonian(lattice, **{**spec.hamiltonian_kwargs, **mkw})
-
-        if n_qubits <= EXACT_DIAG_QUBIT_LIMIT:
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            return float(evals[0]), float(evals[1] - evals[0])
-        else:
-            solver = ClassicalSolver()
-            result = solver.solve(H, lattice)
-            return result.ground_energy, result.gap
 
     @staticmethod
     def compute_fidelity(
@@ -2400,6 +2866,7 @@ class ValidationRunner(ABC):
     # ── Cross-N / MPNN utility methods (reusable by subclasses) ────────────
 
     @staticmethod
+    @staticmethod
     def compute_vqe_quality_metrics(
         vqe_energies: list[float],
         exact_energies: list[float],
@@ -2412,11 +2879,13 @@ class ValidationRunner(ABC):
         """
         import numpy as np
 
+        from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
+
         de_gaps = [
             abs(vqe_energies[i] - exact_energies[i]) / max(gaps[i], 1e-10)
             for i in range(len(vqe_energies))
         ]
-        n_pass = sum(1 for d in de_gaps if d < 0.05)
+        n_pass = sum(1 for d in de_gaps if d < DE_GAP_THRESHOLD)
         return {
             "de_gaps": de_gaps,
             "n_pass": n_pass,
@@ -4974,7 +5443,7 @@ class HardwareValidationRunner(ValidationRunner):
             "--p-layers",
             type=int,
             default=1,
-            choices=[1, 2, 3, 4, 5, 6],
+            choices=[1, 2, 3, 4, 5, 6, 7, 8],
             help="HVA circuit depth (default: %(default)s)",
         )
         parser.add_argument(

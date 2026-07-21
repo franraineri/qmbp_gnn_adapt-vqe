@@ -45,6 +45,7 @@ from qmbp_simulation.circuits.aqc_compression import (
     AQCCircuitCompressor,
     AQCCompressionConfig,
 )
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 from qmbp_simulation.utils.helpers import json_dump
 
 
@@ -88,7 +89,7 @@ def run_comparison(
                 H, circuit_p1, rng.uniform(-0.01, 0.01, circuit_p1.num_parameters)
             )
 
-            de_gap_p1 = abs(vqe_p1.energy - exact.ground_energy) / exact.gap
+            de_gap_p1 = abs(vqe_p1.energy - exact.ground_energy) / max(exact.gap, 1e-10)
             n_2q_p1 = sum(1 for inst in circuit_p1.data if inst.operation.num_qubits == 2)
 
             # ── p=2 VQE + AQC compression ─────────────────────────────────
@@ -97,7 +98,7 @@ def run_comparison(
                 H, circuit_p2, rng.uniform(-0.01, 0.01, circuit_p2.num_parameters)
             )
 
-            de_gap_p2 = abs(vqe_p2.energy - exact.ground_energy) / exact.gap
+            de_gap_p2 = abs(vqe_p2.energy - exact.ground_energy) / max(exact.gap, 1e-10)
             target_circuit = circuit_p2.assign_parameters(vqe_p2.theta_opt)
 
             t0 = time.time()

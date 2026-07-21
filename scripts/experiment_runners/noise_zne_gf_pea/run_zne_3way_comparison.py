@@ -42,6 +42,11 @@ from qmbp_simulation.framework.runner_base import (
     ValidationRunner,
     resolve_project_root,
 )
+from qmbp_simulation.models.constants import (
+    ZNE_DEFAULT_N_CANDIDATE_LAYOUTS,
+    ZNE_DEFAULT_NOISE_FACTORS,
+    ZNE_DEFAULT_SHOTS,
+)
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -61,10 +66,10 @@ DEFAULT_P_LAYERS = 1
 H_TEST_VALUES = [2.5, 2.0, 1.75]
 
 ZNE_N_LAYOUTS = 3
-ZNE_SHOTS = 16384
-N_CANDIDATE_LAYOUTS = 20
-GF_NOISE_FACTORS = (1, 3, 5)
-PEA_NOISE_FACTORS = (1, 3, 5)
+ZNE_SHOTS = ZNE_DEFAULT_SHOTS
+N_CANDIDATE_LAYOUTS = ZNE_DEFAULT_N_CANDIDATE_LAYOUTS
+GF_NOISE_FACTORS = ZNE_DEFAULT_NOISE_FACTORS
+PEA_NOISE_FACTORS = ZNE_DEFAULT_NOISE_FACTORS
 
 VQE_RESTARTS = 3
 VQE_MAXITER = 500
@@ -163,8 +168,8 @@ class ZNE3WayComparisonRunner(ValidationRunner):
 
         from qmbp_simulation import HamiltonianBuilder, make_lattice
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.execution import NoiselessBackend
-        from qmbp_simulation.execution.noisy_utils import (
+        from qmbp_simulation.execution import (
+            NoiselessBackend,
             NoisyEstimatorConfig,
             build_adjacency,
             find_layouts_bfs,
@@ -220,47 +225,38 @@ class ZNE3WayComparisonRunner(ValidationRunner):
         self._circuit = circuit
         n_params = circuit.num_parameters
 
-        rng = np.random.default_rng(42)
-        prev_theta = rng.uniform(-0.01, 0.01, n_params)
-        results = []
+        # Use base class VQE sweep (warm-start, NaN guard, maxfun cap)
+        theta_map = self.vqe_descending_sweep(
+            topology=self.topology,
+            n_qubits=self.n_qubits,
+            h_values=list(H_TEST_VALUES),
+            seed=42,
+            p_layers=self.p_layers,
+            n_restarts=VQE_RESTARTS,
+            maxiter=VQE_MAXITER,
+            sigma=0.1,
+        )
 
+        # Build per-point results with exact reference
+        results = []
+        backend = self._resolve_backend()
         for h in sorted(H_TEST_VALUES, reverse=True):
+            e_exact, gap = self.exact_ground_state(self.topology, self.n_qubits, h)
+            theta_opt = theta_map[h]
+
             lattice = self.make_lattice(self.topology, self.n_qubits, J=1.0, h=h)
             H = self.builder.build(lattice)
+            e_noiseless = float(backend.evaluate(circuit, H, theta_opt))
+            de_gap = abs(e_noiseless - e_exact) / max(gap, 1e-10)
 
-            H_mat = H.to_matrix()
-            if hasattr(H_mat, "toarray"):
-                H_mat = H_mat.toarray()
-            evals = np.sort(np.linalg.eigvalsh(H_mat))
-            e_exact = float(evals[0])
-            gap = float(evals[1] - evals[0])
-
-            best_energy = float("inf")
-            best_theta = prev_theta.copy()
-            for restart in range(VQE_RESTARTS):
-                x0 = prev_theta + rng.normal(0, 0.1, n_params) if restart > 0 else prev_theta.copy()
-                x0 = np.clip(x0, -np.pi, np.pi)
-                res = self.minimize(
-                    lambda params, _H=H, _c=circuit: self.noiseless.evaluate(_c, _H, params),
-                    x0,
-                    method="L-BFGS-B",
-                    bounds=[(-np.pi, np.pi)] * n_params,
-                    options={"maxiter": VQE_MAXITER, "ftol": 1e-14},
-                )
-                if res.fun < best_energy:
-                    best_energy = res.fun
-                    best_theta = res.x.copy()
-            prev_theta = best_theta.copy()
-
-            de_gap = abs(best_energy - e_exact) / max(gap, 1e-10)
             results.append(
                 {
                     "h": h,
                     "e_exact": e_exact,
                     "gap": gap,
-                    "e_noiseless": best_energy,
+                    "e_noiseless": e_noiseless,
                     "de_gap_noiseless": de_gap,
-                    "theta_opt": best_theta.tolist(),
+                    "theta_opt": theta_opt.tolist(),
                 }
             )
             logger.info(f"  h={h:.2f}: ΔE/gap={de_gap:.4f}")

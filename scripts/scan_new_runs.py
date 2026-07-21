@@ -72,6 +72,7 @@ class RunMetrics:
     n_converged: int | None = None
     vqe_time_s: float = 0.0
     theta_smoothness_max: float | None = None
+    n_variational_violations: int = 0
     # Section 3: MPNN
     mpnn_final_mse: float | None = None
     mpnn_best_mse: float | None = None
@@ -242,6 +243,7 @@ def parse_run(data: dict[str, Any]) -> RunMetrics | None:
             n_converged=topo_s2.get("n_converged"),
             vqe_time_s=topo_s2.get("total_time_s", s2.get("elapsed_s", 0.0)),
             theta_smoothness_max=topo_s2.get("theta_smoothness_max"),
+            n_variational_violations=topo_s2.get("n_variational_violations", 0),
             # S3
             mpnn_final_mse=mse_sum.get("final", s3_data.get("final_mse")),
             mpnn_best_mse=mse_sum.get("best"),
@@ -364,7 +366,8 @@ def _print_run_detail(r: RunMetrics) -> None:
     if r.deploy_mean_de_gap is not None:
         fid = _fmt(r.mean_fidelity)
         deg = _fmt(r.mean_de_gap_vqe)
-        print(f"    ├─ VQE: F̄={fid}  ΔE/gap={deg}")
+        viol_str = f"  ⚠️viol={r.n_variational_violations}" if r.n_variational_violations > 0 else ""
+        print(f"    ├─ VQE: F̄={fid}  ΔE/gap={deg}{viol_str}")
         mse = _fmt(r.mpnn_final_mse, ".2e", "N/A")
         epochs = r.mpnn_n_epochs if r.mpnn_n_epochs is not None else "?"
         params = r.mpnn_n_params if r.mpnn_n_params is not None else "?"
