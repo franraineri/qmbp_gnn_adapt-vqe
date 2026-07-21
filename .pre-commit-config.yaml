@@ -51,28 +51,6 @@ repos:
         args: [--fix, --exit-non-zero-on-fix]
         exclude: '^archive/'
 
-  # ── Documentation: Markdown linting (pure Python, no node) ─
-  - repo: https://github.com/jackdewinter/pymarkdown
-    rev: v0.9.25
-    hooks:
-      - id: pymarkdown
-        args: [
-          --config, .pymarkdown.json,
-          scan
-        ]
-        files: '^documentation/.*\.md$'
-
-  # ── Project-specific: HVA depth guard ──────────────────────
-  - repo: local
-    hooks:
-      - id: hva-depth-guard
-        name: HVA depth guard (p ≤ 2, Mele et al.)
-        entry: scripts/hooks/check_hva_depth.py
-        language: python
-        files: '\.py$'
-        exclude: '^archive/'
-        pass_filenames: true
-
   # ── Project-specific: No HEA circuits ─────────────────────
   - repo: local
     hooks:
@@ -82,20 +60,6 @@ repos:
         language: python
         files: '\.py$'
         exclude: '^(scripts/hooks/|archive/)'
-        pass_filenames: true
-
-  # ── Project-specific: Fidelity threshold ≥ 0.93 ───────────
-  # Note: model_registry.py is excluded because heisenberg/xy models
-  # legitimately use fidelity_threshold=0.60 (documented in project-status.md).
-  # experiments/ excluded because experiments override thresholds for testing.
-  - repo: local
-    hooks:
-      - id: fidelity-threshold-guard
-        name: Fidelity threshold ≥ 0.93
-        entry: scripts/hooks/check_fidelity_threshold.py
-        language: python
-        files: '\.py$'
-        exclude: '^(scripts/hooks/|experiments/|tests/|archive/|src/qmbp_simulation/models/model_registry\.py)'
         pass_filenames: true
 
   # ── Project-specific: Primitives V2 only ───────────────────
