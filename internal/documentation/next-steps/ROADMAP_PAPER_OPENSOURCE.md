@@ -270,11 +270,6 @@ qmbp_gnn_adapt-vqe/
 | `results/flow_checkpoints/test_flow.pt` | Test artifact |
 | `results/recovered/` | Job recovery artifacts |
 | `results/analysis/*.txt` | Generated digests (reproducible) |
-| `results/experiments/*.log` (22 logs) | Run logs |
-| `run_fill_matrix_gaps.sh` | Shell script personal |
-| `run_hmin_exploration.sh` | Shell script personal |
-| `run_hmin_models_exploration.sh` | Shell script personal |
-| `run_overnight_batch.sh` | Shell script personal |
 | `.project_health_state.json` | State file (regenerable) |
 
 ### Detalle de .gitignore expandido (agregar)

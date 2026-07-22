@@ -11,10 +11,10 @@ build/
 
 # ── Jupyter ──────────────────────────────────────────────────
 .ipynb_checkpoints/
-*.ipynb
 *_executed.ipynb
 *_executed*.ipynb
 Untitled*.ipynb
+# NOTE: notebooks/*.ipynb are tracked (demo notebooks for open-source)
 
 # ── Data artifacts (regenerable) ─────────────────────────────
 *.npz
@@ -22,6 +22,22 @@ Untitled*.ipynb
 *.pth
 *.h5
 *.hdf5
+
+# ── Whitelist: notebooks demo data (tracked for open-source) ─
+!notebooks/
+!notebooks/**
+!notebooks/data/*.json
+!notebooks/data/*.pt
+!notebooks/*.ipynb
+
+# ── Whitelist: results we keep ───────────────────────────────
+!results/gnn_qem/
+!results/gnn_qem/**
+!results/H_EXPR_MATRIX.md
+!results/H_FRONTIER_MODELS.md
+!results/H_FRONTIER_TOPOLOGIES.md
+!results/HVA_EXPRESSIBILITY_ANALYSIS.md
+!results/.gitkeep
 
 # ── OS files ─────────────────────────────────────────────────
 .DS_Store
@@ -60,8 +76,6 @@ checkpoint*
 log_*
 digest_*
 .project_health_state.json
-*/analysis/*.json
-*/scaling/*.json
 
 plot_*
 
@@ -72,13 +86,36 @@ plot_*
 
 digest_poc/*
 *_TEMP.py
-*.pdf
-*.txt
-*/figures/*
-*.png
-*.jpeg
+
 *exp_hw_rehearsal*
-*.json
-*.qasm
-*.sh
-*/binnacles/*
+
+# ── Results — GITIGNORE most (heavy, reproducible) ───────────
+# Keep ONLY: gnn_qem/, expressibility analysis MDs, .gitkeep
+results/experiments/
+results/thesis/
+results/thesis_extensions/
+results/scaling/
+results/bond_resolved_scaling/
+results/aqc_tensor/
+results/mitigation_benchmark/
+results/mitigation_benchmark_v2/
+results/benchmarks/
+results/checkpoints/
+results/flow_checkpoints/
+results/recovered/
+results/analysis/
+results/hardware/
+
+# ── Generated outputs ────────────────────────────────────────
+project_health/output/
+
+# ── Personal shell scripts in root ───────────────────────────
+/run_*.sh
+
+# ── Temporary / junk ─────────────────────────────────────────
+temporal.txt
+test_output.log
+workloads*/
+
+# ── Notebook test script (dev only) ─────────────────────────
+notebooks/test_notebooks.py

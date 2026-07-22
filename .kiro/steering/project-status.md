@@ -28,7 +28,7 @@
 - **tfim|chain_1d|10|3**: 50% (was 100%, Δ=-50%)
 - **tfim|ladder|10|3**: 25% (was 50%, Δ=-25%)
 
-## Next-Steps (Post-Thesis Techniques — documentation/next-steps/)
+## Next-Steps (Post-Thesis Techniques — internal/documentation/next-steps/)
 
 | # | Technique | Effort | Priority | Key Module |
 |---|-----------|:---:|:---:|---|
