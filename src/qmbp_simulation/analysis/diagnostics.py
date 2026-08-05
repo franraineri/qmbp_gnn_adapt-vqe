@@ -26,6 +26,7 @@ from qmbp_simulation.analysis.metrics import (
     compute_snr,
     compute_theta_smoothness,
 )
+from qmbp_simulation.utils.helpers import json_serialize
 
 logger = logging.getLogger(__name__)
 
@@ -763,32 +764,8 @@ class DiagnosticCollector:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# JSON serialization helpers
+# JSON serialization helpers (use canonical json_serialize from utils)
 # ─────────────────────────────────────────────────────────────────────────────
 
-
-def _to_json_safe(obj):
-    """Recursively convert numpy types to JSON-serializable Python types."""
-    if obj is None:
-        return None
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        val = float(obj)
-        return None if (np.isnan(val) or np.isinf(val)) else val
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, dict):
-        return {str(k): _to_json_safe(v) for k, v in obj.items()}
-    if isinstance(obj, list | tuple):
-        return [_to_json_safe(item) for item in obj]
-    if isinstance(obj, float):
-        return None if (np.isnan(obj) or np.isinf(obj)) else obj
-    if isinstance(obj, int | str | bool):
-        return obj
-    # Fallback: try to convert to float/int
-    try:
-        val = float(obj)
-        return None if (np.isnan(val) or np.isinf(val)) else val
-    except (TypeError, ValueError):
-        return str(obj)
+# Backward-compat alias (no external callers expected, but plays safe)
+_to_json_safe = json_serialize

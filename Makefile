@@ -103,17 +103,27 @@ preflight-strict:  ## Preflight with strict mode (warnings = errors). Use SCRIPT
 check-full: lint test test-tools smoke-test  ## Run lint + fast tests + tool tests + smoke test
 	@echo "✅ Full validation passed"
 
+zoo-validate:  ## Validate model zoo integrity (checksums + manifest)
+	@$(PYTHON) -c "from qmbp_simulation.predictors.model_zoo import validate_zoo; r = validate_zoo(); print(f'Model Zoo: {r[\"n_entries\"]} entries, {r[\"n_valid\"]} valid, {r[\"n_missing\"]} missing (gitignored), {r[\"n_corrupted\"]} corrupted'); [print(f'  ❌ {e}') for e in r['errors']]; exit(1 if r['n_corrupted'] > 0 else 0)"
+
+zoo-list:  ## List available pre-trained models in the zoo
+	@$(PYTHON) -c "from qmbp_simulation.predictors.model_zoo import list_pretrained; entries = list_pretrained(); print(f'Model Zoo: {len(entries)} checkpoints'); [print(f'  {e.model}/{e.topology} N={e.n_qubits} p={e.p_layers} pass_rate={e.pass_rate:.0%}') for e in entries]"
+
+quality-check:  ## Run VQE quality predictor for common configs
+	@$(PYTHON) -c "from qmbp_simulation.analysis.quality_predictor import QualityPredictor; p = QualityPredictor(); configs = [('tfim','chain_1d',10,2),('tfim','heavy_hex',10,2),('tfim_longitudinal','chain_1d',10,2),('heisenberg','chain_1d',10,2)]; [print(p.predict(model=m,topology=t,n_qubits=n,p_layers=pl)) for m,t,n,pl in configs]"
+
 check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) + smoke test
 	@echo "✅ Complete validation passed (including slow tests)"
 
 
 # ── Cleaning ─────────────────────────────────────────────────
 
-clean:  ## Remove caches and build artifacts
-	rm -rf .hypothesis/ .ruff_cache/ .pytest_cache/ __pycache__/
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -name "*.pyc" -delete
-	@echo "✅ Caches cleaned"
+clean:  ## Remove caches, temp files, empty dirs (dry-run: make clean-check)
+	@.venv/bin/python scripts/maintenance/cleanup_repo.py --execute
+	@echo "✅ Repository cleaned"
+
+clean-check:  ## Show what would be cleaned (dry-run)
+	@.venv/bin/python scripts/maintenance/cleanup_repo.py --verbose
 
 # ── Type checking ────────────────────────────────────────────
 

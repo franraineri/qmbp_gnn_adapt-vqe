@@ -30,7 +30,32 @@ jobs:
           mypy src/qmbp_simulation/execution/ \
                src/qmbp_simulation/framework/criteria.py \
                src/qmbp_simulation/framework/result_io.py \
+               src/qmbp_simulation/predictors/model_zoo.py \
+               src/qmbp_simulation/analysis/quality_predictor.py \
                --ignore-missing-imports
+
+      - name: Security check (torch.load guard)
+        run: |
+          python scripts/hooks/check_safe_torch_load.py \
+            $(find src/ scripts/ -name "*.py" -newer .git/HEAD 2>/dev/null | head -50) || true
+
+      - name: Model zoo integrity
+        run: |
+          python -c "
+          from qmbp_simulation.predictors.model_zoo import _load_manifest, _CHECKPOINTS_DIR, _verify_checkpoint_integrity
+          entries = _load_manifest()
+          if not entries:
+              print('Model zoo: empty (OK)')
+          else:
+              for e in entries:
+                  path = _CHECKPOINTS_DIR / e.checkpoint_file
+                  if path.exists():
+                      _verify_checkpoint_integrity(path, e.sha256)
+                      print(f'  ✓ {e.checkpoint_file} integrity OK')
+                  else:
+                      print(f'  ⚠ {e.checkpoint_file} not in repo (gitignored)')
+              print(f'Model zoo: {len(entries)} entries verified')
+          "
 
       - name: Fast tests
         run: make test

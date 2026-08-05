@@ -109,7 +109,7 @@ class MCDropoutRunner(NoiselessPipelineRunner):
         from qmbp_simulation import HamiltonianBuilder
 
         if self._mpnn_model is None:
-            self._mpnn_model = self._try_load_mpnn_checkpoint()
+            self._mpnn_model = self.load_mpnn_from_zoo()
         if self._mpnn_model is None:
             return {"pass": False, "error": "No trained MPNN. Run Sections 1-3 first."}
 

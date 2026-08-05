@@ -58,23 +58,14 @@ from __future__ import annotations
 import sys
 
 from qmbp_simulation.framework.variant_runner import PipelineVariant, run_variant_script
+from qmbp_simulation.framework.preflight import P1_VALID_REGIME
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
 PIPELINE_SCRIPT = "scripts/experiment_runners/noiseless/run_noiseless_pipeline.py"
 OUTPUT_BASE = "results/thesis/verification_r1"
 SEEDS = DEFAULT_SEEDS
-
-# Valid regime boundaries (corrected based on R2 data analysis)
-# These are the MINIMUM h_test values where p=1 HVA can express the ground state
-P1_VALID_REGIME = {
-    ("chain_1d", 6): 1.6,
-    ("chain_1d", 10): 1.9,
-    ("ladder", 6): 2.0,
-    ("ladder", 10): 3.0,  # CORRECTED: was 2.0, R2 data shows failures at 2.75
-    ("triangular", 6): 3.0,
-    ("triangular", 10): 3.5,
-}
 
 
 # ─── Tier 1: HIGH priority — Correct claims ─────────────────────────────────

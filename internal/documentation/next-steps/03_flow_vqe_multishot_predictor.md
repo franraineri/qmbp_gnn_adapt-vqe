@@ -5,6 +5,16 @@
 **Code:** ✅ `https://github.com/olsson-group/Flow-VQE`  
 **Priority:** HIGH (1 week, directly improves pass rate near h_min frontier)
 
+> **🤖 AI Agent Instruction:** Before implementing, clone and study the Flow-VQE
+> repository at https://github.com/olsson-group/Flow-VQE. Key files to examine:
+> 1. The normalizing flow architecture (layers, conditioning mechanism)
+> 2. The preference-based training loop (not standard NLL — different from our EmbeddingMAF)
+> 3. How they condition the flow on molecular/Hamiltonian properties
+> 4. Their sampling + selection strategy (how many samples, selection criterion)
+> 5. Compare their flow architecture with our existing `analysis/normalizing_flow.py`
+>    (EmbeddingMAF, MAFLayer) — identify what we can reuse vs what needs adaptation
+> 6. Their approach uses preference-based training; ours uses NLL. Decide which fits better.
+
 ## What It Does
 
 Instead of predicting a single deterministic θ* (like our MPNN), Flow-VQE uses

@@ -15,6 +15,8 @@ from typing import Any
 
 import numpy as np
 
+from qmbp_simulation.utils.helpers import json_serialize
+
 
 @dataclass
 class ExperimentEvent:
@@ -160,7 +162,7 @@ class StructuredLogger:
             "events": [e.to_dict() for e in self.events],
         }
         with open(path, "w") as f:
-            json.dump(data, f, indent=2, default=_json_default)
+            json.dump(data, f, indent=2, default=json_serialize)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize for embedding in result JSON."""
@@ -170,19 +172,6 @@ class StructuredLogger:
             "failure_summary": self.get_failure_summary(),
             "events": [e.to_dict() for e in self.events],
         }
-
-
-def _json_default(obj: Any) -> Any:
-    """JSON serializer for numpy types."""
-    if isinstance(obj, np.integer):
-        return int(obj)
-    if isinstance(obj, np.floating):
-        return float(obj)
-    if isinstance(obj, np.ndarray):
-        return obj.tolist()
-    if isinstance(obj, np.bool_):
-        return bool(obj)
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

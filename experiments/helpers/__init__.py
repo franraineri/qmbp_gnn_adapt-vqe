@@ -9,6 +9,7 @@ These are building blocks imported by experiment scripts:
     - hessian_restart: Hessian-guided adaptive restarts
     - active_learning: Ensemble-based active learning
     - graph_utils: Topology-aware graph construction for MPNN
+    - scaling_utils: Power-law fitting, transpilation metrics, chi-convergence
 """
 
 from experiments.helpers.active_learning import (
@@ -30,8 +31,11 @@ from experiments.helpers.dypp import (
 )
 from experiments.helpers.graph_utils import (
     build_experiment_dataset,
+    compare_theta_arrays,
+    evaluate_bond_resolved_variant,
     predict_theta,
     predict_theta_batch,
+    train_bond_resolved_variant,
 )
 from experiments.helpers.hessian_restart import (
     hessian_guided_vqe,
@@ -45,6 +49,12 @@ from experiments.helpers.physics_loss import (
     PhysicsInformedLoss,
     evaluate_energy_batch,
     select_eval_subset,
+)
+from experiments.helpers.scaling_utils import (
+    analyze_chi_convergence,
+    compute_transpilation_metrics,
+    evaluate_at_multiple_chi,
+    fit_power_law,
 )
 from experiments.helpers.sign_equivariant import (
     SignInvariantLoss,

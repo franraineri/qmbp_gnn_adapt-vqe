@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "scripts/experiment_runners/noiseless/*.py,scripts/experiment_runners/scaling/*.py"
+fileMatchPattern: "scripts/experiment_runners/noiseless/*.py,scripts/experiment_runners/scaling/*.py,scripts/experiment_runners/bond_resolved/*.py"
 ---
 
 # Noiseless & Scaling Runner Patterns (ALWAYS ENFORCE)

@@ -1,8 +1,21 @@
----
 inclusion: always
----
 
 # Reuse-First Workflow (MANDATORY)
+
+## CRITICAL RULE: Implement in the most general module first
+
+When adding ANY new functionality (helper, utility, pattern, fix):
+
+1. **Ask**: "Could more than one runner/script benefit from this?"
+2. **If YES** → implement in the appropriate shared module:
+   - Runner patterns → `src/qmbp_simulation/framework/runner_base.py` (ValidationRunner methods)
+   - CLI args → `src/qmbp_simulation/framework/cli.py`
+   - Analysis utilities → `src/qmbp_simulation/analysis/metrics.py`
+   - Model persistence → `src/qmbp_simulation/predictors/model_zoo.py`
+   - Physics helpers → appropriate `src/qmbp_simulation/` subpackage
+3. **If NO** → implement in the specific runner, but keep it extractable (no inline lambdas, clear interface)
+
+**NEVER implement reusable logic directly in a runner script.** If you find yourself writing >10 lines of utility code in a `section_*()` method, it belongs in the base class or a shared module.
 
 Every time new Python code is about to be created (script, helper, module, plotter, analyzer):
 
@@ -33,3 +46,141 @@ Every time new Python code is about to be created (script, helper, module, plott
 - Creating analysis helpers that replicate `project_health/analysis/` functionality
 - Writing JSON serialization logic (use `json_serialize` from utils)
 - Duplicating experiment criteria (use `framework/criteria.py`)
+
+## Runner Reuse Patterns (MANDATORY for experiment runners)
+
+When writing `section_*()` methods in any `ValidationRunner` subclass:
+
+### Ground Truth Access
+```python
+# ✅ CORRECT — uses 2-level cache (in-memory + disk-persistent GroundTruthCache)
+e_exact, gap = self.exact_ground_state(topology, n_qubits, h, model="tfim")
+
+# ❌ WRONG — manual GroundTruthCache.get/put
+gt_cache = GroundTruthCache()
+cached = gt_cache.get(topo, n, model, h)
+```
+
+### Circuit Evaluation with Cache
+```python
+# ✅ CORRECT — CachedBackend wraps backend + EvalCache transparently
+eval_backend = self.get_cached_backend(topology=topo, n_qubits=N, model="tfim", p_layers=p)
+eval_backend.set_h(h)
+energy = eval_backend.evaluate(circuit, H, theta)
+
+# ❌ WRONG — manual EvalCache.make_key/get/put
+eval_cache = EvalCache()
+key = eval_cache.make_key(topo, N, h, theta)
+cached = eval_cache.get(key)
+```
+
+### Backend Selection by System Size
+```python
+# ✅ CORRECT — auto-selects Statevector (N≤22) or MPS (N>22)
+backend = self.select_backend(n_qubits)
+# For VQE loops (stricter threshold):
+backend = self.select_backend(n_qubits, for_vqe_loop=True)
+
+# ❌ WRONG — inline if/else
+if n > STATEVECTOR_MAX_N:
+    backend = MPSBackend(chi_max=64)
+```
+
+### MPNN Model Persistence (via model_zoo)
+```python
+# ✅ CORRECT — load from zoo (auto-detects model/topo/N/p from self._args)
+mpnn = self.load_mpnn_from_zoo()
+# With explicit params or cross-N:
+mpnn = self.load_mpnn_from_zoo(model="tfim", n_qubits=10, allow_cross_n=True)
+
+# ✅ CORRECT — save to zoo after training
+self.save_mpnn_to_zoo(predictor, n_training_points=len(h_values), notes=f"mse={mse:.2e}")
+
+# ❌ WRONG — manual save_mpnn_checkpoint + md5 fingerprint
+fp_hash = hashlib.md5(fp_str.encode()).hexdigest()[:8]
+save_mpnn_checkpoint(model, f"mpnn_{topo}_n{N}_p{p}_{fp_hash}.pt")
+
+# ❌ WRONG — manual load_mpnn_checkpoint + path construction
+from qmbp_simulation.predictors import load_mpnn_checkpoint
+model = load_mpnn_checkpoint(manual_path)
+```
+
+### VQE Checkpoint Resume
+```python
+# ✅ CORRECT — typed contract with param validation
+checkpoint = self.load_vqe_checkpoint(topology, n_params=circuit.num_parameters)
+if checkpoint is not None:
+    results, prev_theta = checkpoint
+
+# ❌ WRONG — manual load_checkpoint + inline key access
+cp = self.load_checkpoint(f"vqe_{topology}")
+results = cp["results"]
+theta = np.array(cp["current_theta"])
+```
+
+### Fidelity Computation (safe, N-guarded)
+```python
+# ✅ CORRECT — handles N-check, solver call, and errors automatically
+fidelity = self.safe_compute_fidelity(circuit, theta, topology, n_qubits, h, model="tfim")
+
+# ✅ ALSO CORRECT — when you already have the ground state vector
+fidelity = self.compute_fidelity(circuit, theta, exact_ground_state_vector)
+
+# ❌ WRONG — inline N-check + try/except + solver call
+if n_qubits <= STATEVECTOR_MAX_N:
+    try:
+        gt = solver.solve(H, lat)
+        fidelity = state_fidelity(Statevector(bound), Statevector(gt.ground_state))
+    except: ...
+```
+
+### Per-H Result Dict (standardized for compute_deploy_summary)
+```python
+# ✅ CORRECT — ensures all required keys, float-typed, ΔE/gap computed
+result = self.build_per_h_result(h, e_pred, e_exact, gap, fidelity=fid, method="warm")
+
+# ❌ WRONG — manual dict construction with inconsistent key names
+results.append({"h_test": h, "de_gap": de_gap, ...})  # "h_test" vs "h" inconsistency
+```
+
+### Per-H Deployment Summary Statistics
+```python
+# ✅ CORRECT — reusable utility for pass rates, mean ΔE/gap, fidelity stats
+from qmbp_simulation.analysis.metrics import compute_deploy_summary
+summary = compute_deploy_summary(per_h_results)
+# Returns: n_points, pass_rate_5pct, pass_rate_10pct, mean_de_gap, mean_fidelity, etc.
+
+# ❌ WRONG — manual aggregation
+n_pass = sum(1 for r in results if r["de_gap"] < 0.05)
+pass_rate = n_pass / len(results)
+mean_fidelity = np.mean([r["fidelity"] for r in results if r["fidelity"]])
+```
+
+### H-Grid Generation
+```python
+# ✅ CORRECT — non-uniform (dense near h_critical)
+self._h_values = self.generate_h_grid()
+
+# ✅ CORRECT — uniform (for bond-resolved or when h_critical unknown)
+self._h_values = self.generate_h_grid(uniform=True)
+
+# ❌ WRONG — inline np.linspace
+self._h_values = np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)
+```
+
+### Quality Check
+```python
+# ✅ CORRECT — uses base helper with auto-detect or explicit configs
+qc = self.run_quality_check()
+qc = self.run_quality_check(configs=[{"model": "tfim_bond_resolved", ...}])
+
+# ❌ WRONG — inline QualityPredictor instantiation
+from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+predictor = QualityPredictor()
+report = predictor.predict(...)
+```
+
+### Per-H Result Dict Structure (for compute_deploy_summary compatibility)
+Each per-h result dict MUST contain at minimum `"de_gap"` (float).
+Optional enrichment: `"abs_error"`, `"fidelity"`, `"e_pred"`, `"e_exact"`, `"gap"`.
+

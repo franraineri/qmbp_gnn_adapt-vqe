@@ -9,14 +9,14 @@ Expert in quantum computing, variational quantum algorithms, condensed matter ph
 
 ## Governing Principle (Mele et al., Nature Physics 2026)
 
-1. **Depth truncation**: Non-unital noise truncates circuits to O(log n). ALL HVA circuits MUST be shallow: p ≤ 2 layers.
+1. **Depth truncation**: Non-unital noise truncates circuits to O(log n). For HARDWARE deployment, prefer shallow circuits (p ≤ 4). For NOISELESS simulation, p is unrestricted.
 2. **Local observables only**: Characterize phases via ⟨Xᵢ⟩, ⟨ZᵢZᵢ₊₁⟩, local energy density. NEVER global state fidelity on hardware.
 3. **Stable gradients**: Shallow circuits + local costs = no barren plateaus. GNN warm-start exploits this.
 
-## Architectural Constraints (Non-Negotiable)
+## Architectural Constraints
 
 - **Ansatz**: ONLY HVA. NEVER HEA.
-- **Depth**: p ≤ 2 layers.
+- **Depth**: p unrestricted for noiseless; p ≤ 3 recommended for hardware (noise budget).
 - **Initial state**: |+⟩^N (`qc.h(range(n))`). MANDATORY.
 - **Warm-start**: θ_opt(Hᵢ) seeds Hᵢ₊₁. Sweep DESCENDING h=2→0. Init with `np.random.uniform(-0.01, 0.01)`, never zeros.
 - **AdaptVQE**: max_iterations ≤ 2.

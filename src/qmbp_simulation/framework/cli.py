@@ -408,6 +408,136 @@ def resolve_output_dir(path: str | Path) -> Path:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Accelerate mode arguments
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def add_accelerate_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add accelerated pipeline arguments (skip VQE, use pre-trained MPNN).
+
+    Adds: --accelerate, --checkpoint, --export-zoo, --quality-check
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Parser to add arguments to.
+
+    Returns
+    -------
+    argparse._ArgumentGroup
+        The argument group.
+    """
+    group = parser.add_argument_group("Accelerated pipeline")
+    group.add_argument(
+        "--accelerate",
+        action="store_true",
+        default=False,
+        help=(
+            "Skip VQE training: load pre-trained MPNN from model zoo or "
+            "--checkpoint, predict θ_opt for all h-values directly. "
+            "Gives 3× speedup over full pipeline, zero-config."
+        ),
+    )
+    group.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a trained MPNN .pt checkpoint file. "
+            "Used with --accelerate to skip Phases 1-3 entirely."
+        ),
+    )
+    group.add_argument(
+        "--export-zoo",
+        action="store_true",
+        default=False,
+        help=(
+            "After successful pipeline run, export the trained MPNN to "
+            "the model zoo (data/model_zoo/) for future --accelerate use."
+        ),
+    )
+    group.add_argument(
+        "--quality-check",
+        action="store_true",
+        default=False,
+        help=(
+            "Run VQE quality predictor BEFORE execution. "
+            "Reports estimated pass probability and aborts if predicted to fail."
+        ),
+    )
+    group.add_argument(
+        "--active-rounds",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "Number of active learning rounds (P4). Each round: MPNN predicts → "
+            "identifies high-uncertainty points → runs VQE only there → retrains. "
+            "0 = disabled (default). 1-3 recommended for production."
+        ),
+    )
+    return group
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Iterative improvement arguments
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def add_iterative_improve_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
+    """Add iterative improvement loop arguments.
+
+    Provides: --iterative-improve, --max-iterations, --improvement-threshold,
+    --budget-only, --force-method, --bidirectional-anchors
+
+    These are reusable by any runner that supports the predict→refine→retrain
+    cycle for cross-N transfer or deployment quality improvement.
+    """
+    group = parser.add_argument_group("Iterative improvement")
+    group.add_argument(
+        "--iterative-improve",
+        action="store_true",
+        default=False,
+        help="Run iterative improvement loop: predict → identify failures → "
+        "VQE refine → upsert NPZ → retrain → repeat until convergence.",
+    )
+    group.add_argument(
+        "--max-iterations",
+        type=int,
+        default=3,
+        help="Maximum iterations for --iterative-improve loop (default: 3)",
+    )
+    group.add_argument(
+        "--improvement-threshold",
+        type=float,
+        default=0.01,
+        help="Stop iterating when pass_rate improvement < this (default: 0.01)",
+    )
+    group.add_argument(
+        "--budget-only",
+        action="store_true",
+        default=False,
+        help="Only estimate compute budget (dry-run for --iterative-improve).",
+    )
+    group.add_argument(
+        "--force-method",
+        type=str,
+        default=None,
+        choices=["COBYLA", "L-BFGS-B", "Nelder-Mead"],
+        help="Force VQE optimizer method, bypassing COBYLA_AUTO_SWITCH_THRESHOLD.",
+    )
+    group.add_argument(
+        "--bidirectional-anchors",
+        action="store_true",
+        default=False,
+        help="Enable bidirectional ascending merge for anchor VQE. "
+        "Re-optimizes failing anchors in ascending direction.",
+    )
+    return group
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Validation arguments
 # ─────────────────────────────────────────────────────────────────────────────
 

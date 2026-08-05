@@ -97,6 +97,9 @@ def derive_actions(report: Any) -> list[ActionItem]:
     # ─── Experiment failure-derived actions ──────────────────────────────
     actions.extend(_actions_from_experiment_failures(report.experiments))
 
+    # ─── Quality-predicted viable experiments (opportunities) ────────────
+    actions.extend(_actions_from_quality_prediction())
+
     # Sort by priority (CRITICAL first)
     actions.sort(key=lambda a: a.priority.value)
     return actions
@@ -452,6 +455,58 @@ def _actions_from_experiment_failures(
                 )
             )
 
+    return actions
+
+
+def _actions_from_quality_prediction() -> list[ActionItem]:
+    """Suggest high-probability configs not yet in the result index.
+
+    Uses QualityPredictor.suggest_viable_configs() to recommend experiments
+    that are historically likely to pass but haven't been run yet.
+    Non-blocking: returns empty list if QualityPredictor unavailable.
+    """
+    actions: list[ActionItem] = []
+    try:
+        from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+
+        predictor = QualityPredictor()
+        viable = predictor.suggest_viable_configs(min_pass_prob=0.7)
+
+        # Filter out configs that already have similar runs (to avoid redundancy)
+        # Only suggest configs with high confidence (similar_runs >= 2)
+        novel = []
+        for cfg in viable[:20]:  # Check top 20
+            report = predictor.predict(
+                model=cfg["model"],
+                topology=cfg["topology"],
+                n_qubits=cfg["n_qubits"],
+                p_layers=cfg["p_layers"],
+            )
+            # If few similar runs exist → this is a novel opportunity
+            if report.similar_runs < 3:
+                novel.append(cfg)
+            if len(novel) >= 5:
+                break
+
+        if novel:
+            detail_parts = [
+                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} "
+                f"({c['pass_probability']:.0%})"
+                for c in novel[:5]
+            ]
+            actions.append(
+                ActionItem(
+                    priority=Priority.LOW,
+                    title=f"{len(novel)} high-probability config(s) not yet explored",
+                    detail=(
+                        f"Predicted to pass (≥70%): {'; '.join(detail_parts)}. "
+                        "These have few historical runs but strong predicted pass rate."
+                    ),
+                    category="opportunity",
+                )
+            )
+    except (ImportError, Exception):
+        pass  # Non-blocking
     return actions
 
 

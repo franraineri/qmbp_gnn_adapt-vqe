@@ -56,6 +56,123 @@ from qmbp_simulation.solvers import ClassicalSolver
 logger = logging.getLogger(__name__)
 
 
+def run_accelerated(
+    lattice: LatticeConfig,
+    h_values: np.ndarray,
+    *,
+    model_spec: ModelSpec | None = None,
+    checkpoint_path: str | Path | None = None,
+    backend: ExecutionBackend | None = None,
+    p_layers: int = 2,
+    seed: int = 42,
+) -> dict[str, Any]:
+    """Run the accelerated pipeline: skip full VQE, use MPNN-driven warm-start.
+
+    This is the library-level equivalent of ``--accelerate``. Delegates to
+    :class:`AcceleratedVQE` which implements the full P1-P4 strategy:
+    anchor-VQE + MPNN predict + refine uncertain points.
+
+    If a pre-trained checkpoint is provided, the full pipeline skips training
+    entirely. Otherwise, it trains on K anchor points (3× faster than full VQE).
+
+    Parameters
+    ----------
+    lattice : LatticeConfig
+        Lattice configuration (topology, n_qubits, J, edges).
+    h_values : np.ndarray
+        Field values to predict θ for (descending order).
+    model_spec : ModelSpec | None
+        Model specification. If None, uses default TFIM.
+    checkpoint_path : str | Path | None
+        Explicit MPNN checkpoint. If provided, skips all training.
+    backend : ExecutionBackend | None
+        Backend for energy evaluation. Defaults to NoiselessBackend.
+    p_layers : int
+        HVA depth (default 2).
+    seed : int
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    dict[str, Any]
+        Results dict from AcceleratedResult.to_dict(), or a simplified
+        format when using direct checkpoint loading.
+    """
+    from qmbp_simulation.pipeline.accelerated import AcceleratedConfig, AcceleratedVQE
+
+    backend = backend or NoiselessBackend()
+
+    # If checkpoint is given, use model_zoo.load_pretrained for direct loading
+    if checkpoint_path is not None:
+        from qmbp_simulation.predictors.model_zoo import load_pretrained
+        from qmbp_simulation.predictors.mpnn import predict_theta
+
+        model_name = model_spec.name if model_spec else "tfim"
+        mpnn, meta = load_pretrained(
+            model=model_name,
+            topology=lattice.topology,
+            n_qubits=lattice.n_qubits,
+            p_layers=p_layers,
+            checkpoint_path=checkpoint_path,
+        )
+        predictions = predict_theta(mpnn, lattice, h_values)
+
+        # Build circuit
+        if model_spec:
+            circuit, _ = model_spec.create_circuit(
+                lattice.n_qubits, p_layers, lattice, **model_spec.circuit_kwargs
+            )
+        else:
+            from qmbp_simulation.circuits import HVACircuitBuilder
+            circuit, _ = HVACircuitBuilder().create(lattice.n_qubits, p_layers, lattice)
+
+        # Evaluate
+        solver = ClassicalSolver()
+        ham_builder = HamiltonianBuilder()
+        results_per_h = []
+        for h in h_values:
+            h_f = float(h)
+            theta = predictions[h_f]
+            lattice_h = make_lattice(
+                topology=lattice.topology, n_qubits=lattice.n_qubits,
+                J=lattice.J, h=h_f, periodic=lattice.periodic,
+            )
+            H = (model_spec.build_hamiltonian(lattice_h, **model_spec.hamiltonian_kwargs)
+                 if model_spec else ham_builder.build(lattice_h))
+            e_pred = backend.evaluate(circuit, H, theta)
+            exact = solver.solve(H, lattice_h)
+            de_gap = abs(e_pred - exact.ground_energy) / max(exact.gap, 1e-10)
+            results_per_h.append({
+                "h": h_f, "e_pred": float(e_pred),
+                "e_exact": float(exact.ground_energy),
+                "de_gap": float(de_gap), "pass": de_gap < DE_GAP_THRESHOLD,
+            })
+        n_pass = sum(1 for r in results_per_h if r["pass"])
+        return {
+            "per_point": results_per_h,
+            "pass_rate": n_pass / len(results_per_h) if results_per_h else 0.0,
+            "n_pass": n_pass, "n_total": len(results_per_h),
+            "model_source": "checkpoint",
+        }
+
+    # No explicit checkpoint → use AcceleratedVQE (anchor + MPNN + refine)
+    if model_spec:
+        circuit, _ = model_spec.create_circuit(
+            lattice.n_qubits, p_layers, lattice, **model_spec.circuit_kwargs
+        )
+    else:
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        circuit, _ = HVACircuitBuilder().create(lattice.n_qubits, p_layers, lattice)
+
+    config = AcceleratedConfig(use_zoo=True)
+    accel = AcceleratedVQE(
+        lattice=lattice, circuit=circuit, spec=model_spec,
+        backend=backend, config=config,
+    )
+    result = accel.run(h_values, seed=seed, p_layers=p_layers)
+    return result.to_dict()
+
+
 def run_exact_diag_sweep(
     h_values: np.ndarray,
     n_qubits: int,
@@ -135,6 +252,7 @@ class PipelineRunner:
         seed: int | None = None,
         collector: DiagnosticCollector | None = None,  # type: ignore[name-defined]  # noqa: F821
         model_spec: ModelSpec | None = None,
+        eval_cache: bool = True,
     ) -> None:
         self._lattice = lattice
         self._config = config
@@ -142,6 +260,42 @@ class PipelineRunner:
         self._checkpoint_dir = checkpoint_dir
         self._seed = seed
         self._model_spec = model_spec
+
+        # ── Evaluation cache: wrap backend for automatic reuse ────────────
+        # Caches backend.evaluate() calls keyed by (topology, N, h, theta).
+        # Saves significant compute when the same h-point is evaluated
+        # multiple times (bidirectional sweep, VQE restarts, refinement).
+        # Disable with eval_cache=False for debugging or when results must
+        # be freshly computed (e.g., noise model comparison).
+        self._eval_cache_enabled = eval_cache
+        if eval_cache:
+            from qmbp_simulation.execution.eval_cache import CachedBackend
+
+            self._backend = CachedBackend(
+                self._backend,
+                topology=lattice.topology,
+                n_qubits=lattice.n_qubits,
+                model=model_spec.name if model_spec else "tfim",
+                p_layers=config.p_layers,
+                J=float(lattice.J) if np.isscalar(lattice.J) else 1.0,
+            )
+
+        # F1+F2: Warn if using a noisy backend for MPNN training data generation.
+        # Noise-aware MPNN training has been experimentally shown to degrade
+        # predictions by 2-14× (Cohen's d = -2.4 to -2.9 across 4 configs).
+        # The canonical pipeline always trains on noiseless θ_opt.
+        # CachedBackend wrapping a NoiselessBackend is still noiseless.
+        _real_backend = getattr(self._backend, "_backend", self._backend)
+        if not isinstance(_real_backend, NoiselessBackend):
+            _backend_name = getattr(self._backend, "name", type(self._backend).__name__)
+            logger.warning(
+                "⚠️ PipelineRunner initialized with non-noiseless backend (%s). "
+                "MPNN training data (Phase 2 θ_opt) will be generated under noise. "
+                "This is experimentally shown to degrade MPNN predictions 2-14×. "
+                "For best results, use NoiselessBackend for Phase 2 and apply "
+                "noise mitigation (ZNE/PEA) only at deployment (Phase 4).",
+                _backend_name,
+            )
 
         # Internal state
         self._ham_builder = HamiltonianBuilder()
@@ -177,6 +331,8 @@ class PipelineRunner:
         # Theta validation — initialized after Phase 3 trains the MPNN
         self._theta_validator = None  # ThetaValidator | None (lazy import)
         self._theta_validation_level: int = 4  # default: L1-L4 (cheap)
+        # h/J rescaling — when True, MPNN graphs use h/J as feature
+        self._rescale_h_by_j: bool = False
 
         # ── Runtime metrics accumulator (persisted in pipeline_metadata) ──
         self._run_metrics: dict[str, Any] = {
@@ -213,6 +369,20 @@ class PipelineRunner:
         self._theta_validation_level = level
         if level == 0:
             self._theta_validator = None
+
+    def set_rescale_h_by_j(self, enabled: bool = True) -> None:
+        """Enable h/J rescaling in MPNN graph node features.
+
+        When enabled, the node h-feature is computed as h/J instead of h.
+        This allows the MPNN to learn θ(h/J), enabling zero-shot
+        generalization across different coupling strengths J.
+
+        Parameters
+        ----------
+        enabled : bool
+            If True, rescale h by J in all graph constructions.
+        """
+        self._rescale_h_by_j = bool(enabled)
 
     # ── Private helpers for model-aware dispatch ─────────────────────────
 
@@ -296,6 +466,7 @@ class PipelineRunner:
         h_values: np.ndarray,
         exact_data: list[GroundTruthResult],
         bidirectional: bool = True,
+        adaptive: bool = False,
     ) -> list[VQEResult]:
         """Phase 2: VQE optimization with warm-start sweep.
 
@@ -309,6 +480,11 @@ class PipelineRunner:
             If True (default), run both descending and ascending sweeps
             and keep the best energy at each point. Doubles VQE time but
             eliminates warm-start propagation errors.
+        adaptive : bool
+            If True, use adaptive restart allocation (more restarts near
+            h_critical, fewer for easy points) and selective ascending
+            (only re-optimize suspicious points). Reduces VQE cost by
+            30-60% with negligible quality loss. Default False.
 
         Returns
         -------
@@ -320,13 +496,35 @@ class PipelineRunner:
 
         circuit, theta = self._create_circuit()
 
+        # ── Consistency check: Hamiltonian ↔ Circuit ↔ Lattice ──────────
+        # Verify that the circuit has the expected structure for this lattice.
+        # This catches the class of bugs where topology is silently ignored.
+        n_edges = len(self._lattice.edges)
+        n_qubits = self._lattice.n_qubits
+        if circuit.num_qubits != n_qubits:
+            raise RuntimeError(
+                f"Phase 2 consistency error: circuit has {circuit.num_qubits} qubits "
+                f"but lattice has {n_qubits}. Topology: {self._lattice.topology}"
+            )
+        # Verify against a reference energy at the first h-value: E(θ=0) should
+        # be finite and for |+⟩ initial state, it's the expectation of H in |+⟩.
+        if exact_data and len(exact_data) > 0:
+            e_first = exact_data[0].ground_energy
+            if not np.isfinite(e_first):
+                raise RuntimeError(
+                    f"Phase 2 consistency error: ground energy from Phase 1 is "
+                    f"{e_first} (non-finite) at h={h_values[0]:.4f}."
+                )
+
         if bidirectional:
-            logger.info("  🔄 Bidirectional sweep enabled (desc + asc, keep best)")
+            mode = "adaptive" if adaptive else "full"
+            logger.info(f"  🔄 Bidirectional sweep enabled ({mode})")
             results = self._optimizer.bidirectional_sweep(
                 h_values=h_values,
                 circuit=circuit,
                 lattice=self._lattice,
                 exact_data=exact_data,
+                adaptive=adaptive,
             )
         else:
             results = self._optimizer.descending_sweep(
@@ -334,6 +532,7 @@ class PipelineRunner:
                 circuit=circuit,
                 lattice=self._lattice,
                 exact_data=exact_data,
+                adaptive=adaptive,
             )
 
         # Record per-point diagnostics
@@ -460,6 +659,7 @@ class PipelineRunner:
                     e_exact=e_exact,
                     fidelities=fidelities,
                     fidelity_threshold=threshold,  # noqa
+                    rescale_h_by_j=self._rescale_h_by_j,
                 )
                 if threshold < fidelity_threshold:
                     original = fidelity_threshold
@@ -513,6 +713,7 @@ class PipelineRunner:
                 e_exact=e_clean,
                 fidelities=fid_clean,
                 fidelity_threshold=0.0,  # Already filtered
+                rescale_h_by_j=self._rescale_h_by_j,
             )
 
         # ── θ data augmentation: add noisy copies to expand dataset ───
@@ -672,8 +873,6 @@ class PipelineRunner:
         DeployResult
             Deployment result with energy, observables, and metrics.
         """
-        import torch
-
         logger.info(f"Phase 4: Deploying at h_test={h_test}")
         t0 = time.time()
 
@@ -688,39 +887,13 @@ class PipelineRunner:
         hamiltonian = self._build_hamiltonian(lattice_test)
         exact = self._solver.solve(hamiltonian, lattice_test)
 
-        # Predict parameters with MPNN
-        model.eval()
-        edge_index_np, coord = self._ham_builder.build_graph_data(lattice_test)
+        # Predict parameters with MPNN (canonical utility handles rescaling + guards)
+        from qmbp_simulation.predictors.mpnn import predict_theta as _predict_theta
 
-        # Build graph input for prediction — must mirror build_graph_dataset()
-        # Node features: [h_i, coordination_number_i] per site
-        from torch_geometric.data import Data
-
-        h_feat = np.full(lattice_test.n_qubits, float(h_test))
-        x = torch.tensor(
-            np.stack([h_feat, coord.astype(float)], axis=1),
-            dtype=torch.float32,
+        predictions = _predict_theta(
+            model, lattice_test, [h_test], rescale_h_by_j=self._rescale_h_by_j
         )
-        edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-
-        graph = Data(x=x, edge_index=edge_index)
-
-        with torch.no_grad():
-            theta_pred = model(graph).numpy().flatten()
-
-        # ── Guard #3: NaN/Inf propagation guard ──────────────────────────
-        if not np.all(np.isfinite(theta_pred)):
-            n_bad = int(np.sum(~np.isfinite(theta_pred)))
-            logger.warning(
-                f"  ⚠️ MPNN predicted {n_bad}/{len(theta_pred)} NaN/Inf values "
-                f"at h={h_test:.4f}. Replacing with zeros (fallback)."
-            )
-            theta_pred = np.where(np.isfinite(theta_pred), theta_pred, 0.0)
-
-        # ── Guard #5: Output bounds clipping ─────────────────────────────
-        # θ must be in [-π, π] for the HVA circuit. MPNN without output
-        # activation can predict outside this range.
-        theta_pred = np.clip(theta_pred, -np.pi, np.pi)
+        theta_pred = predictions[h_test]
 
         # ── θ_pred validation (L1-L4 by default) ────────────────────────
         theta_validation_report = None
@@ -758,6 +931,25 @@ class PipelineRunner:
         # Evaluate predicted circuit — use model-aware dispatch
         circuit, _ = self._create_circuit()
         predicted_energy = self._backend.evaluate(circuit, hamiltonian, theta_pred)
+
+        # ── Energy sanity check ──────────────────────────────────────────
+        # The predicted energy must be finite and shouldn't be wildly worse
+        # than the initial state |+⟩^N energy (which is -h*N for TFIM).
+        if not np.isfinite(predicted_energy):
+            logger.error(
+                "Phase 4: predicted_energy is %s at h=%.4f. "
+                "MPNN prediction produced degenerate parameters.",
+                predicted_energy, h_test,
+            )
+        elif exact.ground_energy is not None:
+            # Energy much worse than random θ=0 indicates catastrophic prediction
+            e_initial_state = -float(lattice_test.h) * lattice_test.n_qubits  # E(|+⟩) ≈ -hN
+            if predicted_energy > e_initial_state + 1.0:
+                logger.warning(
+                    "Phase 4: predicted energy (%.4f) is worse than |+⟩ state "
+                    "(≈%.4f) at h=%.4f. MPNN prediction is catastrophically bad.",
+                    predicted_energy, e_initial_state, h_test,
+                )
 
         # Compute observables from the predicted state (noiseless)
         mag_x_pred = 0.0
@@ -1018,6 +1210,41 @@ class PipelineRunner:
                 self._run_metrics["valid_regime_warning"] = True
         except (ImportError, ValueError):
             pass  # preflight not available or p>2 — skip check silently
+
+        # ── Guard #2: Quality prediction (historical pass rate) ──────────
+        # Non-blocking: logs prediction and persists it in results for analysis.
+        # Helps explain failures post-hoc and warns early about futile configs.
+        try:
+            from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+
+            _qp = QualityPredictor()
+            _qp_report = _qp.predict(
+                model=self._model_spec.name if self._model_spec else "tfim",
+                topology=self._lattice.topology,
+                n_qubits=self._lattice.n_qubits,
+                p_layers=self._config.p_layers,
+                h_min=float(h_values[-1]),
+                h_max=float(h_values[0]),
+            )
+            results["quality_prediction"] = _qp_report.to_dict()
+            if not _qp_report.should_run:
+                logger.warning(
+                    "  ⚠️ QUALITY PREDICTION: ABORT recommended "
+                    "(pass_prob=%.0f%%, CI=[%.0f%%, %.0f%%]). "
+                    "Reasons: %s",
+                    _qp_report.pass_probability * 100,
+                    _qp_report.confidence_interval[0] * 100,
+                    _qp_report.confidence_interval[1] * 100,
+                    "; ".join(_qp_report.reasons),
+                )
+            elif _qp_report.recommendation == "CAUTION":
+                logger.info(
+                    "  📊 Quality prediction: CAUTION (pass_prob=%.0f%%, %d similar runs)",
+                    _qp_report.pass_probability * 100,
+                    _qp_report.similar_runs,
+                )
+        except (ImportError, Exception):
+            pass  # Non-blocking — QualityPredictor unavailable
 
         # Phase 1: Ground truth
         if skip_phase1 and checkpoint_path:
@@ -1294,6 +1521,18 @@ class PipelineRunner:
             },
             "run_metrics": self._run_metrics,
         }
+
+        # ── Eval cache stats ─────────────────────────────────────────────
+        if self._eval_cache_enabled and hasattr(self._backend, "cache"):
+            cache_stats = self._backend.cache.stats()
+            results["pipeline_metadata"]["eval_cache"] = cache_stats
+            self._backend.cache.flush()
+            if cache_stats["hits"] > 0:
+                logger.info(
+                    "  💾 Eval cache: %d hits, %d misses (%.0f%% hit rate, %d entries)",
+                    cache_stats["hits"], cache_stats["misses"],
+                    cache_stats["hit_rate"] * 100, cache_stats["n_entries"],
+                )
 
         self.collector.cleanup_checkpoints()
 

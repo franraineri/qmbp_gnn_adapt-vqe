@@ -1,16 +1,18 @@
 {
   "enabled": true,
   "name": "Reuse check before new module",
-  "description": "Before writing a new Python file, checks the module index for existing similar functionality that could be reused or extended instead of creating new code.",
+  "description": "Before creating (just creating) a new Python file, checks the module index for existing similar functionality that could be reused or extended instead of creating new code.",
   "version": "1",
   "when": {
     "type": "preToolUse",
     "toolTypes": [
-      "write"
+      "create"
     ]
   },
   "then": {
     "type": "askAgent",
     "prompt": "BEFORE creating this file: If this is a NEW .py file (not editing an existing one), verify against the module-index.md steering file that no existing module already provides similar functionality. If a match exists, state which module could be reused/extended and prefer that approach. If no match or the file is an edit to an existing file, proceed normally."
-  }
+  },
+  "workspaceFolderName": "qmbp_gnn_adapt-vqe",
+  "shortName": "reuse-check-before-write"
 }

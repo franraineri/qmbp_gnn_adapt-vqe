@@ -1,0 +1,287 @@
+[
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 6,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n6_p1_20260728T234938.pt",
+    "h_range": [
+      1.5,
+      3.0
+    ],
+    "pass_rate": 0.875,
+    "n_training_points": 3,
+    "seeds": [
+      42
+    ],
+    "created": "20260728T234938",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=88%)",
+    "sha256": "76882438f35ea51cd2b2b5bb30779556a1304865867f8e95daf2d32ae53651c8"
+  },
+  {
+    "model": "tfim",
+    "topology": "chain_1d",
+    "n_qubits": 4,
+    "p_layers": 1,
+    "checkpoint_file": "tfim_chain_1d_n4_p1_e2e_test.pt",
+    "h_range": [
+      1.3,
+      3.0
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 6,
+    "seeds": [
+      42
+    ],
+    "created": "2026-07-29T00:00:10.697333+00:00",
+    "notes": "E2E test checkpoint",
+    "sha256": "c7fa44f51fa1a55b4230314947135288f7334dfaea5d154deace80d82cafec1d"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260729T143219.pt",
+    "h_range": [
+      2.0,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260729T143219",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "084c55c6acd73f9b8c251267a6cd8d0424d20c4cf23e5f3282bf3ccf7576d5b7"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 8,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n8_p1_20260731T015027.pt",
+    "h_range": [
+      2.0,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260731T015027",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "000f8a63b811bd957944c1094b81ff36b2fb3c5d9a008ba3c679671a4d966c5d"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_ladder_n10_p1_20260731T023820.pt",
+    "h_range": [
+      2.9,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 10,
+    "seeds": [
+      42
+    ],
+    "created": "20260731T023820",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "853b67e6f899f823ebddc314598326d3304d82fb20021b155f56c78278a9fc69"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 12,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n12_p1_20260731T024813.pt",
+    "h_range": [
+      2.0,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260731T024813",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "f58b0b0724d46078fc6d4a319d7360f4fdfc823b9785ce73e105ba0038504b2f"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 6,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_ladder_n6_p1_20260731T030347.pt",
+    "h_range": [
+      2.5,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 12,
+    "seeds": [
+      42
+    ],
+    "created": "20260731T030347",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "a71c3a50cf14be8cb793c871b49fab654d8193df00b04c9c8ae8eaf38ee20235"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 8,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_ladder_n8_p1_20260731T031036.pt",
+    "h_range": [
+      2.7,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 12,
+    "seeds": [
+      42
+    ],
+    "created": "20260731T031036",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "5c13eaaa3af83cb74bdfa528fa861bc7ef2236937f2b83836bf4866f3d67479a"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_8+12+20_p1.pt",
+    "h_range": [
+      2.0,
+      3.5
+    ],
+    "pass_rate": 0.6428571428571429,
+    "n_training_points": 33,
+    "seeds": [
+      42
+    ],
+    "created": "2026-07-31T14:45:10.707327+00:00",
+    "notes": "Iterative improve iter 1: N=[8, 12, 20]",
+    "sha256": "2993b3bd697869b9872e6f339eb85379bd78e8b5c8d81c51b389f9d4140f577d"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 6,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_square_n6_p1_20260804T020934.pt",
+    "h_range": [
+      2.5,
+      4.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260804T020934",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "ed9f13dad57215f83ea20193cdb6c01d9acab0b83579118e796a77ead562ca1a"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 6,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_heavy_hex_n6_p1_20260804T021052.pt",
+    "h_range": [
+      2.5,
+      4.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260804T021052",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
+    "sha256": "153aed2907d8e1561c4bb25cd4feac4eb9a9a5f59cde3de00f544c3b51c49527"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12_p1.pt",
+    "h_range": [
+      0.5,
+      2.5
+    ],
+    "pass_rate": 0.76,
+    "n_training_points": 77,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-05T05:09:02.984278+00:00",
+    "notes": "Iterative improve iter 3: N=[4, 6, 10, 12]",
+    "sha256": "3fc20c4b395d29a0c3f32e1e9cf7aa3743bc065f318da56a0322b0a5e9274698"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "triangular",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_triangular_multiN_3+6+9+10_p1.pt",
+    "h_range": [
+      0.5,
+      2.5
+    ],
+    "pass_rate": 0.0,
+    "n_training_points": 51,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-05T05:11:50.329682+00:00",
+    "notes": "Iterative improve iter 1: N=[3, 6, 9, 10]",
+    "sha256": "a3290d8fb6249e1843b86bd7d5e0464abbb67baec2abf86da5a6542052ff6165"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_ladder_multiN_4+6+8+10+12+14+16+20_p1.pt",
+    "h_range": [
+      0.5,
+      2.5
+    ],
+    "pass_rate": 0.0,
+    "n_training_points": 108,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-05T05:14:26.740625+00:00",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 12, 14, 16, 20]",
+    "sha256": "7bcb53ad8d29d5468854e07581cd256ad675c04669493d30e9d1fa2a4c6b6bbe"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12_p1.pt",
+    "h_range": [
+      2.5,
+      4.5
+    ],
+    "pass_rate": 0.6111111111111112,
+    "n_training_points": 81,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-05T05:25:17.298180+00:00",
+    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 12]",
+    "sha256": "35d2051569f37841dee2976c35b6e2da31ca99dcd07ea8eb9bc48e155047c9b2"
+  }
+]

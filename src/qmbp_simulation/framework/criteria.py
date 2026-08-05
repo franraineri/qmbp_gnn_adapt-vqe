@@ -190,6 +190,32 @@ EXPERIMENT_CRITERIA: dict[str, dict[str, Any]] = {
         "pass_threshold": 1.0,  # All CV points must pass
         "metric": "pass_rate",
     },
+    # ── Noise-Aware MPNN + Unified Graph (#04/#06 integration) ────────────
+    "NOISE_AWARE_MPNN": {
+        "metric": "pass_rate",
+        "threshold": 0.70,
+        "desc": "Noise-trained MPNN (no ZNE) outperforms noiseless MPNN (no ZNE) on >=70% h-points",
+    },
+    "NOISE_AWARE_ZNE": {
+        "metric": "pass_rate",
+        "threshold": 0.90,
+        "desc": "Noise-trained MPNN + ZNE achieves ΔE/gap < 5% on >=90% h-points",
+    },
+    "UNIFIED_GRAPH": {
+        "metric": "mean_de_gap",
+        "threshold": 0.05,
+        "desc": "Unified Hamiltonian+Circuit graph MSE improvement >= 30% vs Hamiltonian-only",
+    },
+    "UNIFIED_NOISE_COMBINED": {
+        "metric": "pass_rate",
+        "threshold": 0.80,
+        "desc": "Combined unified graph + noise-aware training: best variant of 2x2 matrix",
+    },
+    "UNIFIED_MPNN_ARCHITECTURE": {
+        "metric": "pass_rate",
+        "threshold": 0.60,
+        "desc": "UnifiedMPNN (type-aware) outperforms BondResolvedMPNN on >=60% test h-points",
+    },
 }
 
 # Experiments where hypothesis rejection IS a valid scientific finding
@@ -206,6 +232,10 @@ REJECTION_IS_FINDING: set[str] = {
     "HW_REHEARSAL_V2",
     "S8",
     "S8b",
+    "NOISE_AWARE_MPNN",
+    "UNIFIED_GRAPH",
+    "UNIFIED_NOISE_COMBINED",
+    "UNIFIED_MPNN_ARCHITECTURE",
 }
 
 

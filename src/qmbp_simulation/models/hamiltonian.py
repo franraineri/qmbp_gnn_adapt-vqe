@@ -297,6 +297,12 @@ def make_lattice(
     # Self-loops are always invalid; duplicates silently double interaction strength.
     edge_set: set[tuple[int, int]] = set()
     for i, j in edges:
+        # Out-of-bounds check — indices must be valid qubit labels
+        if i < 0 or i >= n_qubits or j < 0 or j >= n_qubits:
+            raise ValueError(
+                f"Edge ({i}, {j}) has out-of-bounds qubit index for N={n_qubits} "
+                f"in topology '{topology}'. Valid range: [0, {n_qubits - 1}]."
+            )
         if i == j:
             raise ValueError(
                 f"Self-loop detected at site {i} in topology '{topology}'. "
@@ -326,6 +332,25 @@ def make_lattice(
         )
 
     coord = compute_coordination_numbers(n_qubits, edges)
+
+    # ── Topology-specific edge count sanity check ────────────────────
+    # Catches generator bugs where 2D topologies silently produce 1D-like
+    # edge counts (the root cause pattern of the DMRG heavy_hex bug).
+    _expected_min_edges = {
+        "chain_1d": n_qubits - 1,  # Exactly N-1 for open chain
+        "ladder": 2 * (n_qubits // 2 - 1) + n_qubits // 2,  # ~1.5*(N-2)
+        "heavy_hex": n_qubits - 1,  # Backbone + bridges ≥ N-1
+        "square": n_qubits,  # ~2N for square grid
+        "triangular": n_qubits,  # ~3N for triangular
+    }
+    min_expected = _expected_min_edges.get(topology, n_qubits - 1)
+    if len(edges) < min_expected and n_qubits >= 6:
+        logger.warning(
+            "make_lattice: topology '%s' N=%d has only %d edges (expected ≥%d). "
+            "The lattice may have fewer bonds than expected for this topology.",
+            topology, n_qubits, len(edges), min_expected,
+        )
+
     return LatticeConfig(
         topology=topology,
         n_qubits=n_qubits,
@@ -385,6 +410,19 @@ class HamiltonianBuilder:
 
         # Task 2.4: validate Hermiticity and dimensions
         self.validate(H, n)
+
+        # ── Consistency guard: term count must match lattice structure ──
+        expected_zz_terms = len(lattice.edges)
+        expected_x_terms = n
+        actual_terms = len(H)
+        expected_total = expected_zz_terms + expected_x_terms
+        if actual_terms != expected_total:
+            logger.error(
+                "Hamiltonian term count mismatch: got %d but expected %d "
+                "(%d ZZ from edges + %d X from sites). "
+                "Possible: edges list corrupted or duplicate bonds.",
+                actual_terms, expected_total, expected_zz_terms, expected_x_terms,
+            )
 
         return H
 

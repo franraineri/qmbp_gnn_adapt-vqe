@@ -71,7 +71,8 @@ class HardwareBackend(ExecutionBackend):
     def load_gnn_qem(self, checkpoint_path: str | Path) -> None:
         """Load a trained GNN-QEM model for post-ZNE energy correction.
 
-        When loaded, `run_deployment()` will apply GNN correction after ZNE
+        Auto-detects V1 vs V2 checkpoint format. When loaded,
+        `run_deployment()` will apply GNN correction after ZNE
         and before affine clipping. The correction is confidence-gated:
         if the model's confidence is below `gnn_qem_confidence_threshold`
         (default 0.5), the correction is skipped.
@@ -79,16 +80,38 @@ class HardwareBackend(ExecutionBackend):
         Parameters
         ----------
         checkpoint_path : str | Path
-            Path to a .pt checkpoint saved by `save_qem_checkpoint()`.
+            Path to a .pt checkpoint saved by `save_qem_checkpoint()` (V1)
+            or `save_qem_v2_checkpoint()` (V2).
 
         References
         ----------
         Wang et al. arXiv:2604.16815 (2026) — GEM framework.
         """
-        from qmbp_simulation.predictors.gnn_qem import load_qem_checkpoint
+        import torch
 
-        model, train_result, metadata = load_qem_checkpoint(Path(checkpoint_path))
-        self._gnn_qem_model = model
+        path = Path(checkpoint_path)
+        # Auto-detect version by peeking at checkpoint
+        raw = torch.load(path, map_location="cpu", weights_only=False)
+        is_v2 = isinstance(raw, dict) and raw.get("version") == "2.0"
+
+        if is_v2:
+            from qmbp_simulation.predictors.gnn_qem import (
+                GNNQEMConfigV2,
+                GNNQEMCorrectorV2,
+            )
+            config = GNNQEMConfigV2(**raw["config"])
+            model = GNNQEMCorrectorV2(config)
+            model.load_state_dict(raw["state_dict"])
+            model.eval()
+            self._gnn_qem_model = model
+            self._gnn_qem_version = 2
+            train_result = raw.get("train_result")
+            metadata = raw.get("metadata", {})
+        else:
+            from qmbp_simulation.predictors.gnn_qem import load_qem_checkpoint
+            model, train_result, metadata = load_qem_checkpoint(path)
+            self._gnn_qem_model = model
+            self._gnn_qem_version = 1
         self._logger.log(
             "gnn_qem_loaded",
             data={

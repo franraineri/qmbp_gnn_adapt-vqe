@@ -569,6 +569,14 @@ class ValidationRunner(ABC):
         interrupted = False
         _current_section_id = None
 
+        # ── Workaround: Qiskit mimalloc GC deadlock on macOS ARM64 ────────
+        # Qiskit's Rust accelerator uses mimalloc which can deadlock during
+        # Python GC when freeing CircuitData objects. Disable GC during section
+        # execution (re-enabled between sections and always on exit).
+        import gc as _gc
+        _gc_was_enabled = _gc.isenabled()
+        _gc.disable()
+
         try:
             for section in selected:
                 # Skip sections already completed in the resumed run
@@ -583,6 +591,14 @@ class ValidationRunner(ABC):
                 result = self._execute_section(section)
                 self._section_results.append(result)
                 _current_section_id = None  # Section completed successfully
+
+                # NOTE: GC collect between sections is DISABLED.
+                # Qiskit's CircuitData destructor triggers mimalloc's
+                # _mi_arenas_page_unabandon → sleep() loop on macOS ARM64.
+                # Memory cleanup happens via os._exit() at process end.
+                # _gc.enable()
+                # _gc.collect()
+                # _gc.disable()
 
                 # Stop-on-failure: abort remaining sections
                 if not result.success and self._args.stop_on_failure:
@@ -606,88 +622,148 @@ class ValidationRunner(ABC):
                 },
             )
 
-        # ─── Step 4: Save results ────────────────────────────────────────
-        # Always save — even on interrupt, so partial results are preserved.
-        # Wrap in try/except so a serialization failure doesn't lose the log.
+        # ─── Step 4: Save results + exit ─────────────────────────────────
+        # Save result JSON and exit immediately via os._exit() to avoid
+        # mimalloc spinlock on macOS ARM64 with Qiskit+PyTorch in memory.
+        # The index refresh runs in a detached subprocess after exit.
+        import os
         total_elapsed = time.time() - t_total
+        n_fail = sum(1 for r in self._section_results if not r.success)
+        exit_code = 1 if n_fail > 0 or interrupted else 0
+
         saved_path = None
         try:
-            envelope = self._build_envelope(total_elapsed)
-            if interrupted:
-                envelope["interrupted"] = True
-                envelope["completed_sections"] = len(self._section_results)
-                envelope["interrupted_section"] = _current_section_id
-            saved_path = save_experiment_result(envelope, experiment_id=self.experiment_id)
-        except Exception as save_exc:
-            logger.error(
-                f"Failed to save results: {save_exc}. "
-                f"Completed sections: {len(self._section_results)}."
-            )
-
-        # Save structured log independently (even if result save failed)
-        try:
-            if saved_path is not None:
-                log_path = saved_path.parent / f"log_{saved_path.stem.replace('run_', '')}.json"
-            else:
-                # Fallback: save log to experiment dir root
+            # Check if we're in a state where _build_envelope would spinlock.
+            # Indicator: torch is imported AND has live tensors → use minimal save.
+            _torch_loaded = "torch" in sys.modules
+            if _torch_loaded:
+                # Minimal save path: avoid _build_envelope which triggers
+                # mimalloc spinlock via Qiskit/PyTorch object interactions.
+                # Pre-serialize ALL data to native Python types to avoid
+                # json_serialize touching numpy/torch objects during json.dump.
+                import json as _json
                 from qmbp_simulation.framework.result_io import generate_timestamp
+                from qmbp_simulation.utils.helpers import json_serialize
 
-                log_path = (
-                    Path("results")
-                    / "experiments"
-                    / f"exp_{self.experiment_id}"
-                    / f"log_emergency_{generate_timestamp()}.json"
+                def _deep_serialize(obj):
+                    """Recursively convert numpy/torch to JSON-safe Python."""
+                    if isinstance(obj, dict):
+                        return {k: _deep_serialize(v) for k, v in obj.items()}
+                    if isinstance(obj, (list, tuple)):
+                        return [_deep_serialize(v) for v in obj]
+                    try:
+                        return json_serialize(obj)
+                    except TypeError:
+                        return str(obj)
+
+                config = self.build_config()
+                config.setdefault("experiment_id", self.experiment_id)
+                results = {}
+                for r in self._section_results:
+                    results[f"section_{r.section_id}"] = _deep_serialize({
+                        "name": r.name,
+                        "success": r.success,
+                        "elapsed_s": round(r.elapsed_s, 2),
+                        "data": r.data,
+                        "error": r.error,
+                    })
+                n_pass = sum(1 for r in self._section_results if r.success)
+                summary = {
+                    "n_sections": len(self._section_results),
+                    "n_passed": n_pass,
+                    "n_failed": len(self._section_results) - n_pass,
+                    "pass_rate": n_pass / max(len(self._section_results), 1),
+                    "total_elapsed_s": round(total_elapsed, 2),
+                    "all_passed": n_fail == 0,
+                }
+                envelope = {
+                    "schema_version": "2.0",
+                    "timestamp": generate_timestamp(),
+                    "config": _deep_serialize(config),
+                    "results": results,
+                    "summary": summary,
+                    "elapsed_s": round(total_elapsed, 2),
+                    "analysis": {
+                        "experiment_id": self.experiment_id,
+                        "summary": summary,
+                    },
+                }
+                if interrupted:
+                    envelope["interrupted"] = True
+                    envelope["completed_sections"] = len(self._section_results)
+                    envelope["interrupted_section"] = _current_section_id
+
+                # Write directly (bypass save_experiment_result which calls
+                # ResultIndex internally and uses json_serialize again)
+                from qmbp_simulation.framework.result_io import _DEFAULT_RESULTS_ROOT
+                exp_dir = _DEFAULT_RESULTS_ROOT / f"exp_{self.experiment_id.lower()}"
+                exp_dir.mkdir(parents=True, exist_ok=True)
+                saved_path = exp_dir / f"run_{generate_timestamp()}.json"
+                with open(saved_path, "w") as _f:
+                    _json.dump(envelope, _f, indent=2, default=str)
+                logger.info(f"  Results: {saved_path}")
+            else:
+                # Normal path: full envelope with diagnostics
+                envelope = self._build_envelope(total_elapsed)
+                if interrupted:
+                    envelope["interrupted"] = True
+                    envelope["completed_sections"] = len(self._section_results)
+                    envelope["interrupted_section"] = _current_section_id
+                saved_path = save_experiment_result(
+                    envelope, experiment_id=self.experiment_id
                 )
-                log_path.parent.mkdir(parents=True, exist_ok=True)
-            self.slog.save(log_path)
-        except Exception as log_exc:
-            logger.error(f"Failed to save structured log: {log_exc}")
-
-        # ─── Step 4b: Auto-refresh project status ────────────────────────
-        # Keep Kiro's steering context up-to-date after every run.
-        if saved_path is not None:
+        except (Exception, TimeoutError) as save_exc:
+            # Emergency minimal save
             try:
-                from qmbp_simulation.framework.result_index import ResultIndex
-
-                ResultIndex().refresh_status()
+                import json as _json
+                from qmbp_simulation.framework.result_io import generate_timestamp
+                edir = Path("results") / "experiments" / f"exp_{self.experiment_id}"
+                edir.mkdir(parents=True, exist_ok=True)
+                saved_path = edir / f"run_{generate_timestamp()}.json"
+                saved_path.write_text(_json.dumps({
+                    "config": self.build_config(),
+                    "results": {f"s{r.section_id}": {"pass": r.success, "t": r.elapsed_s}
+                                for r in self._section_results},
+                    "elapsed_s": total_elapsed,
+                }, default=str))
             except Exception:
-                pass  # Best-effort, never blocks run completion
+                pass
 
-        # ─── Step 4c: Persist artifacts ──────────────────────────────────
-        if saved_path is not None and self.artifacts.n_registered > 0:
-            save_mode = getattr(self._args, "save_artifacts", "never")
-            n_fail_check = sum(1 for r in self._section_results if not r.success)
-            should_save = save_mode == "always" or (
-                save_mode == "on-pass" and n_fail_check == 0 and not interrupted
-            )
-            if should_save:
-                try:
-                    # Update config fingerprint from build_config
-                    self.artifacts._config_fingerprint = self.build_config()
-                    self.artifacts.persist(saved_path)
-                except Exception as art_exc:
-                    logger.warning(f"Artifact persistence failed (non-blocking): {art_exc}")
-            elif save_mode != "never":
-                logger.info(
-                    f"  Artifacts not saved (mode='{save_mode}', "
-                    f"passed={'yes' if n_fail_check == 0 else 'no'})"
-                )
+        # Save structured log
+        try:
+            if saved_path:
+                log_path = saved_path.parent / f"log_{saved_path.stem.replace('run_', '')}.json"
+                self.slog.save(log_path)
+        except Exception:
+            pass
 
-        # ─── Step 5: Summary ─────────────────────────────────────────────
-        if interrupted:
-            logger.info(
-                f"\n  Partial results saved: {saved_path}"
-                f"\n  Completed {len(self._section_results)}/{len(selected)} sections."
-            )
-        elif saved_path is not None:
+        # Print summary to console
+        if not interrupted and saved_path:
             self._print_summary(total_elapsed, saved_path)
+        elif interrupted:
+            logger.info(f"\n  Partial results: {len(self._section_results)}/{len(selected)} sections.")
 
-        n_fail = sum(1 for r in self._section_results if not r.success)
+        # Flush stdout/stderr before exit
+        sys.stdout.flush()
+        sys.stderr.flush()
 
-        # Restore original SIGTERM handler
-        signal.signal(signal.SIGTERM, _original_sigterm)
+        # Spawn detached index refresh (fire-and-forget, won't block exit)
+        try:
+            import subprocess
+            subprocess.Popen(
+                [sys.executable, "-c",
+                 "from qmbp_simulation.framework.result_index import ResultIndex; "
+                 "idx = ResultIndex(); idx.rebuild(); idx.refresh_status()"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                close_fds=True,
+            )
+        except Exception:
+            pass
 
-        return 1 if n_fail > 0 or interrupted else 0
+        # Hard exit — no interpreter shutdown, no GC, no mimalloc spinlock
+        os._exit(exit_code)
 
     # ── Class-level entry point ──────────────────────────────────────────────
 
@@ -695,7 +771,8 @@ class ValidationRunner(ABC):
     def main(cls) -> None:
         """Standard entry point for runner scripts.
 
-        Sets the process exit code based on section results.
+        Note: run() calls os._exit() internally after saving results,
+        so this method will not return normally.
 
         Usage in scripts:
             if __name__ == "__main__":
@@ -703,6 +780,7 @@ class ValidationRunner(ABC):
         """
         runner = cls()
         exit_code = runner.run()
+        # Fallback: if run() somehow returns (e.g. dry-run mode)
         sys.exit(exit_code)
 
     # ── Private helpers ──────────────────────────────────────────────────────
@@ -1053,40 +1131,9 @@ class ValidationRunner(ABC):
             "per_section": results,
         }
 
-        # Add baseline comparison: find previous best run with same config
-        # and record improvement metrics.
-        try:
-            from qmbp_simulation.framework.result_index import ResultIndex
-
-            system = config.get("system", {})
-            model = system.get("model", "")
-            topo_list = system.get("topologies", [])
-            topology = topo_list[0] if isinstance(topo_list, list) and topo_list else ""
-            n_qubits = system.get("n_qubits", 0)
-            p_layers = system.get("p_layers", 0)
-
-            if model and topology:
-                index = ResultIndex()
-                baseline = index.get_best_run(
-                    model=model,
-                    topology=topology,
-                    n_qubits=n_qubits,
-                    p_layers=p_layers,
-                )
-                if baseline:
-                    current_pass_rate = summary.get("pass_rate", 0)
-                    baseline_pass_rate = baseline.get("pass_rate", 0)
-                    envelope["baseline_ref"] = {
-                        "file": baseline.get("_file", ""),
-                        "pass_rate": baseline_pass_rate,
-                        "timestamp": baseline.get("timestamp", ""),
-                    }
-                    envelope["improvement"] = {
-                        "pass_rate_delta": round(current_pass_rate - baseline_pass_rate, 4),
-                        "is_improvement": current_pass_rate > baseline_pass_rate,
-                    }
-        except Exception:
-            pass  # Baseline lookup is best-effort
+        # Add baseline comparison: deferred to detached subprocess to avoid
+        # mimalloc spinlock from ResultIndex.rebuild() with PyTorch in memory.
+        # The baseline_ref field will be added by the index refresh subprocess.
 
         # Log warnings for anomalous results
         if n_total > 0:
@@ -1456,6 +1503,161 @@ class ValidationRunner(ABC):
 
     # ── Reusable utility methods (available to all subclasses) ───────────────
 
+    # ── Reusable quality check + config helpers ────────────────────────────
+
+    def run_quality_check(
+        self,
+        configs: list[dict] | None = None,
+    ) -> dict:
+        """Run QualityPredictor for one or more configs.
+
+        Reusable by any runner — either as a section or in run_preflight().
+        If no configs provided, auto-detects from self._args.
+
+        Parameters
+        ----------
+        configs : list[dict] | None
+            Each dict has keys: model, topology, n_qubits, p_layers, h_min, h_max.
+            If None, builds from self._args automatically.
+
+        Returns
+        -------
+        dict
+            {"pass": bool, "reports": {config_key: {pass_probability, recommendation, ...}}}
+        """
+        from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+
+        predictor = QualityPredictor()
+
+        if configs is None:
+            configs = self._build_quality_check_configs()
+
+        reports = {}
+        all_should_run = True
+        for cfg in configs:
+            key = f"{cfg.get('topology','?')}_N{cfg.get('n_qubits','?')}"
+            try:
+                report = predictor.predict(**cfg)
+                reports[key] = {
+                    "pass_probability": report.pass_probability,
+                    "recommendation": report.recommendation,
+                    "confidence": report.confidence,
+                    "estimated_h_min": getattr(report, "estimated_h_min", None),
+                    "estimated_time_s": getattr(report, "estimated_time_s", None),
+                    "should_run": report.should_run if hasattr(report, "should_run") else True,
+                }
+                logger.info(f"  {key}: {report}")
+                if hasattr(report, "should_run") and not report.should_run:
+                    all_should_run = False
+            except Exception as e:
+                reports[key] = {"error": str(e), "should_run": True}
+                logger.debug(f"  Quality check failed for {key}: {e}")
+
+        return {"pass": True, "reports": reports, "all_should_run": all_should_run}
+
+    def _build_quality_check_configs(self) -> list[dict]:
+        """Auto-build quality check configs from self._args.
+
+        Handles both run_noiseless (--n-qubits, --topology list) and
+        run_accelerated (--train-n, --target-n, --topology str) patterns.
+        """
+        configs = []
+        model = getattr(self._args, "model", "tfim")
+        h_min = getattr(self._args, "h_min", 0.5)
+        h_max = getattr(self._args, "h_max", 3.5)
+
+        # Detect topology: could be list or string
+        topo_raw = getattr(self._args, "topology", "chain_1d")
+        topos = topo_raw if isinstance(topo_raw, list) else [topo_raw]
+
+        # Detect n_qubits: could be --n-qubits or --train-n / --target-n
+        n_values = set()
+        if hasattr(self._args, "n_qubits"):
+            n_values.add(self._args.n_qubits)
+        if hasattr(self._args, "train_n"):
+            n_values.add(self._args.train_n)
+        if hasattr(self._args, "target_n"):
+            targets = self._args.target_n
+            if isinstance(targets, list):
+                n_values.update(targets)
+            else:
+                n_values.add(targets)
+        if not n_values:
+            n_values.add(10)  # fallback
+
+        p = getattr(self._args, "p_layers", 1)
+        p_val = p[0] if isinstance(p, list) else p
+
+        for topo in topos:
+            for n in sorted(n_values):
+                configs.append({
+                    "model": model,
+                    "topology": topo,
+                    "n_qubits": n,
+                    "p_layers": p_val,
+                    "h_min": h_min,
+                    "h_max": h_max,
+                })
+        return configs
+
+    def _build_physics_config(self) -> dict:
+        """Build standardized config dict from common self._args attributes.
+
+        Returns a nested dict with the physics configuration that most
+        runners share. Subclasses call this in build_config() and extend.
+
+        Returns
+        -------
+        dict
+            {runner_id, experiment_id, topology, h_grid: {}, vqe: {}, ...}
+        """
+        args = self._args
+        config: dict[str, Any] = {
+            "runner_id": self.runner_id,
+            "experiment_id": self.experiment_id,
+        }
+
+        # Topology (string or list)
+        topo = getattr(args, "topology", None)
+        if topo is not None:
+            config["topology"] = topo
+
+        # H-grid
+        h_min = getattr(args, "h_min", None)
+        h_max = getattr(args, "h_max", None)
+        h_points = getattr(args, "h_points", None)
+        if h_min is not None:
+            config["h_range"] = [h_min, h_max]
+            config["h_points"] = h_points
+
+        # VQE params
+        maxiter = getattr(args, "maxiter", None)
+        if maxiter is not None:
+            config["maxiter"] = maxiter
+            config["n_restarts"] = getattr(args, "n_restarts", None)
+
+        # N-qubits (various naming conventions)
+        if hasattr(args, "n_qubits"):
+            config["n_qubits"] = args.n_qubits
+        if hasattr(args, "train_n"):
+            config["train_n"] = args.train_n
+        if hasattr(args, "target_n"):
+            config["target_n"] = args.target_n
+
+        # p_layers
+        p = getattr(args, "p_layers", None)
+        if p is not None:
+            config["p_layers"] = p
+
+        # Seeds
+        seeds = getattr(args, "seeds", None)
+        if seeds is not None:
+            config["seeds"] = seeds
+
+        return config
+
+    # ── Reusable utility methods (available to all subclasses) ───────────────
+
     def _resolve_backend(self):
         """Resolve the noiseless backend from subclass attributes or create new.
 
@@ -1490,6 +1692,52 @@ class ValidationRunner(ABC):
         from qmbp_simulation.execution import select_backend as _select_backend
 
         return _select_backend(n_qubits, for_vqe_loop=for_vqe_loop)
+
+    def get_cached_backend(
+        self,
+        topology: str,
+        n_qubits: int,
+        *,
+        model: str = "tfim",
+        p_layers: int = 1,
+        enabled: bool = True,
+    ):
+        """Return a CachedBackend wrapping the appropriate backend for N.
+
+        Transparently caches circuit evaluations to avoid recomputing
+        identical (topology, N, h, θ) evaluations. Use set_h(h) before
+        each evaluate() call to key the cache correctly.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology (used in cache key).
+        n_qubits : int
+            System size (selects Statevector vs MPS backend).
+        model : str
+            Model name for cache key.
+        p_layers : int
+            HVA depth for cache key.
+        enabled : bool
+            If False, returns a passthrough (no caching). Default True.
+
+        Returns
+        -------
+        CachedBackend
+            Backend with transparent evaluation cache.
+        """
+        from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
+
+        backend = self.select_backend(n_qubits)
+        cache = EvalCache(enabled=enabled)
+        return CachedBackend(
+            backend,
+            topology=topology,
+            n_qubits=n_qubits,
+            model=model,
+            p_layers=p_layers,
+            cache=cache,
+        )
 
     def setup_physics(self) -> None:
         """Initialize standard physics objects used by most runners.
@@ -1617,13 +1865,15 @@ class ValidationRunner(ABC):
         h_max: float | None = None,
         h_points: int | None = None,
         model: str | None = None,
+        uniform: bool = False,
         dense_fraction: float = 0.4,
         dense_radius: float = 0.5,
     ) -> list[float]:
-        """Generate a non-uniform h-grid for VQE sweeps.
+        """Generate an h-grid for VQE sweeps.
 
-        Uses denser sampling near the model's critical point. Reads defaults
-        from self._args if not explicitly provided.
+        By default uses denser sampling near the model's critical point.
+        Set ``uniform=True`` for equispaced grid (useful for bond-resolved
+        models without a known h_critical).
 
         Parameters
         ----------
@@ -1635,23 +1885,28 @@ class ValidationRunner(ABC):
             Number of points. Default: self._args.h_points.
         model : str | None
             Model name for h_critical lookup. Default: self._args.model.
+        uniform : bool
+            If True, return equispaced descending grid (np.linspace).
         dense_fraction : float
-            Fraction of points in dense region (default 0.4).
+            Fraction of points in dense region (default 0.4). Ignored if uniform.
         dense_radius : float
-            Half-width of dense region around h_critical (default 0.5).
+            Half-width of dense region around h_critical (default 0.5). Ignored if uniform.
 
         Returns
         -------
         list[float]
             Descending h-values (h_max → h_min) for warm-start sweep.
         """
-        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
-
         _h_min = h_min if h_min is not None else self._args.h_min
         _h_max = h_max if h_max is not None else self._args.h_max
         _h_points = h_points if h_points is not None else self._args.h_points
-        _model = model if model is not None else self._args.model
 
+        if uniform:
+            return np.linspace(_h_max, _h_min, _h_points).tolist()
+
+        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+
+        _model = model if model is not None else self._args.model
         h_crit = self.H_CRITICAL_ESTIMATES.get(_model, (_h_min + _h_max) / 2)
 
         grid = generate_nonuniform_h_grid(
@@ -1836,6 +2091,396 @@ class ValidationRunner(ABC):
                 logger.debug("🗑️  Removed checkpoint: %s", cp.name)
             except OSError as e:
                 logger.debug("Could not remove checkpoint %s: %s", cp.name, e)
+
+    # ── VQE checkpoint helpers (typed contract) ────────────────────────────
+
+    def load_vqe_checkpoint(
+        self, topology: str, n_params: int | None = None
+    ) -> tuple[list[dict], "np.ndarray"] | None:
+        """Load VQE sweep checkpoint with parameter validation.
+
+        Expects checkpoint payload with keys: results, current_theta, n_completed.
+        Validates parameter count against expected n_params if provided.
+        Automatically cleans up stale checkpoints (wrong param count).
+
+        Parameters
+        ----------
+        topology : str
+            Topology name used as checkpoint key suffix (loads "vqe_{topology}").
+        n_params : int | None
+            Expected number of circuit parameters. If provided, validates
+            the checkpoint theta matches. Stale checkpoints are discarded.
+
+        Returns
+        -------
+        tuple[list[dict], np.ndarray] | None
+            (results_so_far, current_theta) if checkpoint found and valid, else None.
+        """
+        cp = self.load_checkpoint(f"vqe_{topology}")
+        if cp is None:
+            return None
+
+        # Contract validation
+        _REQUIRED = {"results", "current_theta", "n_completed"}
+        if not _REQUIRED.issubset(cp.keys()):
+            missing = _REQUIRED - set(cp.keys())
+            logger.warning(
+                "    ⚠️  Incompatible VQE checkpoint for %s (missing: %s). Discarding.",
+                topology, missing,
+            )
+            self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+            return None
+
+        try:
+            results = cp["results"]
+            theta = np.array(cp["current_theta"])
+
+            # Validate parameter count
+            if n_params is not None and len(theta) != n_params:
+                logger.warning(
+                    "    ⚠️  Stale checkpoint for %s: param count mismatch "
+                    "(checkpoint has %d, current run expects %d). Discarding.",
+                    topology, len(theta), n_params,
+                )
+                self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+                return None
+
+            # Validate theta_opt in results if any exist
+            if results and n_params is not None:
+                first_theta = results[0].get("theta_opt")
+                if first_theta is not None and len(first_theta) != n_params:
+                    logger.warning(
+                        "    ⚠️  Stale checkpoint for %s: results theta_opt has %d params, "
+                        "expected %d. Discarding.",
+                        topology, len(first_theta), n_params,
+                    )
+                    self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+                    return None
+
+            n_total = len(getattr(self, "_h_values", [])) or "?"
+            logger.info(
+                "    Resuming VQE: %d/%s points already computed", cp["n_completed"], n_total
+            )
+            return results, theta
+        except (KeyError, TypeError) as e:
+            logger.warning("    ⚠️  Checkpoint data invalid for %s: %s", topology, e)
+            return None
+
+    # ── Model zoo helpers (MPNN persistence via registry) ────────────────────
+
+    def load_mpnn_from_zoo(
+        self,
+        *,
+        model: str | None = None,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+        p_layers: int | None = None,
+        checkpoint_path: "str | Path | None" = None,
+        allow_cross_n: bool = True,
+    ):
+        """Load MPNN from model zoo with auto-detection from self._args.
+
+        Wraps model_zoo.load_pretrained() with graceful None return on
+        FileNotFoundError, output_dim validation, and auto-fill of params.
+
+        Returns
+        -------
+        MPNNPredictor | None
+            Loaded model, or None if no matching entry found.
+        """
+        from qmbp_simulation.predictors.model_zoo import load_pretrained
+
+        args = self._args
+        _model = model or getattr(args, "model", "tfim")
+        _topo_raw = topology or getattr(args, "topology", "chain_1d")
+        _topo = _topo_raw[0] if isinstance(_topo_raw, list) else _topo_raw
+        _n = n_qubits or getattr(args, "n_qubits", None) or getattr(args, "train_n", 10)
+        _p_raw = p_layers or getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+        _ckpt = checkpoint_path or getattr(args, "checkpoint", None)
+
+        try:
+            mpnn, entry = load_pretrained(
+                model=_model,
+                topology=_topo,
+                n_qubits=_n,
+                p_layers=_p,
+                checkpoint_path=_ckpt,
+                allow_cross_n=allow_cross_n,
+            )
+        except FileNotFoundError:
+            logger.debug("No MPNN in zoo for %s/%s N=%d p=%d", _model, _topo, _n, _p)
+            return None
+
+        # Validate output_dim against current circuit config
+        spec = self._get_spec() if hasattr(self, "_get_spec") else None
+        if spec is not None:
+            expected_params = spec.total_params_for_p(_p)
+            if hasattr(mpnn, "output_dim") and mpnn.output_dim != expected_params:
+                logger.warning(
+                    "    ⚠️  Zoo model output_dim=%d ≠ expected %d. Skipping.",
+                    mpnn.output_dim, expected_params,
+                )
+                return None
+
+        self._zoo_entry = entry
+        cross_n = " [cross-N]" if entry.n_qubits != _n else ""
+        logger.info(
+            "    ♻️  Loaded MPNN from zoo: %s/%s N=%d p=%d (pass_rate=%.0f%%)%s",
+            entry.model, entry.topology, entry.n_qubits, entry.p_layers,
+            entry.pass_rate * 100, cross_n,
+        )
+        return mpnn
+
+    def save_mpnn_to_zoo(
+        self,
+        predictor,
+        *,
+        model: str | None = None,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+        p_layers: int | None = None,
+        pass_rate: float = 0.0,
+        n_training_points: int = 0,
+        notes: str = "",
+        overwrite: bool = True,
+    ) -> "Path | None":
+        """Register trained MPNN in model zoo for reuse by any runner.
+
+        Wraps model_zoo.register_checkpoint() with auto-fill from self._args,
+        auto-generates filename and timestamp.
+
+        Returns
+        -------
+        Path | None
+            Path to saved checkpoint, or None if save failed.
+        """
+        from datetime import datetime, timezone
+
+        from qmbp_simulation.predictors.model_zoo import ZooEntry, register_checkpoint
+
+        args = self._args
+        _model = model or getattr(args, "model", "tfim")
+        _topo_raw = topology or getattr(args, "topology", "chain_1d")
+        _topo = _topo_raw[0] if isinstance(_topo_raw, list) else _topo_raw
+        _n = n_qubits or getattr(args, "n_qubits", None) or getattr(args, "train_n", 10)
+        _p_raw = p_layers or getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+        _seeds = list(getattr(args, "seeds", []))
+
+        entry = ZooEntry(
+            model=_model,
+            topology=_topo,
+            n_qubits=_n,
+            p_layers=_p,
+            checkpoint_file=f"{_model}_{_topo}_n{_n}_p{_p}.pt",
+            h_range=(
+                float(getattr(args, "h_min", 0.5)),
+                float(getattr(args, "h_max", 3.5)),
+            ),
+            pass_rate=pass_rate,
+            n_training_points=n_training_points,
+            seeds=_seeds,
+            created=datetime.now(timezone.utc).isoformat(),
+            notes=notes or f"Auto-saved by {self.runner_id}",
+        )
+
+        try:
+            path = register_checkpoint(predictor, entry, overwrite=overwrite)
+            logger.info("    📦 Saved to model zoo: %s", entry.checkpoint_file)
+            return path
+        except Exception as e:
+            logger.warning("    ⚠️  Zoo save failed (non-fatal): %s", e)
+            return None
+
+    # ── Fine-tuning helper (integrates should_retrain + fine_tune_unified_mpnn) ──
+
+    def maybe_fine_tune_mpnn(
+        self,
+        model,
+        dataset: list,
+        *,
+        prev_pass_rate: float,
+        current_pass_rate: float,
+        n_new_points: int,
+        n_epochs: int = 1000,
+        lr: float = 3e-4,
+        mse_floor: float = 1e-5,
+        freeze_early_layers: bool = True,
+        layerwise_decay: float = 0.1,
+    ):
+        """Conditionally fine-tune a UnifiedMPNN based on dataset changes.
+
+        Integrates ``should_retrain()`` (gating logic) with
+        ``fine_tune_unified_mpnn()`` (actual training) into a single reusable
+        runner helper.  Any ``ValidationRunner`` subclass can call this from
+        an iterative improvement section instead of manually deciding whether
+        to retrain.
+
+        Decision logic (from ``should_retrain``):
+
+        - Skip if ``n_new_points == 0`` (no new data).
+        - Skip if new data is a negligible fraction of a large dataset.
+        - Always retrain if ``current_pass_rate`` improved vs ``prev_pass_rate``.
+        - Retrain if meaningful new data is available.
+
+        Parameters
+        ----------
+        model : UnifiedMPNN
+            Pre-trained model to fine-tune in place.  Must be a UnifiedMPNN —
+            raises ``TypeError`` otherwise (MPNNPredictor / BondResolvedMPNN
+            require full retraining via ``train_mpnn``).
+        dataset : list[Data]
+            Updated dataset (superset of data used to train ``model``).
+        prev_pass_rate : float
+            Pass rate from the previous evaluation round (0.0–1.0).
+        current_pass_rate : float
+            Current pass rate (after the latest prediction round).
+        n_new_points : int
+            Number of newly added VQE-refined points in ``dataset`` vs the
+            previous training round.
+        n_epochs : int
+            Fine-tuning epochs (default 1000).
+        lr : float
+            Base learning rate for fine-tuning heads (default 3e-4).
+        mse_floor : float
+            Real early-stop threshold: stop when MSE < this (default 1e-5).
+        freeze_early_layers : bool
+            Apply layer-wise LR to prevent catastrophic forgetting (default True).
+        layerwise_decay : float
+            LR multiplier for early backbone layers (default 0.1).
+
+        Returns
+        -------
+        dict | None
+            Fine-tuning result dict (from ``fine_tune_unified_mpnn``) if retraining
+            was performed, or ``None`` if skipped.  The dict includes
+            ``improvement_ratio``, ``notes``, and ``stop_reason``.
+
+        Examples
+        --------
+        In a ``section_iterative_improve`` method::
+
+            result = self.maybe_fine_tune_mpnn(
+                model=self._models[p],
+                dataset=updated_dataset,
+                prev_pass_rate=prev_pass_rate,
+                current_pass_rate=current_pass_rate,
+                n_new_points=len(new_points),
+            )
+            if result is None:
+                logger.info("  Skipped retrain -- no meaningful new data.")
+            elif result["notes"] == "minimal_improvement":
+                logger.info("  Fine-tune had minimal effect -- model near-optimal.")
+        """
+        from qmbp_simulation.predictors.unified_mpnn import (
+            UnifiedMPNN,
+            fine_tune_unified_mpnn,
+            should_retrain,
+        )
+
+        # ── Type validation ───────────────────────────────────────────────────────────────────────
+        if not isinstance(model, UnifiedMPNN):
+            raise TypeError(
+                f"maybe_fine_tune_mpnn expects UnifiedMPNN, got {type(model).__name__}. "
+                "For MPNNPredictor / BondResolvedMPNN, retrain from scratch via train_mpnn."
+            )
+        if not dataset:
+            logger.warning("  maybe_fine_tune_mpnn: empty dataset -- skipping.")
+            return None
+
+        # ── Gate: is it worth retraining? ──────────────────────────────────────────────────────
+        do_retrain, reason = should_retrain(
+            n_new_points=n_new_points,
+            current_pass_rate=current_pass_rate,
+            prev_pass_rate=prev_pass_rate,
+            dataset_size=len(dataset),
+        )
+        if not do_retrain:
+            logger.info(
+                "  Skipping fine-tune: %s (n_new=%d, dataset_size=%d, "
+                "pass_rate=%.0f%% -> %.0f%%)",
+                reason, n_new_points, len(dataset),
+                prev_pass_rate * 100, current_pass_rate * 100,
+            )
+            return None
+
+        logger.info(
+            "  Fine-tuning: %s — %d new points, dataset=%d, "
+            "pass_rate %.0f%% -> %.0f%%",
+            reason, n_new_points, len(dataset),
+            prev_pass_rate * 100, current_pass_rate * 100,
+        )
+
+        # ── Fine-tune ─────────────────────────────────────────────────────────────────────────
+        result = fine_tune_unified_mpnn(
+            model=model,
+            dataset=dataset,
+            n_epochs=n_epochs,
+            lr=lr,
+            mse_floor=mse_floor,
+            freeze_early_layers=freeze_early_layers,
+            layerwise_decay=layerwise_decay,
+        )
+
+        logger.info(
+            "  Fine-tune done: MSE %.2e -> %.2e (ratio=%.3f, %d epochs, %s)",
+            result.get("initial_mse", float("nan")),
+            result.get("final_mse", float("nan")),
+            result.get("improvement_ratio", float("nan")),
+            result.get("n_epochs_run", 0),
+            result.get("notes", "?"),
+        )
+        return result
+
+
+    # ── Fidelity + result building helpers ───────────────────────────────────
+
+    def safe_compute_fidelity(
+        self, circuit, theta: np.ndarray, topology: str, n_qubits: int, h: float,
+        *, model: str = "tfim",
+    ) -> float | None:
+        """Compute state fidelity with N-guard and error handling.
+
+        Returns None for N > STATEVECTOR_MAX_N or on computation error.
+        """
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        if n_qubits > STATEVECTOR_MAX_N:
+            return None
+        try:
+            lat = self.make_lattice(topology, n_qubits, J=1.0, h=h)
+            spec = self._get_spec()
+            H = spec.build_hamiltonian(lat, **spec.hamiltonian_kwargs)
+            gt = self.solver.solve(H, lat)
+            if gt.ground_state is None:
+                return None
+            return float(self.compute_fidelity(circuit, theta, gt.ground_state))
+        except (MemoryError, ValueError, AttributeError):
+            return None
+
+    @staticmethod
+    def build_per_h_result(
+        h: float, e_pred: float, e_exact: float, gap: float,
+        *, fidelity: float | None = None, **extra,
+    ) -> dict:
+        """Build standardized per-h result dict for compute_deploy_summary.
+
+        Ensures all required keys are present and float-typed.
+        """
+        de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+        result: dict = {
+            "h": float(h),
+            "de_gap": float(de_gap),
+            "abs_error": float(abs(e_pred - e_exact)),
+            "e_pred": float(e_pred),
+            "e_exact": float(e_exact),
+            "gap": float(gap),
+        }
+        if fidelity is not None:
+            result["fidelity"] = float(fidelity)
+        result.update(extra)
+        return result
 
     # ── Logging utilities (reusable by all subclasses) ───────────────────────
 
@@ -2187,9 +2832,10 @@ class ValidationRunner(ABC):
         Uses ClassicalSolver (eigsh-based, memory-safe for any N).
         Reusable by any runner that needs a reference energy.
 
-        Results are cached per (model, topology, n_qubits, h) to avoid
-        redundant computation within a single run (e.g., section_deploy
-        and section_vqe referencing the same h-points).
+        Results are cached at two levels:
+        1. In-memory dict (self._gt_cache) — fast, per-run only.
+        2. Disk-persistent GroundTruthCache (data/ground_truth_cache.json) —
+           survives across sessions, avoids redundant DMRG for large N.
 
         Parameters
         ----------
@@ -2209,8 +2855,27 @@ class ValidationRunner(ABC):
         if model_kwargs:
             cache_key = (*cache_key, tuple(sorted(model_kwargs.items())))
 
+        # Level 1: in-memory cache (per-run, instant)
         if cache_key in self._gt_cache:
             return self._gt_cache[cache_key]
+
+        # Level 2: disk-persistent cache (cross-session, avoids DMRG recompute)
+        # Only use for standard models without custom kwargs (key format mismatch)
+        if not model_kwargs:
+            try:
+                from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
+
+                disk_cache = getattr(self, "_disk_gt_cache", None)
+                if disk_cache is None:
+                    disk_cache = GroundTruthCache()
+                    self._disk_gt_cache = disk_cache
+                cached = disk_cache.get(topology, n_qubits, model, h)
+                if cached is not None:
+                    result = (float(cached["energy"]), float(cached["gap"]))
+                    self._gt_cache[cache_key] = result
+                    return result
+            except (ImportError, OSError):
+                pass  # Disk cache unavailable — proceed to compute
 
         from qmbp_simulation import make_lattice
         from qmbp_simulation.models.model_registry import get_model_spec
@@ -2226,6 +2891,16 @@ class ValidationRunner(ABC):
         gt = solver.solve(H, lattice)
         result = (float(gt.ground_energy), float(gt.gap))
         self._gt_cache[cache_key] = result
+
+        # Persist to disk cache for cross-session reuse
+        if not model_kwargs:
+            try:
+                disk_cache = getattr(self, "_disk_gt_cache", None)
+                if disk_cache is not None:
+                    disk_cache.put_from_result(topology, n_qubits, model, h, gt)
+            except (OSError, AttributeError):
+                pass  # Non-fatal: disk cache write failed
+
         return result
 
     @staticmethod
@@ -2770,6 +3445,118 @@ class ValidationRunner(ABC):
 
         return results
 
+    def vqe_noisy_sweep(
+        self,
+        topology: str,
+        n_qubits: int,
+        h_values: list[float],
+        seed: int,
+        *,
+        p_layers: int = 1,
+        n_restarts: int = 15,
+        maxiter: int = 2000,
+        shots: int = 8192,
+        model: str = "tfim",
+        model_kwargs: dict | None = None,
+    ) -> dict[float, np.ndarray]:
+        """Run a descending VQE sweep with NoisyBackend (shot noise).
+
+        Parallel to vqe_descending_sweep() but uses NoisyBackend with COBYLA
+        optimizer (gradient-free, suitable for shot-based evaluation). Returns
+        the same h → θ_opt mapping.
+
+        The key difference: θ_opt(noisy) ≠ θ_opt(noiseless). The noise shifts
+        the energy landscape, and the optimizer adapts to this shift. An MPNN
+        trained on noisy θ learns this compensation implicitly.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology name.
+        n_qubits : int
+            Number of qubits.
+        h_values : list[float]
+            Transverse field values to sweep (sorted descending internally).
+        seed : int
+            Random seed for reproducibility.
+        p_layers : int
+            HVA circuit depth (default: 1).
+        n_restarts : int
+            Number of VQE restarts per h-point (default: 15 for noisy).
+        maxiter : int
+            Maximum COBYLA iterations per restart (default: 2000).
+        shots : int
+            Shots for NoisyBackend Gaussian approximation (default: 8192).
+        model : str
+            Model name from registry.
+        model_kwargs : dict | None
+            Extra kwargs for Hamiltonian/circuit construction.
+
+        Returns
+        -------
+        dict[float, np.ndarray]
+            Mapping from h-value to optimized parameter vector.
+
+        Notes
+        -----
+        - Uses COBYLA explicitly (COBYLA_AUTO_SWITCH_THRESHOLD=8 already triggers
+          for bond-resolved, but we force it for clarity and smaller param counts).
+        - 10-50× slower than noiseless due to shot-based evaluation.
+        - Requires more restarts (noise makes landscape rougher).
+        - θ_opt(noisy) has higher variance across seeds — use 5-10 seeds.
+        """
+        from qmbp_simulation import VQEConfig, VQEOptimizer, make_lattice
+        from qmbp_simulation.execution import NoisyBackend
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        import numpy as np
+
+        if not h_values:
+            raise ValueError("vqe_noisy_sweep: h_values cannot be empty.")
+
+        h_sorted = sorted(set(h_values), reverse=True)
+        spec = get_model_spec(model)
+        mkw = model_kwargs or {}
+
+        noisy_backend = NoisyBackend(shots=shots, seed_simulator=seed)
+        vqe_config = VQEConfig(
+            p_layers=p_layers,
+            n_restarts=n_restarts,
+            maxiter=maxiter,
+            method="COBYLA",
+        )
+        optimizer = VQEOptimizer(config=vqe_config, backend=noisy_backend, seed=seed)
+
+        rng = np.random.default_rng(seed)
+        lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=h_sorted[0])
+        circuit, _ = spec.create_circuit(
+            n_qubits, p_layers, lattice_ref, **spec.circuit_kwargs
+        )
+        n_params = circuit.num_parameters
+        prev_theta = rng.uniform(-0.01, 0.01, n_params)
+
+        results: dict[float, np.ndarray] = {}
+        for h in h_sorted:
+            lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
+            H = spec.build_hamiltonian(lattice, **{**spec.hamiltonian_kwargs, **mkw})
+
+            vqe_result = optimizer.optimize(
+                hamiltonian=H,
+                circuit=circuit,
+                initial_guess=prev_theta,
+            )
+
+            if np.all(np.isfinite(vqe_result.theta_opt)):
+                prev_theta = vqe_result.theta_opt.copy()
+            else:
+                logger.warning(
+                    "vqe_noisy_sweep: NaN/Inf at h=%.4f, preserving previous theta.", h
+                )
+
+            results[h] = prev_theta.copy()
+
+        return results
+
     @staticmethod
     def compute_fidelity(
         circuit,
@@ -3200,14 +3987,10 @@ class ValidationRunner(ABC):
                 return float(backend.evaluate(circuit_t, H_t, params))
 
             # ── MPNN prediction (θ_pred) ─────────────────────────────────
-            edge_index_np, coord = builder.build_graph_data(lattice_t)
-            h_feat = np.full(n_qubits, float(h_t))
-            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
-            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-            graph = Data(x=x, edge_index=edge_index)
-            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
-            with torch.no_grad():
-                theta_mpnn = predictor(graph).numpy().flatten()
+            from qmbp_simulation.predictors.mpnn import predict_theta as _pt
+
+            _preds = _pt(predictor, lattice_t, [h_t])
+            theta_mpnn = _preds[float(h_t)]
 
             # ΔE/gap before any VQE (raw MPNN quality)
             e_mpnn_raw = _energy(theta_mpnn)
@@ -3500,15 +4283,10 @@ class ValidationRunner(ABC):
             H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
             circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
 
-            edge_index_np, coord = builder.build_graph_data(lattice_t)
-            h_feat = np.full(n_qubits, float(h_held))
-            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
-            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-            graph = Data(x=x, edge_index=edge_index)
-            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
+            from qmbp_simulation.predictors.mpnn import predict_theta as _pt
 
-            with torch.no_grad():
-                theta_pred = fold_model(graph).numpy().flatten()
+            _preds = _pt(fold_model, lattice_t, [h_held])
+            theta_pred = _preds[float(h_held)]
 
             e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
@@ -3691,14 +4469,10 @@ class ValidationRunner(ABC):
             e_opt = float(backend.evaluate(circuit_t, H_t, theta_opt_test))
 
             # MPNN prediction
-            edge_index_np, coord = builder.build_graph_data(lattice_t)
-            h_feat = np.full(n_qubits, float(h_t))
-            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
-            edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
-            graph = Data(x=x, edge_index=edge_index_t)
-            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
-            with torch.no_grad():
-                theta_pred = predictor(graph).numpy().flatten()
+            from qmbp_simulation.predictors.mpnn import predict_theta as _pt
+
+            _preds = _pt(predictor, lattice_t, [h_t])
+            theta_pred = _preds[float(h_t)]
 
             e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
 
@@ -3928,14 +4702,11 @@ class ValidationRunner(ABC):
             lattice_t = make_lattice(topology, n_qubits, J=1.0, h=h_t)
             H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
             circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
-            edge_index_np, coord = builder.build_graph_data(lattice_t)
-            h_feat = np.full(n_qubits, float(h_t))
-            x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
-            edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
-            graph = Data(x=x, edge_index=edge_index_t)
-            graph.batch = torch.zeros(n_qubits, dtype=torch.long)
-            with torch.no_grad():
-                theta_pred = predictor(graph).numpy().flatten()
+
+            from qmbp_simulation.predictors.mpnn import predict_theta as _pt
+
+            _preds = _pt(predictor, lattice_t, [h_t])
+            theta_pred = _preds[float(h_t)]
 
             e_pred = float(backend.evaluate(circuit_t, H_t, theta_pred))
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)

@@ -1,0 +1,69 @@
+---
+inclusion: always
+---
+
+# Runtime Safety Rules (macOS ARM64 + Qiskit + PyTorch)
+
+## CRITICAL: Never call gc.collect() with Qiskit CircuitData in memory
+
+**Root cause (verified via `/usr/bin/sample` stack trace):**
+`gc.collect()` → destroys `CircuitData` → Qiskit Rust destructor → mimalloc `_mi_arenas_page_unabandon` → `sleep()` infinite retry loop.
+
+### Rules:
+1. **NEVER** add `gc.collect()`, `gc.enable()` + collect, or any forced GC in runner code
+2. **NEVER** add GC between sections in `ValidationRunner.run()`
+3. **ALWAYS** use `os._exit()` at process end (bypasses destructors entirely)
+4. If memory cleanup is needed, use `del variable` only (drops refcount, no GC cycle collection)
+5. Leave Python GC in its default state (enabled, incremental) — don't disable/enable it
+
+### What triggers the hang:
+- Any `gc.collect()` call when `QuantumCircuit` objects exist in the heap
+- Python interpreter shutdown (calls `atexit` + GC finalizers) — prevented by `os._exit()`
+- `sys.exit()` — also triggers shutdown, use `os._exit()` instead
+
+### What does NOT hang:
+- Normal Python operations (json.dump, file I/O, numpy, etc.)
+- `del obj` (decrements refcount, only calls destructor if refcount → 0 with no cycles)
+- `os._exit()` (kernel frees all memory, no destructors called)
+
+## MPNN Retraining Efficiency
+
+### should_retrain() — always check before retraining
+```python
+from qmbp_simulation.predictors.unified_mpnn import should_retrain
+
+do_retrain, reason = should_retrain(
+    n_new_points=len(refined_h),
+    current_pass_rate=pass_rate,
+    prev_pass_rate=prev_pass_rate,
+    dataset_size=len(dataset),
+)
+if not do_retrain:
+    logger.info(f"Skipping retrain: {reason}")
+```
+
+### fine_tune_unified_mpnn() — use instead of full retrain when possible
+```python
+from qmbp_simulation.predictors.unified_mpnn import fine_tune_unified_mpnn
+
+# Only fine-tune if model architecture matches and not first iteration
+result = fine_tune_unified_mpnn(model, dataset, n_epochs=1000, lr=3e-4)
+```
+
+### Zoo export guard — only overwrite if improved
+```python
+if current_pass_rate > zoo_best_pass_rate:
+    register_checkpoint(model, entry, overwrite=True)
+    zoo_best_pass_rate = current_pass_rate
+```
+
+## EvalCache Parallel Safety
+- Use PID-based tmp files: `eval_cache.tmp.{os.getpid()}`
+- Flush once per iteration, not per-point
+- Auto-flush every 50 puts is sufficient for crash safety
+
+## VQE Optimizer Caps
+- L-BFGS-B maxiter cap = 50 (hardcoded in vqe.py for n_params > 10)
+- Each L-BFGS-B iteration costs (2n+1) function evaluations
+- With warm-start, converges in 5-20 iterations — 50 is generous
+- COBYLA has no cap (iterations are cheap)

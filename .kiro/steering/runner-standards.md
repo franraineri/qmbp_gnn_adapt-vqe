@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: "scripts/run_*,scripts/experiment_runners/run_*"
+fileMatchPattern: "scripts/run_*,scripts/experiment_runners/**/run_*,src/qmbp_simulation/framework/runner_base*"
 ---
 
 # Runner Script Standards — Agent Guide

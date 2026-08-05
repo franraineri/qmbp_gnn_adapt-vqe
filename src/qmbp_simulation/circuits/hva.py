@@ -31,14 +31,6 @@ def do_checks(p_layers: int, n_qubits: int, lattice: LatticeConfig) -> None:
 
     Raises ValueError if depth constraint, qubit mismatch, or empty edges.
     """
-    # if p_layers > MAX_P_LAYERS:
-    #     raise ValueError(
-    #         f"p_layers={p_layers} exceeds the maximum of {MAX_P_LAYERS}. "
-    #         f"Mele et al. (Nature Physics, 2026) show that non-unital noise "
-    #         f"truncates effective circuit depth to O(log n). HVA circuits "
-    #         f"MUST have p ≤ {MAX_P_LAYERS} layers for NISQ viability."
-    #     )
-
     if n_qubits != lattice.n_qubits:
         raise ValueError(f"n_qubits={n_qubits} does not match lattice.n_qubits={lattice.n_qubits}.")
 
@@ -47,6 +39,14 @@ def do_checks(p_layers: int, n_qubits: int, lattice: LatticeConfig) -> None:
             f"Lattice has no edges (topology='{lattice.topology}', N={n_qubits}). "
             f"Cannot build HVA circuit without ZZ interaction terms."
         )
+
+    # Edge bounds validation: all indices must be valid qubit labels
+    for i, j in lattice.edges:
+        if i < 0 or i >= n_qubits or j < 0 or j >= n_qubits:
+            raise ValueError(
+                f"Edge ({i}, {j}) has out-of-bounds qubit index for N={n_qubits}. "
+                f"Lattice topology '{lattice.topology}' generated invalid edges."
+            )
 
 
 def _init_circuit(

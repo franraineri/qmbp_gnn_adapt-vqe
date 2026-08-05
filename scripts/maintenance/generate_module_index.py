@@ -261,17 +261,86 @@ def _short_path(path: str) -> str:
     )
 
 
-def _exports_compact(exports: list[str], max_show: int = 12) -> str:
-    """Format exports as compact comma-separated list."""
+def _module_name(rel_path: str) -> str:
+    """Extract just the module name without path or extension."""
+    from pathlib import PurePosixPath
+    return PurePosixPath(rel_path).stem
+
+
+def _infer_tag(m: ModuleEntry) -> str:
+    """Infer a 3-4 char category tag from module name/docstring."""
+    name = _module_name(m.rel_path).lower()
+    doc = (m.docstring or "").lower()
+    # Priority-ordered matching (first match wins)
+    tag_rules = [
+        ("test", "TEST"), ("valid", "VAL"), ("audit", "VAL"),
+        ("bench", "BENCH"), ("cache", "CACHE"), ("persist", "IO"),
+        ("save", "IO"), ("load", "IO"), ("serial", "IO"),
+        ("visual", "VIS"), ("figure", "VIS"), ("plot", "VIS"),
+        ("cli", "CLI"), ("__main__", "CLI"),
+        ("config", "CFG"), ("preset", "CFG"), ("constant", "CFG"),
+        ("optim", "OPT"), ("spsa", "OPT"), ("sweep", "OPT"),
+        ("predict", "PRED"), ("mpnn", "PRED"), ("gnn", "PRED"),
+        ("train", "PRED"), ("unified", "PRED"),
+        ("model_spec", "MODEL"), ("hamiltonian", "MODEL"),
+        ("registry", "MODEL"), ("data_model", "MODEL"),
+        ("circuit", "CIRC"), ("hva", "CIRC"), ("aqc", "CIRC"),
+        ("backend", "EXEC"), ("noisy", "EXEC"), ("mps_backend", "EXEC"),
+        ("solver", "SOLVE"), ("dmrg", "SOLVE"), ("classical", "SOLVE"),
+        ("metric", "CORE"), ("util", "CORE"), ("helper", "CORE"),
+        ("diagnos", "DIAG"), ("log", "DIAG"),
+        ("pipeline", "PIPE"), ("runner", "PIPE"), ("accelerat", "PIPE"),
+        ("analy", "ANAL"), ("compar", "ANAL"), ("report", "ANAL"),
+        ("scale", "SCALE"), ("mps", "SCALE"),
+        ("align", "POST"), ("filter", "POST"), ("guard", "POST"),
+        ("dataset", "IO"), ("result_io", "IO"), ("result_store", "IO"),
+        ("vqe", "OPT"),
+    ]
+    for keyword, tag in tag_rules:
+        if keyword in name or (keyword in doc and keyword not in ("train",)):
+            return tag
+    return ""
+
+
+def _exports_compact(exports: list[str], max_show: int = 8) -> str:
+    """Format exports as space-separated list (more compact than comma)."""
     if not exports:
         return ""
     shown = exports[:max_show]
     suffix = f" +{len(exports) - max_show}" if len(exports) > max_show else ""
-    return ", ".join(shown) + suffix
+    return " ".join(shown) + suffix
+
+
+def _module_line_v2(m: ModuleEntry) -> str:
+    """Ultra-compact module line: name TAG symbols."""
+    name = _module_name(m.rel_path)
+    tag = _infer_tag(m)
+
+    # Build symbols (max 3 each for discovery — agent can read_code for full API)
+    symbols = []
+    if m.classes:
+        n = len(m.classes)
+        shown = m.classes[:3]
+        extra = f"+{n - 3}" if n > 3 else ""
+        symbols.append(f"C:{','.join(shown)}{extra}")
+    if m.functions:
+        n = len(m.functions)
+        shown = m.functions[:3]
+        extra = f"+{n - 3}" if n > 3 else ""
+        symbols.append(f"F:{','.join(shown)}{extra}")
+    if m.constants and not m.classes and not m.functions:
+        symbols.append(f"K:{','.join(m.constants[:2])}")
+
+    tag_str = f"{tag:5s}" if tag else "     "
+    sym_str = " | ".join(symbols) if symbols else ""
+    return f"  {name:<26s} {tag_str} {sym_str}"
 
 
 def _module_line(m: ModuleEntry) -> str:
-    """One compact line per module: path | doc | C:classes F:funcs."""
+    """One compact line per module: path | doc | C:classes F:funcs.
+
+    Legacy format (used as fallback). See _module_line_v2 for compact format.
+    """
     parts = [f"`{_short_path(m.rel_path)}`"]
     if m.docstring:
         parts.append(m.docstring[:80])
@@ -291,16 +360,91 @@ def _module_line(m: ModuleEntry) -> str:
     return " — ".join(parts)
 
 
+def _import_path(rel_path: str) -> str:
+    """Convert a relative file path to a Python import path.
+
+    Examples:
+        src/qmbp_simulation/analysis/metrics.py → qmbp_simulation.analysis.metrics
+        project_health/analysis/diagnose.py → project_health.analysis.diagnose
+    """
+    p = rel_path.replace("src/", "").replace("/", ".").removesuffix(".py")
+    return p
+
+
+def _build_quick_lookup(all_packages: list[PackageEntry], all_modules: list[ModuleEntry]) -> list[str]:
+    """Generate Quick Lookup: intent → import.module → key symbol.
+
+    Compact table that resolves the most common agent questions in one scan.
+    """
+    CURATED_INTENTS = [
+        ("Build Hamiltonian", "models/hamiltonian", "HamiltonianBuilder, make_lattice"),
+        ("HVA circuit", "circuits/hva", "HVACircuitBuilder"),
+        ("VQE optimize", "optimizers/vqe", "VQEOptimizer"),
+        ("Noiseless eval", "execution/backends", "NoiselessBackend, select_backend"),
+        ("MPS eval (N>22)", "execution/mps_backend", "MPSBackend"),
+        ("Cache evals", "execution/eval_cache", "CachedBackend, EvalCache"),
+        ("Ground truth", "solvers/classical", "ClassicalSolver"),
+        ("GT cache (disk)", "solvers/ground_truth_cache", "GroundTruthCache"),
+        ("Train MPNN", "predictors/mpnn", "MPNNPredictor, train_mpnn"),
+        ("UnifiedMPNN (cross-N)", "predictors/unified_mpnn", "UnifiedMPNN"),
+        ("Model zoo", "predictors/model_zoo", "load_pretrained, register_checkpoint"),
+        ("Accelerated pipeline", "pipeline/accelerated", "AcceleratedVQE"),
+        ("Full pipeline", "pipeline/runner", "PipelineRunner"),
+        ("Validate θ", "analysis/theta_validator", "ThetaValidator"),
+        ("Deploy stats", "analysis/metrics", "compute_deploy_summary"),
+        ("θ alignment", "analysis/theta_alignment", "align_theta_array"),
+        ("Noisy ZNE", "execution/noisy_utils", "run_pea_zne, run_gate_folding_zne"),
+        ("Hardware QPU", "execution/hardware/backend", "HardwareBackend"),
+        ("Runner base", "framework/runner_base", "ValidationRunner, Section"),
+        ("Result I/O", "framework/result_io", "save_experiment_result"),
+        ("CLI args", "framework/cli", "create_base_parser"),
+        ("Quality predict", "analysis/quality_predictor", "QualityPredictor"),
+        ("JSON serialize", "utils/helpers", "json_serialize, json_dump"),
+        ("Canonicalize θ", "utils/helpers", "canonicalize_theta"),
+        ("Model spec", "models/model_registry", "get_model_spec"),
+    ]
+
+    lines = ["## Quick Lookup", "", "| Need | Module | Symbols |", "|---|---|---|"]
+
+    all_paths = {m.rel_path: m for pkg in all_packages for m in pkg.modules}
+    all_paths.update({m.rel_path: m for m in all_modules})
+
+    for intent, path_fragment, symbols in CURATED_INTENTS:
+        matched_path = next((rp for rp in all_paths if path_fragment in rp), None)
+        if matched_path:
+            imp = _import_path(matched_path)
+            # Shorten the import: remove qmbp_simulation prefix (implied)
+            short_imp = imp.replace("qmbp_simulation.", "")
+            lines.append(f"| {intent} | {short_imp} | {symbols} |")
+
+    lines.append("")
+    return lines
+
+
 def format_index(
     all_packages: list[PackageEntry],
     all_modules: list[ModuleEntry],
+    compact: bool = True,
 ) -> str:
-    """Generate the ultra-compact module-index.md content."""
+    """Generate the module-index.md content.
+
+    Parameters
+    ----------
+    compact : bool
+        If True, use v2 ultra-compact format (tags, no backticks, aligned).
+        If False, use legacy verbose format.
+    """
     lines: list[str] = []
     lines.append("# Module Index (auto-generated)")
     lines.append("")
-    lines.append("Compact catalog of all code modules. Use to find reusable functionality.")
-    lines.append("Run `python scripts/maintenance/generate_module_index.py` to refresh.")
+    if compact:
+        lines.append("Legend: C=class F=func K=const. Base import: `from qmbp_simulation.<module> import ...`")
+        lines.append("Run `python scripts/maintenance/generate_module_index.py` to refresh.")
+        lines.append("")
+        lines.extend(_build_quick_lookup(all_packages, all_modules))
+    else:
+        lines.append("Compact catalog of all code modules. Use to find reusable functionality.")
+        lines.append("Run `python scripts/maintenance/generate_module_index.py` to refresh.")
     lines.append("")
 
     # Group packages by category
@@ -326,20 +470,32 @@ def format_index(
 
         for pkg in pkgs:
             sp = _short_path(pkg.rel_path)
-            doc_part = f" — {pkg.docstring}" if pkg.docstring else ""
-            lines.append(f"### `{sp}/`{doc_part}")
-            if pkg.exports:
-                lines.append(f"Exports: {_exports_compact(pkg.exports)}")
+            n_mods = len(pkg.modules)
+            if compact:
+                lines.append(f"### {sp}/ ({n_mods})")
+                if pkg.exports:
+                    lines.append(f"  ↳ {_exports_compact(pkg.exports)}")
+            else:
+                doc_short = f" — {pkg.docstring[:60]}" if pkg.docstring else ""
+                lines.append(f"### `{sp}/`{doc_short}")
+                if pkg.exports:
+                    lines.append(f"Exports: {_exports_compact(pkg.exports)}")
             lines.append("")
             for m in pkg.modules:
-                lines.append(f"- {_module_line(m)}")
+                if compact:
+                    lines.append(_module_line_v2(m))
+                else:
+                    lines.append(f"- {_module_line(m)}")
             lines.append("")
 
         if mods:
             lines.append("### Standalone scripts")
             lines.append("")
             for m in mods:
-                lines.append(f"- {_module_line(m)}")
+                if compact:
+                    lines.append(_module_line_v2(m))
+                else:
+                    lines.append(f"- {_module_line(m)}")
             lines.append("")
 
     return "\n".join(lines)
@@ -362,6 +518,10 @@ def main() -> None:
         "--dry-run", action="store_true",
         help="Print to stdout instead of writing file",
     )
+    parser.add_argument(
+        "--format", choices=["compact", "verbose"], default="compact",
+        help="Output format: 'compact' (v2, tags+aligned) or 'verbose' (legacy). Default: compact",
+    )
     args = parser.parse_args()
 
     all_packages: list[PackageEntry] = []
@@ -372,7 +532,8 @@ def main() -> None:
         all_packages.extend(pkgs)
         all_modules.extend(mods)
 
-    result = format_index(all_packages, all_modules)
+    compact = args.format == "compact"
+    result = format_index(all_packages, all_modules, compact=compact)
 
     if args.dry_run:
         print(result)
@@ -382,8 +543,11 @@ def main() -> None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(result, encoding="utf-8")
         total = len(all_packages) + len(all_modules)
+        n_lines = result.count("\n") + 1
+        n_chars = len(result)
         print(f"✓ Module index written to {args.output.relative_to(PROJECT_ROOT)}")
         print(f"  {len(all_packages)} packages, {len(all_modules)} standalone, {total} total entries")
+        print(f"  Format: {args.format} ({n_lines} lines, {n_chars:,} chars)")
 
 
 if __name__ == "__main__":

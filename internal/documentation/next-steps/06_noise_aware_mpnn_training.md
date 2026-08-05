@@ -1,161 +1,218 @@
-# Integration Plan 06: Noise-Aware MPNN Training (Karim2025-style)
+# Plan 06v2: Noise-Aware MPNN with Coherent Errors (BackendEstimatorV2 + FakeTorino)
 
-**Paper:** Karim et al. (2025) — Fast and Noise-aware ML Variational Quantum Eigensolver Optimiser  
-**arXiv:** 2503.20210  
-**Code:** ❌ No public repository  
-**Priority:** HIGH (1 week, critical for hardware deployment — Phase 4)
+**Paper:** Karim et al. (2025) — Fast and Noise-aware ML VQE Optimiser (arXiv:2503.20210)
+**Priority:** MEDIUM — depends on #03 (Flow) and #04 (Qracle) being ready
+**Effort:** 1.5 weeks (90 min/sweep × multiple configs + analysis)
+**Prerequisites:** #03 Flow-VQE integrated, #04 Qracle unified graph integrated
 
-## What It Does
+## Previous Result: F18 (FAILED — shot noise only)
 
-Instead of training the MPNN on noiseless VQE data (Phase 2) and then deploying on
-noisy hardware, Karim2025 trains directly on VQE data collected UNDER NOISE. The
-predicted θ* are already adapted to the noisy landscape, so they perform better on
-hardware without needing post-hoc error mitigation.
+V7 Experiment 5B already tested noise-aware MPNN and **failed 6-10× worse**:
+- Config: N=6, SPSA/COBYLA + shot noise (4096 shots, no coherent errors)
+- Root cause: shot noise produces **scattered** θ (random, unlearnable)
+- Conclusion: pure stochastic noise corrupts training targets → F18 confirmed
 
-Key insight: The optimal θ under noise ≠ optimal θ without noise. The noise shifts
-the energy landscape, and θ_opt(noisy) compensates for this shift. An MPNN trained
-on noisy data learns this compensation implicitly.
+## What's Different This Time
 
-## Viability Assessment
+| V7 5B (FAILED) | This plan (v8 2.2) |
+|---|---|
+| Shot noise only (Gaussian) | Full FakeTorino noise model |
+| No coherent errors | T1/T2 decay + crosstalk + gate over-rotation |
+| θ_noisy = random scatter | θ_noisy = systematic shift (hypothesis) |
+| COBYLA/SPSA gradient-free | SPSA only (confirmed 3× better under noise) |
+| N=6, global HVA (2 params) | N=10, bond-resolved (19 params) + unified graph |
+| Standalone experiment | Stacked on top of #03 + #04 improvements |
 
-| Criterion | Status |
-|-----------|--------|
-| Compatible with our pipeline? | ✅ Same MPNN, different training data source |
-| Requires new dependencies? | ❌ Qiskit AerSimulator (already available) |
-| Reuses existing modules? | ✅ Full pipeline (just swap backend in Phase 2) |
-| Addresses a real problem? | ✅ Current MPNN overpredicts on hardware (trained noiseless) |
-| Data available? | ⚠️ Need to run Phase 2 with NoisyBackend (FakeTorino) |
-| Publishable? | ✅ Direct comparison: noiseless-trained vs noise-aware MPNN on hardware |
+**Key hypothesis:** Coherent gate errors create a *learnable, smooth* shift in
+the energy landscape. θ_opt(coherent_noise) ≠ θ_opt(noiseless), but the mapping
+h → θ_opt(coherent) is still a smooth function that the MPNN can learn.
 
-## How To Integrate
+## Design: 5-Way Comparison Matrix
 
-### What It Proves
-
-That MPNN predictions trained on noisy VQE data achieve lower ΔE/gap on hardware
-than predictions from a noiseless-trained MPNN, eliminating or reducing the need
-for ZNE/PEA error mitigation at the prediction level.
-
-### Conditions Where It Makes Sense
-
-- **Models:** `tfim`, `tfim_longitudinal` (hardware-viable CX budget)
-- **Topologies:** chain_1d, heavy_hex (native to IBM hardware)
-- **N:** 6-10 (FakeTorino simulation feasible; real hardware available)
-- **p:** 1-2 (deeper circuits have too much noise)
-- **Backend:** FakeTorino (local), then ibm_torino (real)
-
-### When NOT to Use
-
-- Noiseless benchmarking (defeats the purpose)
-- `tfim_frustrated`, `heisenberg` (too many CX gates for hardware)
-- N > 14 on simulator (FakeTorino simulation time explodes)
-- When ZNE already brings ΔE/gap < 5% (noise-aware adds complexity for no gain)
-
-### Integration Architecture
+Designed to run AFTER #03 and #04 are integrated, producing a full ablation:
 
 ```
-src/qmbp_simulation/
-└── predictors/
-    ├── mpnn.py                    # ✅ EXISTS: MPNNPredictor, train_mpnn
-    └── noise_aware_training.py    # NEW: Noisy Phase 2 data collection + training
+         Training data source
+         ┌─────────────────────────────────┐
+         │  Noiseless θ    │  FakeTorino θ  │
+─────────┼─────────────────┼────────────────┤
+Graph A  │  (A1) Baseline   │  (A2) Noise-aware │  ← current BondResolvedMPNN
+(H only) │  [already have]   │  [new: this plan]  │
+─────────┼─────────────────┼────────────────────┤
+Graph B  │  (B1) Qracle     │  (B2) Qracle+Noise │  ← unified graph (#04)
+(H+Circ) │  [from #04]       │  [new: this plan]  │
+─────────┼─────────────────┼────────────────────┤
++Flow    │  (C1) Flow K=5   │  (C2) Flow+Noise   │  ← multi-shot (#03)
+         │  [from #03]       │  [new: this plan]  │
+         └─────────────────┴────────────────────┘
+
+Deploy target: FakeTorino (BackendEstimatorV2, 8192 shots)
 ```
 
-OR more simply, no new module needed — just a modified pipeline run:
+## Execution Plan
 
-```
-scripts/experiment_runners/
-└── noisy/
-    ├── run_noise_aware_pipeline.py  # NEW: Phase 2 with NoisyBackend
-    └── compare_noiseless_vs_noisy.py # NEW: Head-to-head comparison
-```
+### Phase 0 — Confirm Prerequisites (Day 0)
 
-### Modules to Reuse
+- [ ] #03 Flow-VQE: `FlowMultiShotPredictor` works on noiseless data
+- [ ] #04 Qracle: `build_unified_bond_resolved_graph()` + masked BondResolvedMPNN works
+- [ ] Existing baseline A1 has bond-resolved results at N=10 chain_1d
 
-| Module | Usage |
-|--------|-------|
-| `predictors.mpnn.MPNNPredictor` | SAME architecture (no changes!) |
-| `predictors.mpnn.build_graph_dataset` | SAME dataset builder |
-| `predictors.mpnn.train_mpnn` | SAME training loop |
-| `execution.NoisyBackend` | FakeTorino backend for Phase 2 |
-| `execution.noisy_utils.noisy_estimate` | Shot-based energy evaluation |
-| `optimizers.vqe.VQEOptimizer` | SAME optimizer (swap backend only) |
-| `pipeline.runner.PipelineRunner` | Full pipeline with `backend=NoisyBackend()` |
+### Phase 1 — Noisy Training Data Collection (Days 1-3)
 
-### Implementation Steps
+**Goal:** Generate θ_opt(FakeTorino) training dataset at N=10, chain_1d, p=1.
 
-The beauty of this approach: **NO new architecture needed**. The entire change is:
-
+**Config:**
 ```python
-# Current (noiseless):
-runner = PipelineRunner(lattice, config, backend=NoiselessBackend())
+from qiskit_ibm_runtime.fake_provider import FakeTorino
+from qiskit.primitives import BackendEstimatorV2
 
-# Noise-aware:
-runner = PipelineRunner(lattice, config, backend=NoisyBackend(shots=8192))
+backend = BackendEstimatorV2(FakeTorino())
+# SPSA optimizer (validated: 3× better than COBYLA under coherent noise, V7 4C)
+# shots=8192 (minimum for SNR>1 per observable)
+# n_restarts=15 (noisy landscape is rougher)
+# maxiter=3000 per restart (SPSA needs more iterations)
 ```
 
-1. **Run Phase 2 with `NoisyBackend`** (FakeTorino, 8192 shots):
-   - VQEOptimizer auto-switches to COBYLA (shot noise → no gradients)
-   - θ_opt(noisy) will differ from θ_opt(noiseless) by noise-induced shift
-   - Need more restarts (noise makes landscape rougher): n_restarts=10-15
-   - Wall-clock: ~10× slower than noiseless (shot-based evaluation)
+**h-grid:** 35 points, non-uniform (denser near h_min ≈ 0.83 for bond-resolved):
+- h ∈ [0.8, 1.5]: Δh=0.05 (15 points — critical region)
+- h ∈ [1.5, 3.0]: Δh=0.1 (15 points — paramagnetic)
+- h ∈ [3.0, 4.0]: Δh=0.2 (5 points — deep paramagnetic)
 
-2. **Train MPNN on noisy θ_opt** (same `train_mpnn()` call):
-   - Input: same graph (h, coord)
-   - Target: θ_opt(noisy) instead of θ_opt(noiseless)
-   - Same architecture, same hyperparams
+**Seeds:** 5 independent seeds (select best θ per h-point by energy)
 
-3. **Deploy comparison script** (`scripts/experiment_runners/noisy/compare_noiseless_vs_noisy.py`):
-   - Load noiseless-trained MPNN (A) and noise-trained MPNN (B)
-   - Deploy both on FakeTorino at test h-points
-   - Compare ΔE/gap: A (noiseless MPNN + ZNE) vs B (noise-aware MPNN, no ZNE)
-   - Also test: B + ZNE (should be best)
+**Expected wall-clock:** ~90 min per sweep × 5 seeds = ~7.5 hours total
+(parallelizable across seeds)
 
-4. **Integration with existing noisy pipeline**:
-   - Extend `run_noiseless_pipeline.py` with `--noisy-training` flag
-   - Or create separate `run_noise_aware_pipeline.py` (cleaner)
+**Quality gates before accepting:**
+- ΔE/gap < 20% (noiseless evaluation of θ_noisy) → keeps ~70% of points
+- θ smoothness check: max jump < 1.0 rad between consecutive h-points
+- At least 20/35 points pass → sufficient for MPNN training
 
-### Expected Output
+**Key diagnostic:** Plot θ_opt(FakeTorino) vs θ_opt(noiseless) per-bond.
+If the difference is smooth and small (<0.3 rad), the shift is coherent/learnable.
+If scattered (>1.0 rad variance across seeds), abort — same failure mode as V7 5B.
 
-```json
-{
-  "model": "tfim_longitudinal",
-  "topology": "heavy_hex",
-  "N": 10,
-  "p": 1,
-  "shots": 8192,
-  "comparison": {
-    "noiseless_mpnn_raw": {"mean_de_gap": 0.18, "pass_rate": 0.40},
-    "noiseless_mpnn_zne": {"mean_de_gap": 0.06, "pass_rate": 0.80},
-    "noise_aware_mpnn_raw": {"mean_de_gap": 0.08, "pass_rate": 0.70},
-    "noise_aware_mpnn_zne": {"mean_de_gap": 0.03, "pass_rate": 0.95}
-  },
-  "conclusion": "Noise-aware training + ZNE achieves best performance"
-}
+### Phase 2 — Train All Variants (Days 4-5)
+
+Train 6 MPNN variants using the comparison matrix:
+
+| ID | Graph | θ_target | Model | Notes |
+|---|---|---|---|---|
+| A1 | H-only | noiseless | BondResolvedMPNN | Already have (baseline) |
+| A2 | H-only | FakeTorino | BondResolvedMPNN | New |
+| B1 | H+Circuit | noiseless | BondResolvedMPNN+mask | From #04 |
+| B2 | H+Circuit | FakeTorino | BondResolvedMPNN+mask | New |
+| C1 | H-only | noiseless | Flow K=5 | From #03 |
+| C2 | H-only | FakeTorino | Flow K=5 | New (train flow on noisy θ) |
+
+Training hyperparams (same for all):
+- hidden_dim=256, n_layers=3, norm_type="none"
+- lr=1e-3, patience=300, epochs=8000
+- Canonical θ (canonicalize_theta mandatory)
+
+### Phase 3 — Deploy & Compare (Days 6-7)
+
+Deploy all 6 models on FakeTorino at **test** h-points (held out from training):
+- h_test = {1.0, 1.2, 1.4, 1.6, 2.0, 2.5, 3.0} (7 points)
+- 3 seeds per test point
+- Measure: ΔE/gap (vs exact E₀), |ΔE| absolute, pass rate (<5%)
+
+**Additionally test with ZNE on top:**
+- Each model's predictions + PEA-ZNE (3 noise factors)
+- Compare: noise-aware raw vs noiseless+ZNE vs noise-aware+ZNE
+
+### Phase 4 — Analysis & Decision (Days 8-9)
+
+Generate comparison table:
+
+```
+| Model | Deploy (raw) | Deploy (+ZNE) | Improvement vs A1 |
+|-------|:---:|:---:|:---:|
+| A1 (baseline) | X% | Y% | — |
+| A2 (noise-aware) | ? | ? | ? |
+| B1 (Qracle) | ? | ? | ? |
+| B2 (Qracle+noise) | ? | ? | ? |
+| C1 (Flow K=5) | ? | ? | ? |
+| C2 (Flow+noise) | ? | ? | ? |
 ```
 
-### Success Criterion
+**Decision criteria:**
+- If A2 > A1 by ≥30%: noise-aware training works with coherent errors ✅
+- If B2 > B1 by ≥20%: noise-aware + unified graph compound ✅
+- If any noise-aware (raw) ≈ noiseless+ZNE: eliminates need for ZNE → major finding
+- If ALL noise-aware variants ≤ noiseless: confirms F18 even with coherent errors → negative result (still publishable as "coherent shift is too small to learn")
 
-- Noise-aware MPNN (no ZNE) outperforms noiseless MPNN (no ZNE) by ≥ 30% → validates approach
-- Noise-aware + ZNE achieves ≥ 90% pass rate → optimal combined strategy
-- Training data collection feasible in < 1 hour on FakeTorino (N=10, 35 h-points)
+## Modules to Reuse
 
-### Risks
+| Existing module | Role in this plan |
+|---|---|
+| `execution.NoisyBackend` | NOT used — FakeTorino needs BackendEstimatorV2 directly |
+| `optimizers.vqe.VQEOptimizer` | Phase 2 VQE (configure for SPSA) |
+| `predictors.mpnn.BondResolvedMPNN` | Model A1/A2 |
+| `predictors.mpnn.train_bond_resolved_mpnn` | Training loop (identical) |
+| `predictors.mpnn.build_bond_resolved_graph` | Graph A variants |
+| `predictors.unified_graph` (from #04) | Graph B variants |
+| `analysis.flow_warmstart.FlowWarmstartManager` | Variants C1/C2 |
+| `analysis.flow_multishot.FlowMultiShotPredictor` (from #03) | Deploy C variants |
+| `execution.noisy_utils.run_pea_zne` | ZNE comparison layer |
+| `utils.canonicalize_theta` | Mandatory preprocessing |
+| `framework.runner_base.ValidationRunner` | Script structure |
 
-- FakeTorino VQE with COBYLA may not converge well (noisy + gradient-free)
-  → Need more restarts (15-20) and possibly higher maxiter (2000)
-- θ_opt(noisy) may have higher variance across seeds → need more seeds (5-10)
-- Noise model may not match real hardware perfectly → validate on ibm_torino
-- Phase 2 wall-clock with shots is 10-50× slower → practical for N≤10 only
-- The "noise-aware" θ is specific to a noise model → doesn't transfer across backends
-  (retrain for each QPU or noise level)
+## New Code Required
 
-### Relationship to Existing Infrastructure
+Only ONE new script (no new library modules):
 
-Our codebase already has all the pieces:
-- `NoisyBackend` with FakeTorino noise model ✅
-- `VQEOptimizer` with COBYLA auto-switch for shot-based ✅  
-- `PipelineRunner` accepts any `ExecutionBackend` ✅
-- ZNE infrastructure (`run_gate_folding_zne`, `run_pea_zne`) ✅
+```
+scripts/experiment_runners/noise_aware/
+└── run_noise_aware_comparison.py    # Orchestrates Phases 1-4
+```
 
-The only "new" thing is: running Phase 2 with NoisyBackend and saving those θ
-as MPNN training targets. This is literally a one-line change to the pipeline
-configuration. The comparison script is the real deliverable.
+Uses `ValidationRunner` base class. Configurable via flags:
+```bash
+# Phase 1: collect noisy data
+python scripts/experiment_runners/noise_aware/run_noise_aware_comparison.py \
+    --phase collect --n-qubits 10 --topology chain_1d --p-layers 1 --seeds 5
+
+# Phase 2-3: train + deploy all variants  
+python scripts/experiment_runners/noise_aware/run_noise_aware_comparison.py \
+    --phase evaluate --variants A1,A2,B1,B2,C1,C2
+
+# Phase 4: generate comparison report
+python scripts/experiment_runners/noise_aware/run_noise_aware_comparison.py \
+    --phase report --output results/noise_aware_comparison/
+```
+
+## Early Abort Conditions
+
+Stop and report negative result if:
+1. Phase 1 quality: < 15/35 h-points pass ΔE/gap < 20% → SPSA can't converge under FakeTorino
+2. Phase 1 diagnostic: θ_noisy variance across seeds > 0.8 rad → scattered (same as V7 5B)
+3. Phase 3 result: ALL noise-aware variants ≤ noiseless baseline by > 20% → coherent shift not learnable
+
+## Expected Timeline
+
+```
+Prerequisites: #03 + #04 complete
+Day 0:    Confirm prerequisites pass
+Days 1-3: Phase 1 — noisy data collection (can run overnight)
+Days 4-5: Phase 2 — train 6 variants (~2 hours each on GPU)
+Days 6-7: Phase 3 — deploy on FakeTorino (90 min per variant × 6)
+Days 8-9: Phase 4 — analysis + decision
+Total: ~9 working days (after prerequisites)
+```
+
+## Risks & Mitigations
+
+| Risk | Probability | Mitigation |
+|---|---|---|
+| FakeTorino SPSA won't converge (19 dims) | MEDIUM | Use 15 restarts, maxiter=3000, warm-start from noiseless θ |
+| θ shift is too small to learn | MEDIUM | Diagnostic in Phase 1; if < 0.05 rad shift → abort early |
+| 7.5h data collection too slow | LOW | Parallelize 5 seeds; use only 3 seeds as minimum |
+| Overfitting on 20-25 noisy points | MEDIUM | Dropout=0.2, validation split (80/20), early stopping |
+| FakeTorino ≠ real hardware | HIGH | This is accepted: FakeTorino is proxy. If results are positive, follow up with ibm_torino |
+
+## Relationship to Thesis
+
+- **If positive (noise-aware helps):** New contribution post-F18 — "coherent errors create learnable structure that pure shot noise does not" + practical implication for hardware deployment
+- **If negative (noise-aware still fails):** Strengthens F18 from "fails under shot noise" to "fails under ANY noise" — closes the question definitively
+- **Either way:** The 5-way comparison (#03 × #04 × #06) is a valuable ablation for the paper

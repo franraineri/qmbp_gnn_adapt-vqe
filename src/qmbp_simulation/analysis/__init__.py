@@ -37,7 +37,9 @@ from qmbp_simulation.analysis.landscape import (
     landscape_fluctuation,
 )
 from qmbp_simulation.analysis.metrics import (
+    classify_regime,
     compute_classification_confidence,
+    compute_deploy_summary,
     compute_energy_decomposition,
     compute_fraction_near_gs,
     compute_snr,
@@ -67,6 +69,10 @@ from qmbp_simulation.analysis.vqe_validator import (
 from qmbp_simulation.analysis.ground_truth_validator import (
     GroundTruthValidationReport,
     GroundTruthValidator,
+)
+from qmbp_simulation.analysis.quality_predictor import (
+    PredictionReport,
+    QualityPredictor,
 )
 from qmbp_simulation.analysis.cross_n_validator import (
     CrossNValidationReport,
@@ -114,6 +120,8 @@ __all__ = [
     "GradientAnalysisResult",
     "GroundTruthValidationReport",
     "GroundTruthValidator",
+    "PredictionReport",
+    "QualityPredictor",
     "NLCEConfig",
     "NLCEResult",
     "NLCERunner",
@@ -141,12 +149,14 @@ __all__ = [
     "transpiled_circuit_stats",
     "classify_outcome",
     "classify_result",
+    "classify_regime",
     "compute_classification_confidence",
     "compute_cx_budget",
     "detect_jumps",
     "compute_energy_decomposition",
     "compute_fraction_near_gs",
     "compute_hessian",
+    "compute_deploy_summary",
     "compute_snr",
     "compute_staggered_magnetization",
     "compute_theta_smoothness",

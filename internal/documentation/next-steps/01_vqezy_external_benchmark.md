@@ -2,8 +2,16 @@
 
 **Paper:** Zhang et al. (2025b) — VQEzy: An Open-Source Dataset for Parameter Initialization in VQEs  
 **arXiv:** 2509.17322  
-**Code:** `https://github.com/chizhang24/VQEzy`  
+**Code:** ✅ `https://github.com/chizhang24/VQEzy`  
 **Priority:** HIGH (1 day effort, high publishability impact)
+
+> **🤖 AI Agent Instruction:** Before implementing this integration, clone and study
+> the VQEzy repository at https://github.com/chizhang24/VQEzy. Examine:
+> 1. Dataset format (JSON/NPZ structure, field names, units)
+> 2. How instances are organized by domain (condensed_matter/, quantum_chem/, combo_opt/)
+> 3. What ansätze are used per task (filter for HVA-compatible ones)
+> 4. The `data/` directory structure and loading utilities they provide
+> 5. Copy their data-loading utilities directly into our `vqezy_loader.py` rather than reimplementing
 
 ## What It Does
 

@@ -280,6 +280,133 @@ class MPNNPredictor(nn.Module):
         return self.head(x)  # type: ignore[misc, no-any-return]
 
 
+# ── Reusable prediction utility ──────────────────────────────────────────
+
+
+def predict_theta(
+    model: MPNNPredictor,
+    lattice: LatticeConfig,
+    h_values: list[float] | np.ndarray,
+    *,
+    rescale_h_by_j: bool = False,
+    clip_bounds: tuple[float, float] = (-np.pi, np.pi),
+    extra_node_features: np.ndarray | None = None,
+) -> dict[float, np.ndarray]:
+    """Generate MPNN predictions for given h-values with full safety guards.
+
+    This is the canonical prediction function — all callers (pipeline runners,
+    experiments, notebooks) should use this instead of manually constructing
+    graphs and calling model(). It applies:
+
+    1. h/J rescaling (when ``rescale_h_by_j=True``)
+    2. NaN/Inf guard (replaces corrupt predictions with zeros + warning)
+    3. Bounds clipping (ensures θ ∈ [-π, π] for valid HVA circuits)
+
+    Parameters
+    ----------
+    model : MPNNPredictor
+        Trained MPNN model (will be set to eval mode).
+    lattice : LatticeConfig
+        Lattice specification (topology, n_qubits, J, edges).
+    h_values : list[float] | np.ndarray
+        Transverse field values to predict θ for.
+    rescale_h_by_j : bool
+        If True, use h/J as the node feature instead of h.
+        Requires ``lattice.J`` to be a positive scalar.
+    clip_bounds : tuple[float, float]
+        Parameter bounds for clipping (default [-π, π]).
+    extra_node_features : np.ndarray | None
+        Additional per-point features broadcast to all nodes, shape
+        [len(h_values), n_extra]. Must match what was used in
+        ``build_graph_dataset(extra_node_features=...)`` during training.
+        For models with uniform extra features (e.g., single J₂ value),
+        pass a constant array like ``np.full((len(h_values), 1), j2_val)``.
+
+    Returns
+    -------
+    dict[float, np.ndarray]
+        Mapping from h-value to predicted θ array.
+
+    Raises
+    ------
+    ValueError
+        If rescale_h_by_j=True but J is non-scalar or non-positive.
+    """
+    import torch
+    from torch_geometric.data import Data
+
+    from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+    # Validate rescaling
+    j_scalar = 1.0
+    if rescale_h_by_j:
+        if isinstance(lattice.J, np.ndarray):
+            raise ValueError(
+                "predict_theta: rescale_h_by_j=True requires scalar J, "
+                f"but lattice.J is per-bond array."
+            )
+        j_scalar = float(lattice.J)
+        if j_scalar <= 0:
+            raise ValueError(
+                f"predict_theta: rescale_h_by_j=True requires J>0, got J={j_scalar}."
+            )
+
+    # Validate extra_node_features shape
+    if extra_node_features is not None:
+        extra_node_features = np.asarray(extra_node_features)
+        if extra_node_features.ndim == 1:
+            extra_node_features = extra_node_features.reshape(-1, 1)
+        if len(extra_node_features) != len(h_values):
+            raise ValueError(
+                f"predict_theta: extra_node_features has {len(extra_node_features)} rows "
+                f"but h_values has {len(h_values)} entries. Must match."
+            )
+
+    builder = HamiltonianBuilder()
+    edge_index_np, coord = builder.build_graph_data(lattice)
+    edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+
+    model.eval()
+    predictions: dict[float, np.ndarray] = {}
+
+    with torch.no_grad():
+        for idx, h in enumerate(h_values):
+            h_feat_val = float(h) / j_scalar if rescale_h_by_j else float(h)
+            h_feat = np.full(lattice.n_qubits, h_feat_val)
+            base_features = [h_feat, coord.astype(float)]
+
+            # Add extra features (broadcast scalar per-point values to all nodes)
+            if extra_node_features is not None:
+                for col in range(extra_node_features.shape[1]):
+                    val = extra_node_features[idx, col]
+                    base_features.append(np.full(lattice.n_qubits, float(val)))
+
+            x = torch.tensor(
+                np.stack(base_features, axis=1),
+                dtype=torch.float32,
+            )
+            graph = Data(x=x, edge_index=edge_index)
+            theta_pred = model(graph).numpy().flatten()
+
+            # Guard: NaN/Inf → zeros
+            if not np.all(np.isfinite(theta_pred)):
+                n_bad = int(np.sum(~np.isfinite(theta_pred)))
+                logger.warning(
+                    "predict_theta: %d/%d NaN/Inf values at h=%.4f. "
+                    "Replacing with zeros.",
+                    n_bad, len(theta_pred), h,
+                )
+                theta_pred = np.where(np.isfinite(theta_pred), theta_pred, 0.0)
+
+            # Guard: clip to valid HVA range
+            if clip_bounds is not None:
+                theta_pred = np.clip(theta_pred, clip_bounds[0], clip_bounds[1])
+
+            predictions[float(h)] = theta_pred
+
+    return predictions
+
+
 # ── Graph data construction utility ──────────────────────────────────────
 
 
@@ -294,6 +421,7 @@ def build_graph_dataset(
     de_gap_threshold: float = 0.20,
     include_edge_features: bool = False,
     extra_node_features: np.ndarray | None = None,
+    rescale_h_by_j: bool = False,
 ) -> list[Data]:
     """Convert LatticeConfig + θ_opt arrays into torch_geometric Data objects.
 
@@ -330,6 +458,11 @@ def build_graph_dataset(
         Example: for frustrated TFIM with J₂ varying per point,
         pass extra_node_features=J2_values.reshape(-1, 1) to get
         node features [h_i, coord_i, J₂] (3 features per node).
+    rescale_h_by_j : bool
+        When True, the node h-feature is rescaled as h/J (control parameter
+        divided by coupling). This makes the MPNN learn θ(h/J) instead of
+        θ(h), enabling zero-shot generalization across different J couplings.
+        Requires ``lattice.J`` to be a positive scalar. Default False.
 
     Returns
     -------
@@ -354,14 +487,33 @@ def build_graph_dataset(
             "theta_opt contains NaN or Inf values. Check VQE convergence "
             "before building training dataset."
         )
+    # ── h/J rescaling validation ─────────────────────────────────────
+    _j_scalar: float = 1.0
+    if rescale_h_by_j:
+        if isinstance(lattice.J, np.ndarray):
+            raise ValueError(
+                "rescale_h_by_j=True requires scalar J coupling, "
+                f"but lattice.J is an array (per-bond). Use extra_node_features "
+                f"with h/J ratios for non-uniform couplings."
+            )
+        _j_scalar = float(lattice.J)
+        if _j_scalar <= 0:
+            raise ValueError(
+                f"rescale_h_by_j=True requires positive J, got J={_j_scalar}."
+            )
+        logger.info(
+            "  h/J rescaling enabled: h_feature = h / J (J=%.4f)", _j_scalar
+        )
+
     logger.debug(
         "build_graph_dataset: n_qubits=%d, n_h_points=%d, theta_shape=%s, "
-        "fidelity_threshold=%.2f, de_gap_threshold=%.2f",
+        "fidelity_threshold=%.2f, de_gap_threshold=%.2f, rescale_h_by_j=%s",
         lattice.n_qubits,
         len(h_values),
         theta_opt.shape,
         fidelity_threshold,
         de_gap_threshold,
+        rescale_h_by_j,
     )
     builder = HamiltonianBuilder()
     edge_index_np, coord = builder.build_graph_data(lattice)
@@ -421,8 +573,9 @@ def build_graph_dataset(
             n_de_gap_filtered += 1
             continue
 
-        # Node features: [h_i, coordination_number_i, ...extra...] per site
-        h_feat = np.full(lattice.n_qubits, float(h))
+        # Node features: [h_i (or h/J), coordination_number_i, ...extra...] per site
+        h_value_feat = float(h) / _j_scalar if rescale_h_by_j else float(h)
+        h_feat = np.full(lattice.n_qubits, h_value_feat)
         base_features = [h_feat, coord.astype(float)]
 
         # Add extra features (broadcast scalar per-point values to all nodes)
@@ -440,6 +593,7 @@ def build_graph_dataset(
         data = Data(x=x, edge_index=edge_index, y=y)
         data.e_exact = float(e_exact[i])
         data.h_value = float(h)
+        data.h_over_j = h_value_feat  # Store rescaled feature for deployment
 
         # Attach edge features if available
         if include_edge_features and edge_attr is not None:
@@ -470,6 +624,30 @@ def build_graph_dataset(
         f"basin_filter={n_basin_filtered}, "
         f"node_features={n_features}, edge_features={include_edge_features})"
     )
+
+    # ── Data quality guards ──────────────────────────────────────────
+    # Warn if h-values have no variance (MPNN can't learn h→θ mapping)
+    h_vals_in_dataset = [float(d.h_value) for d in dataset]
+    if len(h_vals_in_dataset) >= 3:
+        h_range = max(h_vals_in_dataset) - min(h_vals_in_dataset)
+        if h_range < 0.01:
+            logger.warning(
+                "⚠️ h-value range in dataset is tiny (%.4f). "
+                "The MPNN cannot learn a meaningful h→θ mapping from "
+                "nearly identical inputs. Check h_values array.",
+                h_range,
+            )
+    # Warn if theta targets have no variance (constant θ across all h)
+    theta_stack = np.array([d.y.numpy() for d in dataset])
+    theta_std = float(np.std(theta_stack))
+    if theta_std < 1e-4:
+        logger.warning(
+            "⚠️ θ targets have near-zero variance (std=%.2e). "
+            "The MPNN will learn a constant function. Check VQE convergence "
+            "or theta canonicalization.",
+            theta_std,
+        )
+
     return dataset
 
 
@@ -477,7 +655,7 @@ def build_graph_dataset(
 
 
 def train_mpnn(
-    model: MPNNPredictor,
+    model: MPNNPredictor | None,
     dataset: list[Data],
     n_epochs: int = 4000,
     lr: float = 1e-3,
@@ -492,13 +670,34 @@ def train_mpnn(
     physics_loss_start_epoch: int = 500,
     weight_decay: float = 1e-4,
     grad_clip_norm: float | None = 1.0,
-) -> dict:
+    # ── Model construction kwargs (used when model=None) ──
+    hidden_dim: int = 64,
+    n_layers: int = 3,
+    output_dim: int | None = None,
+    node_features: int = 2,
+    dropout_rate: float = 0.1,
+    norm_type: str = "batch",
+    per_parameter_heads: bool = False,
+    use_edge_features: bool = False,
+    edge_feature_dim: int = 1,
+    n_edges: int | None = None,
+) -> tuple[MPNNPredictor, dict] | dict:
     """Train the MPNN with MSE loss, ReduceLROnPlateau, and optional
     energy-driven validation.
 
     Parameters
     ----------
-    model : MPNNPredictor
+    model : MPNNPredictor | None
+        Pre-instantiated model to train. If None, a new MPNNPredictor is
+        created using the model construction kwargs (hidden_dim, n_layers,
+        etc.). This allows two calling patterns:
+
+        1. Explicit model (backward compatible, returns dict only):
+           ``result = train_mpnn(model, dataset)``
+
+        2. Auto-create (returns tuple (model, dict)):
+           ``model, result = train_mpnn(None, dataset, hidden_dim=128)``
+
     dataset : list[Data] — training data (already fidelity-filtered)
     n_epochs : int
     lr : float — initial learning rate
@@ -523,19 +722,78 @@ def train_mpnn(
         Maximum L2 norm for gradient clipping. Prevents training divergence
         from gradient spikes (common with discontinuous θ(h) data).
         Default 1.0. Set to None to disable clipping.
+    hidden_dim : int
+        Hidden dimension for MPNNPredictor (used when model=None). Default 64.
+    n_layers : int
+        Number of GINConv layers (used when model=None). Default 3.
+    output_dim : int | None
+        Output dimension. If None and model=None, inferred from dataset[0].y.
+    node_features : int
+        Number of input node features (used when model=None). Default 2.
+    dropout_rate : float
+        Dropout rate for readout head (used when model=None). Default 0.1.
+    norm_type : str
+        Normalization type: "batch", "layer", or "none" (used when model=None).
+    per_parameter_heads : bool
+        Use separate ZZ/X heads (used when model=None). Default False.
+    use_edge_features : bool
+        Use NNConv with edge features (used when model=None). Default False.
+    edge_feature_dim : int
+        Edge feature dimension (used when model=None). Default 1.
+    n_edges : int | None
+        Number of edges for asymmetric head split (used when model=None).
 
     Returns
     -------
-    dict with keys: 'mse_history', 'energy_val_history', 'final_mse',
-                    'stopped_early', 'stop_reason',
-                    and optionally 'zz_head_loss_history', 'x_head_loss_history'
-                    when per_parameter_heads is enabled.
+    dict (when model is provided) or tuple[MPNNPredictor, dict] (when model=None)
+        When model=None: returns (model, history_dict).
+        When model is provided: returns history_dict only (backward compatible).
+        
+        history_dict has keys: 'mse_history', 'energy_val_history', 'final_mse',
+        'stopped_early', 'stop_reason',
+        and optionally 'zz_head_loss_history', 'x_head_loss_history'
+        when per_parameter_heads is enabled.
 
     Raises
     ------
     ValueError
         If dataset has fewer than 3 points (insufficient for training).
     """
+    # ── Auto-construct model if None ──────────────────────────────────
+    _model_was_none = model is None
+    if model is None:
+        # Infer output_dim from dataset if not provided
+        if output_dim is None:
+            if len(dataset) > 0 and hasattr(dataset[0], "y"):
+                output_dim = dataset[0].y.shape[-1] if dataset[0].y.dim() > 0 else 1
+            else:
+                raise ValueError(
+                    "output_dim must be specified when model=None and dataset "
+                    "has no .y attribute to infer from."
+                )
+        # Infer node_features from dataset if possible
+        if len(dataset) > 0 and hasattr(dataset[0], "x"):
+            node_features = dataset[0].x.shape[-1]
+
+        model = MPNNPredictor(
+            node_features=node_features,
+            hidden_dim=hidden_dim,
+            n_layers=n_layers,
+            output_dim=output_dim,
+            per_parameter_heads=per_parameter_heads,
+            use_edge_features=use_edge_features,
+            edge_feature_dim=edge_feature_dim,
+            norm_type=norm_type,
+            n_edges=n_edges,
+            dropout_rate=dropout_rate,
+        )
+        logger.info(
+            "  Auto-created MPNNPredictor: hidden=%d, layers=%d, output=%d, "
+            "norm=%s, params=%d",
+            hidden_dim, n_layers, output_dim, norm_type,
+            sum(p.numel() for p in model.parameters()),
+        )
+
     # ── Dataset validation ────────────────────────────────────────────
     logger.info(
         "  🧠 train_mpnn: dataset=%d pts, epochs=%d, lr=%.1e, patience=%d, "
@@ -633,6 +891,17 @@ def train_mpnn(
             stop_reason = "nan_loss"
             break
 
+        # ── Early garbage detection: high loss after warm-up ─────────
+        # If MSE is still very high after 500 epochs, the data is likely
+        # corrupted (wrong feature dimensions, topology mismatch, etc.)
+        if epoch == 499 and epoch_loss > 0.5:
+            logger.warning(
+                f"⚠️ MSE still very high ({epoch_loss:.4f}) after 500 epochs. "
+                f"Possible issues: wrong node features, topology mismatch, "
+                f"or corrupted theta_opt data. Training will continue but "
+                f"predictions may be unreliable."
+            )
+
         mse_history.append(epoch_loss)
         scheduler.step(epoch_loss)
 
@@ -705,6 +974,11 @@ def train_mpnn(
         result["zz_head_loss_history"] = zz_head_loss_history
         result["x_head_loss_history"] = x_head_loss_history
 
+    # Return (model, result) when model was auto-created (model=None),
+    # otherwise return just result for backward compatibility with all
+    # existing callers that pass a pre-built model.
+    if _model_was_none:
+        return model, result
     return result
 
 
@@ -924,11 +1198,15 @@ class BondResolvedMPNN(nn.Module):
             - ``edge_list``: tensor of shape [n_edges, 2] with unique undirected
               edges (i < j). Used for θ_zz predictions.
             - ``batch``: batch indices (for batched graphs).
+            - ``node_type`` (optional): tensor [total_nodes] with 0=qubit, 1=ZZ gate,
+              2=RX gate. When present, predictions are masked to qubit nodes only
+              (unified Hamiltonian+Circuit graph mode, Qracle-style).
+            - ``n_qubit_nodes`` (optional): int, number of qubit nodes per graph.
 
         Returns
         -------
-        torch.Tensor of shape [batch_size, n_edges + n_nodes]
-            Concatenated [θ_zz_per_edge, θ_x_per_node] for each graph.
+        torch.Tensor of shape [batch_size, n_edges + n_qubit_nodes]
+            Concatenated [θ_zz_per_edge, θ_x_per_qubit] for each graph.
             When batch_size=1, shape is [1, 2N-1] for chain_1d.
         """
         x, edge_index = data.x, data.edge_index
@@ -938,19 +1216,42 @@ class BondResolvedMPNN(nn.Module):
         else:
             batch = torch.zeros(x.size(0), dtype=torch.long, device=x.device)
 
-        # ── Message passing ──────────────────────────────────────────
+        # ── Message passing (all nodes participate) ──────────────────
         for conv, norm in zip(self.convs, self.norms, strict=False):
             x = conv(x, edge_index)
             x = norm(x)
             x = torch.relu(x)
 
-        # ── Per-node θ_x predictions ─────────────────────────────────
-        theta_x = self.node_head(x).squeeze(-1)  # [total_nodes]
+        # ── Determine qubit mask ─────────────────────────────────────
+        # When node_type is available (unified graph), only predict on qubits.
+        # Otherwise (Hamiltonian-only graph), all nodes are qubits.
+        has_node_type = hasattr(data, "node_type") and data.node_type is not None
+        if has_node_type:
+            qubit_mask = data.node_type == 0  # [total_nodes]
+            x_qubit = x[qubit_mask]  # [n_qubit_nodes_total, hidden]
+        else:
+            qubit_mask = None
+            x_qubit = x  # all nodes are qubits
+
+        # ── Per-node θ_x predictions (qubit nodes only) ──────────────
+        theta_x = self.node_head(x_qubit).squeeze(-1)  # [n_qubit_nodes_total]
 
         # ── Per-edge θ_zz predictions ────────────────────────────────
+        # edge_list references qubit indices (always 0..N-1), so we index
+        # into x_qubit directly (qubit nodes are always the first N nodes).
         edge_list = data.edge_list  # [n_edges_total, 2] undirected
-        src_emb = x[edge_list[:, 0]]  # [n_edges_total, hidden]
-        tgt_emb = x[edge_list[:, 1]]  # [n_edges_total, hidden]
+
+        # Defensive: verify edge_list indices are within x_qubit range
+        max_edge_idx = edge_list.max().item() if edge_list.numel() > 0 else 0
+        if max_edge_idx >= x_qubit.size(0):
+            raise RuntimeError(
+                f"edge_list contains index {max_edge_idx} but x_qubit has "
+                f"only {x_qubit.size(0)} nodes. This indicates a graph "
+                f"construction error (qubit nodes must be first N nodes)."
+            )
+
+        src_emb = x_qubit[edge_list[:, 0]]  # [n_edges_total, hidden]
+        tgt_emb = x_qubit[edge_list[:, 1]]  # [n_edges_total, hidden]
         edge_emb = torch.cat([src_emb, tgt_emb], dim=-1)
         theta_zz = self.edge_head(edge_emb).squeeze(-1)  # [n_edges_total]
 
@@ -959,18 +1260,23 @@ class BondResolvedMPNN(nn.Module):
         if batch.max() == 0:
             return torch.cat([theta_zz, theta_x], dim=-1).unsqueeze(0)
 
-        # Batched: assemble per graph
+        # Batched: assemble per graph using qubit-level batching
+        if has_node_type:
+            qubit_batch = batch[qubit_mask]
+        else:
+            qubit_batch = batch
+
         outputs = []
         for g in range(batch.max().item() + 1):
-            node_mask = batch == g
+            node_mask_g = qubit_batch == g
             edge_mask = data.edge_batch == g if hasattr(data, "edge_batch") else None
 
             if edge_mask is None:
-                # Infer edge_batch from node batch
-                edge_mask = batch[edge_list[:, 0]] == g
+                # Infer edge_batch from qubit batch
+                edge_mask = qubit_batch[edge_list[:, 0]] == g
 
             g_theta_zz = theta_zz[edge_mask]
-            g_theta_x = theta_x[node_mask]
+            g_theta_x = theta_x[node_mask_g]
             outputs.append(torch.cat([g_theta_zz, g_theta_x], dim=-1))
 
         # Pad to max length for batching (needed for loss computation)
@@ -1039,6 +1345,8 @@ def train_bond_resolved_mpnn(
     lr: float = 1e-3,
     patience: int = 300,
     seed: int = 42,
+    weight_decay: float = 1e-5,
+    val_fraction: float = 0.2,
 ) -> dict:
     """Train the BondResolvedMPNN with per-node/per-edge MSE loss.
 
@@ -1052,10 +1360,22 @@ def train_bond_resolved_mpnn(
     patience : int
         Scheduler patience for ReduceLROnPlateau.
     seed : int
+    weight_decay : float
+        L2 regularization for Adam optimizer. Default 1e-5 (minimal
+        regularization always active to prevent weight explosion).
+    val_fraction : float
+        Fraction of dataset held out for validation. Default 0.2.
+        Reports val_mse and generalization_gap to detect overfitting.
+        Set to 0.0 to disable (uses all data for training).
 
     Returns
     -------
-    dict with training metrics.
+    dict with training metrics:
+        - final_mse, final_zz_mse, final_x_mse
+        - val_mse (None if val_fraction=0)
+        - generalization_gap (val_mse - final_mse, None if no val)
+        - mse_history, zz_loss_history, x_loss_history
+        - stopped_early, stop_reason
     """
     if len(dataset) < 3:
         raise ValueError(f"Need ≥3 training points, got {len(dataset)}.")
@@ -1063,7 +1383,24 @@ def train_bond_resolved_mpnn(
     import torch.nn.functional as F
 
     torch.manual_seed(seed)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    # Train/val split
+    n_total = len(dataset)
+    n_val = int(n_total * val_fraction) if val_fraction > 0 else 0
+    if n_val > 0 and n_total - n_val < 3:
+        n_val = 0  # Not enough for meaningful split
+
+    if n_val > 0:
+        rng = np.random.default_rng(seed)
+        indices = rng.permutation(n_total)
+        val_idx = set(indices[:n_val].tolist())
+        train_data = [dataset[i] for i in range(n_total) if i not in val_idx]
+        val_data = [dataset[i] for i in val_idx]
+    else:
+        train_data = dataset
+        val_data = []
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=patience, factor=0.5, min_lr=1e-6
     )
@@ -1071,6 +1408,7 @@ def train_bond_resolved_mpnn(
     mse_history: list[float] = []
     zz_loss_history: list[float] = []
     x_loss_history: list[float] = []
+    val_mse_history: list[float] = []
 
     model.train()
     for epoch in range(n_epochs):
@@ -1078,7 +1416,7 @@ def train_bond_resolved_mpnn(
         total_zz_loss = 0.0
         total_x_loss = 0.0
 
-        for data in dataset:
+        for data in train_data:
             optimizer.zero_grad()
             pred = model(data).squeeze(0)  # [n_edges + n_nodes]
             target = data.y
@@ -1095,26 +1433,63 @@ def train_bond_resolved_mpnn(
             total_zz_loss += loss_zz.item()
             total_x_loss += loss_x.item()
 
-        avg_loss = total_loss / len(dataset)
+        avg_loss = total_loss / len(train_data)
         mse_history.append(avg_loss)
-        zz_loss_history.append(total_zz_loss / len(dataset))
-        x_loss_history.append(total_x_loss / len(dataset))
+        zz_loss_history.append(total_zz_loss / len(train_data))
+        x_loss_history.append(total_x_loss / len(train_data))
         scheduler.step(avg_loss)
 
+        # Validation (every 50 epochs to limit overhead)
+        if val_data and epoch % 50 == 0:
+            model.eval()
+            v_loss = 0.0
+            with torch.no_grad():
+                for data in val_data:
+                    pred = model(data).squeeze(0)
+                    target = data.y
+                    n_e = data.n_edges_unique
+                    v_loss += (F.mse_loss(pred[:n_e], target[:n_e]) +
+                               F.mse_loss(pred[n_e:], target[n_e:])).item()
+            val_mse_history.append(v_loss / len(val_data))
+            model.train()
+
         if (epoch + 1) % 1000 == 0:
+            val_str = f", val={val_mse_history[-1]:.2e}" if val_mse_history else ""
             logger.info(
                 f"  Epoch {epoch + 1}: MSE={avg_loss:.2e} "
-                f"(ZZ={total_zz_loss / len(dataset):.2e}, "
-                f"X={total_x_loss / len(dataset):.2e})"
+                f"(ZZ={total_zz_loss / len(train_data):.2e}, "
+                f"X={total_x_loss / len(train_data):.2e}{val_str})"
             )
+
+    # Final validation MSE
+    final_val_mse = None
+    if val_data:
+        model.eval()
+        v_loss = 0.0
+        with torch.no_grad():
+            for data in val_data:
+                pred = model(data).squeeze(0)
+                target = data.y
+                n_e = data.n_edges_unique
+                v_loss += (F.mse_loss(pred[:n_e], target[:n_e]) +
+                           F.mse_loss(pred[n_e:], target[n_e:])).item()
+        final_val_mse = v_loss / len(val_data)
+
+    final_mse = mse_history[-1] if mse_history else float("inf")
+    gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None
 
     return {
         "mse_history": mse_history,
         "zz_loss_history": zz_loss_history,
         "x_loss_history": x_loss_history,
-        "final_mse": mse_history[-1] if mse_history else float("inf"),
+        "val_mse_history": val_mse_history,
+        "final_mse": final_mse,
         "final_zz_mse": zz_loss_history[-1] if zz_loss_history else float("inf"),
         "final_x_mse": x_loss_history[-1] if x_loss_history else float("inf"),
+        "val_mse": final_val_mse,
+        "generalization_gap": gen_gap,
+        "n_train": len(train_data),
+        "n_val": len(val_data),
         "stopped_early": False,
         "stop_reason": "completed",
     }

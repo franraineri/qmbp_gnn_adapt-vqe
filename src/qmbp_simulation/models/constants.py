@@ -32,8 +32,13 @@ MAX_P_LAYERS: int = 10
 # Solver dispatch thresholds
 # ---------------------------------------------------------------------------
 
-EXACT_DIAG_QUBIT_LIMIT: int = 15
-"""n_qubits ≤ 15 → exact diagonalization."""
+EXACT_DIAG_QUBIT_LIMIT: int = 22
+"""n_qubits ≤ 22 → exact diagonalization (sparse eigsh).
+
+Updated from 15 to 22 based on F5 finding: DMRG can have modeling errors
+on 2D topologies (heavy_hex, triangular) whereas sparse eigsh is exact
+by construction. At N=22, eigsh(k=2) takes ~50-60s and requires ~4GB RAM.
+For N > 22, DMRG with graph-based CouplingMPOModel is used."""
 
 EXACT_GAP_QUBIT_LIMIT: int = 20
 """n_qubits ≤ 20 → sparse eigsh(k=2) for exact gap computation.
