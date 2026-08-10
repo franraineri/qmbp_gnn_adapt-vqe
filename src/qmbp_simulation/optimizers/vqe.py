@@ -34,6 +34,7 @@ from qmbp_simulation.models import (
 from qmbp_simulation.models.constants import (
     COBYLA_AUTO_SWITCH_THRESHOLD,
     VQE_WALL_CLOCK_LIMIT_PER_POINT,
+    MAX_LBFGSB_ITERS
 )
 
 logger = logging.getLogger(__name__)
@@ -220,15 +221,12 @@ class VQEOptimizer:
         from dataclasses import replace
 
         effective_maxiter = cfg.maxiter
-        if effective_method == "L-BFGS-B" and n_params > 10:
-            # L-BFGS-B converges in 5-20 iters with warm-start.
-            # Cap at 50 to prevent accidental multi-hour runs.
-            max_lbfgsb_iters = 50
-            if cfg.maxiter > max_lbfgsb_iters:
-                effective_maxiter = max_lbfgsb_iters
+        if effective_method == "L-BFGS-B":
+
+            if cfg.maxiter > MAX_LBFGSB_ITERS:
+                effective_maxiter = MAX_LBFGSB_ITERS
                 logger.info(
-                    f"    ⚙️ Capped maxiter {cfg.maxiter} → {max_lbfgsb_iters} "
-                    f"(L-BFGS-B iters cost {2*n_params+1} evals each)"
+                    f"    ⚙️ Capped maxiter {cfg.maxiter} → {MAX_LBFGSB_ITERS} (L-BFGS-B iters cost {2*n_params+1} evals each)"
                 )
 
         effective_cfg = replace(cfg, method=effective_method, maxiter=effective_maxiter)

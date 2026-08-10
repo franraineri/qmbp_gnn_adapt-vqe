@@ -72,10 +72,16 @@ class ClassicalSolver:
         n = lattice.n_qubits
 
         if method == "auto":
-            # F5: For N ≤ STATEVECTOR_MAX_N (22), ALWAYS use exact diag
-            # regardless of topology. Exact is correct by construction;
-            # DMRG can have modeling errors on 2D topologies.
+            # For N ≤ STATEVECTOR_MAX_N (18), use exact diag (fast, exact).
+            # For 18 < N ≤ EXACT_DIAG_QUBIT_LIMIT (22): attempt exact diag,
+            # but fall back to DMRG if eigsh segfaults (known macOS ARM64 issue
+            # with ARPACK for dim > 500k).
+            # For N > 22: always DMRG.
             if n <= STATEVECTOR_MAX_N:
+                method = "exact"
+            elif n <= EXACT_DIAG_QUBIT_LIMIT:
+                # Try exact diag for N=19-22 — works on most platforms,
+                # but may segfault on macOS ARM64 due to Accelerate framework.
                 method = "exact"
             else:
                 method = "dmrg"
@@ -505,6 +511,9 @@ class ClassicalSolver:
 
         Returns E₀, gap, local observables.  ψ_gs is None (MPS, not statevector).
         """
+        # Suppress verbose TeNPy sweep logs (INFO level prints per-sweep stats)
+        logging.getLogger("tenpy").setLevel(logging.WARNING)
+
         # Topologies with native TeNPy 2D lattice support
         if lattice.topology in ("square", "triangular") and lattice.n_qubits >= 9:
             return self._solve_dmrg_2d(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)

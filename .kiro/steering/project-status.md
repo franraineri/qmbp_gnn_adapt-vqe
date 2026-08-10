@@ -1,8 +1,8 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-07-31 16:58
-**Total runs**: 524 | Pass: 149 | Fail: 375 | Rate: 28%
-**Total compute**: 347.2 hours
+**Last updated**: 2026-08-10 10:42
+**Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
+**Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
 **Topologies**: chain_1d, heavy_hex, kagome, ladder, square, triangular
 **N values**: [4, 6, 8, 10, 16, 20, 100]
@@ -15,7 +15,7 @@
 | heisenberg_transverse | 50% (N=10) | 50% (N=10) | — | 50% (N=10) | 50% (N=10) | 25% (N=10) |
 | kitaev | 50% (N=10) | — | — | — | — | — |
 | tfim | 100% (N=20) | 100% (N=20) | — | 100% (N=16) | 50% (N=10) | 50% (N=10) |
-| tfim_bond_resolved | 100% (N=10) | — | — | 100% (N=10) | 33% (N=16) | — |
+| tfim_bond_resolved | 100% (N=10) | — | — | 100% (N=10) | 33% (N=16) | 100% (N=6) |
 | tfim_frustrated | 100% (N=10) | — | — | — | — | — |
 | tfim_longitudinal | 100% (N=20) | 100% (N=20) | 100% (N=10) | 100% (N=10) | 100% (N=10) | 50% (N=10) |
 | xy | 50% (N=10) | — | — | — | — | — |

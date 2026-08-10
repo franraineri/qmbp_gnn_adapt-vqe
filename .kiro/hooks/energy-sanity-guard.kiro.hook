@@ -1,0 +1,16 @@
+{
+  "enabled": false,
+  "name": "Energy Sanity Guard",
+  "description": "After any shell command execution that produces pipeline results, validates that energies obey the variational principle (E_pred >= E_exact) and that ΔE/gap values are physically plausible (not negative, not > 100%).",
+  "version": "1",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "If the just-executed shell command was a pipeline experiment (contains 'run_noiseless' or 'run_scaling' or 'run_hardware' in the command), check the output for energy sanity violations: (1) any predicted energy BELOW exact ground state energy (violates variational principle — indicates bug), (2) any ΔE/gap > 1.0 that is reported as 'pass' (impossible), (3) any NaN or Inf energies. If violations found, flag them immediately. If the command was not a pipeline run, respond '✅ Not a pipeline run'."
+  }
+}

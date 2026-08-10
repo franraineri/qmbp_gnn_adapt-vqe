@@ -23,6 +23,16 @@ Untitled*.ipynb
 *.h5
 *.hdf5
 data/VQEzy/
+data/colab_job.json
+
+# ── Whitelist: trained data we keep (tracked) ────────────────
+!data/model_zoo/
+!data/model_zoo/**
+!data/model_zoo/checkpoints/*.pt
+!data/multi_n_training/
+!data/multi_n_training/*.npz
+!data/ground_truth_cache.json
+!data/eval_cache.json
 
 # ── Whitelist: notebooks demo data (tracked for open-source) ─
 !notebooks/

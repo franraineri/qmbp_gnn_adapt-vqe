@@ -747,13 +747,15 @@ class ValidationRunner(ABC):
         sys.stdout.flush()
         sys.stderr.flush()
 
-        # Spawn detached index refresh (fire-and-forget, won't block exit)
+        # Spawn detached index refresh + dashboard generation (fire-and-forget)
         try:
             import subprocess
             subprocess.Popen(
                 [sys.executable, "-c",
                  "from qmbp_simulation.framework.result_index import ResultIndex; "
-                 "idx = ResultIndex(); idx.rebuild(); idx.refresh_status()"],
+                 "idx = ResultIndex(); idx.rebuild(); idx.refresh_status(); "
+                 "from qmbp_simulation.analysis.metrics import generate_model_quality_dashboard; "
+                 "generate_model_quality_dashboard()"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
@@ -1739,6 +1741,180 @@ class ValidationRunner(ABC):
             cache=cache,
         )
 
+    def get_empirical_h_frontier(
+        self,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+        p_layers: int | None = None,
+        *,
+        model: str = "tfim_bond_resolved",
+    ) -> float | None:
+        """Get the empirical h-frontier from NPZ training data.
+
+        Returns the h value where ΔE/gap crosses 5% for the given config,
+        computed from stored VQE results.  This is the most reliable estimate
+        of the pipeline's capability boundary for a specific (topology, N, p).
+
+        Returns None if no NPZ data exists or frontier is indeterminate.
+
+        Parameters
+        ----------
+        topology : str | None
+            Lattice topology. Default: from self._args.topology.
+        n_qubits : int | None
+            System size. Default: from self._args.n_qubits or train_n.
+        p_layers : int | None
+            HVA depth. Default: from self._args.p_layers.
+        model : str
+            Hamiltonian model name for NPZ path construction.
+
+        Returns
+        -------
+        float | None
+            h_frontier value, or None if unavailable.
+        """
+        from pathlib import Path as _Path
+        from qmbp_simulation.analysis.metrics import compute_h_frontier_from_npz
+
+        args = self._args
+        _topo_raw = topology or getattr(args, "topology", "chain_1d")
+        _topo = _topo_raw[0] if isinstance(_topo_raw, list) else _topo_raw
+        _n = n_qubits or getattr(args, "n_qubits", None) or getattr(args, "train_n", 10)
+        _p_raw = p_layers or getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+
+        npz_path = (
+            _Path(__file__).resolve().parents[2]
+            / "data" / "multi_n_training"
+            / f"{_topo}_N{_n}_p{_p}.npz"
+        )
+        if not npz_path.exists():
+            return None
+
+        result = compute_h_frontier_from_npz(npz_path)
+        return result.get("h_frontier")
+
+    def estimate_compute_budget(
+        self,
+        h_values: "np.ndarray | list[float]",
+        n_qubits: int | None = None,
+        *,
+        topology: str | None = None,
+        model: str = "tfim_bond_resolved",
+        max_iterations: int = 5,
+    ) -> dict:
+        """Estimate compute budget for an iterative improvement run.
+
+        Uses GroundTruthCache hit rate, EvalCache hit rate, existing NPZ
+        data, and h_frontier to predict time and resource requirements.
+
+        Any runner can call this in preflight or budget_estimation sections
+        to report expected compute cost before committing to a long run.
+
+        Parameters
+        ----------
+        h_values : array-like
+            The h-grid for this run.
+        n_qubits : int | None
+            System size. Default: from self._args.
+        topology : str | None
+            Topology. Default: from self._args.
+        model : str
+            Model name.
+        max_iterations : int
+            Number of iterative improvement iterations planned.
+
+        Returns
+        -------
+        dict with keys:
+            - gt_hits, gt_misses: ground truth cache stats
+            - eval_cache_entries, eval_cache_hit_rate: eval cache stats
+            - npz_existing_points: training data already available
+            - h_frontier: empirical boundary (or None)
+            - estimated_gt_s: time for missing GT computations
+            - estimated_eval_s_per_iter: time for evaluations per iteration
+            - estimated_total_worst_s: worst-case total time
+        """
+        import numpy as _np
+        from qmbp_simulation.execution.eval_cache import EvalCache
+        from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
+
+        args = self._args
+        _topo_raw = topology or getattr(args, "topology", "chain_1d")
+        _topo = _topo_raw[0] if isinstance(_topo_raw, list) else _topo_raw
+        _n = n_qubits or getattr(args, "n_qubits", None) or getattr(args, "target_n", [10])[0]
+        h_arr = _np.asarray(h_values)
+        n_points = len(h_arr)
+
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        # GT cache analysis
+        gt_cache = GroundTruthCache()
+        gt_hits = sum(
+            1 for h in h_arr
+            if gt_cache.get(_topo, _n, model, float(h)) is not None
+        )
+        gt_misses = n_points - gt_hits
+
+        # EvalCache analysis
+        eval_cache = EvalCache(enabled=True)
+        cache_stats = eval_cache.stats()
+        hit_rate = cache_stats.get("hit_rate", 0.0)
+        n_entries = cache_stats.get("n_entries", 0)
+
+        # NPZ data
+        from pathlib import Path as _Path
+        _p_raw = getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+        npz_path = (
+            _Path(__file__).resolve().parents[2]
+            / "data" / "multi_n_training"
+            / f"{_topo}_N{_n}_p{_p}.npz"
+        )
+        npz_points = 0
+        if npz_path.exists():
+            d = _np.load(str(npz_path), allow_pickle=True)
+            npz_points = len(d["h_values"])
+
+        # H-frontier
+        h_frontier = self.get_empirical_h_frontier(_topo, _n, _p, model=model)
+
+        # Per-config cache density (more precise than global hit_rate)
+        config_cache_density = eval_cache.count_entries_for_config(_topo, _n, model)
+        # If this specific config has many cached entries, expect high hit rate
+        if config_cache_density > 50:
+            config_hit_rate = min(0.9, config_cache_density / (config_cache_density + n_points))
+        else:
+            config_hit_rate = hit_rate  # Fallback to global
+
+        # Time estimates
+        t_gt_per_point = 45.0 if _n > STATEVECTOR_MAX_N else 5.0
+        t_eval_per_point = 0.015 if _n <= STATEVECTOR_MAX_N else 0.5
+        t_refine_per_point = 30.0 if _n <= STATEVECTOR_MAX_N else 90.0
+
+        expected_fresh_evals = int(n_points * (1 - config_hit_rate))
+        t_gt = gt_misses * t_gt_per_point
+        t_eval_per_iter = expected_fresh_evals * t_eval_per_point
+        t_refine_worst = int(n_points * 0.5) * t_refine_per_point
+        t_total_worst = t_gt + max_iterations * (t_eval_per_iter + t_refine_worst * 0.5)
+
+        return {
+            "n_points": n_points,
+            "gt_hits": gt_hits,
+            "gt_misses": gt_misses,
+            "eval_cache_entries": n_entries,
+            "eval_cache_hit_rate": hit_rate,
+            "eval_cache_config_density": config_cache_density,
+            "eval_cache_config_hit_rate_est": config_hit_rate,
+            "npz_existing_points": npz_points,
+            "h_frontier": h_frontier,
+            "estimated_gt_s": t_gt,
+            "estimated_eval_s_per_iter": t_eval_per_iter,
+            "estimated_refine_worst_s": t_refine_worst,
+            "estimated_total_worst_s": t_total_worst,
+            "max_iterations": max_iterations,
+        }
+
     def setup_physics(self) -> None:
         """Initialize standard physics objects used by most runners.
 
@@ -2436,6 +2612,177 @@ class ValidationRunner(ABC):
 
     # ── Fidelity + result building helpers ───────────────────────────────────
 
+
+    # ── Cross-N model selection (best available from zoo or train new) ──
+
+    def load_best_mpnn_for_cross_n(
+        self,
+        n_target: int,
+        *,
+        model: str | None = None,
+        topology: str | None = None,
+        p_layers: int | None = None,
+        checkpoint_path: "str | Path | None" = None,
+        train_if_missing: bool = True,
+        train_epochs: int = 4000,
+    ):
+        """Load the best MPNN for cross-N prediction, training if none exists.
+
+        Uses ``load_best_for_cross_n()`` from model_zoo which implements the
+        priority hierarchy: multi-N model > best-scored single-N > train new.
+
+        When no suitable model exists in the zoo AND ``train_if_missing=True``,
+        automatically aggregates available NPZ training data via
+        ``MultiNAggregator`` and trains a fresh ``UnifiedMPNN``.  The trained
+        model is registered in the zoo for reuse by future runs.
+
+        Parameters
+        ----------
+        n_target : int
+            Target system size for prediction.
+        model : str | None
+            Hamiltonian model. Default: from self._args.model.
+        topology : str | None
+            Lattice topology. Default: from self._args.topology.
+        p_layers : int | None
+            HVA depth. Default: from self._args.p_layers.
+        checkpoint_path : str | Path | None
+            Explicit checkpoint (overrides zoo search).
+        train_if_missing : bool
+            If True (default) and no zoo model found, train from NPZ data.
+            If False, returns None when no model is available.
+        train_epochs : int
+            Epochs for from-scratch training when triggered (default 4000).
+
+        Returns
+        -------
+        UnifiedMPNN | MPNNPredictor | None
+            Best available model, or None if unavailable and train_if_missing=False.
+            When a model is returned, it is in eval mode.
+        """
+        from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
+
+        args = self._args
+        _model = model or getattr(args, "model", "tfim_bond_resolved")
+        _topo_raw = topology or getattr(args, "topology", "chain_1d")
+        _topo = _topo_raw[0] if isinstance(_topo_raw, list) else _topo_raw
+        _p_raw = p_layers or getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+        _ckpt = checkpoint_path or getattr(args, "checkpoint", None)
+
+        # ── Try loading from zoo ─────────────────────────────────────────
+        try:
+            mpnn, entry = load_best_for_cross_n(
+                model=_model,
+                topology=_topo,
+                n_target=n_target,
+                p_layers=_p,
+                checkpoint_path=_ckpt,
+            )
+            self._zoo_entry = entry
+            source = "multi-N" if entry.n_qubits == 0 else f"single-N={entry.n_qubits}"
+            pass_info = f", pass={entry.pass_rate:.0%}" if entry.pass_rate > 0 else ""
+            logger.info(
+                "    Best model for N_target=%d: %s (%s, %d pts%s)",
+                n_target, entry.checkpoint_file[:50], source,
+                entry.n_training_points, pass_info,
+            )
+            mpnn.eval()
+            return mpnn
+        except FileNotFoundError:
+            if not train_if_missing:
+                logger.info(
+                    "    No model in zoo for %s/%s p=%d. train_if_missing=False → None.",
+                    _model, _topo, _p,
+                )
+                return None
+
+        # ── Train from available NPZ data ────────────────────────────────
+        logger.info(
+            "    No model in zoo for %s/%s p=%d N_target=%d. "
+            "Training from NPZ data...",
+            _model, _topo, _p, n_target,
+        )
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+        from qmbp_simulation.predictors.unified_mpnn import (
+            UnifiedMPNN, train_unified_mpnn,
+        )
+
+        agg = MultiNAggregator(topology=_topo, model=_model)
+        summary = agg.scan()
+        if not summary:
+            logger.warning(
+                "    No training data available (no NPZ files for %s/%s). "
+                "Cannot train. Run VQE at small N first.",
+                _model, _topo,
+            )
+            return None
+
+        dataset = agg.build_combined_dataset(max_de_gap=0.10)
+        if len(dataset) < 3:
+            logger.warning(
+                "    Only %d points pass quality filter. Need ≥3 for training.",
+                len(dataset),
+            )
+            return None
+
+        logger.info(
+            "    Training UnifiedMPNN from %d points (N=%s)",
+            len(dataset), sorted(summary.keys()),
+        )
+
+        sample_g = dataset[0]
+        n_feat = sample_g.x.shape[1] if hasattr(sample_g, "x") else 4
+        mpnn = UnifiedMPNN(
+            node_features=n_feat,
+            hidden_dim=256,
+            n_layers=3,
+            norm_type="none",
+            dropout=0.1,
+        )
+
+        import time as _time
+        t0 = _time.perf_counter()
+        train_result = train_unified_mpnn(
+            mpnn, dataset, n_epochs=train_epochs,
+            lr=1e-3, patience=300, seed=42, mse_floor=1e-5,
+        )
+        elapsed = _time.perf_counter() - t0
+        final_mse = train_result.get("final_mse", 0)
+        logger.info(
+            "    Trained: MSE=%.2e, %d epochs, %.1fs",
+            final_mse, train_result.get("n_epochs_run", 0), elapsed,
+        )
+
+        # Register in zoo for future reuse
+        from datetime import datetime, timezone
+        from qmbp_simulation.predictors.model_zoo import ZooEntry, register_checkpoint
+
+        n_values_str = "+".join(str(n) for n in sorted(summary.keys()))
+        entry = ZooEntry(
+            model=_model,
+            topology=_topo,
+            n_qubits=0,
+            p_layers=_p,
+            checkpoint_file=f"unified_{_model}_{_topo}_multiN_{n_values_str}_p{_p}.pt",
+            h_range=(
+                float(getattr(args, "h_min", 0.5)),
+                float(getattr(args, "h_max", 3.5)),
+            ),
+            pass_rate=0.0,
+            n_training_points=len(dataset),
+            seeds=[42],
+            created=datetime.now(timezone.utc).isoformat(),
+            notes=f"Auto-trained by load_best_mpnn_for_cross_n: N={sorted(summary.keys())}",
+        )
+        register_checkpoint(mpnn, entry, overwrite=True)
+        self._zoo_entry = entry
+        logger.info("    Auto-trained model registered: %s", entry.checkpoint_file)
+
+        mpnn.eval()
+        return mpnn
+
+
     def safe_compute_fidelity(
         self, circuit, theta: np.ndarray, topology: str, n_qubits: int, h: float,
         *, model: str = "tfim",
@@ -2892,12 +3239,14 @@ class ValidationRunner(ABC):
         result = (float(gt.ground_energy), float(gt.gap))
         self._gt_cache[cache_key] = result
 
-        # Persist to disk cache for cross-session reuse
+        # Persist to disk cache for cross-session reuse.
+        # Flush immediately because ValidationRunner uses os._exit()
         if not model_kwargs:
             try:
                 disk_cache = getattr(self, "_disk_gt_cache", None)
                 if disk_cache is not None:
                     disk_cache.put_from_result(topology, n_qubits, model, h, gt)
+                    disk_cache.flush()
             except (OSError, AttributeError):
                 pass  # Non-fatal: disk cache write failed
 

@@ -832,9 +832,11 @@ class BondResolvedCrossNRunner(ValidationRunner):
         # Store for Section 6
         self._dense_results = all_sweep_results
 
-        n_total = len(all_sweep_results)
-        n_pass = sum(1 for r in all_sweep_results if r.get("passed", r.get("de_gap", 1) < 0.05))
-        mean_de = float(np.mean([r["de_gap"] for r in all_sweep_results])) if n_total > 0 else 0
+        from qmbp_simulation.analysis.metrics import compute_deploy_summary
+        summary = compute_deploy_summary(all_sweep_results)
+        n_total = summary["n_points"]
+        n_pass = summary["n_pass_5pct"]
+        mean_de = summary["mean_de_gap"]
 
         logger.info(f"  Dense sweep: {n_pass}/{n_total} pass, mean ΔE/gap={mean_de:.4f}")
 

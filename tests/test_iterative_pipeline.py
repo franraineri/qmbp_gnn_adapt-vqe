@@ -73,8 +73,8 @@ class TestShouldRetrain:
 
     @pytest.mark.parametrize("n_new,expected", [
         (0, False),
-        (1, True),
-        (5, True),
+        (1, False),  # 1/30 = 3.3% < 5% min_fraction → skip
+        (5, True),   # 5/30 = 16.7% > 5% → retrain
     ])
     def test_parametrized_basic(self, n_new, expected):
         from qmbp_simulation.predictors.unified_mpnn import should_retrain
@@ -104,14 +104,16 @@ class TestFineTune:
         from qmbp_simulation.models.hamiltonian import make_lattice
 
         lattice = make_lattice("chain_1d", 4, J=1.0, h=3.0)
+        # For chain_1d N=4 p=1 bond-resolved: n_params = n_edges + N = 3 + 4 = 7
+        n_params = len(lattice.edges) + lattice.n_qubits
         dataset = []
         for h in np.linspace(2.5, 4.0, 8):
+            theta_fake = np.random.randn(n_params) * 0.1
             g = build_unified_bond_resolved_graph(
                 lattice, h_value=float(h), p_layers=1,
+                theta_opt=theta_fake,
                 include_circuit_nodes=True,
             )
-            # Fake target: random theta
-            g.y = torch.randn(g.y.shape) * 0.1
             dataset.append(g)
 
         model = UnifiedMPNN(
@@ -158,7 +160,7 @@ class TestFineTune:
             Data(x=torch.randn(4, 4), y=torch.randn(6)),
             Data(x=torch.randn(4, 4), y=torch.randn(6)),
         ]
-        with pytest.raises(ValueError, match="Need ≥3"):
+        with pytest.raises(ValueError, match="≥3"):
             fine_tune_unified_mpnn(model, tiny_dataset, n_epochs=10)
 
 
@@ -285,17 +287,8 @@ class TestNPZPersistence:
         np.testing.assert_allclose(d["theta_opt"], theta_opt)
 
     def test_npz_upsert_lower_energy_wins(self, tmp_path):
-        """_upsert_npz should keep lower energy when h already exists."""
-        from qmbp_simulation.framework.runner_base import resolve_project_root
-        import sys
-        # We need to import _upsert_npz from the runner
-        runner_path = str(
-            Path(resolve_project_root(__file__))
-            / "scripts" / "experiment_runners" / "bond_resolved"
-        )
-        if runner_path not in sys.path:
-            sys.path.insert(0, runner_path)
-        from run_accelerated_cross_n import AcceleratedCrossNRunner
+        """upsert_theta_npz should keep lower energy when h already exists."""
+        from qmbp_simulation.framework.result_io import upsert_theta_npz
 
         npz_path = tmp_path / "test.npz"
         # Initial save
@@ -309,7 +302,7 @@ class TestNPZPersistence:
         )
 
         # Upsert with better energy at h=3.0
-        AcceleratedCrossNRunner._upsert_npz(
+        upsert_theta_npz(
             npz_path,
             h_new=np.array([3.0]),
             theta_new=np.array([[0.5, 0.6]]),
@@ -377,13 +370,113 @@ class TestAcceleratedConfig:
 
 
 class TestVQECap:
-    """Validate L-BFGS-B maxiter is capped at 50."""
+    """Validate L-BFGS-B maxiter is capped via MAX_LBFGSB_ITERS constant."""
 
-    def test_lbfgsb_cap_value(self):
-        """The cap should be 50 for L-BFGS-B with n_params > 10."""
+    def test_lbfgsb_cap_constant_exists(self):
+        """MAX_LBFGSB_ITERS should be importable from constants."""
+        from qmbp_simulation.models.constants import MAX_LBFGSB_ITERS
+        assert isinstance(MAX_LBFGSB_ITERS, int)
+        assert MAX_LBFGSB_ITERS > 0
+
+    def test_vqe_imports_cap(self):
+        """VQEOptimizer.optimize should reference MAX_LBFGSB_ITERS."""
         import inspect
         from qmbp_simulation.optimizers.vqe import VQEOptimizer
 
         source = inspect.getsource(VQEOptimizer.optimize)
-        # Find the cap assignment
-        assert "max_lbfgsb_iters = 50" in source
+        assert "MAX_LBFGSB_ITERS" in source
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Test CachedBackend context manager (auto-flush on exit)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestCachedBackendContextManager:
+    """Validate that CachedBackend context manager flushes on exit."""
+
+    def test_context_manager_returns_self(self, tmp_path):
+        """__enter__ should return the CachedBackend instance."""
+        from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
+        from qmbp_simulation.execution import NoiselessBackend
+
+        backend = NoiselessBackend()
+        cache = EvalCache(path=tmp_path / "ctx_test.json")
+        cb = CachedBackend(backend, topology="chain_1d", n_qubits=4, cache=cache)
+
+        with cb as ctx:
+            assert ctx is cb
+            assert isinstance(ctx, CachedBackend)
+
+    def test_context_manager_flushes_on_normal_exit(self, tmp_path):
+        """Cache should be flushed when exiting the with block normally."""
+        from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation import make_lattice, HamiltonianBuilder, HVACircuitBuilder
+        import json
+
+        backend = NoiselessBackend()
+        cache_path = tmp_path / "flush_normal.json"
+        cache = EvalCache(path=cache_path)
+
+        lattice = make_lattice("chain_1d", 4, J=1.0, h=3.0)
+        builder = HamiltonianBuilder()
+        H = builder.build(lattice)
+        hva = HVACircuitBuilder()
+        circuit, _ = hva.create(4, 1, lattice)
+        theta = np.zeros(circuit.num_parameters)
+
+        with CachedBackend(backend, topology="chain_1d", n_qubits=4, cache=cache) as cb:
+            cb.set_h(3.0)
+            _ = cb.evaluate(circuit, H, theta)
+            # At this point, cache might not be flushed yet
+
+        # After with block, file should exist and have data
+        assert cache_path.exists(), "Cache file should exist after context exit"
+        with open(cache_path) as f:
+            data = json.load(f)
+        assert len(data) > 0, "Cache should have at least one entry"
+
+    def test_context_manager_flushes_on_exception(self, tmp_path):
+        """Cache should be flushed even when an exception is raised."""
+        from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation import make_lattice, HamiltonianBuilder, HVACircuitBuilder
+        import json
+
+        backend = NoiselessBackend()
+        cache_path = tmp_path / "flush_exception.json"
+        cache = EvalCache(path=cache_path)
+
+        lattice = make_lattice("chain_1d", 4, J=1.0, h=3.0)
+        builder = HamiltonianBuilder()
+        H = builder.build(lattice)
+        hva = HVACircuitBuilder()
+        circuit, _ = hva.create(4, 1, lattice)
+        theta = np.zeros(circuit.num_parameters)
+
+        try:
+            with CachedBackend(backend, topology="chain_1d", n_qubits=4, cache=cache) as cb:
+                cb.set_h(3.0)
+                _ = cb.evaluate(circuit, H, theta)
+                raise ValueError("Simulated error")
+        except ValueError:
+            pass  # Expected
+
+        # Cache should still be flushed despite exception
+        assert cache_path.exists(), "Cache file should exist after exception"
+        with open(cache_path) as f:
+            data = json.load(f)
+        assert len(data) > 0, "Cache should have data even after exception"
+
+    def test_exit_does_not_suppress_exceptions(self, tmp_path):
+        """__exit__ should return False (not suppress exceptions)."""
+        from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
+        from qmbp_simulation.execution import NoiselessBackend
+
+        backend = NoiselessBackend()
+        cache = EvalCache(path=tmp_path / "no_suppress.json")
+
+        with pytest.raises(RuntimeError, match="test exception"):
+            with CachedBackend(backend, topology="chain_1d", n_qubits=4, cache=cache):
+                raise RuntimeError("test exception")

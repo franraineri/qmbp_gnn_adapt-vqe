@@ -536,6 +536,26 @@ def train_unified_mpnn(
             val_mse_history.append(val_loss / len(val_dataset))
             model.train()
 
+            # ── Overfitting detection: val_mse rising while train_mse falling ──
+            # If val_mse increased for 3 consecutive checks while train_mse
+            # decreased, the model is overfitting → early stop to preserve
+            # generalization. This is more granular than LR exhaustion.
+            if len(val_mse_history) >= 4 and epoch > 200:
+                val_recent = val_mse_history[-3:]
+                val_rising = all(val_recent[i] > val_recent[i-1] for i in range(1, 3))
+                train_falling = avg_loss < mse_history[-50] if len(mse_history) > 50 else False
+                if val_rising and train_falling:
+                    logger.info(
+                        "  Early stop at epoch %d: overfitting detected "
+                        "(val_mse rising for 3 checks: %.2e → %.2e → %.2e, "
+                        "train_mse=%.2e still decreasing)",
+                        epoch + 1,
+                        val_mse_history[-3], val_mse_history[-2], val_mse_history[-1],
+                        avg_loss,
+                    )
+                    stop_reason = "overfitting_detected"
+                    break
+
         if (epoch + 1) % 1000 == 0:
             logger.info(
                 "  Epoch %d: MSE=%.2e (ZZ=%.2e, X=%.2e)",
@@ -736,7 +756,14 @@ def fine_tune_unified_mpnn(
     result["layerwise_lr_used"] = _lw_lr is not None
 
     # Categorize outcome
-    if result["improvement_ratio"] > 0.95:
+    if result.get("stop_reason") == "overfitting_detected":
+        result["notes"] = "overfitting_stopped"
+        logger.info(
+            "  Fine-tune: stopped early due to overfitting at epoch %d. "
+            "Val MSE was rising while train MSE decreased.",
+            result.get("n_epochs_run", 0),
+        )
+    elif result["improvement_ratio"] > 0.95:
         result["notes"] = "minimal_improvement"
         logger.info(
             "  Fine-tune: minimal improvement (ratio=%.3f). "
@@ -810,6 +837,10 @@ def should_retrain(
     if n_new_points < min_new_points:
         return False, "below_min_points"
 
+    # Clamp pass rates to valid range (prevents garbage-in from averaging bugs)
+    current_pass_rate = max(0.0, min(1.0, current_pass_rate))
+    prev_pass_rate = max(0.0, min(1.0, prev_pass_rate))
+
     # Always retrain if pass_rate meaningfully improved (>= +3pp).
     # This check MUST come BEFORE the fraction threshold so that real
     # improvements on large datasets are not silently skipped.
@@ -817,7 +848,7 @@ def should_retrain(
         return True, "pass_rate_improved"
 
     new_fraction = n_new_points / max(dataset_size, 1)
-    if new_fraction < min_new_fraction and dataset_size > 20:
+    if new_fraction < min_new_fraction: #and dataset_size > 20:
         # New data is a negligible fraction of an already-large dataset —
         # the model has seen much more data than what was added, so retraining
         # is unlikely to change predictions meaningfully.
@@ -848,10 +879,30 @@ def save_unified_checkpoint(
         File path for the checkpoint (.pt file).
     training_metadata : dict | None
         Optional training info (epochs, loss, dataset details).
+
+    Raises
+    ------
+    ValueError
+        If model weights contain NaN/Inf (corrupted model, should not be persisted).
     """
+    # ── Validate model integrity before persisting ────────────────────────
+    # A model with NaN weights is useless and should never be saved to disk
+    state_dict = model.state_dict()
+    for name, param in state_dict.items():
+        if not torch.all(torch.isfinite(param)):
+            n_bad = int((~torch.isfinite(param)).sum())
+            raise ValueError(
+                f"Cannot save checkpoint: parameter '{name}' contains "
+                f"{n_bad} non-finite values. The model is corrupted — "
+                f"check training for NaN loss or gradient explosions."
+            )
+
+    from pathlib import Path as _Path
+    _Path(path).parent.mkdir(parents=True, exist_ok=True)
+
     torch.save(
         {
-            "state_dict": model.state_dict(),
+            "state_dict": state_dict,
             "architecture": "unified_mpnn",
             "node_features": model.node_features,
             "hidden_dim": model.hidden_dim,
@@ -904,7 +955,7 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     data = torch.load(path, map_location="cpu", weights_only=False)
 
     # ── Infer architecture from checkpoint ───────────────────────────────
-    # New format: explicit metadata keys
+    # New format (post-fix): architecture='unified_mpnn' + full metadata
     if "architecture" in data and data["architecture"] == "unified_mpnn":
         node_features = data.get("node_features", UNIFIED_NODE_FEATURES)
         hidden_dim = data.get("hidden_dim", 256)
@@ -913,6 +964,32 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         dropout = data.get("dropout", 0.1)
         type_embedding_dim = data.get("type_embedding_dim", 16)
         gate_readout = data.get("gate_readout", True)
+    elif (
+        "architecture" in data
+        and data["architecture"] == "ginconv"
+        and "hidden_dim" in data
+        and any("qubit_head" in k for k in data.get("state_dict", {}).keys())
+    ):
+        # Intermediate format: saved by save_mpnn_checkpoint with top-level
+        # metadata keys (hidden_dim, node_features, etc.) but architecture marked as 'ginconv' instead of 'unified_mpnn'. These keys ARE
+        # correct — trust them directly rather than inferring from weights.
+        hidden_dim = data.get("hidden_dim", 256)
+        node_features = data.get("node_features", UNIFIED_NODE_FEATURES)
+        n_layers = data.get("n_layers", 3)
+        norm_type = data.get("norm_type", "none")
+        dropout = data.get("dropout", 0.1)
+        # save_mpnn_checkpoint doesn't save type_embedding_dim — infer it
+        state_dict = data.get("state_dict", {})
+        if "type_emb.weight" in state_dict:
+            type_embedding_dim = state_dict["type_emb.weight"].shape[1]
+        else:
+            type_embedding_dim = 0
+        gate_readout = any("gate_head" in k for k in state_dict)
+        logger.info(
+            "  Loading intermediate-format UnifiedMPNN (arch='ginconv' + qubit_head). "
+            "Inferred: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
+            hidden_dim, n_layers, type_embedding_dim, gate_readout,
+        )
     else:
         # Legacy format: infer hidden_dim from weight shapes in state_dict
         state_dict = data.get("state_dict", data)

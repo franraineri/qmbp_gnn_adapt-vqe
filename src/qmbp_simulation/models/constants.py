@@ -67,13 +67,15 @@ SUPPORTED_VQE_METHODS: tuple[str, ...] = ("L-BFGS-B", "COBYLA", "Nelder-Mead")
 # Statevector / MPS thresholds
 # ---------------------------------------------------------------------------
 
-STATEVECTOR_MAX_N: int = 22
+STATEVECTOR_MAX_N: int = 18
 """Maximum N for sparse eigsh ground state vector extraction.
 
 At N=22, the statevector has 2^22 = 4M complex128 amplitudes (~64 MB).
 Above this, statevector-based methods (fidelity, entropy) are infeasible.
 Use DMRG energy + skip fidelity for N > 22.
 """
+
+MAX_LBFGSB_ITERS: int = 1000
 
 MPS_DEFAULT_CHI_MAX: int = 64
 """Default MPS bond dimension for Aer/TeNPy evaluation.

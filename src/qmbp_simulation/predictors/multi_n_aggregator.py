@@ -72,19 +72,34 @@ class MultiNAggregator:
         1. data/multi_n_training/*.npz — saved by AcceleratedCrossNRunner
         2. results/experiments/ — JSON results with per-point data
 
+        Skips NPZ files marked as 'not_useful' in the model quality dashboard
+        (if available). This prevents contaminating the training dataset with
+        data the MPNN cannot learn from.
+
         Returns dict mapping N → number of usable data points found.
         """
         self._data_by_n = {}
+
+        # ── Pre-filter: load dashboard 'not_useful' configs ──────────────
+        not_useful_files = self._load_not_useful_files()
 
         # Source 1: NPZ files in data/multi_n_training/ (primary, high quality)
         npz_dir = _PROJECT_ROOT / "data" / "multi_n_training"
         if npz_dir.exists():
             for npz_file in sorted(npz_dir.glob(f"{self.topology}_N*_p1.npz")):
+                # Skip NPZ files that the dashboard classifies as not_useful
+                if npz_file.name in not_useful_files:
+                    logger.info(
+                        f"  MultiNAggregator: SKIPPING {npz_file.name} "
+                        f"(dashboard: training_utility='not_useful')"
+                    )
+                    continue
+
                 try:
                     data = np.load(npz_file, allow_pickle=True)
-                    h_values = data["h_values"]
+                    h_values = np.asarray(data["h_values"], dtype=np.float64)
                     theta_opt = data["theta_opt"]
-                    e_exact = data["e_exact"]
+                    e_exact = np.asarray(data["e_exact"], dtype=np.float64)
 
                     # Extract N from filename: topology_N10_p1.npz
                     # NOTE: must parse N BEFORE any GroundTruthCache lookup that
@@ -96,19 +111,19 @@ class MultiNAggregator:
 
                     # Compute de_gaps on-the-fly if missing from NPZ
                     if "de_gaps" in data:
-                        de_gaps = data["de_gaps"]
+                        de_gaps = np.asarray(data["de_gaps"], dtype=np.float64)
                     else:
                         # Fallback: compute from e_vqe/energies and e_exact + gaps
                         e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
-                        gaps_arr = data["gaps"] if "gaps" in data else None
+                        gaps_arr = np.asarray(data["gaps"], dtype=np.float64) if "gaps" in data else None
 
                         if e_key and gaps_arr is not None:
-                            e_vqe = data[e_key]
+                            e_vqe = np.asarray(data[e_key], dtype=np.float64)
                             de_gaps = np.abs(e_vqe - e_exact) / np.maximum(gaps_arr, 1e-10)
                         elif e_key:
                             # No gaps in NPZ: try GroundTruthCache lookup
                             # n is now defined above, safe to use here
-                            e_vqe = data[e_key]
+                            e_vqe = np.asarray(data[e_key], dtype=np.float64)
                             try:
                                 from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
                                 gt_cache = GroundTruthCache()
@@ -141,9 +156,11 @@ class MultiNAggregator:
 
                     points = []
                     for i in range(len(h_values)):
+                        # Ensure theta is always float64 (handles legacy dtype=object NPZs)
+                        theta_i = np.asarray(theta_opt[i], dtype=np.float64)
                         points.append({
                             "h": float(h_values[i]),
-                            "theta": theta_opt[i],
+                            "theta": theta_i,
                             "e_exact": float(e_exact[i]),
                             "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
                             "n_qubits": n,
@@ -224,7 +241,7 @@ class MultiNAggregator:
                 if h is not None and theta is not None and e_exact is not None:
                     points.append({
                         "h": float(h),
-                        "theta": np.array(theta),
+                        "theta": np.asarray(theta, dtype=np.float64),
                         "e_exact": float(e_exact),
                         "de_gap": float(de_gap),
                         "n_qubits": n,
@@ -283,6 +300,22 @@ class MultiNAggregator:
                 _gc.enable()
 
         logger.info(f"Combined dataset: {len(dataset)} total training graphs")
+
+        # ── Consistency validation: all graphs must have same node_features dim ──
+        if len(dataset) > 1:
+            feat_dims = set(g.x.shape[1] for g in dataset if hasattr(g, "x"))
+            if len(feat_dims) > 1:
+                logger.error(
+                    "MultiNAggregator: inconsistent node_features dimensions "
+                    "across graphs: %s. This will crash during training. "
+                    "Check that all NPZ data was generated with the same "
+                    "build_unified_bond_resolved_graph version.", feat_dims,
+                )
+                raise ValueError(
+                    f"Inconsistent node_features: {feat_dims}. "
+                    "Cannot mix graphs with different feature dimensions."
+                )
+
         return dataset
 
     def _build_dataset_inner(self, make_lattice, is_point_failure,
@@ -301,6 +334,12 @@ class MultiNAggregator:
                 )
             ]
             if not filtered:
+                logger.warning(
+                    "MultiNAggregator: N=%d has 0 dual-criterion points "
+                    "(pass_rate=0%%). Skipping — this config is not useful "
+                    "for MPNN training. Consider removing its NPZ file.",
+                    n,
+                )
                 continue
 
             lattice = make_lattice(self.topology, n, J=1.0, h=2.0)
@@ -310,7 +349,9 @@ class MultiNAggregator:
                     lattice, h_value=pt["h"], p_layers=1,
                     include_circuit_nodes=True,
                 )
-                g.y = torch.tensor(pt["theta"], dtype=torch.float32)
+                # Ensure theta is float before torch conversion (safety against object arrays)
+                theta_arr = np.asarray(pt["theta"], dtype=np.float64)
+                g.y = torch.tensor(theta_arr, dtype=torch.float32)
                 dataset.append(g)
 
             logger.info(
@@ -324,6 +365,29 @@ class MultiNAggregator:
         if not self._data_by_n:
             self.scan()
         return sorted(self._data_by_n.keys())
+
+    def _load_not_useful_files(self) -> set[str]:
+        """Load NPZ filenames classified as 'not_useful' from the dashboard.
+
+        Reads `data/model_quality_dashboard.json` and returns the set of
+        NPZ filenames that have training_utility='not_useful'. These files
+        should be skipped during scan() to prevent contaminating training data.
+
+        Returns empty set if dashboard doesn't exist or has no utility field.
+        """
+        dashboard_path = _PROJECT_ROOT / "data" / "model_quality_dashboard.json"
+        if not dashboard_path.exists():
+            return set()
+        try:
+            import json
+            with open(dashboard_path) as f:
+                dashboard = json.load(f)
+            return {
+                c["file"] for c in dashboard.get("configs", [])
+                if c.get("training_utility") == "not_useful"
+            }
+        except (json.JSONDecodeError, OSError, KeyError):
+            return set()
 
     def summary(self) -> dict[str, Any]:
         """Return aggregation summary."""

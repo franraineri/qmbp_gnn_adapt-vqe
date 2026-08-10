@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "n_entries": 868,
+ "n_entries": 987,
  "runs": [
   {
    "model": "tfim",
@@ -2297,6 +2297,2386 @@
    "backend_type": null,
    "method_exact": null,
    "_file": "results/experiments/exp_accel_cross_n/run_20260805_012933.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_020724",
+   "elapsed_s": 5244.59,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_020724.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_020903",
+   "elapsed_s": 3645.63,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_020903.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_021135",
+   "elapsed_s": 3412.6,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_021135.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_021151",
+   "elapsed_s": 2430.27,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_021151.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_021428",
+   "elapsed_s": 3435.67,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_021428.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_022744",
+   "elapsed_s": 5699.37,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_022744.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260805_112822",
+   "elapsed_s": 156.22,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_112822.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260805_112827",
+   "elapsed_s": 161.39,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_112827.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_124034",
+   "elapsed_s": 127.91,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_124034.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_124631",
+   "elapsed_s": 44.62,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_124631.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260805_125651",
+   "elapsed_s": 663.6,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_125651.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_131117",
+   "elapsed_s": 839.14,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_131117.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_132154",
+   "elapsed_s": 36.12,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_132154.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260805_144648",
+   "elapsed_s": 6176.69,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_144648.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_145640",
+   "elapsed_s": 1949.8,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_145640.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_152730",
+   "elapsed_s": 9927.37,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_152730.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_153425",
+   "elapsed_s": 1516.98,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_153425.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260805_153907",
+   "elapsed_s": 82.88,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_153907.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260805_154104",
+   "elapsed_s": 1911.18,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_154104.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_160944",
+   "elapsed_s": 1816.22,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_160944.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260805_162532",
+   "elapsed_s": 2655.91,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_162532.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260805_162537",
+   "elapsed_s": 450.92,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_162537.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260805_165001",
+   "elapsed_s": 1850.2,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260805_165001.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 1,
+   "timestamp": "20260806_224305",
+   "elapsed_s": 97.62,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_224305.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 1,
+   "timestamp": "20260806_224308",
+   "elapsed_s": 111.87,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_224308.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 1,
+   "timestamp": "20260806_224333",
+   "elapsed_s": 23.44,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_224333.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260806_224812",
+   "elapsed_s": 248.87,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_224812.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260806_224842",
+   "elapsed_s": 22.95,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_224842.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 1,
+   "timestamp": "20260806_225507",
+   "elapsed_s": 661.31,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_225507.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 1,
+   "timestamp": "20260806_225515",
+   "elapsed_s": 3.04,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_225515.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260806_225526",
+   "elapsed_s": 397.42,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_225526.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260806_230359",
+   "elapsed_s": 513.23,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_230359.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260806_230403",
+   "elapsed_s": 496.07,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_230403.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260806_230411",
+   "elapsed_s": 1.75,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_230411.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260806_234615",
+   "elapsed_s": 2517.02,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_234615.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260806_235058",
+   "elapsed_s": 2797.72,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_235058.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260806_235106",
+   "elapsed_s": 1.51,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260806_235106.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_002359",
+   "elapsed_s": 1951.96,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_002359.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260807_002435",
+   "elapsed_s": 24.96,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_002435.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260807_002700",
+   "elapsed_s": 139.38,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_002700.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_003138",
+   "elapsed_s": 2414.58,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003138.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260807_003158",
+   "elapsed_s": 7.75,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003158.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_003212",
+   "elapsed_s": 307.0,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003212.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260807_003214",
+   "elapsed_s": 8.7,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003214.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260807_003224",
+   "elapsed_s": 2.87,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003224.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260807_003238",
+   "elapsed_s": 4.47,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003238.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260807_003249",
+   "elapsed_s": 6.04,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003249.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_003348",
+   "elapsed_s": 52.54,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003348.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_003507",
+   "elapsed_s": 70.91,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003507.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_003800",
+   "elapsed_s": 336.87,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003800.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260807_003811",
+   "elapsed_s": 0.93,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003811.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 1,
+   "timestamp": "20260807_003842",
+   "elapsed_s": 7.52,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_003842.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_011018",
+   "elapsed_s": 1536.6,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_011018.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_011021",
+   "elapsed_s": 1544.9,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_011021.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_011130",
+   "elapsed_s": 47.87,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_011130.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_011225",
+   "elapsed_s": 103.14,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_011225.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_011502",
+   "elapsed_s": 114.28,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_011502.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_014303",
+   "elapsed_s": 17.52,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_014303.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_014450",
+   "elapsed_s": 7.44,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_014450.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_014702",
+   "elapsed_s": 2059.62,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_014702.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_014854",
+   "elapsed_s": 1973.82,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_014854.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_015042",
+   "elapsed_s": 42.09,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_015042.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_015342",
+   "elapsed_s": 168.76,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_015342.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_015344",
+   "elapsed_s": 272.04,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_015344.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_015422",
+   "elapsed_s": 28.53,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_015422.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_020728",
+   "elapsed_s": 1193.48,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_020728.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_021423",
+   "elapsed_s": 1385.39,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_021423.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_022233",
+   "elapsed_s": 421.33,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_022233.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_023026",
+   "elapsed_s": 2103.1,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_023026.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_023252",
+   "elapsed_s": 961.1,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_023252.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_030154",
+   "elapsed_s": 4081.67,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_030154.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_032539",
+   "elapsed_s": 1412.64,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_032539.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_032754",
+   "elapsed_s": 125.32,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_032754.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_033206",
+   "elapsed_s": 247.74,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_033206.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_033758",
+   "elapsed_s": 346.46,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_033758.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_034727",
+   "elapsed_s": 5987.0,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_034727.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_050520",
+   "elapsed_s": 4667.85,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_050520.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_051243",
+   "elapsed_s": 438.21,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_051243.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_061631",
+   "elapsed_s": 3824.85,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_061631.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_061641",
+   "elapsed_s": 4.45,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_061641.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_113726",
+   "elapsed_s": 285.36,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_113726.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_114159",
+   "elapsed_s": 236.81,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_114159.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_114704",
+   "elapsed_s": 20.31,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_114704.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_114714",
+   "elapsed_s": 5.33,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_114714.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_115602",
+   "elapsed_s": 530.17,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_115602.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_123104",
+   "elapsed_s": 2095.95,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_123104.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260807_123206",
+   "elapsed_s": 48.45,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_123206.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_123809",
+   "elapsed_s": 354.76,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_123809.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_124223",
+   "elapsed_s": 245.98,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_124223.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_124500",
+   "elapsed_s": 149.41,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_124500.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_130131",
+   "elapsed_s": 5040.96,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_130131.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_194232",
+   "elapsed_s": 24055.98,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_194232.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_194312",
+   "elapsed_s": 16.61,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_194312.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_194321",
+   "elapsed_s": 5.07,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_194321.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260807_194331",
+   "elapsed_s": 5.08,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260807_194331.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260808_130159",
+   "elapsed_s": 90880.27,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260808_130159.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260808_141013",
+   "elapsed_s": 4082.51,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260808_141013.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260808_152047",
+   "elapsed_s": 4229.24,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260808_152047.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260809_132525",
+   "elapsed_s": 18.3,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_132525.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260809_141521",
+   "elapsed_s": 1966.46,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_141521.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_141748",
+   "elapsed_s": 2280.63,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_141748.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_143054",
+   "elapsed_s": 3062.94,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_143054.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_144515",
+   "elapsed_s": 1637.84,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_144515.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260809_144617",
+   "elapsed_s": 1845.99,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_144617.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_153120",
+   "elapsed_s": 1664.74,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_153120.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_153217",
+   "elapsed_s": 49.8,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_153217.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_154839",
+   "elapsed_s": 975.82,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_154839.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_160844",
+   "elapsed_s": 5001.76,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_160844.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260809_160953",
+   "elapsed_s": 1267.37,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260809_160953.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_100120",
+   "elapsed_s": 10.58,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_100120.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_100135",
+   "elapsed_s": 7.93,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_100135.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_100150",
+   "elapsed_s": 7.83,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_100150.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_100341",
+   "elapsed_s": 104.24,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_100341.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_101318",
+   "elapsed_s": 8.3,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_101318.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_101333",
+   "elapsed_s": 8.41,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_101333.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_101348",
+   "elapsed_s": 8.35,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_101348.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_101540",
+   "elapsed_s": 105.13,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_101540.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260810_103211",
+   "elapsed_s": 1882.08,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_103211.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 2,
+   "timestamp": "20260810_104203",
+   "elapsed_s": 586.29,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": true,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "_file": "results/experiments/exp_accel_cross_n/run_20260810_104203.json"
   },
   {
    "model": "tfim_bond_resolved",

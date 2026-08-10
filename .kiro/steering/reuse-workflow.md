@@ -184,3 +184,64 @@ report = predictor.predict(...)
 Each per-h result dict MUST contain at minimum `"de_gap"` (float).
 Optional enrichment: `"abs_error"`, `"fidelity"`, `"e_pred"`, `"e_exact"`, `"gap"`.
 
+## Data Persistence Patterns (CRITICAL for data integrity)
+
+### CachedBackend with Context Manager (auto-flush)
+```python
+# ✅ CORRECT — cache automatically flushed on exit, even on exception
+with self.get_cached_backend(topology=topo, n_qubits=N, model="tfim", p_layers=p) as eval_backend:
+    eval_backend.set_h(h)
+    energy = eval_backend.evaluate(circuit, H, theta)
+# Cache flushed here automatically
+
+# ❌ WRONG — manual flush (easy to forget, lost on exception)
+eval_backend = self.get_cached_backend(...)
+energy = eval_backend.evaluate(circuit, H, theta)
+eval_backend.flush()  # Can be skipped if exception occurs
+```
+
+### Immediate Persistence of Computed Data
+```python
+# ✅ CORRECT — persist as soon as data is computed
+for h in h_values:
+    theta_opt, e_vqe = run_vqe(h)
+    _upsert_npz(npz_path, h, theta_opt, e_vqe, ...)  # Immediate persist
+
+# ❌ WRONG — accumulate in memory, persist at end
+results = []
+for h in h_values:
+    theta_opt, e_vqe = run_vqe(h)
+    results.append((h, theta_opt, e_vqe))  # Lost if process crashes
+np.savez(npz_path, ...)  # Only saved at end
+```
+
+### Ground Truth Cache Flush After Computation
+```python
+# ✅ CORRECT — flush GT cache immediately after computing new values
+gt_cache = GroundTruthCache()
+for h in h_values_missing:
+    e, gap = compute_ground_truth(h)
+    gt_cache.put(topo, n, model, h, e, gap)
+gt_cache.flush()  # Immediate flush
+
+# ❌ WRONG — rely on __del__ for flush (bypassed by os._exit)
+for h in h_values_missing:
+    e, gap = compute_ground_truth(h)
+    gt_cache.put(topo, n, model, h, e, gap)
+# No explicit flush — data may be lost
+```
+
+### NPZ Anti-Regression Pattern
+```python
+# ✅ CORRECT — only update if new energy is better
+def _upsert_npz(npz_path, h_new, theta_new, e_vqe_new, ...):
+    if npz_path.exists():
+        existing = np.load(npz_path)
+        # Only replace if e_vqe_new < e_existing
+        ...
+    np.savez(npz_path, ...)
+
+# ❌ WRONG — blindly overwrite (can lose better data)
+np.savez(npz_path, h_values=h_new, theta_opt=theta_new, ...)
+```
+

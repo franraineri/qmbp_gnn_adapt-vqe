@@ -194,3 +194,67 @@ if colab_dir.exists():
             h_vals = npz_data["h_values"]
             n_pts = len(h_vals)
             print(f"  {npz_file.name}: {n_pts} pts, h=[{h_vals.min():.2f},{h_vals.max():.2f}]")
+
+# ═══════════════════════════════════════════════════════════════
+# Section F: Dashboard Cross-Validation
+# ═══════════════════════════════════════════════════════════════
+dashboard_path = DATA / "model_quality_dashboard.json"
+if dashboard_path.exists():
+    with open(dashboard_path) as f:
+        dashboard = json.load(f)
+
+    # Filter dashboard configs for this topology
+    topo_configs = [c for c in dashboard.get("configs", []) if c.get("topology") == _topology]
+    topo_summary = dashboard.get("topology_summary", {}).get(_topology, {})
+
+    if topo_configs:
+        print(f"\n[Dashboard Cross-Check] {len(topo_configs)} configs for {_topology}")
+
+        # Compare dashboard pass_rate vs fresh NPZ computation
+        mismatches = []
+        for dc in topo_configs:
+            npz_file_path = DATA / "multi_n_training" / dc["file"]
+            if not npz_file_path.exists():
+                continue
+            data = np.load(str(npz_file_path), allow_pickle=True)
+            if "de_gaps" in data:
+                de_gaps_fresh = data["de_gaps"]
+            elif "e_vqe" in data and "e_exact" in data and "gaps" in data:
+                de_gaps_fresh = np.abs(data["e_vqe"] - data["e_exact"]) / np.maximum(data["gaps"], 1e-10)
+            else:
+                continue
+            fresh_pass = float((de_gaps_fresh < 0.05).mean())
+            cached_pass = dc.get("pass_rate_5pct", 0)
+            if abs(fresh_pass - cached_pass) > 1e-4:
+                mismatches.append(
+                    f"N={dc['n_qubits']}: dashboard={cached_pass:.3f} vs fresh={fresh_pass:.3f}"
+                )
+
+        if mismatches:
+            print(f"  ⚠️ STALE dashboard data:")
+            for m in mismatches:
+                print(f"    {m}")
+        else:
+            print(f"  ✅ Dashboard data consistent with raw NPZ")
+
+        # Show dashboard-enriched info (cross-N, divergence)
+        print(f"\n  Dashboard enrichment for {_topology}:")
+        if topo_summary:
+            n_max = topo_summary.get("n_max_viable", "—")
+            best_src = topo_summary.get("cross_n_best_source_for_largest")
+            print(f"    n_max_viable: {n_max}")
+            if best_src:
+                print(f"    cross_n_best_source (largest N): "
+                      f"train_n={best_src['train_n']} pass@10%={best_src['pass_rate_10pct']:.0%}")
+
+        for dc in sorted(topo_configs, key=lambda c: c["n_qubits"]):
+            div = dc.get("zoo_vs_npz_divergence")
+            div_str = f"div={div:.3f}" if div is not None else "div=N/A"
+            stale = " STALE" if dc.get("model_stale") else ""
+            xn = dc.get("cross_n_best_source")
+            xn_str = f"best_src=N{xn['train_n']}" if xn else ""
+            print(f"    N={dc['n_qubits']:>2}: pass={dc['pass_rate_5pct']:.0%} "
+                  f"h_front={dc.get('h_frontier', '—')} "
+                  f"{div_str}{stale} {xn_str}")
+else:
+    print(f"\n[Dashboard] NOT FOUND — run a pipeline to auto-generate")

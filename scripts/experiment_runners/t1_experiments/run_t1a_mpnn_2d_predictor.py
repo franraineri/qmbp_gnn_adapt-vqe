@@ -461,11 +461,13 @@ class MPNN2DPredictorRunner(ValidationRunner):
         # Store for section 4
         self._deployment_results = results
 
-        # Summary
-        n_pass = sum(1 for r in results if r["passed"])
-        pass_rate = n_pass / len(results)
-        mean_de_gap = float(np.mean([r["de_gap"] for r in results]))
-        mean_fid = float(np.mean([r["fidelity"] for r in results]))
+        # Summary using shared utility
+        from qmbp_simulation.analysis.metrics import compute_deploy_summary
+        _summ = compute_deploy_summary(results)
+        n_pass = _summ["n_pass_5pct"]
+        pass_rate = _summ["pass_rate_5pct"]
+        mean_de_gap = _summ["mean_de_gap"]
+        mean_fid = _summ.get("mean_fidelity", 0.0)
 
         # Breakdown: purely interpolation vs cross-validation
         interp_results = [r for r in results if r["j2"] in J2_TEST]

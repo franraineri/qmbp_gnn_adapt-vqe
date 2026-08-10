@@ -53,6 +53,17 @@ def detect_coverage_gaps(
     gaps.extend(_gap_insufficient_seeds(noiseless))
     gaps.extend(_gap_missing_zne(noiseless, noisy))
     gaps.extend(_gap_missing_experiments(experiments))
+    gaps.extend(_gap_low_dashboard_pass_rate())
+
+    # Sort by priority (CRITICAL first)
+    gaps.sort(key=lambda g: g.priority.value)
+    return gaps
+
+    gaps.extend(_gap_missing_p1_noiseless(noiseless))
+    gaps.extend(_gap_invalid_regime(noiseless))
+    gaps.extend(_gap_insufficient_seeds(noiseless))
+    gaps.extend(_gap_missing_zne(noiseless, noisy))
+    gaps.extend(_gap_missing_experiments(experiments))
 
     # Sort by priority (CRITICAL first)
     gaps.sort(key=lambda g: g.priority.value)
@@ -954,3 +965,73 @@ def compute_energy_decomposition(
         circuit_error_fraction=(sum(circuit_errors) / total_error if total_error > 0 else 0.0),
         mpnn_error_fraction=(sum(mpnn_errors) / total_error if total_error > 0 else 0.0),
     )
+
+
+def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
+    """Detect configs with low pass_rate in the model quality dashboard.
+
+    The dashboard (data/model_quality_dashboard.json) is updated every run
+    and contains per-(topology, N, p) metrics from NPZ training data.
+    Configs with pass_rate < 50% need more VQE refinement or model improvement.
+    """
+    import json
+    from pathlib import Path
+
+    gaps: list[CoverageGap] = []
+    root = Path(__file__).resolve().parents[2]
+    dashboard_path = root / "data" / "model_quality_dashboard.json"
+
+    if not dashboard_path.exists():
+        return gaps
+
+    try:
+        with open(dashboard_path) as f:
+            dashboard = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return gaps
+
+    for config in dashboard.get("configs", []):
+        pass_rate = config.get("pass_rate_5pct", 0)
+        topology = config.get("topology", "")
+        n_qubits = config.get("n_qubits", 0)
+        p_layers = config.get("p_layers", 1)
+        n_points = config.get("n_points", 0)
+        n_params = config.get("n_params", 0)
+        model = config.get("model", "tfim_bond_resolved")
+
+        # Only flag if we have enough data points to be meaningful
+        if n_points < 5:
+            continue
+
+        if pass_rate < 0.50:
+            n_below = config.get("n_below_frontier", 0)
+            h_frontier = config.get("h_frontier")
+            h_range = config.get("h_range", [0, 0])
+
+            # Distinguish bond-resolved (many params) from regular (few params)
+            circuit_type = "bond-resolved" if n_params > 2 * p_layers else "global"
+            detail = (
+                f"{topology} N={n_qubits} p={p_layers} ({circuit_type}, {n_params} params): "
+                f"pass_rate={pass_rate:.0%} ({n_points} pts, "
+                f"h=[{h_range[0]:.1f},{h_range[1]:.1f}])"
+            )
+            if h_frontier:
+                detail += f", h_frontier={h_frontier:.2f}"
+
+            gaps.append(
+                CoverageGap(
+                    gap_type=GapType.LOW_PASS_RATE,
+                    topology=topology,
+                    n_qubits=n_qubits,
+                    p_layers=p_layers,
+                    detail=detail,
+                    recommendation=(
+                        f"Run iterative improvement: --topology {topology} "
+                        f"--target-n {n_qubits} --iterative-improve "
+                        f"--h-min {h_range[0]:.1f} --h-max {h_range[1]:.1f}"
+                    ),
+                    priority=Priority.HIGH if pass_rate < 0.30 else Priority.MEDIUM,
+                )
+            )
+
+    return gaps

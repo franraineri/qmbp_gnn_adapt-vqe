@@ -31,6 +31,7 @@ from qmbp_simulation.predictors.gnn_qem import (
 from qmbp_simulation.predictors.model_zoo import (
     ZooEntry,
     list_pretrained,
+    load_best_for_cross_n,
     load_pretrained,
     register_checkpoint,
 )
@@ -122,6 +123,7 @@ __all__ = [
     "external_benchmarks",
     # Model zoo (pre-trained MPNN registry)
     "load_pretrained",
+    "load_best_for_cross_n",
     "list_pretrained",
     "register_checkpoint",
     "ZooEntry",

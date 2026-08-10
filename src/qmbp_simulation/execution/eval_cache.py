@@ -250,6 +250,33 @@ class EvalCache:
             "enabled": self._enabled,
         }
 
+    def count_entries_for_config(
+        self, topology: str, n_qubits: int, model: str = "tfim", p_layers: int = 0,
+    ) -> int:
+        """Count cached entries matching a (model, topology, N) prefix.
+
+        Useful as a "data density" signal — more cached evals means the config
+        has been well-explored (many VQE restarts, different θ vectors tested).
+
+        Note: p_layers in cache keys is approximated (circuit.num_parameters//2)
+        which can be inaccurate for bond-resolved circuits. We match on
+        (model, topology, n_qubits) only for reliability.
+
+        Parameters
+        ----------
+        topology, n_qubits, model : config identifiers
+        p_layers : ignored (kept for API compat, not used in matching)
+
+        Returns
+        -------
+        int
+            Number of cache entries for this config.
+        """
+        if not self._enabled:
+            return 0
+        prefix = f"{model}|{topology}|{n_qubits}|"
+        return sum(1 for k in self._data if k.startswith(prefix))
+
     def __del__(self) -> None:
         """Auto-flush on garbage collection."""
         try:
@@ -501,3 +528,27 @@ class CachedBackend:
         so it won't intercept _cache, _backend, or other instance attributes.
         """
         return getattr(self._backend, name)
+
+    # ── Context manager protocol ─────────────────────────────────────────────
+
+    def __enter__(self) -> "CachedBackend":
+        """Context manager entry — returns self.
+
+        Usage::
+
+            with CachedBackend(backend, ...) as eval_backend:
+                eval_backend.evaluate(circuit, H, theta)
+            # Automatically flushed here, even on exception
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
+        """Context manager exit — flush cache regardless of exception.
+
+        This ensures that evaluations computed before an exception are not lost
+        (os._exit bypasses __del__, but try/finally honors __exit__).
+
+        Returns False to not suppress exceptions.
+        """
+        self.flush()
+        return False

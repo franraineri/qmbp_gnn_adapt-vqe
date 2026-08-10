@@ -58,7 +58,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  F:is_point_failure,identify_failures,compute_snr+6
+  metrics                    CORE  F:is_point_failure,identify_failures,compute_refinement_priority+13
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
@@ -111,7 +111,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   preflight                  VAL   C:Severity,Issue,VariantSpec+4 | F:get_valid_regime,get_regime_threshold,validate_regime_tables+4
   presets                    CFG   F:load_preset,list_presets,preset_to_args
   result_index               CACHE C:ResultIndex
-  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+8
+  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+10
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -147,14 +147,14 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
 ### qsim/predictors/ (6)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +42
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +45
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
-  model_zoo                  CFG   C:ZooEntry | F:list_pretrained,load_pretrained,register_checkpoint+1
+  model_zoo                  CFG   C:ZooEntry | F:list_pretrained,load_pretrained,load_best_for_cross_n+2
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator
   unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
-  unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,save_unified_checkpoint,load_unified_checkpoint
+  unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+2
 
 ### qsim/solvers/ (2)
   ↳ ClassicalSolver
@@ -461,8 +461,8 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 ### Standalone scripts
 
-  analyze_ladder copy        ANAL  K:ROOT
   analyze_ladder             ANAL  K:ROOT
+  analyze_topology_results   DIAG  K:ROOT,DATA
   audit_pipeline_consistency VAL   F:section,warn,ok
   cleanup_repo               CACHE C:CleanupReport | F:is_protected,scan_named_dirs,scan_cache_dirs+9
   generate_module_index            C:ModuleEntry,PackageEntry | F:extract_module,extract_package,scan_directory+2
@@ -471,8 +471,9 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   md_index                         C:Section,FileStats,DocEntry | F:extract_metadata,format_full,format_list+2
   organize_results                 F:extract_config_from_file,organize_flat_dirs,archive_failed+1
   scan_new_runs              ANAL  C:RunMetrics,GroupStats | F:resolve_dirs,load_runs,parse_run+11
+  update_cross_n_coverage    PIPE  F:load_dashboard,compute_gt_coverage,count_zoo_orphans+10
   update_project_status            F:main
-  verify_steerings                 F:parse_front_matter,get_body,glob_match+13
+  verify_steerings                 C:Issue,VerificationReport | F:estimate_tokens,parse_front_matter,get_body+23
 
 ## Notebooks
 

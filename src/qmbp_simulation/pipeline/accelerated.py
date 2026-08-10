@@ -211,6 +211,19 @@ class AcceleratedVQE:
         self.spec = spec
         self.config = config or AcceleratedConfig()
 
+        # ── Input validation ─────────────────────────────────────────────
+        if circuit.num_qubits != lattice.n_qubits:
+            raise ValueError(
+                f"Circuit/lattice mismatch: circuit has {circuit.num_qubits} qubits "
+                f"but lattice has {lattice.n_qubits}. Ensure the circuit was built "
+                f"with the same lattice passed to AcceleratedVQE."
+            )
+        if circuit.num_parameters == 0:
+            raise ValueError(
+                "Circuit has 0 parameters. AcceleratedVQE requires a parameterized "
+                "HVA circuit (from HVACircuitBuilder.create_bond_resolved)."
+            )
+
         # Wrap backend with eval cache for automatic reuse of computations
         if eval_cache:
             from qmbp_simulation.execution.eval_cache import CachedBackend
@@ -266,6 +279,8 @@ class AcceleratedVQE:
         cfg = self.config
 
         # ── Validation (Table 3) ─────────────────────────────────────
+        if p_layers < 1:
+            raise ValueError(f"p_layers must be ≥ 1, got {p_layers}.")
         if len(h_values) < 3:
             raise ValueError(
                 f"Need at least 3 h-points, got {len(h_values)}. "
@@ -479,15 +494,49 @@ class AcceleratedVQE:
                 "  GT cache: %d/%d hits (saved ~%.0fs)",
                 n_hits, len(h_values), n_hits * 0.5,  # ~0.5s per ED for small N
             )
+        # Flush immediately — ensures ground truth survives even if VQE
+        # anchors or MPNN training raises an exception later in the pipeline.
+        if n_misses > 0:
+            gt_cache.flush()
         return np.array(e_exact), np.array(gaps)
 
     def _estimate_regime_boundary(self, p_layers: int) -> float:
         """Estimate h_min where VQE converges for this topology+p (P3).
 
-        Tries the QualityPredictor first (uses historical data). Falls back
-        to canonical preflight regime boundaries.
+        Priority order:
+        1. Empirical frontier from existing NPZ data (most reliable — based
+           on actual VQE results for this exact config).
+        2. QualityPredictor (uses historical ResultIndex data).
+        3. Canonical preflight regime boundaries (hand-tuned table).
+        4. Generic coordination-based heuristic (last resort).
         """
-        # Try QualityPredictor (P3) — uses historical ResultIndex data
+        # ── Priority 1: Empirical frontier from NPZ ──────────────────────
+        # If we have training data for this (topology, N), compute the
+        # actual h where ΔE/gap crosses 5%. This is the most reliable
+        # estimate because it's based on real pipeline results.
+        try:
+            from pathlib import Path as _Path
+            from qmbp_simulation.analysis.metrics import compute_h_frontier_from_npz
+
+            npz_path = (
+                _Path(__file__).resolve().parents[3]
+                / "data" / "multi_n_training"
+                / f"{self._topology}_N{self._N}_p{p_layers}.npz"
+            )
+            if npz_path.exists():
+                result = compute_h_frontier_from_npz(npz_path)
+                h_frontier = result.get("h_frontier")
+                if h_frontier is not None and h_frontier > 0:
+                    logger.debug(
+                        "  P3: empirical h_frontier=%.3f from NPZ (%d pts)",
+                        h_frontier, result.get("n_points", 0),
+                    )
+                    return h_frontier
+        except (ImportError, Exception):
+            pass
+
+        # ── Priority 2: QualityPredictor (historical ResultIndex) ────────
+        # ── Priority 2: QualityPredictor (historical ResultIndex) ────────
         try:
             from qmbp_simulation.analysis.quality_predictor import QualityPredictor
             predictor = QualityPredictor()

@@ -139,7 +139,9 @@ def analyze_cross_n_result(data: dict) -> list[CrossNAnalysis]:
 
 
 def format_report(report: AcceleratedReport) -> str:
-    """Format the analysis report as text."""
+    """Format the analysis report as text, grouped by topology."""
+    from collections import defaultdict
+
     lines = [
         "═" * 60,
         "  ACCELERATED CROSS-N ANALYSIS REPORT",
@@ -148,39 +150,58 @@ def format_report(report: AcceleratedReport) -> str:
         f"Total runs analyzed: {len(report.analyses)}",
         f"Training time total: {report.total_training_time_s:.0f}s",
         f"Prediction time total: {report.total_prediction_time_s:.0f}s",
-        "",
-        "─── Per-Config Results ───",
-        "",
-        f"{'Config':<30} {'@5%':<8} {'@10%':<8} {'mean ΔE/gap':<12} {'h>2.5':<8} {'2.0<h<2.5':<10}",
-        "-" * 80,
     ]
 
-    for a in sorted(report.analyses, key=lambda x: (x.topology, x.p_layers, x.target_n)):
-        config = f"{a.topology[:6]} N={a.train_n}→{a.target_n} p={a.p_layers}"
-        lines.append(
-            f"{config:<30} {a.pass_rate_5pct:.0%}     {a.pass_rate_10pct:.0%}     "
-            f"{a.mean_de_gap:.4f}       {a.h_easy_pass_rate:.0%}     "
-            f"{a.h_medium_pass_rate:.0%}"
-        )
+    # Group by topology
+    by_topo: dict[str, list] = defaultdict(list)
+    for a in report.analyses:
+        by_topo[a.topology].append(a)
 
-    # Key findings
-    lines.extend(["", "─── Key Findings ───", ""])
-    if report.analyses:
-        best = max(report.analyses, key=lambda a: a.pass_rate_10pct)
-        lines.append(f"  Best config: N={best.train_n}→{best.target_n} p={best.p_layers}")
-        lines.append(f"    Pass rate @10%: {best.pass_rate_10pct:.0%}")
-        lines.append(f"    h>2.5 region: {best.h_easy_pass_rate:.0%} (easiest)")
-        lines.append(f"    h<2.0 region: {best.h_hard_pass_rate:.0%} (hardest)")
+    for topo in sorted(by_topo.keys()):
+        analyses = sorted(by_topo[topo], key=lambda x: (x.p_layers, x.target_n))
+        lines.extend([
+            "",
+            f"{'─' * 60}",
+            f"  [{topo.upper()}] ({len(analyses)} configs)",
+            f"{'─' * 60}",
+            "",
+            f"  {'Config':<28} {'@5%':<7} {'@10%':<7} {'mean ΔE/gap':<12} {'h>2.5':<7} {'2.0<h<2.5':<10}",
+            "  " + "-" * 75,
+        ])
 
-        # Does error grow with N?
-        n_targets = sorted(set(a.target_n for a in report.analyses))
+        for a in analyses:
+            config = f"N={a.train_n}→{a.target_n} p={a.p_layers}"
+            lines.append(
+                f"  {config:<28} {a.pass_rate_5pct:.0%}     {a.pass_rate_10pct:.0%}     "
+                f"{a.mean_de_gap:.4f}       {a.h_easy_pass_rate:.0%}     "
+                f"{a.h_medium_pass_rate:.0%}"
+            )
+
+        # Per-topology key findings
+        best = max(analyses, key=lambda a: (a.pass_rate_10pct, -a.mean_de_gap))
+        lines.extend([
+            "",
+            f"  Best: N={best.train_n}→{best.target_n} "
+            f"(@10%={best.pass_rate_10pct:.0%}, mean={best.mean_de_gap:.4f})",
+        ])
+
+        # N-scaling trend for this topology
+        n_targets = sorted(set(a.target_n for a in analyses))
         if len(n_targets) > 1:
-            lines.append("")
-            lines.append("  N-scaling trend:")
+            lines.append("  N-scaling:")
             for n in n_targets:
-                subset = [a for a in report.analyses if a.target_n == n]
+                subset = [a for a in analyses if a.target_n == n]
                 avg_de_gap = np.mean([a.mean_de_gap for a in subset])
-                lines.append(f"    N={n}: mean ΔE/gap = {avg_de_gap:.4f}")
+                best_pr = max(a.pass_rate_10pct for a in subset)
+                lines.append(f"    N={n:>2}: mean ΔE/gap={avg_de_gap:.4f}, best@10%={best_pr:.0%}")
+
+        # n_max_viable for this topology
+        viable = [a for a in analyses if a.pass_rate_10pct > 0.5]
+        n_max = max((a.target_n for a in viable), default=None)
+        if n_max:
+            lines.append(f"  n_max_viable (pass@10%>50%): N={n_max}")
+        else:
+            lines.append("  n_max_viable: NONE (no config passes @10%>50%)")
 
     lines.extend(["", "═" * 60])
     return "\n".join(lines)
@@ -225,6 +246,95 @@ def main():
 
     # Print report
     print(format_report(report))
+
+    # ── Dashboard cross-validation: compare our scan vs cached dashboard ──
+    _cross_validate_with_dashboard(report)
+
+
+def _cross_validate_with_dashboard(report: AcceleratedReport) -> None:
+    """Cross-validate analyzer results against the model quality dashboard.
+
+    Reads cross_n_transfers and topology_summary from the dashboard and
+    compares against freshly-scanned results. Reports discrepancies.
+    """
+    import json
+    from pathlib import Path
+
+    dashboard_path = Path(ROOT) / "data" / "model_quality_dashboard.json"
+    if not dashboard_path.exists():
+        return
+
+    try:
+        with open(dashboard_path) as f:
+            dashboard = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return
+
+    topo_summary = dashboard.get("topology_summary", {})
+    if not topo_summary:
+        return
+
+    print(f"\n{'─' * 60}")
+    print("  DASHBOARD CROSS-VALIDATION")
+    print(f"{'─' * 60}")
+
+    # Compare n_max_viable from dashboard vs our fresh analysis
+    # Our fresh analysis: per topology, find max target_n with pass_rate_10pct > 50%
+    fresh_n_max = {}
+    for a in report.analyses:
+        topo = a.topology
+        if a.pass_rate_10pct > 0.5:
+            fresh_n_max[topo] = max(fresh_n_max.get(topo, 0), a.target_n)
+
+    mismatches = []
+    for topo, info in topo_summary.items():
+        dashboard_n_max = info.get("n_max_viable")
+        fresh_val = fresh_n_max.get(topo)
+        # Only flag if both have data and they differ
+        if dashboard_n_max is not None and fresh_val is not None:
+            if dashboard_n_max != fresh_val:
+                mismatches.append(
+                    f"  {topo}: dashboard n_max_viable={dashboard_n_max} "
+                    f"vs analyzer={fresh_val}"
+                )
+
+    # Check cross_n_best_source consistency
+    configs = dashboard.get("configs", [])
+    dashboard_transfers = {}
+    for c in configs:
+        transfers = c.get("cross_n_transfers", [])
+        if transfers:
+            key = (c["topology"], c["n_qubits"])
+            dashboard_transfers[key] = len(transfers)
+
+    # Our scan found these cross-N configs
+    fresh_transfer_count = {}
+    for a in report.analyses:
+        if a.train_n != a.target_n:
+            key = (a.topology, a.target_n)
+            fresh_transfer_count[key] = fresh_transfer_count.get(key, 0) + 1
+
+    for key, fresh_count in fresh_transfer_count.items():
+        dash_count = dashboard_transfers.get(key, 0)
+        if dash_count > 0 and fresh_count > dash_count:
+            mismatches.append(
+                f"  {key[0]} N={key[1]}: dashboard has {dash_count} transfers, "
+                f"analyzer found {fresh_count} (dashboard may be stale)"
+            )
+
+    if not mismatches:
+        print("  ✅ Dashboard consistent with fresh analysis")
+        # Show topology summary from dashboard for convenience
+        for topo, info in sorted(topo_summary.items()):
+            n_max = info.get("n_max_viable", "—")
+            best_src = info.get("cross_n_best_source_for_largest")
+            src_str = f"best_source=N{best_src['train_n']}" if best_src else "no cross-N data"
+            print(f"    {topo:12s}: n_max_viable={n_max}, {src_str}")
+    else:
+        print("  ⚠️ Discrepancies found (dashboard may need regeneration):")
+        for m in mismatches:
+            print(m)
+
 
 
 if __name__ == "__main__":

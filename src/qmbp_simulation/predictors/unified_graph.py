@@ -104,6 +104,8 @@ def build_unified_bond_resolved_graph(
     if not np.isfinite(h_value):
         raise ValueError(f"h_value must be finite, got {h_value}")
     if theta_opt is not None:
+        # Ensure float64 (handles legacy dtype=object arrays from NPZ)
+        theta_opt = np.asarray(theta_opt, dtype=np.float64)
         expected_params = (n_edges + N) * p_layers
         if theta_opt.shape != (expected_params,):
             raise ValueError(
@@ -300,6 +302,8 @@ def build_unified_dataset(
             f"must have the same length."
         )
 
+    # Ensure float64 (handles legacy dtype=object arrays from NPZ)
+    theta_opts = np.asarray(theta_opts, dtype=np.float64)
     n_edges = len(lattice.edges)
     N = lattice.n_qubits
     expected_params = (n_edges + N) * p_layers

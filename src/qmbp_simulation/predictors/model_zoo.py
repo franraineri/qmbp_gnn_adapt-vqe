@@ -343,6 +343,154 @@ def load_pretrained(
     return mpnn, best
 
 
+def load_best_for_cross_n(
+    model: str,
+    topology: str,
+    n_target: int,
+    p_layers: int,
+    *,
+    checkpoint_path: str | Path | None = None,
+) -> tuple[Any, ZooEntry]:
+    """Load the best available model for cross-N prediction at n_target.
+
+    Implements a priority hierarchy optimized for cross-N generalization:
+
+    1. **Multi-N model** (``n_qubits=0``): trained on aggregated data from
+       multiple system sizes.  Always preferred because it has seen the
+       functional dependence θ(h, N) and generalizes best to unseen N.
+    2. **Best-scored single-N model**: ranked by a composite score that
+       balances training data quantity, proximity to n_target, and validated
+       pass_rate.  Score formula::
+
+           score = n_training_points * (1 / (1 + |n_qubits - n_target|)) * pr_weight
+
+       where ``pr_weight = max(pass_rate, 0.3)`` (unvalidated models with
+       pass_rate=0 get a floor of 0.3 so they aren't completely ignored).
+
+    Unlike ``load_pretrained(allow_cross_n=True)`` which prefers exact N
+    match then falls back to nearest N, this function is specifically
+    designed for the cross-N prediction use case where the model will
+    ALWAYS be used on a different N than it was trained on.
+
+    Parameters
+    ----------
+    model : str
+        Hamiltonian model name (e.g. "tfim_bond_resolved").
+    topology : str
+        Lattice topology (e.g. "ladder", "chain_1d").
+    n_target : int
+        Target system size for prediction.
+    p_layers : int
+        HVA depth.
+    checkpoint_path : str | Path | None
+        Override: load from a specific path (bypasses zoo search).
+
+    Returns
+    -------
+    tuple[model, ZooEntry]
+        Best available model + metadata.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no suitable model exists in the zoo for this topology/model/p.
+        The caller should handle this by training a new model from available
+        NPZ data (via MultiNAggregator + train_unified_mpnn).
+    """
+    if n_target < 1:
+        raise ValueError(f"n_target must be ≥ 1, got {n_target}.")
+    if p_layers < 1:
+        raise ValueError(f"p_layers must be ≥ 1, got {p_layers}.")
+
+    # User override — direct checkpoint path
+    if checkpoint_path is not None:
+        ckpt_path = Path(checkpoint_path)
+        if not ckpt_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
+        mpnn = _smart_load_checkpoint(str(ckpt_path))
+        meta = ZooEntry(
+            model=model, topology=topology, n_qubits=0,
+            p_layers=p_layers, checkpoint_file=str(ckpt_path),
+            notes="User-specified checkpoint for cross-N",
+        )
+        return mpnn, meta
+
+    # Load ALL entries for this model/topology/p (ignoring n_qubits filter)
+    entries = _load_manifest()
+    candidates = [
+        e for e in entries
+        if e.model == model and e.topology == topology and e.p_layers == p_layers
+    ]
+
+    if not candidates:
+        available = {(e.model, e.topology, e.p_layers) for e in entries}
+        raise FileNotFoundError(
+            f"No model in zoo for ({model}, {topology}, p={p_layers}).\n"
+            f"Available (model, topology, p): {sorted(available)}\n"
+            f"Train one via: --multi-n-train or --train-n <N>"
+        )
+
+    # ── Priority 1: Multi-N models (n_qubits=0) ──────────────────────────
+    multi_n = [e for e in candidates if e.n_qubits == 0]
+    if multi_n:
+        # Among multi-N models, prefer most training points
+        best = max(multi_n, key=lambda e: e.n_training_points)
+        ckpt_path = _CHECKPOINTS_DIR / best.checkpoint_file
+        if ckpt_path.exists():
+            _verify_checkpoint_integrity(ckpt_path, best.sha256)
+            mpnn = _smart_load_checkpoint(str(ckpt_path))
+            logger.info(
+                "load_best_for_cross_n: Multi-N model → %s "
+                "(%d training pts, N_target=%d)",
+                best.checkpoint_file, best.n_training_points, n_target,
+            )
+            return mpnn, best
+        else:
+            logger.warning(
+                "Multi-N checkpoint missing on disk: %s. Falling back to single-N.",
+                best.checkpoint_file,
+            )
+
+    # ── Priority 2: Best-scored single-N model ────────────────────────────
+    single_n = [e for e in candidates if e.n_qubits > 0]
+    if not single_n:
+        raise FileNotFoundError(
+            f"Multi-N checkpoint file missing and no single-N models available "
+            f"for ({model}, {topology}, p={p_layers})."
+        )
+
+    def _score(entry: ZooEntry) -> float:
+        """Composite score: data quantity × proximity × confidence."""
+        proximity = 1.0 / (1.0 + abs(entry.n_qubits - n_target))
+        # Floor pass_rate at 0.3 for unvalidated models (pass_rate=0 from
+        # auto-export before evaluation). This prevents good models from
+        # being ranked below tiny validated ones.
+        pr_weight = max(entry.pass_rate, 0.3)
+        return entry.n_training_points * proximity * pr_weight
+
+    single_n.sort(key=_score, reverse=True)
+    best = single_n[0]
+
+    ckpt_path = _CHECKPOINTS_DIR / best.checkpoint_file
+    if not ckpt_path.exists():
+        raise FileNotFoundError(
+            f"Best single-N checkpoint missing: {ckpt_path}\n"
+            f"Re-run training to regenerate."
+        )
+
+    _verify_checkpoint_integrity(ckpt_path, best.sha256)
+    mpnn = _smart_load_checkpoint(str(ckpt_path))
+    pass_str = f"pass={best.pass_rate:.0%}" if best.pass_rate > 0 else "unevaluated"
+    logger.info(
+        "load_best_for_cross_n: Single-N model N=%d → %s "
+        "(score=%.1f, %d pts, %s, N_target=%d)",
+        best.n_qubits, best.checkpoint_file,
+        _score(best), best.n_training_points,
+        pass_str, n_target,
+    )
+    return mpnn, best
+
+
 def register_checkpoint(
     model,
     entry: ZooEntry,
@@ -384,6 +532,13 @@ def register_checkpoint(
     if ckpt_path.exists() and not overwrite:
         logger.warning("Checkpoint already exists: %s. Use overwrite=True to replace.", ckpt_path)
         return ckpt_path
+
+    # ── Validate model state before saving ───────────────────────────────
+    if hasattr(model, "training") and model.training:
+        logger.warning(
+            "register_checkpoint: model is in training mode. "
+            "Consider calling model.eval() before saving for consistent inference results."
+        )
 
     # ── Auto-detect model type and use correct saver ─────────────────────
     # Import lazily to avoid circular imports (model_zoo is imported by mpnn.py)

@@ -154,6 +154,22 @@ def main():
     index = ResultIndex()
     logger.info(f"Loaded index: {len(index)} entries")
 
+    # Load dashboard for cross-check (fresher signal than ResultIndex alone)
+    dashboard_configs: dict[tuple, dict] = {}
+    try:
+        import json
+        dashboard_path = ROOT / "data" / "model_quality_dashboard.json"
+        if dashboard_path.exists():
+            with open(dashboard_path) as f:
+                dashboard = json.load(f)
+            for dc in dashboard.get("configs", []):
+                key = (dc.get("model", ""), dc.get("topology", ""),
+                       dc.get("n_qubits", 0), dc.get("p_layers", 0))
+                dashboard_configs[key] = dc
+            logger.info(f"Dashboard: {len(dashboard_configs)} configs loaded for cross-check")
+    except (json.JSONDecodeError, OSError):
+        pass
+
     # Group and filter
     groups = _group_entries(index)
     logger.info(f"Found {len(groups)} unique (model, topology, N, p) configurations")
@@ -174,6 +190,18 @@ def main():
         # Filter by minimum runs
         if stats["n_runs"] < args.min_runs:
             skipped_runs += 1
+            continue
+
+        # Cross-check with dashboard: skip if NPZ data shows < 50% pass
+        # (the dashboard is updated every run and reflects actual θ quality)
+        db_entry = dashboard_configs.get((model, topology, n_qubits, p_layers))
+        if db_entry and db_entry.get("pass_rate_5pct", 1.0) < 0.50:
+            logger.debug(
+                "  Skip %s/%s N=%d p=%d: dashboard pass_rate=%.0f%% < 50%%",
+                model, topology, n_qubits, p_layers,
+                db_entry["pass_rate_5pct"] * 100,
+            )
+            skipped_rate += 1
             continue
 
         # Generate filename

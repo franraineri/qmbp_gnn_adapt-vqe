@@ -203,7 +203,7 @@ class QualityPredictor:
         self._load_history()
 
     def _load_history(self) -> None:
-        """Load historical run data from ResultIndex."""
+        """Load historical run data from ResultIndex + model quality dashboard."""
         try:
             from qmbp_simulation.framework.result_index import ResultIndex
 
@@ -213,6 +213,22 @@ class QualityPredictor:
         except Exception as e:
             logger.warning("QualityPredictor: could not load ResultIndex: %s", e)
             self._entries = []
+
+        # Load fresh dashboard data (updated every run, more current than ResultIndex)
+        self._dashboard_configs: list[dict] = []
+        try:
+            import json
+            dashboard_path = self._root / "data" / "model_quality_dashboard.json"
+            if dashboard_path.exists():
+                with open(dashboard_path) as f:
+                    dashboard = json.load(f)
+                self._dashboard_configs = dashboard.get("configs", [])
+                logger.debug(
+                    "QualityPredictor: loaded %d dashboard configs",
+                    len(self._dashboard_configs),
+                )
+        except (json.JSONDecodeError, OSError, KeyError):
+            pass
 
     @staticmethod
     def _recency_weight(timestamp_str: str) -> float:
@@ -326,6 +342,11 @@ class QualityPredictor:
             "n_params": n_params,
             "param_density": param_density,
             "n_edges": n_edges,
+            # Internal: passed through for dashboard lookup (not part of score)
+            "_topology": topology,
+            "_n_qubits": n_qubits,
+            "_p_layers": p_layers,
+            "_model": model,
         }
 
     def _find_similar_runs(
@@ -350,27 +371,66 @@ class QualityPredictor:
                 similar.append(entry)
         return similar
 
+    def _get_dashboard_config(
+        self,
+        model: str,
+        topology: str,
+        n_qubits: int,
+        p_layers: int,
+    ) -> dict[str, Any] | None:
+        """Find the matching dashboard config for this (model, topo, N, p).
+
+        Returns the dashboard config dict (with training_utility, h_frontier, etc.)
+        or None if not found.
+        """
+        for dc in self._dashboard_configs:
+            if (dc.get("topology") == topology and
+                dc.get("n_qubits") == n_qubits and
+                dc.get("p_layers") == p_layers):
+                # Model check: dashboard model field matches or is bond_resolved
+                dc_model = dc.get("model", "")
+                if dc_model == model or model in dc_model or dc_model in model:
+                    return dc
+        return None
+
     def _estimate_h_min_from_history(
         self,
         similar: list[dict[str, Any]],
         features: dict[str, float],
     ) -> float:
-        """Estimate minimum h where VQE converges from historical data.
+        """Estimate minimum h where VQE converges from historical data + dashboard.
 
-        Strategy:
-        1. If we have similar runs that passed (pass_rate >= 0.8), use
-           the preflight boundary as baseline (most calibrated source).
-        2. For AcceleratedVQE integration — this provides a data-driven
-           h_min that avoids wasting compute in the non-convergent regime.
+        Priority:
+        1. Dashboard h_frontier (most current — updated every run from NPZ data)
+        2. Historical similar runs pattern
+        3. Preflight boundary (calibrated table)
 
         Returns the estimated h_min (always > 0).
         """
         h_min_safe = features["h_min_safe"]
 
+        # ── Priority 1: Dashboard h_frontier (freshest signal) ────────────
+        # The dashboard is regenerated after every runner completes, so it
+        # reflects the latest NPZ data without waiting for ResultIndex rebuild.
+        if self._dashboard_configs:
+            # Find matching config in dashboard
+            topo = features.get("_topology", "")
+            n = int(features.get("_n_qubits", 0))
+            p = int(features.get("_p_layers", 0))
+            for dc in self._dashboard_configs:
+                if (dc.get("topology") == topo and
+                    dc.get("n_qubits") == n and
+                    dc.get("p_layers") == p):
+                    h_frontier = dc.get("h_frontier")
+                    if h_frontier is not None and h_frontier > 0:
+                        # Dashboard frontier is empirical — trust it directly
+                        return float(h_frontier)
+                    break
+
+        # ── Priority 2: Historical pattern ────────────────────────────────
         if not similar:
             return h_min_safe
 
-        # Look at passing runs — their configs tell us where convergence works
         passing_runs = [
             e for e in similar if e.get("pass_rate", 0) >= 0.8
         ]
@@ -379,14 +439,11 @@ class QualityPredictor:
         ]
 
         if passing_runs and not failing_runs:
-            # All similar runs pass — regime boundary is conservative, trust it
             return max(0.5, h_min_safe * 0.9)
 
         if failing_runs and not passing_runs:
-            # All fail — push boundary higher
             return h_min_safe * 1.3
 
-        # Mixed results — use preflight boundary (best calibrated)
         return h_min_safe
 
     def predict(
@@ -505,6 +562,47 @@ class QualityPredictor:
             report.confidence = "medium"
         else:
             report.confidence = "low"
+
+        # ── EvalCache density: boost confidence if config is well-explored ──
+        # Many cached evals → the landscape has been explored → we know
+        # what to expect (higher confidence in the prediction).
+        try:
+            from qmbp_simulation.execution.eval_cache import EvalCache
+            eval_cache = EvalCache()
+            n_cached = eval_cache.count_entries_for_config(
+                topology, n_qubits, model, p_layers
+            )
+            if n_cached > 100 and report.confidence == "low":
+                report.confidence = "medium"
+            # Adjust time estimate: high cache density → faster (most hits)
+            if n_cached > 50 and report.estimated_time_s > 0:
+                # Estimate ~80% of evals will be cache hits → 5× faster
+                report.estimated_time_s *= 0.3
+        except (ImportError, Exception):
+            pass
+
+        # ── Rule 6: Training utility from dashboard ───────────────────────
+        # If the dashboard classifies this config as "not_useful", the MPNN
+        # cannot predict well for this config and pass_probability should be
+        # severely penalized. This saves compute by ABORTing before VQE.
+        try:
+            dashboard_config = self._get_dashboard_config(model, topology, n_qubits, p_layers)
+            if dashboard_config:
+                utility = dashboard_config.get("training_utility", "useful")
+                if utility == "not_useful":
+                    report.pass_probability = min(report.pass_probability, 0.05)
+                    reasons.append(
+                        f"Dashboard: training_utility='not_useful' — "
+                        f"{dashboard_config.get('training_utility_reason', 'data not learnable')[:80]}"
+                    )
+                elif utility == "insufficient_signal":
+                    report.pass_probability *= 0.6
+                    reasons.append(
+                        f"Dashboard: training_utility='insufficient_signal' — "
+                        f"{dashboard_config.get('training_utility_reason', '')[:60]}"
+                    )
+        except Exception:
+            pass
 
         if report.pass_probability >= 0.6:
             report.recommendation = "PROCEED"

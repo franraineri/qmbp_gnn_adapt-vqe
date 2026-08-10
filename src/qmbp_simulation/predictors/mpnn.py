@@ -474,6 +474,8 @@ def build_graph_dataset(
         If fewer than 3 data points pass the quality filter.
     """
     # ── Input shape validation ───────────────────────────────────────
+    # Ensure float64 (handles legacy dtype=object arrays from NPZ)
+    theta_opt = np.asarray(theta_opt, dtype=np.float64)
     if theta_opt.ndim != 2:
         raise ValueError(f"theta_opt must be 2D (n_points, n_params), got shape {theta_opt.shape}.")
     if len(h_values) != theta_opt.shape[0]:
@@ -1333,6 +1335,8 @@ def build_bond_resolved_graph(
     data.n_edges_unique = len(edges_unique)
 
     if theta_opt is not None:
+        # Ensure float64 before torch conversion (handles legacy dtype=object)
+        theta_opt = np.asarray(theta_opt, dtype=np.float64)
         data.y = torch.tensor(theta_opt, dtype=torch.float32)
 
     return data
