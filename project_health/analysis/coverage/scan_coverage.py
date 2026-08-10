@@ -127,31 +127,8 @@ def discover_variant_folders() -> list[tuple[str, str]]:
     return folders
 
 
-# Valid regime boundaries for p=1 (h_test must be >= this value)
-P1_VALID_REGIME: dict[tuple[str, int], float] = {
-    ("chain_1d", 6): 1.6,
-    ("chain_1d", 10): 1.9,
-    ("chain_1d", 20): 2.25,
-    ("heavy_hex", 6): 2.0,
-    ("heavy_hex", 10): 3.0,  # Confirmed: h=2.625 fails (EXT-5, ΔE/gap=10.67)
-    ("ladder", 6): 2.0,
-    ("ladder", 10): 3.0,  # Corrected: was 2.0, verification shows failures at 2.75
-    ("triangular", 6): 4.0,  # Corrected: was 3.0, failure at h=4.0 but pass at h=4.5
-    ("triangular", 10): 3.5,
-}
-
-# Valid regime boundaries for p=2
-P2_VALID_REGIME: dict[tuple[str, int], float] = {
-    ("chain_1d", 6): 1.25,
-    ("chain_1d", 10): 1.5,
-    ("chain_1d", 20): 2.0,
-    ("heavy_hex", 6): 1.5,
-    ("heavy_hex", 10): 1.5,
-    ("ladder", 6): 1.5,
-    ("ladder", 10): 2.0,
-    ("triangular", 6): 2.0,
-    ("triangular", 10): 2.5,
-}
+# Valid regime boundaries — imported from canonical source (preflight.py)
+from qmbp_simulation.framework.preflight import P1_VALID_REGIME, P2_VALID_REGIME  # noqa: E402
 
 # Default PASS/FAIL thresholds (can be overridden via CLI)
 DEFAULT_PASS_THRESHOLD: float = 0.05

@@ -86,9 +86,9 @@ P1_VALID_REGIME: dict[tuple[str, int], float] = {
     # Previously 2.0 (interpolated from chain_1d) but never empirically validated.
     ("heavy_hex", 10): 3.0,
     ("heavy_hex", 20): 3.5,  # Empirical estimate (extrapolated from N=10)
-    ("ladder", 6): 2.0,
-    ("ladder", 10): 3.0,
-    ("ladder", 16): 2.5,
+    ("ladder", 6): 1.2,
+    ("ladder", 10): 1.5,
+    ("ladder", 16): 2.2,
     ("triangular", 6): 4.0,
     ("triangular", 10): 3.5,
     ("triangular", 16): 4.0,
@@ -611,6 +611,50 @@ class PreflightChecker:
                 )
         return issues
 
+    def check_quality_prediction(self) -> list[Issue]:
+        """Predict pass probability from historical data (QualityPredictor).
+
+        Flags variants that historically have < 30% chance of passing.
+        Non-blocking (WARNING level) — provides early signal for futile configs.
+        """
+        issues: list[Issue] = []
+        try:
+            from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+
+            predictor = QualityPredictor(root=self.root)
+        except (ImportError, Exception):
+            return []  # Non-blocking if unavailable
+
+        for spec in self.specs:
+            if spec.n_qubits == 0 or spec.topology == "unknown":
+                continue  # Skip unresolved specs
+            try:
+                report = predictor.predict(
+                    model=getattr(spec, "model", None) or "tfim",
+                    topology=spec.topology,
+                    n_qubits=spec.n_qubits,
+                    p_layers=spec.p,
+                    h_min=min(spec.h_values) if spec.h_values else 1.0,
+                    h_max=max(spec.h_values) if spec.h_values else 3.5,
+                )
+                if report.pass_probability < 0.3:
+                    issues.append(
+                        Issue(
+                            severity=Severity.WARNING,
+                            check_name="quality_prediction",
+                            variant_id=spec.id,
+                            message=(
+                                f"Historical pass rate: {report.pass_probability:.0%} "
+                                f"[{report.confidence_interval[0]:.0%}, "
+                                f"{report.confidence_interval[1]:.0%}] — "
+                                f"ABORT recommended ({report.similar_runs} similar runs)"
+                            ),
+                        )
+                    )
+            except Exception:
+                continue  # Skip on any prediction error
+        return issues
+
     # ─── Orchestration ─────────────────────────────────────────────────────
 
     def run_all(self, *, verbose: bool = True) -> PreflightReport:
@@ -633,6 +677,7 @@ class PreflightChecker:
             ("descending_sweep", self.check_descending_sweep),
             ("duplicate_ids", self.check_duplicate_ids),
             ("output_fresh", self.check_output_fresh),
+            ("quality_prediction", self.check_quality_prediction),
         ]
 
         if verbose:

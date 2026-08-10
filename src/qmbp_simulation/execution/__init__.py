@@ -5,9 +5,11 @@ from qmbp_simulation.execution.backends import (
     MitigationOptions,
     NoiselessBackend,
     NoisyBackend,
+    FakeBackend,
     select_backend,
     select_backend_with_topology_warning,
 )
+from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
 from qmbp_simulation.execution.mps_backend import MPSBackend
 from qmbp_simulation.execution.hardware import (
     HardwareBackend,
@@ -62,6 +64,7 @@ __all__ = [
     "MPSBackend",
     "NoiselessBackend",
     "NoisyBackend",
+    "FakeBackend",
     # Noisy simulation utilities
     "NoisyEstimatorConfig",
     "LayoutSelection",

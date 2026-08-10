@@ -3,6 +3,7 @@
 from qmbp_simulation.framework.base import BaseExperiment
 from qmbp_simulation.framework.benchmarking import BenchmarkResult, BenchmarkSuite
 from qmbp_simulation.framework.cli import (
+    add_accelerate_args,
     add_format_args,
     add_mpnn_args,
     add_noisy_args,
@@ -133,6 +134,7 @@ __all__ = [
     "add_noisy_args",
     "add_result_filter_args",
     "add_format_args",
+    "add_accelerate_args",
     "add_validation_args",
     "add_variant_runner_args",
     "configure_logging",

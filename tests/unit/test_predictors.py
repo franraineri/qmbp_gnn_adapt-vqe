@@ -30,7 +30,8 @@ class TestBuildGraphDataset:
     def test_node_features_shape(self):
         lattice = make_lattice("chain_1d", 4, J=1.0, h=1.0)
         h_values = np.array([2.0, 1.5, 1.0])
-        theta_opt = np.random.rand(3, 2)
+        # Use smooth theta (as VQE would produce) to avoid basin filter
+        theta_opt = np.array([[0.1, 0.2], [0.12, 0.22], [0.14, 0.24]])
         e_exact = np.array([-5.0, -4.5, -4.0])
         fidelities = np.ones(3)
 

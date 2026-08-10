@@ -56,11 +56,12 @@ def format_noiseless_text(results: list[NoiselessResult], verbose: bool = False)
     # Table
     hdr = (
         f"  {'Variant':<28} {'N':<4} {'Topo':<10} {'p':<3} "
+        f"{'Regime':<12} "
         f"{'ΔE/gap':<9} {'Conv%':<7} {'θ-smooth':<10} {'Gen.gap':<10} "
         f"{'Time':<7}"
     )
     lines.append(hdr)
-    lines.append(f"  {'─' * 95}")
+    lines.append(f"  {'─' * 108}")
 
     for r in results:
         de_str = f"{r.delta_e_over_gap:.4f}" if r.delta_e_over_gap is not None else "—"
@@ -69,11 +70,12 @@ def format_noiseless_text(results: list[NoiselessResult], verbose: bool = False)
         gap_str = f"{r.generalization_gap:.2e}" if r.generalization_gap is not None else "—"
         time_str = _format_time(r.elapsed_s)
         icon = _noiseless_icon(r.delta_e_over_gap)
+        regime_str = r.regime or "—"
 
         lines.append(
             f"  {icon} {r.variant_id:<25} {r.n_qubits:<4} {r.topology:<10} "
-            f"{r.p_layers:<3} {de_str:<9} {conv_str:<7} {smooth_str:<10} "
-            f"{gap_str:<10} {time_str:<7}"
+            f"{r.p_layers:<3} {regime_str:<12} {de_str:<9} {conv_str:<7} "
+            f"{smooth_str:<10} {gap_str:<10} {time_str:<7}"
         )
 
         if verbose:

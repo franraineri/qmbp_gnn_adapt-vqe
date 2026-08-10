@@ -1,0 +1,105 @@
+
+
+Como herramienta de diseño de ansatz (una vez, offline): Correr ADAPT-VQE en un punto representativo (e.g., h=h_c), ver qué operadores selecciona, y usar esa estructura como ansatz fijo para toda la sweep. Esto equivale a "descubrir" el HVA óptimo automáticamente.
+
+Para el paper GNN-VQE ADAPT (arXiv:2606.08794): Ese paper usa GNN para predecir QUÉ operador agregar en cada paso (reemplaza el cálculo de gradientes). Esto es ortogonal a nuestro pipeline — no mejora Phase 2, sino que reemplaza ADAPT-VQE entero.
+
+Si abandonamos el MPNN y pasamos a un enfoque puramente VQE (sin Phase 3), ADAPT-VQE daría mejores energías que HVA fijo. Pero perderíamos la aceleración 29-500×.
+
+
+
+Mejoras VQE que SÍ podemos incluir en Phase 2
+
+Estas son compatibles con nuestro pipeline (mantienen circuito fijo + θ suave):
+
+1. Adaptive Restarts (ya parcialmente implementado)
+
+Nuestro VQEOptimizer ya hace multi-start con n_restarts. La mejora es:
+
+from qmbp_simulation.optimizers.sweep_strategies import (
+
+    compute_adaptive_restarts,  # Más restarts cerca de h_c
+
+    select_suspicious_points,   # Re-optimizar solo puntos malos
+
+)
+
+Estado: Código EXISTS en 
+
+sweep_strategies.py
+
+ pero no está integrado en los runners principales (ver memoria ID 211 — pending integration).
+
+2. Bidirectional Sweep (ya implementado)
+
+# Ya disponible:
+
+vqe_results = optimizer.bidirectional_sweep(h_values, circuit, lattice, exact_data)
+
+Hace sweep descendente + ascendente y conserva la mejor energía por punto. Ya está en run_noiseless_pipeline.py.
+
+3. Cross-h Energy Guard (ya implementado)
+
+Detecta puntos donde VQE quedó atrapado en mínimo local y los repara usando θ del vecino:
+
+from qmbp_simulation.analysis.theta_alignment import cross_h_energy_guard
+
+4. Hessian-Guided Restarts (implementado en experiments/)
+
+from experiments.helpers.hessian_restart import hessian_guided_vqe
+
+Usa la curvatura del paisaje (eigenvalores del Hessiano) para decidir si un mínimo es genuino o una silla. Si detecta eigenvalor negativo, escapa en esa dirección.
+
+Limitación: Costoso computacionalmente (n² evaluaciones para Hessiano). Solo viable para p≤2 con pocos params.
+
+5. Parameter Freezing / TITAN-style (implementado en experiments/)
+
+from experiments.helpers.parameter_freezing import frozen_vqe
+
+Congela θ_x después de que estabiliza (típicamente después de h ≈ 2.0 para TFIM) y solo optimiza θ_zz. Reduce dimensión del problema a la mitad.
+
+6. COBYLA con Stochastic Gradient Estimation (posible mejora)
+
+Para tfim_bond_resolved donde COBYLA auto-switch ocurre (19+ params), podríamos usar:
+
+SPSA (ya implementado en 
+
+spsa.py
+
+)
+
+Natural gradient (no implementado, requiere Fisher matrix)
+
+Rotoselect (no implementado, parameter-shift por eje)
+
+7. Analytical Initialization (implementado en experiments/)
+
+from experiments.helpers.analytical_init import analytical_init_p1, analytical_init_p2
+
+Para TFIM, los parámetros óptimos a h→∞ se conocen analíticamente:
+
+θ_x = π/8 (constante para todo h en paramagnético)
+
+θ_zz ≈ J/(4h) (perturbation theory)
+
+Esto da un warm-start mejor que random para el primer punto del sweep
+
+
+
+
+
+
+
+Idea	¿Ya probada?	Resultado	¿Nuevo para #04?
+Más h-points	✅ G1 + S4	k_min=5-9 puntos suficientes. A N=10, pasa con k=5 (!). Más datos NO mejora.	❌
+Model size (64→256)	✅ Thesis variants	hidden 64/128/256 rinden igual. 128 = sweet spot.	⚠️ Solo 512 no probado (pero el análisis muestra que es contraproducente)
+Feature enrichment	⚠️ Parcial	coord_number ya es feature estándar. N/100 para cross-N. Pero boundary distance nunca se probó.	✅ Boundary distance es novel
+Data augmentation (θ noise)	✅ Implementado + probado	DAÑA a N=10. Conclusión definitiva. σ=0.02 ya está en producción como fallback suave para datasets chicos.	❌
+Lo que vale la pena guardar como plan para #04:
+Solo dos ideas son genuinamente nuevas en el contexto del unified graph:
+
+Boundary/positional features para gate nodes — Nunca se probó dar a los ZZ gate nodes información explícita de su posición (borde vs centro). Actualmente usan [layer_norm, bond_idx_norm, N/100, type]. Agregar boundary_distance_norm o sum_neighbor_coords podría ayudar en topologías no-simétricas.
+
+La comparación architectural UnifiedMPNN vs BondResolvedMPNN en topologías no-simétricas — Esto es exactamente lo que el benchmark actual va a probar y es 100% novel.
+
+Hacer la red más CHICA, no más grande — hidden=64 con 2 capas probablemente funciona igual de bien con 20 training points. Menos overfitting.

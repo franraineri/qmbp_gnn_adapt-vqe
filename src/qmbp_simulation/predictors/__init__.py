@@ -15,6 +15,25 @@ from qmbp_simulation.predictors.gnn_qem import (
     save_qem_checkpoint,
     save_qem_samples,
     train_gnn_qem,
+    # V2 — Scalable architecture (Plan 08)
+    GNNQEMConfigV2,
+    GNNQEMCorrectorV2,
+    QEMSampleV2,
+    build_qem_graph_v2,
+    correct_energy_v2,
+    generate_qem_training_data_v2,
+    load_qem_samples_v2,
+    load_qem_v2_checkpoint,
+    save_qem_samples_v2,
+    save_qem_v2_checkpoint,
+    train_gnn_qem_v2,
+)
+from qmbp_simulation.predictors.model_zoo import (
+    ZooEntry,
+    list_pretrained,
+    load_best_for_cross_n,
+    load_pretrained,
+    register_checkpoint,
 )
 from qmbp_simulation.predictors.mpnn import (
     BondResolvedMPNN,
@@ -22,9 +41,28 @@ from qmbp_simulation.predictors.mpnn import (
     build_bond_resolved_graph,
     build_graph_dataset,
     load_mpnn_checkpoint,
+    predict_theta,
     save_mpnn_checkpoint,
     train_bond_resolved_mpnn,
     train_mpnn,
+)
+from qmbp_simulation.predictors.unified_graph import (
+    NODE_TYPE_QUBIT,
+    NODE_TYPE_RX_GATE,
+    NODE_TYPE_ZZ_GATE,
+    UNIFIED_NODE_FEATURES,
+    build_unified_bond_resolved_graph,
+    build_unified_dataset,
+    compute_graph_metrics,
+    validate_unified_graph,
+)
+from qmbp_simulation.predictors.unified_mpnn import (
+    UnifiedMPNN,
+    fine_tune_unified_mpnn,
+    load_unified_checkpoint,
+    save_unified_checkpoint,
+    should_retrain,
+    train_unified_mpnn,
 )
 
 __all__ = [
@@ -38,6 +76,22 @@ __all__ = [
     "BondResolvedMPNN",
     "build_bond_resolved_graph",
     "train_bond_resolved_mpnn",
+    # Phase 3c: Unified Hamiltonian+Circuit graph (Qracle-style)
+    "build_unified_bond_resolved_graph",
+    "build_unified_dataset",
+    "validate_unified_graph",
+    "compute_graph_metrics",
+    "NODE_TYPE_QUBIT",
+    "NODE_TYPE_ZZ_GATE",
+    "NODE_TYPE_RX_GATE",
+    "UNIFIED_NODE_FEATURES",
+    # Phase 3d: Type-aware UnifiedMPNN (Qracle-inspired architecture)
+    "UnifiedMPNN",
+    "train_unified_mpnn",
+    "fine_tune_unified_mpnn",
+    "should_retrain",
+    "save_unified_checkpoint",
+    "load_unified_checkpoint",
     # Phase 4+: GNN-QEM error correction
     "GNNQEMCorrector",
     "GNNQEMConfig",
@@ -53,4 +107,24 @@ __all__ = [
     "load_qem_checkpoint",
     "save_qem_samples",
     "load_qem_samples",
+    # Phase 4+ V2: GNN-QEM V2 scalable architecture
+    "GNNQEMCorrectorV2",
+    "GNNQEMConfigV2",
+    "QEMSampleV2",
+    "build_qem_graph_v2",
+    "train_gnn_qem_v2",
+    "correct_energy_v2",
+    "generate_qem_training_data_v2",
+    "save_qem_v2_checkpoint",
+    "load_qem_v2_checkpoint",
+    "save_qem_samples_v2",
+    "load_qem_samples_v2",
+    # External benchmarks subpackage
+    "external_benchmarks",
+    # Model zoo (pre-trained MPNN registry)
+    "load_pretrained",
+    "load_best_for_cross_n",
+    "list_pretrained",
+    "register_checkpoint",
+    "ZooEntry",
 ]

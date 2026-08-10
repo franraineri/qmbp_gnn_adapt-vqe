@@ -1,0 +1,1 @@
+INFO [ladder]: Generating V2 data: ladder, N=6, 6 h-points, theta_source=zoo

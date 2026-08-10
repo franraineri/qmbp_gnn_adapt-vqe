@@ -72,3 +72,14 @@ repos:
         files: '\.py$'
         exclude: '^(scripts/hooks/|archive/)'
         pass_filenames: true
+
+  # ── Project-specific: No unsafe torch.load ─────────────────
+  - repo: local
+    hooks:
+      - id: safe-torch-load
+        name: No unsafe torch.load (weights_only=False)
+        entry: scripts/hooks/check_safe_torch_load.py
+        language: python
+        files: '\.py$'
+        exclude: '^(scripts/hooks/|archive/)'
+        pass_filenames: true

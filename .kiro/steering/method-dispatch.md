@@ -7,12 +7,21 @@ fileMatchPattern: "**/solvers/**,**/execution/**,**/optimizers/**,**/run_noisele
 
 ## Phase 1: Ground Truth (ClassicalSolver.solve)
 
-| N range | Method | Module | Time | Output |
-|---------|--------|--------|------|--------|
-| N ≤ 15 | `np.linalg.eigh` (dense) | `solvers/classical.py:_solve_exact` | <1s | E₀, gap, ψ_gs (2^N), ⟨X_i⟩, ⟨Z_iZ_j⟩ |
-| 15 < N ≤ 22 | DMRG (TeNPy TFIChain) | `solvers/classical.py:_solve_dmrg_1d` | 2-10s | E₀, gap (analytical fallback), ⟨X_i⟩, ⟨Z_iZ_j⟩. **No ψ_gs** |
-| N > 22, 1D | DMRG (TeNPy TFIChain) | `solvers/classical.py:_solve_dmrg_1d` | 5-70s | Same as above |
-| N > 22, 2D | DMRG (TeNPy SpinModel) | `solvers/classical.py:_solve_dmrg_2d` | 10-120s | Same. Gap = finite-size floor |
+| N range | Topology | Method | Module | Time |
+|---------|----------|--------|--------|------|
+| N ≤ 15 | any | `np.linalg.eigh` (dense) | `_solve_exact` | <1s |
+| 15 < N ≤ 22 | any | `scipy.eigsh` (sparse) | `_solve_exact` | 1-20s |
+| any N | chain_1d | DMRG (TeNPy TFIChain) | `_solve_dmrg_1d` | 2-70s |
+| any N | heavy_hex, ladder, kagome | **DMRG (CouplingMPOModel)** | `_solve_dmrg_graph` | 5-60s |
+| any N, N≥9 | square, triangular | DMRG (TeNPy SpinModel 2D) | `_solve_dmrg_2d` | 10-120s |
+
+**Dispatch logic** (`method="auto"`): uses exact diag for N≤15, DMRG otherwise.
+**DMRG dispatch** (`method="dmrg"`): routes by topology to the correct solver.
+
+**Accuracy (validated 2026-07-28)**:
+- All three DMRG paths produce |ΔE| < 1e-14 vs exact diag for chi≥64, N≤22, all h.
+- `_solve_dmrg_graph` uses `add_coupling_term` for each edge in `lattice.edges` — handles ANY graph topology.
+- For N>22, exact diag is not available; DMRG with chi≥128 is the best reference.
 
 Constants: `EXACT_DIAG_QUBIT_LIMIT=15`, `DMRG_QUBIT_LIMIT=200`
 

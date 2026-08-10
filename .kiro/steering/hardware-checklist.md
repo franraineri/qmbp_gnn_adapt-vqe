@@ -121,6 +121,28 @@ Total for Tier 1 (4 h-points, no SPSA): ~15 min QPU time.
 | Layout std > 2.0 | Diverse noise across qubits | Reduce `max_ces` to 0.3 |
 | TLS drift abort mid-sweep | T1 degradation during run | Natural, restart later |
 
+## QESEM Deployment (Alternative to PEA-ZNE)
+
+Use QESEM when ⟨ZZ⟩ correlations need high precision (σ ≈ 0.004 vs PEA's 0.023).
+
+```bash
+# QESEM run (requires Qiskit Functions access + mode=hardware)
+python scripts/experiment_runners/hardware/run_parametric_deployment.py \
+    --mode hardware --qesem-enabled --qesem-precision 0.01 \
+    --qesem-max-time 600 --h-values 4.0 3.5
+```
+
+**QESEM constraints:**
+- [ ] CANNOT run on fake_backend (server-side Qiskit Function only)
+- [ ] Queue wait is unpredictable (1 min to 10h observed). Submit early.
+- [ ] Budget: 600s QPU cap recommended (300s → σ≈0.29, 600s → σ≈0.20 expected)
+- [ ] Always compare QESEM energy against PEA-ZNE for cross-validation
+
+**When NOT to use QESEM:**
+- Quick iteration cycles (queue unpredictable)
+- N > 10 or p > 1 (QESEM cost scales poorly with circuit depth)
+- Open Plan only (Qiskit Functions may require specific access)
+
 ## Key Constraints (NEVER violate)
 
 - p=1 for N≥10 (18 CX gates, within ZNE perturbative regime)
@@ -129,3 +151,4 @@ Total for Tier 1 (4 h-points, no SPSA): ~15 min QPU time.
 - Never apply SPSA if ΔE/gap ≤ 5% (refinement hurts good warm-starts)
 - Never measure global fidelity on hardware (exponential tomography)
 - Cost ceiling: 10M total shots per execution run
+- QESEM: always save both unmitigated + mitigated values for thesis Table 5.23

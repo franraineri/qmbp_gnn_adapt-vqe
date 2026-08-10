@@ -161,11 +161,14 @@ class ExperimentConfig:
         """
         warnings: list[str] = []
 
-        # Hard constraints — raise immediately
-        if self.system.p_layers > 2:
-            raise ValueError(
-                "CONSTRAINT VIOLATION: p_layers > 2 is forbidden (Mele et al. 2022). "
-                "HVA depth is limited to p ≤ 2 for this framework."
+        # Soft constraint — warn for hardware noise concerns but allow
+        if self.system.p_layers > 5:
+            import warnings
+            warnings.warn(
+                f"p_layers={self.system.p_layers} is very deep. For hardware deployment, "
+                f"p ≤ 3 is recommended (Mele et al. noise truncation). "
+                f"Noiseless simulation is unrestricted.",
+                stacklevel=2,
             )
         if not self.seeds:
             raise ValueError("No seeds specified — at least one seed is required.")

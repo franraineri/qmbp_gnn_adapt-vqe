@@ -135,18 +135,18 @@ The term "Deploy %" was replaced by "PassRate" on 2026-07-16.
 
 | Data | Source |
 |------|--------|
-| Cross-topology N=10 p=1-4 | `documentation/analysis/noiseless_v2_analysis.md` (Sections 1-4) |
+| Cross-topology N=10 p=1-4 | `internal/documentation/analysis/noiseless_v2_analysis.md` (Sections 1-4) |
 | Scaling N=4-20 | `noiseless_v2_analysis.md` (Sections 7, 9, 11) |
 | TFIM longitudinal multi-topo | `noiseless_v2_analysis.md` (Section 2) |
 | Heisenberg exhaustive (26 runs) | `noiseless_v2_analysis.md` (Section 3) |
 | Heisenberg transverse (20 runs) | `noiseless_v2_analysis.md` (Section 7.3) |
 | Expressibility p=5 study | `noiseless_v2_analysis.md` (Section 5) |
 | Physics loss experiment | `noiseless_v2_analysis.md` (Section 10) |
-| N=6/N=10 baseline | `documentation/analysis/09_thesis_tables.md` |
+| N=6/N=10 baseline | `internal/documentation/analysis/09_thesis_tables.md` |
 | Cross-N zero-shot | `binnacle-cross-n-zero-shot.md` |
 | GitHub repository | `https://github.com/franraineri/qmbp_gnn_adapt-vqe` |
 
-## Current Document Status (tesis-v3.0.tex — Updated 2026-07-16)
+## Current Document Status (internal/tesis-v3.0.tex — Updated 2026-07-21)
 
 ### Stats
 - Lines: ~1750 | Chapters: 10 | Environments: balanced
@@ -170,5 +170,5 @@ The term "Deploy %" was replaced by "PassRate" on 2026-07-16.
 
 ### Pending Work
 - Review Anexo A for deprecated noise content
-- Compile LaTeX: `pdflatex tesis-v3.0.tex` (requires `estilo_unir-1.sty`)
+- Compile LaTeX: `pdflatex internal/tesis-v3.0.tex` (requires `estilo_unir-1.sty`)
 - Verify all \ref targets resolve (no `??` in PDF)

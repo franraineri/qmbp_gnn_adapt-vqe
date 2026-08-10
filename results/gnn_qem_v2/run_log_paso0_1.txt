@@ -1,0 +1,8 @@
+INFO: Generating V2 training data (theta_source=zoo)...
+INFO: No exact N=6 match in zoo. Using cross-N transfer from N=4 (GINConv + global_mean_pool supports variable-size graphs).
+INFO:   ℹ️  For rigorous cross-N validation, use:
+     from qmbp_simulation.analysis import CrossNValidator
+     validator = CrossNValidator(topology, spec, backend)
+     report = validator.validate_prediction(model, n_target=6, ...)
+INFO: Loaded MPNNCheckpoint: arch=ginconv, per_param_heads=False, edge_features=False, norm_type=batch
+INFO: Loaded pre-trained MPNN: tfim/chain_1d N=4 p=1 (pass_rate=100%)

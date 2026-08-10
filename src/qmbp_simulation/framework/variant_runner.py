@@ -355,14 +355,35 @@ class VariantRunner:
         *,
         dry_run: bool = False,
         start_from: int = 0,
+        prioritize: bool = False,
     ) -> int:
-        """Run all variants. Returns exit code (0 if all pass)."""
+        """Run all variants. Returns exit code (0 if all pass).
+
+        Parameters
+        ----------
+        variants : list[PipelineVariant]
+            Variant definitions to execute.
+        dry_run : bool
+            If True, print commands without executing.
+        start_from : int
+            Skip variants before this index.
+        prioritize : bool
+            If True, reorder variants by predicted pass probability
+            (highest first) using QualityPredictor. Enables fail-fast
+            scheduling — likely-to-pass configs run first.
+        """
+        # ── Optional: reorder by predicted pass probability ──────────────
+        if prioritize and not dry_run:
+            variants = self._prioritize_variants(variants)
+
         print("=" * 90)
         print(f"  EXHAUSTIVE VARIANT RUNNER — N={self.n_qubits}, topology={self.topology}")
         print("=" * 90)
         print(f"\n  Total variants: {len(variants)}")
         print(f"  Starting from:  #{start_from}")
         print(f"  Mode:           {'DRY RUN' if dry_run else 'EXECUTE'}")
+        if prioritize:
+            print(f"  Priority:       BY PREDICTED PASS RATE (highest first)")
         print(f"  Output base:    {self.output_base}/")
         print()
 
@@ -469,6 +490,39 @@ class VariantRunner:
                     first_line = r.error_msg.split("\n")[-1][:80]
                     print(f"    ❌ {r.variant_id}: {first_line}")
             print()
+
+    def _prioritize_variants(
+        self, variants: list[PipelineVariant]
+    ) -> list[PipelineVariant]:
+        """Reorder variants by predicted pass probability (highest first).
+
+        Uses QualityPredictor to estimate which configs will pass, then
+        sorts descending. This enables fail-fast scheduling — the most
+        likely-to-succeed variants run first, giving earlier feedback.
+
+        Falls back to original order if QualityPredictor is unavailable.
+        """
+        try:
+            from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+
+            predictor = QualityPredictor()
+            scored: list[tuple[float, PipelineVariant]] = []
+            for v in variants:
+                report = predictor.predict(
+                    model=getattr(v, "model", "tfim") or "tfim",
+                    topology=self.topology,
+                    n_qubits=self.n_qubits,
+                    p_layers=getattr(v, "p_layers", 2) or 2,
+                )
+                scored.append((report.pass_probability, v))
+            scored.sort(key=lambda x: x[0], reverse=True)
+            reordered = [v for _, v in scored]
+            print(f"  📊 Prioritized by quality prediction "
+                  f"(top: {scored[0][0]:.0%}, bottom: {scored[-1][0]:.0%})")
+            return reordered
+        except (ImportError, Exception) as e:
+            print(f"  ⚠️ Could not prioritize variants: {e}")
+            return variants
 
     def _save_log(
         self,

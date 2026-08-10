@@ -34,6 +34,7 @@ from qmbp_simulation.models import (
 from qmbp_simulation.models.constants import (
     COBYLA_AUTO_SWITCH_THRESHOLD,
     VQE_WALL_CLOCK_LIMIT_PER_POINT,
+    MAX_LBFGSB_ITERS
 )
 
 logger = logging.getLogger(__name__)
@@ -145,6 +146,37 @@ class VQEOptimizer:
         """
         cfg = self.config
         backend = self._backend
+
+        # ── Workaround: Qiskit mimalloc GC deadlock on macOS ARM64 ────────
+        # Qiskit's Rust-accelerated CircuitData uses mimalloc which can deadlock
+        # during Python's garbage collection when freeing circuit objects. This
+        # manifests as the process hanging in sleep() inside
+        # _mi_arenas_page_unabandon. Disabling GC during VQE optimization
+        # prevents this. GC is re-enabled on exit (always, via finally).
+        import gc as _gc
+        _gc_was_enabled = _gc.isenabled()
+        _gc.disable()
+
+        try:
+            return self._optimize_inner(
+                cfg, backend, hamiltonian, circuit, initial_guess,
+                exact_energy, exact_state,
+            )
+        finally:
+            if _gc_was_enabled:
+                _gc.enable()
+
+    def _optimize_inner(
+        self,
+        cfg: VQEConfig,
+        backend,
+        hamiltonian: SparsePauliOp,
+        circuit: QuantumCircuit,
+        initial_guess: np.ndarray,
+        exact_energy: float | None,
+        exact_state: np.ndarray | None,
+    ) -> VQEResult:
+        """Core optimization logic (called with GC disabled)."""
         logger.debug(
             "VQEOptimizer.optimize: n_params=%d, method=%s, maxiter=%d, "
             "n_restarts=%d, exact_energy=%s",
@@ -159,40 +191,68 @@ class VQEOptimizer:
             """Pure energy cost function — evaluates ⟨H⟩ only."""
             return backend.evaluate(circuit, hamiltonian, params)
 
-        # Auto-select optimizer method for high-dimensional landscapes
-        # COBYLA avoids expensive finite-difference gradients (2n+1 evals/iter)
+        # Auto-select optimizer method based on backend type.
+        # Noiseless/MPS backends have smooth, deterministic landscapes where
+        # gradient-based methods (L-BFGS-B) converge 10-100x faster than COBYLA.
+        # Noisy/hardware backends have stochastic evaluations where FD gradients
+        # are unreliable — COBYLA is safer there.
         effective_method = cfg.method
         n_params = len(initial_guess)
-        if cfg.method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD:
+        backend_name = self._backend.name
+
+        _is_noiseless = ("noiseless" in backend_name or "mps" in backend_name)
+
+        if _is_noiseless and cfg.method == "COBYLA" and n_params > 4:
+            effective_method = "L-BFGS-B"
+            logger.info(
+                f"    ⚙️ Auto-upgraded COBYLA → L-BFGS-B "
+                f"(noiseless backend '{backend_name}', n_params={n_params})"
+            )
+        elif not _is_noiseless and cfg.method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD:
             effective_method = "COBYLA"
             logger.info(
-                f"    ⚙️ Auto-switched to COBYLA (n_params={n_params} > "
-                f"{COBYLA_AUTO_SWITCH_THRESHOLD}, avoids {2 * n_params + 1} FD evals/iter)"
+                f"    ⚙️ Auto-switched L-BFGS-B → COBYLA "
+                f"(noisy backend '{backend_name}', n_params={n_params})"
             )
 
-        if effective_method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD + 2:
-            evals_per_iter = 2 * n_params + 1
-            logger.warning(
-                f"L-BFGS-B with {n_params} params: ~{evals_per_iter} evals/iter "
-                f"(finite-difference gradient). Consider COBYLA for n_params > 10."
-            )
-
-        # Create effective config with possibly overridden method
+        # Create effective config with possibly overridden method.
+        # For L-BFGS-B: each iteration costs (2n+1) FD evals. With n=48 and
+        # multi-hour runs when users pass large values (designed for COBYLA).
         from dataclasses import replace
 
-        effective_cfg = (
-            replace(cfg, method=effective_method) if effective_method != cfg.method else cfg
+        effective_maxiter = cfg.maxiter
+        if effective_method == "L-BFGS-B":
+
+            if cfg.maxiter > MAX_LBFGSB_ITERS:
+                effective_maxiter = MAX_LBFGSB_ITERS
+                logger.info(
+                    f"    ⚙️ Capped maxiter {cfg.maxiter} → {MAX_LBFGSB_ITERS} (L-BFGS-B iters cost {2*n_params+1} evals each)"
+                )
+
+        effective_cfg = replace(cfg, method=effective_method, maxiter=effective_maxiter)
+
+        # Emit immediately visible progress info
+        print(
+            f"    [VQE] method={effective_cfg.method}, maxiter={effective_cfg.maxiter}, "
+            f"n_params={n_params}, restarts={effective_cfg.n_restarts}",
+            flush=True,
         )
 
-        # Lightweight progress callback: logs every 50 iterations so the
+        # Lightweight progress callback: logs every N iterations so the
         # user sees activity during long-running VQE calls (even when
         # enable_callbacks=False). Does NOT re-evaluate cost_fn (zero overhead).
         _iter_count = [0]
+        # For high-dimensional params (expensive FD gradient), log every iteration.
+        # For low-dimensional, log every 25 to avoid spam.
+        _progress_interval = 25
 
         def _progress_callback(xk: np.ndarray) -> None:
             _iter_count[0] += 1
-            if _iter_count[0] % 50 == 0:
-                logger.info(f"    VQE progress: iter={_iter_count[0]}/{cfg.maxiter}")
+            if _iter_count[0] % _progress_interval == 0:
+                print(
+                    f"    [VQE] iter={_iter_count[0]}/{effective_cfg.maxiter}",
+                    flush=True,
+                )
 
         # Set up callback if enabled
         callback = OptimizationCallback(cost_fn) if cfg.enable_callbacks else None
@@ -225,16 +285,23 @@ class VQEOptimizer:
         _consecutive_no_improvement = 0
 
         # Random restarts with stagnation detection
-        for restart_idx in range(cfg.n_restarts):
+        for restart_idx in range(effective_cfg.n_restarts):
             # Early-stop: if N consecutive restarts failed to improve,
             # the landscape is well-explored — skip remaining restarts.
             if _consecutive_no_improvement >= VQE_RESTART_STAGNATION_THRESHOLD:
                 logger.debug(
                     f"VQE early-stop: {_consecutive_no_improvement} consecutive restarts "
                     f"without improvement (threshold={VQE_RESTART_STAGNATION_THRESHOLD}). "
-                    f"Skipping remaining {cfg.n_restarts - restart_idx} restarts."
+                    f"Skipping remaining {effective_cfg.n_restarts - restart_idx} restarts."
                 )
                 break
+
+            logger.info(
+                f"    VQE restart {restart_idx + 1}/{effective_cfg.n_restarts}, "
+                f"best_E={best.fun:.6f}"
+            )
+            for handler in logging.getLogger().handlers:
+                handler.flush()
 
             x0 = best.x + self._rng.normal(0, cfg.restart_sigma, len(best.x))
             # Clip to bounds
@@ -245,7 +312,7 @@ class VQEOptimizer:
             trial = self._run_minimize(cost_fn, x0, effective_cfg, bounds, effective_cb)
             if not trial.success:
                 logger.debug(
-                    f"VQE restart {restart_idx + 1}/{cfg.n_restarts} did not converge: "
+                    f"VQE restart {restart_idx + 1}/{effective_cfg.n_restarts} did not converge: "
                     f"{trial.message}"
                 )
             # Stagnation detection: meaningful improvement resets counter
@@ -393,18 +460,43 @@ class VQEOptimizer:
         maxfun = cfg.maxiter * min(n_params + 5, 50)
 
         if method == "L-BFGS-B":
-            return minimize(
-                cost_fn,
-                x0,
-                method="L-BFGS-B",
-                bounds=bounds,
-                callback=callback,
-                options={
-                    "maxiter": cfg.maxiter,
-                    "ftol": cfg.ftol,
-                    "maxfun": maxfun,
-                },
-            )
+            # Signal-aware wrapper: L-BFGS-B also runs in compiled Fortran
+            # and won't respond to Ctrl+C until control returns to Python.
+            import signal as _signal
+
+            _interrupted = [False]
+            _orig_handler = _signal.getsignal(_signal.SIGINT)
+
+            def _interrupt_handler(signum, frame):
+                _interrupted[0] = True
+
+            _signal.signal(_signal.SIGINT, _interrupt_handler)
+
+            _eval_count = [0]
+
+            def _interruptible_cost(params):
+                _eval_count[0] += 1
+                if _interrupted[0]:
+                    _signal.signal(_signal.SIGINT, _orig_handler)
+                    raise KeyboardInterrupt("L-BFGS-B interrupted by user (Ctrl+C)")
+                return cost_fn(params)
+
+            try:
+                result = minimize(
+                    _interruptible_cost,
+                    x0,
+                    method="L-BFGS-B",
+                    bounds=bounds,
+                    callback=callback,
+                    options={
+                        "maxiter": cfg.maxiter,
+                        "ftol": cfg.ftol,
+                        "maxfun": maxfun,
+                    },
+                )
+            finally:
+                _signal.signal(_signal.SIGINT, _orig_handler)
+            return result
         elif method == "COBYLA":
             # COBYLA does not support maxfev in options — wrap cost_fn with
             # an evaluation counter AND wall-clock timeout that force termination.
@@ -416,8 +508,30 @@ class VQEOptimizer:
             # Divide by (n_restarts + 1) to keep total per-point time bounded.
             _timeout_s = VQE_WALL_CLOCK_LIMIT_PER_POINT / max(cfg.n_restarts + 1, 1)
 
+            # Signal-aware interruption: COBYLA runs in Fortran and doesn't
+            # yield to Python signal handlers. We periodically check for pending
+            # interrupts by calling PyErr_CheckSignals (via signal.pthread_sigmask
+            # is not portable; instead we use a lightweight try/except pattern).
+            import signal as _signal
+
+            _interrupted = [False]
+            _orig_handler = _signal.getsignal(_signal.SIGINT)
+
+            def _interrupt_handler(signum, frame):
+                """Set flag so COBYLA cost function can raise on next eval."""
+                _interrupted[0] = True
+
+            _signal.signal(_signal.SIGINT, _interrupt_handler)
+
             def _capped_cost(params):
                 _eval_count[0] += 1
+                # Interrupt check: raise KeyboardInterrupt from within the cost
+                # function — this is the only way to escape COBYLA's Fortran loop.
+                if _interrupted[0]:
+                    _signal.signal(_signal.SIGINT, _orig_handler)
+                    raise KeyboardInterrupt(
+                        "COBYLA interrupted by user (Ctrl+C)"
+                    )
                 # Eval cap
                 if _eval_count[0] > maxfun:
                     return _last_value[0]
@@ -428,17 +542,21 @@ class VQEOptimizer:
                 _last_value[0] = val
                 return val
 
-            result = minimize(
-                _capped_cost,
-                x0,
-                method="COBYLA",
-                callback=callback,
-                options={
-                    "maxiter": cfg.maxiter,
-                    "rhobeg": cfg.restart_sigma,
-                    "catol": 1e-10,
-                },
-            )
+            try:
+                result = minimize(
+                    _capped_cost,
+                    x0,
+                    method="COBYLA",
+                    callback=callback,
+                    options={
+                        "maxiter": cfg.maxiter,
+                        "rhobeg": cfg.restart_sigma,
+                        "catol": 1e-10,
+                    },
+                )
+            finally:
+                # Always restore original handler
+                _signal.signal(_signal.SIGINT, _orig_handler)
             # Annotate result with actual eval count for diagnostics
             result.nfev = _eval_count[0]
             elapsed = time.monotonic() - _start_time
@@ -578,6 +696,7 @@ class VQEOptimizer:
         circuit: QuantumCircuit,
         lattice: LatticeConfig,
         exact_data: list[GroundTruthResult] | None = None,
+        adaptive: bool = False,
     ) -> list[VQEResult]:
         """Run VQE across h-values in descending order (h=2→0), propagating
         θ_opt as warm-start.
@@ -588,6 +707,11 @@ class VQEOptimizer:
         circuit : QuantumCircuit — parameterized HVA
         lattice : LatticeConfig — lattice specification
         exact_data : list[GroundTruthResult] | None — exact results per h-point
+        adaptive : bool
+            If True, use adaptive restart allocation from sweep_strategies:
+            more restarts near h_critical or when previous point had high ΔE/gap,
+            fewer restarts for easy (paramagnetic) points. Default False
+            preserves existing fixed-restart behavior.
 
         Returns
         -------
@@ -619,6 +743,10 @@ class VQEOptimizer:
         for idx, h in enumerate(h_values):
             h = float(h)
 
+            # Notify cached backends of current h-value for key generation
+            if hasattr(self._backend, "set_h"):
+                self._backend.set_h(h)
+
             # Build Hamiltonian for this h — reuse lattice structure,
             # only update the scalar h field
             lat_h = LatticeConfig(
@@ -642,6 +770,41 @@ class VQEOptimizer:
             # Warm-start seeding
             current_guess = self.get_initial_guess(n_params, h, self.config, current_guess)
 
+            # ── Adaptive restart allocation ──
+            # When adaptive=True, vary n_restarts based on neighbor's convergence
+            # quality and proximity to h_critical. Easy points (deep paramagnetic)
+            # get fewer restarts; hard points (near QPT) get more.
+            if adaptive:
+                from dataclasses import replace as _replace
+
+                from qmbp_simulation.optimizers.sweep_strategies import (
+                    AdaptiveRestartConfig,
+                    compute_adaptive_restarts,
+                )
+
+                # Determine previous point's ΔE/gap (neighbor signal)
+                prev_de_gap = None
+                if idx > 0 and exact_data is not None and idx - 1 < len(exact_data):
+                    prev_e_exact = exact_data[idx - 1].ground_energy
+                    prev_gap = exact_data[idx - 1].gap
+                    prev_vqe_e = results[idx - 1].energy
+                    if prev_gap > 1e-10:
+                        prev_de_gap = abs(prev_vqe_e - prev_e_exact) / prev_gap
+
+                adaptive_cfg = AdaptiveRestartConfig(
+                    base_restarts=max(1, self.config.n_restarts // 3),
+                    max_restarts=self.config.n_restarts,
+                    critical_restarts=self.config.n_restarts,
+                    h_critical=1.0,  # TFIM QPT
+                )
+                n_restarts_adaptive = compute_adaptive_restarts(
+                    h, prev_de_gap=prev_de_gap, config=adaptive_cfg
+                )
+
+                # Temporarily override config for this point
+                original_config = self.config
+                self.config = _replace(self.config, n_restarts=n_restarts_adaptive)
+
             t_point_start = time.perf_counter()
             result = self.optimize(
                 H,
@@ -650,6 +813,11 @@ class VQEOptimizer:
                 exact_energy=exact_e,
                 exact_state=exact_psi,
             )
+
+            # Restore original config after adaptive override
+            if adaptive:
+                self.config = original_config
+
             t_point_elapsed = time.perf_counter() - t_point_start
             result.h_value = h
 
@@ -726,12 +894,18 @@ class VQEOptimizer:
         circuit: QuantumCircuit,
         lattice: LatticeConfig,
         exact_data: list[GroundTruthResult] | None = None,
+        adaptive: bool = False,
     ) -> list[VQEResult]:
         """Run VQE with both descending and ascending sweeps, keeping the best.
 
         For each h-point, takes the result with lower energy from the two
         sweep directions. This eliminates warm-start propagation errors where
         a bad local minimum in one direction infects all downstream points.
+
+        When ``adaptive=True``, uses selective ascending: only re-optimizes
+        points where the descending pass had ΔE/gap > 2% (plus their
+        neighbors). This typically saves 50-80% of ascending pass cost
+        while recovering most of the improvements.
 
         Parameters
         ----------
@@ -743,6 +917,10 @@ class VQEOptimizer:
             Lattice specification.
         exact_data : list[GroundTruthResult] | None
             Exact results per h-point (same order as h_values).
+        adaptive : bool
+            If True, use selective ascending (only re-optimize suspicious
+            points) and adaptive restart allocation. Default False preserves
+            full bidirectional behavior.
 
         Returns
         -------
@@ -750,19 +928,27 @@ class VQEOptimizer:
             Best results per h-point (same order as h_values).
         """
         logger.info(
-            "  🔄 Bidirectional VQE sweep: %d h-points, %d params, topology=%s",
+            "  🔄 Bidirectional VQE sweep: %d h-points, %d params, topology=%s%s",
             len(h_values),
             circuit.num_parameters,
             lattice.topology,
+            " (adaptive)" if adaptive else "",
         )
         logger.info("  Bidirectional sweep: running descending pass...")
-        results_desc = self.descending_sweep(h_values, circuit, lattice, exact_data)
+        results_desc = self.descending_sweep(
+            h_values, circuit, lattice, exact_data, adaptive=adaptive
+        )
 
-        # Ascending pass: reverse h-values and exact_data
+        # ── Selective vs Full ascending pass ──
+        if adaptive and exact_data is not None:
+            return self._selective_ascending_merge(
+                h_values, circuit, lattice, exact_data, results_desc
+            )
+
+        # Full ascending pass (original behavior)
         h_ascending = h_values[::-1]
         exact_ascending = list(reversed(exact_data)) if exact_data else None
 
-        # Temporarily allow ascending by using the internal loop directly
         logger.info("  Bidirectional sweep: running ascending pass...")
         results_asc_reversed = self._ascending_sweep(h_ascending, circuit, lattice, exact_ascending)
         # Reverse back to match original h-order
@@ -781,6 +967,124 @@ class VQEOptimizer:
         logger.info(
             f"  Bidirectional merge: {n_improved}/{len(h_values)} points "
             f"improved by ascending pass."
+        )
+        return merged
+
+    def _selective_ascending_merge(
+        self,
+        h_values: np.ndarray,
+        circuit: QuantumCircuit,
+        lattice: LatticeConfig,
+        exact_data: list[GroundTruthResult],
+        results_desc: list[VQEResult],
+    ) -> list[VQEResult]:
+        """Selective ascending: only re-optimize suspicious points.
+
+        Uses select_suspicious_points() from sweep_strategies to identify
+        which h-points need re-optimization. Saves 50-80% compute vs full
+        ascending pass while recovering most improvements.
+        """
+        from qmbp_simulation.optimizers.sweep_strategies import (
+            SelectiveAscendingConfig,
+            select_suspicious_points,
+        )
+
+        # Build results dicts for select_suspicious_points
+        desc_for_selection = []
+        for i, (r, gt) in enumerate(zip(results_desc, exact_data, strict=False)):
+            gap = gt.gap if gt.gap and gt.gap > 1e-10 else 0.1
+            de_gap = abs(r.energy - gt.ground_energy) / gap
+            desc_for_selection.append({"h": float(h_values[i]), "de_gap": de_gap})
+
+        config = SelectiveAscendingConfig(
+            de_gap_threshold=0.02,
+            include_neighbors=True,
+            max_fraction=0.5,
+        )
+        targeted_indices, report = select_suspicious_points(desc_for_selection, config=config)
+
+        if report.fell_back_to_full:
+            logger.info(
+                f"  Selective ascending: >50% suspicious → full ascending "
+                f"({report.n_suspicious}/{report.n_total_points} suspicious)"
+            )
+            # Fall back to full ascending
+            h_ascending = h_values[::-1]
+            exact_ascending = list(reversed(exact_data))
+            results_asc_reversed = self._ascending_sweep(
+                h_ascending, circuit, lattice, exact_ascending
+            )
+            results_asc = list(reversed(results_asc_reversed))
+            merged = []
+            n_improved = 0
+            for i in range(len(h_values)):
+                if results_asc[i].energy < results_desc[i].energy:
+                    merged.append(results_asc[i])
+                    n_improved += 1
+                else:
+                    merged.append(results_desc[i])
+            logger.info(f"  Full ascending merge: {n_improved}/{len(h_values)} improved.")
+            return merged
+
+        if not targeted_indices:
+            logger.info("  Selective ascending: no suspicious points — skipping ascending pass.")
+            return results_desc
+
+        logger.info(
+            f"  Selective ascending: {report.n_targeted}/{report.n_total_points} points "
+            f"targeted ({report.n_suspicious} suspicious + neighbors)"
+        )
+
+        # Re-optimize only targeted points in ascending direction
+        # Start from the lowest-h targeted point and sweep upward
+        merged = list(results_desc)  # Start with descending results
+        builder = HamiltonianBuilder()
+        n_improved = 0
+
+        # Sort targeted indices by h ascending (sweep direction)
+        targeted_sorted = sorted(targeted_indices)  # Already in ascending order from selector
+
+        # Use the best available θ as warm-start for ascending re-optimization
+        for idx in targeted_sorted:
+            h = float(h_values[idx])
+
+            lat_h = LatticeConfig(
+                topology=lattice.topology,
+                n_qubits=lattice.n_qubits,
+                J=lattice.J,
+                h=h,
+                edges=lattice.edges,
+                coordination_numbers=lattice.coordination_numbers,
+                periodic=lattice.periodic,
+            )
+            H = builder.build(lat_h)
+
+            exact_e = exact_data[idx].ground_energy
+            exact_psi = exact_data[idx].ground_state
+
+            # Warm-start from the neighbor below (ascending direction)
+            # Find the nearest completed point below this one
+            warm_theta = results_desc[idx].theta_opt  # fallback to descending result
+            for prev_idx in range(idx + 1, len(h_values)):
+                if prev_idx in targeted_sorted or prev_idx >= len(merged):
+                    continue
+                warm_theta = merged[prev_idx].theta_opt
+                break
+
+            result_asc = self.optimize(
+                H, circuit, warm_theta,
+                exact_energy=exact_e,
+                exact_state=exact_psi,
+            )
+            result_asc.h_value = h
+
+            # Keep better energy
+            if result_asc.energy < merged[idx].energy:
+                merged[idx] = result_asc
+                n_improved += 1
+
+        logger.info(
+            f"  Selective ascending: {n_improved}/{len(targeted_indices)} targeted points improved."
         )
         return merged
 
@@ -803,6 +1107,11 @@ class VQEOptimizer:
 
         for idx, h in enumerate(h_values):
             h = float(h)
+
+            # Notify cached backends of current h-value for key generation
+            if hasattr(self._backend, "set_h"):
+                self._backend.set_h(h)
+
             lat_h = LatticeConfig(
                 topology=lattice.topology,
                 n_qubits=lattice.n_qubits,

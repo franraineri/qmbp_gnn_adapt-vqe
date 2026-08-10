@@ -408,10 +408,12 @@ class DenseJ2Runner(ValidationRunner):
             )
 
         self._deployment_results = results
-        n_pass = sum(1 for r in results if r["passed"])
-        pass_rate = n_pass / len(results)
+        from qmbp_simulation.analysis.metrics import compute_deploy_summary
+        _summ = compute_deploy_summary(results)
+        n_pass = _summ["n_pass_5pct"]
+        pass_rate = _summ["pass_rate_5pct"]
 
-        logger.info(f"\n  Pass rate: {n_pass}/{len(results)} = {pass_rate:.0%}")
+        logger.info(f"\n  Pass rate: {n_pass}/{_summ['n_points']} = {pass_rate:.0%}")
         logger.info(f"  Hypothesis (>50%): {'CONFIRMED' if pass_rate > 0.5 else 'REJECTED'}")
 
         # Pass criterion: improvement over original T1a (which had ~11%).

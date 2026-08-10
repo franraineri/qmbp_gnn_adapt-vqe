@@ -275,12 +275,13 @@ class BondResolvedCrossNTransferRunner(ValidationRunner):
                 data = json.load(f)
             results = data.get("sweep_results", [])
             self._target_data[target_n] = results
-            n_pass = sum(1 for r in results if r.get("passed", r.get("de_gap", 1) < 0.05))
+            from qmbp_simulation.analysis.metrics import compute_deploy_summary
+            _summary = compute_deploy_summary(results)
             return {
                 "source": "existing",
                 "n_qubits": target_n,
-                "n_points": len(results),
-                "n_pass": n_pass,
+                "n_points": _summary["n_points"],
+                "n_pass": _summary["n_pass_5pct"],
                 "pass": True,
             }
 

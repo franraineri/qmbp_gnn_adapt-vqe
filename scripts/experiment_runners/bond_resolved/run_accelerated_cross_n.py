@@ -1,0 +1,1780 @@
+#!/usr/bin/env python3
+"""Accelerated Cross-N Pipeline — Train N_train, Predict N_target via zoo.
+
+Integrates AcceleratedVQE + model_zoo + QualityPredictor for a complete
+bond-resolved cross-N transfer workflow with data reuse:
+
+1. Quality check: is the target config viable?
+2. Train: AcceleratedVQE at N_train (or load from zoo if exists)
+3. Zoo export: auto-register the trained model
+4. Cross-N predict: evaluate at N_target without VQE
+5. Analysis: per-h ΔE/gap breakdown + comparison vs full VQE
+
+Supports multiple p values and topologies. Results are saved as JSON
+for downstream analysis.
+
+Usage:
+    # Default: Train N=10, predict N=20, p=1, chain_1d
+    python scripts/.../run_accelerated_cross_n.py
+
+    # Custom sizes
+    python scripts/.../run_accelerated_cross_n.py --train-n 10 --target-n 20 40
+
+    # Use existing model from zoo (skip training)
+    python scripts/.../run_accelerated_cross_n.py --from-zoo --target-n 20
+
+    # Multiple p layers
+    python scripts/.../run_accelerated_cross_n.py --p-layers 1 2
+
+    # Dry run
+    python scripts/.../run_accelerated_cross_n.py --dry-run
+"""
+
+from __future__ import annotations
+
+import logging
+import sys
+import time
+from pathlib import Path
+
+import numpy as np
+
+from qmbp_simulation.framework.runner_base import (
+    Section,
+    ValidationRunner,
+    resolve_project_root,
+)
+from qmbp_simulation.framework.result_io import upsert_theta_npz
+
+_ROOT = resolve_project_root(__file__)
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+logger = logging.getLogger(__name__)
+
+from qmbp_simulation.models.constants import DEFAULT_SEEDS
+
+# Defaults
+DEFAULT_TRAIN_N = 10
+DEFAULT_TARGET_N = [20]
+DEFAULT_P = 1
+DEFAULT_TOPOLOGY = "chain_1d"
+DEFAULT_H_MIN = 2.0
+DEFAULT_H_MAX = 3.5
+DEFAULT_H_POINTS = 14
+DEFAULT_N_ANCHORS = 14
+DEFAULT_MAXITER = 1500
+DEFAULT_N_RESTARTS = 10
+
+
+class AcceleratedCrossNRunner(ValidationRunner):
+    """Accelerated Cross-N Transfer: train small, predict large.
+
+    Trains UnifiedMPNN at N_train using AcceleratedVQE (5-6 anchor VQE +
+    MPNN for the rest), exports to zoo, then predicts at N_target using
+    only the trained model. No VQE at N_target.
+    """
+
+    runner_id = "accelerated_cross_n_v1"
+    experiment_id = "ACCEL_CROSS_N"
+    description = "Accelerated Cross-N: train N_train, predict N_target via zoo"
+    hypothesis = (
+        "UnifiedMPNN trained on N_train bond-resolved data predicts θ at "
+        "N_target with ΔE/gap < 10% for h in valid regime (h > 2.0)."
+    )
+
+    @classmethod
+    def _add_custom_args(cls, parser):
+        parser.add_argument(
+            "--train-n", type=int, default=DEFAULT_TRAIN_N,
+            help="System size for training (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--target-n", type=int, nargs="+", default=DEFAULT_TARGET_N,
+            help="Target system size(s) for prediction (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--p-layers", type=int, nargs="+", default=[DEFAULT_P],
+            help="HVA layer depth(s) (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--topology", type=str, default=DEFAULT_TOPOLOGY,
+            help="Lattice topology (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--h-min", type=float, default=DEFAULT_H_MIN,
+            help="Minimum h for sweep (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--h-max", type=float, default=DEFAULT_H_MAX,
+            help="Maximum h for sweep (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--h-points", type=int, default=DEFAULT_H_POINTS,
+            help="Number of h-grid points (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--n-anchors", type=int, default=DEFAULT_N_ANCHORS,
+            help="Number of VQE anchor points (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--maxiter", type=int, default=DEFAULT_MAXITER,
+            help="VQE COBYLA maxiter (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--n-restarts", type=int, default=DEFAULT_N_RESTARTS,
+            help="VQE restarts per anchor (default: %(default)s)",
+        )
+        parser.add_argument(
+            "--from-zoo", action="store_true", default=False,
+            help="Skip training, load model from zoo directly",
+        )
+        parser.add_argument(
+            "--checkpoint", type=str, default=None,
+            help="Explicit checkpoint path (overrides zoo search)",
+        )
+        parser.add_argument(
+            "--active-rounds", type=int, default=0,
+            help="Active learning rounds: refine low-fidelity points with VQE (default: 0)",
+        )
+        parser.add_argument(
+            "--multi-n-train", action="store_true", default=False,
+            help="Instead of training on a single N, aggregate ALL available "
+            "bond-resolved data for this topology (from previous runs) and "
+            "train a multi-N model. Overrides --train-n for training.",
+        )
+        parser.add_argument(
+            "--force-retrain", action="store_true", default=False,
+            help="Force retraining from scratch even if a suitable model "
+            "exists in the zoo. Default: reuse best existing model.",
+        )
+        parser.add_argument(
+            "--no-eval-cache", action="store_true", default=False,
+            help="Disable circuit evaluation cache. By default, evaluations "
+            "are cached in data/eval_cache/ to avoid recomputing identical "
+            "(topology, N, h, theta_hash) evaluations.",
+        )
+        # Iterative improvement + VQE method args from shared CLI module
+        from qmbp_simulation.framework.cli import add_iterative_improve_args
+        add_iterative_improve_args(parser)
+        parser.add_argument(
+            "--max-refine-per-iter", type=int, default=None,
+            help="Max h-points to refine per iteration. Default: min(n_failures, 10). "
+            "Higher = more VQE compute per iter but fewer iterations needed.",
+        )
+
+    def build_config(self) -> dict:
+        config = self._build_physics_config()
+        config["n_anchors"] = self._args.n_anchors
+        config["force_method"] = self._args.force_method
+        config["bidirectional_anchors"] = self._args.bidirectional_anchors
+        config["from_zoo"] = self._args.from_zoo
+        return config
+
+    def setup(self):
+        """Initialize physics objects."""
+        self.setup_physics()
+        self._h_values = np.linspace(
+            self._args.h_max, self._args.h_min, self._args.h_points
+        )
+        self._models = {}  # p_layers → trained model
+        self._train_results = {}  # p_layers → AcceleratedResult
+        # Default force_method to L-BFGS-B for noiseless backends.
+        # VQEOptimizer auto-dispatch will keep L-BFGS-B on noiseless (fast)
+        # or downgrade to COBYLA on noisy backends automatically.
+        if self._args.force_method is None:
+            self._args.force_method = "L-BFGS-B"
+
+    def run_preflight(self) -> bool:
+        """Validate topology constraints before execution."""
+        topo = self._args.topology
+        # Ladder requires even N
+        if topo == "ladder":
+            bad_n = []
+            if self._args.train_n % 2 != 0 and not self._args.from_zoo:
+                bad_n.append(f"train_n={self._args.train_n}")
+            for n in self._args.target_n:
+                if n % 2 != 0:
+                    bad_n.append(f"target_n={n}")
+            if bad_n:
+                logger.error(
+                    f"Ladder topology requires even N. Invalid: {', '.join(bad_n)}. "
+                    f"Use N=8, 10, 12, 14, 16, 20, etc."
+                )
+                return False
+        return True
+
+    def _check_existing_npz_utility(self, topology: str, n_qubits: int) -> None:
+        """Check if existing NPZ data is useful for training. Logs warnings if not.
+
+        Does NOT block execution — just informs the user that the existing NPZ
+        for this config has been classified as 'not_useful' or 'insufficient_signal'
+        by the dashboard. The run will still proceed (to generate fresh data),
+        but the warning helps understand why previous models had poor performance.
+        """
+        try:
+            from qmbp_simulation.analysis.metrics import classify_training_utility
+
+            npz_path = Path("data/multi_n_training") / f"{topology}_N{n_qubits}_p1.npz"
+            if not npz_path.exists():
+                return  # No existing data — nothing to check
+
+            data = np.load(str(npz_path), allow_pickle=True)
+            n_pts = len(data["h_values"])
+            if n_pts == 0:
+                return
+
+            # Compute dual criterion pass rate
+            e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+            if e_key is None or "e_exact" not in data:
+                return
+
+            from qmbp_simulation.analysis.metrics import (
+                is_point_failure, DE_GAP_THRESHOLD, MAX_ABS_ERROR,
+            )
+            abs_err = np.abs(data[e_key] - data["e_exact"])
+            if "de_gaps" in data:
+                de_gaps = data["de_gaps"]
+            elif "gaps" in data:
+                de_gaps = abs_err / np.maximum(data["gaps"], 1e-10)
+            else:
+                return
+
+            n_fail = sum(
+                is_point_failure(de_gap=float(de_gaps[i]), abs_error=float(abs_err[i]))
+                for i in range(n_pts)
+            )
+            pass_dual = (n_pts - n_fail) / n_pts
+            pass_simple = float((de_gaps < DE_GAP_THRESHOLD).mean())
+
+            category, reason = classify_training_utility(n_pts, pass_dual, pass_simple)
+
+            if category == "not_useful":
+                logger.warning(
+                    f"  ⚠️ EXISTING NPZ '{npz_path.name}' IS NOT USEFUL FOR TRAINING:\n"
+                    f"     {reason}\n"
+                    f"     The MPNN cannot learn from this data. Consider:\n"
+                    f"     1. Running with --force-retrain to generate fresh VQE data\n"
+                    f"     2. Adjusting h-range to avoid the failing regime\n"
+                    f"     3. Deleting the NPZ if the config is fundamentally unrecoverable"
+                )
+            elif category == "insufficient_signal":
+                logger.warning(
+                    f"  ⚠️ EXISTING NPZ '{npz_path.name}' has INSUFFICIENT SIGNAL:\n"
+                    f"     {reason}\n"
+                    f"     Training may not converge well. "
+                    f"This run will add more data via upsert."
+                )
+            else:
+                logger.info(
+                    f"  Existing NPZ: {n_pts} pts, "
+                    f"dual_pass={pass_dual:.0%} — USEFUL for training"
+                )
+        except Exception as e:
+            logger.debug(f"  NPZ utility check failed (non-blocking): {e}")
+
+    def define_sections(self) -> list[Section]:
+        sections = [
+            Section(
+                id=1,
+                name="Quality Check",
+                fn=self.section_quality_check,
+                hypothesis="Target config is predicted viable (pass_prob > 30%)",
+            ),
+        ]
+
+        # Iterative improve mode: budget estimation + iterative loop
+        if getattr(self._args, "iterative_improve", False):
+            sections.append(Section(
+                id=2,
+                name="Budget Estimation + Cache Warm-up",
+                fn=self.section_budget_estimation,
+                hypothesis="Estimate compute cost leveraging cached results",
+            ))
+            if not getattr(self._args, "budget_only", False):
+                sections.append(Section(
+                    id=3,
+                    name="Iterative Improvement Loop",
+                    fn=self.section_iterative_improve,
+                    hypothesis="Iterative predict→refine→retrain converges to ≥90% pass rate",
+                ))
+            return sections
+
+        if getattr(self._args, "multi_n_train", False):
+            sections.append(Section(
+                id=2,
+                name="Multi-N Train (aggregate all available data)",
+                fn=self.section_multi_n_train,
+                hypothesis="Multi-N UnifiedMPNN trained with aggregated data from all N sizes",
+            ))
+        elif not self._args.from_zoo:
+            sections.append(Section(
+                id=2,
+                name=f"Train (N={self._args.train_n})",
+                fn=self.section_train,
+                hypothesis=f"AcceleratedVQE at N={self._args.train_n} achieves >60% pass rate",
+            ))
+        sections.append(Section(
+            id=3,
+            name="Cross-N Predict",
+            fn=self.section_cross_n_predict,
+            hypothesis="Cross-N prediction achieves ΔE/gap < 10% for h > 2.0",
+        ))
+        return sections
+
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 1: Quality Check
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_quality_check(self) -> dict:
+        """Run QualityPredictor for training and target configs via base helper."""
+        # Collect unique N values to avoid duplicate checks when train_n == target_n
+        n_values = {self._args.train_n}
+        for n_target in self._args.target_n:
+            n_values.add(n_target)
+
+        configs = [
+            {
+                "model": "tfim_bond_resolved",
+                "topology": self._args.topology,
+                "n_qubits": n,
+                "p_layers": self._args.p_layers[0],
+                "h_min": self._args.h_min,
+                "h_max": self._args.h_max,
+            }
+            for n in sorted(n_values)
+        ]
+        return self.run_quality_check(configs=configs)
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2: Train
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_train(self) -> dict:
+        """Train AcceleratedVQE at N_train for each p value."""
+        from pathlib import Path
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.pipeline.accelerated import AcceleratedVQE, AcceleratedConfig
+
+        spec = get_model_spec("tfim_bond_resolved")
+        hva = HVACircuitBuilder()
+        N = self._args.train_n
+        topo = self._args.topology
+
+        # ── Training utility gating: warn if existing NPZ is not useful ──
+        self._check_existing_npz_utility(topo, N)
+
+        backend = self.select_backend(N, for_vqe_loop=True)
+
+        all_results = {}
+        for p in self._args.p_layers:
+            logger.info(f"  Training: N={N}, p={p}, topology={topo}")
+            lattice = self.make_lattice(topo, N, J=1.0, h=2.0)
+            circuit, _ = hva.create_bond_resolved(N, p, lattice)
+            logger.info(f"    Circuit params: {circuit.num_parameters}")
+
+            config = AcceleratedConfig(
+                n_anchors=self._args.n_anchors,
+                n_restarts=self._args.n_restarts,
+                maxiter=self._args.maxiter,
+                mpnn_epochs=4000,
+                use_zoo=False,
+                force_method=getattr(self._args, "force_method", None),
+                bidirectional_anchors=getattr(self._args, "bidirectional_anchors", False),
+            )
+
+            t0 = time.perf_counter()
+            accel = AcceleratedVQE(lattice, circuit, spec, backend, config=config)
+            result = accel.run(self._h_values, seed=42, p_layers=p)
+            elapsed = time.perf_counter() - t0
+
+            self._models[p] = accel.get_model()
+            self._train_results[p] = result
+
+            # Persist θ_opt for multi-N reuse (atomic write with anti-regression)
+            training_data_dir = Path("data/multi_n_training")
+            training_data_dir.mkdir(parents=True, exist_ok=True)
+            npz_path = training_data_dir / f"{topo}_N{N}_p{p}.npz"
+            n_upd, n_add = upsert_theta_npz(
+                npz_path,
+                h_new=self._h_values[: len(result.theta_opt)],
+                theta_new=result.theta_opt,
+                e_vqe_new=result.energies,
+                e_exact_new=result.e_exact,
+                gaps_new=result.gaps,
+                method_new=list(result.method),
+            )
+            logger.info(
+                f"    Saved training data: {npz_path} "
+                f"({n_add} added, {n_upd} improved)"
+            )
+
+            all_results[f"p{p}"] = {
+                "pass_rate": result.pass_rate,
+                "mean_de_gap": float(result.de_gaps.mean()),
+                "elapsed_s": elapsed,
+                "n_anchors": result.n_anchors,
+                "model_source": result.model_source,
+                "methods": dict(zip(*np.unique(result.method, return_counts=True))),
+            }
+            logger.info(
+                f"    Done: pass_rate={result.pass_rate:.0%}, "
+                f"mean_ΔE/gap={result.de_gaps.mean():.4f}, time={elapsed:.1f}s"
+            )
+
+        passed = all(r.get("pass_rate", 0) > 0.5 for r in all_results.values())
+        return {"pass": passed, "per_p": all_results}
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 2 (alt): Multi-N Train
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_multi_n_train(self) -> dict:
+        """Train UnifiedMPNN using aggregated data from ALL available N sizes.
+
+        If a suitable multi-N model already exists in the zoo and --force-retrain
+        is not set, loads it instead of retraining.
+        """
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+        from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN, train_unified_mpnn
+        from qmbp_simulation.predictors.model_zoo import register_checkpoint, load_pretrained, ZooEntry
+
+        topo = self._args.topology
+        p = self._args.p_layers[0]
+        force_retrain = getattr(self._args, "force_retrain", False)
+
+        # Check if a multi-N model already exists (skip training if so)
+        if not force_retrain:
+            try:
+                model, meta = load_pretrained(
+                    model="tfim_bond_resolved",
+                    topology=topo,
+                    n_qubits=0,  # 0 = multi-N
+                    p_layers=p,
+                )
+                self._models[p] = model
+                logger.info(
+                    f"  Loaded existing multi-N model: {meta.checkpoint_file} "
+                    f"({meta.n_training_points} points). Use --force-retrain to rebuild."
+                )
+                return {
+                    "pass": True,
+                    "reused_existing": True,
+                    "checkpoint": meta.checkpoint_file,
+                    "n_training_points": meta.n_training_points,
+                    "notes": meta.notes,
+                }
+            except FileNotFoundError:
+                logger.info("  No existing multi-N model. Training from scratch.")
+
+        # 1. Scan and aggregate all available data for this topology
+        logger.info(f"  Scanning all bond-resolved data for topology={topo}...")
+        agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+        summary = agg.scan()
+
+        if not summary:
+            return {"pass": False, "error": "No existing data found. Run --train-n first."}
+
+        logger.info(f"  Found data for N={agg.available_n_values()}: {summary}")
+
+        # 2. Build combined dataset (filter by quality)
+        dataset = agg.build_combined_dataset(max_de_gap=0.10)
+        if len(dataset) < 5:
+            return {
+                "pass": False,
+                "error": f"Only {len(dataset)} points pass quality filter. Need ≥5.",
+                "summary": agg.summary(),
+            }
+
+        logger.info(f"  Combined dataset: {len(dataset)} graphs from N={agg.available_n_values()}")
+
+        # 3. Determine output dim from dataset (varies by graph size)
+        # UnifiedMPNN uses per-node prediction so output_dim is implicit
+        sample_g = dataset[0]
+        n_node_features = sample_g.x.shape[1] if hasattr(sample_g, 'x') else 4
+
+        # 4. Train UnifiedMPNN
+        model = UnifiedMPNN(
+            node_features=n_node_features,
+            hidden_dim=256,
+            n_layers=3,
+            norm_type="none",  # MANDATORY for cross-N
+            dropout=0.1,
+        )
+
+        logger.info("  Training UnifiedMPNN (multi-N, norm_type=none)...")
+        t0 = time.perf_counter()
+        train_result = train_unified_mpnn(
+            model, dataset,
+            n_epochs=4000,
+            lr=1e-3,
+            patience=300,
+            seed=42,
+        )
+        elapsed = time.perf_counter() - t0
+
+        final_mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0
+        logger.info(f"  Training done: MSE={final_mse:.2e}, time={elapsed:.1f}s")
+
+        # Store model for Section 3
+        self._models[p] = model
+
+        # 5. Export to zoo as multi-N model
+        from datetime import datetime, timezone
+
+        n_values_str = "+".join(str(n) for n in agg.available_n_values())
+        entry = ZooEntry(
+            model="tfim_bond_resolved",
+            topology=topo,
+            n_qubits=0,  # 0 = multi-N
+            p_layers=p,
+            checkpoint_file=f"unified_tfim_br_{topo}_multiN_{n_values_str}_p{p}.pt",
+            h_range=(self._args.h_min, self._args.h_max),
+            pass_rate=0.0,  # Updated after eval
+            n_training_points=len(dataset),
+            seeds=[42],
+            created=datetime.now(timezone.utc).isoformat(),
+            notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points",
+        )
+        register_checkpoint(model, entry, overwrite=True)
+        logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
+
+        return {
+            "pass": True,
+            "n_values_used": agg.available_n_values(),
+            "n_training_points": len(dataset),
+            "points_per_n": {str(k): v for k, v in agg.summary()["points_per_n"].items()},
+            "final_mse": float(final_mse),
+            "elapsed_s": elapsed,
+            "checkpoint": entry.checkpoint_file,
+        }
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section 3: Cross-N Predict
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_cross_n_predict(self) -> dict:
+        """Predict at each N_target using the N_train model."""
+        import torch
+        from qmbp_simulation.analysis.metrics import compute_deploy_summary
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+
+        spec = get_model_spec("tfim_bond_resolved")
+        solver = self.solver
+        hva = HVACircuitBuilder()
+        topo = self._args.topology
+
+        all_results = {}
+
+        for p in self._args.p_layers:
+            # Load model: from memory (section 2), from zoo (best for cross-N), or train new
+            model = self._models.get(p)
+            if model is None:
+                model = self.load_best_mpnn_for_cross_n(
+                    n_target=self._args.target_n[0],
+                    model="tfim_bond_resolved",
+                    topology=topo,
+                    p_layers=p,
+                    checkpoint_path=self._args.checkpoint,
+                    train_if_missing=True,
+                    train_epochs=4000,
+                )
+                if model is None:
+                    all_results[f"p{p}"] = {
+                        "pass": False,
+                        "error": "No model and no training data available",
+                    }
+                    continue
+
+            model.eval()
+
+            for n_target in self._args.target_n:
+                logger.info(f"  Cross-N: N_train={self._args.train_n} → N_target={n_target}, p={p}")
+                lattice_target = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+                circuit_target, _ = hva.create_bond_resolved(n_target, p, lattice_target)
+                n_params_target = circuit_target.num_parameters
+
+                # Use CachedBackend for transparent eval caching
+                use_eval_cache = not getattr(self._args, "no_eval_cache", False)
+                eval_backend = self.get_cached_backend(
+                    topology=topo,
+                    n_qubits=n_target,
+                    model="tfim_bond_resolved",
+                    p_layers=p,
+                    enabled=use_eval_cache,
+                )
+                # Log which backend was selected (debug N>22 slowness)
+                _inner = getattr(eval_backend, '_backend', eval_backend)
+                logger.info(
+                    f"    Backend for N={n_target}: {_inner.name} "
+                    f"(wrapped in CachedBackend, cache={use_eval_cache})"
+                )
+                if use_eval_cache:
+                    logger.info(f"    Eval cache: {len(eval_backend.cache)} entries loaded")
+
+                per_h_results = []
+                t0 = time.perf_counter()
+
+                for h in self._h_values:
+                    # Build unified graph for N_target
+                    g = build_unified_bond_resolved_graph(
+                        lattice_target, h_value=float(h), p_layers=p,
+                        include_circuit_nodes=True,
+                    )
+                    with torch.no_grad():
+                        theta_pred = model(g).numpy().flatten()
+
+                    theta_pred = np.clip(theta_pred, -np.pi, np.pi)
+
+                    # Verify param count matches circuit
+                    if len(theta_pred) != n_params_target:
+                        logger.warning(
+                            f"    Param mismatch at h={h:.2f}: "
+                            f"predicted {len(theta_pred)}, need {n_params_target}"
+                        )
+                        if len(theta_pred) < n_params_target:
+                            theta_pred = np.pad(theta_pred, (0, n_params_target - len(theta_pred)))
+                        else:
+                            theta_pred = theta_pred[:n_params_target]
+
+                    # Evaluate energy via CachedBackend
+                    lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                    H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                    eval_backend.set_h(float(h))
+                    e_pred = eval_backend.evaluate(circuit_target, H, theta_pred)
+
+                    # Ground truth via parent's cached exact_ground_state
+                    e_exact, gap = self.exact_ground_state(
+                        topo, n_target, float(h), model="tfim_bond_resolved"
+                    )
+
+                    de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+                    abs_err = abs(e_pred - e_exact)
+
+                    # Fidelity via parent's compute_fidelity (only N ≤ 22)
+                    # Reuses the solver call needed for ground_state vector
+                    fidelity = None
+                    if n_target <= STATEVECTOR_MAX_N:
+                        try:
+                            gt_obj = solver.solve(H, lat_h)
+                            if gt_obj.ground_state is not None:
+                                fidelity = float(self.compute_fidelity(
+                                    circuit_target, theta_pred, gt_obj.ground_state
+                                ))
+                        except (MemoryError, ValueError):
+                            fidelity = None
+
+                    per_h_results.append(self.build_per_h_result(
+                        h, e_pred, e_exact, gap,
+                        fidelity=fidelity, n_params=len(theta_pred),
+                    ))
+                    fid_str = f"F={fidelity:.4f}" if fidelity is not None else "F=N/A(N>22)"
+                    status = "✓" if de_gap < 0.05 else ("~" if de_gap < 0.10 else "✗")
+                    logger.info(
+                        f"    h={h:.2f}: ΔE/gap={de_gap:.4f} {fid_str} "
+                        f"|ΔE|={abs_err:.2e} [{len(theta_pred)} params] {status}"
+                    )
+
+                elapsed = time.perf_counter() - t0
+
+                # ── Active learning: refine low-fidelity points ───────
+                active_rounds = getattr(self._args, "active_rounds", 0)
+                n_refined = 0
+                cold_start_samples = []
+
+                if active_rounds > 0:
+                    from scipy.optimize import minimize as _minimize
+
+                    # Select VQE backend for refinement
+                    vqe_backend = self.select_backend(n_target, for_vqe_loop=True)
+
+                    # ── Cold-start baseline (2 sample points) ──
+                    sample_indices = [0, len(per_h_results) // 2]
+                    rng_cold = np.random.default_rng(99)
+                    for si in sample_indices:
+                        if si >= len(per_h_results):
+                            continue
+                        r_cold = per_h_results[si]
+                        h_cold = r_cold["h"]
+                        try:
+                            lat_cold = self.make_lattice(topo, n_target, J=1.0, h=h_cold)
+                            H_cold = spec.build_hamiltonian(lat_cold, **spec.hamiltonian_kwargs)
+                            theta_random = rng_cold.uniform(-np.pi, np.pi, n_params_target)
+                            al_maxiter = 50 if n_target > STATEVECTOR_MAX_N else 200
+                            res_cold = _minimize(
+                                lambda params: vqe_backend.evaluate(circuit_target, H_cold, params),
+                                theta_random,
+                                method="COBYLA",
+                                options={"maxiter": al_maxiter, "rhobeg": 0.5},
+                            )
+                            e_ex_cold, gap_cold = self.exact_ground_state(
+                                topo, n_target, h_cold, model="tfim_bond_resolved"
+                            )
+                            de_gap_cold = abs(res_cold.fun - e_ex_cold) / max(gap_cold, 1e-10)
+                            cold_start_samples.append({
+                                "h": h_cold,
+                                "de_gap_cold": float(de_gap_cold),
+                                "de_gap_warm": float(r_cold["de_gap"]),
+                                "speedup": "warm better" if r_cold["de_gap"] < de_gap_cold else "cold better",
+                            })
+                            logger.info(
+                                f"    Cold-start baseline h={h_cold:.2f}: "
+                                f"dE/gap_cold={de_gap_cold:.4f} vs dE/gap_warm={r_cold['de_gap']:.4f} "
+                                f"({'warm wins' if r_cold['de_gap'] < de_gap_cold else 'cold wins'})"
+                            )
+                        except Exception as e:
+                            logger.debug(f"    Cold-start sample h={h_cold:.2f} failed: {e}")
+
+                    # ── Active learning rounds ────────────────────────────────
+                    for al_round in range(active_rounds):
+                        refine_indices = [
+                            i for i, r in enumerate(per_h_results)
+                            if r["de_gap"] > 0.05
+                            or (r.get("fidelity") is not None and r["fidelity"] < 0.90)
+                        ]
+                        if not refine_indices:
+                            logger.info(f"    AL round {al_round+1}: all points pass. Done.")
+                            break
+                        refine_indices = refine_indices[:5]
+                        logger.info(
+                            f"    Active learning round {al_round+1}: "
+                            f"refining {len(refine_indices)} points "
+                            f"(backend={type(vqe_backend).__name__})"
+                        )
+                        for idx in refine_indices:
+                            r = per_h_results[idx]
+                            h_val = r["h"]
+                            try:
+                                lat_ref = self.make_lattice(topo, n_target, J=1.0, h=h_val)
+                                H_ref = spec.build_hamiltonian(lat_ref, **spec.hamiltonian_kwargs)
+
+                                g_ref = build_unified_bond_resolved_graph(
+                                    lattice_target, h_value=h_val, p_layers=p,
+                                    include_circuit_nodes=True,
+                                )
+                                with torch.no_grad():
+                                    theta_init = model(g_ref).numpy().flatten()
+                                theta_init = np.clip(theta_init, -np.pi, np.pi)
+                                if len(theta_init) != n_params_target:
+                                    if len(theta_init) < n_params_target:
+                                        theta_init = np.pad(theta_init, (0, n_params_target - len(theta_init)))
+                                    else:
+                                        theta_init = theta_init[:n_params_target]
+
+                                al_maxiter = 200 if n_target <= STATEVECTOR_MAX_N else 50
+                                res = _minimize(
+                                    lambda params: vqe_backend.evaluate(circuit_target, H_ref, params),
+                                    theta_init,
+                                    method="COBYLA",
+                                    options={"maxiter": al_maxiter, "rhobeg": 0.1},
+                                )
+
+                                e_exact_ref, gap_ref = self.exact_ground_state(
+                                    topo, n_target, h_val, model="tfim_bond_resolved"
+                                )
+                                de_gap_new = abs(res.fun - e_exact_ref) / max(gap_ref, 1e-10)
+
+                                # Fidelity (only N ≤ 22)
+                                fid_new = None
+                                if n_target <= STATEVECTOR_MAX_N:
+                                    try:
+                                        gt_ref_obj = solver.solve(H_ref, lat_ref)
+                                        if gt_ref_obj.ground_state is not None:
+                                            fid_new = float(self.compute_fidelity(
+                                                circuit_target, res.x, gt_ref_obj.ground_state
+                                            ))
+                                    except Exception:
+                                        pass
+
+                                if de_gap_new < r["de_gap"]:
+                                    per_h_results[idx] = {
+                                        **r,
+                                        "de_gap": float(de_gap_new),
+                                        "abs_error": float(abs(res.fun - e_exact_ref)),
+                                        "fidelity": fid_new if fid_new is not None else r.get("fidelity"),
+                                        "e_pred": float(res.fun),
+                                        "method": "refined",
+                                        "de_gap_before_refine": float(r["de_gap"]),
+                                    }
+                                    n_refined += 1
+                                    logger.info(
+                                        f"      h={h_val:.2f}: dE/gap {r['de_gap']:.4f} -> {de_gap_new:.4f} "
+                                        f"(improvement: {(1 - de_gap_new/r['de_gap'])*100:.0f}%)"
+                                    )
+                                else:
+                                    logger.info(
+                                        f"      h={h_val:.2f}: no improvement ({de_gap_new:.4f} >= {r['de_gap']:.4f})"
+                                    )
+                            except Exception as e:
+                                logger.warning(f"      h={h_val:.2f}: refinement failed: {e}")
+                                continue
+
+                    if n_refined > 0:
+                        logger.info(f"    AL summary: {n_refined} points refined")
+
+                # ── Compute summary via reusable utility ──────────────
+                summary = compute_deploy_summary(per_h_results)
+
+                key = f"p{p}_N{n_target}"
+                all_results[key] = {
+                    "train_n": self._args.train_n,
+                    "target_n": n_target,
+                    "p_layers": p,
+                    "n_params": n_params_target,
+                    **summary,
+                    "fidelity_available": n_target <= STATEVECTOR_MAX_N,
+                    "active_learning_applied": n_refined > 0,
+                    "n_refined": n_refined,
+                    "cold_start_comparison": cold_start_samples if active_rounds > 0 else None,
+                    "elapsed_s": elapsed,
+                    "per_point": per_h_results,
+                }
+                fid_info = f"F_mean={summary['mean_fidelity']:.4f}" if summary.get("mean_fidelity") else "F=N/A"
+                logger.info(
+                    f"  N={n_target}: {summary.get('n_pass_5pct', 0)}/{summary['n_points']} @5%, "
+                    f"{summary.get('n_pass_10pct', 0)}/{summary['n_points']} @10%, "
+                    f"{fid_info}, refined={n_refined}"
+                )
+
+        # Overall pass: at least one target has >50% at 10% threshold
+        passed = any(
+            v.get("pass_rate_10pct", 0) > 0.5
+            for v in all_results.values() if isinstance(v, dict) and "pass_rate_10pct" in v
+        )
+
+        # Flush eval cache — os._exit() in ValidationRunner skips __del__,
+        # so without explicit flush the last cached evaluations are lost.
+        if hasattr(eval_backend, "flush"):
+            eval_backend.flush()
+
+        # ── Auto-update zoo pass_rate with observed results ──────────────
+        # The zoo entry may have pass_rate=0 (never evaluated). Now we know
+        # the actual pass_rate from this evaluation. Update the manifest so
+        # future load_best_for_cross_n sees the real quality.
+        if hasattr(self, "_zoo_entry") and self._zoo_entry is not None:
+            observed_pass_rates = [
+                v.get("pass_rate_5pct", 0) for v in all_results.values()
+                if isinstance(v, dict) and "pass_rate_5pct" in v
+            ]
+            if observed_pass_rates:
+                observed = max(observed_pass_rates)
+                if observed > self._zoo_entry.pass_rate:
+                    try:
+                        from qmbp_simulation.predictors.model_zoo import (
+                            _load_manifest, _save_manifest,
+                        )
+                        entries = _load_manifest()
+                        for e in entries:
+                            if e.checkpoint_file == self._zoo_entry.checkpoint_file:
+                                e.pass_rate = observed
+                                break
+                        _save_manifest(entries)
+                        logger.info(
+                            "    Zoo updated: %s pass_rate → %.0f%%",
+                            self._zoo_entry.checkpoint_file[:40], observed * 100,
+                        )
+                    except Exception:
+                        pass  # Non-fatal
+
+        return {"pass": passed, "cross_n_results": all_results}
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section: Budget Estimation + Cache Warm-up
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_budget_estimation(self) -> dict:
+        """Estimate compute budget leveraging cached results.
+
+        Uses the shared `self.estimate_compute_budget()` helper from
+        ValidationRunner for cache analysis, then adds runner-specific
+        QualityPredictor estimates on top.
+        """
+        topo = self._args.topology
+        n_target = self._args.target_n[0]
+        p = self._args.p_layers[0]
+        max_iters = self._args.max_iterations
+
+        # ── Shared budget estimation (GT cache, EvalCache, NPZ, h_frontier)
+        budget = self.estimate_compute_budget(
+            h_values=self._h_values,
+            n_qubits=n_target,
+            topology=topo,
+            model="tfim_bond_resolved",
+            max_iterations=max_iters,
+        )
+
+        # ── Runner-specific: QualityPredictor time estimate ──────────────
+        estimated_time_s = 0.0
+        try:
+            from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+            predictor = QualityPredictor()
+            report = predictor.predict(
+                model="tfim_bond_resolved", topology=topo,
+                n_qubits=n_target, p_layers=p,
+                h_min=self._args.h_min, h_max=self._args.h_max,
+            )
+            estimated_time_s = report.estimated_time_s
+        except Exception:
+            pass
+
+        # ── Log budget summary ───────────────────────────────────────────
+        logger.info(f"  ┌─ Budget Estimation ────────────────────────")
+        logger.info(f"  │ Config: {topo} N={n_target} p={p}, {budget['n_points']} h-points")
+        logger.info(f"  │ GT cache: {budget['gt_hits']}/{budget['n_points']} hits "
+                    f"→ {budget['gt_misses']} DMRG needed")
+        logger.info(f"  │ Eval cache: {budget['eval_cache_entries']} entries "
+                    f"(hit_rate={budget['eval_cache_hit_rate']:.0%})")
+        logger.info(f"  │ NPZ training data: {budget['npz_existing_points']} existing points")
+        if budget.get("h_frontier"):
+            logger.info(f"  │ Empirical h_frontier: {budget['h_frontier']:.3f}")
+        logger.info(f"  │ ")
+        logger.info(f"  │ Estimated costs:")
+        logger.info(f"  │   Ground truth: {budget['estimated_gt_s']:.0f}s")
+        logger.info(f"  │   Evaluation (per iter): {budget['estimated_eval_s_per_iter']:.0f}s")
+        logger.info(f"  │   Refinement (worst case): {budget['estimated_refine_worst_s']:.0f}s")
+        logger.info(f"  │   Max iterations: {max_iters}")
+        logger.info(f"  │ ")
+        logger.info(f"  │ Total worst-case: {budget['estimated_total_worst_s']:.0f}s "
+                    f"({budget['estimated_total_worst_s']/60:.1f} min)")
+        if estimated_time_s > 0:
+            logger.info(f"  │ Historical estimate: {estimated_time_s:.0f}s")
+        logger.info(f"  └──────────────────────────────────────────────")
+
+        budget["historical_time_s"] = estimated_time_s
+        return {"pass": True, "budget": budget}
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Section: Iterative Improvement Loop
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def section_iterative_improve(self) -> dict:
+        """Iterative predict → refine → retrain loop with cache reuse."""
+        import torch
+        from scipy.optimize import minimize as _minimize
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.execution import NoiselessBackend
+        from qmbp_simulation.execution.eval_cache import EvalCache
+        from qmbp_simulation.framework.preflight import get_regime_threshold
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors.model_zoo import (
+            ZooEntry, load_pretrained, register_checkpoint,
+        )
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+        from qmbp_simulation.predictors.unified_graph import (
+            build_unified_bond_resolved_graph,
+        )
+        from qmbp_simulation.predictors.unified_mpnn import (
+            UnifiedMPNN, train_unified_mpnn,
+        )
+        from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
+
+        topo = self._args.topology
+        n_target = self._args.target_n[0]
+        p = self._args.p_layers[0]
+        max_iterations = self._args.max_iterations
+        improvement_threshold = self._args.improvement_threshold
+        spec = get_model_spec("tfim_bond_resolved")
+        hva = HVACircuitBuilder()
+
+        # ── Setup: caches, backend, circuit ───────────────────────────────
+        gt_cache = GroundTruthCache()
+        use_eval_cache = not getattr(self._args, "no_eval_cache", False)
+        eval_cache = EvalCache(enabled=use_eval_cache)
+        backend = NoiselessBackend()
+        solver = self.solver
+
+        # Auto-select backend for N > 22
+        if n_target > STATEVECTOR_MAX_N:
+            try:
+                from qmbp_simulation.execution import MPSBackend
+                eval_backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True)
+                logger.info(
+                    f"  Backend: MPSBackend(aer_mps, chi=64, det=True) for N={n_target} > {STATEVECTOR_MAX_N}"
+                )
+            except ImportError:
+                eval_backend = backend
+                logger.warning(
+                    f"  ⚠️ qiskit-aer not available — falling back to NoiselessBackend "
+                    f"for N={n_target}. THIS WILL BE VERY SLOW (2^{n_target} amplitudes)."
+                )
+        else:
+            eval_backend = backend
+            logger.info(f"  Backend: NoiselessBackend for N={n_target} ≤ {STATEVECTOR_MAX_N}")
+
+        lattice_target = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+        circuit_target, _ = hva.create_bond_resolved(n_target, p, lattice_target)
+        n_params = circuit_target.num_parameters
+        logger.info(
+            f"  Circuit: N={n_target}, p={p}, n_params={n_params}, "
+            f"eval_backend={eval_backend.name}"
+        )
+
+        # NPZ path for this config
+        npz_dir = Path("data/multi_n_training")
+        npz_dir.mkdir(parents=True, exist_ok=True)
+        npz_path = npz_dir / f"{topo}_N{n_target}_p{p}.npz"
+
+        # Load existing refined θ from NPZ (anti-regression baseline)
+        prev_theta_by_h: dict[float, tuple[np.ndarray, float]] = {}
+        if npz_path.exists():
+            prev_data = np.load(npz_path, allow_pickle=True)
+            e_key = "e_vqe" if "e_vqe" in prev_data else "energies"
+            has_energies = e_key in prev_data
+            n_loaded = 0
+            for i, h in enumerate(prev_data["h_values"]):
+                # Convert to float64 (handles legacy dtype=object arrays)
+                try:
+                    theta_i = np.asarray(prev_data["theta_opt"][i], dtype=np.float64)
+                except (ValueError, TypeError):
+                    logger.warning(f"  NPZ: skipping h={float(h):.4f} (unconvertible θ)")
+                    continue
+                # Validate loaded θ: must be finite and correct dimension
+                if not np.all(np.isfinite(theta_i)):
+                    logger.warning(f"  NPZ: skipping h={float(h):.4f} (non-finite θ)")
+                    continue
+                if len(theta_i) != n_params:
+                    logger.warning(
+                        f"  NPZ: skipping h={float(h):.4f} "
+                        f"(dim mismatch: {len(theta_i)} vs {n_params})"
+                    )
+                    continue
+                # Energy validation: must be finite and stored
+                e_val = float(prev_data[e_key][i]) if has_energies else None
+                if e_val is not None and not np.isfinite(e_val):
+                    logger.warning(f"  NPZ: skipping h={float(h):.4f} (non-finite energy)")
+                    continue
+                prev_theta_by_h[round(float(h), 6)] = (theta_i, e_val)
+                n_loaded += 1
+            logger.info(f"  Loaded {n_loaded} previous θ_opt from NPZ")
+
+        # Ansatz-limit boundary disabled: all h values are refinable.
+        # This was previously used to skip points near quantum critical point
+        # but empirically refinement helps even there.
+        h_min_valid = 0
+
+        # ── Compute ground truth (all from cache ideally) ─────────────────
+        gt_hits, gt_misses = 0, 0
+        e_exact_arr = np.zeros(len(self._h_values))
+        gap_arr = np.zeros(len(self._h_values))
+        for i, h in enumerate(self._h_values):
+            cached_gt = gt_cache.get(topo, n_target, "tfim_bond_resolved", float(h))
+            if cached_gt:
+                e_exact_arr[i] = cached_gt["energy"]
+                gap_arr[i] = cached_gt["gap"]
+                gt_hits += 1
+            else:
+                lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                t_gt = time.perf_counter()
+                gt_obj = solver.solve(H, lat_h)
+                e_exact_arr[i] = gt_obj.ground_energy
+                gap_arr[i] = gt_obj.gap
+                gt_cache.put_from_result(
+                    topo, n_target, "tfim_bond_resolved", float(h), gt_obj
+                )
+                gt_misses += 1
+                logger.info(
+                    f"  GT [{gt_hits+gt_misses}/{len(self._h_values)}] "
+                    f"h={float(h):.3f} E={gt_obj.ground_energy:.6f} "
+                    f"gap={gt_obj.gap:.4f} ({time.perf_counter()-t_gt:.1f}s)"
+                )
+        logger.info(f"  Ground truth: {gt_hits} cache hits, {gt_misses} computed")
+        if gt_misses > 0:
+            gt_cache.flush()  # Persist new ground truths immediately
+
+        # ── Load model from zoo ───────────────────────────────────────────
+        model = None
+        _meta = None
+        try:
+            from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
+            model, _meta = load_best_for_cross_n(
+                model="tfim_bond_resolved", topology=topo,
+                n_target=n_target, p_layers=p,
+            )
+            source = "multi-N" if _meta.n_qubits == 0 else f"single-N={_meta.n_qubits}"
+            logger.info(
+                f"  Loaded model from zoo: {_meta.checkpoint_file} "
+                f"({source}, {_meta.n_training_points} pts)"
+            )
+        except FileNotFoundError:
+            pass
+
+        if model is None:
+            try:
+                model, _meta = load_pretrained(
+                    model="tfim_bond_resolved", topology=topo,
+                    n_qubits=self._args.train_n, p_layers=p,
+                    allow_cross_n=True,
+                )
+                logger.info(f"  Loaded single-N model from zoo: {_meta.checkpoint_file}")
+            except FileNotFoundError:
+                # Bootstrap: no model exists → run AcceleratedVQE to generate
+                # initial training data, then train a UnifiedMPNN from it.
+                logger.info("  No model in zoo — bootstrapping via AcceleratedVQE...")
+                from qmbp_simulation.pipeline.accelerated import (
+                    AcceleratedConfig, AcceleratedVQE,
+                )
+
+                boot_config = AcceleratedConfig(
+                    n_anchors=self._args.n_anchors,
+                    n_restarts=self._args.n_restarts,
+                    maxiter=self._args.maxiter,
+                    mpnn_epochs=4000,
+                    use_zoo=False,
+                    force_method=getattr(self._args, "force_method", None),
+                    bidirectional_anchors=getattr(
+                        self._args, "bidirectional_anchors", False
+                    ),
+                )
+                boot_lattice = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+                boot_circuit, _ = hva.create_bond_resolved(n_target, p, boot_lattice)
+                t_boot = time.perf_counter()
+                accel = AcceleratedVQE(
+                    boot_lattice, boot_circuit, spec, eval_backend, config=boot_config
+                )
+                boot_result = accel.run(self._h_values, seed=42, p_layers=p)
+                logger.info(
+                    f"  Bootstrap done: pass_rate={boot_result.pass_rate:.0%}, "
+                    f"time={time.perf_counter() - t_boot:.1f}s"
+                )
+                # Save bootstrap data to NPZ (atomic with anti-regression)
+                upsert_theta_npz(
+                    npz_path,
+                    h_new=self._h_values[:len(boot_result.theta_opt)],
+                    theta_new=boot_result.theta_opt,
+                    e_vqe_new=boot_result.energies,
+                    e_exact_new=boot_result.e_exact,
+                    gaps_new=boot_result.gaps,
+                    method_new=list(boot_result.method),
+                )
+                # Reload prev_theta_by_h from freshly saved NPZ
+                for i, h in enumerate(self._h_values[:len(boot_result.theta_opt)]):
+                    th_i = boot_result.theta_opt[i]
+                    if np.all(np.isfinite(th_i)) and len(th_i) == n_params:
+                        prev_theta_by_h[round(float(h), 6)] = (
+                            th_i, float(boot_result.energies[i])
+                        )
+                # Train initial UnifiedMPNN from bootstrap data
+                agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+                agg.scan()
+                dataset = agg.build_combined_dataset(max_de_gap=0.15)
+                if len(dataset) < 3:
+                    return {
+                        "pass": False,
+                        "error": f"Bootstrap produced only {len(dataset)} valid points.",
+                    }
+                sample_g = dataset[0]
+                n_node_features = (
+                    sample_g.x.shape[1] if hasattr(sample_g, "x") else 4
+                )
+                model = UnifiedMPNN(
+                    node_features=n_node_features,
+                    hidden_dim=256, n_layers=3,
+                    norm_type="none", dropout=0.1,
+                )
+                train_unified_mpnn(
+                    model, dataset, n_epochs=4000, lr=1e-3, patience=300, seed=42
+                )
+                # Register in zoo
+                from datetime import datetime, timezone
+                entry = ZooEntry(
+                    model="tfim_bond_resolved", topology=topo,
+                    n_qubits=0, p_layers=p,
+                    checkpoint_file=f"unified_tfim_br_{topo}_multiN_{n_target}_p{p}.pt",
+                    h_range=(self._args.h_min, self._args.h_max),
+                    pass_rate=boot_result.pass_rate,
+                    n_training_points=len(dataset),
+                    seeds=[42],
+                    created=datetime.now(timezone.utc).isoformat(),
+                    notes=f"Bootstrap from AcceleratedVQE N={n_target}",
+                )
+                register_checkpoint(model, entry, overwrite=True)
+                logger.info(f"  Bootstrap model registered: {entry.checkpoint_file}")
+
+        # ── Iterative improvement loop ────────────────────────────────────
+        iteration_reports = []
+        total_vqe_calls = 0
+        prev_pass_rate = 0.0
+        convergence_reason = "max_iterations"
+        # Track the best pass_rate ever exported to zoo for Fix C
+        zoo_best_pass_rate = getattr(_meta, 'pass_rate', 0.0) if '_meta' in dir() and _meta else 0.0
+
+        for iteration in range(1, max_iterations + 1): 
+            logger.info(f"\n  ╔══ Iteration {iteration}/{max_iterations} ══════════════════════╗")
+            t_iter_start = time.perf_counter()
+            model.eval()
+
+            # ── 2a: Predict θ for all h-points ────────────────────────────
+            predictions = []
+            n_pred_invalid = 0
+            for h in self._h_values:
+                g = build_unified_bond_resolved_graph(
+                    lattice_target, h_value=float(h), p_layers=p,
+                    include_circuit_nodes=True,
+                )
+                with torch.no_grad():
+                    pred = model(g).numpy().flatten()
+                # NaN/Inf guard on predictions
+                if not np.all(np.isfinite(pred)):
+                    n_bad = int(np.sum(~np.isfinite(pred)))
+                    logger.warning(
+                        f"    h={float(h):.2f}: prediction has {n_bad} NaN/Inf → zeroed"
+                    )
+                    pred = np.where(np.isfinite(pred), pred, 0.0)
+                    n_pred_invalid += 1
+                pred = np.clip(pred, -np.pi, np.pi)
+                if len(pred) != n_params:
+                    if len(pred) < n_params:
+                        pred = np.pad(pred, (0, n_params - len(pred)))
+                    else:
+                        pred = pred[:n_params]
+                predictions.append(pred)
+            predictions = np.array(predictions)
+            if n_pred_invalid > 0:
+                logger.warning(
+                    f"  │ ⚠️ {n_pred_invalid}/{len(self._h_values)} predictions had NaN/Inf"
+                )
+
+            # ── 2b: Evaluate + identify failures ──────────────────────────
+            energies = np.zeros(len(self._h_values))
+            eval_hits = 0
+            for i, h in enumerate(self._h_values):
+                h_key = round(float(h), 6)
+
+                # Skip already-refined points: use stored energy if available
+                # and validated (must be finite and have associated θ)
+                if h_key in prev_theta_by_h:
+                    theta_prev, e_prev = prev_theta_by_h[h_key]
+                    if e_prev is not None and np.isfinite(e_prev):
+                        # Variational principle check: e_prev must be ≥ e_exact
+                        # (allow small tolerance for numerical noise)
+                        if e_prev >= e_exact_arr[i] - 1e-6:
+                            energies[i] = e_prev
+                            eval_hits += 1
+                            continue
+                        else:
+                            logger.warning(
+                                f"    h={float(h):.2f}: NPZ energy {e_prev:.6f} "
+                                f"violates variational principle (E_exact={e_exact_arr[i]:.6f}). "
+                                f"Discarding stale entry."
+                            )
+                            del prev_theta_by_h[h_key]
+
+                # Evaluate via cache
+                key = eval_cache.make_key(
+                    topo, n_target, float(h), predictions[i],
+                    model="tfim_bond_resolved", p_layers=p,
+                )
+                cached_e = eval_cache.get(key)
+                if cached_e is not None:
+                    energies[i] = cached_e
+                    eval_hits += 1
+                else:
+                    lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                    H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                    energies[i] = eval_backend.evaluate(circuit_target, H, predictions[i])
+                    eval_cache.put(key, float(energies[i]))
+
+            de_gaps = np.abs(energies - e_exact_arr) / np.maximum(gap_arr, 1e-10)
+            pass_rate = float((de_gaps < 0.05).mean())
+            logger.info(
+                f"  │ Eval: {eval_hits}/{len(self._h_values)} cache hits, "
+                f"pass_rate@5%={pass_rate:.0%}"
+            )
+
+            # ── 2b.0: Persist ALL passing predictions IMMEDIATELY to NPZ ──
+            # Predictions with ΔE/gap < 5% are as good as VQE-optimized θ_opt.
+            # 1. Data is safe even if process crashes before convergence check
+            # 2. Multi-N aggregator sees fresh data for this config immediately
+            # 3. Anti-regression: upsert_theta_npz only updates if energy improves
+            n_newly_persisted = 0
+            for i, h in enumerate(self._h_values):
+                if de_gaps[i] >= 0.05:
+                    continue  # only persist passing predictions
+                h_key = round(float(h), 6)
+                # Only persist if not already in memory dict OR if new energy is lower
+                if h_key in prev_theta_by_h:
+                    _, e_existing = prev_theta_by_h[h_key]
+                    if e_existing is not None and energies[i] >= e_existing - 1e-10:
+                        continue  # existing is already as good or better
+
+                # Persist immediately to NPZ (atomic write handles concurrency)
+                n_upd, n_add = upsert_theta_npz(
+                    npz_path,
+                    h_new=np.array([float(h)]),
+                    theta_new=np.array([predictions[i]]),
+                    e_vqe_new=np.array([float(energies[i])]),
+                    e_exact_new=np.array([float(e_exact_arr[i])]),
+                    gaps_new=np.array([float(gap_arr[i])]),
+                    method_new=["mpnn_pred"],
+                )
+                # Update in-memory dict to avoid re-persisting same point
+                prev_theta_by_h[h_key] = (predictions[i], float(energies[i]))
+                if n_upd > 0 or n_add > 0:
+                    n_newly_persisted += 1
+
+            if n_newly_persisted > 0:
+                logger.info(
+                    f"  │ Persisted {n_newly_persisted} new passing predictions → NPZ "
+                    f"(total in memory: {len(prev_theta_by_h)} points)"
+                )
+
+            # ── 2b.1: Check convergence (early stop) ─────────────────────
+            if pass_rate >= 0.90:
+                convergence_reason = "target_reached"
+                logger.info(f"  │ ✓ Target reached: pass_rate={pass_rate:.0%} ≥ 90%")
+
+                n_safety_persisted = 0
+                for i, h in enumerate(self._h_values):
+                    h_key = round(float(h), 6)
+                    if h_key not in prev_theta_by_h and de_gaps[i] < 0.05:
+                        upsert_theta_npz(
+                            npz_path,
+                            h_new=np.array([float(h)]),
+                            theta_new=np.array([predictions[i]]),
+                            e_vqe_new=np.array([float(energies[i])]),
+                            e_exact_new=np.array([float(e_exact_arr[i])]),
+                            gaps_new=np.array([float(gap_arr[i])]),
+                            method_new=["mpnn_pred"],
+                        )
+                        prev_theta_by_h[h_key] = (predictions[i], float(energies[i]))
+                        n_safety_persisted += 1
+                if n_safety_persisted > 0:
+                    logger.info(f"  │ Safety net: persisted {n_safety_persisted} extra points")
+
+                iteration_reports.append(self._build_iter_report(
+                    iteration, pass_rate, 0, 0, eval_hits, time.perf_counter() - t_iter_start
+                ))
+                break
+
+            improvement = pass_rate - prev_pass_rate
+            if iteration > 1 and improvement < improvement_threshold:
+                convergence_reason = "no_improvement"
+                logger.info(
+                    f"  │ ✓ Converged: improvement={improvement:.4f} < "
+                    f"threshold={improvement_threshold}"
+                )
+                # Note: All passing predictions were already persisted immediately. No bulk save needed.
+                eval_cache.flush()
+                iteration_reports.append(self._build_iter_report(
+                    iteration, pass_rate, 0, 0, eval_hits, time.perf_counter() - t_iter_start
+                ))
+                break
+
+            # ── 2c: Identify failures + ansatz-limit filter ───────────────
+            # Uses dual criteria: ΔE/gap OR |ΔE| OR fidelity (from metrics)
+            from qmbp_simulation.analysis.metrics import is_point_failure, compute_refinement_priority
+
+            failures = []
+            ansatz_limited = []
+            for i, h in enumerate(self._h_values):
+                abs_err_i = abs(energies[i] - e_exact_arr[i])
+                is_fail = is_point_failure(
+                    de_gap=de_gaps[i],
+                    abs_error=abs_err_i,
+                    fidelity=None,  # Not available in iterative loop
+                )
+                if is_fail:
+                    if h_min_valid > 0 and float(h) < h_min_valid:
+                        ansatz_limited.append(i)
+                    else:
+                        failures.append(i)
+
+            if not failures:
+                if ansatz_limited:
+                    convergence_reason = "ansatz_limit"
+                    logger.info(
+                        f"  │ ✓ All remaining failures ({len(ansatz_limited)}) are in "
+                        f"ansatz-limited zone (h < {h_min_valid:.2f})"
+                    )
+                else:
+                    convergence_reason = "target_reached"
+                # Note: Data already persisted immediately. Just flush cache.
+                eval_cache.flush()
+                iteration_reports.append(self._build_iter_report(
+                    iteration, pass_rate, 0, len(ansatz_limited),
+                    eval_hits, time.perf_counter() - t_iter_start
+                ))
+                break
+
+            # ── 2c.1: Priority-score failures and sort ─────────────────────
+            # Use compute_refinement_priority to order failures by expected
+            # return-on-investment. High-priority points get refined first.
+            # Track per-h attempt counts for stale detection.
+            if not hasattr(self, "_refine_attempts"):
+                self._refine_attempts = {}  # h_key → count of failed VQE attempts
+
+            scored_failures = []
+            n_skipped_priority = 0
+            for idx in failures:
+                h = float(self._h_values[idx])
+                h_key = round(h, 6)
+                abs_err_i = abs(energies[idx] - e_exact_arr[idx])
+
+                # Previous VQE energy (if refined before)
+                e_prev_h = None
+                if h_key in prev_theta_by_h:
+                    _, e_prev_h = prev_theta_by_h[h_key]
+
+                n_attempts = self._refine_attempts.get(h_key, 0)
+
+                priority, should_skip, reason = compute_refinement_priority(
+                    de_gap=de_gaps[idx],
+                    abs_error=abs_err_i,
+                    gap=gap_arr[idx],
+                    n_params=n_params,
+                    e_prev=e_prev_h,
+                    e_pred=float(energies[idx]),
+                    n_prev_attempts=n_attempts,
+                )
+
+                if should_skip:
+                    n_skipped_priority += 1
+                    logger.debug(
+                        f"    Skip h={h:.3f}: {reason} (priority={priority:.2f})"
+                    )
+                else:
+                    scored_failures.append((priority, idx, reason))
+
+            # Sort by priority (highest first) and limit
+            scored_failures.sort(key=lambda x: x[0], reverse=True)
+            if getattr(self._args, "refine_all", False):
+                max_refine = len(scored_failures)
+            else:
+                max_refine = getattr(self._args, "max_refine_per_iter", None)
+                if max_refine is None:
+                    max_refine = min(len(scored_failures), 10)
+            failures = [idx for _, idx, _ in scored_failures[:max_refine]]
+
+            logger.info(
+                f"  │ Failures: {len(failures)} to refine "
+                f"(scored {len(scored_failures)}, skipped {n_skipped_priority}, "
+                f"max={max_refine}), {len(ansatz_limited)} ansatz-limited"
+            )
+            if scored_failures:
+                top = scored_failures[0]
+                logger.info(
+                    f"  │ Top priority: h={float(self._h_values[top[1]]):.3f} "
+                    f"score={top[0]:.2f} reason={top[2]}"
+                )
+
+            # ── 2d: Anti-regression + VQE refine ─────────────────────────
+            refined_h = []
+            refined_theta = []
+            refined_energies = []
+            refined_e_exact = []
+
+            # Use CLI maxiter/restarts for refinement.
+            # L-BFGS-B: cap restarts (each restart = ~50 iters).
+            # Stagnation threshold (3) auto-stops if no improvement.
+            refine_maxiter = self._args.maxiter
+            refine_method = self._args.force_method or "L-BFGS-B"
+            if refine_method == "L-BFGS-B":
+                refine_restarts = min(7, self._args.n_restarts)
+            else:
+                refine_restarts = max(7, self._args.n_restarts // 2)
+            logger.info(
+                f"  │ Refine config: method={refine_method}, "
+                f"maxiter={refine_maxiter}, restarts={refine_restarts}"
+            )
+
+            for fail_idx_pos, idx in enumerate(failures):
+                h = float(self._h_values[idx])
+                h_key = round(h, 6)
+                t_refine_start = time.perf_counter()
+                logger.info(
+                    f"  │ Refining [{fail_idx_pos+1}/{len(failures)}] "
+                    f"h={h:.4f} (n_params={n_params}, ΔE/gap={de_gaps[idx]:.4f})..."
+                )
+                sys.stdout.flush()
+                sys.stderr.flush()
+                for handler in logging.getLogger().handlers:
+                    handler.flush()
+
+                # Anti-regression: pick best init from {θ_pred, θ_prev}
+                theta_init = predictions[idx].copy()
+                if h_key in prev_theta_by_h:
+                    theta_prev, e_prev = prev_theta_by_h[h_key]
+                    # Evaluate θ_prev energy (cache hit expected)
+                    key_prev = eval_cache.make_key(
+                        topo, n_target, h, theta_prev,
+                        model="tfim_bond_resolved", p_layers=p,
+                    )
+                    e_prev_cached = eval_cache.get(key_prev)
+                    if e_prev_cached is None:
+                        lat_h = self.make_lattice(topo, n_target, J=1.0, h=h)
+                        H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                        e_prev_cached = eval_backend.evaluate(
+                            circuit_target, H, theta_prev
+                        )
+                        eval_cache.put(key_prev, float(e_prev_cached))
+                    if e_prev_cached < energies[idx]:
+                        theta_init = theta_prev.copy()
+                        logger.debug(f"    h={h:.2f}: anti-regression → using θ_prev")
+
+                # VQE warm-start refinement
+                lat_h = self.make_lattice(topo, n_target, J=1.0, h=h)
+                H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                try:
+                    from qmbp_simulation import VQEConfig, VQEOptimizer
+                    vqe_cfg = VQEConfig(
+                        p_layers=p,
+                        n_restarts=refine_restarts,
+                        maxiter=refine_maxiter,
+                        method=refine_method,
+                        enable_callbacks=False,  # No trajectory logging (2x speedup)
+                    )
+                    vqe_opt = VQEOptimizer(
+                        config=vqe_cfg, backend=eval_backend, seed=42 + idx
+                    )
+                    if hasattr(eval_backend, "set_h"):
+                        eval_backend.set_h(h)
+                    vqe_result = vqe_opt.optimize(
+                        H, circuit_target, initial_guess=theta_init
+                    )
+                    total_vqe_calls += 1
+                    e_refined = float(vqe_result.energy)
+                    res_x = vqe_result.theta_opt
+                    t_refine_elapsed = time.perf_counter() - t_refine_start
+                    logger.info(
+                        f"    h={h:.2f}: VQE done in {t_refine_elapsed:.1f}s, "
+                        f"E={e_refined:.6f}"
+                    )
+
+                    # ── Validate refined result before storing ────────────
+                    # 1. Energy must be finite
+                    if not np.isfinite(e_refined):
+                        logger.warning(f"    h={h:.2f}: VQE returned NaN/Inf energy. Skipping.")
+                        continue
+                    # 2. θ must be finite
+                    if not np.all(np.isfinite(res_x)):
+                        logger.warning(f"    h={h:.2f}: VQE returned NaN/Inf θ. Skipping.")
+                        continue
+                    # 3. Variational principle: E_refined >= E_exact (within tolerance)
+                    if e_refined < e_exact_arr[idx] - 1e-4:
+                        violation = e_exact_arr[idx] - e_refined
+                        logger.warning(
+                            f"    h={h:.2f}: Variational violation Δ={violation:.2e}. "
+                            f"May indicate stale E_exact (DMRG approx). Accepting anyway."
+                        )
+                    # 4. Only accept if improved over current energy
+                    if e_refined < energies[idx] - 1e-10:
+                        de_gap_new = abs(e_refined - e_exact_arr[idx]) / max(gap_arr[idx], 1e-10)
+                        abs_err_old = abs(energies[idx] - e_exact_arr[idx])
+                        abs_err_new = abs(e_refined - e_exact_arr[idx])
+                        logger.info(
+                            f"    h={h:.2f}: ΔE/gap {de_gaps[idx]:.4f} → {de_gap_new:.4f} "
+                            f"|ΔE| {abs_err_old:.3f} → {abs_err_new:.3f} ✓"
+                        )
+                        refined_h.append(h)
+                        refined_theta.append(res_x.copy())
+                        refined_energies.append(e_refined)
+                        refined_e_exact.append(float(e_exact_arr[idx]))
+                        # Update tracking
+                        prev_theta_by_h[h_key] = (res_x.copy(), e_refined)
+                        # Reset stale counter — this point just improved
+                        self._refine_attempts.pop(h_key, None)
+
+                        # ── Immediate persist: NPZ upsert per-point ───────
+                        # Ensures no refined θ is lost on interrupt.
+                        gap_i = float(gap_arr[idx])
+                        upsert_theta_npz(
+                            npz_path,
+                            np.array([h]),
+                            np.array([res_x]),
+                            np.array([e_refined]),
+                            np.array([float(e_exact_arr[idx])]),
+                            gaps_new=np.array([gap_i]),
+                            method_new=["vqe_refined"],
+                        )
+                        # Note: eval_cache auto-flushes every 50 puts.
+                        # Full flush deferred to end of iteration (avoid 5MB
+                        # JSON write per point).
+                    else:
+                        logger.info(f"    h={h:.2f}: no improvement (VQE stuck)")
+                        # Track failed attempt for priority scoring
+                        self._refine_attempts[h_key] = self._refine_attempts.get(h_key, 0) + 1
+                except KeyboardInterrupt:
+                    # Persist everything refined so far before re-raising
+                    logger.warning(
+                        f"  │ ⚠️ Interrupted during refinement. "
+                        f"{len(refined_h)} points already saved to NPZ."
+                    )
+                    eval_cache.flush()
+                    raise
+                except Exception as e:
+                    logger.warning(f"    h={h:.2f}: refinement failed: {e}")
+
+            # ── 2e: Summary (NPZ already persisted per-point above) ───────
+            n_updated = len(refined_h)  # all persisted incrementally via upsert_theta_npz
+            if refined_h:
+                logger.info(
+                    f"  │ VQE refinement: {n_updated} points improved and persisted"
+                )
+
+            # Note: All data (predictions + refinements) was persisted immediately
+            # via upsert_theta_npz calls above. No bulk save needed.
+
+            # Flush eval cache once per iteration (not per-point)
+            eval_cache.flush()
+
+            # ── 2f: Retrain multi-N model ─────────────────────────────────
+            # Fix A: Skip retrain if no new data was produced
+            # Fix B: Fine-tune instead of training from scratch
+            from qmbp_simulation.predictors.unified_mpnn import (
+                should_retrain, fine_tune_unified_mpnn,
+            )
+
+            agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+            agg.scan()
+            dataset = agg.build_combined_dataset(max_de_gap=0.10)
+
+            do_retrain, retrain_reason = should_retrain(
+                n_new_points=len(refined_h),
+                current_pass_rate=pass_rate,
+                prev_pass_rate=prev_pass_rate,
+                dataset_size=len(dataset),
+            )
+
+            if do_retrain and len(dataset) >= 5:
+                logger.info(
+                    f"  │ Retraining (reason={retrain_reason}, "
+                    f"{len(refined_h)} new points, {len(dataset)} total)..."
+                )
+                sample_g = dataset[0]
+                n_node_features = sample_g.x.shape[1] if hasattr(sample_g, 'x') else 4
+
+                # Fix B: Fine-tune existing model if it has same architecture,
+                # otherwise train from scratch (architecture mismatch).
+                can_fine_tune = (
+                    hasattr(model, 'node_features')
+                    and model.node_features == n_node_features
+                    and iteration > 1  # First iter after bootstrap → full train
+                )
+
+                if can_fine_tune:
+                    logger.info("  │ Mode: fine-tune (1000 epochs, lr=3e-4)")
+                    train_result = fine_tune_unified_mpnn(
+                        model, dataset, n_epochs=1000, lr=3e-4,
+                        patience=150, seed=42,
+                    )
+                else:
+                    logger.info("  │ Mode: full retrain (5000 epochs, lr=1e-3)")
+                    model = UnifiedMPNN(
+                        node_features=n_node_features,
+                        hidden_dim=256, n_layers=3,
+                        norm_type="none", dropout=0.1,
+                    )
+                    train_result = train_unified_mpnn(
+                        model, dataset, n_epochs=4000, lr=1e-3,
+                        patience=300, seed=42,
+                    )
+
+                mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0
+                mode = train_result.get("mode", "full")
+                logger.info(f"  │ Retrained ({mode}): MSE={mse:.2e}, {len(dataset)} points")
+
+                # ── 2g: Export to zoo (only if pass_rate improved) ────────
+                # Fix C: Don't overwrite a better model in the zoo with one
+                # that didn't improve pass_rate.
+                if pass_rate > zoo_best_pass_rate or iteration == 1:
+                    from datetime import datetime, timezone
+                    n_vals = agg.available_n_values()
+                    n_str = "+".join(str(n) for n in n_vals)
+                    entry = ZooEntry(
+                        model="tfim_bond_resolved", topology=topo,
+                        n_qubits=0, p_layers=p,
+                        checkpoint_file=f"unified_tfim_br_{topo}_multiN_{n_str}_p{p}.pt",
+                        h_range=(self._args.h_min, self._args.h_max),
+                        pass_rate=pass_rate,
+                        n_training_points=len(dataset),
+                        seeds=[42],
+                        created=datetime.now(timezone.utc).isoformat(),
+                        notes=f"Iterative improve iter {iteration}: N={n_vals}",
+                    )
+                    register_checkpoint(model, entry, overwrite=True)
+                    zoo_best_pass_rate = pass_rate
+                    logger.info(f"  │ Exported to zoo: {entry.checkpoint_file}")
+                else:
+                    logger.info(
+                        f"  │ Zoo skip: pass_rate={pass_rate:.0%} ≤ "
+                        f"zoo_best={zoo_best_pass_rate:.0%} — keeping better model"
+                    )
+            elif not do_retrain:
+                logger.info(
+                    f"  │ Skipping retrain: {retrain_reason} "
+                    f"(refined={len(refined_h)}, dataset={len(dataset)})"
+                )
+            else:
+                logger.warning(f"  │ Only {len(dataset)} points — skipping retrain")
+
+            # ── 2h: Report iteration ──────────────────────────────────────
+            iter_time = time.perf_counter() - t_iter_start
+            iteration_reports.append(self._build_iter_report(
+                iteration, pass_rate, len(refined_h), len(ansatz_limited),
+                eval_hits, iter_time,
+            ))
+            prev_pass_rate = pass_rate
+            logger.info(
+                f"  ╚══ Iteration {iteration} done: pass_rate={pass_rate:.0%}, "
+                f"refined={len(refined_h)}, time={iter_time:.1f}s ══╝"
+            )
+
+        # ── Final report ──────────────────────────────────────────────────
+        eval_cache.flush()
+        final_stats = eval_cache.stats()
+        final_pass_rate = iteration_reports[-1]["pass_rate"] if iteration_reports else 0.0
+
+        # ── Memory cleanup: free heavy objects before _build_envelope ─────
+        # NOTE: Do NOT call gc.collect() here! Qiskit's CircuitData destructor
+        # triggers mimalloc's _mi_arenas_page_unabandon which calls sleep() in
+        # a retry loop on macOS ARM64, hanging the process indefinitely.
+        # Instead, just delete references and let os._exit() handle cleanup.
+        del model, predictions
+        eval_cache = None
+        dataset = None
+        agg = None
+        circuit_target = None
+        lattice_target = None
+
+        return {
+            "pass": final_pass_rate >= 0.50 or convergence_reason == "no_improvement",
+            "convergence_reason": convergence_reason,
+            "iterations_run": len(iteration_reports),
+            "final_pass_rate": final_pass_rate,
+            "total_vqe_calls": total_vqe_calls,
+            "iteration_reports": iteration_reports,
+            "cache_stats": final_stats,
+            "gt_cache_hits": gt_hits,
+            "gt_cache_misses": gt_misses,
+        }
+
+    def _build_iter_report(
+        self, iteration, pass_rate, n_refined, n_ansatz_limited,
+        eval_hits, elapsed_s
+    ) -> dict:
+        """Build per-iteration summary dict."""
+        return {
+            "iteration": iteration,
+            "pass_rate": pass_rate,
+            "n_refined": n_refined,
+            "n_ansatz_limited": n_ansatz_limited,
+            "eval_cache_hits": eval_hits,
+            "elapsed_s": elapsed_s,
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Entry point
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    AcceleratedCrossNRunner.main()

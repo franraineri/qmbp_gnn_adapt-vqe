@@ -89,6 +89,8 @@ class NoiselessResult:
     # Identity
     variant_id: str = ""
     description: str = ""
+    # Regime classification (auto-derived from h_test and J=1)
+    regime: str = ""  # paramagnetic, intermediate, critical, ordered, trivial
 
 
 @dataclass

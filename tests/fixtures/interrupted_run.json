@@ -1,0 +1,50 @@
+{
+  "schema_version": "2.0",
+  "timestamp": "2026-07-02T14:00:00",
+  "interrupted": true,
+  "completed_sections": 2,
+  "interrupted_section": 3,
+  "config": {
+    "runner_id": "noiseless_pipeline_v4",
+    "experiment_id": "noiseless/tfim/heavy_hex",
+    "system": {"n_qubits": 16, "p_layers": 4, "topologies": ["heavy_hex"], "model": "tfim"},
+    "h_grid": {"h_min": 1.3, "h_max": 2.0, "h_points": 35},
+    "vqe": {"maxiter": 1000, "n_restarts": 7, "method": "L-BFGS-B"},
+    "seeds": [42]
+  },
+  "elapsed_s": 7200.0,
+  "results": {
+    "section_1": {
+      "name": "Exact Diagonalization (Ground Truth)",
+      "success": true, "elapsed_s": 90.0,
+      "data": {
+        "pass": true,
+        "topologies": {"heavy_hex": {"n_points": 35, "e_min": -33.9, "e_max": -23.8, "gap_min": 0.6, "gap_max": 2.0, "validation_passed": true, "validation_warnings": [], "validation_errors": []}},
+        "h_values": [2.0, 1.98, 1.96, 1.94, 1.92, 1.90, 1.88, 1.86, 1.84, 1.82, 1.80, 1.78, 1.76, 1.74, 1.72, 1.70, 1.68, 1.66, 1.64, 1.62, 1.60, 1.58, 1.56, 1.54, 1.52, 1.50, 1.48, 1.46, 1.44, 1.42, 1.40, 1.38, 1.36, 1.34, 1.32],
+        "n_qubits": 16, "model": "tfim"
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "VQE Optimization (NoiselessBackend)",
+      "success": true, "elapsed_s": 6500.0,
+      "data": {
+        "pass": true,
+        "topologies": {
+          "heavy_hex": {
+            "n_points": 35, "n_pass_5pct": 35, "mean_fidelity": 0.999, "min_fidelity": 0.994,
+            "mean_de_gap": 0.004, "max_de_gap": 0.024, "theta_smoothness_max": 0.7,
+            "n_converged": 35, "total_time_s": 6400.0, "pass": true,
+            "per_point": [
+              {"h": 2.0, "energy_vqe": -33.88, "energy_exact": -33.90, "gap": 2.0, "de_gap": 0.010, "fidelity": 0.999, "entanglement_entropy": 0.3, "n_iterations": 45, "n_restarts_used": 1, "converged": true, "theta_change_linf": 0.01, "elapsed_s": 180.0, "theta_opt": [0.1, -0.2, 0.05, -0.1, 0.08, -0.15, 0.03, -0.07]},
+              {"h": 1.5, "energy_vqe": -28.10, "energy_exact": -28.12, "gap": 1.0, "de_gap": 0.020, "fidelity": 0.997, "entanglement_entropy": 0.6, "n_iterations": 80, "n_restarts_used": 2, "converged": true, "theta_change_linf": 0.12, "elapsed_s": 200.0, "theta_opt": [0.25, -0.35, 0.12, -0.22, 0.18, -0.28, 0.09, -0.14]}
+            ]
+          }
+        }
+      },
+      "error": null
+    }
+  },
+  "summary": {"n_sections": 2, "n_passed": 2, "n_failed": 0, "pass_rate": 1.0, "total_time_s": 7200.0, "all_passed": true},
+  "metadata": {"python_version": "3.12.13", "qiskit_version": "2.4.1"}
+}

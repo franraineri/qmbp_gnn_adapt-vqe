@@ -37,11 +37,32 @@ from qmbp_simulation.analysis.landscape import (
     landscape_fluctuation,
 )
 from qmbp_simulation.analysis.metrics import (
+    classify_regime,
     compute_classification_confidence,
+    compute_deploy_summary,
     compute_energy_decomposition,
     compute_fraction_near_gs,
+    compute_h_frontier,
+    compute_h_frontier_from_npz,
+    compute_refinement_priority,
     compute_snr,
     compute_theta_smoothness,
+    detect_h_frontier_anomalies,
+    detect_pass_rate_regression,
+    detect_training_zoo_incoherence,
+    generate_model_quality_dashboard,
+    get_usable_training_configs,
+    classify_training_utility,
+    DE_GAP_THRESHOLD,
+    MAX_ABS_ERROR,
+    MIN_FIDELITY,
+    TRAINING_BAD_RATIO_THRESHOLD,
+    ZOO_PASS_FOR_INCOHERENCE_FLAG,
+    PASS_RATE_REGRESSION_THRESHOLD,
+    H_FRONTIER_MONOTONICITY_TOLERANCE,
+    GAP_MASKING_THRESHOLD,
+    MIN_TRAINING_DUAL_PASS_RATE,
+    MIN_TRAINING_POINTS_FOR_SIGNAL,
 )
 from qmbp_simulation.analysis.theta_alignment import (
     AlignmentReport,
@@ -67,6 +88,10 @@ from qmbp_simulation.analysis.vqe_validator import (
 from qmbp_simulation.analysis.ground_truth_validator import (
     GroundTruthValidationReport,
     GroundTruthValidator,
+)
+from qmbp_simulation.analysis.quality_predictor import (
+    PredictionReport,
+    QualityPredictor,
 )
 from qmbp_simulation.analysis.cross_n_validator import (
     CrossNValidationReport,
@@ -114,6 +139,8 @@ __all__ = [
     "GradientAnalysisResult",
     "GroundTruthValidationReport",
     "GroundTruthValidator",
+    "PredictionReport",
+    "QualityPredictor",
     "NLCEConfig",
     "NLCEResult",
     "NLCERunner",
@@ -141,12 +168,14 @@ __all__ = [
     "transpiled_circuit_stats",
     "classify_outcome",
     "classify_result",
+    "classify_regime",
     "compute_classification_confidence",
     "compute_cx_budget",
     "detect_jumps",
     "compute_energy_decomposition",
     "compute_fraction_near_gs",
     "compute_hessian",
+    "compute_deploy_summary",
     "compute_snr",
     "compute_staggered_magnetization",
     "compute_theta_smoothness",

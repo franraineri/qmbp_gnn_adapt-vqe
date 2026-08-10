@@ -30,6 +30,7 @@ from project_health.digest.models import (
     ScalingResult,
     compute_verdict,
 )
+from qmbp_simulation.analysis.metrics import classify_regime
 
 logger = logging.getLogger(__name__)
 
@@ -643,6 +644,17 @@ class ResultScanner:
         # Extract run timestamp from filename (pipeline_run_YYYYMMDD_HHMMSS.json)
         run_timestamp = _extract_timestamp_from_filename(path.name)
 
+        # Derive regime from h_test (worst-case h → hardest regime)
+        _h_test_vals = config.get("h_test", [])
+        _j_val = float(config.get("J", system.get("J", 1.0)))
+        if _h_test_vals:
+            # Classify by the minimum h in h_test (hardest regime dominates)
+            _regime = classify_regime(min(_h_test_vals), _j_val)
+        elif config.get("h_values"):
+            _regime = classify_regime(min(config["h_values"]), _j_val)
+        else:
+            _regime = ""
+
         return NoiselessResult(
             source_file=str(path),
             folder=folder,
@@ -688,6 +700,8 @@ class ResultScanner:
             elapsed_s=data.get("elapsed_s", 0),
             run_timestamp=run_timestamp,
             variant_id=folder,
+            # Regime
+            regime=_regime,
         )
 
     def _parse_noisy_file(self, path: Path, folder: str) -> NoisyResult | None:

@@ -398,7 +398,8 @@ class TestPhase4GraphConstruction:
 
         # Training graph construction (from build_graph_dataset)
         h_values = np.array([2.0, 1.5, 1.0])
-        theta_opt = np.random.rand(3, 2)
+        # Use smooth theta to avoid basin filter
+        theta_opt = np.array([[0.1, 0.2], [0.12, 0.22], [0.14, 0.24]])
         e_exact = np.array([-5.0, -4.5, -4.0])
         fidelities = np.ones(3)
         dataset = build_graph_dataset(lattice, h_values, theta_opt, e_exact, fidelities)

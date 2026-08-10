@@ -1,0 +1,316 @@
+{
+  "s1": {
+    "section": 1,
+    "all_pass": true,
+    "stats": {
+      "depth": 55,
+      "depth_2q": 14,
+      "n_2q_gates": 18,
+      "n_1q_gates": 126,
+      "total_gates": 144,
+      "count_ops": {
+        "rz": 64,
+        "sx": 54,
+        "cz": 18,
+        "x": 8
+      },
+      "num_tensor_factors": 147,
+      "width": 156,
+      "active_qubits": 10
+    },
+    "checks": [
+      [
+        "depth",
+        true
+      ],
+      [
+        "total_gates == size",
+        true
+      ],
+      [
+        "width",
+        true
+      ],
+      [
+        "num_tensor_factors",
+        true
+      ],
+      [
+        "count_ops match",
+        true
+      ],
+      [
+        "n_2q consistent with count_ops",
+        true
+      ],
+      [
+        "active_qubits == 10",
+        true
+      ]
+    ]
+  },
+  "s2": {
+    "section": 2,
+    "results": [
+      {
+        "depth": 70,
+        "depth_2q": 18,
+        "n_2q_gates": 18,
+        "n_1q_gates": 139,
+        "total_gates": 157,
+        "count_ops": {
+          "rz": 70,
+          "sx": 60,
+          "cz": 18,
+          "x": 9
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "topology": "chain_1d",
+        "n_logical": 10,
+        "p_layers": 1
+      },
+      {
+        "depth": 83,
+        "depth_2q": 24,
+        "n_2q_gates": 47,
+        "n_1q_gates": 206,
+        "total_gates": 253,
+        "count_ops": {
+          "rz": 91,
+          "sx": 104,
+          "cz": 47,
+          "x": 11
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "topology": "ladder",
+        "n_logical": 10,
+        "p_layers": 1
+      },
+      {
+        "depth": 59,
+        "depth_2q": 14,
+        "n_2q_gates": 18,
+        "n_1q_gates": 131,
+        "total_gates": 149,
+        "count_ops": {
+          "rz": 68,
+          "sx": 54,
+          "cz": 18,
+          "x": 9
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "topology": "heavy_hex",
+        "n_logical": 10,
+        "p_layers": 1
+      },
+      {
+        "depth": 161,
+        "depth_2q": 47,
+        "n_2q_gates": 74,
+        "n_1q_gates": 277,
+        "total_gates": 351,
+        "count_ops": {
+          "rz": 113,
+          "sx": 157,
+          "cz": 74,
+          "x": 7
+        },
+        "num_tensor_factors": 148,
+        "width": 156,
+        "active_qubits": 9,
+        "topology": "triangular",
+        "n_logical": 9,
+        "p_layers": 1
+      }
+    ]
+  },
+  "s3": {
+    "section": 3,
+    "results": [
+      {
+        "depth": 57,
+        "depth_2q": 14,
+        "n_2q_gates": 18,
+        "n_1q_gates": 130,
+        "total_gates": 148,
+        "count_ops": {
+          "rz": 68,
+          "sx": 54,
+          "cz": 18,
+          "x": 8
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "error_budget": {
+          "optimistic": 0.0993,
+          "typical": 0.15950000000000003,
+          "pessimistic": 0.30100000000000005
+        },
+        "fidelity_estimate": 0.8525699673964232,
+        "label": "heavy_hex N=10 p=1 (deploy)"
+      },
+      {
+        "depth": 57,
+        "depth_2q": 14,
+        "n_2q_gates": 20,
+        "n_1q_gates": 127,
+        "total_gates": 147,
+        "count_ops": {
+          "rz": 63,
+          "sx": 58,
+          "cz": 20,
+          "x": 6
+        },
+        "num_tensor_factors": 151,
+        "width": 156,
+        "active_qubits": 6,
+        "error_budget": {
+          "optimistic": 0.1096,
+          "typical": 0.17600000000000002,
+          "pessimistic": 0.332
+        },
+        "fidelity_estimate": 0.8386179833370739,
+        "label": "chain_1d N=6 p=2 (ref)"
+      },
+      {
+        "depth": 70,
+        "depth_2q": 18,
+        "n_2q_gates": 18,
+        "n_1q_gates": 141,
+        "total_gates": 159,
+        "count_ops": {
+          "rz": 72,
+          "sx": 60,
+          "cz": 18,
+          "x": 9
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "error_budget": {
+          "optimistic": 0.10035,
+          "typical": 0.16125000000000003,
+          "pessimistic": 0.30450000000000005
+        },
+        "fidelity_estimate": 0.8510792746900347,
+        "label": "chain_1d N=10 p=1 (scaling)"
+      }
+    ]
+  },
+  "s4": {
+    "section": 4,
+    "results": [
+      {
+        "depth": 136,
+        "depth_2q": 32,
+        "n_2q_gates": 45,
+        "n_1q_gates": 251,
+        "total_gates": 296,
+        "count_ops": {
+          "rz": 131,
+          "sx": 120,
+          "cz": 45
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "opt_level": 0
+      },
+      {
+        "depth": 72,
+        "depth_2q": 14,
+        "n_2q_gates": 18,
+        "n_1q_gates": 105,
+        "total_gates": 123,
+        "count_ops": {
+          "rz": 65,
+          "sx": 40,
+          "cz": 18
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "opt_level": 1
+      },
+      {
+        "depth": 55,
+        "depth_2q": 14,
+        "n_2q_gates": 18,
+        "n_1q_gates": 126,
+        "total_gates": 144,
+        "count_ops": {
+          "rz": 64,
+          "sx": 54,
+          "cz": 18,
+          "x": 8
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "opt_level": 2
+      },
+      {
+        "depth": 55,
+        "depth_2q": 14,
+        "n_2q_gates": 18,
+        "n_1q_gates": 126,
+        "total_gates": 144,
+        "count_ops": {
+          "rz": 64,
+          "sx": 54,
+          "cz": 18,
+          "x": 8
+        },
+        "num_tensor_factors": 147,
+        "width": 156,
+        "active_qubits": 10,
+        "opt_level": 3
+      }
+    ]
+  },
+  "s5": {
+    "section": 5,
+    "results": [
+      {
+        "label": "heavy_hex N=10 p=1",
+        "logical_depth": 3,
+        "physical_depth": 65,
+        "depth_overhead": 62,
+        "logical_2q": 0,
+        "physical_2q": 18,
+        "swap_overhead_2q": 18,
+        "depth_2q": 14,
+        "active_qubits": 10
+      },
+      {
+        "label": "chain_1d N=6 p=2",
+        "logical_depth": 5,
+        "physical_depth": 57,
+        "depth_overhead": 52,
+        "logical_2q": 0,
+        "physical_2q": 20,
+        "swap_overhead_2q": 20,
+        "depth_2q": 14,
+        "active_qubits": 6
+      },
+      {
+        "label": "chain_1d N=20 p=1",
+        "logical_depth": 3,
+        "physical_depth": 158,
+        "depth_overhead": 155,
+        "logical_2q": 0,
+        "physical_2q": 38,
+        "swap_overhead_2q": 38,
+        "depth_2q": 38,
+        "active_qubits": 20
+      }
+    ]
+  }
+}

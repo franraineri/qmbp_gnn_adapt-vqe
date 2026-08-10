@@ -205,6 +205,36 @@ def step_0_preflight(args: argparse.Namespace) -> bool:
     RESULTS_BASE.mkdir(parents=True, exist_ok=True)
     print(f"  ✓ Results dir: {RESULTS_BASE}")
 
+    # Quality prediction check — warn before spending QPU time on ABORT configs
+    try:
+        from qmbp_simulation.analysis.quality_predictor import QualityPredictor
+
+        predictor = QualityPredictor()
+        topology = getattr(args, "topology", "heavy_hex")
+        n_qubits = getattr(args, "n_qubits", 10)
+        p_layers = getattr(args, "p_layers", 2)
+        model = getattr(args, "model", "tfim")
+        report = predictor.predict(
+            model=model, topology=topology,
+            n_qubits=n_qubits, p_layers=p_layers,
+        )
+        if not report.should_run:
+            print(
+                f"  ⚠️  QUALITY WARNING: Historical pass rate = "
+                f"{report.pass_probability:.0%} (ABORT recommended). "
+                f"This config may waste QPU time."
+            )
+            print(f"      Reasons: {'; '.join(report.reasons)}")
+            if not args.dry_run:
+                print("      Proceeding anyway (use --dry-run to preview).")
+        else:
+            print(
+                f"  ✓ Quality prediction: {report.recommendation} "
+                f"({report.pass_probability:.0%})"
+            )
+    except (ImportError, Exception):
+        pass  # Non-blocking
+
     log_step("preflight", "PASS")
     return True
 

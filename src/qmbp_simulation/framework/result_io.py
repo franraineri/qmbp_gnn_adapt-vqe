@@ -634,3 +634,296 @@ def extract_run_metadata_summary(data: dict[str, Any]) -> dict[str, Any]:
         "backend_type": data.get("simulation_diagnostics", {}).get("backend_type"),
         "method_exact": data.get("simulation_diagnostics", {}).get("method_exact"),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NPZ Dataset Utilities — Atomic upsert for θ training data
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def upsert_theta_npz(
+    npz_path: Path,
+    h_new: "np.ndarray",
+    theta_new: "np.ndarray",
+    e_vqe_new: "np.ndarray",
+    e_exact_new: "np.ndarray",
+    gaps_new: "np.ndarray | None" = None,
+    method_new: "list[str] | None" = None,
+) -> tuple[int, int]:
+    """Atomically update NPZ keeping best θ per h-point (lower energy wins).
+
+    This is the canonical utility for persisting VQE/MPNN training data.
+    All runners should use this instead of manual np.savez() to ensure:
+    1. Atomic writes (tmp → rename) — no corrupt files on crash
+    2. Anti-regression — only updates if new energy is lower
+    3. Input validation — filters NaN/Inf automatically
+    4. Consistent schema — h_values, theta_opt, e_vqe, e_exact, gaps, de_gaps, method
+
+    Parameters
+    ----------
+    npz_path : Path
+        Path to the .npz file (created if not exists).
+    h_new : np.ndarray
+        Array of h-values to upsert. Shape: (n_points,)
+    theta_new : np.ndarray
+        Array of θ vectors. Shape: (n_points, n_params)
+    e_vqe_new : np.ndarray
+        Computed/predicted energies. Shape: (n_points,)
+    e_exact_new : np.ndarray
+        Exact ground state energies. Shape: (n_points,)
+    gaps_new : np.ndarray | None
+        Spectral gaps (optional). Shape: (n_points,)
+    method_new : list[str] | None
+        Method labels (e.g., "vqe", "mpnn_pred"). Defaults to "unknown".
+
+    Returns
+    -------
+    tuple[int, int]
+        (n_updated, n_added) — counts of updated and newly added entries.
+    """
+    import numpy as np
+
+    npz_path = Path(npz_path)
+
+    # ── Input validation ──────────────────────────────────────────────
+    if len(h_new) != len(theta_new) or len(h_new) != len(e_vqe_new) or len(h_new) != len(e_exact_new):
+        raise ValueError(
+            f"Length mismatch: h={len(h_new)}, θ={len(theta_new)}, "
+            f"e_vqe={len(e_vqe_new)}, e_exact={len(e_exact_new)}"
+        )
+
+    # Filter out invalid entries (NaN/Inf in θ or energies)
+    valid_mask = np.array([
+        np.all(np.isfinite(theta_new[i])) and
+        np.isfinite(e_vqe_new[i]) and
+        np.isfinite(e_exact_new[i])
+        for i in range(len(h_new))
+    ])
+    if not valid_mask.all():
+        n_invalid = int((~valid_mask).sum())
+        logger.warning(f"upsert_theta_npz: filtering {n_invalid} invalid entries (NaN/Inf)")
+        h_new = h_new[valid_mask]
+        theta_new = theta_new[valid_mask]
+        e_vqe_new = e_vqe_new[valid_mask]
+        e_exact_new = e_exact_new[valid_mask]
+        if gaps_new is not None:
+            gaps_new = gaps_new[valid_mask]
+        if method_new is not None:
+            method_new = [method_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
+
+    if len(h_new) == 0:
+        return 0, 0
+
+    # ── Load existing data ────────────────────────────────────────────
+    if npz_path.exists():
+        try:
+            existing = np.load(npz_path, allow_pickle=True)
+            h_all = existing["h_values"].tolist()
+            # Handle both legacy (dtype=object) and new (dtype=float64) theta arrays
+            raw_theta = existing["theta_opt"]
+            theta_all = []
+            for row in raw_theta:
+                # Convert to float64 array regardless of original dtype
+                try:
+                    theta_all.append(np.asarray(row, dtype=np.float64))
+                except (ValueError, TypeError):
+                    # Corrupt entry — will be filtered in validation below
+                    theta_all.append(np.array([np.nan]))
+
+            e_key = "e_vqe" if "e_vqe" in existing else "energies"
+            e_vqe_all = existing[e_key].tolist() if e_key in existing else [0.0] * len(h_all)
+            e_exact_all = existing["e_exact"].tolist()
+            gaps_all = existing["gaps"].tolist() if "gaps" in existing else [0.0] * len(h_all)
+            method_all = existing["method"].tolist() if "method" in existing else ["unknown"] * len(h_all)
+
+            # Validate existing data integrity
+            n_existing_before = len(h_all)
+            valid_existing = []
+            for j in range(len(h_all)):
+                theta_j = theta_all[j]
+                # Check: non-empty, finite values, finite energy
+                if (len(theta_j) > 0 and
+                    np.all(np.isfinite(theta_j)) and
+                    np.isfinite(e_vqe_all[j])):
+                    valid_existing.append(j)
+
+            if len(valid_existing) < n_existing_before:
+                logger.warning(
+                    f"upsert_theta_npz: removed {n_existing_before - len(valid_existing)} "
+                    f"corrupt entries from existing NPZ"
+                )
+                h_all = [h_all[j] for j in valid_existing]
+                theta_all = [theta_all[j] for j in valid_existing]
+                e_vqe_all = [e_vqe_all[j] for j in valid_existing]
+                e_exact_all = [e_exact_all[j] for j in valid_existing]
+                gaps_all = [gaps_all[j] for j in valid_existing]
+                method_all = [method_all[j] for j in valid_existing]
+        except Exception as e:
+            logger.warning(f"upsert_theta_npz: failed to load existing NPZ ({e}), starting fresh")
+            h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all = [], [], [], [], [], []
+    else:
+        h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all = [], [], [], [], [], []
+
+    # ── Merge: anti-regression (lower energy wins) ────────────────────
+    n_updated, n_added = 0, 0
+    for i, h in enumerate(h_new):
+        h_val = float(h)
+        gap_i = float(gaps_new[i]) if gaps_new is not None and i < len(gaps_new) else 0.0
+        method_i = method_new[i] if method_new is not None and i < len(method_new) else "unknown"
+
+        # Find existing entry for this h (within tolerance)
+        match_idx = next(
+            (j for j, hj in enumerate(h_all) if abs(hj - h_val) < 1e-6),
+            None,
+        )
+        if match_idx is not None:
+            # Only update if new energy is strictly lower (anti-regression)
+            if float(e_vqe_new[i]) < float(e_vqe_all[match_idx]):
+                theta_all[match_idx] = theta_new[i]
+                e_vqe_all[match_idx] = float(e_vqe_new[i])
+                method_all[match_idx] = str(method_i)
+                if gap_i > 0:
+                    gaps_all[match_idx] = gap_i
+                n_updated += 1
+        else:
+            # New h-point: append
+            h_all.append(h_val)
+            theta_all.append(theta_new[i])
+            e_vqe_all.append(float(e_vqe_new[i]))
+            e_exact_all.append(float(e_exact_new[i]))
+            gaps_all.append(gap_i)
+            method_all.append(str(method_i))
+            n_added += 1
+
+    # ── Compute ΔE/gap from stored energies ───────────────────────────
+    de_gaps_all = []
+    for j in range(len(h_all)):
+        gap_j = gaps_all[j] if gaps_all[j] > 1e-10 else 1e-10
+        de_gaps_all.append(abs(e_vqe_all[j] - e_exact_all[j]) / gap_j)
+
+    # ── Atomic write: tmp → rename ────────────────────────────────────
+    npz_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = npz_path.with_suffix(".tmp.npz")
+    try:
+        # Convert theta_all to array. If all entries have the same shape,
+        # use a regular 2D float array. Otherwise fall back to object array.
+        theta_shapes = {np.asarray(t).shape for t in theta_all}
+        if len(theta_shapes) == 1:
+            # All same shape → regular 2D array (PyTorch compatible)
+            theta_arr = np.array([np.asarray(t, dtype=np.float64) for t in theta_all])
+        else:
+            # Ragged array (different N/p mixed) → object array
+            # Note: This case is rare and may cause issues with PyTorch loaders
+            logger.warning(
+                f"upsert_theta_npz: mixed θ shapes {theta_shapes} → using object array"
+            )
+            theta_arr = np.array(theta_all, dtype=object)
+
+        np.savez(
+            tmp_path,
+            h_values=np.array(h_all),
+            theta_opt=theta_arr,
+            e_vqe=np.array(e_vqe_all),
+            e_exact=np.array(e_exact_all),
+            gaps=np.array(gaps_all),
+            de_gaps=np.array(de_gaps_all),
+            method=np.array(method_all),
+        )
+        tmp_path.rename(npz_path)
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
+
+    return n_updated, n_added
+
+
+def load_theta_npz(npz_path: Path) -> dict[str, "np.ndarray"]:
+    """Load θ training data from NPZ file with validation.
+
+    Parameters
+    ----------
+    npz_path : Path
+        Path to the .npz file.
+
+    Returns
+    -------
+    dict
+        Keys: h_values, theta_opt, e_vqe, e_exact, gaps, de_gaps, method
+        All arrays are validated (no NaN/Inf in θ or energies).
+
+    Raises
+    ------
+    FileNotFoundError
+        If file doesn't exist.
+    ValueError
+        If file is corrupt or has invalid schema.
+    """
+    import numpy as np
+
+    npz_path = Path(npz_path)
+    if not npz_path.exists():
+        raise FileNotFoundError(f"Theta NPZ file not found: {npz_path}")
+
+    try:
+        data = np.load(npz_path, allow_pickle=True)
+    except Exception as e:
+        raise ValueError(f"Failed to load NPZ file {npz_path}: {e}") from e
+
+    required_keys = {"h_values", "theta_opt", "e_exact"}
+    missing = required_keys - set(data.keys())
+    if missing:
+        raise ValueError(f"NPZ file missing required keys: {missing}")
+
+    # Convert theta_opt to consistent float64 format (handles legacy object arrays)
+    raw_theta = data["theta_opt"]
+    if raw_theta.dtype == object:
+        # Legacy format: array of arrays with dtype=object
+        theta_list = []
+        for row in raw_theta:
+            try:
+                theta_list.append(np.asarray(row, dtype=np.float64))
+            except (ValueError, TypeError):
+                theta_list.append(np.array([np.nan]))  # Mark as invalid
+        # Check if all have same shape (normal case)
+        shapes = {t.shape for t in theta_list}
+        if len(shapes) == 1:
+            theta_arr = np.array(theta_list, dtype=np.float64)
+        else:
+            # Ragged array — keep as object but convert inner arrays
+            theta_arr = np.array(theta_list, dtype=object)
+    else:
+        theta_arr = raw_theta
+
+    result = {
+        "h_values": data["h_values"],
+        "theta_opt": theta_arr,
+        "e_vqe": data.get("e_vqe", data.get("energies", np.zeros_like(data["h_values"]))),
+        "e_exact": data["e_exact"],
+        "gaps": data.get("gaps", np.zeros_like(data["h_values"])),
+        "de_gaps": data.get("de_gaps", np.zeros_like(data["h_values"])),
+        "method": data.get("method", np.array(["unknown"] * len(data["h_values"]))),
+    }
+
+    # Validate: filter corrupt entries
+    n_total = len(result["h_values"])
+    valid_mask = []
+    for i in range(n_total):
+        theta_i = result["theta_opt"][i]
+        # Convert to array if needed and check finite
+        try:
+            theta_arr_i = np.asarray(theta_i, dtype=np.float64)
+            is_valid = np.all(np.isfinite(theta_arr_i)) and np.isfinite(result["e_vqe"][i])
+        except (ValueError, TypeError):
+            is_valid = False
+        valid_mask.append(is_valid)
+
+    valid_mask = np.array(valid_mask)
+    if not valid_mask.all():
+        n_invalid = int((~valid_mask).sum())
+        logger.warning(f"load_theta_npz: {n_invalid}/{n_total} entries have NaN/Inf (filtered)")
+        for key in result:
+            if isinstance(result[key], np.ndarray) and len(result[key]) == n_total:
+                result[key] = result[key][valid_mask]
+
+    return result

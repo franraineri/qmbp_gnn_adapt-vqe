@@ -1,0 +1,82 @@
+{
+  "schema_version": "2.0",
+  "timestamp": "2026-07-02T17:23:39",
+  "config": {
+    "runner_id": "noiseless_pipeline_v4",
+    "experiment_id": "noiseless/tfim/chain_1d",
+    "system": {"n_qubits": 4, "p_layers": 1, "topologies": ["chain_1d"], "model": "tfim"},
+    "h_grid": {"h_min": 1.5, "h_max": 3.0, "h_points": 5},
+    "vqe": {"maxiter": 500, "n_restarts": 5, "method": "L-BFGS-B"},
+    "seeds": [42]
+  },
+  "elapsed_s": 48.0,
+  "results": {
+    "section_1": {
+      "name": "Exact Diagonalization (Ground Truth)",
+      "success": true,
+      "elapsed_s": 0.5,
+      "data": {
+        "pass": true,
+        "topologies": {
+          "chain_1d": {
+            "n_points": 5, "e_min": -5.83, "e_max": -4.12,
+            "gap_min": 1.0, "gap_max": 4.0,
+            "validation_passed": true, "validation_warnings": [], "validation_errors": []
+          }
+        },
+        "h_values": [3.0, 2.625, 2.25, 1.875, 1.5],
+        "n_qubits": 4, "model": "tfim"
+      },
+      "error": null
+    },
+    "section_2": {
+      "name": "VQE Optimization (NoiselessBackend)",
+      "success": true,
+      "elapsed_s": 2.0,
+      "data": {
+        "pass": true,
+        "topologies": {
+          "chain_1d": {
+            "n_points": 5, "n_pass_5pct": 5,
+            "mean_fidelity": 0.9985, "min_fidelity": 0.9940,
+            "mean_de_gap": 0.005, "max_de_gap": 0.02,
+            "theta_smoothness_max": 0.3, "theta_smoothness_mean": 0.1,
+            "n_converged": 5, "mean_entanglement_entropy": 0.5,
+            "total_time_s": 1.8, "pass": true,
+            "per_point": [
+              {"h": 3.0, "energy_vqe": -5.82, "energy_exact": -5.83, "gap": 4.0, "de_gap": 0.003, "fidelity": 0.999, "entanglement_entropy": 0.3, "n_iterations": 12, "n_restarts_used": 0, "converged": true, "theta_change_linf": 0.01, "elapsed_s": 0.3, "theta_opt": [0.1, -0.2]},
+              {"h": 2.625, "energy_vqe": -5.41, "energy_exact": -5.42, "gap": 3.25, "de_gap": 0.004, "fidelity": 0.998, "entanglement_entropy": 0.4, "n_iterations": 15, "n_restarts_used": 0, "converged": true, "theta_change_linf": 0.05, "elapsed_s": 0.4, "theta_opt": [0.15, -0.25]},
+              {"h": 2.25, "energy_vqe": -4.95, "energy_exact": -4.96, "gap": 2.5, "de_gap": 0.006, "fidelity": 0.997, "entanglement_entropy": 0.5, "n_iterations": 18, "n_restarts_used": 1, "converged": true, "theta_change_linf": 0.08, "elapsed_s": 0.4, "theta_opt": [0.2, -0.3]},
+              {"h": 1.875, "energy_vqe": -4.52, "energy_exact": -4.53, "gap": 1.75, "de_gap": 0.008, "fidelity": 0.996, "entanglement_entropy": 0.6, "n_iterations": 22, "n_restarts_used": 1, "converged": true, "theta_change_linf": 0.12, "elapsed_s": 0.5, "theta_opt": [0.25, -0.35]},
+              {"h": 1.5, "energy_vqe": -4.10, "energy_exact": -4.12, "gap": 1.0, "de_gap": 0.020, "fidelity": 0.994, "entanglement_entropy": 0.7, "n_iterations": 30, "n_restarts_used": 2, "converged": true, "theta_change_linf": 0.15, "elapsed_s": 0.6, "theta_opt": [0.3, -0.4]}
+            ]
+          }
+        }
+      },
+      "error": null
+    },
+    "section_3": {
+      "name": "MPNN Training",
+      "success": true, "elapsed_s": 15.0,
+      "data": {"pass": true, "topology": "chain_1d", "n_training_points": 5, "n_output_params": 2, "final_mse": 0.001, "stopped_early": false, "stop_reason": "completed"},
+      "error": null
+    },
+    "section_4": {
+      "name": "Deploy (Predict + Evaluate)",
+      "success": true, "elapsed_s": 1.0,
+      "data": {
+        "pass": true, "n_test_points": 4, "n_pass_energy": 4, "n_correct_label": 4,
+        "mean_de_gap": 0.008, "max_de_gap": 0.02, "mean_fidelity": 0.997, "speedup_factor": 50.0,
+        "per_point": [
+          {"h_test": 1.6875, "e_pred": -4.31, "e_exact": -4.32, "de_gap": 0.01, "fidelity": 0.996, "de_gap_random_init": 0.5, "label_correct": true},
+          {"h_test": 2.0625, "e_pred": -4.73, "e_exact": -4.74, "de_gap": 0.007, "fidelity": 0.998, "de_gap_random_init": 0.3, "label_correct": true},
+          {"h_test": 2.4375, "e_pred": -5.18, "e_exact": -5.19, "de_gap": 0.005, "fidelity": 0.999, "de_gap_random_init": 0.2, "label_correct": true},
+          {"h_test": 2.8125, "e_pred": -5.62, "e_exact": -5.63, "de_gap": 0.003, "fidelity": 0.999, "de_gap_random_init": 0.1, "label_correct": true}
+        ]
+      },
+      "error": null
+    }
+  },
+  "summary": {"n_sections": 4, "n_passed": 4, "n_failed": 0, "pass_rate": 1.0, "total_time_s": 48.0, "all_passed": true},
+  "metadata": {"python_version": "3.12.13", "qiskit_version": "2.4.1"}
+}

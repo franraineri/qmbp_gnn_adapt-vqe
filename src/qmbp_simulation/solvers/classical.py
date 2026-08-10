@@ -22,6 +22,7 @@ from qmbp_simulation.models import (
     GroundTruthResult,
     LatticeConfig,
 )
+from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class ClassicalSolver:
         *,
         obs_x: list[SparsePauliOp] | None = None,
         obs_zz: list[SparsePauliOp] | None = None,
+        chi_max: int | None = None,
     ) -> GroundTruthResult:
         """Solve for the ground state of *hamiltonian*.
 
@@ -58,6 +60,10 @@ class ClassicalSolver:
             Per-site X observables.  Built automatically if ``None``.
         obs_zz : list[SparsePauliOp] | None
             Per-bond ZZ observables.  Built automatically if ``None``.
+        chi_max : int | None
+            MPS bond dimension for DMRG. If None, uses dynamic scaling
+            (200-400 for 1D, min(256, 2^(N/2)) for 2D). Useful for studying
+            the effect of truncation on ground state precision.
 
         Returns
         -------
@@ -66,7 +72,20 @@ class ClassicalSolver:
         n = lattice.n_qubits
 
         if method == "auto":
-            method = "exact" if n <= EXACT_DIAG_QUBIT_LIMIT else "dmrg"
+            # For N ≤ STATEVECTOR_MAX_N (18), use exact diag (fast, exact).
+            # For 18 < N ≤ EXACT_DIAG_QUBIT_LIMIT (22): attempt exact diag,
+            # but fall back to DMRG if eigsh segfaults (known macOS ARM64 issue
+            # with ARPACK for dim > 500k).
+            # For N > 22: always DMRG.
+            if n <= STATEVECTOR_MAX_N:
+                method = "exact"
+            elif n <= EXACT_DIAG_QUBIT_LIMIT:
+                # Try exact diag for N=19-22 — works on most platforms,
+                # but may segfault on macOS ARM64 due to Accelerate framework.
+                method = "exact"
+            else:
+                method = "dmrg"
+
         logger.debug(
             "ClassicalSolver.solve: n=%d, method=%s, topology=%s, h=%s",
             n,
@@ -87,7 +106,41 @@ class ClassicalSolver:
         elif method == "dmrg":
             if n > DMRG_QUBIT_LIMIT:
                 raise ValueError(f"DMRG supports up to {DMRG_QUBIT_LIMIT} qubits, got {n}.")
-            return self._solve_dmrg(hamiltonian, lattice, obs_x, obs_zz)
+            result = self._solve_dmrg(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
+
+            # ── Cross-validation guard: verify DMRG vs eigsh when feasible ──
+            # This catches the class of bugs where DMRG silently drops bonds
+            # (e.g., using 1D TFIChain for a 2D topology). Cost: one extra
+            # eigsh(k=1) call (~1-50s for N≤22), but prevents catastrophic errors.
+            if n <= STATEVECTOR_MAX_N and lattice.topology != "chain_1d":
+                try:
+                    from scipy.sparse.linalg import eigsh as _eigsh
+
+                    H_sparse = hamiltonian.to_matrix(sparse=True)
+                    e_exact = float(_eigsh(H_sparse, k=1, which="SA", return_eigenvectors=False)[0])
+                    delta = abs(result.ground_energy - e_exact)
+                    if delta > 1e-4:
+                        logger.error(
+                            "⛔ DMRG cross-validation FAILED for %s N=%d h=%.4f: "
+                            "|E_dmrg - E_exact| = %.2e (threshold=1e-4). "
+                            "This indicates a DMRG modeling error (missing bonds?). "
+                            "Falling back to exact diag.",
+                            lattice.topology,
+                            n,
+                            float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h)),
+                            delta,
+                        )
+                        # Fall back to exact — guaranteed correct
+                        return self._solve_exact(hamiltonian, lattice, obs_x, obs_zz)
+                    elif delta > 1e-8:
+                        logger.debug(
+                            "DMRG cross-validation OK for %s N=%d: |ΔE|=%.2e",
+                            lattice.topology, n, delta,
+                        )
+                except Exception as exc:
+                    logger.debug("DMRG cross-validation skipped: %s", exc)
+
+            return result
         else:
             raise ValueError(f"Unknown method '{method}'. Use 'exact', 'dmrg', or 'auto'.")
 
@@ -444,19 +497,153 @@ class ClassicalSolver:
         lattice: LatticeConfig,
         obs_x: list[SparsePauliOp],
         obs_zz: list[SparsePauliOp],
+        *,
+        chi_max: int | None = None,
     ) -> GroundTruthResult:
         """DMRG ground state solver using TeNPy.
 
         Dispatches between:
         - TFIChain: for 1D chain topology (fastest, native TeNPy model)
         - SpinModel + 2D lattice: for square/triangular (genuine 2D DMRG)
-        - TFIChain with snake ordering: for other quasi-1D topologies
+        - GraphDMRG (CouplingMPOModel): for heavy_hex/ladder/kagome/arbitrary
+          topologies where bonds are non-sequential. Uses explicit edge list
+          to build the MPO correctly.
 
         Returns E₀, gap, local observables.  ψ_gs is None (MPS, not statevector).
         """
+        # Suppress verbose TeNPy sweep logs (INFO level prints per-sweep stats)
+        logging.getLogger("tenpy").setLevel(logging.WARNING)
+
+        # Topologies with native TeNPy 2D lattice support
         if lattice.topology in ("square", "triangular") and lattice.n_qubits >= 9:
-            return self._solve_dmrg_2d(hamiltonian, lattice, obs_x, obs_zz)
-        return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz)
+            return self._solve_dmrg_2d(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
+
+        # Topologies with non-sequential bonds: use graph-based DMRG
+        # This handles heavy_hex, ladder, kagome correctly by encoding ALL edges
+        _GRAPH_TOPOLOGIES = ("heavy_hex", "ladder", "kagome")
+        if lattice.topology in _GRAPH_TOPOLOGIES:
+            return self._solve_dmrg_graph(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
+
+        # Default: 1D chain (TFIChain, only sequential bonds)
+        return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
+
+    def _solve_dmrg_graph(
+        self,
+        hamiltonian: SparsePauliOp,
+        lattice: LatticeConfig,
+        obs_x: list[SparsePauliOp],
+        obs_zz: list[SparsePauliOp],
+        *,
+        chi_max: int | None = None,
+    ) -> GroundTruthResult:
+        """DMRG for arbitrary graph topologies via CouplingMPOModel.
+
+        Builds the Hamiltonian MPO from the explicit edge list in lattice.edges.
+        Works for any topology (heavy_hex, ladder, kagome, etc.) by encoding
+        every bond (i,j) as a coupling term in the MPO.
+
+        The MPS uses a linear ordering (Chain lattice container) — TeNPy handles
+        long-range couplings via MPO bond dimension growth. For N≤30 with
+        chi_max≥128, this gives exact results.
+
+        Convention mapping (Pauli → TeNPy spin-1/2):
+            Z_i = 2 * Sz_i  →  ZZ coupling: -4J * Sz_i * Sz_j
+            X_i = 2 * Sx_i  →  X field: -2h * Sx_i
+        """
+        try:
+            from tenpy.algorithms import dmrg as tenpy_dmrg
+            from tenpy.models.lattice import Chain
+            from tenpy.models.model import CouplingMPOModel
+            from tenpy.networks.mps import MPS
+            from tenpy.networks.site import SpinHalfSite
+        except ImportError as exc:
+            raise ImportError(
+                "TeNPy is required for DMRG. Install via: pip install physics-tenpy"
+            ) from exc
+
+        n = lattice.n_qubits
+        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
+        j_val = float(lattice.J) if np.isscalar(lattice.J) else float(np.mean(lattice.J))
+        edges = lattice.edges
+
+        logger.info(
+            f"_solve_dmrg_graph: {lattice.topology} N={n}, {len(edges)} edges, "
+            f"h={h_val:.4f}, chi_max={chi_max}"
+        )
+
+        # Build TeNPy model with explicit edge coupling
+        site = SpinHalfSite(conserve=None)
+        lat = Chain(L=n, site=site, bc_MPS="finite")
+
+        class _GraphTFIM(CouplingMPOModel):
+            def init_terms(self, model_params):
+                _J = model_params.get("J", 1.0)
+                _h = model_params.get("h", 1.0)
+                _edges = model_params.get("edges", [])
+                for i in range(self.lat.N_sites):
+                    self.add_onsite_term(-2.0 * _h, i, "Sx")
+                for i, j in _edges:
+                    ii, jj = (i, j) if i < j else (j, i)
+                    self.add_coupling_term(-4.0 * _J, ii, jj, "Sz", "Sz")
+
+        params = {"lattice": lat, "J": j_val, "h": h_val, "edges": edges}
+        model = _GraphTFIM(params)
+
+        # Initial state: |+⟩^N (paramagnetic, Sx eigenstate)
+        # In TeNPy spin-1/2: "up" is Sz=+0.5 eigenstate
+        psi = MPS.from_lat_product_state(lat, [["up"]] * n)
+
+        # DMRG parameters
+        _chi = chi_max if chi_max is not None else min(256, max(64, 2 ** (n // 3)))
+        dmrg_params = {
+            "mixer": True,
+            "max_E_err": 1e-12,
+            "trunc_params": {"chi_max": _chi, "svd_min": 1e-14},
+            "max_sweeps": 80,
+        }
+
+        eng = tenpy_dmrg.TwoSiteDMRGEngine(psi, model, dmrg_params)
+        e0, _ = eng.run()
+
+        # Gap estimation
+        from qmbp_simulation.models.constants import EXACT_GAP_QUBIT_LIMIT
+
+        if n <= EXACT_GAP_QUBIT_LIMIT:
+            try:
+                from scipy.sparse.linalg import eigsh as _eigsh
+
+                H_sparse = hamiltonian.to_matrix(sparse=True)
+                evals_k2, _ = _eigsh(H_sparse, k=2, which="SA")
+                evals_k2 = np.sort(evals_k2)
+                gap = float(evals_k2[1] - evals_k2[0])
+            except Exception:
+                gap = 2 * np.pi / n
+        else:
+            gap = 2 * np.pi / n
+
+        # Local observables from MPS
+        per_site_sx = np.real(psi.expectation_value("Sx"))
+        per_site_mx = np.abs(2.0 * per_site_sx)  # Pauli X = 2*Sx
+
+        per_bond_zz = np.zeros(len(edges))
+        try:
+            for idx, (i, j) in enumerate(edges):
+                val = psi.expectation_value_term([("Sz", i), ("Sz", j)])
+                per_bond_zz[idx] = 4.0 * float(np.real(val))
+        except Exception:
+            logger.warning("Could not compute per-bond ZZ via graph DMRG. Using zeros.")
+
+        return GroundTruthResult(
+            h_value=h_val,
+            ground_energy=float(e0),
+            gap=gap,
+            ground_state=None,
+            mag_x=float(np.mean(per_site_mx)),
+            corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
+            per_site_mag_x=per_site_mx,
+            per_bond_corr_zz=per_bond_zz,
+            gap_method="eigsh_fallback" if n <= EXACT_GAP_QUBIT_LIMIT else "floor_2pi_n",
+        )
 
     def _solve_dmrg_2d(
         self,
@@ -464,6 +651,8 @@ class ClassicalSolver:
         lattice: LatticeConfig,
         obs_x: list[SparsePauliOp],
         obs_zz: list[SparsePauliOp],
+        *,
+        chi_max: int | None = None,
     ) -> GroundTruthResult:
         """2D DMRG via TeNPy SpinModel with native Square/Triangular lattice.
 
@@ -527,21 +716,21 @@ class ClassicalSolver:
         actual_sites = model.lat.N_sites
         if actual_sites != n:
             logger.warning(
-                f"TeNPy lattice has {actual_sites} sites but our lattice has {n}. "
-                f"Falling back to 1D DMRG."
+                f"TeNPy 2D lattice has {actual_sites} sites but our lattice has {n}. "
+                f"Using graph-based DMRG instead (preserves all bonds correctly)."
             )
-            return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz)
+            return self._solve_dmrg_graph(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
 
         # Initial state: product state |↑⟩^N (paramagnetic along x at h→∞)
         p_state = [[["up"] for _ in range(cols)] for _ in range(rows)]
         psi = MPS.from_lat_product_state(model.lat, p_state)
 
         # DMRG parameters — higher chi for 2D (more entanglement)
-        chi_max = min(256, 2 ** (n // 2))  # Scale with system size
+        _chi = chi_max if chi_max is not None else min(256, 2 ** (n // 2))
         dmrg_params = {
             "mixer": True,
             "max_E_err": 1e-12,
-            "trunc_params": {"chi_max": chi_max, "svd_min": 1e-12},
+            "trunc_params": {"chi_max": _chi, "svd_min": 1e-12},
             "max_sweeps": 80,
         }
 
@@ -636,6 +825,8 @@ class ClassicalSolver:
         lattice: LatticeConfig,
         obs_x: list[SparsePauliOp],
         obs_zz: list[SparsePauliOp],
+        *,
+        chi_max: int | None = None,
     ) -> GroundTruthResult:
         """DMRG ground state solver using TeNPy for quasi-1D systems.
 
@@ -680,13 +871,14 @@ class ClassicalSolver:
         # - N≤50: chi_max=200 (backward-compatible with previous hardcoded value)
         # - N=60: chi_max=240
         # - N=100: chi_max=400 (capped to limit O(N·χ³) compute time)
-        chi_max = min(400, max(200, 4 * n))
-        logger.debug(f"DMRG 1D: N={n}, dynamic chi_max={chi_max}")
+        # If chi_max is provided explicitly, use it (for precision studies).
+        _chi = chi_max if chi_max is not None else min(400, max(200, 4 * n))
+        logger.debug(f"DMRG 1D: N={n}, chi_max={_chi}{' (user-specified)' if chi_max else ''}")
 
         dmrg_params = {
             "mixer": True,
             "max_E_err": 1e-12,
-            "trunc_params": {"chi_max": chi_max, "svd_min": 1e-12},
+            "trunc_params": {"chi_max": _chi, "svd_min": 1e-12},
             "max_sweeps": 100,
         }
 

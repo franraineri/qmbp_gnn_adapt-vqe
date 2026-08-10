@@ -27,6 +27,7 @@ class GapType(Enum):
     INSUFFICIENT_SEEDS = "insufficient_seeds"
     MISSING_ZNE = "missing_zne"
     MISSING_EXPERIMENT = "missing_experiment"
+    LOW_PASS_RATE = "low_pass_rate"
 
 
 @dataclass

@@ -1,0 +1,22 @@
+{
+  "description": "Pre-computed noisy VQE samples for GNN-QEM demo (Notebook 03)",
+  "topology": "heavy_hex",
+  "N": 10,
+  "p": 1,
+  "noise_model": "synthetic_gaussian_bias",
+  "generated_by": "notebooks/data/generate_samples.py",
+  "samples": [
+    {"h": 3.50, "exact_energy": -10.4721, "noisy_energy": -10.2521, "gap": 5.0000, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 3.32, "exact_energy": -10.0083, "noisy_energy": -9.7783, "gap": 4.6364, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 3.14, "exact_energy": -9.5401, "noisy_energy": -9.2901, "gap": 4.2727, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 2.95, "exact_energy": -9.0260, "noisy_energy": -8.7460, "gap": 3.9091, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 2.77, "exact_energy": -8.5510, "noisy_energy": -8.2310, "gap": 3.5455, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 2.59, "exact_energy": -8.0700, "noisy_energy": -7.7000, "gap": 3.1818, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 2.41, "exact_energy": -7.5810, "noisy_energy": -7.1510, "gap": 2.8182, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 2.23, "exact_energy": -7.0830, "noisy_energy": -6.5830, "gap": 2.4545, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 2.05, "exact_energy": -6.5740, "noisy_energy": -5.9940, "gap": 2.0909, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 1.86, "exact_energy": -6.0520, "noisy_energy": -5.3720, "gap": 1.7273, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 1.68, "exact_energy": -5.5150, "noisy_energy": -4.7150, "gap": 1.3636, "n_qubits": 10, "topology": "heavy_hex"},
+    {"h": 1.50, "exact_energy": -4.9610, "noisy_energy": -4.0010, "gap": 1.0000, "n_qubits": 10, "topology": "heavy_hex"}
+  ]
+}

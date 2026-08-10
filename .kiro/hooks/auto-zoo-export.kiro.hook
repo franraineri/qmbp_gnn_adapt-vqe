@@ -1,0 +1,13 @@
+{
+  "enabled": false,
+  "name": "Auto-export to Model Zoo",
+  "description": "After a spec task completes, checks if a new successful noiseless pipeline result exists with a trained MPNN. If so, registers the checkpoint in the model zoo for future --accelerate use.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check if the just-completed task produced a new noiseless pipeline result with a trained MPNN (look for run_*.json in results/experiments/exp_noiseless/ modified in the last 5 minutes). If found and pass_rate >= 80%, extract the MPNN checkpoint path from the result's artifacts and register it in the model zoo using: from qmbp_simulation.predictors.model_zoo import register_checkpoint, ZooEntry. Report what was registered or explain why no export was needed."
+  }
+}

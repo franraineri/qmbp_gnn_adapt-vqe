@@ -592,3 +592,72 @@ Use the layout with lowest depth_2q as ZNE primary (less decoherence accumulatio
 | Nighthawk | NH | 120 | ~0.1% | 68ns | 350µs | — |
 
 **Current default**: `ibm_kingston` (Open Plan, free). For thesis: `ibm_boston` (paid, best quality).
+
+---
+
+## QESEM vs PEA-ZNE — Empirical Decision Guide (2026-06-23/25)
+
+### When to use each technique
+
+| Scenario | Recommended | Rationale |
+|----------|-------------|-----------|
+| ⟨ZZ⟩ correlations are critical (phase boundaries) | **QESEM** | 5.7× better σ on 2-body observables |
+| Quick iteration / cost-sensitive | **PEA-ZNE** | 15× fewer shots, no queue overhead |
+| Need unmitigated baseline for comparison | **QESEM** | Reports both raw + mitigated per observable |
+| Unattended overnight runs | **PEA-ZNE** | No Qiskit Function queue risk (10h observed) |
+| Cross-validation of PEA results | **QESEM** | Independent unbiased estimate |
+| N > 10 or p > 1 (high 2Q count) | **PEA-ZNE** | QESEM cost scales with circuit complexity |
+| Open Plan (free tier) | **PEA-ZNE** | QESEM requires Qiskit Functions access |
+
+### Empirical Numbers (ibm_kingston, N=10, heavy_hex, p=1, h=4.0)
+
+| Metric | QESEM | PEA-ZNE |
+|--------|-------|---------|
+| QPU time (real executing) | 278 s | 284–572 s |
+| Total shots | ~756K | ~49K/PUB |
+| σ(Energy) | ±0.29 | ±0.37 |
+| σ(⟨X⟩) mean | ±0.015 | ±0.017 |
+| σ(⟨ZZ⟩) mean | ±0.004 | ±0.023 |
+| Energy correction (unmit→mit) | +5.3% | ~+1-2% (from NF=1 extrapolation) |
+| Server overhead (CPU) | ~1760 s | 0 (client-side) |
+| Queue risk | HIGH (880s–10.8h observed) | LOW (~1s) |
+
+### QESEM Configuration (validated)
+
+```python
+# In HardwareConfig (src/qmbp_simulation/execution/hardware/config.py):
+qesem_precision = 0.01          # Target precision per observable
+qesem_max_execution_time = 600  # QPU cap in seconds (300→σ≈0.29, 600→σ≈0.20)
+qesem_noise_scales = None       # Let Qedma choose (default: [0, 1, 2])
+
+# Requires mode="hardware" — CANNOT run on fake_backend
+# Requires Qiskit Functions access (instance CRN must support it)
+```
+
+### QESEM Results Location
+
+| Job ID | h | QPU time | σ(E) | File |
+|--------|---|----------|------|------|
+| 82aa33cc | 4.0 | 278s | 0.29 | `results/recovered/qesem/qesem_recovered_82aa33cc-...054e.json` |
+| 4f16e846 | 4.0 | 428s | 0.33 | `results/recovered/qesem/qesem_recovered_4f16e846-...eefe.json` |
+| d628a502 | 3.5 | 803s | 0.27 | `results/recovered/qesem/qesem_recovered_d628a502-...cdbf.json` |
+
+### PEA-ZNE Results Location
+
+| Job ID | h | QPU time | σ(E) | File |
+|--------|---|----------|------|------|
+| d8nihtj2d42s73cdtit0 | 4.0 | 284s | 0.37 | Documented in `scripts/hardware/complete_tier0_from_qpu.py` |
+| d8tche5bh0os73epdphg | 4.0 | 572s | varies | `results/recovered/recovered_d8tche5bh0os73epdphg.json` |
+
+### Key Lessons for Future Hardware Runs
+
+1. **QESEM `total_qpu_time` ≠ actual execution**: The reported 428s is a budget cap;
+   real QPU varies (278s–803s). Always check `resource_usage.EXECUTING_QPU`.
+2. **QESEM queue is unpredictable**: Job d628 waited 10.8h in Qedma server queue.
+   Submit early, don't depend on quick turnaround.
+3. **PEA-ZNE σ(⟨ZZ⟩) has outliers**: Cross-chain bonds can hit σ≈0.42 (catastrophic).
+   If ⟨ZZ⟩ precision matters, prefer QESEM or increase PEA shots for those observables.
+4. **Gate fidelities differ per QESEM job**: RZZ varied 0.9966–0.9978 across 3 runs.
+   QESEM embeds this info — useful for post-hoc noise characterization.
+5. **PEA-ZNE "balanced" config works**: 48×192 + noise_factors=[1,1.5,3] is the sweet spot.
+   Don't change without empirical evidence.

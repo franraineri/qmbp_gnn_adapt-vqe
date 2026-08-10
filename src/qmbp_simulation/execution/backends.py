@@ -432,21 +432,23 @@ class NoisyBackend(ExecutionBackend):
                 "Install with: pip install qiskit-aer"
             ) from e
 
-        backend = AerSimulator(noise_model=self._noise_model)
-        from qiskit.primitives import BackendEstimatorV2
-        from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+        # Cache AerSimulator + PassManager to avoid re-creation per evaluate()
+        # (transpilation overhead is ~30-50ms per call otherwise)
+        if not hasattr(self, "_aer_backend") or self._aer_backend is None:
+            self._aer_backend = AerSimulator(noise_model=self._noise_model)
+            from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+            self._aer_pm = generate_preset_pass_manager(
+                backend=self._aer_backend, optimization_level=1
+            )
 
-        pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+        from qiskit.primitives import BackendEstimatorV2
+
         bound = circuit.assign_parameters(params)
-        isa_circuit = pm.run(bound)
+        isa_circuit = self._aer_pm.run(bound)
 
         precision = 1.0 / np.sqrt(self._shots)
-        options = {"default_precision": precision}
-        if self._seed_simulator is not None:
-            options["seed_simulator"] = self._seed_simulator
-
-        estimator = BackendEstimatorV2(backend=backend, options=options)
-        job = estimator.run([(isa_circuit, hamiltonian)])
+        estimator = BackendEstimatorV2(backend=self._aer_backend)
+        job = estimator.run([(isa_circuit, hamiltonian)], precision=precision)
         energy = float(job.result()[0].data.evs)
         if not np.isfinite(energy):
             raise RuntimeError(
@@ -516,6 +518,169 @@ class HardwareBackend(ExecutionBackend):
     @property
     def name(self) -> str:
         return f"hardware_{self._backend_name}"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FakeBackend — Coherent noise simulation via IBM fake providers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class FakeBackend(ExecutionBackend):
+    """Coherent noise simulation using IBM Qiskit fake provider backends.
+
+    Unlike NoisyBackend (shot noise only), FakeBackend uses real calibration
+    data from IBM processors (FakeTorino, FakeKingston, etc.) to simulate
+    coherent errors: T1/T2 decay, gate over-rotation, crosstalk, readout.
+
+    This produces *systematic, structured* noise that is potentially
+    learnable by an MPNN (coherent shift hypothesis, plan 06).
+
+    Usage:
+        from qmbp_simulation.execution import FakeBackend
+
+        backend = FakeBackend("torino", shots=8192)
+        energy = backend.evaluate(circuit, hamiltonian, params)
+
+    Parameters
+    ----------
+    provider : str
+        Fake backend name: "torino", "kingston", "brisbane".
+        Maps to FakeTorino, FakeKingston, FakeBrisbane from
+        qiskit_ibm_runtime.fake_provider.
+    shots : int
+        Number of measurement shots (default 8192).
+    optimization_level : int
+        Transpiler optimization level (default 1). Higher levels give
+        shorter circuits but take longer to transpile.
+    seed_simulator : int | None
+        Random seed for reproducibility.
+
+    Raises
+    ------
+    ImportError
+        If qiskit-ibm-runtime is not installed.
+    ValueError
+        If provider name is not recognized.
+    """
+
+    _PROVIDERS = {
+        "torino": "FakeTorino",
+        "kingston": "FakeKingston",
+        "brisbane": "FakeBrisbane",
+    }
+
+    def __init__(
+        self,
+        provider: str = "torino",
+        shots: int = 8192,
+        optimization_level: int = 1,
+        seed_simulator: int | None = None,
+    ) -> None:
+        self._provider_name = provider.lower()
+        self._shots = shots
+        self._optimization_level = optimization_level
+        self._seed_simulator = seed_simulator
+
+        if self._provider_name not in self._PROVIDERS:
+            raise ValueError(
+                f"Unknown fake provider '{provider}'. "
+                f"Available: {list(self._PROVIDERS.keys())}"
+            )
+
+        # Lazy initialization — only import when first evaluate() is called
+        self._backend = None
+        self._estimator = None
+
+    def _ensure_backend(self) -> None:
+        """Lazy-initialize the fake backend on first use."""
+        if self._backend is not None:
+            return
+
+        try:
+            from qiskit_ibm_runtime.fake_provider import (
+                FakeBrisbane,
+                FakeKingston,
+                FakeTorino,
+            )
+        except ImportError as e:
+            raise ImportError(
+                "qiskit-ibm-runtime is required for FakeBackend. "
+                "Install with: pip install qiskit-ibm-runtime"
+            ) from e
+
+        provider_map = {
+            "torino": FakeTorino,
+            "kingston": FakeKingston,
+            "brisbane": FakeBrisbane,
+        }
+        self._backend = provider_map[self._provider_name]()
+        logger.info(
+            "FakeBackend: initialized %s (%d qubits)",
+            self._PROVIDERS[self._provider_name],
+            self._backend.num_qubits,
+        )
+
+    def evaluate(
+        self,
+        circuit: QuantumCircuit,
+        hamiltonian: SparsePauliOp,
+        params: np.ndarray,
+    ) -> float:
+        """Evaluate energy with coherent noise from fake calibration data.
+
+        Transpiles the circuit to the fake backend's native gate set and
+        coupling map, then runs with BackendEstimatorV2.
+        """
+        if len(params) != circuit.num_parameters:
+            raise ValueError(
+                f"Parameter count mismatch: got {len(params)}, "
+                f"expected {circuit.num_parameters}."
+            )
+
+        self._ensure_backend()
+
+        from qiskit.primitives import BackendEstimatorV2
+        from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+        # Transpile to native gates + coupling map
+        pm = generate_preset_pass_manager(
+            backend=self._backend,
+            optimization_level=self._optimization_level,
+        )
+        bound = circuit.assign_parameters(params)
+        isa_circuit = pm.run(bound)
+
+        # Evaluate with BackendEstimatorV2
+        precision = 1.0 / np.sqrt(self._shots)
+        estimator = BackendEstimatorV2(backend=self._backend)
+        job = estimator.run([(isa_circuit, hamiltonian)], precision=precision)
+        energy = float(job.result()[0].data.evs)
+
+        if not np.isfinite(energy):
+            logger.warning(
+                "FakeBackend: non-finite energy at %s. "
+                "Circuit may be too deep for noise level.",
+                self._provider_name,
+            )
+            return float("inf")
+
+        return energy
+
+    def compute_fidelity(
+        self,
+        circuit: QuantumCircuit,
+        params: np.ndarray,
+        exact_state: np.ndarray,
+    ) -> float:
+        """Not supported for FakeBackend (no statevector access)."""
+        raise RuntimeError(
+            "compute_fidelity() not supported on FakeBackend. "
+            "Use noiseless backend for fidelity computation."
+        )
+
+    @property
+    def name(self) -> str:
+        return f"fake_{self._provider_name}_shots={self._shots}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
