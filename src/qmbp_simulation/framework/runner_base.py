@@ -675,6 +675,7 @@ class ValidationRunner(ABC):
                     "pass_rate": n_pass / max(len(self._section_results), 1),
                     "total_elapsed_s": round(total_elapsed, 2),
                     "all_passed": n_fail == 0,
+                    "metric_version": "dual_v1",
                 }
                 envelope = {
                     "schema_version": "2.0",
@@ -1030,6 +1031,7 @@ class ValidationRunner(ABC):
             "total_time_s": round(total_elapsed, 2),
             "total_elapsed_s": round(total_elapsed, 2),
             "all_passed": n_fail == 0,
+            "metric_version": "dual_v1",
         }
 
         # Add failure details to summary for quick diagnosis
@@ -2048,6 +2050,7 @@ class ValidationRunner(ABC):
         h_points: int | None = None,
         model: str | None = None,
         uniform: bool = False,
+        frontier_dense: bool = True,
         dense_fraction: float = 0.4,
         dense_radius: float = 0.5,
     ) -> list[float]:
@@ -2056,6 +2059,8 @@ class ValidationRunner(ABC):
         By default uses denser sampling near the model's critical point.
         Set ``uniform=True`` for equispaced grid (useful for bond-resolved
         models without a known h_critical).
+        Set ``frontier_dense=True`` to auto-densify around the empirical
+        h_frontier (data-driven, uses NPZ to find the pass/fail boundary).
 
         Parameters
         ----------
@@ -2069,6 +2074,9 @@ class ValidationRunner(ABC):
             Model name for h_critical lookup. Default: self._args.model.
         uniform : bool
             If True, return equispaced descending grid (np.linspace).
+        frontier_dense : bool
+            If True, densify around the empirical h_frontier from NPZ data.
+            Falls back to nonuniform (h_critical-based) if no frontier data.
         dense_fraction : float
             Fraction of points in dense region (default 0.4). Ignored if uniform.
         dense_radius : float
@@ -2085,6 +2093,28 @@ class ValidationRunner(ABC):
 
         if uniform:
             return np.linspace(_h_max, _h_min, _h_points).tolist()
+
+        if frontier_dense:
+            h_frontier = self.get_empirical_h_frontier()
+            if h_frontier is not None:
+                from qmbp_simulation.pipeline.dataset_io import generate_frontier_dense_h_grid
+                grid = generate_frontier_dense_h_grid(
+                    h_min=_h_min,
+                    h_max=_h_max,
+                    n_points=_h_points,
+                    h_frontier=h_frontier,
+                    dense_fraction=dense_fraction,
+                    dense_radius=dense_radius if dense_radius != 0.5 else None,
+                )
+                logger.info(
+                    f"  h-grid: frontier-dense around h_frontier={h_frontier:.3f} "
+                    f"({_h_points} pts, [{_h_min:.2f}, {_h_max:.2f}])"
+                )
+                return grid.tolist()
+            else:
+                logger.info(
+                    "  h-grid: no empirical frontier found, falling back to nonuniform"
+                )
 
         from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
 
@@ -2431,6 +2461,12 @@ class ValidationRunner(ABC):
 
         Wraps model_zoo.register_checkpoint() with auto-fill from self._args,
         auto-generates filename and timestamp.
+
+        Parameters
+        ----------
+        pass_rate : float
+            Observed pass rate using dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10).
+            Callers MUST compute this with the dual criterion, not ΔE/gap alone.
 
         Returns
         -------
@@ -3020,6 +3056,82 @@ class ValidationRunner(ABC):
             logger.debug("get_h_frontier_for_config: %s", e)
             return None
 
+    def diagnose_failure_mode(
+        self,
+        topology: str,
+        per_h_results: list[dict] | None = None,
+        dashboard_configs: list[dict] | None = None,
+        extrapolation_data: dict[int, dict] | None = None,
+    ) -> "Any":
+        """Diagnose the dominant failure mode for a topology.
+
+        Cross-integration: Exposes classify_topology_failure_mode from
+        failures_tests.py as a runner helper. Call at the end of a cross-N
+        section to auto-report WHY the pipeline failed.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology name.
+        per_h_results : list[dict] | None
+            Per-h deployment results from this run (used to build extrapolation_data).
+            If provided and dashboard_configs is None, builds minimal dashboard-like
+            configs from the results.
+        dashboard_configs : list[dict] | None
+            Pre-built dashboard configs for this topology. If None, attempts to
+            read from the cached dashboard JSON.
+        extrapolation_data : dict[int, dict] | None
+            Per-N data for generalization failure diagnosis.
+
+        Returns
+        -------
+        FailureDiagnostic
+            Structured diagnosis with primary_mode, confidence, explanation.
+        """
+        from qmbp_simulation.analysis.failures_tests import classify_topology_failure_mode
+
+        # Resolve dashboard_configs if not provided
+        if dashboard_configs is None:
+            dashboard_path = self._get_project_root() / "data" / "model_quality_dashboard.json"
+            if dashboard_path.exists():
+                import json
+                with open(dashboard_path) as f:
+                    dashboard = json.load(f)
+                dashboard_configs = [
+                    c for c in dashboard.get("configs", [])
+                    if c.get("topology") == topology
+                ]
+            else:
+                dashboard_configs = []
+
+        # If we have per_h_results but no extrapolation_data, build it
+        if per_h_results and extrapolation_data is None:
+            import numpy as np
+            n_qubits_set = set(r.get("n_qubits") for r in per_h_results if r.get("n_qubits"))
+            if len(n_qubits_set) >= 2:
+                extrapolation_data = {}
+                for n in n_qubits_set:
+                    pts = [r for r in per_h_results if r.get("n_qubits") == n]
+                    extrapolation_data[n] = {
+                        "h_values": np.array([r["h"] for r in pts]),
+                        "abs_errors": np.array([r.get("abs_error", 0) for r in pts]),
+                        "e_pred": np.array([r.get("e_pred", 0) for r in pts]),
+                        "e_exact": np.array([r.get("e_exact", 0) for r in pts]),
+                    }
+
+        diag = classify_topology_failure_mode(
+            topology, dashboard_configs or [],
+            extrapolation_data=extrapolation_data,
+        )
+
+        # Log the diagnosis
+        if diag.primary_mode != "healthy":
+            logger.info(
+                "  🔬 Failure diagnosis for %s: [%s] (conf=%.0f%%) %s",
+                topology, diag.primary_mode, diag.confidence * 100, diag.explanation,
+            )
+        return diag
+
     def get_model_with_quality_check(
         self, topology: str, n_qubits: int, p_layers: int = 1,
         model: str = "tfim_bond_resolved",
@@ -3159,7 +3271,9 @@ class ValidationRunner(ABC):
                 if topology in topo_summary:
                     info = topo_summary[topology]
                     n_max_viable = info.get("n_max_viable")
-                    pass_rate_dual = info.get("best_pass_rate_5pct", 0)
+                    # Use best_pass_rate_5pct as proxy when no dedicated
+                    # dual field exists in topology_summary (computed from NPZ)
+                    pass_rate_dual = info.get("best_pass_rate_dual", info.get("best_pass_rate_5pct", 0))
                     
                 # Get h_frontier from configs
                 configs = dashboard.get("configs", [])

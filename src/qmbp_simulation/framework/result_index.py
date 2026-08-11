@@ -407,14 +407,14 @@ class ResultIndex:
     # ── B5: Regression detection ─────────────────────────────────────────
 
     def detect_regressions(self) -> list[dict[str, Any]]:
-        """Find cases where recent runs perform worse than earlier ones.
+        """Find cases where the latest run regressed vs the previous run.
 
-        A regression is: latest run pass_rate < best previous pass_rate
-        for the same (model, topology, N, p) config.
+        A regression is: latest run pass_rate < previous run pass_rate
+        for the same (model, topology, N, p) config by more than 5%.
 
-        Uses only valid entries to avoid false positives from legacy/garbage data.
-        Compares against MEDIAN of previous runs (not outlier best) to reduce
-        false positives from one lucky run.
+        Strategy: compare ONLY the last two runs per config (chronological).
+        This avoids false positives from one-off lucky runs in early
+        development, and correctly surfaces real degradations.
         """
         valid = self.valid_entries
         from collections import defaultdict
@@ -432,35 +432,29 @@ class ResultIndex:
         for key, runs in groups.items():
             if len(runs) < 2:
                 continue
-            # Sort by timestamp (guard against missing/malformed timestamps)
+            # Sort by timestamp
             sorted_runs = sorted(runs, key=lambda r: r.get("timestamp", "") or "")
             latest = sorted_runs[-1]
-            previous_runs = sorted_runs[:-1]
-
-            # Use median of previous runs as baseline (robust to outliers)
-            prev_rates = sorted(r.get("pass_rate", 0) for r in previous_runs)
-            median_idx = len(prev_rates) // 2
-            median_rate = prev_rates[median_idx]
-            best_rate = max(prev_rates)
+            previous = sorted_runs[-2]
 
             latest_rate = latest.get("pass_rate", 0)
+            prev_rate = previous.get("pass_rate", 0)
 
-            # Regression = latest below median - threshold (not best)
-            if latest_rate < median_rate - 0.05:
+            # Regression = latest dropped by more than 5% vs immediate predecessor
+            if latest_rate < prev_rate - 0.05:
                 regressions.append(
                     {
                         "config": key,
                         "latest_pass_rate": latest_rate,
-                        "best_previous_pass_rate": best_rate,
-                        "median_previous_pass_rate": median_rate,
-                        "delta": latest_rate - median_rate,
+                        "previous_pass_rate": prev_rate,
+                        "best_previous_pass_rate": max(
+                            r.get("pass_rate", 0) for r in sorted_runs[:-1]
+                        ),
+                        "delta": latest_rate - prev_rate,
                         "latest_file": latest.get("_file", ""),
                         "latest_timestamp": latest.get("timestamp", ""),
-                        "best_file": max(
-                            previous_runs,
-                            key=lambda r: r.get("pass_rate", 0),
-                        ).get("_file", ""),
-                        "n_previous_runs": len(previous_runs),
+                        "previous_file": previous.get("_file", ""),
+                        "n_previous_runs": len(sorted_runs) - 1,
                     }
                 )
 
@@ -694,25 +688,37 @@ class ResultIndex:
     # ── B7: Coverage matrix ──────────────────────────────────────────────
 
     def coverage_matrix(self) -> dict[str, dict[str, str]]:
-        """Generate a coverage matrix: (model, topology) → best status.
+        """Generate a coverage matrix: (model, topology) → latest status.
 
         Returns nested dict: matrix[model][topology] = "100% (N=20)" or "untested".
         Uses only valid entries (excludes garbage/legacy data).
+
+        Strategy: for each (model, topology) picks the LATEST run per
+        (model, topology, N, p) config, then reports the highest pass_rate
+        among those latest runs. This avoids inflating the matrix with
+        historical peaks that may not be reproducible.
         """
         valid = self.valid_entries
         from collections import defaultdict
 
-        # Collect best pass_rate per (model, topology)
-        best: dict[tuple[str, str], dict] = defaultdict(lambda: {"pass_rate": 0, "n": 0})
-
+        # Step 1: find latest run per full config (model, topo, N, p)
+        latest_per_config: dict[tuple, dict] = {}
         for entry in valid:
             model = entry.get("model", "")
             topo = entry.get("topology", "")
             if not model or not topo:
                 continue
+            key = (model, topo, entry.get("n_qubits", 0), entry.get("p_layers", 0))
+            ts = entry.get("timestamp", "") or ""
+            prev_ts = latest_per_config.get(key, {}).get("timestamp", "") or ""
+            if ts >= prev_ts:
+                latest_per_config[key] = entry
+
+        # Step 2: pick best latest-run per (model, topology)
+        best: dict[tuple[str, str], dict] = defaultdict(lambda: {"pass_rate": 0, "n": 0})
+        for (model, topo, n, _p), entry in latest_per_config.items():
             key = (model, topo)
             rate = entry.get("pass_rate", 0)
-            n = entry.get("n_qubits", 0)
             if rate > best[key]["pass_rate"] or (
                 rate == best[key]["pass_rate"] and n > best[key]["n"]
             ):
@@ -924,7 +930,7 @@ class ResultIndex:
                 f"**Topologies**: {', '.join(stats.get('topologies', []))}",
                 f"**N values**: {stats.get('n_values', [])}",
                 "",
-                "## Coverage Matrix (best pass_rate per config)",
+                "## Coverage Matrix (latest pass_rate per config)",
                 "",
             ]
 
@@ -947,7 +953,7 @@ class ResultIndex:
                 for r in regressions[:5]:
                     lines.append(
                         f"- **{r['config']}**: {r['latest_pass_rate']:.0%} "
-                        f"(was {r['best_previous_pass_rate']:.0%}, "
+                        f"(prev {r['previous_pass_rate']:.0%}, "
                         f"Δ={r['delta']:.0%})"
                     )
                 lines.append("")

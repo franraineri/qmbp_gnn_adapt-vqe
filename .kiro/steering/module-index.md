@@ -19,7 +19,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 | UnifiedMPNN (cross-N) | predictors.unified_mpnn | UnifiedMPNN |
 | Model zoo | predictors.model_zoo | load_pretrained, register_checkpoint |
 | Accelerated pipeline | pipeline.accelerated | AcceleratedVQE |
-| Full pipeline | pipeline.runner | PipelineRunner |
+| Full pipeline (legacy) | pipeline.runner | PipelineRunner ⚠️ deprecated |
 | Validate θ | analysis.theta_validator | ThetaValidator |
 | Deploy stats | analysis.metrics | compute_deploy_summary |
 | θ alignment | analysis.theta_alignment | align_theta_array |
@@ -40,7 +40,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +20
 
 
-### qsim/analysis/ (22)
+### qsim/analysis/ (23)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +56
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
@@ -53,6 +53,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   extension_classifiers      ANAL  C:ClassificationEngine
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
   extension_ranker           ANAL  C:ExtensionScore,ExtensionPriorityRanker
+  failures_tests             TEST  
   flow_multishot             PRED  C:MultiShotResult,FlowMultiShotPredictor
   flow_warmstart             OPT   C:FlowWarmstartManager
   gradient                   PRED  C:WeightGradientAnalyzer
@@ -138,7 +139,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   accelerated                OPT   C:AcceleratedResult,AcceleratedConfig,AcceleratedVQE
   dataset_io                 VAL   F:get_library_versions,save_phase12_dataset,load_phase12_dataset+1
   qrc                        PIPE  C:QRCPipeline
-  runner                     PIPE  C:PipelineRunner | F:run_accelerated,run_exact_diag_sweep
+  runner                     PIPE  C:PipelineRunner | F:run_accelerated,run_exact_diag_sweep  ⚠️ DEPRECATED
 
 ### qsim/predictors/external_benchmarks/ (2)
   ↳ VQEzyInstance VQEzyDataset load_vqezy_tfi load_vqezy_xyz reconstruct_tfi_hamiltonian BenchmarkResult InstanceResult VQEzyBenchmarkEvaluator
@@ -219,7 +220,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 ### ph/analysis/ (11)
 
-  accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport,LargeNResult | F:scan_results,analyze_cross_n_result,format_report+3
+  accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport,LargeNResult | F:scan_results,analyze_cross_n_result,format_report+5
   diagnose                   PRED  C:RootCause,DeploymentPoint,Diagnosis | F:parse_pipeline_run,classify_root_causes,scan_folder+3
   gnn_qem_analyzer           PRED  
   layout_optimizer_analyzer  OPT   
@@ -475,7 +476,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+4
   run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+5
   scan_new_runs              ANAL  C:RunMetrics,GroupStats | F:resolve_dirs,load_runs,parse_run+11
-  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+16
+  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+18
   update_project_status            F:main
   upgrade_npz_quality_tiers        F:compute_quality_tier,upgrade_npz_file,main
   verify_steerings                 C:Issue,VerificationReport | F:estimate_tokens,parse_front_matter,get_body+23

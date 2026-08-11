@@ -2,6 +2,7 @@
 
 from qmbp_simulation.utils.helpers import (
     TimerResult,
+    augment_theta_symmetries,
     canonicalize_theta,
     filter_consistent_theta,
     json_dump,
@@ -12,6 +13,7 @@ from qmbp_simulation.utils.helpers import (
 
 __all__ = [
     "TimerResult",
+    "augment_theta_symmetries",
     "canonicalize_theta",
     "filter_consistent_theta",
     "json_dump",

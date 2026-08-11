@@ -25,15 +25,15 @@ When asked to test or verify functionality:
 | `qmbp_simulation.circuits` | `tests/unit/test_circuits.py` |
 | `qmbp_simulation.execution` | `tests/unit/test_execution.py` |
 | `qmbp_simulation.execution.hardware` | `tests/unit/test_layout_optimizer.py`, `tests/integration/test_layout_optimizer_integration.py` |
-| `qmbp_simulation.execution.mitiq_utils` | `tests/test_mitiq_integration.py` |
+| `qmbp_simulation.execution.mitiq_utils` | `tests/mitigation_benchmark/test_mitiq_integration.py` |
 | `qmbp_simulation.optimizers` | `tests/unit/test_optimizers.py` |
 | `qmbp_simulation.predictors` | `tests/unit/test_predictors.py` |
 | `qmbp_simulation.pipeline` | `tests/unit/test_pipeline.py` |
 | `qmbp_simulation.framework` | `tests/unit/test_framework.py` |
 | `qmbp_simulation.analysis` | `tests/unit/test_analysis.py` |
-| `project_health` | `tests/test_project_health_coverage.py` |
-| `project_health.digest` | `tests/test_digest.py` |
-| MPNN eval helpers | `tests/test_mpnn_eval_helpers.py`, `tests/mpnn/test_mpnn_eval_extended.py` |
+| `project_health` | `tests/project_health/test_project_health_coverage.py` |
+| `project_health.digest` | `tests/project_health/test_digest.py` |
+| MPNN eval helpers | `tests/mpnn/test_mpnn_eval_helpers.py`, `tests/mpnn/test_mpnn_eval_extended.py` |
 
 ### How to Run Tests
 

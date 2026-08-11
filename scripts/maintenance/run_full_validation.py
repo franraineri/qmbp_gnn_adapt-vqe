@@ -43,52 +43,59 @@ def step_1_regenerate_dashboard() -> dict:
 
 
 def step_2_quality_tier_analysis(dashboard: dict) -> dict:
-    """Analyze quality tier distribution across NPZ files."""
+    """Analyze quality tier distribution — reads from dashboard integrity section.
+
+    The dashboard (generated in step 1) already aggregates tier data from NPZ.
+    We read it directly instead of re-scanning disk.
+    """
     print("\n" + "=" * 60)
     print("STEP 2: Quality Tier Analysis")
     print("=" * 60)
-    
-    import numpy as np
-    
-    npz_dir = DATA / "multi_n_training"
-    if not npz_dir.exists():
-        print("  ⚠️ No NPZ directory found")
+
+    integrity = dashboard.get("integrity", {})
+    configs = dashboard.get("configs", [])
+
+    if not configs:
+        print("  ⚠️ Dashboard has no configs — regenerate with step 1")
         return {}
-    
-    tier_breakdown = {}
+
+    # Aggregate from dashboard configs (each has quality_tier_* fields if available)
     total_verified = 0
     total_approx = 0
     total_unverified = 0
     n_legacy = 0
-    
-    for npz_file in sorted(npz_dir.glob("*.npz")):
-        try:
-            data = np.load(str(npz_file), allow_pickle=True)
-            tiers = data.get("quality_tier")
-            n_total = len(data["h_values"])
-            
-            if tiers is None:
-                n_legacy += 1
-                tier_breakdown[npz_file.name] = {
-                    "verified": 0, "approximate": 0, "unverified": n_total,
-                    "total": n_total, "legacy": True,
-                }
-                total_unverified += n_total
-            else:
-                tier_list = list(tiers)
-                v = tier_list.count("verified")
-                a = tier_list.count("approximate")
-                u = tier_list.count("unverified")
-                tier_breakdown[npz_file.name] = {
-                    "verified": v, "approximate": a, "unverified": u,
-                    "total": n_total, "legacy": False,
-                }
-                total_verified += v
-                total_approx += a
-                total_unverified += u
-        except Exception as e:
-            print(f"  ⚠️ Error reading {npz_file.name}: {e}")
-    
+    tier_breakdown = {}
+
+    for c in configs:
+        fname = c.get("file", "")
+        n_pts = c.get("n_points", 0)
+        n_v = c.get("n_verified", 0)
+        n_a = c.get("n_approximate", 0)
+        n_u = c.get("n_unverified", n_pts - n_v - n_a)
+
+        # If no tier data in dashboard entry, treat as legacy
+        if n_v == 0 and n_a == 0 and n_u == n_pts:
+            is_legacy = not c.get("has_quality_tiers", False)
+        else:
+            is_legacy = False
+
+        if is_legacy:
+            n_legacy += 1
+
+        total_verified += n_v
+        total_approx += n_a
+        total_unverified += n_u
+        tier_breakdown[fname] = {
+            "verified": n_v, "approximate": n_a, "unverified": n_u,
+            "total": n_pts, "legacy": is_legacy,
+        }
+
+    # Also check integrity section if available (pre-aggregated totals)
+    if integrity.get("total_verified"):
+        total_verified = integrity["total_verified"]
+        total_approx = integrity.get("total_approximate", total_approx)
+        total_unverified = integrity.get("total_unverified", total_unverified)
+
     total = total_verified + total_approx + total_unverified
     print(f"  Total points: {total}")
     print(f"  ✅ Verified: {total_verified} ({total_verified*100//max(total,1)}%)")
@@ -96,7 +103,7 @@ def step_2_quality_tier_analysis(dashboard: dict) -> dict:
     print(f"  ❓ Unverified: {total_unverified} ({total_unverified*100//max(total,1)}%)")
     if n_legacy > 0:
         print(f"  📜 Legacy NPZ (no tier field): {n_legacy} files")
-    
+
     return tier_breakdown
 
 

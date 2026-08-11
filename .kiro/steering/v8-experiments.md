@@ -44,16 +44,13 @@ results/experiments/     # Auto-generated JSON results
 
 ```bash
 # Single experiment
-python scripts/run_experiment.py --exp A3 --verbose
 
 # Multiple experiments
-python scripts/run_experiment.py --exp B1 B4 F3
 
 # List available
-python scripts/run_experiment.py --list
 
 # Compare results
-python scripts/compare.py --all
+python project_health/compare.py --all
 ```
 
 ## How to Create a New Experiment
@@ -338,7 +335,6 @@ The power law overestimates 1.9× at N=60, 2.7× at N=100. Do NOT use for experi
 Results are in terminal output and this steering file only (no JSON artifact).
 To reproduce, use the framework:
 ```bash
-python scripts/run_experiment.py --exp B4 --verbose
 ```
 
 ---

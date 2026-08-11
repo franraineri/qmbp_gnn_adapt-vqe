@@ -30,9 +30,9 @@ Need to...
 ├── Diagnose by group (quick)?     → python -m project_health --diagnose [--model X]
 ├── Detect regressions?            → python project_health/cli/query_index.py --regressions
 ├── Temporal drift (date-correlated)?→ python project_health/cli/query_index.py --temporal-drift
-├── Compare experiments?            → scripts/compare.py [--all] [--category X]
+├── Compare experiments?            → project_health/compare.py [--all] [--category X]
 ├── Compare ZNE methods?            → project_health/compare.py --zne
-├── Validate runner script?         → python scripts/preflight.py --from-script <path>
+├── Validate runner script?         → python src/qmbp_simulation/framework/preflight.py --from-script <path>
 ├── Validate a thesis claim?        → python -m project_health.analysis.verify_claims
 ├── Verify pipeline correctness?    → python -m project_health.analysis.verify_results
 ├── Check analysis sanity?          → python -m project_health.analysis.sanity_check
@@ -43,7 +43,7 @@ Need to...
 ├── PCA phase detection?            → python scripts/analysis/theta_pca_phase_detection.py
 ├── θ-derivative vs D1?            → python scripts/analysis/theta_derivative_analysis.py
 ├── Full analysis pipeline?         → python analysis/run_analysis.py
-├── Deep raw-data audit (29 checks)?→ PYTHONPATH=. python project_health/analysis/audit_findings.py
+├── Deep raw-data audit (29 checks)?→ PYTHONPATH=. python project_health/analysis/validation/audit_findings.py
 ├── Analyze MPNN eval suite (S10-19)?→ python -m project_health.analysis.mpnn_eval_analyzer
 ├── Analyze flow warmstart results? → python -m project_health.analysis.flow_warmstart_analyzer
 ├── Analyze AQC-Tensor compression?→ python -m project_health.analysis.aqc_tensor_analyzer
@@ -51,19 +51,18 @@ Need to...
 ├── Analyze Mitiq comparisons?     → python -m project_health.analysis.mitiq_analyzer
 ├── Analyze mitigation benchmark?  → python -m project_health.analysis.mitigation_benchmark_analyzer
 ├── Analyze noiseless pipeline?   → python -m project_health.analysis.noiseless_pipeline_analyzer
-├── Analyze transpilation metrics? → python scripts/analyze_transpilation.py
 ├── Validate hw run post-execution?→ .venv/bin/python scripts/verify_affine_bug.py --validate <run_dir>
 ├── Quick post-exec check (1 file)?→ python -m project_health.analysis.hardware.post_execution_validator <path>
 ├── Batch validate all hw results? → python -m project_health.analysis.hardware.post_execution_validator results/hardware/ --batch
 ├── Check pipeline correction bugs?→ .venv/bin/python scripts/verify_affine_bug.py
-├── Ready for IBM hardware?         → .venv/bin/python scripts/preflight_hw.py
+├── Ready for IBM hardware?         → .venv/bin/python scripts/hardware/preflight_hw.py
 ├── Audit code-path consistency?  → .venv/bin/python scripts/verify_affine_bug.py --audit
 ├── Run full flow→deployment?       → make hw-flow-full
 │
 │ ─── NEW METRICS & DIAGNOSTICS (2026-07-13) ──────
 ├── Inspect simulation backend used? → check simulation_diagnostics in JSON (auto-present)
 ├── Filter runs by backend type?    → python project_health/cli/query_index.py --backend mps
-├── Variational violations summary? → python scripts/scan_new_runs.py --verbose (shows ⚠️viol=N)
+├── Variational violations summary? → python scripts/maintenance/scan_new_runs.py --verbose (shows ⚠️viol=N)
 ├── Per-point violation detail?     → python project_health/cli/inspect_noiseless_run.py --latest <dir> --vqe-detail
 ├── Chi-convergence (scaling 2D)?   → run_scaling_validation.py --verify-chi (MANDATORY for 2D N>16)
 ├── Verify thesis run integrity?    → python scripts/verify_thesis_runs.py (12 checks + chi + violations)
@@ -155,12 +154,12 @@ python analysis/diagnose.py results/experiments/exp_B4/  # Specific folder
 python analysis/diagnose.py --severity fail           # Only failures
 ```
 
-### 5. Experiment Comparison (`scripts/compare.py`)
+### 5. Experiment Comparison (`project_health/compare.py`)
 
 ```bash
-python scripts/compare.py --all                       # All experiments
-python scripts/compare.py --category optimization     # By category
-python scripts/compare.py --noisy                     # ZNE experiments
+python project_health/compare.py --all                       # All experiments
+python project_health/compare.py --category optimization     # By category
+python project_health/compare.py --noisy                     # ZNE experiments
 ```
 
 ### 6. ZNE Method Comparison (`project_health/compare.py`)
@@ -197,8 +196,8 @@ make cross-topology                                             # Quick report
 ### 11. Preflight Validation
 
 ```bash
-python scripts/preflight.py --from-script <path>       # Standard
-python scripts/preflight.py --from-script <path> --strict  # Warnings=errors (CI)
+python src/qmbp_simulation/framework/preflight.py --from-script <path>       # Standard
+python src/qmbp_simulation/framework/preflight.py --from-script <path> --strict  # Warnings=errors (CI)
 make preflight SCRIPT=<path>
 ```
 

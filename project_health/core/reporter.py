@@ -91,7 +91,7 @@ def format_text(report: HealthReport, *, compact: bool = False) -> str:
 
     # ── Noiseless Quality ─────────────────────────────────────────────────
     lines.append("─── NOISELESS QUALITY ─────────────────────────────────────────────")
-    lines.append(f"  Pass rate (ΔE/gap < 5%): {report.noiseless_pass_rate:.0%}")
+    lines.append(f"  Pass rate (ΔE/gap < 5%, single-criterion): {report.noiseless_pass_rate:.0%}")
     if report.noiseless_median_de is not None:
         lines.append(f"  Median ΔE/gap:           {report.noiseless_median_de:.4f}")
 
@@ -347,7 +347,7 @@ def format_markdown(report: HealthReport, *, compact: bool = False) -> str:
     # Noiseless quality
     lines.append("## Noiseless Quality")
     lines.append("")
-    lines.append(f"- Pass rate (ΔE/gap < 5%): **{report.noiseless_pass_rate:.0%}**")
+    lines.append(f"- Pass rate (ΔE/gap < 5%, single-criterion): **{report.noiseless_pass_rate:.0%}**")
     if report.noiseless_median_de is not None:
         lines.append(f"- Median ΔE/gap: **{report.noiseless_median_de:.4f}**")
     lines.append("")

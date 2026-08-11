@@ -76,6 +76,7 @@ def check_training_data(topo_filter: str | None = None) -> dict:
     """Check training data quality using dual criterion."""
     from qmbp_simulation.analysis.metrics import (
         classify_training_utility, DE_GAP_THRESHOLD, MAX_ABS_ERROR,
+        identify_failures,
     )
 
     npz_dir = DATA / "multi_n_training"
@@ -115,10 +116,13 @@ def check_training_data(topo_filter: str | None = None) -> dict:
             else:
                 de_gaps = abs_err / np.maximum(gaps, 1e-10)
 
-            n_good = sum(
-                1 for i in range(n_pts)
-                if de_gaps[i] < DE_GAP_THRESHOLD and abs_err[i] < MAX_ABS_ERROR
-            )
+            # Use identify_failures() for canonical dual-criterion evaluation
+            per_h_results = [
+                {"de_gap": float(de_gaps[i]), "abs_error": float(abs_err[i])}
+                for i in range(n_pts)
+            ]
+            n_failures = len(identify_failures(per_h_results))
+            n_good = n_pts - n_failures
             total_good += n_good
             pass_dual = n_good / max(n_pts, 1)
             pass_5pct = float((de_gaps < DE_GAP_THRESHOLD).mean())

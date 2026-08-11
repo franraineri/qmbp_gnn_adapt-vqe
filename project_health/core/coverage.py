@@ -54,16 +54,7 @@ def detect_coverage_gaps(
     gaps.extend(_gap_missing_zne(noiseless, noisy))
     gaps.extend(_gap_missing_experiments(experiments))
     gaps.extend(_gap_low_dashboard_pass_rate())
-
-    # Sort by priority (CRITICAL first)
-    gaps.sort(key=lambda g: g.priority.value)
-    return gaps
-
-    gaps.extend(_gap_missing_p1_noiseless(noiseless))
-    gaps.extend(_gap_invalid_regime(noiseless))
-    gaps.extend(_gap_insufficient_seeds(noiseless))
-    gaps.extend(_gap_missing_zne(noiseless, noisy))
-    gaps.extend(_gap_missing_experiments(experiments))
+    gaps.extend(_gap_low_quality_training_data())
 
     # Sort by priority (CRITICAL first)
     gaps.sort(key=lambda g: g.priority.value)
@@ -712,6 +703,11 @@ def compute_noiseless_stats(
     """Compute pass rate and median ΔE/gap for noiseless results.
 
     Returns (pass_rate, median_de_gap).
+
+    NOTE: This uses single-criterion (ΔE/gap < 5%) because historical result
+    JSONs do not carry abs_error. This is an execution monitoring metric,
+    NOT a thesis-citable quality metric. For thesis data, use the dashboard's
+    pass_rate_dual_criterion from NPZ files.
     """
     de_gaps = [r.delta_e_over_gap for r in noiseless if r.delta_e_over_gap is not None]
     if not de_gaps:
@@ -991,7 +987,7 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
         return gaps
 
     for config in dashboard.get("configs", []):
-        pass_rate = config.get("pass_rate_5pct", 0)
+        pass_rate = config.get("pass_rate_dual_criterion", config.get("pass_rate_5pct", 0))
         topology = config.get("topology", "")
         n_qubits = config.get("n_qubits", 0)
         p_layers = config.get("p_layers", 1)
@@ -1012,7 +1008,7 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
             circuit_type = "bond-resolved" if n_params > 2 * p_layers else "global"
             detail = (
                 f"{topology} N={n_qubits} p={p_layers} ({circuit_type}, {n_params} params): "
-                f"pass_rate={pass_rate:.0%} ({n_points} pts, "
+                f"pass_rate_dual={pass_rate:.0%} ({n_points} pts, "
                 f"h=[{h_range[0]:.1f},{h_range[1]:.1f}])"
             )
             if h_frontier:
@@ -1031,6 +1027,102 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
                         f"--h-min {h_range[0]:.1f} --h-max {h_range[1]:.1f}"
                     ),
                     priority=Priority.HIGH if pass_rate < 0.30 else Priority.MEDIUM,
+                )
+            )
+
+    return gaps
+
+
+def _gap_low_quality_training_data() -> list[CoverageGap]:
+    """Detect multi-N zoo models trained on low-quality data.
+
+    Cross-integrates model_zoo manifest with NPZ quality_tier fields.
+    Flags models where quality_score < 0.70 (mostly unverified/approximate data).
+    """
+    import json
+    from pathlib import Path
+
+    gaps: list[CoverageGap] = []
+    root = Path(__file__).resolve().parents[2]
+    manifest_path = root / "data" / "model_zoo" / "manifest.json"
+    npz_dir = root / "data" / "multi_n_training"
+
+    if not manifest_path.exists() or not npz_dir.exists():
+        return gaps
+
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return gaps
+
+    entries = manifest if isinstance(manifest, list) else manifest.get("entries", [])
+    multi_n = [e for e in entries if e.get("n_qubits", -1) == 0]
+
+    for entry in multi_n:
+        topology = entry.get("topology", "")
+        p_layers = entry.get("p_layers", 1)
+        model = entry.get("model", "tfim_bond_resolved")
+
+        # Scan NPZ files for this topology
+        import numpy as np
+        pattern = f"{topology}_N*_p{p_layers}.npz"
+        npz_files = list(npz_dir.glob(pattern))
+
+        if not npz_files:
+            gaps.append(
+                CoverageGap(
+                    gap_type=GapType.MISSING_DATA,
+                    topology=topology,
+                    n_qubits=0,
+                    p_layers=p_layers,
+                    detail=(
+                        f"Zoo model {entry.get('checkpoint_file', '?')[:40]} "
+                        f"has no training data NPZ (orphaned model)"
+                    ),
+                    recommendation=(
+                        f"Remove orphan from zoo or regenerate NPZ data for {topology}"
+                    ),
+                    priority=Priority.MEDIUM,
+                )
+            )
+            continue
+
+        # Compute quality score from NPZ files
+        n_verified = 0
+        n_total = 0
+        for npz_file in npz_files:
+            try:
+                data = np.load(str(npz_file), allow_pickle=True)
+                n_pts = len(data["h_values"])
+                n_total += n_pts
+                if "quality_tier" in data:
+                    tiers = list(data["quality_tier"])
+                    n_verified += tiers.count("verified")
+            except Exception:
+                continue
+
+        if n_total == 0:
+            continue
+
+        quality_score = n_verified / n_total  # Simplified: verified ratio
+        if quality_score < 0.50:
+            gaps.append(
+                CoverageGap(
+                    gap_type=GapType.LOW_PASS_RATE,
+                    topology=topology,
+                    n_qubits=0,
+                    p_layers=p_layers,
+                    detail=(
+                        f"{topology} multi-N model: only {n_verified}/{n_total} "
+                        f"training points verified ({quality_score:.0%}). "
+                        f"Model predictions may be unreliable."
+                    ),
+                    recommendation=(
+                        f"Run --force-retrain --topology {topology} or "
+                        f"--refine-all to verify approximate points via VQE"
+                    ),
+                    priority=Priority.HIGH if quality_score < 0.30 else Priority.MEDIUM,
                 )
             )
 

@@ -37,7 +37,7 @@ src/qmbp_simulation/
 │   └── mpnn.py
 ├── pipeline/                ← Orchestration, dataset I/O
 │   ├── dataset_io.py
-│   ├── runner.py           ← PipelineRunner + run_exact_diag_sweep helper
+│   ├── runner.py           ← ⚠️ DEPRECATED: PipelineRunner (use ValidationRunner)
 │   └── qrc.py
 ├── framework/               ← Experiment engine, CLI, benchmarking, result I/O
 │   ├── base.py             ← BaseExperiment lifecycle
@@ -224,7 +224,11 @@ from qmbp_simulation.analysis import (
 
 ### Pipeline
 ```python
-from qmbp_simulation.pipeline import PipelineRunner, run_exact_diag_sweep
+# Active — use these for new code:
+from qmbp_simulation.pipeline import AcceleratedVQE, AcceleratedConfig
+
+# Legacy (deprecated) — only for existing consumers:
+# from qmbp_simulation.pipeline import PipelineRunner, run_exact_diag_sweep
 ```
 
 ### NEVER use these patterns
@@ -299,7 +303,7 @@ from qmbp_simulation.framework.preflight import (
 ```
 
 - Never duplicate regime boundary dicts in analysis modules.
-- `project_health/coverage.py` and `project_health/analysis/diagnose.py` import from preflight.
+- `project_health/core/coverage.py` and `project_health/analysis/diagnose.py` import from preflight.
 - Tests enforce identity (`is` not `==`) to prevent accidental duplication.
 - To add a new topology/size: add its entry to preflight.py ONLY.
 

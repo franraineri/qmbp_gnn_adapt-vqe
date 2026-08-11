@@ -207,12 +207,274 @@ def format_report(report: AcceleratedReport) -> str:
     return "\n".join(lines)
 
 
+def analyze_from_dashboard() -> str:
+    """Deep cross-topology analysis using the dashboard as primary source.
+
+    This is the recommended entry point for thesis-ready analysis.
+    Uses dashboard (NPZ-derived, dual criterion) for training data quality,
+    and raw large-N NPZ for extrapolation per-h breakdown.
+
+    Returns formatted text report.
+    """
+    dashboard_path = ROOT / "data" / "model_quality_dashboard.json"
+    large_n_dir = ROOT / "data" / "large_n_extrapolation"
+    exp_dir = RESULTS_DIR / "exp_large_n_extrap"
+
+    if not dashboard_path.exists():
+        return "Dashboard not found. Run any experiment to generate."
+
+    dashboard = json.load(open(dashboard_path))
+    configs = dashboard.get("configs", [])
+    topo_sum = dashboard.get("topology_summary", {})
+    audit = dashboard.get("audit", {})
+
+    lines = [
+        "",
+        "═" * 70,
+        "  UNIFIED PIPELINE ANALYSIS (from dashboard + large-N NPZ)",
+        f"  Dashboard generated: {dashboard.get('generated_at', '?')[:19]}",
+        "  Criterion: pass_rate_dual (ΔE/gap < 5% AND |ΔE| < 0.10)",
+        "═" * 70,
+    ]
+
+    # ── Section A: Training Data Overview (from dashboard) ────────────────
+    lines.extend(["", "  ┌── A. Training Data (dashboard, N≤20) ──────────────────────────┐", ""])
+    lines.append(f"  {'Topology':<12} {'N values':<20} {'pts':>4} {'dual%':>6} {'5pct%':>6} "
+                 f"{'gap_mask':>8} {'h_front':>8} {'quality':>8}")
+    lines.append("  " + "─" * 68)
+
+    for topo in sorted(topo_sum.keys()):
+        topo_configs = sorted(
+            [c for c in configs if c["topology"] == topo],
+            key=lambda c: c["n_qubits"],
+        )
+        n_values = [c["n_qubits"] for c in topo_configs]
+        total_pts = sum(c["n_points"] for c in topo_configs)
+        best_dual = max((c["pass_rate_dual_criterion"] for c in topo_configs), default=0)
+        best_5pct = max((c["pass_rate_5pct"] for c in topo_configs), default=0)
+        gap_mask_pct = best_5pct - best_dual
+        h_frontiers = [c["h_frontier"] for c in topo_configs if c.get("h_frontier")]
+        h_front_str = f"{min(h_frontiers):.2f}" if h_frontiers else "—"
+        utility = sum(1 for c in topo_configs if c.get("training_utility") == "useful")
+        quality_str = f"{utility}/{len(topo_configs)}"
+
+        n_str = ",".join(str(n) for n in n_values[:6])
+        if len(n_values) > 6:
+            n_str += "..."
+
+        lines.append(
+            f"  {topo:<12} {n_str:<20} {total_pts:>4} {best_dual:>5.0%} {best_5pct:>5.0%} "
+            f"{gap_mask_pct:>7.0%} {h_front_str:>8} {quality_str:>8}"
+        )
+
+    # ── Section B: Per-N Scaling (from dashboard) ─────────────────────────
+    lines.extend(["", "  ┌── B. Scaling: pass_rate_dual per (Topology, N) ────────────────┐", ""])
+    all_n = sorted(set(c["n_qubits"] for c in configs))
+    useful_n = [n for n in all_n if sum(1 for c in configs if c["n_qubits"] == n) >= 2][:8]
+
+    header = f"  {'Topo':<12}" + "".join(f" N={n:>2}" for n in useful_n)
+    lines.append(header)
+    lines.append("  " + "─" * (12 + 5 * len(useful_n)))
+    for topo in sorted(topo_sum.keys()):
+        row = f"  {topo:<12}"
+        for n in useful_n:
+            match = next((c for c in configs if c["topology"] == topo and c["n_qubits"] == n), None)
+            if match is None:
+                row += "   — "
+            else:
+                val = match["pass_rate_dual_criterion"]
+                if val >= 0.80:
+                    row += f" {val:>3.0%}✓"
+                elif val >= 0.50:
+                    row += f" {val:>3.0%}~"
+                else:
+                    row += f" {val:>3.0%}✗"
+        lines.append(row)
+
+    # ── Section C: Large-N Extrapolation (from NPZ raw) ───────────────────
+    if large_n_dir.exists() and list(large_n_dir.glob("*.npz")):
+        lines.extend(["", "  ┌── C. Large-N Extrapolation (per-h from NPZ) ────────────────────┐", ""])
+        lines.append(f"  {'Topo':<12} {'N':>4} {'h-range':<12} {'pts':>3} "
+                     f"{'pass':>5} {'g.mask':>6} {'fail':>4} {'|ΔE|/N':>9} {'scaling':>10}")
+        lines.append("  " + "─" * 68)
+
+        topo_scaling = defaultdict(list)
+
+        for npz_file in sorted(large_n_dir.glob("*.npz")):
+            try:
+                parts = npz_file.stem.rsplit("_", 2)
+                if len(parts) < 3 or not parts[1].startswith("N"):
+                    continue
+                topo = parts[0]
+                n_val = int(parts[1][1:])
+
+                data = np.load(str(npz_file), allow_pickle=True)
+                h_vals = data["h_values"]
+                n_pts = len(h_vals)
+                if n_pts == 0:
+                    continue
+                e_pred = data.get("e_pred", data.get("e_vqe"))
+                e_exact = data["e_exact"]
+                gaps = data.get("gaps", np.ones(n_pts))
+                abs_err = np.abs(e_pred - e_exact)
+                de_gaps_arr = abs_err / np.maximum(gaps, 1e-10)
+
+                n_pass = int(np.sum((de_gaps_arr < 0.05) & (abs_err < 0.10)))
+                n_gm = int(np.sum((de_gaps_arr < 0.05) & (abs_err >= 0.10)))
+                n_fail = int(np.sum(de_gaps_arr >= 0.05))
+                per_site = float(abs_err.mean() / max(n_val, 1))
+
+                topo_scaling[topo].append((n_val, per_site))
+
+                h_range = f"[{h_vals.min():.1f},{h_vals.max():.1f}]"
+                lines.append(
+                    f"  {topo:<12} {n_val:>4} {h_range:<12} {n_pts:>3} "
+                    f"{n_pass:>5} {n_gm:>6} {n_fail:>4} {per_site:>9.2e}"
+                )
+            except Exception:
+                continue
+
+        # Scaling verdict per topology
+        lines.append("")
+        for topo in sorted(topo_scaling.keys()):
+            points = sorted(topo_scaling[topo])
+            if len(points) < 2:
+                continue
+            per_sites = [p[1] for p in points]
+            variation = max(per_sites) / max(min(per_sites), 1e-10)
+            if variation < 3.0:
+                verdict = "✅ extensive"
+            elif variation < 5.0:
+                verdict = "⚠️ degrading"
+            else:
+                verdict = "❌ non-extensive"
+            lines.append(f"  {topo}: |ΔE|/N variation={variation:.1f}× → {verdict}")
+
+    # ── Section D: Audit Issues (from dashboard) ──────────────────────────
+    if audit:
+        lines.extend(["", "  ┌── D. Audit Issues ──────────────────────────────────────────────┐", ""])
+        n_issues = audit.get("n_issues", 0)
+        lines.append(f"  Total issues: {n_issues}")
+        if audit.get("h_frontier_anomalies"):
+            lines.append(f"    h_frontier anomalies: {audit['h_frontier_anomalies']}")
+        if audit.get("training_zoo_incoherence"):
+            lines.append(f"    Training/zoo incoherence: {audit['training_zoo_incoherence']}")
+        gap_masked = audit.get("gap_masked_configs", 0)
+        if gap_masked:
+            lines.append(f"    Gap-masked configs: {gap_masked}")
+
+    # ── Section E: Speedup Data (shared helper) ─────────────────────────
+    speedups = _scan_speedup_data()
+
+    if speedups:
+        lines.extend(["", "  ┌── E. QPU Speedup (MPNN vs VQE random-init) ────────────────────┐", ""])
+        for (topo, n), spd in sorted(speedups.items()):
+            lines.append(f"    {topo:<12} N={n:>3}: {spd:>8,.0f}×")
+
+    # ── Section F: Failure Mode Diagnostics (Tests A-F) ───────────────────
+    from qmbp_simulation.analysis.metrics import (
+        classify_topology_failure_mode, diagnose_gap_masking,
+    )
+
+    lines.extend(["", "  ┌── F. Failure Mode Diagnostics (Tests A-F) ──────────────────────┐", ""])
+
+    for topo in sorted(topo_sum.keys()):
+        topo_configs = [c for c in configs if c["topology"] == topo]
+
+        # Build extrapolation_data dict for this topology from large-N NPZ
+        extrap_per_n: dict[int, dict] = {}
+        if large_n_dir.exists():
+            for npz_file in sorted(large_n_dir.glob(f"{topo}_N*_p*.npz")):
+                try:
+                    parts = npz_file.stem.rsplit("_", 2)
+                    if len(parts) < 3 or not parts[1].startswith("N"):
+                        continue
+                    n_val = int(parts[1][1:])
+                    data = np.load(str(npz_file), allow_pickle=True)
+                    h_vals = data["h_values"]
+                    e_pred = data.get("e_pred", data.get("e_vqe"))
+                    e_exact = data["e_exact"]
+                    gaps = data.get("gaps", np.ones(len(h_vals)))
+                    abs_err = np.abs(e_pred - e_exact)
+                    extrap_per_n[n_val] = {
+                        "h_values": h_vals,
+                        "abs_errors": abs_err,
+                        "e_pred": e_pred,
+                        "e_exact": e_exact,
+                        "gaps": gaps,
+                    }
+                except Exception:
+                    continue
+
+        # Run unified classifier
+        diag = classify_topology_failure_mode(
+            topo, topo_configs,
+            extrapolation_data=extrap_per_n if extrap_per_n else None,
+        )
+
+        mode_icon = {
+            "healthy": "✅",
+            "gap_masking": "🔵",
+            "generalization_failure": "🔴",
+            "mixed": "🟡",
+            "intrinsic_vqe_error": "⚠️",
+            "unknown": "❓",
+        }.get(diag.primary_mode, "❓")
+
+        lines.append(
+            f"  {mode_icon} {topo:<12} [{diag.primary_mode}] "
+            f"(confidence={diag.confidence:.0%})"
+        )
+        lines.append(f"    {diag.explanation}")
+
+        # Show test details if non-healthy
+        if diag.primary_mode != "healthy":
+            if diag.violation_rate is not None:
+                lines.append(f"    Variational violations: {diag.violation_rate:.0%}")
+            if diag.slope_b is not None and diag.fit_r_squared is not None:
+                lines.append(f"    |ΔE|/N trend: slope={diag.slope_b:.2e}, R²={diag.fit_r_squared:.2f}")
+            if diag.cross_n_per_site_ratios:
+                ratios_str = ", ".join(f"{k}={v:.1f}×" for k, v in diag.cross_n_per_site_ratios.items())
+                lines.append(f"    Cross-N per-site ratios: {ratios_str}")
+            # Tests G-I
+            if diag.per_site_verified is not None:
+                lines.append(
+                    f"    VQE quality: verified={diag.per_site_verified:.2e}/site, "
+                    f"approx={diag.per_site_approximate:.2e}/site, "
+                    f"ratio={diag.verified_vs_approx_ratio:.2f}"
+                )
+            if diag.verified_high_error_fraction is not None and diag.verified_high_error_fraction > 0:
+                lines.append(
+                    f"    Verified with high error: {diag.verified_high_error_fraction:.0%} "
+                    f"(best N={diag.best_n}, per-site={diag.best_n_per_site:.2e})"
+                )
+            # Tests J-L
+            if diag.training_gap_masked_fraction is not None and diag.training_gap_masked_fraction > 0.05:
+                lines.append(
+                    f"    Training contamination: {diag.training_gap_masked_fraction:.0%} "
+                    f"points gap-masked, θ_smoothness={diag.max_theta_smoothness:.2f}, "
+                    f"{diag.n_configs_discontinuous} discontinuous configs"
+                )
+            if diag.zoo_single_vs_dual_gap is not None and diag.zoo_single_vs_dual_gap > 0.10:
+                lines.append(
+                    f"    Zoo inflation: zoo_pass - best_dual = {diag.zoo_single_vs_dual_gap:+.0%}"
+                )
+        lines.append("")
+
+    lines.extend(["═" * 70])
+    return "\n".join(lines)
+
+
 def main():
     """Run the analysis."""
     import argparse
 
     parser = argparse.ArgumentParser(description="Accelerated Cross-N Analyzer")
     parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument(
+        "--deep", action="store_true",
+        help="Run unified deep analysis from dashboard (thesis-ready)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -220,6 +482,12 @@ def main():
         format="%(message)s",
     )
 
+    # ── Deep analysis mode: uses dashboard as primary source ──────────────
+    if args.deep:
+        print(analyze_from_dashboard())
+        return
+
+    # ── Standard mode: scan result JSONs ──────────────────────────────────
     # Scan results
     raw_results = scan_results()
     logger.info(f"Found {len(raw_results)} result files")
@@ -251,6 +519,7 @@ def main():
     large_n_results = scan_large_n_extrapolation_results()
     if large_n_results:
         print(format_large_n_report(large_n_results))
+        print(analyze_large_n_scaling(large_n_results))
 
     # ── Dashboard cross-validation: compare our scan vs cached dashboard ──
     _cross_validate_with_dashboard(report)
@@ -408,6 +677,177 @@ def format_large_n_report(results: list[LargeNResult]) -> str:
                     f"(dual={best.pass_rate_dual:.0%}, ΔE/gap={best.mean_de_gap:.4f})"
                 )
     
+    lines.append("═" * 60)
+    return "\n".join(lines)
+
+
+def _scan_speedup_data() -> dict[tuple[str, int], float]:
+    """Scan experiment results for speedup data (MPNN vs random-init VQE).
+
+    Returns dict mapping (topology, N) → best speedup factor.
+    Shared helper to avoid duplicating this scan in multiple functions.
+    """
+    exp_dir = RESULTS_DIR / "exp_large_n_extrap"
+    speedups: dict[tuple[str, int], float] = {}
+    if not exp_dir.exists():
+        return speedups
+    for f in sorted(exp_dir.glob("run_*.json")):
+        try:
+            data = json.load(open(f))
+            cfg = data.get("config", {})
+            topo = cfg.get("topology", "")
+            results_sec = data.get("results", {})
+            for sec_key in ["section_3", "section_4", "section_5"]:
+                sec = results_sec.get(sec_key, {})
+                comp = sec.get("data", {}).get("comparison", {})
+                for n_str, entry in comp.items():
+                    spd = entry.get("speedup")
+                    if spd and spd > 1:
+                        key = (topo, int(n_str))
+                        if key not in speedups or spd > speedups[key]:
+                            speedups[key] = spd
+        except Exception:
+            continue
+    return speedups
+
+
+def analyze_large_n_scaling(results: list[LargeNResult]) -> str:
+    """Extended analysis: failure modes, extensive scaling, speedup.
+
+    Uses `failures_tests` module for structured diagnostics instead of
+    reimplementing threshold logic inline.
+    """
+    if not results:
+        return ""
+
+    from qmbp_simulation.analysis.failures_tests import (
+        diagnose_gap_masking,
+        diagnose_generalization_failure,
+        diagnose_h_range_mismatch,
+        VARIATION_EXTENSIVE_MAX,
+        VARIATION_DEGRADING_MAX,
+    )
+
+    large_n_dir = ROOT / "data" / "large_n_extrapolation"
+
+    lines = [
+        "",
+        "═" * 60,
+        "  LARGE-N SCALING ANALYSIS (thesis-ready)",
+        "═" * 60,
+    ]
+
+    # ── Extensive scaling via diagnose_generalization_failure ──────────────
+    by_topo: dict[str, list[LargeNResult]] = defaultdict(list)
+    for r in results:
+        by_topo[r.topology].append(r)
+
+    lines.extend(["", "  Extensive Scaling (|ΔE|/N should be ~constant):", ""])
+    for topo in sorted(by_topo.keys()):
+        topo_r = sorted(by_topo[topo], key=lambda x: x.target_n)
+        if len(topo_r) < 2:
+            continue
+
+        # Build per_n_data for diagnose_generalization_failure
+        per_n_data: dict[int, dict] = {}
+        for r in topo_r:
+            per_n_data[r.target_n] = {
+                "abs_errors": np.array([r.mean_abs_error_per_site * r.target_n]),
+                "e_exact": np.zeros(1),
+                "e_pred": np.array([r.mean_abs_error_per_site * r.target_n]),
+            }
+
+        # Use variation directly from per-site values for display
+        per_site_errs = [r.mean_abs_error_per_site for r in topo_r]
+        variation = max(per_site_errs) / max(min(per_site_errs), 1e-10)
+        if variation < VARIATION_EXTENSIVE_MAX:
+            trend = "✅ EXTENSIVE"
+        elif variation < VARIATION_DEGRADING_MAX:
+            trend = "⚠️ DEGRADING"
+        else:
+            trend = "❌ NON-EXTENSIVE"
+        lines.append(f"  {topo}: {trend} (variation={variation:.1f}×)")
+        for r in topo_r:
+            bar = "█" * min(int(r.mean_abs_error_per_site * 500), 40)
+            lines.append(f"    N={r.target_n:>3}: |ΔE|/N={r.mean_abs_error_per_site:.2e} {bar}")
+        lines.append("")
+
+    # ── Per-h failure mode analysis using diagnose_gap_masking ─────────────
+    if large_n_dir.exists():
+        lines.extend(["  Failure Mode Analysis (per-h from NPZ):", ""])
+        for topo in sorted(by_topo.keys()):
+            topo_failures = []
+            for npz_file in sorted(large_n_dir.glob(f"{topo}_N*_p*.npz")):
+                try:
+                    data = np.load(str(npz_file), allow_pickle=True)
+                    parts = npz_file.stem.split("_")
+                    n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+                    if n_idx is None:
+                        continue
+                    n_val = int(parts[n_idx][1:])
+
+                    h_vals = data["h_values"]
+                    e_pred = data.get("e_pred", data.get("e_vqe"))
+                    e_exact = data["e_exact"]
+                    gaps = data.get("gaps", np.ones(len(h_vals)))
+                    abs_err = np.abs(e_pred - e_exact)
+                    de_gaps_arr = abs_err / np.maximum(gaps, 1e-10)
+
+                    # Use diagnose_gap_masking for structured breakdown
+                    gm = diagnose_gap_masking(h_vals, de_gaps_arr, abs_err, n_val)
+
+                    if gm["n_masked"] > 0 or gm["n_real_fail"] > 0:
+                        topo_failures.append({
+                            "n": n_val,
+                            "total": len(h_vals),
+                            "pass": gm["n_pass"],
+                            "gap_masked": gm["n_masked"],
+                            "real_fail": gm["n_real_fail"],
+                            "is_gap_masking": gm["is_gap_masking"],
+                        })
+                except Exception:
+                    continue
+
+            if topo_failures:
+                lines.append(f"  {topo}:")
+                for f in sorted(topo_failures, key=lambda x: x["n"]):
+                    gm_flag = " [gap-masking]" if f["is_gap_masking"] else ""
+                    lines.append(
+                        f"    N={f['n']:>3}: {f['pass']}/{f['total']} pass | "
+                        f"{f['gap_masked']} gap-masked | {f['real_fail']} real-fail{gm_flag}"
+                    )
+                lines.append("")
+
+        # H-range mismatch detection across N values
+        for topo in sorted(by_topo.keys()):
+            extrap_per_n: dict[int, dict] = {}
+            for npz_file in sorted(large_n_dir.glob(f"{topo}_N*_p*.npz")):
+                try:
+                    parts = npz_file.stem.split("_")
+                    n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+                    if n_idx is None:
+                        continue
+                    n_val = int(parts[n_idx][1:])
+                    data = np.load(str(npz_file), allow_pickle=True)
+                    extrap_per_n[n_val] = {"h_values": data["h_values"]}
+                except Exception:
+                    continue
+            if len(extrap_per_n) >= 2:
+                hm = diagnose_h_range_mismatch(extrap_per_n)
+                if hm["has_mismatch"]:
+                    lines.append(f"  ⚠️ {topo}: h-range mismatch (overlap={hm['overlap_fraction']:.0%})")
+                    for pair in hm["mismatch_pairs"]:
+                        lines.append(f"      {pair}")
+                    lines.append("")
+
+    # ── Speedup data (shared helper) ──────────────────────────────────────
+    speedups = _scan_speedup_data()
+    if speedups:
+        lines.extend(["  Speedup (MPNN vs random-init VQE):", ""])
+        for (topo, n), spd in sorted(speedups.items()):
+            lines.append(f"    {topo:<12} N={n:>3}: {spd:>7,.0f}×")
+        lines.append("")
+
     lines.append("═" * 60)
     return "\n".join(lines)
 

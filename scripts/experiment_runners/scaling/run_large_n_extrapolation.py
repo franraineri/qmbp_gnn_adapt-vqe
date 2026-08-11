@@ -145,46 +145,15 @@ def load_extrapolation_npz(
 def compute_extrapolation_summary(per_h_results: list[dict]) -> dict:
     """Compute summary statistics for extrapolation results.
 
-    Compatible with ValidationRunner.build_per_h_result() output format.
+    Thin wrapper over compute_deploy_summary() that ensures n_qubits is
+    propagated for per-site error computation.
     """
-    from qmbp_simulation.analysis.metrics import (
-        DE_GAP_THRESHOLD,
-        MAX_ABS_ERROR,
-    )
+    from qmbp_simulation.analysis.metrics import compute_deploy_summary
 
-    n_pts = len(per_h_results)
-    if n_pts == 0:
+    if not per_h_results:
         return {"n_points": 0, "pass_rate_5pct": 0, "pass_rate_dual": 0}
 
-    de_gaps = np.array([r["de_gap"] for r in per_h_results])
-    abs_errs = np.array([r["abs_error"] for r in per_h_results])
-
-    # Single criterion: ΔE/gap < 5%
-    n_pass_5pct = int((de_gaps < DE_GAP_THRESHOLD).sum())
-    n_pass_10pct = int((de_gaps < 0.10).sum())
-
-    # Dual criterion: ΔE/gap < 5% AND |ΔE| < 0.10
-    dual_mask = (de_gaps < DE_GAP_THRESHOLD) & (abs_errs < MAX_ABS_ERROR)
-    n_pass_dual = int(dual_mask.sum())
-
-    # Per-site error
-    n_qubits = per_h_results[0].get("n_qubits", 1)
-    abs_err_per_site = abs_errs / max(n_qubits, 1)
-
-    return {
-        "n_points": n_pts,
-        "n_pass_5pct": n_pass_5pct,
-        "n_pass_10pct": n_pass_10pct,
-        "n_pass_dual": n_pass_dual,
-        "pass_rate_5pct": n_pass_5pct / n_pts,
-        "pass_rate_10pct": n_pass_10pct / n_pts,
-        "pass_rate_dual": n_pass_dual / n_pts,
-        "mean_de_gap": float(de_gaps.mean()),
-        "std_de_gap": float(de_gaps.std()),
-        "max_de_gap": float(de_gaps.max()),
-        "mean_abs_error": float(abs_errs.mean()),
-        "mean_abs_error_per_site": float(abs_err_per_site.mean()),
-    }
+    return compute_deploy_summary(per_h_results)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

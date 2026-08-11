@@ -134,6 +134,13 @@ def add_sweep_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
         default=[1.5],
         help="Unseen h-value(s) for deployment (default: 1.5)",
     )
+    group.add_argument(
+        "--frontier-dense",
+        action="store_true",
+        default=False,
+        help="Auto-densify h-grid around empirical h_frontier from NPZ data. "
+        "Concentrates points where the pipeline transitions from pass to fail.",
+    )
     return group
 
 

@@ -68,6 +68,11 @@ _ZOO_DIR = _PROJECT_ROOT / "data" / "model_zoo"
 _MANIFEST_PATH = _ZOO_DIR / "manifest.json"
 _CHECKPOINTS_DIR = _ZOO_DIR / "checkpoints"
 
+# Quality gate threshold for multi-N model selection in load_best_for_cross_n().
+# If a multi-N model has pass_rate below this, it's likely contaminated
+# and single-N alternatives should be preferred.
+MULTI_N_MIN_PASS_RATE: float = 0.40
+
 
 @dataclass
 class ZooEntry:
@@ -349,7 +354,7 @@ def load_pretrained(
 
     mpnn = _smart_load_checkpoint(str(ckpt_path))
     logger.info(
-        "Loaded pre-trained MPNN: %s/%s N=%d p=%d (pass_rate=%.0f%%)",
+        "Loaded pre-trained MPNN: %s/%s N=%d p=%d (pass_rate_dual=%.0f%%)",
         best.model, best.topology, best.n_qubits, best.p_layers, best.pass_rate * 100,
     )
     return mpnn, best
@@ -451,23 +456,67 @@ def load_best_for_cross_n(
 
         # Quality gate: multi-N model with pass_rate < 40% is likely trained
         # on contaminated data (gap-masked or variationally invalid points).
-        # Fall through to single-N models which may be better.
-        if best.pass_rate > 0 and best.pass_rate < 0.40:
-            logger.warning(
-                "load_best_for_cross_n: Multi-N model %s has low pass_rate=%.0f%%. "
-                "Likely trained on contaminated data. Checking single-N alternatives.",
-                best.checkpoint_file, best.pass_rate * 100,
+        # Also check dashboard training_utility for a stronger signal.
+        should_fallback = False
+        fallback_reason = ""
+
+        if best.pass_rate > 0 and best.pass_rate < MULTI_N_MIN_PASS_RATE:
+            should_fallback = True
+            fallback_reason = (
+                f"pass_rate={best.pass_rate:.0%} < {MULTI_N_MIN_PASS_RATE:.0%} threshold"
             )
-            # Check if a single-N model has better pass_rate
-            single_n = [e for e in candidates if e.n_qubits > 0]
-            better_single = [e for e in single_n if e.pass_rate > best.pass_rate + 0.1]
+
+        # Cross-check with dashboard training_utility if available
+        if not should_fallback:
+            try:
+                import json
+                dashboard_path = _PROJECT_ROOT / "data" / "model_quality_dashboard.json"
+                if dashboard_path.exists():
+                    with open(dashboard_path) as _f:
+                        _dash = json.load(_f)
+                    # Check if ANY config for this topology is "not_useful"
+                    # (contamination signal for the multi-N model)
+                    topo_configs = [
+                        c for c in _dash.get("configs", [])
+                        if c.get("topology") == topology and c.get("p_layers") == p_layers
+                    ]
+                    n_not_useful = sum(
+                        1 for c in topo_configs
+                        if c.get("training_utility") == "not_useful"
+                    )
+                    n_total = len(topo_configs)
+                    if n_total > 0 and n_not_useful / n_total > 0.5:
+                        should_fallback = True
+                        fallback_reason = (
+                            f"dashboard: {n_not_useful}/{n_total} configs are 'not_useful' "
+                            f"— multi-N model likely contaminated"
+                        )
+            except Exception:
+                pass  # Dashboard check is best-effort
+
+        if should_fallback:
+            logger.warning(
+                "load_best_for_cross_n: Multi-N model %s quality gate FAILED (%s). "
+                "Checking single-N alternatives.",
+                best.checkpoint_file, fallback_reason,
+            )
+            single_n_alt = [e for e in candidates if e.n_qubits > 0]
+            better_single = [
+                e for e in single_n_alt
+                if e.pass_rate > max(best.pass_rate, 0.0) + 0.1
+            ]
             if better_single:
-                # Fall through to single-N selection below
                 logger.info(
-                    "  Found %d single-N models with better pass_rate. Using those.",
+                    "  Found %d single-N models with better pass_rate. Falling back.",
                     len(better_single),
                 )
                 multi_n = []  # Skip multi-N, fall through to Priority 2
+            else:
+                # No better alternatives — use multi-N anyway but warn strongly
+                logger.warning(
+                    "  No single-N alternatives with better pass_rate. "
+                    "Using multi-N model despite quality concern. Consider --force-retrain."
+                )
 
         if multi_n and ckpt_path.exists():
             _verify_checkpoint_integrity(ckpt_path, best.sha256)
@@ -513,7 +562,7 @@ def load_best_for_cross_n(
 
     _verify_checkpoint_integrity(ckpt_path, best.sha256)
     mpnn = _smart_load_checkpoint(str(ckpt_path))
-    pass_str = f"pass={best.pass_rate:.0%}" if best.pass_rate > 0 else "unevaluated"
+    pass_str = f"pass_dual={best.pass_rate:.0%}" if best.pass_rate > 0 else "unevaluated"
     logger.info(
         "load_best_for_cross_n: Single-N model N=%d → %s "
         "(score=%.1f, %d pts, %s, N_target=%d)",

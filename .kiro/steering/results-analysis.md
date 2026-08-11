@@ -152,8 +152,6 @@ python -m project_health.digest --compare folder_A folder_B   # A/B comparison
 3. Check n_layouts — more layouts doesn't help at N≥10 p=2
 4. Check topology — triangular has worst ZNE performance but p=1 still works (+50%)
 
-For detailed JSON schemas, see #[[file:.kiro/knowledge/result-schemas.md]]
-
 ## Detecting Broken or Corrupted Results
 
 ### Required Fields (if missing → result is broken)

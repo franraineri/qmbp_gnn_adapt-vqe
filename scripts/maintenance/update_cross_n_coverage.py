@@ -24,6 +24,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
 COVERAGE_DOC = ROOT / "internal" / "documentation" / "analysis" / "accelerated_cross_n_coverage.md"
+CROSS_TOPO_REPORT = ROOT / "internal" / "documentation" / "analysis" / "cross_topology_report.md"
 DASHBOARD_PATH = DATA / "model_quality_dashboard.json"
 NPZ_DIR = DATA / "multi_n_training"
 
@@ -434,9 +435,10 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
 
 def generate_gap_masking_table(configs: list[dict]) -> str:
     """Show configs where pass_rate_5pct >> pass_rate_dual (gap masking)."""
+    from qmbp_simulation.analysis.metrics import GAP_MASKING_THRESHOLD
     masked = [
         c for c in configs
-        if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > 0.10
+        if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
     ]
     if not masked:
         return "*(No significant gap masking detected)*"
@@ -736,6 +738,16 @@ def generate_document(dashboard: dict, gt_missing: dict, n_orphans: int, tier_br
         "",
         "---",
         "",
+        "## Quality Tier Distribution",
+        "",
+        "Data quality breakdown by tier (verified=VQE-converged, approximate=MPNN-predicted, unverified=legacy):",
+        "",
+        f"<!-- AUTO-GENERATED-BEGIN:tier_breakdown -->",
+        generate_tier_breakdown(dashboard),
+        f"<!-- AUTO-GENERATED-END:tier_breakdown -->",
+        "",
+        "---",
+        "",
         f"<!-- AUTO-GENERATED-BEGIN:training_plan -->",
         generate_training_plan(dashboard),
         f"<!-- AUTO-GENERATED-END:training_plan -->",
@@ -828,10 +840,11 @@ def generate_large_n_extrapolation_section() -> str:
             per_site_err = mean_abs_err / max(n_qubits, 1)
 
             if gaps is not None:
+                from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
                 de_gaps = abs_errs / np.maximum(gaps, 1e-10)
                 mean_de_gap = float(de_gaps.mean())
-                pass_5pct = int((de_gaps < 0.05).sum())
-                dual_mask = (de_gaps < 0.05) & (abs_errs < 0.10)
+                pass_5pct = int((de_gaps < DE_GAP_THRESHOLD).sum())
+                dual_mask = (de_gaps < DE_GAP_THRESHOLD) & (abs_errs < MAX_ABS_ERROR)
                 pass_dual = int(dual_mask.sum())
             else:
                 mean_de_gap = -1
@@ -1109,6 +1122,53 @@ def generate_training_plan(dashboard: dict) -> str:
     return "\n".join(lines)
 
 
+def generate_tier_breakdown(dashboard: dict) -> str:
+    """Generate quality tier distribution per topology from NPZ data."""
+    from collections import defaultdict as _ddict
+
+    by_topo = _ddict(lambda: {"verified": 0, "approximate": 0, "unverified": 0, "total": 0})
+
+    npz_dir = Path(ROOT) / "data" / "multi_n_training"
+    if npz_dir.exists():
+        for npz_file in sorted(npz_dir.glob("*.npz")):
+            data = np.load(str(npz_file), allow_pickle=True)
+            parts = npz_file.stem.split("_")
+            n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+            if n_idx is None:
+                continue
+            topo = "_".join(parts[:n_idx])
+            n_pts = len(data["h_values"])
+            by_topo[topo]["total"] += n_pts
+
+            if "quality_tier" in data:
+                for t in data["quality_tier"].tolist():
+                    key = str(t) if str(t) in ("verified", "approximate") else "unverified"
+                    by_topo[topo][key] += 1
+            else:
+                by_topo[topo]["unverified"] += n_pts
+
+    if not by_topo:
+        return "*(No NPZ data found)*"
+
+    rows = []
+    for topo in sorted(by_topo.keys()):
+        tb = by_topo[topo]
+        total = tb["total"]
+        if total == 0:
+            continue
+        rows.append(
+            f"| {topo} | {total} | {tb['verified']} ({tb['verified']*100//total}%) | "
+            f"{tb['approximate']} ({tb['approximate']*100//total}%) | "
+            f"{tb['unverified']} ({tb['unverified']*100//total}%) |"
+        )
+
+    lines = [
+        "| Topology | Total pts | Verified | Approximate | Unverified |",
+        "|----------|-----------|----------|-------------|------------|",
+    ] + rows
+    return "\n".join(lines)
+
+
 def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n_orphans: int) -> str:
     """Update only the AUTO-GENERATED sections in an existing document."""
     configs = dashboard.get("configs", [])
@@ -1149,6 +1209,10 @@ def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n
     if found:
         existing = updated
 
+    updated, found = update_section(existing, "tier_breakdown", generate_tier_breakdown(dashboard))
+    if found:
+        existing = updated
+
     updated, found = update_section(existing, "training_plan", generate_training_plan(dashboard))
     if found:
         existing = updated
@@ -1164,6 +1228,429 @@ def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+def generate_cross_topology_report(
+    dashboard: dict,
+    tier_breakdown: dict | None = None,
+) -> str:
+    """Generate unified cross-topology report using exclusively pass_rate_dual.
+
+    Data sources:
+      - model_quality_dashboard.json (NPZ-level: pass_rate_dual, h_frontier)
+      - data/model_zoo/manifest.json (zoo pass_rate = dual)
+      - data/large_n_extrapolation/*.npz (extrapolation per-topology)
+      - results/experiments/exp_large_n_extrap/run_*.json (speedup data)
+
+    All quality metrics use dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10).
+    """
+    configs = dashboard.get("configs", [])
+    topo_sum = dashboard.get("topology_summary", {})
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    topologies = sorted(topo_sum.keys())
+
+    # ── Collect zoo data ──────────────────────────────────────────────────
+    zoo_entries = _load_zoo_manifest()
+
+    # ── Collect extrapolation data ────────────────────────────────────────
+    extrap_data = _collect_extrapolation_data()
+
+    # ── Build scorecard ───────────────────────────────────────────────────
+    scorecard_rows = []
+    for topo in topologies:
+        topo_configs = sorted(
+            [c for c in configs if c["topology"] == topo],
+            key=lambda c: c["n_qubits"],
+        )
+        info = topo_sum[topo]
+
+        # Training data quality
+        total_pts = sum(c["n_points"] for c in topo_configs)
+        verified_pts = 0
+        if tier_breakdown:
+            for fname, tb in tier_breakdown.items():
+                if topo in fname:
+                    verified_pts += tb.get("verified", 0)
+        verified_pct = verified_pts * 100 // max(total_pts, 1)
+
+        # N_max_viable with dual criterion (≥70% pass_dual)
+        n_max_dual = _compute_n_max_viable_dual(topo_configs)
+
+        # Best pass_rate_dual across all N
+        best_dual = max((c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0)
+
+        # Zoo multi-N model
+        zoo_multi = next(
+            (e for e in zoo_entries if e.get("topology") == topo and e.get("n_qubits") == 0),
+            None,
+        )
+        zoo_str = f"{zoo_multi['pass_rate']:.0%}" if zoo_multi else "—"
+        zoo_icon = "✅" if zoo_multi and zoo_multi["pass_rate"] >= 0.70 else (
+            "⚠️" if zoo_multi and zoo_multi["pass_rate"] >= 0.30 else "❌" if zoo_multi else "—"
+        )
+
+        # h_frontier (lowest h where pipeline still passes)
+        h_frontiers = [c["h_frontier"] for c in topo_configs if c.get("h_frontier")]
+        h_frontier_str = f"{min(h_frontiers):.2f}" if h_frontiers else "—"
+
+        # Extrapolation best
+        topo_extrap = extrap_data.get(topo, [])
+        if topo_extrap:
+            best_extrap_n = max(e["n_qubits"] for e in topo_extrap)
+            best_extrap = next(e for e in topo_extrap if e["n_qubits"] == best_extrap_n)
+            extrap_str = f"N={best_extrap_n}"
+            extrap_dual = best_extrap["pass_dual"] / max(best_extrap["n_pts"], 1)
+            if extrap_dual >= 0.70:
+                extrap_str += " ✅"
+            elif extrap_dual >= 0.30:
+                extrap_str += f" ⚠️{extrap_dual:.0%}"
+            else:
+                extrap_str += f" ❌{extrap_dual:.0%}"
+        else:
+            extrap_str = "—"
+
+        # Data quality icon
+        dq_icon = "✅" if verified_pct >= 80 else ("⚠️" if verified_pct >= 40 else "❌")
+
+        scorecard_rows.append({
+            "topo": topo,
+            "n_max_dual": n_max_dual,
+            "best_dual": best_dual,
+            "zoo_icon": zoo_icon,
+            "zoo_str": zoo_str,
+            "total_pts": total_pts,
+            "verified_pct": verified_pct,
+            "dq_icon": dq_icon,
+            "extrap_str": extrap_str,
+            "h_frontier": h_frontier_str,
+        })
+
+    # ── Build scaling matrix ──────────────────────────────────────────────
+    all_n_values = sorted(set(c["n_qubits"] for c in configs))
+
+    # ── Build document ────────────────────────────────────────────────────
+    lines = [
+        "# Cross-Topology Unified Report",
+        "",
+        f"**Generated**: {now}",
+        "**Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)",
+        "**Model**: TFIM bond-resolved, HVA p=1",
+        "",
+        "> All quality metrics use the dual criterion exclusively.",
+        "> `summary.pass_rate` in runner JSONs = execution health (sections completed), NOT quality.",
+        "",
+        "---",
+        "",
+    ]
+
+    # Section 1: Scorecard
+    lines.extend(_build_scorecard_section(scorecard_rows))
+    lines.append("")
+
+    # Section 2: Scaling Matrix
+    lines.extend(_build_scaling_matrix_section(topologies, configs, all_n_values))
+    lines.append("")
+
+    # Section 3: Gap Masking
+    lines.extend(_build_gap_masking_section(configs))
+    lines.append("")
+
+    # Section 4: Extrapolation
+    lines.extend(_build_extrapolation_section(extrap_data))
+    lines.append("")
+
+    # Section 5: Data Quality
+    lines.extend(_build_data_quality_section(topologies, configs, tier_breakdown))
+    lines.append("")
+
+    # Section 6: Actions
+    lines.extend(_build_actions_section(scorecard_rows, configs, topo_sum))
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def _load_zoo_manifest() -> list[dict]:
+    """Load zoo manifest entries."""
+    manifest_path = DATA / "model_zoo" / "manifest.json"
+    if not manifest_path.exists():
+        return []
+    try:
+        data = json.load(open(manifest_path))
+        return data if isinstance(data, list) else data.get("entries", [])
+    except Exception:
+        return []
+
+
+def _collect_extrapolation_data() -> dict[str, list[dict]]:
+    """Collect extrapolation results from NPZ files. Returns {topo: [{n, pts, pass_dual, ...}]}."""
+    if not EXTRAPOLATION_DIR.exists():
+        return {}
+    result: dict[str, list[dict]] = defaultdict(list)
+    for npz_path in sorted(EXTRAPOLATION_DIR.glob("*.npz")):
+        stem = npz_path.stem
+        parts = stem.rsplit("_", 2)
+        if len(parts) < 3 or not parts[1].startswith("N"):
+            continue
+        topo = parts[0]
+        n_qubits = int(parts[1][1:])
+        try:
+            data = np.load(npz_path, allow_pickle=True)
+            h_values = data["h_values"]
+            n_pts = len(h_values)
+            if n_pts == 0:
+                continue
+            e_key = "e_pred" if "e_pred" in data else ("e_vqe" if "e_vqe" in data else None)
+            if e_key is None:
+                continue
+            e_pred = data[e_key].astype(float)
+            e_exact = data["e_exact"].astype(float)
+            gaps = data["gaps"].astype(float) if "gaps" in data else np.ones(n_pts)
+            abs_errs = np.abs(e_pred - e_exact)
+            de_gaps = abs_errs / np.maximum(gaps, 1e-10)
+            dual_mask = (de_gaps < 0.05) & (abs_errs < 0.10)
+            result[topo].append({
+                "n_qubits": n_qubits,
+                "n_pts": n_pts,
+                "h_min": float(h_values.min()),
+                "h_max": float(h_values.max()),
+                "mean_de_gap": float(de_gaps.mean()),
+                "mean_per_site": float(abs_errs.mean()) / max(n_qubits, 1),
+                "pass_dual": int(dual_mask.sum()),
+                "pass_5pct": int((de_gaps < 0.05).sum()),
+            })
+        except Exception:
+            continue
+    return dict(result)
+
+
+def _compute_n_max_viable_dual(topo_configs: list[dict], threshold: float = 0.70) -> str:
+    """Find largest N where pass_rate_dual >= threshold."""
+    viable = [
+        c["n_qubits"] for c in topo_configs
+        if c.get("pass_rate_dual_criterion", 0) >= threshold
+    ]
+    return str(max(viable)) if viable else "—"
+
+
+def _build_scorecard_section(rows: list[dict]) -> list[str]:
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:scorecard -->",
+        "## 1. Scorecard",
+        "",
+        "| Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier |",
+        "|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
+    ]
+    for r in rows:
+        lines.append(
+            f"| {r['topo']} | {r['n_max_dual']} | {r['best_dual']:.0%} | "
+            f"{r['zoo_icon']} {r['zoo_str']} | {r['total_pts']} | "
+            f"{r['dq_icon']} {r['verified_pct']}% | {r['extrap_str']} | {r['h_frontier']} |"
+        )
+    lines.append("<!-- AUTO-GENERATED-END:scorecard -->")
+    return lines
+
+
+def _build_scaling_matrix_section(
+    topologies: list[str], configs: list[dict], all_n_values: list[int],
+) -> list[str]:
+    """Build pass_rate_dual matrix: topology × N."""
+    # Filter to N values that at least 2 topologies have
+    n_counts = defaultdict(int)
+    for c in configs:
+        n_counts[c["n_qubits"]] += 1
+    useful_n = sorted(n for n, cnt in n_counts.items() if cnt >= 2)
+    if not useful_n:
+        useful_n = all_n_values[:8]
+
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:scaling -->",
+        "## 2. Scaling: pass_rate_dual per (Topology, N)",
+        "",
+        "| Topology | " + " | ".join(f"N={n}" for n in useful_n) + " |",
+        "|----------|" + "|".join("---:" for _ in useful_n) + "|",
+    ]
+    for topo in topologies:
+        row_cells = []
+        for n in useful_n:
+            match = next(
+                (c for c in configs if c["topology"] == topo and c["n_qubits"] == n),
+                None,
+            )
+            if match is None:
+                row_cells.append("—")
+            else:
+                val = match.get("pass_rate_dual_criterion", 0)
+                # Color-code via emoji
+                if val >= 0.80:
+                    row_cells.append(f"**{val:.0%}** ✅")
+                elif val >= 0.50:
+                    row_cells.append(f"{val:.0%} ⚠️")
+                elif val > 0:
+                    row_cells.append(f"{val:.0%} ❌")
+                else:
+                    row_cells.append("0%")
+        lines.append(f"| {topo} | " + " | ".join(row_cells) + " |")
+
+    lines.append("")
+    lines.append("Legend: ✅ ≥80% | ⚠️ 50-79% | ❌ <50% | — no data")
+    lines.append("<!-- AUTO-GENERATED-END:scaling -->")
+    return lines
+
+
+def _build_gap_masking_section(configs: list[dict]) -> list[str]:
+    """Show gap masking severity per topology (reuses generate_gap_masking_table logic)."""
+    masked = [
+        c for c in configs
+        if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > 0.10
+    ]
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:masking -->",
+        "## 3. Gap Masking Severity",
+        "",
+        "Configs where single-criterion inflates by >10pp vs dual:",
+        "",
+    ]
+    if not masked:
+        lines.append("*No significant gap masking detected.*")
+    else:
+        lines.append("| Topology | N | pass@5% | pass@dual | Inflation |")
+        lines.append("|----------|---|---------|-----------|-----------|")
+        masked.sort(key=lambda c: -(c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0)))
+        for c in masked[:15]:
+            diff = c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0)
+            lines.append(
+                f"| {c['topology']} | {c['n_qubits']} | "
+                f"{c['pass_rate_5pct']:.0%} | {c.get('pass_rate_dual_criterion', 0):.0%} | "
+                f"+{diff:.0%} |"
+            )
+        if len(masked) > 15:
+            lines.append(f"| ... | | | | *({len(masked) - 15} more)* |")
+
+    lines.append("<!-- AUTO-GENERATED-END:masking -->")
+    return lines
+
+
+def _build_extrapolation_section(extrap_data: dict[str, list[dict]]) -> list[str]:
+    """Extrapolation results using only dual criterion."""
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:extrapolation -->",
+        "## 4. Large-N Extrapolation (Zero-Shot)",
+        "",
+        "MPNN predictions at N >> training data. Only dual criterion reported.",
+        "",
+    ]
+    if not extrap_data:
+        lines.append("*No extrapolation data available yet.*")
+        lines.append("<!-- AUTO-GENERATED-END:extrapolation -->")
+        return lines
+
+    lines.append("| Topology | N | h-range | Pts | pass_dual | |ΔE|/N | ΔE/gap (mean) |")
+    lines.append("|----------|---|---------|-----|-----------|--------|---------------|")
+
+    for topo in sorted(extrap_data.keys()):
+        entries = sorted(extrap_data[topo], key=lambda x: x["n_qubits"])
+        for e in entries:
+            n = e["n_qubits"]
+            dual_rate = e["pass_dual"] / max(e["n_pts"], 1)
+            icon = "✅" if dual_rate >= 0.70 else ("⚠️" if dual_rate >= 0.30 else "❌")
+            lines.append(
+                f"| {topo} | {n} | [{e['h_min']:.1f}, {e['h_max']:.1f}] | "
+                f"{e['n_pts']} | {e['pass_dual']}/{e['n_pts']} {icon} | "
+                f"{e['mean_per_site']:.2e} | {e['mean_de_gap']:.4f} |"
+            )
+
+    lines.append("<!-- AUTO-GENERATED-END:extrapolation -->")
+    return lines
+
+
+def _build_data_quality_section(
+    topologies: list[str], configs: list[dict], tier_breakdown: dict | None,
+) -> list[str]:
+    """Training data quality summary per topology."""
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:data_quality -->",
+        "## 5. Training Data Quality",
+        "",
+        "| Topology | NPZ files | Total pts | Verified | Approx | Unverified | Quality |",
+        "|----------|-----------|-----------|----------|--------|------------|---------|",
+    ]
+
+    for topo in topologies:
+        topo_configs = [c for c in configs if c["topology"] == topo]
+        total_pts = sum(c["n_points"] for c in topo_configs)
+        n_files = len(topo_configs)
+
+        n_verified = 0
+        n_approx = 0
+        n_unverified = 0
+        if tier_breakdown:
+            for fname, tb in tier_breakdown.items():
+                if topo in fname:
+                    n_verified += tb.get("verified", 0)
+                    n_approx += tb.get("approximate", 0)
+                    n_unverified += tb.get("unverified", 0)
+
+        pct = n_verified * 100 // max(total_pts, 1)
+        icon = "✅" if pct >= 80 else ("⚠️" if pct >= 40 else "❌")
+
+        lines.append(
+            f"| {topo} | {n_files} | {total_pts} | "
+            f"{n_verified} ({pct}%) | {n_approx} | {n_unverified} | {icon} |"
+        )
+
+    lines.append("<!-- AUTO-GENERATED-END:data_quality -->")
+    return lines
+
+
+def _build_actions_section(
+    scorecard: list[dict], configs: list[dict], topo_sum: dict,
+) -> list[str]:
+    """Priority-ordered actions for each topology."""
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:actions -->",
+        "## 6. Recommended Actions",
+        "",
+    ]
+    actions: list[tuple[int, str, str]] = []  # (priority, topo, action)
+
+    for row in scorecard:
+        topo = row["topo"]
+        # Priority 1: Zoo model broken (pass_dual = 0 or < 30%)
+        zoo_val = next(
+            (e["pass_rate"] for e in _load_zoo_manifest()
+             if e.get("topology") == topo and e.get("n_qubits") == 0),
+            None,
+        )
+        if zoo_val is not None and zoo_val < 0.30:
+            actions.append((1, topo, f"🔴 Re-train UnifiedMPNN (current pass_dual={zoo_val:.0%})"))
+
+        # Priority 2: Low data quality
+        if row["verified_pct"] < 40:
+            actions.append((2, topo, f"⚠️ Run iterative-improve to increase verified% (currently {row['verified_pct']}%)"))
+
+        # Priority 3: Missing extrapolation
+        if row["extrap_str"] == "—":
+            actions.append((3, topo, "ℹ️ Run large-N extrapolation to validate scaling"))
+
+        # Priority 4: Good candidate for expansion
+        if row["best_dual"] >= 0.80 and row["n_max_dual"] != "—":
+            n_max = int(row["n_max_dual"])
+            if n_max < 20:
+                actions.append((4, topo, f"🟢 Expand to N={n_max + 4}: good candidate (pass_dual={row['best_dual']:.0%})"))
+
+    actions.sort(key=lambda x: (x[0], x[1]))
+    if actions:
+        lines.append("| Priority | Topology | Action |")
+        lines.append("|:---:|----------|--------|")
+        for prio, topo, action in actions:
+            lines.append(f"| {prio} | {topo} | {action} |")
+    else:
+        lines.append("*All topologies in good shape — no actions needed.*")
+
+    lines.append("<!-- AUTO-GENERATED-END:actions -->")
+    return lines
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Update accelerated_cross_n_coverage.md")
@@ -1245,6 +1732,18 @@ def main() -> int:
     COVERAGE_DOC.write_text(new_content)
     print(f"\n  ✅ {action}d: {COVERAGE_DOC.relative_to(ROOT)}")
     print(f"     {len(new_content)} chars, {new_content.count(chr(10))} lines")
+
+    # ── Generate unified cross-topology report ────────────────────────────
+    print("\nGenerating cross-topology unified report...")
+    cross_topo_content = generate_cross_topology_report(dashboard, tier_breakdown)
+    if not args.dry_run:
+        CROSS_TOPO_REPORT.parent.mkdir(parents=True, exist_ok=True)
+        CROSS_TOPO_REPORT.write_text(cross_topo_content)
+        print(f"  ✅ written: {CROSS_TOPO_REPORT.relative_to(ROOT)}")
+        print(f"     {len(cross_topo_content)} chars, {cross_topo_content.count(chr(10))} lines")
+    else:
+        print("  (dry-run — not written)")
+
     return 0
 
 

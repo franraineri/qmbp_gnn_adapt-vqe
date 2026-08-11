@@ -1853,11 +1853,11 @@ class NoiselessPipelineRunner(ValidationRunner):
 
         # Compute summary via reusable utility
         summary = compute_deploy_summary(results)
-        pass_rate = summary["pass_rate_5pct"]
-        n_pass = summary["n_pass_5pct"]
+        pass_rate = summary["pass_rate_dual"]
+        n_pass = summary["n_pass_dual"]
 
         logger.info(
-            "  Accelerated deploy: %d/%d passed (%.0f%%), mean |ΔE|=%.2e",
+            "  Accelerated deploy: %d/%d passed dual (%.0f%%), mean |ΔE|=%.2e",
             n_pass, len(results), pass_rate * 100, summary.get("mean_abs_error", 0),
         )
 

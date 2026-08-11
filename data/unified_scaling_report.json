@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-08-10T19:15:23.709909+00:00",
+  "generated_at": "2026-08-11T02:30:50.332250+00:00",
   "n_topologies": 5,
-  "n_configs": 37,
+  "n_configs": 38,
   "topologies": {
     "chain_1d": {
       "n_max_viable": 20,
@@ -13,33 +13,33 @@
     },
     "heavy_hex": {
       "n_max_viable": 16,
-      "best_pass_rate": 0.9833333333333333,
+      "best_pass_rate": 0.9512195121951219,
       "h_frontier": 2.0522633467428055,
-      "scalability_score": 0.9082400935377921,
+      "scalability_score": 0.8953945650825076,
       "scalability_reason": "excellent_scaling",
       "n_configs": 5
     },
     "ladder": {
       "n_max_viable": 20,
-      "best_pass_rate": 0.8596491228070176,
+      "best_pass_rate": 0.6666666666666666,
       "h_frontier": 3.3892768581326163,
-      "scalability_score": 0.8618789248394528,
-      "scalability_reason": "excellent_scaling",
+      "scalability_score": 0.7846859423833125,
+      "scalability_reason": "moderate_scaling",
       "n_configs": 10
     },
     "square": {
       "n_max_viable": 20,
-      "best_pass_rate": 1.0,
+      "best_pass_rate": 0.8536585365853658,
       "h_frontier": 3.9705882352941178,
-      "scalability_score": 0.9007407407407408,
+      "scalability_score": 0.8422041553748871,
       "scalability_reason": "excellent_scaling",
-      "n_configs": 7
+      "n_configs": 8
     },
     "triangular": {
       "n_max_viable": 12,
-      "best_pass_rate": 0.8571428571428571,
+      "best_pass_rate": 0.7222222222222222,
       "h_frontier": 4.4428420765792715,
-      "scalability_score": 0.6728896025091808,
+      "scalability_score": 0.618921348540927,
       "scalability_reason": "moderate_scaling",
       "n_configs": 9
     }
@@ -49,11 +49,11 @@
     "reason": "ready",
     "tier_breakdown_available": true,
     "utility_partition_available": true,
-    "verified_ratio": 0.5148902821316614,
-    "total_verified": 657,
-    "total_points": 1276,
+    "verified_ratio": 0.5050675675675675,
+    "total_verified": 598,
+    "total_points": 1184,
     "n_legacy_npz": 0,
-    "n_useful_configs": 22,
+    "n_useful_configs": 23,
     "n_not_useful_configs": 8
   },
   "extrapolation_viability": {
@@ -89,7 +89,7 @@
         "topology": "heavy_hex",
         "target_n": 30,
         "n_max_viable": 16,
-        "extrapolated_de_gap": -0.028313886395564678
+        "extrapolated_de_gap": -0.021900621800564492
       },
       "40": {
         "viable": false,

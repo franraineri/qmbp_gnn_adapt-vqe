@@ -73,7 +73,7 @@ used conservative h-values from the old formula, which is safe (overestimates).
 ## Source Files
 
 - #[[file:src/qmbp_simulation/execution/mps_backend.py]]
-- #[[file:documentation/binnacles/binnacle-mps-scaling.md]]
-- #[[file:documentation/analysis/17_scaling_N30_research_plan.md]]
+- #[[file:internal/documentation/binnacles/binnacle-mps-scaling.md]]
+- #[[file:internal/documentation/analysis/17_scaling_N30_research_plan.md]]
 - #[[file:results/scaling/]] (scaling_N40_*.json, scaling_N50_*.json, scaling_N80_*.json)
 - #[[file:scripts/experiment_runners/scaling/]] (run_mps_*.py scripts)

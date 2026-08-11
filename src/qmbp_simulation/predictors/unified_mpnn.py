@@ -483,6 +483,21 @@ def train_unified_mpnn(
             loss_x = F.mse_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
             loss = loss_zz + loss_x
 
+            # ── Weighted loss: scale by sample_weight (quality tier) ──────
+            # verified=1.0, approximate=0.7, unverified=0.5
+            # This makes the model learn more from high-quality VQE data.
+            if hasattr(data, "sample_weight") and data.sample_weight is not None:
+                from qmbp_simulation.analysis.metrics import SAMPLE_WEIGHT_MIN, SAMPLE_WEIGHT_MAX
+                w = data.sample_weight.item()
+                # Guard: clamp weight to valid range
+                if w < SAMPLE_WEIGHT_MIN or w > SAMPLE_WEIGHT_MAX:
+                    logger.warning(
+                        "  sample_weight=%.2f out of range [%.1f, %.1f] — clamping",
+                        w, SAMPLE_WEIGHT_MIN, SAMPLE_WEIGHT_MAX,
+                    )
+                    w = max(SAMPLE_WEIGHT_MIN, min(SAMPLE_WEIGHT_MAX, w))
+                loss = loss * w
+
             # Guard: skip NaN/Inf losses (can occur with bad θ_opt data)
             if not torch.isfinite(loss):
                 logger.warning("  Non-finite loss at epoch %d — skipping batch.", epoch)
@@ -604,6 +619,27 @@ def train_unified_mpnn(
     final_mse = mse_history[-1] if mse_history else float("inf")
     gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None
 
+    # ── Log weight distribution (quality tier visibility) ─────────────────
+    weight_counts = {"verified (1.0)": 0, "augmented (0.8)": 0, "approximate (0.7)": 0, "unverified (0.5)": 0, "other": 0}
+    for d in train_dataset:
+        if hasattr(d, "sample_weight") and d.sample_weight is not None:
+            w = round(float(d.sample_weight.item()), 1)
+            if w == 1.0:
+                weight_counts["verified (1.0)"] += 1
+            elif w == 0.8:
+                weight_counts["augmented (0.8)"] += 1
+            elif w == 0.7:
+                weight_counts["approximate (0.7)"] += 1
+            elif w == 0.5:
+                weight_counts["unverified (0.5)"] += 1
+            else:
+                weight_counts["other"] += 1
+        else:
+            weight_counts["unverified (0.5)"] += 1
+    non_zero = {k: v for k, v in weight_counts.items() if v > 0}
+    if non_zero:
+        logger.info("  Weight distribution: %s", non_zero)
+
     return {
         "final_mse": float(final_mse),
         "final_zz_mse": float(zz_loss_history[-1]) if zz_loss_history else float("inf"),
@@ -619,6 +655,7 @@ def train_unified_mpnn(
         "n_val": len(val_dataset),
         "stopped_early": stop_reason != "completed",
         "stop_reason": stop_reason,
+        "weight_distribution": non_zero,
     }
 
 

@@ -298,3 +298,90 @@ def filter_consistent_theta(
     mask = distances <= threshold
 
     return theta_array[mask], mask
+
+
+def augment_theta_symmetries(
+    theta: np.ndarray,
+    *,
+    period: float = np.pi,
+    include_z2: bool = True,
+    include_shift: bool = False,
+    noise_std: float = 0.0,
+    seed: int | None = None,
+) -> list[np.ndarray]:
+    """Generate symmetry-equivalent θ variants for data augmentation.
+
+    HVA circuits have gauge symmetries that produce identical or
+    near-identical quantum states. This function exploits these symmetries
+    to multiply training data without additional VQE cost.
+
+    Symmetries used:
+    1. **Z₂ reflection**: (-θ) produces the same energy as (+θ) for TFIM HVA.
+    2. **Period shift**: (θ + π) produces the same state as θ (periodicity).
+    3. **Optional noise**: small Gaussian perturbation for regularization.
+
+    Parameters
+    ----------
+    theta : np.ndarray
+        Single parameter vector, shape (n_params,).
+    period : float
+        Periodicity of gate parameters. Default π (standard HVA).
+    include_z2 : bool
+        Include Z₂ reflection (-θ). Default True.
+    include_shift : bool
+        Include period-shifted variants. Default False (risk of
+        creating out-of-canonical-domain points if not careful).
+    noise_std : float
+        Standard deviation of Gaussian noise to add. Default 0.0 (no noise).
+        Values like 0.01-0.05 provide regularization without degrading quality.
+    seed : int | None
+        Random seed for noise generation.
+
+    Returns
+    -------
+    list[np.ndarray]
+        List of augmented θ variants (does NOT include the original).
+        Each variant is canonicalized to [-π/2, π/2].
+
+    Example
+    -------
+    >>> theta = np.array([0.3, -0.1, 0.5])
+    >>> augmented = augment_theta_symmetries(theta, include_z2=True)
+    >>> len(augmented)  # 1 variant from Z₂
+    1
+    >>> # With noise: generates 1 noisy variant per symmetry
+    >>> augmented = augment_theta_symmetries(theta, noise_std=0.02, seed=42)
+    >>> len(augmented)  # 1 Z₂ + 1 noisy Z₂ = 2 (if include_z2=True)
+    """
+    theta = np.asarray(theta, dtype=float)
+    if theta.size == 0:
+        return []
+
+    variants: list[np.ndarray] = []
+    half_period = period / 2.0
+
+    # Z₂ symmetry: -θ gives same energy for TFIM HVA
+    if include_z2:
+        z2 = -theta.copy()
+        # Canonicalize
+        z2 = ((z2 + half_period) % period) - half_period
+        variants.append(z2)
+
+    # Period shift: θ + π (same state due to 2θ in gates)
+    if include_shift:
+        shifted = theta + period
+        shifted = ((shifted + half_period) % period) - half_period
+        # Only add if different from original (after wrapping)
+        if not np.allclose(shifted, theta, atol=1e-6):
+            variants.append(shifted)
+
+    # Gaussian noise augmentation
+    if noise_std > 0:
+        rng = np.random.default_rng(seed)
+        n_base = len(variants) if variants else 1
+        for base in ([theta] + variants)[:n_base]:
+            noisy = base + rng.normal(0, noise_std, size=base.shape)
+            noisy = ((noisy + half_period) % period) - half_period
+            variants.append(noisy)
+
+    return variants

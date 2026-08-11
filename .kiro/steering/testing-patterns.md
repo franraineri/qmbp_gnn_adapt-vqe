@@ -93,16 +93,16 @@ When adding a new feature to `src/qmbp_simulation/`:
 | `qmbp_simulation.predictors` | `tests/unit/test_predictors.py` |
 | `qmbp_simulation.pipeline` | `tests/unit/test_pipeline.py` |
 | `qmbp_simulation.framework` | `tests/unit/test_framework.py` |
-| MPNN evaluation helpers (runner_base) | `tests/test_mpnn_eval_helpers.py` |
-| MPNN evaluation extended helpers (sections 15-19) | `tests/test_mpnn_eval_extended.py` |
+| MPNN evaluation helpers (runner_base) | `tests/mpnn/test_mpnn_eval_helpers.py` |
+| MPNN evaluation extended helpers (sections 15-19) | `tests/mpnn/test_mpnn_eval_extended.py` |
 | `qmbp_simulation.analysis` | `tests/unit/test_analysis.py` |
 | Import dependency order | `tests/unit/test_imports.py` |
 | Smoke test (all imports) | `tests/integration/test_smoke.py` |
 | End-to-end pipeline | `tests/integration/test_pipeline_e2e.py` |
 | Backward compatibility | `tests/integration/test_backward_compat.py` |
-| `project_health.engine` | `tests/test_project_health.py` |
-| `project_health.digest` (scanner, formatters, CLI) | `tests/test_digest.py` |
-| `project_health.analysis.diagnose` | `tests/test_diagnose.py` |
-| `project_health.compare` (ResultStore) | `tests/test_compare.py` |
-| `project_health.analysis` (scan_coverage, heisenberg, validate_s) | `tests/test_analysis_tools.py` |
-| `project_health` (state, coverage, verify, sanity, scaling, reporter, models) | `tests/test_project_health_coverage.py` |
+| `project_health.engine` | `tests/project_health/test_project_health.py` |
+| `project_health.digest` (scanner, formatters, CLI) | `tests/project_health/test_digest.py` |
+| `project_health.analysis.diagnose` | `tests/project_health/test_diagnose.py` |
+| `project_health.compare` (ResultStore) | `tests/project_health/test_compare.py` |
+| `project_health.analysis` (scan_coverage, heisenberg, validate_s) | `tests/project_health/test_analysis_tools.py` |
+| `project_health` (state, coverage, verify, sanity, scaling, reporter, models) | `tests/project_health/test_project_health_coverage.py` |

@@ -146,6 +146,25 @@ def main():
     else:
         print(f"\n[NPZ Training Data] NOT FOUND")
 
+    # 3b. Large-N Extrapolation Data (bootstrapping cycle)
+    extrap_dir = DATA / "large_n_extrapolation"
+    if extrap_dir.exists():
+        extrap_files = sorted(extrap_dir.glob("*.npz"))
+        if extrap_files:
+            print(f"\n[Large-N Extrapolation Data] {len(extrap_files)} files")
+            for npz_file in extrap_files:
+                data = np.load(str(npz_file), allow_pickle=True)
+                h_vals = data["h_values"]
+                n_pts = len(h_vals)
+                tier_str = ""
+                if "quality_tier" in data:
+                    tiers = data["quality_tier"].tolist()
+                    n_approx = sum(1 for t in tiers if str(t) == "approximate")
+                    n_verified = sum(1 for t in tiers if str(t) == "verified")
+                    tier_str = f" (V={n_verified} A={n_approx})"
+                print(f"  {npz_file.name}: {n_pts} pts, "
+                      f"h=[{h_vals.min():.2f},{h_vals.max():.2f}]{tier_str}")
+
     # 4. Model Zoo — use validate_zoo() for integrity + orphan detection
     zoo_dir = DATA / "model_zoo"
     manifest_path = zoo_dir / "manifest.json"
@@ -160,7 +179,7 @@ def main():
             ntp = entry.get("n_training_points", 0)
             topo = entry.get("topology", "?")
             n = entry.get("n_qubits", "?")
-            print(f"  {name}: {topo} N={n}, pass={pr:.0%}, pts={ntp}")
+            print(f"  {name}: {topo} N={n}, pass_dual={pr:.0%}, pts={ntp}")
 
         # Use validate_zoo() for SHA256 integrity + missing file detection
         try:
@@ -204,6 +223,7 @@ def main():
     if npz_dir.exists():
         from qmbp_simulation.analysis.metrics import (
             MAX_ABS_ERROR, MIN_FIDELITY, compute_h_frontier_from_npz,
+            identify_failures, DE_GAP_THRESHOLD,
         )
 
         print(f"\n{'=' * 60}")
@@ -229,8 +249,13 @@ def main():
             gaps = data["gaps"] if "gaps" in data else np.ones(n_pts)
             de_gaps = abs_err / np.maximum(gaps, 1e-10)
 
-            # Classify each point
-            good = (de_gaps < 0.05) & (abs_err < MAX_ABS_ERROR)
+            # Classify using identify_failures (dual criterion)
+            per_h_results = [
+                {"de_gap": float(de_gaps[i]), "abs_error": float(abs_err[i])}
+                for i in range(n_pts)
+            ]
+            failure_indices = set(identify_failures(per_h_results))
+            good = np.array([i not in failure_indices for i in range(n_pts)])
             marginal = (de_gaps < 0.10) & ~good
             bad = ~good & ~marginal
 
@@ -281,6 +306,81 @@ def main():
         print(f"\n  Training dataset {'VALID ✅' if is_valid else 'NEEDS CLEANING ❌'}")
         if not is_valid:
             print(f"    > 10% bad points — consider re-running with higher maxiter")
+
+    # ═══════════════════════════════════════════════════════════════
+    # 5b. Quality Tier Breakdown + Training Viability Assessment
+    # ═══════════════════════════════════════════════════════════════
+    if npz_dir.exists():
+        from collections import defaultdict as _defaultdict
+
+        print(f"\n{'=' * 60}")
+        print("QUALITY TIERS & TRAINING VIABILITY")
+        print(f"{'=' * 60}")
+
+        tier_totals = {"verified": 0, "approximate": 0, "unverified": 0}
+        topo_tier_breakdown = _defaultdict(lambda: {"verified": 0, "approximate": 0, "unverified": 0, "n_values": set()})
+
+        for npz_file in sorted(npz_dir.glob("*.npz")):
+            data = np.load(str(npz_file), allow_pickle=True)
+            parts = npz_file.stem.split("_")
+            n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+            if n_idx is None:
+                continue
+            topo = "_".join(parts[:n_idx])
+            n_val = int(parts[n_idx][1:])
+
+            # Count tiers
+            if "quality_tier" in data:
+                tiers = data["quality_tier"].tolist()
+                for t in tiers:
+                    tier_totals[str(t)] = tier_totals.get(str(t), 0) + 1
+                    topo_tier_breakdown[topo][str(t)] = topo_tier_breakdown[topo].get(str(t), 0) + 1
+            else:
+                n_pts = len(data["h_values"])
+                tier_totals["unverified"] += n_pts
+                topo_tier_breakdown[topo]["unverified"] += n_pts
+
+            topo_tier_breakdown[topo]["n_values"].add(n_val)
+
+        # Global summary
+        total_tiered = sum(tier_totals.values())
+        print(f"\n  Quality Tier Distribution ({total_tiered} total points):")
+        print(f"    verified:     {tier_totals['verified']:>4} ({tier_totals['verified']/max(total_tiered,1):.0%})")
+        print(f"    approximate:  {tier_totals['approximate']:>4} ({tier_totals['approximate']/max(total_tiered,1):.0%})")
+        print(f"    unverified:   {tier_totals['unverified']:>4} ({tier_totals['unverified']/max(total_tiered,1):.0%})")
+
+        # Per-topology breakdown
+        print(f"\n  Per-Topology Tier Breakdown:")
+        for topo in sorted(topo_tier_breakdown.keys()):
+            tb = topo_tier_breakdown[topo]
+            n_v = tb["verified"]
+            n_a = tb["approximate"]
+            n_u = tb["unverified"]
+            n_total = n_v + n_a + n_u
+            n_vals = sorted(tb["n_values"])
+            print(f"    {topo:12s}: {n_total:>4} pts "
+                  f"(V={n_v} A={n_a} U={n_u}) "
+                  f"N={n_vals}")
+
+        # Training viability per topology using validate_training_dataset
+        try:
+            from qmbp_simulation.analysis.metrics import validate_training_dataset
+            from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+            print(f"\n  Training Viability (multi-N model training):")
+            for topo in sorted(topo_tier_breakdown.keys()):
+                agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+                agg.scan()
+                viable, report = validate_training_dataset(agg._data_by_n)
+                status = "✅ VIABLE" if viable else "❌ NOT VIABLE"
+                reason = report.get("reason", "")[:60]
+                n_usable = report.get("n_usable_points", 0)
+                n_values = report.get("n_values_with_data", 0)
+                print(f"    {topo:12s}: {status} "
+                      f"({n_usable} pts, {n_values} N values) "
+                      f"{reason}")
+        except (ImportError, Exception) as e:
+            print(f"    (validate_training_dataset unavailable: {e})")
 
     # ═══════════════════════════════════════════════════════════════
     # 6. Dashboard Cross-Validation (only with --validate-dashboard)
@@ -484,8 +584,9 @@ def main():
         if stale:
             print(f"\n  ⚠️ Stale models ({len(stale)}):")
             for c in stale[:5]:
+                npz_pass = c.get('pass_rate_dual_criterion', c.get('pass_rate_5pct', 0))
                 print(f"    {c['topology']} N={c['n_qubits']}: "
-                      f"NPZ pass={c['pass_rate_5pct']:.0%} > zoo pass={c['zoo_pass_rate']:.0%}")
+                      f"NPZ pass_dual={npz_pass:.0%} > zoo pass={c['zoo_pass_rate']:.0%}")
 
         if retrain:
             print(f"\n  🔄 Need retrain ({len(retrain)}):")
@@ -566,7 +667,20 @@ def main():
                 for r in regs:
                     print(f"    {r['message']}")
                     issues.append(f"Regression: {r['message'][:80]}")
-            elif audit.get("n_issues", 0) == 0 and not stale and not retrain:
+
+            # H-range mismatches (Test M)
+            h_mismatches = audit.get("h_range_mismatches", [])
+            if h_mismatches:
+                print(f"\n  ⚠️ H-range mismatches ({len(h_mismatches)} topologies):")
+                for hm in h_mismatches:
+                    print(f"    {hm['topology']}: overlap={hm['overlap_fraction']:.0%}")
+                    for pair in hm.get("mismatch_pairs", [])[:3]:
+                        print(f"      {pair}")
+                    issues.append(
+                        f"H-range mismatch: {hm['topology']} overlap={hm['overlap_fraction']:.0%}"
+                    )
+
+            if audit.get("n_issues", 0) == 0 and not stale and not retrain:
                 print("  ✅ All automated audits passed")
 
         # Topology summary

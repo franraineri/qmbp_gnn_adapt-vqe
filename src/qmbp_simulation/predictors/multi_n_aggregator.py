@@ -190,7 +190,54 @@ class MultiNAggregator:
                 except Exception as e:
                     logger.debug(f"  NPZ load failed: {npz_file.name}: {e}")
 
-        # Source 2: ResultIndex JSON files (fallback if no NPZ found)
+        # Source 2: Large-N extrapolation data (approximate tier, bootstrapping cycle)
+        # These are MPNN predictions that passed dual criterion but haven't been
+        # VQE-verified. They're included with relaxed threshold to enable the
+        # iterative improvement cycle: predict(N=30) → train → predict(N=40) → ...
+        extrap_dir = _PROJECT_ROOT / "data" / "large_n_extrapolation"
+        if extrap_dir.exists():
+            for npz_file in sorted(extrap_dir.glob(f"{self.topology}_N*_p1.npz")):
+                if npz_file.name in not_useful_files:
+                    continue
+                try:
+                    data = np.load(str(npz_file), allow_pickle=True)
+                    h_values = np.asarray(data["h_values"], dtype=np.float64)
+                    theta_opt = data["theta_opt"]
+                    e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+
+                    fname = npz_file.stem
+                    n_str = fname.split("_N")[1].split("_")[0]
+                    n = int(n_str)
+
+                    de_gaps = np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else np.zeros(len(h_values))
+                    e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                    abs_errors = np.abs(np.asarray(data[e_key], dtype=np.float64) - e_exact) if e_key else None
+
+                    points = []
+                    for i in range(len(h_values)):
+                        theta_i = np.asarray(theta_opt[i], dtype=np.float64)
+                        points.append({
+                            "h": float(h_values[i]),
+                            "theta": theta_i,
+                            "e_exact": float(e_exact[i]),
+                            "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
+                            "abs_error": float(abs_errors[i]) if abs_errors is not None else None,
+                            "n_qubits": n,
+                            "source": "large_n_extrapolation",
+                            "quality_tier": "approximate",
+                        })
+
+                    if n not in self._data_by_n:
+                        self._data_by_n[n] = []
+                    self._data_by_n[n].extend(points)
+                    logger.info(
+                        f"  LargeN NPZ: {npz_file.name} -> N={n}, "
+                        f"{len(points)} points (approximate tier)"
+                    )
+                except Exception as e:
+                    logger.debug(f"  LargeN NPZ load failed: {npz_file.name}: {e}")
+
+        # Source 3: ResultIndex JSON files (fallback if no NPZ found)
         if not self._data_by_n:
             self._scan_json_results()
 
@@ -343,7 +390,21 @@ class MultiNAggregator:
         - "verified" (VQE-converged): always included (trusted source)
         - "approximate" (MPNN passing dual criterion): included with relaxed threshold
         - "unverified" (legacy/unknown): strict dual criterion filter
+
+        Data augmentation:
+        - Only verified points with small datasets get Z₂ + noise augmentation
+        - Augmented variants have lower sample_weight than originals
         """
+        from qmbp_simulation.analysis.metrics import (
+            QUALITY_TIER_WEIGHT_VERIFIED,
+            QUALITY_TIER_WEIGHT_AUGMENTED,
+            QUALITY_TIER_WEIGHT_APPROXIMATE,
+            QUALITY_TIER_WEIGHT_UNVERIFIED,
+            AUGMENTATION_MAX_FILTERED_POINTS,
+            AUGMENTATION_MAX_VARIANTS_PER_POINT,
+        )
+        from qmbp_simulation.models.constants import AUGMENTATION_NOISE_SIGMA
+
         dataset = []
         for n, points in sorted(self._data_by_n.items()):
             # Tier-aware quality filter
@@ -389,6 +450,7 @@ class MultiNAggregator:
             n_verified = sum(1 for p in filtered if p.get("quality_tier") == "verified")
             n_approx = sum(1 for p in filtered if p.get("quality_tier") == "approximate")
             n_unverified = len(filtered) - n_verified - n_approx
+            n_augmented = 0
 
             for pt in filtered:
                 g = build_unified_bond_resolved_graph(
@@ -399,17 +461,52 @@ class MultiNAggregator:
                 theta_arr = np.asarray(pt["theta"], dtype=np.float64)
                 g.y = torch.tensor(theta_arr, dtype=torch.float32)
 
-                # Store quality weight in graph for optional weighted training:
-                # verified=1.0, approximate=0.7, unverified=0.5
+                # Store quality weight in graph for optional weighted training
                 tier = pt.get("quality_tier", "unverified")
-                weight = {"verified": 1.0, "approximate": 0.7, "unverified": 0.5}.get(tier, 0.5)
+                weight = {
+                    "verified": QUALITY_TIER_WEIGHT_VERIFIED,
+                    "approximate": QUALITY_TIER_WEIGHT_APPROXIMATE,
+                    "unverified": QUALITY_TIER_WEIGHT_UNVERIFIED,
+                }.get(tier, QUALITY_TIER_WEIGHT_UNVERIFIED)
                 g.sample_weight = torch.tensor([weight], dtype=torch.float32)
 
                 dataset.append(g)
 
+                # ── Data augmentation: Z₂ symmetry for verified points ────
+                # Only augment verified data (high-quality VQE-converged θ).
+                # Augmenting approximate/unverified would amplify noise.
+                if tier == "verified" and len(filtered) < AUGMENTATION_MAX_FILTERED_POINTS:
+                    try:
+                        from qmbp_simulation.utils.helpers import augment_theta_symmetries
+                        # Guard: only augment finite theta
+                        if np.all(np.isfinite(theta_arr)) and theta_arr.size > 0:
+                            variants = augment_theta_symmetries(
+                                theta_arr, include_z2=True,
+                                noise_std=AUGMENTATION_NOISE_SIGMA,
+                                seed=hash(pt["h"]) % 2**31,
+                            )
+                            for var_theta in variants[:AUGMENTATION_MAX_VARIANTS_PER_POINT]:
+                                # Guard: verify augmented theta is finite
+                                if not np.all(np.isfinite(var_theta)):
+                                    continue
+                                g_aug = build_unified_bond_resolved_graph(
+                                    lattice, h_value=pt["h"], p_layers=1,
+                                    include_circuit_nodes=True,
+                                )
+                                g_aug.y = torch.tensor(var_theta.astype(np.float32), dtype=torch.float32)
+                                g_aug.sample_weight = torch.tensor(
+                                    [QUALITY_TIER_WEIGHT_AUGMENTED], dtype=torch.float32
+                                )
+                                dataset.append(g_aug)
+                                n_augmented += 1
+                    except Exception as e:
+                        # Augmentation failure is non-fatal — continue without it
+                        logger.debug(f"  Augmentation failed for h={pt['h']:.3f}: {e}")
+
             logger.info(
                 f"  N={n}: {len(filtered)}/{len(points)} points pass "
                 f"(verified={n_verified}, approx={n_approx}, legacy={n_unverified})"
+                f"{f', +{n_augmented} augmented' if n_augmented > 0 else ''}"
             )
 
         return dataset

@@ -75,12 +75,7 @@ class MyRunner(ValidationRunner):
     description = "E4b Hardware ..."   # One-line summary
     hypothesis = "TFIM+long ..."       # Overall hypothesis
 
-    # ── REQUIRED method ──
-    def define_sections(self) -> list[Section]:
-        return [
-            Section(id=1, name="...", fn=self.section_1, hypothesis="..."),
-            Section(id=2, name="...", fn=self.section_2, hypothesis="..."),
-        ]
+    
 
     # ── Section implementations ──
     def section_1(self) -> dict:

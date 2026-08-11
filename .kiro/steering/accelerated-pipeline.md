@@ -99,12 +99,12 @@ Loop automático: predict → identify failures → VQE refine → upsert NPZ �
 
 ```bash
 # Típico: N=20 con 12 h-points, máx 3 iteraciones
-.venv/bin/python scripts/.../run_accelerated_cross_n.py \
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py \
   --iterative-improve --target-n 20 --topology chain_1d \
   --h-min 2.0 --h-max 3.5 --h-points 12 --max-iterations 3
 
 # Solo estimar costo (no ejecuta)
-.venv/bin/python scripts/.../run_accelerated_cross_n.py \
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py \
   --iterative-improve --budget-only --target-n 20 --topology chain_1d
 ```
 

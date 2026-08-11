@@ -220,8 +220,8 @@ def test_property_6_trainable_param_count(
 # Import Ext1bP1ValidationRunner via importlib (scripts/ has no __init__.py)
 _RUNNER_PATH = _os.path.join(
     _os.path.dirname(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))),
+    "_deprecated",
     "scripts",
-    "experiment_runners",
     "run_ext1_intra_n_p1.py",
 )
 _runner_spec = _ilib.spec_from_file_location("run_ext1_intra_n_p1", _RUNNER_PATH)

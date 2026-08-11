@@ -593,7 +593,7 @@ class AcceleratedVQE:
                 n_qubits=self._N,
                 p_layers=p_layers,
             )
-            logger.info("  P2 Zoo: loaded %s (pass_rate=%.0f%%)",
+            logger.info("  P2 Zoo: loaded %s (pass_rate_dual=%.0f%%)",
                         entry.checkpoint_file, entry.pass_rate * 100)
             return model
         except (FileNotFoundError, ImportError):

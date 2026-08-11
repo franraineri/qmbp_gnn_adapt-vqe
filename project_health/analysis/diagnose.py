@@ -64,9 +64,10 @@ from qmbp_simulation.framework.preflight import (  # noqa: E402
     P1_VALID_REGIME,
     P2_VALID_REGIME,
 )
+from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR  # noqa: E402
 
-PASS_THRESHOLD = 0.05
-MARGINAL_THRESHOLD = 0.10
+PASS_THRESHOLD = DE_GAP_THRESHOLD
+MARGINAL_THRESHOLD = MAX_ABS_ERROR
 
 
 # ─── Data Models ─────────────────────────────────────────────────────────────

@@ -1,300 +1,6 @@
 [
   {
     "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 6,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n6_p1_20260728T234938.pt",
-    "h_range": [
-      1.5,
-      3.0
-    ],
-    "pass_rate": 0.875,
-    "n_training_points": 3,
-    "seeds": [
-      42
-    ],
-    "created": "20260728T234938",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=88%)",
-    "sha256": "76882438f35ea51cd2b2b5bb30779556a1304865867f8e95daf2d32ae53651c8",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim",
-    "topology": "chain_1d",
-    "n_qubits": 4,
-    "p_layers": 1,
-    "checkpoint_file": "tfim_chain_1d_n4_p1_e2e_test.pt",
-    "h_range": [
-      1.3,
-      3.0
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 6,
-    "seeds": [
-      42
-    ],
-    "created": "2026-07-29T00:00:10.697333+00:00",
-    "notes": "E2E test checkpoint",
-    "sha256": "c7fa44f51fa1a55b4230314947135288f7334dfaea5d154deace80d82cafec1d",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 10,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260729T143219.pt",
-    "h_range": [
-      2.0,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 14,
-    "seeds": [
-      42
-    ],
-    "created": "20260729T143219",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "084c55c6acd73f9b8c251267a6cd8d0424d20c4cf23e5f3282bf3ccf7576d5b7",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 8,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n8_p1_20260731T015027.pt",
-    "h_range": [
-      2.0,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 14,
-    "seeds": [
-      42
-    ],
-    "created": "20260731T015027",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "000f8a63b811bd957944c1094b81ff36b2fb3c5d9a008ba3c679671a4d966c5d",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "ladder",
-    "n_qubits": 10,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_ladder_n10_p1_20260731T023820.pt",
-    "h_range": [
-      2.9,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 10,
-    "seeds": [
-      42
-    ],
-    "created": "20260731T023820",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "853b67e6f899f823ebddc314598326d3304d82fb20021b155f56c78278a9fc69",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 12,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n12_p1_20260731T024813.pt",
-    "h_range": [
-      2.0,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 14,
-    "seeds": [
-      42
-    ],
-    "created": "20260731T024813",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "f58b0b0724d46078fc6d4a319d7360f4fdfc823b9785ce73e105ba0038504b2f",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "ladder",
-    "n_qubits": 6,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_ladder_n6_p1_20260731T030347.pt",
-    "h_range": [
-      2.5,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 12,
-    "seeds": [
-      42
-    ],
-    "created": "20260731T030347",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "a71c3a50cf14be8cb793c871b49fab654d8193df00b04c9c8ae8eaf38ee20235",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "ladder",
-    "n_qubits": 8,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_ladder_n8_p1_20260731T031036.pt",
-    "h_range": [
-      2.7,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 12,
-    "seeds": [
-      42
-    ],
-    "created": "20260731T031036",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "5c13eaaa3af83cb74bdfa528fa861bc7ef2236937f2b83836bf4866f3d67479a",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "square",
-    "n_qubits": 6,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_square_n6_p1_20260804T020934.pt",
-    "h_range": [
-      2.5,
-      4.5
-    ],
-    "pass_rate": 1.0,
-    "n_training_points": 14,
-    "seeds": [
-      42
-    ],
-    "created": "20260804T020934",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=100%)",
-    "sha256": "ed9f13dad57215f83ea20193cdb6c01d9acab0b83579118e796a77ead562ca1a",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16_p1.pt",
-    "h_range": [
-      1.5,
-      4.5
-    ],
-    "pass_rate": 0.8333333333333334,
-    "n_training_points": 169,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-09T18:31:20.818403+00:00",
-    "notes": "Iterative improve iter 1: N=[4, 6, 10, 12, 16]",
-    "sha256": "44e722133b9cf36917aeb84471246da040c82942874c4b2e271f2f17656df367",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "square",
-    "n_qubits": 8,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_square_n8_p1_20260809T184838.pt",
-    "h_range": [
-      2.5,
-      4.5
-    ],
-    "pass_rate": 0.92,
-    "n_training_points": 25,
-    "seeds": [
-      42
-    ],
-    "created": "20260809T184838",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=92%)",
-    "sha256": "bfe3a453de42f775979bccb1eb8146eeeef1898f385263f33edc12c731275479",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 6,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_heavy_hex_n6_p1_20260810T154150.pt",
-    "h_range": [
-      1.4,
-      2.5
-    ],
-    "pass_rate": 0.8333333333333334,
-    "n_training_points": 12,
-    "seeds": [
-      42
-    ],
-    "created": "20260810T154150",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate=83%)",
-    "sha256": "666d79ada6947467741c0347ec812ddc1ddf22aaae98612641208bea1e3ce50d",
-    "runner_tag": "XX",
-    "date_tag": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "triangular",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_triangular_multiN_3+4+6+8+10+12_p1.pt",
-    "h_range": [
-      3.2,
-      5.5
-    ],
-    "pass_rate": 0.2692307692307692,
-    "n_training_points": 140,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-10T19:48:40.651479+00:00",
-    "notes": "Iterative improve iter 1: N=[3, 4, 6, 8, 10, 12]",
-    "sha256": "b67990f90a032d75c7cc731484c8031e59cab0f330a95ade7aaa7bee2b27f0ae",
-    "runner_tag": "XX",
-    "date_tag": "100826"
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+20_p1.pt",
-    "h_range": [
-      1.5,
-      5.5
-    ],
-    "pass_rate": 0.85,
-    "n_training_points": 153,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-10T22:38:14.072106+00:00",
-    "notes": "Iterative improve iter 2: N=[6, 8, 10, 12, 15, 20]",
-    "sha256": "a0bc1fd9067ccd5a6ecb7f40a3b52d24edc5c451b40179710b6219e34b6e367d",
-    "runner_tag": "XX",
-    "date_tag": "100826"
-  },
-  {
-    "model": "tfim_bond_resolved",
     "topology": "ladder",
     "n_qubits": 0,
     "p_layers": 1,
@@ -309,29 +15,134 @@
       42
     ],
     "created": "2026-08-10T19:32:00+00:00",
-    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 12, 16] (recovered from failed register)",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 12, 16]. Physics limit: 0% dual pass (gap masking).",
     "sha256": "62749d9ae6e3996dedb5877b4310833195713037e7c2ac6980bb7ef665ac4bfd",
     "runner_tag": "AC",
     "date_tag": "100826"
   },
   {
     "model": "tfim_bond_resolved",
-    "topology": "square",
-    "n_qubits": 0,
+    "topology": "heavy_hex",
+    "n_qubits": 10,
     "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14+16_p1.pt",
+    "checkpoint_file": "unified_tfim_bond_resolved_heavy_hex_n10_p1_20260811T025754.pt",
     "h_range": [
-      3.3,
-      5.5
+      2.0,
+      3.5
     ],
-    "pass_rate": 0.88,
-    "n_training_points": 356,
+    "pass_rate": 1.0,
+    "n_training_points": 14,
     "seeds": [
       42
     ],
-    "created": "2026-08-11T01:17:41.585521+00:00",
-    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 12, 14, 16]",
-    "sha256": "370a1b9edd0ecd3644ab7926374360f5ff6738c88e4bf70bb19b75c4869f8b25",
+    "created": "20260811T025754",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=100%)",
+    "sha256": "b80b8ae077d49d9717d804076160fb1cf31e54d8d7773396f7b3a4143e60f61b",
+    "runner_tag": "XX",
+    "date_tag": "110826"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+20_p1.pt",
+    "h_range": [
+      1.5,
+      5.5
+    ],
+    "pass_rate": 0.48,
+    "n_training_points": 166,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-11T03:47:34.601904+00:00",
+    "notes": "Iterative improve iter 1: N=[6, 8, 10, 12, 15, 20]",
+    "sha256": "0d6107a8931cb81f7c62f1041c451e0e57a496ad17a416bdc1cdaf4841c97176",
+    "runner_tag": "XX",
+    "date_tag": "110826"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+30_p1.pt",
+    "h_range": [
+      1.4,
+      4.5
+    ],
+    "pass_rate": 0.88,
+    "n_training_points": 219,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-11T03:59:31.740851+00:00",
+    "notes": "Iterative improve iter 1: N=[4, 6, 10, 12, 16, 20, 30]",
+    "sha256": "00c2d6cc5d1beb693ba5245dbdfa31fcfaa360557b103ecd9b31d6f013d6468e",
+    "runner_tag": "XX",
+    "date_tag": "110826"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "triangular",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_triangular_multiN_3+4+6+8+10+12_p1.pt",
+    "h_range": [
+      3.0,
+      5.5
+    ],
+    "pass_rate": 0.0,
+    "n_training_points": 172,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-11T13:40:14.852720+00:00",
+    "notes": "Multi-N training: N=[3, 4, 6, 8, 10, 12], 172 points",
+    "sha256": "e0a8ef0aca00943686fe6972c8d13f039d8a301909b66cbacbbe371b4fa71ea1",
+    "runner_tag": "AC",
+    "date_tag": "110826"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14+16+30_p1.pt",
+    "h_range": [
+      2.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "n_training_points": 212,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-11T13:51:11.318818+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 16, 30], 212 points",
+    "sha256": "dd23d3f1247440ad089490a89a7640149b2713b29e26d3e9a181198abe9e7580",
+    "runner_tag": "AC",
+    "date_tag": "110826"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260811T152826.pt",
+    "h_range": [
+      2.0,
+      3.5
+    ],
+    "pass_rate": 1.0,
+    "n_training_points": 14,
+    "seeds": [
+      42
+    ],
+    "created": "20260811T152826",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=100%)",
+    "sha256": "d0076a0f4e26292bbb968c6b19c317dcee22fbe333688fda1c92487904e688c5",
     "runner_tag": "XX",
     "date_tag": "110826"
   }

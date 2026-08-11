@@ -10,6 +10,7 @@ This module has NO heavy imports (no Qiskit, no PyTorch).
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -22,53 +23,120 @@ logger = logging.getLogger(__name__)
 # Quality criteria — dual metric for pass/fail decisions
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Constants for the dual quality criterion
-DE_GAP_THRESHOLD: float = 0.05
-"""Relative energy error threshold: |ΔE|/gap < 5%."""
+# ═══════════════════════════════════════════════════════════════════════════════
+# Quality criteria — imported from analysis.constants (single source of truth)
+# Re-exported here for backward compatibility.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-MAX_ABS_ERROR: float = 0.10
-"""Absolute energy error cap (Hartree). Points above this are failures
-regardless of ΔE/gap. Motivation: for large gaps (h >> h_c), ΔE/gap can
-be small while |ΔE| is physically significant. This cap ensures no point
-with |ΔE| > 0.10 is accepted as "passing" just because the gap is large."""
+from qmbp_simulation.analysis.constants import (  # noqa: F401, E402
+    DE_GAP_THRESHOLD,
+    GAP_MASKING_THRESHOLD,
+    H_FRONTIER_MONOTONICITY_TOLERANCE,
+    MAX_ABS_ERROR,
+    MIN_FIDELITY,
+    MIN_TRAINING_DUAL_PASS_RATE,
+    MIN_TRAINING_POINTS_FOR_SIGNAL,
+    PASS_RATE_REGRESSION_THRESHOLD,
+    TRAINING_BAD_RATIO_THRESHOLD,
+    ZOO_PASS_FOR_INCOHERENCE_FLAG,
+)
 
-MIN_FIDELITY: float = 0.97
-"""Minimum state overlap for acceptable quality (when available)."""
 
-# ── Data quality audit thresholds ────────────────────────────────────────────
-TRAINING_BAD_RATIO_THRESHOLD: float = 0.20
-"""If n_bad/n_total > 20% in a NPZ but zoo model has pass_rate > 0.60,
-flag training/zoo incoherence. A good zoo model should not co-exist with
-poor training data."""
+# ── Refinement priority thresholds ───────────────────────────────────────────
 
-ZOO_PASS_FOR_INCOHERENCE_FLAG: float = 0.60
-"""Zoo pass_rate above which a high bad-ratio in NPZ is flagged as incoherence."""
+REFINEMENT_GAP_CRITICAL: float = 0.1
+"""Spectral gap below which VQE refinement is near-impossible.
+|ΔE| must be < gap*0.05 = 0.005 — below VQE precision for large circuits."""
 
-PASS_RATE_REGRESSION_THRESHOLD: float = 0.15
-"""If max pass_rate_dual for a topology drops > 15% vs the previous dashboard
-snapshot, flag as regression. Used in inspect_data_stores --validate-dashboard."""
+REFINEMENT_GAP_HARD: float = 0.5
+"""Spectral gap below which VQE refinement is moderately hard.
+Achievable but requires more restarts and iterations."""
 
-H_FRONTIER_MONOTONICITY_TOLERANCE: float = 0.10
-"""h_frontier is expected to increase (or stay flat) with N for all topologies.
-If h_frontier(N_i+1) < h_frontier(N_i) - tolerance, flag as data quality anomaly
-(likely mixed h-ranges between NPZ datasets)."""
+REFINEMENT_PROXIMITY_EASY: float = 0.10
+"""ΔE/gap below this is an easy win (barely failing the 5% criterion)."""
 
-GAP_MASKING_THRESHOLD: float = 0.10
-"""Difference between pass_rate_5pct and pass_rate_dual_criterion above which
-gap masking is considered significant (large gap inflating ΔE/gap metric)."""
+REFINEMENT_PROXIMITY_MODERATE: float = 0.20
+"""ΔE/gap below this is moderately achievable with standard budget."""
 
-MIN_TRAINING_DUAL_PASS_RATE: float = 0.30
-"""Minimum fraction of points that must pass the dual criterion for a NPZ to
-be considered useful for MPNN training. Below this threshold, the dataset
-contains too much noise relative to signal — the MPNN learns the wrong mapping.
-Note: this is separate from whether points are physically valid. A point can
-be valid (non-NaN, converged VQE) but still useless for training if it's in
-a regime the MPNN cannot predict (gap masking, frustrated phase, etc.)."""
+REFINEMENT_PROXIMITY_HARD: float = 0.50
+"""ΔE/gap below this is hard but potentially achievable with aggressive budget."""
 
-MIN_TRAINING_POINTS_FOR_SIGNAL: int = 5
-"""Minimum number of dual-criterion-passing points required for a NPZ to
-contribute useful training signal. Fewer points is statistically insufficient
-for the MPNN to learn the h → θ mapping for that (topology, N)."""
+REFINEMENT_PARAM_BASELINE: int = 20
+"""Parameter count at which no difficulty discount applies.
+Above this, discount = 1/(1 + (n_params - 20)/50)."""
+
+REFINEMENT_PARAM_SCALE: float = 50.0
+"""Scale factor for parameter count discount. Higher = softer discount."""
+
+REFINEMENT_MPNN_BOOST: float = 1.5
+"""Priority multiplier when MPNN found a better energy basin than previous VQE."""
+
+REFINEMENT_MPNN_IMPROVEMENT_TOL: float = 1e-6
+"""Minimum energy improvement for MPNN prediction to count as 'better basin'."""
+
+# ── Adaptive VQE config thresholds ───────────────────────────────────────────
+
+ADAPTIVE_VQE_CHEAP_PRIORITY: float = 0.8
+"""Priority threshold above which "cheap" tier is assigned (minimal budget)."""
+
+ADAPTIVE_VQE_CHEAP_DE_GAP: float = 0.08
+"""Maximum ΔE/gap for cheap tier (must be barely above 5% threshold)."""
+
+ADAPTIVE_VQE_CHEAP_MAXITER: int = 200
+"""Maximum iterations for cheap tier (quick optimization)."""
+
+ADAPTIVE_VQE_CHEAP_RHOBEG: float = 0.05
+"""Initial step size for cheap tier (small — we're close to solution)."""
+
+ADAPTIVE_VQE_STANDARD_PRIORITY: float = 0.5
+"""Priority threshold above which "standard" tier is assigned."""
+
+ADAPTIVE_VQE_STANDARD_MAX_RESTARTS: int = 5
+"""Cap on restarts for standard tier."""
+
+ADAPTIVE_VQE_STANDARD_RHOBEG: float = 0.1
+"""Initial step size for standard tier."""
+
+ADAPTIVE_VQE_AGGRESSIVE_PRIORITY: float = 0.2
+"""Priority threshold above which "aggressive" tier is assigned (full budget)."""
+
+ADAPTIVE_VQE_AGGRESSIVE_RHOBEG: float = 0.3
+"""Initial step size for aggressive tier (larger — explore landscape)."""
+
+ADAPTIVE_VQE_MINIMAL_MAXITER: int = 100
+"""Maximum iterations for minimal tier (near-hopeless points)."""
+
+ADAPTIVE_VQE_MINIMAL_RHOBEG: float = 0.5
+"""Initial step size for minimal tier (largest — random walk)."""
+
+# ── Quality tier sample weights (for weighted training loss) ─────────────────
+
+QUALITY_TIER_WEIGHT_VERIFIED: float = 1.0
+"""Training weight for VQE-converged (verified) data points."""
+
+QUALITY_TIER_WEIGHT_AUGMENTED: float = 0.8
+"""Training weight for augmented variants of verified data."""
+
+QUALITY_TIER_WEIGHT_APPROXIMATE: float = 0.7
+"""Training weight for MPNN predictions passing dual criterion (not VQE-refined)."""
+
+QUALITY_TIER_WEIGHT_UNVERIFIED: float = 0.5
+"""Training weight for legacy/unknown quality data."""
+
+SAMPLE_WEIGHT_MIN: float = 0.1
+"""Minimum valid sample weight (guard against zero/negative weights)."""
+
+SAMPLE_WEIGHT_MAX: float = 2.0
+"""Maximum valid sample weight (guard against amplifying bad data)."""
+
+# ── Data augmentation thresholds (training pipeline) ─────────────────────────
+
+AUGMENTATION_MAX_FILTERED_POINTS: int = 50
+"""Maximum filtered points per N before augmentation is disabled.
+When dataset is large enough, augmentation adds noise without benefit."""
+
+AUGMENTATION_MAX_VARIANTS_PER_POINT: int = 1
+"""Maximum augmented variants generated per verified point."""
 
 
 def is_point_failure(
@@ -274,7 +342,7 @@ def compute_refinement_priority(
     # that's a strong signal that VQE from the new init can improve.
     mpnn_improved = False
     if e_prev is not None and e_pred is not None:
-        if e_pred < e_prev - 1e-6:
+        if e_pred < e_prev - REFINEMENT_MPNN_IMPROVEMENT_TOL:
             mpnn_improved = True
 
     # ── Factor 2: Stale attempts → skip ──────────────────────────────────
@@ -284,34 +352,27 @@ def compute_refinement_priority(
         return 0.0, True, "stale_no_mpnn_improvement"
 
     # ── Factor 3: Gap-based feasibility ──────────────────────────────────
-    # If gap is tiny (< 0.5), even perfect ΔE/gap requires |ΔE| < gap*0.05
-    # = 0.025 — achievable. But if gap < 0.1, |ΔE| must be < 0.005 which
-    # is below VQE precision for large circuits. Flag as hard.
     gap_feasibility = 1.0
-    if gap < 0.1:
+    if gap < REFINEMENT_GAP_CRITICAL:
         gap_feasibility = 0.1  # Very hard — near phase transition
-    elif gap < 0.5:
+    elif gap < REFINEMENT_GAP_HARD:
         gap_feasibility = 0.5  # Moderately hard
 
     # ── Factor 4: Proximity to threshold ─────────────────────────────────
-    # Points barely failing (ΔE/gap 5-10%) are easy wins.
-    # Points far from passing (ΔE/gap > 50%) are unlikely to improve enough.
-    if de_gap < 0.10:
+    if de_gap < REFINEMENT_PROXIMITY_EASY:
         proximity_score = 1.0  # Very close — easy win
-    elif de_gap < 0.20:
+    elif de_gap < REFINEMENT_PROXIMITY_MODERATE:
         proximity_score = 0.7  # Moderate gap to close
-    elif de_gap < 0.50:
+    elif de_gap < REFINEMENT_PROXIMITY_HARD:
         proximity_score = 0.3  # Far — hard but possible
     else:
         proximity_score = 0.1  # Very far — likely ansatz-limited
 
     # ── Factor 5: Parameter count discount ───────────────────────────────
-    # More params → harder VQE convergence. Soft discount.
-    param_factor = 1.0 / (1.0 + max(0, n_params - 20) / 50.0)
-    # n_params=20 → 1.0, n_params=70 → 0.5, n_params=120 → 0.33
+    param_factor = 1.0 / (1.0 + max(0, n_params - REFINEMENT_PARAM_BASELINE) / REFINEMENT_PARAM_SCALE)
 
     # ── Factor 6: MPNN improvement boost ─────────────────────────────────
-    mpnn_boost = 1.5 if mpnn_improved else 1.0
+    mpnn_boost = REFINEMENT_MPNN_BOOST if mpnn_improved else 1.0
 
     # ── Combine ──────────────────────────────────────────────────────────
     raw_priority = proximity_score * gap_feasibility * param_factor * mpnn_boost
@@ -332,6 +393,93 @@ def compute_refinement_priority(
         reason = "first_attempt"
 
     return priority, False, reason
+
+
+def compute_adaptive_vqe_config(
+    priority: float,
+    de_gap: float,
+    gap: float,
+    n_params: int,
+    *,
+    base_maxiter: int = 1500,
+    base_restarts: int = 10,
+) -> dict[str, int | str]:
+    """Compute adaptive VQE hyperparameters based on refinement priority.
+
+    Points close to the pass threshold need minimal compute (cheap wins).
+    Points far from passing need aggressive optimization (expensive but
+    potentially achievable). Points that are hopeless get minimal budget
+    to avoid wasting compute.
+
+    This function should be called AFTER compute_refinement_priority() to
+    translate the priority score into concrete VQE configuration.
+
+    Parameters
+    ----------
+    priority : float
+        Priority score from compute_refinement_priority() ∈ [0, 1].
+    de_gap : float
+        Current ΔE/gap value.
+    gap : float
+        Spectral gap at this h-point.
+    n_params : int
+        Number of variational parameters.
+    base_maxiter : int
+        Maximum iterations from CLI (will be scaled).
+    base_restarts : int
+        Maximum restarts from CLI (will be scaled).
+
+    Returns
+    -------
+    dict with keys:
+        - maxiter: int — scaled optimizer iterations
+        - n_restarts: int — scaled number of restarts
+        - rhobeg: float — initial step size for COBYLA/L-BFGS-B
+        - tier: str — "cheap", "standard", or "aggressive"
+        - reason: str — human-readable explanation
+    """
+    # Tier 1: Easy wins (ΔE/gap barely above threshold, large gap)
+    # These points are almost passing — minimal effort needed.
+    if priority >= ADAPTIVE_VQE_CHEAP_PRIORITY and de_gap < ADAPTIVE_VQE_CHEAP_DE_GAP:
+        return {
+            "maxiter": min(base_maxiter, ADAPTIVE_VQE_CHEAP_MAXITER),
+            "n_restarts": 1,
+            "rhobeg": ADAPTIVE_VQE_CHEAP_RHOBEG,
+            "tier": "cheap",
+            "reason": f"Easy win: ΔE/gap={de_gap:.3f}, priority={priority:.2f}",
+        }
+
+    # Tier 2: Standard refinement (moderate distance from threshold)
+    if priority >= ADAPTIVE_VQE_STANDARD_PRIORITY:
+        scale = 0.5 + 0.5 * priority  # 0.75-1.0× base
+        return {
+            "maxiter": int(base_maxiter * scale),
+            "n_restarts": min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts),
+            "rhobeg": ADAPTIVE_VQE_STANDARD_RHOBEG,
+            "tier": "standard",
+            "reason": f"Standard: ΔE/gap={de_gap:.3f}, priority={priority:.2f}",
+        }
+
+    # Tier 3: Aggressive (far from threshold but feasible)
+    # Use full budget — this point needs serious optimization
+    if priority >= ADAPTIVE_VQE_AGGRESSIVE_PRIORITY:
+        return {
+            "maxiter": base_maxiter,
+            "n_restarts": base_restarts,
+            "rhobeg": ADAPTIVE_VQE_AGGRESSIVE_RHOBEG,
+            "tier": "aggressive",
+            "reason": f"Aggressive: ΔE/gap={de_gap:.3f}, needs full budget",
+        }
+
+    # Tier 4: Minimal (very low priority — almost hopeless)
+    # Give minimal budget just in case, but don't waste compute
+    return {
+        "maxiter": min(base_maxiter, ADAPTIVE_VQE_MINIMAL_MAXITER),
+        "n_restarts": 1,
+        "rhobeg": ADAPTIVE_VQE_MINIMAL_RHOBEG,
+        "tier": "minimal",
+        "reason": f"Minimal budget: ΔE/gap={de_gap:.3f}, priority={priority:.2f} (near hopeless)",
+    }
 
 
 def compute_snr(observable_value: float, shots: int) -> float:
@@ -586,6 +734,17 @@ def compute_deploy_summary(
         summary["mean_abs_error"] = float(np.mean(abs_errors))
         summary["max_abs_error"] = float(np.max(abs_errors))
 
+    # Dual criterion pass rate (ΔE/gap < 5% AND |ΔE| < 0.10)
+    if abs_errors and len(abs_errors) == n:
+        abs_err_arr = np.array(abs_errors)
+        dual_mask = (de_gaps < DE_GAP_THRESHOLD) & (abs_err_arr < MAX_ABS_ERROR)
+        summary["n_pass_dual"] = int(dual_mask.sum())
+        summary["pass_rate_dual"] = float(dual_mask.mean())
+    else:
+        # Fallback: if no abs_error data, dual = single criterion (conservative)
+        summary["n_pass_dual"] = summary.get("n_pass_5pct", 0)
+        summary["pass_rate_dual"] = summary.get("pass_rate_5pct", 0.0)
+
     # Fidelity stats (if available — only for N ≤ STATEVECTOR_MAX_N)
     fids = [r["fidelity"] for r in per_h_results if r.get("fidelity") is not None]
     if fids:
@@ -595,6 +754,19 @@ def compute_deploy_summary(
     else:
         summary["mean_fidelity"] = None
         summary["fidelity_pass_rate"] = None
+
+    # Standard deviation (useful for confidence intervals and thesis tables)
+    summary["std_de_gap"] = float(np.std(de_gaps))
+
+    # Per-site error (if n_qubits available in results)
+    n_qubits_vals = [r.get("n_qubits") for r in per_h_results if r.get("n_qubits")]
+    if abs_errors and n_qubits_vals:
+        n_q = n_qubits_vals[0]  # All points in a deploy summary have same N
+        abs_arr = np.array(abs_errors)
+        summary["mean_abs_error_per_site"] = float(abs_arr.mean() / max(n_q, 1))
+    elif abs_errors:
+        # n_qubits not in result dicts — caller can compute externally
+        summary["mean_abs_error_per_site"] = None
 
     return summary
 
@@ -1569,6 +1741,9 @@ def _compute_topology_summary(configs: list) -> dict:
             "n_max_viable": n_max_viable,
             "n_configs": len(topo_configs),
             "best_pass_rate_5pct": best_config["pass_rate_5pct"],
+            "best_pass_rate_dual": max(
+                (c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0
+            ),
             "best_n": best_config["n_qubits"],
             "cross_n_best_source_for_largest": cross_n_best,
         }
@@ -1831,16 +2006,39 @@ def generate_model_quality_dashboard(
     # Pass rate regression check (compares vs previous snapshot)
     regressions = detect_pass_rate_regression(configs)
 
+    # H-range mismatch detection per topology (Test M from failures_tests)
+    from collections import defaultdict as _defaultdict_audit
+    h_range_mismatches: list[dict] = []
+    topo_h_ranges: dict[str, dict[int, dict]] = _defaultdict_audit(dict)
+    for c in configs:
+        topo = c["topology"]
+        n = c["n_qubits"]
+        h_range = c.get("h_range")
+        if h_range and len(h_range) == 2:
+            topo_h_ranges[topo][n] = {"h_values": np.linspace(h_range[0], h_range[1], 10)}
+    for topo, per_n_data in topo_h_ranges.items():
+        if len(per_n_data) >= 2:
+            from qmbp_simulation.analysis.failures_tests import diagnose_h_range_mismatch
+            hm = diagnose_h_range_mismatch(per_n_data)
+            if hm["has_mismatch"]:
+                h_range_mismatches.append({
+                    "topology": topo,
+                    "overlap_fraction": hm["overlap_fraction"],
+                    "mismatch_pairs": hm["mismatch_pairs"],
+                })
+
     audit_results = {
         "h_frontier_anomalies": frontier_anomalies,
         "training_zoo_incoherence": training_zoo_incoherence,
         "gap_masked_configs": gap_masked_configs,
         "pass_rate_regressions": regressions,
+        "h_range_mismatches": h_range_mismatches,
         "n_issues": (
             len(frontier_anomalies) +
             len(training_zoo_incoherence) +
             len(gap_masked_configs) +
-            len(regressions)
+            len(regressions) +
+            len(h_range_mismatches)
         ),
     }
     if frontier_anomalies:
@@ -1853,6 +2051,10 @@ def generate_model_quality_dashboard(
         logger.info("Gap masking detected in %d configs", len(gap_masked_configs))
     if regressions:
         logger.warning("Pass rate regressions: %d", len(regressions))
+    if h_range_mismatches:
+        logger.warning("H-range mismatches: %d topologies", len(h_range_mismatches))
+        for hm in h_range_mismatches:
+            logger.warning("  %s: overlap=%.0f%%", hm["topology"], hm["overlap_fraction"] * 100)
 
     dashboard = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -2202,7 +2404,7 @@ def generate_unified_scaling_report(
     # Per-topology analysis
     for topo, info in topo_summary.items():
         n_max_viable = info.get("n_max_viable")
-        best_pass = info.get("best_pass_rate_5pct", 0)
+        best_pass = info.get("best_pass_rate_dual", info.get("best_pass_rate_5pct", 0))
         
         # Get h_frontier for the largest viable N
         h_frontier = None
@@ -2258,3 +2460,26 @@ def generate_unified_scaling_report(
             )
 
     return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Re-exports from failures_tests (cross-N failure mode diagnostics)
+# NOTE: Lazy import to avoid circular dependency (failures_tests imports from metrics)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def __getattr__(name: str):
+    """Lazy import for failure diagnostics to avoid circular import."""
+    _FAILURES_EXPORTS = {
+        "FailureDiagnostic",
+        "classify_topology_failure_mode",
+        "diagnose_contaminated_training",
+        "diagnose_gap_masking",
+        "diagnose_generalization_failure",
+        "diagnose_h_range_mismatch",
+        "diagnose_intrinsic_vqe_error",
+    }
+    if name in _FAILURES_EXPORTS:
+        from qmbp_simulation.analysis import failures_tests
+        return getattr(failures_tests, name)
+    raise AttributeError(f"module 'qmbp_simulation.analysis.metrics' has no attribute {name!r}")

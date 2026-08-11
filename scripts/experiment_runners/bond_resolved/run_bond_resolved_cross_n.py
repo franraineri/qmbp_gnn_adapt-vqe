@@ -835,10 +835,10 @@ class BondResolvedCrossNRunner(ValidationRunner):
         from qmbp_simulation.analysis.metrics import compute_deploy_summary
         summary = compute_deploy_summary(all_sweep_results)
         n_total = summary["n_points"]
-        n_pass = summary["n_pass_5pct"]
+        n_pass = summary["n_pass_dual"]
         mean_de = summary["mean_de_gap"]
 
-        logger.info(f"  Dense sweep: {n_pass}/{n_total} pass, mean ΔE/gap={mean_de:.4f}")
+        logger.info(f"  Dense sweep: {n_pass}/{n_total} pass (dual), mean ΔE/gap={mean_de:.4f}")
 
         return {
             "n_total": n_total,

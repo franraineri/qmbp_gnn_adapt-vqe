@@ -614,9 +614,9 @@ class ClassicalSolver:
                 evals_k2 = np.sort(evals_k2)
                 gap = float(evals_k2[1] - evals_k2[0])
             except Exception:
-                gap = 2 * np.pi / n
+                gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, edges)
         else:
-            gap = 2 * np.pi / n
+            gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, edges)
 
         # Local observables from MPS
         per_site_sx = np.real(psi.expectation_value("Sx"))
@@ -639,7 +639,7 @@ class ClassicalSolver:
             corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
             per_site_mag_x=per_site_mx,
             per_bond_corr_zz=per_bond_zz,
-            gap_method="eigsh_fallback" if n <= EXACT_GAP_QUBIT_LIMIT else "floor_2pi_n",
+            gap_method="eigsh_fallback" if n <= EXACT_GAP_QUBIT_LIMIT and gap > 2 * np.pi / n + 0.01 else "analytical_tfim",
         )
 
     def _solve_dmrg_2d(
@@ -767,10 +767,10 @@ class ClassicalSolver:
                         h_val,
                     )
             except Exception as exc:
-                gap = 2 * np.pi / n
+                gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
                 logger.warning(
                     "eigsh(k=2) failed for %s %dx%d N=%d at h=%.4f: %s. "
-                    "Falling back to floor gap=%.4f.",
+                    "Using analytical gap=%.4f.",
                     lattice.topology,
                     rows,
                     cols,
@@ -780,10 +780,11 @@ class ClassicalSolver:
                     gap,
                 )
         else:
-            gap = 2 * np.pi / n
+            gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
+            gap_method = "analytical_tfim"
             logger.info(
                 f"DMRG 2D ({lattice.topology} {rows}x{cols}): E0={e0:.8f}, "
-                f"N>{EXACT_GAP_QUBIT_LIMIT}, using finite-size gap floor={gap:.4f}"
+                f"N>{EXACT_GAP_QUBIT_LIMIT}, analytical gap={gap:.4f}"
             )
 
         # Local observables via MPS expectation values
@@ -960,11 +961,13 @@ class ClassicalSolver:
                                 h_val,
                             )
                     except Exception as exc:
-                        # eigsh failed — fall back to conservative floor
-                        gap = 2 * np.pi / n
+                        # eigsh failed — use analytical estimate
+                        gap = self._estimate_tfim_gap_analytical(
+                            h_val, j_val, n, lattice.edges
+                        )
                         logger.warning(
                             "eigsh(k=2) failed for %s N=%d at h=%.4f: %s. "
-                            "Falling back to floor gap=%.4f.",
+                            "Using analytical gap=%.4f.",
                             lattice.topology,
                             n,
                             h_val,
@@ -972,11 +975,13 @@ class ClassicalSolver:
                             gap,
                         )
                 else:
-                    gap = 2 * np.pi / n
+                    gap = self._estimate_tfim_gap_analytical(
+                        h_val, j_val, n, lattice.edges
+                    )
                     warnings.warn(
                         f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}, "
                         f"topology={lattice.topology}). N>{EXACT_GAP_QUBIT_LIMIT}, "
-                        f"cannot use eigsh fallback. Using finite-size floor "
+                        f"cannot use eigsh fallback. Using analytical "
                         f"gap={gap:.4f}. This is a lower bound only.",
                         RuntimeWarning,
                         stacklevel=2,
@@ -1008,6 +1013,75 @@ class ClassicalSolver:
             per_bond_corr_zz=per_bond_zz,
             gap_method=gap_method,
         )
+
+    @staticmethod
+    def _estimate_tfim_gap_analytical(
+        h: float, J: float, n: int, edges: list[tuple[int, int]] | None = None
+    ) -> float:
+        """Estimate TFIM spectral gap analytically for the paramagnetic regime.
+
+        For TFIM H = -J·ΣZZ - h·ΣX, the gap in the paramagnetic phase (h > J·z)
+        is well-approximated by perturbation theory:
+
+            Δ ≈ 2(h - J·z_eff) + O(J²/h)
+
+        where z_eff is the mean coordination number. This is exact in the h→∞
+        limit and remains a good lower bound for h > 1.5·J·z.
+
+        For h < J·z (ordered phase / near criticality), falls back to the
+        finite-size floor 2π/N which is a conservative lower bound.
+
+        Parameters
+        ----------
+        h : float
+            Transverse field strength.
+        J : float
+            Coupling constant.
+        n : int
+            Number of qubits.
+        edges : list or None
+            Edge list for coordination number estimation. If None, assumes z=2.
+
+        Returns
+        -------
+        float
+            Estimated spectral gap (always > 0).
+        """
+        # Compute mean coordination from edge list
+        if edges:
+            from collections import Counter
+            degree = Counter()
+            for i, j in edges:
+                degree[i] += 1
+                degree[j] += 1
+            z_mean = sum(degree.values()) / max(n, 1)
+        else:
+            z_mean = 2.0  # default: 1D chain
+
+        # Perturbative gap in paramagnetic regime
+        gap_pert = 2.0 * (h - J * z_mean)
+
+        # Finite-size floor (minimum possible gap)
+        gap_floor = 2 * np.pi / n
+
+        if gap_pert > gap_floor:
+            # Use perturbative estimate with finite-size correction
+            # Δ(N) ≈ Δ_∞ + π²/(N² · h) (leading finite-size correction)
+            fs_correction = np.pi**2 / (n**2 * max(h, 1.0))
+            gap = gap_pert + fs_correction
+            logger.debug(
+                "Analytical gap: h=%.2f, J=%.2f, z=%.1f → Δ_pert=%.4f "
+                "(floor=%.4f, fs_corr=%.2e)",
+                h, J, z_mean, gap, gap_floor, fs_correction,
+            )
+            return gap
+        else:
+            # Near or below criticality — use conservative floor
+            logger.debug(
+                "Analytical gap: h=%.2f < J*z=%.2f → near-critical, using floor=%.4f",
+                h, J * z_mean, gap_floor,
+            )
+            return gap_floor
 
     def _memory_fallback(
         self,

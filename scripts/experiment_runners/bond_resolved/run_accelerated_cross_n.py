@@ -786,10 +786,15 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                     # ── Active learning rounds ────────────────────────────────
                     for al_round in range(active_rounds):
+                        from qmbp_simulation.analysis.metrics import is_point_failure
                         refine_indices = [
                             i for i, r in enumerate(per_h_results)
-                            if r["de_gap"] > 0.05
-                            or (r.get("fidelity") is not None and r["fidelity"] < 0.90)
+                            if is_point_failure(
+                                r["de_gap"],
+                                abs_error=r.get("abs_error"),
+                                fidelity=r.get("fidelity"),
+                                min_fidelity=0.90,
+                            )
                         ]
                         if not refine_indices:
                             logger.info(f"    AL round {al_round+1}: all points pass. Done.")
@@ -910,8 +915,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # Use centralized update_zoo_pass_rate for better maintainability
         if hasattr(self, "_zoo_entry") and self._zoo_entry is not None:
             observed_pass_rates = [
-                v.get("pass_rate_5pct", 0) for v in all_results.values()
-                if isinstance(v, dict) and "pass_rate_5pct" in v
+                v.get("pass_rate_dual", v.get("pass_rate_5pct", 0))
+                for v in all_results.values()
+                if isinstance(v, dict) and ("pass_rate_dual" in v or "pass_rate_5pct" in v)
             ]
             if observed_pass_rates:
                 observed = max(observed_pass_rates)
@@ -1555,27 +1561,41 @@ class AcceleratedCrossNRunner(ValidationRunner):
             refined_energies = []
             refined_e_exact = []
 
-            # Use CLI maxiter/restarts for refinement.
-            # L-BFGS-B: cap restarts (each restart = ~50 iters).
-            # Stagnation threshold (3) auto-stops if no improvement.
-            refine_maxiter = self._args.maxiter
+            # Use adaptive VQE config per-point based on priority score.
+            # High-priority (easy wins) get minimal budget; low-priority get full budget.
+            from qmbp_simulation.analysis.metrics import compute_adaptive_vqe_config
+
             refine_method = self._args.force_method or "L-BFGS-B"
+            base_maxiter = self._args.maxiter
+            base_restarts = self._args.n_restarts
             if refine_method == "L-BFGS-B":
-                refine_restarts = min(10, self._args.n_restarts)
+                base_restarts = min(10, base_restarts)
             else:
-                refine_restarts = max(7, self._args.n_restarts // 2)
-            logger.info(
-                f"  │ Refine config: method={refine_method}, "
-                f"maxiter={refine_maxiter}, restarts={refine_restarts}"
-            )
+                base_restarts = max(7, base_restarts // 2)
 
             for fail_idx_pos, idx in enumerate(failures):
                 h = float(self._h_values[idx])
                 h_key = round(h, 6)
                 t_refine_start = time.perf_counter()
+
+                # Adaptive VQE config: scale budget based on priority
+                fail_priority = scored_failures[fail_idx_pos][0] if fail_idx_pos < len(scored_failures) else 0.5
+                adaptive_cfg = compute_adaptive_vqe_config(
+                    priority=fail_priority,
+                    de_gap=de_gaps[idx],
+                    gap=gap_arr[idx],
+                    n_params=n_params,
+                    base_maxiter=base_maxiter,
+                    base_restarts=base_restarts,
+                )
+                refine_maxiter = adaptive_cfg["maxiter"]
+                refine_restarts = adaptive_cfg["n_restarts"]
+
                 logger.info(
                     f"  │ Refining [{fail_idx_pos+1}/{len(failures)}] "
-                    f"h={h:.4f} (n_params={n_params}, ΔE/gap={de_gaps[idx]:.4f})..."
+                    f"h={h:.4f} (ΔE/gap={de_gaps[idx]:.4f}, "
+                    f"tier={adaptive_cfg['tier']}, maxiter={refine_maxiter}, "
+                    f"restarts={refine_restarts})..."
                 )
                 sys.stdout.flush()
                 sys.stderr.flush()

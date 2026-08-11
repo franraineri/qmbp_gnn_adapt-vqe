@@ -23,13 +23,13 @@ utility-scale quantum circuits"
 | Routing logic | `src/qmbp_simulation/execution/hardware/backend.py` (QESEM alternate path) |
 | Config fields | `src/qmbp_simulation/execution/hardware/config.py` (HardwareConfig + HardwareRunResult) |
 | Flag definition | `src/qmbp_simulation/execution/backends.py` (MitigationOptions.qesem_enabled) |
-| Budget estimator | `scripts/estimate_qesem_budget.py` |
+| Budget estimator | `scripts/hardware/estimate_qesem_budget.py` |
 | Tests (QESEM) | `tests/hardware/test_qesem_integration.py` |
 | Tests (QET) | `tests/hardware/test_qet_integration.py` |
 | QET validator | `project_health/analysis/hardware/validate_qet.py` |
 | Deployment CLI | `scripts/experiment_runners/hardware/run_ibm_deployment.py` (--qesem flag) |
-| Recovery script | `scripts/recover_qesem_job.py` |
-| Result converter | `scripts/convert_qesem_to_hwresult.py` |
+| Recovery script | `scripts/hardware/recover_qesem_job.py` |
+| Result converter | `scripts/hardware/convert_qesem_to_hwresult.py` |
 
 ## Architecture
 

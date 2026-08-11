@@ -195,11 +195,11 @@ def main():
         # Cross-check with dashboard: skip if NPZ data shows < 50% pass
         # (the dashboard is updated every run and reflects actual θ quality)
         db_entry = dashboard_configs.get((model, topology, n_qubits, p_layers))
-        if db_entry and db_entry.get("pass_rate_5pct", 1.0) < 0.50:
+        if db_entry and db_entry.get("pass_rate_dual_criterion", db_entry.get("pass_rate_5pct", 1.0)) < 0.50:
             logger.debug(
-                "  Skip %s/%s N=%d p=%d: dashboard pass_rate=%.0f%% < 50%%",
+                "  Skip %s/%s N=%d p=%d: dashboard pass_rate_dual=%.0f%% < 50%%",
                 model, topology, n_qubits, p_layers,
-                db_entry["pass_rate_5pct"] * 100,
+                db_entry.get("pass_rate_dual_criterion", db_entry.get("pass_rate_5pct", 0)) * 100,
             )
             skipped_rate += 1
             continue

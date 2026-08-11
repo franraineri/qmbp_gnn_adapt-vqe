@@ -1,5 +1,48 @@
 # Analysis Rules — Energy Metrics
 
+## Unified Quality Metric: `pass_rate_dual` (CANONICAL)
+
+**All pass_rate values in the project (zoo, runners, reports) use the dual criterion:**
+
+```
+pass = (ΔE/gap < 0.05) AND (|ΔE| < 0.10)
+```
+
+This is the ONLY quality metric. Constants live in `analysis/metrics.py`:
+- `DE_GAP_THRESHOLD = 0.05`
+- `MAX_ABS_ERROR = 0.10`
+
+**Design choice**: `|ΔE| < 0.10` is an absolute cap, NOT per-site. At large N,
+`|ΔE| = N × (error per site)` grows linearly → large-N points intentionally
+"fail" dual criterion. This is honest: the pipeline's precision ceiling IS
+`|ΔE| < 0.10` regardless of N. Per-site error (`|ΔE|/N`) is reported as a
+separate informational metric for extensive scaling analysis.
+
+**Deprecated**: `pass_rate_5pct` (ΔE/gap only) — never use this alone for quality claims.
+**Different concept**: `summary.pass_rate` in runner results = sections completed / total sections (execution health, NOT quality).
+
+## Sources of Truth for Thesis (data hierarchy)
+
+When writing the thesis, use these sources in this priority order:
+
+| Priority | Source | What it provides | Metric version |
+|:---:|--------|-----------------|----------------|
+| 1 | `data/multi_n_training/*.npz` | Raw per-h data: e_vqe, e_exact, gaps, quality_tier | Always retrocomputable |
+| 2 | `data/model_quality_dashboard.json` | Aggregated: pass_rate_dual per (topo, N) | Dual (regenerable) |
+| 3 | `data/large_n_extrapolation/*.npz` | Extrapolation raw data | Always retrocomputable |
+| 4 | `results/experiments/exp_large_n_extrap/` | Speedup comparisons, per-N summaries | Has pass_rate_dual |
+| 5 | `data/model_zoo/manifest.json` | Zoo pass_rate (= dual since Aug 11 2026) | Dual after 2026-08-11 |
+| 6 | `internal/documentation/analysis/cross_topology_report.md` | Unified report | Dual (auto-generated) |
+
+**NOT a source of truth for quality**:
+- `.result_index.json` — mixed metric versions, 60% aggregate-only
+- `results/experiments/exp_accel_cross_n/` — no per-h energy data in JSONs
+- Any run without `summary.metric_version == "dual_v1"` — legacy single criterion
+
+**Rule**: All runs from 2026-08-11 onward carry `"metric_version": "dual_v1"` in their
+summary. When filtering historical results, check this field. Runs without it used
+the single criterion and their `pass_rate` is NOT comparable with current results.
+
 ## Always report both ΔE/gap AND |ΔE| absolute
 
 When analyzing VQE or MPNN deployment results:
