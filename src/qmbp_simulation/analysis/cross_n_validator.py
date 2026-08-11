@@ -108,6 +108,7 @@ class CrossNValidationReport:
     # Overall
     overall_pass: bool = False
     issues: list[str] = field(default_factory=list)
+    failure_diagnostic: Any = None  # FailureDiagnostic when overall_pass=False
 
     def summary(self) -> str:
         """Human-readable summary."""
@@ -331,6 +332,34 @@ class CrossNValidator:
         # ── Overall verdict ──────────────────────────────────────────────
         report.overall_pass = report.l1_pass_rate >= 0.80 and report.l2_mean_confidence >= 0.5
 
+        # Auto-diagnose failure mode when prediction fails
+        if not report.overall_pass and report.l1_results and len(report.l1_results) >= 3:
+            try:
+                from qmbp_simulation.analysis.failures_tests import diagnose_gap_masking
+
+                h_arr = np.array([r.h_test for r in report.l1_results])
+                dg_arr = np.array([r.de_gap for r in report.l1_results])
+                abs_arr = np.array([abs(r.e_pred - r.e_exact) for r in report.l1_results])
+
+                gm = diagnose_gap_masking(h_arr, dg_arr, abs_arr, n_target)
+
+                from qmbp_simulation.analysis.failures_tests import FailureDiagnostic
+
+                diag = FailureDiagnostic(
+                    topology=self.topology,
+                    primary_mode="gap_masking" if gm["is_gap_masking"] else "unknown",
+                    confidence=0.8 if gm["is_gap_masking"] else 0.3,
+                    explanation=(
+                        f"L1 pass_rate={report.l1_pass_rate:.0%}: "
+                        f"{gm['n_masked']} gap-masked, {gm['n_real_fail']} real failures."
+                        if gm["n_masked"] > 0
+                        else f"L1 pass_rate={report.l1_pass_rate:.0%}, mean ΔE/gap={report.l1_mean_de_gap:.4f}"
+                    ),
+                )
+                report.failure_diagnostic = diag
+            except Exception:
+                pass  # Non-critical enrichment
+
         # Add known limitation warnings
         if n_target in training_sizes:
             report.issues.append(
@@ -397,6 +426,7 @@ class CrossNValidator:
 
             # Use dual criterion (prevents gap masking at large h)
             from qmbp_simulation.analysis.metrics import is_point_failure
+
             passed = not is_point_failure(
                 de_gap, abs_error=abs_error, de_gap_threshold=self.de_gap_threshold
             )
@@ -573,7 +603,10 @@ class CrossNValidator:
                 de_gaps.append(float(de_gap))
 
                 from qmbp_simulation.analysis.metrics import is_point_failure
-                if not is_point_failure(de_gap, abs_error=abs_error, de_gap_threshold=self.de_gap_threshold):
+
+                if not is_point_failure(
+                    de_gap, abs_error=abs_error, de_gap_threshold=self.de_gap_threshold
+                ):
                     n_passed += 1
 
             pass_rate = n_passed / len(test_fold) if test_fold else 0.0
@@ -600,7 +633,7 @@ class CrossNValidator:
 
     def _run_l4_consistency_checks(
         self,
-        model: "Any",
+        model: Any,
         n_target: int,
         h_values: list[float],
         l1_results: list[L1Result],
@@ -714,9 +747,7 @@ class CrossNValidator:
                 op_x = SparsePauliOp.from_sparse_list([("X", [0], 1.0)], num_qubits=n_target)
                 mag_x = float(sv.expectation_value(op_x).real)
                 if abs(mag_x) > 1.01:
-                    issues.append(
-                        f"L4e ERROR: |⟨X_0⟩|={abs(mag_x):.4f} > 1 at h={h}."
-                    )
+                    issues.append(f"L4e ERROR: |⟨X_0⟩|={abs(mag_x):.4f} > 1 at h={h}.")
                     break
         except Exception as e:
             logger.debug(f"L4e observable check skipped: {e}")

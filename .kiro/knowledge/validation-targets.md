@@ -53,12 +53,6 @@
 | Script | Purpose | Time |
 |--------|---------|------|
 | `tests/smoke_test.py` | V6.0 legacy end-to-end (6 h-points) | ~7s |
-| `scripts/smoke_test_v61.py` | V6.1 full pipeline (12 h-points, deployer, gradient analysis) | ~16s |
-| `scripts/benchmark_v6.py` | Configurable multi-run benchmark | ~50s (N=6) |
-| `scripts/run_notebooks.py` | Notebook executor with auto-registry + binnacle | ~15min |
-| `scripts/run_v61_parametric.py` | Parametric runner (all configs, N=6/N=10); `--verbose`/`--debug` | ~2-6min |
-| `scripts/run_thesis_results.py` | Thesis tables consolidation (15 runs) | ~9min |
-| `scripts/run_v61_noisy.py` | Noisy simulation sweep (3 modes × 6 h-values) | ~5min (N=6) |
 
 ### Makefile Test Targets
 - `make test` — runs fast tests only, excludes `@pytest.mark.slow` (~12s)

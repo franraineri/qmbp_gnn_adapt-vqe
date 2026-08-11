@@ -655,7 +655,11 @@ class VQEValidator:
                 if de_gaps:
                     report.sweep_metrics["mean_de_gap"] = float(np.mean(de_gaps))
                     report.sweep_metrics["max_de_gap"] = float(np.max(de_gaps))
-                    report.sweep_metrics["n_passing_5pct"] = sum(1 for d in de_gaps if d < 0.05)
+                    from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD
+
+                    report.sweep_metrics["n_passing_5pct"] = sum(
+                        1 for d in de_gaps if d < DE_GAP_THRESHOLD
+                    )
 
         self._enforce_strict(report)
         return report

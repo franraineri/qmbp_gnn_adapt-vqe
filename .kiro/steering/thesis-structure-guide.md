@@ -59,7 +59,7 @@
 
 **Wrong framing**: "The pipeline fails at h=1.25 (only 2-3/6 checklist)."
 
-**Correct framing**: "We identify the HVA p=2 expressibility boundary at h≈1.25 for N=6. This is independently confirmed by Tripathi et al. (2026) as a fundamental physics limit — the circuit cannot represent the critical-region ground state with sufficient fidelity regardless of optimization strategy. Our 40+ experiments across 14 configurations prove this is NOT a pipeline deficiency but a physics insight: the Mele et al. depth constraint (p≤2) trades critical-point precision for noise resilience. The pipeline correctly classifies phases at h≥1.4 (4-5/6) and h≥1.5 (5/6)."
+**Correct framing**: "We identify the HVA p=2 expressibility boundary at h≈1.25 for N=6. This is independently confirmed by Tripathi et al. (2026) as a fundamental physics limit — the circuit cannot represent the critical-region ground state with sufficient fidelity regardless of optimization strategy. Our 40+ experiments across 14 configurations prove this is NOT a pipeline deficiency but a physics insight: the Mele et al. depth constraint (p≤2) trades critical-point precision for noise resilience. The pipeline classifies phases at h≥1.4 (4-5/6) and h≥1.5 (5/6)."
 
 ### N=6-10 Results: Pipeline Demonstration, Not Quantum Advantage
 

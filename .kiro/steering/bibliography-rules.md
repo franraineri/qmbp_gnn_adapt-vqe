@@ -46,7 +46,7 @@ When citing in code comments or documentation:
 - In pre-commit hooks and SKILL.md: `(Mele et al. 2026)` style (no comma before year)
 - Always include the arXiv ID for papers not yet published in journals
 
-## Key Papers (always cite correctly)
+## Key Papers (always cite)
 
 | Short form | Full reference |
 |-----------|---------------|

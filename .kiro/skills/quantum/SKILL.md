@@ -1,4 +1,5 @@
 ---
+inclusion: always
 name: quantum-hva-thesis
 description: Core rules and constraints for the Hybrid GNN-HVA Framework for Topological Phase Characterization thesis. Use when writing quantum circuits, building Hamiltonians, running VQE, or making architectural decisions.
 ---
@@ -121,12 +122,6 @@ Key takeaway: GNN-based initialization works best on physically structured Hamil
 from qmbp_simulation.models.model_registry import get_model_spec, list_models
 # Available: ['tfim', 'tfim_longitudinal', 'tfim_frustrated', 'heisenberg', 'xy']
 
-spec = get_model_spec("tfim_frustrated")
-spec_custom = spec.with_params(J2=0.3)  # Generic parameter override
-H = spec_custom.build_hamiltonian(lattice, **spec_custom.hamiltonian_kwargs)
-qc, theta = spec_custom.create_circuit(N, p, lattice, **spec_custom.circuit_kwargs)
-```
-
 ### CX Budget Rule (hardware extensibility)
 
 | Model | 2Q gates p=1 N=6 | ZNE viable | Reason |
@@ -223,7 +218,6 @@ service = QiskitRuntimeService(channel="ibm_quantum_platform", token=ibm_token, 
 catalog = QiskitFunctionsCatalog(instance=ibm_instance, token=ibm_token)
 ```
 
-
 ## Noisy Simulation Workflow
 
 ### 3-Mode Comparison Methodology
@@ -261,10 +255,8 @@ backend = NoisyBackend(n_layouts=3, seed=42)
 python tests/smoke_test.py
 
 # Run a specific experiment
-python scripts/run_experiment.py --exp A3 --verbose
 
 # Full pipeline (N=6, all phases)
-python scripts/run_pipeline.py --n 6 --p 2 --output results/experiments/
 ```
 
 Results saved as timestamped JSON in `results/experiments/`.

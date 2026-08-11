@@ -77,9 +77,11 @@ class RunResult:
             if self.scientific_conclusion == "negative_expressibility":
                 return "NEG-EXPR"
             return "OK"
-        if self.delta_e_over_gap < 0.05:
+        from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+
+        if self.delta_e_over_gap < DE_GAP_THRESHOLD:
             return "PASS"
-        if self.delta_e_over_gap < 0.10:
+        if self.delta_e_over_gap < MAX_ABS_ERROR:
             return "MARGINAL"
         return "FAIL"
 
@@ -383,7 +385,7 @@ class VariantRunner:
         print(f"  Starting from:  #{start_from}")
         print(f"  Mode:           {'DRY RUN' if dry_run else 'EXECUTE'}")
         if prioritize:
-            print(f"  Priority:       BY PREDICTED PASS RATE (highest first)")
+            print("  Priority:       BY PREDICTED PASS RATE (highest first)")
         print(f"  Output base:    {self.output_base}/")
         print()
 
@@ -491,9 +493,7 @@ class VariantRunner:
                     print(f"    ❌ {r.variant_id}: {first_line}")
             print()
 
-    def _prioritize_variants(
-        self, variants: list[PipelineVariant]
-    ) -> list[PipelineVariant]:
+    def _prioritize_variants(self, variants: list[PipelineVariant]) -> list[PipelineVariant]:
         """Reorder variants by predicted pass probability (highest first).
 
         Uses QualityPredictor to estimate which configs will pass, then
@@ -517,8 +517,10 @@ class VariantRunner:
                 scored.append((report.pass_probability, v))
             scored.sort(key=lambda x: x[0], reverse=True)
             reordered = [v for _, v in scored]
-            print(f"  📊 Prioritized by quality prediction "
-                  f"(top: {scored[0][0]:.0%}, bottom: {scored[-1][0]:.0%})")
+            print(
+                f"  📊 Prioritized by quality prediction "
+                f"(top: {scored[0][0]:.0%}, bottom: {scored[-1][0]:.0%})"
+            )
             return reordered
         except (ImportError, Exception) as e:
             print(f"  ⚠️ Could not prioritize variants: {e}")

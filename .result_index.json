@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "n_entries": 1078,
+ "n_entries": 1082,
  "runs": [
   {
    "model": "tfim",
@@ -6253,6 +6253,98 @@
    "date_tag": null,
    "runner_id": "accelerated_cross_n_v1",
    "_file": "results/experiments/exp_accel_cross_n/run_20260811_114413.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260811_122848",
+   "elapsed_s": 1052.2,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "runner_tag": null,
+   "date_tag": null,
+   "runner_id": "accelerated_cross_n_v1",
+   "_file": "results/experiments/exp_accel_cross_n/run_20260811_122848.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": true,
+   "pass_rate": 1.0,
+   "n_sections": 3,
+   "timestamp": "20260811_123926",
+   "elapsed_s": 622.7,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "runner_tag": null,
+   "date_tag": null,
+   "runner_id": "accelerated_cross_n_v1",
+   "_file": "results/experiments/exp_accel_cross_n/run_20260811_123926.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260811_125348",
+   "elapsed_s": 854.8,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "runner_tag": null,
+   "date_tag": null,
+   "runner_id": "accelerated_cross_n_v1",
+   "_file": "results/experiments/exp_accel_cross_n/run_20260811_125348.json"
+  },
+  {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260811_130516",
+   "elapsed_s": 679.73,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "backend_type": null,
+   "method_exact": null,
+   "runner_tag": null,
+   "date_tag": null,
+   "runner_id": "accelerated_cross_n_v1",
+   "_file": "results/experiments/exp_accel_cross_n/run_20260811_130516.json"
   },
   {
    "model": "tfim_bond_resolved",

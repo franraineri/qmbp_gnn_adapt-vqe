@@ -18,10 +18,6 @@ fileMatchPattern: "**/pipeline/**,**/runner.py,**/theta_validator*,**/vqe_valida
 
 ## Core Orchestration
 
-```python
-from qmbp_simulation import PipelineRunner, make_lattice
-from qmbp_simulation.models import VQEConfig
-
 lattice = make_lattice("chain_1d", n_qubits=6, J=1.0, h=2.0)
 config = VQEConfig(p_layers=2, n_restarts=5, maxiter=1000)
 runner = PipelineRunner(lattice=lattice, config=config, verbose=True)
@@ -46,10 +42,6 @@ from qmbp_simulation.analysis import VQEValidator
 # Results in diagnostics.vqe_validation
 # CLI: --no-validate-vqe to disable, --strict-validation to abort on CRITICAL
 ```
-
-### θ Validator (Phase 4 — automatic after Phase 3)
-```python
-from qmbp_simulation.analysis import ThetaValidator, ThetaValidationReport
 
 validator = ThetaValidator.from_training_data(theta_opt_array, h_values)
 report = validator.validate(theta_pred, level=4, circuit=qc, exact_state=psi)
@@ -98,9 +90,6 @@ Phase 3:  IF generalization_gap > 0.01 → ABORT (MPNN overfit, 25% of failures)
 | `fidelity` (noiseless) | ≥ 0.93 | 0.80-0.93 | < 0.80 |
 
 ## DiagnosticCollector Pattern
-
-```python
-from qmbp_simulation.analysis import DiagnosticCollector
 
 collector = DiagnosticCollector(verbose=True, save_dir=Path("results/"))
 collector.record_vqe_point(h, n_iters, restart_energies, theta_opt, elapsed_s)

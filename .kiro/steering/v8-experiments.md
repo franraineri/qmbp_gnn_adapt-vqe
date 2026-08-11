@@ -177,7 +177,7 @@ verdict, desc = compute_verdict("G1", summary_dict)
 | F1 | DyPP extrapolation | ✅ Executed (negative result) |
 | F3 | Landscape fluctuation | ✅ Executed (p=2 + p=1 comparison) |
 
-## Planned but NOT Implemented (do not try to run)
+## Planned but NOT Implemented (do not run)
 
 E3 — technique module exists but experiment script is pending (active learning).
 A1, A2, B3, D3, E1 — excluded from final plan (high effort or needs external libs).

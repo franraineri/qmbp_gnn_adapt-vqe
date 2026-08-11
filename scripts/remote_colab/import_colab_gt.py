@@ -7,6 +7,7 @@ to populate the local GT cache so subsequent local runs don't need DMRG.
 Usage:
     .venv/bin/python scripts/remote/import_colab_gt.py results/colab/heavy_hex_n20_gt_results.json
 """
+
 from __future__ import annotations
 
 import json
@@ -40,8 +41,10 @@ def main() -> int:
     n_success = data.get("n_success", 0)
     n_fail = data.get("n_fail", 0)
 
-    print(f"Importing {n_success} ground truth results (topology={metadata.get('topology')}, "
-          f"N={metadata.get('n_qubits')}, model={metadata.get('model')})")
+    print(
+        f"Importing {n_success} ground truth results (topology={metadata.get('topology')}, "
+        f"N={metadata.get('n_qubits')}, model={metadata.get('model')})"
+    )
     if n_fail > 0:
         print(f"  ⚠️ {n_fail} failed tasks (skipped)")
 

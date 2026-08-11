@@ -117,7 +117,7 @@ Analyzer: `python -m project_health.analysis.mitigation_benchmark_analyzer --the
 ### Energy Computation — Don't Reconstruct Manually
 - WRONG: `energy = -J * np.sum(zz_vals) - h * np.sum(x_vals)` (error-prone, ignores per-bond J)
 - RIGHT: Submit the full Hamiltonian as a PUB → get energy directly from Estimator
-- The Estimator handles the coefficient weighting correctly for any Hamiltonian structure
+- The Estimator handles the coefficient weighting for any Hamiltonian structure
 
 ### Inhomogeneous ZNE — Two Types of CES
 - **Topology CES** (`_compute_subset_ces`): sum of edge errors in the qubit subset's connectivity. Fast heuristic for RANKING candidate layouts. Does NOT account for routing overhead.

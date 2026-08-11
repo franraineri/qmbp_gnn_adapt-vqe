@@ -36,14 +36,16 @@ import re
 import subprocess
 import sys
 from collections import defaultdict
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 STEERING_DIR = PROJECT_ROOT / ".kiro" / "steering"
 HOOKS_DIR = PROJECT_ROOT / ".kiro" / "hooks"
+SKILLS_DIR = PROJECT_ROOT / ".kiro" / "skills"
+KNOWLEDGE_DIR = PROJECT_ROOT / ".kiro" / "knowledge"
 
 # Steering file extensions Kiro supports
 STEERING_EXTENSIONS = ("*.md", "*.txt")
@@ -103,10 +105,8 @@ class VerificationReport:
     def passed(self) -> bool:
         return all(i.severity != "error" or i.fix_applied for i in self.issues)
 
-    def add(self, check: str, severity: Severity, file: str, message: str,
-            line: int = 0) -> Issue:
-        issue = Issue(check=check, severity=severity, file=file,
-                      message=message, line=line)
+    def add(self, check: str, severity: Severity, file: str, message: str, line: int = 0) -> Issue:
+        issue = Issue(check=check, severity=severity, file=file, message=message, line=line)
         self.issues.append(issue)
         return issue
 
@@ -137,36 +137,43 @@ class VerificationReport:
                 rules_seen[rule_id] = {
                     "id": rule_id,
                     "shortDescription": {"text": f"Steering check: {issue.check}"},
-                    "defaultConfiguration": {"level": issue.severity
-                                             if issue.severity != "note" else "note"},
+                    "defaultConfiguration": {
+                        "level": issue.severity if issue.severity != "note" else "note"
+                    },
                 }
 
-            results.append({
-                "ruleId": rule_id,
-                "level": issue.severity if issue.severity != "note" else "note",
-                "message": {"text": issue.message},
-                "locations": [{
-                    "physicalLocation": {
-                        "artifactLocation": {"uri": issue.file},
-                        "region": {"startLine": max(1, issue.line)},
-                    }
-                }],
-            })
+            results.append(
+                {
+                    "ruleId": rule_id,
+                    "level": issue.severity if issue.severity != "note" else "note",
+                    "message": {"text": issue.message},
+                    "locations": [
+                        {
+                            "physicalLocation": {
+                                "artifactLocation": {"uri": issue.file},
+                                "region": {"startLine": max(1, issue.line)},
+                            }
+                        }
+                    ],
+                }
+            )
 
         return {
             "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
             "version": "2.1.0",
-            "runs": [{
-                "tool": {
-                    "driver": {
-                        "name": "verify-steerings",
-                        "version": "2.0.0",
-                        "informationUri": "https://github.com/your-repo/scripts/maintenance/verify_steerings.py",
-                        "rules": list(rules_seen.values()),
-                    }
-                },
-                "results": results,
-            }],
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "verify-steerings",
+                            "version": "2.0.0",
+                            "informationUri": "https://github.com/your-repo/scripts/maintenance/verify_steerings.py",
+                            "rules": list(rules_seen.values()),
+                        }
+                    },
+                    "results": results,
+                }
+            ],
         }
 
 
@@ -179,6 +186,7 @@ def estimate_tokens(text: str) -> int:
     """Estimate token count. Uses tiktoken if available, else heuristic."""
     try:
         import tiktoken
+
         enc = tiktoken.get_encoding("cl100k_base")
         return len(enc.encode(text))
     except ImportError:
@@ -207,7 +215,7 @@ def get_body(filepath: Path) -> str:
     text = filepath.read_text(errors="replace")
     match = re.match(r"^---\s*\n.*?\n---\s*\n?", text, re.DOTALL)
     if match:
-        return text[match.end():]
+        return text[match.end() :]
     return text
 
 
@@ -224,7 +232,7 @@ def glob_match(filepath: str, pattern: str) -> bool:
         prefix, suffix = parts
         if prefix and not filepath.startswith(prefix):
             return False
-        remaining = filepath[len(prefix):] if prefix else filepath
+        remaining = filepath[len(prefix) :] if prefix else filepath
         segments = remaining.split("/")
         for i in range(len(segments)):
             candidate = "/".join(segments[i:])
@@ -238,14 +246,28 @@ def matches_any(filepath: str, patterns: list[str]) -> bool:
     return any(glob_match(filepath, p) for p in patterns)
 
 
-def scan_steering_files(targets: list[Path] | None = None) -> list[Path]:
-    """Collect all steering files (*.md + *.txt)."""
+def scan_steering_files(
+    targets: list[Path] | None = None, *, include_all: bool = False
+) -> list[Path]:
+    """Collect all steering files (*.md + *.txt).
+
+    If include_all=True, also scans .kiro/skills/ and .kiro/knowledge/.
+    """
     if targets:
         return [t for t in targets if t.exists() and t.is_file()]
     files: list[Path] = []
+    # Steering
     for ext in STEERING_EXTENSIONS:
         files.extend(STEERING_DIR.glob(ext))
-    return sorted(files)
+    # Skills and Knowledge (if requested)
+    if include_all:
+        if SKILLS_DIR.exists():
+            for md in SKILLS_DIR.rglob("*.md"):
+                files.append(md)
+        if KNOWLEDGE_DIR.exists():
+            for ext in STEERING_EXTENSIONS:
+                files.extend(KNOWLEDGE_DIR.glob(ext))
+    return sorted(set(files))
 
 
 def scan_steerings_patterns(files: list[Path]) -> dict[str, list[str]]:
@@ -267,7 +289,10 @@ def get_git_last_touched(filepath: Path) -> datetime | None:
     try:
         result = subprocess.run(
             ["git", "log", "-1", "--format=%aI", "--", str(filepath)],
-            capture_output=True, text=True, cwd=PROJECT_ROOT, timeout=5,
+            capture_output=True,
+            text=True,
+            cwd=PROJECT_ROOT,
+            timeout=5,
         )
         if result.returncode == 0 and result.stdout.strip():
             return datetime.fromisoformat(result.stdout.strip())
@@ -320,8 +345,16 @@ def _get_path_prefixes() -> list[str]:
 
     # Auto-detect common source directories
     candidates = [
-        "src", "lib", "app", "scripts", "project_health",
-        "experiments", "tests", "packages", "cmd", "internal",
+        "src",
+        "lib",
+        "app",
+        "scripts",
+        "project_health",
+        "experiments",
+        "tests",
+        "packages",
+        "cmd",
+        "internal",
     ]
     detected = []
     for c in candidates:
@@ -336,26 +369,37 @@ def _get_path_prefixes() -> list[str]:
 
 EXPECTED_ACTIVATIONS: dict[str, list[str]] = {
     "scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py": [
-        "runner-standards", "noiseless-runner-patterns",
-        "eval-cache-guidelines", "accelerated-pipeline",
+        "runner-standards",
+        "noiseless-runner-patterns",
+        "eval-cache-guidelines",
+        "accelerated-pipeline",
         "reuse-existing-infrastructure",
     ],
     "scripts/experiment_runners/noiseless/run_noiseless_pipeline.py": [
-        "runner-standards", "noiseless-runner-patterns",
-        "eval-cache-guidelines", "reuse-existing-infrastructure",
+        "runner-standards",
+        "noiseless-runner-patterns",
+        "eval-cache-guidelines",
+        "reuse-existing-infrastructure",
     ],
     "src/qmbp_simulation/framework/runner_base.py": [
-        "runner-standards", "code-style", "reuse-existing-infrastructure",
+        "runner-standards",
+        "code-style",
+        "reuse-existing-infrastructure",
     ],
     "src/qmbp_simulation/analysis/metrics.py": [
-        "code-style", "reuse-existing-infrastructure",
+        "code-style",
+        "reuse-existing-infrastructure",
     ],
     "src/qmbp_simulation/execution/eval_cache.py": [
-        "eval-cache-guidelines", "code-style", "reuse-existing-infrastructure",
+        "eval-cache-guidelines",
+        "code-style",
+        "reuse-existing-infrastructure",
     ],
     "src/qmbp_simulation/pipeline/accelerated.py": [
-        "accelerated-pipeline", "code-style",
-        "eval-cache-guidelines", "reuse-existing-infrastructure",
+        "accelerated-pipeline",
+        "code-style",
+        "eval-cache-guidelines",
+        "reuse-existing-infrastructure",
     ],
 }
 
@@ -365,9 +409,7 @@ EXPECTED_ACTIVATIONS: dict[str, list[str]] = {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def check_activation(
-    steerings: dict[str, list[str]], report: VerificationReport
-) -> None:
+def check_activation(steerings: dict[str, list[str]], report: VerificationReport) -> None:
     """Check 1: Verify expected pattern activations."""
     for filepath, expected in EXPECTED_ACTIVATIONS.items():
         for steer_name in expected:
@@ -376,16 +418,15 @@ def check_activation(
             ok = matches_any(filepath, steerings[steer_name])
             if not ok:
                 report.add(
-                    "activation", "error",
+                    "activation",
+                    "error",
                     f".kiro/steering/{steer_name}.md",
                     f"Pattern MISS: '{filepath}' should trigger '{steer_name}' "
                     f"but doesn't match patterns: {steerings[steer_name]}",
                 )
 
 
-def check_quality(
-    files: list[Path], report: VerificationReport, *, fix: bool = False
-) -> None:
+def check_quality(files: list[Path], report: VerificationReport, *, fix: bool = False) -> None:
     """Check 2: Steering file quality (structure, references, content)."""
     for md_file in files:
         text = md_file.read_text(errors="replace")
@@ -405,13 +446,17 @@ def check_quality(
                 new_text = text.replace("---\n", "---\ninclusion: always\n", 1)
                 md_file.write_text(new_text)
                 issue = report.add(
-                    "quality", "warning", rel_path,
+                    "quality",
+                    "warning",
+                    rel_path,
                     "Had front-matter but no 'inclusion' key → FIXED (added 'inclusion: always')",
                 )
                 issue.fix_applied = True
             else:
                 report.add(
-                    "quality", "warning", rel_path,
+                    "quality",
+                    "warning",
+                    rel_path,
                     "Has front-matter but no 'inclusion' key (use --fix to add 'inclusion: always')",
                 )
 
@@ -420,12 +465,14 @@ def check_quality(
             pat = fm.get("fileMatchPattern", "")
             if not pat:
                 report.add(
-                    "quality", "error", rel_path,
+                    "quality",
+                    "error",
+                    rel_path,
                     "fileMatch mode but no fileMatchPattern defined",
                 )
 
         # Broken #[[file:...]] references
-        refs = re.findall(r'#\[\[file:(.*?)\]\]', text)
+        refs = re.findall(r"#\[\[file:(.*?)\]\]", text)
         for ref in refs:
             ref_path = PROJECT_ROOT / ref
             if not ref_path.exists():
@@ -437,20 +484,21 @@ def check_quality(
                         text = text.replace(f"#[[file:{ref}]]", f"#[[file:{new_ref}]]")
                         md_file.write_text(text)
                         issue = report.add(
-                            "quality", "warning", rel_path,
+                            "quality",
+                            "warning",
+                            rel_path,
                             f"Broken ref #[[file:{ref}]] → FIXED (relocated to {new_ref})",
                         )
                         issue.fix_applied = True
                     else:
                         # Remove the line containing the broken ref
-                        new_lines = [
-                            ln for ln in text.splitlines()
-                            if f"#[[file:{ref}]]" not in ln
-                        ]
+                        new_lines = [ln for ln in text.splitlines() if f"#[[file:{ref}]]" not in ln]
                         md_file.write_text("\n".join(new_lines) + "\n")
                         text = md_file.read_text()
                         issue = report.add(
-                            "quality", "warning", rel_path,
+                            "quality",
+                            "warning",
+                            rel_path,
                             f"Broken ref #[[file:{ref}]] → FIXED (line removed, file not found)",
                         )
                         issue.fix_applied = True
@@ -461,13 +509,15 @@ def check_quality(
                         0,
                     )
                     report.add(
-                        "quality", "error", rel_path,
+                        "quality",
+                        "error",
+                        rel_path,
                         f"Broken file reference: #[[file:{ref}]]",
                         line=line_no,
                     )
 
         # No H1 heading
-        if not re.search(r'^#\s+\S', body, re.MULTILINE):
+        if not re.search(r"^#\s+\S", body, re.MULTILINE):
             report.add("quality", "note", rel_path, "No H1 heading found")
 
         # Detect inline path references to non-existent files
@@ -476,16 +526,14 @@ def check_quality(
         if path_prefixes:
             prefix_pattern = "|".join(re.escape(p) for p in path_prefixes)
             path_refs = re.findall(
-                rf'(?:{prefix_pattern})/[\w/\-_.]+\.(?:py|ts|js|rs|go|rb)',
+                rf"(?:{prefix_pattern})/[\w/\-_.]+\.(?:py|ts|js|rs|go|rb)",
                 body,
             )
         else:
             path_refs = []
         for pref in set(path_refs):
             if not (PROJECT_ROOT / pref).exists():
-                line_no = next(
-                    (i + 1 for i, ln in enumerate(lines) if pref in ln), 0
-                )
+                line_no = next((i + 1 for i, ln in enumerate(lines) if pref in ln), 0)
                 if fix:
                     relocated = find_file_by_basename(Path(pref).name)
                     if relocated:
@@ -493,39 +541,40 @@ def check_quality(
                         text = text.replace(pref, new_ref)
                         md_file.write_text(text)
                         issue = report.add(
-                            "quality", "note", rel_path,
+                            "quality",
+                            "note",
+                            rel_path,
                             f"Dead path '{pref}' → FIXED (updated to '{new_ref}')",
                             line=line_no,
                         )
                         issue.fix_applied = True
                     else:
                         # Remove the line/paragraph containing the dead path
-                        new_lines = [
-                            ln for ln in text.splitlines()
-                            if pref not in ln
-                        ]
+                        new_lines = [ln for ln in text.splitlines() if pref not in ln]
                         text = "\n".join(new_lines) + "\n"
                         # Clean up triple blank lines left behind
-                        text = re.sub(r'\n{3,}', '\n\n', text)
+                        text = re.sub(r"\n{3,}", "\n\n", text)
                         md_file.write_text(text)
                         lines = text.splitlines()  # refresh
                         issue = report.add(
-                            "quality", "note", rel_path,
+                            "quality",
+                            "note",
+                            rel_path,
                             f"Dead path '{pref}' → FIXED (line removed, file not relocatable)",
                             line=line_no,
                         )
                         issue.fix_applied = True
                 else:
                     report.add(
-                        "quality", "note", rel_path,
+                        "quality",
+                        "note",
+                        rel_path,
                         f"Dead path reference in prose: '{pref}'",
                         line=line_no,
                     )
 
 
-def check_overlaps(
-    steerings: dict[str, list[str]], report: VerificationReport
-) -> None:
+def check_overlaps(steerings: dict[str, list[str]], report: VerificationReport) -> None:
     """Check 3: Detect shared patterns between steerings (potential conflicts)."""
     pattern_to_names: dict[str, list[str]] = defaultdict(list)
     for name, pats in steerings.items():
@@ -535,16 +584,14 @@ def check_overlaps(
     for pat, names in sorted(pattern_to_names.items()):
         if len(names) > 1:
             report.add(
-                "overlaps", "note",
+                "overlaps",
+                "note",
                 ".kiro/steering/",
-                f"Pattern '{pat}' shared by: {', '.join(names)} "
-                f"(check for contradictions)",
+                f"Pattern '{pat}' shared by: {', '.join(names)} (check for contradictions)",
             )
 
 
-def check_orphans(
-    steerings: dict[str, list[str]], report: VerificationReport
-) -> None:
+def check_orphans(steerings: dict[str, list[str]], report: VerificationReport) -> None:
     """Check 4: Patterns matching zero existing files."""
     import glob as _glob
 
@@ -555,17 +602,16 @@ def check_orphans(
             matches = _glob.glob(full_pattern, recursive=True)
             if not matches:
                 report.add(
-                    "orphans", "warning",
+                    "orphans",
+                    "warning",
                     f".kiro/steering/{name}.md",
                     f"Pattern '{pat}' matches zero existing files",
                 )
 
 
-def check_staleness(
-    files: list[Path], stale_days: int, report: VerificationReport
-) -> None:
+def check_staleness(files: list[Path], stale_days: int, report: VerificationReport) -> None:
     """Check 5: Identify stale steerings not touched recently."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     for md_file in files:
         rel_path = _relative_path(md_file)
@@ -575,28 +621,30 @@ def check_staleness(
         days_ago = (now - dt).days
         if days_ago > stale_days:
             report.add(
-                "staleness", "note", rel_path,
+                "staleness",
+                "note",
+                rel_path,
                 f"Steering itself not edited in {days_ago} days "
                 f"(last: {dt.strftime('%Y-%m-%d')}). May need review.",
             )
 
 
-def check_split_candidates(
-    files: list[Path], report: VerificationReport
-) -> None:
+def check_split_candidates(files: list[Path], report: VerificationReport) -> None:
     """Check 6: Suggest steerings that could benefit from splitting."""
     for md_file in files:
         rel_path = _relative_path(md_file)
         body = get_body(md_file)
         fm = parse_front_matter(md_file)
 
-        h2_headings = re.findall(r'^##\s+(.+)$', body, re.MULTILINE)
+        h2_headings = re.findall(r"^##\s+(.+)$", body, re.MULTILINE)
         body_len = len(body)
 
         # Large file with many sections
         if body_len > 3000 and len(h2_headings) > 5:
             report.add(
-                "split", "note", rel_path,
+                "split",
+                "note",
+                rel_path,
                 f"Large ({body_len} chars) with {len(h2_headings)} sections — "
                 f"consider splitting by topic for better context efficiency",
             )
@@ -605,15 +653,15 @@ def check_split_candidates(
         inclusion = fm.get("inclusion", "always")
         if inclusion == "always" and body_len > 4000:
             report.add(
-                "split", "warning", rel_path,
+                "split",
+                "warning",
+                rel_path,
                 f"Always-included at {body_len} chars (~{body_len // CHARS_PER_TOKEN} tokens) — "
                 f"consider converting to fileMatch to reduce context noise",
             )
 
 
-def check_token_budget(
-    files: list[Path], report: VerificationReport
-) -> None:
+def check_token_budget(files: list[Path], report: VerificationReport) -> None:
     """Check 7: Estimate total token cost of always-included steerings."""
     always_total = 0
     per_file: list[tuple[str, int]] = []
@@ -630,7 +678,9 @@ def check_token_budget(
 
             if tokens > PER_FILE_TOKEN_WARN:
                 report.add(
-                    "tokens", "warning", rel_path,
+                    "tokens",
+                    "warning",
+                    rel_path,
                     f"Single steering uses ~{tokens} tokens (>{PER_FILE_TOKEN_WARN} threshold). "
                     f"Consider splitting or converting to fileMatch.",
                 )
@@ -642,7 +692,8 @@ def check_token_budget(
         per_file.sort(key=lambda x: -x[1])
         top3 = ", ".join(f"{Path(f).stem}({t})" for f, t in per_file[:3])
         report.add(
-            "tokens", "warning",
+            "tokens",
+            "warning",
             ".kiro/steering/",
             f"Total always-included context: ~{always_total} tokens "
             f"(budget: {ALWAYS_TOKEN_BUDGET}). Top: {top3}. "
@@ -655,16 +706,15 @@ def check_hooks_coherence(report: VerificationReport) -> None:
     if not HOOKS_DIR.exists():
         return
 
-    steering_names = {
-        p.stem for ext in STEERING_EXTENSIONS for p in STEERING_DIR.glob(ext)
-    }
+    steering_names = {p.stem for ext in STEERING_EXTENSIONS for p in STEERING_DIR.glob(ext)}
 
     for hook_file in sorted(HOOKS_DIR.glob("*.kiro.hook")):
         try:
             hook_data = json.loads(hook_file.read_text())
         except (json.JSONDecodeError, OSError):
             report.add(
-                "hooks", "error",
+                "hooks",
+                "error",
                 _relative_path(hook_file),
                 "Invalid JSON in hook file",
             )
@@ -678,46 +728,64 @@ def check_hooks_coherence(report: VerificationReport) -> None:
         # Exclude generic words and non-steering .md references
         referenced_steerings = re.findall(
             r'\b([\w][\w-]{2,})\.md\b|steering\s+(?:file\s+)?["\']?([\w-]{3,})',
-            prompt, re.IGNORECASE,
+            prompt,
+            re.IGNORECASE,
         )
         generic_names = {
-            "readme", "changelog", "contributing", "license",
-            "file", "the", "this", "that", "your", "from",
-            "check", "verify", "ensure", "module", "existing",
+            "readme",
+            "changelog",
+            "contributing",
+            "license",
+            "file",
+            "the",
+            "this",
+            "that",
+            "your",
+            "from",
+            "check",
+            "verify",
+            "ensure",
+            "module",
+            "existing",
         }
         for match_groups in referenced_steerings:
             ref_name = match_groups[0] or match_groups[1]
             if ref_name and ref_name not in steering_names:
                 if ref_name.lower() not in generic_names and len(ref_name) > 4:
                     report.add(
-                        "hooks", "warning", rel_path,
-                        f"Hook prompt references '{ref_name}' "
-                        f"which is not a known steering file",
+                        "hooks",
+                        "warning",
+                        rel_path,
+                        f"Hook prompt references '{ref_name}' which is not a known steering file",
                     )
 
         # Check hook schema basics
         if "when" not in hook_data or "then" not in hook_data:
             report.add(
-                "hooks", "error", rel_path,
+                "hooks",
+                "error",
+                rel_path,
                 "Hook missing required 'when' or 'then' section",
             )
         elif "type" not in hook_data.get("when", {}):
             report.add(
-                "hooks", "error", rel_path,
+                "hooks",
+                "error",
+                rel_path,
                 "Hook 'when' section missing 'type' field",
             )
 
         # Check enabled/disabled awareness
         if hook_data.get("enabled") is False:
             report.add(
-                "hooks", "note", rel_path,
+                "hooks",
+                "note",
+                rel_path,
                 f"Hook '{hook_data.get('name', hook_file.stem)}' is disabled",
             )
 
 
-def check_contradictions(
-    files: list[Path], report: VerificationReport
-) -> None:
+def check_contradictions(files: list[Path], report: VerificationReport) -> None:
     """Check 9: Detect potential contradictions between steerings.
 
     Heuristic: finds NEVER/ALWAYS/MUST NOT directives and checks if
@@ -726,7 +794,7 @@ def check_contradictions(
     # Collect directive patterns: (keyword, subject, file)
     directives: list[tuple[str, str, str]] = []
     directive_re = re.compile(
-        r'\b(NEVER|ALWAYS|MUST NOT|MUST|DO NOT|FORBIDDEN)\b\s+(.{5,60}?)(?:\.|$|\n)',
+        r"\b(NEVER|ALWAYS|MUST NOT|MUST|DO NOT|FORBIDDEN)\b\s+(.{5,60}?)(?:\.|$|\n)",
         re.IGNORECASE,
     )
 
@@ -737,7 +805,7 @@ def check_contradictions(
             keyword = m.group(1).upper()
             subject = m.group(2).strip().lower()
             # Normalize: remove filler words
-            subject = re.sub(r'\b(use|the|a|an|in|to|for|with|from)\b', '', subject).strip()
+            subject = re.sub(r"\b(use|the|a|an|in|to|for|with|from)\b", "", subject).strip()
             if len(subject) > 5:
                 directives.append((keyword, subject, rel_path))
 
@@ -760,7 +828,7 @@ def check_contradictions(
 
     seen_conflicts: set[tuple[str, str]] = set()
     for i, (kw1, subj1, file1) in enumerate(directives):
-        for kw2, subj2, file2 in directives[i + 1:]:
+        for kw2, subj2, file2 in directives[i + 1 :]:
             if file1 == file2:
                 continue
             if kw2 in opposites.get(kw1, set()):
@@ -770,20 +838,19 @@ def check_contradictions(
                     if (key[0], conflict_desc) not in seen_conflicts:
                         seen_conflicts.add((key[0], conflict_desc))
                         report.add(
-                            "contradictions", "warning",
+                            "contradictions",
+                            "warning",
                             file1,
-                            f"Potential contradiction with {Path(file2).stem}: "
-                            f"{conflict_desc}",
+                            f"Potential contradiction with {Path(file2).stem}: {conflict_desc}",
                         )
 
 
-def check_duplicates(
-    files: list[Path], report: VerificationReport
-) -> None:
+def check_duplicates(files: list[Path], report: VerificationReport) -> None:
     """Check 10: Detect steering files with high content overlap (>40% n-gram jaccard)."""
+
     def ngrams(text: str, n: int = 3) -> set[str]:
         words = text.lower().split()
-        return {" ".join(words[i:i + n]) for i in range(len(words) - n + 1)}
+        return {" ".join(words[i : i + n]) for i in range(len(words) - n + 1)}
 
     bodies: list[tuple[str, set[str]]] = []
     for md_file in files:
@@ -795,7 +862,7 @@ def check_duplicates(
 
     seen: set[tuple[str, str]] = set()
     for i, (path_a, grams_a) in enumerate(bodies):
-        for path_b, grams_b in bodies[i + 1:]:
+        for path_b, grams_b in bodies[i + 1 :]:
             intersection = len(grams_a & grams_b)
             union = len(grams_a | grams_b)
             if union > 0:
@@ -805,15 +872,20 @@ def check_duplicates(
                     if key not in seen:
                         seen.add(key)
                         report.add(
-                            "duplicates", "warning", path_a,
+                            "duplicates",
+                            "warning",
+                            path_a,
                             f"{int(similarity * 100)}% content overlap with "
                             f"{Path(path_b).stem} — consider merging or deduplicating",
                         )
 
 
 def check_cross_filematch_redundancy(
-    files: list[Path], steerings: dict[str, list[str]],
-    report: VerificationReport, *, fix: bool = False
+    files: list[Path],
+    steerings: dict[str, list[str]],
+    report: VerificationReport,
+    *,
+    fix: bool = False,
 ) -> None:
     """Check 11: Detect repeated paragraphs between steerings with overlapping fileMatch.
 
@@ -863,7 +935,9 @@ def check_cross_filematch_redundancy(
                     suffix_a = pa.split("**/")[-1] if "**/" in pa else ""
                     suffix_b = pb.split("**/")[-1] if "**/" in pb else ""
                     if suffix_a and suffix_b:
-                        if fnmatch.fnmatch(suffix_a, suffix_b) or fnmatch.fnmatch(suffix_b, suffix_a):
+                        if fnmatch.fnmatch(suffix_a, suffix_b) or fnmatch.fnmatch(
+                            suffix_b, suffix_a
+                        ):
                             return True
         return False
 
@@ -872,9 +946,9 @@ def check_cross_filematch_redundancy(
         body = get_body(Path("/dev/null"))  # won't use, we pass text directly
         # Actually parse from text
         match = re.match(r"^---\s*\n.*?\n---\s*\n?", text, re.DOTALL)
-        body_text = text[match.end():] if match else text
+        body_text = text[match.end() :] if match else text
         # Split on double newlines or heading boundaries
-        raw_paragraphs = re.split(r'\n\n+', body_text)
+        raw_paragraphs = re.split(r"\n\n+", body_text)
         return [p.strip() for p in raw_paragraphs if len(p.strip()) > 50]
 
     # Check pairs of co-activating steerings
@@ -882,7 +956,7 @@ def check_cross_filematch_redundancy(
 
     # fileMatch vs fileMatch
     for i, (file_a, name_a, pats_a) in enumerate(filematch_files):
-        for file_b, name_b, pats_b in filematch_files[i + 1:]:
+        for file_b, name_b, pats_b in filematch_files[i + 1 :]:
             if patterns_overlap(pats_a, pats_b):
                 pairs_to_check.append((file_a, file_b))
 
@@ -893,7 +967,7 @@ def check_cross_filematch_redundancy(
 
     # always vs always
     for i, file_a in enumerate(always_files):
-        for file_b in always_files[i + 1:]:
+        for file_b in always_files[i + 1 :]:
             pairs_to_check.append((file_a, file_b))
 
     # Now find shared paragraphs in co-activating pairs
@@ -936,10 +1010,12 @@ def check_cross_filematch_redundancy(
                         if older_para in older_text:
                             new_text = older_text.replace(older_para, "", 1)
                             # Clean up double blank lines
-                            new_text = re.sub(r'\n{3,}', '\n\n', new_text)
+                            new_text = re.sub(r"\n{3,}", "\n\n", new_text)
                             older_file.write_text(new_text)
                             issue = report.add(
-                                "cross-redundancy", "warning", older_rel,
+                                "cross-redundancy",
+                                "warning",
+                                older_rel,
                                 f"Removed duplicated paragraph (also in "
                                 f"{Path(rel_b if older_file == file_a else rel_a).stem}): "
                                 f"'{snippet}...'",
@@ -947,33 +1023,42 @@ def check_cross_filematch_redundancy(
                             issue.fix_applied = True
                     else:
                         report.add(
-                            "cross-redundancy", "warning", rel_a,
+                            "cross-redundancy",
+                            "warning",
+                            rel_a,
                             f"Shared paragraph with {Path(rel_b).stem} "
-                            f"(both co-activate, {int(ratio*100)}% match): "
+                            f"(both co-activate, {int(ratio * 100)}% match): "
                             f"'{snippet}...' — use --fix to remove from older",
                         )
                     break  # One match per paragraph pair is enough
 
 
-def check_clarity(
-    files: list[Path], report: VerificationReport
-) -> None:
+def check_clarity(files: list[Path], report: VerificationReport, *, fix: bool = False) -> None:
     """Check 12: Instruction clarity via skillsaw (opt-in, requires pip install skillsaw).
 
     skillsaw detects: vague language, contradictions, attention dead zones,
     weak instructions, inconsistent terminology, excessive section length,
     and other patterns that reduce agent compliance.
 
+    When --fix is active, auto-removes weak language hedges:
+    - "correctly" → removed
+    - "properly" → removed
+    - "try to" → removed (replaced with direct action)
+    - "where possible" → removed
+    - "if possible" → removed
+
     Only runs if skillsaw is installed. Skips silently otherwise.
     """
     try:
-        from skillsaw import RepositoryContext, Linter as SkillsawLinter
+        from skillsaw import Linter as SkillsawLinter
+        from skillsaw import RepositoryContext
         from skillsaw import Severity as SSeverity
     except ImportError:
         report.add(
-            "clarity", "note", ".kiro/steering/",
-            "skillsaw not installed — skipping clarity checks "
-            "(pip install skillsaw to enable)",
+            "clarity",
+            "note",
+            ".kiro/steering/",
+            "skillsaw not installed — skipping clarity checks (pip install skillsaw to enable)",
         )
         return
 
@@ -984,18 +1069,25 @@ def check_clarity(
         SSeverity.INFO: "note",
     }
 
-    # Build context from the steering directory
+    # Build context from the steering directory (+ skills/knowledge if present)
     try:
         steering_rel = _relative_path(STEERING_DIR)
+        content_paths = [steering_rel]
+        if SKILLS_DIR.exists():
+            content_paths.append(_relative_path(SKILLS_DIR))
+        if KNOWLEDGE_DIR.exists():
+            content_paths.append(_relative_path(KNOWLEDGE_DIR))
         ctx = RepositoryContext(
             root_path=PROJECT_ROOT,
-            content_paths=[steering_rel],
+            content_paths=content_paths,
         )
         linter = SkillsawLinter(context=ctx)
         violations = linter.run()
     except Exception as e:
         report.add(
-            "clarity", "note", ".kiro/steering/",
+            "clarity",
+            "note",
+            ".kiro/steering/",
             f"skillsaw failed to run: {e}",
         )
         return
@@ -1006,19 +1098,70 @@ def check_clarity(
     # Rules we consider noise for steering files (too chatty, not actionable)
     skip_rules = {"content-unlinked-internal-reference"}
 
+    # Collect weak-language fixes to apply per file
+    weak_lang_fixes: dict[Path, list[tuple[str, str, str]]] = defaultdict(list)
+    # Patterns skillsaw detects as weak language — we can auto-remove these
+    # Patterns skillsaw detects as weak language — we can auto-remove these
+    # These regexes are designed to remove hedge words while preserving grammar
+    WEAK_PATTERNS: dict[str, tuple[str, str]] = {
+        "correctly": (r"\b(\w+)\s+correctly\b", r"\1"),  # "cite correctly" → "cite"
+        "properly": (r"\b(\w+)\s+properly\b", r"\1"),  # "handle properly" → "handle"
+        "try to": (r"\btry to\s+", ""),  # "try to run" → "run"
+        "where possible": (r",?\s*where possible", ""),  # ", where possible" → ""
+        "if possible": (r",?\s*if possible", ""),  # ", if possible" → ""
+    }
+
     for v in violations:
         if v.rule_id in skip_rules:
             continue
         vpath = Path(v.file_path).resolve() if v.file_path else None
         if vpath and vpath not in scanned_paths:
             continue
+
         sev = severity_map.get(v.severity, "note")
         rel_file = _relative_path(Path(v.file_path)) if v.file_path else ".kiro/steering/"
+
+        # If --fix and it's a weak-language violation, queue the fix
+        if fix and v.rule_id == "content-weak-language" and v.file_path:
+            # Extract the offending word from the message
+            # Message format: "Weak language (vagueness): 'correctly' — Remove..."
+            word_match = re.search(r"'(\w[\w\s]*?)'", v.message)
+            if word_match:
+                word = word_match.group(1).lower()
+                if word in WEAK_PATTERNS:
+                    weak_lang_fixes[Path(v.file_path)].append(
+                        (word, WEAK_PATTERNS[word][0], WEAK_PATTERNS[word][1])
+                    )
+                    issue = report.add(
+                        "clarity",
+                        sev,
+                        rel_file,
+                        f"[{v.rule_id}] '{word}' → FIXED (removed hedge)",
+                        line=v.file_line or 0,
+                    )
+                    issue.fix_applied = True
+                    continue
+
         report.add(
-            "clarity", sev, rel_file,
+            "clarity",
+            sev,
+            rel_file,
             f"[{v.rule_id}] {v.message}",
             line=v.file_line or 0,
         )
+
+    # Apply accumulated weak-language fixes
+    if fix and weak_lang_fixes:
+        for filepath, fixes in weak_lang_fixes.items():
+            text = filepath.read_text(errors="replace")
+            # Only apply substitutions OUTSIDE code blocks
+            parts = re.split(r"(```[\s\S]*?```)", text)
+            for i, part in enumerate(parts):
+                if part.startswith("```"):
+                    continue  # Skip code blocks entirely
+                for word, pattern, replacement in fixes:
+                    parts[i] = re.sub(pattern, replacement, parts[i], flags=re.IGNORECASE)
+            filepath.write_text("".join(parts))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1026,9 +1169,17 @@ def check_clarity(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 ALL_CHECKS = [
-    "activation", "quality", "overlaps", "orphans",
-    "staleness", "split", "tokens", "hooks",
-    "contradictions", "duplicates", "cross-redundancy",
+    "activation",
+    "quality",
+    "overlaps",
+    "orphans",
+    "staleness",
+    "split",
+    "tokens",
+    "hooks",
+    "contradictions",
+    "duplicates",
+    "cross-redundancy",
     "clarity",
 ]
 
@@ -1049,50 +1200,79 @@ Examples:
 """,
     )
     parser.add_argument(
-        "targets", nargs="*", type=Path, default=None,
+        "targets",
+        nargs="*",
+        type=Path,
+        default=None,
         help="Specific steering file(s) or folder to check. Default: all.",
     )
     parser.add_argument(
-        "--check", nargs="+", choices=ALL_CHECKS, default=None,
+        "--check",
+        nargs="+",
+        choices=ALL_CHECKS,
+        default=None,
         help=f"Run only these checks. Options: {', '.join(ALL_CHECKS)}",
     )
     parser.add_argument(
-        "--stale-days", type=int, default=DEFAULT_STALE_DAYS,
+        "--stale-days",
+        type=int,
+        default=DEFAULT_STALE_DAYS,
         help=f"Days threshold for staleness check (default: {DEFAULT_STALE_DAYS})",
     )
     parser.add_argument(
-        "--fix", action="store_true",
+        "--fix",
+        action="store_true",
         help="Auto-fix trivial issues (missing inclusion key, broken refs)",
     )
     parser.add_argument(
-        "--json", action="store_true", dest="json_output",
+        "--json",
+        action="store_true",
+        dest="json_output",
         help="Output JSON report instead of human-readable text",
     )
     parser.add_argument(
-        "--sarif", action="store_true",
+        "--sarif",
+        action="store_true",
         help="Output SARIF v2.1.0 (for GitHub code scanning)",
     )
     parser.add_argument(
-        "--token-budget", type=int, default=ALWAYS_TOKEN_BUDGET,
+        "--token-budget",
+        type=int,
+        default=ALWAYS_TOKEN_BUDGET,
         help=f"Max tokens for always-included steerings (default: {ALWAYS_TOKEN_BUDGET})",
     )
     parser.add_argument(
-        "--quiet", "-q", action="store_true",
+        "--quiet",
+        "-q",
+        action="store_true",
         help="Only print issues, no passing checks",
     )
     parser.add_argument(
-        "--steering-dir", type=Path, default=None,
-        help="Path to steering directory (default: .kiro/steering/). "
-             "Use for non-Kiro projects or alternate layouts.",
+        "--all",
+        "-a",
+        action="store_true",
+        dest="include_all",
+        help="Also scan .kiro/skills/ and .kiro/knowledge/ (not just steering/)",
     )
     parser.add_argument(
-        "--hooks-dir", type=Path, default=None,
+        "--steering-dir",
+        type=Path,
+        default=None,
+        help="Path to steering directory (default: .kiro/steering/). "
+        "Use for non-Kiro projects or alternate layouts.",
+    )
+    parser.add_argument(
+        "--hooks-dir",
+        type=Path,
+        default=None,
         help="Path to hooks directory (default: .kiro/hooks/).",
     )
     parser.add_argument(
-        "--path-prefixes", nargs="*", default=None,
+        "--path-prefixes",
+        nargs="*",
+        default=None,
         help="Source code prefixes for dead-path detection "
-             "(default: auto-detect from project). E.g. src/ lib/ app/",
+        "(default: auto-detect from project). E.g. src/ lib/ app/",
     )
     return parser.parse_args()
 
@@ -1136,7 +1316,7 @@ def print_human_report(report: VerificationReport, *, quiet: bool = False) -> No
         if not issues:
             if not quiet:
                 print(f"─── {label} ───")
-                print(f"  ✓ All passed")
+                print("  ✓ All passed")
                 print()
         else:
             print(f"─── {label} ({len(issues)} issues) ───")
@@ -1190,7 +1370,7 @@ def main() -> int:
         _CLI_PATH_PREFIXES = args.path_prefixes
 
     # Collect files
-    files = scan_steering_files(targets)
+    files = scan_steering_files(targets, include_all=args.include_all)
     steerings = scan_steerings_patterns(files)
 
     report = VerificationReport()
@@ -1232,7 +1412,7 @@ def main() -> int:
         check_cross_filematch_redundancy(files, steerings, report, fix=args.fix)
 
     if "clarity" in checks_to_run:
-        check_clarity(files, report)
+        check_clarity(files, report, fix=args.fix)
 
     # Output
     if args.sarif:
@@ -1249,4 +1429,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

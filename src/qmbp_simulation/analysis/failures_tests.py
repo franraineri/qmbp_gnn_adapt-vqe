@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
 
 import numpy as np
 
@@ -243,13 +242,9 @@ def diagnose_gap_masking(
 
     # Test C: h-range of masked points and proximity to criticality
     h_min_masked = float(h_values[gap_masked].min()) if n_masked > 0 else None
-    masked_near_critical = (
-        h_min_masked is not None and abs(h_min_masked - h_critical) < 0.5
-    )
+    masked_near_critical = h_min_masked is not None and abs(h_min_masked - h_critical) < 0.5
     # Check if ALL masked points are in trivial PM regime (h > 2.5)
-    masked_in_trivial = bool(
-        n_masked > 0 and np.all(h_values[gap_masked] > 2.5)
-    )
+    masked_in_trivial = bool(n_masked > 0 and np.all(h_values[gap_masked] > 2.5))
 
     # Classification: gap masking if most failures are masked (not real ΔE/gap fails),
     # per-site error is consistent between groups (extensive behavior), and
@@ -392,7 +387,7 @@ def _compute_cross_n_ratios(
     cross_n_ratios: dict[str, float] = {}
 
     for i, n_small in enumerate(n_values[:-1]):
-        for n_large in n_values[i + 1:]:
+        for n_large in n_values[i + 1 :]:
             data_small = per_n_data[n_small]
             data_large = per_n_data[n_large]
             h_small = np.asarray(data_small.get("h_values", []), dtype=float)
@@ -405,7 +400,8 @@ def _compute_cross_n_ratios(
             if len(abs_small) != len(h_small) or len(abs_large) != len(h_large):
                 logger.debug(
                     "diagnose_generalization: length mismatch for N=%d→%d, skipping",
-                    n_small, n_large,
+                    n_small,
+                    n_large,
                 )
                 continue
 
@@ -517,7 +513,7 @@ def _diagnose_generalization_failure_dashboard(
         "fit_r_squared": fit_r_squared,
         "cross_n_ratios": cross_n_ratios,
         "extensive_verdict": extensive_verdict,
-        "per_site_values": dict(zip(ns_arr, per_sites_arr)),
+        "per_site_values": dict(zip(ns_arr, per_sites_arr, strict=False)),
     }
 
 
@@ -550,7 +546,7 @@ def diagnose_contaminated_training(
     high_discontinuity = theta_smoothness > 0.5
 
     # Check for isolated failures (failing point between two passing points)
-    pass_mask = de_gaps < 0.05
+    pass_mask = de_gaps < DE_GAP_THRESHOLD
     n_isolated = 0
     for i in range(1, n_points - 1):
         if not pass_mask[i] and pass_mask[i - 1] and pass_mask[i + 1]:
@@ -581,7 +577,7 @@ def diagnose_contaminated_training(
 
 def _diagnose_intrinsic_vqe_error_dashboard(
     dashboard_configs: list[dict],
-    npz_dir: "str | Path | None" = None,
+    npz_dir: str | Path | None = None,
 ) -> dict:
     """Tests G+H+I: Diagnose whether failures stem from HVA ansatz expressibility.
 
@@ -661,8 +657,12 @@ def _diagnose_intrinsic_vqe_error_dashboard(
             continue
 
     # Compute metrics
-    ps_verified = float(np.mean(per_site_by_tier["verified"])) if per_site_by_tier["verified"] else 0.0
-    ps_approx = float(np.mean(per_site_by_tier["approximate"])) if per_site_by_tier["approximate"] else 0.0
+    ps_verified = (
+        float(np.mean(per_site_by_tier["verified"])) if per_site_by_tier["verified"] else 0.0
+    )
+    ps_approx = (
+        float(np.mean(per_site_by_tier["approximate"])) if per_site_by_tier["approximate"] else 0.0
+    )
     ratio = ps_verified / max(ps_approx, 1e-10) if ps_approx > 0 else 0.0
 
     best_n = min(per_site_by_n.keys()) if per_site_by_n else None
@@ -671,7 +671,10 @@ def _diagnose_intrinsic_vqe_error_dashboard(
     verified_high_frac = n_verified_high / max(n_verified_total, 1)
 
     # Sub-diagnosis logic using named thresholds
-    if ps_verified > PER_SITE_ANSATZ_LIMIT and verified_high_frac > VERIFIED_HIGH_ERROR_FRACTION_THRESHOLD:
+    if (
+        ps_verified > PER_SITE_ANSATZ_LIMIT
+        and verified_high_frac > VERIFIED_HIGH_ERROR_FRACTION_THRESHOLD
+    ):
         sub_diagnosis = "ansatz_limit"
         is_intrinsic = True
     elif best_n_ps < PER_SITE_BEST_N_THRESHOLD and ps_verified > PER_SITE_VQE_BUDGET_LIMIT:
@@ -733,9 +736,7 @@ def diagnose_generalization_failure(
     per_site_error = mean_abs_error / max(target_n, 1)
     extensive_error = per_site_error > 0.01
 
-    is_generalization_failure = (
-        pass_rate_dual < 0.5 and (gap_factor > 1.5 or extensive_error)
-    )
+    is_generalization_failure = pass_rate_dual < 0.5 and (gap_factor > 1.5 or extensive_error)
 
     recommendation = ""
     if is_generalization_failure:
@@ -791,7 +792,7 @@ def diagnose_intrinsic_vqe_error(
     de_sorted = de_gaps[order]
 
     # Find the boundary: h where de_gap first exceeds 5% (scanning from high h)
-    pass_mask = de_sorted < 0.05
+    pass_mask = de_sorted < DE_GAP_THRESHOLD
     if pass_mask.all():
         return {"is_intrinsic": False, "h_boundary": None, "all_pass": True}
     if not pass_mask.any():
@@ -879,7 +880,8 @@ def _diagnose_contaminated_training_dashboard(
 
     # Test J: Gap-masked fraction in training data
     n_gap_masked_configs = sum(
-        1 for c in dashboard_configs
+        1
+        for c in dashboard_configs
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
     )
     gap_masked_fraction = n_gap_masked_configs / n_configs
@@ -887,7 +889,10 @@ def _diagnose_contaminated_training_dashboard(
     # Total points that are gap-masked (weighted by n_points)
     total_pts = sum(c.get("n_points", 0) for c in dashboard_configs)
     masked_pts = sum(
-        int(c.get("n_points", 0) * (c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0)))
+        int(
+            c.get("n_points", 0)
+            * (c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0))
+        )
         for c in dashboard_configs
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > 0
     )
@@ -904,7 +909,8 @@ def _diagnose_contaminated_training_dashboard(
     # If zoo has metric_version == "dual_v1", inflation is real (model is wrong)
     # If zoo is legacy (no metric_version), inflation may be metric artifact
     has_dual_zoo = any(
-        c.get("zoo_metric_version") == "dual_v1" for c in dashboard_configs
+        c.get("zoo_metric_version") == "dual_v1"
+        for c in dashboard_configs
         if c.get("zoo_metric_version")
     )
     if not has_dual_zoo and zoo_inflation > 0:
@@ -913,15 +919,16 @@ def _diagnose_contaminated_training_dashboard(
 
     # Test L: Theta discontinuity (normalized check)
     smoothness_values = [
-        c["theta_smoothness"] for c in dashboard_configs
-        if c.get("theta_smoothness") is not None
+        c["theta_smoothness"] for c in dashboard_configs if c.get("theta_smoothness") is not None
     ]
     max_smoothness = max(smoothness_values) if smoothness_values else 0.0
     n_discontinuous = sum(1 for s in smoothness_values if s > THETA_DISCONTINUITY_THRESHOLD)
 
     # Training utility counts
     n_not_useful = sum(1 for c in dashboard_configs if c.get("training_utility") == "not_useful")
-    n_insufficient = sum(1 for c in dashboard_configs if c.get("training_utility") == "insufficient_signal")
+    n_insufficient = sum(
+        1 for c in dashboard_configs if c.get("training_utility") == "insufficient_signal"
+    )
 
     # Severity classification
     if n_not_useful >= 3 and masked_point_fraction > 0.40:
@@ -1006,9 +1013,7 @@ def classify_topology_failure_mode(
     z = coordination if coordination is not None else COORD_MAP.get(topology, 2)
 
     # Run all tests
-    gap_result = diagnose_gap_masking(
-        h_values, de_gaps, abs_errors, n_qubits
-    )
+    gap_result = diagnose_gap_masking(h_values, de_gaps, abs_errors, n_qubits)
     contam_result = diagnose_contaminated_training(
         h_values, de_gaps, abs_errors, theta_smoothness, n_qubits
     )
@@ -1017,7 +1022,7 @@ def classify_topology_failure_mode(
     )
 
     pass_rate_dual = float(
-        ((de_gaps < 0.05) & (abs_errors < 0.10)).sum() / max(len(h_values), 1)
+        ((de_gaps < DE_GAP_THRESHOLD) & (abs_errors < MAX_ABS_ERROR)).sum() / max(len(h_values), 1)
     )
 
     gen_result = None
@@ -1138,7 +1143,7 @@ def diagnose_h_range_mismatch(
     mismatch_pairs: list[str] = []
     ns_with_range = sorted(per_n_ranges.keys())
     for i, n1 in enumerate(ns_with_range[:-1]):
-        for n2 in ns_with_range[i + 1:]:
+        for n2 in ns_with_range[i + 1 :]:
             r1 = per_n_ranges[n1]
             r2 = per_n_ranges[n2]
             pair_overlap_min = max(r1[0], r2[0])
@@ -1220,7 +1225,8 @@ def classify_topology_failure_mode_from_dashboard(
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
     )
     n_configs_masked = sum(
-        1 for c in dashboard_configs
+        1
+        for c in dashboard_configs
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
     )
     avg_mask_severity = total_masked / max(n_configs_masked, 1)
@@ -1279,7 +1285,9 @@ def classify_topology_failure_mode_from_dashboard(
 
     if has_contamination:
         sev_score = {"severe": 0.85, "moderate": 0.65, "mild": 0.45, "none": 0.0}
-        mode_scores["contaminated_training"] = sev_score.get(contam_result["contamination_severity"], 0.0)
+        mode_scores["contaminated_training"] = sev_score.get(
+            contam_result["contamination_severity"], 0.0
+        )
 
     # ── Decision logic: score-based with secondary modes ──────────────────
     # Sort modes by score descending

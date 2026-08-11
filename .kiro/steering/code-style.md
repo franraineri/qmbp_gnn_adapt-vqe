@@ -333,7 +333,7 @@ utils → models → solvers, circuits → execution → optimizers
 - Functions: `snake_case`
 - Classes: `PascalCase`
 - Constants: `UPPER_SNAKE_CASE` (in `models/constants.py`)
-- Parameters: match the physics notation where possible (h, J, theta, psi)
+- Parameters: match the physics notation (h, J, theta, psi)
 - Modules: `snake_case.py`
 - Subpackages: `snake_case/`
 

@@ -676,9 +676,11 @@ def validate_prediction_vs_result(
     """
     predicted_risk = prediction["predicted_risk"]
     # Was our prediction correct?
-    if actual_de_gap < 0.05:
+    from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+
+    if actual_de_gap < DE_GAP_THRESHOLD:
         actual_outcome = "pass"
-    elif actual_de_gap < 0.10:
+    elif actual_de_gap < MAX_ABS_ERROR:
         actual_outcome = "marginal"
     else:
         actual_outcome = "fail"

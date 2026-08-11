@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import math
 
+from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD, MAX_ABS_ERROR
 from qmbp_simulation.analysis.extension_models import ExtensionClassification
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class ClassificationEngine:
             REJECTED_INSUFFICIENT_DATA when every element ≥ 0.05;
             CONDITIONALLY_VIABLE when at least one element is < 0.05.
         """
-        if all(v >= 0.05 for v in de_gap_all_sizes):
+        if all(v >= DE_GAP_THRESHOLD for v in de_gap_all_sizes):
             return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
         return ExtensionClassification.CONDITIONALLY_VIABLE
 
@@ -127,9 +128,9 @@ class ClassificationEngine:
         """
         if n_params > 5000 and n_data < 50:
             return ExtensionClassification.OVERPARAMETERIZED_FOR_DATASET
-        if de_gap >= 0.10:
+        if de_gap >= MAX_ABS_ERROR:
             return ExtensionClassification.DEGRADED_VS_BASELINE
-        if calibration_improvement >= 0.02 and de_gap < 0.05:
+        if calibration_improvement >= 0.02 and de_gap < DE_GAP_THRESHOLD:
             return ExtensionClassification.VIABLE
         return ExtensionClassification.CONDITIONALLY_VIABLE
 

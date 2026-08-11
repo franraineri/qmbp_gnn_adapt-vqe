@@ -265,7 +265,9 @@ def classify_outcome(
     """
     if not has_valid_regime:
         return "failure"
-    if delta_e_over_gap is not None and delta_e_over_gap < 0.05:
+    from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD
+
+    if delta_e_over_gap is not None and delta_e_over_gap < DE_GAP_THRESHOLD:
         return "full_success"
     return "partial_success"
 

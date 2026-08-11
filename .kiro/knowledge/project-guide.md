@@ -80,12 +80,9 @@ quantum hardware to classify quantum phases via local observable measurements.
 | `make check-full` | lint + test + smoke-test | ~15s |
 | `make preflight SCRIPT=<path>` | Validate variant script before running | ~3s |
 | `python tests/smoke_test.py` | Package smoke test (N=4, p=1) | ~30s |
-| `python scripts/preflight.py --from-script <path>` | Preflight validation | ~3s |
-| `python scripts/run_experiment.py --list` | List all experiments | instant |
-| `python scripts/run_experiment.py --exp A3` | Run experiment A3 | varies |
-| `python scripts/run_pipeline.py --n-qubits 6 --p 2` | Full pipeline | ~5min |
-| `python scripts/compare.py --all` | Compare all results | ~5s |
-| `python scripts/benchmark.py` | Performance benchmarks | ~30s |
+| `python src/qmbp_simulation/framework/preflight.py --from-script <path>` | Preflight validation | ~3s |
+| `python project_health/compare.py --all` | Compare all results | ~5s |
+| `python scripts/benchmarks/benchmark.py` | Performance benchmarks | ~30s |
 
 ### Installation
 
@@ -193,7 +190,7 @@ Validates variant runner configurations before execution. Use **always** before 
 - `P1_VALID_REGIME` / `P2_VALID_REGIME` — Canonical valid regime dicts
 - `get_regime_threshold(topology, n_qubits, p)` — Lookup threshold
 
-**CLI**: `python scripts/preflight.py --from-script <path> [--strict] [--quiet]`
+**CLI**: `python src/qmbp_simulation/framework/preflight.py --from-script <path> [--strict] [--quiet]`
 **Makefile**: `make preflight SCRIPT=<path>`
 
 ## Where to Find What
@@ -212,8 +209,7 @@ Validates variant runner configurations before execution. Use **always** before 
 | Review literature insights | `.kiro/knowledge/literature-synthesis.md` |
 | See experiment framework guide | `.kiro/steering/v8-experiments.md` |
 | See full experiment history | `documentation/binnacles/` |
-| Run experiments | `scripts/run_experiment.py --list` |
-| Validate a script before running | `scripts/preflight.py --from-script <path>` |
+| Validate a script before running | `src/qmbp_simulation/framework/preflight.py --from-script <path>` |
 | Validate package | `tests/smoke_test.py` |
 | Check knowledge freshness | `.kiro/knowledge/changelog.md` |
 
@@ -237,7 +233,7 @@ Scripts are thin CLI wrappers that delegate to framework classes.
 8. Experiments inherit from `BaseExperiment` and use `ExperimentMetrics` for results.
 9. New scripts should use `framework/cli.py` for argument parsing.
 10. Result saving should use `framework/result_io.py` for consistent structure.
-11. **Always run preflight before executing variant runner scripts** — `python scripts/preflight.py --from-script <path>`.
+11. **Always run preflight before executing variant runner scripts** — `python src/qmbp_simulation/framework/preflight.py --from-script <path>`.
 12. **JSON serialization**: use `json_serialize` from `utils/helpers.py` — never create local `_json_default`.
 13. **Experiment criteria**: import from `framework/criteria.py` — never duplicate threshold dicts.
 

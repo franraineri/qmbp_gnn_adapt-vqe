@@ -19,7 +19,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 | UnifiedMPNN (cross-N) | predictors.unified_mpnn | UnifiedMPNN |
 | Model zoo | predictors.model_zoo | load_pretrained, register_checkpoint |
 | Accelerated pipeline | pipeline.accelerated | AcceleratedVQE |
-| Full pipeline (legacy) | pipeline.runner | PipelineRunner ⚠️ deprecated |
+| Full pipeline | pipeline.runner | PipelineRunner |
 | Validate θ | analysis.theta_validator | ThetaValidator |
 | Deploy stats | analysis.metrics | compute_deploy_summary |
 | θ alignment | analysis.theta_alignment | align_theta_array |
@@ -40,11 +40,12 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +20
 
 
-### qsim/analysis/ (23)
-  ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +56
+### qsim/analysis/ (24)
+  ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +65
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
   comparative                ANAL  C:RegimeDiscoveryResult,ComparativeMetrics | F:find_h_min,classify_result,filter_by_threshold+5
+  constants                  CFG  
   cross_n_validator          VAL   C:L1Result,L2Result,L3Result+2 | F:preflight_cross_n
   data_models                MODEL C:GradientAnalysisResult,ComparisonResult,BaselineMetrics+1
   diagnostics                CORE  C:DiagnosticCollector | F:configure_pipeline_logging
@@ -53,13 +54,13 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   extension_classifiers      ANAL  C:ClassificationEngine
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
   extension_ranker           ANAL  C:ExtensionScore,ExtensionPriorityRanker
-  failures_tests             TEST  
+  failures_tests             TEST  C:FailureDiagnostic | F:diagnose_gap_masking,diagnose_contaminated_training,diagnose_generalization_failure+4
   flow_multishot             PRED  C:MultiShotResult,FlowMultiShotPredictor
   flow_warmstart             OPT   C:FlowWarmstartManager
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  F:is_point_failure,identify_failures,compute_refinement_priority+22
+  metrics                    CORE  F:is_point_failure,identify_failures,compute_refinement_priority+23
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
@@ -99,7 +100,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### qsim/framework/ (17)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +68
 
-  __main__                   CLI   
+  __main__                   CLI  
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -120,7 +121,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG   
+  constants                  CFG  
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -134,12 +135,12 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   vqe                        OPT   C:OptimizationCallback,VQEOptimizer
 
 ### qsim/pipeline/ (4)
-  ↳ PipelineRunner load_phase12_dataset save_phase12_dataset run_exact_diag_sweep run_accelerated AcceleratedVQE AcceleratedConfig AcceleratedResult
+  ↳ AcceleratedVQE AcceleratedConfig AcceleratedResult load_phase12_dataset save_phase12_dataset PipelineRunner run_exact_diag_sweep run_accelerated
 
   accelerated                OPT   C:AcceleratedResult,AcceleratedConfig,AcceleratedVQE
-  dataset_io                 VAL   F:get_library_versions,save_phase12_dataset,load_phase12_dataset+1
+  dataset_io                 VAL   F:get_library_versions,save_phase12_dataset,load_phase12_dataset+2
   qrc                        PIPE  C:QRCPipeline
-  runner                     PIPE  C:PipelineRunner | F:run_accelerated,run_exact_diag_sweep  ⚠️ DEPRECATED
+  runner                     PIPE  
 
 ### qsim/predictors/external_benchmarks/ (2)
   ↳ VQEzyInstance VQEzyDataset load_vqezy_tfi load_vqezy_xyz reconstruct_tfi_hamiltonian BenchmarkResult InstanceResult VQEzyBenchmarkEvaluator
@@ -164,9 +165,9 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   ground_truth_cache         CACHE C:GroundTruthCache
 
 ### qsim/utils/ (1)
-  ↳ TimerResult canonicalize_theta filter_consistent_theta json_dump json_serialize set_global_seed timer
+  ↳ TimerResult augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize set_global_seed timer
 
-  helpers                    IO    C:TimerResult | F:set_global_seed,json_serialize,json_dump+3
+  helpers                    IO    C:TimerResult | F:set_global_seed,json_serialize,json_dump+4
 
 ## Project Health (project_health/)
 
@@ -194,7 +195,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL   
+  gnn_qem_analyzer           VAL  
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (3)
@@ -223,13 +224,13 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport,LargeNResult | F:scan_results,analyze_cross_n_result,format_report+5
   diagnose                   PRED  C:RootCause,DeploymentPoint,Diagnosis | F:parse_pipeline_run,classify_root_causes,scan_folder+3
   gnn_qem_analyzer           PRED  
-  layout_optimizer_analyzer  OPT   
-  mitigation_benchmark_analyzer BENCH 
+  layout_optimizer_analyzer  OPT  
+  mitigation_benchmark_analyzer BENCH
   mitiq_analyzer             ANAL  
   noiseless_model_comparison CORE  C:PerHPoint,SectionMetrics,RunResult+4 | F:parse_markdown_report,build_model_summaries,build_topology_summaries+8
   noiseless_pipeline_analyzer PIPE  C:NoiselessRunSummary,TopologyComparison,NoiselessReport | F:scan_noiseless_results,parse_run,detect_anomalies+6
-  post_execution_validator   VAL   
-  sanity_check               VAL   
+  post_execution_validator   VAL  
+  sanity_check               VAL  
   statistical_tests          TEST  F:paired_ttest,improvement_rate,effect_size_cohens_d
 
 ### ph/cli/ (6)
@@ -263,17 +264,6 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### experiments/ (0)
 
 
-### exp/generalization/ (5)
-
-  exp_comparative_analysis   PIPE  C:ComparativeAnalysisExperiment
-  exp_e4_longitudinal              C:ExperimentE4 | F:build_tfim_longitudinal,exact_diag_sparse
-  exp_e4b_longitudinal_hva_extended CIRC  C:ExperimentE4b
-  exp_e4c_frustrated_tfim    CIRC  C:ExperimentE4c
-  exp_regime_discovery             C:RegimeDiscoveryExperiment
-
-### exp/hardware/ (0)
-
-
 ### exp/helpers/ (9)
 
   active_learning            OPT   F:compute_ensemble_uncertainty,max_variance_acquisition,expected_improvement_acquisition+2
@@ -286,99 +276,34 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   scaling_utils              CORE  F:fit_power_law,compute_transpilation_metrics,evaluate_at_multiple_chi+1
   sign_equivariant           PRED  C:SignInvariantLoss | F:canonicalize_sign,canonicalize_dataset,detect_sign_inconsistency
 
-### exp/landscape/ (3)
-
-  exp_f1_dypp                PRED  C:ExperimentF1
-  exp_f3_fluctuation         VAL   C:ExperimentF3
-  exp_s3_landscape_n20       ANAL  C:ExperimentS3
-
-### exp/optimization/ (5)
-
-  exp_b1_analytical          ANAL  C:ExperimentB1
-  exp_b2_freezing            CIRC  C:ExperimentB2
-  exp_b4_hessian                   C:ExperimentB4
-  exp_c3_sign                PRED  C:ExperimentC3
-  exp_g4_condition_restarts        C:ExperimentG4
-
-### exp/predictor/ (9)
-
-  exp_c1_physics_loss        PRED  C:ExperimentC1
-  exp_d1_weight_space        PRED  C:ExperimentD1
-  exp_e3_active              OPT   C:ExperimentE3
-  exp_g1_data_efficiency     PRED  C:ExperimentG1
-  exp_g2_ensemble_calibration PRED  C:ExperimentG2
-  exp_g5_cross_seed                C:ExperimentG5
-  exp_s2_cross_topology      DIAG  C:ExperimentS2
-  exp_s4_data_efficiency_n10       C:ExperimentS4
-  exp_s6_mc_dropout_uq             C:ExperimentS6
-
-### exp/scaling/ (6)
-
-  exp_a3_scaling_law         VAL   C:ExperimentA3
-  exp_g3_n20_optimized       OPT   C:ExperimentG3
-  exp_s1_entanglement_scaling VAL   C:ExperimentS1 | F:compute_entanglement_entropy
-  exp_s5_n20_p1_pipeline     PRED  C:ExperimentS5
-  exp_s8_d1_finite_size_scaling       C:ExperimentS8 | F:fss_model
-  exp_s8b_mpnn_finite_size_scaling PRED  C:ExperimentS8b | F:fss_model
-
 ## Runners (scripts/experiment_runners/)
 
-### s/experiment_runners/cross_topology/ (7)
+### s/experiment_runners/cross_topology/ (2)
 
   helpers                    CORE  C:SourceData,ValidationReport,MLPBaseline | F:detect_format,load_source_data,filter_source_data+12
-  run_ablation               PRED  F:get_target_h_values,compute_spearman_correlation,evaluate_gnn_predictor+7
-  run_cross_n_validation     VAL   F:get_test_h_values,find_source_file,run_single_seed+2
-  run_cross_topology         PRED  F:get_target_h_values,run_single_direction,aggregate_seed_results+1
-  run_cross_topology_noisy   VAL   C:CrossTopologyNoisyRunner
-  run_orchestrator           DIAG  F:run_step,check_data_exists,find_result_files+3
   run_vqe_data_gen           DIAG  F:get_h_values,run_vqe_sweep,get_output_path+2
-
-### s/experiment_runners/noise_aware/ (3)
-
-  run_mpnn_warmstart_accelerator PRED  C:MPNNWarmstartAccelerator
-  run_noise_aware_comparison PRED  C:NoiseAwareComparisonRunner
-  run_unified_mpnn_benchmark BENCH C:UnifiedMPNNBenchmark
 
 ### Standalone scripts
 
-  run_aqc_cross_topology     VAL   F:run_single_compression,main
-  run_aqc_poc                VAL   F:run_poc,main
-  run_aqc_vs_direct          CIRC  F:run_comparison,main
   run_accelerated_cross_n    PRED  C:AcceleratedCrossNRunner
-  run_bond_resolved_cross_n  PRED  C:BondResolvedCrossNRunner
-  run_bond_resolved_cross_n_transfer PRED  C:BondResolvedCrossNTransferRunner
-  run_bond_resolved_scaling  PRED  C:BondResolvedScalingRunner
   run_bond_resolved_validation VAL   C:BondResolvedValidationRunner
-  run_e3_bond_resolved_scaling VAL   C:E3BondResolvedScalingRunner
   run_n16_square_dmrg2d      CIRC  C:N16SquareDMRG2DRunner
   run_scaling_extensions     ANAL  C:ScalingExtensionsRunner | F:analytical_theta_x
-  gen_qem_v2_data_ladder     PRED  F:main
-  gen_qem_v2_data_ladder_n10 PRED  F:main
   run_gnn_qem_ablation_no_enoisy PRED  C:MLPContextOnly | F:augment,zero_out_enoisy_in_dataset,evaluate_model+3
-  run_gnn_qem_ablation_suite VAL   C:MLPContextOnly | F:augment,evaluate_on_test,train_and_eval+5
-  run_gnn_qem_cross_topology TEST  F:main
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  run_gnn_qem_vqe_realistic  OPT   F:generate_vqe_data,augment,zero_enoisy_in_dataset+2
-  _sanity_check_envelope     IO    
+  _sanity_check_envelope     IO  
   benchmark_configs          BENCH C:BenchmarkConfig
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
   run_hardware_mitigation_flow       F:log_step,run_command,check_credentials+10
   run_ibm_deployment               C:TierMetrics | F:check_credentials,load_sigma_flow_from_rehearsal,build_hardware_config+10
   run_mitigation_benchmark   BENCH F:append_to_manifest,compute_derived_circuit_stats,apply_affine_on_raw+7
   run_parametric_deployment  CORE  C:DeploymentConfig,ParametricDeployment | F:build_parser,main
-  run_gf_zne_batch           DIAG  C:RunConfig | F:run_single_config,run_comparison_analysis,parse_args+1
-  run_gf_zne_comparison      ANAL  C:GFZNEComparisonRunner
   run_pea_cross_topology_dense VAL   C:PEACrossTopologyDenseRunner
   run_pea_full_pipeline      VAL   C:PEAFullPipelineRunner
   run_pea_hardware_readiness       C:PEAHardwareReadinessRunner
   run_pea_scaling_n40        VAL   C:PEAScalingRunner
-  run_pea_triangular_validation VAL   C:PEATriangularRunner
-  run_pea_zne_validation     VAL   C:PEAZNEValidationRunner
-  run_zne_3way_comparison    ANAL  C:ZNE3WayComparisonRunner
-  run_zne_cross_topology_validation VAL   C:ZNECrossTopologyRunner
-  run_mc_dropout_uq                C:MCDropoutRunner
   run_noiseless_cross_n      PRED  C:NoiselessCrossNRunner
   run_noiseless_pipeline     PIPE  C:NoiselessPipelineRunner
   run_cross_n_warmstart_eval       C:CrossNWarmstartEvalRunner
@@ -387,24 +312,9 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   run_qpu_time_scaling       CIRC  C:QPUTimeScalingRunner
   run_scaling_phase3_mpnn    PRED  C:MPSScalingPhase3Runner | F:canonicalize_theta,load_theta_from_result
   run_scaling_validation     VAL   C:MPSScalingValidationRunner
-  run_t1a_dense_j2           PRED  C:DenseJ2Runner
-  run_t1a_mpnn_2d_predictor  PRED  C:MPNN2DPredictorRunner
-  run_t1b_longitudinal_zne   EXEC  C:LongitudinalZNERunner
-  run_t1c_d1_frustrated            C:D1FrustratedRunner
-  run_thesis_variants-chain_1d VAL   F:build_noiseless_variants,build_extended_variants,build_noisy_variants
-  run_thesis_variants-heavy_hex DIAG  F:build_noiseless_variants,build_noisy_variants,build_extended_variants+1
-  run_thesis_variants-heisenberg PIPE  F:build_noiseless_variants,build_noisy_variants,build_extended_variants+1
-  run_thesis_variants-ladder DIAG  F:build_noiseless_variants,build_noisy_variants,build_extended_variants
-  run_thesis_variants-triangular DIAG  F:build_noiseless_variants,build_noisy_variants,build_extended_variants
-  check_fair_comparison      CIRC  K:H
-  run_transpiler_comparison  VAL   C:TranspilerResult,TranspilerExplorationRunner
-  analyse_thesis_extensions  ANAL  F:wrap
-  run_ext1_intra_n_p1        VAL   C:Ext1bP1ValidationRunner
-  run_frustrated_tfim_validation VAL   F:section_1,section_2,section_3+5
   run_hardware_rehearsal_v2        C:HardwareRehearsalV2
   run_hardware_rehearsal_v3  PRED  C:HardwareRehearsalV3
   run_mps_pseudo_hardware    VAL   C:MPSPseudoHardwareRunner
-  run_p1_pipeline_variants_r2 TEST  F:build_noiseless_variants,build_noisy_variants,build_extended_variants+1
   run_verification_plan      VAL   F:build_tier1_variants,build_tier2_variants,build_tier3_variants+1
 
 ## Scripts (scripts/)
@@ -476,7 +386,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+4
   run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+5
   scan_new_runs              ANAL  C:RunMetrics,GroupStats | F:resolve_dirs,load_runs,parse_run+11
-  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+18
+  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+19
   update_project_status            F:main
   upgrade_npz_quality_tiers        F:compute_quality_tier,upgrade_npz_file,main
   verify_steerings                 C:Issue,VerificationReport | F:estimate_tokens,parse_front_matter,get_body+23
