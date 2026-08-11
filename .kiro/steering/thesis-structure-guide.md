@@ -31,18 +31,20 @@
 
 ### 4. Results (15-20 pages)
 - 4.1 N=6 Chain: Hyperparameter Optimization (40+ experiments)
-- 4.2 N=6 Chain: Best Configuration Results (5/6 at h=1.5)
-- 4.3 N=10 Chain: Scaling Validation (3/6 at h=1.5)
-- 4.4 Physics Limit Analysis (h=1.25 ceiling as HVA expressibility bound)
-- 4.5 Hardware Deployment (IBM Heron/Heron — Phase 4 results)
-- 4.6 QRC Fallback Route (R²=0.97, gradient-free validation)
+- 4.2 N=6–10 Chain: Best Configuration Results (95-100% pass rate)
+- 4.3 Cross-Topology Validation (5 topologies, N=10, p=1-4)
+- 4.4 Cross-N Generalization (UnifiedMPNN, bond-resolved, iterative improvement)
+- 4.5 Gap Masking Discovery (dual criterion, honest N_max_viable per topology)
+- 4.6 Physics Limit Analysis (expressibility frontier as HVA depth bound)
+- 4.7 Hardware Deployment (IBM Heron — Phase 4 results)
 
 ### 5. Discussion (8-12 pages)
 - 5.1 Pipeline Validation: What Works and Why
 - 5.2 Comparison with Literature (Qracle, NN-VQE, Flow-VQE, SpinGQE)
 - 5.3 Limitations and Physics Boundaries
-- 5.4 Quantum Utility Argument
-- 5.5 Future Directions (ladder, Kagome, generative approaches)
+- 5.4 Methodological Contributions (dual criterion, iterative improvement, cross-N)
+- 5.5 Quantum Utility Argument
+- 5.6 Future Directions (GNN-QEM V2, Kagome, generative approaches)
 
 ### 6. Conclusions (3-5 pages)
 - Summary of contributions
@@ -83,6 +85,18 @@
 
 **Correct framing**: "GINConv is the theoretically optimal message-passing operator for uniform lattices (Xu et al. 2019 — maximally powerful among MPNNs). For our 1D TFIM with uniform J, all edges are equivalent — attention mechanisms (GATConv) add parameters without information gain. We empirically confirm this: GATConv adds instability with no accuracy improvement. Meng et al. (2025) independently validates GNN > CNN by 36% for circuit property prediction."
 
+### Gap Masking: A Methodological Contribution
+
+**Wrong framing**: "Cross-N works up to N=16 for ladder (100% pass rate)."
+
+**Correct framing**: "We identify a systematic bias in the ΔE/gap metric for large systems at high h: when the spectral gap grows as ~2h, even large absolute errors produce small ΔE/gap ratios. Applying a dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10) reveals that most topologies' cross-N viability is significantly lower than ΔE/gap alone suggests. Only heavy_hex genuinely generalizes at N=16 (94% under dual criterion), while ladder drops from 100% to 0%. This is a methodological contribution to the VQE benchmarking community — standard ΔE/gap reporting inflates performance claims for all variational quantum algorithms operating in gapped regimes."
+
+### Cross-N Failure Modes: Physics Insight
+
+**Wrong framing**: "Cross-N prediction fails for ladder N>10."
+
+**Correct framing**: "Cross-N failures follow a universal pattern: all failing points exhibit variational violations (E_VQE > E_exact), indicating insufficient VQE refinement rather than MPNN prediction error. For ladder N≥20, the 48-parameter optimization landscape with shrinking spectral gap exceeds the refinement budget (200 iter, 1 restart). The MPNN prediction is smooth and topologically correct — the gap is in the downstream VQE step, not the ML predictor."
+
 ---
 
 ## Key Numbers for the Results Chapter
@@ -105,7 +119,13 @@
 | Seed sensitivity (N=10 MSE) | 10× between seeds 42/43 | Binnacle-N10, V6.1 runs |
 | Gradient peaks detected | seed 43/44 (MSE < 1e-3) | Binnacle-N10, V6.1 runs |
 | Ladder (non-uniform J) | ΔE/gap=11.75% (HVA p=2 limit) | Binnacle-N10, V6.1 runs |
-| Total thesis experiments | 60+ (N=6) + 20+ (N=10) | Binnacles |
+| Cross-N heavy_hex N=16 pass | 94% (dual criterion) | accelerated_cross_n_coverage.md |
+| Cross-N ladder N=16 pass (gap-masked) | 100% → 0% (dual) | accelerated_cross_n_coverage.md |
+| Cross-N chain_1d N=20 viable | ✅ | accelerated_cross_n_coverage.md |
+| Iterative improvement: convergence | 2-3 iterations typical | run_accelerated_cross_n.py |
+| Total thesis experiments | 525 runs, 347 compute-hours | ResultIndex |
+| Topologies tested | 6 (chain, ladder, square, heavy-hex, triangular, kagome) | ResultIndex |
+| Models tested | 8 | ResultIndex |
 
 ---
 
@@ -122,6 +142,12 @@ A: At N=6-10, yes — we use classical simulation to validate the pipeline. The 
 
 **Q: "Why is the MPNN better than just running VQE directly?"**
 A: Direct VQE requires 100-1000 circuit evaluations per h-point on hardware. Our MPNN predicts θ in a single classical forward pass, reducing hardware usage to 0-2 AdaptVQE iterations. This is a 50-500× reduction in QPU time.
+
+**Q: "Why does cross-N only work for heavy_hex at N=16?"**
+A: Heavy_hex has coordination z=2-3 (like chain_1d) but irregular connectivity that constrains the parameter space. Other topologies (ladder z=3, square z=4) have high coordination → more parameters → harder VQE landscape → refinement budget insufficient. Under dual criterion (ΔE/gap<5% AND |ΔE|<0.10), ladder/square N>10 are gap-masked false positives.
+
+**Q: "How do you justify the |ΔE|<0.10 threshold?"**
+A: At the thermodynamic limit, thermal fluctuations scale as kT ≈ 0.026 eV at room temperature. Our 0.10 threshold corresponds to ~4kT — physically distinguishable from exact. More practically, |ΔE|>0.10 at N=16 means per-site error >0.006, which accumulates at larger N and invalidates phase classification.
 
 **Q: "What about barren plateaus?"**
 A: Three independent mechanisms prevent BPs in our architecture: (1) shallow circuits p≤2 (Mele et al. 2026), (2) local cost functions (Cerezo et al. 2021), (3) warm-start initialization (Puig et al. 2025). The combination is provably BP-free.

@@ -114,6 +114,19 @@ def main():
                 print(f"    |ΔE| range: [{de.min():.2e}, {de.max():.2e}]")
             if "de_gaps" not in data:
                 issues.append(f"NPZ {npz_file.name}: no de_gaps field")
+            
+            # ── Cross-integration: Quality Tier Distribution ─────────────
+            if "quality_tier" in data:
+                tiers = data["quality_tier"].tolist()
+                n_verified = tiers.count("verified")
+                n_approx = tiers.count("approximate")
+                n_unverified = tiers.count("unverified")
+                quality_score = (n_verified * 1.0 + n_approx * 0.7 + n_unverified * 0.5) / max(n_points, 1)
+                status = "✅" if n_verified > n_points * 0.5 else ("⚠️" if n_verified > 0 else "❓")
+                print(f"    Quality tiers: ✅{n_verified} ⚠️{n_approx} ❓{n_unverified} (score={quality_score:.2f}) {status}")
+            else:
+                print(f"    Quality tiers: 📜 legacy NPZ (no quality_tier field)")
+            
             # Check GT coverage
             parts = npz_file.stem.split("_")
             n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)

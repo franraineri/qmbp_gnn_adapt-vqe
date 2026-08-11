@@ -2,7 +2,7 @@
 
 Accelerates VQE for quantum phase classification via a Graph Neural Network that predicts optimal HVA circuit parameters directly from the Hamiltonian's graph structure, eliminating iterative quantum optimization (29–500× speedup).
 
-Includes a GNN-based Quantum Error Mitigation (GNN-QEM) module with zero-shot cross-topology transfer capability.
+Features cross-system-size generalization (UnifiedMPNN), iterative self-improvement, and a GNN-based Quantum Error Mitigation (GNN-QEM) module with zero-shot cross-topology transfer.
 
 ## Key Results
 
@@ -10,10 +10,12 @@ Includes a GNN-based Quantum Error Mitigation (GNN-QEM) module with zero-shot cr
 |--------|-------|
 | Pass rate (optimal configs) | 95–100% (ΔE/gap < 5%) |
 | Speedup vs random-init VQE | 29–500× |
-| Topologies validated | 5 (chain, ladder, square, heavy-hex, triangular) |
+| Topologies validated | 6 (chain, ladder, square, heavy-hex, triangular, kagome) |
 | System sizes | N = 4–20 (exact), N = 40–250 (MPS) |
-| Models | TFIM, TFIM+longitudinal, TFIM frustrated, Heisenberg (neg.), Kitaev (neg.) |
+| Models | 8 (TFIM, longitudinal, frustrated, bond-resolved, Heisenberg, H. transverse, Kitaev, XY) |
+| Cross-N generalization | heavy-hex N=16 94% pass (trained on N=4–12) |
 | GNN-QEM improvement | 100% rate on unseen topologies (zero-shot) |
+| Total experiments | 525 runs, 347 compute-hours, 60+ configurations |
 
 ## Quick Start
 
@@ -51,6 +53,15 @@ python notebooks/data/generate_samples.py
 2. **Phase 2**: Warm-start VQE (descending h sweep) → θ_opt(h) training data
 3. **Phase 3**: GINConv MPNN learns h→θ mapping, deploys zero-shot predictions
 
+### Accelerated Cross-N Pipeline
+
+For cross-system-size generalization, the `AcceleratedVQE` pipeline adds:
+- **UnifiedMPNN**: Bond-resolved predictor that generalizes across N values
+- **Multi-N aggregator**: Combines NPZ training data from multiple system sizes
+- **Iterative improvement**: predict → refine failures → upsert NPZ → retrain loop
+- **Model zoo**: Versioned checkpoint registry with SHA256 fingerprints
+- **EvalCache + GroundTruthCache**: Persistent caches for crash recovery and cost reduction
+
 ## Expressibility Frontier
 
 The HVA cannot express the ground state below a model/topology-dependent threshold:
@@ -71,13 +82,19 @@ See `results/HVA_EXPRESSIBILITY_ANALYSIS.md` for the full atlas.
 src/qmbp_simulation/           # Installable Python package
 ├── models/                    #   Hamiltonians, lattices, model registry
 ├── circuits/                  #   HVA circuit builder (7 ansatz variants)
-├── solvers/                   #   Exact diag, DMRG
-├── execution/                 #   Backends (noiseless, noisy, hardware)
-├── optimizers/                #   VQE with warm-start sweep
-├── predictors/                #   MPNN (GINConv), GNN-QEM error correction
-├── pipeline/                  #   PipelineRunner orchestration
-├── framework/                 #   Experiment engine, CLI, result I/O
-└── analysis/                  #   Diagnostics, normalizing flows, validators
+├── solvers/                   #   Exact diag, DMRG, ground truth cache
+├── execution/                 #   Backends (noiseless, noisy, MPS, hardware)
+├── optimizers/                #   VQE with warm-start sweep + SPSA
+├── predictors/                #   MPNN, UnifiedMPNN, GNN-QEM, model zoo
+├── pipeline/                  #   PipelineRunner, AcceleratedVQE
+├── framework/                 #   Experiment engine, CLI, result I/O, runner base
+└── analysis/                  #   Metrics, quality predictor, theta validators
+
+data/                          # Persistent caches & training data
+├── eval_cache.json            #   Circuit evaluation cache
+├── ground_truth_cache.json    #   DMRG/ExactDiag ground truth cache
+├── model_zoo/                 #   Versioned MPNN checkpoints
+└── multi_n_training/          #   NPZ training data per (topology, N, p)
 
 notebooks/                     # 3 interactive demos
 scripts/
@@ -85,14 +102,12 @@ scripts/
 ├── experiment_runners/        # Pipeline & experiment runners
 ├── hardware/                  # IBM QPU deployment scripts
 ├── maintenance/               # Repo maintenance utilities
-└── validation/                # Validation scripts
+└── remote/                    # Colab worker for remote execution
 
 tests/                         # pytest suite (unit + integration + property)
 configs/presets/               # Experiment presets (hardware, noiseless, noisy)
 project_health/                # Automated health monitoring & digest
-
-results/                       # Key results (expressibility atlas, GNN-QEM models)
-internal/                      # Development materials (thesis, binnacles, analysis notes)
+internal/                      # Development materials (thesis, binnacles, analysis)
 ```
 
 ## Analysis Scripts
@@ -102,6 +117,9 @@ python scripts/analysis/compute_h_frontier.py --json           # h_min vs N
 python scripts/analysis/compute_h_frontier_all.py --model tfim # All topologies
 python scripts/analysis/analyze_all_phase3.py --date 20260717  # Phase3 MPNN
 python scripts/analysis/check_matrix_gaps.py --json            # Coverage gaps
+python scripts/maintenance/inspect_data_stores.py              # Cache/zoo status
+python scripts/maintenance/update_cross_n_coverage.py          # Cross-N report
+python -m project_health --format text                         # Health check
 ```
 
 ## Key Findings
@@ -111,6 +129,8 @@ python scripts/analysis/check_matrix_gaps.py --json            # Coverage gaps
 3. **heavy_hex ≈ chain_1d** — IBM's native topology has no expressibility penalty
 4. **Bond-resolved crosses h_c** — only strategy reaching the ordered phase (h_min=0.83)
 5. **GNN-QEM generalizes cross-topology** — 100% improvement rate zero-shot to heavy_hex
+6. **Gap masking problem** — ΔE/gap alone is misleading at large N+h; dual criterion (ΔE/gap<5% AND |ΔE|<0.10) reveals true viable system sizes
+7. **heavy_hex uniquely scales** — only topology where cross-N genuinely works at N=16 (94% dual criterion)
 
 ## Dependencies
 

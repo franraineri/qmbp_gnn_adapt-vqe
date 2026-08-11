@@ -1074,6 +1074,12 @@ class ValidationRunner(ABC):
         if "seeds" not in config:
             config["seeds"] = []
 
+        # Add runner traceability (new in 2026-08-10)
+        from qmbp_simulation.predictors.model_zoo import get_runner_tag, make_date_tag
+        config["runner_id"] = self.runner_id
+        config["runner_tag"] = get_runner_tag(self.runner_id)
+        config["date_tag"] = make_date_tag()
+
         # Build envelope using result_io standard
         envelope = build_result_envelope(
             config=config,
@@ -2433,7 +2439,7 @@ class ValidationRunner(ABC):
         """
         from datetime import datetime, timezone
 
-        from qmbp_simulation.predictors.model_zoo import ZooEntry, register_checkpoint
+        from qmbp_simulation.predictors.model_zoo import ZooEntry, register_checkpoint, get_runner_tag, make_date_tag
 
         args = self._args
         _model = model or getattr(args, "model", "tfim")
@@ -2459,6 +2465,8 @@ class ValidationRunner(ABC):
             seeds=_seeds,
             created=datetime.now(timezone.utc).isoformat(),
             notes=notes or f"Auto-saved by {self.runner_id}",
+            runner_tag=get_runner_tag(self.runner_id),
+            date_tag=make_date_tag(),
         )
 
         try:
@@ -2687,6 +2695,24 @@ class ValidationRunner(ABC):
                 n_target, entry.checkpoint_file[:50], source,
                 entry.n_training_points, pass_info,
             )
+            # Log quality tier info if available
+            try:
+                from qmbp_simulation.predictors.model_zoo import get_training_data_quality
+                q = get_training_data_quality(_topo, entry.n_qubits, _model, _p)
+                if q["found"]:
+                    logger.info(
+                        "    Data quality: score=%.2f (V=%d A=%d U=%d / %d pts)",
+                        q["quality_score"], q["n_verified"],
+                        q["n_approximate"], q["n_unverified"], q["n_points"],
+                    )
+                    if q["quality_score"] < 0.6:
+                        logger.warning(
+                            "    ⚠️ Low quality score (%.2f). Consider retraining with --force-retrain.",
+                            q["quality_score"],
+                        )
+            except Exception:
+                pass  # Quality reporting is optional, never block loading
+
             mpnn.eval()
             return mpnn
         except FileNotFoundError:
@@ -2707,6 +2733,7 @@ class ValidationRunner(ABC):
         from qmbp_simulation.predictors.unified_mpnn import (
             UnifiedMPNN, train_unified_mpnn,
         )
+        from qmbp_simulation.analysis.metrics import validate_training_dataset
 
         agg = MultiNAggregator(topology=_topo, model=_model)
         summary = agg.scan()
@@ -2716,6 +2743,22 @@ class ValidationRunner(ABC):
                 "Cannot train. Run VQE at small N first.",
                 _model, _topo,
             )
+            return None
+
+        # Pre-training validation: check data quality before wasting compute
+        is_viable, validation_report = validate_training_dataset(
+            agg._data_by_n,
+            max_de_gap=0.10,
+            min_total_points=5,  # Lower threshold for auto-training
+            min_n_values=1,  # Allow single-N when auto-training
+        )
+        if not is_viable:
+            logger.warning(
+                "    Training data NOT VIABLE: %s",
+                validation_report.get("recommendation", "Quality check failed"),
+            )
+            for err in validation_report.get("errors", [])[:3]:
+                logger.warning("      → %s", err)
             return None
 
         dataset = agg.build_combined_dataset(max_de_gap=0.10)
@@ -2756,7 +2799,9 @@ class ValidationRunner(ABC):
 
         # Register in zoo for future reuse
         from datetime import datetime, timezone
-        from qmbp_simulation.predictors.model_zoo import ZooEntry, register_checkpoint
+        from qmbp_simulation.predictors.model_zoo import (
+            ZooEntry, register_checkpoint, get_runner_tag, make_date_tag,
+        )
 
         n_values_str = "+".join(str(n) for n in sorted(summary.keys()))
         entry = ZooEntry(
@@ -2774,6 +2819,8 @@ class ValidationRunner(ABC):
             seeds=[42],
             created=datetime.now(timezone.utc).isoformat(),
             notes=f"Auto-trained by load_best_mpnn_for_cross_n: N={sorted(summary.keys())}",
+            runner_tag=get_runner_tag(self.runner_id),
+            date_tag=make_date_tag(),
         )
         register_checkpoint(mpnn, entry, overwrite=True)
         self._zoo_entry = entry
@@ -2828,6 +2875,381 @@ class ValidationRunner(ABC):
             result["fidelity"] = float(fidelity)
         result.update(extra)
         return result
+
+    # ── Cross-Integration Helpers (quality tier + refinement priority) ───────
+
+    @staticmethod
+    def compute_point_refinement_priority(
+        de_gap: float,
+        abs_error: float,
+        gap: float,
+        h: float,
+        *,
+        e_vqe: float | None = None,
+        e_exact: float | None = None,
+    ) -> tuple[float, str]:
+        """Compute refinement priority for a single point.
+
+        Cross-integration: Exposes compute_refinement_priority from metrics.py
+        as a runner helper for use in iterative improvement loops.
+
+        Parameters
+        ----------
+        de_gap : float
+            Relative error |ΔE|/gap.
+        abs_error : float
+            Absolute energy error |E_pred - E_exact|.
+        gap : float
+            Spectral gap.
+        h : float
+            Transverse field strength.
+        e_vqe : float | None
+            VQE energy (for variational violation check).
+        e_exact : float | None
+            Exact ground state energy.
+
+        Returns
+        -------
+        tuple[float, str]
+            (priority, reason) where priority ∈ [0, 1] (higher = more urgent).
+        """
+        from qmbp_simulation.analysis.metrics import compute_refinement_priority
+        return compute_refinement_priority(
+            de_gap=de_gap, abs_error=abs_error, gap=gap, h=h,
+            e_vqe=e_vqe, e_exact=e_exact,
+        )
+
+    @staticmethod
+    def get_npz_quality_tiers(npz_path: "str | Path") -> dict:
+        """Get quality tier distribution from an NPZ file.
+
+        Cross-integration: Provides standardized quality tier access for runners.
+
+        Parameters
+        ----------
+        npz_path : str | Path
+            Path to NPZ file.
+
+        Returns
+        -------
+        dict
+            Keys: n_verified, n_approximate, n_unverified, n_total, verified_ratio,
+            quality_score, has_quality_tier (bool — False for legacy NPZ).
+        """
+        import numpy as np
+        from pathlib import Path as _Path
+
+        npz_path = _Path(npz_path)
+        if not npz_path.exists():
+            return {
+                "n_verified": 0, "n_approximate": 0, "n_unverified": 0, "n_total": 0,
+                "verified_ratio": 0.0, "quality_score": 0.0, "has_quality_tier": False,
+            }
+
+        try:
+            data = np.load(str(npz_path), allow_pickle=True)
+            n_total = len(data["h_values"])
+
+            if "quality_tier" in data:
+                tiers = data["quality_tier"].tolist()
+                n_verified = tiers.count("verified")
+                n_approx = tiers.count("approximate")
+                n_unverified = tiers.count("unverified")
+                has_quality_tier = True
+            else:
+                n_verified = 0
+                n_approx = 0
+                n_unverified = n_total
+                has_quality_tier = False
+
+            verified_ratio = n_verified / max(n_total, 1)
+            quality_score = (n_verified * 1.0 + n_approx * 0.7 + n_unverified * 0.5) / max(n_total, 1)
+
+            return {
+                "n_verified": n_verified,
+                "n_approximate": n_approx,
+                "n_unverified": n_unverified,
+                "n_total": n_total,
+                "verified_ratio": verified_ratio,
+                "quality_score": quality_score,
+                "has_quality_tier": has_quality_tier,
+            }
+        except Exception as e:
+            logger.warning("get_npz_quality_tiers: Failed to read %s: %s", npz_path, e)
+            return {
+                "n_verified": 0, "n_approximate": 0, "n_unverified": 0, "n_total": 0,
+                "verified_ratio": 0.0, "quality_score": 0.0, "has_quality_tier": False,
+            }
+
+    def get_h_frontier_for_config(
+        self, topology: str, n_qubits: int, p_layers: int = 1,
+        model: str = "tfim_bond_resolved",
+    ) -> float | None:
+        """Get empirical h_frontier from NPZ training data.
+
+        Cross-integration: Provides h_frontier lookup as a runner helper.
+        h_frontier = lowest h where ΔE/gap < 5% (below this, pipeline fails).
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology.
+        n_qubits : int
+            System size.
+        p_layers : int
+            HVA depth.
+        model : str
+            Model name (for NPZ filename).
+
+        Returns
+        -------
+        float | None
+            h_frontier value, or None if not computable.
+        """
+        from qmbp_simulation.analysis.metrics import compute_h_frontier_from_npz
+
+        npz_dir = self._get_project_root() / "data" / "multi_n_training"
+        npz_path = npz_dir / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+
+        if not npz_path.exists():
+            return None
+
+        try:
+            return compute_h_frontier_from_npz(npz_path)
+        except Exception as e:
+            logger.debug("get_h_frontier_for_config: %s", e)
+            return None
+
+    def get_model_with_quality_check(
+        self, topology: str, n_qubits: int, p_layers: int = 1,
+        model: str = "tfim_bond_resolved",
+        *,
+        min_quality_score: float = 0.6,
+    ) -> tuple[Any, dict, dict]:
+        """Load model from zoo with quality tier validation.
+
+        Cross-integration: Combines model_zoo loading with quality tier checks.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology.
+        n_qubits : int
+            Target system size (may differ from training N).
+        p_layers : int
+            HVA depth.
+        model : str
+            Hamiltonian model name.
+        min_quality_score : float
+            Minimum acceptable quality score. Below this, warning is logged.
+
+        Returns
+        -------
+        tuple[model, entry_dict, quality_dict]
+            Model, zoo entry metadata, and quality tier stats.
+
+        Raises
+        ------
+        FileNotFoundError
+            If no suitable model exists.
+        """
+        from qmbp_simulation.predictors.model_zoo import (
+            load_best_for_cross_n_quality_aware,
+        )
+        mpnn, entry, quality = load_best_for_cross_n_quality_aware(
+            model=model, topology=topology, n_target=n_qubits, p_layers=p_layers,
+            min_quality_score=min_quality_score,
+        )
+        from dataclasses import asdict
+        return mpnn, asdict(entry), quality
+
+    def check_extrapolation_viability(
+        self, topology: str, n_target: int,
+        *,
+        model: str = "tfim_bond_resolved",
+        warn_only: bool = True,
+    ) -> tuple[bool, str, dict]:
+        """Check if extrapolation to n_target is likely to succeed.
+
+        Cross-integration: Uses metrics.compute_extrapolation_viability with
+        dashboard data to predict whether MPNN will work at target N.
+
+        Parameters
+        ----------
+        topology : str
+            Lattice topology.
+        n_target : int
+            Target system size.
+        model : str
+            Hamiltonian model name.
+        warn_only : bool
+            If True, log warnings but don't raise. If False, raise ValueError
+            when extrapolation is predicted to fail.
+
+        Returns
+        -------
+        tuple[bool, str, dict]
+            (viable, reason, prediction_dict)
+        """
+        from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
+
+        # Try to load dashboard for n_max_viable
+        dashboard_path = self._get_project_root() / "data" / "model_quality_dashboard.json"
+        n_max_viable = None
+        mean_de_gap_per_n = None
+
+        if dashboard_path.exists():
+            try:
+                import json
+                with open(dashboard_path) as f:
+                    dashboard = json.load(f)
+                topo_summary = dashboard.get("topology_summary", {})
+                if topology in topo_summary:
+                    n_max_viable = topo_summary[topology].get("n_max_viable")
+                    
+                # Collect mean_de_gap per N for trend extrapolation
+                configs = dashboard.get("configs", [])
+                mean_de_gap_per_n = {}
+                for c in configs:
+                    if c.get("topology") == topology:
+                        n = c.get("n_qubits", 0)
+                        mdg = c.get("mean_de_gap")
+                        if n > 0 and mdg is not None:
+                            mean_de_gap_per_n[n] = mdg
+            except (json.JSONDecodeError, OSError, KeyError):
+                pass
+
+        viable, reason, prediction = compute_extrapolation_viability(
+            topology, n_max_viable, mean_de_gap_per_n, target_n=n_target
+        )
+
+        if not viable:
+            msg = f"Extrapolation to N={n_target} for {topology} may not succeed: {reason}"
+            if warn_only:
+                logger.warning("    ⚠️ %s", msg)
+            else:
+                raise ValueError(msg)
+
+        return viable, reason, prediction
+
+    def get_topology_scalability_score(self, topology: str) -> tuple[float, str]:
+        """Get scalability score for a topology from dashboard data.
+
+        Cross-integration: Exposes compute_scalability_score as a runner helper.
+
+        Returns
+        -------
+        tuple[float, str]
+            (score, reason) where score ∈ [0, 1] (higher = better scaling).
+        """
+        from qmbp_simulation.analysis.metrics import compute_scalability_score
+
+        dashboard_path = self._get_project_root() / "data" / "model_quality_dashboard.json"
+        
+        n_max_viable = None
+        pass_rate_dual = 0.0
+        h_frontier = None
+
+        if dashboard_path.exists():
+            try:
+                import json
+                with open(dashboard_path) as f:
+                    dashboard = json.load(f)
+                topo_summary = dashboard.get("topology_summary", {})
+                if topology in topo_summary:
+                    info = topo_summary[topology]
+                    n_max_viable = info.get("n_max_viable")
+                    pass_rate_dual = info.get("best_pass_rate_5pct", 0)
+                    
+                # Get h_frontier from configs
+                configs = dashboard.get("configs", [])
+                for c in sorted(
+                    [c for c in configs if c.get("topology") == topology],
+                    key=lambda x: -x.get("n_qubits", 0)
+                ):
+                    if c.get("h_frontier") is not None:
+                        h_frontier = c["h_frontier"]
+                        break
+            except (json.JSONDecodeError, OSError, KeyError):
+                pass
+
+        return compute_scalability_score(
+            topology, n_max_viable, pass_rate_dual, h_frontier
+        )
+
+    def check_training_data_quality(
+        self,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+    ) -> dict:
+        """Check quality tier distribution for training data.
+
+        Cross-integration: Reads NPZ files and reports verified/approximate/unverified
+        distribution for a specific topology/N or all data.
+
+        Parameters
+        ----------
+        topology : str | None
+            Filter by topology. If None, check all.
+        n_qubits : int | None
+            Filter by system size. If None, check all N for the topology.
+
+        Returns
+        -------
+        dict
+            {
+                "total": int,
+                "verified": int,
+                "approximate": int,
+                "unverified": int,
+                "verified_ratio": float,
+                "ready": bool,  # True if verified_ratio >= 30%
+            }
+        """
+        import numpy as np
+        
+        npz_dir = self._get_project_root() / "data" / "multi_n_training"
+        if not npz_dir.exists():
+            return {
+                "total": 0, "verified": 0, "approximate": 0, "unverified": 0,
+                "verified_ratio": 0.0, "ready": False,
+            }
+        
+        # Build filename pattern
+        if topology and n_qubits:
+            pattern = f"{topology}_N{n_qubits}_*.npz"
+        elif topology:
+            pattern = f"{topology}_*.npz"
+        else:
+            pattern = "*.npz"
+        
+        total = verified = approximate = unverified = 0
+        for npz_file in npz_dir.glob(pattern):
+            try:
+                data = np.load(str(npz_file), allow_pickle=True)
+                tiers = data.get("quality_tier")
+                n_pts = len(data["h_values"])
+                if tiers is None:
+                    # Legacy file — count as unverified
+                    unverified += n_pts
+                else:
+                    tier_list = list(tiers)
+                    verified += tier_list.count("verified")
+                    approximate += tier_list.count("approximate")
+                    unverified += tier_list.count("unverified")
+                total += n_pts
+            except Exception:
+                pass
+        
+        verified_ratio = verified / max(total, 1)
+        return {
+            "total": total,
+            "verified": verified,
+            "approximate": approximate,
+            "unverified": unverified,
+            "verified_ratio": verified_ratio,
+            "ready": verified_ratio >= 0.30,
+        }
 
     # ── Logging utilities (reusable by all subclasses) ───────────────────────
 

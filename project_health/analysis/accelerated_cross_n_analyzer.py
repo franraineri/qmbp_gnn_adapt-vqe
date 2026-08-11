@@ -247,8 +247,169 @@ def main():
     # Print report
     print(format_report(report))
 
+    # ── Scan and integrate large-N extrapolation results ──
+    large_n_results = scan_large_n_extrapolation_results()
+    if large_n_results:
+        print(format_large_n_report(large_n_results))
+
     # ── Dashboard cross-validation: compare our scan vs cached dashboard ──
     _cross_validate_with_dashboard(report)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Large-N Extrapolation Integration
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class LargeNResult:
+    """Summary of a large-N extrapolation run."""
+
+    topology: str
+    target_n: int
+    p_layers: int
+    n_points: int
+    pass_rate_dual: float
+    mean_de_gap: float
+    mean_abs_error_per_site: float
+    method: str  # 'mpnn' or 'random_vqe'
+
+
+def scan_large_n_extrapolation_results() -> list[LargeNResult]:
+    """Scan for large-N extrapolation results from run_large_n_extrapolation.py."""
+    results = []
+    
+    # Check both results directory and NPZ data directory
+    large_n_dir = ROOT / "data" / "large_n_extrapolation"
+    exp_dir = RESULTS_DIR / "exp_large_n_extrap"
+    
+    # 1. Scan NPZ files for cached predictions
+    if large_n_dir.exists():
+        for npz_file in sorted(large_n_dir.glob("*.npz")):
+            try:
+                data = np.load(str(npz_file), allow_pickle=True)
+                # Parse filename: {topology}_N{n}_p{p}.npz
+                parts = npz_file.stem.split("_")
+                n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+                p_idx = next((i for i, p in enumerate(parts) if p.startswith("p")), None)
+                if n_idx is None or p_idx is None:
+                    continue
+                topo = "_".join(parts[:n_idx])
+                n_val = int(parts[n_idx][1:])
+                p_val = int(parts[p_idx][1:])
+                
+                # Compute metrics
+                h_vals = data["h_values"]
+                e_pred = data.get("e_pred", data.get("e_vqe"))
+                e_exact = data["e_exact"]
+                gaps = data.get("gaps", np.ones(len(h_vals)))
+                
+                abs_err = np.abs(e_pred - e_exact)
+                de_gaps = abs_err / np.maximum(gaps, 1e-10)
+                
+                # Dual criterion pass rate
+                n_pass = int(np.sum((de_gaps < 0.05) & (abs_err < 0.10)))
+                
+                results.append(LargeNResult(
+                    topology=topo,
+                    target_n=n_val,
+                    p_layers=p_val,
+                    n_points=len(h_vals),
+                    pass_rate_dual=n_pass / max(len(h_vals), 1),
+                    mean_de_gap=float(de_gaps.mean()),
+                    mean_abs_error_per_site=float(abs_err.mean() / max(n_val, 1)),
+                    method="npz_cache",
+                ))
+            except Exception as e:
+                logger.debug(f"Error reading {npz_file}: {e}")
+    
+    # 2. Scan experiment results for JSON reports
+    if exp_dir.exists():
+        for f in sorted(exp_dir.glob("run_*.json")):
+            try:
+                with open(f) as fp:
+                    data = json.load(fp)
+                
+                config = data.get("config", {})
+                topo = config.get("topology", "chain_1d")
+                p = config.get("p_layers", 1)
+                
+                # Extract mpnn_results
+                results_sec = data.get("results", {})
+                for sec_key, section in results_sec.items():
+                    if not isinstance(section, dict):
+                        continue
+                    sec_data = section.get("data", {})
+                    mpnn_res = sec_data.get("mpnn_results", {})
+                    
+                    for n_str, res in mpnn_res.items():
+                        if not isinstance(res, dict):
+                            continue
+                        results.append(LargeNResult(
+                            topology=topo,
+                            target_n=res.get("n_qubits", int(n_str)),
+                            p_layers=p,
+                            n_points=res.get("n_points", 0),
+                            pass_rate_dual=res.get("pass_rate_dual", 0.0),
+                            mean_de_gap=res.get("mean_de_gap", 0.0),
+                            mean_abs_error_per_site=res.get("mean_abs_error_per_site", 0.0),
+                            method="json_result",
+                        ))
+            except (json.JSONDecodeError, OSError, KeyError):
+                continue
+    
+    # Deduplicate by (topology, target_n, p_layers), keeping best pass_rate_dual
+    dedup = {}
+    for r in results:
+        key = (r.topology, r.target_n, r.p_layers)
+        if key not in dedup or r.pass_rate_dual > dedup[key].pass_rate_dual:
+            dedup[key] = r
+    
+    return sorted(dedup.values(), key=lambda x: (x.topology, x.target_n))
+
+
+def format_large_n_report(results: list[LargeNResult]) -> str:
+    """Format large-N extrapolation results as text."""
+    if not results:
+        return ""
+    
+    lines = [
+        "",
+        "═" * 60,
+        "  LARGE-N EXTRAPOLATION RESULTS",
+        "═" * 60,
+        "",
+        f"  {'Topology':<12} {'N':<6} {'p':<3} {'pts':<5} {'dual%':<8} {'ΔE/gap':<10} {'|ΔE|/N':<10}",
+        "  " + "-" * 58,
+    ]
+    
+    for r in results:
+        lines.append(
+            f"  {r.topology:<12} {r.target_n:<6} {r.p_layers:<3} {r.n_points:<5} "
+            f"{r.pass_rate_dual:.0%}     {r.mean_de_gap:<10.4f} {r.mean_abs_error_per_site:<10.2e}"
+        )
+    
+    # Summary by topology
+    from collections import defaultdict
+    by_topo = defaultdict(list)
+    for r in results:
+        by_topo[r.topology].append(r)
+    
+    lines.extend(["", "  Key findings:"])
+    for topo, topo_results in sorted(by_topo.items()):
+        n_max = max((r.target_n for r in topo_results if r.pass_rate_dual > 0.5), default=None)
+        if n_max:
+            lines.append(f"    {topo}: extrapolates to N={n_max} (dual pass>50%)")
+        else:
+            best = max(topo_results, key=lambda r: r.pass_rate_dual, default=None)
+            if best:
+                lines.append(
+                    f"    {topo}: best N={best.target_n} "
+                    f"(dual={best.pass_rate_dual:.0%}, ΔE/gap={best.mean_de_gap:.4f})"
+                )
+    
+    lines.append("═" * 60)
+    return "\n".join(lines)
 
 
 def _cross_validate_with_dashboard(report: AcceleratedReport) -> None:

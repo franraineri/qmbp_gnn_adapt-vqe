@@ -159,8 +159,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
         add_iterative_improve_args(parser)
         parser.add_argument(
             "--max-refine-per-iter", type=int, default=None,
-            help="Max h-points to refine per iteration. Default: min(n_failures, 10). "
-            "Higher = more VQE compute per iter but fewer iterations needed.",
+            help="Max h-points to refine per iteration. Default: min(n_failures, 20). "
+            "Higher = more VQE compute per iter but fewer iterations needed. "
+            "Use --refine-all to refine ALL failing points (no cap).",
+        )
+        parser.add_argument(
+            "--refine-all", action="store_true", default=False,
+            help="Refine ALL failing points per iteration (no cap). "
+            "Maximizes training data quality at the cost of compute time.",
         )
 
     def build_config(self) -> dict:
@@ -398,6 +404,16 @@ class AcceleratedCrossNRunner(ValidationRunner):
             training_data_dir = Path("data/multi_n_training")
             training_data_dir.mkdir(parents=True, exist_ok=True)
             npz_path = training_data_dir / f"{topo}_N{N}_p{p}.npz"
+
+            # Map method labels to quality tiers:
+            # vqe_full, vqe_refined → verified (VQE-converged)
+            # mpnn_refined → verified (VQE-corrected prediction)
+            # mpnn_direct → approximate (MPNN only, not VQE-verified)
+            quality_tiers = [
+                "verified" if m in ("vqe_full", "vqe_refined", "mpnn_refined") else "approximate"
+                for m in result.method
+            ]
+
             n_upd, n_add = upsert_theta_npz(
                 npz_path,
                 h_new=self._h_values[: len(result.theta_opt)],
@@ -406,10 +422,12 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 e_exact_new=result.e_exact,
                 gaps_new=result.gaps,
                 method_new=list(result.method),
+                quality_tier_new=quality_tiers,
             )
+            n_verified = sum(1 for t in quality_tiers if t == "verified")
             logger.info(
                 f"    Saved training data: {npz_path} "
-                f"({n_add} added, {n_upd} improved)"
+                f"({n_add} added, {n_upd} improved, {n_verified}/{len(quality_tiers)} verified)"
             )
 
             all_results[f"p{p}"] = {
@@ -441,6 +459,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
         from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN, train_unified_mpnn
         from qmbp_simulation.predictors.model_zoo import register_checkpoint, load_pretrained, ZooEntry
+        from qmbp_simulation.analysis.metrics import validate_training_dataset
 
         topo = self._args.topology
         p = self._args.p_layers[0]
@@ -479,6 +498,36 @@ class AcceleratedCrossNRunner(ValidationRunner):
             return {"pass": False, "error": "No existing data found. Run --train-n first."}
 
         logger.info(f"  Found data for N={agg.available_n_values()}: {summary}")
+
+        # ── PRE-TRAINING VALIDATION ──────────────────────────────────────────
+        # Validate data quality BEFORE attempting to train
+        is_viable, validation_report = validate_training_dataset(
+            agg._data_by_n,
+            max_de_gap=0.10,
+            min_total_points=10,
+            min_n_values=2,
+        )
+        if not is_viable:
+            logger.error(
+                f"  ❌ TRAINING DATA NOT VIABLE:\n"
+                f"     {validation_report['recommendation']}\n"
+                f"     Errors: {validation_report['errors']}"
+            )
+            for warn in validation_report.get("warnings", [])[:5]:
+                logger.warning(f"     {warn}")
+            return {
+                "pass": False,
+                "error": "Training data validation failed",
+                "validation_report": validation_report,
+                "recommendation": validation_report["recommendation"],
+            }
+        logger.info(
+            f"  ✓ Data validation passed: {validation_report['total_good']}/{validation_report['total_raw']} "
+            f"good points across {validation_report['n_values_with_good_data']} N values"
+        )
+        if validation_report.get("warnings"):
+            for warn in validation_report["warnings"][:3]:
+                logger.warning(f"     {warn}")
 
         # 2. Build combined dataset (filter by quality)
         dataset = agg.build_combined_dataset(max_de_gap=0.10)
@@ -524,6 +573,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
         # 5. Export to zoo as multi-N model
         from datetime import datetime, timezone
+        from qmbp_simulation.predictors.model_zoo import get_runner_tag, make_date_tag
 
         n_values_str = "+".join(str(n) for n in agg.available_n_values())
         entry = ZooEntry(
@@ -538,6 +588,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
             seeds=[42],
             created=datetime.now(timezone.utc).isoformat(),
             notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points",
+            runner_tag=get_runner_tag(self.runner_id),
+            date_tag=make_date_tag(),
         )
         register_checkpoint(model, entry, overwrite=True)
         logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
@@ -550,6 +602,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "final_mse": float(final_mse),
             "elapsed_s": elapsed,
             "checkpoint": entry.checkpoint_file,
+            "validation_report": validation_report,
         }
 
     # ═══════════════════════════════════════════════════════════════════════════
@@ -854,9 +907,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             eval_backend.flush()
 
         # ── Auto-update zoo pass_rate with observed results ──────────────
-        # The zoo entry may have pass_rate=0 (never evaluated). Now we know
-        # the actual pass_rate from this evaluation. Update the manifest so
-        # future load_best_for_cross_n sees the real quality.
+        # Use centralized update_zoo_pass_rate for better maintainability
         if hasattr(self, "_zoo_entry") and self._zoo_entry is not None:
             observed_pass_rates = [
                 v.get("pass_rate_5pct", 0) for v in all_results.values()
@@ -864,23 +915,17 @@ class AcceleratedCrossNRunner(ValidationRunner):
             ]
             if observed_pass_rates:
                 observed = max(observed_pass_rates)
-                if observed > self._zoo_entry.pass_rate:
-                    try:
-                        from qmbp_simulation.predictors.model_zoo import (
-                            _load_manifest, _save_manifest,
-                        )
-                        entries = _load_manifest()
-                        for e in entries:
-                            if e.checkpoint_file == self._zoo_entry.checkpoint_file:
-                                e.pass_rate = observed
-                                break
-                        _save_manifest(entries)
-                        logger.info(
-                            "    Zoo updated: %s pass_rate → %.0f%%",
-                            self._zoo_entry.checkpoint_file[:40], observed * 100,
-                        )
-                    except Exception:
-                        pass  # Non-fatal
+                try:
+                    from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+                    n_target = self._args.target_n[0] if self._args.target_n else "?"
+                    update_zoo_pass_rate(
+                        self._zoo_entry.checkpoint_file,
+                        observed,
+                        only_if_better=True,
+                        add_notes=f"cross-N@N={n_target}",
+                    )
+                except Exception:
+                    pass  # Non-fatal
 
         return {"pass": passed, "cross_n_results": all_results}
 
@@ -1090,22 +1135,48 @@ class AcceleratedCrossNRunner(ValidationRunner):
         if gt_misses > 0:
             gt_cache.flush()  # Persist new ground truths immediately
 
-        # ── Load model from zoo ───────────────────────────────────────────
+        # ── Load model from zoo (quality-aware) ───────────────────────────
         model = None
         _meta = None
+        quality_report = None
         try:
-            from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
-            model, _meta = load_best_for_cross_n(
+            from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n_quality_aware
+            model, _meta, quality_report = load_best_for_cross_n_quality_aware(
                 model="tfim_bond_resolved", topology=topo,
                 n_target=n_target, p_layers=p,
+                min_quality_score=0.6,  # Warn if < 60% weighted quality
             )
             source = "multi-N" if _meta.n_qubits == 0 else f"single-N={_meta.n_qubits}"
             logger.info(
                 f"  Loaded model from zoo: {_meta.checkpoint_file} "
                 f"({source}, {_meta.n_training_points} pts)"
             )
+            # Log quality info if available
+            if quality_report and quality_report.get("found"):
+                logger.info(
+                    f"    Quality: {quality_report['n_verified']} verified, "
+                    f"{quality_report['n_approximate']} approx, "
+                    f"{quality_report['n_unverified']} unverified "
+                    f"(score={quality_report['quality_score']:.2f})"
+                )
         except FileNotFoundError:
             pass
+        except Exception as e:
+            # Fallback to non-quality-aware loading if new function unavailable
+            logger.debug(f"  Quality-aware loading failed ({e}), trying standard...")
+            try:
+                from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
+                model, _meta = load_best_for_cross_n(
+                    model="tfim_bond_resolved", topology=topo,
+                    n_target=n_target, p_layers=p,
+                )
+                source = "multi-N" if _meta.n_qubits == 0 else f"single-N={_meta.n_qubits}"
+                logger.info(
+                    f"  Loaded model from zoo: {_meta.checkpoint_file} "
+                    f"({source}, {_meta.n_training_points} pts)"
+                )
+            except FileNotFoundError:
+                pass
 
         if model is None:
             try:
@@ -1142,10 +1213,15 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 )
                 boot_result = accel.run(self._h_values, seed=42, p_layers=p)
                 logger.info(
-                    f"  Bootstrap done: pass_rate={boot_result.pass_rate:.0%}, "
+                    f"  Bootstrap done: pass_rate_dual={boot_result.pass_rate:.0%}, "
                     f"time={time.perf_counter() - t_boot:.1f}s"
                 )
                 # Save bootstrap data to NPZ (atomic with anti-regression)
+                # Map method labels to quality tiers for bootstrap data
+                boot_quality_tiers = [
+                    "verified" if m in ("vqe_full", "vqe_refined", "mpnn_refined") else "approximate"
+                    for m in boot_result.method
+                ]
                 upsert_theta_npz(
                     npz_path,
                     h_new=self._h_values[:len(boot_result.theta_opt)],
@@ -1154,6 +1230,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     e_exact_new=boot_result.e_exact,
                     gaps_new=boot_result.gaps,
                     method_new=list(boot_result.method),
+                    quality_tier_new=boot_quality_tiers,
                 )
                 # Reload prev_theta_by_h from freshly saved NPZ
                 for i, h in enumerate(self._h_values[:len(boot_result.theta_opt)]):
@@ -1284,10 +1361,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     eval_cache.put(key, float(energies[i]))
 
             de_gaps = np.abs(energies - e_exact_arr) / np.maximum(gap_arr, 1e-10)
-            pass_rate = float((de_gaps < 0.05).mean())
+            abs_errors = np.abs(energies - e_exact_arr)
+            from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+            dual_mask = (de_gaps < DE_GAP_THRESHOLD) & (abs_errors < MAX_ABS_ERROR)
+            pass_rate = float(dual_mask.mean())
+            pass_rate_5pct = float((de_gaps < 0.05).mean())
             logger.info(
                 f"  │ Eval: {eval_hits}/{len(self._h_values)} cache hits, "
-                f"pass_rate@5%={pass_rate:.0%}"
+                f"pass_rate_dual={pass_rate:.0%} (5pct_only={pass_rate_5pct:.0%})"
             )
 
             # ── 2b.0: Persist ALL passing predictions IMMEDIATELY to NPZ ──
@@ -1315,6 +1396,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     e_exact_new=np.array([float(e_exact_arr[i])]),
                     gaps_new=np.array([float(gap_arr[i])]),
                     method_new=["mpnn_pred"],
+                    quality_tier_new=["approximate"],
                 )
                 # Update in-memory dict to avoid re-persisting same point
                 prev_theta_by_h[h_key] = (predictions[i], float(energies[i]))
@@ -1330,7 +1412,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             # ── 2b.1: Check convergence (early stop) ─────────────────────
             if pass_rate >= 0.90:
                 convergence_reason = "target_reached"
-                logger.info(f"  │ ✓ Target reached: pass_rate={pass_rate:.0%} ≥ 90%")
+                logger.info(f"  │ ✓ Target reached: pass_rate_dual={pass_rate:.0%} ≥ 90%")
 
                 n_safety_persisted = 0
                 for i, h in enumerate(self._h_values):
@@ -1344,6 +1426,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             e_exact_new=np.array([float(e_exact_arr[i])]),
                             gaps_new=np.array([float(gap_arr[i])]),
                             method_new=["mpnn_pred"],
+                            quality_tier_new=["approximate"],
                         )
                         prev_theta_by_h[h_key] = (predictions[i], float(energies[i]))
                         n_safety_persisted += 1
@@ -1451,7 +1534,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             else:
                 max_refine = getattr(self._args, "max_refine_per_iter", None)
                 if max_refine is None:
-                    max_refine = min(len(scored_failures), 10)
+                    max_refine = min(len(scored_failures), 20)
             failures = [idx for _, idx, _ in scored_failures[:max_refine]]
 
             logger.info(
@@ -1478,7 +1561,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             refine_maxiter = self._args.maxiter
             refine_method = self._args.force_method or "L-BFGS-B"
             if refine_method == "L-BFGS-B":
-                refine_restarts = min(7, self._args.n_restarts)
+                refine_restarts = min(10, self._args.n_restarts)
             else:
                 refine_restarts = max(7, self._args.n_restarts // 2)
             logger.info(
@@ -1594,6 +1677,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             np.array([float(e_exact_arr[idx])]),
                             gaps_new=np.array([gap_i]),
                             method_new=["vqe_refined"],
+                            quality_tier_new=["verified"],
                         )
                         # Note: eval_cache auto-flushes every 50 puts.
                         # Full flush deferred to end of iteration (avoid 5MB
@@ -1705,7 +1789,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     logger.info(f"  │ Exported to zoo: {entry.checkpoint_file}")
                 else:
                     logger.info(
-                        f"  │ Zoo skip: pass_rate={pass_rate:.0%} ≤ "
+                        f"  │ Zoo skip: pass_rate_dual={pass_rate:.0%} ≤ "
                         f"zoo_best={zoo_best_pass_rate:.0%} — keeping better model"
                     )
             elif not do_retrain:
@@ -1724,7 +1808,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             ))
             prev_pass_rate = pass_rate
             logger.info(
-                f"  ╚══ Iteration {iteration} done: pass_rate={pass_rate:.0%}, "
+                f"  ╚══ Iteration {iteration} done: pass_rate_dual={pass_rate:.0%}, "
                 f"refined={len(refined_h)}, time={iter_time:.1f}s ══╝"
             )
 

@@ -446,3 +446,319 @@ class TestMultiNAggregatorNaNHandling:
         for pt in agg._data_by_n[4]:
             assert np.isfinite(pt["de_gap"])
             assert pt["de_gap"] >= 0
+
+
+class TestMultiNAggregatorDualCriterion:
+    """Tests for dual-criterion quality filtering (ΔE/gap + |ΔE|).
+
+    Validates the fix where abs_error is now computed in scan() and passed
+    to is_point_failure() during build_combined_dataset(). Previously,
+    abs_error was None → only ΔE/gap was checked → gap-masked points
+    contaminated training data (especially ladder N≥10).
+    """
+
+    def test_abs_error_computed_in_scan(self, mock_project_root):
+        """scan() must populate 'abs_error' in all points when e_vqe is available."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 5
+        h_values = np.linspace(4.0, 2.0, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.5, 0.8, n_points)
+        e_vqe = e_exact + np.array([0.01, 0.05, 0.15, 0.30, 0.50])
+        gaps = np.ones(n_points) * 2.0
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        agg.scan()
+
+        for pt in agg._data_by_n[4]:
+            assert "abs_error" in pt, "scan() must compute abs_error"
+            assert pt["abs_error"] >= 0
+            assert np.isfinite(pt["abs_error"])
+
+    def test_dual_criterion_filters_gap_masked_points(self, mock_project_root):
+        """Points with ΔE/gap < threshold but |ΔE| > 0.10 must be excluded.
+
+        This is the gap-masking problem: when spectral gap is large (high h),
+        ΔE/gap can be small even when |ΔE| is significant. The dual criterion
+        catches these false positives.
+        """
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 6
+        h_values = np.linspace(4.0, 2.0, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.5, 0.8, n_points)
+        # Gaps: large (4.0) for first 3, small (0.5) for last 3
+        gaps = np.array([4.0, 4.0, 4.0, 0.5, 0.5, 0.5])
+        # Absolute errors: all = 0.20 (> MAX_ABS_ERROR=0.10)
+        e_vqe = e_exact + 0.20
+
+        # de_gaps: 0.05, 0.05, 0.05  (< threshold) ← gap-masked!
+        #          0.40, 0.40, 0.40  (> threshold)
+        # Only single-criterion would pass the first 3.
+        # Dual criterion should reject ALL (|ΔE| = 0.20 > 0.10 for all).
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        dataset = agg.build_combined_dataset(max_de_gap=0.10)
+
+        # All 6 points should be filtered:
+        # - First 3: ΔE/gap=0.05 (passes) but |ΔE|=0.20 (FAILS dual)
+        # - Last 3: ΔE/gap=0.40 (fails)
+        assert len(dataset) == 0, (
+            f"Expected 0 points (all gap-masked), got {len(dataset)}. "
+            f"Dual criterion (|ΔE| > 0.10) should reject gap-masked points."
+        )
+
+    def test_genuine_good_points_pass_dual_criterion(self, mock_project_root):
+        """Points with both ΔE/gap < threshold AND |ΔE| < 0.10 must pass."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 4
+        h_values = np.linspace(4.0, 2.5, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.5, 1.0, n_points)
+        gaps = np.ones(n_points) * 3.0
+        # Small errors: |ΔE| = 0.05 → ΔE/gap = 0.017 → passes both
+        e_vqe = e_exact + 0.05
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        dataset = agg.build_combined_dataset(max_de_gap=0.10)
+
+        assert len(dataset) == n_points, (
+            f"Expected all {n_points} genuine points to pass, got {len(dataset)}"
+        )
+
+    def test_variational_violations_detected_via_abs_error(self, mock_project_root):
+        """Points where E_VQE > E_exact should fail if |ΔE| > threshold.
+
+        Variational violations (E_pred > E_exact) are common with MPNN
+        predictions that weren't VQE-refined. The abs_error criterion
+        naturally catches these since |E_pred - E_exact| = E_pred - E_exact > 0.
+        """
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 6
+        h_values = np.linspace(3.5, 2.5, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -10 * np.linspace(1.5, 1.0, n_points)
+        gaps = np.ones(n_points) * 3.0
+
+        # Points 0-2: small violations (E_VQE slightly > E_exact, |ΔE| < 0.10)
+        # Points 3-5: large violations (|ΔE| = 0.25, should be filtered)
+        e_vqe = e_exact.copy()
+        e_vqe[:3] += 0.03   # |ΔE| = 0.03, ΔE/gap = 0.01 → PASS
+        e_vqe[3:] += 0.25   # |ΔE| = 0.25, ΔE/gap = 0.083 → FAIL (abs_error)
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        dataset = agg.build_combined_dataset(max_de_gap=0.10)
+
+        # Only first 3 points should pass (small violations with |ΔE| < 0.10)
+        assert len(dataset) == 3, (
+            f"Expected 3 points (small violations pass), got {len(dataset)}. "
+            f"Large variational violations (|ΔE|>0.10) should be filtered."
+        )
+
+    def test_abs_error_with_legacy_energies_key(self, mock_project_root):
+        """abs_error should be computed even when NPZ uses 'energies' (legacy)."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 4
+        h_values = np.linspace(4.0, 2.5, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.5, 1.0, n_points)
+        energies = e_exact + 0.02  # Legacy key
+        gaps = np.ones(n_points) * 2.0
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            energies=energies, e_exact=e_exact, gaps=gaps,
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        agg.scan()
+
+        for pt in agg._data_by_n[4]:
+            assert "abs_error" in pt, "abs_error must be computed from 'energies' key"
+            np.testing.assert_allclose(pt["abs_error"], 0.02, atol=1e-6)
+
+
+class TestMultiNAggregatorQualityTiers:
+    """Tests for quality_tier system (verified/approximate/unverified).
+
+    The quality_tier field enables tiered training: VQE-converged data
+    is trusted fully, MPNN predictions are treated as approximate, and
+    legacy data without tier info uses strict quality filtering.
+    """
+
+    def test_tier_loaded_from_npz(self, mock_project_root):
+        """quality_tier field from NPZ should be loaded into point dicts."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 3
+        h_values = np.linspace(3.0, 4.0, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.2, 0.9, n_points)
+        e_vqe = e_exact + 0.02
+        gaps = np.ones(n_points) * 2.0
+        tiers = np.array(["verified", "approximate", "unverified"])
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+            method=np.array(["vqe_refined", "mpnn_pred", "unknown"]),
+            quality_tier=tiers,
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        agg.scan()
+
+        loaded_tiers = [p["quality_tier"] for p in agg._data_by_n[4]]
+        assert loaded_tiers == ["verified", "approximate", "unverified"]
+
+    def test_legacy_npz_defaults_to_unverified(self, mock_project_root):
+        """NPZ without quality_tier should default all points to 'unverified'."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+        _make_npz(data_dir / "chain_1d_N4_p1.npz", n_qubits=4, n_points=3)
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        agg.scan()
+
+        for pt in agg._data_by_n[4]:
+            assert pt["quality_tier"] == "unverified"
+
+    def test_verified_points_always_included(self, mock_project_root):
+        """Verified (VQE-converged) points should always pass filtering."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 4
+        h_values = np.linspace(3.0, 4.0, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.2, 0.9, n_points)
+        # Even with borderline errors, verified data should pass
+        e_vqe = e_exact + 0.08  # |dE|=0.08, dE/gap=0.04 with gap=2
+        gaps = np.ones(n_points) * 2.0
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+            method=np.array(["vqe_refined"] * n_points),
+            quality_tier=np.array(["verified"] * n_points),
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        # Use very strict threshold — verified should still pass
+        dataset = agg.build_combined_dataset(max_de_gap=0.01)
+        assert len(dataset) == n_points
+
+    def test_approximate_uses_relaxed_threshold(self, mock_project_root):
+        """Approximate data should use 1.5× relaxed threshold."""
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 4
+        h_values = np.linspace(3.0, 4.0, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.2, 0.9, n_points)
+        gaps = np.ones(n_points) * 2.0
+        # dE/gap = 0.06 → fails strict 0.05 but passes 0.05*1.5=0.075
+        e_vqe = e_exact + 0.12  # |dE|=0.12, dE/gap=0.06
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+            method=np.array(["mpnn_pred"] * n_points),
+            quality_tier=np.array(["approximate"] * n_points),
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        # Strict threshold 0.05: approximate uses 0.075
+        # dE/gap=0.06 < 0.075 → passes, BUT |dE|=0.12 > 0.10*1.5=0.15? No, 0.12<0.15 → passes
+        dataset = agg.build_combined_dataset(max_de_gap=0.05)
+        assert len(dataset) == n_points
+
+    def test_sample_weight_attached_to_graphs(self, mock_project_root):
+        """Each graph should have a sample_weight reflecting its tier."""
+        import torch
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        data_dir = mock_project_root / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        n_points = 3
+        h_values = np.linspace(3.0, 4.0, n_points)
+        theta_opt = np.random.randn(n_points, 7).astype(np.float64)
+        e_exact = -4 * np.linspace(1.2, 0.9, n_points)
+        e_vqe = e_exact + 0.02
+        gaps = np.ones(n_points) * 2.0
+
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=h_values, theta_opt=theta_opt,
+            e_vqe=e_vqe, e_exact=e_exact, gaps=gaps,
+            method=np.array(["vqe_refined", "mpnn_pred", "unknown"]),
+            quality_tier=np.array(["verified", "approximate", "unverified"]),
+        )
+
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        dataset = agg.build_combined_dataset(max_de_gap=1.0)
+
+        assert len(dataset) == 3
+        weights = [float(g.sample_weight[0]) for g in dataset]
+        assert weights[0] == 1.0   # verified
+        assert abs(weights[1] - 0.7) < 1e-5  # approximate
+        assert weights[2] == 0.5   # unverified

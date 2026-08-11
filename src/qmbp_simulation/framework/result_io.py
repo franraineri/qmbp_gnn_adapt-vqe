@@ -633,6 +633,10 @@ def extract_run_metadata_summary(data: dict[str, Any]) -> dict[str, Any]:
         # Simulation diagnostics (populated for runs after 2026-07-13)
         "backend_type": data.get("simulation_diagnostics", {}).get("backend_type"),
         "method_exact": data.get("simulation_diagnostics", {}).get("method_exact"),
+        # Runner traceability (populated for runs after 2026-08-10)
+        "runner_tag": config.get("runner_tag", data.get("runner_tag")),
+        "date_tag": config.get("date_tag", data.get("date_tag")),
+        "runner_id": config.get("runner_id", ""),
     }
 
 
@@ -649,6 +653,7 @@ def upsert_theta_npz(
     e_exact_new: "np.ndarray",
     gaps_new: "np.ndarray | None" = None,
     method_new: "list[str] | None" = None,
+    quality_tier_new: "list[str] | None" = None,
 ) -> tuple[int, int]:
     """Atomically update NPZ keeping best θ per h-point (lower energy wins).
 
@@ -657,7 +662,7 @@ def upsert_theta_npz(
     1. Atomic writes (tmp → rename) — no corrupt files on crash
     2. Anti-regression — only updates if new energy is lower
     3. Input validation — filters NaN/Inf automatically
-    4. Consistent schema — h_values, theta_opt, e_vqe, e_exact, gaps, de_gaps, method
+    4. Consistent schema — h_values, theta_opt, e_vqe, e_exact, gaps, de_gaps, method, quality_tier
 
     Parameters
     ----------
@@ -675,6 +680,12 @@ def upsert_theta_npz(
         Spectral gaps (optional). Shape: (n_points,)
     method_new : list[str] | None
         Method labels (e.g., "vqe", "mpnn_pred"). Defaults to "unknown".
+    quality_tier_new : list[str] | None
+        Quality tier per point. Valid values:
+        - "verified": VQE-converged, satisfies variational principle
+        - "approximate": MPNN prediction passing dual criterion but not VQE-refined
+        - "unverified": unknown quality (legacy data, fallback)
+        Defaults to "unverified" if not provided.
 
     Returns
     -------
@@ -710,6 +721,8 @@ def upsert_theta_npz(
             gaps_new = gaps_new[valid_mask]
         if method_new is not None:
             method_new = [method_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
+        if quality_tier_new is not None:
+            quality_tier_new = [quality_tier_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
 
     if len(h_new) == 0:
         return 0, 0
@@ -735,6 +748,7 @@ def upsert_theta_npz(
             e_exact_all = existing["e_exact"].tolist()
             gaps_all = existing["gaps"].tolist() if "gaps" in existing else [0.0] * len(h_all)
             method_all = existing["method"].tolist() if "method" in existing else ["unknown"] * len(h_all)
+            tier_all = existing["quality_tier"].tolist() if "quality_tier" in existing else ["unverified"] * len(h_all)
 
             # Validate existing data integrity
             n_existing_before = len(h_all)
@@ -758,11 +772,12 @@ def upsert_theta_npz(
                 e_exact_all = [e_exact_all[j] for j in valid_existing]
                 gaps_all = [gaps_all[j] for j in valid_existing]
                 method_all = [method_all[j] for j in valid_existing]
+                tier_all = [tier_all[j] for j in valid_existing]
         except Exception as e:
             logger.warning(f"upsert_theta_npz: failed to load existing NPZ ({e}), starting fresh")
-            h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all = [], [], [], [], [], []
+            h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all, tier_all = [], [], [], [], [], [], []
     else:
-        h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all = [], [], [], [], [], []
+        h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all, tier_all = [], [], [], [], [], [], []
 
     # ── Merge: anti-regression (lower energy wins) ────────────────────
     n_updated, n_added = 0, 0
@@ -770,6 +785,7 @@ def upsert_theta_npz(
         h_val = float(h)
         gap_i = float(gaps_new[i]) if gaps_new is not None and i < len(gaps_new) else 0.0
         method_i = method_new[i] if method_new is not None and i < len(method_new) else "unknown"
+        tier_i = quality_tier_new[i] if quality_tier_new is not None and i < len(quality_tier_new) else "unverified"
 
         # Find existing entry for this h (within tolerance)
         match_idx = next(
@@ -782,9 +798,14 @@ def upsert_theta_npz(
                 theta_all[match_idx] = theta_new[i]
                 e_vqe_all[match_idx] = float(e_vqe_new[i])
                 method_all[match_idx] = str(method_i)
+                tier_all[match_idx] = str(tier_i)
                 if gap_i > 0:
                     gaps_all[match_idx] = gap_i
                 n_updated += 1
+            elif tier_i == "verified" and tier_all[match_idx] != "verified":
+                # Upgrade tier even if energy is same (VQE-verified is more reliable)
+                tier_all[match_idx] = "verified"
+                method_all[match_idx] = str(method_i)
         else:
             # New h-point: append
             h_all.append(h_val)
@@ -793,6 +814,7 @@ def upsert_theta_npz(
             e_exact_all.append(float(e_exact_new[i]))
             gaps_all.append(gap_i)
             method_all.append(str(method_i))
+            tier_all.append(str(tier_i))
             n_added += 1
 
     # ── Compute ΔE/gap from stored energies ───────────────────────────
@@ -828,6 +850,7 @@ def upsert_theta_npz(
             gaps=np.array(gaps_all),
             de_gaps=np.array(de_gaps_all),
             method=np.array(method_all),
+            quality_tier=np.array(tier_all),
         )
         tmp_path.rename(npz_path)
     except Exception:

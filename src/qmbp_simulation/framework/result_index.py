@@ -152,6 +152,9 @@ class ResultIndex:
         passed: bool | None = None,
         experiment_id: str | None = None,
         gap_method: str | None = None,
+        runner_tag: str | None = None,
+        date_tag: str | None = None,
+        runner_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query the index with optional filters.
 
@@ -163,6 +166,16 @@ class ResultIndex:
             Filter by gap computation method. Matches if the specified method
             appears in the run's gap_methods list. Use "eigsh_fallback" to find
             post-fix runs, or "floor_2pi_n" for legacy runs.
+        runner_tag : str | None
+            Filter by 2-letter runner tag (e.g., "AC" for AcceleratedCrossN,
+            "LN" for LargeNExtrapolation). Use for tracing which runner
+            produced a result.
+        date_tag : str | None
+            Filter by date tag in DDMMYY format (e.g., "100826" for Aug 10, 2026).
+            Use to find results from a specific day.
+        runner_id : str | None
+            Filter by runner_id substring match. Use for finding results from
+            a specific experiment runner (e.g., "accelerated_cross_n").
 
         Returns
         -------
@@ -187,6 +200,13 @@ class ResultIndex:
             results = [r for r in results if eid_lower in r.get("experiment_id", "").lower()]
         if gap_method is not None:
             results = [r for r in results if gap_method in (r.get("gap_methods") or [])]
+        if runner_tag is not None:
+            results = [r for r in results if r.get("runner_tag") == runner_tag]
+        if date_tag is not None:
+            results = [r for r in results if r.get("date_tag") == date_tag]
+        if runner_id is not None:
+            rid_lower = runner_id.lower()
+            results = [r for r in results if rid_lower in r.get("runner_id", "").lower()]
         return results
 
     def get_best_run(

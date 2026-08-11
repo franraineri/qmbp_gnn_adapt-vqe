@@ -154,18 +154,34 @@ class MultiNAggregator:
                         else:
                             de_gaps = np.zeros(len(h_values))
 
+                    # Compute abs_error for dual criterion filtering
+                    e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                    abs_errors = None
+                    if e_key is not None:
+                        e_vqe_arr = np.asarray(data[e_key], dtype=np.float64)
+                        abs_errors = np.abs(e_vqe_arr - e_exact)
+
+                    # Load quality tier (backward compat: default "unverified")
+                    tier_arr = data["quality_tier"].tolist() if "quality_tier" in data else None
+                    method_arr = data["method"].tolist() if "method" in data else None
+
                     points = []
                     for i in range(len(h_values)):
                         # Ensure theta is always float64 (handles legacy dtype=object NPZs)
                         theta_i = np.asarray(theta_opt[i], dtype=np.float64)
-                        points.append({
+                        pt = {
                             "h": float(h_values[i]),
                             "theta": theta_i,
                             "e_exact": float(e_exact[i]),
                             "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
                             "n_qubits": n,
                             "source": "npz",
-                        })
+                            "quality_tier": tier_arr[i] if tier_arr else "unverified",
+                            "method": str(method_arr[i]) if method_arr else "unknown",
+                        }
+                        if abs_errors is not None:
+                            pt["abs_error"] = float(abs_errors[i])
+                        points.append(pt)
 
                     if n not in self._data_by_n:
                         self._data_by_n[n] = []
@@ -278,7 +294,7 @@ class MultiNAggregator:
             )
 
         from qmbp_simulation import make_lattice
-        from qmbp_simulation.analysis.metrics import is_point_failure
+        from qmbp_simulation.analysis.metrics import is_point_failure, MAX_ABS_ERROR
         from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
 
         import gc as _gc
@@ -293,7 +309,7 @@ class MultiNAggregator:
         try:
             dataset = self._build_dataset_inner(
                 make_lattice, is_point_failure, build_unified_bond_resolved_graph,
-                torch, max_de_gap,
+                torch, max_de_gap, MAX_ABS_ERROR,
             )
         finally:
             if _gc_was_enabled:
@@ -319,30 +335,60 @@ class MultiNAggregator:
         return dataset
 
     def _build_dataset_inner(self, make_lattice, is_point_failure,
-                             build_unified_bond_resolved_graph, torch, max_de_gap):
-        """Inner loop for building dataset (runs with GC disabled)."""
+                             build_unified_bond_resolved_graph, torch, max_de_gap,
+                             max_abs_error):
+        """Inner loop for building dataset (runs with GC disabled).
+
+        Quality tier logic:
+        - "verified" (VQE-converged): always included (trusted source)
+        - "approximate" (MPNN passing dual criterion): included with relaxed threshold
+        - "unverified" (legacy/unknown): strict dual criterion filter
+        """
         dataset = []
         for n, points in sorted(self._data_by_n.items()):
-            # Quality filter: use dual criterion (ΔE/gap + |ΔE| + fidelity)
-            filtered = [
-                p for p in points
-                if not is_point_failure(
-                    de_gap=p["de_gap"],
-                    abs_error=p.get("abs_error"),
-                    fidelity=p.get("fidelity"),
-                    de_gap_threshold=max_de_gap,
-                )
-            ]
+            # Tier-aware quality filter
+            filtered = []
+            for p in points:
+                tier = p.get("quality_tier", "unverified")
+
+                if tier == "verified":
+                    # VQE-converged data is always trusted
+                    filtered.append(p)
+                elif tier == "approximate":
+                    # MPNN predictions that passed dual criterion at persist time.
+                    # Re-verify with slightly relaxed threshold (1.5× of strict)
+                    if not is_point_failure(
+                        de_gap=p["de_gap"],
+                        abs_error=p.get("abs_error"),
+                        de_gap_threshold=max_de_gap * 1.5,
+                        max_abs_error=max_abs_error * 1.5,
+                    ):
+                        filtered.append(p)
+                else:
+                    # Unverified/legacy: strict dual criterion
+                    if not is_point_failure(
+                        de_gap=p["de_gap"],
+                        abs_error=p.get("abs_error"),
+                        fidelity=p.get("fidelity"),
+                        de_gap_threshold=max_de_gap,
+                    ):
+                        filtered.append(p)
+
             if not filtered:
                 logger.warning(
-                    "MultiNAggregator: N=%d has 0 dual-criterion points "
-                    "(pass_rate=0%%). Skipping — this config is not useful "
-                    "for MPNN training. Consider removing its NPZ file.",
+                    "MultiNAggregator: N=%d has 0 points passing quality filter "
+                    "(0 verified, 0 approximate, 0 unverified pass). "
+                    "Skipping — this config is not useful for MPNN training.",
                     n,
                 )
                 continue
 
             lattice = make_lattice(self.topology, n, J=1.0, h=2.0)
+
+            # Count tiers for logging
+            n_verified = sum(1 for p in filtered if p.get("quality_tier") == "verified")
+            n_approx = sum(1 for p in filtered if p.get("quality_tier") == "approximate")
+            n_unverified = len(filtered) - n_verified - n_approx
 
             for pt in filtered:
                 g = build_unified_bond_resolved_graph(
@@ -352,10 +398,18 @@ class MultiNAggregator:
                 # Ensure theta is float before torch conversion (safety against object arrays)
                 theta_arr = np.asarray(pt["theta"], dtype=np.float64)
                 g.y = torch.tensor(theta_arr, dtype=torch.float32)
+
+                # Store quality weight in graph for optional weighted training:
+                # verified=1.0, approximate=0.7, unverified=0.5
+                tier = pt.get("quality_tier", "unverified")
+                weight = {"verified": 1.0, "approximate": 0.7, "unverified": 0.5}.get(tier, 0.5)
+                g.sample_weight = torch.tensor([weight], dtype=torch.float32)
+
                 dataset.append(g)
 
             logger.info(
-                f"  N={n}: {len(filtered)}/{len(points)} points passed quality filter"
+                f"  N={n}: {len(filtered)}/{len(points)} points pass "
+                f"(verified={n_verified}, approx={n_approx}, legacy={n_unverified})"
             )
 
         return dataset

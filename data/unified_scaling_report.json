@@ -1,0 +1,184 @@
+{
+  "generated_at": "2026-08-10T19:15:23.709909+00:00",
+  "n_topologies": 5,
+  "n_configs": 37,
+  "topologies": {
+    "chain_1d": {
+      "n_max_viable": 20,
+      "best_pass_rate": 1.0,
+      "h_frontier": 3.0384615384615383,
+      "scalability_score": 0.9316455696202532,
+      "scalability_reason": "excellent_scaling",
+      "n_configs": 6
+    },
+    "heavy_hex": {
+      "n_max_viable": 16,
+      "best_pass_rate": 0.9833333333333333,
+      "h_frontier": 2.0522633467428055,
+      "scalability_score": 0.9082400935377921,
+      "scalability_reason": "excellent_scaling",
+      "n_configs": 5
+    },
+    "ladder": {
+      "n_max_viable": 20,
+      "best_pass_rate": 0.8596491228070176,
+      "h_frontier": 3.3892768581326163,
+      "scalability_score": 0.8618789248394528,
+      "scalability_reason": "excellent_scaling",
+      "n_configs": 10
+    },
+    "square": {
+      "n_max_viable": 20,
+      "best_pass_rate": 1.0,
+      "h_frontier": 3.9705882352941178,
+      "scalability_score": 0.9007407407407408,
+      "scalability_reason": "excellent_scaling",
+      "n_configs": 7
+    },
+    "triangular": {
+      "n_max_viable": 12,
+      "best_pass_rate": 0.8571428571428571,
+      "h_frontier": 4.4428420765792715,
+      "scalability_score": 0.6728896025091808,
+      "scalability_reason": "moderate_scaling",
+      "n_configs": 9
+    }
+  },
+  "training_readiness": {
+    "ready": true,
+    "reason": "ready",
+    "tier_breakdown_available": true,
+    "utility_partition_available": true,
+    "verified_ratio": 0.5148902821316614,
+    "total_verified": 657,
+    "total_points": 1276,
+    "n_legacy_npz": 0,
+    "n_useful_configs": 22,
+    "n_not_useful_configs": 8
+  },
+  "extrapolation_viability": {
+    "chain_1d": {
+      "30": {
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
+        "topology": "chain_1d",
+        "target_n": 30,
+        "n_max_viable": 20,
+        "extrapolated_de_gap": 0.010478703626951611
+      },
+      "40": {
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
+        "topology": "chain_1d",
+        "target_n": 40,
+        "n_max_viable": 20,
+        "extrapolated_de_gap": 0.009471284512667941
+      },
+      "60": {
+        "viable": false,
+        "reason": "target_n_60_far_beyond_n_max_20",
+        "topology": "chain_1d",
+        "target_n": 60,
+        "n_max_viable": 20
+      }
+    },
+    "heavy_hex": {
+      "30": {
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
+        "topology": "heavy_hex",
+        "target_n": 30,
+        "n_max_viable": 16,
+        "extrapolated_de_gap": -0.028313886395564678
+      },
+      "40": {
+        "viable": false,
+        "reason": "target_n_40_far_beyond_n_max_16",
+        "topology": "heavy_hex",
+        "target_n": 40,
+        "n_max_viable": 16
+      },
+      "60": {
+        "viable": false,
+        "reason": "target_n_60_far_beyond_n_max_16",
+        "topology": "heavy_hex",
+        "target_n": 60,
+        "n_max_viable": 16
+      }
+    },
+    "ladder": {
+      "30": {
+        "viable": false,
+        "reason": "extrapolated_de_gap_1.37_above_threshold",
+        "topology": "ladder",
+        "target_n": 30,
+        "n_max_viable": 20,
+        "extrapolated_de_gap": 1.3744665202054889
+      },
+      "40": {
+        "viable": false,
+        "reason": "extrapolated_de_gap_1.87_above_threshold",
+        "topology": "ladder",
+        "target_n": 40,
+        "n_max_viable": 20,
+        "extrapolated_de_gap": 1.867414257687193
+      },
+      "60": {
+        "viable": false,
+        "reason": "target_n_60_far_beyond_n_max_20",
+        "topology": "ladder",
+        "target_n": 60,
+        "n_max_viable": 20
+      }
+    },
+    "square": {
+      "30": {
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
+        "topology": "square",
+        "target_n": 30,
+        "n_max_viable": 20,
+        "extrapolated_de_gap": 0.0449146364265047
+      },
+      "40": {
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
+        "topology": "square",
+        "target_n": 40,
+        "n_max_viable": 20,
+        "extrapolated_de_gap": 0.053157918327945336
+      },
+      "60": {
+        "viable": false,
+        "reason": "target_n_60_far_beyond_n_max_20",
+        "topology": "square",
+        "target_n": 60,
+        "n_max_viable": 20
+      }
+    },
+    "triangular": {
+      "30": {
+        "viable": false,
+        "reason": "target_n_30_far_beyond_n_max_12",
+        "topology": "triangular",
+        "target_n": 30,
+        "n_max_viable": 12
+      },
+      "40": {
+        "viable": false,
+        "reason": "target_n_40_far_beyond_n_max_12",
+        "topology": "triangular",
+        "target_n": 40,
+        "n_max_viable": 12
+      },
+      "60": {
+        "viable": false,
+        "reason": "target_n_60_far_beyond_n_max_12",
+        "topology": "triangular",
+        "target_n": 60,
+        "n_max_viable": 12
+      }
+    }
+  },
+  "recommendations": []
+}

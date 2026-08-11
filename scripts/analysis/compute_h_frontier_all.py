@@ -6,9 +6,13 @@ Produces separate matrices for:
 - TFIM by topology (chain_1d, ladder, heavy_hex, square, triangular)
 - Multiple models by model name (tfim, heisenberg, heisenberg_transverse, kitaev)
 
+NEW: Also scans NPZ training data with quality_tier information to show
+frontier breakdown by tier: verified, approximate, unverified.
+
 Usage:
     python scripts/analysis/compute_h_frontier_all.py
     python scripts/analysis/compute_h_frontier_all.py --model tfim --topology chain_1d
+    python scripts/analysis/compute_h_frontier_all.py --by-tier  # Show tier breakdown
 """
 
 from __future__ import annotations
@@ -28,6 +32,7 @@ def parse_args():
     parser.add_argument("--model", type=str, default=None, help="Filter by model")
     parser.add_argument("--topology", type=str, default=None, help="Filter by topology")
     parser.add_argument("--threshold", type=float, default=THRESHOLD)
+    parser.add_argument("--by-tier", action="store_true", help="Show frontier breakdown by quality tier")
     return parser.parse_args()
 
 
@@ -184,6 +189,132 @@ def print_matrix(data, group_by="topology"):
             print(row)
 
 
+def scan_npz_by_tier(npz_dir: Path, topo_filter=None):
+    """Scan NPZ training data and compute h_frontier per quality tier.
+
+    Returns dict: {(topology, N, p): {tier: h_frontier}}
+    """
+    from qmbp_simulation.analysis.metrics import (
+        compute_h_frontier, DE_GAP_THRESHOLD, MAX_ABS_ERROR,
+    )
+
+    tier_data: dict[tuple[str, int, int], dict[str, float | None]] = {}
+
+    if not npz_dir.exists():
+        return tier_data
+
+    for npz_file in sorted(npz_dir.glob("*.npz")):
+        # Parse filename: {topology}_N{n}_p{p}.npz
+        parts = npz_file.stem.split("_")
+        n_idx = next((i for i, x in enumerate(parts) if x.startswith("N")), None)
+        if n_idx is None:
+            continue
+        topo = "_".join(parts[:n_idx])
+        if topo_filter and topo != topo_filter:
+            continue
+        try:
+            n = int(parts[n_idx][1:])
+            p_idx = next((i for i, x in enumerate(parts) if x.startswith("p")), None)
+            p = int(parts[p_idx][1:]) if p_idx is not None else 1
+        except (ValueError, IndexError):
+            continue
+
+        data = np.load(str(npz_file), allow_pickle=True)
+        h_vals = data.get("h_values")
+        if h_vals is None or len(h_vals) == 0:
+            continue
+
+        # Compute de_gaps and abs_errors
+        e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+        if e_key is None or "e_exact" not in data:
+            continue
+
+        e_vqe = data[e_key]
+        e_exact = data["e_exact"]
+        gaps = data.get("gaps", np.ones_like(e_vqe) * 1e-10)
+        abs_errs = np.abs(e_vqe - e_exact)
+        de_gaps = abs_errs / np.maximum(gaps, 1e-10)
+
+        # Get quality_tiers if available
+        if "quality_tiers" in data:
+            tiers = data["quality_tiers"]
+            if isinstance(tiers, np.ndarray) and len(tiers) == 0:
+                tiers = ["unverified"] * len(h_vals)
+            elif hasattr(tiers, "tolist"):
+                tiers = tiers.tolist()
+        else:
+            # Legacy data — classify by dual criterion
+            tiers = []
+            for i in range(len(h_vals)):
+                passes = de_gaps[i] < DE_GAP_THRESHOLD and abs_errs[i] < MAX_ABS_ERROR
+                tiers.append("verified" if passes else "unverified")
+
+        key = (topo, n, p)
+        if key not in tier_data:
+            tier_data[key] = {}
+
+        # Compute frontier per tier
+        for tier in ["verified", "approximate", "unverified"]:
+            mask = np.array([t == tier for t in tiers])
+            if not mask.any():
+                continue
+            h_tier = h_vals[mask]
+            dg_tier = de_gaps[mask]
+            if len(h_tier) < 2:
+                continue
+            frontier = compute_h_frontier(h_tier, dg_tier, threshold=DE_GAP_THRESHOLD)
+            if frontier is not None:
+                tier_data[key][tier] = frontier
+
+        # Also compute overall frontier
+        overall = compute_h_frontier(h_vals, de_gaps, threshold=DE_GAP_THRESHOLD)
+        if overall is not None:
+            tier_data[key]["all"] = overall
+
+    return tier_data
+
+
+def print_tier_matrix(tier_data):
+    """Print h_frontier breakdown by quality tier."""
+    if not tier_data:
+        print("No tier data found in NPZ files.")
+        return
+
+    # Group by topology
+    topos = sorted(set(k[0] for k in tier_data))
+
+    for topo in topos:
+        subset = {k: v for k, v in tier_data.items() if k[0] == topo}
+        if not subset:
+            continue
+
+        ns = sorted(set(k[1] for k in subset))
+        ps = sorted(set(k[2] for k in subset))
+
+        print(f"\n{'=' * 80}")
+        print(f"  {topo} — h_frontier by Quality Tier")
+        print(f"{'=' * 80}")
+
+        # Header
+        print(f"{'N':>5} {'p':>3}  {'verified':>10} {'approx':>10} {'unverif':>10} {'all':>10}")
+        print("-" * 60)
+
+        for n in ns:
+            for p in ps:
+                key = (topo, n, p)
+                tiers = tier_data.get(key, {})
+                if not tiers:
+                    continue
+                row = f"{n:>5} {p:>3}  "
+                for tier in ["verified", "approximate", "unverified", "all"]:
+                    val = tiers.get(tier)
+                    if val is not None:
+                        row += f"{val:>10.2f} "
+                    else:
+                        row += f"{'—':>10} "
+                print(row)
+
+
 def main():
     args = parse_args()
 
@@ -200,6 +331,15 @@ def main():
 
     # Print per (model, topology)
     print_matrix(data, group_by="topology")
+
+    # If --by-tier, also scan NPZ data
+    if args.by_tier:
+        npz_dir = ROOT / "data" / "multi_n_training"
+        print("\n" + "=" * 80)
+        print("  QUALITY TIER BREAKDOWN (from NPZ training data)")
+        print("=" * 80)
+        tier_data = scan_npz_by_tier(npz_dir, topo_filter=args.topology)
+        print_tier_matrix(tier_data)
 
 
 if __name__ == "__main__":

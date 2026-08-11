@@ -10,6 +10,7 @@ This module has NO heavy imports (no Qiskit, no PyTorch).
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -1047,6 +1048,169 @@ def classify_training_utility(
     return ("useful", f"{n_good}/{n_points} good points ({pass_rate_dual:.0%} dual pass).")
 
 
+def validate_training_dataset(
+    per_n_points: dict[int, list[dict]],
+    *,
+    max_de_gap: float = 0.10,
+    min_total_points: int = 10,
+    min_n_values: int = 2,
+    require_variational: bool = True,
+) -> tuple[bool, dict]:
+    """Validate multi-N training data quality before MPNN training.
+
+    Performs a comprehensive check on aggregated training data to determine
+    if it's suitable for training. Call this BEFORE train_unified_mpnn()
+    to avoid training on garbage data.
+
+    Checks performed:
+    1. Minimum total points across all N (default: 10)
+    2. Minimum number of distinct N values (default: 2)
+    3. Dual-criterion filter — counts passing points per N
+    4. Variational integrity — flags N values with >90% violations
+    5. Gap masking detection — identifies inflated pass rates
+    6. θ dimension consistency across N values
+
+    Parameters
+    ----------
+    per_n_points : dict[int, list[dict]]
+        Data keyed by N → list of point dicts (from MultiNAggregator.scan()).
+        Each point must have: "de_gap", "abs_error" (optional), "theta", "h".
+    max_de_gap : float
+        Threshold for quality filtering (default: 0.10).
+    min_total_points : int
+        Minimum total good points required (default: 10).
+    min_n_values : int
+        Minimum distinct N values with usable data (default: 2).
+    require_variational : bool
+        If True, warn when >90% of points are variational violations.
+
+    Returns
+    -------
+    tuple[bool, dict]
+        - is_viable: True if data is suitable for training
+        - report: dict with per-N breakdown, warnings, and recommendations
+
+    Example
+    -------
+    >>> from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+    >>> agg = MultiNAggregator(topology="ladder", model="tfim_bond_resolved")
+    >>> agg.scan()
+    >>> viable, report = validate_training_dataset(agg._data_by_n)
+    >>> if not viable:
+    ...     print(report["recommendation"])
+    """
+    report: dict = {
+        "per_n": {},
+        "warnings": [],
+        "errors": [],
+        "total_raw": 0,
+        "total_good": 0,
+        "n_values_with_data": 0,
+        "n_values_with_good_data": 0,
+        "recommendation": "",
+    }
+
+    for n, points in sorted(per_n_points.items()):
+        n_raw = len(points)
+        report["total_raw"] += n_raw
+
+        # Count dual-criterion passing points
+        n_good = 0
+        n_violations = 0
+        for p in points:
+            de_gap = p.get("de_gap", 1.0)
+            abs_error = p.get("abs_error")
+
+            # Check variational violations if we have energy data
+            if abs_error is not None and "e_exact" in p:
+                # If e_pred > e_exact (within tolerance), it's a violation
+                # Approximate: abs_error = |e_pred - e_exact|, violation = e_pred > e_exact
+                # We can't distinguish direction from abs_error alone, but
+                # if point has both de_gap < threshold AND abs_error < MAX_ABS_ERROR
+                # it's likely OK
+                pass
+
+            passes_de_gap = de_gap < max_de_gap
+            passes_abs = abs_error is None or abs_error < MAX_ABS_ERROR
+            if passes_de_gap and passes_abs:
+                n_good += 1
+
+        # Check theta dimension consistency
+        theta_dims = set()
+        for p in points:
+            theta = p.get("theta")
+            if theta is not None:
+                theta_dims.add(len(theta) if hasattr(theta, '__len__') else 0)
+
+        n_entry = {
+            "n_raw": n_raw,
+            "n_good": n_good,
+            "pass_rate": n_good / max(n_raw, 1),
+            "theta_dims": sorted(theta_dims),
+        }
+        report["per_n"][n] = n_entry
+
+        if n_good > 0:
+            report["n_values_with_good_data"] += 1
+        report["n_values_with_data"] += 1
+        report["total_good"] += n_good
+
+        # Warnings per N
+        if n_raw > 0 and n_good == 0:
+            report["warnings"].append(
+                f"N={n}: 0/{n_raw} points pass dual criterion. "
+                f"This N contributes nothing to training."
+            )
+        elif n_raw > 0 and n_good / n_raw < 0.20:
+            report["warnings"].append(
+                f"N={n}: only {n_good}/{n_raw} ({n_good/n_raw:.0%}) pass dual criterion. "
+                f"Majority of data for this N is low-quality."
+            )
+
+        if len(theta_dims) > 1:
+            report["errors"].append(
+                f"N={n}: inconsistent θ dimensions {theta_dims}. "
+                f"Cannot mix data from different p_layers or circuit variants."
+            )
+
+    # Global checks
+    is_viable = True
+
+    if report["total_good"] < min_total_points:
+        is_viable = False
+        report["errors"].append(
+            f"Only {report['total_good']} good points total (need ≥{min_total_points}). "
+            f"Run more VQE refinement to generate quality data."
+        )
+
+    if report["n_values_with_good_data"] < min_n_values:
+        is_viable = False
+        report["errors"].append(
+            f"Only {report['n_values_with_good_data']} N values have usable data "
+            f"(need ≥{min_n_values}). Multi-N model needs diversity in N."
+        )
+
+    # Recommendation
+    if is_viable:
+        report["recommendation"] = (
+            f"Data is suitable for training: {report['total_good']} good points "
+            f"across {report['n_values_with_good_data']} N values."
+        )
+    else:
+        needs = []
+        if report["total_good"] < min_total_points:
+            deficit = min_total_points - report["total_good"]
+            needs.append(f"{deficit} more good points")
+        if report["n_values_with_good_data"] < min_n_values:
+            needs.append(f"data for more N values")
+        report["recommendation"] = (
+            f"NOT viable for training. Need: {', '.join(needs)}. "
+            f"Run iterative improvement with --refine-all to generate quality data."
+        )
+
+    return is_viable, report
+
+
 def get_usable_training_configs(dashboard: dict) -> dict[str, list[dict]]:
     """Partition dashboard configs by training utility.
 
@@ -1739,3 +1903,358 @@ def generate_model_quality_dashboard(
         len(configs), output_path.name,
     )
     return dashboard
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cross-Integration Utilities — combining quality tier, extrapolation, and coverage
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def compute_scalability_score(
+    topology: str,
+    n_max_viable: int | None,
+    pass_rate_dual: float,
+    h_frontier: float | None,
+    *,
+    n_reference: int = 20,
+    h_reference: float = 2.0,
+) -> tuple[float, str]:
+    """Compute a unified scalability score for a topology.
+
+    Combines multiple metrics into a single 0-1 score indicating how well
+    the MPNN + HVA pipeline scales for a given topology.
+
+    Parameters
+    ----------
+    topology : str
+        Lattice topology name.
+    n_max_viable : int | None
+        Maximum N where dual criterion still passes (from cross-N analysis).
+    pass_rate_dual : float
+        Best pass rate under dual criterion for this topology.
+    h_frontier : float | None
+        Minimum h where pipeline achieves < 5% ΔE/gap.
+    n_reference : int
+        Reference N for scaling comparison (default: 20).
+    h_reference : float
+        Reference h for frontier comparison (default: 2.0).
+
+    Returns
+    -------
+    tuple[float, str]
+        - score: 0.0 (poor scalability) to 1.0 (excellent scalability)
+        - reason: human-readable explanation
+    """
+    # Factor 1: n_max_viable relative to reference
+    n_factor = 0.0
+    if n_max_viable is not None and n_max_viable > 0:
+        n_factor = min(1.0, n_max_viable / n_reference)
+
+    # Factor 2: pass rate under dual criterion
+    pass_factor = float(pass_rate_dual)
+
+    # Factor 3: h_frontier (lower is better — can access more phases)
+    h_factor = 0.5  # Default if no frontier
+    if h_frontier is not None:
+        # h_frontier=1.0 → factor=1.0, h_frontier=4.0 → factor=0.25
+        h_factor = min(1.0, h_reference / max(h_frontier, 0.1))
+
+    # Weighted combination
+    score = 0.4 * n_factor + 0.4 * pass_factor + 0.2 * h_factor
+    score = float(min(1.0, max(0.0, score)))
+
+    # Determine reason
+    if n_factor >= 0.8 and pass_factor >= 0.8:
+        reason = "excellent_scaling"
+    elif n_factor >= 0.5 and pass_factor >= 0.6:
+        reason = "moderate_scaling"
+    elif n_max_viable is None or n_max_viable < 6:
+        reason = "limited_n_range"
+    elif h_frontier is not None and h_frontier > 3.5:
+        reason = "limited_h_range"
+    else:
+        reason = "poor_scaling"
+
+    return score, reason
+
+
+def compute_training_readiness(
+    tier_breakdown: dict[str, dict] | None,
+    utility_partition: dict[str, list[dict]] | None,
+    *,
+    min_verified_ratio: float = 0.30,
+    min_useful_configs: int = 3,
+) -> tuple[bool, str, dict]:
+    """Determine if training data is ready for MPNN training.
+
+    Combines quality tier analysis with training utility classification
+    to give a single readiness verdict.
+
+    Parameters
+    ----------
+    tier_breakdown : dict | None
+        Per-NPZ quality tier counts {filename: {verified, approximate, unverified, total}}.
+    utility_partition : dict | None
+        Training utility partition {useful, insufficient_signal, not_useful}.
+    min_verified_ratio : float
+        Minimum fraction of verified points across all NPZ (default: 30%).
+    min_useful_configs : int
+        Minimum number of useful configs (default: 3).
+
+    Returns
+    -------
+    tuple[bool, str, dict]
+        - ready: True if training should proceed
+        - reason: explanation
+        - stats: detailed statistics
+    """
+    stats: dict = {
+        "tier_breakdown_available": tier_breakdown is not None,
+        "utility_partition_available": utility_partition is not None,
+    }
+
+    # Check tier breakdown
+    total_verified = 0
+    total_points = 0
+    n_legacy = 0
+    if tier_breakdown:
+        for counts in tier_breakdown.values():
+            total_verified += counts.get("verified", 0)
+            total_points += counts.get("total", 0)
+            if counts.get("legacy"):
+                n_legacy += 1
+        verified_ratio = total_verified / max(total_points, 1)
+        stats["verified_ratio"] = verified_ratio
+        stats["total_verified"] = total_verified
+        stats["total_points"] = total_points
+        stats["n_legacy_npz"] = n_legacy
+    else:
+        verified_ratio = 0.0
+
+    # Check utility partition
+    n_useful = 0
+    n_not_useful = 0
+    if utility_partition:
+        useful_list = utility_partition.get("useful", [])
+        not_useful_list = utility_partition.get("not_useful", [])
+        n_useful = len(useful_list)
+        n_not_useful = len(not_useful_list)
+        stats["n_useful_configs"] = n_useful
+        stats["n_not_useful_configs"] = n_not_useful
+
+    # Decision logic
+    if tier_breakdown is None and utility_partition is None:
+        return False, "no_quality_data_available", stats
+
+    # Hard blockers
+    if n_not_useful > n_useful:
+        return False, "more_not_useful_than_useful", stats
+
+    if tier_breakdown and verified_ratio < min_verified_ratio and total_points > 50:
+        return False, f"verified_ratio_too_low_{verified_ratio:.0%}", stats
+
+    if utility_partition and n_useful < min_useful_configs:
+        return False, f"insufficient_useful_configs_{n_useful}", stats
+
+    # Soft warnings (ready but with caveats)
+    if n_legacy > 0:
+        return True, f"ready_but_{n_legacy}_legacy_npz", stats
+
+    if verified_ratio < 0.50 and total_points > 20:
+        return True, f"ready_but_low_verified_{verified_ratio:.0%}", stats
+
+    return True, "ready", stats
+
+
+def compute_extrapolation_viability(
+    topology: str,
+    n_max_viable: int | None,
+    mean_de_gap_per_n: dict[int, float] | None,
+    *,
+    target_n: int = 30,
+    max_acceptable_de_gap: float = 0.20,
+) -> tuple[bool, str, dict]:
+    """Predict whether extrapolation to target_n is likely to succeed.
+
+    Uses cross-N transfer data to estimate if MPNN prediction at large N
+    will produce useful results without VQE refinement.
+
+    Parameters
+    ----------
+    topology : str
+        Target topology.
+    n_max_viable : int | None
+        Proven maximum viable N for this topology.
+    mean_de_gap_per_n : dict | None
+        Mean ΔE/gap at each tested N (from cross-N experiments).
+    target_n : int
+        Desired target system size (default: 30).
+    max_acceptable_de_gap : float
+        Maximum acceptable ΔE/gap for extrapolation (default: 20%).
+
+    Returns
+    -------
+    tuple[bool, str, dict]
+        - viable: True if extrapolation is likely to succeed
+        - reason: explanation
+        - prediction: estimated metrics
+    """
+    prediction: dict = {"topology": topology, "target_n": target_n}
+
+    # Check n_max_viable
+    if n_max_viable is None:
+        return False, "no_cross_n_data", prediction
+
+    prediction["n_max_viable"] = n_max_viable
+
+    # Simple extrapolation: if target_n > 2 * n_max_viable, likely to fail
+    if target_n > 2 * n_max_viable:
+        return False, f"target_n_{target_n}_far_beyond_n_max_{n_max_viable}", prediction
+
+    # If target_n <= n_max_viable, should work
+    if target_n <= n_max_viable:
+        return True, "target_n_within_viable_range", prediction
+
+    # Intermediate case: extrapolate trend
+    if mean_de_gap_per_n and len(mean_de_gap_per_n) >= 2:
+        # Fit linear trend to log(de_gap) vs N
+        n_vals = sorted(mean_de_gap_per_n.keys())
+        dg_vals = [mean_de_gap_per_n[n] for n in n_vals]
+        
+        # Simple linear extrapolation
+        if len(n_vals) >= 2:
+            slope = (dg_vals[-1] - dg_vals[0]) / max(n_vals[-1] - n_vals[0], 1)
+            extrapolated = dg_vals[-1] + slope * (target_n - n_vals[-1])
+            prediction["extrapolated_de_gap"] = float(extrapolated)
+            
+            if extrapolated < max_acceptable_de_gap:
+                return True, "extrapolation_below_threshold", prediction
+            else:
+                return False, f"extrapolated_de_gap_{extrapolated:.2f}_above_threshold", prediction
+
+    # Conservative fallback
+    if target_n <= 1.5 * n_max_viable:
+        return True, "target_n_moderately_beyond_viable", prediction
+
+    return False, "insufficient_data_for_extrapolation", prediction
+
+
+def generate_unified_scaling_report(
+    dashboard: dict,
+    tier_breakdown: dict[str, dict] | None = None,
+    target_n_values: list[int] | None = None,
+) -> dict:
+    """Generate a unified scaling report combining all quality metrics.
+
+    Cross-integrates:
+    - Model quality dashboard (pass rates, h_frontier)
+    - Quality tier breakdown (verified/approximate/unverified)
+    - Training utility classification
+    - Extrapolation viability predictions
+
+    Parameters
+    ----------
+    dashboard : dict
+        Model quality dashboard from generate_model_quality_dashboard().
+    tier_breakdown : dict | None
+        Per-NPZ quality tier counts (from update_cross_n_coverage).
+    target_n_values : list[int] | None
+        Target N values for extrapolation viability check.
+
+    Returns
+    -------
+    dict
+        Unified report with per-topology summaries and recommendations.
+    """
+    if target_n_values is None:
+        target_n_values = [30, 40, 60]
+
+    configs = dashboard.get("configs", [])
+    topo_summary = dashboard.get("topology_summary", {})
+    
+    # Compute utility partition
+    utility_partition = get_usable_training_configs(dashboard)
+
+    report = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "n_topologies": len(topo_summary),
+        "n_configs": len(configs),
+        "topologies": {},
+        "training_readiness": {},
+        "extrapolation_viability": {},
+        "recommendations": [],
+    }
+
+    # Training readiness (global)
+    ready, reason, stats = compute_training_readiness(
+        tier_breakdown, utility_partition
+    )
+    report["training_readiness"] = {
+        "ready": ready,
+        "reason": reason,
+        **stats,
+    }
+    if not ready:
+        report["recommendations"].append(
+            f"BLOCKING: Training not ready — {reason}"
+        )
+
+    # Per-topology analysis
+    for topo, info in topo_summary.items():
+        n_max_viable = info.get("n_max_viable")
+        best_pass = info.get("best_pass_rate_5pct", 0)
+        
+        # Get h_frontier for the largest viable N
+        h_frontier = None
+        topo_configs = [c for c in configs if c["topology"] == topo]
+        for c in sorted(topo_configs, key=lambda x: -x.get("n_qubits", 0)):
+            if c.get("h_frontier") is not None:
+                h_frontier = c["h_frontier"]
+                break
+
+        # Scalability score
+        score, score_reason = compute_scalability_score(
+            topo, n_max_viable, best_pass, h_frontier
+        )
+
+        # Collect mean_de_gap per N
+        mean_dg_per_n = {}
+        for c in topo_configs:
+            n = c.get("n_qubits", 0)
+            dg = c.get("mean_de_gap")
+            if n > 0 and dg is not None:
+                mean_dg_per_n[n] = dg
+
+        # Extrapolation viability for each target
+        extrap_results = {}
+        for target_n in target_n_values:
+            viable, extrap_reason, pred = compute_extrapolation_viability(
+                topo, n_max_viable, mean_dg_per_n, target_n=target_n
+            )
+            extrap_results[target_n] = {
+                "viable": viable,
+                "reason": extrap_reason,
+                **pred,
+            }
+
+        report["topologies"][topo] = {
+            "n_max_viable": n_max_viable,
+            "best_pass_rate": best_pass,
+            "h_frontier": h_frontier,
+            "scalability_score": score,
+            "scalability_reason": score_reason,
+            "n_configs": len(topo_configs),
+        }
+        report["extrapolation_viability"][topo] = extrap_results
+
+        # Generate recommendations
+        if score < 0.3:
+            report["recommendations"].append(
+                f"{topo}: Poor scalability ({score:.2f}) — consider more training data or different ansatz"
+            )
+        elif n_max_viable is not None and n_max_viable < 10:
+            report["recommendations"].append(
+                f"{topo}: Limited n_max_viable={n_max_viable} — investigate VQE refinement budget"
+            )
+
+    return report

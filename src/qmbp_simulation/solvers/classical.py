@@ -73,15 +73,12 @@ class ClassicalSolver:
 
         if method == "auto":
             # For N ≤ STATEVECTOR_MAX_N (18), use exact diag (fast, exact).
-            # For 18 < N ≤ EXACT_DIAG_QUBIT_LIMIT (22): attempt exact diag,
-            # but fall back to DMRG if eigsh segfaults (known macOS ARM64 issue
-            # with ARPACK for dim > 500k).
-            # For N > 22: always DMRG.
+            # For N > 18: use DMRG (avoids known macOS ARM64 segfault in
+            # ARPACK eigsh for dim > 500k, which affects N=19-22).
+            # Previously we attempted exact diag for N=19-22, but the
+            # segfault is not catchable (kills the process). DMRG is safe
+            # and sufficiently accurate (chi_max auto-scales).
             if n <= STATEVECTOR_MAX_N:
-                method = "exact"
-            elif n <= EXACT_DIAG_QUBIT_LIMIT:
-                # Try exact diag for N=19-22 — works on most platforms,
-                # but may segfault on macOS ARM64 due to Accelerate framework.
                 method = "exact"
             else:
                 method = "dmrg"

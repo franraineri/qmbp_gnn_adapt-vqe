@@ -58,7 +58,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  F:is_point_failure,identify_failures,compute_refinement_priority+13
+  metrics                    CORE  F:is_point_failure,identify_failures,compute_refinement_priority+22
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
@@ -147,10 +147,10 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
 ### qsim/predictors/ (6)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +45
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +47
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
-  model_zoo                  CFG   C:ZooEntry | F:list_pretrained,load_pretrained,load_best_for_cross_n+2
+  model_zoo                  CFG   C:ZooEntry | F:list_pretrained,load_pretrained,load_best_for_cross_n+7
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator
   unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
@@ -219,7 +219,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 ### ph/analysis/ (11)
 
-  accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport | F:scan_results,analyze_cross_n_result,format_report+1
+  accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport,LargeNResult | F:scan_results,analyze_cross_n_result,format_report+3
   diagnose                   PRED  C:RootCause,DeploymentPoint,Diagnosis | F:parse_pipeline_run,classify_root_causes,scan_folder+3
   gnn_qem_analyzer           PRED  
   layout_optimizer_analyzer  OPT   
@@ -381,6 +381,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   run_noiseless_cross_n      PRED  C:NoiselessCrossNRunner
   run_noiseless_pipeline     PIPE  C:NoiselessPipelineRunner
   run_cross_n_warmstart_eval       C:CrossNWarmstartEvalRunner
+  run_large_n_extrapolation  TEST  C:LargeNExtrapolationRunner | F:load_extrapolation_npz,compute_extrapolation_summary
   run_mps_precision_study    DIAG  C:MPSPrecisionStudyRunner
   run_qpu_time_scaling       CIRC  C:QPUTimeScalingRunner
   run_scaling_phase3_mpnn    PRED  C:MPSScalingPhase3Runner | F:canonicalize_theta,load_theta_from_result
@@ -420,7 +421,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   check_delta_e_by_topo_p    DIAG  F:extract_deploy_points,get_config,main
   check_matrix_gaps                F:parse_args,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
-  compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+2
+  compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4
   compute_h_frontier_models        F:compute_frontier
   compute_h_frontier_topologies DIAG  F:compute_frontier
   dmrg_vs_exact_comparison   SOLVE F:run_comparison,main
@@ -467,12 +468,16 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   cleanup_repo               CACHE C:CleanupReport | F:is_protected,scan_named_dirs,scan_cache_dirs+9
   generate_module_index            C:ModuleEntry,PackageEntry | F:extract_module,extract_package,scan_directory+2
   generate_presets_from_index CFG   F:generate_preset_yaml,main
+  generate_scaling_report    PRED  F:load_dashboard,compute_quality_tier_breakdown,format_report_text+1
   inspect_data_stores        CACHE F:main
   md_index                         C:Section,FileStats,DocEntry | F:extract_metadata,format_full,format_list+2
   organize_results                 F:extract_config_from_file,organize_flat_dirs,archive_failed+1
+  quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+4
+  run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+5
   scan_new_runs              ANAL  C:RunMetrics,GroupStats | F:resolve_dirs,load_runs,parse_run+11
-  update_cross_n_coverage    PIPE  F:load_dashboard,compute_gt_coverage,count_zoo_orphans+10
+  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+16
   update_project_status            F:main
+  upgrade_npz_quality_tiers        F:compute_quality_tier,upgrade_npz_file,main
   verify_steerings                 C:Issue,VerificationReport | F:estimate_tokens,parse_front_matter,get_body+23
 
 ## Notebooks

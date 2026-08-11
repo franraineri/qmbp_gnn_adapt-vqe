@@ -31,7 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -88,7 +88,7 @@ class ZooEntry:
     h_range : tuple[float, float]
         Training h-range [h_min, h_max].
     pass_rate : float
-        Observed pass rate (ΔE/gap < 5%) on validation set.
+        Observed pass rate using dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10).
     n_training_points : int
         Number of VQE points used for training.
     seeds : list[int]
@@ -97,6 +97,12 @@ class ZooEntry:
         ISO timestamp of checkpoint creation.
     notes : str
         Any additional context.
+    runner_tag : str
+        2-letter tag identifying which runner produced this model.
+        Convention: AC=AcceleratedCrossN, LN=LargeNExtrap, BR=BondResolved,
+        MN=MultiNTrain, II=IterativeImprove, XX=Unknown/manual.
+    date_tag : str
+        Date in DDMMYY format (e.g., "100826" for August 10, 2026).
     """
 
     model: str
@@ -111,6 +117,8 @@ class ZooEntry:
     created: str = ""
     notes: str = ""
     sha256: str = ""  # Integrity hash — verified on load
+    runner_tag: str = "XX"  # 2-letter runner identifier
+    date_tag: str = ""  # DDMMYY format
 
     def matches(
         self,
@@ -137,12 +145,16 @@ def _load_manifest() -> list[ZooEntry]:
         return []
     with open(_MANIFEST_PATH) as f:
         raw = json.load(f)
+    # Get valid field names to filter out stale/unknown keys
+    _valid_fields = {f.name for f in fields(ZooEntry)}
     entries = []
     for item in raw:
         # Handle h_range as list → tuple
         if "h_range" in item and isinstance(item["h_range"], list):
             item["h_range"] = tuple(item["h_range"])
-        entries.append(ZooEntry(**item))
+        # Filter out any keys not in ZooEntry (forward/backward compat)
+        filtered = {k: v for k, v in item.items() if k in _valid_fields}
+        entries.append(ZooEntry(**filtered))
     return entries
 
 
@@ -436,7 +448,28 @@ def load_best_for_cross_n(
         # Among multi-N models, prefer most training points
         best = max(multi_n, key=lambda e: e.n_training_points)
         ckpt_path = _CHECKPOINTS_DIR / best.checkpoint_file
-        if ckpt_path.exists():
+
+        # Quality gate: multi-N model with pass_rate < 40% is likely trained
+        # on contaminated data (gap-masked or variationally invalid points).
+        # Fall through to single-N models which may be better.
+        if best.pass_rate > 0 and best.pass_rate < 0.40:
+            logger.warning(
+                "load_best_for_cross_n: Multi-N model %s has low pass_rate=%.0f%%. "
+                "Likely trained on contaminated data. Checking single-N alternatives.",
+                best.checkpoint_file, best.pass_rate * 100,
+            )
+            # Check if a single-N model has better pass_rate
+            single_n = [e for e in candidates if e.n_qubits > 0]
+            better_single = [e for e in single_n if e.pass_rate > best.pass_rate + 0.1]
+            if better_single:
+                # Fall through to single-N selection below
+                logger.info(
+                    "  Found %d single-N models with better pass_rate. Using those.",
+                    len(better_single),
+                )
+                multi_n = []  # Skip multi-N, fall through to Priority 2
+
+        if multi_n and ckpt_path.exists():
             _verify_checkpoint_integrity(ckpt_path, best.sha256)
             mpnn = _smart_load_checkpoint(str(ckpt_path))
             logger.info(
@@ -445,7 +478,7 @@ def load_best_for_cross_n(
                 best.checkpoint_file, best.n_training_points, n_target,
             )
             return mpnn, best
-        else:
+        elif multi_n:
             logger.warning(
                 "Multi-N checkpoint missing on disk: %s. Falling back to single-N.",
                 best.checkpoint_file,
@@ -491,6 +524,58 @@ def load_best_for_cross_n(
     return mpnn, best
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Runner Tag + Date Tag Utilities
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Standard 2-letter runner tags
+RUNNER_TAGS: dict[str, str] = {
+    "accelerated_cross_n": "AC",
+    "large_n_extrapolation": "LN",
+    "bond_resolved_validation": "BR",
+    "bond_resolved_cross_n": "BC",
+    "bond_resolved_scaling": "BS",
+    "noiseless_pipeline": "NP",
+    "noiseless_cross_n": "NC",
+    "iterative_improve": "II",
+    "multi_n_train": "MN",
+    "hardware_rehearsal": "HR",
+    "manual": "XX",
+}
+
+
+def make_date_tag() -> str:
+    """Generate date tag in DDMMYY format (UTC).
+
+    Example: August 10, 2026 → "100826"
+    """
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%d%m%y")
+
+
+def get_runner_tag(runner_id: str) -> str:
+    """Map a runner_id to its 2-letter tag.
+
+    Falls back to "XX" for unknown runners. Matches by substring
+    so "accelerated_cross_n_v1" → "AC".
+
+    Parameters
+    ----------
+    runner_id : str
+        The runner_id attribute (e.g., "accelerated_cross_n_v1").
+
+    Returns
+    -------
+    str
+        2-letter tag (e.g., "AC").
+    """
+    runner_lower = runner_id.lower()
+    for key, tag in RUNNER_TAGS.items():
+        if key in runner_lower:
+            return tag
+    return "XX"
+
+
 def register_checkpoint(
     model,
     entry: ZooEntry,
@@ -528,6 +613,11 @@ def register_checkpoint(
     """
     _CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
     ckpt_path = _CHECKPOINTS_DIR / entry.checkpoint_file
+
+    # ── Auto-fill date_tag if not provided ───────────────────────────────
+    if not entry.date_tag:
+        from datetime import datetime, timezone
+        entry.date_tag = datetime.now(timezone.utc).strftime("%d%m%y")
 
     if ckpt_path.exists() and not overwrite:
         logger.warning("Checkpoint already exists: %s. Use overwrite=True to replace.", ckpt_path)
@@ -593,6 +683,96 @@ def register_checkpoint(
     return ckpt_path
 
 
+def update_zoo_pass_rate(
+    checkpoint_file: str,
+    observed_pass_rate: float,
+    *,
+    only_if_better: bool = True,
+    add_notes: str | None = None,
+) -> bool:
+    """Update the pass_rate for an existing zoo entry after evaluation.
+
+    Call this after running cross-N prediction or any evaluation that
+    produces per-h results. The zoo entry may have pass_rate=0 (never evaluated
+    after training) — this function updates the manifest so future
+    `load_best_for_cross_n` sees the real quality.
+
+    Parameters
+    ----------
+    checkpoint_file : str
+        The checkpoint filename (as stored in ZooEntry.checkpoint_file).
+    observed_pass_rate : float
+        The newly observed pass rate (0.0 to 1.0).
+    only_if_better : bool
+        If True (default), only update if observed_pass_rate > current.
+        If False, always update (use for correcting bad data).
+    add_notes : str | None
+        Optional text to append to the entry's notes field.
+
+    Returns
+    -------
+    bool
+        True if the manifest was updated, False otherwise.
+
+    Example
+    -------
+    >>> from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+    >>> # After running cross-N evaluation with 85% pass rate:
+    >>> updated = update_zoo_pass_rate(
+    ...     "unified_tfim_br_ladder_multiN_6+8+10_p1.pt",
+    ...     0.85,
+    ...     add_notes="eval@N=20 h=[2.0,3.5]"
+    ... )
+    """
+    if not 0.0 <= observed_pass_rate <= 1.0:
+        logger.warning(
+            "update_zoo_pass_rate: invalid pass_rate=%.3f (expected 0.0-1.0)",
+            observed_pass_rate,
+        )
+        return False
+
+    entries = _load_manifest()
+    updated = False
+
+    for entry in entries:
+        if entry.checkpoint_file == checkpoint_file:
+            old_rate = entry.pass_rate
+            should_update = (
+                not only_if_better or
+                observed_pass_rate > old_rate
+            )
+
+            if should_update:
+                entry.pass_rate = observed_pass_rate
+                if add_notes:
+                    sep = " | " if entry.notes else ""
+                    entry.notes = f"{entry.notes}{sep}{add_notes}"
+                updated = True
+                logger.info(
+                    "update_zoo_pass_rate: %s %.0f%% → %.0f%%%s",
+                    checkpoint_file[:40],
+                    old_rate * 100,
+                    observed_pass_rate * 100,
+                    f" (+notes)" if add_notes else "",
+                )
+            else:
+                logger.debug(
+                    "update_zoo_pass_rate: %s already has better rate (%.0f%% vs %.0f%%)",
+                    checkpoint_file[:40], old_rate * 100, observed_pass_rate * 100,
+                )
+            break
+    else:
+        logger.warning(
+            "update_zoo_pass_rate: checkpoint '%s' not found in manifest",
+            checkpoint_file,
+        )
+        return False
+
+    if updated:
+        _save_manifest(entries)
+    return updated
+
+
 def validate_zoo() -> dict[str, Any]:
     """Validate all model zoo entries: manifest consistency + file integrity.
 
@@ -626,3 +806,204 @@ def validate_zoo() -> dict[str, Any]:
             report["errors"].append(str(e))
 
     return report
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cross-Integration: Quality Tier Analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def get_training_data_quality(
+    topology: str,
+    n_qubits: int,
+    model: str = "tfim_bond_resolved",
+    p_layers: int = 1,
+) -> dict[str, Any]:
+    """Get quality tier breakdown for a model's training data NPZ.
+
+    Cross-integration: Links model zoo entries to their NPZ training data
+    quality metrics. Used by runners to decide if a zoo model is trustworthy
+    or if retraining with cleaner data is needed.
+
+    Parameters
+    ----------
+    topology : str
+        Lattice topology.
+    n_qubits : int
+        System size. Use 0 for multi-N aggregated models.
+    model : str
+        Hamiltonian model name (for NPZ filename construction).
+    p_layers : int
+        HVA depth.
+
+    Returns
+    -------
+    dict
+        Quality report with keys:
+        - "found": bool - whether NPZ exists
+        - "n_points": int - total training points
+        - "n_verified": int - VQE-verified points
+        - "n_approximate": int - MPNN-predicted but not VQE-verified
+        - "n_unverified": int - legacy data without tier info
+        - "verified_ratio": float - fraction of verified points
+        - "quality_score": float - composite score (verified=1.0, approx=0.7, unverified=0.5)
+        - "npz_path": str - path to NPZ file (if found)
+        - "warnings": list[str] - quality warnings
+    """
+    import numpy as np
+
+    npz_dir = _PROJECT_ROOT / "data" / "multi_n_training"
+
+    # Construct expected NPZ filename
+    if n_qubits == 0:
+        # Multi-N model — aggregate from all matching NPZ files
+        pattern = f"{topology}_N*_p{p_layers}.npz"
+        npz_files = list(npz_dir.glob(pattern))
+    else:
+        npz_filename = f"{topology}_N{n_qubits}_p{p_layers}.npz"
+        npz_path = npz_dir / npz_filename
+        npz_files = [npz_path] if npz_path.exists() else []
+
+    if not npz_files:
+        return {
+            "found": False,
+            "n_points": 0,
+            "n_verified": 0,
+            "n_approximate": 0,
+            "n_unverified": 0,
+            "verified_ratio": 0.0,
+            "quality_score": 0.0,
+            "npz_path": None,
+            "warnings": [f"No NPZ found for {topology}/N={n_qubits}/p={p_layers}"],
+        }
+
+    total_pts = 0
+    total_verified = 0
+    total_approx = 0
+    total_unverified = 0
+    warnings = []
+
+    for npz_path in npz_files:
+        try:
+            data = np.load(str(npz_path), allow_pickle=True)
+            h_vals = data["h_values"]
+            n_pts = len(h_vals)
+            total_pts += n_pts
+
+            # Check for quality_tier field
+            if "quality_tier" in data:
+                tiers = data["quality_tier"].tolist()
+                total_verified += tiers.count("verified")
+                total_approx += tiers.count("approximate")
+                total_unverified += tiers.count("unverified")
+            else:
+                # Legacy NPZ without quality_tier
+                total_unverified += n_pts
+                warnings.append(f"Legacy NPZ {npz_path.name}: no quality_tier field")
+        except Exception as e:
+            warnings.append(f"Error reading {npz_path.name}: {e}")
+
+    # Compute quality score
+    if total_pts > 0:
+        verified_ratio = total_verified / total_pts
+        # Weighted quality score: verified=1.0, approx=0.7, unverified=0.5
+        quality_score = (
+            total_verified * 1.0 + total_approx * 0.7 + total_unverified * 0.5
+        ) / total_pts
+    else:
+        verified_ratio = 0.0
+        quality_score = 0.0
+
+    # Generate warnings for quality issues
+    if total_pts > 10:
+        if verified_ratio < 0.3:
+            warnings.append(
+                f"Low verified ratio ({verified_ratio:.0%}). Consider running "
+                f"--refine-all to convert approximate → verified."
+            )
+        if total_unverified > total_pts * 0.5:
+            warnings.append(
+                f"High unverified count ({total_unverified}/{total_pts}). "
+                f"Likely legacy data — re-run pipeline to add quality_tier."
+            )
+
+    return {
+        "found": True,
+        "n_points": total_pts,
+        "n_verified": total_verified,
+        "n_approximate": total_approx,
+        "n_unverified": total_unverified,
+        "verified_ratio": verified_ratio,
+        "quality_score": quality_score,
+        "npz_path": str(npz_files[0]) if len(npz_files) == 1 else f"{len(npz_files)} files",
+        "warnings": warnings,
+    }
+
+
+def load_best_for_cross_n_quality_aware(
+    model: str,
+    topology: str,
+    n_target: int,
+    p_layers: int,
+    *,
+    min_quality_score: float = 0.6,
+    checkpoint_path: str | Path | None = None,
+) -> tuple[Any, ZooEntry, dict]:
+    """Load best cross-N model with quality-aware selection.
+
+    Enhanced version of ``load_best_for_cross_n`` that also checks the
+    training data quality tier distribution. Returns both the model and
+    a quality report so callers can decide if retraining is advisable.
+
+    Parameters
+    ----------
+    model : str
+        Hamiltonian model name.
+    topology : str
+        Lattice topology.
+    n_target : int
+        Target system size.
+    p_layers : int
+        HVA depth.
+    min_quality_score : float
+        Minimum acceptable quality score (0.0-1.0). If below this, a warning
+        is logged suggesting retraining. Default 0.6.
+    checkpoint_path : str | Path | None
+        Override: load from specific path (bypasses quality check).
+
+    Returns
+    -------
+    tuple[model, ZooEntry, dict]
+        Loaded model, metadata, and quality report.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no suitable model exists in the zoo.
+    """
+    # Load model via standard function
+    mpnn, entry = load_best_for_cross_n(
+        model=model, topology=topology, n_target=n_target,
+        p_layers=p_layers, checkpoint_path=checkpoint_path,
+    )
+
+    # Get quality info for the training data
+    quality = get_training_data_quality(
+        topology=topology, n_qubits=entry.n_qubits,
+        model=model, p_layers=p_layers,
+    )
+
+    # Quality gate warning
+    if quality["found"] and quality["quality_score"] < min_quality_score:
+        logger.warning(
+            "load_best_for_cross_n_quality_aware: Model %s trained on low-quality data "
+            "(quality_score=%.2f < %.2f). Consider retraining with cleaner data.\n"
+            "  verified=%d, approximate=%d, unverified=%d",
+            entry.checkpoint_file,
+            quality["quality_score"], min_quality_score,
+            quality["n_verified"], quality["n_approximate"], quality["n_unverified"],
+        )
+        for w in quality.get("warnings", []):
+            logger.warning("    ⚠️ %s", w)
+
+    return mpnn, entry, quality
