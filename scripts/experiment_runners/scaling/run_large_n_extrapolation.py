@@ -487,6 +487,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                             result = self.build_per_h_result(
                                 h, cached["e_pred"], gt_entry["e_exact"], gt_entry["gap"],
                                 n_params=n_params, n_qubits=n_target, method="cached",
+                                theta=cached.get("theta", np.zeros(0)).tolist() if cached.get("theta") is not None else None,
                             )
                             per_h_results.append(result)
                             n_cached += 1
@@ -555,7 +556,101 @@ class LargeNExtrapolationRunner(ValidationRunner):
         total_time = time.perf_counter() - t_section
         logger.info(f"  MPNN complete: {total_time:.1f}s")
 
+        # ── Optional: Refine failing points via VQE from MPNN warm-start ──
+        if self._args.refine_failing:
+            self._refine_failing_points(mpnn_results)
+
         return {"mpnn_results": {str(k): v for k, v in mpnn_results.items()}}
+
+    def _refine_failing_points(self, mpnn_results: dict[int, dict]) -> None:
+        """Run VQE refinement on MPNN predictions that fail dual criterion.
+
+        Uses theta_pred from MPNN as initial point for L-BFGS-B (warm-start).
+        Only refines up to max_refine points per N, prioritized by highest ΔE/gap.
+        Updates per_point results and NPZ in-place.
+        """
+        from scipy.optimize import minimize as _minimize
+
+        from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        topo = self._args.topology
+        p = self._args.p_layers
+        spec = get_model_spec(self._args.model_name)
+        hva = HVACircuitBuilder()
+        maxiter = self._args.vqe_maxiter
+        max_refine = self._args.max_refine
+
+        logger.info(f"  Refining failing points (maxiter={maxiter}, max={max_refine}/N)...")
+
+        for n_target in self._args.target_n:
+            per_point = mpnn_results[n_target]["per_point"]
+
+            # Find failing points (sorted by worst ΔE/gap first)
+            failing = [
+                (i, r) for i, r in enumerate(per_point)
+                if r["de_gap"] >= DE_GAP_THRESHOLD or r.get("abs_error", 1.0) >= MAX_ABS_ERROR
+            ]
+            failing.sort(key=lambda x: x[1]["de_gap"], reverse=True)
+            to_refine = failing[:max_refine]
+
+            if not to_refine:
+                continue
+
+            logger.info(f"    N={n_target}: refining {len(to_refine)}/{len(failing)} failing points")
+
+            # Build circuit and backend
+            lat_ref = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+            circuit, _ = hva.create_bond_resolved(n_target, p, lat_ref)
+            vqe_backend = self.select_backend(n_target, for_vqe_loop=True)
+            n_refined = 0
+
+            for idx, result in to_refine:
+                h = result["h"]
+                theta_init = result.get("theta")
+                if theta_init is None:
+                    continue
+                theta_init = np.array(theta_init, dtype=np.float64)
+
+                lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+
+                try:
+                    res = _minimize(
+                        lambda params: vqe_backend.evaluate(circuit, H, params),
+                        theta_init,
+                        method="L-BFGS-B",
+                        options={"maxiter": maxiter},
+                    )
+                    e_refined = res.fun
+                except Exception:
+                    continue
+
+                # Only update if improved
+                if e_refined < result["e_pred"]:
+                    gt_entry = next(
+                        pt for pt in self._gt_data[n_target]
+                        if abs(pt["h"] - float(h)) < 1e-8
+                    )
+                    new_result = self.build_per_h_result(
+                        h, e_refined, gt_entry["e_exact"], gt_entry["gap"],
+                        n_params=circuit.num_parameters, n_qubits=n_target,
+                        method="vqe_refined", n_evals=res.nfev,
+                        theta=res.x.tolist(),
+                    )
+                    per_point[idx] = new_result
+                    n_refined += 1
+
+            if n_refined > 0:
+                # Recompute summary and persist
+                mpnn_results[n_target].update(compute_extrapolation_summary(per_point))
+                mpnn_results[n_target]["per_point"] = per_point
+                self._persist_extrapolation_npz(topo, n_target, p, per_point)
+                logger.info(
+                    f"    N={n_target}: refined {n_refined}/{len(to_refine)} → "
+                    f"ΔE/gap={mpnn_results[n_target]['mean_de_gap']:.4f}"
+                )
 
     def _persist_extrapolation_npz(
         self, topology: str, n_qubits: int, p_layers: int, per_h_results: list[dict]
@@ -690,7 +785,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                             lambda params: vqe_backend.evaluate(circuit, H, params),
                             theta0,
                             method="L-BFGS-B",
-                            options={"maxiter": maxiter, "disp": False},
+                            options={"maxiter": maxiter},
                         )
                         if res.fun < best_energy:
                             best_energy = res.fun

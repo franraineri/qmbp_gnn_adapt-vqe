@@ -208,6 +208,42 @@ def execute_cleanup(report: CleanupReport) -> None:
             report.errors.append((d, str(e)))
 
 
+def archive_zoo_orphans() -> list[tuple[Path, Path]]:
+    """Move zoo orphan checkpoints to an archive directory.
+
+    Orphans are .pt files in data/model_zoo/checkpoints/ that are NOT
+    referenced by the manifest. They are moved (not deleted) to
+    data/model_zoo/archived/ for safety.
+
+    Returns list of (source, destination) pairs that were moved.
+    """
+    import json
+
+    zoo_dir = ROOT / "data" / "model_zoo"
+    checkpoints_dir = zoo_dir / "checkpoints"
+    manifest_path = zoo_dir / "manifest.json"
+    archive_dir = zoo_dir / "archived"
+
+    if not checkpoints_dir.exists() or not manifest_path.exists():
+        return []
+
+    # Load manifest to get registered checkpoint filenames
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+    registered = {e["checkpoint_file"] for e in manifest}
+
+    # Find orphans
+    moved = []
+    for pt_file in sorted(checkpoints_dir.glob("*.pt")):
+        if pt_file.name not in registered:
+            archive_dir.mkdir(parents=True, exist_ok=True)
+            dest = archive_dir / pt_file.name
+            shutil.move(str(pt_file), str(dest))
+            moved.append((pt_file, dest))
+
+    return moved
+
+
 def format_size(nbytes: int) -> str:
     """Human-readable size string."""
     if nbytes < 1024:
@@ -286,6 +322,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Show all individual files (not just summaries)",
     )
+    parser.add_argument(
+        "--no-archive-orphans",
+        action="store_true",
+        help="Skip archiving zoo orphan checkpoints (default: archive in --execute mode)",
+    )
     return parser.parse_args()
 
 
@@ -320,8 +361,33 @@ def main() -> None:
     if args.execute:
         execute_cleanup(report)
         print_report(report, verbose=args.verbose, executed=True)
+        # Archive zoo orphans (default in --execute mode)
+        if not args.no_archive_orphans:
+            moved = archive_zoo_orphans()
+            if moved:
+                print(f"\n  📦 Archived {len(moved)} zoo orphan checkpoint(s):")
+                for src, dst in moved:
+                    print(f"    {src.name} → archived/")
+            else:
+                print("\n  ✅ No zoo orphans to archive.")
     else:
         print_report(report, verbose=args.verbose, executed=False)
+        # Show orphan preview in dry-run too
+        if not args.no_archive_orphans:
+            import json
+            zoo_dir = ROOT / "data" / "model_zoo"
+            checkpoints_dir = zoo_dir / "checkpoints"
+            manifest_path = zoo_dir / "manifest.json"
+            if checkpoints_dir.exists() and manifest_path.exists():
+                with open(manifest_path) as f:
+                    manifest = json.load(f)
+                registered = {e["checkpoint_file"] for e in manifest}
+                orphans = [p for p in checkpoints_dir.glob("*.pt") if p.name not in registered]
+                if orphans:
+                    total_size = sum(p.stat().st_size for p in orphans)
+                    print(f"\n  📦 Would archive {len(orphans)} zoo orphan(s) ({format_size(total_size)}):")
+                    for p in sorted(orphans):
+                        print(f"    {p.name} ({format_size(p.stat().st_size)})")
 
 
 if __name__ == "__main__":

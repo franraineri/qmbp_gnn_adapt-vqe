@@ -307,6 +307,7 @@ def augment_theta_symmetries(
     include_z2: bool = True,
     include_shift: bool = False,
     noise_std: float = 0.0,
+    n_noise_variants: int = 1,
     seed: int | None = None,
 ) -> list[np.ndarray]:
     """Generate symmetry-equivalent θ variants for data augmentation.
@@ -317,23 +318,27 @@ def augment_theta_symmetries(
 
     Symmetries used:
     1. **Z₂ reflection**: (-θ) produces the same energy as (+θ) for TFIM HVA.
+       For canonicalized θ ∈ [-π/2, π/2], -θ is also in [-π/2, π/2] —
+       no wrapping needed (exact symmetry preserved).
     2. **Period shift**: (θ + π) produces the same state as θ (periodicity).
     3. **Optional noise**: small Gaussian perturbation for regularization.
 
     Parameters
     ----------
     theta : np.ndarray
-        Single parameter vector, shape (n_params,).
+        Single parameter vector, shape (n_params,). Should be canonicalized.
     period : float
         Periodicity of gate parameters. Default π (standard HVA).
     include_z2 : bool
         Include Z₂ reflection (-θ). Default True.
     include_shift : bool
-        Include period-shifted variants. Default False (risk of
-        creating out-of-canonical-domain points if not careful).
+        Include period-shifted variants. Default False.
     noise_std : float
         Standard deviation of Gaussian noise to add. Default 0.0 (no noise).
         Values like 0.01-0.05 provide regularization without degrading quality.
+    n_noise_variants : int
+        Number of noisy variants to generate per base (original + Z₂).
+        Default 1. Use 2-3 for very small datasets (<20 points).
     seed : int | None
         Random seed for noise generation.
 
@@ -341,17 +346,8 @@ def augment_theta_symmetries(
     -------
     list[np.ndarray]
         List of augmented θ variants (does NOT include the original).
-        Each variant is canonicalized to [-π/2, π/2].
-
-    Example
-    -------
-    >>> theta = np.array([0.3, -0.1, 0.5])
-    >>> augmented = augment_theta_symmetries(theta, include_z2=True)
-    >>> len(augmented)  # 1 variant from Z₂
-    1
-    >>> # With noise: generates 1 noisy variant per symmetry
-    >>> augmented = augment_theta_symmetries(theta, noise_std=0.02, seed=42)
-    >>> len(augmented)  # 1 Z₂ + 1 noisy Z₂ = 2 (if include_z2=True)
+        Z₂ variants preserve exact symmetry. Noisy variants are clamped
+        to [-π/2, π/2].
     """
     theta = np.asarray(theta, dtype=float)
     if theta.size == 0:
@@ -360,28 +356,31 @@ def augment_theta_symmetries(
     variants: list[np.ndarray] = []
     half_period = period / 2.0
 
-    # Z₂ symmetry: -θ gives same energy for TFIM HVA
+    # Z₂ symmetry: -θ gives same energy for TFIM HVA.
+    # If θ ∈ [-π/2, π/2] (canonicalized), then -θ ∈ [-π/2, π/2] too.
+    # NO wrapping needed — this preserves the exact symmetry.
     if include_z2:
         z2 = -theta.copy()
-        # Canonicalize
-        z2 = ((z2 + half_period) % period) - half_period
+        # Only clamp (not wrap) — handles edge case where θ_i = ±π/2 exactly
+        z2 = np.clip(z2, -half_period, half_period)
         variants.append(z2)
 
     # Period shift: θ + π (same state due to 2θ in gates)
     if include_shift:
         shifted = theta + period
         shifted = ((shifted + half_period) % period) - half_period
-        # Only add if different from original (after wrapping)
         if not np.allclose(shifted, theta, atol=1e-6):
             variants.append(shifted)
 
     # Gaussian noise augmentation
     if noise_std > 0:
         rng = np.random.default_rng(seed)
-        n_base = len(variants) if variants else 1
-        for base in ([theta] + variants)[:n_base]:
-            noisy = base + rng.normal(0, noise_std, size=base.shape)
-            noisy = ((noisy + half_period) % period) - half_period
-            variants.append(noisy)
+        bases = [theta] + ([variants[0]] if include_z2 and variants else [])
+        for base in bases:
+            for _ in range(n_noise_variants):
+                noisy = base + rng.normal(0, noise_std, size=base.shape)
+                # Clamp to canonical domain (not wrap — avoids discontinuities)
+                noisy = np.clip(noisy, -half_period, half_period)
+                variants.append(noisy)
 
     return variants

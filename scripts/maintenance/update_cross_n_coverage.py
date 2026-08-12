@@ -1363,7 +1363,11 @@ def generate_cross_topology_report(
     lines.extend(_build_data_quality_section(topologies, configs, tier_breakdown))
     lines.append("")
 
-    # Section 6: Actions
+    # Section 6: Failure Mode Summary (lightweight — from dashboard only)
+    lines.extend(_build_failure_summary_section(topologies, configs))
+    lines.append("")
+
+    # Section 7: Actions
     lines.extend(_build_actions_section(scorecard_rows, configs, topo_sum))
     lines.append("")
 
@@ -1603,13 +1607,91 @@ def _build_data_quality_section(
     return lines
 
 
+def _build_failure_summary_section(topologies: list[str], configs: list[dict]) -> list[str]:
+    """Lightweight failure mode classification from dashboard data only.
+
+    Uses pass_rate_5pct - pass_rate_dual gap and training_utility to infer
+    the dominant failure mode per topology. No NPZ raw reads needed.
+    """
+    from qmbp_simulation.analysis.metrics import GAP_MASKING_THRESHOLD
+
+    lines = [
+        "<!-- AUTO-GENERATED-BEGIN:failure_modes -->",
+        "## 6. Failure Mode Classification",
+        "",
+        "| Topology | Mode | Evidence | Implication |",
+        "|----------|------|----------|-------------|",
+    ]
+
+    for topo in topologies:
+        topo_configs = [c for c in configs if c["topology"] == topo]
+        best_dual = max((c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0)
+
+        if best_dual >= 0.95:
+            lines.append(f"| {topo} | ✅ healthy | best_dual={best_dual:.0%} | Pipeline works correctly |")
+            continue
+
+        # Gap masking severity
+        n_masked = sum(
+            1 for c in topo_configs
+            if c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
+        )
+        mask_severity = sum(
+            c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0)
+            for c in topo_configs
+            if c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
+        ) / max(n_masked, 1)
+
+        # Training contamination indicators
+        n_not_useful = sum(1 for c in topo_configs if c.get("training_utility") == "not_useful")
+        n_insufficient = sum(1 for c in topo_configs if c.get("training_utility") == "insufficient_signal")
+
+        # Classify
+        if n_not_useful >= 3 and n_masked >= 3:
+            mode = "🔴 contaminated"
+            evidence = f"{n_not_useful} not-useful, {n_masked} gap-masked (sev={mask_severity:.0%})"
+            implication = "Purge gap-masked data, retrain model"
+        elif n_masked >= 2 and mask_severity > 0.30 and n_not_useful < 2:
+            mode = "🔵 gap_masking"
+            evidence = f"{n_masked} configs, severity={mask_severity:.0%}"
+            implication = "Model works; |ΔE|>0.10 from N×ε (expected)"
+        elif n_not_useful >= 2:
+            mode = "⚠️ insufficient_data"
+            evidence = f"{n_not_useful} not-useful, {n_insufficient} insufficient"
+            implication = "More VQE refinement needed at viable h-range"
+        elif best_dual < 0.50:
+            # Check if verified per-site error is high (ansatz limit indicator)
+            mean_abs = np.mean([c.get("mean_abs_error", 0) for c in topo_configs])
+            avg_n = np.mean([c["n_qubits"] for c in topo_configs])
+            per_site = mean_abs / max(avg_n, 1)
+            if per_site > 0.015:
+                mode = "⚠️ ansatz_limit"
+                evidence = f"|ΔE|/N={per_site:.2e} (high), best_dual={best_dual:.0%}"
+                implication = "HVA p=1 insufficient; needs p≥2 or fewer bonds"
+            else:
+                mode = "❓ unknown"
+                evidence = f"best_dual={best_dual:.0%}, no clear pattern"
+                implication = "Run --deep analyzer for detailed diagnosis"
+        else:
+            mode = "🟡 partial"
+            evidence = f"best_dual={best_dual:.0%}, {n_masked} masked"
+            implication = "Partially working; focus on viable h-range"
+
+        lines.append(f"| {topo} | {mode} | {evidence} | {implication} |")
+
+    lines.append("")
+    lines.append("*Run `--deep` analyzer for full Tests A-L breakdown.*")
+    lines.append("<!-- AUTO-GENERATED-END:failure_modes -->")
+    return lines
+
+
 def _build_actions_section(
     scorecard: list[dict], configs: list[dict], topo_sum: dict,
 ) -> list[str]:
     """Priority-ordered actions for each topology."""
     lines = [
         "<!-- AUTO-GENERATED-BEGIN:actions -->",
-        "## 6. Recommended Actions",
+        "## 7. Recommended Actions",
         "",
     ]
     actions: list[tuple[int, str, str]] = []  # (priority, topo, action)

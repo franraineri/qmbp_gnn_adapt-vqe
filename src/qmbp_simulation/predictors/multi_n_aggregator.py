@@ -480,12 +480,16 @@ class MultiNAggregator:
                         from qmbp_simulation.utils.helpers import augment_theta_symmetries
                         # Guard: only augment finite theta
                         if np.all(np.isfinite(theta_arr)) and theta_arr.size > 0:
+                            # More variants for very small datasets
+                            n_noise = 2 if len(filtered) < 20 else 1
+                            max_variants = 3 if len(filtered) < 20 else AUGMENTATION_MAX_VARIANTS_PER_POINT
                             variants = augment_theta_symmetries(
                                 theta_arr, include_z2=True,
                                 noise_std=AUGMENTATION_NOISE_SIGMA,
+                                n_noise_variants=n_noise,
                                 seed=hash(pt["h"]) % 2**31,
                             )
-                            for var_theta in variants[:AUGMENTATION_MAX_VARIANTS_PER_POINT]:
+                            for var_theta in variants[:max_variants]:
                                 # Guard: verify augmented theta is finite
                                 if not np.all(np.isfinite(var_theta)):
                                     continue

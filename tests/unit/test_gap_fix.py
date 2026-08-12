@@ -127,10 +127,10 @@ class TestEigshFallback:
         assert gt.gap > floor
 
     def test_exact_gap_qubit_limit_boundary(self):
-        """Verify the constant is 20 and makes sense."""
-        assert EXACT_GAP_QUBIT_LIMIT == 20
-        # N=20 → 2^20 = 1M states → eigsh k=2 should still be feasible
-        # N=21 → 2^21 = 2M states → might be too slow
+        """Verify the constant is 18 (reduced from 20 to avoid macOS ARM64 segfaults)."""
+        assert EXACT_GAP_QUBIT_LIMIT == 18
+        # N=18 → 2^18 = 262k states → eigsh k=2 is safe on all platforms
+        # N=19+ → 2^19 = 524k+ states → segfaults on macOS ARM64 (ARPACK/Accelerate)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

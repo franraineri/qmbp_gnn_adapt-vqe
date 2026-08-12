@@ -58,15 +58,6 @@ from qmbp_simulation.analysis.metrics import compute_scalability_score
 score, reason = compute_scalability_score("chain_1d", 20, 1.0, 3.04)
 ```
 
-### compute_extrapolation_viability(topology, n_max_viable, mean_de_gap_per_n, target_n)
-Predice si extrapolación a target_n funcionará.
-```python
-from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
-viable, reason, prediction = compute_extrapolation_viability(
-    "chain_1d", n_max_viable=20, mean_de_gap_per_n={6: 0.01, 10: 0.02}, target_n=30
-)
-```
-
 ### compute_training_readiness(tier_breakdown, utility_partition)
 ¿Los datos están listos para entrenar MPNN?
 ```python
@@ -141,73 +132,6 @@ Integridad completa: SHA256 checksums, orphans, manifest consistency.
 ```python
 from qmbp_simulation.predictors.model_zoo import validate_zoo
 report = validate_zoo()  # {"n_corrupted": 0, "n_missing": 1, ...}
-```
-
----
-
-## 4. Data Persistence (`framework/result_io.py`)
-
-### upsert_theta_npz(npz_path, h_new, theta_new, e_vqe_new, e_exact_new, gaps_new, method_new, quality_tier_new)
-Atomic write con anti-regression. SIEMPRE usar con `quality_tier_new`.
-```python
-from qmbp_simulation.framework.result_io import upsert_theta_npz
-n_upd, n_add = upsert_theta_npz(
-    npz_path, h_new=h_arr, theta_new=theta_arr,
-    e_vqe_new=e_pred, e_exact_new=e_exact, gaps_new=gaps,
-    method_new=["vqe_refined", "mpnn_pred"],
-    quality_tier_new=["verified", "approximate"],
-)
-```
-
-**Tier assignment pattern**:
-```python
-from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
-tier = "verified" if method in ("vqe_refined",) and de_gap < DE_GAP_THRESHOLD and abs_err < MAX_ABS_ERROR \
-    else "approximate" if de_gap < DE_GAP_THRESHOLD and abs_err < MAX_ABS_ERROR \
-    else "unverified"
-```
-
-### load_theta_npz(npz_path)
-Load con validación (no NaN/Inf).
-```python
-from qmbp_simulation.framework.result_io import load_theta_npz
-data = load_theta_npz(npz_path)  # {"h_values", "theta_opt", "e_vqe", "e_exact", "gaps", ...}
-```
-
----
-
-## 5. ValidationRunner Methods (`framework/runner_base.py`)
-
-### self.get_npz_quality_tiers(npz_path)
-```python
-stats = ValidationRunner.get_npz_quality_tiers(npz_path)
-# {"n_verified": 30, "n_approximate": 15, "n_unverified": 5, "quality_score": 0.84}
-```
-
-### self.load_best_mpnn_for_cross_n(n_target, model, topology, p_layers, ...)
-Carga mejor modelo con selección jerárquica: multi-N → single-N → cross-N.
-```python
-model = self.load_best_mpnn_for_cross_n(
-    n_target=20, model="tfim_bond_resolved", topology="chain_1d", p_layers=1
-)
-```
-
----
-
-## 6. Runners Principales
-
-### run_accelerated_cross_n.py (bond_resolved/)
-Pipeline completo: train → multi-N train → cross-N predict → iterative improve.
-```bash
-.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py \
-    --topology chain_1d --train-n 6 --target-n 10 12 --mode iterative --force-retrain
-```
-
-### run_large_n_extrapolation.py (scaling/)
-Extrapolación zero-shot a N=30-100.
-```bash
-.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \
-    --topology chain_1d --target-n 30 40 60 --h-min 2.5 --h-max 5.0
 ```
 
 ---

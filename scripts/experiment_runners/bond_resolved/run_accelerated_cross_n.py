@@ -711,7 +711,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     abs_err = abs(e_pred - e_exact)
 
                     # Fidelity via parent's compute_fidelity (only N ≤ 22)
-                    # Reuses the solver call needed for ground_state vector
                     fidelity = None
                     if n_target <= STATEVECTOR_MAX_N:
                         try:
@@ -942,8 +941,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
     def section_budget_estimation(self) -> dict:
         """Estimate compute budget leveraging cached results.
 
-        Uses the shared `self.estimate_compute_budget()` helper from
-        ValidationRunner for cache analysis, then adds runner-specific
+        Uses the shared `self.estimate_compute_budget()` + `self.log_budget_summary()`
+        helpers from ValidationRunner, then adds runner-specific
         QualityPredictor estimates on top.
         """
         topo = self._args.topology
@@ -974,28 +973,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
         except Exception:
             pass
 
-        # ── Log budget summary ───────────────────────────────────────────
-        logger.info(f"  ┌─ Budget Estimation ────────────────────────")
-        logger.info(f"  │ Config: {topo} N={n_target} p={p}, {budget['n_points']} h-points")
-        logger.info(f"  │ GT cache: {budget['gt_hits']}/{budget['n_points']} hits "
-                    f"→ {budget['gt_misses']} DMRG needed")
-        logger.info(f"  │ Eval cache: {budget['eval_cache_entries']} entries "
-                    f"(hit_rate={budget['eval_cache_hit_rate']:.0%})")
-        logger.info(f"  │ NPZ training data: {budget['npz_existing_points']} existing points")
-        if budget.get("h_frontier"):
-            logger.info(f"  │ Empirical h_frontier: {budget['h_frontier']:.3f}")
-        logger.info(f"  │ ")
-        logger.info(f"  │ Estimated costs:")
-        logger.info(f"  │   Ground truth: {budget['estimated_gt_s']:.0f}s")
-        logger.info(f"  │   Evaluation (per iter): {budget['estimated_eval_s_per_iter']:.0f}s")
-        logger.info(f"  │   Refinement (worst case): {budget['estimated_refine_worst_s']:.0f}s")
-        logger.info(f"  │   Max iterations: {max_iters}")
-        logger.info(f"  │ ")
-        logger.info(f"  │ Total worst-case: {budget['estimated_total_worst_s']:.0f}s "
-                    f"({budget['estimated_total_worst_s']/60:.1f} min)")
-        if estimated_time_s > 0:
-            logger.info(f"  │ Historical estimate: {estimated_time_s:.0f}s")
-        logger.info(f"  └──────────────────────────────────────────────")
+        # ── Log using reusable base class method ─────────────────────────
+        self.log_budget_summary(
+            budget,
+            topology=topo,
+            n_qubits=n_target,
+            p_layers=p,
+            historical_time_s=estimated_time_s,
+        )
 
         budget["historical_time_s"] = estimated_time_s
         return {"pass": True, "budget": budget}
@@ -1669,14 +1654,20 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             f"May indicate stale E_exact (DMRG approx). Accepting anyway."
                         )
                     # 4. Only accept if improved over current energy
-                    if e_refined < energies[idx] - 1e-10:
+                    #    Use meaningful threshold to avoid "false improvements"
+                    #    where VQE converges to same minimum with numerical noise.
+                    from qmbp_simulation.models.constants import VQE_RESTART_IMPROVEMENT_TOL
+                    energy_improvement = energies[idx] - e_refined
+                    if energy_improvement > VQE_RESTART_IMPROVEMENT_TOL:
                         de_gap_new = abs(e_refined - e_exact_arr[idx]) / max(gap_arr[idx], 1e-10)
                         abs_err_old = abs(energies[idx] - e_exact_arr[idx])
                         abs_err_new = abs(e_refined - e_exact_arr[idx])
-                        logger.info(
-                            f"    h={h:.2f}: ΔE/gap {de_gaps[idx]:.4f} → {de_gap_new:.4f} "
-                            f"|ΔE| {abs_err_old:.3f} → {abs_err_new:.3f} ✓"
-                        )
+                        # Only log as improvement if ΔE/gap actually changed visibly
+                        if abs(de_gaps[idx] - de_gap_new) > 1e-4:
+                            logger.info(
+                                f"    h={h:.2f}: ΔE/gap {de_gaps[idx]:.4f} → {de_gap_new:.4f} "
+                                f"|ΔE| {abs_err_old:.3f} → {abs_err_new:.3f} ✓"
+                            )
                         refined_h.append(h)
                         refined_theta.append(res_x.copy())
                         refined_energies.append(e_refined)

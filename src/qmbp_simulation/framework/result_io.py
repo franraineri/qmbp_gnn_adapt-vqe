@@ -727,6 +727,40 @@ def upsert_theta_npz(
     if len(h_new) == 0:
         return 0, 0
 
+    # ── Dimension consistency check ───────────────────────────────────
+    # All new θ vectors must have the same dimension. If they don't,
+    # something is fundamentally wrong (mixing p_layers or circuit types).
+    if len(h_new) > 1:
+        new_dims = set()
+        for i in range(len(h_new)):
+            t = theta_new[i]
+            dim = len(t) if hasattr(t, '__len__') else 0
+            new_dims.add(dim)
+        if len(new_dims) > 1:
+            logger.warning(
+                "upsert_theta_npz: mixed θ dimensions in new data: %s. "
+                "This may indicate mixing p_layers or circuit types. "
+                "Proceeding but results may be invalid.", new_dims,
+            )
+
+    # If existing NPZ exists, verify new θ dim matches existing
+    if npz_path.exists() and len(h_new) > 0:
+        try:
+            _peek = np.load(npz_path, allow_pickle=True)
+            if "theta_opt" in _peek and len(_peek["theta_opt"]) > 0:
+                existing_sample = _peek["theta_opt"][0]
+                existing_dim = len(existing_sample) if hasattr(existing_sample, '__len__') else 0
+                new_dim = len(theta_new[0]) if hasattr(theta_new[0], '__len__') else 0
+                if existing_dim > 0 and new_dim > 0 and existing_dim != new_dim:
+                    logger.warning(
+                        "upsert_theta_npz: new θ dim=%d ≠ existing dim=%d in %s. "
+                        "This will create a mixed-dimension NPZ (dtype=object). "
+                        "Check that you're not mixing p_layers.",
+                        new_dim, existing_dim, npz_path.name,
+                    )
+        except Exception:
+            pass  # Non-fatal — proceed with upsert
+
     # ── Load existing data ────────────────────────────────────────────
     if npz_path.exists():
         try:
@@ -851,6 +885,7 @@ def upsert_theta_npz(
             de_gaps=np.array(de_gaps_all),
             method=np.array(method_all),
             quality_tier=np.array(tier_all),
+            last_updated=np.array(datetime.now().isoformat()),
         )
         tmp_path.rename(npz_path)
     except Exception:

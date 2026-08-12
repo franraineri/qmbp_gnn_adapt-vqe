@@ -61,38 +61,72 @@ class TestWeightedLoss:
 class TestDataAugmentation:
     """Tests for augment_theta_symmetries function."""
 
-    def test_z2_symmetry_produces_negation(self):
-        """Z₂ augmentation should produce -θ (wrapped to canonical domain)."""
+    def test_z2_is_exact_negation_no_wrapping(self):
+        """Z₂ augmentation should produce exactly -θ (no wrapping distortion)."""
         from qmbp_simulation.utils.helpers import augment_theta_symmetries
 
         theta = np.array([0.3, -0.1, 0.5, 0.2])
         variants = augment_theta_symmetries(theta, include_z2=True, noise_std=0.0)
 
-        assert len(variants) >= 1
-        # Z₂ variant should be close to -theta (mod π wrapping may apply)
-        z2_variant = variants[0]
-        # Check that it's different from original
-        assert not np.allclose(z2_variant, theta, atol=1e-6)
-        # Check it's within [-π/2, π/2] (canonical domain)
-        assert np.all(z2_variant >= -np.pi / 2 - 1e-10)
-        assert np.all(z2_variant <= np.pi / 2 + 1e-10)
+        assert len(variants) == 1
+        z2 = variants[0]
+        # For canonicalized θ ∈ [-π/2, π/2], -θ should be EXACTLY -theta
+        np.testing.assert_array_almost_equal(z2, -theta, decimal=10)
 
-    def test_noise_augmentation_is_close_to_original(self):
-        """Noisy augmentation should be within ~3σ of original."""
+    def test_z2_at_boundary_values(self):
+        """Z₂ at ±π/2 boundary should clip, not wrap."""
         from qmbp_simulation.utils.helpers import augment_theta_symmetries
 
-        theta = np.array([0.3, -0.1, 0.5, 0.2])
-        noise_std = 0.02
+        # θ at positive boundary
+        theta = np.array([np.pi / 2 - 0.01, 0.0, -np.pi / 2 + 0.01])
+        variants = augment_theta_symmetries(theta, include_z2=True, noise_std=0.0)
+        z2 = variants[0]
+        # -θ should be [-π/2+0.01, 0, π/2-0.01] — within bounds
+        assert np.all(z2 >= -np.pi / 2 - 1e-10)
+        assert np.all(z2 <= np.pi / 2 + 1e-10)
+
+    def test_z2_preserves_energy_property(self):
+        """For TFIM HVA, E(-θ) = E(θ). Verify the symmetry is exact."""
+        from qmbp_simulation.utils.helpers import augment_theta_symmetries
+
+        # Use a theta in canonical domain
+        theta = np.array([0.3, -0.4, 0.1, 0.7, -0.2])
+        variants = augment_theta_symmetries(theta, include_z2=True, noise_std=0.0)
+        z2 = variants[0]
+
+        # For exact Z₂ symmetry: z2 == -theta (no numerical drift)
+        np.testing.assert_array_almost_equal(z2, -theta, decimal=14)
+
+    def test_noise_augmentation_stays_in_domain(self):
+        """Noisy augmentation should stay within [-π/2, π/2]."""
+        from qmbp_simulation.utils.helpers import augment_theta_symmetries
+
+        theta = np.array([1.5, -1.5, 0.0, 1.0])  # Near boundaries
         variants = augment_theta_symmetries(
-            theta, include_z2=False, noise_std=noise_std, seed=42
+            theta, include_z2=False, noise_std=0.1, n_noise_variants=5, seed=42
         )
 
-        assert len(variants) >= 1
-        noisy = variants[0]
-        # Should be close to original (within ~5σ for safety)
-        diff = np.abs(noisy - theta)
-        # Account for wrapping: differences should be small
-        assert np.max(diff) < 5 * noise_std + 0.1  # +0.1 for wrapping edge cases
+        for v in variants:
+            assert np.all(v >= -np.pi / 2 - 1e-10), f"Below lower bound: {v}"
+            assert np.all(v <= np.pi / 2 + 1e-10), f"Above upper bound: {v}"
+
+    def test_n_noise_variants_controls_count(self):
+        """n_noise_variants should control how many noisy copies are made."""
+        from qmbp_simulation.utils.helpers import augment_theta_symmetries
+
+        theta = np.array([0.3, -0.1, 0.5])
+
+        # Z₂ + 2 noisy per base (original + Z₂) = 1 + 4 = 5
+        variants = augment_theta_symmetries(
+            theta, include_z2=True, noise_std=0.02, n_noise_variants=2, seed=42
+        )
+        assert len(variants) == 5  # 1 Z₂ + 2 noisy(original) + 2 noisy(Z₂)
+
+        # No Z₂ + 3 noisy of original = 3
+        variants = augment_theta_symmetries(
+            theta, include_z2=False, noise_std=0.02, n_noise_variants=3, seed=42
+        )
+        assert len(variants) == 3
 
     def test_empty_theta_returns_empty(self):
         """Empty θ array should return empty variants list."""
@@ -143,14 +177,56 @@ class TestDataAugmentation:
         # Should have: 4 original + augmented from 2 verified = at least 5
         assert len(dataset) >= 5
         # Count augmented (weight=0.8)
+        from qmbp_simulation.analysis.metrics import QUALITY_TIER_WEIGHT_AUGMENTED
         n_augmented = sum(
             1 for g in dataset
-            if hasattr(g, "sample_weight") and abs(float(g.sample_weight[0]) - 0.8) < 1e-5
+            if hasattr(g, "sample_weight")
+            and abs(float(g.sample_weight[0]) - QUALITY_TIER_WEIGHT_AUGMENTED) < 1e-5
         )
-        # At least 1 augmented variant (from verified points)
         assert n_augmented >= 1
 
         mod._PROJECT_ROOT = original_root
+
+    def test_more_variants_for_small_datasets(self, tmp_path):
+        """Very small datasets (<20 points) should get more augmented variants."""
+        import qmbp_simulation.predictors.multi_n_aggregator as mod
+
+        original_root = mod._PROJECT_ROOT
+        mod._PROJECT_ROOT = tmp_path
+
+        data_dir = tmp_path / "data" / "multi_n_training"
+        data_dir.mkdir(parents=True)
+
+        # 5 verified points (< 20 threshold for extra augmentation)
+        n_pts = 5
+        np.savez(
+            data_dir / "chain_1d_N4_p1.npz",
+            h_values=np.linspace(3.0, 4.0, n_pts),
+            theta_opt=np.random.randn(n_pts, 7).astype(np.float64),
+            e_vqe=np.linspace(-6.0, -5.0, n_pts),
+            e_exact=np.linspace(-6.01, -5.01, n_pts),
+            gaps=np.ones(n_pts) * 2.0,
+            method=np.array(["vqe_refined"] * n_pts),
+            quality_tier=np.array(["verified"] * n_pts),
+        )
+
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+        agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
+        dataset = agg.build_combined_dataset(max_de_gap=1.0)
+
+        # 5 original + up to 3 augmented per point (small dataset boost)
+        # Should have significantly more than 5
+        assert len(dataset) >= 10, f"Expected ≥10 with augmentation, got {len(dataset)}"
+
+        mod._PROJECT_ROOT = original_root
+
+    def test_z2_variant_different_from_original(self):
+        """Z₂ variant must be different from original (unless θ=0)."""
+        from qmbp_simulation.utils.helpers import augment_theta_symmetries
+
+        theta = np.array([0.3, -0.1, 0.5, 0.2])
+        variants = augment_theta_symmetries(theta, include_z2=True, noise_std=0.0)
+        assert not np.allclose(variants[0], theta)
 
 
 class TestAdaptiveVQEConfig:

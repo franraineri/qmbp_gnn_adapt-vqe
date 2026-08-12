@@ -279,6 +279,15 @@ class ValidationRunner(ABC):
 
         self.artifacts = ArtifactCollector()
 
+        # Global seed from environment (for multi-seed experiments)
+        import os
+        env_seed = os.environ.get("QMBP_GLOBAL_SEED")
+        if env_seed is not None:
+            from qmbp_simulation.utils import set_global_seed
+            seed_val = int(env_seed)
+            set_global_seed(seed_val)
+            logger.info(f"  Global seed set from QMBP_GLOBAL_SEED={seed_val}")
+
     # ── Abstract interface ───────────────────────────────────────────────────
 
     @abstractmethod
@@ -1922,6 +1931,58 @@ class ValidationRunner(ABC):
             "estimated_total_worst_s": t_total_worst,
             "max_iterations": max_iterations,
         }
+
+    def log_budget_summary(
+        self,
+        budget: dict,
+        *,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+        p_layers: int | None = None,
+        historical_time_s: float = 0.0,
+    ) -> None:
+        """Pretty-print a budget estimation summary.
+
+        Reusable by any runner that calls estimate_compute_budget().
+        Shows GT cache stats, eval cache stats, NPZ data, h_frontier,
+        and time estimates in a formatted box.
+
+        Parameters
+        ----------
+        budget : dict
+            Output from self.estimate_compute_budget().
+        topology, n_qubits, p_layers : optional
+            For display purposes. Auto-detected from self._args if None.
+        historical_time_s : float
+            Historical time estimate (from QualityPredictor or prior runs).
+        """
+        args = self._args
+        _topo = topology or getattr(args, "topology", "?")
+        _n = n_qubits or getattr(args, "n_qubits", None) or getattr(args, "target_n", ["?"])[0]
+        _p_raw = p_layers or getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+
+        logger.info(f"  ┌─ Budget Estimation ────────────────────────")
+        logger.info(f"  │ Config: {_topo} N={_n} p={_p}, {budget['n_points']} h-points")
+        logger.info(f"  │ GT cache: {budget['gt_hits']}/{budget['n_points']} hits "
+                    f"→ {budget['gt_misses']} DMRG needed")
+        logger.info(f"  │ Eval cache: {budget['eval_cache_entries']} entries "
+                    f"(hit_rate={budget['eval_cache_hit_rate']:.0%})")
+        logger.info(f"  │ NPZ training data: {budget['npz_existing_points']} existing points")
+        if budget.get("h_frontier"):
+            logger.info(f"  │ Empirical h_frontier: {budget['h_frontier']:.3f}")
+        logger.info(f"  │ ")
+        logger.info(f"  │ Estimated costs:")
+        logger.info(f"  │   Ground truth: {budget['estimated_gt_s']:.0f}s")
+        logger.info(f"  │   Evaluation (per iter): {budget['estimated_eval_s_per_iter']:.0f}s")
+        logger.info(f"  │   Refinement (worst case): {budget['estimated_refine_worst_s']:.0f}s")
+        logger.info(f"  │   Max iterations: {budget.get('max_iterations', '?')}")
+        logger.info(f"  │ ")
+        logger.info(f"  │ Total worst-case: {budget['estimated_total_worst_s']:.0f}s "
+                    f"({budget['estimated_total_worst_s']/60:.1f} min)")
+        if historical_time_s > 0:
+            logger.info(f"  │ Historical estimate: {historical_time_s:.0f}s")
+        logger.info(f"  └──────────────────────────────────────────────")
 
     def setup_physics(self) -> None:
         """Initialize standard physics objects used by most runners.
@@ -3746,6 +3807,7 @@ class ValidationRunner(ABC):
         # Only use for standard models without custom kwargs (key format mismatch)
         if not model_kwargs:
             try:
+                import numpy as np
                 from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
 
                 disk_cache = getattr(self, "_disk_gt_cache", None)
@@ -3754,9 +3816,21 @@ class ValidationRunner(ABC):
                     self._disk_gt_cache = disk_cache
                 cached = disk_cache.get(topology, n_qubits, model, h)
                 if cached is not None:
-                    result = (float(cached["energy"]), float(cached["gap"]))
-                    self._gt_cache[cache_key] = result
-                    return result
+                    # Invalidate stale floor gaps: if N > 18 and gap ≈ 2π/N,
+                    # this was computed before the analytical gap fix and must
+                    # be recomputed. The analytical estimate is always > 2π/N
+                    # in the paramagnetic regime.
+                    cached_gap = float(cached["gap"])
+                    gap_floor = 2 * np.pi / n_qubits if n_qubits > 0 else 0
+                    is_stale_floor = (
+                        n_qubits > 18
+                        and abs(cached_gap - gap_floor) < 1e-4
+                    )
+                    if not is_stale_floor:
+                        result = (float(cached["energy"]), cached_gap)
+                        self._gt_cache[cache_key] = result
+                        return result
+                    # else: fall through to recompute with analytical gap
             except (ImportError, OSError):
                 pass  # Disk cache unavailable — proceed to compute
 
@@ -3773,6 +3847,16 @@ class ValidationRunner(ABC):
         solver = getattr(self, "solver", None) or ClassicalSolver()
         gt = solver.solve(H, lattice)
         result = (float(gt.ground_energy), float(gt.gap))
+
+        # ── Gap validation: warn if gap ≤ 0 (invalid for ΔE/gap metric) ──
+        if gt.gap <= 0:
+            logger.warning(
+                "exact_ground_state: gap=%.2e ≤ 0 for %s N=%d h=%.4f. "
+                "This makes ΔE/gap undefined. Possible causes: "
+                "DMRG excited state converged to GS, or degenerate ground state.",
+                gt.gap, topology, n_qubits, h,
+            )
+
         self._gt_cache[cache_key] = result
 
         # Persist to disk cache for cross-session reuse.
