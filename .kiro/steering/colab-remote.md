@@ -5,7 +5,7 @@ fileMatchPattern: "scripts/remote/*"
 
 # Google Colab Remote Execution
 
-## Tool: `scripts/remote/colab_runner.py`
+## Tool: `scripts/remote_colab/colab_runner.py`
 
 CLI wrapper around `google-colab-cli` for running qmbp experiments on Colab VMs.
 
@@ -33,22 +33,22 @@ CLI wrapper around `google-colab-cli` for running qmbp experiments on Colab VMs.
 
 ```bash
 # Setup (once per session)
-.venv/bin/python scripts/remote/colab_runner.py setup --gpu T4
+.venv/bin/python scripts/remote_colab/colab_runner.py setup --gpu T4
 
 # Run experiment
-.venv/bin/python scripts/remote/colab_runner.py run <script> [args...] --timeout 7200
+.venv/bin/python scripts/remote_colab/colab_runner.py run <script> [args...] --timeout 7200
 
 # Sync code after git push
-.venv/bin/python scripts/remote/colab_runner.py sync
+.venv/bin/python scripts/remote_colab/colab_runner.py sync
 
 # Download results
-.venv/bin/python scripts/remote/colab_runner.py fetch
+.venv/bin/python scripts/remote_colab/colab_runner.py fetch
 
 # Benchmark Colab vs local
-.venv/bin/python scripts/remote/colab_runner.py bench
+.venv/bin/python scripts/remote_colab/colab_runner.py bench
 
 # Stop (preserves GPU quota)
-.venv/bin/python scripts/remote/colab_runner.py stop
+.venv/bin/python scripts/remote_colab/colab_runner.py stop
 ```
 
 ## Important notes

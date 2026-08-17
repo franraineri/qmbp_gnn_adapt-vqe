@@ -62,26 +62,21 @@ class ResultStore:
     def __init__(self, results_root: Path | None = None) -> None:
         self.root = results_root or _DEFAULT_RESULTS_ROOT
         self.root.mkdir(parents=True, exist_ok=True)
-        self._index: "ResultIndex | None" = None
+        self._index: ResultIndex | None = None
 
     @property
     def index(self):
         """Lazily-initialized ResultIndex sharing the same root directory."""
         if self._index is None:
             from qmbp_simulation.framework.result_index import ResultIndex
+
             self._index = ResultIndex(root=self.root)
         return self._index
 
     # ── Discovery ────────────────────────────────────────────────────────
 
     def list_categories(self) -> dict[str, list[str]]:
-        """List experiment categories and their ID prefixes.
-
-        Returns
-        -------
-        dict[str, list[str]]
-            Category name → list of experiment ID prefixes.
-        """
+        """List experiment categories and their ID prefixes."""
         return dict(CATEGORY_MAP)
 
     def resolve_category(
@@ -256,7 +251,6 @@ class ResultStore:
             if not exp_dir.exists():
                 continue
             for f, data in load_results_from_dir(exp_dir, recursive=True):
-
                 config = data.get("config", {})
                 system = config.get("system", {})
                 topology = system.get("topology", "")

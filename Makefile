@@ -14,7 +14,8 @@ VENV := source .venv/bin/activate
 
 .PHONY: help lint format test smoke-test benchmark check check-full \
         hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
-        clean typecheck coverage health figures
+        clean typecheck coverage health figures \
+        maintain maintain-full maintain-fix maintain-ci dead-code lint-docs
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -116,14 +117,35 @@ check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) +
 	@echo "✅ Complete validation passed (including slow tests)"
 
 
+# ── Maintenance Checks ───────────────────────────────────────
+
+maintain:  ## Run all maintenance checks (phantom imports, dead code, docstrings, etc.)
+	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --skip steerings
+
+maintain-full:  ## Run ALL maintenance checks including steerings (slower)
+	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py
+
+maintain-fix:  ## Run maintenance with auto-fix (clean caches, fix steerings)
+	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --fix
+
+maintain-ci:  ## CI mode: JSON output, strict exit code
+	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --ci
+
+dead-code:  ## Detect dead code with vulture
+	@.venv/bin/vulture src/qmbp_simulation vulture_whitelist.py --min-confidence 80 --exclude "_deprecated,.venv" || true
+
+lint-docs:  ## Check docstring/signature consistency with pydoclint
+	@.venv/bin/pydoclint --style=numpy --check-return-types=false --allow-init-docstring=true --skip-checking-short-docstrings=true --quiet src/qmbp_simulation
+
+
 # ── Cleaning ─────────────────────────────────────────────────
 
 clean:  ## Remove caches, temp files, empty dirs (dry-run: make clean-check)
-	@.venv/bin/python scripts/maintenance/cleanup_repo.py --execute
+	@.venv/bin/python scripts/general_project_maintenance/cleanup_repo.py --execute
 	@echo "✅ Repository cleaned"
 
 clean-check:  ## Show what would be cleaned (dry-run)
-	@.venv/bin/python scripts/maintenance/cleanup_repo.py --verbose
+	@.venv/bin/python scripts/general_project_maintenance/cleanup_repo.py --verbose
 
 # ── Type checking ────────────────────────────────────────────
 

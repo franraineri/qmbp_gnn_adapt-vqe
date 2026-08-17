@@ -30,8 +30,8 @@ Need to...
 ├── Diagnose by group (quick)?     → python -m project_health --diagnose [--model X]
 ├── Detect regressions?            → python project_health/cli/query_index.py --regressions
 ├── Temporal drift (date-correlated)?→ python project_health/cli/query_index.py --temporal-drift
-├── Compare experiments?            → project_health/compare.py [--all] [--category X]
-├── Compare ZNE methods?            → project_health/compare.py --zne
+├── Compare experiments?            → project_health/cli/compare.py [--all] [--category X]
+├── Compare ZNE methods?            → project_health/cli/compare.py --zne
 ├── Validate runner script?         → python src/qmbp_simulation/framework/preflight.py --from-script <path>
 ├── Validate a thesis claim?        → python -m project_health.analysis.verify_claims
 ├── Verify pipeline correctness?    → python -m project_health.analysis.verify_results
@@ -51,18 +51,18 @@ Need to...
 ├── Analyze Mitiq comparisons?     → python -m project_health.analysis.mitiq_analyzer
 ├── Analyze mitigation benchmark?  → python -m project_health.analysis.mitigation_benchmark_analyzer
 ├── Analyze noiseless pipeline?   → python -m project_health.analysis.noiseless_pipeline_analyzer
-├── Validate hw run post-execution?→ .venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py --validate <run_dir>
+├── Validate hw run post-execution?→ .venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --validate <run_dir>
 ├── Quick post-exec check (1 file)?→ python -m project_health.analysis.hardware.post_execution_validator <path>
 ├── Batch validate all hw results? → python -m project_health.analysis.hardware.post_execution_validator results/hardware/ --batch
-├── Check pipeline correction bugs?→ .venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py
+├── Check pipeline correction bugs?→ .venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py
 ├── Ready for IBM hardware?         → .venv/bin/python scripts/hardware/preflight_hw.py
-├── Audit code-path consistency?  → .venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py --audit
+├── Audit code-path consistency?  → .venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --audit
 ├── Run full flow→deployment?       → make hw-flow-full
 │
 │ ─── NEW METRICS & DIAGNOSTICS (2026-07-13) ──────
 ├── Inspect simulation backend used? → check simulation_diagnostics in JSON (auto-present)
 ├── Filter runs by backend type?    → python project_health/cli/query_index.py --backend mps
-├── Variational violations summary? → python scripts/maintenance/scan_new_runs.py --verbose (shows ⚠️viol=N)
+├── Variational violations summary? → python _deprecated/_deprecated/scripts/maintenance/scan_new_runs.py --verbose (shows ⚠️viol=N)
 ├── Per-point violation detail?     → python project_health/cli/inspect_noiseless_run.py --latest <dir> --vqe-detail
 ├── Chi-convergence (scaling 2D)?   → run_scaling_validation.py --verify-chi (MANDATORY for 2D N>16)
 ├── Verify thesis run integrity?    → python scripts/verify_thesis_runs.py (12 checks + chi + violations)
@@ -154,19 +154,19 @@ python analysis/diagnose.py results/experiments/exp_B4/  # Specific folder
 python analysis/diagnose.py --severity fail           # Only failures
 ```
 
-### 5. Experiment Comparison (`project_health/compare.py`)
+### 5. Experiment Comparison (`project_health/cli/compare.py`)
 
 ```bash
-python project_health/compare.py --all                       # All experiments
-python project_health/compare.py --category optimization     # By category
-python project_health/compare.py --noisy                     # ZNE experiments
+python project_health/cli/compare.py --all                       # All experiments
+python project_health/cli/compare.py --category optimization     # By category
+python project_health/cli/compare.py --noisy                     # ZNE experiments
 ```
 
-### 6. ZNE Method Comparison (`project_health/compare.py`)
+### 6. ZNE Method Comparison (`project_health/cli/compare.py`)
 
 ```bash
-python project_health/compare.py --zne                # Full comparison
-python project_health/compare.py --zne --json out.json  # Machine-readable
+python project_health/cli/compare.py --zne                # Full comparison
+python project_health/cli/compare.py --zne --json out.json  # Machine-readable
 ```
 
 ### 7. Sanity Check
@@ -262,7 +262,7 @@ make thesis-all   # validate + tables + figures
 python -m project_health.analysis.flow_warmstart_analyzer [--verbose] [--json out.json]
 ```
 
-### 19. Pipeline Correction Verifier & Post-Execution Validator (`_deprecated/scripts/standalone/verify_affine_bug.py`)
+### 19. Pipeline Correction Verifier & Post-Execution Validator (`_deprecated/_deprecated/scripts/standalone/verify_affine_bug.py`)
 
 Unified script for verifying the energy correction pipeline (affine clipping, ZNE extrapolation, bounds consistency) and validating individual hardware run results post-execution.
 
@@ -270,14 +270,14 @@ Unified script for verifying the energy correction pipeline (affine clipping, ZN
 
 ```bash
 # Mode 1: Quick invariant check (Parts 1-4, ~instant, for CI/hooks)
-.venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py --quick
+.venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --quick
 
 # Mode 2: Full pipeline verification (Parts 1-9, ~2s, after code changes)
-.venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py
+.venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py
 
 # Mode 3: Post-execution validation of a specific run (after every QPU execution)
-.venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py --validate results/hardware/run_XXXXXXXX_XXXXXX
-.venv/bin/python _deprecated/scripts/standalone/verify_affine_bug.py --validate results/mitigation_benchmark/...
+.venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --validate results/hardware/run_XXXXXXXX_XXXXXX
+.venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --validate results/mitigation_benchmark/...
 ```
 
 **Parts covered:**

@@ -137,10 +137,22 @@ def step_3_training_readiness(dashboard: dict, tier_breakdown: dict) -> dict:
 
 
 def step_4_scaling_report(dashboard: dict, tier_breakdown: dict) -> dict:
-    """Generate unified scaling report."""
+    """Generate unified scaling report.
+
+    Delegates to generate_scaling_report.format_report_text for consistent output.
+    """
     print("\n" + "=" * 60)
     print("STEP 4: Scaling Report Generation")
     print("=" * 60)
+
+    import sys
+    from pathlib import Path as _Path
+
+    _maint_dir = str(_Path(__file__).resolve().parent)
+    if _maint_dir not in sys.path:
+        sys.path.insert(0, _maint_dir)
+
+    from generate_scaling_report import format_report_text
 
     from qmbp_simulation.analysis.metrics import generate_unified_scaling_report
 
@@ -164,6 +176,10 @@ def step_4_scaling_report(dashboard: dict, tier_breakdown: dict) -> dict:
         json.dump(report, f, indent=2)
     print(f"\n  Saved to: {output_path.relative_to(ROOT)}")
 
+    # Also save text version
+    text_path = DATA / "unified_scaling_report.txt"
+    text_path.write_text(format_report_text(report))
+
     return report
 
 
@@ -173,10 +189,17 @@ def step_5_update_coverage_doc() -> None:
     print("STEP 5: Updating Cross-N Coverage Document")
     print("=" * 60)
 
-    from scripts.maintenance.update_cross_n_coverage import main as _update_main
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "update_cross_n_coverage",
+        ROOT / "scripts" / "maintenance" / "update_cross_n_coverage.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
 
     try:
-        rc = _update_main()
+        rc = mod.main()
         if rc == 0:
             print("  ✅ Coverage document updated successfully")
         else:

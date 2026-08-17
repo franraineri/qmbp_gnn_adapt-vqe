@@ -285,29 +285,9 @@ def validate_descending_sweep(
 ) -> np.ndarray:
     """Validate and normalize h-values to descending order.
 
+
     If h_values is None, generates a default linspace.
     If provided, sorts into descending order.
-
-    Parameters
-    ----------
-    h_values : list[float] | None
-        User-provided h-values, or None for default.
-    default_start : float
-        Start of default linspace (highest h).
-    default_end : float
-        End of default linspace (lowest h).
-    default_n : int
-        Number of points in default linspace.
-
-    Returns
-    -------
-    np.ndarray
-        h-values in descending order.
-
-    Raises
-    ------
-    ValueError
-        If h_values is empty after filtering.
     """
     if h_values is None:
         return np.linspace(default_start, default_end, default_n)
@@ -397,18 +377,7 @@ def build_mpnn_config_dict(args: argparse.Namespace) -> dict:
 
 
 def resolve_output_dir(path: str | Path) -> Path:
-    """Resolve and create output directory.
-
-    Parameters
-    ----------
-    path : str | Path
-        Output directory path.
-
-    Returns
-    -------
-    Path
-        Resolved Path object (directory is created if needed).
-    """
+    """Resolve and create output directory."""
     output_dir = Path(path)
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir

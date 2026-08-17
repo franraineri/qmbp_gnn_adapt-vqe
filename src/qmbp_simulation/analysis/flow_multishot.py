@@ -144,7 +144,6 @@ class FlowMultiShotPredictor:
         # Fallback: if flow is not trained, use deterministic MPNN (K=1)
         if not self.flow_manager.is_trained and self.fallback_to_mpnn:
             logger.info("FlowMultiShot: flow not trained, falling back to MPNN (K=1)")
-            from qmbp_simulation.analysis.flow_warmstart import _extract_embedding
             # Get MPNN prediction directly (no sampling)
             encoder = self.flow_manager._encoder
             if encoder is None:
@@ -199,7 +198,10 @@ class FlowMultiShotPredictor:
 
         logger.debug(
             "FlowMultiShot: K=%d, best_E=%.6f, spread=%.4f, σ_flow=%.4f",
-            len(energies), best_energy, energy_spread, sigma_flow,
+            len(energies),
+            best_energy,
+            energy_spread,
+            sigma_flow,
         )
 
         return MultiShotResult(
@@ -211,7 +213,6 @@ class FlowMultiShotPredictor:
             K=len(energies),
             energy_spread=energy_spread,
         )
-
 
     def predict_sweep(
         self,
@@ -256,25 +257,8 @@ class FlowMultiShotPredictor:
         mpnn_path: str,
         K: int = 5,
         n_oversample: int | None = None,
-    ) -> "FlowMultiShotPredictor":
-        """Create predictor from saved checkpoints.
-
-        Parameters
-        ----------
-        flow_path : str
-            Path to saved FlowWarmstartManager (.pt file).
-        mpnn_path : str
-            Path to saved MPNNPredictor checkpoint.
-        K : int
-            Number of candidates per point.
-        n_oversample : int | None
-            Oversampling factor for pre-filtering.
-
-        Returns
-        -------
-        FlowMultiShotPredictor
-            Ready-to-use predictor.
-        """
+    ) -> FlowMultiShotPredictor:
+        """Create predictor from saved checkpoints."""
         from qmbp_simulation.predictors import load_mpnn_checkpoint
 
         mpnn = load_mpnn_checkpoint(mpnn_path)

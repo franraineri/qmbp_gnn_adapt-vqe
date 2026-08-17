@@ -865,27 +865,7 @@ class ScalingExtensionsRunner(ValidationRunner):
 def analytical_theta_x(
     h: float, J: float = 1.0, coordination: np.ndarray | None = None
 ) -> np.ndarray:
-    """Leading-order perturbation theory for per-site RX rotation angles.
-
-    For TFIM at h >> J (deep paramagnetic, perturbative regime):
-        θ_x_i ≈ arctan(J · z_i / (2h))
-
-    where z_i is the coordination number of site i.
-
-    Parameters
-    ----------
-    h : float
-        Transverse field strength.
-    J : float
-        Nearest-neighbor coupling (default 1.0).
-    coordination : np.ndarray | None
-        Per-site coordination numbers. If None, assumes uniform z=2 (bulk chain).
-
-    Returns
-    -------
-    np.ndarray
-        Per-site θ_x values (N elements).
-    """
+    """Leading-order perturbation theory for per-site RX rotation angles."""
     if coordination is None:
         raise ValueError("coordination array is required")
     return np.arctan(J * coordination / (2.0 * h))

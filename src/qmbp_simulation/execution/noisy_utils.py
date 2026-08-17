@@ -1424,24 +1424,7 @@ def _filter_rates_to_circuit(
     learned_rates: dict[tuple[int, ...], float],
     circuit_qubits: set[int],
 ) -> dict[tuple[int, ...], float]:
-    """Filter noise rates to only pairs relevant to the circuit.
-
-    A pair is relevant if at least one qubit in the pair is used by the
-    circuit. Noise on pairs where NEITHER qubit participates in any gate
-    cannot affect the circuit's measurement outcomes.
-
-    Parameters
-    ----------
-    learned_rates : dict[tuple[int, ...], float]
-        All gate error pairs from _learn_noise_rates().
-    circuit_qubits : set[int]
-        Physical qubits used by the transpiled circuit.
-
-    Returns
-    -------
-    dict[tuple[int, ...], float]
-        Filtered subset of learned_rates.
-    """
+    """Filter noise rates to only pairs relevant to the circuit."""
     return {
         pair: rate
         for pair, rate in learned_rates.items()

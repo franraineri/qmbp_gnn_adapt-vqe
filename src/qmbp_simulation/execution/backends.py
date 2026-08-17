@@ -437,6 +437,7 @@ class NoisyBackend(ExecutionBackend):
         if not hasattr(self, "_aer_backend") or self._aer_backend is None:
             self._aer_backend = AerSimulator(noise_model=self._noise_model)
             from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
             self._aer_pm = generate_preset_pass_manager(
                 backend=self._aer_backend, optimization_level=1
             )
@@ -496,12 +497,7 @@ class HardwareBackend(ExecutionBackend):
         hamiltonian: SparsePauliOp,
         params: np.ndarray,
     ) -> float:
-        """Return NaN — energy variance cannot be computed from hardware QPU.
-
-        On real hardware, we cannot extract the statevector and computing
-        ⟨H²⟩ would require a separate circuit execution with prohibitive
-        shot budget. This metric is only meaningful for classical simulation.
-        """
+        """Return NaN — energy variance cannot be computed from hardware QPU."""
         return float("nan")
 
     def get_statevector(
@@ -583,8 +579,7 @@ class FakeBackend(ExecutionBackend):
 
         if self._provider_name not in self._PROVIDERS:
             raise ValueError(
-                f"Unknown fake provider '{provider}'. "
-                f"Available: {list(self._PROVIDERS.keys())}"
+                f"Unknown fake provider '{provider}'. Available: {list(self._PROVIDERS.keys())}"
             )
 
         # Lazy initialization — only import when first evaluate() is called
@@ -633,8 +628,7 @@ class FakeBackend(ExecutionBackend):
         """
         if len(params) != circuit.num_parameters:
             raise ValueError(
-                f"Parameter count mismatch: got {len(params)}, "
-                f"expected {circuit.num_parameters}."
+                f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
             )
 
         self._ensure_backend()
@@ -658,8 +652,7 @@ class FakeBackend(ExecutionBackend):
 
         if not np.isfinite(energy):
             logger.warning(
-                "FakeBackend: non-finite energy at %s. "
-                "Circuit may be too deep for noise level.",
+                "FakeBackend: non-finite energy at %s. Circuit may be too deep for noise level.",
                 self._provider_name,
             )
             return float("inf")

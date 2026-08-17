@@ -1,0 +1,127 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Maintenance Tools Configuration
+# ═══════════════════════════════════════════════════════════════════════════════
+# This file configures the scripts in scripts/general_project_maintenance/
+# Edit sections below to customize behavior without modifying source code.
+#
+# To use: these are loaded automatically by core/config.py
+# Fallback: if this file is missing/corrupt, built-in defaults are used.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─── Cleanup (cleanup_repo.py) ───────────────────────────────────────────────
+
+[cleanup]
+dirs_to_remove = [
+    ".hypothesis",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    "htmlcov",
+    "tmp",
+    "dist",
+    "build",
+]
+
+cache_dir_patterns = [
+    "__pycache__",
+    "*.egg-info",
+]
+
+files_to_remove = [
+    "temporal.txt",
+    "test_output.log",
+    ".coverage",
+    ".project_health_state.json",
+]
+
+junk_file_patterns = [
+    ".DS_Store",
+    "*.pyc",
+    "*.pyo",
+    "checkpoint_*",
+]
+
+check_empty_dirs = [
+    "figures",
+    "reports",
+    "thesis_plots",
+]
+
+protected_dirs = [
+    ".git",
+    ".venv",
+    "node_modules",
+    "_versions",
+    "_best",
+]
+
+
+# ─── Module Index Scanner (generate_module_index.py) ─────────────────────────
+
+[scan]
+# Each entry: [relative_dir, category_tag]
+scan_dirs = [
+    ["src/qmbp_simulation", "LIB"],
+    ["scripts/analysis", "SCRIPT"],
+    ["scripts/benchmarks", "SCRIPT"],
+    ["scripts/experiment_runners", "RUNNER"],
+    ["scripts/hardware", "SCRIPT"],
+    ["scripts/maintenance", "MAINT"],
+    ["scripts/validation", "SCRIPT"],
+    ["project_health", "HEALTH"],
+    ["experiments", "EXP"],
+    ["notebooks", "NB"],
+]
+
+skip_dirs = ["__pycache__", ".venv", "_deprecated", ".git", "node_modules", ".hypothesis"]
+skip_files = ["__init__.py", "__pycache__", "conftest.py"]
+max_depth = 3
+target_prefix = "qmbp_simulation"
+
+
+# ─── Phantom Import Checker (check_phantom_functions.py) ─────────────────────
+
+[phantom]
+default_modules = [
+    "qmbp_simulation.analysis.metrics",
+]
+
+skip_dirs = ["__pycache__", ".venv", "_deprecated", ".git", "node_modules", ".hypothesis"]
+
+
+# ─── Docstring Trimmer (trim_overdocumented.py) ──────────────────────────────
+
+[trim]
+min_ratio = 3.0
+
+sections_to_remove = [
+    "Parameters", "Params", "Args", "Arguments",
+    "Returns", "Return",
+    "Raises",
+    "Yields", "Yield",
+    "Attributes", "Attrs",
+    "Notes", "Note",
+    "References",
+    "See Also",
+    "Warnings", "Warning",
+    "Todo", "TODO",
+]
+
+sections_to_preserve = [
+    "Example", "Examples", "Usage",
+]
+
+skip_dirs = [
+    "__pycache__", ".venv", "_deprecated", ".git",
+    "node_modules", ".hypothesis", "tests",
+]
+
+
+# ─── Steering Verifier (verify_steerings.py) ─────────────────────────────────
+
+[verify]
+stale_days = 60
+chars_per_token = 4
+always_token_budget = 12000
+per_file_token_warn = 4000
+steering_extensions = ["*.md", "*.txt"]

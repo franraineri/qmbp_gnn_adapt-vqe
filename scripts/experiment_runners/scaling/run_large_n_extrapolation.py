@@ -51,15 +51,15 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from qmbp_simulation.framework.result_io import upsert_theta_npz
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
     resolve_project_root,
 )
-from qmbp_simulation.framework.result_io import upsert_theta_npz
 
 if TYPE_CHECKING:
-    from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN
+    pass
 
 _ROOT = resolve_project_root(__file__)
 if str(_ROOT) not in sys.path:
@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 # Constants (configurable defaults)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-DEFAULT_TARGET_N = [30, 40, 60, 100]
+DEFAULT_TARGET_N = [20, 30, 40, 60, 80]
 DEFAULT_TOPOLOGY = "chain_1d"
 DEFAULT_MODEL = "tfim_bond_resolved"
 DEFAULT_P = 1
@@ -90,9 +90,7 @@ EXTRAPOLATION_DATA_DIR = Path("data/large_n_extrapolation")
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def load_extrapolation_npz(
-    topology: str, n_qubits: int, p_layers: int
-) -> dict[float, dict] | None:
+def load_extrapolation_npz(topology: str, n_qubits: int, p_layers: int) -> dict[float, dict] | None:
     """Load existing extrapolation data from NPZ cache.
 
     Returns dict mapping h → {theta, e_pred, e_exact, gap, de_gap, method}.
@@ -107,10 +105,10 @@ def load_extrapolation_npz(
         result = {}
         e_key = "e_pred" if "e_pred" in data else ("e_vqe" if "e_vqe" in data else None)
         theta_arr = data["theta_opt"]
-        
+
         for i, h in enumerate(data["h_values"]):
             h_key = round(float(h), 6)
-            
+
             # Handle object array (variable-length theta) vs 2D numeric array
             theta_raw = theta_arr[i]
             if theta_raw is None:
@@ -127,7 +125,7 @@ def load_extrapolation_npz(
                     continue
             except (ValueError, TypeError):
                 continue
-                
+
             result[h_key] = {
                 "theta": theta_i,
                 "e_pred": float(data[e_key][i]) if e_key else None,
@@ -151,7 +149,18 @@ def compute_extrapolation_summary(per_h_results: list[dict]) -> dict:
     from qmbp_simulation.analysis.metrics import compute_deploy_summary
 
     if not per_h_results:
-        return {"n_points": 0, "pass_rate_5pct": 0, "pass_rate_dual": 0}
+        return {
+            "n_points": 0,
+            "pass_rate_5pct": 0.0,
+            "pass_rate_dual": 0.0,
+            "mean_de_gap": 0.0,
+            "std_de_gap": 0.0,
+            "p90_de_gap": 0.0,
+            "max_de_gap": 0.0,
+            "quality_score": 0.0,
+            "grade": "F",
+            "mean_abs_error_per_site": None,
+        }
 
     return compute_deploy_summary(per_h_results)
 
@@ -186,90 +195,125 @@ class LargeNExtrapolationRunner(ValidationRunner):
     def _add_custom_args(cls, parser):
         # Target system sizes
         parser.add_argument(
-            "--target-n", type=int, nargs="+", default=DEFAULT_TARGET_N,
+            "--target-n",
+            type=int,
+            nargs="+",
+            default=DEFAULT_TARGET_N,
             help="Target system size(s) to test (default: %(default)s)",
         )
         # Physics config (reuse naming conventions from accelerated_cross_n)
         parser.add_argument(
-            "--topology", type=str, default=DEFAULT_TOPOLOGY,
+            "--topology",
+            type=str,
+            default=DEFAULT_TOPOLOGY,
             help="Lattice topology (default: %(default)s)",
         )
         parser.add_argument(
-            "--model-name", type=str, default=DEFAULT_MODEL,
+            "--model-name",
+            type=str,
+            default=DEFAULT_MODEL,
             help="Physics model name (default: %(default)s)",
         )
         parser.add_argument(
-            "--p-layers", type=int, default=DEFAULT_P,
+            "--p-layers",
+            type=int,
+            default=DEFAULT_P,
             help="HVA layer depth (default: %(default)s)",
         )
         # H-grid
         parser.add_argument(
-            "--h-min", type=float, default=DEFAULT_H_MIN,
+            "--h-min",
+            type=float,
+            default=DEFAULT_H_MIN,
             help="Minimum h for sweep (default: %(default)s)",
         )
         parser.add_argument(
-            "--h-max", type=float, default=DEFAULT_H_MAX,
+            "--h-max",
+            type=float,
+            default=DEFAULT_H_MAX,
             help="Maximum h for sweep (default: %(default)s)",
         )
         parser.add_argument(
-            "--h-points", type=int, default=DEFAULT_H_POINTS,
+            "--h-points",
+            type=int,
+            default=DEFAULT_H_POINTS,
             help="Number of h-grid points (default: %(default)s)",
         )
         # VQE baseline config
         parser.add_argument(
-            "--skip-random-baseline", action="store_true", default=False,
+            "--skip-random-baseline",
+            action="store_true",
+            default=False,
             help="Skip random-init VQE baseline (faster, MPNN-only)",
         )
         parser.add_argument(
-            "--vqe-maxiter", type=int, default=DEFAULT_VQE_MAXITER,
+            "--vqe-maxiter",
+            type=int,
+            default=DEFAULT_VQE_MAXITER,
             help="VQE optimizer max iterations (default: %(default)s)",
         )
         parser.add_argument(
-            "--vqe-restarts", type=int, default=DEFAULT_VQE_RESTARTS,
+            "--vqe-restarts",
+            type=int,
+            default=DEFAULT_VQE_RESTARTS,
             help="VQE random restarts (default: %(default)s)",
         )
         # Refinement option
         parser.add_argument(
-            "--refine-failing", action="store_true", default=False,
+            "--refine-failing",
+            action="store_true",
+            default=False,
             help="Run VQE refinement on MPNN predictions that fail dual criterion",
         )
         parser.add_argument(
-            "--max-refine", type=int, default=3,
+            "--max-refine",
+            type=int,
+            default=3,
             help="Max points to refine per N (default: 3)",
         )
         # Model selection
         parser.add_argument(
-            "--checkpoint", type=str, default=None,
+            "--checkpoint",
+            type=str,
+            default=None,
             help="Explicit model checkpoint path (overrides zoo search)",
         )
         # Cache control
         parser.add_argument(
-            "--no-eval-cache", action="store_true", default=False,
+            "--no-eval-cache",
+            action="store_true",
+            default=False,
             help="Disable evaluation caching",
         )
         parser.add_argument(
-            "--force-recompute", action="store_true", default=False,
+            "--force-recompute",
+            action="store_true",
+            default=False,
             help="Ignore existing NPZ cache and recompute all predictions",
         )
 
     def build_config(self) -> dict:
         """Build config dict reusing base class helper."""
         config = self._build_physics_config()
-        config.update({
-            "model": self._args.model_name,
-            "skip_random_baseline": self._args.skip_random_baseline,
-            "refine_failing": self._args.refine_failing,
-            "vqe_maxiter": self._args.vqe_maxiter,
-            "vqe_restarts": self._args.vqe_restarts,
-        })
+        config.update(
+            {
+                "model": self._args.model_name,
+                "skip_random_baseline": self._args.skip_random_baseline,
+                "refine_failing": self._args.refine_failing,
+                "vqe_maxiter": self._args.vqe_maxiter,
+                "vqe_restarts": self._args.vqe_restarts,
+            }
+        )
         return config
 
     def setup(self):
         """Initialize physics objects and h-grid."""
         self.setup_physics()
-        self._h_values = np.linspace(
-            self._args.h_min, self._args.h_max, self._args.h_points
-        )
+        # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+        self._h_values = [
+            round(h, 2)
+            for h in np.linspace(self._args.h_min, self._args.h_max, self._args.h_points)
+        ]
         # Ensure extrapolation data directory exists
         EXTRAPOLATION_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -297,11 +341,12 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 compute_extrapolation_viability,
                 generate_model_quality_dashboard,
             )
+
             dashboard = generate_model_quality_dashboard()
             topo_summary = dashboard.get("topology_summary", {})
             topo_info = topo_summary.get(self._args.topology, {})
             n_max_viable = topo_info.get("n_max_viable")
-            
+
             if n_max_viable is not None:
                 for target_n in self._args.target_n:
                     viable, reason, _ = compute_extrapolation_viability(
@@ -332,20 +377,23 @@ class LargeNExtrapolationRunner(ValidationRunner):
             ),
         ]
         if not self._args.skip_random_baseline:
-            sections.append(Section(
-                id=3,
-                name="Random VQE Baseline",
-                fn=self.section_random_baseline,
-                hypothesis="Random-init VQE with limited budget is worse than MPNN",
-            ))
-        sections.append(Section(
-            id=4 if not self._args.skip_random_baseline else 3,
-            name="Summary",
-            fn=self.section_summary,
-            hypothesis="MPNN demonstrates extensive scaling with N",
-        ))
+            sections.append(
+                Section(
+                    id=3,
+                    name="Random VQE Baseline",
+                    fn=self.section_random_baseline,
+                    hypothesis="Random-init VQE with limited budget is worse than MPNN",
+                )
+            )
+        sections.append(
+            Section(
+                id=4 if not self._args.skip_random_baseline else 3,
+                name="Summary",
+                fn=self.section_summary,
+                hypothesis="MPNN demonstrates extensive scaling with N",
+            )
+        )
         return sections
-
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 1: Ground Truth (DMRG)
@@ -371,17 +419,21 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 t0 = time.perf_counter()
                 # Uses 2-level cache automatically
                 e_exact, gap = self.exact_ground_state(
-                    self._args.topology, n_target, float(h),
+                    self._args.topology,
+                    n_target,
+                    float(h),
                     model=self._args.model_name,
                 )
                 elapsed = time.perf_counter() - t0
 
-                gt_data[n_target].append({
-                    "h": float(h),
-                    "e_exact": float(e_exact),
-                    "gap": float(gap),
-                    "time_s": elapsed,
-                })
+                gt_data[n_target].append(
+                    {
+                        "h": float(h),
+                        "e_exact": float(e_exact),
+                        "gap": float(gap),
+                        "time_s": elapsed,
+                    }
+                )
 
                 # Track cache vs compute (< 0.1s typically means cache hit)
                 if elapsed < 0.1:
@@ -389,9 +441,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 else:
                     n_computed += 1
 
-            logger.info(
-                f"    N={n_target}: {n_cached} cached, {n_computed} computed"
-            )
+            logger.info(f"    N={n_target}: {n_cached} cached, {n_computed} computed")
 
         self._gt_data = gt_data
         total_time = time.perf_counter() - t_section
@@ -416,6 +466,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
         Persists all predictions to NPZ for anti-regression and reuse.
         """
         import torch
+
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import (
@@ -444,6 +495,16 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         model.eval()
         self._model = model
+
+        # Capture which checkpoint was actually used (for traceability)
+        actual_checkpoint = self._args.checkpoint or "auto (zoo)"
+        if not self._args.checkpoint:
+            zoo_entry = getattr(self, "_zoo_entry", None)
+            if zoo_entry:
+                actual_checkpoint = zoo_entry.checkpoint_file
+        self._actual_checkpoint = actual_checkpoint
+        logger.info(f"  Model: {actual_checkpoint}")
+
         mpnn_results: dict[int, list[dict]] = {}
         t_section = time.perf_counter()
 
@@ -465,8 +526,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
             # CachedBackend for transparent eval caching
             with self.get_cached_backend(
-                topology=topo, n_qubits=n_target,
-                model=self._args.model_name, p_layers=p,
+                topology=topo,
+                n_qubits=n_target,
+                model=self._args.model_name,
+                p_layers=p,
                 enabled=use_cache,
             ) as eval_backend:
                 per_h_results = []
@@ -481,13 +544,21 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         # Only use cache if we have energy (theta might not be stored)
                         if cached.get("e_pred") is not None:
                             gt_entry = next(
-                                pt for pt in self._gt_data[n_target]
+                                pt
+                                for pt in self._gt_data[n_target]
                                 if abs(pt["h"] - float(h)) < 1e-8
                             )
                             result = self.build_per_h_result(
-                                h, cached["e_pred"], gt_entry["e_exact"], gt_entry["gap"],
-                                n_params=n_params, n_qubits=n_target, method="cached",
-                                theta=cached.get("theta", np.zeros(0)).tolist() if cached.get("theta") is not None else None,
+                                h,
+                                cached["e_pred"],
+                                gt_entry["e_exact"],
+                                gt_entry["gap"],
+                                n_params=n_params,
+                                n_qubits=n_target,
+                                method="cached",
+                                theta=cached.get("theta", np.zeros(0)).tolist()
+                                if cached.get("theta") is not None
+                                else None,
                             )
                             per_h_results.append(result)
                             n_cached += 1
@@ -496,7 +567,9 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     # Fresh prediction
                     t0 = time.perf_counter()
                     g = build_unified_bond_resolved_graph(
-                        lat_ref, h_value=float(h), p_layers=p,
+                        lat_ref,
+                        h_value=float(h),
+                        p_layers=p,
                         include_circuit_nodes=True,
                     )
                     with torch.no_grad():
@@ -519,13 +592,18 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
                     # Get GT
                     gt_entry = next(
-                        pt for pt in self._gt_data[n_target]
-                        if abs(pt["h"] - float(h)) < 1e-8
+                        pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                     )
                     result = self.build_per_h_result(
-                        h, e_pred, gt_entry["e_exact"], gt_entry["gap"],
-                        n_params=n_params, n_qubits=n_target, method="mpnn",
-                        time_s=elapsed, theta=theta_pred.tolist(),
+                        h,
+                        e_pred,
+                        gt_entry["e_exact"],
+                        gt_entry["gap"],
+                        n_params=n_params,
+                        n_qubits=n_target,
+                        method="mpnn",
+                        time_s=elapsed,
+                        theta=theta_pred.tolist(),
                     )
                     per_h_results.append(result)
                     n_predicted += 1
@@ -560,18 +638,24 @@ class LargeNExtrapolationRunner(ValidationRunner):
         if self._args.refine_failing:
             self._refine_failing_points(mpnn_results)
 
-        return {"mpnn_results": {str(k): v for k, v in mpnn_results.items()}}
+        return {
+            "mpnn_results": {str(k): v for k, v in mpnn_results.items()},
+            "checkpoint_used": self._actual_checkpoint,
+        }
 
     def _refine_failing_points(self, mpnn_results: dict[int, dict]) -> None:
         """Run VQE refinement on MPNN predictions that fail dual criterion.
 
-        Uses theta_pred from MPNN as initial point for L-BFGS-B (warm-start).
-        Only refines up to max_refine points per N, prioritized by highest ΔE/gap.
-        Updates per_point results and NPZ in-place.
+        Uses compute_refinement_priority() (same as AcceleratedCrossNRunner)
+        to decide which points are worth refining and in what order.
+        Skips ansatz-limited / hopeless points automatically.
         """
         from scipy.optimize import minimize as _minimize
 
-        from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+        from qmbp_simulation.analysis.metrics import (
+            compute_refinement_priority,
+            is_point_failure,
+        )
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.model_registry import get_model_spec
 
@@ -586,19 +670,49 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         for n_target in self._args.target_n:
             per_point = mpnn_results[n_target]["per_point"]
+            n_params = mpnn_results[n_target]["n_params"]
 
-            # Find failing points (sorted by worst ΔE/gap first)
-            failing = [
-                (i, r) for i, r in enumerate(per_point)
-                if r["de_gap"] >= DE_GAP_THRESHOLD or r.get("abs_error", 1.0) >= MAX_ABS_ERROR
+            # Identify failures using canonical is_point_failure
+            failing_indices = [
+                i
+                for i, r in enumerate(per_point)
+                if is_point_failure(r["de_gap"], abs_error=r.get("abs_error"))
             ]
-            failing.sort(key=lambda x: x[1]["de_gap"], reverse=True)
-            to_refine = failing[:max_refine]
+            if not failing_indices:
+                continue
 
+            # Score and filter using compute_refinement_priority
+            scored = []
+            n_skipped = 0
+            for idx in failing_indices:
+                r = per_point[idx]
+                priority, should_skip, reason = compute_refinement_priority(
+                    de_gap=r["de_gap"],
+                    abs_error=r.get("abs_error", 1.0),
+                    gap=r.get("gap", 1.0),
+                    n_params=n_params,
+                )
+                if should_skip:
+                    n_skipped += 1
+                else:
+                    scored.append((priority, idx, reason))
+
+            # Sort by priority (highest first) and limit
+            scored.sort(key=lambda x: x[0], reverse=True)
+            to_refine = [(idx, per_point[idx]) for _, idx, _ in scored[:max_refine]]
+
+            if n_skipped > 0:
+                logger.info(
+                    f"    N={n_target}: skipping {n_skipped}/{len(failing_indices)} "
+                    f"points (ansatz-limited or hopeless)"
+                )
             if not to_refine:
                 continue
 
-            logger.info(f"    N={n_target}: refining {len(to_refine)}/{len(failing)} failing points")
+            logger.info(
+                f"    N={n_target}: refining {len(to_refine)}/{len(failing_indices)} "
+                f"failing points (top priority={scored[0][0]:.2f}, reason={scored[0][2]})"
+            )
 
             # Build circuit and backend
             lat_ref = self.make_lattice(topo, n_target, J=1.0, h=2.0)
@@ -630,13 +744,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 # Only update if improved
                 if e_refined < result["e_pred"]:
                     gt_entry = next(
-                        pt for pt in self._gt_data[n_target]
-                        if abs(pt["h"] - float(h)) < 1e-8
+                        pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                     )
                     new_result = self.build_per_h_result(
-                        h, e_refined, gt_entry["e_exact"], gt_entry["gap"],
-                        n_params=circuit.num_parameters, n_qubits=n_target,
-                        method="vqe_refined", n_evals=res.nfev,
+                        h,
+                        e_refined,
+                        gt_entry["e_exact"],
+                        gt_entry["gap"],
+                        n_params=circuit.num_parameters,
+                        n_qubits=n_target,
+                        method="vqe_refined",
+                        n_evals=res.nfev,
                         theta=res.x.tolist(),
                     )
                     per_point[idx] = new_result
@@ -662,14 +780,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         # Filter out results without theta (cached entries that didn't have it)
         valid_results = [
-            r for r in per_h_results
-            if r.get("theta") is not None and len(r.get("theta", [])) > 0
+            r for r in per_h_results if r.get("theta") is not None and len(r.get("theta", [])) > 0
         ]
         if not valid_results:
             return
 
         h_arr = np.array([r["h"] for r in valid_results], dtype=np.float64)
-        
+
         # Convert theta lists to 2D array (n_points, n_params)
         theta_list = []
         for r in valid_results:
@@ -678,7 +795,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 theta_list.append(theta.astype(np.float64))
             else:
                 theta_list.append(np.array(theta, dtype=np.float64))
-        
+
         # Stack into 2D array if all have same length, otherwise use object array
         try:
             if len(theta_list) > 0 and all(len(t) == len(theta_list[0]) for t in theta_list):
@@ -687,7 +804,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 theta_arr = np.array(theta_list, dtype=object)
         except Exception:
             theta_arr = np.array(theta_list, dtype=object)
-        
+
         e_pred_arr = np.array([r["e_pred"] for r in valid_results], dtype=np.float64)
         e_exact_arr = np.array([r["e_exact"] for r in valid_results], dtype=np.float64)
         gap_arr = np.array([r["gap"] for r in valid_results], dtype=np.float64)
@@ -701,7 +818,11 @@ class LargeNExtrapolationRunner(ValidationRunner):
             method = r.get("method", "mpnn")
 
             # VQE-refined points that pass dual criterion → verified
-            if method in ("vqe_refined", "random_vqe") and de_gap < DE_GAP_THRESHOLD and abs_err < MAX_ABS_ERROR:
+            if (
+                method in ("vqe_refined", "random_vqe")
+                and de_gap < DE_GAP_THRESHOLD
+                and abs_err < MAX_ABS_ERROR
+            ):
                 quality_tiers.append("verified")
             # MPNN predictions that pass dual criterion → approximate
             elif de_gap < DE_GAP_THRESHOLD and abs_err < MAX_ABS_ERROR:
@@ -727,7 +848,6 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 f"(✅{n_verified} ⚠️{n_approx})"
             )
 
-
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Random VQE Baseline (Optional)
     # ═══════════════════════════════════════════════════════════════════════════
@@ -736,6 +856,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
         """Run VQE with random initialization as baseline comparison.
 
         Uses minimal restarts and iterations (this is expensive at large N).
+        Results are persisted to NPZ per-N (crash-safe) and cached to avoid
+        re-running on subsequent executions.
         """
         from scipy.optimize import minimize as _minimize
 
@@ -748,6 +870,11 @@ class LargeNExtrapolationRunner(ValidationRunner):
         hva = HVACircuitBuilder()
         maxiter = self._args.vqe_maxiter
         n_restarts = self._args.vqe_restarts
+        force_recompute = self._args.force_recompute
+
+        # NPZ directory for baseline results (separate from MPNN extrapolation)
+        baseline_dir = EXTRAPOLATION_DATA_DIR / "_baselines"
+        baseline_dir.mkdir(parents=True, exist_ok=True)
 
         random_results: dict[int, list[dict]] = {}
         t_section = time.perf_counter()
@@ -758,6 +885,26 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 f"(maxiter={maxiter})..."
             )
 
+            # ── Check for cached baseline results ─────────────────────────
+            baseline_npz = baseline_dir / f"{topo}_N{n_target}_p{p}_random_vqe.npz"
+            cached_baseline: dict[float, dict] | None = None
+            if not force_recompute and baseline_npz.exists():
+                try:
+                    _data = np.load(baseline_npz, allow_pickle=True)
+                    cached_baseline = {}
+                    for i, h in enumerate(_data["h_values"]):
+                        cached_baseline[round(float(h), 6)] = {
+                            "e_vqe": float(_data["e_vqe"][i]),
+                            "e_exact": float(_data["e_exact"][i]),
+                            "gap": float(_data["gaps"][i]) if "gaps" in _data else 0.0,
+                            "n_evals": int(_data["n_evals"][i]) if "n_evals" in _data else 0,
+                            "time_s": float(_data["time_s"][i]) if "time_s" in _data else 0.0,
+                        }
+                    logger.info(f"    Loaded {len(cached_baseline)} cached baseline results")
+                except Exception as e:
+                    logger.debug(f"    Failed to load baseline cache: {e}")
+                    cached_baseline = None
+
             lat_ref = self.make_lattice(topo, n_target, J=1.0, h=2.0)
             circuit, _ = hva.create_bond_resolved(n_target, p, lat_ref)
             n_params = circuit.num_parameters
@@ -767,8 +914,34 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
             per_h_results = []
             total_evals = 0
+            n_cached_pts, n_computed_pts = 0, 0
 
             for h in self._h_values:
+                h_key = round(float(h), 6)
+
+                # Check cache first
+                if cached_baseline and h_key in cached_baseline and not force_recompute:
+                    cached = cached_baseline[h_key]
+                    gt_entry = next(
+                        pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
+                    )
+                    result = self.build_per_h_result(
+                        h,
+                        cached["e_vqe"],
+                        gt_entry["e_exact"],
+                        gt_entry["gap"],
+                        n_params=n_params,
+                        n_qubits=n_target,
+                        method="random_vqe",
+                        n_evals=cached["n_evals"],
+                        time_s=cached["time_s"],
+                    )
+                    per_h_results.append(result)
+                    total_evals += cached["n_evals"]
+                    n_cached_pts += 1
+                    continue
+
+                # Fresh VQE computation
                 t0 = time.perf_counter()
                 lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
                 H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
@@ -798,16 +971,50 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
                 # Get GT
                 gt_entry = next(
-                    pt for pt in self._gt_data[n_target]
-                    if abs(pt["h"] - float(h)) < 1e-8
+                    pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                 )
 
                 result = self.build_per_h_result(
-                    h, best_energy, gt_entry["e_exact"], gt_entry["gap"],
-                    n_params=n_params, n_qubits=n_target, method="random_vqe",
-                    n_evals=best_nfev * n_restarts, time_s=elapsed,
+                    h,
+                    best_energy,
+                    gt_entry["e_exact"],
+                    gt_entry["gap"],
+                    n_params=n_params,
+                    n_qubits=n_target,
+                    method="random_vqe",
+                    n_evals=best_nfev * n_restarts,
+                    time_s=elapsed,
                 )
                 per_h_results.append(result)
+                n_computed_pts += 1
+
+            # ── Persist baseline results to NPZ (crash-safe, per-N) ───────
+            if n_computed_pts > 0:
+                h_arr = np.array([r["h"] for r in per_h_results])
+                e_vqe_arr = np.array([r["e_pred"] for r in per_h_results])
+                e_exact_arr = np.array([r["e_exact"] for r in per_h_results])
+                gap_arr = np.array([r["gap"] for r in per_h_results])
+                n_evals_arr = np.array([r.get("n_evals", 0) for r in per_h_results])
+                time_arr = np.array([r.get("time_s", 0.0) for r in per_h_results])
+
+                # Atomic write: tmp → rename (crash-safe)
+                from qmbp_simulation.utils.helpers import atomic_savez
+
+                atomic_savez(
+                    baseline_npz,
+                    h_values=h_arr,
+                    e_vqe=e_vqe_arr,
+                    e_exact=e_exact_arr,
+                    gaps=gap_arr,
+                    n_evals=n_evals_arr,
+                    time_s=time_arr,
+                    n_restarts=np.array(n_restarts),
+                    maxiter=np.array(maxiter),
+                )
+                logger.info(
+                    f"    💾 Persisted: {baseline_npz.name} "
+                    f"({n_computed_pts} computed, {n_cached_pts} cached)"
+                )
 
             summary = compute_extrapolation_summary(per_h_results)
             random_results[n_target] = {
@@ -815,13 +1022,15 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 "n_params": n_params,
                 **summary,
                 "total_evals": total_evals,
+                "n_cached": n_cached_pts,
+                "n_computed": n_computed_pts,
                 "per_point": per_h_results,
             }
 
             logger.info(
                 f"    N={n_target}: ΔE/gap={summary['mean_de_gap']:.4f} "
                 f"pass={summary['n_pass_dual']}/{summary['n_points']} "
-                f"evals={total_evals}"
+                f"evals={total_evals} ({n_cached_pts} cached, {n_computed_pts} new)"
             )
 
         self._random_results = random_results
@@ -836,7 +1045,6 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
     def section_summary(self) -> dict:
         """Generate summary table and comparison metrics."""
-        from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
 
         comparison = {}
         has_random = hasattr(self, "_random_results")
@@ -859,6 +1067,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 rand = self._random_results[n_target]
                 entry["random_vqe"] = {
                     "mean_de_gap": rand["mean_de_gap"],
+                    "mean_abs_error": rand.get("mean_abs_error"),
                     "pass_rate_dual": rand["pass_rate_dual"],
                     "total_evals": rand["total_evals"],
                 }
@@ -869,10 +1078,18 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 mpnn_pts = mpnn["per_point"]
                 rand_pts = rand["per_point"]
                 mpnn_wins = sum(
-                    1 for m, r in zip(mpnn_pts, rand_pts)
-                    if m["de_gap"] < r["de_gap"]
+                    1 for m, r in zip(mpnn_pts, rand_pts, strict=False) if m["de_gap"] < r["de_gap"]
                 )
                 entry["mpnn_win_rate"] = mpnn_wins / len(mpnn_pts)
+
+            # ── Metric reliability checks (delegated to reusable module) ──
+            from qmbp_simulation.analysis.evaluation_report import validate_metrics
+
+            warnings_n = validate_metrics(mpnn["per_point"], n_qubits=n_target)
+            if warnings_n:
+                entry["metric_warnings"] = warnings_n
+                for w in warnings_n:
+                    logger.warning(f"  N={n_target}: {w}")
 
             comparison[n_target] = entry
 
@@ -881,6 +1098,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         # Check for gap masking
         for n_target, entry in comparison.items():
+            if not isinstance(n_target, int):
+                continue
             mpnn = entry["mpnn"]
             pass_5pct = self._mpnn_results[n_target]["pass_rate_5pct"]
             pass_dual = mpnn["pass_rate_dual"]
@@ -892,9 +1111,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         # Extensive scaling check: |ΔE|/N should be approximately constant
         per_site_errors = [
-            self._mpnn_results[n]["mean_abs_error_per_site"]
-            for n in self._args.target_n
+            self._mpnn_results[n].get("mean_abs_error_per_site") for n in self._args.target_n
         ]
+        # Filter None values (n_qubits missing in result dicts)
+        per_site_errors = [e for e in per_site_errors if e is not None and e > 0]
         if len(per_site_errors) >= 2:
             err_ratio = max(per_site_errors) / max(min(per_site_errors), 1e-10)
             if err_ratio < 3.0:
@@ -908,10 +1128,95 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     f"extensive scaling may not hold"
                 )
 
+        # ── Model Quality Diagnostics ─────────────────────────────────────
+        try:
+            model_diagnostics = self._compute_model_diagnostics()
+            if model_diagnostics:
+                comparison["model_diagnostics"] = model_diagnostics
+        except Exception as e:
+            logger.debug(f"  Model diagnostics skipped: {e}")
+
+        # ── Cross-N Validation Report (L1 from precomputed data) ──────────
+        try:
+            from qmbp_simulation.analysis.cross_n_validator import quick_cross_n_report
+
+            # Determine training sizes from MultiNAggregator data
+            from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+            agg = MultiNAggregator(topology=self._args.topology, model=self._args.model_name)
+            agg.scan()
+            training_sizes = agg.available_n_values()
+
+            cross_n_reports = {}
+            for n_target in self._args.target_n:
+                per_point = self._mpnn_results[n_target]["per_point"]
+                report = quick_cross_n_report(
+                    per_point,
+                    n_target,
+                    topology=self._args.topology,
+                    training_sizes=training_sizes,
+                )
+                cross_n_reports[n_target] = report.to_dict()
+                logger.info(
+                    f"  CrossN L1 N={n_target}: "
+                    f"mean_ΔE/gap={report.l1_mean_de_gap:.4f}, "
+                    f"pass_rate={report.l1_pass_rate:.0%}"
+                )
+            comparison["cross_n_validation"] = {str(k): v for k, v in cross_n_reports.items()}
+        except Exception as e:
+            logger.debug(f"  Cross-N validation skipped: {e}")
+
+        # ── Auto-save per-point evaluation report (markdown) ──────────────
+        self._save_evaluation_report(comparison)
+
         return {"comparison": {str(k): v for k, v in comparison.items()}}
 
+    def _compute_model_diagnostics(self) -> dict:
+        """Compute additional model quality metrics from the prediction data.
+
+        Delegates to centralized `compute_mpnn_diagnostics` from analysis.metrics.
+        """
+        from qmbp_simulation.analysis.metrics import compute_mpnn_diagnostics
+
+        return compute_mpnn_diagnostics(
+            mpnn_results_by_n=self._mpnn_results,
+            topology=self._args.topology,
+            model_name=self._args.model_name,
+            p_layers=self._args.p_layers,
+            checkpoint_path=self._args.checkpoint,
+            include_training_quality=True,
+            logger=logger,
+        )
+
+    def _save_evaluation_report(self, comparison: dict) -> None:
+        """Save a per-point evaluation breakdown as markdown for analysis.
+
+        Delegates to the reusable generate_evaluation_report() from
+        qmbp_simulation.analysis.evaluation_report.
+        """
+        from qmbp_simulation.analysis.evaluation_report import (
+            generate_evaluation_report,
+        )
+
+        checkpoint_display = (
+            getattr(self, "_actual_checkpoint", None) or self._args.checkpoint or "unknown"
+        )
+
+        generate_evaluation_report(
+            mpnn_results_by_n=self._mpnn_results,
+            topology=self._args.topology,
+            model_name=self._args.model_name,
+            checkpoint=checkpoint_display,
+            h_range=(self._args.h_min, self._args.h_max),
+            n_h_points=self._args.h_points,
+            p_layers=self._args.p_layers,
+            target_n=self._args.target_n,
+            comparison=comparison,
+            output_dir="results/extrapolation_evals",
+        )
+
     def _print_summary_table(self, comparison: dict) -> None:
-        """Print formatted summary table to console."""
+        """Print formatted summary table to console with continuous metrics."""
         has_random = any("random_vqe" in v for v in comparison.values())
 
         logger.info("\n" + "=" * 80)
@@ -920,37 +1225,45 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         if has_random:
             header = (
-                f"{'N':>5} | {'params':>6} | {'MPNN ΔE/gap':>11} | {'|ΔE|/N':>10} | "
-                f"{'pass%':>6} | {'VQE ΔE/gap':>10} | {'speedup':>8}"
+                f"{'N':>5} | {'params':>6} | {'ΔE/gap(mean±std)':>18} | "
+                f"{'P90':>6} | {'|ΔE|/N':>10} | {'Grade':>5} | "
+                f"{'VQE ΔE/gap':>10} | {'speedup':>8}"
             )
         else:
             header = (
-                f"{'N':>5} | {'params':>6} | {'MPNN ΔE/gap':>11} | {'|ΔE|/N':>10} | "
-                f"{'pass%':>6}"
+                f"{'N':>5} | {'params':>6} | {'ΔE/gap(mean±std)':>18} | "
+                f"{'P90':>6} | {'|ΔE|/N':>10} | {'Grade':>5}"
             )
 
         logger.info(header)
         logger.info("-" * 80)
 
         for n_target in sorted(comparison.keys()):
+            if not isinstance(n_target, int):
+                continue
             entry = comparison[n_target]
             mpnn = entry["mpnn"]
             mpnn_dg = mpnn["mean_de_gap"]
-            mpnn_per_site = mpnn["mean_abs_error_per_site"]
-            mpnn_pass = mpnn["pass_rate_dual"] * 100
+            mpnn_std = self._mpnn_results[n_target].get("std_de_gap", 0.0) or 0.0
+            mpnn_p90 = self._mpnn_results[n_target].get("p90_de_gap", mpnn_dg) or mpnn_dg
+            mpnn_per_site = mpnn.get("mean_abs_error_per_site", 0.0) or 0.0
+            grade = self._mpnn_results[n_target].get("grade", "?")
 
             if has_random and "random_vqe" in entry:
                 rand_dg = entry["random_vqe"]["mean_de_gap"]
                 spd = entry.get("speedup", 0)
                 logger.info(
-                    f"{n_target:>5} | {entry['n_params']:>6} | {mpnn_dg:>10.4f} | "
-                    f"{mpnn_per_site:>10.2e} | {mpnn_pass:>5.1f}% | "
-                    f"{rand_dg:>10.4f} | {spd:>7.0f}×"
+                    f"{n_target:>5} | {entry['n_params']:>6} | "
+                    f"{mpnn_dg:.4f}±{mpnn_std:.4f}   | "
+                    f"{mpnn_p90:>5.3f} | {mpnn_per_site:>10.2e} | "
+                    f"{grade:>5} | {rand_dg:>10.4f} | {spd:>7.0f}×"
                 )
             else:
                 logger.info(
-                    f"{n_target:>5} | {entry['n_params']:>6} | {mpnn_dg:>10.4f} | "
-                    f"{mpnn_per_site:>10.2e} | {mpnn_pass:>5.1f}%"
+                    f"{n_target:>5} | {entry['n_params']:>6} | "
+                    f"{mpnn_dg:.4f}±{mpnn_std:.4f}   | "
+                    f"{mpnn_p90:>5.3f} | {mpnn_per_site:>10.2e} | "
+                    f"{grade:>5}"
                 )
 
         logger.info("=" * 80)

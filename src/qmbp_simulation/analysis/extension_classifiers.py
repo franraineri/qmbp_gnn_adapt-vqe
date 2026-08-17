@@ -33,16 +33,7 @@ class ClassificationEngine:
     def classify_cross_n(
         de_gap_all_sizes: list[float],
     ) -> ExtensionClassification:
-        """Req 1.3: REJECTED_INSUFFICIENT_DATA if ALL sizes have ΔE/gap ≥ 5%.
-
-        Args:
-            de_gap_all_sizes: ΔE/gap values (as fractions, e.g. 0.05 = 5%)
-                              for each test system size.
-
-        Returns:
-            REJECTED_INSUFFICIENT_DATA when every element ≥ 0.05;
-            CONDITIONALLY_VIABLE when at least one element is < 0.05.
-        """
+        """Req 1.3: REJECTED_INSUFFICIENT_DATA if ALL sizes have ΔE/gap ≥ 5%."""
         if all(v >= DE_GAP_THRESHOLD for v in de_gap_all_sizes):
             return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
         return ExtensionClassification.CONDITIONALLY_VIABLE
@@ -53,17 +44,7 @@ class ClassificationEngine:
         n_pass: int,
         n_total: int,
     ) -> ExtensionClassification:
-        """Req 1.6: CONDITIONALLY_VIABLE if ΔE/gap ≤ 1% AND ≥ 5/6 h-points pass.
-
-        Args:
-            de_gap:   Mean ΔE/gap over test h-values (fraction, e.g. 0.01 = 1%).
-            n_pass:   Number of h-points where ΔE/gap ≤ threshold.
-            n_total:  Total number of h-points evaluated.
-
-        Returns:
-            CONDITIONALLY_VIABLE when both criteria are met;
-            REJECTED_INSUFFICIENT_DATA otherwise.
-        """
+        """Req 1.6: CONDITIONALLY_VIABLE if ΔE/gap ≤ 1% AND ≥ 5/6 h-points pass."""
         if de_gap <= 0.01 and n_pass >= math.ceil(5 * n_total / 6):
             return ExtensionClassification.CONDITIONALLY_VIABLE
         return ExtensionClassification.REJECTED_INSUFFICIENT_DATA
@@ -73,15 +54,7 @@ class ClassificationEngine:
         cx_count: int,
         threshold: int = 18,
     ) -> ExtensionClassification:
-        """Req 1.7, 2.4: HARDWARE_INCOMPATIBLE if CX count exceeds ZNE threshold.
-
-        Args:
-            cx_count:  Number of CX (CNOT/CZ) gates in the circuit.
-            threshold: ZNE-viable CX ceiling (default 18).
-
-        Returns:
-            HARDWARE_INCOMPATIBLE when cx_count > threshold; VIABLE otherwise.
-        """
+        """Req 1.7, 2.4: HARDWARE_INCOMPATIBLE if CX count exceeds ZNE threshold."""
         if cx_count > threshold:
             return ExtensionClassification.HARDWARE_INCOMPATIBLE
         return ExtensionClassification.VIABLE
@@ -141,14 +114,8 @@ class ClassificationEngine:
     ) -> int:
         """Req 1.5: Minimum training samples s.t. params/data ≤ ratio_threshold.
 
+
         N_min_data = ceil(n_params / ratio_threshold)
-
-        Args:
-            n_params:        Total number of model parameters.
-            ratio_threshold: Maximum allowed params-to-data ratio (default 1000).
-
-        Returns:
-            Smallest integer N such that n_params / N ≤ ratio_threshold.
         """
         return math.ceil(n_params / ratio_threshold)
 

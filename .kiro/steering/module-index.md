@@ -40,16 +40,17 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +20
 
 
-### qsim/analysis/ (24)
+### qsim/analysis/ (25)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +65
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
   comparative                ANAL  C:RegimeDiscoveryResult,ComparativeMetrics | F:find_h_min,classify_result,filter_by_threshold+5
-  constants                  CFG  
-  cross_n_validator          VAL   C:L1Result,L2Result,L3Result+2 | F:preflight_cross_n
+  constants                  CFG   F:compute_quality_score,grade_from_score
+  cross_n_validator          VAL   C:L1Result,L2Result,L3Result+2 | F:preflight_cross_n,build_l1_from_precomputed,quick_cross_n_report
   data_models                MODEL C:GradientAnalysisResult,ComparisonResult,BaselineMetrics+1
   diagnostics                CORE  C:DiagnosticCollector | F:configure_pipeline_logging
   entanglement               ANAL  C:EntanglementResult,EntanglementAnalyzer
+  evaluation_report          ANAL  F:validate_metrics,generate_comparison_table,generate_evaluation_report+1
   extension_analyzer         PIPE  C:RejectionReportGenerator,PrerequisiteChecker,CalibrationComparator+8
   extension_classifiers      ANAL  C:ClassificationEngine
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
@@ -60,7 +61,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  F:is_point_failure,identify_failures,compute_refinement_priority+23
+  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+34
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
@@ -97,8 +98,8 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   mps_backend                EXEC  C:MPSBackend
   noisy_utils                EXEC  C:NoisyEstimatorConfig,LayoutSelection,ZNEResult+10 | F:build_adjacency,find_layouts_bfs,compute_circuit_ces+17
 
-### qsim/framework/ (17)
-  ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +68
+### qsim/framework/ (18)
+  ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
   __main__                   CLI  
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
@@ -112,8 +113,9 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   metrics                    CORE  C:ExperimentMetrics,WarmColdComparison
   preflight                  VAL   C:Severity,Issue,VariantSpec+4 | F:get_valid_regime,get_regime_threshold,validate_regime_tables+4
   presets                    CFG   F:load_preset,list_presets,preset_to_args
+  quality_profile                  C:QualityProfile | F:compute_quality_profile,format_quality_summary,format_per_h_status+2
   result_index               CACHE C:ResultIndex
-  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+10
+  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+17
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -148,15 +150,16 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   benchmark_evaluator        BENCH C:InstanceResult,BenchmarkResult,VQEzyBenchmarkEvaluator
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
-### qsim/predictors/ (6)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +47
+### qsim/predictors/ (7)
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +60
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
-  model_zoo                  CFG   C:ZooEntry | F:list_pretrained,load_pretrained,load_best_for_cross_n+7
+  model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
+  model_zoo                  CFG   C:ZooEntry | F:compute_model_readiness,compute_training_quality_score,refresh_zoo_quality_scores+15
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator
   unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
-  unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+2
+  unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+3
 
 ### qsim/solvers/ (2)
   ↳ ClassicalSolver
@@ -165,17 +168,16 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   ground_truth_cache         CACHE C:GroundTruthCache
 
 ### qsim/utils/ (1)
-  ↳ TimerResult augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize set_global_seed timer
+  ↳ BatchWriteMixin TimerResult atomic_savez augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize +3
 
-  helpers                    IO    C:TimerResult | F:set_global_seed,json_serialize,json_dump+4
+  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,json_serialize,json_dump+6
 
 ## Project Health (project_health/)
 
-### project_health/ (2)
+### project_health/ (1)
   ↳ ActionItem CoverageGap EnergyDecompositionStats HealthReport ModelDistribution MPNNQualityStats TimingStats VQEQualityStats
 
   __main__                   CLI   F:parse_args,main
-  compare                    ANAL  
 
 ### ph/analysis/coverage/ (1)
 
@@ -198,11 +200,9 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   gnn_qem_analyzer           VAL  
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
-### ph/analysis/scaling/ (3)
+### ph/analysis/scaling/ (1)
 
-  flow_warmstart_analyzer    ANAL  C:FlowWarmstartSummary,BondResolvedSummary,SigmaFlowBoostSummary+2 | F:scan_flow_extension_results,format_report,main
   scaling_analyzer           ANAL  C:ScalingPointResult,ScalingRunSummary,ScalingLawValidation+2 | F:scan_scaling_results,parse_scaling_run,validate_scaling_law+5
-  scaling_extensions_analyzer ANAL  C:BondDimResult,VQEConvergenceResult,HEComparisonResult+2 | F:scan_e5_results,parse_bond_dim,parse_vqe_convergence+9
 
 ### ph/analysis/thesis/ (3)
 
@@ -214,24 +214,19 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
   affine_overshoot_auditor   VAL   F:scan_experiment_file,main
   audit_findings             VAL   F:audit_f2_pea_zne,audit_f3_scaling_law,audit_f4_gnn_qem+27
+  pipeline_consistency       VAL   F:section,warn,ok+1
   sanity_check               VAL   C:CheckResult,SanityReport | F:register_check,check_theta_trajectories_exist,check_pca_results_exist+16
   thesis_findings_validator  VAL   C:EvidenceStrength,StatisticalEvidence,FindingValidation+1 | F:register_finding,run_validation,parse_args+1
-  validate_s_series          VAL   F:validation_1_s1_a3_consistency,validation_2_cft_scaling,validation_3_s4_extra_seeds+3
   verify_results             PIPE  C:VerificationResult,GroupConclusion,VerificationReport | F:parse_pass_criteria,evaluate_criteria,classify_de_gap+5
 
-### ph/analysis/ (11)
+### ph/analysis/ (6)
 
   accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport,LargeNResult | F:scan_results,analyze_cross_n_result,format_report+5
   diagnose                   PRED  C:RootCause,DeploymentPoint,Diagnosis | F:parse_pipeline_run,classify_root_causes,scan_folder+3
   gnn_qem_analyzer           PRED  
-  layout_optimizer_analyzer  OPT  
-  mitigation_benchmark_analyzer BENCH
-  mitiq_analyzer             ANAL  
   noiseless_model_comparison CORE  C:PerHPoint,SectionMetrics,RunResult+4 | F:parse_markdown_report,build_model_summaries,build_topology_summaries+8
   noiseless_pipeline_analyzer PIPE  C:NoiselessRunSummary,TopologyComparison,NoiselessReport | F:scan_noiseless_results,parse_run,detect_anomalies+6
-  post_execution_validator   VAL  
-  sanity_check               VAL  
-  statistical_tests          TEST  F:paired_ttest,improvement_rate,effect_size_cohens_d
+  statistical_tests          TEST  F:paired_ttest,improvement_rate,effect_size_cohens_d+4
 
 ### ph/cli/ (6)
 
@@ -289,7 +284,10 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   run_bond_resolved_validation VAL   C:BondResolvedValidationRunner
   run_n16_square_dmrg2d      CIRC  C:N16SquareDMRG2DRunner
   run_scaling_extensions     ANAL  C:ScalingExtensionsRunner | F:analytical_theta_x
+  gen_qem_v2_data_ladder     PRED  F:main
+  gen_qem_v2_data_ladder_n10 PRED  F:main
   run_gnn_qem_ablation_no_enoisy PRED  C:MLPContextOnly | F:augment,zero_out_enoisy_in_dataset,evaluate_model+3
+  run_gnn_qem_ablation_suite VAL   C:MLPContextOnly | F:augment,evaluate_on_test,train_and_eval+5
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
@@ -327,21 +325,25 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   _test_dmrg_vs_vqe_scaling  TEST  F:run_vqe_best,main
   _test_vqe_expressibility   TEST  K:ROOT,N
   analyze_all_phase3         PRED  F:h_min_scaling_law,parse_args,load_phase3_result+8
+  analyze_extrapolation_runs ANAL  F:parse_args,load_and_filter_runs,extract_metrics+2
   benchmark_vqezy            VAL   F:parse_args,find_vqezy_dataset,main
   campaign_extractor         CORE  F:find_latest_result,extract_a1_qpu_scaling,extract_a5_mps_precision+3
   check_delta_e_by_topo_p    DIAG  F:extract_deploy_points,get_config,main
   check_matrix_gaps                F:parse_args,main
+  compile_multiseed_report   ANAL  F:extract_metrics,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
   compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4
   compute_h_frontier_models        F:compute_frontier
   compute_h_frontier_topologies DIAG  F:compute_frontier
   dmrg_vs_exact_comparison   SOLVE F:run_comparison,main
+  evaluate_zoo_models              F:parse_args,evaluate_model,format_markdown_report+1
   extract_delta_e_fidelity   CORE  C:PointMetrics,RunSummary | F:extract_from_run,scan_all_runs,scan_cross_n+2
   extract_theta_trajectories PIPE  F:extract_trajectory,scan_results,scan_scaling_results+2
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   precision_frontier_study         F:run_study,main
   quick_noisy_comparison     EXEC  F:run_comparison,main
   reanalyze_p2_filtered      ANAL  
+  regenerate_eval_reports    ANAL  F:parse_args,load_npz_as_per_h_results,load_baseline_summary+3
   theta_derivative_analysis  ANAL  F:load_d1_gradients,compute_theta_derivative,compute_correlation+3
   theta_pca_phase_detection  ANAL  F:load_trajectories,analyze_trajectory,generate_figure+3
   validate_vqezy_robustness  VAL   F:build_lattice_and_circuit,load_training_data,evaluate_mpnn_on_vqezy+4
@@ -373,23 +375,19 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 ### Standalone scripts
 
-  analyze_ladder             ANAL  K:ROOT
   analyze_topology_results   DIAG  K:ROOT,DATA
-  audit_pipeline_consistency VAL   F:section,warn,ok
-  cleanup_repo               CACHE C:CleanupReport | F:is_protected,scan_named_dirs,scan_cache_dirs+9
-  generate_module_index            C:ModuleEntry,PackageEntry | F:extract_module,extract_package,scan_directory+2
+  audit_and_fix_model_zoo    VAL   F:audit_manifest,audit_registry,audit_consistency+7
+  check_zoo_coherence              F:check_coherence,main
   generate_presets_from_index CFG   F:generate_preset_yaml,main
   generate_scaling_report    PRED  F:load_dashboard,compute_quality_tier_breakdown,format_report_text+1
   inspect_data_stores        CACHE F:main
-  md_index                         C:Section,FileStats,DocEntry | F:extract_metadata,format_full,format_list+2
-  organize_results                 F:extract_config_from_file,organize_flat_dirs,archive_failed+1
-  quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+4
+  query_model_registry       MODEL F:cmd_list,cmd_get,cmd_summary+17
+  quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+5
+  reevaluate_zoo_models            F:evaluate_npz_quality,main
   run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+5
-  scan_new_runs              ANAL  C:RunMetrics,GroupStats | F:resolve_dirs,load_runs,parse_run+11
   update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+19
   update_project_status            F:main
-  upgrade_npz_quality_tiers        F:compute_quality_tier,upgrade_npz_file,main
-  verify_steerings                 C:Issue,VerificationReport | F:estimate_tokens,parse_front_matter,get_body+23
+  upgrade_npz_quality_tiers        F:compute_quality_tier_for_npz,upgrade_single_npz,main
 
 ## Notebooks
 

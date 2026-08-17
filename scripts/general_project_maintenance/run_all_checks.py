@@ -1,0 +1,738 @@
+#!/usr/bin/env python3
+"""Unified maintenance checks runner.
+
+Orchestrates all maintenance tools — both custom scripts and third-party
+analyzers — in a single command with unified reporting.
+
+Checks (in execution order):
+  1. pyclean       — Remove Python bytecode caches (fast, always safe)
+  2. vulture       — Detect dead code (unused functions, classes, variables)
+  3. pydoclint     — Verify docstring ↔ signature consistency
+  4. phantom       — Detect phantom imports (symbol imported but doesn't exist)
+  5. steerings     — Verify .kiro/steering files integrity
+  6. module-index  — Check module-index.md freshness
+
+Usage:
+    # Run all checks (default):
+    python scripts/general_project_maintenance/run_all_checks.py
+
+    # Run specific checks only:
+    python scripts/general_project_maintenance/run_all_checks.py --only vulture phantom
+
+    # Skip specific checks:
+    python scripts/general_project_maintenance/run_all_checks.py --skip pyclean pydoclint
+
+    # JSON report:
+    python scripts/general_project_maintenance/run_all_checks.py --json
+
+    # Fix mode (pyclean executes, steerings --fix):
+    python scripts/general_project_maintenance/run_all_checks.py --fix
+
+    # Verbose (show full output from each tool):
+    python scripts/general_project_maintenance/run_all_checks.py -v
+
+    # CI mode (JSON + non-zero exit on errors):
+    python scripts/general_project_maintenance/run_all_checks.py --ci
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+import sys
+import time
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
+
+# ─── Constants ───────────────────────────────────────────────────────────────
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
+VENV_PYTHON = PROJECT_ROOT / ".venv" / "bin" / "python"
+
+ALL_CHECKS = [
+    "pyclean",
+    "vulture",
+    "pydoclint",
+    "phantom",
+    "steerings",
+    "module-index",
+]
+
+
+# ─── Data Models ─────────────────────────────────────────────────────────────
+
+Status = Literal["pass", "fail", "warn", "skip", "error"]
+
+STATUS_ICONS: dict[Status, str] = {
+    "pass": "✅",
+    "fail": "❌",
+    "warn": "⚠️ ",
+    "skip": "⏭️ ",
+    "error": "💥",
+}
+
+
+@dataclass
+class CheckResult:
+    """Result from a single check."""
+
+    name: str
+    status: Status
+    duration_s: float = 0.0
+    n_issues: int = 0
+    summary: str = ""
+    details: list[str] = field(default_factory=list)
+    exit_code: int = 0
+
+
+@dataclass
+class FullReport:
+    """Aggregated report from all checks."""
+
+    results: list[CheckResult] = field(default_factory=list)
+    total_duration_s: float = 0.0
+
+    @property
+    def passed(self) -> bool:
+        return all(r.status in ("pass", "skip", "warn") for r in self.results)
+
+    @property
+    def score(self) -> int:
+        if not self.results:
+            return 100
+        active = [r for r in self.results if r.status != "skip"]
+        if not active:
+            return 100
+        passed = sum(1 for r in active if r.status == "pass")
+        return int(100 * passed / len(active))
+
+    def to_json(self) -> dict:
+        return {
+            "passed": self.passed,
+            "score": self.score,
+            "total_duration_s": round(self.total_duration_s, 2),
+            "checks": [
+                {
+                    "name": r.name,
+                    "status": r.status,
+                    "duration_s": round(r.duration_s, 2),
+                    "n_issues": r.n_issues,
+                    "summary": r.summary,
+                    "details": r.details[:20],  # Cap details in JSON
+                }
+                for r in self.results
+            ],
+        }
+
+
+# ─── Check Implementations ──────────────────────────────────────────────────
+
+
+def _run_command(
+    cmd: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: int = 120,
+) -> tuple[int, str, str]:
+    """Run a command and return (returncode, stdout, stderr)."""
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd=cwd or PROJECT_ROOT,
+            timeout=timeout,
+        )
+        return result.returncode, result.stdout, result.stderr
+    except subprocess.TimeoutExpired:
+        return -1, "", f"TIMEOUT after {timeout}s"
+    except FileNotFoundError:
+        return -2, "", f"Command not found: {cmd[0]}"
+
+
+def check_pyclean(*, fix: bool = False, verbose: bool = False) -> CheckResult:
+    """Run pyclean to remove/detect Python bytecode caches."""
+    t0 = time.time()
+
+    pyclean_bin = PROJECT_ROOT / ".venv" / "bin" / "pyclean"
+    if not pyclean_bin.exists():
+        return CheckResult(
+            name="pyclean",
+            status="skip",
+            summary="pyclean not installed (pip install pyclean)",
+        )
+
+    if fix:
+        # Actually clean
+        rc, stdout, stderr = _run_command([str(pyclean_bin), str(PROJECT_ROOT)])
+        duration = time.time() - t0
+        if rc == 0:
+            return CheckResult(
+                name="pyclean",
+                status="pass",
+                duration_s=duration,
+                summary="Bytecode caches cleaned",
+            )
+        return CheckResult(
+            name="pyclean",
+            status="error",
+            duration_s=duration,
+            summary=f"pyclean failed: {stderr[:200]}",
+            exit_code=rc,
+        )
+    else:
+        # Dry-run: just check if __pycache__ dirs exist
+        pycache_dirs = list(PROJECT_ROOT.rglob("__pycache__"))
+        # Filter out .venv
+        pycache_dirs = [d for d in pycache_dirs if ".venv" not in str(d)]
+        duration = time.time() - t0
+
+        if not pycache_dirs:
+            return CheckResult(
+                name="pyclean",
+                status="pass",
+                duration_s=duration,
+                summary="No bytecode caches found",
+            )
+        return CheckResult(
+            name="pyclean",
+            status="warn",
+            duration_s=duration,
+            n_issues=len(pycache_dirs),
+            summary=f"{len(pycache_dirs)} __pycache__ dirs found (run with --fix to clean)",
+            details=[str(d.relative_to(PROJECT_ROOT)) for d in pycache_dirs[:10]],
+        )
+
+
+def check_vulture(*, verbose: bool = False) -> CheckResult:
+    """Run vulture to detect dead code."""
+    t0 = time.time()
+
+    vulture_bin = PROJECT_ROOT / ".venv" / "bin" / "vulture"
+    if not vulture_bin.exists():
+        return CheckResult(
+            name="vulture",
+            status="skip",
+            summary="vulture not installed (pip install vulture)",
+        )
+
+    cmd = [
+        str(vulture_bin),
+        "src/qmbp_simulation",
+        "--min-confidence",
+        "80",
+        "--exclude",
+        "_deprecated,.venv,tests,experiments",
+    ]
+    # Include whitelist if it exists
+    whitelist = PROJECT_ROOT / "vulture_whitelist.py"
+    if whitelist.exists():
+        cmd.insert(2, str(whitelist))
+    rc, stdout, stderr = _run_command(cmd, timeout=60)
+    duration = time.time() - t0
+
+    if rc == 0:
+        return CheckResult(
+            name="vulture",
+            status="pass",
+            duration_s=duration,
+            summary="No dead code detected (confidence ≥80%)",
+        )
+
+    # vulture returns 1 if dead code found, parse output
+    lines = [l.strip() for l in stdout.splitlines() if l.strip()]
+    n_issues = len(lines)
+
+    # Classify: unused imports are less critical than unused functions
+    unused_imports = [l for l in lines if "unused import" in l]
+    unused_funcs = [l for l in lines if "unused function" in l or "unused method" in l]
+    unused_vars = [l for l in lines if "unused variable" in l]
+    unused_classes = [l for l in lines if "unused class" in l]
+    other = [
+        l for l in lines if l not in unused_imports + unused_funcs + unused_vars + unused_classes
+    ]
+
+    summary_parts = []
+    if unused_funcs:
+        summary_parts.append(f"{len(unused_funcs)} unused functions")
+    if unused_classes:
+        summary_parts.append(f"{len(unused_classes)} unused classes")
+    if unused_imports:
+        summary_parts.append(f"{len(unused_imports)} unused imports")
+    if unused_vars:
+        summary_parts.append(f"{len(unused_vars)} unused variables")
+    if other:
+        summary_parts.append(f"{len(other)} other")
+
+    # Dead code is a warning, not a hard failure (many false positives with dynamic usage)
+    return CheckResult(
+        name="vulture",
+        status="warn" if n_issues < 50 else "fail",
+        duration_s=duration,
+        n_issues=n_issues,
+        summary=f"{n_issues} dead code candidates: {', '.join(summary_parts)}",
+        details=lines[:30] if verbose else lines[:10],
+        exit_code=rc,
+    )
+
+
+def check_pydoclint(*, verbose: bool = False) -> CheckResult:
+    """Run pydoclint to check docstring/signature consistency."""
+    t0 = time.time()
+
+    pydoclint_bin = PROJECT_ROOT / ".venv" / "bin" / "pydoclint"
+    if not pydoclint_bin.exists():
+        return CheckResult(
+            name="pydoclint",
+            status="skip",
+            summary="pydoclint not installed (pip install pydoclint)",
+        )
+
+    cmd = [
+        str(pydoclint_bin),
+        "--style=numpy",
+        "--check-return-types=false",
+        "--allow-init-docstring=true",
+        "--skip-checking-short-docstrings=true",
+        "--quiet",
+        "src/qmbp_simulation",
+    ]
+    rc, stdout, stderr = _run_command(cmd, timeout=90)
+    duration = time.time() - t0
+
+    if rc == 0:
+        return CheckResult(
+            name="pydoclint",
+            status="pass",
+            duration_s=duration,
+            summary="All docstrings consistent with signatures",
+        )
+
+    # Parse violations
+    lines = [l.strip() for l in stdout.splitlines() if l.strip() and "DOC" in l]
+    n_issues = len(lines)
+
+    if n_issues == 0:
+        # pydoclint may print summary to stderr
+        lines = [l.strip() for l in stderr.splitlines() if l.strip() and "DOC" in l]
+        n_issues = len(lines)
+
+    # Group by violation code
+    codes: dict[str, int] = {}
+    for line in lines:
+        for word in line.split():
+            if word.startswith("DOC"):
+                code = word.rstrip(":")
+                codes[code] = codes.get(code, 0) + 1
+                break
+
+    summary_parts = [f"{code}:{count}" for code, count in sorted(codes.items())[:5]]
+    summary = f"{n_issues} docstring issues"
+    if summary_parts:
+        summary += f" ({', '.join(summary_parts)})"
+
+    # Docstring issues are warnings (not blocking)
+    return CheckResult(
+        name="pydoclint",
+        status="warn",
+        duration_s=duration,
+        n_issues=n_issues,
+        summary=summary,
+        details=lines[:20] if verbose else lines[:5],
+        exit_code=rc,
+    )
+
+
+def check_phantom(*, verbose: bool = False) -> CheckResult:
+    """Run our custom phantom import checker."""
+    t0 = time.time()
+
+    # Try the new version first, fallback to old
+    new_script = SCRIPT_DIR / "check_phantom_functions.py"
+    old_script = SCRIPT_DIR / "check_phantom_funcions.py"
+    script = new_script if new_script.exists() else old_script
+
+    if not script.exists():
+        return CheckResult(
+            name="phantom",
+            status="skip",
+            summary="check_phantom_functions.py not found",
+        )
+
+    cmd = [str(VENV_PYTHON), str(script), "--all", "--json"]
+    rc, stdout, stderr = _run_command(cmd, timeout=60)
+    duration = time.time() - t0
+
+    if rc == 0:
+        return CheckResult(
+            name="phantom",
+            status="pass",
+            duration_s=duration,
+            summary="No phantom imports found",
+        )
+
+    # Parse JSON output if available
+    try:
+        data = json.loads(stdout)
+        n_issues = data.get("summary", {}).get("errors", 0)
+        issues = data.get("issues", [])
+        details = [f"{i['file']}:{i.get('line', 0)} — {i['message']}" for i in issues[:10]]
+        return CheckResult(
+            name="phantom",
+            status="fail",
+            duration_s=duration,
+            n_issues=n_issues,
+            summary=f"{n_issues} phantom import(s) detected",
+            details=details,
+            exit_code=rc,
+        )
+    except (json.JSONDecodeError, KeyError):
+        # Fallback: count lines
+        lines = [l for l in (stdout + stderr).splitlines() if "PHANTOM" in l or "✗" in l]
+        return CheckResult(
+            name="phantom",
+            status="fail" if rc != 0 else "warn",
+            duration_s=duration,
+            n_issues=len(lines),
+            summary=f"{len(lines)} phantom import(s) detected",
+            details=lines[:10],
+            exit_code=rc,
+        )
+
+
+def check_steerings(*, fix: bool = False, verbose: bool = False) -> CheckResult:
+    """Run our custom steering verifier."""
+    t0 = time.time()
+
+    script = SCRIPT_DIR / "verify_steerings.py"
+    if not script.exists():
+        return CheckResult(
+            name="steerings",
+            status="skip",
+            summary="verify_steerings.py not found",
+        )
+
+    # Run fast checks only (skip cross-redundancy which takes 2+ min)
+    cmd = [
+        str(VENV_PYTHON),
+        str(script),
+        "--check",
+        "activation",
+        "quality",
+        "overlaps",
+        "split",
+        "tokens",
+        "hooks",
+        "contradictions",
+        "duplicates",
+        "clarity",
+        "module-index",
+        "--json",
+    ]
+    if fix:
+        cmd.append("--fix")
+    rc, stdout, stderr = _run_command(cmd, timeout=120)
+    duration = time.time() - t0
+
+    # Parse JSON
+    try:
+        data = json.loads(stdout)
+        score = data.get("score", 0)
+        n_errors = data.get("summary", {}).get("errors", 0)
+        n_warnings = data.get("summary", {}).get("warnings", 0)
+        passed = data.get("passed", True)
+
+        # Classify: context-budget errors are informational, not blocking
+        real_errors = [
+            i
+            for i in data.get("issues", [])
+            if i.get("severity") == "error" and "context-budget" not in i.get("message", "")
+        ]
+        has_real_errors = len(real_errors) > 0
+
+        status: Status = "pass" if passed else ("fail" if has_real_errors else "warn")
+        summary = f"Score: {score}/100"
+        if n_errors:
+            summary += f" ({n_errors} errors, {n_warnings} warnings)"
+        elif n_warnings:
+            summary += f" ({n_warnings} warnings)"
+
+        details = []
+        for issue in data.get("issues", [])[:10]:
+            sev = issue.get("severity", "?")
+            msg = issue.get("message", "")
+            f = issue.get("file", "")
+            details.append(f"[{sev}] {f}: {msg}")
+
+        return CheckResult(
+            name="steerings",
+            status=status,
+            duration_s=duration,
+            n_issues=n_errors + n_warnings,
+            summary=summary,
+            details=details,
+            exit_code=rc,
+        )
+    except (json.JSONDecodeError, KeyError):
+        return CheckResult(
+            name="steerings",
+            status="warn" if rc == 0 else "fail",
+            duration_s=duration,
+            summary=f"verify_steerings exited with code {rc}",
+            details=[stderr[:200]] if stderr else [],
+            exit_code=rc,
+        )
+
+
+def check_module_index(*, verbose: bool = False) -> CheckResult:
+    """Check if module-index.md is fresh (matches current code)."""
+    t0 = time.time()
+
+    script = SCRIPT_DIR / "generate_module_index.py"
+    if not script.exists():
+        return CheckResult(
+            name="module-index",
+            status="skip",
+            summary="generate_module_index.py not found",
+        )
+
+    index_file = PROJECT_ROOT / ".kiro" / "steering" / "module-index.md"
+    if not index_file.exists():
+        return CheckResult(
+            name="module-index",
+            status="fail",
+            duration_s=time.time() - t0,
+            n_issues=1,
+            summary="module-index.md does not exist — run generate_module_index.py",
+        )
+
+    # Run --verify to check for phantoms
+    cmd = [str(VENV_PYTHON), str(script), "--verify"]
+    rc, stdout, stderr = _run_command(cmd, timeout=30)
+    duration = time.time() - t0
+
+    # Check for PHANTOM warnings in stderr
+    phantoms = [l.strip() for l in stderr.splitlines() if "PHANTOM" in l]
+
+    if not phantoms and rc == 0:
+        return CheckResult(
+            name="module-index",
+            status="pass",
+            duration_s=duration,
+            summary="module-index.md is up-to-date",
+        )
+
+    return CheckResult(
+        name="module-index",
+        status="warn" if len(phantoms) < 5 else "fail",
+        duration_s=duration,
+        n_issues=len(phantoms),
+        summary=f"{len(phantoms)} stale entries in module-index.md",
+        details=phantoms[:10],
+        exit_code=rc,
+    )
+
+
+# ─── Orchestrator ────────────────────────────────────────────────────────────
+
+CHECK_FUNCTIONS = {
+    "pyclean": check_pyclean,
+    "vulture": check_vulture,
+    "pydoclint": check_pydoclint,
+    "phantom": check_phantom,
+    "steerings": check_steerings,
+    "module-index": check_module_index,
+}
+
+
+def run_checks(
+    *,
+    checks: list[str],
+    fix: bool = False,
+    verbose: bool = False,
+) -> FullReport:
+    """Run all specified checks and return aggregated report."""
+    report = FullReport()
+    t0 = time.time()
+
+    for check_name in checks:
+        func = CHECK_FUNCTIONS.get(check_name)
+        if func is None:
+            report.results.append(
+                CheckResult(
+                    name=check_name,
+                    status="error",
+                    summary=f"Unknown check: {check_name}",
+                )
+            )
+            continue
+
+        # Pass fix/verbose kwargs where applicable
+        kwargs: dict = {"verbose": verbose}
+        if check_name in ("pyclean", "steerings"):
+            kwargs["fix"] = fix
+
+        try:
+            result = func(**kwargs)
+        except Exception as e:
+            result = CheckResult(
+                name=check_name,
+                status="error",
+                summary=f"Unexpected error: {e}",
+            )
+        report.results.append(result)
+
+    report.total_duration_s = time.time() - t0
+    return report
+
+
+def print_report(report: FullReport, *, verbose: bool = False) -> None:
+    """Print human-readable report."""
+    print()
+    print("═" * 64)
+    print("  🔧 Project Maintenance — All Checks")
+    print("═" * 64)
+    print()
+
+    max_name = max(len(r.name) for r in report.results) if report.results else 10
+
+    for r in report.results:
+        icon = STATUS_ICONS[r.status]
+        time_str = f"({r.duration_s:.1f}s)" if r.duration_s > 0 else ""
+        issues_str = f" [{r.n_issues} issues]" if r.n_issues > 0 else ""
+        print(f"  {icon} {r.name:<{max_name}}  {r.summary}{issues_str} {time_str}")
+
+        if verbose and r.details:
+            for detail in r.details:
+                print(f"      → {detail}")
+
+    print()
+    print("─" * 64)
+
+    # Summary
+    n_pass = sum(1 for r in report.results if r.status == "pass")
+    n_warn = sum(1 for r in report.results if r.status == "warn")
+    n_fail = sum(1 for r in report.results if r.status == "fail")
+    n_skip = sum(1 for r in report.results if r.status == "skip")
+    total = len(report.results)
+
+    grade = (
+        "A"
+        if report.score >= 90
+        else "B"
+        if report.score >= 75
+        else "C"
+        if report.score >= 50
+        else "D"
+    )
+    status_str = "✅ ALL PASSED" if report.passed else "❌ ISSUES FOUND"
+
+    print(f"  Score: {report.score}/100 (grade {grade}) — {status_str}")
+    print(f"  Pass: {n_pass}/{total} | Warn: {n_warn} | Fail: {n_fail} | Skip: {n_skip}")
+    print(f"  Total time: {report.total_duration_s:.1f}s")
+    print()
+
+
+# ─── CLI ─────────────────────────────────────────────────────────────────────
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run all project maintenance checks in one command.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Available checks:
+  pyclean       Remove/detect Python bytecode caches
+  vulture       Detect dead code (unused functions, classes, vars)
+  pydoclint     Verify docstring ↔ signature consistency
+  phantom       Detect phantom imports (symbol doesn't exist in module)
+  steerings     Verify .kiro/steering files integrity
+  module-index  Check module-index.md freshness
+
+Examples:
+  %(prog)s                           # Run all checks
+  %(prog)s --only vulture phantom    # Only specific checks
+  %(prog)s --skip pydoclint          # Skip specific checks
+  %(prog)s --fix                     # Apply auto-fixes where possible
+  %(prog)s --json                    # JSON output for CI
+  %(prog)s --ci                      # CI mode (JSON + strict exit code)
+  %(prog)s -v                        # Verbose (show details)
+""",
+    )
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        choices=ALL_CHECKS,
+        default=None,
+        help="Run only these checks.",
+    )
+    parser.add_argument(
+        "--skip",
+        nargs="+",
+        choices=ALL_CHECKS,
+        default=None,
+        help="Skip these checks.",
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply auto-fixes where possible (pyclean cleans, steerings --fix).",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Output JSON report instead of human-readable text.",
+    )
+    parser.add_argument(
+        "--ci",
+        action="store_true",
+        help="CI mode: JSON output + non-zero exit on any failure.",
+    )
+    parser.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Show detailed output from each check.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    # Determine which checks to run
+    if args.only:
+        checks = args.only
+    else:
+        checks = list(ALL_CHECKS)
+        if args.skip:
+            checks = [c for c in checks if c not in args.skip]
+
+    # Run
+    report = run_checks(
+        checks=checks,
+        fix=args.fix,
+        verbose=args.verbose,
+    )
+
+    # Output
+    if args.json_output or args.ci:
+        json.dump(report.to_json(), sys.stdout, indent=2)
+        print()
+    else:
+        print_report(report, verbose=args.verbose)
+
+    # Exit code
+    if args.ci:
+        return 0 if report.passed else 1
+    # In non-CI mode, only fail on hard errors (not warnings)
+    has_errors = any(r.status in ("fail", "error") for r in report.results)
+    return 1 if has_errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

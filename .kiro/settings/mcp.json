@@ -22,6 +22,37 @@
         "resolve-library-id",
         "get-library-docs"
       ]
+    },
+    "context-mode": {
+      "command": "context-mode",
+      "disabled": false,
+      "autoApprove": [
+        "ctx_batch_execute",
+        "ctx_search",
+        "ctx_fetch_and_index",
+        "ctx_execute",
+        "ctx_execute_file"
+      ]
+    },
+    "token-pilot": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "token-pilot"
+      ],
+      "disabled": false,
+      "autoApprove": []
+    },
+    "token-optimizer": {
+      "command": "uvx",
+      "args": [
+        "token-optimizer-mcp"
+      ],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      },
+      "disabled": true,
+      "autoApprove": []
     }
   }
 }

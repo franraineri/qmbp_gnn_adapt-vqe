@@ -124,18 +124,7 @@ class GroundTruthResult:
             raise ValueError(f"Spectral gap must be ≥ 0, got {self.gap}.")
 
     def compute_de_gap(self, energy: float) -> float:
-        """Compute ΔE/gap safely (avoids division by zero at phase transition).
-
-        Parameters
-        ----------
-        energy : float
-            VQE or predicted energy to compare against ground truth.
-
-        Returns
-        -------
-        float
-            |energy - ground_energy| / max(gap, 1e-10)
-        """
+        """Compute ΔE/gap safely (avoids division by zero at phase transition)."""
         return abs(energy - self.ground_energy) / max(self.gap, 1e-10)
 
     @property

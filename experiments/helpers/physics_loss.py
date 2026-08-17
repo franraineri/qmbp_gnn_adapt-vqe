@@ -150,22 +150,7 @@ def select_eval_subset(
     n_eval: int,
     seed: int | None = None,
 ) -> list[int]:
-    """Select random subset of training points for energy evaluation.
-
-    Parameters
-    ----------
-    n_total : int
-        Total number of training points.
-    n_eval : int
-        Number to select.
-    seed : int | None
-        Random seed.
-
-    Returns
-    -------
-    list[int]
-        Indices of selected points.
-    """
+    """Select random subset of training points for energy evaluation."""
     rng = np.random.default_rng(seed)
     n_eval = min(n_eval, n_total)
     return rng.choice(n_total, size=n_eval, replace=False).tolist()

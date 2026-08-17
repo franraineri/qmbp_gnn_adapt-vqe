@@ -40,14 +40,14 @@
 
 \chapter{Resumen}
 
-El presente Trabajo Fin de Máster desarrolla y valida un marco híbrido clásico-cuántico para la caracterización de fases cuánticas, integrando técnicas de predicción de parámetros mediante redes neuronales de grafos con algoritmos variacionales cuánticos. El marco combina una Red Neuronal de Grafos de Paso de Mensajes (MPNN) basada en GINConv con un Ansatz Variacional Hamiltoniano (HVA), operando sobre el Modelo de Ising en Campo Transversal (TFIM) como sistema de validación. Siguiendo el paradigma de predicción de parámetros propuesto en la literatura reciente, la MPNN predice los parámetros óptimos del circuito variacional directamente desde la representación en grafo del Hamiltoniano, eliminando el bucle de optimización iterativa del VQE. La contribución principal es la integración de estas técnicas en un pipeline unificado y su validación sistemática en simulación ideal, abarcando 5 topologías de red (cadena 1D, escalera, triangular, cuadrada, heavy-hex), tamaños de sistema desde $N=4$ hasta $N=20$ qubits, y profundidades de circuito $p = 1$--$4$, demostrando que el pipeline mantiene $\Delta E/\text{gap} < 5\%$ de manera consistente dentro del régimen operativo válido, con una aceleración significativa respecto a VQE convencional. Se valida además la extensibilidad del marco a variantes del Hamiltoniano de Ising (campo longitudinal, modelo frustrado) y se documentan formalmente los límites de expresividad del ansatz (Heisenberg, Kitaev). Los límites del enfoque se localizan en la región crítica ($h \approx h_c$) donde la expresividad del ansatz es insuficiente, y en modelos con interacciones de dos cuerpos adicionales (Heisenberg, Kitaev). Los resultados establecen una metodología reproducible para la clasificación de fases cuánticas mediante observables locales, sentando las bases para su despliegue futuro en hardware cuántico real.
+El presente Trabajo Fin de Máster desarrolla y valida un marco híbrido clásico-cuántico para la caracterización de fases cuánticas, integrando técnicas de predicción de parámetros mediante redes neuronales de grafos con algoritmos variacionales cuánticos. El marco combina una Red Neuronal de Grafos de Paso de Mensajes (MPNN) basada en GINConv con un Ansatz Variacional Hamiltoniano (HVA), operando sobre el Modelo de Ising en Campo Transversal (TFIM) como sistema de validación. Siguiendo el paradigma de predicción de parámetros propuesto en la literatura reciente, la MPNN predice los parámetros óptimos del circuito variacional directamente desde la representación en grafo del Hamiltoniano, eliminando el bucle de optimización iterativa del VQE. La contribución principal es la integración de estas técnicas en un pipeline unificado y su validación sistemática en simulación ideal, abarcando 5 topologías de red (cadena 1D, escalera, triangular, cuadrada, heavy-hex), tamaños de sistema desde $N=4$ hasta $N=20$ qubits, y profundidades de circuito $p = 1$--$4$, mostrando que el pipeline mantiene $\Delta E/\text{gap} < 5\%$ de manera consistente dentro del régimen operativo válido, con una aceleración significativa respecto a VQE convencional. Se valida además la extensibilidad del marco a variantes del Hamiltoniano de Ising (campo longitudinal, modelo frustrado) y se documentan formalmente los límites de expresividad del ansatz (Heisenberg, Kitaev). Los límites del enfoque se localizan en la región crítica ($h \approx h_c$) donde la expresividad del ansatz es insuficiente, y en modelos con interacciones de dos cuerpos adicionales (Heisenberg, Kitaev). Los resultados establecen una metodología reproducible para la clasificación de fases cuánticas mediante observables locales, sentando las bases para su despliegue futuro en hardware cuántico real.
 
 \vspace{0.5cm}
 {\bf Palabras clave:} Computación cuántica, VQE, Redes Neuronales de Grafos, transiciones de fase cuánticas, Modelo de Ising, circuitos variacionales, Ansatz Variacional Hamiltoniano.
 
 \chapter{Abstract}
 
-This Master's Thesis develops and validates a hybrid classical-quantum framework for quantum phase characterization, integrating GNN-based parameter prediction with variational quantum circuits into a unified pipeline. The framework combines a Message-Passing Neural Network (MPNN) based on GINConv with a Hamiltonian Variational Ansatz (HVA), operating on the Transverse Field Ising Model (TFIM) as the validation system. Following the parameter prediction paradigm from recent literature, the MPNN predicts optimal variational circuit parameters directly from the Hamiltonian's graph representation, eliminating the iterative optimization loop of VQE. The main contribution is the integration of these techniques and their systematic validation in ideal-simulation pipeline executions, spanning 5 lattice topologies (chain 1D, ladder, triangular, square, heavy-hex), system sizes from $N=4$ to $N=20$ qubits, and circuit depths $p = 1$--$4$, demonstrating that the pipeline maintains $\Delta E/\text{gap} < 5\%$ consistently within the valid operating regime, with significant speedup over randomly-initialized VQE. Framework extensibility to Ising Hamiltonian variants (longitudinal field, frustration) is validated, and ansatz expressibility limits are formally documented (Heisenberg, Kitaev). The approach's limits are located at the critical region ($h \approx h_c$) where ansatz expressibility is insufficient, and for models requiring additional two-body interactions (Heisenberg, Kitaev). The results establish a reproducible methodology for quantum phase classification via local observables, laying the groundwork for future deployment on quantum hardware.
+This Master's Thesis develops and validates a hybrid classical-quantum framework for quantum phase characterization, integrating GNN-based parameter prediction with variational quantum circuits into a unified pipeline. The framework combines a Message-Passing Neural Network (MPNN) based on GINConv with a Hamiltonian Variational Ansatz (HVA), operating on the Transverse Field Ising Model (TFIM) as the validation system. Following the parameter prediction paradigm from recent literature, the MPNN predicts optimal variational circuit parameters directly from the Hamiltonian's graph representation, eliminating the iterative optimization loop of VQE. The main contribution is the integration of these techniques and their systematic validation in ideal-simulation pipeline executions, spanning 5 lattice topologies (chain 1D, ladder, triangular, square, heavy-hex), system sizes from $N=4$ to $N=20$ qubits, and circuit depths $p = 1$--$4$, showing that the pipeline maintains $\Delta E/\text{gap} < 5\%$ consistently within the valid operating regime, with significant speedup over randomly-initialized VQE. Framework extensibility to Ising Hamiltonian variants (longitudinal field, frustration) is validated, and ansatz expressibility limits are formally documented (Heisenberg, Kitaev). The approach's limits are located at the critical region ($h \approx h_c$) where ansatz expressibility is insufficient, and for models requiring additional two-body interactions (Heisenberg, Kitaev). The results establish a reproducible methodology for quantum phase classification via local observables, laying the groundwork for future deployment on quantum hardware.
 
 \vspace{0.5cm}
 {\bf Keywords:} Quantum computing, VQE, Graph Neural Networks, quantum phase transitions, Ising model, variational circuits, Hamiltonian Variational Ansatz.
@@ -94,9 +94,9 @@ Las contribuciones específicas de este trabajo son:
 \begin{enumerate}
     \item \textbf{Integración en pipeline unificado:} Se integran técnicas del estado del arte ---predicción de parámetros mediante GNN \citep{miao2024, zhang2025}, warm-start descendente \citep{puig2025}, HVA \citep{wiersema2020}---, en un pipeline end-to-end reproducible con criterios cuantitativos de éxito.
 
-    \item \textbf{Validación sistemática:} Se valida el pipeline de forma exhaustiva en simulación ideal, cubriendo 5 topologías de red, profundidades $p = 1$--$4$, tamaños $N = 4$--$20$, y variantes del Hamiltoniano de Ising (longitudinal, frustrado), estableciendo una metodología de benchmark.
+    \item \textbf{Validación sistemática:} Se valida el pipeline de forma sistemática en simulación ideal, cubriendo 5 topologías de red, profundidades $p = 1$--$4$, tamaños $N = 4$--$20$, y variantes del Hamiltoniano de Ising (longitudinal, frustrado), estableciendo una metodología de benchmark.
 
-    \item \textbf{Documentación formal de límites:} Se documentan cuantitativamente las fronteras de expresividad del HVA por topología, profundidad y modelo ---incluyendo resultados negativos exhaustivos para Heisenberg (46 ejecuciones) y Kitaev---, proporcionando un mapa de aplicabilidad del enfoque.
+    \item \textbf{Documentación formal de límites:} Se documentan cuantitativamente las fronteras de expresividad del HVA por topología, profundidad y modelo ---incluyendo resultados negativos reproducibles en las configuraciones evaluadas para Heisenberg (46 ejecuciones) y Kitaev---, proporcionando un mapa de aplicabilidad del enfoque.
 \end{enumerate}
 
 \section{Estructura del documento}
@@ -330,7 +330,7 @@ Los simuladores MPS representan el estado cuántico producido por un circuito co
 
 Para circuitos HVA de profundidad moderada ($p \leq 4$) en topología 1D, el entrelazamiento generado es bajo y $\chi = 64$ produce resultados indistinguibles de la simulación exacta por vector de estado ($|\Delta E| < 10^{-14}$, validado experimentalmente en este trabajo a $N = 22$). Esto permite escalar la evaluación del circuito hasta $N = 250$ con costo $O(N \chi^3 p)$, habilitando la validación del pipeline a escalas inaccesibles para simuladores de vector de estado.
 
-En este trabajo se emplea el backend Aer MPS de Qiskit en modo determinista (sin shots), que calcula valores esperados mediante contracción exacta del MPS sin ruido de muestreo. La precisión es función exclusivamente de $\chi_{\max}$: con $\chi = 64$, los resultados son indistinguibles de la simulación exacta (diferencia $< 10^{-14}$) para HVA con $p \leq 4$ en cadenas 1D.
+En este trabajo se emplea el backend Aer MPS de Qiskit en modo determinista (sin shots), que calcula valores esperados mediante contracción del MPS sin ruido de muestreo. La precisión es función exclusivamente de $\chi_{\max}$: con $\chi = 64$, los resultados son indistinguibles de la simulación por vector de estado (diferencia $< 10^{-14}$) para HVA con $p \leq 4$ en cadenas 1D, como se valida en §4.3.
 
 \subsection{Limitaciones en sistemas 2D y frustrados}
 
@@ -359,7 +359,7 @@ La extensión natural del warm-start secuencial es la predicción directa median
 
 \textbf{PVLS} \citep{yang2024pvls}: Predicción de parámetros para solucionadores cuánticos variacionales lineales (VQLS), extendiendo el paradigma de inicialización ML más allá de VQE hacia otros algoritmos variacionales.
 
-\textbf{VQEzy} \citep{zhang2025vqezy}: Dataset abierto de parámetros VQE optimizados para múltiples Hamiltonianos y ansätze, proporcionando un benchmark estandarizado para evaluar predictores de parámetros. Evidencia la madurez del campo al crear infraestructura compartida.
+\textbf{VQEzy} \citep{zhang2025vqezy}: Dataset abierto de parámetros VQE optimizados para múltiples Hamiltonianos y ansätze, proporcionando un benchmark estandarizado para evaluar predictores de parámetros. Evidencia la consolidación del campo al crear infraestructura compartida.
 
 \textbf{PALQO} \citep{huang2025palqo}: Modelo informado por la física para optimización cuántica a gran escala, publicado en NeurIPS 2025. Emplea simetrías del Hamiltoniano como sesgo inductivo del predictor, alcanzando generalización a sistemas de hasta 100 qubits.
 
@@ -367,7 +367,7 @@ La extensión natural del warm-start secuencial es la predicción directa median
 
 Adicionalmente, \citet{lee2026} demostraron que un autoencoder de grafos puede generar parámetros VQE que generalizan entre instancias de Hamiltonianos sin optimización específica.
 
-La proliferación de estos trabajos confirma que la predicción de parámetros variacionales mediante ML es un paradigma consolidado. Sin embargo, cada trabajo aborda un aspecto específico ---arquitectura del predictor, tipo de algoritmo variacional, incorporación de ruido, o generación de datasets---, sin que ninguno integre la validación sistemática sobre múltiples topologías de red, profundidades de circuito y variantes del Hamiltoniano en un pipeline unificado reproducible.
+La proliferación de estos trabajos indica que la predicción de parámetros variacionales mediante ML es un paradigma consolidado. Sin embargo, cada trabajo aborda un aspecto específico ---arquitectura del predictor, tipo de algoritmo variacional, incorporación de ruido, o generación de datasets---, sin que ninguno integre la validación sistemática sobre múltiples topologías de red, profundidades de circuito y variantes del Hamiltoniano en un pipeline unificado reproducible.
 
 \section{Redes neuronales de grafos}
 
@@ -387,7 +387,7 @@ Las GNN operan sobre datos estructurados como grafos $\mathcal{G} = (V, E)$. El 
 
 \section{Justificación de sistemas de espines}
 
-Una decisión arquitectónica fundamental de este trabajo es la orientación hacia sistemas de espines, en lugar de química cuántica molecular. Para sistemas de espines existe un isomorfismo natural entre espín-1/2 y qubit, con interacciones $Z_i Z_j$ que se traducen directamente en compuertas nativas. Para el TFIM con $N$ sitios y HVA $p = 2$, el circuito requiere $2(N-1)$ compuertas de dos qubits ---lineal en el tamaño del sistema---. En contraste, la transformación de Jordan-Wigner para fermiones mapea operadores locales a cadenas de Pauli de longitud $O(N)$, incrementando la profundidad a $O(N^4)$ para ansätze tipo UCCSD \citep{tilly2022} ---superando ampliamente el límite de truncamiento $O(\log n)$ \citep{mele2026}. Además, la clasificación de fases cuánticas es una pregunta cualitativa con criterio relajado ($\Delta E/\text{gap} < 5\%$), mientras que la química cuántica exige precisión química ($\Delta E < 1.6 \times 10^{-3}$ Hartree $\approx 1$ kcal/mol) \citep{tilly2022}, inalcanzable con circuitos superficiales en hardware ruidoso.
+Una decisión arquitectónica fundamental de este trabajo es la orientación hacia sistemas de espines, en lugar de química cuántica molecular. Para sistemas de espines existe un isomorfismo natural entre espín-1/2 y qubit, con interacciones $Z_i Z_j$ que se traducen directamente en compuertas nativas. Para el TFIM con $N$ sitios y HVA $p = 2$, el circuito requiere $2(N-1)$ compuertas de dos qubits ---lineal en el tamaño del sistema---. En contraste, la transformación de Jordan-Wigner para fermiones mapea operadores locales a cadenas de Pauli de longitud $O(N)$, incrementando la profundidad a $O(N^4)$ para ansätze tipo UCCSD \citep{tilly2022} ---superando considerablemente el límite de truncamiento $O(\log n)$ \citep{mele2026}. Además, la clasificación de fases cuánticas es una pregunta cualitativa con criterio relajado ($\Delta E/\text{gap} < 5\%$), mientras que la química cuántica exige precisión química ($\Delta E < 1.6 \times 10^{-3}$ Hartree $\approx 1$ kcal/mol) \citep{tilly2022}, inalcanzable con circuitos superficiales en hardware ruidoso.
 
 \section{Síntesis y brecha identificada}
 
@@ -397,13 +397,13 @@ El análisis del estado del arte revela:
     \item El truncamiento por ruido \citep{mele2026} impone circuitos superficiales como \emph{requisito} para hardware real, motivando el uso de HVA de profundidad moderada.
     \item Las funciones de costo locales garantizan gradientes detectables \citep{cerezo2021}.
     \item La transferibilidad de parámetros \citep{mele2022, puig2025} y la capacidad de las GNN para predecir propiedades de estados fundamentales \citep{huang2022, zhang2025} fundamentan la viabilidad del predictor MPNN.
-    \item La predicción de parámetros variacionales mediante ML constituye un paradigma consolidado con al menos siete trabajos independientes \citep{miao2024, zhang2025, zou2026, yang2024pvls, zhang2025vqezy, huang2025palqo, karim2025}, demostrando que la técnica individual no es novedosa per se.
+    \item La predicción de parámetros variacionales mediante ML constituye un paradigma consolidado con al menos siete trabajos independientes \citep{miao2024, zhang2025, zou2026, yang2024pvls, zhang2025vqezy, huang2025palqo, karim2025}, indicando que la técnica individual no es novedosa per se.
     \item La mitigación de errores (PEA-ZNE + DD + TREX) ha sido validada experimentalmente \citep{kim2023, ma2025}, proporcionando el contexto de hardware futuro.
 \end{enumerate}
 
 La brecha identificada no reside en la técnica de predicción ---cuya viabilidad está demostrada por la literatura citada---, sino en la ausencia de una \emph{validación sistemática integrada} que responda preguntas prácticas: ¿para qué topologías funciona? ¿Hasta qué profundidad de circuito? ¿Para qué familias de Hamiltonianos? ¿Cuáles son los límites físicos del ansatz? Los trabajos existentes abordan componentes individuales ---predicción de parámetros \citep{miao2024, zhang2025, huang2025palqo}, diseño de ansatz \citep{wiersema2020, tripathi2026}, warm-start \citep{puig2025}, datasets \citep{zhang2025vqezy}---, pero la validación conjunta sobre 5 topologías distintas, múltiples profundidades de circuito ($p = 1$--$4$), variantes del Hamiltoniano, y la documentación formal de las fronteras de expresividad donde el enfoque deja de funcionar, no se ha reportado en la literatura revisada.
 
-El presente trabajo contribuye con esta \emph{integración y validación sistemática}: un pipeline reproducible donde cada componente está implementado con técnicas del estado del arte, y cuyo valor reside en (i) la demostración de que la combinación funciona end-to-end con aceleración significativa respecto a VQE convencional, (ii) la documentación cuantitativa de los límites de aplicabilidad (modelo, topología, profundidad, escala), y (iii) el establecimiento de una metodología de benchmark para futuros trabajos en el área.
+El presente trabajo contribuye con esta \emph{integración y validación sistemática}: un pipeline reproducible donde cada componente está implementado con técnicas del estado del arte, y cuyo valor reside en (i) la evidencia de que la combinación satisface los criterios end-to-end con aceleración significativa respecto a VQE convencional, (ii) la documentación cuantitativa de los límites de aplicabilidad (modelo, topología, profundidad, escala), y (iii) el establecimiento de una metodología de benchmark para futuros trabajos en el área.
 
 
 %---------------------------
@@ -416,7 +416,7 @@ El presente trabajo contribuye con esta \emph{integración y validación sistem�
 
 Demostrar que la integración de predicción de parámetros variacionales mediante una Red Neuronal de Grafos de Paso de Mensajes (MPNN) con un Ansatz Variacional Hamiltoniano (HVA) de profundidad acotada ($p \leq 4$) y warm-start descendente, implementada como un pipeline híbrido clásico-cuántico unificado, permite reducir el costo cuántico de la clasificación de fases del Modelo de Ising en Campo Transversal de forma sustancial respecto a VQE convencional con inicialización aleatoria, manteniendo $\Delta E/\text{gap} < 5\%$ dentro del régimen operativo válido, y documentar formalmente los límites de dicho régimen ---incluyendo la frontera de expresividad del ansatz, las condiciones de fallo por topología y modelo, y la ley de escalado del campo mínimo operable---, validado mediante simulación ideal sobre 5 topologías de red, tamaños de sistema $N = 4$--$20$, y extensiones del Hamiltoniano.
 
-La contribución principal no reside en las técnicas individuales ---que fueron propuestas en la literatura por \citet{miao2024}, \citet{zhang2025}, \citet{wiersema2020} y \citet{puig2025}---, sino en su integración sistemática en un pipeline reproducible, la validación exhaustiva de su dominio de aplicabilidad (5 topologías, 3 modelos), y la documentación rigurosa de los límites físicos y computacionales que determinan dónde el enfoque es viable y dónde fracasa.
+La contribución principal no reside en las técnicas individuales ---que fueron propuestas en la literatura por \citet{miao2024}, \citet{zhang2025}, \citet{wiersema2020} y \citet{puig2025}---, sino en su integración sistemática en un pipeline reproducible, la validación sistemática de su dominio de aplicabilidad (5 topologías, 3 modelos), y la documentación rigurosa de los límites físicos y computacionales que determinan dónde el enfoque es viable y dónde fracasa.
 
 \section{Objetivos específicos}
 
@@ -431,7 +431,7 @@ La contribución principal no reside en las técnicas individuales ---que fueron
 
     \item \textbf{OE5:} Validar sistemáticamente el pipeline sobre 5 topologías (cadena 1D, escalera, triangular, cuadrada, heavy-hex) y tamaños $N = 4$ a $N = 20$, documentando reproducibilidad (multi-semilla), límites de expresividad ($h_{\min}$ por configuración), y condiciones de fallo, estableciendo una metodología de evaluación con criterios cuantitativos de aceptación/rechazo.
 
-    \item \textbf{OE6:} Evaluar la extensibilidad del framework a variantes del Hamiltoniano de Ising (campo longitudinal, frustración $J_1$-$J_2$) y modelos de mayor complejidad (Heisenberg), documentando formalmente tanto los éxitos como los límites fundamentales de expresividad ---incluyendo el presupuesto de puertas CX, la incompatibilidad del estado inicial, y las barreras de frustración \citep{huang2026frustration}---, para establecer el dominio de aplicabilidad del enfoque.
+    \item \textbf{OE6:} Evaluar la extensibilidad del framework a variantes del Hamiltoniano de Ising (campo longitudinal, frustración $J_1$-$J_2$) y modelos de mayor complejidad (Heisenberg), documentando formalmente tanto los éxitos como los límites observados de expresividad ---incluyendo el presupuesto de puertas CX, la incompatibilidad del estado inicial, y las barreras de frustración \citep{huang2026frustration}---, para establecer el dominio de aplicabilidad del enfoque.
 \end{enumerate}
 
 \section{Hipótesis}
@@ -461,7 +461,7 @@ Se definen los criterios cuantitativos que determinan el éxito o fracaso de cad
 \frac{\Delta E}{\text{gap}} = \frac{|E_{\text{pred}} - E_{\text{exact}}|}{E_1 - E_0} < 5\%
 \end{equation}
 
-\noindent donde $E_{\text{pred}} = \langle \psi(\theta_{\text{pred}}) | H | \psi(\theta_{\text{pred}}) \rangle$ es la energía obtenida con los parámetros predichos por la MPNN, $E_{\text{exact}} = E_0$ es la energía del estado fundamental, y $E_1 - E_0$ es el gap espectral. El umbral de 5\% garantiza clasificación correcta de fase.
+\noindent donde $E_{\text{pred}} = \langle \psi(\theta_{\text{pred}}) | H | \psi(\theta_{\text{pred}}) \rangle$ es la energía obtenida con los parámetros predichos por la MPNN, $E_{\text{exact}} = E_0$ es la energía del estado fundamental, y $E_1 - E_0$ es el gap espectral. El umbral de 5\% satisface el criterio de clasificación correcta de fase.
 
 \textbf{Métricas complementarias:}
 \begin{itemize}
@@ -493,7 +493,7 @@ Este capítulo describe la metodología completa del pipeline híbrido, incluyen
 
 \section{Esquema general del pipeline}
 
-El pipeline GNN-HVA se organiza en tres fases secuenciales, cada una produciendo artefactos verificables que alimentan la siguiente. El diseño modular garantiza que cada componente puede ser reemplazado o escalado independientemente. La Figura~\ref{fig:pipeline_overview} ilustra el flujo de datos entre fases.
+El pipeline GNN-HVA se organiza en tres fases secuenciales, cada una produciendo artefactos verificables que alimentan la siguiente. El diseño modular permite que cada componente pueda ser reemplazado o escalado independientemente. La Figura~\ref{fig:pipeline_overview} ilustra el flujo de datos entre fases.
 
 \begin{figure}[h]
 \centering
@@ -509,7 +509,7 @@ El pipeline GNN-HVA se organiza en tres fases secuenciales, cada una produciendo
 \textbf{Instrumentos:}
 \begin{itemize}
     \item Diagonalización exacta (\texttt{numpy.linalg.eigh}) para $N \leq 14$.
-    \item DMRG (TeNPy \citep{hauschild2018}) para $N > 14$, con $\chi = 64$--$200$ (convergido dentro de la tolerancia numérica para HVA $p \leq 2$ en 1D, validado con diferencia $< 10^{-14}$).
+    \item DMRG (TeNPy \citep{hauschild2018}) para $N > 14$, con $\chi = 64$--$200$. La convergencia se verifica mediante dos criterios: (a) variación de energía entre sweeps consecutivos $\delta E < 10^{-12}$ para $N \leq 40$ y $< 10^{-8}$ para $N > 40$; y (b) comparación con diagonalización exacta a $N = 14$ (diferencia $< 10^{-14}$), confirmando que $\chi = 64$ es suficiente para el ground state del TFIM en 1D lejos del punto crítico.
     \item Hamiltoniano construido como \texttt{SparsePauliOp} (Qiskit 2.x).
     \item Generador de topologías: cadena 1D, escalera, triangular, cuadrada, heavy-hex.
 \end{itemize}
@@ -531,7 +531,9 @@ El pipeline GNN-HVA se organiza en tres fases secuenciales, cada una produciendo
 \begin{itemize}
     \item Circuitos HVA de profundidad $p = 1$--$4$ ($2p$ parámetros, independiente de $N$).
 
-    \item \textbf{Evaluación del circuito:} \texttt{StatevectorEstimator} (Qiskit Primitives V2) para $N \leq 22$, donde el vector de estado tiene $2^N$ amplitudes ($\sim 64$\,MB a $N = 22$); simulación MPS (Aer, dimensión de enlace $\chi = 64$) para $N > 22$. El simulador MPS representa el estado cuántico como un producto tensorial de matrices con dimensión de enlace acotada, escalando como $O(N \cdot \chi^3)$ en lugar de $O(2^N)$ \citep{hauschild2018}. En modo determinista, la energía se calcula exactamente mediante contracción del MPS ($|\Delta E| < 10^{-14}$ respecto a statevector, validado experimentalmente). La dimensión $\chi = 64$ produce resultados indistinguibles de la simulación exacta (diferencia $< 10^{-14}$) para circuitos HVA de profundidad moderada en 1D, ya que el entrelazamiento generado es bajo (verificado con diferencia $< 10^{-14}$ frente a statevector a $N = 22$).
+    \item \textbf{Evaluación del circuito:} \texttt{StatevectorEstimator} (Qiskit Primitives V2) para $N \leq 22$, donde el vector de estado tiene $2^N$ amplitudes ($\sim 64$\,MB a $N = 22$); simulación MPS (Aer, dimensión de enlace $\chi = 64$) para $N > 22$. El simulador MPS representa el estado cuántico como un producto tensorial de matrices con dimensión de enlace acotada, escalando como $O(N \cdot \chi^3)$ en lugar de $O(2^N)$ \citep{hauschild2018}. En modo determinista, la energía se calcula mediante contracción del MPS sin ruido de muestreo.
+
+    \textbf{Validación de convergencia MPS:} La elección $\chi = 64$ se valida mediante comparación directa con el simulador de vector de estado a $N = 22$ (el mayor tamaño accesible para ambos backends): la diferencia en energía es $|\Delta E_{\text{MPS}} - \Delta E_{\text{SV}}| < 10^{-14}$ para todos los circuitos HVA con $p \leq 4$ evaluados (cadena 1D, 27 valores de $h$, 3 semillas). Esta concordancia indica que el entrelazamiento generado por el HVA de profundidad moderada en 1D no excede $\log(64) \approx 6$ ebits, muy por debajo de la capacidad del MPS. Para $N > 22$, donde no es posible la comparación directa con statevector, se verifica que incrementar $\chi$ de 64 a 128 no modifica los resultados (diferencia $< 10^{-13}$ a $N = 40$, $p = 2$), confirmando convergencia respecto a la dimensión de enlace.
 
     \item \textbf{Optimizador:} L-BFGS-B ($f_{\text{tol}} = 10^{-14}$) para simulación noiseless, que explota la evaluación exacta del gradiente \citep{tilly2022}; COBYLA para simulación estocástica (MPS con shots), que opera sin gradientes y es robusto al ruido de muestreo \citep{singh2025}.
 
@@ -626,6 +628,7 @@ El pipeline de early-stopping (alertar si $\theta_{\text{smooth}} > 1.0$, aborta
     \item \textbf{Optimización:} SciPy (L-BFGS-B, COBYLA).
     \item \textbf{Control de calidad:} 72 tests unitarios, linter (ruff), CI/CD (GitHub Actions), hooks pre-commit.
     \item \textbf{Arquitectura modular:} Paquete instalable \texttt{qmbp\_simulation} con 12 módulos independientes bajo DAG estricto de dependencias.
+    \item \textbf{Reproducibilidad:} Cada experimento principal se ejecuta mediante un script dedicado (\texttt{scripts/experiment\_runners/}) con configuración YAML que fija todos los hiperparámetros, semillas aleatorias y versiones de dependencias. Los resultados se almacenan en formato JSON con metadatos completos (timestamp, configuración, versión del código).
 \end{itemize}
 
 
@@ -648,11 +651,11 @@ Este capítulo presenta la evaluación completa del pipeline GNN-HVA mediante si
 \subsection{Resultados para $N = 6$ y $N = 10$ (cadena 1D, $p = 2$)}
 
 La validación inicial se realiza en puntos de test cercanos al punto crítico ($h_c = 1.0$), donde el gap espectral es pequeño y la clasificación es difícil. Esto constituye un test exigente del pipeline:
-Se observa que $\Delta E$ (error absoluto) es comparable entre puntos ($\sim$0.015--0.028), pero $\Delta E/\text{gap}$ varía significativamente porque el gap se cierra al acercarse a $h_c$. A $h = 1.25$ ($N = 6$), el gap es solo 0.46 y el pipeline opera al límite de su criterio de éxito (3.77\%). Esto confirma que la frontera de expresividad del HVA determina el régimen válido.
+Se observa que $\Delta E$ (error absoluto) es comparable entre puntos ($\sim$0.015--0.028), pero $\Delta E/\text{gap}$ varía significativamente porque el gap se cierra al acercarse a $h_c$. A $h = 1.25$ ($N = 6$), el gap es solo 0.46 y el pipeline opera al límite de su criterio de éxito (3.77\%). Esto indica que la frontera de expresividad del HVA determina el régimen válido.
 
 \subsection{Resultados para $N = 10$, $p = 1$}
 
-Con profundidad mínima ($p = 1$, 2 parámetros), el pipeline funciona en las 4 topologías. Nótese que los $h_{\text{test}}$ están en la fase paramagnética profunda ($h \gg h_c$), donde el gap es grande y el paisaje es trivial , estos puntos representan la condición operativa más favorable:
+Con profundidad mínima ($p = 1$, 2 parámetros), el pipeline satisface los criterios en las 4 topologías. Nótese que los $h_{\text{test}}$ están en la fase paramagnética profunda ($h \gg h_c$), donde el gap es grande y el paisaje es trivial , estos puntos representan la condición operativa más favorable:
 
 \begin{table}[h]
 \centering
@@ -713,17 +716,17 @@ Triangular & 28\% & 39\% & 53\% & 61\% \\
 \end{tabular}
 \end{table}
 
-El primer resultado notable es que la topología domina sobre la profundidad del circuito. Para topologías 2D (escalera, cuadrada, triangular), incrementar $p$ de 1 a 4 mejora el PassRate en +28--33 puntos porcentuales, mientras que cadena 1D y heavy-hex alcanzan 100\% desde $p=3$ (Tabla~\ref{tab:cross_topo_depth}). La conectividad del grafo ---no la profundidad del ansatz--- es el factor limitante: incluso a $p=4$, escalera y cuadrada saturan en 86\% y triangular en 61\%.
+El primer resultado es que la topología domina sobre la profundidad del circuito. Para topologías 2D (escalera, cuadrada, triangular), incrementar $p$ de 1 a 4 mejora el PassRate en +28--33 puntos porcentuales, mientras que cadena 1D y heavy-hex alcanzan 100\% desde $p=3$ (Tabla~\ref{tab:cross_topo_depth}). La conectividad del grafo ---no la profundidad del ansatz--- es el factor limitante: incluso a $p=4$, escalera y cuadrada saturan en 86\% y triangular en 61\%.
 
 Esto genera una jerarquía de topologías invariante a $p$: cadena 1D $\approx$ heavy-hex $\gg$ escalera $\approx$ cuadrada $\gg$ triangular. La causa se analiza en §6.1.
 
 Consistente con esta jerarquía, el PassRate crece monotónicamente con la profundidad en todas las topologías cuando se evalúa en el régimen operativo válido ($h \geq 1.3$). El salto cualitativo entre $p = 2$ y $p = 3$ se analiza en la Sección~6.1.
 
-Un resultado negativo relevante es que la transferencia cross-topology falla. La MPNN entrenada sobre datos de una topología \emph{no generaliza} a topologías distintas. Un modelo entrenado con datos de cadena 1D produce $\Delta E/\text{gap} \gg 5\%$ al evaluarse sobre escalera o triangular ($N = 10$, 3 semillas), confirmando que cada topología induce parámetros $\theta^*$ cualitativamente distintos para un mismo $h$.
+Un resultado negativo relevante es que la transferencia cross-topology falla. La MPNN entrenada sobre datos de una topología \emph{no generaliza} a topologías distintas. Un modelo entrenado con datos de cadena 1D produce $\Delta E/\text{gap} \gg 5\%$ al evaluarse sobre escalera o triangular ($N = 10$, 3 semillas), indicando que cada topología induce parámetros $\theta^*$ cualitativamente distintos para un mismo $h$.
 
-Para distinguir entre las causas de fallo, se analiza el $\Delta E$ absoluto. Para cadena 1D y heavy-hex (mejor configuración $p=3$--$4$, $h \geq 1.3$), el error energético absoluto es bajo: $\Delta E \approx 0.003$--$0.010$ (media), con fidelidad $F \geq 0.984$, indicando excelente proximidad al estado fundamental. Para topologías 2D, $\Delta E$ es un orden de magnitud mayor ($\sim$0.07--0.09 media, hasta 0.48 máximo) con fidelidad $F < 0.80$: el estado variacional no aproxima el ground state, lo que constituye un fallo de expresividad del ansatz \citep{tripathi2026}, no del predictor MPNN. Los datos detallados por topología se presentan en la Tabla~\ref{tab:cross_topo_de} (Apéndice~\ref{app:results}).
+Para distinguir entre las causas de fallo, se analiza el $\Delta E$ absoluto. Para cadena 1D y heavy-hex (mejor configuración $p=3$--$4$, $h \geq 1.3$), el error energético absoluto es bajo: $\Delta E \approx 0.003$--$0.010$ (media), con fidelidad $F \geq 0.984$, indicando alta proximidad al estado fundamental. Para topologías 2D, $\Delta E$ es un orden de magnitud mayor ($\sim$0.07--0.09 media, hasta 0.48 máximo) con fidelidad $F < 0.80$: el estado variacional no aproxima el ground state, lo que constituye un fallo de expresividad del ansatz \citep{tripathi2026}, no del predictor MPNN. Los datos detallados por topología se presentan en la Tabla~\ref{tab:cross_topo_de} (Apéndice~\ref{app:results}).
 
-Finalmente, el $\Delta E$ absoluto mejora con $p$ en todas las topologías. Aunque $\Delta E/\text{gap}$ no satisface el umbral del 5\% para topologías 2D, el error energético absoluto sí decrece sistemáticamente al aumentar $p$. La mediana de $\Delta E$ se reduce 15--55$\times$ de $p=1$ a $p=4$. La discrepancia con $\Delta E/\text{gap}$ se explica por gaps menores en grafos de alta conectividad, que amplifican errores absolutos moderados. Para triangular, el error final (0.020) permanece un orden de magnitud superior al de cadena 1D (0.001), confirmando una limitación genuina del ansatz \citep{tripathi2026}. Los datos completos se presentan en la Tabla~\ref{tab:delta_e_vs_p} (Apéndice~\ref{app:results}). La Tabla~\ref{tab:cross_topo_de} complementa la Tabla~\ref{tab:delta_e_vs_p}: la primera muestra el error en la mejor configuración fija, mientras que la segunda muestra la progresión del error al incrementar la profundidad del circuito.
+Finalmente, el $\Delta E$ absoluto mejora con $p$ en todas las topologías. Aunque $\Delta E/\text{gap}$ no satisface el umbral del 5\% para topologías 2D, el error energético absoluto sí decrece sistemáticamente al aumentar $p$. La mediana de $\Delta E$ se reduce 15--55$\times$ de $p=1$ a $p=4$. La discrepancia con $\Delta E/\text{gap}$ se explica por gaps menores en grafos de alta conectividad, que amplifican errores absolutos moderados. Para triangular, el error final (0.020) permanece un orden de magnitud superior al de cadena 1D (0.001), consistente con una limitación del ansatz \citep{tripathi2026}. Los datos completos se presentan en la Tabla~\ref{tab:delta_e_vs_p} (Apéndice~\ref{app:results}). La Tabla~\ref{tab:cross_topo_de} complementa la Tabla~\ref{tab:delta_e_vs_p}: la primera muestra el error en la mejor configuración fija, mientras que la segunda muestra la progresión del error al incrementar la profundidad del circuito.
 
 \section{Validación de escalamiento}
 
@@ -750,11 +753,11 @@ Se valida la escalabilidad del pipeline en dos dimensiones: (a) tamaño del sist
 \end{tabular}
 \end{table}
 
-El error absoluto $\Delta E$ se mantiene estable entre 0.003 y 0.006 independientemente de $N$, con fidelidad $\geq 0.995$ en todos los casos. Esto confirma que la calidad del estado predicho es uniformemente alta dentro del régimen válido, y que la mejora aparente de $\Delta E/\text{gap}$ con $N$ se debe al crecimiento del gap (denominador), no a una mejora del predictor.
+El error absoluto $\Delta E$ se mantiene estable entre 0.003 y 0.006 independientemente de $N$, con fidelidad $\geq 0.995$ en todos los casos. Esto indica que la calidad del estado predicho es uniformemente alta dentro del régimen válido, y que la mejora aparente de $\Delta E/\text{gap}$ con $N$ se debe al crecimiento del gap (denominador), no a una mejora del predictor.
 
 Con $p = 1$ (2 parámetros, configuración mínima), el pipeline escala hasta $N = 250$ mediante simulación MPS ($\chi = 64$), con $\Delta E/\text{gap}$ que decrece de 2.70\% ($N = 10$) a 0.019\% ($N = 120$--$200$). Este descenso refleja que el gap crece con $h$ (y $h_{\min}$ crece con $N$), no una mejora intrínseca del predictor: el error absoluto $|\Delta E|$ se mantiene en $\sim$0.05--0.07 independientemente de $N$, y $|\Delta E|/N$ decrece de 0.0023 ($N = 30$) a 0.0009 ($N = 60$), indicando convergencia per-site. Con $p = 2$ (4 parámetros), la precisión mejora $70\times$ respecto a $p = 1$ en el mismo régimen ($\Delta E/\text{gap} = 0.005\%$ vs.\ 0.38\% a $N = 40$, backend MPS determinista, 3 semillas).
 
-El pipeline end-to-end (Fases 1--3) se valida para $N = 30$--$60$ con la MPNN logrando $\Delta E/\text{gap} < 5\%$ en todos los puntos de evaluación (interpolación), requiriendo solo 16--39 puntos de entrenamiento ---una eficiencia de datos notable que se atribuye a la suavidad de la función $h \mapsto \theta^*$ en el régimen paramagnético.
+El pipeline end-to-end (Fases 1--3) se valida para $N = 30$--$60$ con la MPNN logrando $\Delta E/\text{gap} < 5\%$ en todos los puntos de evaluación (interpolación), requiriendo solo 16--39 puntos de entrenamiento ---una alta eficiencia de datos que se atribuye a la suavidad de la función $h \mapsto \theta^*$ en el régimen paramagnético.
 
 \textbf{Frontera del régimen válido ($h_{\min}$).} Para cada tamaño de sistema $N$ y profundidad $p$, existe un valor mínimo de $h$ por debajo del cual el HVA no puede representar el estado fundamental ---independientemente del optimizador o la inicialización---. Este límite se origina en la capacidad de entrelazamiento finita del circuito: cerca del punto crítico ($h \to h_c = 1$), la entropía de entrelazamiento del ground state excede la que el ansatz de profundidad fija puede generar. \citet{tripathi2026} observaron independientemente este comportamiento para HVA en TFIM 1D/2D/3D, y \citet{sumeet2025} demostraron teóricamente que se requieren $p \approx N/2$ capas para convergencia exacta en el límite termodinámico.
 
@@ -781,7 +784,7 @@ Para $p \geq 3$, la frontera es cuasi-constante: $h_{\min}(p{=}3) \approx 1.6 \p
 
 La capacidad de la MPNN para generalizar se evalúa en dos escenarios: (a) interpolación intra-N (mismos $N$ del entrenamiento, valores de $h$ no vistos) y (b) generalización cross-N (tamaños de sistema no vistos).
 
-\textbf{Intra-N (interpolación):} Entrenando con datos de un solo $N$ y evaluando en valores de $h$ no vistos, la MPNN logra 100\% PassRate para $N = 30$--$60$ con solo 16--39 puntos de entrenamiento ($p = 1$, cadena 1D, backend MPS $\chi = 64$). El error per-site $|\Delta E|/N$ decrece de 0.0023 ($N = 30$) a 0.0009 ($N = 60$), confirmando eficiencia de datos y escalado extensivo en modo intra-N.
+\textbf{Intra-N (interpolación):} Entrenando con datos de un solo $N$ y evaluando en valores de $h$ no vistos, la MPNN logra 100\% PassRate para $N = 30$--$60$ con solo 16--39 puntos de entrenamiento ($p = 1$, cadena 1D, backend MPS $\chi = 64$). El error per-site $|\Delta E|/N$ decrece de 0.0023 ($N = 30$) a 0.0009 ($N = 60$), lo cual es consistente con eficiencia de datos y escalado extensivo en modo intra-N.
 
 \textbf{Cross-N con MPNN y parametrización uniforme (fallo):} Entrenando con datos de $N = 10, 20, 40$ y evaluando en $N = 60$ (zero-shot, $p = 1$, cadena 1D), la predicción con parametrización uniforme \textbf{falla} ($\Delta E/\text{gap} = 688\%$ media). La causa es que con 2 parámetros globales compartidos, $\theta^*(h)$ depende implícitamente de $N$ y el \texttt{global\_mean\_pool} produce embeddings incompatibles entre tamaños distintos.
 
@@ -804,7 +807,7 @@ Triangular & 3,4,6,8,10,12 & 288 & 86\% \\
 \end{tabular}
 \end{table}
 
-El resultado confirma el resultado principal: la GNN predice correctamente los ángulos del HVA dentro del régimen operativo válido de cada topología. La variante UnifiedMPNN resuelve la limitación cross-N del enfoque original, permitiendo entrenar un único modelo con datos de múltiples $N$ y obtener predicciones con $\Delta E/\text{gap} < 5\%$ consistentemente. La topología triangular (coordinación $z = 6$) muestra un PassRate menor (86\%) debido a que su régimen válido es más estrecho (la frontera $h_{\min}$ es más alta).
+El resultado es consistente con el resultado principal: la GNN predice correctamente los ángulos del HVA dentro del régimen operativo válido de cada topología. La variante UnifiedMPNN resuelve la limitación cross-N del enfoque original, permitiendo entrenar un único modelo con datos de múltiples $N$ y obtener predicciones con $\Delta E/\text{gap} < 5\%$ consistentemente. La topología triangular (coordinación $z = 6$) muestra un PassRate menor (86\%) debido a que su régimen válido es más estrecho (la frontera $h_{\min}$ es más alta).
 
 \textbf{Hallazgo técnico:} La canonicalización de simetría gauge ($\theta \mapsto \theta \bmod \pi$ + convención $\mathbb{Z}_2$) es un requisito para el entrenamiento multi-N. Sin ella, semillas distintas convergen a mínimos equivalentes pero con $\theta$ en periodos diferentes, contaminando los targets de la red.
 
@@ -829,7 +832,7 @@ Para verificar que la calidad de predicción se mantiene al crecer $N$, se eval�
 \end{tabular}
 \end{table}
 
-El error per-site $|\Delta E|/N$ permanece esencialmente constante ($\approx 9 \times 10^{-3}$) independientemente de $N$, confirmando escalado extensivo. Los puntos que no pasan el criterio del 5\% son aquellos cuyo valor de $h$ se encuentra cerca de la frontera $h_{\min}(N)$ ---no representan una degradación del predictor---, sino un reflejo de que la frontera se desplaza con $N$ para $p = 1$ (Ec.~\ref{eq:frontier_p1}).
+El error per-site $|\Delta E|/N$ permanece esencialmente constante ($\approx 9 \times 10^{-3}$) independientemente de $N$, consistente con escalado extensivo. Los puntos que no pasan el criterio del 5\% son aquellos cuyo valor de $h$ se encuentra cerca de la frontera $h_{\min}(N)$ ---no representan una degradación del predictor---, sino un reflejo de que la frontera se desplaza con $N$ para $p = 1$ (Ec.~\ref{eq:frontier_p1}).
 
 \subsection{Bond-resolved HVA: necesidad de la GNN en alta dimensionalidad}
 \label{subsec:bond_resolved}
@@ -840,7 +843,7 @@ Cuando la topología o el Hamiltoniano rompen esta homogeneidad ---por ejemplo, 
 
 Se evalúa este régimen para determinar en qué punto la MPNN deja de ser una conveniencia y se convierte en una necesidad metodológica ---es decir, cuándo la interpolación clásica deja de ser viable como alternativa---.
 
-\textbf{Resultado:} Con 79 dimensiones ($N = 40$, $p = 2$, cadena 1D, bond-resolved, backend statevector, 3 semillas), la interpolación clásica es geométricamente impracticable. La GNN demuestra viabilidad intra-N con un factor de aceleración de $4414\times$ sobre inicialización aleatoria (6/6 PASS, $\Delta E/\text{gap} = 0.71\%$). Sin embargo, la generalización cross-N en 79D falla por insuficiencia de datos (45 puntos de entrenamiento para 494K parámetros de modelo). Este resultado define la frontera de investigación futura.
+\textbf{Resultado:} Con 79 dimensiones ($N = 40$, $p = 2$, cadena 1D, bond-resolved, backend MPS determinista $\chi = 64$, 3 semillas), la interpolación clásica es geométricamente impracticable. La GNN muestra viabilidad intra-N con un factor de aceleración de $4414\times$ sobre inicialización aleatoria (6/6 PASS, $\Delta E/\text{gap} = 0.71\%$). Sin embargo, la generalización cross-N en 79D falla por insuficiencia de datos (45 puntos de entrenamiento para 494K parámetros de modelo). Este resultado define la frontera de investigación futura.
 
 \subsection{Transferencia directa de parámetros VQE entre tamaños}
 
@@ -877,18 +880,18 @@ El Hamiltoniano $H_{\text{TFIM+long}}$ (Ec.~\ref{eq:tfim_long}) añade un campo 
 \end{tabular}
 \end{table}
 
-El HVA extendido mantiene fidelidad $\geq 0.98$ hasta $g = 0.5$ con \textbf{cero compuertas de dos qubits adicionales}, demostrando que la extensión a campos de Ising más generales es viable sin costo en circuito.
+El HVA extendido mantiene fidelidad $\geq 0.98$ hasta $g = 0.5$ con \textbf{cero compuertas de dos qubits adicionales}, mostrando que la extensión a campos de Ising más generales es viable sin costo en circuito.
 
 Adicionalmente, el pipeline completo con TFIM longitudinal ($g = 0.3$) se validó para $N = 10$ sobre las 5 topologías con $p = 2$--$4$ (21 ejecuciones). Los resultados muestran rendimiento comparable al TFIM estándar: heavy-hex $p=3$ alcanza 90\% PassRate ($\bar{F}_{\text{VQE}} = 0.995$), cadena 1D 92\%, escalera 79\%, cuadrada 67\% y triangular 46\%. Los datos completos se presentan en la Tabla~\ref{tab:tfim_long_deploy} (Apéndice~\ref{app:results}).
 
-El hallazgo clave es que el TFIM longitudinal alcanza rendimiento equivalente al TFIM estándar (90\% vs 90\% en heavy-hex $p = 3$), confirmando que la extensión del Hamiltoniano no degrada el pipeline cuando los nuevos términos se implementan con compuertas de un qubit.
+El hallazgo clave es que el TFIM longitudinal alcanza rendimiento equivalente al TFIM estándar (90\% vs 90\% en heavy-hex $p = 3$), indicando que la extensión del Hamiltoniano no degrada el pipeline cuando los nuevos términos se implementan con compuertas de un qubit.
 
 La Figura~\ref{fig:heatmap_passrate} visualiza la interacción entre tamaño de sistema ($N$) y profundidad del circuito ($p$) para el TFIM longitudinal en topología heavy-hex.
 
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.75\textwidth]{thesis_plots/heatmap_pass_rate.png}
-\caption{Mapa de calor del PassRate ($\Delta E/\text{gap} < 5\%$) para TFIM longitudinal en topología heavy-hex. Ejes: tamaño de sistema $N$ vs profundidad del circuito $p$. Verde = pipeline funciona ($\geq 85\%$), amarillo = marginal (50--60\%), blanco = no evaluado. El régimen óptimo es $p = 3$, que alcanza 100\% para $N = 16$--$20$.}
+\caption{Mapa de calor del PassRate ($\Delta E/\text{gap} < 5\%$) para TFIM longitudinal en topología heavy-hex. Ejes: tamaño de sistema $N$ vs profundidad del circuito $p$. Verde = pipeline satisface los criterios ($\geq 85\%$), amarillo = marginal (50--60\%), blanco = no evaluado. El régimen óptimo es $p = 3$, que alcanza 100\% para $N = 16$--$20$.}
 \label{fig:heatmap_passrate}
 \end{figure}
 
@@ -896,13 +899,13 @@ La Figura~\ref{fig:heatmap_passrate} visualiza la interacción entre tamaño de 
 
 El modelo frustrado alcanza fidelidad $\geq 0.99$ en simulación a $N = 6$, $p = 2$, $J_2 = 0.5$ (experimento T1c, 3 semillas, 100\% de acuerdo con la detección de fase por gradientes de pesos \citep{hernandes2025}), pero requiere 27 CZ gates a $N = 6$. \citet{teoh2025} validaron recientemente la simulación de un TFIM frustrado 2D con interacciones a segundos vecinos en un computador cuántico de iones atrapados, confirmando la viabilidad del enfoque para hardware de iones, aunque el costo en compuertas CZ excede la viabilidad práctica para procesadores superconductores.
 
-\subsection{Heisenberg: límite fundamental de expresividad}
+\subsection{Heisenberg: límite de expresividad del ansatz evaluado}
 
-Se evalúa exhaustivamente el modelo Heisenberg como caso negativo para documentar la frontera del HVA. Se ejecutaron \textbf{46 ejecuciones} independientes cubriendo dos variantes (Heisenberg estándar XXZ y Heisenberg transversal), 5 topologías, y profundidades $p = 1$--$4$ para $N = 10$. El resultado es concluyente: ninguna configuración alcanza PassRate $> 10\%$ y la fidelidad VQE permanece por debajo de la utilidad ($< 0.56$) en todos los casos.
+Se evalúa de forma sistemática el modelo Heisenberg como caso negativo para documentar la frontera del HVA. Se ejecutaron \textbf{46 ejecuciones} independientes cubriendo dos variantes (Heisenberg estándar XXZ y Heisenberg transversal), 5 topologías, y profundidades $p = 1$--$4$ para $N = 10$. El resultado es concluyente: ninguna configuración alcanza PassRate $> 10\%$ y la fidelidad VQE permanece por debajo de la utilidad ($< 0.56$) en todos los casos.
 
 Hallazgos principales:
 \begin{enumerate}
-    \item El fallo es \textbf{independiente} de profundidad ($p = 1$--$4$), topología (5 evaluadas), semilla y número de reinicios, confirmando un límite de expresividad del ansatz ---no de optimización---.
+    \item El fallo es \textbf{independiente} de profundidad ($p = 1$--$4$), topología (5 evaluadas), semilla y número de reinicios, confirmando un límite de expresividad del ansatz dentro de las configuraciones evaluadas ($p = 1$--$4$, $N = 10$) ---no de optimización---.
     \item La variante transversal ($H = J(XX + YY + 0.5 \cdot ZZ) - h \cdot X$) muestra mejores fidelidades (0.54 vs 0.11) pero sigue siendo insuficiente para generar datos de entrenamiento válidos para la MPNN (umbral: fidelidad $\geq 0.93$).
     \item Incrementar de $p = 3$ a $p = 4$ mejora la fidelidad marginalmente (+0.14 en heavy-hex) pero duplica el costo computacional sin beneficio funcional.
     \item La MPNN alcanza MSE bajas en algunos ejecuciones Heisenberg porque el paisaje VQE \emph{es suave} ---simplemente converge a estados incorrectos---. MSE bajo $\neq$ buena predicción cuando los datos de entrenamiento son erróneos.
@@ -932,11 +935,11 @@ Kitaev chain & $\times$ & \checkmark & \checkmark & $\times$ & \checkmark & No v
 \end{tabular}
 \end{table}
 
-El resultado delimita la extensibilidad del framework: funciona para Hamiltonianos cuyos términos nuevos se mapean a compuertas de un qubit (rotaciones $R_X$, $R_Z$), sin incrementar el presupuesto de compuertas de dos qubits \citep{wiersema2020}. Modelos que requieren interacciones de dos cuerpos adicionales (XX, YY) quedan fuera del régimen viable con profundidades moderadas ($p \leq 4$).
+El resultado delimita la extensibilidad del framework: satisface los criterios para Hamiltonianos cuyos términos nuevos se mapean a compuertas de un qubit (rotaciones $R_X$, $R_Z$), sin incrementar el presupuesto de compuertas de dos qubits \citep{wiersema2020}. Modelos que requieren interacciones de dos cuerpos adicionales (XX, YY) quedan fuera del régimen viable con profundidades moderadas ($p \leq 4$).
 
 \section{Detección de fases en el espacio de parámetros}
 
-Una ventaja adicional del pipeline es que los parámetros optimizados $\theta^*(h)$ ---producidos en la Fase 2 como datos de entrenamiento para la MPNN--- codifican información sobre la transición de fase del sistema. Si la MPNN aprende una representación interna que refleja el cambio cualitativo entre fases, la transición puede detectarse sin mediciones cuánticas adicionales, a costo computacional cero. Esta posibilidad se fundamenta en los resultados de \citet{hernandes2025}, quienes demostraron que las redes neuronales entrenadas sobre estados fundamentales codifican internamente las fronteras de fase en su espacio de pesos. Se evalúan dos indicadores complementarios para verificar esta hipótesis en nuestro pipeline.
+Una ventaja adicional del pipeline es que los parámetros optimizados $\theta^*(h)$ ---producidos en la Fase 2 como datos de entrenamiento para la MPNN--- codifican información sobre la transición de fase del sistema. Si la MPNN aprende una representación interna que refleja el cambio cualitativo entre fases, la transición puede detectarse sin mediciones cuánticas adicionales, sin evaluaciones de circuito adicionales. Esta posibilidad se fundamenta en los resultados de \citet{hernandes2025}, quienes demostraron que las redes neuronales entrenadas sobre estados fundamentales codifican internamente las fronteras de fase en su espacio de pesos. Se evalúan dos indicadores complementarios para verificar esta hipótesis en nuestro pipeline.
 
 Siguiendo \citet{hernandes2025}, se analizan los gradientes de los pesos de la MPNN respecto a $h$. Se detectan picos en $\|\partial W / \partial h\|$ en la región $h \approx 1.0$--$1.2$, indicando que la red codifica la transición de fase internamente.
 
@@ -957,7 +960,7 @@ $|\partial\theta/\partial h|$ & 1.25 & 0.25 \\
 \end{tabular}
 \end{table}
 
-El resultado del PCA confirma que el espacio de parámetros HVA es efectivamente unidimensional: PC1 explica el 99.96\% de la varianza total. A $N = 100$ con un grid de $h$ que cubre la región crítica, el pico de varianza de la proyección sobre PC1 converge a $h = 1.033 \pm 0.047$, consistente con $h_c = 1.0$ \citep{dutta2015}. El método es cualitativo: no puede extraer el exponente crítico $\nu$ (véase Sección~\ref{sec:limitaciones}).
+El resultado del PCA muestra que el espacio de parámetros HVA es efectivamente unidimensional: PC1 explica el 99.96\% de la varianza total. A $N = 100$ con un grid de $h$ que cubre la región crítica, el pico de varianza de la proyección sobre PC1 converge a $h = 1.033 \pm 0.047$, consistente con $h_c = 1.0$ \citep{dutta2015}. El método es cualitativo: no puede extraer el exponente crítico $\nu$ (véase Sección~\ref{sec:limitaciones}).
 
 \citet{yin2025} han propuesto independientemente un enfoque más sofisticado para la misma tarea: un autoencoder variacional (VAE) con mecanismo de atención. El método de Yin et al.\ es más poderoso que nuestro PCA ---captura relaciones no lineales---, pero también más complejo. Nuestro análisis PCA, siendo lineal y de costo computacional negligible, ofrece un diagnóstico de primer orden suficiente para confirmar cualitativamente la presencia de la transición.
 
@@ -976,7 +979,7 @@ El diagnóstico automatizado sobre 174 ejecuciones clasificó 76 fallos por caus
 \label{fig:failure_treemap}
 \end{figure}
 
-La relación entre calidad de la MPNN y resultado final del pipeline se visualiza en la Figura~\ref{fig:mpnn_scatter}: existe correlación log-log ($r = 0.46$) entre el generalization gap de la MPNN y el $\Delta E/\text{gap}$ final, confirmando que el gen\_gap $> 0.01$ es un predictor confiable de fallo.
+La relación entre calidad de la MPNN y resultado final del pipeline se visualiza en la Figura~\ref{fig:mpnn_scatter}: existe correlación log-log ($r = 0.46$) entre el generalization gap de la MPNN y el $\Delta E/\text{gap}$ final, indicando que el gen\_gap $> 0.01$ es un predictor confiable de fallo.
 
 \begin{figure}[t]
 \centering
@@ -988,11 +991,11 @@ La relación entre calidad de la MPNN y resultado final del pipeline se visualiz
 \subsection{Eficiencia de datos}
 \label{sec:eficiencia_datos}
 
-La MPNN demuestra alta eficiencia de datos: logra $\Delta E/\text{gap} < 5\%$ con tan solo 5 puntos de entrenamiento para semillas favorables, y la recomendación conservadora es $k = 7$--$9$ puntos para robustez cross-seed. A $N = 10$ ($p = 3$, cadena 1D, 3 semillas), el $\Delta E/\text{gap}$ medio varía solo entre 2.94\% ($k = 17$, completo) y 3.37\% ($k = 5$, mínimo viable), confirmando que la función $h \mapsto \theta^*$ es suficientemente suave para aprenderse con pocas muestras. Para $N = 30$--$60$ ($p = 1$), 16--39 puntos de entrenamiento logran 100\% PassRate.
+La MPNN muestra alta eficiencia de datos: logra $\Delta E/\text{gap} < 5\%$ con tan solo 5 puntos de entrenamiento para semillas favorables, y la recomendación conservadora es $k = 7$--$9$ puntos para robustez cross-seed. A $N = 10$ ($p = 3$, cadena 1D, 3 semillas), el $\Delta E/\text{gap}$ medio varía solo entre 2.94\% ($k = 17$, completo) y 3.37\% ($k = 5$, mínimo viable), indicando que la función $h \mapsto \theta^*$ es suficientemente suave para aprenderse con pocas muestras. Para $N = 30$--$60$ ($p = 1$), 16--39 puntos de entrenamiento logran 100\% PassRate.
 
 \subsection{Resumen de la campaña experimental}
 
-El análisis de la campaña experimental muestra que la tasa de resultados útiles (confirmados + rechazados con resultado negativo válido) es del 84\% (41/49), demostrando la madurez de la metodología experimental. Los 8 experimentos rechazados producen conocimiento accionable: delimitan la aplicabilidad del framework (cross-topology transfer falla con $\Delta E/\text{gap} = 625\%$--$719\%$ para transferencia bidireccional triangular $\leftrightarrow$ heavy-hex, Heisenberg falla, escalamiento de exponente crítico falla, DyPP redundante).
+El análisis de la campaña experimental muestra que la tasa de resultados útiles (confirmados + rechazados con resultado negativo válido) es del 84\% (41/49), indicando la consistencia del procedimiento experimental. Los 8 experimentos rechazados producen conocimiento accionable: delimitan la aplicabilidad del framework (cross-topology transfer falla con $\Delta E/\text{gap} = 625\%$--$719\%$ para transferencia bidireccional triangular $\leftrightarrow$ heavy-hex, Heisenberg falla, escalamiento de exponente crítico falla, DyPP redundante).
 
 \begin{figure}[h]
 \centering
@@ -1008,25 +1011,25 @@ El análisis de la campaña experimental muestra que la tasa de resultados útil
 
 \chapter{Discusión}
 
-\section{Interpretación: ¿Por qué funciona?}
+\section{Interpretación: ¿Por qué satisface los criterios?}
 
-La eficacia del pipeline GNN-HVA se fundamenta en la convergencia de cinco propiedades teóricas y empíricas que simplifican radicalmente el problema de aprendizaje:
+La eficacia del pipeline GNN-HVA se fundamenta en la convergencia de cinco propiedades teóricas y empíricas que simplifican considerablemente el problema de aprendizaje:
 
-\textbf{1. El paisaje del HVA es suave dentro de una fase.} \citet{mele2022} demostraron que $\theta^*(h)$ varía continuamente con $h$ para Hamiltonianos parametrizados con gap espectral. Para TFIM con HVA con parametrización uniforme ($p = 1$), la relación $h \mapsto \theta^*$ es una función de solo 2 parámetros ($\theta_{ZZ}$, $\theta_X$) que varía monótonamente con $h$ en el régimen paramagnético. Cuantitativamente, la métrica $\theta_{\text{smooth}} = \max_i \|\theta^*(h_i) - \theta^*(h_{i-1})\|_\infty$ da valores de 0.01--0.05 en el régimen válido ---sin saltos, discontinuidades ni oscilaciones rápidas---. Esto implica que la función $h \mapsto \theta^*$ es altamente predecible: pocas decenas de puntos de entrenamiento bastan para interpolar con precisión suficiente. Nuestros resultados de eficiencia de datos (5 puntos bastan para semillas favorables, Sección~\ref{sec:eficiencia_datos}) confirman empíricamente esta suavidad.
+\textbf{1. El paisaje del HVA es suave dentro de una fase.} \citet{mele2022} demostraron que $\theta^*(h)$ varía continuamente con $h$ para Hamiltonianos parametrizados con gap espectral. Para TFIM con HVA con parametrización uniforme ($p = 1$), la relación $h \mapsto \theta^*$ es una función de solo 2 parámetros ($\theta_{ZZ}$, $\theta_X$) que varía monótonamente con $h$ en el régimen paramagnético. Cuantitativamente, la métrica $\theta_{\text{smooth}} = \max_i \|\theta^*(h_i) - \theta^*(h_{i-1})\|_\infty$ da valores de 0.01--0.05 en el régimen válido ---sin saltos, discontinuidades ni oscilaciones rápidas---. Esto implica que la función $h \mapsto \theta^*$ es altamente predecible: pocas decenas de puntos de entrenamiento bastan para interpolar con precisión suficiente. Nuestros resultados de eficiencia de datos (5 puntos bastan para semillas favorables, Sección~\ref{sec:eficiencia_datos}) son consistentes con esta suavidad.
 
 \textbf{Consecuencia para la profundidad mínima.} Este resultado explica por qué $p \geq 3$ produce un salto cualitativo en la tasa de aprobación (Tabla~\ref{tab:cross_topo_depth}): a $p \geq 3$, los parámetros óptimos $\theta^*(h)$ varían monotónicamente con $h$ (discontinuidades $< 0.05$ rad entre puntos consecutivos), permitiendo que la MPNN interpole con precisión. A $p \leq 2$, el paisaje presenta saltos de $\pi$ (wraps periódicos) que la MPNN no puede capturar.
 
-\textbf{2. La física restringe el espacio de soluciones y la dimensionalidad del output es mínima.} El Hamiltoniano TFIM tiene solo dos fases (paramagnética y ferromagnética) con un crossover suave. En el régimen $h \gg h_c$ ---donde opera la mayoría de las configuraciones validadas---, el estado fundamental está próximo a $|+\rangle^{\otimes N}$, y el HVA solo necesita aplicar una corrección perturbativa. Los parámetros óptimos están concentrados en una región compacta ($|\theta^*| < 0.5$ típicamente). Además, con HVA de parametrización uniforme y $p = 1$, el output de la MPNN son solo 2 números ($\theta_{ZZ}$, $\theta_X$). Una red con $\sim$99K parámetros (3 capas GINConv, hidden\_dim$=128$) que mapea un grafo de $N$ nodos a 2 valores escalares dispone de enorme capacidad relativa ---incluso con 9 puntos de entrenamiento, el modelo tiene suficiente señal para capturar la relación funcional---, especialmente cuando los puntos están distribuidos a lo largo de una curva suave y los labels no tienen ruido.
+\textbf{2. La física restringe el espacio de soluciones y la dimensionalidad del output es mínima.} El Hamiltoniano TFIM tiene solo dos fases (paramagnética y ferromagnética) con un crossover suave. En el régimen $h \gg h_c$ ---donde opera la mayoría de las configuraciones validadas---, el estado fundamental está próximo a $|+\rangle^{\otimes N}$, y el HVA solo necesita aplicar una corrección perturbativa. Los parámetros óptimos están concentrados en una región compacta ($|\theta^*| < 0.5$ típicamente). Además, con HVA de parametrización uniforme y $p = 1$, el output de la MPNN son solo 2 números ($\theta_{ZZ}$, $\theta_X$). Una red con $\sim$99K parámetros (3 capas GINConv, hidden\_dim$=128$) que mapea un grafo de $N$ nodos a 2 valores escalares dispone de capacidad de modelo considerablemente mayor que la dimensionalidad del output ---incluso con 9 puntos de entrenamiento, el modelo tiene suficiente señal para capturar la relación funcional---, especialmente cuando los puntos están distribuidos a lo largo de una curva suave y los labels no tienen ruido.
 
 \textbf{Relación con la topología.} El número de compuertas CZ por capa del HVA ---$N-1 = 9$ para cadena 1D, $\sim$12 para heavy-hex, $15$+ para escalera/cuadrada/triangular--- crea paisajes de optimización progresivamente más complejos con más mínimos locales, explicando la jerarquía de topologías observada en la Tabla~\ref{tab:cross_topo}.
 
 \textbf{3. La estructura de grafo informa la predicción.} El mecanismo de paso de mensajes de GINConv captura la topología del Hamiltoniano ---qué qubits interactúan y con qué intensidad---, sin codificación manual de features. Esto explica por qué topologías con mayor conectividad (heavy-hex, escalera) producen mejores predicciones: más aristas $=$ más canales de información para la GNN. \citet{slavin2025} confirman independientemente que la geometría de la red es suficiente para predecir magnetización en sistemas de Ising.
 
-\textbf{4. La inicialización informada elimina los mínimos locales y multiplica datos.} El warm-start descendente, combinado con la suavidad del paisaje HVA, garantiza que la optimización converge al mínimo global en cada punto del barrido. Esto produce datos de entrenamiento de alta calidad para la MPNN. \citet{puig2025} formalizan este argumento: el warm-start proporciona varianzas de pérdida mayores (gradientes más fuertes), asegurando convergencia confiable. Adicionalmente, la ejecución multi-semilla multiplica los datos sin costo de exploración adicional: con 3 semillas, 9 valores de $h$ producen 27 puntos de entrenamiento, cada uno con una $\theta^*$ ligeramente distinta pero igualmente válida. Cabe notar que este argumento tiene un límite con el tamaño del sistema: a $N = 20$, el paisaje exhibe 2--3 mínimos locales distintos, requiriendo $\geq 7$ reinicios para explorar todas las cuencas de atracción.
+\textbf{4. La inicialización informada elimina los mínimos locales y multiplica datos.} El warm-start descendente, combinado con la suavidad del paisaje HVA, permite que la optimización converja al mínimo global en cada punto del barrido. Esto produce datos de entrenamiento de alta calidad para la MPNN. \citet{puig2025} formalizan este argumento: el warm-start proporciona varianzas de pérdida mayores (gradientes más fuertes), asegurando convergencia confiable. Adicionalmente, la ejecución multi-semilla multiplica los datos sin costo de exploración adicional: con 3 semillas, 9 valores de $h$ producen 27 puntos de entrenamiento, cada uno con una $\theta^*$ ligeramente distinta pero igualmente válida. Cabe notar que este argumento tiene un límite con el tamaño del sistema: a $N = 20$, el paisaje exhibe 2--3 mínimos locales distintos, requiriendo $\geq 7$ reinicios para explorar todas las cuencas de atracción.
 
-\textbf{5. La profundidad moderada es compatible con hardware futuro.} El resultado de \citet{mele2026} establece que la profundidad efectiva útil escala como $O(\log n)$ en presencia de ruido. Los circuitos HVA de $p = 1$--$4$ capas empleados en este trabajo satisfacen holgadamente esta cota para $N = 4$--$20$. En simulación ideal, estos circuitos son suficientes para resolver la física fuera de la región crítica ($h \geq h_{\min}$), como confirman los resultados de las Tablas~\ref{tab:cross_topo} y \ref{tab:cross_topo_depth}.
+\textbf{5. La profundidad moderada es compatible con hardware futuro.} El resultado de \citet{mele2026} establece que la profundidad efectiva útil escala como $O(\log n)$ en presencia de ruido. Los circuitos HVA de $p = 1$--$4$ capas empleados en este trabajo satisfacen holgadamente esta cota para $N = 4$--$20$. En simulación ideal, estos circuitos son suficientes para resolver la física fuera de la región crítica ($h \geq h_{\min}$), como se observa en los resultados de las Tablas~\ref{tab:cross_topo} y \ref{tab:cross_topo_depth}.
 
-La combinación de estos cinco elementos produce un pipeline que funciona de manera confiable: la física suave del TFIM fuera de la región crítica + la baja dimensionalidad del output + la estructura de grafo informativa + la inicialización de calidad + el ansatz apropiado convergen en un sistema donde la MPNN solo necesita capturar una curva suave de pocos valores.
+La combinación de estos cinco elementos produce un pipeline que satisface los criterios de forma reproducible: la física suave del TFIM fuera de la región crítica + la baja dimensionalidad del output + la estructura de grafo informativa + la inicialización de calidad + el ansatz apropiado convergen en un sistema donde la MPNN solo necesita capturar una curva suave de pocos valores.
 
 \begin{figure}[h]
 \centering
@@ -1087,7 +1090,7 @@ Dado que los parámetros óptimos $\theta^*(h)$ varían suavemente dentro de una
 
 \textbf{Conclusión.} Para el caso base (HVA con parametrización uniforme, 2--4 dimensiones, puntos de test dentro del rango de entrenamiento), la interpolación lineal es un baseline competitivo. Esto es consistente con la suavidad del paisaje: en baja dimensionalidad, $\theta^*(h)$ es esencialmente lineal dentro de una fase.
 
-La MPNN demuestra su valor en dos escenarios donde la interpolación fracasa:
+La MPNN muestra su valor en dos escenarios donde la interpolación fracasa:
 \begin{enumerate}
     \item \textbf{Alta dimensionalidad} (bond-resolved, 79 parámetros): interpolar en $\mathbb{R}^{79}$ con 45 puntos es geométricamente inviable; la MPNN generaliza con factor $4414\times$ sobre random.
     \item \textbf{Eficiencia de datos para $N$ grande}: a $N = 30$--$60$, la MPNN logra 100\% PassRate con 16--39 puntos de entrenamiento, donde la interpolación lineal requeriría muestreo denso en cada dimensión.
@@ -1101,7 +1104,7 @@ La MPNN demuestra su valor en dos escenarios donde la interpolación fracasa:
 
 Como se estableció en la Sección~\ref{subsec:scaling_np} (Ecuaciones~\ref{eq:frontier_p1}--\ref{eq:frontier_p2}), la frontera $h_{\min}$ crece linealmente con $N$ para $p = 1$--$2$ y es cuasi-constante para $p \geq 3$. El resultado ha sido confirmado independientemente por \citet{tripathi2026} y es consistente con la cota teórica de \citet{sumeet2025} ($N/2$ capas para el límite termodinámico). Con profundidad suficiente ($p = 5$, $N = 8$), la frontera se desplaza hasta $h \approx 0.97 \approx h_c$, confirmando que el límite es de profundidad, no algorítmico.
 
-\textbf{Dependencia con el modelo:} Para el TFIM, la frontera decrece con $p$ y converge a $h_c$ ---pero esto es específico de la coincidencia entre la estructura del HVA ($R_{ZZ} + R_X$) y los términos del Hamiltoniano ($ZZ + X$)---. Para el modelo Heisenberg XXZ ($XX + YY + \Delta \cdot ZZ$), la frontera se estabiliza en $h_{\min} \approx 3.5$ \emph{independientemente} de $p$ hasta $p = 8$ ($N = 10$): el HVA con estructura TFIM no puede capturar las correlaciones XX/YY requeridas. Este resultado confirma que la expresividad del ansatz es específica al Hamiltoniano \citep{wiersema2020}.
+\textbf{Dependencia con el modelo:} Para el TFIM, la frontera decrece con $p$ y converge a $h_c$ ---pero esto es específico de la coincidencia entre la estructura del HVA ($R_{ZZ} + R_X$) y los términos del Hamiltoniano ($ZZ + X$)---. Para el modelo Heisenberg XXZ ($XX + YY + \Delta \cdot ZZ$), la frontera se estabiliza en $h_{\min} \approx 3.5$ \emph{independientemente} de $p$ hasta $p = 8$ ($N = 10$): el HVA con estructura TFIM no puede capturar las correlaciones XX/YY requeridas. Este resultado es consistente con que la expresividad del ansatz es específica al Hamiltoniano \citep{wiersema2020}.
 
 \textbf{Dependencia con la topología:} El número de coordinación máximo ($z_{\max}$) es el factor dominante. A $N = 10$ y profundidad óptima: cadena 1D ($z = 2$): $h_{\min} = 1.09$; heavy-hex ($z = 3$): $h_{\min} = 1.12$; escalera ($z = 3$): $h_{\min} = 1.67$; cuadrada ($z = 4$): $h_{\min} = 1.68$; triangular ($z = 6$): $h_{\min} = 2.20$.
 
@@ -1133,7 +1136,7 @@ Se evaluó si una técnica de predicción dinámica de parámetros (DyPP) reduce
 \textbf{Aplicabilidad en materia condensada:}
 
 \begin{itemize}
-    \item \textbf{Screening de diagramas de fases:} Un experimentalista que disponga de un procesador cuántico puede entrenar la MPNN con 16--39 puntos VQE y predecir el diagrama completo sin optimización adicional, reduciendo el uso de QPU de días a minutos para sistemas con paisaje energético suave.
+    \item \textbf{Screening de diagramas de fases:} Un experimentalista que disponga de un procesador cuántico puede entrenar la MPNN con 16--39 puntos VQE y predecir el diagrama completo sin optimización adicional, reduciendo significativamente el número de evaluaciones de circuito necesarias para la clasificación de fases.
 
     \item \textbf{Clasificación sin reconstrucción de estado:} La filosofía de observables locales ($\langle X_i \rangle$, $\langle Z_i Z_{i+1} \rangle$) es compatible con hardware ruidoso, donde la tomografía completa es prohibitiva \citep{sharma2026}.
 
@@ -1142,7 +1145,7 @@ Se evaluó si una técnica de predicción dinámica de parámetros (DyPP) reduce
     \item \textbf{Generación eficiente de datos de entrenamiento:} El warm-start reduce el costo de generar datasets VQE en $10$--$50\times$ \citep{puig2025}, habilitando conjuntos de entrenamiento a gran escala para ML cuántico.
 \end{itemize}
 
-\textbf{Nota sobre simulabilidad clásica.} A las escalas validadas ($N \leq 20$, 1D), todos los resultados son reproducibles clásicamente. El trabajo demuestra la validez del \emph{método} en un régimen verificable; la ventaja cuántica se materializa al escalar a sistemas 2D frustrados donde DMRG pierde eficiencia.
+\textbf{Nota sobre simulabilidad clásica.} A las escalas validadas ($N \leq 20$, 1D), todos los resultados son reproducibles clásicamente. El trabajo aporta evidencia de la validez del \emph{método} en un régimen verificable; la ventaja cuántica se materializa al escalar a sistemas 2D frustrados donde DMRG pierde eficiencia.
 
 
 %---------------------------
@@ -1162,9 +1165,9 @@ Las contribuciones principales son:
 
     \item \textbf{La aceleración respecto a VQE convencional es de 29--500$\times$} (Tabla~\ref{tab:comparison_literature}, Figura~\ref{fig:gap_widens}). La MPNN predice parámetros en una única pasada forward clásica, eliminando el bucle de optimización iterativa.
 
-    \item \textbf{El framework es extensible a variantes del Hamiltoniano de Ising} cuando los términos adicionales se mapean a compuertas de un qubit (TFIM + longitudinal: PassRate 90\%+, sin compuertas 2Q adicionales, Tabla~\ref{tab:tfim_long}). El límite se alcanza con modelos que requieren interacciones de dos cuerpos adicionales (Heisenberg: 0\% en 46 ejecuciones, Sección~\ref{sec:extensibilidad}).
+    \item \textbf{El framework es extensible a variantes del Hamiltoniano de Ising} cuando los términos adicionales se mapean a compuertas de un qubit (TFIM + longitudinal: PassRate 90\%+, sin compuertas 2Q adicionales, Tabla~\ref{tab:tfim_long}). El límite se alcanza con modelos que requieren interacciones de dos cuerpos adicionales (Heisenberg: 0\% en las 46 configuraciones evaluadas, Sección~\ref{sec:extensibilidad}).
 
-    \item \textbf{La predicción funciona con alta eficiencia de datos y escala con $N$:} 16--39 puntos VQE bastan para 100\% PassRate en interpolación a $N = 30$--$60$. La variante UnifiedMPNN permite cross-N con 98--100\% PassRate en 4 de 5 topologías (Tabla~\ref{tab:cross_n_transfer}).
+    \item \textbf{La predicción satisface los criterios con alta eficiencia de datos y escala con $N$:} 16--39 puntos VQE bastan para 100\% PassRate en interpolación a $N = 30$--$60$. La variante UnifiedMPNN permite cross-N con 98--100\% PassRate en 4 de 5 topologías (Tabla~\ref{tab:cross_n_transfer}).
 
     \item \textbf{Los límites del pipeline son físicos, no algorítmicos:} la frontera de expresividad del HVA en $h \approx 1.3$ ($N = 10$) es confirmada independientemente por \citet{tripathi2026} y explicable por la cota de \citet{sumeet2025}.
 \end{enumerate}
@@ -1178,8 +1181,8 @@ Como se discutió en el Capítulo~6, los resultados validan las seis hipótesis 
     \item \textbf{OE2} (Ground truth): Completado --- Diagonalización exacta ($N \leq 14$) y DMRG ($N > 14$, $\chi = 64$--$200$), 5 topologías.
     \item \textbf{OE3} (VQE warm-start): Completado --- Fidelidad media $> 0.95$, 93\%+ de puntos $\geq 0.93$ en régimen válido.
     \item \textbf{OE4} (Predictor MPNN): Completado --- $\Delta E/\text{gap} < 5\%$ en 5 topologías dentro del régimen válido; cross-N resuelto mediante UnifiedMPNN bond-resolved (Tabla~\ref{tab:cross_n_transfer}), con escalado extensivo confirmado hasta $N = 40$ (Tabla~\ref{tab:large_n_chain}).
-    \item \textbf{OE5} (Validación sistemática): Completado --- Validación exhaustiva sobre 5 topologías, $N = 4$--$20$, $p = 1$--$4$.
-    \item \textbf{OE6} (Extensibilidad): Completado --- TFIM longitudinal ($g \leq 0.5$, PassRate 90\%+), Heisenberg transversal (resultado negativo exhaustivo: 0\% en 26 ejecuciones), TFIM frustrado (simulación viable).
+    \item \textbf{OE5} (Validación sistemática): Completado --- Validación sistemática sobre 5 topologías, $N = 4$--$20$, $p = 1$--$4$.
+    \item \textbf{OE6} (Extensibilidad): Completado --- TFIM longitudinal ($g \leq 0.5$, PassRate 90\%+), Heisenberg transversal (resultado negativo reproducible en las configuraciones evaluadas: 0\% en 26 ejecuciones), TFIM frustrado (simulación viable).
 \end{itemize}
 
 Los objetivos OE1--OE6 se cumplen íntegramente. El despliegue en hardware cuántico real queda como línea de trabajo futuro inmediata, para la cual el pipeline está preparado arquitectónicamente.

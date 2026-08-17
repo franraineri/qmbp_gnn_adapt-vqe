@@ -201,11 +201,13 @@ class PEAHardwareReadinessRunner(ValidationRunner):
 
         # h-values: explicit list > h-min/h-max/h-points > auto from p/topo
         if self._args.h_values is not None:
-            self._h_test = sorted(self._args.h_values, reverse=True)
+            self._h_test = sorted([round(h, 2) for h in self._args.h_values], reverse=True)
         elif self._args.h_min != 3.0 or self._args.h_max != 4.0 or self._args.h_points != 4:
-            self._h_test = list(
-                np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)
-            )
+            # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+            self._h_test = [
+                round(h, 2)
+                for h in np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)
+            ]
         else:
             self._h_test = self.default_h_test_values(self.p_layers, self.topology)
 

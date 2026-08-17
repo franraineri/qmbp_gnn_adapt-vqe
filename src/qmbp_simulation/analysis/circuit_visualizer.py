@@ -754,21 +754,9 @@ def select_best_layout_for_zne(
 ) -> tuple[int, dict[str, Any]]:
     """Select the layout with lowest depth_2q as ZNE primary.
 
+
     Returns the index into transpiled_circuits and the ranking info.
     If all layouts have equal depth_2q, returns index 0 (CES-selected).
-
-    Parameters
-    ----------
-    transpiled_circuits : list[QuantumCircuit]
-        Pre-transpiled circuits from layout selection.
-    layouts : list[list[int]] | None
-        Physical qubit layouts.
-
-    Returns
-    -------
-    tuple[int, dict]
-        (best_index, ranking_info) where best_index is the position in
-        the input list and ranking_info has all metrics.
     """
     ranked = rank_layouts_by_depth_2q(transpiled_circuits, layouts)
     best = ranked[0]

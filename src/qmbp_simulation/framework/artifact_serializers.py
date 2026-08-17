@@ -161,23 +161,7 @@ _SERIALIZER_MAP: dict[str, type[ArtifactSerializer]] = {
 
 
 def get_serializer(fmt: str) -> ArtifactSerializer:
-    """Get a serializer instance by format name.
-
-    Parameters
-    ----------
-    fmt : str
-        One of: "qpy", "qasm3", "pt", "npy", "npz", "json".
-
-    Returns
-    -------
-    ArtifactSerializer
-        Instantiated serializer.
-
-    Raises
-    ------
-    ValueError
-        If format is not registered.
-    """
+    """Get a serializer instance by format name."""
     cls = _SERIALIZER_MAP.get(fmt)
     if cls is None:
         available = ", ".join(sorted(_SERIALIZER_MAP.keys()))

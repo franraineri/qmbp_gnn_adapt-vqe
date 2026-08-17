@@ -2,6 +2,26 @@ inclusion: always
 
 # Reuse-First Workflow (MANDATORY)
 
+## Context-Efficient Code Reading (MANDATORY)
+
+0. usar MCP tool context-mode / ctx_batch_execute
+1. **Consultar `module-index.md` primero** — Ya tiene firmas de todas las funciones/clases
+2. **Usar `read_code`** — Para archivos >200 líneas, obtiene solo firmas (AST)
+   - `read_code path="archivo.py"` → firmas si archivo es grande
+   - `read_code path="archivo.py" selector="mi_funcion"` → solo esa función
+   - `read_code path="archivo.py" selector="Clase.metodo"` → método específico
+3. **Usar `grep_search`** — Localizar antes de leer
+   - `grep_search query="def nombre_funcion"` → encuentra ubicación exacta
+4. **Usar `read_file` con rangos** — Solo si necesitás líneas específicas
+   - `read_file path="archivo.py" start_line=X end_line=Y`
+
+**Anti-patterns:**
+- ❌ Leer archivo completo de 500+ líneas innecesariamente
+- ❌ Usar `read_file` sin rangos
+- ❌ No consultar module-index
+
+---
+
 ## CRITICAL RULE: Implement in the most general module first
 
 When adding ANY new functionality (helper, utility, pattern, fix):
@@ -14,8 +34,6 @@ When adding ANY new functionality (helper, utility, pattern, fix):
    - Model persistence → `src/qmbp_simulation/predictors/model_zoo.py`
    - Physics helpers → appropriate `src/qmbp_simulation/` subpackage
 3. **If NO** → implement in the specific runner, but keep it extractable (no inline lambdas, clear interface)
-
-**NEVER implement reusable logic directly in a runner script.** If you find yourself writing >10 lines of utility code in a `section_*()` method, it belongs in the base class or a shared module.
 
 Every time new Python code is about to be created (script, helper, module, plotter, analyzer):
 
@@ -33,7 +51,7 @@ Every time new Python code is about to be created (script, helper, module, plott
 - If truly novel: create new file following existing patterns in same category
 
 ## Step C — Update Index
-- After implementation, run: `python scripts/maintenance/generate_module_index.py`
+- After implementation, run: `python scripts/general_project_maintenance/generate_module_index.py`
 - This is automated via the `refresh-module-index` hook on fileCreated events
 
 ## Step D — Verify Integration
@@ -95,14 +113,6 @@ mpnn = self.load_mpnn_from_zoo(model="tfim", n_qubits=10, allow_cross_n=True)
 
 # ✅ CORRECT — save to zoo after training
 self.save_mpnn_to_zoo(predictor, n_training_points=len(h_values), notes=f"mse={mse:.2e}")
-
-# ❌ WRONG — manual save_mpnn_checkpoint + md5 fingerprint
-fp_hash = hashlib.md5(fp_str.encode()).hexdigest()[:8]
-save_mpnn_checkpoint(model, f"mpnn_{topo}_n{N}_p{p}_{fp_hash}.pt")
-
-# ❌ WRONG — manual load_mpnn_checkpoint + path construction
-from qmbp_simulation.predictors import load_mpnn_checkpoint
-model = load_mpnn_checkpoint(manual_path)
 ```
 
 ### VQE Checkpoint Resume
@@ -125,13 +135,6 @@ fidelity = self.safe_compute_fidelity(circuit, theta, topology, n_qubits, h, mod
 
 # ✅ ALSO CORRECT — when you already have the ground state vector
 fidelity = self.compute_fidelity(circuit, theta, exact_ground_state_vector)
-
-# ❌ WRONG — inline N-check + try/except + solver call
-if n_qubits <= STATEVECTOR_MAX_N:
-    try:
-        gt = solver.solve(H, lat)
-        fidelity = state_fidelity(Statevector(bound), Statevector(gt.ground_state))
-    except: ...
 ```
 
 ### Per-H Result Dict (standardized for compute_deploy_summary)
@@ -163,9 +166,6 @@ self._h_values = self.generate_h_grid()
 
 # ✅ CORRECT — uniform (for bond-resolved or when h_critical unknown)
 self._h_values = self.generate_h_grid(uniform=True)
-
-# ❌ WRONG — inline np.linspace
-self._h_values = np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)
 ```
 
 ### Quality Check
@@ -222,13 +222,7 @@ gt_cache = GroundTruthCache()
 for h in h_values_missing:
     e, gap = compute_ground_truth(h)
     gt_cache.put(topo, n, model, h, e, gap)
-gt_cache.flush()  # Immediate flush
-
-# ❌ WRONG — rely on __del__ for flush (bypassed by os._exit)
-for h in h_values_missing:
-    e, gap = compute_ground_truth(h)
-    gt_cache.put(topo, n, model, h, e, gap)
-# No explicit flush — data may be lost
+gt_cache.flush()  
 ```
 
 ### NPZ Anti-Regression Pattern
@@ -240,8 +234,4 @@ def _upsert_npz(npz_path, h_new, theta_new, e_vqe_new, ...):
         # Only replace if e_vqe_new < e_existing
         ...
     np.savez(npz_path, ...)
-
-# ❌ WRONG — blindly overwrite (can lose better data)
-np.savez(npz_path, h_values=h_new, theta_opt=theta_new, ...)
 ```
-

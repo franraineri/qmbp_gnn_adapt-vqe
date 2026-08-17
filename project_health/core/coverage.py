@@ -55,6 +55,7 @@ def detect_coverage_gaps(
     gaps.extend(_gap_missing_experiments(experiments))
     gaps.extend(_gap_low_dashboard_pass_rate())
     gaps.extend(_gap_low_quality_training_data())
+    gaps.extend(_gap_zoo_coherence())
 
     # Sort by priority (CRITICAL first)
     gaps.sort(key=lambda g: g.priority.value)
@@ -492,8 +493,7 @@ def _actions_from_quality_prediction() -> list[ActionItem]:
 
         if novel:
             detail_parts = [
-                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} "
-                f"({c['pass_probability']:.0%})"
+                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} ({c['pass_probability']:.0%})"
                 for c in novel[:5]
             ]
             actions.append(
@@ -1034,96 +1034,139 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
 
 
 def _gap_low_quality_training_data() -> list[CoverageGap]:
-    """Detect multi-N zoo models trained on low-quality data.
+    """Detect multi-N zoo models that need retraining.
 
-    Cross-integrates model_zoo manifest with NPZ quality_tier fields.
-    Flags models where quality_score < 0.70 (mostly unverified/approximate data).
+    Integrates with compute_retrain_queue() from model_zoo which already
+    implements the full priority logic (contaminated > stale > expanded > low_pass).
     """
-    import json
-    from pathlib import Path
-
     gaps: list[CoverageGap] = []
-    root = Path(__file__).resolve().parents[2]
-    manifest_path = root / "data" / "model_zoo" / "manifest.json"
-    npz_dir = root / "data" / "multi_n_training"
-
-    if not manifest_path.exists() or not npz_dir.exists():
-        return gaps
 
     try:
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return gaps
+        from qmbp_simulation.predictors.model_zoo import compute_retrain_queue
 
-    entries = manifest if isinstance(manifest, list) else manifest.get("entries", [])
-    multi_n = [e for e in entries if e.get("n_qubits", -1) == 0]
-
-    for entry in multi_n:
-        topology = entry.get("topology", "")
-        p_layers = entry.get("p_layers", 1)
-        model = entry.get("model", "tfim_bond_resolved")
-
-        # Scan NPZ files for this topology
-        import numpy as np
-        pattern = f"{topology}_N*_p{p_layers}.npz"
-        npz_files = list(npz_dir.glob(pattern))
-
-        if not npz_files:
-            gaps.append(
-                CoverageGap(
-                    gap_type=GapType.MISSING_DATA,
-                    topology=topology,
-                    n_qubits=0,
-                    p_layers=p_layers,
-                    detail=(
-                        f"Zoo model {entry.get('checkpoint_file', '?')[:40]} "
-                        f"has no training data NPZ (orphaned model)"
-                    ),
-                    recommendation=(
-                        f"Remove orphan from zoo or regenerate NPZ data for {topology}"
-                    ),
-                    priority=Priority.MEDIUM,
-                )
-            )
-            continue
-
-        # Compute quality score from NPZ files
-        n_verified = 0
-        n_total = 0
-        for npz_file in npz_files:
-            try:
-                data = np.load(str(npz_file), allow_pickle=True)
-                n_pts = len(data["h_values"])
-                n_total += n_pts
-                if "quality_tier" in data:
-                    tiers = list(data["quality_tier"])
-                    n_verified += tiers.count("verified")
-            except Exception:
-                continue
-
-        if n_total == 0:
-            continue
-
-        quality_score = n_verified / n_total  # Simplified: verified ratio
-        if quality_score < 0.50:
+        queue = compute_retrain_queue()
+        for item in queue:
+            priority_map = {1: Priority.HIGH, 2: Priority.HIGH, 3: Priority.MEDIUM, 4: Priority.LOW}
             gaps.append(
                 CoverageGap(
                     gap_type=GapType.LOW_PASS_RATE,
-                    topology=topology,
+                    topology=item["topology"],
                     n_qubits=0,
-                    p_layers=p_layers,
+                    p_layers=1,
                     detail=(
-                        f"{topology} multi-N model: only {n_verified}/{n_total} "
-                        f"training points verified ({quality_score:.0%}). "
-                        f"Model predictions may be unreliable."
+                        f"{item['topology']} (priority {item['priority']}): "
+                        f"{item['reason']}. Current pass_rate={item['current_pass_rate']:.0%}"
                     ),
-                    recommendation=(
-                        f"Run --force-retrain --topology {topology} or "
-                        f"--refine-all to verify approximate points via VQE"
-                    ),
-                    priority=Priority.HIGH if quality_score < 0.30 else Priority.MEDIUM,
+                    recommendation=item["command"],
+                    priority=priority_map.get(item["priority"], Priority.LOW),
                 )
             )
+    except (ImportError, Exception):
+        pass  # Non-blocking: zoo functions unavailable
+
+    return gaps
+
+
+def _gap_zoo_coherence() -> list[CoverageGap]:
+    """Detect zoo ↔ dashboard ↔ GT desynchronization issues.
+
+    Calls check_zoo_coherence logic directly (no subprocess) to surface
+    divergences, stale data, and missing evaluations as CoverageGap items.
+    """
+    gaps: list[CoverageGap] = []
+
+    try:
+        import json
+        from pathlib import Path
+
+        from qmbp_simulation.predictors.model_zoo import list_pretrained, validate_zoo
+
+        root = Path(__file__).resolve().parents[2]
+        dashboard_path = root / "data" / "model_quality_dashboard.json"
+
+        # Check 1: Zoo integrity (missing/corrupted checkpoints)
+        zoo_report = validate_zoo()
+        if zoo_report["n_missing"] > 0 or zoo_report["n_corrupted"] > 0:
+            gaps.append(
+                CoverageGap(
+                    gap_type=GapType.MISSING_DATA,
+                    topology="all",
+                    n_qubits=0,
+                    p_layers=1,
+                    detail=(
+                        f"Zoo integrity: {zoo_report['n_missing']} missing, "
+                        f"{zoo_report['n_corrupted']} corrupted checkpoints"
+                    ),
+                    recommendation=(
+                        "Run: python scripts/maintenance/audit_and_fix_model_zoo.py --fix"
+                    ),
+                    priority=Priority.HIGH,
+                )
+            )
+
+        # Check 2: Never-evaluated models
+        multi_n = list_pretrained(n_qubits=0)
+        for entry in multi_n:
+            if entry.pass_rate == 0 and entry.n_training_points > 0:
+                gaps.append(
+                    CoverageGap(
+                        gap_type=GapType.LOW_PASS_RATE,
+                        topology=entry.topology,
+                        n_qubits=0,
+                        p_layers=entry.p_layers,
+                        detail=(
+                            f"{entry.topology}: model has {entry.n_training_points} pts "
+                            f"but pass_rate=0 (never evaluated post-training)"
+                        ),
+                        recommendation=(
+                            "Run: python scripts/maintenance/reevaluate_zoo_models.py "
+                            f"--topology {entry.topology}"
+                        ),
+                        priority=Priority.MEDIUM,
+                    )
+                )
+
+        # Check 3: Zoo pass_rate divergence vs NPZ weighted average
+        if dashboard_path.exists():
+            with open(dashboard_path) as f:
+                dashboard = json.load(f)
+            configs = dashboard.get("configs", [])
+
+            for entry in multi_n:
+                if entry.pass_rate == 0:
+                    continue  # Already flagged above
+                topo_configs = [c for c in configs if c["topology"] == entry.topology]
+                total_pts = sum(c.get("n_points", 0) for c in topo_configs)
+                if total_pts == 0:
+                    continue
+                weighted_dual = (
+                    sum(
+                        c.get("pass_rate_dual_criterion", 0) * c.get("n_points", 0)
+                        for c in topo_configs
+                    )
+                    / total_pts
+                )
+
+                divergence = abs(entry.pass_rate - weighted_dual)
+                if divergence > 0.15:
+                    gaps.append(
+                        CoverageGap(
+                            gap_type=GapType.LOW_PASS_RATE,
+                            topology=entry.topology,
+                            n_qubits=0,
+                            p_layers=entry.p_layers,
+                            detail=(
+                                f"{entry.topology}: zoo_pass_rate={entry.pass_rate:.0%} "
+                                f"vs npz_weighted={weighted_dual:.0%} (Δ={divergence:.0%})"
+                            ),
+                            recommendation=(
+                                "Run: python scripts/maintenance/check_zoo_coherence.py --fix"
+                            ),
+                            priority=Priority.MEDIUM,
+                        )
+                    )
+
+    except (ImportError, Exception):
+        pass  # Non-blocking
 
     return gaps

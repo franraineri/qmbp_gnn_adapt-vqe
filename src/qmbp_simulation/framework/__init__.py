@@ -41,11 +41,14 @@ from qmbp_simulation.framework.result_io import (
     build_result_envelope,
     build_simulation_diagnostics,
     generate_timestamp,
+    load_npz_as_theta_dict,
     load_result,
     load_results_from_dir,
+    refresh_npz_ground_truth,
     save_benchmark_result,
     save_experiment_result,
     save_pipeline_result,
+    select_best_theta_init,
 )
 from qmbp_simulation.framework.result_store import CATEGORY_MAP, ResultStore
 from qmbp_simulation.framework.preflight import (
@@ -90,6 +93,16 @@ from qmbp_simulation.framework.artifact_store import (
     load_manifest,
     print_circuit_summary,
     save_circuit_png,
+)
+from qmbp_simulation.framework.quality_profile import (
+    QualityProfile,
+    compare_profiles,
+    compute_quality_profile,
+    compute_quality_score,
+    format_coverage_cell,
+    format_per_h_status,
+    format_quality_summary,
+    grade_from_score,
 )
 
 __all__ = [
@@ -183,4 +196,13 @@ __all__ = [
     "inspect_circuit_artifact",
     "print_circuit_summary",
     "save_circuit_png",
+    # Quality profile (continuous metrics)
+    "QualityProfile",
+    "compute_quality_profile",
+    "compute_quality_score",
+    "grade_from_score",
+    "format_quality_summary",
+    "format_per_h_status",
+    "format_coverage_cell",
+    "compare_profiles",
 ]

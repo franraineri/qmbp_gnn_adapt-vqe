@@ -10,8 +10,9 @@ This module has NO heavy imports (no Qiskit, no PyTorch).
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -29,6 +30,8 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from qmbp_simulation.analysis.constants import (  # noqa: F401, E402
+    AUTO_EXCLUDE_MAX_DUAL_PASS_FOR_MEAN_ERROR,
+    AUTO_EXCLUDE_MEAN_ABS_ERROR,
     DE_GAP_THRESHOLD,
     GAP_MASKING_THRESHOLD,
     H_FRONTIER_MONOTONICITY_TOLERANCE,
@@ -39,8 +42,9 @@ from qmbp_simulation.analysis.constants import (  # noqa: F401, E402
     PASS_RATE_REGRESSION_THRESHOLD,
     TRAINING_BAD_RATIO_THRESHOLD,
     ZOO_PASS_FOR_INCOHERENCE_FLAG,
+    compute_quality_score,
+    grade_from_score,
 )
-
 
 # ── Refinement priority thresholds ───────────────────────────────────────────
 
@@ -212,7 +216,8 @@ def is_point_failure(
             # Fidelity > 1 indicates a computation bug
             logger.warning(
                 "is_point_failure: fidelity=%.6f > 1.0 (possible bug in "
-                "compute_fidelity or state normalization)", fidelity
+                "compute_fidelity or state normalization)",
+                fidelity,
             )
             return True
         if fidelity < min_fidelity:
@@ -263,6 +268,248 @@ def identify_failures(
         ):
             failures.append(i)
     return failures
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Per-point failure classification — WHY does a point fail?
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class PointClassification:
+    """Rich classification of a single evaluation point.
+
+    Goes beyond binary pass/fail to categorize the failure mechanism,
+    estimate refinability, and guide next actions.
+
+    Attributes
+    ----------
+    category : str
+        Primary classification:
+        - "pass" — meets all criteria
+        - "near_pass" — within 2× threshold (easy refinement target)
+        - "gap_masked" — passes ΔE/gap but fails |ΔE| (gap inflates metric)
+        - "moderate_error" — ΔE/gap in 2-10× threshold range
+        - "ansatz_limited" — error pattern consistent with circuit expressibility limit
+        - "critical_region" — point near h_critical where gap → 0
+        - "severe_error" — ΔE/gap > 10× threshold (likely unrefinable)
+        - "data_error" — NaN/Inf/negative values (corrupted)
+    severity : float
+        Continuous severity in [0, 1]. 0=perfect, 1=maximally bad.
+    refinable : bool
+        Whether VQE refinement is likely to improve this point.
+    action : str
+        Recommended next step: "none", "refine_vqe", "increase_p",
+        "restrict_h_range", "investigate", "discard".
+    detail : str
+        Human-readable explanation.
+    """
+
+    category: str
+    severity: float
+    refinable: bool
+    action: str
+    detail: str
+
+
+def classify_point_failure(
+    de_gap: float,
+    abs_error: float | None = None,
+    gap: float | None = None,
+    fidelity: float | None = None,
+    *,
+    h: float | None = None,
+    h_critical: float | None = None,
+    n_params: int | None = None,
+    n_prev_attempts: int = 0,
+) -> PointClassification:
+    """Classify a single point's failure mode with continuous severity.
+
+    Replaces the binary is_point_failure() for cases where you need to
+    know WHY a point fails and WHAT to do about it.
+
+    This function is the union of logic from:
+    - is_point_failure (binary detection)
+    - compute_refinement_priority (refinability assessment)
+    - diagnose_intrinsic_vqe_error (ansatz-limit check, simplified per-point)
+
+    Parameters
+    ----------
+    de_gap : float
+        Relative error |ΔE|/gap.
+    abs_error : float | None
+        Absolute error |ΔE|.
+    gap : float | None
+        Spectral gap at this h-point.
+    fidelity : float | None
+        State fidelity (None if unavailable).
+    h : float | None
+        Field value (for critical region detection).
+    h_critical : float | None
+        Critical field value (for region classification).
+    n_params : int | None
+        Number of variational parameters.
+    n_prev_attempts : int
+        Number of previous failed VQE refinement attempts.
+
+    Returns
+    -------
+    PointClassification
+        Rich classification with category, severity, refinability, and action.
+    """
+    # ── Data error: NaN/Inf/negative ─────────────────────────────────────
+    if not np.isfinite(de_gap):
+        return PointClassification(
+            category="data_error",
+            severity=1.0,
+            refinable=False,
+            action="investigate",
+            detail="Non-finite ΔE/gap — corrupted data or solver failure.",
+        )
+    if de_gap < 0:
+        return PointClassification(
+            category="data_error",
+            severity=0.8,
+            refinable=False,
+            action="investigate",
+            detail=f"Negative ΔE/gap={de_gap:.4f} — variational violation (E_pred < E_exact).",
+        )
+
+    # ── Pass ─────────────────────────────────────────────────────────────
+    passes_dg = de_gap < DE_GAP_THRESHOLD
+    passes_ae = abs_error is None or abs_error < MAX_ABS_ERROR
+
+    if passes_dg and passes_ae:
+        # Compute severity even for passing points (continuous quality)
+        severity = de_gap / DE_GAP_THRESHOLD  # 0 at de_gap=0, ~1 at threshold
+        return PointClassification(
+            category="pass",
+            severity=float(min(severity, 0.99)),
+            refinable=False,
+            action="none",
+            detail=f"ΔE/gap={de_gap:.4f} — within criteria.",
+        )
+
+    # ── Gap masking: passes ΔE/gap but fails |ΔE| ────────────────────────
+    if passes_dg and not passes_ae:
+        severity = min(1.0, (abs_error or 0) / (MAX_ABS_ERROR * 3))
+        return PointClassification(
+            category="gap_masked",
+            severity=float(severity),
+            refinable=True,
+            action="refine_vqe",
+            detail=(
+                f"ΔE/gap={de_gap:.4f} passes but |ΔE|={abs_error:.3f} > {MAX_ABS_ERROR}. "
+                f"Large gap inflates relative metric. Absolute error is real."
+            ),
+        )
+
+    # ── Failing point: classify by severity and mechanism ─────────────────
+    # Severity normalized: 0 at threshold, 1 at 20× threshold
+    severity_raw = min(1.0, (de_gap - DE_GAP_THRESHOLD) / (DE_GAP_THRESHOLD * 19))
+
+    # Critical region check: near h_critical, gap → 0 makes ΔE/gap large
+    # even for small |ΔE|. This is physics, not optimization failure.
+    in_critical_region = False
+    if h is not None and h_critical is not None and gap is not None:
+        near_hc = abs(h - h_critical) < 0.5
+        small_gap = gap < REFINEMENT_GAP_CRITICAL
+        if near_hc and small_gap:
+            in_critical_region = True
+
+    if in_critical_region:
+        return PointClassification(
+            category="critical_region",
+            severity=float(severity_raw),
+            refinable=False,
+            action="restrict_h_range",
+            detail=(
+                f"h={h:.2f} near h_c={h_critical:.1f}, gap={gap:.4f}. "
+                f"Small gap makes ΔE/gap={de_gap:.3f} inherently large. "
+                f"Physics limit, not optimization failure."
+            ),
+        )
+
+    # Near pass: barely failing, easy refinement target
+    if de_gap < DE_GAP_THRESHOLD * 2:
+        refinable = n_prev_attempts < 2
+        return PointClassification(
+            category="near_pass",
+            severity=float(severity_raw),
+            refinable=refinable,
+            action="refine_vqe" if refinable else "investigate",
+            detail=(
+                f"ΔE/gap={de_gap:.4f} — {de_gap / DE_GAP_THRESHOLD:.1f}× threshold. "
+                f"Close to passing. "
+                + (
+                    "VQE refinement likely effective."
+                    if refinable
+                    else f"Already tried {n_prev_attempts}× without improvement — ceiling reached."
+                )
+            ),
+        )
+
+    # Moderate error: 2-10× threshold
+    if de_gap < DE_GAP_THRESHOLD * 10:
+        # Check if gap makes it feasible
+        gap_feasible = gap is None or gap >= REFINEMENT_GAP_HARD
+        refinable = gap_feasible and n_prev_attempts < 1
+        action = "refine_vqe" if refinable else "increase_p"
+        return PointClassification(
+            category="moderate_error",
+            severity=float(severity_raw),
+            refinable=refinable,
+            action=action,
+            detail=(
+                f"ΔE/gap={de_gap:.4f} — {de_gap / DE_GAP_THRESHOLD:.0f}× threshold. "
+                + (
+                    f"Gap={gap:.3f} allows refinement."
+                    if gap_feasible and gap is not None
+                    else f"Small gap={gap:.3f} — likely ansatz-limited."
+                    if gap is not None
+                    else "Gap unknown."
+                )
+            ),
+        )
+
+    # Severe error: > 10× threshold — almost certainly ansatz-limited
+    # or fundamentally wrong region
+    return PointClassification(
+        category="severe_error" if de_gap < DE_GAP_THRESHOLD * 40 else "ansatz_limited",
+        severity=float(min(1.0, severity_raw)),
+        refinable=False,
+        action="increase_p" if de_gap < 2.0 else "restrict_h_range",
+        detail=(
+            f"ΔE/gap={de_gap:.3f} — {de_gap / DE_GAP_THRESHOLD:.0f}× threshold. "
+            f"Circuit with {n_params or '?'} params likely cannot express ground state at this h. "
+            f"Options: increase p_layers or exclude from training."
+        ),
+    )
+
+
+def classify_points_batch(
+    per_h_results: list[dict],
+    *,
+    h_critical: float | None = None,
+    n_params: int | None = None,
+) -> list[PointClassification]:
+    """Classify all points in a sweep.
+
+    Convenience wrapper over classify_point_failure for batch use.
+    Returns classifications aligned with per_h_results indices.
+    """
+    return [
+        classify_point_failure(
+            de_gap=r.get("de_gap", float("nan")),
+            abs_error=r.get("abs_error"),
+            gap=r.get("gap"),
+            fidelity=r.get("fidelity"),
+            h=r.get("h"),
+            h_critical=h_critical,
+            n_params=n_params,
+        )
+        for r in per_h_results
+    ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -369,7 +616,9 @@ def compute_refinement_priority(
         proximity_score = 0.1  # Very far — likely ansatz-limited
 
     # ── Factor 5: Parameter count discount ───────────────────────────────
-    param_factor = 1.0 / (1.0 + max(0, n_params - REFINEMENT_PARAM_BASELINE) / REFINEMENT_PARAM_SCALE)
+    param_factor = 1.0 / (
+        1.0 + max(0, n_params - REFINEMENT_PARAM_BASELINE) / REFINEMENT_PARAM_SCALE
+    )
 
     # ── Factor 6: MPNN improvement boost ─────────────────────────────────
     mpnn_boost = REFINEMENT_MPNN_BOOST if mpnn_improved else 1.0
@@ -485,25 +734,9 @@ def compute_adaptive_vqe_config(
 def compute_snr(observable_value: float, shots: int) -> float:
     """Signal-to-noise ratio: |⟨O⟩| * √shots.
 
+
     Quantifies measurement reliability. Higher SNR indicates the observable
     signal dominates over shot noise (σ = 1/√shots).
-
-    Parameters
-    ----------
-    observable_value : float
-        Measured expectation value ⟨O⟩.
-    shots : int
-        Number of measurement shots (must be positive integer).
-
-    Returns
-    -------
-    float
-        Non-negative SNR value: |observable_value| * sqrt(shots).
-
-    Raises
-    ------
-    ValueError
-        If shots is not a positive integer.
     """
     if not isinstance(shots, int | np.integer) or shots <= 0:
         raise ValueError(f"shots must be a positive integer, got {shots}")
@@ -511,24 +744,7 @@ def compute_snr(observable_value: float, shots: int) -> float:
 
 
 def compute_theta_smoothness(theta_array: np.ndarray) -> float | None:
-    """Maximum parameter discontinuity across the h-sweep.
-
-    Computes max_i ||θ(h_i) - θ(h_{i-1})||_∞ — the largest infinity-norm
-    difference between consecutive θ vectors. Small values indicate a smooth
-    parameter landscape (good for MPNN learnability); large values indicate
-    discontinuities where the MPNN will struggle.
-
-    Parameters
-    ----------
-    theta_array : np.ndarray
-        Shape (n_h_points, n_params). Rows ordered by h (descending,
-        matching the VQE sweep direction).
-
-    Returns
-    -------
-    float | None
-        Non-negative smoothness metric, or None if fewer than 2 h-points.
-    """
+    """Maximum parameter discontinuity across the h-sweep."""
     if theta_array.shape[0] < 2:
         return None
 
@@ -542,31 +758,7 @@ def compute_classification_confidence(
     corr_zz: float,
     shots: int,
 ) -> float:
-    """Phase classification confidence: |⟨X⟩ - ⟨ZZ⟩| * √shots.
-
-    Measures how confidently the pipeline can distinguish between the
-    paramagnetic (⟨X⟩ dominant) and antiferromagnetic (⟨ZZ⟩ dominant) phases.
-    Higher values indicate clearer phase separation relative to shot noise.
-
-    Parameters
-    ----------
-    mag_x : float
-        Measured transverse magnetization ⟨X⟩.
-    corr_zz : float
-        Measured nearest-neighbor ZZ correlation ⟨ZZ⟩.
-    shots : int
-        Number of measurement shots (must be positive integer).
-
-    Returns
-    -------
-    float
-        Non-negative classification confidence value.
-
-    Raises
-    ------
-    ValueError
-        If shots is not a positive integer.
-    """
+    """Phase classification confidence: |⟨X⟩ - ⟨ZZ⟩| * √shots."""
     if not isinstance(shots, int | np.integer) or shots <= 0:
         raise ValueError(f"shots must be a positive integer, got {shots}")
     return float(abs(mag_x - corr_zz) * np.sqrt(shots))
@@ -768,6 +960,17 @@ def compute_deploy_summary(
         # n_qubits not in result dicts — caller can compute externally
         summary["mean_abs_error_per_site"] = None
 
+    # ── Continuous quality metrics (P90, quality_score, grade) ─────────────
+    summary["p90_de_gap"] = float(np.percentile(de_gaps, 90))
+    score = compute_quality_score(
+        mean_de_gap=summary["mean_de_gap"],
+        p90_de_gap=summary["p90_de_gap"],
+        mean_abs_error_per_site=summary.get("mean_abs_error_per_site"),
+        n_points=n,
+    )
+    summary["quality_score"] = score
+    summary["grade"] = grade_from_score(score)
+
     return summary
 
 
@@ -885,7 +1088,7 @@ def compute_h_frontier(
 
 
 def compute_h_frontier_from_npz(
-    npz_path: "str | Path",
+    npz_path: str | Path,
     *,
     threshold: float = DE_GAP_THRESHOLD,
 ) -> dict:
@@ -979,24 +1182,77 @@ def detect_h_frontier_anomalies(configs: list[dict]) -> list[dict]:
             n_j, hf_j = sorted_pairs[i + 1]
             drop = hf_i - hf_j
             if drop > H_FRONTIER_MONOTONICITY_TOLERANCE + 1e-9:
-                anomalies.append({
-                    "topology": topo,
-                    "n_i": n_i,
-                    "n_j": n_j,
-                    "h_frontier_i": hf_i,
-                    "h_frontier_j": hf_j,
-                    "drop": drop,
-                    "message": (
-                        f"h_frontier({topo} N={n_j})={hf_j:.3f} < "
-                        f"h_frontier({topo} N={n_i})={hf_i:.3f} "
-                        f"(drop={drop:.3f}). "
-                        f"Possible mixed h-ranges in NPZ datasets."
-                    ),
-                })
+                anomalies.append(
+                    {
+                        "topology": topo,
+                        "n_i": n_i,
+                        "n_j": n_j,
+                        "h_frontier_i": hf_i,
+                        "h_frontier_j": hf_j,
+                        "drop": drop,
+                        "message": (
+                            f"h_frontier({topo} N={n_j})={hf_j:.3f} < "
+                            f"h_frontier({topo} N={n_i})={hf_i:.3f} "
+                            f"(drop={drop:.3f}). "
+                            f"Possible mixed h-ranges in NPZ datasets."
+                        ),
+                    }
+                )
     return anomalies
 
 
-def detect_training_zoo_incoherence(configs: list[dict], npz_dir: "Path | None" = None) -> list[dict]:
+def enforce_h_frontier_monotonicity(configs: list[dict]) -> list[dict]:
+    """Enforce that h_frontier is non-decreasing with N per topology.
+
+    Physics: larger systems (higher N) should have equal or higher h_frontier
+    because the critical region is harder to reach with fixed ansatz depth.
+    Non-monotonicity indicates mixed h-ranges or inconsistent VQE quality.
+
+    Corrects downward anomalies by propagating the running maximum across N.
+    Annotates corrected entries for traceability.
+
+    Parameters
+    ----------
+    configs : list[dict]
+        Per-config dashboard entries (modified in-place).
+
+    Returns
+    -------
+    list[dict]
+        Same list with corrected h_frontier values. Corrected entries gain:
+        - ``h_frontier_original``: the raw (anomalous) value
+        - ``h_frontier_corrected``: True
+    """
+    from collections import defaultdict
+
+    by_topo: dict[str, list[dict]] = defaultdict(list)
+    for c in configs:
+        if c.get("h_frontier") is not None:
+            by_topo[c["topology"]].append(c)
+
+    n_corrected = 0
+    for topo, topo_configs in by_topo.items():
+        sorted_configs = sorted(topo_configs, key=lambda c: c["n_qubits"])
+        running_max = 0.0
+        for c in sorted_configs:
+            hf = c["h_frontier"]
+            if hf < running_max - 1e-6:
+                c["h_frontier_original"] = hf
+                c["h_frontier"] = running_max
+                c["h_frontier_corrected"] = True
+                n_corrected += 1
+            else:
+                running_max = max(running_max, hf)
+                c.pop("h_frontier_corrected", None)
+                c.pop("h_frontier_original", None)
+
+    if n_corrected > 0:
+        logger.info("enforce_h_frontier_monotonicity: corrected %d anomalies", n_corrected)
+
+    return configs
+
+
+def detect_training_zoo_incoherence(configs: list[dict], npz_dir: Path | None = None) -> list[dict]:
     """Detect configs where NPZ has high bad ratio but zoo model shows good pass rate.
 
     Parameters
@@ -1011,8 +1267,9 @@ def detect_training_zoo_incoherence(configs: list[dict], npz_dir: "Path | None" 
     list[dict]
         Each entry: {topology, n_qubits, bad_ratio, zoo_pass_rate, message}.
     """
-    import numpy as np
     from pathlib import Path as _Path
+
+    import numpy as np
 
     if npz_dir is None:
         _root = _Path(__file__).resolve().parents[3]
@@ -1043,24 +1300,26 @@ def detect_training_zoo_incoherence(configs: list[dict], npz_dir: "Path | None" 
         bad_ratio = float(bad.mean())
 
         if bad_ratio > TRAINING_BAD_RATIO_THRESHOLD:
-            incoherent.append({
-                "topology": c["topology"],
-                "n_qubits": c["n_qubits"],
-                "bad_ratio": bad_ratio,
-                "zoo_pass_rate": zoo_pr,
-                "message": (
-                    f"{c['topology']} N={c['n_qubits']}: "
-                    f"NPZ bad_ratio={bad_ratio:.0%} > {TRAINING_BAD_RATIO_THRESHOLD:.0%} "
-                    f"but zoo claims pass={zoo_pr:.0%}. "
-                    f"Zoo may be trained on different/cleaner data or manifest is stale."
-                ),
-            })
+            incoherent.append(
+                {
+                    "topology": c["topology"],
+                    "n_qubits": c["n_qubits"],
+                    "bad_ratio": bad_ratio,
+                    "zoo_pass_rate": zoo_pr,
+                    "message": (
+                        f"{c['topology']} N={c['n_qubits']}: "
+                        f"NPZ bad_ratio={bad_ratio:.0%} > {TRAINING_BAD_RATIO_THRESHOLD:.0%} "
+                        f"but zoo claims pass={zoo_pr:.0%}. "
+                        f"Zoo may be trained on different/cleaner data or manifest is stale."
+                    ),
+                }
+            )
     return incoherent
 
 
 def detect_pass_rate_regression(
     current_configs: list[dict],
-    previous_dashboard_path: "str | Path | None" = None,
+    previous_dashboard_path: str | Path | None = None,
 ) -> list[dict]:
     """Detect per-topology pass_rate regressions vs a previous dashboard snapshot.
 
@@ -1077,8 +1336,8 @@ def detect_pass_rate_regression(
     list[dict]
         Each entry: {topology, prev_max, curr_max, drop, message}.
     """
-    from pathlib import Path as _Path
     import json
+    from pathlib import Path as _Path
 
     if previous_dashboard_path is None:
         _root = _Path(__file__).resolve().parents[3]
@@ -1126,17 +1385,19 @@ def detect_pass_rate_regression(
             continue
         drop = prev - curr
         if drop > PASS_RATE_REGRESSION_THRESHOLD:
-            regressions.append({
-                "topology": topo,
-                "prev_max": prev,
-                "curr_max": curr,
-                "drop": drop,
-                "message": (
-                    f"{topo}: max pass_rate_dual dropped {drop:.0%} "
-                    f"({prev:.0%} → {curr:.0%}). "
-                    f"Threshold: {PASS_RATE_REGRESSION_THRESHOLD:.0%}."
-                ),
-            })
+            regressions.append(
+                {
+                    "topology": topo,
+                    "prev_max": prev,
+                    "curr_max": curr,
+                    "drop": drop,
+                    "message": (
+                        f"{topo}: max pass_rate_dual dropped {drop:.0%} "
+                        f"({prev:.0%} → {curr:.0%}). "
+                        f"Threshold: {PASS_RATE_REGRESSION_THRESHOLD:.0%}."
+                    ),
+                }
+            )
     return regressions
 
 
@@ -1197,9 +1458,9 @@ def classify_training_utility(
             )
         return (
             "not_useful",
-            f"0% dual pass rate — no learnable signal. "
-            f"Possible causes: p=1 insufficient expressivity, h outside valid regime, "
-            f"or VQE trapped in local minimum for all points.",
+            "0% dual pass rate — no learnable signal. "
+            "Possible causes: p=1 insufficient expressivity, h outside valid regime, "
+            "or VQE trapped in local minimum for all points.",
         )
 
     if n_good < min_good_points:
@@ -1312,7 +1573,7 @@ def validate_training_dataset(
         for p in points:
             theta = p.get("theta")
             if theta is not None:
-                theta_dims.add(len(theta) if hasattr(theta, '__len__') else 0)
+                theta_dims.add(len(theta) if hasattr(theta, "__len__") else 0)
 
         n_entry = {
             "n_raw": n_raw,
@@ -1335,7 +1596,7 @@ def validate_training_dataset(
             )
         elif n_raw > 0 and n_good / n_raw < 0.20:
             report["warnings"].append(
-                f"N={n}: only {n_good}/{n_raw} ({n_good/n_raw:.0%}) pass dual criterion. "
+                f"N={n}: only {n_good}/{n_raw} ({n_good / n_raw:.0%}) pass dual criterion. "
                 f"Majority of data for this N is low-quality."
             )
 
@@ -1374,7 +1635,7 @@ def validate_training_dataset(
             deficit = min_total_points - report["total_good"]
             needs.append(f"{deficit} more good points")
         if report["n_values_with_good_data"] < min_n_values:
-            needs.append(f"data for more N values")
+            needs.append("data for more N values")
         report["recommendation"] = (
             f"NOT viable for training. Need: {', '.join(needs)}. "
             f"Run iterative improvement with --refine-all to generate quality data."
@@ -1416,228 +1677,18 @@ def get_usable_training_configs(dashboard: dict) -> dict[str, list[dict]]:
     return result
 
 
-
-    """Detect non-monotonic h_frontier(N) per topology.
-
-    h_frontier should increase (or stay flat) as N grows for any topology.
-    A drop > H_FRONTIER_MONOTONICITY_TOLERANCE suggests mixed h-ranges
-    between NPZ datasets — e.g., a small-N dataset was evaluated at
-    higher h than a large-N dataset.
-
-    Parameters
-    ----------
-    configs : list[dict]
-        Per-config dashboard entries (output of generate_model_quality_dashboard).
-
-    Returns
-    -------
-    list[dict]
-        Each entry: {topology, n_i, n_j, h_frontier_i, h_frontier_j, drop}.
-        n_i < n_j but h_frontier_i > h_frontier_j + tolerance.
-    """
-    from collections import defaultdict
-
-    by_topo: dict[str, list[tuple[int, float]]] = defaultdict(list)
-    for c in configs:
-        hf = c.get("h_frontier")
-        if hf is not None:
-            by_topo[c["topology"]].append((c["n_qubits"], hf))
-
-    anomalies = []
-    for topo, pairs in by_topo.items():
-        sorted_pairs = sorted(pairs, key=lambda x: x[0])
-        for i in range(len(sorted_pairs) - 1):
-            n_i, hf_i = sorted_pairs[i]
-            n_j, hf_j = sorted_pairs[i + 1]
-            drop = hf_i - hf_j
-            if drop > H_FRONTIER_MONOTONICITY_TOLERANCE + 1e-9:  # epsilon for float precision
-                anomalies.append({
-                    "topology": topo,
-                    "n_i": n_i,
-                    "n_j": n_j,
-                    "h_frontier_i": hf_i,
-                    "h_frontier_j": hf_j,
-                    "drop": drop,
-                    "message": (
-                        f"h_frontier({topo} N={n_j})={hf_j:.3f} < "
-                        f"h_frontier({topo} N={n_i})={hf_i:.3f} "
-                        f"(drop={drop:.3f}). "
-                        f"Possible mixed h-ranges in NPZ datasets."
-                    ),
-                })
-    return anomalies
-
-
-def detect_training_zoo_incoherence(configs: list[dict], npz_dir: "Path | None" = None) -> list[dict]:
-    """Detect configs where NPZ has high bad ratio but zoo model shows good pass rate.
-
-    A well-trained zoo model should reflect the quality of its training data.
-    If the training data is mostly bad (>TRAINING_BAD_RATIO_THRESHOLD) but the
-    zoo model claims high pass_rate (>ZOO_PASS_FOR_INCOHERENCE_FLAG), something
-    is wrong: either the zoo model was trained on different (cleaner) data,
-    or the pass_rate in the zoo manifest is stale/incorrect.
-
-    Parameters
-    ----------
-    configs : list[dict]
-        Per-config dashboard entries.
-    npz_dir : Path | None
-        Path to data/multi_n_training/. If None, uses project-relative default.
-
-    Returns
-    -------
-    list[dict]
-        Each entry: {topology, n_qubits, bad_ratio, zoo_pass_rate, message}.
-    """
-    import numpy as np
-    from pathlib import Path as _Path
-
-    if npz_dir is None:
-        _root = _Path(__file__).resolve().parents[3]
-        npz_dir = _root / "data" / "multi_n_training"
-
-    incoherent = []
-    for c in configs:
-        zoo_pr = c.get("zoo_pass_rate")
-        if zoo_pr is None or zoo_pr < ZOO_PASS_FOR_INCOHERENCE_FLAG:
-            continue
-
-        npz_file = _Path(npz_dir) / c.get("file", "")
-        if not npz_file.exists():
-            continue
-
-        data = np.load(str(npz_file), allow_pickle=True)
-        n_pts = len(data["h_values"])
-        if n_pts == 0:
-            continue
-
-        # Compute bad ratio same way as inspect_data_stores
-        e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
-        if e_key is None or "e_exact" not in data:
-            continue
-        abs_err = np.abs(data[e_key] - data["e_exact"])
-        gaps = data["gaps"] if "gaps" in data else np.ones(n_pts)
-        de_gaps = abs_err / np.maximum(gaps, 1e-10)
-        bad = (de_gaps >= 0.10) | (abs_err >= MAX_ABS_ERROR)
-        bad_ratio = float(bad.mean())
-
-        if bad_ratio > TRAINING_BAD_RATIO_THRESHOLD:
-            incoherent.append({
-                "topology": c["topology"],
-                "n_qubits": c["n_qubits"],
-                "bad_ratio": bad_ratio,
-                "zoo_pass_rate": zoo_pr,
-                "message": (
-                    f"{c['topology']} N={c['n_qubits']}: "
-                    f"NPZ bad_ratio={bad_ratio:.0%} > {TRAINING_BAD_RATIO_THRESHOLD:.0%} "
-                    f"but zoo claims pass={zoo_pr:.0%}. "
-                    f"Zoo may be trained on different/cleaner data or manifest is stale."
-                ),
-            })
-    return incoherent
-
-
-def detect_pass_rate_regression(
-    current_configs: list[dict],
-    previous_dashboard_path: "str | Path | None" = None,
-) -> list[dict]:
-    """Detect per-topology pass_rate regressions vs a previous dashboard snapshot.
-
-    Compares the max pass_rate_dual per topology between the current dashboard
-    and a previous saved snapshot. If the max drops > PASS_RATE_REGRESSION_THRESHOLD,
-    flags as regression.
-
-    Parameters
-    ----------
-    current_configs : list[dict]
-        Current dashboard configs.
-    previous_dashboard_path : str | Path | None
-        Path to a previous dashboard JSON. If None, looks for
-        data/model_quality_dashboard_prev.json. Returns empty list if not found.
-
-    Returns
-    -------
-    list[dict]
-        Each entry: {topology, prev_max, curr_max, drop, message}.
-    """
-    from pathlib import Path as _Path
-    import json
-
-    if previous_dashboard_path is None:
-        _root = _Path(__file__).resolve().parents[3]
-        prev_path = _root / "data" / "model_quality_dashboard_prev.json"
-    else:
-        prev_path = _Path(previous_dashboard_path)
-
-    if not prev_path.exists():
-        return []
-
-    try:
-        with open(prev_path) as f:
-            prev_dashboard = json.load(f)
-        prev_configs = prev_dashboard.get("configs", [])
-    except (json.JSONDecodeError, OSError):
-        return []
-
-    from collections import defaultdict
-
-    def max_dual_per_topo_n(configs: list[dict]) -> dict[tuple, float]:
-        """Return best pass_rate_dual per (topology, n_qubits) pair."""
-        by_topo_n: dict[tuple, list[float]] = defaultdict(list)
-        for c in configs:
-            dr = c.get("pass_rate_dual_criterion")
-            if dr is not None:
-                key = (c["topology"], c.get("n_qubits", 0))
-                by_topo_n[key].append(dr)
-        return {k: max(vals) for k, vals in by_topo_n.items() if vals}
-
-    # Also compute topology-level max for the regression comparison
-    def max_dual_per_topo(by_topo_n: dict) -> dict[str, float]:
-        by_topo: dict[str, list[float]] = defaultdict(list)
-        for (topo, n), val in by_topo_n.items():
-            by_topo[topo].append(val)
-        return {t: max(vals) for t, vals in by_topo.items() if vals}
-
-    curr_by_tn = max_dual_per_topo_n(current_configs)
-    prev_by_tn = max_dual_per_topo_n(prev_configs)
-
-    curr_max = max_dual_per_topo(curr_by_tn)
-    prev_max = max_dual_per_topo(prev_by_tn)
-
-    regressions = []
-    for topo, curr in curr_max.items():
-        prev = prev_max.get(topo)
-        if prev is None:
-            continue
-        drop = prev - curr
-        if drop > PASS_RATE_REGRESSION_THRESHOLD:
-            regressions.append({
-                "topology": topo,
-                "prev_max": prev,
-                "curr_max": curr,
-                "drop": drop,
-                "message": (
-                    f"{topo}: max pass_rate_dual dropped {drop:.0%} "
-                    f"({prev:.0%} → {curr:.0%}). "
-                    f"Threshold: {PASS_RATE_REGRESSION_THRESHOLD:.0%}."
-                ),
-            })
-    return regressions
-
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Model quality dashboard — auto-generated per (topology, N) from NPZ data
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def _scan_cross_n_transfer_results(root: "Path") -> dict:
+def _scan_cross_n_transfer_results(root: Path) -> dict:
     """Scan cross-N experiment results to extract transfer quality data.
 
     Returns a dict keyed by (topology, target_n, p_layers) → list of transfer records.
     Each record: {train_n, pass_rate_5pct, pass_rate_10pct, mean_de_gap, n_points, timestamp}.
     """
     import json
-    from pathlib import Path as _Path
 
     results_dir = root / "results" / "experiments" / "exp_accel_cross_n"
     transfer_data: dict[tuple, list] = {}
@@ -1680,19 +1731,21 @@ def _scan_cross_n_transfer_results(root: "Path") -> dict:
                 key = (topology, target_n, p_layers)
                 if key not in transfer_data:
                     transfer_data[key] = []
-                transfer_data[key].append({
-                    "train_n": train_n,
-                    "pass_rate_5pct": float(pass_5),
-                    "pass_rate_10pct": float(pass_10),
-                    "mean_de_gap": float(mean_dg),
-                    "n_points": n_pts,
-                    "file": run_file.name,
-                })
+                transfer_data[key].append(
+                    {
+                        "train_n": train_n,
+                        "pass_rate_5pct": float(pass_5),
+                        "pass_rate_10pct": float(pass_10),
+                        "mean_de_gap": float(mean_dg),
+                        "n_points": n_pts,
+                        "file": run_file.name,
+                    }
+                )
 
     return transfer_data
 
 
-def _best_cross_n_source(transfers: list) -> "dict | None":
+def _best_cross_n_source(transfers: list) -> dict | None:
     """Find the best train_n for cross-N prediction from a list of transfer records.
 
     Best = highest pass_rate_10pct, then lowest mean_de_gap as tiebreaker.
@@ -1752,7 +1805,7 @@ def _compute_topology_summary(configs: list) -> dict:
 
 
 def generate_model_quality_dashboard(
-    output_path: "str | Path | None" = None,
+    output_path: str | Path | None = None,
 ) -> dict:
     """Auto-generate a quality dashboard from all NPZ training data.
 
@@ -1783,9 +1836,9 @@ def generate_model_quality_dashboard(
         ``topology_summary`` (dict of per-topology aggregates),
         ``generated_at`` (ISO timestamp), ``n_configs`` (int).
     """
-    from datetime import datetime, timezone
-    from pathlib import Path as _Path
     import json
+    from datetime import datetime
+    from pathlib import Path as _Path
 
     _ROOT = _Path(__file__).resolve().parents[3]
     npz_dir = _ROOT / "data" / "multi_n_training"
@@ -1797,11 +1850,40 @@ def generate_model_quality_dashboard(
     if not npz_dir.exists():
         return {"configs": [], "topology_summary": {}, "generated_at": "", "n_configs": 0}
 
+    # ── Freshness check: skip regeneration if NPZ data hasn't changed ────
+    # Compare max NPZ mtime + cross-N results mtime against dashboard mtime.
+    npz_files_all = sorted(npz_dir.glob("*.npz"))
+    if not npz_files_all:
+        return {"configs": [], "topology_summary": {}, "generated_at": "", "n_configs": 0}
+
+    max_npz_mtime = max(f.stat().st_mtime for f in npz_files_all)
+    # Also check cross-N results freshness
+    cross_n_dir = _ROOT / "results" / "experiments" / "exp_accel_cross_n"
+    max_cross_n_mtime = 0.0
+    if cross_n_dir.exists():
+        cross_n_files = list(cross_n_dir.glob("run_*.json"))
+        if cross_n_files:
+            max_cross_n_mtime = max(f.stat().st_mtime for f in cross_n_files)
+
+    max_source_mtime = max(max_npz_mtime, max_cross_n_mtime)
+
+    if output_path.exists():
+        dashboard_mtime = output_path.stat().st_mtime
+        if dashboard_mtime > max_source_mtime:
+            # Dashboard is newer than all sources — no regeneration needed
+            logger.debug(
+                "Dashboard up-to-date (mtime %.0f > sources %.0f), skipping.",
+                dashboard_mtime,
+                max_source_mtime,
+            )
+            with open(output_path) as f:
+                return json.load(f)
+
     # ── Phase 1: Scan cross-N experiment results for transfer quality ────
     cross_n_data = _scan_cross_n_transfer_results(_ROOT)
 
     configs = []
-    for npz_file in sorted(npz_dir.glob("*.npz")):
+    for npz_file in npz_files_all:
         # Parse topology and N from filename: <topo>_N<n>_p<p>.npz
         stem = npz_file.stem
         parts = stem.split("_")
@@ -1835,7 +1917,9 @@ def generate_model_quality_dashboard(
             de_gaps = abs_err / np.maximum(data["gaps"], 1e-10)
 
         pass_rate_5 = float((de_gaps < DE_GAP_THRESHOLD).mean()) if de_gaps is not None else 0.0
-        pass_rate_10 = float((de_gaps < 2 * DE_GAP_THRESHOLD).mean()) if de_gaps is not None else 0.0
+        pass_rate_10 = (
+            float((de_gaps < 2 * DE_GAP_THRESHOLD).mean()) if de_gaps is not None else 0.0
+        )
         mean_de_gap = float(de_gaps.mean()) if de_gaps is not None else 0.0
 
         mean_abs_err = frontier_result.get("mean_abs_error")
@@ -1877,9 +1961,23 @@ def generate_model_quality_dashboard(
         zoo_integrity_ok = None  # None = not checked, True/False = result
         try:
             from qmbp_simulation.predictors.model_zoo import list_pretrained, validate_zoo
+
+            # Prefer multi-N model (n_qubits=0) as it's the production model.
+            # Fall back to single-N model matching this config's N.
             zoo_entries = list_pretrained(
-                model="tfim_bond_resolved", topology=topology, p_layers=p_layers
+                model="tfim_bond_resolved",
+                topology=topology,
+                p_layers=p_layers,
+                n_qubits=0,
             )
+            if not zoo_entries:
+                # No multi-N model: try exact-N match
+                zoo_entries = list_pretrained(
+                    model="tfim_bond_resolved",
+                    topology=topology,
+                    p_layers=p_layers,
+                    n_qubits=n_qubits,
+                )
             if zoo_entries:
                 zoo_model_available = True
                 best_zoo = max(zoo_entries, key=lambda e: e.pass_rate)
@@ -1894,9 +1992,7 @@ def generate_model_quality_dashboard(
             try:
                 zoo_report = validate_zoo()
                 generate_model_quality_dashboard._zoo_validated = True
-                generate_model_quality_dashboard._zoo_integrity = (
-                    zoo_report["n_corrupted"] == 0
-                )
+                generate_model_quality_dashboard._zoo_integrity = zoo_report["n_corrupted"] == 0
                 generate_model_quality_dashboard._zoo_n_missing = zoo_report["n_missing"]
             except Exception:
                 generate_model_quality_dashboard._zoo_validated = True
@@ -1904,14 +2000,13 @@ def generate_model_quality_dashboard(
                 generate_model_quality_dashboard._zoo_n_missing = 0
 
         if zoo_model_available:
-            zoo_integrity_ok = getattr(
-                generate_model_quality_dashboard, "_zoo_integrity", None
-            )
+            zoo_integrity_ok = getattr(generate_model_quality_dashboard, "_zoo_integrity", None)
 
         # ── EvalCache density: how well-explored is this config? ─────────
         eval_cache_density = 0
         try:
             from qmbp_simulation.execution.eval_cache import EvalCache
+
             _ec = EvalCache()
             eval_cache_density = _ec.count_entries_for_config(
                 topology, n_qubits, "tfim_bond_resolved", p_layers
@@ -1947,59 +2042,65 @@ def generate_model_quality_dashboard(
             pass_rate_5pct=pass_rate_5,
         )
 
-        configs.append({
-            "topology": topology,
-            "n_qubits": n_qubits,
-            "p_layers": p_layers,
-            "n_params": n_params,
-            "n_edges": n_edges,
-            "model": "tfim_bond_resolved",
-            "n_points": n_points,
-            "h_range": list(frontier_result["h_range"]),
-            "h_frontier": frontier_result["h_frontier"],
-            "pass_rate_5pct": pass_rate_5,
-            "pass_rate_10pct": pass_rate_10,
-            "pass_rate_dual_criterion": float(pass_rate_dual),
-            "mean_de_gap": mean_de_gap,
-            "mean_abs_error": mean_abs_err,
-            "best_de_gap": best_de_gap,
-            "worst_de_gap": worst_de_gap,
-            "n_below_frontier": n_below_frontier,
-            "n_nan_theta": n_nan_theta,
-            "zoo_model_available": zoo_model_available,
-            "zoo_pass_rate": zoo_pass_rate,
-            "zoo_integrity_ok": zoo_integrity_ok,
-            "zoo_vs_npz_divergence": (
-                abs(zoo_pass_rate - pass_rate_5) if zoo_pass_rate is not None else None
-            ),
-            "eval_cache_density": eval_cache_density,
-            "model_stale": model_stale,
-            "needs_retrain": needs_retrain,
-            "theta_smoothness": theta_smoothness,
-            "training_utility": training_utility,
-            "training_utility_reason": training_utility_reason,
-            # ── Cross-N transfer quality ─────────────────────────────
-            "cross_n_transfers": cross_n_data.get((topology, n_qubits, p_layers), []),
-            "cross_n_best_source": _best_cross_n_source(
-                cross_n_data.get((topology, n_qubits, p_layers), [])
-            ),
-            "file": npz_file.name,
-            "mtime": datetime.fromtimestamp(
-                npz_file.stat().st_mtime, tz=timezone.utc
-            ).isoformat(),
-        })
+        configs.append(
+            {
+                "topology": topology,
+                "n_qubits": n_qubits,
+                "p_layers": p_layers,
+                "n_params": n_params,
+                "n_edges": n_edges,
+                "model": "tfim_bond_resolved",
+                "n_points": n_points,
+                "h_range": list(frontier_result["h_range"]),
+                "h_frontier": frontier_result["h_frontier"],
+                "pass_rate_5pct": pass_rate_5,
+                "pass_rate_10pct": pass_rate_10,
+                "pass_rate_dual_criterion": float(pass_rate_dual),
+                "mean_de_gap": mean_de_gap,
+                "mean_abs_error": mean_abs_err,
+                "best_de_gap": best_de_gap,
+                "worst_de_gap": worst_de_gap,
+                "n_below_frontier": n_below_frontier,
+                "n_nan_theta": n_nan_theta,
+                "zoo_model_available": zoo_model_available,
+                "zoo_pass_rate": zoo_pass_rate,
+                "zoo_integrity_ok": zoo_integrity_ok,
+                "zoo_vs_npz_divergence": (
+                    abs(zoo_pass_rate - pass_rate_5) if zoo_pass_rate is not None else None
+                ),
+                "eval_cache_density": eval_cache_density,
+                "model_stale": model_stale,
+                "needs_retrain": needs_retrain,
+                "theta_smoothness": theta_smoothness,
+                "training_utility": training_utility,
+                "training_utility_reason": training_utility_reason,
+                # ── Cross-N transfer quality ─────────────────────────────
+                "cross_n_transfers": cross_n_data.get((topology, n_qubits, p_layers), []),
+                "cross_n_best_source": _best_cross_n_source(
+                    cross_n_data.get((topology, n_qubits, p_layers), [])
+                ),
+                "file": npz_file.name,
+                "mtime": datetime.fromtimestamp(npz_file.stat().st_mtime, tz=UTC).isoformat(),
+            }
+        )
 
     # ── Topology-level summary: n_max_viable ────────────────────────────
     topology_summary = _compute_topology_summary(configs)
+
+    # ── Enforce h_frontier monotonicity (correct anomalies in-place) ─────
+    enforce_h_frontier_monotonicity(configs)
 
     # ── Automated quality audits ─────────────────────────────────────────
     frontier_anomalies = detect_h_frontier_anomalies(configs)
     training_zoo_incoherence = detect_training_zoo_incoherence(configs)
     gap_masked_configs = [
-        {"topology": c["topology"], "n_qubits": c["n_qubits"],
-         "pass_rate_5pct": c["pass_rate_5pct"],
-         "pass_rate_dual": c.get("pass_rate_dual_criterion", 0),
-         "gap_masked": c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0)}
+        {
+            "topology": c["topology"],
+            "n_qubits": c["n_qubits"],
+            "pass_rate_5pct": c["pass_rate_5pct"],
+            "pass_rate_dual": c.get("pass_rate_dual_criterion", 0),
+            "gap_masked": c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0),
+        }
         for c in configs
         if c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
     ]
@@ -2008,6 +2109,7 @@ def generate_model_quality_dashboard(
 
     # H-range mismatch detection per topology (Test M from failures_tests)
     from collections import defaultdict as _defaultdict_audit
+
     h_range_mismatches: list[dict] = []
     topo_h_ranges: dict[str, dict[int, dict]] = _defaultdict_audit(dict)
     for c in configs:
@@ -2019,13 +2121,16 @@ def generate_model_quality_dashboard(
     for topo, per_n_data in topo_h_ranges.items():
         if len(per_n_data) >= 2:
             from qmbp_simulation.analysis.failures_tests import diagnose_h_range_mismatch
+
             hm = diagnose_h_range_mismatch(per_n_data)
             if hm["has_mismatch"]:
-                h_range_mismatches.append({
-                    "topology": topo,
-                    "overlap_fraction": hm["overlap_fraction"],
-                    "mismatch_pairs": hm["mismatch_pairs"],
-                })
+                h_range_mismatches.append(
+                    {
+                        "topology": topo,
+                        "overlap_fraction": hm["overlap_fraction"],
+                        "mismatch_pairs": hm["mismatch_pairs"],
+                    }
+                )
 
     audit_results = {
         "h_frontier_anomalies": frontier_anomalies,
@@ -2034,11 +2139,11 @@ def generate_model_quality_dashboard(
         "pass_rate_regressions": regressions,
         "h_range_mismatches": h_range_mismatches,
         "n_issues": (
-            len(frontier_anomalies) +
-            len(training_zoo_incoherence) +
-            len(gap_masked_configs) +
-            len(regressions) +
-            len(h_range_mismatches)
+            len(frontier_anomalies)
+            + len(training_zoo_incoherence)
+            + len(gap_masked_configs)
+            + len(regressions)
+            + len(h_range_mismatches)
         ),
     }
     if frontier_anomalies:
@@ -2057,7 +2162,7 @@ def generate_model_quality_dashboard(
             logger.warning("  %s: overlap=%.0f%%", hm["topology"], hm["overlap_fraction"] * 100)
 
     dashboard = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "n_configs": len(configs),
         "configs": configs,
         "topology_summary": topology_summary,
@@ -2078,8 +2183,9 @@ def generate_model_quality_dashboard(
             stale_files.append(c["file"])
     if stale_files:
         logger.warning(
-            "Dashboard staleness: %d NPZ files modified after generation "
-            "(concurrent writes?): %s", len(stale_files), stale_files[:3],
+            "Dashboard staleness: %d NPZ files modified after generation (concurrent writes?): %s",
+            len(stale_files),
+            stale_files[:3],
         )
         dashboard["staleness_warning"] = stale_files
 
@@ -2091,9 +2197,7 @@ def generate_model_quality_dashboard(
         "n_configs_with_nan_theta": n_with_nan,
         "total_nan_values": n_nan_total,
         "zoo_integrity_ok": zoo_ok,
-        "zoo_n_missing": getattr(
-            generate_model_quality_dashboard, "_zoo_n_missing", 0
-        ),
+        "zoo_n_missing": getattr(generate_model_quality_dashboard, "_zoo_n_missing", 0),
     }
 
     # Re-write with integrity info
@@ -2102,7 +2206,8 @@ def generate_model_quality_dashboard(
 
     logger.info(
         "Model quality dashboard: %d configs → %s",
-        len(configs), output_path.name,
+        len(configs),
+        output_path.name,
     )
     return dashboard
 
@@ -2322,13 +2427,13 @@ def compute_extrapolation_viability(
         # Fit linear trend to log(de_gap) vs N
         n_vals = sorted(mean_de_gap_per_n.keys())
         dg_vals = [mean_de_gap_per_n[n] for n in n_vals]
-        
+
         # Simple linear extrapolation
         if len(n_vals) >= 2:
             slope = (dg_vals[-1] - dg_vals[0]) / max(n_vals[-1] - n_vals[0], 1)
             extrapolated = dg_vals[-1] + slope * (target_n - n_vals[-1])
             prediction["extrapolated_de_gap"] = float(extrapolated)
-            
+
             if extrapolated < max_acceptable_de_gap:
                 return True, "extrapolation_below_threshold", prediction
             else:
@@ -2373,12 +2478,12 @@ def generate_unified_scaling_report(
 
     configs = dashboard.get("configs", [])
     topo_summary = dashboard.get("topology_summary", {})
-    
+
     # Compute utility partition
     utility_partition = get_usable_training_configs(dashboard)
 
     report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "n_topologies": len(topo_summary),
         "n_configs": len(configs),
         "topologies": {},
@@ -2388,24 +2493,20 @@ def generate_unified_scaling_report(
     }
 
     # Training readiness (global)
-    ready, reason, stats = compute_training_readiness(
-        tier_breakdown, utility_partition
-    )
+    ready, reason, stats = compute_training_readiness(tier_breakdown, utility_partition)
     report["training_readiness"] = {
         "ready": ready,
         "reason": reason,
         **stats,
     }
     if not ready:
-        report["recommendations"].append(
-            f"BLOCKING: Training not ready — {reason}"
-        )
+        report["recommendations"].append(f"BLOCKING: Training not ready — {reason}")
 
     # Per-topology analysis
     for topo, info in topo_summary.items():
         n_max_viable = info.get("n_max_viable")
         best_pass = info.get("best_pass_rate_dual", info.get("best_pass_rate_5pct", 0))
-        
+
         # Get h_frontier for the largest viable N
         h_frontier = None
         topo_configs = [c for c in configs if c["topology"] == topo]
@@ -2415,9 +2516,7 @@ def generate_unified_scaling_report(
                 break
 
         # Scalability score
-        score, score_reason = compute_scalability_score(
-            topo, n_max_viable, best_pass, h_frontier
-        )
+        score, score_reason = compute_scalability_score(topo, n_max_viable, best_pass, h_frontier)
 
         # Collect mean_de_gap per N
         mean_dg_per_n = {}
@@ -2468,6 +2567,541 @@ def generate_unified_scaling_report(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MPNN Model Diagnostics
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def compute_variational_violations(per_point: list[dict], tolerance: float = 1e-6) -> dict:
+    """Check for variational principle violations (E_pred < E_exact).
+
+    A variational violation occurs when the predicted/optimized energy is
+    BELOW the exact ground state — physically impossible, indicating
+    numerical issues, data corruption, or stale e_exact values.
+
+    Parameters
+    ----------
+    per_point : list[dict]
+        Per-h results with "e_pred" (or "e_vqe") and "e_exact" keys.
+    tolerance : float
+        Numerical tolerance. Violations smaller than this are ignored
+        (accounts for floating-point imprecision). Default: 1e-6.
+
+    Returns
+    -------
+    dict
+        n_total, n_violations, rate, violation_rate, max_violation, violations.
+    """
+    if not per_point:
+        return {
+            "n_total": 0,
+            "n_violations": 0,
+            "rate": 0.0,
+            "violation_rate": 0.0,
+            "max_violation": 0.0,
+            "violations": [],
+        }
+
+    violations = []
+    n_valid = 0
+    for p in per_point:
+        e_pred = p.get("e_pred") or p.get("e_vqe")
+        e_exact = p.get("e_exact")
+        if e_pred is not None and e_exact is not None:
+            n_valid += 1
+            # Violation: predicted energy BELOW ground state (physically impossible)
+            below = e_exact - e_pred  # positive if e_pred < e_exact
+            if below > tolerance:
+                violations.append(
+                    {"h": p.get("h"), "e_pred": e_pred, "e_exact": e_exact, "excess": below}
+                )
+
+    rate = len(violations) / max(n_valid, 1)
+    return {
+        "n_total": n_valid,
+        "n_violations": len(violations),
+        "rate": rate,
+        "violation_rate": rate,
+        "max_violation": float(max(v["excess"] for v in violations)) if violations else 0.0,
+        "violations": violations,
+    }
+
+
+def compute_violations_multi_n(
+    mpnn_results_by_n: dict[int, dict],
+) -> dict[int, dict]:
+    """Compute variational violations for multiple N values."""
+    return {
+        n: compute_variational_violations(results.get("per_point", []))
+        for n, results in mpnn_results_by_n.items()
+    }
+
+
+def compute_per_n_scaling_fit(
+    n_values: list[int],
+    per_site_errors: list[float],
+) -> dict | None:
+    """Fit |ΔE|/N vs N to a power law for scaling analysis.
+
+    Parameters
+    ----------
+    n_values : list[int]
+        System sizes.
+    per_site_errors : list[float]
+        Mean |ΔE|/N at each N.
+
+    Returns
+    -------
+    dict | None
+        {alpha, prefactor, r_squared, interpretation} or None if fit fails.
+    """
+    n_arr = np.array(n_values, dtype=float)
+    eps_arr = np.array(per_site_errors, dtype=float)
+
+    # Filter out NaN/Inf/zero
+    valid = np.isfinite(eps_arr) & (eps_arr > 0) & np.isfinite(n_arr) & (n_arr > 0)
+    if valid.sum() < 3:
+        return None
+
+    n_arr = n_arr[valid]
+    eps_arr = eps_arr[valid]
+
+    # Log-log linear fit: log(eps) = alpha * log(N) + log(prefactor)
+    try:
+        log_n = np.log(n_arr)
+        log_eps = np.log(eps_arr)
+        coeffs = np.polyfit(log_n, log_eps, 1)
+        alpha = coeffs[0]
+        prefactor = np.exp(coeffs[1])
+
+        # R² calculation
+        fitted = np.polyval(coeffs, log_n)
+        ss_res = np.sum((log_eps - fitted) ** 2)
+        ss_tot = np.sum((log_eps - log_eps.mean()) ** 2)
+        r_squared = 1 - ss_res / max(ss_tot, 1e-10)
+
+        # Interpretation
+        if abs(alpha) < 0.1:
+            interpretation = "extensive (constant per-site error)"
+        elif alpha < -0.3:
+            interpretation = "improving with N (good scalability)"
+        elif alpha > 0.3:
+            interpretation = "degrading with N (poor scalability)"
+        else:
+            interpretation = "weakly scaling"
+
+        return {
+            "alpha": float(alpha),
+            "prefactor": float(prefactor),
+            "r_squared": float(r_squared),
+            "interpretation": interpretation,
+        }
+    except (np.linalg.LinAlgError, ValueError):
+        return None
+
+
+def compute_mpnn_diagnostics(
+    mpnn_results_by_n: dict[int, dict],
+    *,
+    topology: str | None = None,
+    model_name: str | None = None,
+    p_layers: int | None = None,
+    checkpoint_path: str | None = None,
+    include_training_quality: bool = True,
+    logger: logging.Logger | None = None,
+) -> dict:
+    """Compute comprehensive MPNN model quality diagnostics.
+
+    Consolidates multiple diagnostic checks into a single reusable function
+    for use in any MPNN evaluation runner (extrapolation, cross-N, etc.).
+
+    Parameters
+    ----------
+    mpnn_results_by_n : dict[int, dict]
+        Results keyed by target N, each containing:
+        - "per_point": list[dict] with h, e_pred, e_exact, theta, etc.
+        - "mean_abs_error_per_site": float
+    topology, model_name, p_layers : str | None
+        For training data quality lookup.
+    checkpoint_path : str | None
+        Path to checkpoint used (for provenance tracking).
+    include_training_quality : bool
+        If True, fetch training data quality from model_zoo.
+    logger : logging.Logger | None
+        Logger for diagnostic messages.
+
+    Returns
+    -------
+    dict with: theta_smoothness, variational_violations, scaling_fit,
+    training_data_quality, checkpoint_used, summary.
+    """
+    import logging as _logging
+
+    _log = logger or _logging.getLogger(__name__)
+    diagnostics: dict = {}
+
+    # ── 1. θ smoothness per N ─────────────────────────────────────────────
+    try:
+        from qmbp_simulation.analysis.theta_alignment import detect_jumps
+
+        theta_smoothness = {}
+        for n_target, results in mpnn_results_by_n.items():
+            per_point = results.get("per_point", [])
+            thetas = [p.get("theta") for p in per_point if p.get("theta") is not None]
+
+            if len(thetas) >= 3:
+                theta_arr = np.array(thetas)
+                if theta_arr.ndim == 2:
+                    jumps = detect_jumps(theta_arr, threshold=1.0)
+                    max_jump = compute_theta_smoothness(theta_arr) or 0.0
+                    theta_smoothness[n_target] = {
+                        "n_jumps": len(jumps),
+                        "max_jump": float(max_jump),
+                        "smooth": len(jumps) == 0,
+                    }
+
+        if theta_smoothness:
+            diagnostics["theta_smoothness"] = theta_smoothness
+    except Exception as e:
+        _log.debug("θ smoothness check failed: %s", e)
+
+    # ── 2. Variational violations per N ───────────────────────────────────
+    violations_by_n = {}
+    total_violations = 0
+    total_points = 0
+
+    for n_target, results in mpnn_results_by_n.items():
+        per_point = results.get("per_point", [])
+        v_result = compute_variational_violations(per_point)
+        violations_by_n[n_target] = v_result
+        total_violations += v_result["n_violations"]
+        total_points += v_result["n_total"]
+
+    diagnostics["variational_violations"] = violations_by_n
+
+    # ── 3. Per-N scaling fit ──────────────────────────────────────────────
+    n_values = sorted(mpnn_results_by_n.keys())
+    if len(n_values) >= 3:
+        per_site_errors = [
+            mpnn_results_by_n[n].get("mean_abs_error_per_site", float("nan")) for n in n_values
+        ]
+        scaling_fit = compute_per_n_scaling_fit(n_values, per_site_errors)
+        if scaling_fit:
+            diagnostics["scaling_fit"] = scaling_fit
+
+    # ── 4. Training data quality ──────────────────────────────────────────
+    if include_training_quality and topology and model_name and p_layers is not None:
+        try:
+            from qmbp_simulation.predictors.model_zoo import get_training_data_quality
+
+            quality = get_training_data_quality(topology, 0, model_name, p_layers)
+            if quality.get("found"):
+                diagnostics["training_data_quality"] = {
+                    "n_points": quality["n_points"],
+                    "verified_ratio": quality["verified_ratio"],
+                    "quality_score": quality["quality_score"],
+                }
+        except Exception as e:
+            _log.debug("Training data quality check failed: %s", e)
+
+    # ── 5. Checkpoint provenance ──────────────────────────────────────────
+    diagnostics["checkpoint_used"] = checkpoint_path or "auto-selected from zoo"
+
+    # ── 6. Summary health indicators ──────────────────────────────────────
+    theta_smooth_count = sum(
+        1 for v in diagnostics.get("theta_smoothness", {}).values() if v.get("smooth", False)
+    )
+    theta_total = len(diagnostics.get("theta_smoothness", {}))
+
+    scaling = diagnostics.get("scaling_fit", {})
+    scaling_healthy = scaling.get("alpha", 1.0) < 0.3 if scaling else None
+
+    training_quality = diagnostics.get("training_data_quality", {})
+    training_healthy = training_quality.get("quality_score", 0) >= 0.6 if training_quality else None
+
+    diagnostics["summary"] = {
+        "theta_smooth_ratio": theta_smooth_count / max(theta_total, 1),
+        "variational_violation_rate": total_violations / max(total_points, 1),
+        "scaling_healthy": scaling_healthy,
+        "training_healthy": training_healthy,
+        "overall_health": (
+            "healthy"
+            if (
+                total_violations == 0
+                and (scaling_healthy is None or scaling_healthy)
+                and theta_smooth_count == theta_total
+            )
+            else "warning"
+            if total_violations < total_points * 0.1
+            else "degraded"
+        ),
+    }
+
+    return diagnostics
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Training Data Exclusion System
+# ═══════════════════════════════════════════════════════════════════════════════
+# Persistent registry of NPZ files excluded from MPNN training.
+# File: data/training_exclusions.json
+# Used by: MultiNAggregator, runner_base post-run feedback, inspect_data_stores.
+
+_EXCLUSION_REGISTRY_PATH: Path | None = None
+
+
+def _resolve_exclusion_path() -> Path:
+    """Resolve path to training_exclusions.json."""
+    global _EXCLUSION_REGISTRY_PATH
+    if _EXCLUSION_REGISTRY_PATH is None:
+        _EXCLUSION_REGISTRY_PATH = (
+            Path(__file__).resolve().parents[3] / "data" / "training_exclusions.json"
+        )
+    return _EXCLUSION_REGISTRY_PATH
+
+
+def load_training_exclusions() -> dict:
+    """Load the persistent training exclusion registry.
+
+    Returns
+    -------
+    dict
+        {"excluded": [...], "updated_at": ..., "version": int}
+        Returns {"excluded": []} if file doesn't exist.
+    """
+    import json
+
+    path = _resolve_exclusion_path()
+    if not path.exists():
+        return {"excluded": [], "version": 1}
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("load_training_exclusions: corrupt registry (%s), returning empty", e)
+        return {"excluded": [], "version": 1}
+
+
+def get_excluded_files() -> set[str]:
+    """Get set of NPZ filenames excluded from training."""
+    registry = load_training_exclusions()
+    return {entry["file"] for entry in registry.get("excluded", []) if "file" in entry}
+
+
+def save_training_exclusions(registry: dict) -> None:
+    """Persist the exclusion registry to disk."""
+    import json
+
+    from qmbp_simulation.utils.helpers import json_serialize
+
+    path = _resolve_exclusion_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(registry, f, indent=2, default=json_serialize)
+
+
+def add_training_exclusion(
+    file: str,
+    topology: str,
+    n_qubits: int,
+    reason: str,
+    *,
+    pass_rate_dual: float = 0.0,
+    mean_abs_error: float = 0.0,
+    failure_mode: str = "unknown",
+    method: str = "auto",
+    source_dir: str | None = None,
+) -> bool:
+    """Add a file to the exclusion registry.
+
+    Idempotent: if the file is already excluded, updates the entry.
+
+    Returns True if newly added, False if already present (updated).
+    """
+    registry = load_training_exclusions()
+    excluded = registry.get("excluded", [])
+
+    new_entry: dict = {
+        "file": file,
+        "topology": topology,
+        "n_qubits": n_qubits,
+        "reason": reason,
+        "method": method,
+        "detected_at": datetime.now(UTC).isoformat(),
+        "pass_rate_dual": pass_rate_dual,
+        "mean_abs_error": mean_abs_error,
+        "failure_mode": failure_mode,
+    }
+    if source_dir:
+        new_entry["source_dir"] = source_dir
+
+    # Check if already excluded → update in place
+    for i, entry in enumerate(excluded):
+        if entry.get("file") == file:
+            excluded[i] = new_entry
+            registry["excluded"] = excluded
+            registry["updated_at"] = datetime.now(UTC).isoformat()
+            save_training_exclusions(registry)
+            return False
+
+    # New entry
+    excluded.append(new_entry)
+    registry["excluded"] = excluded
+    registry["updated_at"] = datetime.now(UTC).isoformat()
+    save_training_exclusions(registry)
+    return True
+
+
+def remove_training_exclusion(file: str) -> bool:
+    """Remove a file from the exclusion registry.
+
+    Returns True if found and removed, False if not present.
+    """
+    registry = load_training_exclusions()
+    excluded = registry.get("excluded", [])
+    new_excluded = [e for e in excluded if e.get("file") != file]
+
+    if len(new_excluded) == len(excluded):
+        return False  # Not found
+
+    registry["excluded"] = new_excluded
+    registry["updated_at"] = datetime.now(UTC).isoformat()
+    save_training_exclusions(registry)
+    return True
+
+
+def auto_detect_exclusions(
+    *,
+    dry_run: bool = False,
+    npz_dirs: list[str] | None = None,
+) -> list[dict]:
+    """Scan NPZ files and detect those that should be excluded from training.
+
+    Uses `classify_training_utility` to assess each NPZ file. Files classified
+    as "not_useful" are candidates for exclusion.
+
+    Parameters
+    ----------
+    dry_run : bool
+        If True, only detect and return candidates without persisting.
+    npz_dirs : list[str] | None
+        Directories to scan (relative to project root).
+        Default: ["data/multi_n_training", "data/large_n_extrapolation"]
+
+    Returns
+    -------
+    list[dict]
+        Newly detected exclusion candidates (not already in registry).
+    """
+    project_root = _resolve_exclusion_path().parent.parent
+    if npz_dirs is None:
+        npz_dirs = ["data/multi_n_training", "data/large_n_extrapolation"]
+
+    already_excluded = get_excluded_files()
+    new_candidates: list[dict] = []
+
+    for dir_rel in npz_dirs:
+        npz_dir = project_root / dir_rel
+        if not npz_dir.exists():
+            continue
+
+        source_dir = dir_rel.split("/")[-1]
+
+        for npz_path in sorted(npz_dir.glob("*.npz")):
+            if npz_path.name in already_excluded:
+                continue
+
+            try:
+                data = np.load(npz_path, allow_pickle=True)
+                h_values = data.get("h_values")
+                e_vqe = data.get("e_vqe", data.get("e_pred"))
+                e_exact = data.get("e_exact")
+                gaps = data.get("gaps")
+
+                if h_values is None or e_vqe is None or e_exact is None:
+                    continue
+
+                n_points = len(h_values)
+                if n_points == 0:
+                    continue
+
+                abs_errors = np.abs(
+                    np.asarray(e_vqe, dtype=float) - np.asarray(e_exact, dtype=float)
+                )
+                mean_abs_err = float(abs_errors.mean())
+
+                # Compute pass rates
+                if gaps is not None:
+                    gaps_arr = np.maximum(np.asarray(gaps, dtype=float), 1e-10)
+                    de_gaps = abs_errors / gaps_arr
+                    pass_5pct = float((de_gaps < DE_GAP_THRESHOLD).mean())
+                    dual_mask = (de_gaps < DE_GAP_THRESHOLD) & (abs_errors < MAX_ABS_ERROR)
+                    pass_dual = float(dual_mask.mean())
+                else:
+                    pass_5pct = 0.0
+                    pass_dual = 0.0
+
+                # Classify
+                category, reason = classify_training_utility(
+                    n_points,
+                    pass_dual,
+                    pass_5pct,
+                    mean_abs_error=mean_abs_err,
+                )
+
+                if category == "not_useful":
+                    # Parse topology and N from filename
+                    parsed = parse_npz_filename(npz_path.name)
+                    if parsed:
+                        topology, n_qubits, _p = parsed
+                    else:
+                        topology = "unknown"
+                        n_qubits = 0
+
+                    candidate = {
+                        "file": npz_path.name,
+                        "topology": topology,
+                        "n_qubits": n_qubits,
+                        "reason": reason,
+                        "method": "auto",
+                        "detected_at": datetime.now(UTC).isoformat(),
+                        "pass_rate_dual": pass_dual,
+                        "mean_abs_error": mean_abs_err,
+                        "failure_mode": _infer_failure_mode(pass_dual, pass_5pct, mean_abs_err),
+                        "source_dir": source_dir,
+                    }
+                    new_candidates.append(candidate)
+
+            except Exception as e:
+                logger.debug("auto_detect_exclusions: error processing %s: %s", npz_path.name, e)
+                continue
+
+    # Batch persist all new candidates at once (single read-write cycle)
+    if new_candidates and not dry_run:
+        registry = load_training_exclusions()
+        excluded = registry.get("excluded", [])
+        existing_files = {e.get("file") for e in excluded}
+        for candidate in new_candidates:
+            if candidate["file"] not in existing_files:
+                excluded.append(candidate)
+                existing_files.add(candidate["file"])
+        registry["excluded"] = excluded
+        registry["updated_at"] = datetime.now(UTC).isoformat()
+        save_training_exclusions(registry)
+
+    return new_candidates
+
+
+def _infer_failure_mode(pass_dual: float, pass_5pct: float, mean_abs_error: float) -> str:
+    """Infer failure mode from basic metrics (lightweight classification)."""
+    gap_masking = pass_5pct - pass_dual
+    if gap_masking > GAP_MASKING_THRESHOLD:
+        return "gap_masking"
+    if mean_abs_error > AUTO_EXCLUDE_MEAN_ABS_ERROR:
+        return "intrinsic_vqe_error"
+    return "insufficient_signal"
+
+
 def __getattr__(name: str):
     """Lazy import for failure diagnostics to avoid circular import."""
     _FAILURES_EXPORTS = {
@@ -2481,5 +3115,6 @@ def __getattr__(name: str):
     }
     if name in _FAILURES_EXPORTS:
         from qmbp_simulation.analysis import failures_tests
+
         return getattr(failures_tests, name)
     raise AttributeError(f"module 'qmbp_simulation.analysis.metrics' has no attribute {name!r}")

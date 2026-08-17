@@ -451,27 +451,7 @@ class NLCERunner:
 
     @staticmethod
     def _euler_subtraction(cluster_energies: dict[int, float], L_max: int) -> dict[int, float]:
-        """Compute NLCE weights via Euler inclusion-exclusion.
-
-        For 1D translationally-invariant systems with OBC clusters:
-            W(1) = E(1)/1
-            W(L) = E(L)/L - Σ_{l=1}^{L-1} W(l)   for L > 1
-
-        This follows from the fact that a length-L cluster embeds exactly
-        one copy of each shorter subcluster in the 1D infinite chain.
-
-        Parameters
-        ----------
-        cluster_energies : dict[int, float]
-            Mapping L → E₀(L)/L.
-        L_max : int
-            Maximum cluster size.
-
-        Returns
-        -------
-        dict[int, float]
-            Mapping L → W(L).
-        """
+        """Compute NLCE weights via Euler inclusion-exclusion."""
         weights: dict[int, float] = {}
         for L in range(1, L_max + 1):
             e_per_site = cluster_energies.get(L, 0.0)
@@ -486,31 +466,7 @@ class NLCERunner:
 
 
 def tfim_analytical_energy_per_site(h: float, J: float = 1.0) -> float:
-    """Analytical ground state energy per site for infinite 1D TFIM.
-
-    Uses the Jordan-Wigner exact solution:
-        E₀/N = -(1/π) ∫₀^π dk √(J² + h² - 2Jh·cos(k))
-
-    Valid for the Hamiltonian H = -J Σ ZᵢZᵢ₊₁ - h Σ Xᵢ with PBC
-    in the thermodynamic limit.
-
-    Parameters
-    ----------
-    h : float
-        Transverse field strength.
-    J : float
-        NN coupling (default 1.0).
-
-    Returns
-    -------
-    float
-        E₀/N in the thermodynamic limit.
-
-    References
-    ----------
-    Pfeuty, P. (1970). Ann. Phys. 57, 79-90.
-    Sachdev, S. (2011). Quantum Phase Transitions, Ch. 5.
-    """
+    """Analytical ground state energy per site for infinite 1D TFIM."""
     from scipy.integrate import quad
 
     def integrand(k: float) -> float:

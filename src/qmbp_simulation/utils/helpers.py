@@ -108,16 +108,8 @@ def json_serialize(obj: Any) -> Any:
 def json_dump(obj: Any, path: Path, indent: int = 2) -> None:
     """Serialize obj to JSON and write to path.
 
-    Uses `json_serialize` as the default handler for non-standard types.
 
-    Parameters
-    ----------
-    obj : Any
-        Object to serialize (typically a dict).
-    path : Path
-        Output file path.
-    indent : int
-        JSON indentation level (default 2).
+    Uses `json_serialize` as the default handler for non-standard types.
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -148,24 +140,7 @@ class TimerResult:
 
 @contextmanager
 def timer(label: str = "") -> Generator[TimerResult, None, None]:
-    """Context manager that measures wall-clock time.
-
-    Usage
-    -----
-    >>> with timer("phase1") as t:
-    ...     do_work()
-    >>> print(f"{t.label} took {t.elapsed_s:.2f}s")
-
-    Parameters
-    ----------
-    label : str
-        Descriptive label for the timed block.
-
-    Yields
-    ------
-    TimerResult
-        Mutable result object; `elapsed_s` is set on exit.
-    """
+    """Context manager that measures wall-clock time."""
     result = TimerResult(label=label)
     start = time.perf_counter()
     try:
@@ -384,3 +359,221 @@ def augment_theta_symmetries(
                 variants.append(noisy)
 
     return variants
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# File Versioning (anti-data-loss utility)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_VERSION_SUFFIX_RE: str = r"_v\d+$"
+
+
+def versioned_backup(
+    file_path: Path,
+    version_dir: Path | None = None,
+    *,
+    sidecar_metadata: dict[str, Any] | None = None,
+) -> tuple[Path, int]:
+    """Create a versioned copy of a file, NEVER overwriting existing versions.
+
+    Implements sequential versioning: file.pt → _versions/file_v1.pt, file_v2.pt, ...
+    Strips existing _vN suffixes from the filename to prevent stacking
+    (e.g., file_v2.pt → file_v3.pt, NOT file_v2_v1.pt).
+
+    Parameters
+    ----------
+    file_path : Path
+        Path to the existing file to version. Must exist.
+    version_dir : Path | None
+        Directory to store versioned copies. Defaults to ``file_path.parent / "_versions"``.
+    sidecar_metadata : dict | None
+        If provided, writes a JSON sidecar file alongside the versioned copy
+        with this metadata (useful for identifying versions without loading binary files).
+
+    Returns
+    -------
+    tuple[Path, int]
+        (path_to_versioned_copy, version_number)
+
+    Raises
+    ------
+    FileNotFoundError
+        If ``file_path`` does not exist.
+
+    Examples
+    --------
+    >>> from pathlib import Path
+    >>> versioned_path, v_num = versioned_backup(Path("model.pt"))
+    >>> # Creates _versions/model_v1.pt (or _v2, _v3, ... if previous exist)
+    >>> versioned_path, v_num = versioned_backup(
+    ...     Path("data_v2.npz"),
+    ...     sidecar_metadata={"reason": "retrained", "pass_rate": 0.83},
+    ... )
+    >>> # Creates _versions/data_v3.npz + _versions/data_v3.json
+    """
+    import re
+    import shutil
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"versioned_backup: {file_path} does not exist")
+
+    if version_dir is None:
+        version_dir = file_path.parent / "_versions"
+    version_dir.mkdir(parents=True, exist_ok=True)
+
+    # Strip existing _vN suffix to prevent stacking (file_v2 → file, not file_v2_v1)
+    raw_stem = file_path.stem
+    base_stem = re.sub(_VERSION_SUFFIX_RE, "", raw_stem)
+    suffix = file_path.suffix
+
+    # Find next available version number
+    version_num = 1
+    while (version_dir / f"{base_stem}_v{version_num}{suffix}").exists():
+        version_num += 1
+
+    versioned_path = version_dir / f"{base_stem}_v{version_num}{suffix}"
+    shutil.copy2(file_path, versioned_path)
+
+    # Write optional JSON sidecar
+    if sidecar_metadata is not None:
+        sidecar_path = versioned_path.with_suffix(".json")
+        if not sidecar_path.exists():
+            try:
+                sidecar_data = {
+                    "version_number": version_num,
+                    "original_filename": file_path.name,
+                    **sidecar_metadata,
+                }
+                with open(sidecar_path, "w") as f:
+                    json.dump(sidecar_data, f, indent=2, default=json_serialize)
+            except Exception:
+                pass  # Non-critical — sidecar is informational only
+
+    return versioned_path, version_num
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Batch Write Mixin (deferred persistence pattern)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class BatchWriteMixin:
+    """Mixin providing batch write semantics for JSON-persisted stores.
+
+    Subclasses must define:
+    - ``_flush()``: actually write data to disk
+    - ``_reload()``: reload data from disk (for rollback on exception)
+
+    Attributes set by mixin:
+    - ``_batch_mode``: bool, True inside a batch context
+    - ``_dirty``: bool, True if there are unsaved changes
+
+    Usage
+    -----
+    Subclass this and call ``self._mark_dirty()`` wherever you currently
+    call ``self._save()``. Then wrap operations with ``with obj.batch(): ...``.
+
+    Example
+    -------
+    >>> class MyStore(BatchWriteMixin):
+    ...     def _flush(self): json.dump(...)
+    ...     def _reload(self): self.data = json.load(...)
+    ...     def add(self, item):
+    ...         self.data.append(item)
+    ...         self._mark_dirty()
+    ...
+    >>> store = MyStore()
+    >>> with store.batch():
+    ...     store.add("a")
+    ...     store.add("b")  # Single flush at exit
+    """
+
+    _batch_mode: bool = False
+    _dirty: bool = False
+
+    class _BatchCtx:
+        """Nestable batch context with rollback on exception."""
+
+        def __init__(self, owner: BatchWriteMixin):
+            self._owner = owner
+            self._was_batching = owner._batch_mode
+
+        def __enter__(self):
+            self._owner._batch_mode = True
+            return self._owner
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if self._was_batching:
+                return  # Nested — let outer handle
+
+            self._owner._batch_mode = False
+            if exc_type is not None:
+                # Rollback: discard dirty state, reload from source
+                self._owner._dirty = False
+                self._owner._reload()
+                return  # Don't suppress exception
+
+            if self._owner._dirty:
+                self._owner._flush()
+
+    def batch(self) -> BatchWriteMixin._BatchCtx:
+        """Context manager to defer disk writes until block exits.
+
+        Supports nesting: only the outermost batch triggers flush.
+        On exception: rollback (reload from disk, no partial writes).
+        """
+        return self._BatchCtx(self)
+
+    def _mark_dirty(self) -> None:
+        """Mark store as having unsaved changes. Flushes immediately if not batching."""
+        if self._batch_mode:
+            self._dirty = True
+        else:
+            self._flush()
+
+    def _flush(self) -> None:
+        """Override: actually persist data to disk."""
+        raise NotImplementedError("Subclass must implement _flush()")
+
+    def _reload(self) -> None:
+        """Override: reload data from disk (for rollback)."""
+        raise NotImplementedError("Subclass must implement _reload()")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Atomic NPZ write (crash-safe persistence)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def atomic_savez(path: Path, **arrays) -> None:
+    """Write NPZ file atomically using temp-file + rename.
+
+    If the process is killed during write, the original file remains intact
+    (or doesn't exist yet). Prevents corrupted NPZ files that cause
+    load failures on subsequent runs.
+
+    Parameters
+    ----------
+    path : Path
+        Destination NPZ file path.
+    **arrays
+        Keyword arguments passed directly to np.savez.
+
+    Raises
+    ------
+    Any exception from np.savez is re-raised after cleanup of the temp file.
+
+    Example
+    -------
+    >>> from qmbp_simulation.utils.helpers import atomic_savez
+    >>> atomic_savez(Path("data/results.npz"), h_values=h_arr, theta=theta_arr)
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_suffix(".tmp.npz")
+    try:
+        np.savez(tmp_path, **arrays)
+        tmp_path.rename(path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise

@@ -142,7 +142,9 @@ def save_phase12_dataset(
         if value is not None:
             save_dict[key] = value
 
-    np.savez(filepath, **save_dict)  # type: ignore[arg-type]
+    from qmbp_simulation.utils.helpers import atomic_savez
+
+    atomic_savez(Path(filepath), **save_dict)
     logger.info(
         f"Dataset saved: {filepath} (version={PIPELINE_VERSION}, cost={EXPECTED_COST_FUNCTION})"
     )
@@ -483,7 +485,9 @@ def generate_frontier_dense_h_grid(
     effective_frontier = max(h_min, min(h_max, h_frontier))
 
     # Effective h_min for grid (respects include_below_frontier)
-    effective_h_min = h_min if include_below_frontier else max(h_min, effective_frontier - dense_radius)
+    effective_h_min = (
+        h_min if include_below_frontier else max(h_min, effective_frontier - dense_radius)
+    )
 
     # Split points: dense zone around frontier + sparse elsewhere
     n_dense = max(5, int(n_points * dense_fraction))
@@ -512,9 +516,7 @@ def generate_frontier_dense_h_grid(
             np.linspace(effective_h_min, dense_lo, n_below_dense + 1)[:-1].tolist()
         )
     if dense_hi < h_max and n_above_dense > 0:
-        sparse_points.extend(
-            np.linspace(dense_hi, h_max, n_above_dense + 1)[1:].tolist()
-        )
+        sparse_points.extend(np.linspace(dense_hi, h_max, n_above_dense + 1)[1:].tolist())
 
     # Combine, deduplicate, sort descending
     all_points = np.concatenate([dense_points, np.array(sparse_points)])

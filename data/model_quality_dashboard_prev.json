@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-12T09:13:52.107087+00:00",
-  "n_configs": 30,
+  "generated_at": "2026-08-17T17:15:10.243292+00:00",
+  "n_configs": 32,
   "configs": [
     {
       "topology": "chain_1d",
@@ -9,31 +9,31 @@
       "n_params": 19,
       "n_edges": 9,
       "model": "tfim_bond_resolved",
-      "n_points": 45,
+      "n_points": 90,
       "h_range": [
-        2.0,
+        1.5,
         5.5
       ],
-      "h_frontier": 2.0,
-      "pass_rate_5pct": 1.0,
-      "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.8888888888888888,
-      "mean_de_gap": 0.011340224391398852,
-      "mean_abs_error": 0.046442340060888654,
+      "h_frontier": 1.8404935696278621,
+      "pass_rate_5pct": 0.9222222222222223,
+      "pass_rate_10pct": 0.9888888888888889,
+      "pass_rate_dual_criterion": 0.9222222222222223,
+      "mean_de_gap": 0.016978563198248035,
+      "mean_abs_error": 0.05093426186837367,
       "best_de_gap": 0.0004076285132294052,
-      "worst_de_gap": 0.043615355454945604,
-      "n_below_frontier": 0,
+      "worst_de_gap": 0.13690286599767928,
+      "n_below_frontier": 7,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": 0.8666666666666667,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.0,
-      "eval_cache_density": 0,
+      "zoo_vs_npz_divergence": 0.05555555555555558,
+      "eval_cache_density": 156,
       "model_stale": false,
-      "needs_retrain": true,
-      "theta_smoothness": 1.5661355677198503,
+      "needs_retrain": false,
+      "theta_smoothness": 1.5738481759916034,
       "training_utility": "useful",
-      "training_utility_reason": "40/45 good points (89% dual pass).",
+      "training_utility_reason": "83/90 good points (92% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -90,6 +90,54 @@
           "mean_de_gap": 0.015268073316471314,
           "n_points": 14,
           "file": "run_20260811_213040.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.4,
+          "pass_rate_10pct": 0.6,
+          "mean_de_gap": 0.2564267451028316,
+          "n_points": 5,
+          "file": "run_20260812_113636.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.48,
+          "pass_rate_10pct": 0.64,
+          "mean_de_gap": 0.1519639599445675,
+          "n_points": 25,
+          "file": "run_20260812_114041.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.64,
+          "pass_rate_10pct": 0.76,
+          "mean_de_gap": 0.10097037316916756,
+          "n_points": 25,
+          "file": "run_20260812_120550.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.32,
+          "pass_rate_10pct": 0.6,
+          "mean_de_gap": 0.17875619514431984,
+          "n_points": 25,
+          "file": "run_20260812_122457.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.32,
+          "pass_rate_10pct": 0.6,
+          "mean_de_gap": 0.17875619514431984,
+          "n_points": 25,
+          "file": "run_20260812_144553.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.6,
+          "pass_rate_10pct": 0.72,
+          "mean_de_gap": 0.11031582459097447,
+          "n_points": 25,
+          "file": "run_20260812_154609.json"
         }
       ],
       "cross_n_best_source": {
@@ -99,7 +147,7 @@
         "mean_de_gap": 0.014211134502922409
       },
       "file": "chain_1d_N10_p1.npz",
-      "mtime": "2026-08-12T00:30:23.947009+00:00"
+      "mtime": "2026-08-17T17:15:02.383429+00:00"
     },
     {
       "topology": "chain_1d",
@@ -124,12 +172,12 @@
       "n_below_frontier": 6,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": 0.8666666666666667,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.08695652173913049,
+      "zoo_vs_npz_divergence": 0.046376811594202816,
       "eval_cache_density": 6,
       "model_stale": false,
-      "needs_retrain": true,
+      "needs_retrain": false,
       "theta_smoothness": 1.4480934217105024,
       "training_utility": "useful",
       "training_utility_reason": "62/69 good points (91% dual pass).",
@@ -150,7 +198,7 @@
         "mean_de_gap": 0.0267337262296445
       },
       "file": "chain_1d_N12_p1.npz",
-      "mtime": "2026-08-11T20:53:44.182815+00:00"
+      "mtime": "2026-08-14T23:37:54.298365+00:00"
     },
     {
       "topology": "chain_1d",
@@ -159,31 +207,31 @@
       "n_params": 29,
       "n_edges": 14,
       "model": "tfim_bond_resolved",
-      "n_points": 81,
+      "n_points": 173,
       "h_range": [
         1.5,
         5.5
       ],
-      "h_frontier": 2.030103098938441,
-      "pass_rate_5pct": 0.9012345679012346,
-      "pass_rate_10pct": 0.9506172839506173,
-      "pass_rate_dual_criterion": 0.7901234567901234,
-      "mean_de_gap": 0.021143020767271627,
-      "mean_abs_error": 0.061684473189035326,
+      "h_frontier": 2.0281737290759696,
+      "pass_rate_5pct": 0.9017341040462428,
+      "pass_rate_10pct": 0.9595375722543352,
+      "pass_rate_dual_criterion": 0.838150289017341,
+      "mean_de_gap": 0.019607123252636978,
+      "mean_abs_error": 0.05664441484238651,
       "best_de_gap": 0.0006261226910549385,
       "worst_de_gap": 0.22936016236374251,
-      "n_below_frontier": 8,
+      "n_below_frontier": 16,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": 0.8666666666666667,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.09876543209876543,
-      "eval_cache_density": 39,
+      "zoo_vs_npz_divergence": 0.03506743737957607,
+      "eval_cache_density": 100,
       "model_stale": false,
-      "needs_retrain": true,
-      "theta_smoothness": 0.46637237817019184,
+      "needs_retrain": false,
+      "theta_smoothness": 1.9560361044877834,
       "training_utility": "useful",
-      "training_utility_reason": "64/81 good points (79% dual pass).",
+      "training_utility_reason": "145/173 good points (84% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -225,7 +273,7 @@
         "mean_de_gap": 0.027876421416677205
       },
       "file": "chain_1d_N15_p1.npz",
-      "mtime": "2026-08-12T01:58:03.809901+00:00"
+      "mtime": "2026-08-14T23:37:54.307536+00:00"
     },
     {
       "topology": "chain_1d",
@@ -234,31 +282,31 @@
       "n_params": 39,
       "n_edges": 19,
       "model": "tfim_bond_resolved",
-      "n_points": 29,
+      "n_points": 73,
       "h_range": [
         1.5,
         5.5
       ],
-      "h_frontier": 2.214991936460249,
-      "pass_rate_5pct": 0.8275862068965517,
-      "pass_rate_10pct": 0.896551724137931,
-      "pass_rate_dual_criterion": 0.7931034482758621,
-      "mean_de_gap": 0.03559889165550113,
-      "mean_abs_error": 0.06971155230830856,
+      "h_frontier": 2.2079973002326283,
+      "pass_rate_5pct": 0.863013698630137,
+      "pass_rate_10pct": 0.9178082191780822,
+      "pass_rate_dual_criterion": 0.7808219178082192,
+      "mean_de_gap": 0.029012142112027482,
+      "mean_abs_error": 0.06657532050789983,
       "best_de_gap": 0.0009264812864125122,
       "worst_de_gap": 0.35620846927631034,
-      "n_below_frontier": 5,
+      "n_below_frontier": 10,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": 0.8666666666666667,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.1724137931034483,
-      "eval_cache_density": 6,
+      "zoo_vs_npz_divergence": 0.0036529680365297024,
+      "eval_cache_density": 50,
       "model_stale": false,
-      "needs_retrain": true,
-      "theta_smoothness": 0.12231705418006522,
+      "needs_retrain": false,
+      "theta_smoothness": 2.695156719622573,
       "training_utility": "useful",
-      "training_utility_reason": "23/29 good points (79% dual pass).",
+      "training_utility_reason": "57/73 good points (78% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -292,7 +340,7 @@
         "mean_de_gap": 0.044879821986317826
       },
       "file": "chain_1d_N20_p1.npz",
-      "mtime": "2026-08-12T02:21:09.130112+00:00"
+      "mtime": "2026-08-14T23:37:54.316779+00:00"
     },
     {
       "topology": "chain_1d",
@@ -301,35 +349,35 @@
       "n_params": 11,
       "n_edges": 5,
       "model": "tfim_bond_resolved",
-      "n_points": 40,
+      "n_points": 90,
       "h_range": [
         1.5,
         5.5
       ],
-      "h_frontier": 1.5573334310882319,
-      "pass_rate_5pct": 0.975,
+      "h_frontier": 1.5570707411755582,
+      "pass_rate_5pct": 0.9888888888888889,
       "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.975,
-      "mean_de_gap": 0.012896509501232422,
-      "mean_abs_error": 0.04886911580590718,
+      "pass_rate_dual_criterion": 0.9888888888888889,
+      "mean_de_gap": 0.011340265437473388,
+      "mean_abs_error": 0.043995001200505375,
       "best_de_gap": 0.00020085176959164152,
       "worst_de_gap": 0.05888450353428476,
       "n_below_frontier": 1,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": 0.8666666666666667,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.025000000000000022,
-      "eval_cache_density": 0,
+      "zoo_vs_npz_divergence": 0.12222222222222223,
+      "eval_cache_density": 28,
       "model_stale": false,
-      "needs_retrain": true,
-      "theta_smoothness": 0.7854735399006711,
+      "needs_retrain": false,
+      "theta_smoothness": 1.5709756556707393,
       "training_utility": "useful",
-      "training_utility_reason": "39/40 good points (98% dual pass).",
+      "training_utility_reason": "89/90 good points (99% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "chain_1d_N6_p1.npz",
-      "mtime": "2026-08-11T02:14:39.993820+00:00"
+      "mtime": "2026-08-14T23:37:54.325588+00:00"
     },
     {
       "topology": "chain_1d",
@@ -338,31 +386,31 @@
       "n_params": 15,
       "n_edges": 7,
       "model": "tfim_bond_resolved",
-      "n_points": 69,
+      "n_points": 111,
       "h_range": [
         1.5,
         5.5
       ],
       "h_frontier": 1.7186728642405902,
-      "pass_rate_5pct": 0.9565217391304348,
+      "pass_rate_5pct": 0.963963963963964,
       "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.9565217391304348,
-      "mean_de_gap": 0.012253914683300308,
-      "mean_abs_error": 0.03951497072190688,
-      "best_de_gap": 0.00034592952026887754,
+      "pass_rate_dual_criterion": 0.963963963963964,
+      "mean_de_gap": 0.013102583917168046,
+      "mean_abs_error": 0.044970793151311764,
+      "best_de_gap": 0.0003335588455367121,
       "worst_de_gap": 0.09700471750887714,
-      "n_below_frontier": 3,
+      "n_below_frontier": 4,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": 0.8666666666666667,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.04347826086956519,
-      "eval_cache_density": 34,
+      "zoo_vs_npz_divergence": 0.0972972972972973,
+      "eval_cache_density": 48,
       "model_stale": false,
-      "needs_retrain": true,
-      "theta_smoothness": 0.15048435297492135,
+      "needs_retrain": false,
+      "theta_smoothness": 1.6369607538928732,
       "training_utility": "useful",
-      "training_utility_reason": "66/69 good points (96% dual pass).",
+      "training_utility_reason": "107/111 good points (96% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 8,
@@ -380,7 +428,7 @@
         "mean_de_gap": 0.008518145878458266
       },
       "file": "chain_1d_N8_p1.npz",
-      "mtime": "2026-08-12T00:17:57.286629+00:00"
+      "mtime": "2026-08-14T23:37:54.334778+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -389,31 +437,31 @@
       "n_params": 19,
       "n_edges": 9,
       "model": "tfim_bond_resolved",
-      "n_points": 131,
+      "n_points": 140,
       "h_range": [
         1.4,
         4.5
       ],
       "h_frontier": 1.7585035982664703,
-      "pass_rate_5pct": 0.9083969465648855,
-      "pass_rate_10pct": 0.9694656488549618,
-      "pass_rate_dual_criterion": 0.9083969465648855,
-      "mean_de_gap": 0.019380165426542112,
-      "mean_abs_error": 0.04098230214478497,
+      "pass_rate_5pct": 0.9142857142857143,
+      "pass_rate_10pct": 0.9714285714285714,
+      "pass_rate_dual_criterion": 0.9071428571428571,
+      "mean_de_gap": 0.019810932540894968,
+      "mean_abs_error": 0.04427879991895895,
       "best_de_gap": 0.0006650482832969443,
       "worst_de_gap": 0.1755470639922572,
       "n_below_frontier": 12,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": null,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.09160305343511455,
-      "eval_cache_density": 35,
+      "zoo_vs_npz_divergence": null,
+      "eval_cache_density": 160,
       "model_stale": false,
-      "needs_retrain": true,
+      "needs_retrain": false,
       "theta_smoothness": 1.6159975744055872,
       "training_utility": "useful",
-      "training_utility_reason": "119/131 good points (91% dual pass).",
+      "training_utility_reason": "127/140 good points (91% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -430,6 +478,54 @@
           "mean_de_gap": 0.01650583974390734,
           "n_points": 14,
           "file": "run_20260811_213849.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.72,
+          "pass_rate_10pct": 0.84,
+          "mean_de_gap": 0.05952068353579136,
+          "n_points": 25,
+          "file": "run_20260812_125237.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.0,
+          "pass_rate_10pct": 0.36,
+          "mean_de_gap": 0.29779578054406536,
+          "n_points": 25,
+          "file": "run_20260812_125702.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.8,
+          "pass_rate_10pct": 0.84,
+          "mean_de_gap": 0.06541388868068733,
+          "n_points": 25,
+          "file": "run_20260812_131000.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.8,
+          "pass_rate_10pct": 0.84,
+          "mean_de_gap": 0.06541388868068733,
+          "n_points": 25,
+          "file": "run_20260812_144652.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.8,
+          "pass_rate_10pct": 0.92,
+          "mean_de_gap": 0.034342933032430134,
+          "n_points": 25,
+          "file": "run_20260812_172844.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.64,
+          "pass_rate_10pct": 0.8,
+          "mean_de_gap": 0.06801870211612707,
+          "n_points": 25,
+          "file": "run_20260812_190604.json"
         }
       ],
       "cross_n_best_source": {
@@ -439,7 +535,7 @@
         "mean_de_gap": 0.01650583974390734
       },
       "file": "heavy_hex_N10_p1.npz",
-      "mtime": "2026-08-12T00:38:36.072747+00:00"
+      "mtime": "2026-08-14T23:37:54.343452+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -454,29 +550,29 @@
         4.5
       ],
       "h_frontier": 1.93343346559756,
-      "pass_rate_5pct": 0.8181818181818182,
-      "pass_rate_10pct": 0.9090909090909091,
-      "pass_rate_dual_criterion": 0.8051948051948052,
-      "mean_de_gap": 0.028542017509718017,
-      "mean_abs_error": 0.0703226522367331,
+      "pass_rate_5pct": 0.8701298701298701,
+      "pass_rate_10pct": 0.922077922077922,
+      "pass_rate_dual_criterion": 0.8701298701298701,
+      "mean_de_gap": 0.023499578353315252,
+      "mean_abs_error": 0.04647687269348991,
       "best_de_gap": 0.0011892033533590877,
       "worst_de_gap": 0.25832995390670116,
       "n_below_frontier": 10,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": null,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.18181818181818177,
+      "zoo_vs_npz_divergence": null,
       "eval_cache_density": 82,
       "model_stale": false,
-      "needs_retrain": true,
+      "needs_retrain": false,
       "theta_smoothness": 1.73484391197682,
       "training_utility": "useful",
-      "training_utility_reason": "62/77 good points (81% dual pass).",
+      "training_utility_reason": "67/77 good points (87% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N12_p1.npz",
-      "mtime": "2026-08-12T03:25:25.079684+00:00"
+      "mtime": "2026-08-14T23:37:54.352305+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -501,12 +597,12 @@
       "n_below_frontier": 12,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": null,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.12244897959183676,
+      "zoo_vs_npz_divergence": null,
       "eval_cache_density": 42,
       "model_stale": false,
-      "needs_retrain": true,
+      "needs_retrain": false,
       "theta_smoothness": 1.2407182571391873,
       "training_utility": "useful",
       "training_utility_reason": "85/98 good points (87% dual pass).",
@@ -527,7 +623,7 @@
         "mean_de_gap": 0.030767767855087117
       },
       "file": "heavy_hex_N16_p1.npz",
-      "mtime": "2026-08-12T03:44:10.226936+00:00"
+      "mtime": "2026-08-14T23:37:54.360821+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -536,35 +632,35 @@
       "n_params": 7,
       "n_edges": 3,
       "model": "tfim_bond_resolved",
-      "n_points": 15,
+      "n_points": 84,
       "h_range": [
         0.5833333333333335,
-        2.5
+        5.5
       ],
       "h_frontier": 0.9594858036377504,
-      "pass_rate_5pct": 0.6666666666666666,
-      "pass_rate_10pct": 0.8,
-      "pass_rate_dual_criterion": 0.6666666666666666,
-      "mean_de_gap": 0.05705663423817617,
-      "mean_abs_error": 0.020453591801660842,
+      "pass_rate_5pct": 0.9404761904761905,
+      "pass_rate_10pct": 0.9642857142857143,
+      "pass_rate_dual_criterion": 0.9404761904761905,
+      "mean_de_gap": 0.01901090671002516,
+      "mean_abs_error": 0.03213041440511874,
       "best_de_gap": 0.0008198332833485313,
       "worst_de_gap": 0.2736040766369479,
       "n_below_frontier": 5,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": null,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.33333333333333337,
-      "eval_cache_density": 0,
+      "zoo_vs_npz_divergence": null,
+      "eval_cache_density": 38,
       "model_stale": false,
       "needs_retrain": false,
-      "theta_smoothness": 0.07523656259373472,
+      "theta_smoothness": 0.07797724651210247,
       "training_utility": "useful",
-      "training_utility_reason": "10/15 good points (67% dual pass).",
+      "training_utility_reason": "79/84 good points (94% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N4_p1.npz",
-      "mtime": "2026-08-11T02:14:40.011871+00:00"
+      "mtime": "2026-08-14T23:37:54.370256+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -578,26 +674,26 @@
         1.9,
         4.5
       ],
-      "h_frontier": 2.647891539580787,
-      "pass_rate_5pct": 0.8809523809523809,
+      "h_frontier": 1.9,
+      "pass_rate_5pct": 1.0,
       "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.7142857142857143,
-      "mean_de_gap": 0.019204493979471354,
-      "mean_abs_error": 0.08393711152579521,
+      "pass_rate_dual_criterion": 1.0,
+      "mean_de_gap": 0.005934621779532594,
+      "mean_abs_error": 0.019535759676904584,
       "best_de_gap": 0.00046454119436654614,
-      "worst_de_gap": 0.07897432256443623,
-      "n_below_frontier": 13,
+      "worst_de_gap": 0.035953429241387495,
+      "n_below_frontier": 0,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 1.0,
+      "zoo_pass_rate": null,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.11904761904761907,
+      "zoo_vs_npz_divergence": null,
       "eval_cache_density": 0,
       "model_stale": false,
-      "needs_retrain": true,
+      "needs_retrain": false,
       "theta_smoothness": 0.05128857548516508,
       "training_utility": "useful",
-      "training_utility_reason": "30/42 good points (71% dual pass).",
+      "training_utility_reason": "42/42 good points (100% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 6,
@@ -615,7 +711,7 @@
         "mean_de_gap": 0.03260689818189572
       },
       "file": "heavy_hex_N6_p1.npz",
-      "mtime": "2026-08-11T02:14:40.014930+00:00"
+      "mtime": "2026-08-14T23:37:54.379308+00:00"
     },
     {
       "topology": "ladder",
@@ -624,31 +720,31 @@
       "n_params": 23,
       "n_edges": 13,
       "model": "tfim_bond_resolved",
-      "n_points": 101,
+      "n_points": 131,
       "h_range": [
         2.0,
         4.8
       ],
-      "h_frontier": 2.868132453248965,
-      "pass_rate_5pct": 0.6732673267326733,
-      "pass_rate_10pct": 0.8316831683168316,
-      "pass_rate_dual_criterion": 0.1188118811881188,
-      "mean_de_gap": 0.05920715332475643,
-      "mean_abs_error": 0.17552531425928786,
-      "best_de_gap": 0.01704910199485946,
+      "h_frontier": 2.816451605587768,
+      "pass_rate_5pct": 0.732824427480916,
+      "pass_rate_10pct": 0.8702290076335878,
+      "pass_rate_dual_criterion": 0.2366412213740458,
+      "mean_de_gap": 0.0537227993940816,
+      "mean_abs_error": 0.1440621629275057,
+      "best_de_gap": 0.004000065015762809,
       "worst_de_gap": 0.3602265428743851,
-      "n_below_frontier": 24,
+      "n_below_frontier": 35,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.45,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.282824427480916,
+      "eval_cache_density": 69,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.7855179933172721,
+      "theta_smoothness": 0.7855278949713804,
       "training_utility": "insufficient_signal",
-      "training_utility_reason": "Dual pass rate 12% < 30% threshold. 12/101 points are good. High noise/signal ratio \u2014 train at your own risk.",
+      "training_utility_reason": "Dual pass rate 24% < 30% threshold. 31/131 points are good. High noise/signal ratio \u2014 train at your own risk.",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -714,7 +810,7 @@
         "mean_de_gap": 0.02870172853112605
       },
       "file": "ladder_N10_p1.npz",
-      "mtime": "2026-08-12T00:19:57.418583+00:00"
+      "mtime": "2026-08-14T23:37:54.388544+00:00"
     },
     {
       "topology": "ladder",
@@ -723,35 +819,118 @@
       "n_params": 28,
       "n_edges": 16,
       "model": "tfim_bond_resolved",
-      "n_points": 39,
+      "n_points": 54,
       "h_range": [
-        3.0565217391304347,
+        2.5,
         5.5
       ],
-      "h_frontier": 3.0565217391304347,
-      "pass_rate_5pct": 1.0,
-      "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.41025641025641024,
-      "mean_de_gap": 0.024711571797988587,
-      "mean_abs_error": 0.11546984103934858,
+      "h_frontier": 2.979830415436441,
+      "pass_rate_5pct": 0.9444444444444444,
+      "pass_rate_10pct": 0.9814814814814815,
+      "pass_rate_dual_criterion": 0.48148148148148145,
+      "mean_de_gap": 0.02653076283875245,
+      "mean_abs_error": 0.11004459045503143,
       "best_de_gap": 0.002804597144233984,
-      "worst_de_gap": 0.046976429002015326,
-      "n_below_frontier": 0,
+      "worst_de_gap": 0.1272751337267874,
+      "n_below_frontier": 3,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.45,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.4944444444444444,
+      "eval_cache_density": 35,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.16371167328795622,
+      "theta_smoothness": 0.4024356182012002,
       "training_utility": "useful",
-      "training_utility_reason": "16/39 good points (41% dual pass).",
+      "training_utility_reason": "26/54 good points (48% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "ladder_N12_p1.npz",
-      "mtime": "2026-08-11T02:14:40.021605+00:00"
+      "mtime": "2026-08-14T23:37:54.397373+00:00"
+    },
+    {
+      "topology": "ladder",
+      "n_qubits": 14,
+      "p_layers": 1,
+      "n_params": 33,
+      "n_edges": 19,
+      "model": "tfim_bond_resolved",
+      "n_points": 33,
+      "h_range": [
+        2.0,
+        4.8
+      ],
+      "h_frontier": 3.102255098749293,
+      "pass_rate_5pct": 0.48484848484848486,
+      "pass_rate_10pct": 0.6666666666666666,
+      "pass_rate_dual_criterion": 0.2727272727272727,
+      "mean_de_gap": 0.11994245299454097,
+      "mean_abs_error": 0.21039419443259694,
+      "best_de_gap": 0.006256889799358027,
+      "worst_de_gap": 0.7066427388504566,
+      "n_below_frontier": 17,
+      "n_nan_theta": 0,
+      "zoo_model_available": true,
+      "zoo_pass_rate": 0.45,
+      "zoo_integrity_ok": true,
+      "zoo_vs_npz_divergence": 0.03484848484848485,
+      "eval_cache_density": 74,
+      "model_stale": false,
+      "needs_retrain": false,
+      "theta_smoothness": 0.7873198126019083,
+      "training_utility": "insufficient_signal",
+      "training_utility_reason": "Dual pass rate 27% < 30% threshold. 9/33 points are good. High noise/signal ratio \u2014 train at your own risk.",
+      "cross_n_transfers": [
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.0,
+          "pass_rate_10pct": 0.0,
+          "mean_de_gap": 1.5657149488172757,
+          "n_points": 8,
+          "file": "run_20260729_112141.json"
+        },
+        {
+          "train_n": 14,
+          "pass_rate_5pct": 0.2857142857142857,
+          "pass_rate_10pct": 0.5,
+          "mean_de_gap": 0.1800743495320277,
+          "n_points": 14,
+          "file": "run_20260729_143458.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.6,
+          "pass_rate_10pct": 1.0,
+          "mean_de_gap": 0.04644289930089758,
+          "n_points": 10,
+          "file": "run_20260730_234920.json"
+        },
+        {
+          "train_n": 14,
+          "pass_rate_5pct": 0.7,
+          "pass_rate_10pct": 1.0,
+          "mean_de_gap": 0.04204251276030483,
+          "n_points": 10,
+          "file": "run_20260731_110958.json"
+        },
+        {
+          "train_n": 14,
+          "pass_rate_5pct": 0.2222222222222222,
+          "pass_rate_10pct": 1.0,
+          "mean_de_gap": 0.062452036507741386,
+          "n_points": 18,
+          "file": "run_20260809_141521.json"
+        }
+      ],
+      "cross_n_best_source": {
+        "train_n": 14,
+        "pass_rate_10pct": 1.0,
+        "pass_rate_5pct": 0.7,
+        "mean_de_gap": 0.04204251276030483
+      },
+      "file": "ladder_N14_p1.npz",
+      "mtime": "2026-08-14T23:37:54.406768+00:00"
     },
     {
       "topology": "ladder",
@@ -760,31 +939,31 @@
       "n_params": 38,
       "n_edges": 22,
       "model": "tfim_bond_resolved",
-      "n_points": 24,
+      "n_points": 67,
       "h_range": [
-        3.2777777777777777,
+        2.0,
         5.5
       ],
-      "h_frontier": 3.2777777777777777,
-      "pass_rate_5pct": 1.0,
-      "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.08333333333333333,
-      "mean_de_gap": 0.03617713875119843,
-      "mean_abs_error": 0.1779056618648663,
+      "h_frontier": 3.209454680536504,
+      "pass_rate_5pct": 0.7164179104477612,
+      "pass_rate_10pct": 0.835820895522388,
+      "pass_rate_dual_criterion": 0.2835820895522388,
+      "mean_de_gap": 0.08250605429632445,
+      "mean_abs_error": 0.18892826943029398,
       "best_de_gap": 0.004026284270030428,
-      "worst_de_gap": 0.0483129604978031,
-      "n_below_frontier": 0,
+      "worst_de_gap": 0.9071828098973734,
+      "n_below_frontier": 19,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.45,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.26641791044776114,
+      "eval_cache_density": 85,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.20386454797777653,
+      "theta_smoothness": 0.7854332091171338,
       "training_utility": "insufficient_signal",
-      "training_utility_reason": "Only 2 good points (need \u2265 5). Statistically insufficient for MPNN to learn h \u2192 \u03b8 mapping.",
+      "training_utility_reason": "Dual pass rate 28% < 30% threshold. 19/67 points are good. High noise/signal ratio \u2014 train at your own risk.",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -826,7 +1005,7 @@
         "mean_de_gap": 0.052969037384721245
       },
       "file": "ladder_N16_p1.npz",
-      "mtime": "2026-08-11T02:14:40.027151+00:00"
+      "mtime": "2026-08-14T23:37:54.417104+00:00"
     },
     {
       "topology": "ladder",
@@ -835,35 +1014,35 @@
       "n_params": 8,
       "n_edges": 4,
       "model": "tfim_bond_resolved",
-      "n_points": 13,
+      "n_points": 45,
       "h_range": [
         1.3571428571428572,
-        2.0833333333333335
+        5.0
       ],
       "h_frontier": 1.8454737620502497,
-      "pass_rate_5pct": 0.23076923076923078,
-      "pass_rate_10pct": 0.6153846153846154,
-      "pass_rate_dual_criterion": 0.23076923076923078,
-      "mean_de_gap": 0.09280240275305801,
-      "mean_abs_error": 0.1205985204913864,
-      "best_de_gap": 0.028391234582845207,
+      "pass_rate_5pct": 0.7555555555555555,
+      "pass_rate_10pct": 0.8888888888888888,
+      "pass_rate_dual_criterion": 0.7333333333333333,
+      "mean_de_gap": 0.03593442184503418,
+      "mean_abs_error": 0.0640520354074375,
+      "best_de_gap": 0.0006840981271899403,
       "worst_de_gap": 0.21802465764651902,
-      "n_below_frontier": 10,
+      "n_below_frontier": 11,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.45,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.3055555555555555,
+      "eval_cache_density": 55,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.11365150859828638,
-      "training_utility": "insufficient_signal",
-      "training_utility_reason": "Only 3 good points (need \u2265 5). Statistically insufficient for MPNN to learn h \u2192 \u03b8 mapping.",
+      "theta_smoothness": 0.14018619885081252,
+      "training_utility": "useful",
+      "training_utility_reason": "33/45 good points (73% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "ladder_N4_p1.npz",
-      "mtime": "2026-08-11T02:14:40.038390+00:00"
+      "mtime": "2026-08-14T23:37:54.426931+00:00"
     },
     {
       "topology": "ladder",
@@ -872,31 +1051,31 @@
       "n_params": 13,
       "n_edges": 7,
       "model": "tfim_bond_resolved",
-      "n_points": 57,
+      "n_points": 69,
       "h_range": [
         2.0,
         4.8
       ],
       "h_frontier": 2.332082557555923,
-      "pass_rate_5pct": 0.8421052631578947,
-      "pass_rate_10pct": 0.9824561403508771,
-      "pass_rate_dual_criterion": 0.6666666666666666,
-      "mean_de_gap": 0.028918446625064383,
-      "mean_abs_error": 0.08531924468498335,
-      "best_de_gap": 0.007224440801010794,
-      "worst_de_gap": 0.11101575506049134,
+      "pass_rate_5pct": 0.8695652173913043,
+      "pass_rate_10pct": 0.9855072463768116,
+      "pass_rate_dual_criterion": 0.7246376811594203,
+      "mean_de_gap": 0.02593733206252659,
+      "mean_abs_error": 0.0776684021649456,
+      "best_de_gap": 0.001779821615964262,
+      "worst_de_gap": 0.11081805099445045,
       "n_below_frontier": 9,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.45,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.4195652173913043,
+      "eval_cache_density": 33,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.40280269410341374,
+      "theta_smoothness": 0.6222991932477853,
       "training_utility": "useful",
-      "training_utility_reason": "38/57 good points (67% dual pass).",
+      "training_utility_reason": "50/69 good points (72% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 6,
@@ -922,7 +1101,7 @@
         "mean_de_gap": 0.018900811062840913
       },
       "file": "ladder_N6_p1.npz",
-      "mtime": "2026-08-11T02:14:40.041833+00:00"
+      "mtime": "2026-08-14T23:37:54.435995+00:00"
     },
     {
       "topology": "ladder",
@@ -931,31 +1110,31 @@
       "n_params": 18,
       "n_edges": 10,
       "model": "tfim_bond_resolved",
-      "n_points": 57,
+      "n_points": 98,
       "h_range": [
-        2.0789473684210527,
-        4.8
+        1.8,
+        5.0
       ],
-      "h_frontier": 2.6168623136545666,
-      "pass_rate_5pct": 0.8596491228070176,
-      "pass_rate_10pct": 0.9473684210526315,
-      "pass_rate_dual_criterion": 0.47368421052631576,
-      "mean_de_gap": 0.03536196791276276,
-      "mean_abs_error": 0.11425218370666394,
-      "best_de_gap": 0.01204954390474091,
-      "worst_de_gap": 0.17588654822427646,
-      "n_below_frontier": 8,
+      "h_frontier": 2.6168429092968117,
+      "pass_rate_5pct": 0.7857142857142857,
+      "pass_rate_10pct": 0.8979591836734694,
+      "pass_rate_dual_criterion": 0.5,
+      "mean_de_gap": 0.04492412729182467,
+      "mean_abs_error": 0.11113992873771489,
+      "best_de_gap": 0.0027019340811424747,
+      "worst_de_gap": 0.4272780238012704,
+      "n_below_frontier": 21,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.45,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.3357142857142857,
+      "eval_cache_density": 62,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.655439449847492,
+      "theta_smoothness": 0.7857594183564245,
       "training_utility": "useful",
-      "training_utility_reason": "27/57 good points (47% dual pass).",
+      "training_utility_reason": "49/98 good points (50% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 8,
@@ -989,7 +1168,7 @@
         "mean_de_gap": 0.02508148753884155
       },
       "file": "ladder_N8_p1.npz",
-      "mtime": "2026-08-11T02:14:40.044323+00:00"
+      "mtime": "2026-08-14T23:37:54.445538+00:00"
     },
     {
       "topology": "square",
@@ -998,31 +1177,31 @@
       "n_params": 23,
       "n_edges": 13,
       "model": "tfim_bond_resolved",
-      "n_points": 38,
+      "n_points": 65,
       "h_range": [
         2.0,
-        4.5
+        4.8
       ],
-      "h_frontier": 2.8362997724602996,
-      "pass_rate_5pct": 0.6578947368421053,
-      "pass_rate_10pct": 0.868421052631579,
-      "pass_rate_dual_criterion": 0.5263157894736842,
-      "mean_de_gap": 0.056536654259517545,
-      "mean_abs_error": 0.12209436483736082,
-      "best_de_gap": 0.0054382739682221955,
+      "h_frontier": 2.8362449325373347,
+      "pass_rate_5pct": 0.8,
+      "pass_rate_10pct": 0.9230769230769231,
+      "pass_rate_dual_criterion": 0.6615384615384615,
+      "mean_de_gap": 0.03927513409546756,
+      "mean_abs_error": 0.09642019285153039,
+      "best_de_gap": 0.004068458321257195,
       "worst_de_gap": 0.38563102637173813,
       "n_below_frontier": 13,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
+      "zoo_pass_rate": 0.3333333333333333,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.17789473684210533,
-      "eval_cache_density": 3475,
+      "zoo_vs_npz_divergence": 0.46666666666666673,
+      "eval_cache_density": 2094,
       "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.005834063493706854,
+      "theta_smoothness": 1.5708458566662984,
       "training_utility": "useful",
-      "training_utility_reason": "20/38 good points (53% dual pass).",
+      "training_utility_reason": "43/65 good points (66% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -1063,6 +1242,54 @@
           "mean_de_gap": 0.1154752202934224,
           "n_points": 14,
           "file": "run_20260811_214646.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.28,
+          "pass_rate_10pct": 0.52,
+          "mean_de_gap": 0.21197558162798927,
+          "n_points": 25,
+          "file": "run_20260812_131426.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.08,
+          "pass_rate_10pct": 0.4,
+          "mean_de_gap": 0.27092946354634573,
+          "n_points": 25,
+          "file": "run_20260812_132514.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.24,
+          "pass_rate_10pct": 0.48,
+          "mean_de_gap": 0.2278122292449725,
+          "n_points": 25,
+          "file": "run_20260812_133356.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.24,
+          "pass_rate_10pct": 0.48,
+          "mean_de_gap": 0.2278122292449725,
+          "n_points": 25,
+          "file": "run_20260812_144744.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.0,
+          "pass_rate_10pct": 0.36,
+          "mean_de_gap": 0.2839840635797985,
+          "n_points": 25,
+          "file": "run_20260812_175126.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.0,
+          "pass_rate_10pct": 0.36,
+          "mean_de_gap": 0.28223049393926564,
+          "n_points": 25,
+          "file": "run_20260812_214242.json"
         }
       ],
       "cross_n_best_source": {
@@ -1072,7 +1299,7 @@
         "mean_de_gap": 0.04999630673381213
       },
       "file": "square_N10_p1.npz",
-      "mtime": "2026-08-12T00:46:32.946764+00:00"
+      "mtime": "2026-08-14T23:37:54.454367+00:00"
     },
     {
       "topology": "square",
@@ -1081,31 +1308,31 @@
       "n_params": 29,
       "n_edges": 17,
       "model": "tfim_bond_resolved",
-      "n_points": 25,
+      "n_points": 52,
       "h_range": [
         2.4,
-        4.5
+        5.5
       ],
-      "h_frontier": 3.163627152297637,
-      "pass_rate_5pct": 0.76,
-      "pass_rate_10pct": 0.88,
-      "pass_rate_dual_criterion": 0.48,
-      "mean_de_gap": 0.047270675490288225,
-      "mean_abs_error": 0.128510619433422,
-      "best_de_gap": 0.008800139185660404,
+      "h_frontier": 3.1633624661033712,
+      "pass_rate_5pct": 0.8653846153846154,
+      "pass_rate_10pct": 0.9423076923076923,
+      "pass_rate_dual_criterion": 0.6346153846153846,
+      "mean_de_gap": 0.031322144366923876,
+      "mean_abs_error": 0.09823832366957203,
+      "best_de_gap": 0.003536328025051859,
       "worst_de_gap": 0.25407342894020507,
-      "n_below_frontier": 6,
+      "n_below_frontier": 7,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
+      "zoo_pass_rate": 0.3333333333333333,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.28,
-      "eval_cache_density": 0,
+      "zoo_vs_npz_divergence": 0.5320512820512822,
+      "eval_cache_density": 33,
       "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 1.6437759769095273,
+      "theta_smoothness": 1.869588944755073,
       "training_utility": "useful",
-      "training_utility_reason": "12/25 good points (48% dual pass).",
+      "training_utility_reason": "33/52 good points (63% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -1123,7 +1350,7 @@
         "mean_de_gap": 0.13622756386799145
       },
       "file": "square_N12_p1.npz",
-      "mtime": "2026-08-11T02:14:40.049140+00:00"
+      "mtime": "2026-08-14T23:37:54.464404+00:00"
     },
     {
       "topology": "square",
@@ -1132,72 +1359,35 @@
       "n_params": 34,
       "n_edges": 20,
       "model": "tfim_bond_resolved",
-      "n_points": 24,
+      "n_points": 26,
       "h_range": [
-        3.384,
+        2.5,
         5.5
       ],
-      "h_frontier": 3.384,
-      "pass_rate_5pct": 1.0,
-      "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.375,
-      "mean_de_gap": 0.022368872405164775,
-      "mean_abs_error": 0.11845760836399115,
-      "best_de_gap": 0.015840071190924464,
-      "worst_de_gap": 0.04879951304589336,
-      "n_below_frontier": 0,
+      "h_frontier": 3.28713113961604,
+      "pass_rate_5pct": 0.7307692307692307,
+      "pass_rate_10pct": 0.8461538461538461,
+      "pass_rate_dual_criterion": 0.5384615384615384,
+      "mean_de_gap": 0.046173429039451534,
+      "mean_abs_error": 0.12438770481919056,
+      "best_de_gap": 0.0042075443075417895,
+      "worst_de_gap": 0.2489028502690427,
+      "n_below_frontier": 7,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
+      "zoo_pass_rate": 0.3333333333333333,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.52,
-      "eval_cache_density": 0,
+      "zoo_vs_npz_divergence": 0.3974358974358974,
+      "eval_cache_density": 54,
       "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.0,
+      "theta_smoothness": 1.5708801995796329,
       "training_utility": "useful",
-      "training_utility_reason": "9/24 good points (38% dual pass).",
+      "training_utility_reason": "14/26 good points (54% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "square_N14_p1.npz",
-      "mtime": "2026-08-10T21:06:17.779984+00:00"
-    },
-    {
-      "topology": "square",
-      "n_qubits": 16,
-      "p_layers": 1,
-      "n_params": 40,
-      "n_edges": 24,
-      "model": "tfim_bond_resolved",
-      "n_points": 32,
-      "h_range": [
-        2.7,
-        4.370588235294117
-      ],
-      "h_frontier": 3.4970126597894606,
-      "pass_rate_5pct": 0.4375,
-      "pass_rate_10pct": 0.625,
-      "pass_rate_dual_criterion": 0.09375,
-      "mean_de_gap": 0.0798786919587699,
-      "mean_abs_error": 0.20808377123169053,
-      "best_de_gap": 0.01622431788401461,
-      "worst_de_gap": 0.22851625208140205,
-      "n_below_frontier": 18,
-      "n_nan_theta": 0,
-      "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
-      "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.04249999999999998,
-      "eval_cache_density": 0,
-      "model_stale": false,
-      "needs_retrain": false,
-      "theta_smoothness": 0.0033301651356099082,
-      "training_utility": "insufficient_signal",
-      "training_utility_reason": "Only 3 good points (need \u2265 5). Statistically insufficient for MPNN to learn h \u2192 \u03b8 mapping.",
-      "cross_n_transfers": [],
-      "cross_n_best_source": null,
-      "file": "square_N16_p1.npz",
-      "mtime": "2026-08-11T02:14:40.053454+00:00"
+      "mtime": "2026-08-14T23:37:54.472610+00:00"
     },
     {
       "topology": "square",
@@ -1222,9 +1412,9 @@
       "n_below_frontier": 6,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
+      "zoo_pass_rate": 0.3333333333333333,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.37365853658536585,
+      "zoo_vs_npz_divergence": 0.5203252032520325,
       "eval_cache_density": 0,
       "model_stale": true,
       "needs_retrain": false,
@@ -1234,7 +1424,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "square_N4_p1.npz",
-      "mtime": "2026-08-11T02:14:40.058814+00:00"
+      "mtime": "2026-08-14T23:37:54.482517+00:00"
     },
     {
       "topology": "square",
@@ -1243,35 +1433,35 @@
       "n_params": 13,
       "n_edges": 7,
       "model": "tfim_bond_resolved",
-      "n_points": 64,
+      "n_points": 121,
       "h_range": [
         1.4,
-        4.5
+        4.8
       ],
-      "h_frontier": 2.3333149892782217,
-      "pass_rate_5pct": 0.765625,
-      "pass_rate_10pct": 0.859375,
-      "pass_rate_dual_criterion": 0.734375,
-      "mean_de_gap": 0.055272365677578914,
-      "mean_abs_error": 0.08640025495643347,
-      "best_de_gap": 0.002356752309283155,
+      "h_frontier": 2.3332335956166146,
+      "pass_rate_5pct": 0.8760330578512396,
+      "pass_rate_10pct": 0.9256198347107438,
+      "pass_rate_dual_criterion": 0.8512396694214877,
+      "mean_de_gap": 0.03420097127752132,
+      "mean_abs_error": 0.06349392195225768,
+      "best_de_gap": 0.0017798220818230673,
       "worst_de_gap": 0.8794981154255418,
       "n_below_frontier": 15,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
+      "zoo_pass_rate": 0.3333333333333333,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.285625,
-      "eval_cache_density": 0,
+      "zoo_vs_npz_divergence": 0.5426997245179064,
+      "eval_cache_density": 28,
       "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.7854365786048287,
+      "theta_smoothness": 0.786936890164883,
       "training_utility": "useful",
-      "training_utility_reason": "47/64 good points (73% dual pass).",
+      "training_utility_reason": "103/121 good points (85% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "square_N6_p1.npz",
-      "mtime": "2026-08-11T02:14:40.061482+00:00"
+      "mtime": "2026-08-14T23:37:54.491465+00:00"
     },
     {
       "topology": "square",
@@ -1280,31 +1470,31 @@
       "n_params": 18,
       "n_edges": 10,
       "model": "tfim_bond_resolved",
-      "n_points": 91,
+      "n_points": 119,
       "h_range": [
         2.0,
         5.0
       ],
       "h_frontier": 2.6372354341375295,
-      "pass_rate_5pct": 0.8351648351648352,
-      "pass_rate_10pct": 0.9340659340659341,
-      "pass_rate_dual_criterion": 0.7692307692307693,
-      "mean_de_gap": 0.029166732826651328,
-      "mean_abs_error": 0.07664140952809058,
+      "pass_rate_5pct": 0.8739495798319328,
+      "pass_rate_10pct": 0.9495798319327731,
+      "pass_rate_dual_criterion": 0.8067226890756303,
+      "mean_de_gap": 0.025542845352731647,
+      "mean_abs_error": 0.07072333381855869,
       "best_de_gap": 0.002450273628883063,
       "worst_de_gap": 0.23511531758797927,
       "n_below_frontier": 15,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": 0.48,
+      "zoo_pass_rate": 0.3333333333333333,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.3551648351648352,
+      "zoo_vs_npz_divergence": 0.5406162464985995,
       "eval_cache_density": 30,
       "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 1.57086538196421,
       "training_utility": "useful",
-      "training_utility_reason": "70/91 good points (77% dual pass).",
+      "training_utility_reason": "96/119 good points (81% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 8,
@@ -1322,7 +1512,7 @@
         "mean_de_gap": 0.019832739296895857
       },
       "file": "square_N8_p1.npz",
-      "mtime": "2026-08-12T04:01:18.452362+00:00"
+      "mtime": "2026-08-14T23:37:54.500613+00:00"
     },
     {
       "topology": "triangular",
@@ -1331,31 +1521,31 @@
       "n_params": 30,
       "n_edges": 20,
       "model": "tfim_bond_resolved",
-      "n_points": 40,
+      "n_points": 28,
       "h_range": [
-        2.0,
+        2.9,
         4.8
       ],
-      "h_frontier": 3.9372487832895207,
-      "pass_rate_5pct": 0.475,
-      "pass_rate_10pct": 0.625,
-      "pass_rate_dual_criterion": 0.15,
-      "mean_de_gap": 1.2096229873657411,
-      "mean_abs_error": 0.41459631009897685,
-      "best_de_gap": 0.016434662484764925,
-      "worst_de_gap": 19.646558599845864,
-      "n_below_frontier": 21,
+      "h_frontier": 3.9376627246556946,
+      "pass_rate_5pct": 0.4642857142857143,
+      "pass_rate_10pct": 0.6428571428571429,
+      "pass_rate_dual_criterion": 0.17857142857142858,
+      "mean_de_gap": 0.11327365086033014,
+      "mean_abs_error": 0.22665068769780067,
+      "best_de_gap": 0.014873943836543158,
+      "worst_de_gap": 0.4914946331064748,
+      "n_below_frontier": 15,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.14285714285714285,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 46210,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.32142857142857145,
+      "eval_cache_density": 46244,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 1.5718993465541276,
+      "theta_smoothness": 0.0027484224387426814,
       "training_utility": "insufficient_signal",
-      "training_utility_reason": "Dual pass rate 15% < 30% threshold. 6/40 points are good. High noise/signal ratio \u2014 train at your own risk.",
+      "training_utility_reason": "Dual pass rate 18% < 30% threshold. 5/28 points are good. High noise/signal ratio \u2014 train at your own risk.",
       "cross_n_transfers": [
         {
           "train_n": 6,
@@ -1405,7 +1595,7 @@
         "mean_de_gap": 0.08796182415352098
       },
       "file": "triangular_N10_p1.npz",
-      "mtime": "2026-08-12T00:53:19.897418+00:00"
+      "mtime": "2026-08-14T23:37:54.508982+00:00"
     },
     {
       "topology": "triangular",
@@ -1414,35 +1604,109 @@
       "n_params": 38,
       "n_edges": 26,
       "model": "tfim_bond_resolved",
-      "n_points": 20,
+      "n_points": 28,
       "h_range": [
-        3.811111111111111,
+        3.1,
         5.5
       ],
-      "h_frontier": 4.4428420765792715,
-      "pass_rate_5pct": 0.6,
-      "pass_rate_10pct": 0.85,
-      "pass_rate_dual_criterion": 0.2,
-      "mean_de_gap": 0.05147652570636192,
-      "mean_abs_error": 0.17455354115857596,
-      "best_de_gap": 0.013374118790870986,
-      "worst_de_gap": 0.14958754757094817,
-      "n_below_frontier": 8,
+      "h_frontier": 4.443073133848681,
+      "pass_rate_5pct": 0.42857142857142855,
+      "pass_rate_10pct": 0.6071428571428571,
+      "pass_rate_dual_criterion": 0.14285714285714285,
+      "mean_de_gap": 0.16375518200533778,
+      "mean_abs_error": 0.2948128248157652,
+      "best_de_gap": 0.01337411878913858,
+      "worst_de_gap": 0.9147032406607211,
+      "n_below_frontier": 16,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.14285714285714285,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 6,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.2857142857142857,
+      "eval_cache_density": 18,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.0020284967795141245,
+      "theta_smoothness": 0.003001406617541627,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Only 4 good points (need \u2265 5). Statistically insufficient for MPNN to learn h \u2192 \u03b8 mapping.",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "triangular_N12_p1.npz",
-      "mtime": "2026-08-11T02:14:40.070574+00:00"
+      "mtime": "2026-08-14T23:37:54.517724+00:00"
+    },
+    {
+      "topology": "triangular",
+      "n_qubits": 14,
+      "p_layers": 1,
+      "n_params": 46,
+      "n_edges": 32,
+      "model": "tfim_bond_resolved",
+      "n_points": 26,
+      "h_range": [
+        3.2,
+        5.5
+      ],
+      "h_frontier": 4.79752736949946,
+      "pass_rate_5pct": 0.3076923076923077,
+      "pass_rate_10pct": 0.5,
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.29043411077066766,
+      "mean_abs_error": 0.421265978194004,
+      "best_de_gap": 0.02084204744756992,
+      "worst_de_gap": 1.7127480630510712,
+      "n_below_frontier": 18,
+      "n_nan_theta": 0,
+      "zoo_model_available": true,
+      "zoo_pass_rate": 0.14285714285714285,
+      "zoo_integrity_ok": true,
+      "zoo_vs_npz_divergence": 0.16483516483516486,
+      "eval_cache_density": 0,
+      "model_stale": true,
+      "needs_retrain": false,
+      "theta_smoothness": 0.002717203199681495,
+      "training_utility": "not_useful",
+      "training_utility_reason": "0% dual pass (gap masking: 31% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
+      "file": "triangular_N14_p1.npz",
+      "mtime": "2026-08-14T23:37:54.526267+00:00"
+    },
+    {
+      "topology": "triangular",
+      "n_qubits": 16,
+      "p_layers": 1,
+      "n_params": 54,
+      "n_edges": 38,
+      "model": "tfim_bond_resolved",
+      "n_points": 25,
+      "h_range": [
+        3.3,
+        5.5
+      ],
+      "h_frontier": 5.075231794542083,
+      "pass_rate_5pct": 0.2,
+      "pass_rate_10pct": 0.4,
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.445841626290832,
+      "mean_abs_error": 0.5431558663480132,
+      "best_de_gap": 0.02944351951512178,
+      "worst_de_gap": 2.7305997997030733,
+      "n_below_frontier": 20,
+      "n_nan_theta": 0,
+      "zoo_model_available": true,
+      "zoo_pass_rate": 0.14285714285714285,
+      "zoo_integrity_ok": true,
+      "zoo_vs_npz_divergence": 0.05714285714285716,
+      "eval_cache_density": 6,
+      "model_stale": false,
+      "needs_retrain": false,
+      "theta_smoothness": 0.002588859263124396,
+      "training_utility": "not_useful",
+      "training_utility_reason": "0% dual pass (gap masking: 20% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
+      "file": "triangular_N16_p1.npz",
+      "mtime": "2026-08-14T23:37:54.534655+00:00"
     },
     {
       "topology": "triangular",
@@ -1456,30 +1720,30 @@
         0.5,
         4.5
       ],
-      "h_frontier": null,
-      "pass_rate_5pct": 0.5945945945945946,
-      "pass_rate_10pct": 0.5945945945945946,
-      "pass_rate_dual_criterion": 0.5945945945945946,
-      "mean_de_gap": 0.4025912485402488,
-      "mean_abs_error": 1.2533260392960746,
+      "h_frontier": 0.5,
+      "pass_rate_5pct": 1.0,
+      "pass_rate_10pct": 1.0,
+      "pass_rate_dual_criterion": 1.0,
+      "mean_de_gap": 0.0011795518223551408,
+      "mean_abs_error": 0.0036404135747944207,
       "best_de_gap": 8.775485767475926e-15,
-      "worst_de_gap": 1.870498363635136,
+      "worst_de_gap": 0.007754211620896958,
       "n_below_frontier": 0,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.14285714285714285,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
+      "zoo_vs_npz_divergence": 0.8571428571428572,
       "eval_cache_density": 0,
-      "model_stale": false,
+      "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 0.037784009370920524,
       "training_utility": "useful",
-      "training_utility_reason": "22/37 good points (59% dual pass).",
+      "training_utility_reason": "37/37 good points (100% dual pass).",
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "triangular_N3_p1.npz",
-      "mtime": "2026-08-11T02:14:40.081522+00:00"
+      "mtime": "2026-08-14T23:37:54.542768+00:00"
     },
     {
       "topology": "triangular",
@@ -1504,11 +1768,11 @@
       "n_below_frontier": 10,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.14285714285714285,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
+      "zoo_vs_npz_divergence": 0.5793650793650793,
       "eval_cache_density": 0,
-      "model_stale": false,
+      "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 0.044041811672910575,
       "training_utility": "useful",
@@ -1516,7 +1780,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "triangular_N4_p1.npz",
-      "mtime": "2026-08-11T02:14:40.083899+00:00"
+      "mtime": "2026-08-14T23:37:54.553170+00:00"
     },
     {
       "topology": "triangular",
@@ -1525,31 +1789,31 @@
       "n_params": 16,
       "n_edges": 10,
       "model": "tfim_bond_resolved",
-      "n_points": 97,
+      "n_points": 140,
       "h_range": [
         2.1315789473684212,
         5.5
       ],
       "h_frontier": 3.148721680114209,
-      "pass_rate_5pct": 0.6907216494845361,
-      "pass_rate_10pct": 0.8350515463917526,
-      "pass_rate_dual_criterion": 0.5773195876288659,
-      "mean_de_gap": 0.06316932829373786,
-      "mean_abs_error": 0.12863073318712037,
+      "pass_rate_5pct": 0.6928571428571428,
+      "pass_rate_10pct": 0.8285714285714286,
+      "pass_rate_dual_criterion": 0.5785714285714286,
+      "mean_de_gap": 0.060881037544740495,
+      "mean_abs_error": 0.1283408611665469,
       "best_de_gap": 0.005546552355335743,
       "worst_de_gap": 0.5636513609181151,
-      "n_below_frontier": 30,
+      "n_below_frontier": 43,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.14285714285714285,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.55,
+      "eval_cache_density": 178,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.01781850647215849,
+      "theta_smoothness": 0.028534885245132202,
       "training_utility": "useful",
-      "training_utility_reason": "55/97 good points (58% dual pass).",
+      "training_utility_reason": "81/140 good points (58% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 6,
@@ -1566,6 +1830,54 @@
           "mean_de_gap": 0.018718783833841564,
           "n_points": 6,
           "file": "run_20260807_014450.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.28,
+          "pass_rate_10pct": 0.64,
+          "mean_de_gap": 0.1002428574420917,
+          "n_points": 25,
+          "file": "run_20260812_133811.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.32,
+          "pass_rate_10pct": 0.64,
+          "mean_de_gap": 0.10089808092427986,
+          "n_points": 25,
+          "file": "run_20260812_134555.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.28,
+          "pass_rate_10pct": 0.64,
+          "mean_de_gap": 0.10067876224633597,
+          "n_points": 25,
+          "file": "run_20260812_135301.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.28,
+          "pass_rate_10pct": 0.64,
+          "mean_de_gap": 0.10067876224633597,
+          "n_points": 25,
+          "file": "run_20260812_144803.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.88,
+          "pass_rate_10pct": 1.0,
+          "mean_de_gap": 0.02577785479250056,
+          "n_points": 25,
+          "file": "run_20260812_175551.json"
+        },
+        {
+          "train_n": 10,
+          "pass_rate_5pct": 0.88,
+          "pass_rate_10pct": 1.0,
+          "mean_de_gap": 0.02519374049486559,
+          "n_points": 25,
+          "file": "run_20260812_215029.json"
         }
       ],
       "cross_n_best_source": {
@@ -1575,7 +1887,7 @@
         "mean_de_gap": 0.018718783833841564
       },
       "file": "triangular_N6_p1.npz",
-      "mtime": "2026-08-11T02:43:41.622725+00:00"
+      "mtime": "2026-08-14T23:37:54.566736+00:00"
     },
     {
       "topology": "triangular",
@@ -1584,31 +1896,31 @@
       "n_params": 24,
       "n_edges": 16,
       "model": "tfim_bond_resolved",
-      "n_points": 14,
+      "n_points": 58,
       "h_range": [
-        3.8586206896551722,
+        2.7,
         4.8
       ],
-      "h_frontier": 3.9759164035499004,
-      "pass_rate_5pct": 0.8571428571428571,
-      "pass_rate_10pct": 1.0,
-      "pass_rate_dual_criterion": 0.2857142857142857,
-      "mean_de_gap": 0.03303679274964926,
-      "mean_abs_error": 0.1280379962177334,
-      "best_de_gap": 0.016521544341304366,
-      "worst_de_gap": 0.06012139359933679,
-      "n_below_frontier": 2,
+      "h_frontier": 3.9757695938723043,
+      "pass_rate_5pct": 0.39655172413793105,
+      "pass_rate_10pct": 0.603448275862069,
+      "pass_rate_dual_criterion": 0.1206896551724138,
+      "mean_de_gap": 0.1494620316755099,
+      "mean_abs_error": 0.26976200271238227,
+      "best_de_gap": 0.016521544336045108,
+      "worst_de_gap": 0.7495148067826912,
+      "n_below_frontier": 35,
       "n_nan_theta": 0,
       "zoo_model_available": true,
-      "zoo_pass_rate": null,
+      "zoo_pass_rate": 0.14285714285714285,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": null,
-      "eval_cache_density": 0,
-      "model_stale": false,
+      "zoo_vs_npz_divergence": 0.2536945812807882,
+      "eval_cache_density": 56,
+      "model_stale": true,
       "needs_retrain": false,
-      "theta_smoothness": 0.0016496248846334938,
+      "theta_smoothness": 0.003056340288759063,
       "training_utility": "insufficient_signal",
-      "training_utility_reason": "Only 4 good points (need \u2265 5). Statistically insufficient for MPNN to learn h \u2192 \u03b8 mapping.",
+      "training_utility_reason": "Dual pass rate 12% < 30% threshold. 7/58 points are good. High noise/signal ratio \u2014 train at your own risk.",
       "cross_n_transfers": [
         {
           "train_n": 10,
@@ -1634,7 +1946,7 @@
         "mean_de_gap": 0.08368765788132328
       },
       "file": "triangular_N8_p1.npz",
-      "mtime": "2026-08-11T02:14:40.088812+00:00"
+      "mtime": "2026-08-14T23:37:54.575478+00:00"
     }
   ],
   "topology_summary": {
@@ -1649,9 +1961,9 @@
       ],
       "n_max_viable": 20,
       "n_configs": 6,
-      "best_pass_rate_5pct": 1.0,
-      "best_pass_rate_dual": 0.975,
-      "best_n": 10,
+      "best_pass_rate_5pct": 0.9888888888888889,
+      "best_pass_rate_dual": 0.9888888888888889,
+      "best_n": 6,
       "cross_n_best_source_for_largest": {
         "train_n": 10,
         "pass_rate_10pct": 1.0,
@@ -1669,9 +1981,9 @@
       ],
       "n_max_viable": 16,
       "n_configs": 5,
-      "best_pass_rate_5pct": 0.9083969465648855,
-      "best_pass_rate_dual": 0.9083969465648855,
-      "best_n": 10,
+      "best_pass_rate_5pct": 1.0,
+      "best_pass_rate_dual": 1.0,
+      "best_n": 6,
       "cross_n_best_source_for_largest": {
         "train_n": 10,
         "pass_rate_10pct": 0.9285714285714286,
@@ -1686,12 +1998,13 @@
         8,
         10,
         12,
+        14,
         16
       ],
       "n_max_viable": 16,
-      "n_configs": 6,
-      "best_pass_rate_5pct": 1.0,
-      "best_pass_rate_dual": 0.6666666666666666,
+      "n_configs": 7,
+      "best_pass_rate_5pct": 0.9444444444444444,
+      "best_pass_rate_dual": 0.7333333333333333,
       "best_n": 12,
       "cross_n_best_source_for_largest": {
         "train_n": 16,
@@ -1707,14 +2020,13 @@
         8,
         10,
         12,
-        14,
-        16
+        14
       ],
-      "n_max_viable": 16,
-      "n_configs": 7,
-      "best_pass_rate_5pct": 1.0,
+      "n_max_viable": 14,
+      "n_configs": 6,
+      "best_pass_rate_5pct": 0.8760330578512396,
       "best_pass_rate_dual": 0.8536585365853658,
-      "best_n": 14,
+      "best_n": 6,
       "cross_n_best_source_for_largest": null
     },
     "triangular": {
@@ -1724,13 +2036,15 @@
         6,
         8,
         10,
-        12
+        12,
+        14,
+        16
       ],
       "n_max_viable": 12,
-      "n_configs": 6,
-      "best_pass_rate_5pct": 0.8571428571428571,
-      "best_pass_rate_dual": 0.7222222222222222,
-      "best_n": 8,
+      "n_configs": 8,
+      "best_pass_rate_5pct": 1.0,
+      "best_pass_rate_dual": 1.0,
+      "best_n": 3,
       "cross_n_best_source_for_largest": null
     }
   },
@@ -1740,197 +2054,152 @@
         "topology": "heavy_hex",
         "n_i": 6,
         "n_j": 10,
-        "h_frontier_i": 2.647891539580787,
+        "h_frontier_i": 1.9,
         "h_frontier_j": 1.7585035982664703,
-        "drop": 0.8893879413143169,
-        "message": "h_frontier(heavy_hex N=10)=1.759 < h_frontier(heavy_hex N=6)=2.648 (drop=0.889). Possible mixed h-ranges in NPZ datasets."
+        "drop": 0.14149640173352962,
+        "message": "h_frontier(heavy_hex N=10)=1.759 < h_frontier(heavy_hex N=6)=1.900 (drop=0.141). Possible mixed h-ranges in NPZ datasets."
       }
     ],
     "training_zoo_incoherence": [
       {
         "topology": "chain_1d",
-        "n_qubits": 15,
-        "bad_ratio": 0.20987654320987653,
-        "zoo_pass_rate": 1.0,
-        "message": "chain_1d N=15: NPZ bad_ratio=21% > 20% but zoo claims pass=100%. Zoo may be trained on different/cleaner data or manifest is stale."
-      },
-      {
-        "topology": "chain_1d",
         "n_qubits": 20,
-        "bad_ratio": 0.20689655172413793,
-        "zoo_pass_rate": 1.0,
-        "message": "chain_1d N=20: NPZ bad_ratio=21% > 20% but zoo claims pass=100%. Zoo may be trained on different/cleaner data or manifest is stale."
-      },
-      {
-        "topology": "heavy_hex",
-        "n_qubits": 6,
-        "bad_ratio": 0.2857142857142857,
-        "zoo_pass_rate": 1.0,
-        "message": "heavy_hex N=6: NPZ bad_ratio=29% > 20% but zoo claims pass=100%. Zoo may be trained on different/cleaner data or manifest is stale."
+        "bad_ratio": 0.2191780821917808,
+        "zoo_pass_rate": 0.8666666666666667,
+        "message": "chain_1d N=20: NPZ bad_ratio=22% > 20% but zoo claims pass=87%. Zoo may be trained on different/cleaner data or manifest is stale."
       }
     ],
     "gap_masked_configs": [
       {
-        "topology": "chain_1d",
-        "n_qubits": 10,
-        "pass_rate_5pct": 1.0,
-        "pass_rate_dual": 0.8888888888888888,
-        "gap_masked": 0.11111111111111116
-      },
-      {
-        "topology": "chain_1d",
-        "n_qubits": 15,
-        "pass_rate_5pct": 0.9012345679012346,
-        "pass_rate_dual": 0.7901234567901234,
-        "gap_masked": 0.11111111111111116
-      },
-      {
-        "topology": "heavy_hex",
-        "n_qubits": 6,
-        "pass_rate_5pct": 0.8809523809523809,
-        "pass_rate_dual": 0.7142857142857143,
-        "gap_masked": 0.16666666666666663
-      },
-      {
         "topology": "ladder",
         "n_qubits": 10,
-        "pass_rate_5pct": 0.6732673267326733,
-        "pass_rate_dual": 0.1188118811881188,
-        "gap_masked": 0.5544554455445545
+        "pass_rate_5pct": 0.732824427480916,
+        "pass_rate_dual": 0.2366412213740458,
+        "gap_masked": 0.4961832061068702
       },
       {
         "topology": "ladder",
         "n_qubits": 12,
-        "pass_rate_5pct": 1.0,
-        "pass_rate_dual": 0.41025641025641024,
-        "gap_masked": 0.5897435897435898
+        "pass_rate_5pct": 0.9444444444444444,
+        "pass_rate_dual": 0.48148148148148145,
+        "gap_masked": 0.46296296296296297
+      },
+      {
+        "topology": "ladder",
+        "n_qubits": 14,
+        "pass_rate_5pct": 0.48484848484848486,
+        "pass_rate_dual": 0.2727272727272727,
+        "gap_masked": 0.21212121212121215
       },
       {
         "topology": "ladder",
         "n_qubits": 16,
-        "pass_rate_5pct": 1.0,
-        "pass_rate_dual": 0.08333333333333333,
-        "gap_masked": 0.9166666666666666
+        "pass_rate_5pct": 0.7164179104477612,
+        "pass_rate_dual": 0.2835820895522388,
+        "gap_masked": 0.43283582089552236
       },
       {
         "topology": "ladder",
         "n_qubits": 6,
-        "pass_rate_5pct": 0.8421052631578947,
-        "pass_rate_dual": 0.6666666666666666,
-        "gap_masked": 0.17543859649122806
+        "pass_rate_5pct": 0.8695652173913043,
+        "pass_rate_dual": 0.7246376811594203,
+        "gap_masked": 0.14492753623188404
       },
       {
         "topology": "ladder",
         "n_qubits": 8,
-        "pass_rate_5pct": 0.8596491228070176,
-        "pass_rate_dual": 0.47368421052631576,
-        "gap_masked": 0.3859649122807018
+        "pass_rate_5pct": 0.7857142857142857,
+        "pass_rate_dual": 0.5,
+        "gap_masked": 0.2857142857142857
       },
       {
         "topology": "square",
         "n_qubits": 10,
-        "pass_rate_5pct": 0.6578947368421053,
-        "pass_rate_dual": 0.5263157894736842,
-        "gap_masked": 0.13157894736842113
+        "pass_rate_5pct": 0.8,
+        "pass_rate_dual": 0.6615384615384615,
+        "gap_masked": 0.13846153846153852
       },
       {
         "topology": "square",
         "n_qubits": 12,
-        "pass_rate_5pct": 0.76,
-        "pass_rate_dual": 0.48,
-        "gap_masked": 0.28
+        "pass_rate_5pct": 0.8653846153846154,
+        "pass_rate_dual": 0.6346153846153846,
+        "gap_masked": 0.23076923076923084
       },
       {
         "topology": "square",
         "n_qubits": 14,
-        "pass_rate_5pct": 1.0,
-        "pass_rate_dual": 0.375,
-        "gap_masked": 0.625
-      },
-      {
-        "topology": "square",
-        "n_qubits": 16,
-        "pass_rate_5pct": 0.4375,
-        "pass_rate_dual": 0.09375,
-        "gap_masked": 0.34375
+        "pass_rate_5pct": 0.7307692307692307,
+        "pass_rate_dual": 0.5384615384615384,
+        "gap_masked": 0.1923076923076923
       },
       {
         "topology": "triangular",
         "n_qubits": 10,
-        "pass_rate_5pct": 0.475,
-        "pass_rate_dual": 0.15,
-        "gap_masked": 0.32499999999999996
+        "pass_rate_5pct": 0.4642857142857143,
+        "pass_rate_dual": 0.17857142857142858,
+        "gap_masked": 0.2857142857142857
       },
       {
         "topology": "triangular",
         "n_qubits": 12,
-        "pass_rate_5pct": 0.6,
-        "pass_rate_dual": 0.2,
-        "gap_masked": 0.39999999999999997
+        "pass_rate_5pct": 0.42857142857142855,
+        "pass_rate_dual": 0.14285714285714285,
+        "gap_masked": 0.2857142857142857
+      },
+      {
+        "topology": "triangular",
+        "n_qubits": 14,
+        "pass_rate_5pct": 0.3076923076923077,
+        "pass_rate_dual": 0.0,
+        "gap_masked": 0.3076923076923077
+      },
+      {
+        "topology": "triangular",
+        "n_qubits": 16,
+        "pass_rate_5pct": 0.2,
+        "pass_rate_dual": 0.0,
+        "gap_masked": 0.2
       },
       {
         "topology": "triangular",
         "n_qubits": 6,
-        "pass_rate_5pct": 0.6907216494845361,
-        "pass_rate_dual": 0.5773195876288659,
-        "gap_masked": 0.11340206185567014
+        "pass_rate_5pct": 0.6928571428571428,
+        "pass_rate_dual": 0.5785714285714286,
+        "gap_masked": 0.11428571428571421
       },
       {
         "topology": "triangular",
         "n_qubits": 8,
-        "pass_rate_5pct": 0.8571428571428571,
-        "pass_rate_dual": 0.2857142857142857,
-        "gap_masked": 0.5714285714285714
+        "pass_rate_5pct": 0.39655172413793105,
+        "pass_rate_dual": 0.1206896551724138,
+        "gap_masked": 0.27586206896551724
       }
     ],
     "pass_rate_regressions": [],
     "h_range_mismatches": [
       {
-        "topology": "heavy_hex",
-        "overlap_fraction": 0.15319148936170215,
-        "mismatch_pairs": [
-          "N4[0.6,2.5]\u2194N6[1.9,4.5] (overlap=23%)",
-          "N4[0.6,2.5]\u2194N10[1.4,4.5] (overlap=35%)",
-          "N4[0.6,2.5]\u2194N12[1.4,4.5] (overlap=35%)",
-          "N4[0.6,2.5]\u2194N16[1.4,4.5] (overlap=35%)"
-        ]
-      },
-      {
-        "topology": "ladder",
-        "overlap_fraction": 0.0,
-        "mismatch_pairs": [
-          "N4[1.4,2.1]\u2194N6[2.0,4.8] (overlap=3%)",
-          "N4[1.4,2.1]\u2194N8[2.1,4.8] (overlap=0%)",
-          "N4[1.4,2.1]\u2194N10[2.0,4.8] (overlap=3%)",
-          "N4[1.4,2.1]\u2194N12[3.1,5.5] (overlap=0%)",
-          "N4[1.4,2.1]\u2194N16[3.3,5.5] (overlap=0%)"
-        ]
-      },
-      {
         "topology": "square",
-        "overlap_fraction": 0.24063127690100425,
-        "mismatch_pairs": [
-          "N4[1.4,4.5]\u2194N14[3.4,5.5] (overlap=36%)",
-          "N6[1.4,4.5]\u2194N14[3.4,5.5] (overlap=36%)",
-          "N10[2.0,4.5]\u2194N14[3.4,5.5] (overlap=45%)",
-          "N14[3.4,5.5]\u2194N16[2.7,4.4] (overlap=47%)"
-        ]
+        "overlap_fraction": 0.48780487804878053,
+        "mismatch_pairs": []
       },
       {
         "topology": "triangular",
-        "overlap_fraction": 0.12827586206896555,
+        "overlap_fraction": 0.24000000000000005,
         "mismatch_pairs": [
-          "N3[0.5,4.5]\u2194N8[3.9,4.8] (overlap=16%)",
-          "N3[0.5,4.5]\u2194N12[3.8,5.5] (overlap=17%)",
-          "N4[1.2,4.5]\u2194N8[3.9,4.8] (overlap=20%)",
-          "N4[1.2,4.5]\u2194N12[3.8,5.5] (overlap=21%)",
-          "N6[2.1,5.5]\u2194N8[3.9,4.8] (overlap=28%)",
-          "N8[3.9,4.8]\u2194N10[2.0,4.8] (overlap=34%)",
-          "N10[2.0,4.8]\u2194N12[3.8,5.5] (overlap=35%)"
+          "N3[0.5,4.5]\u2194N8[2.7,4.8] (overlap=45%)",
+          "N3[0.5,4.5]\u2194N10[2.9,4.8] (overlap=40%)",
+          "N3[0.5,4.5]\u2194N12[3.1,5.5] (overlap=35%)",
+          "N3[0.5,4.5]\u2194N14[3.2,5.5] (overlap=32%)",
+          "N3[0.5,4.5]\u2194N16[3.3,5.5] (overlap=30%)",
+          "N4[1.2,4.5]\u2194N10[2.9,4.8] (overlap=49%)",
+          "N4[1.2,4.5]\u2194N12[3.1,5.5] (overlap=43%)",
+          "N4[1.2,4.5]\u2194N14[3.2,5.5] (overlap=40%)",
+          "N4[1.2,4.5]\u2194N16[3.3,5.5] (overlap=37%)"
         ]
       }
     ],
-    "n_issues": 24
+    "n_issues": 19
   },
   "integrity": {
     "n_configs_with_nan_theta": 0,

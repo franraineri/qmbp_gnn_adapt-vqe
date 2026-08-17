@@ -10,13 +10,14 @@ Usage:
     .venv/bin/python scripts/maintenance/update_cross_n_coverage.py
     .venv/bin/python scripts/maintenance/update_cross_n_coverage.py --dry-run
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +34,7 @@ NPZ_DIR = DATA / "multi_n_training"
 # Data loading
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def load_dashboard() -> dict:
     if not DASHBOARD_PATH.exists():
         print("  ⚠️  Dashboard not found. Run any experiment first.", file=sys.stderr)
@@ -48,12 +50,12 @@ def load_dashboard() -> dict:
 
 def compute_quality_tier_breakdown(npz_dir: Path) -> dict:
     """Compute quality tier distribution per NPZ file.
-    
+
     Returns dict: {filename: {"verified": N, "approximate": M, "unverified": K, "total": N+M+K}}
     """
     if not npz_dir.exists():
         return {}
-    
+
     breakdown = {}
     for npz_file in sorted(npz_dir.glob("*.npz")):
         try:
@@ -87,66 +89,66 @@ def generate_quality_tier_table(tier_breakdown: dict) -> str:
     """Generate markdown table showing quality tier distribution."""
     if not tier_breakdown:
         return "*(No NPZ files found)*"
-    
+
     rows = []
     total_verified = 0
     total_approx = 0
     total_unverified = 0
     n_legacy = 0
-    
+
     for fname, counts in sorted(tier_breakdown.items()):
         total_verified += counts["verified"]
         total_approx += counts["approximate"]
         total_unverified += counts["unverified"]
         if counts.get("legacy"):
             n_legacy += 1
-        
+
         # Only show files with >0 points
         if counts["total"] == 0:
             continue
-            
+
         v_pct = counts["verified"] / counts["total"] * 100
         a_pct = counts["approximate"] / counts["total"] * 100
         u_pct = counts["unverified"] / counts["total"] * 100
         legacy_flag = " 📜" if counts.get("legacy") else ""
-        
+
         rows.append(
             f"| {fname}{legacy_flag} | {counts['total']} | "
             f"{counts['verified']} ({v_pct:.0f}%) | "
             f"{counts['approximate']} ({a_pct:.0f}%) | "
             f"{counts['unverified']} ({u_pct:.0f}%) |"
         )
-    
+
     total = total_verified + total_approx + total_unverified
     if total > 0:
         rows.append(
             f"| **TOTAL** | **{total}** | "
-            f"**{total_verified}** ({total_verified/total*100:.0f}%) | "
-            f"**{total_approx}** ({total_approx/total*100:.0f}%) | "
-            f"**{total_unverified}** ({total_unverified/total*100:.0f}%) |"
+            f"**{total_verified}** ({total_verified / total * 100:.0f}%) | "
+            f"**{total_approx}** ({total_approx / total * 100:.0f}%) | "
+            f"**{total_unverified}** ({total_unverified / total * 100:.0f}%) |"
         )
-    
+
     lines = [
         "| File | Total | Verified ✅ | Approximate ⚠️ | Unverified ❓ |",
         "|------|-------|-------------|----------------|---------------|",
     ] + rows
-    
+
     if n_legacy > 0:
         lines.append("")
         lines.append(f"*📜 = Legacy NPZ without quality_tier field ({n_legacy} files)*")
-    
+
     return "\n".join(lines)
 
 
 def check_quality_tier_warnings(tier_breakdown: dict) -> list[str]:
     """Check for quality tier issues and return warnings."""
     warnings = []
-    
+
     for fname, counts in tier_breakdown.items():
         total = counts["total"]
         if total == 0:
             continue
-        
+
         # Warning: >80% unverified
         unverified_ratio = counts["unverified"] / total
         if unverified_ratio > 0.80:
@@ -154,21 +156,21 @@ def check_quality_tier_warnings(tier_breakdown: dict) -> list[str]:
                 f"⚠️ {fname}: {unverified_ratio:.0%} unverified — "
                 f"run VQE refinement to generate quality data"
             )
-        
+
         # Warning: legacy NPZ (no tier info)
         if counts.get("legacy") and total > 10:
             warnings.append(
                 f"📜 {fname}: legacy NPZ ({total} pts) without quality_tier field. "
                 f"Re-run with current pipeline to add tier metadata."
             )
-        
+
         # Warning: mostly approximate, few verified
         if counts["approximate"] > 0 and counts["verified"] == 0 and total > 5:
             warnings.append(
                 f"⚠️ {fname}: {counts['approximate']} approximate pts but 0 verified. "
                 f"Consider running --refine-all to convert best predictions to verified."
             )
-    
+
     return warnings
 
 
@@ -254,20 +256,22 @@ def compute_zoo_model_health() -> list[dict]:
             recommendation = "EXPAND: too few training points for reliable cross-N"
             urgency = 1
 
-        health_reports.append({
-            "checkpoint": entry.get("checkpoint_file", "unknown"),
-            "topology": topo,
-            "n_training_points": n_training_points,
-            "pass_rate": pass_rate,
-            "quality_score": quality_score,
-            "n_verified": n_verified,
-            "n_approximate": n_approx,
-            "n_unverified": n_unverified,
-            "recommendation": recommendation,
-            "urgency": urgency,
-            "runner_tag": entry.get("runner_tag", ""),
-            "date_tag": entry.get("date_tag", ""),
-        })
+        health_reports.append(
+            {
+                "checkpoint": entry.get("checkpoint_file", "unknown"),
+                "topology": topo,
+                "n_training_points": n_training_points,
+                "pass_rate": pass_rate,
+                "quality_score": quality_score,
+                "n_verified": n_verified,
+                "n_approximate": n_approx,
+                "n_unverified": n_unverified,
+                "recommendation": recommendation,
+                "urgency": urgency,
+                "runner_tag": entry.get("runner_tag", ""),
+                "date_tag": entry.get("date_tag", ""),
+            }
+        )
 
     health_reports.sort(key=lambda x: (-x["urgency"], x["topology"]))
     return health_reports
@@ -322,7 +326,8 @@ def compute_gt_coverage(npz_dir: Path) -> dict[str, int]:
         topo = "_".join(parts[:n_idx])
         n_val = int(parts[n_idx][1:])
         n_miss = sum(
-            1 for h in h_vals
+            1
+            for h in h_vals
             if f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.6f}" not in gt_entries
         )
         if n_miss > 0:
@@ -346,6 +351,7 @@ def count_zoo_orphans() -> int:
 # Section generators
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def generate_executive_summary(dashboard: dict) -> str:
     topo_sum = dashboard.get("topology_summary", {})
     configs = dashboard.get("configs", [])
@@ -361,8 +367,12 @@ def generate_executive_summary(dashboard: dict) -> str:
 
         # Zoo multi-N pass rate
         zoo_multi = next(
-            (c["zoo_pass_rate"] for c in topo_configs if c.get("n_qubits") == 0 and c.get("zoo_pass_rate")),
-            None
+            (
+                c["zoo_pass_rate"]
+                for c in topo_configs
+                if c.get("n_qubits") == 0 and c.get("zoo_pass_rate")
+            ),
+            None,
         )
         zoo_str = f"{zoo_multi:.0%}" if zoo_multi else "—"
 
@@ -387,8 +397,7 @@ def generate_executive_summary(dashboard: dict) -> str:
 def generate_topology_table(topo: str, configs: list[dict]) -> str:
     """Generate the per-topology detail table from dashboard data."""
     topo_configs = sorted(
-        [c for c in configs if c["topology"] == topo],
-        key=lambda c: c["n_qubits"]
+        [c for c in configs if c["topology"] == topo], key=lambda c: c["n_qubits"]
     )
     if not topo_configs:
         return f"*No data for {topo}*"
@@ -404,7 +413,9 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
         h_front = c.get("h_frontier")
         h_front_str = f"{h_front:.2f}" if h_front is not None else "N/A"
         smooth = c.get("theta_smoothness")
-        smooth_str = f"{smooth:.2f} {'⚠️' if smooth and smooth > 0.5 else ''}" if smooth is not None else "—"
+        smooth_str = (
+            f"{smooth:.2f} {'⚠️' if smooth and smooth > 0.5 else ''}" if smooth is not None else "—"
+        )
 
         # Gap masking detection
         gap_mask = pass5 - pass_dual
@@ -436,15 +447,19 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
 def generate_gap_masking_table(configs: list[dict]) -> str:
     """Show configs where pass_rate_5pct >> pass_rate_dual (gap masking)."""
     from qmbp_simulation.analysis.metrics import GAP_MASKING_THRESHOLD
+
     masked = [
-        c for c in configs
+        c
+        for c in configs
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
     ]
     if not masked:
         return "*(No significant gap masking detected)*"
 
     rows = []
-    for c in sorted(masked, key=lambda x: -(x["pass_rate_5pct"] - x.get("pass_rate_dual_criterion", 0))):
+    for c in sorted(
+        masked, key=lambda x: -(x["pass_rate_5pct"] - x.get("pass_rate_dual_criterion", 0))
+    ):
         diff = c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0)
         rows.append(
             f"| {c['topology']} | {c['n_qubits']} | "
@@ -486,9 +501,11 @@ def generate_h_frontier_table(configs: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def generate_training_health_table(dashboard: dict, gt_missing: dict, n_orphans: int, tier_breakdown: dict | None = None) -> str:
+def generate_training_health_table(
+    dashboard: dict, gt_missing: dict, n_orphans: int, tier_breakdown: dict | None = None
+) -> str:
     """Training data health summary with quality tier breakdown."""
-    from qmbp_simulation.analysis.metrics import classify_training_utility
+    from qmbp_simulation.analysis.metrics import get_usable_training_configs
 
     integrity = dashboard.get("integrity", {})
     configs = dashboard.get("configs", [])
@@ -499,41 +516,34 @@ def generate_training_health_table(dashboard: dict, gt_missing: dict, n_orphans:
 
     n_stale = sum(1 for c in configs if c.get("model_stale"))
     n_retrain = sum(1 for c in configs if c.get("needs_retrain"))
-    n_high_smooth = sum(1 for c in configs if c.get("theta_smoothness") and c["theta_smoothness"] > 0.5)
+    n_high_smooth = sum(
+        1 for c in configs if c.get("theta_smoothness") and c["theta_smoothness"] > 0.5
+    )
     total_missing_gt = sum(gt_missing.values())
     n_masked = sum(
-        1 for c in configs
+        1
+        for c in configs
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > 0.10
     )
 
-    # Quality tier breakdown using classify_training_utility
-    n_useful = 0
-    n_insufficient = 0
-    n_not_useful = 0
+    # Quality tier breakdown using get_usable_training_configs (robust to signature changes)
+    partitioned = get_usable_training_configs(dashboard)
+    n_useful = len(partitioned["useful"])
+    n_insufficient = len(partitioned["insufficient_signal"])
+    n_not_useful = len(partitioned["not_useful"])
+
     quality_warnings = []
-    for c in configs:
-        category, reason = classify_training_utility(
-            n_points=c.get("n_points", 0),
-            pass_rate_dual=c.get("pass_rate_dual_criterion", 0.0),
-            pass_rate_5pct=c.get("pass_rate_5pct", 0.0),
-        )
-        if category == "useful":
-            n_useful += 1
-        elif category == "insufficient_signal":
-            n_insufficient += 1
-            if c.get("n_points", 0) > 5:  # Only warn for non-trivial configs
-                quality_warnings.append(
-                    f"  ⚠️ {c['topology']}/N={c['n_qubits']}: {reason[:60]}..."
-                )
-        else:
-            n_not_useful += 1
-            quality_warnings.append(
-                f"  ❌ {c['topology']}/N={c['n_qubits']}: {reason[:60]}..."
-            )
+    for c in partitioned["insufficient_signal"]:
+        if c.get("n_points", 0) > 5:
+            reason = c.get("training_utility_reason", "")
+            quality_warnings.append(f"  ⚠️ {c['topology']}/N={c['n_qubits']}: {reason[:60]}...")
+    for c in partitioned["not_useful"]:
+        reason = c.get("training_utility_reason", "")
+        quality_warnings.append(f"  ❌ {c['topology']}/N={c['n_qubits']}: {reason[:60]}...")
 
     # Print quality warnings to stderr for visibility
     if quality_warnings:
-        for w in quality_warnings[:10]:  # Limit to 10 warnings
+        for w in quality_warnings[:10]:
             print(w, file=sys.stderr)
         if len(quality_warnings) > 10:
             print(f"  ... and {len(quality_warnings) - 10} more warnings", file=sys.stderr)
@@ -558,23 +568,25 @@ def generate_training_health_table(dashboard: dict, gt_missing: dict, n_orphans:
         f"| **Quality: Insufficient** | {n_insufficient} configs | {'⚠️' if n_insufficient > 0 else '✅'} |",
         f"| **Quality: Not Useful** | {n_not_useful} configs | {'❌' if n_not_useful > 0 else '✅'} |",
     ]
-    
+
     # Add NPZ quality_tier breakdown if available
     if tier_stats:
-        tier_status = '✅' if total_verified / max(total_tier_pts, 1) > 0.5 else '⚠️'
+        tier_status = "✅" if total_verified / max(total_tier_pts, 1) > 0.5 else "⚠️"
         rows.append(f"| **NPZ Quality Tiers** | {tier_stats} | {tier_status} |")
-    
-    rows.extend([
-        f"| NaN in θ | {n_nan} configs | {'✅' if n_nan == 0 else '❌'} |",
-        f"| Zoo integrity | {zoo_ok} | {'✅' if zoo_ok else '❌'} |",
-        f"| Zoo missing | {zoo_miss} | {'✅' if zoo_miss == 0 else '⚠️'} |",
-        f"| Zoo orphan checkpoints | {n_orphans} | {'⚠️ cleanup needed' if n_orphans > 0 else '✅'} |",
-        f"| GT coverage gaps | {total_missing_gt} uncovered h-points | {'⚠️' if total_missing_gt > 0 else '✅'} |",
-        f"| Stale zoo models | {n_stale} | {'⚠️' if n_stale > 0 else '✅'} |",
-        f"| Need retrain | {n_retrain} | {'🔄' if n_retrain > 0 else '✅'} |",
-        f"| High θ discontinuity (>0.5) | {n_high_smooth} configs | {'⚠️' if n_high_smooth > 0 else '✅'} |",
-        f"| Gap masking detected | {n_masked} configs | {'⚠️' if n_masked > 0 else '✅'} |",
-    ])
+
+    rows.extend(
+        [
+            f"| NaN in θ | {n_nan} configs | {'✅' if n_nan == 0 else '❌'} |",
+            f"| Zoo integrity | {zoo_ok} | {'✅' if zoo_ok else '❌'} |",
+            f"| Zoo missing | {zoo_miss} | {'✅' if zoo_miss == 0 else '⚠️'} |",
+            f"| Zoo orphan checkpoints | {n_orphans} | {'⚠️ cleanup needed' if n_orphans > 0 else '✅'} |",
+            f"| GT coverage gaps | {total_missing_gt} uncovered h-points | {'⚠️' if total_missing_gt > 0 else '✅'} |",
+            f"| Stale zoo models | {n_stale} | {'⚠️' if n_stale > 0 else '✅'} |",
+            f"| Need retrain | {n_retrain} | {'🔄' if n_retrain > 0 else '✅'} |",
+            f"| High θ discontinuity (>0.5) | {n_high_smooth} configs | {'⚠️' if n_high_smooth > 0 else '✅'} |",
+            f"| Gap masking detected | {n_masked} configs | {'⚠️' if n_masked > 0 else '✅'} |",
+        ]
+    )
 
     lines = [
         "| Metric | Value | Status |",
@@ -600,8 +612,8 @@ def update_section(doc: str, section_id: str, new_content: str) -> tuple[str, bo
     if begin not in doc:
         return doc, False
 
-    before = doc[:doc.index(begin) + len(begin)]
-    after = doc[doc.index(end):]
+    before = doc[: doc.index(begin) + len(begin)]
+    after = doc[doc.index(end) :]
     return before + "\n" + new_content + "\n" + after, True
 
 
@@ -625,21 +637,17 @@ def add_section_sentinels(doc: str, section_id: str, heading: str) -> str:
     if next_section == -1:
         next_section = len(doc)
 
-    section_content = doc[idx + 1:next_section]
-    return (
-        doc[:idx + 1] +
-        begin + "\n" +
-        section_content +
-        end + "\n" +
-        doc[next_section:]
-    )
+    section_content = doc[idx + 1 : next_section]
+    return doc[: idx + 1] + begin + "\n" + section_content + end + "\n" + doc[next_section:]
 
 
-def generate_document(dashboard: dict, gt_missing: dict, n_orphans: int, tier_breakdown: dict | None = None) -> str:
+def generate_document(
+    dashboard: dict, gt_missing: dict, n_orphans: int, tier_breakdown: dict | None = None
+) -> str:
     """Generate the full updated document content."""
     configs = dashboard.get("configs", [])
     topo_sum = dashboard.get("topology_summary", {})
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now = datetime.now(UTC).strftime("%Y-%m-%d")
 
     topologies = sorted(topo_sum.keys())
 
@@ -656,54 +664,63 @@ def generate_document(dashboard: dict, gt_missing: dict, n_orphans: int, tier_br
         "",
         "---",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:executive_summary -->",
+        "<!-- AUTO-GENERATED-BEGIN:executive_summary -->",
         generate_executive_summary(dashboard),
-        f"<!-- AUTO-GENERATED-END:executive_summary -->",
+        "<!-- AUTO-GENERATED-END:executive_summary -->",
         "",
         "---",
         "",
         "## Training Data Health",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:health -->",
+        "<!-- AUTO-GENERATED-BEGIN:health -->",
         generate_training_health_table(dashboard, gt_missing, n_orphans, tier_breakdown),
-        f"<!-- AUTO-GENERATED-END:health -->",
+        "<!-- AUTO-GENERATED-END:health -->",
         "",
     ]
-    
+
     # Add quality tier breakdown table if available
     if tier_breakdown:
-        lines.extend([
-            "### Quality Tier Distribution (NPZ-level)",
-            "",
-            f"<!-- AUTO-GENERATED-BEGIN:quality_tiers -->",
-            generate_quality_tier_table(tier_breakdown),
-            f"<!-- AUTO-GENERATED-END:quality_tiers -->",
-            "",
-        ])
+        lines.extend(
+            [
+                "### Quality Tier Distribution (NPZ-level)",
+                "",
+                "<!-- AUTO-GENERATED-BEGIN:quality_tiers -->",
+                generate_quality_tier_table(tier_breakdown),
+                "<!-- AUTO-GENERATED-END:quality_tiers -->",
+                "",
+            ]
+        )
         # Add warnings
         tier_warnings = check_quality_tier_warnings(tier_breakdown)
         if tier_warnings:
-            lines.extend([
-                "**Quality Tier Warnings:**",
-                "",
-            ] + tier_warnings[:5] + (["", f"*(and {len(tier_warnings)-5} more)*"] if len(tier_warnings) > 5 else []) + [""])
-    
-    lines.extend([
-        "---",
-        "",
-        "## Gap Masking Analysis",
-        "",
-        "Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/gap metric:",
-        "",
-        f"<!-- AUTO-GENERATED-BEGIN:gap_masking -->",
-        generate_gap_masking_table(configs),
-        f"<!-- AUTO-GENERATED-END:gap_masking -->",
-        "",
-        "---",
-        "",
-        "## Detalle por Topología",
-        "",
-    ])
+            lines.extend(
+                [
+                    "**Quality Tier Warnings:**",
+                    "",
+                ]
+                + tier_warnings[:5]
+                + (["", f"*(and {len(tier_warnings) - 5} more)*"] if len(tier_warnings) > 5 else [])
+                + [""]
+            )
+
+    lines.extend(
+        [
+            "---",
+            "",
+            "## Gap Masking Analysis",
+            "",
+            "Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/gap metric:",
+            "",
+            "<!-- AUTO-GENERATED-BEGIN:gap_masking -->",
+            generate_gap_masking_table(configs),
+            "<!-- AUTO-GENERATED-END:gap_masking -->",
+            "",
+            "---",
+            "",
+            "## Detalle por Topología",
+            "",
+        ]
+    )
 
     for topo in topologies:
         lines.append(f"<!-- AUTO-GENERATED-BEGIN:topo_{topo} -->")
@@ -718,23 +735,23 @@ def generate_document(dashboard: dict, gt_missing: dict, n_orphans: int, tier_br
         "",
         "h_frontier = h below which ΔE/gap ≥ 5% (pipeline fails):",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:h_frontier -->",
+        "<!-- AUTO-GENERATED-BEGIN:h_frontier -->",
         generate_h_frontier_table(configs),
-        f"<!-- AUTO-GENERATED-END:h_frontier -->",
+        "<!-- AUTO-GENERATED-END:h_frontier -->",
         "",
         "---",
         "",
         "## Cross-N Transfer Summary",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:cross_n_transfer -->",
+        "<!-- AUTO-GENERATED-BEGIN:cross_n_transfer -->",
         _generate_cross_n_transfer_table(configs, topo_sum),
-        f"<!-- AUTO-GENERATED-END:cross_n_transfer -->",
+        "<!-- AUTO-GENERATED-END:cross_n_transfer -->",
         "",
         "---",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:large_n_extrapolation -->",
+        "<!-- AUTO-GENERATED-BEGIN:large_n_extrapolation -->",
         generate_large_n_extrapolation_section(),
-        f"<!-- AUTO-GENERATED-END:large_n_extrapolation -->",
+        "<!-- AUTO-GENERATED-END:large_n_extrapolation -->",
         "",
         "---",
         "",
@@ -742,15 +759,15 @@ def generate_document(dashboard: dict, gt_missing: dict, n_orphans: int, tier_br
         "",
         "Data quality breakdown by tier (verified=VQE-converged, approximate=MPNN-predicted, unverified=legacy):",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:tier_breakdown -->",
+        "<!-- AUTO-GENERATED-BEGIN:tier_breakdown -->",
         generate_tier_breakdown(dashboard),
-        f"<!-- AUTO-GENERATED-END:tier_breakdown -->",
+        "<!-- AUTO-GENERATED-END:tier_breakdown -->",
         "",
         "---",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:training_plan -->",
+        "<!-- AUTO-GENERATED-BEGIN:training_plan -->",
         generate_training_plan(dashboard),
-        f"<!-- AUTO-GENERATED-END:training_plan -->",
+        "<!-- AUTO-GENERATED-END:training_plan -->",
         "",
         "---",
         "",
@@ -758,9 +775,9 @@ def generate_document(dashboard: dict, gt_missing: dict, n_orphans: int, tier_br
         "",
         "Cross-integration: model_zoo entries + NPZ quality tier scores.",
         "",
-        f"<!-- AUTO-GENERATED-BEGIN:zoo_health -->",
+        "<!-- AUTO-GENERATED-BEGIN:zoo_health -->",
         _generate_zoo_health_section(),
-        f"<!-- AUTO-GENERATED-END:zoo_health -->",
+        "<!-- AUTO-GENERATED-END:zoo_health -->",
         "",
     ]
 
@@ -775,9 +792,12 @@ def _generate_cross_n_transfer_table(configs: list[dict], topo_sum: dict) -> str
         best_src = info.get("cross_n_best_source_for_largest")
         best_src_str = (
             f"train_n={best_src['train_n']} (@10%={best_src['pass_rate_10pct']:.0%})"
-            if best_src else "no data"
+            if best_src
+            else "no data"
         )
-        rows.append(f"| {topo} | {n_max} | {info.get('best_pass_rate_5pct', 0):.0%} | {best_src_str} |")
+        rows.append(
+            f"| {topo} | {n_max} | {info.get('best_pass_rate_5pct', 0):.0%} | {best_src_str} |"
+        )
 
     lines = [
         "| Topology | n_max_viable | Best pass@5% | Best cross-N source |",
@@ -841,6 +861,7 @@ def generate_large_n_extrapolation_section() -> str:
 
             if gaps is not None:
                 from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+
                 de_gaps = abs_errs / np.maximum(gaps, 1e-10)
                 mean_de_gap = float(de_gaps.mean())
                 pass_5pct = int((de_gaps < DE_GAP_THRESHOLD).sum())
@@ -851,33 +872,44 @@ def generate_large_n_extrapolation_section() -> str:
                 pass_5pct = 0
                 pass_dual = 0
 
-            topo_data[topo].append({
-                "n_qubits": n_qubits,
-                "n_pts": n_pts,
-                "h_min": float(h_values.min()),
-                "h_max": float(h_values.max()),
-                "mean_de_gap": mean_de_gap,
-                "mean_abs_err": mean_abs_err,
-                "per_site_err": per_site_err,
-                "pass_5pct": pass_5pct,
-                "pass_dual": pass_dual,
-            })
+            topo_data[topo].append(
+                {
+                    "n_qubits": n_qubits,
+                    "n_pts": n_pts,
+                    "h_min": float(h_values.min()),
+                    "h_max": float(h_values.max()),
+                    "mean_de_gap": mean_de_gap,
+                    "mean_abs_err": mean_abs_err,
+                    "per_site_err": per_site_err,
+                    "pass_5pct": pass_5pct,
+                    "pass_dual": pass_dual,
+                }
+            )
         except Exception:
             continue
 
     if not topo_data:
         return "No valid large-N extrapolation data found."
 
-    # Scan result JSONs for speedup data
+    # Scan result JSONs for speedup data and checkpoint info
     results_dir = ROOT / "results" / "experiments" / "exp_large_n_extrap"
     speedup_data: dict[str, dict[int, float]] = defaultdict(dict)  # topo -> {N: speedup}
+    checkpoint_per_topo: dict[str, str] = {}  # topo -> latest checkpoint used
     if results_dir.exists():
+        from qmbp_simulation.framework.result_io import extract_checkpoint_used
+
         for rfile in sorted(results_dir.glob("run_*.json")):
             try:
                 with open(rfile) as f:
                     rdata = json.load(f)
                 topo = rdata.get("config", {}).get("topology", "")
                 results = rdata.get("results", {})
+
+                # Track checkpoint used per topology (latest run wins)
+                ckpt = extract_checkpoint_used(rdata)
+                if ckpt != "unknown":
+                    checkpoint_per_topo[topo] = ckpt
+
                 # Find summary section (last section with comparison data)
                 for sec_key in ["section_4", "section_3", "section_5"]:
                     sec = results.get(sec_key, {})
@@ -906,6 +938,11 @@ def generate_large_n_extrapolation_section() -> str:
         entries = sorted(topo_data[topo], key=lambda x: x["n_qubits"])
         lines.append(f"### {topo}")
         lines.append("")
+        # Show which model checkpoint was used
+        ckpt = checkpoint_per_topo.get(topo)
+        if ckpt and ckpt != "unknown":
+            lines.append(f"**Model**: `{ckpt}`")
+            lines.append("")
         lines.append("| N | h-range | Pts | ΔE/gap | |ΔE|/N | Pass@5% | Pass@dual | Speedup |")
         lines.append("|---|---------|-----|--------|--------|---------|-----------|---------|")
 
@@ -940,9 +977,7 @@ def generate_large_n_extrapolation_section() -> str:
         mean_ps = np.mean(per_site_errs)
         variation = max(per_site_errs) / max(min(per_site_errs), 1e-10)
         scaling_ok = "✅ extensive" if variation < 3.0 else "⚠️ degrading"
-        lines.append(
-            f"| {topo} | {n_range} | {mean_ps:.2e} | {variation:.1f}× | {scaling_ok} |"
-        )
+        lines.append(f"| {topo} | {n_range} | {mean_ps:.2e} | {variation:.1f}× | {scaling_ok} |")
 
     lines.append("")
 
@@ -979,17 +1014,19 @@ def generate_large_n_extrapolation_section() -> str:
                     v = vqe_data[n_str]
                     n_val = m.get("n_qubits", int(n_str))
                     # Keep the best (most recent) comparison per (topo, N)
-                    comparison_rows.append({
-                        "topo": topo,
-                        "n": n_val,
-                        "mpnn_de_gap": m.get("mean_de_gap", -1),
-                        "mpnn_per_site": m.get("mean_abs_error_per_site", -1),
-                        "mpnn_pass_dual": m.get("pass_rate_dual", 0),
-                        "vqe_de_gap": v.get("mean_de_gap", -1),
-                        "vqe_pass_dual": v.get("pass_rate_dual", 0),
-                        "vqe_evals": v.get("total_evals", 0),
-                        "mpnn_evals": m.get("n_points", 1),
-                    })
+                    comparison_rows.append(
+                        {
+                            "topo": topo,
+                            "n": n_val,
+                            "mpnn_de_gap": m.get("mean_de_gap", -1),
+                            "mpnn_per_site": m.get("mean_abs_error_per_site", -1),
+                            "mpnn_pass_dual": m.get("pass_rate_dual", 0),
+                            "vqe_de_gap": v.get("mean_de_gap", -1),
+                            "vqe_pass_dual": v.get("pass_rate_dual", 0),
+                            "vqe_evals": v.get("total_evals", 0),
+                            "mpnn_evals": m.get("n_points", 1),
+                        }
+                    )
             except Exception:
                 continue
 
@@ -1003,10 +1040,16 @@ def generate_large_n_extrapolation_section() -> str:
 
         lines.append("### MPNN vs Random VQE vs Ground Truth")
         lines.append("")
-        lines.append("Comparison at same h-points. MPNN: 1 forward pass (0 QPU). VQE: L-BFGS-B with random init.")
+        lines.append(
+            "Comparison at same h-points. MPNN: 1 forward pass (0 QPU). VQE: L-BFGS-B with random init."
+        )
         lines.append("")
-        lines.append("| Topology | N | MPNN ΔE/gap | VQE ΔE/gap | MPNN |ΔE|/N | MPNN wins? | Speedup | VQE evals |")
-        lines.append("|----------|---|-------------|------------|------|-------|---------|-----------|")
+        lines.append(
+            "| Topology | N | MPNN ΔE/gap | VQE ΔE/gap | MPNN |ΔE|/N | MPNN wins? | Speedup | VQE evals |"
+        )
+        lines.append(
+            "|----------|---|-------------|------------|------|-------|---------|-----------|"
+        )
 
         for key in sorted(best_by_key.keys()):
             row = best_by_key[key]
@@ -1023,7 +1066,7 @@ def generate_large_n_extrapolation_section() -> str:
         # Win rate summary
         n_wins = sum(1 for r in best_by_key.values() if r["mpnn_de_gap"] < r["vqe_de_gap"])
         total = len(best_by_key)
-        lines.append(f"**MPNN win rate**: {n_wins}/{total} ({100*n_wins//max(total,1)}%)")
+        lines.append(f"**MPNN win rate**: {n_wins}/{total} ({100 * n_wins // max(total, 1)}%)")
         lines.append("")
 
     # Key findings
@@ -1052,10 +1095,12 @@ def generate_training_plan(dashboard: dict) -> str:
     lines = ["## Training Plan (auto-generated)", ""]
 
     # Summary counts
-    lines.append(f"**Total configs**: {len(configs)} | "
-                 f"✅ Useful: {len(useful)} | "
-                 f"⚠️ Insufficient: {len(insufficient)} | "
-                 f"❌ Not useful: {len(not_useful)}")
+    lines.append(
+        f"**Total configs**: {len(configs)} | "
+        f"✅ Useful: {len(useful)} | "
+        f"⚠️ Insufficient: {len(insufficient)} | "
+        f"❌ Not useful: {len(not_useful)}"
+    )
     lines.append("")
 
     # DELETE section
@@ -1157,9 +1202,9 @@ def generate_tier_breakdown(dashboard: dict) -> str:
         if total == 0:
             continue
         rows.append(
-            f"| {topo} | {total} | {tb['verified']} ({tb['verified']*100//total}%) | "
-            f"{tb['approximate']} ({tb['approximate']*100//total}%) | "
-            f"{tb['unverified']} ({tb['unverified']*100//total}%) |"
+            f"| {topo} | {total} | {tb['verified']} ({tb['verified'] * 100 // total}%) | "
+            f"{tb['approximate']} ({tb['approximate'] * 100 // total}%) | "
+            f"{tb['unverified']} ({tb['unverified'] * 100 // total}%) |"
         )
 
     lines = [
@@ -1169,14 +1214,17 @@ def generate_tier_breakdown(dashboard: dict) -> str:
     return "\n".join(lines)
 
 
-def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n_orphans: int) -> str:
+def update_existing_document(
+    existing: str, dashboard: dict, gt_missing: dict, n_orphans: int
+) -> str:
     """Update only the AUTO-GENERATED sections in an existing document."""
     configs = dashboard.get("configs", [])
     topo_sum = dashboard.get("topology_summary", {})
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now = datetime.now(UTC).strftime("%Y-%m-%d")
 
     # Update header date
     import re
+
     existing = re.sub(
         r"\*\*Fecha\*\*:.*",
         f"**Fecha**: {now} (auto-updated by update_cross_n_coverage.py)",
@@ -1185,11 +1233,15 @@ def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n
     )
 
     # Update each auto-generated section
-    updated, found = update_section(existing, "executive_summary", generate_executive_summary(dashboard))
+    updated, found = update_section(
+        existing, "executive_summary", generate_executive_summary(dashboard)
+    )
     if found:
         existing = updated
 
-    updated, found = update_section(existing, "health", generate_training_health_table(dashboard, gt_missing, n_orphans))
+    updated, found = update_section(
+        existing, "health", generate_training_health_table(dashboard, gt_missing, n_orphans)
+    )
     if found:
         existing = updated
 
@@ -1201,11 +1253,15 @@ def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n
     if found:
         existing = updated
 
-    updated, found = update_section(existing, "cross_n_transfer", _generate_cross_n_transfer_table(configs, topo_sum))
+    updated, found = update_section(
+        existing, "cross_n_transfer", _generate_cross_n_transfer_table(configs, topo_sum)
+    )
     if found:
         existing = updated
 
-    updated, found = update_section(existing, "large_n_extrapolation", generate_large_n_extrapolation_section())
+    updated, found = update_section(
+        existing, "large_n_extrapolation", generate_large_n_extrapolation_section()
+    )
     if found:
         existing = updated
 
@@ -1218,7 +1274,9 @@ def update_existing_document(existing: str, dashboard: dict, gt_missing: dict, n
         existing = updated
 
     for topo in sorted(topo_sum.keys()):
-        updated, found = update_section(existing, f"topo_{topo}", generate_topology_table(topo, configs))
+        updated, found = update_section(
+            existing, f"topo_{topo}", generate_topology_table(topo, configs)
+        )
         if found:
             existing = updated
 
@@ -1246,7 +1304,7 @@ def generate_cross_topology_report(
     """
     configs = dashboard.get("configs", [])
     topo_sum = dashboard.get("topology_summary", {})
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     topologies = sorted(topo_sum.keys())
 
     # ── Collect zoo data ──────────────────────────────────────────────────
@@ -1285,8 +1343,12 @@ def generate_cross_topology_report(
             None,
         )
         zoo_str = f"{zoo_multi['pass_rate']:.0%}" if zoo_multi else "—"
-        zoo_icon = "✅" if zoo_multi and zoo_multi["pass_rate"] >= 0.70 else (
-            "⚠️" if zoo_multi and zoo_multi["pass_rate"] >= 0.30 else "❌" if zoo_multi else "—"
+        zoo_icon = (
+            "✅"
+            if zoo_multi and zoo_multi["pass_rate"] >= 0.70
+            else (
+                "⚠️" if zoo_multi and zoo_multi["pass_rate"] >= 0.30 else "❌" if zoo_multi else "—"
+            )
         )
 
         # h_frontier (lowest h where pipeline still passes)
@@ -1312,18 +1374,20 @@ def generate_cross_topology_report(
         # Data quality icon
         dq_icon = "✅" if verified_pct >= 80 else ("⚠️" if verified_pct >= 40 else "❌")
 
-        scorecard_rows.append({
-            "topo": topo,
-            "n_max_dual": n_max_dual,
-            "best_dual": best_dual,
-            "zoo_icon": zoo_icon,
-            "zoo_str": zoo_str,
-            "total_pts": total_pts,
-            "verified_pct": verified_pct,
-            "dq_icon": dq_icon,
-            "extrap_str": extrap_str,
-            "h_frontier": h_frontier_str,
-        })
+        scorecard_rows.append(
+            {
+                "topo": topo,
+                "n_max_dual": n_max_dual,
+                "best_dual": best_dual,
+                "zoo_icon": zoo_icon,
+                "zoo_str": zoo_str,
+                "total_pts": total_pts,
+                "verified_pct": verified_pct,
+                "dq_icon": dq_icon,
+                "extrap_str": extrap_str,
+                "h_frontier": h_frontier_str,
+            }
+        )
 
     # ── Build scaling matrix ──────────────────────────────────────────────
     all_n_values = sorted(set(c["n_qubits"] for c in configs))
@@ -1413,16 +1477,18 @@ def _collect_extrapolation_data() -> dict[str, list[dict]]:
             abs_errs = np.abs(e_pred - e_exact)
             de_gaps = abs_errs / np.maximum(gaps, 1e-10)
             dual_mask = (de_gaps < 0.05) & (abs_errs < 0.10)
-            result[topo].append({
-                "n_qubits": n_qubits,
-                "n_pts": n_pts,
-                "h_min": float(h_values.min()),
-                "h_max": float(h_values.max()),
-                "mean_de_gap": float(de_gaps.mean()),
-                "mean_per_site": float(abs_errs.mean()) / max(n_qubits, 1),
-                "pass_dual": int(dual_mask.sum()),
-                "pass_5pct": int((de_gaps < 0.05).sum()),
-            })
+            result[topo].append(
+                {
+                    "n_qubits": n_qubits,
+                    "n_pts": n_pts,
+                    "h_min": float(h_values.min()),
+                    "h_max": float(h_values.max()),
+                    "mean_de_gap": float(de_gaps.mean()),
+                    "mean_per_site": float(abs_errs.mean()) / max(n_qubits, 1),
+                    "pass_dual": int(dual_mask.sum()),
+                    "pass_5pct": int((de_gaps < 0.05).sum()),
+                }
+            )
         except Exception:
             continue
     return dict(result)
@@ -1431,8 +1497,7 @@ def _collect_extrapolation_data() -> dict[str, list[dict]]:
 def _compute_n_max_viable_dual(topo_configs: list[dict], threshold: float = 0.70) -> str:
     """Find largest N where pass_rate_dual >= threshold."""
     viable = [
-        c["n_qubits"] for c in topo_configs
-        if c.get("pass_rate_dual_criterion", 0) >= threshold
+        c["n_qubits"] for c in topo_configs if c.get("pass_rate_dual_criterion", 0) >= threshold
     ]
     return str(max(viable)) if viable else "—"
 
@@ -1456,7 +1521,9 @@ def _build_scorecard_section(rows: list[dict]) -> list[str]:
 
 
 def _build_scaling_matrix_section(
-    topologies: list[str], configs: list[dict], all_n_values: list[int],
+    topologies: list[str],
+    configs: list[dict],
+    all_n_values: list[int],
 ) -> list[str]:
     """Build pass_rate_dual matrix: topology × N."""
     # Filter to N values that at least 2 topologies have
@@ -1505,7 +1572,8 @@ def _build_scaling_matrix_section(
 def _build_gap_masking_section(configs: list[dict]) -> list[str]:
     """Show gap masking severity per topology (reuses generate_gap_masking_table logic)."""
     masked = [
-        c for c in configs
+        c
+        for c in configs
         if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > 0.10
     ]
     lines = [
@@ -1569,7 +1637,9 @@ def _build_extrapolation_section(extrap_data: dict[str, list[dict]]) -> list[str
 
 
 def _build_data_quality_section(
-    topologies: list[str], configs: list[dict], tier_breakdown: dict | None,
+    topologies: list[str],
+    configs: list[dict],
+    tier_breakdown: dict | None,
 ) -> list[str]:
     """Training data quality summary per topology."""
     lines = [
@@ -1628,12 +1698,15 @@ def _build_failure_summary_section(topologies: list[str], configs: list[dict]) -
         best_dual = max((c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0)
 
         if best_dual >= 0.95:
-            lines.append(f"| {topo} | ✅ healthy | best_dual={best_dual:.0%} | Pipeline works correctly |")
+            lines.append(
+                f"| {topo} | ✅ healthy | best_dual={best_dual:.0%} | Pipeline works correctly |"
+            )
             continue
 
         # Gap masking severity
         n_masked = sum(
-            1 for c in topo_configs
+            1
+            for c in topo_configs
             if c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
         )
         mask_severity = sum(
@@ -1644,7 +1717,9 @@ def _build_failure_summary_section(topologies: list[str], configs: list[dict]) -
 
         # Training contamination indicators
         n_not_useful = sum(1 for c in topo_configs if c.get("training_utility") == "not_useful")
-        n_insufficient = sum(1 for c in topo_configs if c.get("training_utility") == "insufficient_signal")
+        n_insufficient = sum(
+            1 for c in topo_configs if c.get("training_utility") == "insufficient_signal"
+        )
 
         # Classify
         if n_not_useful >= 3 and n_masked >= 3:
@@ -1686,7 +1761,9 @@ def _build_failure_summary_section(topologies: list[str], configs: list[dict]) -
 
 
 def _build_actions_section(
-    scorecard: list[dict], configs: list[dict], topo_sum: dict,
+    scorecard: list[dict],
+    configs: list[dict],
+    topo_sum: dict,
 ) -> list[str]:
     """Priority-ordered actions for each topology."""
     lines = [
@@ -1700,8 +1777,11 @@ def _build_actions_section(
         topo = row["topo"]
         # Priority 1: Zoo model broken (pass_dual = 0 or < 30%)
         zoo_val = next(
-            (e["pass_rate"] for e in _load_zoo_manifest()
-             if e.get("topology") == topo and e.get("n_qubits") == 0),
+            (
+                e["pass_rate"]
+                for e in _load_zoo_manifest()
+                if e.get("topology") == topo and e.get("n_qubits") == 0
+            ),
             None,
         )
         if zoo_val is not None and zoo_val < 0.30:
@@ -1709,7 +1789,13 @@ def _build_actions_section(
 
         # Priority 2: Low data quality
         if row["verified_pct"] < 40:
-            actions.append((2, topo, f"⚠️ Run iterative-improve to increase verified% (currently {row['verified_pct']}%)"))
+            actions.append(
+                (
+                    2,
+                    topo,
+                    f"⚠️ Run iterative-improve to increase verified% (currently {row['verified_pct']}%)",
+                )
+            )
 
         # Priority 3: Missing extrapolation
         if row["extrap_str"] == "—":
@@ -1719,7 +1805,13 @@ def _build_actions_section(
         if row["best_dual"] >= 0.80 and row["n_max_dual"] != "—":
             n_max = int(row["n_max_dual"])
             if n_max < 20:
-                actions.append((4, topo, f"🟢 Expand to N={n_max + 4}: good candidate (pass_dual={row['best_dual']:.0%})"))
+                actions.append(
+                    (
+                        4,
+                        topo,
+                        f"🟢 Expand to N={n_max + 4}: good candidate (pass_dual={row['best_dual']:.0%})",
+                    )
+                )
 
     actions.sort(key=lambda x: (x[0], x[1]))
     if actions:
@@ -1738,11 +1830,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Update accelerated_cross_n_coverage.md")
     parser.add_argument("--dry-run", action="store_true", help="Print output without writing")
     parser.add_argument(
-        "--force-regenerate", action="store_true",
+        "--force-regenerate",
+        action="store_true",
         help="Regenerate full document (discards manual sections). Default: update in-place.",
     )
     parser.add_argument(
-        "--skip-tier-breakdown", action="store_true",
+        "--skip-tier-breakdown",
+        action="store_true",
         help="Skip quality tier breakdown analysis (faster)",
     )
     args = parser.parse_args()
@@ -1773,7 +1867,7 @@ def main() -> int:
             n_verified = sum(t.get("verified", 0) for t in tier_breakdown.values())
             total_pts = sum(t.get("total", 0) for t in tier_breakdown.values())
             print(f"  {len(tier_breakdown)} NPZ files, {total_pts} total points")
-            print(f"  ✅ {n_verified} verified ({n_verified*100//max(total_pts,1)}%)")
+            print(f"  ✅ {n_verified} verified ({n_verified * 100 // max(total_pts, 1)}%)")
             if n_legacy:
                 print(f"  📜 {n_legacy} legacy NPZ (no tier field)")
             # Check for quality warnings

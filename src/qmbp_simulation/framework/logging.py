@@ -208,20 +208,7 @@ class ProgressReporter:
             print("=" * width)
 
     def phase(self, phase_num: int, description: str) -> _PhaseContext:
-        """Start a named phase with timing.
-
-        Parameters
-        ----------
-        phase_num : int
-            Phase number (for display).
-        description : str
-            Human-readable phase description.
-
-        Returns
-        -------
-        _PhaseContext
-            Context manager that tracks elapsed time.
-        """
+        """Start a named phase with timing."""
         return _PhaseContext(self, phase_num, description)
 
     def _record_phase(self, phase_num: int, description: str, elapsed_s: float) -> None:
@@ -302,11 +289,5 @@ class _PhaseContext:
         self._reporter._record_phase(self._phase_num, self._description, self.elapsed_s)
 
     def detail(self, message: str) -> None:
-        """Print a detail message within the phase.
-
-        Parameters
-        ----------
-        message : str
-            Detail to display (indented under the phase).
-        """
+        """Print a detail message within the phase."""
         print(f"    {message}")

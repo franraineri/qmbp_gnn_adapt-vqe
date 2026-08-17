@@ -62,3 +62,106 @@ considered useful for MPNN training."""
 MIN_TRAINING_POINTS_FOR_SIGNAL: int = 5
 """Minimum absolute count of dual-passing points for a NPZ to contribute
 useful training signal."""
+
+AUTO_EXCLUDE_MEAN_ABS_ERROR: float = 0.20
+"""If mean |ΔE| across all points exceeds this, AND pass_rate_dual < 20%,
+auto-classify as 'not_useful' regardless of raw pass_rate_dual > 0.
+This catches cases where most points have large errors but a few
+pass the relative criterion due to large gaps (gap masking)."""
+
+AUTO_EXCLUDE_MAX_DUAL_PASS_FOR_MEAN_ERROR: float = 0.20
+"""Maximum dual pass rate to trigger the mean-error exclusion rule.
+If pass_dual < this AND mean |ΔE| > AUTO_EXCLUDE_MEAN_ABS_ERROR,
+the NPZ is auto-excluded."""
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Continuous Quality Scoring (QualityProfile system)
+# ═══════════════════════════════════════════════════════════════════════════════
+# These constants and pure functions define the continuous scoring system.
+# They live here (lowest-level module, no deps) to break the circular
+# dependency between analysis.metrics and framework.quality_profile.
+
+SCORE_DE_GAP_SCALE: float = 0.05
+"""Sigmoid scale for mean ΔE/gap. At this value, score_dg = 0.50.
+Calibrated so that DE_GAP_THRESHOLD (5%) maps to the B/C boundary."""
+
+SCORE_P90_SCALE: float = 0.10
+"""Sigmoid scale for P90 ΔE/gap. At this value, score_p90 = 0.50."""
+
+SCORE_PER_SITE_SCALE: float = 0.02
+"""Sigmoid scale for |ΔE|/N. At this value, score_ps = 0.50."""
+
+SCORE_WEIGHT_MEAN: float = 0.50
+"""Weight of mean ΔE/gap in the composite quality score."""
+
+SCORE_WEIGHT_P90: float = 0.30
+"""Weight of P90 (worst-case) in the composite quality score."""
+
+SCORE_WEIGHT_PER_SITE: float = 0.20
+"""Weight of extensivity (|ΔE|/N) in the composite quality score."""
+
+SCORE_MIN_POINTS_FULL_CONFIDENCE: int = 8
+"""Minimum n_points for full confidence. Below this, score is scaled
+by sqrt(n_points / MIN_POINTS) for a soft penalty."""
+
+GRADE_A_THRESHOLD: float = 0.85
+"""Quality score >= this -> Grade A (excellent, mean dE/gap < ~2%)."""
+
+GRADE_B_THRESHOLD: float = 0.65
+"""Quality score >= this -> Grade B (good, mean dE/gap < ~5%)."""
+
+GRADE_C_THRESHOLD: float = 0.45
+"""Quality score >= this -> Grade C (acceptable, mean dE/gap < ~10%)."""
+
+GRADE_D_THRESHOLD: float = 0.25
+"""Quality score >= this -> Grade D (poor, significant errors)."""
+
+
+def compute_quality_score(
+    mean_de_gap: float,
+    p90_de_gap: float,
+    mean_abs_error_per_site: float | None,
+    n_points: int,
+) -> float:
+    """Compute a continuous quality score in [0, 1]. Higher = better.
+
+    Uses smooth sigmoid mapping: 1/(1 + (x/scale)^2).
+    Pure function, no heavy imports (only stdlib math).
+    """
+    import math
+
+    if not math.isfinite(mean_de_gap) or not math.isfinite(p90_de_gap):
+        return 0.0
+    # Negative values are physically invalid (variational violation)
+    if mean_de_gap < 0 or p90_de_gap < 0:
+        return 0.0
+
+    score_dg = 1.0 / (1.0 + (mean_de_gap / SCORE_DE_GAP_SCALE) ** 2)
+    score_p90 = 1.0 / (1.0 + (p90_de_gap / SCORE_P90_SCALE) ** 2)
+
+    score_ps = 1.0
+    if mean_abs_error_per_site is not None and math.isfinite(mean_abs_error_per_site):
+        score_ps = 1.0 / (1.0 + (mean_abs_error_per_site / SCORE_PER_SITE_SCALE) ** 2)
+
+    raw_score = (
+        SCORE_WEIGHT_MEAN * score_dg
+        + SCORE_WEIGHT_P90 * score_p90
+        + SCORE_WEIGHT_PER_SITE * score_ps
+    )
+
+    confidence = min(1.0, (n_points / SCORE_MIN_POINTS_FULL_CONFIDENCE) ** 0.5)
+    return min(1.0, max(0.0, confidence * raw_score))
+
+
+def grade_from_score(score: float) -> str:
+    """Map quality score [0,1] to letter grade. Display only, never for logic."""
+    if score >= GRADE_A_THRESHOLD:
+        return "A"
+    if score >= GRADE_B_THRESHOLD:
+        return "B"
+    if score >= GRADE_C_THRESHOLD:
+        return "C"
+    if score >= GRADE_D_THRESHOLD:
+        return "D"
+    return "F"

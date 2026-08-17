@@ -80,7 +80,8 @@ def get_h_values(n: int) -> list[float]:
     # Fallback: compute from scaling law
     h_min = 1.5 + 0.020 * n**1.31 + 0.5  # add safety margin
     h_max = h_min + 2.5
-    return np.linspace(h_max, h_min, 6).tolist()
+    # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+    return [round(h, 2) for h in np.linspace(h_max, h_min, 6)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -246,20 +246,7 @@ def _compute_t1_percentile(backend, percentile: int = 5) -> float | None:
 
 
 def check_native_gate_support(backend, required_gates: list[str]) -> dict[str, bool]:
-    """Check whether required gates appear in the backend's native gate set.
-
-    Parameters
-    ----------
-    backend : BackendV2
-        Any Qiskit BackendV2.
-    required_gates : list[str]
-        Gate names to check (e.g. ["ecr", "rz", "sx", "x", "measure"]).
-
-    Returns
-    -------
-    dict[str, bool]
-        Mapping gate_name -> True if present in backend.target.operation_names.
-    """
+    """Check whether required gates appear in the backend's native gate set."""
     op_names = set(backend.target.operation_names)
     return {gate: gate in op_names for gate in required_gates}
 
@@ -887,22 +874,7 @@ class QPUThroughputProfile:
         return max(self.clops_floor, min(self.clops_ceiling, effective))
 
     def time_per_circuit(self, shots: int, n_qubits: int, **kwargs) -> float:
-        """Compute seconds per circuit execution for given shot count.
-
-        Parameters
-        ----------
-        shots : int
-            Number of shots per circuit.
-        n_qubits : int
-            Number of qubits (for CLOPS scaling).
-        **kwargs
-            Passed to estimate_clops (circuit_depth, cx_count).
-
-        Returns
-        -------
-        float
-            Seconds for one circuit execution at the given shot budget.
-        """
+        """Compute seconds per circuit execution for given shot count."""
         clops = self.estimate_clops(n_qubits, **kwargs)
         return shots / clops
 
@@ -1091,22 +1063,9 @@ def estimate_effective_clops(
 ) -> int:
     """Estimate effective CLOPS for a given system size and circuit depth.
 
+
     Convenience wrapper around QPUThroughputProfile.estimate_clops().
     Defaults to ibm_torino profile if none provided.
-
-    Parameters
-    ----------
-    n_qubits : int
-        Number of qubits in the circuit.
-    circuit_depth : int | None
-        Circuit depth (layers). If None, estimated from HVA p=1 CX count.
-    profile : QPUThroughputProfile | None
-        Hardware profile. Defaults to ibm_torino.
-
-    Returns
-    -------
-    int
-        Estimated effective CLOPS.
     """
     if profile is None:
         profile = QPUThroughputProfile.ibm_kingston()

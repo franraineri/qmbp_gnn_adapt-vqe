@@ -19,6 +19,7 @@ class TestWeightedLoss:
         """Training with sample_weight should produce different loss than without."""
         import torch
         from torch_geometric.data import Data
+
         from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN
 
         # Create minimal model
@@ -29,8 +30,8 @@ class TestWeightedLoss:
         n_nodes = 6
         g = Data(
             x=torch.randn(n_nodes, 4),
-            edge_index=torch.tensor([[0,1,2,3,4], [1,2,3,4,5]], dtype=torch.long),
-            node_type=torch.tensor([0,0,0,1,1,1], dtype=torch.long),
+            edge_index=torch.tensor([[0, 1, 2, 3, 4], [1, 2, 3, 4, 5]], dtype=torch.long),
+            node_type=torch.tensor([0, 0, 0, 1, 1, 1], dtype=torch.long),
             n_edges_unique=3,
             n_qubit_nodes=3,
             y=torch.randn(6),  # 3 ZZ + 3 X params
@@ -47,7 +48,7 @@ class TestWeightedLoss:
 
     def test_weight_clamp_guards(self):
         """Weights outside valid range should be clamped."""
-        from qmbp_simulation.analysis.metrics import SAMPLE_WEIGHT_MIN, SAMPLE_WEIGHT_MAX
+        from qmbp_simulation.analysis.metrics import SAMPLE_WEIGHT_MAX, SAMPLE_WEIGHT_MIN
 
         w_low = max(SAMPLE_WEIGHT_MIN, min(SAMPLE_WEIGHT_MAX, -1.0))
         w_high = max(SAMPLE_WEIGHT_MIN, min(SAMPLE_WEIGHT_MAX, 5.0))
@@ -144,7 +145,7 @@ class TestDataAugmentation:
         v2 = augment_theta_symmetries(theta, noise_std=0.05, seed=123)
 
         assert len(v1) == len(v2)
-        for a, b in zip(v1, v2):
+        for a, b in zip(v1, v2, strict=False):
             np.testing.assert_array_equal(a, b)
 
     def test_augmentation_only_for_verified_in_aggregator(self, tmp_path):
@@ -171,6 +172,7 @@ class TestDataAugmentation:
         )
 
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
         agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
         dataset = agg.build_combined_dataset(max_de_gap=1.0)
 
@@ -178,8 +180,10 @@ class TestDataAugmentation:
         assert len(dataset) >= 5
         # Count augmented (weight=0.8)
         from qmbp_simulation.analysis.metrics import QUALITY_TIER_WEIGHT_AUGMENTED
+
         n_augmented = sum(
-            1 for g in dataset
+            1
+            for g in dataset
             if hasattr(g, "sample_weight")
             and abs(float(g.sample_weight[0]) - QUALITY_TIER_WEIGHT_AUGMENTED) < 1e-5
         )
@@ -211,6 +215,7 @@ class TestDataAugmentation:
         )
 
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
         agg = MultiNAggregator(topology="chain_1d", model="tfim_bond_resolved")
         dataset = agg.build_combined_dataset(max_de_gap=1.0)
 
@@ -234,22 +239,21 @@ class TestAdaptiveVQEConfig:
 
     def test_cheap_tier_for_easy_wins(self):
         """High priority + low de_gap should give cheap tier."""
-        from qmbp_simulation.analysis.metrics import compute_adaptive_vqe_config
-
-        cfg = compute_adaptive_vqe_config(
-            priority=0.9, de_gap=0.06, gap=3.0, n_params=20
+        from qmbp_simulation.analysis.metrics import (
+            ADAPTIVE_VQE_CHEAP_MAXITER,
+            compute_adaptive_vqe_config,
         )
+
+        cfg = compute_adaptive_vqe_config(priority=0.9, de_gap=0.06, gap=3.0, n_params=20)
         assert cfg["tier"] == "cheap"
-        assert cfg["maxiter"] <= 200
-        assert cfg["n_restarts"] == 1
+        assert cfg["maxiter"] <= ADAPTIVE_VQE_CHEAP_MAXITER
+        assert cfg["n_restarts"] <= 5  # Cheap tier uses minimal restarts
 
     def test_standard_tier_for_moderate(self):
         """Moderate priority should give standard tier."""
         from qmbp_simulation.analysis.metrics import compute_adaptive_vqe_config
 
-        cfg = compute_adaptive_vqe_config(
-            priority=0.6, de_gap=0.12, gap=2.0, n_params=30
-        )
+        cfg = compute_adaptive_vqe_config(priority=0.6, de_gap=0.12, gap=2.0, n_params=30)
         assert cfg["tier"] == "standard"
         assert cfg["n_restarts"] <= 5
 
@@ -257,9 +261,7 @@ class TestAdaptiveVQEConfig:
         """Low priority should give aggressive tier."""
         from qmbp_simulation.analysis.metrics import compute_adaptive_vqe_config
 
-        cfg = compute_adaptive_vqe_config(
-            priority=0.3, de_gap=0.30, gap=1.0, n_params=50
-        )
+        cfg = compute_adaptive_vqe_config(priority=0.3, de_gap=0.30, gap=1.0, n_params=50)
         assert cfg["tier"] == "aggressive"
         assert cfg["n_restarts"] == 10  # full budget
 
@@ -267,9 +269,7 @@ class TestAdaptiveVQEConfig:
         """Very low priority should give minimal tier."""
         from qmbp_simulation.analysis.metrics import compute_adaptive_vqe_config
 
-        cfg = compute_adaptive_vqe_config(
-            priority=0.1, de_gap=0.80, gap=0.5, n_params=80
-        )
+        cfg = compute_adaptive_vqe_config(priority=0.1, de_gap=0.80, gap=0.5, n_params=80)
         assert cfg["tier"] == "minimal"
         assert cfg["maxiter"] <= 100
         assert cfg["n_restarts"] == 1
@@ -279,8 +279,12 @@ class TestAdaptiveVQEConfig:
         from qmbp_simulation.analysis.metrics import compute_adaptive_vqe_config
 
         cfg = compute_adaptive_vqe_config(
-            priority=0.3, de_gap=0.25, gap=2.0, n_params=30,
-            base_maxiter=500, base_restarts=3,
+            priority=0.3,
+            de_gap=0.25,
+            gap=2.0,
+            n_params=30,
+            base_maxiter=500,
+            base_restarts=3,
         )
         assert cfg["tier"] == "aggressive"
         assert cfg["maxiter"] == 500

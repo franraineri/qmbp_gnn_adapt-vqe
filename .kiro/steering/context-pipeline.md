@@ -91,6 +91,7 @@ Phase 3:  IF generalization_gap > 0.01 → ABORT (MPNN overfit, 25% of failures)
 
 ## DiagnosticCollector Pattern
 
+```python
 collector = DiagnosticCollector(verbose=True, save_dir=Path("results/"))
 collector.record_vqe_point(h, n_iters, restart_energies, theta_opt, elapsed_s)
 collector.record_mpnn_per_h_error(h_values, per_h_mse)

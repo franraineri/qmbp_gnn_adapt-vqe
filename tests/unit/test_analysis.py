@@ -138,34 +138,34 @@ class TestComputeScalabilityScore:
         from qmbp_simulation.analysis.metrics import compute_scalability_score
 
         score, reason = compute_scalability_score(
-            'chain_1d', n_max_viable=20, pass_rate_dual=0.95, h_frontier=2.5
+            "chain_1d", n_max_viable=20, pass_rate_dual=0.95, h_frontier=2.5
         )
         assert 0.8 <= score <= 1.0
-        assert reason == 'excellent_scaling'
+        assert reason == "excellent_scaling"
 
     def test_poor_scaling_limited_n(self):
         from qmbp_simulation.analysis.metrics import compute_scalability_score
 
         score, reason = compute_scalability_score(
-            'triangular', n_max_viable=4, pass_rate_dual=0.30, h_frontier=4.0
+            "triangular", n_max_viable=4, pass_rate_dual=0.30, h_frontier=4.0
         )
         assert score < 0.4
-        assert 'limited' in reason
+        assert "limited" in reason
 
     def test_moderate_scaling(self):
         from qmbp_simulation.analysis.metrics import compute_scalability_score
 
         score, reason = compute_scalability_score(
-            'ladder', n_max_viable=12, pass_rate_dual=0.70, h_frontier=3.0
+            "ladder", n_max_viable=12, pass_rate_dual=0.70, h_frontier=3.0
         )
         assert 0.5 <= score <= 0.85
-        assert reason in ('moderate_scaling', 'excellent_scaling')
+        assert reason in ("moderate_scaling", "excellent_scaling")
 
     def test_none_n_max_viable(self):
         from qmbp_simulation.analysis.metrics import compute_scalability_score
 
         score, reason = compute_scalability_score(
-            'unknown', n_max_viable=None, pass_rate_dual=0.50, h_frontier=3.0
+            "unknown", n_max_viable=None, pass_rate_dual=0.50, h_frontier=3.0
         )
         # Score should be low when n_max_viable is unknown
         assert score < 0.5
@@ -174,7 +174,7 @@ class TestComputeScalabilityScore:
         from qmbp_simulation.analysis.metrics import compute_scalability_score
 
         score, reason = compute_scalability_score(
-            'chain_1d', n_max_viable=16, pass_rate_dual=0.80, h_frontier=None
+            "chain_1d", n_max_viable=16, pass_rate_dual=0.80, h_frontier=None
         )
         # Should still compute with default h_factor=0.5
         assert 0.4 <= score <= 0.9
@@ -187,55 +187,61 @@ class TestComputeTrainingReadiness:
         from qmbp_simulation.analysis.metrics import compute_training_readiness
 
         tier_breakdown = {
-            'file1.npz': {'verified': 0, 'approximate': 10, 'unverified': 90, 'total': 100},
-            'file2.npz': {'verified': 5, 'approximate': 15, 'unverified': 80, 'total': 100},
+            "file1.npz": {"verified": 0, "approximate": 10, "unverified": 90, "total": 100},
+            "file2.npz": {"verified": 5, "approximate": 15, "unverified": 80, "total": 100},
         }
-        utility = {'useful': [1, 2, 3], 'insufficient_signal': [], 'not_useful': []}
+        utility = {"useful": [1, 2, 3], "insufficient_signal": [], "not_useful": []}
         ready, reason, stats = compute_training_readiness(tier_breakdown, utility)
         assert ready is False
-        assert 'verified_ratio_too_low' in reason
-        assert stats['verified_ratio'] < 0.30
+        assert "verified_ratio_too_low" in reason
+        assert stats["verified_ratio"] < 0.30
 
     def test_ready_high_verified(self):
         from qmbp_simulation.analysis.metrics import compute_training_readiness
 
         tier_breakdown = {
-            'file1.npz': {'verified': 60, 'approximate': 30, 'unverified': 10, 'total': 100},
+            "file1.npz": {"verified": 60, "approximate": 30, "unverified": 10, "total": 100},
         }
-        utility = {'useful': [1, 2, 3, 4], 'insufficient_signal': [], 'not_useful': []}
+        utility = {"useful": [1, 2, 3, 4], "insufficient_signal": [], "not_useful": []}
         ready, reason, stats = compute_training_readiness(tier_breakdown, utility)
         assert ready is True
-        assert reason == 'ready'
+        assert reason == "ready"
 
     def test_not_ready_more_not_useful(self):
         from qmbp_simulation.analysis.metrics import compute_training_readiness
 
         tier_breakdown = {
-            'file1.npz': {'verified': 50, 'approximate': 30, 'unverified': 20, 'total': 100},
+            "file1.npz": {"verified": 50, "approximate": 30, "unverified": 20, "total": 100},
         }
-        utility = {'useful': [1], 'insufficient_signal': [], 'not_useful': [2, 3, 4]}
+        utility = {"useful": [1], "insufficient_signal": [], "not_useful": [2, 3, 4]}
         ready, reason, stats = compute_training_readiness(tier_breakdown, utility)
         assert ready is False
-        assert 'more_not_useful' in reason
+        assert "more_not_useful" in reason
 
     def test_no_data_available(self):
         from qmbp_simulation.analysis.metrics import compute_training_readiness
 
         ready, reason, stats = compute_training_readiness(None, None)
         assert ready is False
-        assert 'no_quality_data' in reason
+        assert "no_quality_data" in reason
 
     def test_legacy_npz_warning(self):
         from qmbp_simulation.analysis.metrics import compute_training_readiness
 
         tier_breakdown = {
-            'file1.npz': {'verified': 0, 'approximate': 0, 'unverified': 20, 'total': 20, 'legacy': True},
-            'file2.npz': {'verified': 40, 'approximate': 10, 'unverified': 0, 'total': 50},
+            "file1.npz": {
+                "verified": 0,
+                "approximate": 0,
+                "unverified": 20,
+                "total": 20,
+                "legacy": True,
+            },
+            "file2.npz": {"verified": 40, "approximate": 10, "unverified": 0, "total": 50},
         }
-        utility = {'useful': [1, 2, 3, 4], 'insufficient_signal': [], 'not_useful': []}
+        utility = {"useful": [1, 2, 3, 4], "insufficient_signal": [], "not_useful": []}
         ready, reason, stats = compute_training_readiness(tier_breakdown, utility)
         assert ready is True
-        assert 'legacy' in reason
+        assert "legacy" in reason
 
 
 class TestComputeExtrapolationViability:
@@ -245,60 +251,60 @@ class TestComputeExtrapolationViability:
         from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
 
         viable, reason, pred = compute_extrapolation_viability(
-            'chain_1d', n_max_viable=20, mean_de_gap_per_n=None, target_n=15
+            "chain_1d", n_max_viable=20, mean_de_gap_per_n=None, target_n=15
         )
         assert viable is True
-        assert 'within_viable' in reason
+        assert "within_viable" in reason
 
     def test_far_beyond_n_max(self):
         from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
 
         viable, reason, pred = compute_extrapolation_viability(
-            'chain_1d', n_max_viable=10, mean_de_gap_per_n=None, target_n=50
+            "chain_1d", n_max_viable=10, mean_de_gap_per_n=None, target_n=50
         )
         assert viable is False
-        assert 'far_beyond' in reason
+        assert "far_beyond" in reason
 
     def test_no_cross_n_data(self):
         from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
 
         viable, reason, pred = compute_extrapolation_viability(
-            'unknown', n_max_viable=None, mean_de_gap_per_n=None, target_n=30
+            "unknown", n_max_viable=None, mean_de_gap_per_n=None, target_n=30
         )
         assert viable is False
-        assert 'no_cross_n_data' in reason
+        assert "no_cross_n_data" in reason
 
     def test_moderately_beyond(self):
         from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
 
         viable, reason, pred = compute_extrapolation_viability(
-            'chain_1d', n_max_viable=20, mean_de_gap_per_n=None, target_n=28
+            "chain_1d", n_max_viable=20, mean_de_gap_per_n=None, target_n=28
         )
         # 28 <= 1.5 * 20 = 30, so should be viable
         assert viable is True
-        assert 'moderately_beyond' in reason
+        assert "moderately_beyond" in reason
 
     def test_with_trend_data_viable(self):
         from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
 
         mean_dg = {6: 0.08, 10: 0.06, 16: 0.05, 20: 0.04}
         viable, reason, pred = compute_extrapolation_viability(
-            'chain_1d', n_max_viable=20, mean_de_gap_per_n=mean_dg, target_n=30
+            "chain_1d", n_max_viable=20, mean_de_gap_per_n=mean_dg, target_n=30
         )
         # Trend suggests decreasing de_gap, extrapolation should be favorable
         assert viable is True
-        assert 'extrapolated_de_gap' in pred
+        assert "extrapolated_de_gap" in pred
 
     def test_with_trend_data_not_viable(self):
         from qmbp_simulation.analysis.metrics import compute_extrapolation_viability
 
         mean_dg = {6: 0.05, 10: 0.10, 16: 0.15, 20: 0.20}
         viable, reason, pred = compute_extrapolation_viability(
-            'chain_1d', n_max_viable=20, mean_de_gap_per_n=mean_dg, target_n=40
+            "chain_1d", n_max_viable=20, mean_de_gap_per_n=mean_dg, target_n=40
         )
         # Trend suggests increasing de_gap, extrapolation unlikely to work
         assert viable is False
-        assert 'above_threshold' in reason
+        assert "above_threshold" in reason
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -313,11 +319,11 @@ class TestComputeDeploySummaryDual:
         from qmbp_simulation.analysis.metrics import compute_deploy_summary
 
         results = [
-            {"de_gap": 0.03, "abs_error": 0.05},   # pass both
-            {"de_gap": 0.04, "abs_error": 0.08},   # pass both
-            {"de_gap": 0.03, "abs_error": 0.15},   # pass 5pct, FAIL dual
-            {"de_gap": 0.06, "abs_error": 0.03},   # FAIL 5pct, pass abs
-            {"de_gap": 0.02, "abs_error": 0.02},   # pass both
+            {"de_gap": 0.03, "abs_error": 0.05},  # pass both
+            {"de_gap": 0.04, "abs_error": 0.08},  # pass both
+            {"de_gap": 0.03, "abs_error": 0.15},  # pass 5pct, FAIL dual
+            {"de_gap": 0.06, "abs_error": 0.03},  # FAIL 5pct, pass abs
+            {"de_gap": 0.02, "abs_error": 0.02},  # pass both
         ]
         s = compute_deploy_summary(results)
 
@@ -387,7 +393,7 @@ class TestComputeDeploySummaryDual:
         from qmbp_simulation.analysis.metrics import compute_deploy_summary
 
         results = [
-            {"de_gap": 0.05, "abs_error": 0.10},   # at boundary → FAIL (>=)
+            {"de_gap": 0.05, "abs_error": 0.10},  # at boundary → FAIL (>=)
             {"de_gap": 0.049, "abs_error": 0.099},  # just below → PASS
         ]
         s = compute_deploy_summary(results)
@@ -511,9 +517,8 @@ class TestDashboardHasDualField:
 
     def test_dashboard_config_has_dual_field(self):
         """Dashboard configs must include pass_rate_dual_criterion."""
-        from qmbp_simulation.analysis.metrics import generate_model_quality_dashboard
-        from pathlib import Path
         import json
+        from pathlib import Path
 
         # Read the existing dashboard (don't regenerate — slow + needs NPZ)
         root = Path(__file__).resolve().parents[2]
@@ -528,8 +533,7 @@ class TestDashboardHasDualField:
         # Every config must have pass_rate_dual_criterion
         for c in configs:
             assert "pass_rate_dual_criterion" in c, (
-                f"Config {c.get('topology')} N={c.get('n_qubits')} "
-                f"missing pass_rate_dual_criterion"
+                f"Config {c.get('topology')} N={c.get('n_qubits')} missing pass_rate_dual_criterion"
             )
             # And it must be <= pass_rate_5pct (dual is always stricter)
             dual = c["pass_rate_dual_criterion"]
@@ -541,8 +545,8 @@ class TestDashboardHasDualField:
 
     def test_topology_summary_has_dual_field(self):
         """Topology summary must include best_pass_rate_dual."""
-        from pathlib import Path
         import json
+        from pathlib import Path
 
         root = Path(__file__).resolve().parents[2]
         dashboard_path = root / "data" / "model_quality_dashboard.json"
@@ -567,7 +571,6 @@ class TestMetricVersionInEnvelope:
         # We can't easily run a full runner in a unit test, but we can
         # check that the field is set in the code by inspecting the dict
         # construction.
-        import ast
         from pathlib import Path
 
         runner_base = Path("src/qmbp_simulation/framework/runner_base.py")
@@ -587,6 +590,7 @@ class TestDiagnoseIntrinsicVQEError:
 
     def _call(self, h_values, de_gaps, abs_errors, n_qubits=10, p_layers=1, coordination=2):
         from qmbp_simulation.analysis.failures_tests import diagnose_intrinsic_vqe_error
+
         return diagnose_intrinsic_vqe_error(
             h_values=np.array(h_values),
             de_gaps=np.array(de_gaps),
@@ -677,6 +681,7 @@ class TestDiagnoseContaminatedTraining:
 
     def _call(self, h_values, de_gaps, abs_errors, theta_smoothness=0.1, n_qubits=10):
         from qmbp_simulation.analysis.failures_tests import diagnose_contaminated_training
+
         return diagnose_contaminated_training(
             h_values=np.array(h_values),
             de_gaps=np.array(de_gaps),
@@ -747,3 +752,304 @@ class TestDiagnoseContaminatedTraining:
         # 5 isolated out of 10 interior points = 50%
         assert result["n_isolated_failures"] == 5
         assert result["isolated_fraction"] > 0.4
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tests for MPNN Model Diagnostics (compute_variational_violations, etc.)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestComputeVariationalViolations:
+    """Test compute_variational_violations detection.
+
+    Variational violation = E_pred < E_exact (energy below ground state).
+    This is physically impossible and indicates numerical issues or data corruption.
+    """
+
+    def test_no_violations(self):
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        # All predictions are ABOVE exact ground state energy (OK)
+        results = [
+            {"e_pred": -4.9, "e_exact": -5.0, "h": 3.0},  # OK: -4.9 > -5.0
+            {"e_pred": -4.8, "e_exact": -5.0, "h": 3.5},  # OK: -4.8 > -5.0
+            {"e_pred": -5.0, "e_exact": -5.0, "h": 4.0},  # OK: equal
+        ]
+        v = compute_variational_violations(results)
+
+        assert v["n_violations"] == 0
+        assert v["n_total"] == 3
+        assert v["rate"] == 0.0
+        assert v["max_violation"] == 0.0
+        assert len(v["violations"]) == 0
+
+    def test_some_violations(self):
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        # Violation = E_pred < E_exact (below ground state - impossible)
+        results = [
+            {"e_pred": -5.1, "e_exact": -5.0, "h": 3.0},  # VIOLATION: -5.1 < -5.0
+            {"e_pred": -4.8, "e_exact": -5.0, "h": 3.5},  # OK: -4.8 > -5.0
+            {"e_pred": -5.2, "e_exact": -5.0, "h": 4.0},  # VIOLATION: -5.2 < -5.0
+        ]
+        v = compute_variational_violations(results)
+
+        assert v["n_violations"] == 2
+        assert v["n_total"] == 3
+        assert v["rate"] == pytest.approx(2 / 3)
+        # max undershoot: -5.0 - (-5.2) = 0.2
+        assert v["max_violation"] == pytest.approx(0.2)
+        assert len(v["violations"]) == 2
+
+    def test_all_violations(self):
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        # All predictions below exact
+        results = [
+            {"e_pred": -5.1, "e_exact": -5.0, "h": 3.0},  # -5.1 < -5.0
+            {"e_pred": -5.2, "e_exact": -5.0, "h": 3.5},  # -5.2 < -5.0
+        ]
+        v = compute_variational_violations(results)
+
+        assert v["n_violations"] == 2
+        assert v["rate"] == 1.0
+
+    def test_empty_results(self):
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        v = compute_variational_violations([])
+        assert v["n_violations"] == 0
+        assert v["n_total"] == 0
+        assert v["rate"] == 0.0
+
+    def test_missing_fields(self):
+        """Results missing e_pred or e_exact are skipped."""
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        results = [
+            {"e_pred": -5.0, "h": 3.0},  # Missing e_exact → skipped
+            {"e_exact": -5.0, "h": 3.5},  # Missing e_pred → skipped
+            {"e_pred": -5.0, "e_exact": -5.0, "h": 4.0},  # OK: equal
+        ]
+        v = compute_variational_violations(results)
+
+        assert v["n_total"] == 1  # Only one valid point
+        assert v["n_violations"] == 0
+
+    def test_e_vqe_key_also_works(self):
+        """The function should accept both e_pred and e_vqe keys."""
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        results = [
+            {"e_vqe": -5.1, "e_exact": -5.0, "h": 3.0},  # VIOLATION via e_vqe
+            {"e_vqe": -4.9, "e_exact": -5.0, "h": 3.5},  # OK
+        ]
+        v = compute_variational_violations(results)
+
+        assert v["n_violations"] == 1
+        assert v["n_total"] == 2
+
+    def test_tolerance_respected(self):
+        """Violations within tolerance are not counted."""
+        from qmbp_simulation.analysis.metrics import compute_variational_violations
+
+        # E_pred is 1e-8 below E_exact
+        results = [
+            {"e_pred": -5.0 - 1e-8, "e_exact": -5.0, "h": 3.0},  # Within default 1e-6 tolerance
+        ]
+        v = compute_variational_violations(results)
+        assert v["n_violations"] == 0
+
+        # With smaller tolerance, it's a violation
+        v2 = compute_variational_violations(results, tolerance=1e-9)
+        assert v2["n_violations"] == 1
+
+
+class TestComputeViolationsMultiN:
+    """Test compute_violations_multi_n for multi-N aggregation."""
+
+    def test_vqe_source_detection(self):
+        from qmbp_simulation.analysis.metrics import compute_violations_multi_n
+
+        per_n_data = {
+            10: {
+                "e_vqe": [-5.0, -5.1, -4.9],  # -5.1 < -5.0 is violation
+                "e_exact": [-5.0, -5.0, -5.0],
+            },
+            20: {
+                "e_vqe": [-10.0, -10.0],  # No violations
+                "e_exact": [-10.0, -10.0],
+            },
+        }
+        rate, source, per_n = compute_violations_multi_n(per_n_data)
+
+        assert source == "vqe"
+        assert rate == pytest.approx(1 / 5)  # 1 violation out of 5 points
+        assert per_n[10]["n_violations"] == 1
+        assert per_n[20]["n_violations"] == 0
+
+    def test_mpnn_source_detection(self):
+        from qmbp_simulation.analysis.metrics import compute_violations_multi_n
+
+        per_n_data = {
+            10: {
+                "e_pred": [-5.0, -5.0],
+                "e_exact": [-5.0, -5.0],
+            },
+        }
+        rate, source, per_n = compute_violations_multi_n(per_n_data)
+
+        assert source == "mpnn"
+        assert rate == 0.0
+
+    def test_empty_data(self):
+        from qmbp_simulation.analysis.metrics import compute_violations_multi_n
+
+        rate, source, per_n = compute_violations_multi_n({})
+        assert rate == 0.0
+        assert source == "unknown"
+        assert per_n == {}
+
+
+class TestComputePerNScalingFit:
+    """Test compute_per_n_scaling_fit power law fitting."""
+
+    def test_extensive_scaling(self):
+        """Error per site roughly constant with N → α ≈ 0."""
+        from qmbp_simulation.analysis.metrics import compute_per_n_scaling_fit
+
+        n_vals = [10, 20, 30, 40, 50]
+        # Roughly constant error per site → extensive
+        errors = [0.010, 0.011, 0.009, 0.012, 0.010]
+
+        fit = compute_per_n_scaling_fit(n_vals, errors)
+
+        assert fit is not None
+        assert abs(fit["alpha"]) < 0.3
+        assert fit["interpretation"] == "extensive (α≈0)"
+        assert fit["r_squared"] >= 0  # R² can be low for noisy data
+
+    def test_subextensive_scaling(self):
+        """Error per site decreases with N → α < -0.3."""
+        from qmbp_simulation.analysis.metrics import compute_per_n_scaling_fit
+
+        n_vals = [10, 20, 40, 80]
+        # Error per site decreases strongly: 0.05/N^0.5 pattern
+        errors = [0.016, 0.011, 0.008, 0.006]
+
+        fit = compute_per_n_scaling_fit(n_vals, errors)
+
+        assert fit is not None
+        assert fit["alpha"] < -0.3
+        assert fit["interpretation"] == "sub-extensive (α<0)"
+
+    def test_superextensive_scaling(self):
+        """Error per site increases with N → α > 0.3 (degrading)."""
+        from qmbp_simulation.analysis.metrics import compute_per_n_scaling_fit
+
+        n_vals = [10, 20, 30, 40]
+        # Error per site grows: 0.01 * N^0.5 pattern
+        errors = [0.032, 0.045, 0.055, 0.063]
+
+        fit = compute_per_n_scaling_fit(n_vals, errors)
+
+        assert fit is not None
+        assert fit["alpha"] > 0.3
+        assert fit["interpretation"] == "super-extensive (α>0, degrading)"
+
+    def test_insufficient_data(self):
+        """Less than 3 valid points returns None."""
+        from qmbp_simulation.analysis.metrics import compute_per_n_scaling_fit
+
+        assert compute_per_n_scaling_fit([10, 20], [0.01, 0.02]) is None
+        assert compute_per_n_scaling_fit([10], [0.01]) is None
+        assert compute_per_n_scaling_fit([], []) is None
+
+    def test_invalid_values_filtered(self):
+        """NaN and zero values are filtered out."""
+        from qmbp_simulation.analysis.metrics import compute_per_n_scaling_fit
+
+        n_vals = [10, 20, 30, 40, 50]
+        errors = [0.01, float("nan"), 0.0, 0.01, 0.01]  # Only 3 valid
+
+        fit = compute_per_n_scaling_fit(n_vals, errors)
+
+        # Should still work with 3 valid points
+        assert fit is not None
+
+
+class TestComputeMPNNDiagnostics:
+    """Test compute_mpnn_diagnostics consolidated function."""
+
+    def test_basic_diagnostics(self):
+        """Diagnostics computed from mock MPNN results."""
+        from qmbp_simulation.analysis.metrics import compute_mpnn_diagnostics
+
+        mpnn_results = {
+            10: {
+                "per_point": [
+                    {"e_pred": -5.0, "e_exact": -5.0, "h": 3.0, "theta": [0.1, 0.2]},
+                    {"e_pred": -5.1, "e_exact": -5.0, "h": 3.5, "theta": [0.12, 0.21]},
+                    {"e_pred": -5.2, "e_exact": -5.1, "h": 4.0, "theta": [0.14, 0.22]},
+                ],
+                "mean_abs_error_per_site": 0.01,
+            },
+            20: {
+                "per_point": [
+                    {"e_pred": -10.0, "e_exact": -10.0, "h": 3.0, "theta": [0.1, 0.2]},
+                    {"e_pred": -10.2, "e_exact": -10.1, "h": 3.5, "theta": [0.11, 0.21]},
+                    {"e_pred": -10.4, "e_exact": -10.2, "h": 4.0, "theta": [0.12, 0.22]},
+                ],
+                "mean_abs_error_per_site": 0.012,
+            },
+        }
+
+        diag = compute_mpnn_diagnostics(
+            mpnn_results,
+            include_training_quality=False,  # Skip zoo lookup in test
+        )
+
+        # Check variational violations (there are some in the data)
+        assert "variational_violations" in diag
+        assert 10 in diag["variational_violations"]
+        assert 20 in diag["variational_violations"]
+
+        # Check summary
+        assert "summary" in diag
+        assert "variational_violation_rate" in diag["summary"]
+        assert "overall_health" in diag["summary"]
+
+    def test_with_scaling_fit(self):
+        """Scaling fit computed when ≥3 N values."""
+        from qmbp_simulation.analysis.metrics import compute_mpnn_diagnostics
+
+        mpnn_results = {
+            10: {"per_point": [], "mean_abs_error_per_site": 0.010},
+            20: {"per_point": [], "mean_abs_error_per_site": 0.011},
+            30: {"per_point": [], "mean_abs_error_per_site": 0.012},
+        }
+
+        diag = compute_mpnn_diagnostics(mpnn_results, include_training_quality=False)
+
+        assert "scaling_fit" in diag
+        assert "alpha" in diag["scaling_fit"]
+        assert "interpretation" in diag["scaling_fit"]
+
+    def test_checkpoint_provenance(self):
+        """Checkpoint path tracked in diagnostics."""
+        from qmbp_simulation.analysis.metrics import compute_mpnn_diagnostics
+
+        diag = compute_mpnn_diagnostics(
+            {10: {"per_point": [], "mean_abs_error_per_site": 0.01}},
+            checkpoint_path="/path/to/model.pt",
+            include_training_quality=False,
+        )
+
+        assert diag["checkpoint_used"] == "/path/to/model.pt"
+
+        # Without checkpoint, shows "auto-selected"
+        diag2 = compute_mpnn_diagnostics(
+            {10: {"per_point": [], "mean_abs_error_per_site": 0.01}},
+            include_training_quality=False,
+        )
+        assert diag2["checkpoint_used"] == "auto-selected from zoo"

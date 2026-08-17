@@ -60,23 +60,9 @@ from qmbp_simulation.utils import canonicalize_theta  # noqa: F401 — re-export
 def detect_format(data: dict) -> str:
     """Detect JSON format: 'scaling' or 'pipeline_run'.
 
+
     Scaling format contains top-level keys "vqe_results" and "metadata".
     Pipeline_run format contains top-level keys "config" and "diagnostics".
-
-    Parameters
-    ----------
-    data : dict
-        Loaded JSON data.
-
-    Returns
-    -------
-    str
-        Either "scaling" or "pipeline_run".
-
-    Raises
-    ------
-    ValueError
-        If format is unrecognized (neither set of keys is present).
     """
     if "vqe_results" in data and "metadata" in data:
         return "scaling"

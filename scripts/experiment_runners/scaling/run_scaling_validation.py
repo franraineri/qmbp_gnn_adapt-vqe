@@ -166,7 +166,10 @@ class MPSScalingValidationRunner(ValidationRunner):
             self._args.h_min if self._args.h_min is not None else self._h_min_predicted + 0.5
         )
         self._h_max = self._args.h_max if self._args.h_max is not None else self._h_min + 1.5
-        self._h_values = np.linspace(self._h_max, self._h_min, self._args.h_points).tolist()
+        # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+        self._h_values = [
+            round(h, 2) for h in np.linspace(self._h_max, self._h_min, self._args.h_points)
+        ]
 
         logger.info(f"  Scaling law h_min_safe = {self._h_min_predicted:.3f} for N={N}")
         logger.info(

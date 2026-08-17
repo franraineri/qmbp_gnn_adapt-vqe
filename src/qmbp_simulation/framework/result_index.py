@@ -722,7 +722,12 @@ class ResultIndex:
             if rate > best[key]["pass_rate"] or (
                 rate == best[key]["pass_rate"] and n > best[key]["n"]
             ):
-                best[key] = {"pass_rate": rate, "n": n}
+                best[key] = {
+                    "pass_rate": rate,
+                    "n": n,
+                    "grade": entry.get("grade"),
+                    "mean_de_gap": entry.get("mean_de_gap"),
+                }
 
         # Build matrix
         models = sorted(set(k[0] for k in best))
@@ -736,7 +741,15 @@ class ResultIndex:
                     info = best[key]
                     rate = info["pass_rate"]
                     n = info["n"]
-                    matrix[model][topo] = f"{rate:.0%} (N={n})"
+                    # Use grade + mean_de_gap if available, fallback to pass_rate
+                    grade = info.get("grade")
+                    mean_dg = info.get("mean_de_gap")
+                    if grade and mean_dg is not None:
+                        matrix[model][topo] = f"{grade} {mean_dg:.3f} (N={n})"
+                    elif grade:
+                        matrix[model][topo] = f"{grade} (N={n})"
+                    else:
+                        matrix[model][topo] = f"{rate:.0%} (N={n})"
                 else:
                     matrix[model][topo] = "—"
         return matrix
@@ -930,7 +943,7 @@ class ResultIndex:
                 f"**Topologies**: {', '.join(stats.get('topologies', []))}",
                 f"**N values**: {stats.get('n_values', [])}",
                 "",
-                "## Coverage Matrix (latest pass_rate per config)",
+                "## Coverage Matrix (latest quality per config)",
                 "",
             ]
 
@@ -990,8 +1003,9 @@ class ResultIndex:
         Reads NPZ files from data/large_n_extrapolation/ and produces a
         per-topology table with key metrics.
         """
-        import numpy as np
         from collections import defaultdict
+
+        import numpy as np
 
         extrap_dir = Path("data") / "large_n_extrapolation"
         if not extrap_dir.exists():
@@ -1029,14 +1043,21 @@ class ResultIndex:
                 if gaps is not None:
                     de_gaps = abs_errs / np.maximum(gaps, 1e-10)
                     mean_dg = float(de_gaps.mean())
-                    pass5 = int((de_gaps < 0.05).sum())
+                    from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
+
+                    pass5 = int((de_gaps < DE_GAP_THRESHOLD).sum())
                 else:
                     mean_dg = -1
                     pass5 = 0
-                topo_data[topo].append({
-                    "n": n_qubits, "pts": n_pts, "dg": mean_dg,
-                    "ps": per_site, "p5": pass5,
-                })
+                topo_data[topo].append(
+                    {
+                        "n": n_qubits,
+                        "pts": n_pts,
+                        "dg": mean_dg,
+                        "ps": per_site,
+                        "p5": pass5,
+                    }
+                )
             except Exception:
                 continue
 
@@ -1046,16 +1067,31 @@ class ResultIndex:
         lines = [
             "## Large-N Extrapolation (Zero-Shot MPNN)",
             "",
-            "| Topology | N | Pts | ΔE/gap | |ΔE|/N | Pass@5% |",
-            "|----------|---|-----|--------|--------|---------|",
+            "| Topology | N | Pts | ΔE/gap | |ΔE|/N | Grade |",
+            "|----------|---|-----|--------|--------|-------|",
         ]
         for topo in sorted(topo_data.keys()):
             entries = sorted(topo_data[topo], key=lambda x: x["n"])
             for e in entries:
                 dg_str = f"{e['dg']:.3f}" if e["dg"] >= 0 else "—"
+                # Compute grade from available data
+                try:
+                    from qmbp_simulation.analysis.constants import (
+                        compute_quality_score,
+                        grade_from_score,
+                    )
+
+                    score = compute_quality_score(
+                        e["dg"] if e["dg"] >= 0 else 1.0,
+                        e["dg"] * 1.5 if e["dg"] >= 0 else 1.0,  # Estimate P90
+                        e["ps"],
+                        e["pts"],
+                    )
+                    grade = grade_from_score(score)
+                except ImportError:
+                    grade = "?"
                 lines.append(
-                    f"| {topo} | {e['n']} | {e['pts']} | "
-                    f"{dg_str} | {e['ps']:.2e} | {e['p5']}/{e['pts']} |"
+                    f"| {topo} | {e['n']} | {e['pts']} | {dg_str} | {e['ps']:.2e} | {grade} |"
                 )
         lines.append("")
         return lines

@@ -1,3 +1,8 @@
+---
+inclusion: fileMatch
+fileMatchPattern: "**/*.tex,**/thesis*,**/documentation/**,**/binnacles/**"
+---
+
 # Thesis Structure Guide — GNN-HVA Framework
 
 > How to frame the results, what goes where, and how to handle the "limitations" narrative.

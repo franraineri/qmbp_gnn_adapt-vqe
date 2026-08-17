@@ -1,166 +1,200 @@
 ---
-inclusion: always
+inclusion: fileMatch
+fileMatchPattern: "**/analysis/**,**/metrics*,**/quality*,**/model_zoo*,**/model_registry*"
 ---
 
-# Analysis Tools — Cross-Integration Utilities
+# Analysis Tools — Guía de Uso
 
-Herramientas de análisis, calidad y escalabilidad. Usar siempre que se trabaje con datos NPZ, entrenamiento MPNN, extrapolación, o validación de pipeline.
+Cuándo y cómo usar las herramientas de análisis, calidad y ModelRegistryDB.
+Para listado completo de funciones/clases → ver `module-index.md`.
 
 ---
 
-## 1. Quality Tier System (`analysis/metrics.py`)
+## Cuándo Usar Cada Herramienta
 
-### is_point_failure(de_gap, abs_error, fidelity)
-Dual criterion: ΔE/gap < 5% AND |ΔE| < 0.10 AND fidelity > 0.97.
+| Pregunta | Módulo | Función/CLI |
+|----------|--------|-------------|
+| ¿Punto es failure? | `analysis.metrics` | `is_point_failure()` |
+| ¿Qué refinar primero? | `analysis.metrics` | `compute_refinement_priority()` |
+| ¿NPZ útil para training? | `analysis.metrics` | `classify_training_utility()` |
+| ¿Puedo entrenar ahora? | `analysis.metrics` | `compute_training_readiness()` |
+| ¿Data multi-N viable? | `analysis.metrics` | `validate_training_dataset()` |
+| ¿Escala bien? | `analysis.metrics` | `compute_scalability_score()` |
+| Dashboard completo | `analysis.metrics` | `generate_model_quality_dashboard()` |
+| Persistir θ con calidad | `framework.result_io` | `upsert_theta_npz(..., quality_tier_new=[...])` |
+| ¿Mejor modelo para N=X? | `predictors.model_zoo` | `load_best_for_cross_n(reject_contaminated=True)` |
+| ¿Modelo zoo confiable? | `predictors.model_zoo` | `load_best_for_cross_n_quality_aware()` |
+| ¿Qué modelos tengo? | `predictors.model_registry_db` | `ModelRegistryDB.query()` / CLI `list` |
+| ¿Modelo tiene problemas? | `predictors.model_registry_db` | `db.run_failure_diagnostics()` / CLI `diagnose` |
+| ¿Modelo contaminado? | `predictors.model_registry_db` | `db.get_models_by_failure_mode("contaminated_training")` |
+| ¿Checkpoint intacto? | `predictors.model_registry_db` | `db.validate_integrity()` / CLI `validate` |
+| ¿Hubo regresiones? | `predictors.model_registry_db` | `db.detect_regressions()` / CLI `regressions` |
+| Health completo | `predictors.model_registry_db` | `db.get_comprehensive_health()` / CLI `comprehensive-health` |
+| ¿Training data cambió? | `predictors.model_registry_db` | `db.check_training_data_changed()` |
+| ¿Qué modelos reentrenar? | `predictors.model_registry_db` | `db.get_models_needing_retrain()` |
+| Registro post-training | `predictors.model_zoo` | `register_checkpoint_with_training_metrics(..., auto_diagnose=True)` |
+
+---
+
+## Dual Criterion (Definición central)
+
 ```python
 from qmbp_simulation.analysis.metrics import is_point_failure
-fail = is_point_failure(de_gap=0.06, abs_error=0.08)  # True (de_gap > 5%)
+# Punto es FAILURE si: ΔE/gap ≥ 5% OR |ΔE| ≥ 0.10 OR fidelity < 0.97
 ```
 
-### identify_failures(per_h_results)
-Bulk failure detection sobre lista de resultados.
-```python
-from qmbp_simulation.analysis.metrics import identify_failures
-failures = identify_failures(per_h_results)  # [0, 3, 7] indices
-```
+---
 
-### compute_refinement_priority(de_gap, abs_error, gap, n_params, ...)
-Ordena fallos por prioridad para refinamiento VQE. Evita gastar compute en puntos sin esperanza.
+## Model Zoo + Registry: Flujo Post-Training
+
+Tras `train_unified_mpnn()`, usar **una sola función** que hace todo:
+
 ```python
-from qmbp_simulation.analysis.metrics import compute_refinement_priority
-priority, should_skip, reason = compute_refinement_priority(
-    de_gap=0.06, abs_error=0.12, gap=2.0, n_params=30, n_prev_attempts=1
+from qmbp_simulation.predictors.model_zoo import register_checkpoint_with_training_metrics
+
+path = register_checkpoint_with_training_metrics(
+    model, entry, training_result=train_result,
+    architecture_config={"hidden_dim": 64, "n_conv_layers": 3, "n_heads": 1},
+    optimizer_config={"learning_rate": 1e-3, "weight_decay": 1e-4},
+    auto_diagnose=True,       # Corre failure diagnostics automáticamente
+    auto_sync_dashboard=True, # Sincroniza dashboard quality
+    overwrite=True,
 )
 ```
 
-### classify_training_utility(n_points, pass_rate_dual, pass_rate_5pct)
-Clasifica NPZ en: "useful", "insufficient_signal", "not_useful".
-```python
-from qmbp_simulation.analysis.metrics import classify_training_utility
-category, reason = classify_training_utility(n_points=40, pass_rate_dual=0.55, pass_rate_5pct=0.70)
-```
+Esto automáticamente:
+1. Guarda checkpoint + metadata en zoo manifest
+2. Registra en ModelRegistryDB con métricas completas (MSE, epochs, stop_reason)
+3. Computa y almacena `training_data_hash` (detecta staleness futuro)
+4. Corre failure diagnostics → auto-tag (clean/contaminated/gap-masked/...)
+5. Sincroniza dashboard quality → needs_retrain, training_utility
 
-### validate_training_dataset(per_n_points, max_de_gap, min_total_points, min_n_values)
-Validación pre-training: verifica que data multi-N sea viable.
+---
+
+## ModelRegistryDB: Patrones Clave
+
 ```python
-from qmbp_simulation.analysis.metrics import validate_training_dataset
-viable, report = validate_training_dataset(agg._data_by_n, min_total_points=10)
+from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
+
+db = ModelRegistryDB()
+
+# CRUD
+models = db.query(topology="chain_1d", min_training_points=50)
+record = db.get_model("unified_tfim_br_chain_1d_multiN_6+8+10+12+20_p1.pt")
+
+# Failure diagnostics (auto-runs on registration, or manually)
+diag = db.run_failure_diagnostics("model.pt", force=True)
+# diag.primary_mode: "healthy" | "contaminated_training" | "gap_masking" | ...
+
+# Staleness detection
+changed, reason = db.check_training_data_changed("model.pt")
+stale = db.detect_stale_models()  # Marca needs_retrain + evento training_data_changed
+
+# Health
+health = db.get_comprehensive_health("model.pt")
+# health["status"]: "healthy" | "warning" | "critical"
+# health["recommendation"]: "deploy" | "investigate" | "retrain" | "do_not_use"
+
+# Retrain queue
+needing = db.get_models_needing_retrain()  # Ordenados: contaminated > stale > other
+
+# Sync from zoo manifest (para modelos legacy)
+db.sync_from_manifest()
+db.enrich_points_per_n()
+db.enrich_from_dashboard()
 ```
 
 ---
 
-## 2. Scalability & Extrapolation (`analysis/metrics.py`)
+## ModelRegistryDB: Dataclasses
 
-### compute_scalability_score(topology, n_max_viable, pass_rate_dual, h_frontier)
-Score 0-1 de qué tan bien escala el pipeline para una topología.
-```python
-from qmbp_simulation.analysis.metrics import compute_scalability_score
-score, reason = compute_scalability_score("chain_1d", 20, 1.0, 3.04)
-```
+| Clase | Campos clave |
+|-------|-------------|
+| `ModelRecord` | model_id, topology, training, evaluations, tags, status, version |
+| `TrainingProvenance` | n_values_used, training_data_hash, architecture_config, optimizer_config, training_metrics |
+| `TrainingMetrics` | final_mse, final_val_mse, epochs, stop_reason, convergence_status, weight_distribution |
+| `ModelArchitectureConfig` | hidden_dim, n_conv_layers, n_heads, dropout, activation |
+| `OptimizerConfig` | learning_rate, weight_decay, scheduler, scheduler_patience, layerwise_lr |
+| `FailureDiagnosticSummary` | primary_mode, confidence, contamination_severity, gap_masked_fraction |
 
-### compute_training_readiness(tier_breakdown, utility_partition)
-¿Los datos están listos para entrenar MPNN?
-```python
-from qmbp_simulation.analysis.metrics import compute_training_readiness, get_usable_training_configs
-partition = get_usable_training_configs(dashboard)
-ready, reason, stats = compute_training_readiness(tier_breakdown, partition)
-```
+---
 
-### generate_model_quality_dashboard(output_path)
-Genera dashboard completo desde todos los NPZ.
-```python
-from qmbp_simulation.analysis.metrics import generate_model_quality_dashboard
-dashboard = generate_model_quality_dashboard()  # → data/model_quality_dashboard.json
-```
+## Failure Modes & Auto-Tags
 
-### generate_unified_scaling_report(dashboard, tier_breakdown, target_n_values)
-Reporte unificado de escalabilidad.
-```python
-from qmbp_simulation.analysis.metrics import generate_unified_scaling_report
-report = generate_unified_scaling_report(dashboard, tier_breakdown=tb, target_n_values=[30, 40])
+| Mode | Auto-tag | Acción |
+|------|----------|--------|
+| `healthy` | `clean` | Deploy |
+| `gap_masking` | `gap-masked` | Investigate (métricas infladas) |
+| `contaminated_training` | `contaminated` | Retrain (reject en load_best_for_cross_n) |
+| `intrinsic_vqe_error` | `ansatz-limited` | Retrain con más p_layers |
+| `generalization_failure` | `cross-n-degraded` | Retrain con más N values |
+
+---
+
+## History Events
+
+| Evento | Trigger |
+|--------|---------|
+| `registered` | Modelo nuevo en registry |
+| `retrained` | Overwrite con nueva versión |
+| `evaluated` | add_evaluation() |
+| `regression_detected` | pass_rate bajó >5% vs prev evaluation |
+| `training_data_changed` | NPZ hash difiere del almacenado |
+| `auto_retrain_triggered` | Retrain automático disparado |
+| `quality_degraded` | Métricas empeoraron sin retrain |
+| `failure_diagnosed` | Diagnóstico ejecutado |
+| `needs_retrain_flagged/cleared` | Flag set/cleared |
+
+---
+
+## CLI: query_model_registry.py
+
+```bash
+# Uso general
+python scripts/maintenance/query_model_registry.py <subcommand> [options]
+
+# Subcommands principales:
+list [--topology T] [--json]     # Listar modelos
+get "pattern*"                   # Info detallada
+summary                          # Estadísticas
+sync                             # Sync desde zoo manifest
+diagnose <model_id> [--force]    # Failure diagnostics
+diagnostics [--topology T]       # Batch diagnostics
+comprehensive-health <model_id>  # Health completo
+health-dashboard                 # Dashboard global
+best -t <topo> -n <N>           # Mejor modelo para deployment
+validate [<model_id>]           # Integridad
+regressions                      # Detectar regresiones
+history [--model-id M] [--event-type E]
+tag <model_id> --add/--remove TAG
+versions [--topology T]
 ```
 
 ---
 
-## 3. Model Zoo (`predictors/model_zoo.py`)
+## MPNN Diagnostics Consolidados (`analysis/metrics.py`)
 
-### get_runner_tag(runner_id) / make_date_tag()
-Tags de trazabilidad: 2 letras runner + DDMMYY fecha.
 ```python
-from qmbp_simulation.predictors.model_zoo import get_runner_tag, make_date_tag
-tag = get_runner_tag("accelerated_cross_n_v1")  # "AC"
-date = make_date_tag()  # "100826"
-```
+from qmbp_simulation.analysis.metrics import compute_mpnn_diagnostics
 
-### load_best_for_cross_n(model, topology, n_target, p_layers)
-Carga el mejor modelo para predecir a N=n_target.
-```python
-from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
-model, meta = load_best_for_cross_n("tfim_bond_resolved", "chain_1d", n_target=20, p_layers=1)
-```
-
-### load_best_for_cross_n_quality_aware(model, topology, n_target, p_layers)
-Igual que arriba pero incluye reporte de calidad de datos de entrenamiento.
-```python
-from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n_quality_aware
-model, meta, quality = load_best_for_cross_n_quality_aware(
-    "tfim_bond_resolved", "chain_1d", n_target=20, p_layers=1
+diag = compute_mpnn_diagnostics(
+    mpnn_results_by_n={10: {...}, 20: {...}},
+    topology="chain_1d", model_name="tfim_bond_resolved", p_layers=1,
 )
-# quality: {"verified_ratio": 0.52, "quality_score": 0.84, "warnings": [...]}
-```
-
-### get_training_data_quality(topology, n_qubits, model, p_layers)
-Calidad de datos NPZ para un modelo específico.
-```python
-from qmbp_simulation.predictors.model_zoo import get_training_data_quality
-quality = get_training_data_quality("chain_1d", 10, "tfim_bond_resolved", 1)
-```
-
-### register_checkpoint(model, entry, overwrite=False)
-Registra modelo en zoo con metadata completa (runner_tag, date_tag incluidos).
-```python
-from qmbp_simulation.predictors.model_zoo import register_checkpoint, ZooEntry
-entry = ZooEntry(model="tfim_bond_resolved", topology="chain_1d", n_qubits=0, p_layers=1,
-    checkpoint_file="unified_...", h_range=(2.0, 5.0), pass_rate=0.95,
-    n_training_points=50, seeds=[42], created="...",
-    runner_tag=get_runner_tag(self.runner_id), date_tag=make_date_tag())
-register_checkpoint(model, entry, overwrite=True)
-```
-
-### validate_zoo()
-Integridad completa: SHA256 checksums, orphans, manifest consistency.
-```python
-from qmbp_simulation.predictors.model_zoo import validate_zoo
-report = validate_zoo()  # {"n_corrupted": 0, "n_missing": 1, ...}
+# diag["summary"]["overall_health"]: "healthy" | "investigate" | "retrain"
+# Incluye: theta_smoothness, variational_violations, scaling_fit, training_data_quality
 ```
 
 ---
 
-## 7. Scripts de Mantenimiento
+## Scripts de Mantenimiento
 
 | Script | Uso |
 |--------|-----|
-| `update_cross_n_coverage.py` | Actualiza coverage doc con quality tier breakdown |
-| `generate_scaling_report.py` | Reporte unificado escalabilidad → JSON |
+| `query_model_registry.py` | CLI completo ModelRegistryDB |
+| `update_cross_n_coverage.py` | Actualiza coverage con quality tiers |
+| `generate_scaling_report.py` | Reporte escalabilidad → JSON |
 | `upgrade_npz_quality_tiers.py` | Agrega quality_tier a NPZ legacy |
-| `run_full_validation.py` | Validación completa pipeline (7 pasos) |
+| `run_full_validation.py` | Validación completa (7 pasos) |
 | `quick_health_check.py` | Check rápido: zoo, NPZ, imports |
-| `inspect_data_stores.py` | Inventario: GT cache, NPZ, zoo, eval_cache |
-
----
-
-## 8. Cuándo Usar Cada Herramienta
-
-| Pregunta | Función/Script |
-|----------|----------------|
-| ¿Este punto es failure? | `is_point_failure()` |
-| ¿Qué puntos refinar primero? | `compute_refinement_priority()` |
-| ¿Mi NPZ es útil para training? | `classify_training_utility()` |
-| ¿Puedo entrenar ahora? | `compute_training_readiness()` |
-| ¿Data multi-N es viable? | `validate_training_dataset()` |
-| ¿Escala bien esta topología? | `compute_scalability_score()` |
-| ¿Funcionará extrapolación N=X? | `compute_extrapolation_viability()` |
-| ¿El modelo zoo es confiable? | `load_best_for_cross_n_quality_aware()` |
-| ¿Mis NPZ tienen tiers? | `get_npz_quality_tiers()` / `upgrade_npz_quality_tiers.py` |
-| Reporte completo de estado | `generate_model_quality_dashboard()` |
-| Persistir θ con calidad | `upsert_theta_npz(..., quality_tier_new=[...])` |
+| `inspect_data_stores.py` | Inventario: GT cache, NPZ, zoo |

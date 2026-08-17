@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Validate Zoo Registration",
+  "description": "After any runner completes, validates that model zoo registrations have correct n_qubits (0 for multi-N, actual N for single-N). Prevents the n_qubits=10 fallback bug from silently corrupting the manifest.",
+  "version": "1",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ".venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --json 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); issues=[f for f in d.get('manifest_findings',[]) if f.get('issue')=='n_qubits_10_for_unified_model' and 'single_n_eval' not in str(f)]; sys.exit(1) if issues else print('Zoo integrity OK')\""
+  }
+}

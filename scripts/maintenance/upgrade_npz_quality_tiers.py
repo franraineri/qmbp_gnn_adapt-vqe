@@ -1,238 +1,335 @@
 #!/usr/bin/env python3
-"""Upgrade legacy NPZ files to include quality_tier field.
+"""Upgrade NPZ files: refresh ground truth, recompute quality tiers, refresh zoo scores.
 
-Computes quality tier for each h-point based on ΔE/gap:
-- verified: ΔE/gap < 5% AND |ΔE| < 0.10 (dual criterion)
-- approximate: ΔE/gap < 10% OR passes single criterion
-- unverified: ΔE/gap >= 10%
+Four-phase pipeline:
+1. Refresh e_exact from GroundTruthCache (prevents stale GT from inflating ΔE/gap)
+2. Recompute quality_tier per point using classify_point_failure() from metrics
+3. Refresh zoo training_quality_scores with updated NPZ stats
+4. Auto-detect new training exclusions (data that became not_useful after refresh)
+
+Quality tiers (assigned by classify_point_failure categories):
+- verified: category="pass" (passes dual criterion)
+- approximate: category="near_pass" or "gap_masked" (close, refinable)
+- unverified: all other categories (moderate_error, severe, ansatz_limited, data_error)
 
 Usage:
     .venv/bin/python scripts/maintenance/upgrade_npz_quality_tiers.py
     .venv/bin/python scripts/maintenance/upgrade_npz_quality_tiers.py --dry-run
-    .venv/bin/python scripts/maintenance/upgrade_npz_quality_tiers.py --backup
+    .venv/bin/python scripts/maintenance/upgrade_npz_quality_tiers.py --skip-gt-refresh
 """
+
 from __future__ import annotations
 
 import argparse
-import shutil
-from datetime import datetime, timezone
+import sys
 from pathlib import Path
 
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
 DATA = ROOT / "data"
-NPZ_DIR = DATA / "multi_n_training"
-BACKUP_DIR = DATA / "multi_n_training_backup"
-
-# Thresholds from analysis/metrics.py
-DE_GAP_THRESHOLD = 0.05
-DE_GAP_LOOSE = 0.10
-MAX_ABS_ERROR = 0.10
+NPZ_DIRS = [
+    DATA / "multi_n_training",
+    DATA / "large_n_extrapolation",
+]
 
 
-def compute_quality_tier(
+def compute_quality_tier_for_npz(
     e_vqe: np.ndarray,
     e_exact: np.ndarray,
     gaps: np.ndarray,
 ) -> np.ndarray:
-    """Compute quality tier for each point."""
+    """Compute quality tier for each point using classify_point_failure.
+
+    Uses the canonical per-point classification to assign tiers consistently
+    with the rest of the pipeline (runners, reports, exclusion system).
+
+    Tier assignment:
+    - "verified": passes dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10)
+    - "approximate": near_pass or gap_masked (refinable, close to threshold)
+    - "unverified": everything else (severe errors, ansatz-limited, data errors)
+    """
+    from qmbp_simulation.analysis.metrics import classify_point_failure
+
     n_points = len(e_vqe)
     tiers = np.array(["unverified"] * n_points, dtype=object)
-    
+
     for i in range(n_points):
-        ev = e_vqe[i]
-        ex = e_exact[i]
-        gap = gaps[i] if i < len(gaps) else 0.1
-        
-        # Skip invalid data
-        if np.isnan(ev) or np.isnan(ex) or gap <= 0:
+        ev, ex = float(e_vqe[i]), float(e_exact[i])
+        gap = float(gaps[i]) if i < len(gaps) else 0.1
+
+        if not np.isfinite(ev) or not np.isfinite(ex) or gap <= 0:
             continue
-            
+
         abs_err = abs(ev - ex)
-        de_gap = abs_err / max(gap, 1e-6)
-        
-        # Dual criterion for verified
-        if de_gap < DE_GAP_THRESHOLD and abs_err < MAX_ABS_ERROR:
+        de_gap = abs_err / max(gap, 1e-10)
+
+        cls = classify_point_failure(de_gap=de_gap, abs_error=abs_err, gap=gap)
+
+        if cls.category == "pass":
             tiers[i] = "verified"
-        # Loose criterion for approximate
-        elif de_gap < DE_GAP_LOOSE or abs_err < MAX_ABS_ERROR:
+        elif cls.category in ("near_pass", "gap_masked"):
             tiers[i] = "approximate"
-        # else remains unverified
-    
+        # else: moderate_error, severe_error, ansatz_limited, data_error → unverified
+
     return tiers
 
 
-def upgrade_npz_file(
+def _get_energy_key(data: dict) -> str | None:
+    """Get the correct energy key from NPZ data (handles legacy 'energies')."""
+    if "e_vqe" in data:
+        return "e_vqe"
+    if "energies" in data:
+        return "energies"
+    return None
+
+
+def upgrade_single_npz(
     npz_path: Path,
-    backup: bool = False,
+    *,
+    refresh_gt: bool = True,
     dry_run: bool = False,
 ) -> dict:
-    """Upgrade a single NPZ file with quality tier."""
+    """Upgrade a single NPZ: refresh GT → recompute tiers → atomic save."""
     result = {
         "file": npz_path.name,
+        "source_dir": npz_path.parent.name,
         "status": "skipped",
+        "n_points": 0,
         "tiers": {"verified": 0, "approximate": 0, "unverified": 0},
+        "promotions": 0,  # approximate/unverified → verified
+        "gt_refreshed": 0,
     }
-    
+
     try:
         data = dict(np.load(str(npz_path), allow_pickle=True))
     except Exception as e:
-        result["status"] = f"error: {e}"
+        result["status"] = f"error_load: {e}"
         return result
-    
-    # Check if already has quality_tier
-    if "quality_tier" in data:
-        tiers = list(data["quality_tier"])
-        result["tiers"] = {
-            "verified": tiers.count("verified"),
-            "approximate": tiers.count("approximate"),
-            "unverified": tiers.count("unverified"),
-        }
-        result["status"] = "already_upgraded"
+
+    # Get energy key (handles legacy "energies" field)
+    e_key = _get_energy_key(data)
+    if e_key is None or "e_exact" not in data or "h_values" not in data:
+        result["status"] = "missing_fields"
         return result
-    
-    # Require minimum fields
-    required = ["h_values", "e_vqe", "e_exact", "gaps"]
-    missing = [k for k in required if k not in data]
-    if missing:
-        result["status"] = f"missing_fields: {missing}"
+
+    n_points = len(data["h_values"])
+    result["n_points"] = n_points
+    if n_points == 0:
+        result["status"] = "empty"
         return result
-    
-    # Compute quality tiers
-    tiers = compute_quality_tier(
-        data["e_vqe"],
-        data["e_exact"],
-        data["gaps"],
-    )
-    
-    tier_counts = {
-        "verified": int((tiers == "verified").sum()),
-        "approximate": int((tiers == "approximate").sum()),
-        "unverified": int((tiers == "unverified").sum()),
+
+    # Ensure gaps exist
+    if "gaps" not in data:
+        data["gaps"] = np.zeros(n_points)
+
+    e_vqe = np.asarray(data[e_key], dtype=np.float64)
+    e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+    gaps = np.asarray(data["gaps"], dtype=np.float64)
+
+    # Phase 1: Refresh ground truth from GroundTruthCache
+    if refresh_gt and not dry_run:
+        # Extract topology/N from filename: {topology}_N{n}_p{p}.npz
+        fname = npz_path.stem
+        try:
+            parts = fname.rsplit("_", 2)  # ["chain_1d", "N10", "p1"]
+            if len(parts) >= 3 and parts[-2].startswith("N") and parts[-1].startswith("p"):
+                topology = parts[0] if len(parts) == 3 else "_".join(parts[:-2])
+                n_qubits = int(parts[-2][1:])
+                from qmbp_simulation.framework.result_io import refresh_npz_ground_truth
+
+                n_gt = refresh_npz_ground_truth(
+                    npz_path,
+                    topology=topology,
+                    n_qubits=n_qubits,
+                )
+                result["gt_refreshed"] = n_gt
+                if n_gt > 0:
+                    # Reload data after GT refresh
+                    data = dict(np.load(str(npz_path), allow_pickle=True))
+                    e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+                    gaps = np.asarray(data["gaps"], dtype=np.float64)
+        except (ValueError, IndexError):
+            pass  # Can't parse filename — skip GT refresh
+
+    # Phase 2: Compute new quality tiers
+    new_tiers = compute_quality_tier_for_npz(e_vqe, e_exact, gaps)
+
+    # Count promotions (old tier worse than new tier)
+    old_tiers = data.get("quality_tier")
+    if old_tiers is not None:
+        old_tiers = np.asarray(old_tiers)
+        tier_rank = {"unverified": 0, "approximate": 1, "verified": 2}
+        for i in range(n_points):
+            old_rank = tier_rank.get(str(old_tiers[i]), 0)
+            new_rank = tier_rank.get(str(new_tiers[i]), 0)
+            if new_rank > old_rank:
+                result["promotions"] += 1
+
+    # Count final tiers
+    result["tiers"] = {
+        "verified": int((new_tiers == "verified").sum()),
+        "approximate": int((new_tiers == "approximate").sum()),
+        "unverified": int((new_tiers == "unverified").sum()),
     }
-    result["tiers"] = tier_counts
-    
+
     if dry_run:
         result["status"] = "would_upgrade"
         return result
-    
-    # Backup if requested
-    if backup:
-        BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-        backup_path = BACKUP_DIR / npz_path.name
-        shutil.copy2(npz_path, backup_path)
-    
-    # Add quality_tier and save
-    data["quality_tier"] = tiers
-    data["quality_tier_version"] = "1.0"
-    data["upgraded_at"] = datetime.now(timezone.utc).isoformat()
-    
-    np.savez(str(npz_path), **data)
-    result["status"] = "upgraded"
+
+    # Phase 2b: Atomic save with updated tiers
+    data["quality_tier"] = new_tiers
+
+    # Recompute de_gaps with current e_exact (may have been refreshed)
+    data["de_gaps"] = np.abs(e_vqe - e_exact) / np.maximum(gaps, 1e-10)
+
+    # Normalize energy key to canonical "e_vqe"
+    if e_key == "energies":
+        data["e_vqe"] = data.pop("energies")
+
+    tmp_path = npz_path.with_suffix(".tmp.npz")
+    try:
+        np.savez(tmp_path, **data)
+        tmp_path.rename(npz_path)
+    except Exception:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
+
+    result["status"] = "upgraded" if old_tiers is None else "refreshed"
     return result
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Upgrade legacy NPZ files with quality tier field"
+        description="Upgrade NPZ quality tiers + refresh GT + update zoo scores"
     )
+    parser.add_argument("--dry-run", action="store_true", help="Show changes without applying")
     parser.add_argument(
-        "--dry-run", action="store_true",
-        help="Show what would be done without modifying files"
+        "--skip-gt-refresh", action="store_true", help="Skip GroundTruthCache refresh"
     )
-    parser.add_argument(
-        "--backup", action="store_true",
-        help="Create backup of each file before upgrading"
-    )
-    parser.add_argument(
-        "--file", type=str, default=None,
-        help="Upgrade a single file (filename only, not path)"
-    )
+    parser.add_argument("--file", type=str, default=None, help="Process single file")
     args = parser.parse_args()
-    
-    if not NPZ_DIR.exists():
-        print(f"NPZ directory not found: {NPZ_DIR}")
-        return 1
-    
-    print("=" * 60)
-    print("NPZ Quality Tier Upgrade")
-    print(f"Directory: {NPZ_DIR}")
+
+    print("=" * 70)
+    print("NPZ Quality Tier Upgrade + Ground Truth Refresh")
     if args.dry_run:
-        print("MODE: Dry run (no changes)")
-    elif args.backup:
-        print(f"MODE: Backup enabled → {BACKUP_DIR}")
-    print("=" * 60)
-    
-    # Get files to process
+        print("MODE: Dry run")
+    print("=" * 70)
+
+    # Collect all NPZ files
+    npz_files = []
+    for d in NPZ_DIRS:
+        if d.exists():
+            npz_files.extend(sorted(d.glob("*.npz")))
+
     if args.file:
-        npz_files = [NPZ_DIR / args.file]
-        if not npz_files[0].exists():
+        npz_files = [f for f in npz_files if f.name == args.file]
+        if not npz_files:
             print(f"File not found: {args.file}")
             return 1
-    else:
-        npz_files = sorted(NPZ_DIR.glob("*.npz"))
-    
-    print(f"\nProcessing {len(npz_files)} files...\n")
-    
-    total = {"verified": 0, "approximate": 0, "unverified": 0}
+
+    print(f"Files to process: {len(npz_files)}")
+    print()
+
+    # Process
+    totals = {"verified": 0, "approximate": 0, "unverified": 0}
     n_upgraded = 0
-    n_skipped = 0
-    n_already = 0
+    n_refreshed = 0
+    n_gt_refreshed = 0
+    total_promotions = 0
     n_error = 0
-    
+
     for npz_file in npz_files:
-        result = upgrade_npz_file(npz_file, backup=args.backup, dry_run=args.dry_run)
-        
+        result = upgrade_single_npz(
+            npz_file,
+            refresh_gt=not args.skip_gt_refresh,
+            dry_run=args.dry_run,
+        )
+
         status = result["status"]
         tiers = result["tiers"]
-        total["verified"] += tiers.get("verified", 0)
-        total["approximate"] += tiers.get("approximate", 0)
-        total["unverified"] += tiers.get("unverified", 0)
-        
-        # Status emoji
+        totals["verified"] += tiers["verified"]
+        totals["approximate"] += tiers["approximate"]
+        totals["unverified"] += tiers["unverified"]
+        total_promotions += result["promotions"]
+        n_gt_refreshed += result["gt_refreshed"]
+
         if status == "upgraded":
-            emoji = "✅"
             n_upgraded += 1
-        elif status == "would_upgrade":
-            emoji = "🔄"
-            n_upgraded += 1
-        elif status == "already_upgraded":
-            emoji = "⏭️"
-            n_already += 1
-        elif status.startswith("error") or status.startswith("missing"):
-            emoji = "❌"
+        elif status == "refreshed":
+            n_refreshed += 1
+        elif status.startswith("error"):
             n_error += 1
-        else:
-            emoji = "⚠️"
-            n_skipped += 1
-        
-        # Format tier counts
-        v, a, u = tiers.get("verified", 0), tiers.get("approximate", 0), tiers.get("unverified", 0)
-        print(f"  {emoji} {result['file']}: {status} (v={v}, a={a}, u={u})")
-    
+
+        # Compact per-file output
+        v, a, u = tiers["verified"], tiers["approximate"], tiers["unverified"]
+        promo = f" (+{result['promotions']}↑)" if result["promotions"] > 0 else ""
+        gt = f" GT:{result['gt_refreshed']}↻" if result["gt_refreshed"] > 0 else ""
+        emoji = {"upgraded": "✅", "refreshed": "🔄", "would_upgrade": "🔍"}.get(status, "⚠️")
+        print(f"  {emoji} {result['source_dir']}/{result['file']}: v={v} a={a} u={u}{promo}{gt}")
+
     # Summary
-    total_pts = total["verified"] + total["approximate"] + total["unverified"]
-    print("\n" + "=" * 60)
+    total_pts = totals["verified"] + totals["approximate"] + totals["unverified"]
+    print()
+    print("=" * 70)
     print("SUMMARY")
-    print("=" * 60)
-    print(f"Files processed: {len(npz_files)}")
-    print(f"  Upgraded: {n_upgraded}")
-    print(f"  Already done: {n_already}")
-    print(f"  Skipped/Error: {n_skipped + n_error}")
+    print("=" * 70)
+    print(
+        f"Files: {len(npz_files)} ({n_upgraded} new + {n_refreshed} refreshed + {n_error} errors)"
+    )
+    print(f"GT refreshed: {n_gt_refreshed} h-points updated from GroundTruthCache")
+    print(f"Promotions: {total_promotions} points upgraded to higher tier")
     print()
     print(f"Total points: {total_pts}")
-    pct_v = total["verified"] * 100 // max(total_pts, 1)
-    pct_a = total["approximate"] * 100 // max(total_pts, 1)
-    pct_u = total["unverified"] * 100 // max(total_pts, 1)
-    print(f"  ✅ Verified: {total['verified']} ({pct_v}%)")
-    print(f"  ⚠️ Approximate: {total['approximate']} ({pct_a}%)")
-    print(f"  ❓ Unverified: {total['unverified']} ({pct_u}%)")
-    print("=" * 60)
-    
-    if args.dry_run:
-        print("\nRun without --dry-run to apply changes.")
-    
+    if total_pts > 0:
+        print(
+            f"  ✅ Verified:    {totals['verified']:>5} ({totals['verified'] * 100 // total_pts}%)"
+        )
+        print(
+            f"  ⚠️  Approximate: {totals['approximate']:>5} ({totals['approximate'] * 100 // total_pts}%)"
+        )
+        print(
+            f"  ❓ Unverified:  {totals['unverified']:>5} ({totals['unverified'] * 100 // total_pts}%)"
+        )
+
+    # Phase 3: Refresh zoo quality scores
+    if not args.dry_run and (n_upgraded > 0 or n_refreshed > 0 or total_promotions > 0):
+        print()
+        print("Refreshing zoo quality scores...")
+        try:
+            from qmbp_simulation.predictors.model_zoo import refresh_zoo_quality_scores
+
+            updated = refresh_zoo_quality_scores()
+            if updated:
+                print(f"  Updated {len(updated)} model scores")
+            else:
+                print("  All scores already current")
+        except Exception as e:
+            print(f"  Score refresh failed (non-blocking): {e}")
+
+    # Phase 4: Auto-detect new exclusions (data that became not_useful after GT refresh)
+    if not args.dry_run:
+        print()
+        print("Checking for new exclusion candidates...")
+        try:
+            from qmbp_simulation.analysis.metrics import auto_detect_exclusions
+
+            new_exclusions = auto_detect_exclusions(dry_run=False)
+            if new_exclusions:
+                print(f"  Auto-excluded {len(new_exclusions)} NPZ file(s):")
+                for exc in new_exclusions[:5]:
+                    print(f"    • {exc['file']} ({exc['topology']} N={exc['n_qubits']})")
+                if len(new_exclusions) > 5:
+                    print(f"    ... and {len(new_exclusions) - 5} more")
+            else:
+                print("  No new exclusions detected")
+        except Exception as e:
+            print(f"  Exclusion check failed (non-blocking): {e}")
+
+    print("=" * 70)
     return 0
 
 

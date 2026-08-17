@@ -441,20 +441,7 @@ class BaseExperiment(ABC):
         return {"lattice": lattice, "hamiltonian": H, "exact": exact}
 
     def evaluate_energy(self, params: np.ndarray, hamiltonian) -> float:
-        """Evaluate energy using the configured backend.
-
-        Parameters
-        ----------
-        params : np.ndarray
-            Circuit parameters.
-        hamiltonian : SparsePauliOp
-            Hamiltonian operator.
-
-        Returns
-        -------
-        float
-            Expectation value ⟨H⟩.
-        """
+        """Evaluate energy using the configured backend."""
         return self.backend.evaluate(self.circuit, hamiltonian, params)
 
     def run_warm_cold_comparison(

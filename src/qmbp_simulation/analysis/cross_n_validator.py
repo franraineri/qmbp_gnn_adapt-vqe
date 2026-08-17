@@ -872,3 +872,69 @@ def preflight_cross_n(
         )
 
     return issues
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Lightweight L1 validation from precomputed data (no re-evaluation needed)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def build_l1_from_precomputed(
+    per_h_results: list[dict],
+    n_target: int,
+    *,
+    de_gap_threshold: float = 0.05,
+) -> list[L1Result]:
+    """Build L1Result list from already-evaluated per-h data."""
+    from qmbp_simulation.analysis.metrics import is_point_failure
+
+    results: list[L1Result] = []
+    for r in per_h_results:
+        h = r.get("h", 0.0)
+        e_pred = r.get("e_pred", r.get("energy", 0.0))
+        e_exact = r.get("e_exact", 0.0)
+        gap = r.get("gap", 1e-10)
+        de_gap = r.get("de_gap", abs(e_pred - e_exact) / max(gap, 1e-10))
+        abs_error = abs(e_pred - e_exact)
+
+        passed = not is_point_failure(
+            de_gap, abs_error=abs_error, de_gap_threshold=de_gap_threshold
+        )
+        results.append(
+            L1Result(
+                h_test=float(h),
+                n_target=n_target,
+                e_pred=float(e_pred),
+                e_exact=float(e_exact),
+                gap=float(gap),
+                de_gap=float(de_gap),
+                passed=passed,
+            )
+        )
+    return results
+
+
+def quick_cross_n_report(
+    per_h_results: list[dict],
+    n_target: int,
+    topology: str,
+    training_sizes: list[int],
+    *,
+    de_gap_threshold: float = 0.05,
+) -> CrossNValidationReport:
+    """Build a CrossNValidationReport from precomputed evaluation data (L1 only, zero cost)."""
+    l1_results = build_l1_from_precomputed(
+        per_h_results, n_target, de_gap_threshold=de_gap_threshold
+    )
+
+    report = CrossNValidationReport(
+        n_target=n_target,
+        topology=topology,
+        training_sizes=training_sizes,
+        l1_results=l1_results,
+    )
+    if l1_results:
+        report.l1_pass_rate = sum(1 for r in l1_results if r.passed) / len(l1_results)
+        report.l1_mean_de_gap = float(np.mean([r.de_gap for r in l1_results]))
+    report.overall_pass = report.l1_pass_rate >= 0.80
+    return report

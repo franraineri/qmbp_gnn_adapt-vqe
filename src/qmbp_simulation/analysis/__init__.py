@@ -51,6 +51,7 @@ from qmbp_simulation.analysis.metrics import (
     detect_h_frontier_anomalies,
     detect_pass_rate_regression,
     detect_training_zoo_incoherence,
+    enforce_h_frontier_monotonicity,
     generate_model_quality_dashboard,
     get_usable_training_configs,
     classify_training_utility,
@@ -66,6 +67,8 @@ from qmbp_simulation.analysis.metrics import (
     GAP_MASKING_THRESHOLD,
     MIN_TRAINING_DUAL_PASS_RATE,
     MIN_TRAINING_POINTS_FOR_SIGNAL,
+    compute_quality_score,
+    grade_from_score,
 )
 from qmbp_simulation.analysis.failures_tests import (
     FailureDiagnostic,
