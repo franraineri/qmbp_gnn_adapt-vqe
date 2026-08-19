@@ -1,0 +1,160 @@
+{
+  "timestamp": "2026-08-19T04:33:07.146718+00:00",
+  "topology": "chain_1d",
+  "target_n": [
+    6
+  ],
+  "h_values": [
+    3.0,
+    3.5,
+    4.0
+  ],
+  "p_layers": 1,
+  "model_name": "tfim_bond_resolved",
+  "n_models": 3,
+  "results": [
+    {
+      "label": "per-topo (unified_tfim_br_chain_1d_multiN_6+8+10+1)",
+      "source": "zoo_per_topology",
+      "checkpoint": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+      "arch": "baseline",
+      "elapsed_s": 1.6,
+      "n_model_params": 400434,
+      "use_residual": false,
+      "readout_mode": "last",
+      "film_conditioning": false,
+      "results_by_n": {
+        "6": {
+          "n_points": 3,
+          "mean_de_gap": 0.011523857527553291,
+          "max_de_gap": 0.018157579235064166,
+          "median_de_gap": 0.010756283649345206,
+          "n_pass_5pct": 3,
+          "pass_rate_5pct": 1.0,
+          "n_pass_10pct": 3,
+          "pass_rate_10pct": 1.0,
+          "mean_abs_error": 0.05631538339058295,
+          "max_abs_error": 0.07724406429509756,
+          "n_pass_dual": 3,
+          "pass_rate_dual": 1.0,
+          "mean_fidelity": null,
+          "fidelity_pass_rate": null,
+          "std_de_gap": 0.005131832801460643,
+          "mean_abs_error_per_site": 0.009385897231763826,
+          "p90_de_gap": 0.016677320117920374,
+          "quality_score": 0.5698518228673911,
+          "grade": "C",
+          "n_params": 11,
+          "metric_warnings": [
+            "\u26a0\ufe0f Only 3 points \u2014 means have low statistical confidence N=6"
+          ],
+          "uncertainty_calibration": {
+            "n_points_with_uncertainty": 3,
+            "pearson_r": 0.6008402839219413,
+            "spearman_r": 0.5,
+            "mean_theta_std": 0.004876598405341308,
+            "high_uncertainty_mean_de_gap": 0.018157579235064166,
+            "low_uncertainty_mean_de_gap": 0.010756283649345206,
+            "calibrated": true
+          }
+        }
+      }
+    },
+    {
+      "label": "multi-topo (unified_tfim_br_multi_topology_multiN_ab)",
+      "source": "zoo_multi_topology",
+      "checkpoint": "unified_tfim_br_multi_topology_multiN_ablation_film_p1.pt",
+      "arch": "film",
+      "elapsed_s": 0.1,
+      "n_model_params": 403506,
+      "use_residual": false,
+      "readout_mode": "last",
+      "film_conditioning": true,
+      "results_by_n": {
+        "6": {
+          "n_points": 3,
+          "mean_de_gap": 0.011859914702732894,
+          "max_de_gap": 0.018441230334291046,
+          "median_de_gap": 0.010289993139814558,
+          "n_pass_5pct": 3,
+          "pass_rate_5pct": 1.0,
+          "n_pass_10pct": 3,
+          "pass_rate_10pct": 1.0,
+          "mean_abs_error": 0.05837842241807678,
+          "max_abs_error": 0.0784507429752459,
+          "n_pass_dual": 3,
+          "pass_rate_dual": 1.0,
+          "mean_fidelity": null,
+          "fidelity_pass_rate": null,
+          "std_de_gap": 0.004861153486814486,
+          "mean_abs_error_per_site": 0.009729737069679464,
+          "p90_de_gap": 0.01681098289539575,
+          "quality_score": 0.5675751799002919,
+          "grade": "C",
+          "n_params": 11,
+          "metric_warnings": [
+            "\u26a0\ufe0f Only 3 points \u2014 means have low statistical confidence N=6"
+          ],
+          "uncertainty_calibration": {
+            "n_points_with_uncertainty": 3,
+            "pearson_r": 0.9026786964497686,
+            "spearman_r": 1.0,
+            "mean_theta_std": 0.005439195471505324,
+            "high_uncertainty_mean_de_gap": 0.018441230334291046,
+            "low_uncertainty_mean_de_gap": 0.006848520634093082,
+            "calibrated": true
+          }
+        }
+      }
+    },
+    {
+      "label": "multi-topo (unified_tfim_br_multitopo_chain_1d+heavy)",
+      "source": "zoo_multi_topology",
+      "checkpoint": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+      "arch": "residual+film",
+      "elapsed_s": 0.1,
+      "n_model_params": 408882,
+      "use_residual": true,
+      "readout_mode": "last",
+      "film_conditioning": true,
+      "results_by_n": {
+        "6": {
+          "n_points": 3,
+          "mean_de_gap": 0.010736506290015891,
+          "max_de_gap": 0.018660532246305334,
+          "median_de_gap": 0.008973410665560223,
+          "n_pass_5pct": 3,
+          "pass_rate_5pct": 1.0,
+          "n_pass_10pct": 3,
+          "pass_rate_10pct": 1.0,
+          "mean_abs_error": 0.05166183899896026,
+          "max_abs_error": 0.07938367410953262,
+          "n_pass_dual": 3,
+          "pass_rate_dual": 1.0,
+          "mean_fidelity": null,
+          "fidelity_pass_rate": null,
+          "std_de_gap": 0.0058837560591466,
+          "mean_abs_error_per_site": 0.008610306499826711,
+          "p90_de_gap": 0.016723107930156314,
+          "quality_score": 0.5747283726138932,
+          "grade": "C",
+          "n_params": 11,
+          "metric_warnings": [
+            "\u26a0\ufe0f Only 3 points \u2014 means have low statistical confidence N=6"
+          ],
+          "uncertainty_calibration": {
+            "n_points_with_uncertainty": 3,
+            "pearson_r": -0.8866529063074324,
+            "spearman_r": -1.0,
+            "mean_theta_std": 0.0071083226551612215,
+            "high_uncertainty_mean_de_gap": 0.004575575958182114,
+            "low_uncertainty_mean_de_gap": 0.018660532246305334,
+            "calibrated": false
+          }
+        }
+      }
+    }
+  ],
+  "best_model": "per-topo (unified_tfim_br_chain_1d_multiN_6+8+10+1)",
+  "best_arch": "baseline"
+}

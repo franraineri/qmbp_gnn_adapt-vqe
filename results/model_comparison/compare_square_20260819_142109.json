@@ -1,0 +1,113 @@
+{
+  "timestamp": "2026-08-19T14:21:09.589101+00:00",
+  "topology": "square",
+  "target_n": [
+    10,
+    16
+  ],
+  "h_values": [
+    1.5,
+    1.75,
+    2.0,
+    2.25,
+    2.5,
+    2.75,
+    3.0,
+    3.25,
+    3.5,
+    3.75,
+    4.0,
+    4.25,
+    4.5,
+    4.75,
+    5.0
+  ],
+  "p_layers": 1,
+  "model_name": "tfim_bond_resolved",
+  "n_models": 1,
+  "results": [
+    {
+      "label": "unified_tfim_br_multitopo_chain_1d+heavy_hex+",
+      "source": "explicit",
+      "checkpoint": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+      "arch": "residual+film",
+      "elapsed_s": 16.8,
+      "n_model_params": 408882,
+      "use_residual": true,
+      "readout_mode": "last",
+      "film_conditioning": true,
+      "results_by_n": {
+        "10": {
+          "n_points": 15,
+          "mean_de_gap": 0.4114047192949336,
+          "max_de_gap": 3.9576907036606803,
+          "median_de_gap": 0.03710505017030386,
+          "n_pass_5pct": 8,
+          "pass_rate_5pct": 0.5333333333333333,
+          "n_pass_10pct": 10,
+          "pass_rate_10pct": 0.6666666666666666,
+          "mean_abs_error": 0.2613902993046748,
+          "max_abs_error": 1.0927017275996853,
+          "n_pass_dual": 6,
+          "pass_rate_dual": 0.4,
+          "mean_fidelity": null,
+          "fidelity_pass_rate": null,
+          "std_de_gap": 0.9893701097962487,
+          "mean_abs_error_per_site": 0.02613902993046748,
+          "p90_de_gap": 0.8578897550825231,
+          "quality_score": 0.0851513516539376,
+          "grade": "F",
+          "n_params": 23,
+          "metric_warnings": [
+            "\u26a0\ufe0f Outlier: max \u0394E/gap=3.958 is 10\u00d7 the mean \u2014 median may be more representative N=10"
+          ],
+          "uncertainty_calibration": {
+            "n_points_with_uncertainty": 15,
+            "pearson_r": 0.7647467314343295,
+            "spearman_r": 0.2178571428571428,
+            "mean_theta_std": 0.004787494009360671,
+            "high_uncertainty_mean_de_gap": 1.1116436016863456,
+            "low_uncertainty_mean_de_gap": 0.043841129059197195,
+            "calibrated": true
+          }
+        },
+        "16": {
+          "n_points": 15,
+          "mean_de_gap": 12.325220044555635,
+          "max_de_gap": 161.54456043715928,
+          "median_de_gap": 0.11098678316203549,
+          "n_pass_5pct": 5,
+          "pass_rate_5pct": 0.3333333333333333,
+          "n_pass_10pct": 7,
+          "pass_rate_10pct": 0.4666666666666667,
+          "mean_abs_error": 0.7180182478039263,
+          "max_abs_error": 3.27650193827424,
+          "n_pass_dual": 0,
+          "pass_rate_dual": 0.0,
+          "mean_fidelity": null,
+          "fidelity_pass_rate": null,
+          "std_de_gap": 40.11835660690048,
+          "mean_abs_error_per_site": 0.044876140487745395,
+          "p90_de_gap": 11.926485962344785,
+          "quality_score": 0.033171146840979736,
+          "grade": "F",
+          "n_params": 40,
+          "metric_warnings": [
+            "\u26a0\ufe0f Outlier: max \u0394E/gap=161.545 is 13\u00d7 the mean \u2014 median may be more representative N=16"
+          ],
+          "uncertainty_calibration": {
+            "n_points_with_uncertainty": 15,
+            "pearson_r": 0.6934856385414099,
+            "spearman_r": 0.9607142857142855,
+            "mean_theta_std": 0.006346642629553875,
+            "high_uncertainty_mean_de_gap": 36.80595675707035,
+            "low_uncertainty_mean_de_gap": 0.03645260843633826,
+            "calibrated": true
+          }
+        }
+      }
+    }
+  ],
+  "best_model": "unified_tfim_br_multitopo_chain_1d+heavy_hex+",
+  "best_arch": "residual+film"
+}
