@@ -224,6 +224,7 @@ def generate_evaluation_report(
     target_n: list[int] | None = None,
     comparison: dict | None = None,
     output_dir: Path | str = "results/extrapolation_evals",
+    is_multi_topology: bool | None = None,
 ) -> Path:
     """Generate a comprehensive markdown evaluation report.
 
@@ -249,6 +250,9 @@ def generate_evaluation_report(
         Full comparison dict (includes "random_vqe", "speedup", "metric_warnings").
     output_dir : Path | str
         Base directory for reports. File saved to {output_dir}/{topology}_p{p}/eval_...md
+    is_multi_topology : bool | None
+        If True, marks report as multi-topology (MT flag in filename and content).
+        If None, auto-detects from checkpoint name (contains "multitopo" or "multi_topology").
 
     Returns
     -------
@@ -267,10 +271,20 @@ def generate_evaluation_report(
     output_dir = Path(output_dir)
     ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
-    # Save to subdirectory: {output_dir}/{topology}_p{p}/eval_{topology}_{ts}.md
+    # Auto-detect multi-topology from checkpoint name
+    if is_multi_topology is None:
+        is_multi_topology = (
+            "multitopo" in (checkpoint or "").lower()
+            or "multi_topology" in (checkpoint or "").lower()
+            or "_MT_" in (checkpoint or "")
+            or checkpoint == "unified_tfim_br_MT"
+        )
+
+    # Save to subdirectory: {output_dir}/{topology}_p{p}/eval_{topology}[_MT]_{ts}.md
     subdir = output_dir / f"{topology}_p{p_layers}"
     subdir.mkdir(parents=True, exist_ok=True)
-    report_path = subdir / f"eval_{topology}_{ts}.md"
+    mt_tag = "_MT" if is_multi_topology else ""
+    report_path = subdir / f"eval_{topology}{mt_tag}_{ts}.md"
 
     # Resolve checkpoint display
     checkpoint_display = checkpoint
@@ -280,12 +294,25 @@ def generate_evaluation_report(
     lines = [
         f"# Model Evaluation: {topology}",
         "",
+    ]
+
+    # Multi-topology banner
+    if is_multi_topology:
+        lines.extend([
+            "> **🌐 MULTI-TOPOLOGY MODEL** — This evaluation uses a model trained on "
+            "multiple topologies simultaneously. Results reflect cross-topology "
+            "transfer capability.",
+            "",
+        ])
+
+    lines.extend([
         f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
         f"**Model**: {checkpoint_display}",
+        f"**Multi-topology**: {'YES' if is_multi_topology else 'no'}",
         f"**h-range**: [{h_range[0]}, {h_range[1]}] ({n_h_points} pts)",
         f"**Target N**: {target_n}",
         "",
-    ]
+    ])
 
     # ── Comparison table (MPNN vs VQE) ────────────────────────────────────
     if comparison:

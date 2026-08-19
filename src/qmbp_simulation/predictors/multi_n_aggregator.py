@@ -648,3 +648,198 @@ class MultiNAggregator:
             "points_per_n": {n: len(pts) for n, pts in self._data_by_n.items()},
             "total_points": sum(len(pts) for pts in self._data_by_n.values()),
         }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Multi-Topology Aggregator
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Default topologies to include (those with sufficient verified data)
+MULTI_TOPOLOGY_DEFAULTS = ["chain_1d", "heavy_hex", "ladder", "square", "triangular"]
+
+
+class MultiTopologyAggregator:
+    """Aggregates bond-resolved data across ALL topologies for universal model training.
+
+    Wraps MultiNAggregator per-topology, combines into a single dataset.
+    The resulting model can predict θ for any topology it was trained on,
+    and potentially generalize to unseen topologies via shared GNN representations.
+
+    Parameters
+    ----------
+    topologies : list[str] | None
+        Topologies to include. None = all available in data/multi_n_training/.
+    model : str
+        Hamiltonian model name (default: tfim_bond_resolved).
+    max_n : int | None
+        Maximum N to include per topology.
+    min_verified_points : int
+        Minimum verified points per topology to include it (quality gate).
+    """
+
+    def __init__(
+        self,
+        topologies: list[str] | None = None,
+        model: str = "tfim_bond_resolved",
+        max_n: int | None = None,
+        min_verified_points: int = 10,
+    ) -> None:
+        self.model = model
+        self.max_n = max_n
+        self.min_verified_points = min_verified_points
+        self._topologies = topologies
+        self._aggregators: dict[str, MultiNAggregator] = {}
+        self._summary: dict[str, dict] = {}
+
+    @property
+    def topologies(self) -> list[str]:
+        """Resolve topologies from parameter or auto-detect from disk."""
+        if self._topologies is not None:
+            return self._topologies
+        # Auto-detect: find all topologies with NPZ data
+        npz_dir = _PROJECT_ROOT / "data" / "multi_n_training"
+        if not npz_dir.exists():
+            return MULTI_TOPOLOGY_DEFAULTS
+        found = set()
+        for f in npz_dir.glob("*_N*_p1.npz"):
+            topo = f.stem.rsplit("_N", 1)[0]
+            found.add(topo)
+        return sorted(found) if found else MULTI_TOPOLOGY_DEFAULTS
+
+    def scan(self) -> dict[str, dict[int, int]]:
+        """Scan all topologies and return per-topology N→points summary.
+
+        Returns
+        -------
+        dict[str, dict[int, int]]
+            {topology: {N: n_points}} for each included topology.
+        """
+        self._aggregators = {}
+        self._summary = {}
+
+        for topo in self.topologies:
+            agg = MultiNAggregator(
+                topology=topo,
+                model=self.model,
+                max_n=self.max_n,
+            )
+            topo_summary = agg.scan()
+
+            if not topo_summary:
+                logger.info(f"  MultiTopo: {topo} — no data, skipping")
+                continue
+
+            self._aggregators[topo] = agg
+            self._summary[topo] = topo_summary
+
+        total = sum(sum(s.values()) for s in self._summary.values())
+        logger.info(
+            f"MultiTopologyAggregator: {len(self._aggregators)} topologies, "
+            f"{total} total points across {sum(len(s) for s in self._summary.values())} configs"
+        )
+        return self._summary
+
+    def build_combined_dataset(
+        self,
+        max_de_gap: float = 0.10,
+        min_n_values: int = 1,
+    ) -> list:
+        """Build a combined PyG dataset from all topologies.
+
+        Reuses each per-topology MultiNAggregator.build_combined_dataset() and
+        concatenates results. The resulting graphs already encode topology
+        structure implicitly (different edge connectivity patterns).
+
+        Quality gate: topologies with fewer than min_verified_points verified
+        data points are excluded to prevent contamination.
+
+        Parameters
+        ----------
+        max_de_gap : float
+            Quality filter per point.
+        min_n_values : int
+            Minimum N values per topology.
+
+        Returns
+        -------
+        list[Data]
+            Combined PyG dataset for UnifiedMPNN training.
+        """
+        if not self._aggregators:
+            self.scan()
+
+        combined_dataset = []
+        topology_stats = {}
+
+        for topo, agg in self._aggregators.items():
+            try:
+                topo_dataset = agg.build_combined_dataset(
+                    max_de_gap=max_de_gap,
+                    min_n_values=min_n_values,
+                )
+            except (ValueError, RuntimeError) as e:
+                logger.warning(f"  MultiTopo: {topo} dataset build failed: {e}")
+                continue
+
+            if not topo_dataset:
+                logger.info(f"  MultiTopo: {topo} — 0 graphs after filtering, skipping")
+                continue
+
+            # Quality gate: check verified count
+            n_verified = sum(
+                1 for g in topo_dataset
+                if hasattr(g, "sample_weight") and g.sample_weight.item() >= 0.95
+            )
+            if n_verified < self.min_verified_points:
+                logger.warning(
+                    f"  MultiTopo: {topo} has only {n_verified} verified points "
+                    f"(need {self.min_verified_points}). Excluding from training."
+                )
+                continue
+
+            # Tag each graph with topology info (for analysis, not used in forward)
+            for g in topo_dataset:
+                g.topology = topo
+
+            combined_dataset.extend(topo_dataset)
+            topology_stats[topo] = {
+                "n_graphs": len(topo_dataset),
+                "n_verified": n_verified,
+            }
+            logger.info(
+                f"  MultiTopo: {topo} → {len(topo_dataset)} graphs "
+                f"({n_verified} verified)"
+            )
+
+        # Validate feature dimension consistency across topologies
+        if len(combined_dataset) > 1:
+            feat_dims = set(g.x.shape[1] for g in combined_dataset)
+            if len(feat_dims) > 1:
+                raise ValueError(
+                    f"Inconsistent node features across topologies: {feat_dims}. "
+                    "All graphs must use the same build_unified_bond_resolved_graph version."
+                )
+
+        logger.info(
+            f"MultiTopologyAggregator: combined dataset = {len(combined_dataset)} graphs "
+            f"from {len(topology_stats)} topologies"
+        )
+        return combined_dataset
+
+    def summary(self) -> dict[str, Any]:
+        """Return aggregation summary."""
+        if not self._aggregators:
+            self.scan()
+        return {
+            "model": self.model,
+            "topologies": list(self._aggregators.keys()),
+            "per_topology": {
+                topo: {
+                    "n_values": sorted(self._summary.get(topo, {}).keys()),
+                    "total_points": sum(self._summary.get(topo, {}).values()),
+                }
+                for topo in self._aggregators
+            },
+            "total_points": sum(sum(s.values()) for s in self._summary.values()),
+            "max_n": self.max_n,
+        }

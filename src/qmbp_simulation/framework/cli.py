@@ -465,7 +465,7 @@ def add_iterative_improve_args(parser: argparse.ArgumentParser) -> argparse._Arg
     """Add iterative improvement loop arguments.
 
     Provides: --iterative-improve, --max-iterations, --improvement-threshold,
-    --budget-only, --force-method, --bidirectional-anchors
+    --budget-only, --force-method, --bidirectional-anchors, --use-residual
 
     These are reusable by any runner that supports the predict→refine→retrain
     cycle for cross-N transfer or deployment quality improvement.
@@ -509,6 +509,14 @@ def add_iterative_improve_args(parser: argparse.ArgumentParser) -> argparse._Arg
         default=False,
         help="Enable bidirectional ascending merge for anchor VQE. "
         "Re-optimizes failing anchors in ascending direction.",
+    )
+    group.add_argument(
+        "--use-residual",
+        action="store_true",
+        default=False,
+        help="Enable residual connections in UnifiedMPNN architecture. "
+        "When set, retrain steps in iterative improve use use_residual=True. "
+        "Auto-detected from loaded model if not explicitly passed.",
     )
     return group
 

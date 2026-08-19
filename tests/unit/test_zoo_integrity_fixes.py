@@ -260,19 +260,18 @@ class TestDashboardZooPassRateNotInflated:
             )
 
     def test_load_best_for_cross_n_prefers_multi_n(self):
-        """load_best_for_cross_n should prefer multi-N model (n_qubits=0)."""
-        from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
+        """load_best_model_for_topology should select best model by unified score."""
+        from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
 
         try:
-            _, entry = load_best_for_cross_n(
+            _, entry, source = load_best_model_for_topology(
+                "chain_1d",
                 model="tfim_bond_resolved",
-                topology="chain_1d",
                 n_target=20,
                 p_layers=1,
             )
-            # Multi-N model should be selected (n_qubits=0)
-            assert entry.n_qubits == 0, (
-                f"Expected multi-N model (n_qubits=0), got n_qubits={entry.n_qubits}"
-            )
+            # Should select a model (any source is valid)
+            assert entry.checkpoint_file, "Expected a valid checkpoint"
+            assert source in ("per_topology", "multi_topology", "single_n")
         except (FileNotFoundError, RuntimeError):
-            pytest.skip("No multi-N model available for this test")
+            pytest.skip("No model available for this test")

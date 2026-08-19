@@ -11,9 +11,9 @@ Introspects src/, scripts/, project_health/, experiments/ and extracts:
 Output: ultra-compact markdown optimized for LLM context (min tokens, max info).
 
 Usage:
-    python scripts/maintenance/generate_module_index.py
-    python scripts/maintenance/generate_module_index.py --output .kiro/steering/module-index.md
-    python scripts/maintenance/generate_module_index.py --dry-run
+    python scripts/general_project_maintenance/generate_module_index.py
+    python scripts/general_project_maintenance/generate_module_index.py --output .kiro/steering/module-index.md
+    python scripts/general_project_maintenance/generate_module_index.py --dry-run
 """
 
 from __future__ import annotations
@@ -482,12 +482,12 @@ def format_index(
         lines.append(
             "Legend: C=class F=func K=const. Base import: `from qmbp_simulation.<module> import ...`"
         )
-        lines.append("Run `python scripts/maintenance/generate_module_index.py` to refresh.")
+        lines.append("Run `python scripts/general_project_maintenance/generate_module_index.py` to refresh.")
         lines.append("")
         lines.extend(_build_quick_lookup(all_packages, all_modules))
     else:
         lines.append("Compact catalog of all code modules. Use to find reusable functionality.")
-        lines.append("Run `python scripts/maintenance/generate_module_index.py` to refresh.")
+        lines.append("Run `python scripts/general_project_maintenance/generate_module_index.py` to refresh.")
     lines.append("")
 
     # Group packages by category
@@ -498,7 +498,7 @@ def format_index(
         "EXP": "Experiments (experiments/)",
         "RUNNER": "Runners (scripts/experiment_runners/)",
         "SCRIPT": "Scripts (scripts/)",
-        "MAINT": "Maintenance (scripts/maintenance/)",
+        "MAINT": "Maintenance (scripts/general_project_maintenance/)",
         "NB": "Notebooks",
     }
 

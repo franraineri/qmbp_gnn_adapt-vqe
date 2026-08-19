@@ -1,6 +1,6 @@
 # Cross-Topology Unified Report
 
-**Generated**: 2026-08-17 21:36 UTC
+**Generated**: 2026-08-18 19:19 UTC
 **Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)
 **Model**: TFIM bond-resolved, HVA p=1
 
@@ -14,23 +14,23 @@
 
 | Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier |
 |----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| chain_1d | 20 | 99% | ✅ 90% | 606 | ✅ 89% | N=200 ❌0% | 1.56 |
-| heavy_hex | 16 | 100% | ✅ 91% | 441 | ✅ 90% | N=40 ✅ | 0.96 |
-| ladder | 6 | 73% | ⚠️ 45% | 497 | ⚠️ 43% | N=40 ❌0% | 1.85 |
-| square | 8 | 85% | ✅ 76% | 424 | ⚠️ 76% | N=30 ❌0% | 1.84 |
-| triangular | 4 | 100% | ⚠️ 42% | 340 | ⚠️ 51% | N=24 ❌0% | 0.50 |
+| chain_1d | 20 | 99% | ⚠️ 69% | 606 | ✅ 89% | N=200 ❌0% | 1.56 |
+| heavy_hex | 16 | 100% | ⚠️ 62% | 441 | ✅ 90% | N=40 ✅ | 0.96 |
+| ladder | 6 | 73% | ❌ 18% | 519 | ⚠️ 46% | N=40 ❌0% | 1.85 |
+| square | 8 | 85% | ⚠️ 33% | 435 | ⚠️ 77% | N=30 ❌0% | 1.84 |
+| triangular | 4 | 100% | ❌ 25% | 383 | ⚠️ 56% | N=24 ❌0% | 0.50 |
 <!-- AUTO-GENERATED-END:scorecard -->
 
 <!-- AUTO-GENERATED-BEGIN:scaling -->
 ## 2. Scaling: pass_rate_dual per (Topology, N)
 
-| Topology | N=4 | N=6 | N=8 | N=10 | N=12 | N=14 | N=16 |
-|----------|---:|---:|---:|---:|---:|---:|---:|
-| chain_1d | — | **99%** ✅ | **96%** ✅ | **92%** ✅ | **91%** ✅ | — | — |
-| heavy_hex | **94%** ✅ | **100%** ✅ | — | **91%** ✅ | **87%** ✅ | — | **87%** ✅ |
-| ladder | 73% ⚠️ | 72% ⚠️ | 50% ⚠️ | 24% ❌ | 48% ❌ | 27% ❌ | 28% ❌ |
-| square | **85%** ✅ | **85%** ✅ | **81%** ✅ | 66% ⚠️ | 63% ⚠️ | 54% ⚠️ | — |
-| triangular | 72% ⚠️ | 58% ⚠️ | 12% ❌ | 12% ❌ | 14% ❌ | — | — |
+| Topology | N=4 | N=6 | N=8 | N=10 | N=12 | N=14 | N=16 | N=20 |
+|----------|---:|---:|---:|---:|---:|---:|---:|---:|
+| chain_1d | — | **99%** ✅ | **96%** ✅ | **92%** ✅ | **91%** ✅ | — | — | 78% ⚠️ |
+| heavy_hex | **94%** ✅ | **100%** ✅ | — | **91%** ✅ | **87%** ✅ | — | **87%** ✅ | — |
+| ladder | 73% ⚠️ | 72% ⚠️ | 50% ⚠️ | 24% ❌ | 48% ❌ | 27% ❌ | 28% ❌ | 36% ❌ |
+| square | **85%** ✅ | **85%** ✅ | **81%** ✅ | 61% ⚠️ | 63% ⚠️ | 54% ⚠️ | — | — |
+| triangular | 72% ⚠️ | 58% ⚠️ | 12% ❌ | 17% ❌ | 7% ❌ | — | — | — |
 
 Legend: ✅ ≥80% | ⚠️ 50-79% | ❌ <50% | — no data
 <!-- AUTO-GENERATED-END:scaling -->
@@ -46,14 +46,14 @@ Configs where single-criterion inflates by >10pp vs dual:
 | ladder | 12 | 94% | 48% | +46% |
 | ladder | 16 | 72% | 28% | +43% |
 | ladder | 8 | 79% | 50% | +29% |
-| triangular | 12 | 43% | 14% | +29% |
 | triangular | 8 | 40% | 12% | +28% |
+| triangular | 12 | 33% | 7% | +26% |
 | square | 12 | 87% | 63% | +23% |
 | ladder | 14 | 48% | 27% | +21% |
-| triangular | 10 | 32% | 12% | +20% |
 | square | 14 | 73% | 54% | +19% |
+| triangular | 10 | 35% | 17% | +19% |
 | ladder | 6 | 87% | 72% | +14% |
-| square | 10 | 80% | 66% | +14% |
+| square | 10 | 72% | 61% | +12% |
 | triangular | 6 | 69% | 58% | +11% |
 <!-- AUTO-GENERATED-END:masking -->
 
@@ -82,9 +82,9 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 | square | 16 | [2.5, 5.0] | 18 | 1/18 ❌ | 1.89e-02 | 0.0904 |
 | square | 20 | [2.5, 5.0] | 18 | 0/18 ❌ | 2.01e-02 | 0.9344 |
 | square | 30 | [2.5, 4.5] | 12 | 0/12 ❌ | 2.89e-02 | 2.5784 |
-| triangular | 12 | [3.5, 5.0] | 6 | 0/6 ❌ | 2.19e-02 | 0.1083 |
-| triangular | 16 | [3.5, 5.0] | 6 | 0/6 ❌ | 3.55e-02 | 0.4003 |
-| triangular | 24 | [3.5, 5.0] | 6 | 0/6 ❌ | 4.37e-02 | 4.0032 |
+| triangular | 12 | [2.5, 5.0] | 10 | 0/10 ❌ | 7.33e-02 | 1.7850 |
+| triangular | 16 | [2.5, 5.0] | 10 | 0/10 ❌ | 1.63e-01 | 28.7030 |
+| triangular | 24 | [2.5, 5.0] | 10 | 0/10 ❌ | 2.56e-01 | 23.4736 |
 <!-- AUTO-GENERATED-END:extrapolation -->
 
 <!-- AUTO-GENERATED-BEGIN:data_quality -->
@@ -94,9 +94,9 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 |----------|-----------|-----------|----------|--------|------------|---------|
 | chain_1d | 6 | 606 | 544 (89%) | 45 | 17 | ✅ |
 | heavy_hex | 5 | 441 | 400 (90%) | 21 | 20 | ✅ |
-| ladder | 7 | 497 | 217 (43%) | 224 | 56 | ⚠️ |
-| square | 6 | 424 | 324 (76%) | 71 | 29 | ⚠️ |
-| triangular | 6 | 340 | 174 (51%) | 91 | 75 | ⚠️ |
+| ladder | 8 | 519 | 239 (46%) | 224 | 56 | ⚠️ |
+| square | 6 | 435 | 337 (77%) | 70 | 28 | ⚠️ |
+| triangular | 6 | 383 | 217 (56%) | 91 | 75 | ⚠️ |
 <!-- AUTO-GENERATED-END:data_quality -->
 
 <!-- AUTO-GENERATED-BEGIN:failure_modes -->
@@ -118,6 +118,8 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 
 | Priority | Topology | Action |
 |:---:|----------|--------|
+| 1 | ladder | 🔴 Re-train UnifiedMPNN (current pass_dual=18%) |
+| 1 | triangular | 🔴 Re-train UnifiedMPNN (current pass_dual=25%) |
 | 4 | heavy_hex | 🟢 Expand to N=20: good candidate (pass_dual=100%) |
 | 4 | square | 🟢 Expand to N=12: good candidate (pass_dual=85%) |
 | 4 | triangular | 🟢 Expand to N=8: good candidate (pass_dual=100%) |

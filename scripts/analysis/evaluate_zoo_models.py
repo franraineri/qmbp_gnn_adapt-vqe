@@ -68,14 +68,34 @@ def evaluate_model(ckpt_path: Path, topology: str, max_pts: int, energy_eval: bo
     model = load_unified_checkpoint(str(ckpt_path))
     model.eval()
 
+    # ── Architecture sanity log ───────────────────────────────────────────
+    arch_info = {
+        "hidden_dim": getattr(model, "hidden_dim", "?"),
+        "n_layers": getattr(model, "n_layers", "?"),
+        "use_residual": getattr(model, "use_residual", False),
+        "n_params": sum(p.numel() for p in model.parameters()),
+    }
+    print(
+        f"    Arch: hidden={arch_info['hidden_dim']}, layers={arch_info['n_layers']}, "
+        f"residual={arch_info['use_residual']}, params={arch_info['n_params']:,}",
+        flush=True,
+    )
+
     results_per_n = []
 
+    # For multi_topology models, evaluate on ALL topologies' NPZ data
+    if topology == "multi_topology":
+        eval_topologies = ["chain_1d", "heavy_hex", "ladder", "square", "triangular"]
+    else:
+        eval_topologies = [topology]
+
     # Evaluate on training NPZ (in-distribution)
-    for npz_file in sorted(NPZ_DIR.glob(f"{topology}_N*_p1.npz")):
+    for eval_topo in eval_topologies:
+      for npz_file in sorted(NPZ_DIR.glob(f"{eval_topo}_N*_p1.npz")):
         result = evaluate_theta_prediction(
             model,
             npz_file,
-            topology,
+            eval_topo,
             p_layers=1,
             model_name="tfim_bond_resolved",
             max_points=max_pts,
@@ -103,7 +123,8 @@ def evaluate_model(ckpt_path: Path, topology: str, max_pts: int, energy_eval: bo
         results_per_n.append(entry)
 
     # Also check extrapolation NPZ (out-of-distribution, summary only)
-    for npz_file in sorted(EXTRAP_DIR.glob(f"{topology}_N*_p1.npz")):
+    for eval_topo in eval_topologies:
+      for npz_file in sorted(EXTRAP_DIR.glob(f"{eval_topo}_N*_p1.npz")):
         n_str = npz_file.stem.split("_N")[1].split("_")[0]
         n_test = int(n_str)
 
@@ -394,6 +415,10 @@ def main() -> int:
     # ── Auto-update zoo pass_rate if --update-zoo ────────────────────────
     if args.update_zoo:
         from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD
+        from qmbp_simulation.predictors.model_registry_db import (
+            EvaluationRecord,
+            ModelRegistryDB,
+        )
         from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
 
         print(f"\n{'─' * 80}")
@@ -401,6 +426,8 @@ def main() -> int:
         print(f"{'─' * 80}")
 
         n_updated = 0
+        registry_db = ModelRegistryDB()
+
         for result in all_results:
             if result.get("error"):
                 continue
@@ -412,10 +439,16 @@ def main() -> int:
             # Use de_gap_mean where available, fall back to energy_per_site_mean
             n_pass = 0
             n_total = 0
+            mean_de_gap_acc = 0.0
+            mean_abs_per_site_acc = 0.0
+            target_n_values = []
             for r in per_n:
                 de_gap = r.get("de_gap_mean")
                 if de_gap is not None:
                     n_total += 1
+                    mean_de_gap_acc += de_gap
+                    mean_abs_per_site_acc += r.get("energy_per_site_mean", 0.0)
+                    target_n_values.append(r["n"])
                     if de_gap < DE_GAP_THRESHOLD:
                         n_pass += 1
 
@@ -423,10 +456,14 @@ def main() -> int:
                 continue
 
             observed_rate = n_pass / n_total
+            mean_de_gap_val = mean_de_gap_acc / n_total
+            mean_abs_per_site_val = mean_abs_per_site_acc / n_total
+
             updated = update_zoo_pass_rate(
                 ckpt,
                 observed_rate,
                 only_if_better=False,  # Always update — this IS the evaluation
+                _skip_db_sync=True,  # We write a richer EvaluationRecord below
                 add_notes=f"eval@{datetime.now(UTC).strftime('%Y%m%d')} "
                 f"N={[r['n'] for r in per_n]} {n_pass}/{n_total}",
             )
@@ -437,10 +474,30 @@ def main() -> int:
                     f"({n_pass}/{n_total} N-values pass)"
                 )
 
+            # ── Persist evaluation to model_registry_db ────────────────
+            # This ensures load_best_model_for_topology sees fresh pass_rate
+            # via the convergence_signal path in the DB.
+            try:
+                eval_record = EvaluationRecord(
+                    evaluated_at=datetime.now(UTC).isoformat(),
+                    target_n_values=target_n_values,
+                    pass_rate_5pct=float(
+                        sum(1 for r in per_n if (r.get("de_gap_mean") or 1.0) < 0.05)
+                        / max(n_total, 1)
+                    ),
+                    pass_rate_dual=observed_rate,
+                    mean_de_gap=mean_de_gap_val,
+                    mean_abs_error_per_site=mean_abs_per_site_val,
+                    notes=f"evaluate_zoo_models N={target_n_values} {n_pass}/{n_total}",
+                )
+                registry_db.add_evaluation(ckpt, eval_record)
+            except Exception:
+                pass  # Model not yet registered in DB — zoo manifest is primary
+
         if n_updated == 0:
             print("    No updates needed")
         else:
-            print(f"\n  Updated {n_updated} zoo entries")
+            print(f"\n  Updated {n_updated} zoo entries + model_registry_db")
 
     return 0
 

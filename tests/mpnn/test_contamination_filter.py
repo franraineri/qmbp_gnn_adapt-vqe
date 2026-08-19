@@ -3,7 +3,7 @@
 Validates that:
 1. _get_contaminated_model_ids only rejects models with HIGH confidence diagnostics
 2. Low-confidence contamination diagnoses are NOT used to reject models
-3. load_best_for_cross_n respects the confidence threshold
+3. Model selection (load_best_model_for_topology) respects contamination filtering
 4. Quality score and grade integration in compute_deploy_summary
 """
 

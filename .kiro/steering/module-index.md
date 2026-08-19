@@ -61,7 +61,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+34
+  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+35
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
@@ -101,7 +101,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### qsim/framework/ (18)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
-  __main__                   CLI  
+  __main__                   CLI   
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -123,7 +123,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG  
+  constants                  CFG   
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -155,9 +155,9 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:compute_model_readiness,compute_training_quality_score,refresh_zoo_quality_scores+15
+  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,heal_manifest+18
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
-  multi_n_aggregator               C:MultiNAggregator
+  multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
   unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+3
 
@@ -170,7 +170,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### qsim/utils/ (1)
   ↳ BatchWriteMixin TimerResult atomic_savez augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize +3
 
-  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,json_serialize,json_dump+6
+  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,json_serialize,json_dump+8
 
 ## Project Health (project_health/)
 
@@ -197,7 +197,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL  
+  gnn_qem_analyzer           VAL   
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (1)
@@ -273,9 +273,13 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 ## Runners (scripts/experiment_runners/)
 
-### s/experiment_runners/cross_topology/ (2)
+### s/experiment_runners/cross_topology/ (6)
 
   helpers                    CORE  C:SourceData,ValidationReport,MLPBaseline | F:detect_format,load_source_data,filter_source_data+12
+  run_arch_ablation          PRED  F:parse_args,apply_exclusion_policy,evaluate_zoo_model+2
+  run_finetune_from_mt       DIAG  F:parse_args,find_mt_checkpoint,main
+  run_model_comparison       PRED  F:parse_args,discover_checkpoints,evaluate_checkpoint+1
+  run_multi_topology_training PRED  F:parse_args,main
   run_vqe_data_gen           DIAG  F:get_h_values,run_vqe_sweep,get_output_path+2
 
 ### Standalone scripts
@@ -291,7 +295,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  _sanity_check_envelope     IO  
+  _sanity_check_envelope     IO    
   benchmark_configs          BENCH C:BenchmarkConfig
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
   run_hardware_mitigation_flow       F:log_step,run_command,check_credentials+10
@@ -330,6 +334,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   campaign_extractor         CORE  F:find_latest_result,extract_a1_qpu_scaling,extract_a5_mps_precision+3
   check_delta_e_by_topo_p    DIAG  F:extract_deploy_points,get_config,main
   check_matrix_gaps                F:parse_args,main
+  compare_ablation_runs      ANAL  F:parse_args,load_runs,format_table+1
   compile_multiseed_report   ANAL  F:extract_metrics,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
   compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4

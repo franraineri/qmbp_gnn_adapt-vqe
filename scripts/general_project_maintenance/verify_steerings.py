@@ -8,25 +8,25 @@ optimally structured for AI agent context efficiency.
 
 Usage:
     # Full check (all steerings)
-    python scripts/maintenance/verify_steerings.py
+    python scripts/general_project_maintenance/verify_steerings.py
 
     # Check specific file(s)
-    python scripts/maintenance/verify_steerings.py .kiro/steering/accelerated-pipeline.md
+    python scripts/general_project_maintenance/verify_steerings.py .kiro/steering/accelerated-pipeline.md
 
     # Only run specific checks
-    python scripts/maintenance/verify_steerings.py --check activation quality tokens
+    python scripts/general_project_maintenance/verify_steerings.py --check activation quality tokens
 
     # Include staleness analysis (uses git log, slower)
-    python scripts/maintenance/verify_steerings.py --check staleness
+    python scripts/general_project_maintenance/verify_steerings.py --check staleness
 
     # Auto-fix trivial issues
-    python scripts/maintenance/verify_steerings.py --fix
+    python scripts/general_project_maintenance/verify_steerings.py --fix
 
     # Output JSON report (for CI)
-    python scripts/maintenance/verify_steerings.py --json
+    python scripts/general_project_maintenance/verify_steerings.py --json
 
     # Output SARIF (for GitHub code scanning)
-    python scripts/maintenance/verify_steerings.py --sarif > steering-report.sarif
+    python scripts/general_project_maintenance/verify_steerings.py --sarif > steering-report.sarif
 """
 
 from __future__ import annotations
@@ -169,7 +169,7 @@ class VerificationReport:
                         "driver": {
                             "name": "verify-steerings",
                             "version": "2.0.0",
-                            "informationUri": "https://github.com/your-repo/scripts/maintenance/verify_steerings.py",
+                            "informationUri": "https://github.com/your-repo/scripts/general_project_maintenance/verify_steerings.py",
                             "rules": list(rules_seen.values()),
                         }
                     },
@@ -1215,7 +1215,7 @@ def check_module_index(report: VerificationReport) -> None:
                     "error",
                     "module-index.md",
                     f"Phantom symbol: {symbol} — listed in index but not importable. "
-                    f"Run: python scripts/maintenance/generate_module_index.py",
+                    f"Run: python scripts/general_project_maintenance/generate_module_index.py",
                 )
             if len(phantoms) > 10:
                 report.add(

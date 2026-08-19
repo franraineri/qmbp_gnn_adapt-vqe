@@ -870,6 +870,79 @@ def compute_fraction_near_gs(
     }
 
 
+def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
+    """Compute correlation between MC-Dropout uncertainty (θ_std) and actual error (ΔE/gap).
+
+    This analysis validates whether the model's uncertainty estimation is
+    well-calibrated: high θ_std should correlate with high ΔE/gap.
+
+    Parameters
+    ----------
+    per_h_results : list[dict]
+        Per-point results, each containing at minimum "de_gap" and optionally "theta_std".
+
+    Returns
+    -------
+    dict
+        {
+            "n_points_with_uncertainty": int,
+            "pearson_r": float | None,  # Pearson correlation [-1, 1]
+            "spearman_r": float | None,  # Rank correlation [-1, 1]
+            "mean_theta_std": float,
+            "high_uncertainty_mean_de_gap": float,  # Mean ΔE/gap for top-30% uncertain
+            "low_uncertainty_mean_de_gap": float,   # Mean ΔE/gap for bottom-30%
+            "calibrated": bool,  # True if high_unc ΔE/gap > low_unc ΔE/gap
+        }
+    """
+    import numpy as np
+
+    # Filter points that have theta_std
+    valid = [(r["de_gap"], r["theta_std"]) for r in per_h_results
+             if "theta_std" in r and r.get("theta_std", 0) > 0 and "de_gap" in r]
+
+    result = {
+        "n_points_with_uncertainty": len(valid),
+        "pearson_r": None,
+        "spearman_r": None,
+        "mean_theta_std": 0.0,
+        "high_uncertainty_mean_de_gap": 0.0,
+        "low_uncertainty_mean_de_gap": 0.0,
+        "calibrated": False,
+    }
+
+    if len(valid) < 3:
+        return result
+
+    de_gaps = np.array([v[0] for v in valid])
+    theta_stds = np.array([v[1] for v in valid])
+    result["mean_theta_std"] = float(np.mean(theta_stds))
+
+    # Pearson correlation
+    if np.std(theta_stds) > 1e-10 and np.std(de_gaps) > 1e-10:
+        r_matrix = np.corrcoef(theta_stds, de_gaps)
+        result["pearson_r"] = float(r_matrix[0, 1])
+
+    # Spearman rank correlation
+    try:
+        from scipy.stats import spearmanr
+        rho, _ = spearmanr(theta_stds, de_gaps)
+        result["spearman_r"] = float(rho) if np.isfinite(rho) else None
+    except (ImportError, ValueError):
+        pass
+
+    # Split into high/low uncertainty groups (top/bottom 30%)
+    n_split = max(1, len(valid) // 3)
+    sorted_indices = np.argsort(theta_stds)
+    low_indices = sorted_indices[:n_split]
+    high_indices = sorted_indices[-n_split:]
+
+    result["low_uncertainty_mean_de_gap"] = float(np.mean(de_gaps[low_indices]))
+    result["high_uncertainty_mean_de_gap"] = float(np.mean(de_gaps[high_indices]))
+    result["calibrated"] = result["high_uncertainty_mean_de_gap"] > result["low_uncertainty_mean_de_gap"]
+
+    return result
+
+
 def compute_deploy_summary(
     per_h_results: list[dict],
     *,
@@ -2168,6 +2241,30 @@ def generate_model_quality_dashboard(
         "topology_summary": topology_summary,
         "audit": audit_results,
     }
+
+    # ── Multi-topology models section ────────────────────────────────────
+    # Track MT models from zoo and their per-topology performance
+    try:
+        from qmbp_simulation.predictors.model_zoo import _load_manifest as _lm_mt
+        _zoo_entries = _lm_mt()
+        mt_entries = [e for e in _zoo_entries if e.topology == "multi_topology"]
+        if mt_entries:
+            mt_models = []
+            for e in mt_entries:
+                mt_models.append({
+                    "checkpoint": e.checkpoint_file,
+                    "pass_rate": e.pass_rate,
+                    "n_training_points": e.n_training_points,
+                    "notes": e.notes[:80] if e.notes else "",
+                    "created": getattr(e, "created", ""),
+                })
+            dashboard["multi_topology_models"] = {
+                "n_models": len(mt_models),
+                "models": mt_models,
+                "best_pass_rate": max(e.pass_rate for e in mt_entries),
+            }
+    except Exception as _mt_err:
+        logger.debug("MT models section skipped: %s", _mt_err)
 
     # Write to disk
     output_path.parent.mkdir(parents=True, exist_ok=True)

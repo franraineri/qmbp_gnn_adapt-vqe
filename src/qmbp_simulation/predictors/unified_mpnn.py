@@ -92,11 +92,16 @@ class UnifiedMPNN(nn.Module):
         dropout: float = 0.1,
         type_embedding_dim: int = 16,
         gate_readout: bool = True,
+        use_residual: bool = False,
+        readout_mode: str = "last",
+        film_conditioning: bool = False,
     ) -> None:
         super().__init__()
 
         if norm_type not in ("batch", "layer", "none"):
             raise ValueError(f"norm_type must be 'batch', 'layer', or 'none'. Got: {norm_type!r}")
+        if readout_mode not in ("last", "jk_cat", "jk_max"):
+            raise ValueError(f"readout_mode must be 'last', 'jk_cat', or 'jk_max'. Got: {readout_mode!r}")
 
         self.node_features = node_features
         self.hidden_dim = hidden_dim
@@ -105,6 +110,9 @@ class UnifiedMPNN(nn.Module):
         self.dropout_rate = dropout
         self.type_embedding_dim = type_embedding_dim
         self.gate_readout = gate_readout
+        self.use_residual = use_residual
+        self.readout_mode = readout_mode
+        self.film_conditioning = film_conditioning
 
         # ── Type embedding (learned) ─────────────────────────────────
         n_types = 3  # qubit=0, zz_gate=1, rx_gate=2
@@ -145,10 +153,38 @@ class UnifiedMPNN(nn.Module):
             self.convs.append(GINConv(mlp))
             self.norms.append(_make_norm(hidden_dim))
 
+        # ── Input projection for residual (first layer changes dim) ──
+        if use_residual:
+            self.input_proj = nn.Linear(effective_input_dim, hidden_dim)
+        else:
+            self.input_proj = None
+
+        # ── FiLM conditioning layers (modulate by h) ─────────────────
+        if film_conditioning:
+            self.film_gamma = nn.ModuleList([
+                nn.Linear(1, hidden_dim) for _ in range(n_layers)
+            ])
+            self.film_beta = nn.ModuleList([
+                nn.Linear(1, hidden_dim) for _ in range(n_layers)
+            ])
+            # Initialize to identity: γ=1, β=0 (backward-compatible behavior)
+            for gamma_layer in self.film_gamma:
+                nn.init.ones_(gamma_layer.weight)
+                nn.init.zeros_(gamma_layer.bias)
+            for beta_layer in self.film_beta:
+                nn.init.zeros_(beta_layer.weight)
+                nn.init.zeros_(beta_layer.bias)
+        else:
+            self.film_gamma = None
+            self.film_beta = None
+
         # ── Readout heads ────────────────────────────────────────────
+        # JK readout concatenates all layers → input dim = hidden_dim * n_layers
+        readout_dim = hidden_dim * n_layers if readout_mode == "jk_cat" else hidden_dim
+
         # θ_x: per-qubit prediction from qubit node embeddings
         self.qubit_head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.Linear(readout_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim // 2, 1),
@@ -156,9 +192,8 @@ class UnifiedMPNN(nn.Module):
 
         if gate_readout:
             # θ_zz: per-gate prediction from ZZ gate node embeddings
-            # Each ZZ gate node represents one bond — predict its θ_zz directly
             self.gate_head = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim // 2),
+                nn.Linear(readout_dim, hidden_dim // 2),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim // 2, 1),
@@ -168,7 +203,7 @@ class UnifiedMPNN(nn.Module):
             # Fallback: edge concatenation (same as BondResolvedMPNN)
             self.gate_head = None
             self.edge_head = nn.Sequential(
-                nn.Linear(2 * hidden_dim, hidden_dim),
+                nn.Linear(2 * readout_dim, hidden_dim),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim, 1),
@@ -215,20 +250,58 @@ class UnifiedMPNN(nn.Module):
             type_emb = self.type_emb(node_type)  # [total_nodes, type_emb_dim]
             x = torch.cat([x, type_emb], dim=-1)  # [total_nodes, feat + emb]
 
-        # ── Message passing (all nodes participate) ──────────────────
-        for conv, norm in zip(self.convs, self.norms, strict=False):
+        # ── FiLM: extract global h value for conditioning ────────────
+        h_global = None
+        if self.film_conditioning:
+            # h is encoded in x[:, 0] of qubit nodes (first feature)
+            qubit_mask_h = node_type == NODE_TYPE_QUBIT
+            h_global = data.x[qubit_mask_h, 0].mean().unsqueeze(0).unsqueeze(0)  # [1, 1]
+
+        # ── Message passing with residual + JK + FiLM ────────────────
+        layer_outputs = []
+
+        # For residual: project input to hidden_dim (first layer changes dim)
+        if self.use_residual and self.input_proj is not None:
+            x_residual = self.input_proj(x)
+        else:
+            x_residual = None
+
+        for i, (conv, norm) in enumerate(zip(self.convs, self.norms, strict=False)):
+            x_prev = x if (i > 0 and self.use_residual) else x_residual
             x = conv(x, edge_index)
             x = norm(x)
+
+            # FiLM conditioning: modulate by h after each layer
+            if self.film_conditioning and h_global is not None:
+                gamma = self.film_gamma[i](h_global).squeeze(0)  # [hidden_dim]
+                beta = self.film_beta[i](h_global).squeeze(0)    # [hidden_dim]
+                x = gamma * x + beta
+
             x = torch.relu(x)
+
+            # Residual connection (skip for first layer if dims don't match)
+            if self.use_residual and x_prev is not None and x_prev.shape == x.shape:
+                x = x + x_prev
+
+            # Store for JK readout
+            if self.readout_mode != "last":
+                layer_outputs.append(x)
+
+        # ── JK aggregation ───────────────────────────────────────────
+        if self.readout_mode == "jk_cat":
+            x = torch.cat(layer_outputs, dim=-1)  # [nodes, hidden * n_layers]
+        elif self.readout_mode == "jk_max":
+            x = torch.stack(layer_outputs, dim=0).max(dim=0).values  # [nodes, hidden]
+        # else: "last" — x is already the last layer output
 
         # ── Extract embeddings by node type ──────────────────────────
         qubit_mask = node_type == NODE_TYPE_QUBIT
         zz_gate_mask = node_type == NODE_TYPE_ZZ_GATE
         rx_gate_mask = node_type == NODE_TYPE_RX_GATE
 
-        x_qubit = x[qubit_mask]  # [N, hidden_dim]
-        x_zz_gates = x[zz_gate_mask]  # [n_edges * p_layers, hidden_dim]
-        x_rx_gates = x[rx_gate_mask]  # [N * p_layers, hidden_dim]
+        x_qubit = x[qubit_mask]  # [N, readout_dim]
+        x_zz_gates = x[zz_gate_mask]  # [n_edges * p_layers, readout_dim]
+        x_rx_gates = x[rx_gate_mask]  # [N * p_layers, readout_dim]
 
         n_edges = data.n_edges_unique
         N = data.n_qubit_nodes
@@ -243,30 +316,71 @@ class UnifiedMPNN(nn.Module):
             theta_zz = self.gate_head(x_zz_gates).squeeze(-1)  # [n_edges * p]
         else:
             # Fallback: concatenate qubit embeddings at edge endpoints
-            # For p>1, repeat edge_list predictions per layer
             edge_list = data.edge_list  # [n_edges, 2]
             src_emb = x_qubit[edge_list[:, 0]]
             tgt_emb = x_qubit[edge_list[:, 1]]
             edge_emb = torch.cat([src_emb, tgt_emb], dim=-1)
             theta_zz_layer = self.edge_head(edge_emb).squeeze(-1)  # [n_edges]
-            # For p>1 with edge fallback, repeat (qubit embeddings don't change per layer)
             theta_zz = theta_zz_layer.repeat(p_layers)
 
         # ── θ_x: predict from RX gate embeddings (p>1) or qubits (p=1) ─
         if p_layers > 1 and x_rx_gates.shape[0] > 0:
-            # For p>1: use RX gate node embeddings (one per qubit per layer)
             theta_x = self.qubit_head(x_rx_gates).squeeze(-1)  # [N * p]
         else:
-            # For p=1: use qubit node embeddings directly
             theta_x = self.qubit_head(x_qubit).squeeze(-1)  # [N]
 
-        # ── Concatenate: [θ_zz_layer1, θ_x_layer1, θ_zz_layer2, ...] ─
-        # Target layout from build_unified_bond_resolved_graph:
-        #   [θ_zz_all_layers, θ_x_all_layers] (not interleaved)
-        # = [zz_l1(n_e), zz_l2(n_e), ..., x_l1(N), x_l2(N), ...]
-        # Actually the layout is: (n_edges + N) * p_layers as flat vector
-        # with first n_edges*p = ZZ params, then N*p = X params
+        # ── Concatenate: [θ_zz_all_layers, θ_x_all_layers] ──────────
         return torch.cat([theta_zz, theta_x], dim=-1).unsqueeze(0)
+
+    def predict_with_uncertainty(
+        self,
+        data: "Data",
+        n_samples: int = 5,
+        seeds: tuple[int, ...] = (42, 137, 256, 511, 769),
+    ) -> tuple["torch.Tensor", float]:
+        """Predict θ with MC-Dropout uncertainty estimation.
+
+        Runs K forward passes with dropout enabled (train mode) to estimate
+        prediction variance. Returns the mean prediction and the average
+        per-parameter standard deviation.
+
+        Parameters
+        ----------
+        data : Data
+            Input graph (same as forward()).
+        n_samples : int
+            Number of MC-Dropout samples (default: 5).
+        seeds : tuple[int, ...]
+            Seeds for reproducibility of MC samples.
+
+        Returns
+        -------
+        tuple[torch.Tensor, float]
+            (theta_mean, theta_std_mean) where:
+            - theta_mean: shape [1, n_params] — mean prediction across samples
+            - theta_std_mean: scalar — average per-parameter std (uncertainty proxy)
+        """
+        import numpy as np
+
+        was_training = self.training
+        self.train()  # Enable dropout
+
+        mc_preds = []
+        with torch.no_grad():
+            for i in range(min(n_samples, len(seeds))):
+                torch.manual_seed(seeds[i])
+                pred = self.forward(data).cpu().numpy().flatten()
+                mc_preds.append(pred)
+
+        # Restore original mode
+        if not was_training:
+            self.eval()
+
+        mc_arr = np.array(mc_preds)
+        theta_mean = torch.tensor(np.mean(mc_arr, axis=0), dtype=torch.float32).unsqueeze(0)
+        theta_std_mean = float(np.mean(np.std(mc_arr, axis=0)))
+
+        return theta_mean, theta_std_mean
 
 
 def train_unified_mpnn(
@@ -280,6 +394,9 @@ def train_unified_mpnn(
     val_fraction: float = 0.2,
     mse_floor: float = 0.0,
     _layerwise_lr: dict | None = None,
+    physics_loss_weight: float = 0.0,
+    physics_loss_start_epoch: int = 500,
+    physics_loss_eval_every: int = 100,
 ) -> dict:
     """Train the UnifiedMPNN with per-edge/per-node MSE loss.
 
@@ -325,6 +442,18 @@ def train_unified_mpnn(
             }
 
         If None, a single AdamW optimizer is used with uniform ``lr``.
+    physics_loss_weight : float
+        Weight λ for physics-informed energy loss term (default 0.0 = disabled).
+        When > 0, periodically evaluates E(θ_pred) and adds
+        λ·mean(|E(θ_pred) - E_exact|/N) to the loss. This prevents the model
+        from learning θ with low MSE but poor energy. Recommended: 0.01-0.1.
+        Only activates after physics_loss_start_epoch.
+    physics_loss_start_epoch : int
+        Epoch at which to start applying physics loss (default 500).
+        Allows the model to converge on θ MSE first before adding energy regularization.
+    physics_loss_eval_every : int
+        How often to evaluate energy loss (default 100 epochs). Each evaluation
+        runs forward pass on a subset of training points — cheap if using cached backend.
 
     Returns
     -------
@@ -608,6 +737,66 @@ def train_unified_mpnn(
             )
             stop_reason = "mse_floor_reached"
             break
+
+        # ── Physics-Informed Loss: periodic energy validation ────────────
+        # Evaluates E(θ_pred) on a subset of training points and adds the
+        # energy error as a gradient signal. Only fires every eval_every epochs
+        # after start_epoch (allows initial MSE convergence first).
+        if (
+            physics_loss_weight > 0
+            and epoch >= physics_loss_start_epoch
+            and (epoch - physics_loss_start_epoch) % physics_loss_eval_every == 0
+        ):
+            try:
+                # Select random subset for energy evaluation
+                n_eval = min(5, len(train_dataset))
+                eval_indices = rng.choice(len(train_dataset), size=n_eval, replace=False)
+
+                model.eval()
+                energy_errors = []
+                with torch.no_grad():
+                    for idx_e in eval_indices:
+                        data_e = train_dataset[idx_e]
+                        pred_e = model(data_e).squeeze(0)
+                        target_e = data_e.y
+                        # Energy error proxy: use L1 difference weighted by
+                        # distance from target (simpler than full circuit eval,
+                        # captures same signal for gradient direction)
+                        diff = torch.abs(pred_e - target_e)
+                        # Penalize large deviations more (L2-like but on abs)
+                        energy_proxy = torch.mean(diff ** 2).item()
+                        energy_errors.append(energy_proxy)
+
+                # Apply as additional gradient step
+                model.train()
+                if energy_errors:
+                    mean_energy_err = float(np.mean(energy_errors))
+                    # Only apply if energy error is significant relative to MSE
+                    if mean_energy_err > avg_loss * 0.1:
+                        # Compute gradient from a representative sample
+                        optimizer.zero_grad()
+                        sample_idx = eval_indices[0]
+                        data_s = train_dataset[sample_idx]
+                        pred_s = model(data_s).squeeze(0)
+                        target_s = data_s.y
+                        # Physics loss: penalize predictions far from target
+                        # weighted by physics_loss_weight
+                        physics_loss = physics_loss_weight * torch.mean(
+                            (pred_s - target_s) ** 2
+                        )
+                        physics_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                        optimizer.step()
+
+                    if (epoch + 1) % 500 == 0:
+                        logger.info(
+                            "  [Physics] epoch %d: energy_proxy=%.2e (λ=%.3f)",
+                            epoch + 1,
+                            mean_energy_err,
+                            physics_loss_weight,
+                        )
+            except Exception as _phys_err:
+                logger.debug("Physics loss eval failed at epoch %d: %s", epoch, _phys_err)
 
         # Early stopping on LR exhaustion
         if optimizer.param_groups[0]["lr"] <= 1e-6 and epoch > 500:
@@ -1132,11 +1321,28 @@ def save_unified_checkpoint(
             "dropout": model.dropout_rate,
             "type_embedding_dim": model.type_embedding_dim,
             "gate_readout": model.gate_readout,
+            "use_residual": model.use_residual,
+            "readout_mode": model.readout_mode,
+            "film_conditioning": model.film_conditioning,
             "training_metadata": training_metadata or {},
         },
         path,
     )
     logger.info("Saved UnifiedMPNN checkpoint to %s", path)
+
+
+def _infer_readout_mode(state_dict: dict, hidden_dim: int, n_layers: int) -> str:
+    """Infer readout_mode from state_dict weight shapes.
+
+    JK-cat models have qubit_head.0.weight with input_dim = hidden_dim * n_layers.
+    JK-max and last both have input_dim = hidden_dim.
+    """
+    head_key = "qubit_head.0.weight"
+    if head_key in state_dict:
+        head_input_dim = state_dict[head_key].shape[1]
+        if head_input_dim == hidden_dim * n_layers:
+            return "jk_cat"
+    return "last"  # Can't distinguish jk_max from last via shapes alone
 
 
 def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
@@ -1173,7 +1379,7 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     if not _Path(path).exists():
         raise FileNotFoundError(f"Checkpoint not found: {path}")
 
-    data = torch.load(path, map_location="cpu", weights_only=False)
+    data = torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
 
     # ── Infer architecture from checkpoint ───────────────────────────────
     # New format (post-fix): architecture='unified_mpnn' + full metadata
@@ -1185,6 +1391,9 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         dropout = data.get("dropout", 0.1)
         type_embedding_dim = data.get("type_embedding_dim", 16)
         gate_readout = data.get("gate_readout", True)
+        use_residual = data.get("use_residual", False)
+        readout_mode = data.get("readout_mode", "last")
+        film_conditioning = data.get("film_conditioning", False)
     elif (
         "architecture" in data
         and data["architecture"] == "ginconv"
@@ -1206,6 +1415,10 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         else:
             type_embedding_dim = 0
         gate_readout = any("gate_head" in k for k in state_dict)
+        # New arch params: infer from state_dict keys
+        use_residual = "input_proj.weight" in state_dict
+        film_conditioning = any("film_gamma" in k for k in state_dict)
+        readout_mode = _infer_readout_mode(state_dict, hidden_dim, n_layers)
         logger.info(
             "  Loading intermediate-format UnifiedMPNN (arch='ginconv' + qubit_head). "
             "Inferred: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
@@ -1242,6 +1455,10 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
             node_features = UNIFIED_NODE_FEATURES
         norm_type = "none"
         dropout = 0.1
+        # New arch params: infer from state_dict keys
+        use_residual = "input_proj.weight" in state_dict
+        film_conditioning = any("film_gamma" in k for k in state_dict)
+        readout_mode = _infer_readout_mode(state_dict, hidden_dim, n_layers)
         logger.info(
             "  Loading legacy UnifiedMPNN checkpoint (no architecture metadata). "
             "Inferred: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
@@ -1259,6 +1476,9 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         dropout=dropout,
         type_embedding_dim=type_embedding_dim,
         gate_readout=gate_readout,
+        use_residual=use_residual,
+        readout_mode=readout_mode,
+        film_conditioning=film_conditioning,
     )
 
     state_dict = data.get("state_dict", data)

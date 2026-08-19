@@ -91,7 +91,7 @@ class HardwareBackend(ExecutionBackend):
 
         path = Path(checkpoint_path)
         # Auto-detect version by peeking at checkpoint
-        raw = torch.load(path, map_location="cpu", weights_only=False)
+        raw = torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
         is_v2 = isinstance(raw, dict) and raw.get("version") == "2.0"
 
         if is_v2:

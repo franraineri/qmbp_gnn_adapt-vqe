@@ -291,6 +291,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
             default=False,
             help="Ignore existing NPZ cache and recompute all predictions",
         )
+        # Active learning: targeted VQE for high-uncertainty points
+        parser.add_argument(
+            "--active-learning-rounds",
+            type=int,
+            default=0,
+            help="Number of AL rounds after evaluation (0=disabled, each round refines top-3 uncertain points)",
+        )
 
     def build_config(self) -> dict:
         """Build config dict reusing base class helper."""
@@ -524,6 +531,30 @@ class LargeNExtrapolationRunner(ValidationRunner):
             circuit, _ = hva.create_bond_resolved(n_target, p, lat_ref)
             n_params = circuit.num_parameters
 
+            # ── Integrity check: model output vs circuit params ───────────
+            # UnifiedMPNN uses per-node prediction (output_dim = p_layers * n_terms),
+            # so the raw output shape depends on graph size. We do a quick probe
+            # to detect obvious mismatches (wrong model loaded for different topology/p).
+            if n_target == self._args.target_n[0]:  # Only on first N (lightweight)
+                try:
+                    g_probe = build_unified_bond_resolved_graph(
+                        lat_ref, h_value=2.0, p_layers=p, include_circuit_nodes=True,
+                    )
+                    with torch.no_grad():
+                        probe_out = model(g_probe).numpy().flatten()
+                    if len(probe_out) < n_params * 0.5:
+                        logger.warning(
+                            f"  ⚠️ Model output dim ({len(probe_out)}) << circuit params "
+                            f"({n_params}). Possible model/topology mismatch."
+                        )
+                    elif len(probe_out) > n_params * 2.0:
+                        logger.warning(
+                            f"  ⚠️ Model output dim ({len(probe_out)}) >> circuit params "
+                            f"({n_params}). Predictions will be truncated."
+                        )
+                except Exception as e:
+                    logger.debug(f"  Model probe skipped: {e}")
+
             # CachedBackend for transparent eval caching
             with self.get_cached_backend(
                 topology=topo,
@@ -535,7 +566,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 per_h_results = []
                 n_cached, n_predicted = 0, 0
 
-                for h in self._h_values:
+                try:
+                  for h in self._h_values:
                     h_key = round(float(h), 6)
 
                     # Check NPZ cache first
@@ -576,6 +608,30 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         theta_pred = model(g).numpy().flatten()
                     theta_pred = np.clip(theta_pred, -np.pi, np.pi)
 
+                    # ── MC-Dropout confidence estimation ─────────────────
+                    # Delegates to model.predict_with_uncertainty() which
+                    # handles train/eval mode toggling and seed management.
+                    theta_std = 0.0
+                    if hasattr(model, 'predict_with_uncertainty'):
+                        _, theta_std = model.predict_with_uncertainty(g)
+                    elif hasattr(model, 'dropout') and getattr(model, 'dropout', 0) > 0:
+                        # Fallback for older model versions without the method.
+                        # Uses was_training pattern to guarantee mode restoration.
+                        mc_preds = []
+                        was_training = model.training
+                        model.train()
+                        try:
+                            with torch.no_grad():
+                                for _mc_seed in (42, 137, 256, 511, 769):
+                                    torch.manual_seed(_mc_seed)
+                                    mc_pred = model(g).numpy().flatten()
+                                    mc_preds.append(mc_pred)
+                        finally:
+                            if not was_training:
+                                model.eval()
+                        mc_preds_arr = np.array(mc_preds)
+                        theta_std = float(np.mean(np.std(mc_preds_arr, axis=0)))
+
                     # Pad/trim if dimension mismatch
                     if len(theta_pred) != n_params:
                         if len(theta_pred) < n_params:
@@ -605,10 +661,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         time_s=elapsed,
                         theta=theta_pred.tolist(),
                     )
+                    result["theta_std"] = theta_std  # MC-Dropout uncertainty
                     per_h_results.append(result)
                     n_predicted += 1
 
-                # Persist to NPZ (atomic, anti-regression)
+                except KeyboardInterrupt:
+                    logger.warning(
+                        f"  ⚠️ Interrupted during MPNN prediction N={n_target}. "
+                        f"Saving {len(per_h_results)} partial results."
+                    )
+
+                # Persist to NPZ (atomic, anti-regression) — runs even on interrupt
                 self._persist_extrapolation_npz(topo, n_target, p, per_h_results)
 
             # Compute summary
@@ -634,14 +697,142 @@ class LargeNExtrapolationRunner(ValidationRunner):
         total_time = time.perf_counter() - t_section
         logger.info(f"  MPNN complete: {total_time:.1f}s")
 
+        # ── Auto-update zoo pass_rate with real extrapolation results ─────
+        # The zoo model was used at large N — update its pass_rate so that
+        # load_best_model_for_topology reflects actual deployment quality.
+        try:
+            zoo_entry = getattr(self, "_zoo_entry", None)
+            if zoo_entry is not None:
+                # Compute average pass_rate_dual across all target N
+                avg_pass = float(np.mean([
+                    mpnn_results[n]["pass_rate_dual"]
+                    for n in self._args.target_n
+                    if "pass_rate_dual" in mpnn_results.get(n, {})
+                ]))
+                if avg_pass > 0:
+                    from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+                    update_zoo_pass_rate(
+                        zoo_entry.checkpoint_file,
+                        avg_pass,
+                        only_if_better=True,
+                        add_notes=f"extrap@N={list(self._args.target_n)}",
+                    )
+        except Exception as e:
+            logger.debug(f"  Zoo pass_rate auto-update skipped: {e}")
+
+        # ── Auto-refine high-uncertainty points (θ_std > threshold) ───────
+        # Even without --refine-failing, refine points where the model
+        # self-reports high uncertainty (MC-Dropout std). This is a lighter
+        # trigger than full AL — uses the already-computed theta_std.
+        self._auto_refine_high_uncertainty(mpnn_results)
+
         # ── Optional: Refine failing points via VQE from MPNN warm-start ──
         if self._args.refine_failing:
             self._refine_failing_points(mpnn_results)
+
+        # ── Optional: Active learning — ensemble uncertainty-based refinement ──
+        if self._args.active_learning_rounds > 0:
+            self._run_active_learning(mpnn_results)
 
         return {
             "mpnn_results": {str(k): v for k, v in mpnn_results.items()},
             "checkpoint_used": self._actual_checkpoint,
         }
+
+    def _auto_refine_high_uncertainty(self, mpnn_results: dict[int, dict]) -> None:
+        """Automatically refine points where MC-Dropout θ_std exceeds threshold.
+
+        This is a lightweight uncertainty-based refinement that triggers
+        without any explicit flag. Only refines points that:
+        1. Have theta_std > 2× median theta_std (outliers in uncertainty)
+        2. Also fail the dual criterion (high ΔE/gap)
+
+        This avoids wasting VQE budget on points that are uncertain but
+        happen to be correct (uncertainty ≠ error always).
+        """
+        from scipy.optimize import minimize as _minimize
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        topo = self._args.topology
+        p = self._args.p_layers
+        spec = get_model_spec(self._args.model_name)
+        hva = HVACircuitBuilder()
+        maxiter = self._args.vqe_maxiter
+        n_auto_refined = 0
+
+        for n_target, data in mpnn_results.items():
+            per_point = data.get("per_point", [])
+            # Collect theta_std values for this N
+            stds = [pt.get("theta_std", 0.0) for pt in per_point]
+            nonzero_stds = [s for s in stds if s > 0]
+            if len(nonzero_stds) < 3:
+                continue  # Not enough MC-Dropout data
+
+            median_std = float(np.median(nonzero_stds))
+            threshold = median_std * 2.0  # Outlier = 2× median
+
+            # Find high-uncertainty AND failing points
+            candidates = [
+                (i, pt) for i, pt in enumerate(per_point)
+                if pt.get("theta_std", 0) > threshold
+                and pt.get("de_gap", 0) > 0.05
+                and pt.get("method") == "mpnn"
+            ]
+            if not candidates:
+                continue
+
+            # Refine top-2 most uncertain (keep it cheap)
+            candidates.sort(key=lambda x: x[1].get("theta_std", 0), reverse=True)
+            to_refine = candidates[:2]
+
+            lat_ref = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+            circuit, _ = hva.create_bond_resolved(n_target, p, lat_ref)
+            vqe_backend = self.select_backend(n_target, for_vqe_loop=True)
+
+            for idx, pt in to_refine:
+                theta_init = pt.get("theta")
+                if theta_init is None:
+                    continue
+                theta_init = np.array(theta_init, dtype=np.float64)
+                h = pt["h"]
+
+                lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+
+                try:
+                    res = _minimize(
+                        lambda params: vqe_backend.evaluate(circuit, H, params),
+                        theta_init,
+                        method="L-BFGS-B",
+                        options={"maxiter": maxiter},
+                    )
+                    if res.fun < pt["e_pred"]:
+                        gt_entry = next(
+                            g for g in self._gt_data[n_target]
+                            if abs(g["h"] - float(h)) < 1e-8
+                        )
+                        new_result = self.build_per_h_result(
+                            h, res.fun, gt_entry["e_exact"], gt_entry["gap"],
+                            n_params=circuit.num_parameters,
+                            n_qubits=n_target,
+                            method="auto_refined",
+                            n_evals=res.nfev,
+                            theta=res.x.tolist(),
+                        )
+                        per_point[idx] = new_result
+                        n_auto_refined += 1
+                except Exception:
+                    continue
+
+            if n_auto_refined > 0:
+                mpnn_results[n_target].update(compute_extrapolation_summary(per_point))
+                mpnn_results[n_target]["per_point"] = per_point
+                self._persist_extrapolation_npz(topo, n_target, p, per_point)
+
+        if n_auto_refined > 0:
+            logger.info(f"  Auto-refine (θ_std outliers): {n_auto_refined} points improved")
 
     def _refine_failing_points(self, mpnn_results: dict[int, dict]) -> None:
         """Run VQE refinement on MPNN predictions that fail dual criterion.
@@ -809,6 +1000,9 @@ class LargeNExtrapolationRunner(ValidationRunner):
         e_exact_arr = np.array([r["e_exact"] for r in valid_results], dtype=np.float64)
         gap_arr = np.array([r["gap"] for r in valid_results], dtype=np.float64)
         method_arr = [r.get("method", "mpnn") for r in valid_results]
+        theta_std_arr = np.array(
+            [r.get("theta_std", 0.0) for r in valid_results], dtype=np.float64
+        )
 
         # Assign quality tier based on dual criterion
         quality_tiers = []
@@ -847,6 +1041,183 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 f"    NPZ: {n_add} added, {n_upd} improved → {npz_path.name} "
                 f"(✅{n_verified} ⚠️{n_approx})"
             )
+
+        # Persist theta_std as separate array in the same NPZ (non-destructive append)
+        if np.any(theta_std_arr > 0):
+            try:
+                from qmbp_simulation.utils.helpers import atomic_savez
+
+                existing = dict(np.load(npz_path, allow_pickle=True)) if npz_path.exists() else {}
+                existing["theta_std"] = theta_std_arr
+                atomic_savez(npz_path, **existing)
+            except Exception:
+                pass  # Non-critical — uncertainty is enrichment, not core data
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Active Learning: Ensemble-based uncertainty targeting
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _run_active_learning(self, mpnn_results: dict[int, dict]) -> None:
+        """Run AL rounds to identify and refine high-uncertainty predictions.
+
+        Uses MC-Dropout on the loaded MPNN to estimate prediction uncertainty,
+        then selects points where the model is most uncertain for VQE refinement.
+        Reuses: active_learning helpers, build_per_h_result, _persist_extrapolation_npz.
+        """
+        from experiments.helpers.active_learning import (
+            compute_ensemble_uncertainty,
+            select_next_point,
+        )
+        from scipy.optimize import minimize as _minimize
+
+        import torch
+
+        from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+
+        n_rounds = self._args.active_learning_rounds
+        topo = self._args.topology
+        p = self._args.p_layers
+        model_name = self._args.model_name
+        spec = get_model_spec(model_name)
+        hva = HVACircuitBuilder()
+        maxiter = self._args.vqe_maxiter
+
+        logger.info(f"\n  Active Learning: {n_rounds} round(s), ensemble-based uncertainty")
+
+        mpnn_model = getattr(self, "_model", None)
+        if mpnn_model is None:
+            logger.warning("  AL: No loaded MPNN model — skipping.")
+            return
+
+        for n_target, data in mpnn_results.items():
+            per_point = data.get("per_point", [])
+            if not per_point:
+                continue
+
+            # Identify candidate h-values (those not already VQE-refined)
+            candidates = [
+                (i, pt) for i, pt in enumerate(per_point)
+                if pt.get("method", "mpnn") == "mpnn" and pt.get("de_gap", 0) > 0.01
+            ]
+            if not candidates:
+                continue
+
+            h_candidates = np.array([pt["h"] for _, pt in candidates])
+
+            for al_round in range(n_rounds):
+                if len(h_candidates) == 0:
+                    break
+
+                # Per-h uncertainty via predict_with_uncertainty (or fallback)
+                uncertainties = []
+                for h in h_candidates:
+                    lat = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                    g = build_unified_bond_resolved_graph(lat, float(h), p)
+                    if hasattr(mpnn_model, "predict_with_uncertainty"):
+                        _, theta_std = mpnn_model.predict_with_uncertainty(g)
+                        uncertainties.append(theta_std)
+                    else:
+                        with torch.no_grad():
+                            pred = mpnn_model(g).squeeze().cpu().numpy()
+                        uncertainties.append(float(np.std(pred)))
+
+                # Select top-3 most uncertain
+                n_select = min(3, len(h_candidates))
+                selected = []
+                avail = list(range(len(h_candidates)))
+                for _ in range(n_select):
+                    if not avail:
+                        break
+                    sub_h = np.array([h_candidates[i] for i in avail])
+                    sub_u = [uncertainties[i] for i in avail]
+                    if max(sub_u) < 0.005:
+                        break  # All below noise floor
+                    # Adaptive acquisition: round 1 = explore, round 2+ = exploit
+                    if al_round == 0:
+                        acq_fn = "max_variance"
+                    else:
+                        acq_fn = "expected_improvement"
+                    # Current best error for expected_improvement
+                    current_best_dg = min(
+                        (pt.get("de_gap", 1.0) for _, pt in candidates), default=0.05
+                    )
+                    best_sub = select_next_point(
+                        sub_h, sub_u,
+                        acquisition=acq_fn,
+                        current_best_error=current_best_dg,
+                        predictions_mean=[sub_u[i] for i in range(len(sub_h))],
+                    )[0]
+                    actual_idx = avail[best_sub]
+                    selected.append(actual_idx)
+                    avail.remove(actual_idx)
+
+                if not selected:
+                    logger.info(f"    N={n_target} AL round {al_round + 1}: "
+                                f"uncertainty below threshold — stopping.")
+                    break
+
+                # VQE refinement at selected points
+                lat_ref = self.make_lattice(topo, n_target, J=1.0, h=2.0)
+                circuit, _ = hva.create_bond_resolved(n_target, p, lat_ref)
+                vqe_backend = self.select_backend(n_target, for_vqe_loop=True)
+                n_improved = 0
+
+                for sel_idx in selected:
+                    orig_idx = candidates[sel_idx][0]
+                    pt = per_point[orig_idx]
+                    h = pt["h"]
+                    theta_init = np.array(pt.get("theta", []), dtype=np.float64)
+                    if len(theta_init) == 0:
+                        continue
+
+                    lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                    H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+
+                    try:
+                        res = _minimize(
+                            lambda params: vqe_backend.evaluate(circuit, H, params),
+                            theta_init,
+                            method="L-BFGS-B",
+                            options={"maxiter": maxiter},
+                        )
+                        if res.fun < pt["e_pred"]:
+                            gt = next(
+                                g for g in self._gt_data[n_target]
+                                if abs(g["h"] - float(h)) < 1e-8
+                            )
+                            new_result = self.build_per_h_result(
+                                h, res.fun, gt["e_exact"], gt["gap"],
+                                n_params=circuit.num_parameters,
+                                n_qubits=n_target,
+                                method="al_refined",
+                                n_evals=res.nfev,
+                                theta=res.x.tolist(),
+                            )
+                            per_point[orig_idx] = new_result
+                            n_improved += 1
+                    except Exception:
+                        continue
+
+                if n_improved > 0:
+                    from qmbp_simulation.analysis.metrics import compute_deploy_summary
+                    mpnn_results[n_target].update(compute_deploy_summary(per_point))
+                    mpnn_results[n_target]["per_point"] = per_point
+                    self._persist_extrapolation_npz(topo, n_target, p, per_point)
+
+                logger.info(
+                    f"    N={n_target} AL round {al_round + 1}: "
+                    f"refined {n_improved}/{len(selected)} selected "
+                    f"(max_unc={max(uncertainties):.4f})"
+                )
+
+                # Remove successfully refined from candidates for next round
+                candidates = [
+                    (i, pt) for i, pt in enumerate(per_point)
+                    if pt.get("method", "mpnn") == "mpnn" and pt.get("de_gap", 0) > 0.01
+                ]
+                h_candidates = np.array([pt["h"] for _, pt in candidates]) if candidates else np.array([])
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Random VQE Baseline (Optional)
@@ -1128,6 +1499,27 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     f"extensive scaling may not hold"
                 )
 
+        # ── Uncertainty calibration: θ_std vs ΔE/gap correlation ──────────
+        from qmbp_simulation.analysis.metrics import compute_uncertainty_correlation
+
+        all_points_with_std = []
+        for n_target_uc in self._args.target_n:
+            all_points_with_std.extend(self._mpnn_results[n_target_uc].get("per_point", []))
+
+        uc_report = compute_uncertainty_correlation(all_points_with_std)
+        if uc_report["n_points_with_uncertainty"] >= 3:
+            comparison["uncertainty_calibration"] = uc_report
+            cal_status = "✅ calibrated" if uc_report["calibrated"] else "⚠️ uncalibrated"
+            logger.info(
+                f"  Uncertainty calibration ({uc_report['n_points_with_uncertainty']} pts): "
+                f"Pearson r={uc_report['pearson_r']:.3f}, "
+                f"Spearman ρ={uc_report['spearman_r']:.3f} — {cal_status}"
+            )
+            logger.info(
+                f"    High-unc ΔE/gap={uc_report['high_uncertainty_mean_de_gap']:.4f} vs "
+                f"Low-unc ΔE/gap={uc_report['low_uncertainty_mean_de_gap']:.4f}"
+            )
+
         # ── Model Quality Diagnostics ─────────────────────────────────────
         try:
             model_diagnostics = self._compute_model_diagnostics()
@@ -1168,6 +1560,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         # ── Auto-save per-point evaluation report (markdown) ──────────────
         self._save_evaluation_report(comparison)
+
+        # NOTE: EvaluationRecord persistence to ModelRegistryDB is now handled
+        # automatically by runner_base._persist_evaluation_to_registry() in
+        # the post-run _log_data_quality_feedback() hook. No inline code needed.
 
         return {"comparison": {str(k): v for k, v in comparison.items()}}
 

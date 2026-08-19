@@ -496,7 +496,12 @@ class ModelRegistryDB:
             return
         with open(self._path) as f:
             raw = json.load(f)
-        self._records = [self._deserialize(item) for item in raw]
+        # Handle both formats: list (canonical) and dict with numeric keys (legacy)
+        if isinstance(raw, dict):
+            items = list(raw.values())
+        else:
+            items = raw
+        self._records = [self._deserialize(item) for item in items if isinstance(item, dict)]
         logger.debug("ModelRegistryDB: loaded %d records", len(self._records))
 
     def _save(self) -> None:
@@ -892,6 +897,200 @@ class ModelRegistryDB:
                 default=0,
             ),
         }
+
+    # ─── Topology-Based Queries ─────────────────────────────────────────────
+
+    def list_by_topology(
+        self, topology: str, *, include_archived: bool = False
+    ) -> list["ModelRecord"]:
+        """List all models for a specific topology.
+
+        Parameters
+        ----------
+        topology : str
+            Target topology (e.g., "chain_1d", "multi_topology").
+        include_archived : bool
+            Whether to include archived models.
+
+        Returns
+        -------
+        list[ModelRecord]
+            Matching models sorted by training points (descending).
+        """
+        results = [
+            r for r in self._records
+            if r.topology == topology
+            and (include_archived or r.status != "archived")
+        ]
+        return sorted(results, key=lambda r: r.training.total_training_points, reverse=True)
+
+    def get_multi_topology_models(self, *, p_layers: int = 1) -> list["ModelRecord"]:
+        """Get all multi-topology models.
+
+        Convenience method that filters for topology="multi_topology".
+        Used by the MT selection policy and comparison scripts.
+
+        Parameters
+        ----------
+        p_layers : int
+            Filter by HVA depth (default: 1).
+
+        Returns
+        -------
+        list[ModelRecord]
+            Multi-topology models sorted by training points (descending).
+        """
+        return [
+            r for r in self.list_by_topology("multi_topology")
+            if r.p_layers == p_layers
+        ]
+
+    def get_best_for_topology(
+        self, topology: str, *, p_layers: int = 1, n_target: int = 0
+    ) -> "ModelRecord | None":
+        """Get the best active model for a given topology.
+
+        Scoring: pass_rate (if evaluated) > training_points > proximity.
+
+        Parameters
+        ----------
+        topology : str
+            Target topology.
+        p_layers : int
+            HVA depth filter.
+        n_target : int
+            If > 0, prefer models trained on N values close to n_target.
+
+        Returns
+        -------
+        ModelRecord | None
+            Best model or None if no models exist.
+        """
+        candidates = [
+            r for r in self.list_by_topology(topology)
+            if r.p_layers == p_layers and r.status == "active"
+        ]
+        if not candidates:
+            return None
+
+        def _score(r: "ModelRecord") -> float:
+            tm = r.training.training_metrics
+            pr = tm.pass_rate if tm and hasattr(tm, "pass_rate") else 0.0
+            pts = r.training.total_training_points
+            proximity = (
+                1.0 / (1.0 + abs(max(r.training.n_values_used or [0]) - n_target))
+                if n_target > 0 and r.training.n_values_used
+                else 1.0
+            )
+            return pr * 1000 + pts * proximity
+
+        return max(candidates, key=_score)
+
+    def prune_test_entries(self, *, dry_run: bool = True) -> list[str]:
+        """Remove test/orphan entries from the registry.
+
+        Identifies entries with model_id matching test patterns
+        (test_*, kiro_test_*) and archives or removes them.
+
+        Parameters
+        ----------
+        dry_run : bool
+            If True, just report what would be pruned without modifying.
+
+        Returns
+        -------
+        list[str]
+            List of model_ids that were (or would be) pruned.
+        """
+        test_patterns = ("test_", "kiro_test_")
+        to_prune = [
+            r.model_id for r in self._records
+            if any(r.model_id.lower().startswith(p) for p in test_patterns)
+        ]
+        if not dry_run and to_prune:
+            self._records = [
+                r for r in self._records
+                if r.model_id not in to_prune
+            ]
+            self._save()
+            for mid in to_prune:
+                self._record_event("pruned", mid, details={"reason": "test_entry"})
+        return to_prune
+
+    def get_lineage(self, model_id: str, *, max_depth: int = 10) -> list[dict]:
+        """Trace the fine-tuning lineage of a model.
+
+        Follows the ``fine_tuned_from`` field in architecture_config to
+        reconstruct the training ancestry chain. Useful for thesis
+        documentation (demonstrates iterative improvement pipeline).
+
+        Parameters
+        ----------
+        model_id : str
+            Starting model to trace back from.
+        max_depth : int
+            Maximum ancestry depth to prevent infinite loops (default: 10).
+
+        Returns
+        -------
+        list[dict]
+            Lineage chain from newest to oldest, each entry:
+            {
+                "model_id": str,
+                "topology": str,
+                "n_training_points": int,
+                "created": str,
+                "fine_tuned_from": str | None,
+                "depth": int,
+            }
+        """
+        lineage = []
+        current_id = model_id
+        visited = set()
+
+        for depth in range(max_depth):
+            if current_id in visited:
+                break  # Cycle detected
+            visited.add(current_id)
+
+            record = self.get_model(current_id)
+            if record is None:
+                # Try fuzzy match (partial model_id)
+                matches = [
+                    r for r in self._records
+                    if current_id in r.model_id
+                ]
+                record = matches[0] if matches else None
+
+            if record is None:
+                break
+
+            arch_config = {}
+            if record.training and hasattr(record.training, "architecture"):
+                arch_config = record.training.architecture.__dict__ if record.training.architecture else {}
+
+            parent = arch_config.get("fine_tuned_from", None)
+
+            lineage.append({
+                "model_id": record.model_id,
+                "topology": record.topology,
+                "n_training_points": record.training.total_training_points,
+                "created": record.created,
+                "fine_tuned_from": parent,
+                "depth": depth,
+            })
+
+            if not parent:
+                break  # Root of the lineage
+
+            # Find parent model_id (parent is a filename, not model_id)
+            parent_matches = [
+                r.model_id for r in self._records
+                if parent in r.model_id or r.model_id.endswith(parent)
+            ]
+            current_id = parent_matches[0] if parent_matches else parent
+
+        return lineage
 
     # ─── Lifecycle ──────────────────────────────────────────────────────────
 

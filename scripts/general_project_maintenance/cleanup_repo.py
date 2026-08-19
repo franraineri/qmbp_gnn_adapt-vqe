@@ -3,9 +3,9 @@
 """Repository Cleanup Script — Remove temp files, caches, empty dirs, and junk.
 
 Usage:
-    python scripts/maintenance/cleanup_repo.py              # Dry-run (show what would be removed)
-    python scripts/maintenance/cleanup_repo.py --execute    # Actually delete
-    python scripts/maintenance/cleanup_repo.py --verbose    # Show all scanned paths
+    python scripts/general_project_maintenance/cleanup_repo.py              # Dry-run (show what would be removed)
+    python scripts/general_project_maintenance/cleanup_repo.py --execute    # Actually delete
+    python scripts/general_project_maintenance/cleanup_repo.py --verbose    # Show all scanned paths
 """
 
 from __future__ import annotations

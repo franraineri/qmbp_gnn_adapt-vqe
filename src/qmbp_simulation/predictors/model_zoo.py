@@ -50,7 +50,7 @@ def _smart_load_checkpoint(path: str):
     """
     import torch
 
-    data = torch.load(path, map_location="cpu", weights_only=False)
+    data = torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
 
     # Detect model type from state_dict keys
     state_dict = data.get("state_dict", data)
@@ -70,7 +70,6 @@ _ZOO_DIR = _PROJECT_ROOT / "data" / "model_zoo"
 _MANIFEST_PATH = _ZOO_DIR / "manifest.json"
 _CHECKPOINTS_DIR = _ZOO_DIR / "checkpoints"
 
-# Quality gate threshold for multi-N model selection in load_best_for_cross_n().
 # If a multi-N model has training_quality_score below this, it's likely
 # trained on insufficient or contaminated data.
 MULTI_N_MIN_QUALITY_SCORE: float = 0.50
@@ -119,6 +118,7 @@ class ZooEntry:
     checkpoint_file: str
     h_range: tuple[float, float] = (1.0, 3.5)
     pass_rate: float = 0.0
+    pass_rate_source: str = ""  # "training_data_eval" | "extrapolation_eval" | "cross_n_deployment" | ""
     n_training_points: int = 0
     seeds: list[int] = field(default_factory=list)
     created: str = ""
@@ -145,6 +145,21 @@ class ZooEntry:
         if p_layers is not None and self.p_layers != p_layers:
             return False
         return True
+
+    @property
+    def is_multi_topology(self) -> bool:
+        """True if this is a multi-topology model."""
+        return self.topology == "multi_topology"
+
+    @property
+    def is_multi_n(self) -> bool:
+        """True if this is a multi-N model (trained across system sizes)."""
+        return self.n_qubits == 0
+
+    @property
+    def is_evaluated(self) -> bool:
+        """True if pass_rate has been set (model was evaluated)."""
+        return self.pass_rate > 0.0
 
 
 def _load_manifest() -> list[ZooEntry]:
@@ -177,6 +192,517 @@ def _save_manifest(entries: list[ZooEntry]) -> None:
     with open(_MANIFEST_PATH, "w") as f:
         json.dump(raw, f, indent=2)
     logger.info("Model zoo manifest saved: %d entries", len(entries))
+
+
+def prune_test_entries(*, dry_run: bool = True) -> list[str]:
+    """Remove test/orphan entries from the zoo manifest.
+
+    Identifies entries with checkpoint_file matching test patterns
+    and removes them from the manifest. Corresponding checkpoint files
+    on disk are NOT deleted (only the manifest entry is removed).
+
+    Parameters
+    ----------
+    dry_run : bool
+        If True, report what would be pruned without modifying manifest.
+
+    Returns
+    -------
+    list[str]
+        Checkpoint filenames that were (or would be) removed.
+    """
+    entries = _load_manifest()
+    test_patterns = ("test_", "kiro_test_")
+    to_prune = [
+        e.checkpoint_file for e in entries
+        if any(e.checkpoint_file.lower().startswith(p) for p in test_patterns)
+    ]
+    if not dry_run and to_prune:
+        clean = [e for e in entries if e.checkpoint_file not in to_prune]
+        _save_manifest(clean)
+        logger.info("Zoo: pruned %d test entries: %s", len(to_prune), to_prune)
+    return to_prune
+
+
+def list_multi_topology_entries(*, p_layers: int = 1) -> list[ZooEntry]:
+    """List all multi-topology entries in the zoo manifest.
+
+    Convenience function for scripts that need quick access to MT models
+    without loading the full manifest and filtering manually.
+
+    Parameters
+    ----------
+    p_layers : int
+        HVA depth filter (default: 1).
+
+    Returns
+    -------
+    list[ZooEntry]
+        Multi-topology entries sorted by n_training_points (descending).
+    """
+    entries = _load_manifest()
+    mt = [
+        e for e in entries
+        if e.is_multi_topology and e.p_layers == p_layers
+    ]
+    return sorted(mt, key=lambda e: e.n_training_points, reverse=True)
+
+
+def _get_extrapolation_performance(topology: str, entry: ZooEntry) -> float | None:
+    """Check real extrapolation performance for a model on a topology.
+
+    Looks at data/large_n_extrapolation/{topology}_N*.npz files to see
+    how well models trained on this data actually perform at large N.
+
+    For MT models, checks the topology-specific extrapolation data since
+    the MT model will be used on this topology.
+
+    Returns
+    -------
+    float | None
+        Average pass_rate@5% across all N values for this topology,
+        or None if no extrapolation data exists.
+    """
+    import numpy as _np
+    from pathlib import Path as _Path
+
+    extrap_dir = _Path(__file__).resolve().parents[3] / "data" / "large_n_extrapolation"
+    if not extrap_dir.exists():
+        return None
+
+    # For MT models, we check the topology they'll be USED on (not "multi_topology")
+    check_topo = topology
+
+    files = list(extrap_dir.glob(f"{check_topo}_N*.npz"))
+    if not files:
+        return None
+
+    pass_rates = []
+    for f in files:
+        try:
+            data = _np.load(f, allow_pickle=True)
+            dg = data.get("de_gaps")
+            if dg is not None and len(dg) > 0:
+                pass_rates.append(float(_np.mean(dg < 0.05)))
+        except Exception:
+            continue
+
+    if not pass_rates:
+        return None
+
+    return float(_np.mean(pass_rates))
+
+
+def load_best_model_for_topology(
+    topology: str,
+    *,
+    model: str = "tfim_bond_resolved",
+    p_layers: int = 1,
+    n_target: int = 20,
+    include_multi_topology: bool = True,
+) -> tuple:
+    """Load the best available model for a topology using ALL available signals.
+
+    Integrates information from 3 sources to make the best selection:
+    1. Zoo manifest: checkpoint existence, pass_rate, n_training_points
+    2. ModelRegistryDB: training_metrics (MSE, convergence), architecture, diagnostics
+    3. Dashboard: per-topology quality tiers, staleness, h_frontier
+
+    The final score for each candidate is:
+        score = (0.40 * pass_rate_signal
+               + 0.30 * data_quality_signal
+               + 0.20 * convergence_signal
+               + 0.10 * freshness_signal)
+        × source_multiplier (1.0 per-topo, 0.95 MT, 0.85 single-N)
+
+    Parameters
+    ----------
+    topology : str
+        Target topology (e.g., "ladder", "heavy_hex").
+    model : str
+        Hamiltonian model (default: "tfim_bond_resolved").
+    p_layers : int
+        HVA depth (default: 1).
+    n_target : int
+        Target system size (for proximity scoring).
+    include_multi_topology : bool
+        If True, also considers multi_topology models as candidates.
+
+    Returns
+    -------
+    tuple[Any, ZooEntry, str]
+        (loaded_model, zoo_entry, source) where source is one of:
+        "per_topology", "multi_topology", "single_n".
+
+    Raises
+    ------
+    FileNotFoundError
+        If no suitable model exists anywhere in the zoo.
+    """
+    entries = _load_manifest()
+
+    # Load supplementary data sources (graceful — never block on failure)
+    db_records = {}
+    try:
+        from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
+        _db = ModelRegistryDB()
+        for r in _db.list_all():
+            db_records[r.model_id] = r
+    except Exception:
+        pass
+
+    dashboard_configs = {}
+    try:
+        import json as _json
+        _dash_path = _PROJECT_ROOT / "data" / "model_quality_dashboard.json"
+        if _dash_path.exists():
+            _dash = _json.loads(_dash_path.read_text())
+            for c in _dash.get("configs", []):
+                key = (c.get("topology"), c.get("n_qubits"), c.get("p_layers", 1))
+                dashboard_configs.setdefault(c.get("topology"), []).append(c)
+    except Exception:
+        pass
+
+    def _score_entry(entry: ZooEntry, source_multiplier: float) -> float:
+        """Compute unified score using all available signals.
+
+        Signal weighting adapts based on what evidence is available:
+        - With real extrapolation data: extrapolation dominates (gold standard)
+        - Without: pass_rate is discounted by evaluation breadth (narrow eval = less trust)
+
+        The scoring is designed to be:
+        - Extensible: new signals can be added without rebalancing
+        - Robust: degraded gracefully when signals are missing
+        - Trustworthy: prefers broad evidence over narrow high scores
+        """
+        # ── Signal 1: pass_rate (with confidence adjustment) ─────────────
+        # Raw pass_rate is discounted based on evaluation breadth:
+        # - h_range < 2.0 → trained/evaluated on narrow regime (less trustworthy)
+        # - Only known at specific N values → may not generalize
+        raw_pass_rate = entry.pass_rate if entry.pass_rate > 0 else 0.0
+        is_evaluated = raw_pass_rate > 0
+
+        # Confidence factor: how much to trust the pass_rate
+        pass_confidence = 1.0
+        if is_evaluated:
+            # Narrow h-range penalty: models evaluated at h=[3.0,3.5] get discounted
+            h_range_width = (entry.h_range[1] - entry.h_range[0]) if entry.h_range else 0
+            if h_range_width < 1.5:
+                pass_confidence *= 0.6  # Very narrow
+            elif h_range_width < 2.5:
+                pass_confidence *= 0.8  # Moderate
+
+            # Few training points penalty: <100 pts → probably single-N eval
+            if entry.n_training_points < 50:
+                pass_confidence *= 0.7
+            elif entry.n_training_points < 150:
+                pass_confidence *= 0.85
+
+            # Check registry for number of N values evaluated
+            db_rec = db_records.get(entry.checkpoint_file)
+            if db_rec and db_rec.evaluations:
+                latest_eval = db_rec.evaluations[-1]
+                n_values_evaluated = len(latest_eval.target_n_values) if latest_eval.target_n_values else 0
+                if n_values_evaluated >= 4:
+                    pass_confidence = min(1.0, pass_confidence + 0.1)  # Bonus for broad eval
+                elif n_values_evaluated <= 1:
+                    pass_confidence *= 0.8  # Penalty for narrow eval
+
+        pass_rate_signal = raw_pass_rate * pass_confidence if is_evaluated else 0.3
+
+        # Boost if pass_rate was validated via extrapolation (most reliable)
+        if entry.pass_rate_source == "extrapolation_eval":
+            pass_rate_signal = min(1.0, pass_rate_signal * 1.15)
+        elif entry.pass_rate_source == "cross_n_deployment":
+            pass_rate_signal = min(1.0, pass_rate_signal * 1.10)
+
+        # ── Signal 2: data quality (training points + dashboard utility) ──
+        pts = entry.n_training_points
+        # Normalize: 500+ pts = 1.0, 100 pts = 0.5, <20 = 0.2
+        data_signal = min(1.0, max(0.2, pts / 500.0))
+
+        # Enrich from dashboard if available
+        topo_configs = dashboard_configs.get(entry.topology, [])
+        if topo_configs:
+            useful_ratio = sum(
+                1 for c in topo_configs if c.get("training_utility") == "useful"
+            ) / max(len(topo_configs), 1)
+            data_signal = data_signal * 0.7 + useful_ratio * 0.3
+
+        # For MT models: check target topology's dashboard (not "multi_topology")
+        if entry.topology == "multi_topology":
+            target_configs = dashboard_configs.get(topology, [])
+            if target_configs:
+                useful_ratio_target = sum(
+                    1 for c in target_configs if c.get("training_utility") == "useful"
+                ) / max(len(target_configs), 1)
+                data_signal = data_signal * 0.6 + useful_ratio_target * 0.4
+
+        # ── Signal 3: convergence (from ModelRegistryDB training_metrics) ──
+        convergence_signal = 0.5  # Default: unknown
+        db_rec = db_records.get(entry.checkpoint_file)
+        if db_rec and db_rec.training and db_rec.training.training_metrics:
+            tm = db_rec.training.training_metrics
+            if hasattr(tm, 'final_mse') and tm.final_mse > 0:
+                # Lower MSE = better convergence
+                if tm.final_mse < 0.05:
+                    convergence_signal = 1.0
+                elif tm.final_mse < 0.15:
+                    convergence_signal = 0.7
+                elif tm.final_mse < 0.30:
+                    convergence_signal = 0.4
+                else:
+                    convergence_signal = 0.2
+            if hasattr(tm, 'status') and tm.status == "converged":
+                convergence_signal = min(1.0, convergence_signal + 0.1)
+
+        # ── Signal 4: freshness (recent models preferred) ────────────────
+        freshness_signal = 0.5
+        if entry.created:
+            try:
+                from datetime import datetime, timezone
+                created_dt = datetime.fromisoformat(entry.created.replace("Z", "+00:00"))
+                age_days = (datetime.now(timezone.utc) - created_dt).days
+                freshness_signal = max(0.3, 1.0 - age_days / 30.0)  # Decays over 30 days
+            except (ValueError, TypeError):
+                pass
+
+        # ── Signal 5: extrapolation performance (gold standard) ──────────
+        # This is actual measured performance at large N — the most trustworthy signal.
+        extrap_signal = 0.0
+        extrap_data = _get_extrapolation_performance(topology, entry)
+        if extrap_data is not None:
+            extrap_signal = extrap_data
+
+        # ── Weighted combination (adaptive) ──────────────────────────────
+        # Tier 1: Real extrapolation data available → trust deployment results
+        if extrap_signal > 0:
+            raw_score = (
+                0.15 * pass_rate_signal
+                + 0.15 * data_signal
+                + 0.10 * convergence_signal
+                + 0.05 * freshness_signal
+                + 0.55 * extrap_signal  # Extrapolation is king
+            )
+        # Tier 2: Model evaluated (pass_rate > 0) but no extrap data
+        elif is_evaluated:
+            raw_score = (
+                0.35 * pass_rate_signal  # Discounted by confidence
+                + 0.30 * data_signal
+                + 0.20 * convergence_signal
+                + 0.15 * freshness_signal
+            )
+        # Tier 3: Never evaluated — pure training signals
+        else:
+            raw_score = (
+                0.10 * pass_rate_signal  # 0.3 floor × 0.10 = minimal contribution
+                + 0.40 * data_signal     # Data quality dominates
+                + 0.35 * convergence_signal
+                + 0.15 * freshness_signal
+            )
+
+        return raw_score * source_multiplier
+
+    # Build candidate pool
+    candidates: list[tuple[float, ZooEntry, str]] = []
+
+    # Pool 1: per-topology multi-N
+    for e in entries:
+        if (e.topology == topology and e.model == model
+                and e.p_layers == p_layers and e.n_qubits == 0
+                and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()):
+            score = _score_entry(e, 1.0)
+            candidates.append((score, e, "per_topology"))
+
+    # Pool 2: multi-topology
+    if include_multi_topology:
+        for e in entries:
+            if (e.topology == "multi_topology" and e.model == model
+                    and e.p_layers == p_layers
+                    and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()):
+                score = _score_entry(e, 0.95)
+                candidates.append((score, e, "multi_topology"))
+
+    # Pool 3: single-N
+    for e in entries:
+        if (e.topology == topology and e.model == model
+                and e.p_layers == p_layers and e.n_qubits > 0
+                and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()):
+            score = _score_entry(e, 0.85)
+            candidates.append((score, e, "single_n"))
+
+    if not candidates:
+        raise FileNotFoundError(
+            f"No model found for ({model}, {topology}, p={p_layers}). Train one first."
+        )
+
+    candidates.sort(key=lambda x: x[0], reverse=True)
+    best_score, best_entry, source = candidates[0]
+
+    ckpt_path = _CHECKPOINTS_DIR / best_entry.checkpoint_file
+    loaded_model = _smart_load_checkpoint(str(ckpt_path))
+
+    logger.info(
+        "load_best_model_for_topology(%s): %s model selected "
+        "(score=%.3f, pass=%.0f%%, pts=%d, ckpt=%s)",
+        topology, source, best_score,
+        best_entry.pass_rate * 100, best_entry.n_training_points,
+        best_entry.checkpoint_file[:40],
+    )
+
+    return loaded_model, best_entry, source
+
+
+def explain_model_selection(
+    topology: str,
+    *,
+    model: str = "tfim_bond_resolved",
+    p_layers: int = 1,
+    n_target: int = 20,
+) -> list[dict]:
+    """Explain why a specific model was selected for a topology.
+
+    Returns all candidates with their scores, source signals, and ranking.
+    Useful for debugging model selection decisions and thesis reporting.
+
+    Parameters
+    ----------
+    topology : str
+        Target topology.
+    model : str
+        Hamiltonian model.
+    p_layers : int
+        HVA depth.
+    n_target : int
+        Target system size.
+
+    Returns
+    -------
+    list[dict]
+        Sorted candidates (best first), each with:
+        {
+            "checkpoint": str,
+            "topology": str,
+            "source": str,
+            "final_score": float,
+            "pass_rate": float,
+            "n_training_points": int,
+            "selected": bool,
+        }
+    """
+    entries = _load_manifest()
+    results: list[dict] = []
+
+    source_configs = [
+        ([e for e in entries if e.topology == topology and e.model == model
+          and e.p_layers == p_layers and e.n_qubits == 0], "per_topology", 1.0),
+        ([e for e in entries if e.topology == "multi_topology" and e.model == model
+          and e.p_layers == p_layers], "multi_topology", 0.95),
+        ([e for e in entries if e.topology == topology and e.model == model
+          and e.p_layers == p_layers and e.n_qubits > 0], "single_n", 0.85),
+    ]
+
+    for pool, source_label, multiplier in source_configs:
+        for e in pool:
+            if not (_CHECKPOINTS_DIR / e.checkpoint_file).exists():
+                continue
+            readiness = compute_model_readiness(e, n_target=n_target)
+            raw = readiness["readiness_score"]
+            final = raw * multiplier
+            results.append({
+                "checkpoint": e.checkpoint_file,
+                "topology": e.topology,
+                "source": source_label,
+                "raw_readiness": round(raw, 4),
+                "penalty_factor": multiplier,
+                "final_score": round(final, 4),
+                "pass_rate": e.pass_rate,
+                "n_training_points": e.n_training_points,
+                "recommendation": readiness["recommendation"],
+                "selected": False,
+            })
+
+    results.sort(key=lambda x: x["final_score"], reverse=True)
+    if results:
+        results[0]["selected"] = True
+    return results
+
+
+def heal_manifest(*, dry_run: bool = True) -> dict:
+    """Detect and fix inconsistencies between manifest and disk.
+
+    Checks:
+    1. Entries pointing to missing checkpoint files → archived/removed
+    2. Orphan .pt files on disk not in manifest → reported
+    3. Duplicate entries (same checkpoint_file) → deduplicated
+
+    Parameters
+    ----------
+    dry_run : bool
+        If True, report issues without modifying manifest.
+
+    Returns
+    -------
+    dict
+        {
+            "missing_checkpoints": list[str],  # entries removed
+            "orphan_files": list[str],  # .pt files not in manifest
+            "duplicates_removed": list[str],  # deduped entries
+            "healed": bool,  # True if modifications were made
+        }
+    """
+    entries = _load_manifest()
+    manifest_files = {e.checkpoint_file for e in entries}
+
+    # 1. Missing checkpoints
+    missing = [
+        e.checkpoint_file for e in entries
+        if not (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+    ]
+
+    # 2. Orphan files
+    orphans = [
+        f.name for f in sorted(_CHECKPOINTS_DIR.glob("*.pt"))
+        if f.name not in manifest_files
+    ]
+
+    # 3. Duplicates (keep last occurrence)
+    seen = {}
+    duplicates = []
+    for e in entries:
+        if e.checkpoint_file in seen:
+            duplicates.append(e.checkpoint_file)
+        seen[e.checkpoint_file] = e
+
+    result = {
+        "missing_checkpoints": missing,
+        "orphan_files": orphans,
+        "duplicates_removed": duplicates,
+        "healed": False,
+    }
+
+    if not dry_run and (missing or duplicates):
+        # Remove missing + deduplicate
+        clean = [
+            e for e in entries
+            if (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+        ]
+        # Deduplicate: keep last occurrence (most recent registration)
+        deduped = {}
+        for e in clean:
+            deduped[e.checkpoint_file] = e
+        clean = list(deduped.values())
+
+        _save_manifest(clean)
+        result["healed"] = True
+        n_removed = len(entries) - len(clean)
+        logger.info(
+            "heal_manifest: removed %d entries (%d missing, %d duplicates). "
+            "%d orphan .pt files on disk.",
+            n_removed, len(missing), len(duplicates), len(orphans),
+        )
+
+    return result
 
 
 def _compute_file_hash(path: Path) -> str:
@@ -841,286 +1367,6 @@ def load_pretrained(
     return mpnn, best
 
 
-def load_best_for_cross_n(
-    model: str,
-    topology: str,
-    n_target: int,
-    p_layers: int,
-    *,
-    checkpoint_path: str | Path | None = None,
-    reject_contaminated: bool = True,
-) -> tuple[Any, ZooEntry]:
-    """Load the best available model for cross-N prediction at n_target.
-
-    Implements a priority hierarchy optimized for cross-N generalization:
-
-    1. **Multi-N model** (``n_qubits=0``): trained on aggregated data from
-       multiple system sizes.  Always preferred because it has seen the
-       functional dependence θ(h, N) and generalizes best to unseen N.
-    2. **Best-scored single-N model**: ranked by a composite score that
-       balances training data quantity, proximity to n_target, and validated
-       pass_rate.  Score formula::
-
-           score = n_training_points * (1 / (1 + |n_qubits - n_target|)) * pr_weight
-
-       where ``pr_weight = max(pass_rate, 0.3)`` (unvalidated models with
-       pass_rate=0 get a floor of 0.3 so they aren't completely ignored).
-
-    Unlike ``load_pretrained(allow_cross_n=True)`` which prefers exact N
-    match then falls back to nearest N, this function is specifically
-    designed for the cross-N prediction use case where the model will
-    ALWAYS be used on a different N than it was trained on.
-
-    Parameters
-    ----------
-    model : str
-        Hamiltonian model name (e.g. "tfim_bond_resolved").
-    topology : str
-        Lattice topology (e.g. "ladder", "chain_1d").
-    n_target : int
-        Target system size for prediction.
-    p_layers : int
-        HVA depth.
-    checkpoint_path : str | Path | None
-        Override: load from a specific path (bypasses zoo search).
-    reject_contaminated : bool
-        If True (default), reject models with `contaminated_training` failure mode.
-        Uses ModelRegistryDB diagnostics to check model health.
-
-    Returns
-    -------
-    tuple[model, ZooEntry]
-        Best available model + metadata.
-
-    Raises
-    ------
-    FileNotFoundError
-        If no suitable model exists in the zoo for this topology/model/p.
-        The caller should handle this by training a new model from available
-        NPZ data (via MultiNAggregator + train_unified_mpnn).
-    """
-    if n_target < 1:
-        raise ValueError(f"n_target must be ≥ 1, got {n_target}.")
-    if p_layers < 1:
-        raise ValueError(f"p_layers must be ≥ 1, got {p_layers}.")
-
-    # User override — direct checkpoint path
-    if checkpoint_path is not None:
-        ckpt_path = Path(checkpoint_path)
-        if not ckpt_path.exists():
-            raise FileNotFoundError(f"Checkpoint not found: {ckpt_path}")
-        mpnn = _smart_load_checkpoint(str(ckpt_path))
-        meta = ZooEntry(
-            model=model,
-            topology=topology,
-            n_qubits=0,
-            p_layers=p_layers,
-            checkpoint_file=str(ckpt_path),
-            notes="User-specified checkpoint for cross-N",
-        )
-        return mpnn, meta
-
-    # Load ALL entries for this model/topology/p (ignoring n_qubits filter)
-    entries = _load_manifest()
-    candidates = [
-        e for e in entries if e.model == model and e.topology == topology and e.p_layers == p_layers
-    ]
-
-    if not candidates:
-        available = {(e.model, e.topology, e.p_layers) for e in entries}
-        raise FileNotFoundError(
-            f"No model in zoo for ({model}, {topology}, p={p_layers}).\n"
-            f"Available (model, topology, p): {sorted(available)}\n"
-            f"Train one via: --multi-n-train or --train-n <N>"
-        )
-
-    # ── Check for contaminated models using ModelRegistryDB ──────────────
-    contaminated_ids: set[str] = set()
-    gap_masked_ids: set[str] = set()
-    if reject_contaminated:
-        contaminated_ids = _get_contaminated_model_ids(model, topology, p_layers)
-        gap_masked_ids = _get_gap_masked_model_ids(model, topology, p_layers)
-        if contaminated_ids:
-            logger.warning(
-                "load_best_for_cross_n: Found %d contaminated model(s) for %s/%s p=%d. "
-                "These will be excluded from selection.",
-                len(contaminated_ids),
-                topology,
-                model,
-                p_layers,
-            )
-        if gap_masked_ids:
-            logger.warning(
-                "load_best_for_cross_n: Found %d gap-masked model(s) for %s/%s p=%d. "
-                "These will be included but metrics may be inflated (|ΔE| high despite ΔE/gap passing).",
-                len(gap_masked_ids),
-                topology,
-                model,
-                p_layers,
-            )
-
-    # ── Priority 1: Multi-N models (n_qubits=0) ──────────────────────────
-    multi_n = [e for e in candidates if e.n_qubits == 0]
-
-    # Filter out contaminated models
-    if reject_contaminated and contaminated_ids:
-        multi_n = [e for e in multi_n if e.checkpoint_file not in contaminated_ids]
-
-    if multi_n:
-        # Among multi-N models, prefer most training points
-        best = max(multi_n, key=lambda e: e.n_training_points)
-        ckpt_path = _CHECKPOINTS_DIR / best.checkpoint_file
-
-        # Quality gate: comprehensive readiness assessment combining data quality,
-        # convergence health (MSE, status), pass_rate, and freshness (stale detection).
-        should_fallback = False
-        fallback_reason = ""
-
-        readiness = compute_model_readiness(best, n_target=n_target)
-        quality_score = readiness["readiness_score"]
-
-        if quality_score < MULTI_N_MIN_QUALITY_SCORE:
-            should_fallback = True
-            penalty_str = (
-                "; ".join(readiness["penalties"]) if readiness["penalties"] else "low composite"
-            )
-            fallback_reason = (
-                f"readiness={quality_score:.3f} < {MULTI_N_MIN_QUALITY_SCORE:.2f} "
-                f"[{readiness['recommendation']}] ({penalty_str})"
-            )
-        elif readiness["recommendation"] == "avoid":
-            should_fallback = True
-            fallback_reason = f"recommendation='avoid' ({'; '.join(readiness['penalties'])})"
-
-        # Cross-check with dashboard training_utility if available
-        if not should_fallback:
-            try:
-                import json
-
-                dashboard_path = _PROJECT_ROOT / "data" / "model_quality_dashboard.json"
-                if dashboard_path.exists():
-                    with open(dashboard_path) as _f:
-                        _dash = json.load(_f)
-                    # Check if ANY config for this topology is "not_useful"
-                    # (contamination signal for the multi-N model)
-                    topo_configs = [
-                        c
-                        for c in _dash.get("configs", [])
-                        if c.get("topology") == topology and c.get("p_layers") == p_layers
-                    ]
-                    n_not_useful = sum(
-                        1 for c in topo_configs if c.get("training_utility") == "not_useful"
-                    )
-                    n_total = len(topo_configs)
-                    if n_total > 0 and n_not_useful / n_total > 0.5:
-                        should_fallback = True
-                        fallback_reason = (
-                            f"dashboard: {n_not_useful}/{n_total} configs are 'not_useful' "
-                            f"— multi-N model likely contaminated"
-                        )
-            except Exception:
-                pass  # Dashboard check is best-effort
-
-        if should_fallback:
-            logger.warning(
-                "load_best_for_cross_n: Multi-N model %s quality gate FAILED (%s). "
-                "Checking single-N alternatives.",
-                best.checkpoint_file,
-                fallback_reason,
-            )
-            single_n_alt = [e for e in candidates if e.n_qubits > 0]
-            # Also filter contaminated from single-N alternatives
-            if reject_contaminated and contaminated_ids:
-                single_n_alt = [
-                    e for e in single_n_alt if e.checkpoint_file not in contaminated_ids
-                ]
-            better_single = [e for e in single_n_alt if _sort_score(e) > quality_score + 0.1]
-            if better_single:
-                logger.info(
-                    "  Found %d single-N models with better quality_score. Falling back.",
-                    len(better_single),
-                )
-                multi_n = []  # Skip multi-N, fall through to Priority 2
-            else:
-                # No better alternatives — use multi-N anyway but warn strongly
-                logger.warning(
-                    "  No single-N alternatives with better quality_score. "
-                    "Using multi-N model despite quality concern. Consider --force-retrain."
-                )
-
-        if multi_n and ckpt_path.exists():
-            _verify_checkpoint_integrity(ckpt_path, best.sha256)
-            mpnn = _smart_load_checkpoint(str(ckpt_path))
-            logger.info(
-                "load_best_for_cross_n: Multi-N model → %s "
-                "(%d training pts, N_target=%d, readiness=%.2f [%s])",
-                best.checkpoint_file,
-                best.n_training_points,
-                n_target,
-                readiness["readiness_score"],
-                readiness["recommendation"],
-            )
-            if readiness["penalties"]:
-                for p in readiness["penalties"]:
-                    logger.info("    ⚠️ %s", p)
-            return mpnn, best
-        elif multi_n:
-            logger.warning(
-                "Multi-N checkpoint missing on disk: %s. Falling back to single-N.",
-                best.checkpoint_file,
-            )
-
-    # ── Priority 2: Best-scored single-N model ────────────────────────────
-    single_n = [e for e in candidates if e.n_qubits > 0]
-
-    # Filter out contaminated models
-    if reject_contaminated and contaminated_ids:
-        single_n = [e for e in single_n if e.checkpoint_file not in contaminated_ids]
-
-    if not single_n:
-        if contaminated_ids:
-            raise FileNotFoundError(
-                f"All available models for ({model}, {topology}, p={p_layers}) "
-                f"are flagged as contaminated. Run diagnostics or retrain with clean data.\n"
-                f"Contaminated models: {sorted(contaminated_ids)}"
-            )
-        raise FileNotFoundError(
-            f"Multi-N checkpoint file missing and no single-N models available "
-            f"for ({model}, {topology}, p={p_layers})."
-        )
-
-    def _score(entry: ZooEntry) -> float:
-        """Composite score: data quantity × proximity × confidence."""
-        proximity = 1.0 / (1.0 + abs(entry.n_qubits - n_target))
-        # Floor pass_rate at 0.3 for unvalidated models (pass_rate=0 from
-        # auto-export before evaluation). This prevents good models from
-        # being ranked below tiny validated ones.
-        pr_weight = max(entry.pass_rate, 0.3)
-        return entry.n_training_points * proximity * pr_weight
-
-    single_n.sort(key=_score, reverse=True)
-    best = single_n[0]
-
-    ckpt_path = _CHECKPOINTS_DIR / best.checkpoint_file
-    if not ckpt_path.exists():
-        raise FileNotFoundError(
-            f"Best single-N checkpoint missing: {ckpt_path}\nRe-run training to regenerate."
-        )
-
-    _verify_checkpoint_integrity(ckpt_path, best.sha256)
-    mpnn = _smart_load_checkpoint(str(ckpt_path))
-    pass_str = f"pass_dual={best.pass_rate:.0%}" if best.pass_rate > 0 else "unevaluated"
-    logger.info(
-        "load_best_for_cross_n: Single-N model N=%d → %s (score=%.1f, %d pts, %s, N_target=%d)",
-        best.n_qubits,
-        best.checkpoint_file,
-        _score(best),
-        best.n_training_points,
-        pass_str,
-        n_target,
-    )
-    return mpnn, best
-
 
 def _get_contaminated_model_ids(
     model: str,
@@ -1314,6 +1560,7 @@ def register_checkpoint(
     entry: ZooEntry,
     *,
     overwrite: bool = False,
+    require_improvement: bool = False,
 ) -> Path:
     """Register a newly trained MPNN into the model zoo.
 
@@ -1333,6 +1580,11 @@ def register_checkpoint(
         Metadata for the checkpoint.
     overwrite : bool
         If True, overwrite existing entry for the same config.
+    require_improvement : bool
+        If True, only register if the new model has more training points
+        than the existing one OR existing has pass_rate=0 (unevaluated).
+        If the existing model is better, the new one is saved to
+        ``_candidates/`` for manual review instead of overwriting.
 
     Returns
     -------
@@ -1350,6 +1602,42 @@ def register_checkpoint(
     # ── Pre-registration validation ──────────────────────────────────────
     # Catch common mistakes before writing anything to disk or manifest.
     _validate_zoo_entry(entry)
+
+    # ── Quality gate: require_improvement ────────────────────────────────
+    if require_improvement and overwrite:
+        existing_entries = [e for e in _load_manifest() if e.checkpoint_file == entry.checkpoint_file]
+        if existing_entries:
+            existing = existing_entries[0]
+            # Block if existing is evaluated AND has more training data
+            if (
+                existing.is_evaluated
+                and existing.n_training_points >= entry.n_training_points
+                and existing.pass_rate > 0.0
+            ):
+                # Save to _candidates/ instead
+                candidates_dir = _CHECKPOINTS_DIR / "_candidates"
+                candidates_dir.mkdir(parents=True, exist_ok=True)
+                candidate_path = candidates_dir / entry.checkpoint_file
+                logger.warning(
+                    "Quality gate BLOCKED registration: existing model has "
+                    "pass_rate=%.2f with %d pts. New model has %d pts. "
+                    "Saved to _candidates/ for manual review.",
+                    existing.pass_rate,
+                    existing.n_training_points,
+                    entry.n_training_points,
+                )
+                # Save checkpoint to candidates dir
+                try:
+                    from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN as _UM
+                    if isinstance(model, _UM):
+                        from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+                        save_unified_checkpoint(model, str(candidate_path))
+                    else:
+                        from qmbp_simulation.predictors.mpnn import save_mpnn_checkpoint
+                        save_mpnn_checkpoint(model, str(candidate_path))
+                except Exception:
+                    pass
+                return candidate_path
 
     # ── Auto-fill date_tag if not provided ───────────────────────────────
     if not entry.date_tag:
@@ -1756,13 +2044,14 @@ def update_zoo_pass_rate(
     *,
     only_if_better: bool = True,
     add_notes: str | None = None,
+    pass_rate_source: str = "training_data_eval",
+    _skip_db_sync: bool = False,
 ) -> bool:
     """Update the pass_rate for an existing zoo entry after evaluation.
 
     Call this after running cross-N prediction or any evaluation that
     produces per-h results. The zoo entry may have pass_rate=0 (never evaluated
     after training) — this function updates the manifest so future
-    `load_best_for_cross_n` sees the real quality.
 
     Parameters
     ----------
@@ -1775,6 +2064,12 @@ def update_zoo_pass_rate(
         If False, always update (use for correcting bad data).
     add_notes : str | None
         Optional text to append to the entry's notes field.
+    pass_rate_source : str
+        Source of the evaluation: "training_data_eval", "extrapolation_eval",
+        or "cross_n_deployment". Default: "training_data_eval".
+    _skip_db_sync : bool
+        If True, skip the auto-sync to ModelRegistryDB. Use when the caller
+        handles its own richer EvaluationRecord write to avoid duplicates.
 
     Returns
     -------
@@ -1808,6 +2103,7 @@ def update_zoo_pass_rate(
 
             if should_update:
                 entry.pass_rate = observed_pass_rate
+                entry.pass_rate_source = pass_rate_source
                 if add_notes:
                     sep = " | " if entry.notes else ""
                     entry.notes = f"{entry.notes}{sep}{add_notes}"
@@ -1838,23 +2134,24 @@ def update_zoo_pass_rate(
         _save_manifest(entries)
 
         # ── Auto-track in model registry history (best-effort) ──────────
-        try:
-            from datetime import datetime
+        if not _skip_db_sync:
+            try:
+                from datetime import datetime
 
-            from qmbp_simulation.predictors.model_registry_db import (
-                EvaluationRecord,
-                ModelRegistryDB,
-            )
+                from qmbp_simulation.predictors.model_registry_db import (
+                    EvaluationRecord,
+                    ModelRegistryDB,
+                )
 
-            db = ModelRegistryDB()
-            eval_record = EvaluationRecord(
-                evaluated_at=datetime.now(UTC).isoformat(),
-                pass_rate_dual=observed_pass_rate,
-                notes=add_notes or "update_zoo_pass_rate",
-            )
-            db.add_evaluation(checkpoint_file, eval_record)
-        except Exception as e:
-            logger.debug("Registry evaluation tracking failed (non-critical): %s", e)
+                db = ModelRegistryDB()
+                eval_record = EvaluationRecord(
+                    evaluated_at=datetime.now(UTC).isoformat(),
+                    pass_rate_dual=observed_pass_rate,
+                    notes=add_notes or "update_zoo_pass_rate",
+                )
+                db.add_evaluation(checkpoint_file, eval_record)
+            except Exception as e:
+                logger.debug("Registry evaluation tracking failed (non-critical): %s", e)
 
     return updated
 
@@ -2253,78 +2550,3 @@ def get_training_data_quality(
     }
 
 
-def load_best_for_cross_n_quality_aware(
-    model: str,
-    topology: str,
-    n_target: int,
-    p_layers: int,
-    *,
-    min_quality_score: float = 0.6,
-    checkpoint_path: str | Path | None = None,
-) -> tuple[Any, ZooEntry, dict]:
-    """Load best cross-N model with quality-aware selection.
-
-    Enhanced version of ``load_best_for_cross_n`` that also checks the
-    training data quality tier distribution. Returns both the model and
-    a quality report so callers can decide if retraining is advisable.
-
-    Parameters
-    ----------
-    model : str
-        Hamiltonian model name.
-    topology : str
-        Lattice topology.
-    n_target : int
-        Target system size.
-    p_layers : int
-        HVA depth.
-    min_quality_score : float
-        Minimum acceptable quality score (0.0-1.0). If below this, a warning
-        is logged suggesting retraining. Default 0.6.
-    checkpoint_path : str | Path | None
-        Override: load from specific path (bypasses quality check).
-
-    Returns
-    -------
-    tuple[model, ZooEntry, dict]
-        Loaded model, metadata, and quality report.
-
-    Raises
-    ------
-    FileNotFoundError
-        If no suitable model exists in the zoo.
-    """
-    # Load model via standard function
-    mpnn, entry = load_best_for_cross_n(
-        model=model,
-        topology=topology,
-        n_target=n_target,
-        p_layers=p_layers,
-        checkpoint_path=checkpoint_path,
-    )
-
-    # Get quality info for the training data
-    quality = get_training_data_quality(
-        topology=topology,
-        n_qubits=entry.n_qubits,
-        model=model,
-        p_layers=p_layers,
-    )
-
-    # Quality gate warning
-    if quality["found"] and quality["quality_score"] < min_quality_score:
-        logger.warning(
-            "load_best_for_cross_n_quality_aware: Model %s trained on low-quality data "
-            "(quality_score=%.2f < %.2f). Consider retraining with cleaner data.\n"
-            "  verified=%d, approximate=%d, unverified=%d",
-            entry.checkpoint_file,
-            quality["quality_score"],
-            min_quality_score,
-            quality["n_verified"],
-            quality["n_approximate"],
-            quality["n_unverified"],
-        )
-        for w in quality.get("warnings", []):
-            logger.warning("    ⚠️ %s", w)
-
-    return mpnn, entry, quality

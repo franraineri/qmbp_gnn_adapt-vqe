@@ -577,3 +577,89 @@ def atomic_savez(path: Path, **arrays) -> None:
     except Exception:
         tmp_path.unlink(missing_ok=True)
         raise
+
+
+def compute_dataset_fingerprint(dataset: list) -> str:
+    """Compute a stable fingerprint for a PyG dataset.
+
+    Creates an 8-char hex hash from dataset composition (size, node/edge counts,
+    target sum). Changes when the dataset composition changes — enables tracking
+    whether two ablation/training runs used the same underlying data.
+
+    Parameters
+    ----------
+    dataset : list[Data]
+        PyG graph dataset (each element must have .x, .edge_index, .y).
+
+    Returns
+    -------
+    str
+        8-character hex hash uniquely identifying this dataset content.
+
+    Example
+    -------
+    >>> from qmbp_simulation.utils.helpers import compute_dataset_fingerprint
+    >>> fp = compute_dataset_fingerprint(my_dataset)
+    >>> print(fp)  # e.g., "a3f8b21c"
+    """
+    import hashlib
+
+    n_graphs = len(dataset)
+    total_nodes = sum(g.x.shape[0] for g in dataset)
+    total_edges = sum(g.edge_index.shape[1] for g in dataset)
+    y_sum = sum(float(g.y.sum()) for g in dataset)
+
+    key = f"{n_graphs}:{total_nodes}:{total_edges}:{y_sum:.6f}"
+    return hashlib.sha256(key.encode()).hexdigest()[:8]
+
+
+def persist_training_curve(
+    result: dict,
+    output_dir: Path,
+    prefix: str = "training",
+) -> Path | None:
+    """Persist training loss curves from a train_unified_mpnn result dict.
+
+    Saves mse_history, val_mse_history, zz_loss_history, and x_loss_history
+    as compressed NPZ for post-hoc analysis (overfitting detection, LR schedule
+    evaluation, convergence speed comparison).
+
+    Parameters
+    ----------
+    result : dict
+        Return dict from train_unified_mpnn() or fine_tune_unified_mpnn().
+        Must contain "mse_history" key at minimum.
+    output_dir : Path
+        Directory to save the curve file.
+    prefix : str
+        Filename prefix (default: "training"). Timestamp is appended.
+
+    Returns
+    -------
+    Path | None
+        Path to saved NPZ file, or None if no data to persist.
+
+    Example
+    -------
+    >>> from qmbp_simulation.utils.helpers import persist_training_curve
+    >>> curve_path = persist_training_curve(train_result, Path("results/curves"))
+    """
+    from datetime import datetime, timezone
+
+    mse_history = result.get("mse_history", [])
+    if not mse_history:
+        return None
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    curve_path = output_dir / f"{prefix}_{ts}.npz"
+
+    curve_data = {
+        "mse_history": np.array(mse_history, dtype=np.float64),
+        "val_mse_history": np.array(result.get("val_mse_history", []), dtype=np.float64),
+        "zz_loss_history": np.array(result.get("zz_loss_history", []), dtype=np.float64),
+        "x_loss_history": np.array(result.get("x_loss_history", []), dtype=np.float64),
+    }
+
+    np.savez_compressed(curve_path, **curve_data)
+    return curve_path

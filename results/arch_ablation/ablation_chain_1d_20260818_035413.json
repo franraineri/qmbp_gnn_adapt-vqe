@@ -1,0 +1,73 @@
+{
+  "timestamp": "2026-08-18T03:54:13.778227+00:00",
+  "topology": "chain_1d",
+  "max_n": 20,
+  "n_training_graphs": 592,
+  "hidden_dim": 64,
+  "n_layers": 3,
+  "max_epochs": 500,
+  "seed": 42,
+  "results": [
+    {
+      "name": "baseline",
+      "n_params": 26418,
+      "final_mse": 0.12310743488416616,
+      "final_zz_mse": 0.0020092455024992204,
+      "final_x_mse": 0.12358779516790087,
+      "val_mse": 0.12165820836889907,
+      "gen_gap": -0.0014492265152670908,
+      "n_epochs": 500,
+      "stop_reason": "completed",
+      "elapsed_s": 426.1
+    },
+    {
+      "name": "residual",
+      "n_params": 27762,
+      "final_mse": 0.10446069532698611,
+      "final_zz_mse": 0.0019362897094824757,
+      "final_x_mse": 0.10506534674375813,
+      "val_mse": 0.12219082488974725,
+      "gen_gap": 0.01773012956276114,
+      "n_epochs": 251,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 190.6
+    },
+    {
+      "name": "jk_cat",
+      "n_params": 34610,
+      "final_mse": 0.11569860816321341,
+      "final_zz_mse": 0.0020121106641914667,
+      "final_x_mse": 0.11598774069144772,
+      "val_mse": 0.12030494857092643,
+      "gen_gap": 0.0046063404077130166,
+      "n_epochs": 301,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 256.0
+    },
+    {
+      "name": "film",
+      "n_params": 27186,
+      "final_mse": 0.11888788977800384,
+      "final_zz_mse": 0.0017565994277998157,
+      "final_x_mse": 0.11946362537310051,
+      "val_mse": 0.11777091281096959,
+      "gen_gap": -0.00111697696703425,
+      "n_epochs": 500,
+      "stop_reason": "completed",
+      "elapsed_s": 429.3
+    },
+    {
+      "name": "res+jk+film",
+      "n_params": 36722,
+      "final_mse": 0.11827958634620743,
+      "final_zz_mse": 0.001571715312079297,
+      "final_x_mse": 0.11905168038939583,
+      "val_mse": 0.11760503859576685,
+      "gen_gap": -0.0006745477504405822,
+      "n_epochs": 500,
+      "stop_reason": "completed",
+      "elapsed_s": 501.1
+    }
+  ],
+  "best_variant": "res+jk+film"
+}

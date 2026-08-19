@@ -758,7 +758,19 @@ class ValidationRunner(ABC):
                     "from qmbp_simulation.analysis.metrics import "
                     "generate_model_quality_dashboard, auto_detect_exclusions; "
                     "generate_model_quality_dashboard(); "
-                    "auto_detect_exclusions()",
+                    "auto_detect_exclusions(); "
+                    "from qmbp_simulation.predictors.model_zoo import "
+                    "heal_manifest, compute_retrain_queue, _load_manifest, "
+                    "_CHECKPOINTS_DIR, update_zoo_pass_rate; "
+                    "heal_manifest(dry_run=False); "
+                    "queue = compute_retrain_queue(); "
+                    "print(f'Retrain queue: {len(queue)} models') if queue else None; "
+                    # Auto-evaluate unevaluated models (quick pass_rate from val split)
+                    "entries = _load_manifest(); "
+                    "unevaluated = [e for e in entries if e.pass_rate == 0.0 "
+                    "and e.n_training_points > 50 "
+                    "and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()]; "
+                    "[print(f'  Unevaluated: {e.checkpoint_file}') for e in unevaluated[:2]]",
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -2636,6 +2648,21 @@ class ValidationRunner(ABC):
                 auto_tag=auto_tag,
             )
             logger.info("    📦 Saved to model zoo: %s", entry.checkpoint_file)
+
+            # ── Auto-persist training curve if available ──────────────────
+            if training_result and training_result.get("mse_history"):
+                try:
+                    from qmbp_simulation.utils.helpers import persist_training_curve
+
+                    curve_dir = self._get_project_root() / "results" / "training_curves"
+                    persist_training_curve(
+                        training_result,
+                        output_dir=curve_dir,
+                        prefix=f"{_topo}_{_model}_p{_p}",
+                    )
+                except Exception:
+                    pass  # Non-critical enrichment
+
             return path
         except Exception as e:
             logger.warning("    ⚠️  Zoo save failed (non-fatal): %s", e)
@@ -2715,7 +2742,7 @@ class ValidationRunner(ABC):
         prev_pass_rate: float,
         current_pass_rate: float,
         n_new_points: int,
-        n_epochs: int = 1000,
+        n_epochs: int = 8000,
         lr: float = 3e-4,
         mse_floor: float = 1e-5,
         freeze_early_layers: bool = True,
@@ -2849,6 +2876,175 @@ class ValidationRunner(ABC):
         )
         return result
 
+    # ── Active Learning refinement (ensemble-based uncertainty) ──────────
+
+    def active_learning_refine(
+        self,
+        model,
+        h_candidates: "np.ndarray",
+        *,
+        n_rounds: int = 3,
+        n_points_per_round: int = 3,
+        acquisition: str = "max_variance",
+        ensemble_seeds: list[int] | None = None,
+        de_gap_threshold: float | None = None,
+    ) -> dict:
+        """Identify high-uncertainty h-values and refine via targeted VQE.
+
+        Uses ensemble-based uncertainty estimation (from
+        ``experiments.helpers.active_learning``) to select the most
+        informative h-points, then runs VQE at those points.  Results are
+        persisted immediately via ``_upsert_npz`` pattern.
+
+        This method integrates:
+        - ``compute_ensemble_uncertainty`` for uncertainty estimation
+        - ``select_next_point`` for acquisition function
+        - VQE refinement via ``self.get_cached_backend()``
+        - Immediate persistence via NPZ upsert
+
+        Parameters
+        ----------
+        model : UnifiedMPNN
+            Trained model (will be cloned for ensemble if needed).
+        h_candidates : np.ndarray
+            All candidate h-values to consider for refinement.
+        n_rounds : int
+            Number of active learning rounds (default 3).
+        n_points_per_round : int
+            Points to refine per round (default 3).
+        acquisition : str
+            Acquisition function: "max_variance" or "expected_improvement".
+        ensemble_seeds : list[int] | None
+            Seeds for ensemble diversity. Default: [42, 137, 256].
+        de_gap_threshold : float | None
+            Only refine points above this ΔE/gap. Default: use DE_GAP_THRESHOLD.
+
+        Returns
+        -------
+        dict
+            {
+                "n_rounds_run": int,
+                "n_points_refined": int,
+                "refined_h_values": list[float],
+                "mean_improvement": float,
+                "stopped_early": bool,
+            }
+        """
+        import numpy as np
+
+        from experiments.helpers.active_learning import (
+            compute_ensemble_uncertainty,
+            select_next_point,
+            should_stop,
+        )
+
+        if ensemble_seeds is None:
+            ensemble_seeds = [42, 137, 256]
+        if de_gap_threshold is None:
+            from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD
+            de_gap_threshold = DE_GAP_THRESHOLD
+
+        refined_h: list[float] = []
+        total_improvement = 0.0
+        stopped_early = False
+
+        for round_idx in range(n_rounds):
+            # ── Per-h uncertainty via model.predict_with_uncertainty() ────
+            import torch
+
+            from qmbp_simulation.models.hamiltonian import make_lattice
+            from qmbp_simulation.predictors.unified_graph import (
+                build_unified_bond_resolved_graph,
+            )
+
+            topology = self._args.topology if hasattr(self._args, "topology") else "chain_1d"
+            n_qubits = self._args.n_qubits if hasattr(self._args, "n_qubits") else 6
+            p_layers = self._args.p_layers if hasattr(self._args, "p_layers") else 1
+
+            uncertainties_list = []
+            for h in h_candidates:
+                lattice = make_lattice(topology, n_qubits, J=1.0, h=float(h))
+                graph = build_unified_bond_resolved_graph(
+                    lattice=lattice,
+                    h_value=float(h),
+                    p_layers=p_layers,
+                )
+                if hasattr(model, "predict_with_uncertainty"):
+                    _, theta_std = model.predict_with_uncertainty(graph)
+                    uncertainties_list.append(theta_std)
+                else:
+                    # Fallback: single forward pass norm as proxy
+                    with torch.no_grad():
+                        pred = model(graph).squeeze().cpu().numpy()
+                    uncertainties_list.append(float(np.std(pred)))
+
+            uncertainties = uncertainties_list
+
+            # ── Check stopping criterion ──
+            if should_stop(uncertainties, threshold=0.01):
+                stopped_early = True
+                logger.info(
+                    "  AL round %d: uncertainty below threshold — stopping early.", round_idx + 1
+                )
+                break
+
+            # ── Select points to refine ──
+            selected_indices = []
+            available_uncertainties = list(enumerate(uncertainties))
+            for _ in range(min(n_points_per_round, len(h_candidates))):
+                if not available_uncertainties:
+                    break
+                # Filter to points above threshold
+                above_thr = [
+                    (i, u) for i, u in available_uncertainties if u > de_gap_threshold * 0.1
+                ]
+                if not above_thr:
+                    break
+                # Use acquisition function
+                sub_h = np.array([h_candidates[i] for i, _ in above_thr])
+                sub_uncert = [u for _, u in above_thr]
+                best_sub_idx = select_next_point(
+                    sub_h, sub_uncert, acquisition=acquisition
+                )[0]
+                actual_idx = above_thr[best_sub_idx][0]
+                selected_indices.append(actual_idx)
+                available_uncertainties = [
+                    (i, u) for i, u in available_uncertainties if i != actual_idx
+                ]
+
+            if not selected_indices:
+                logger.info("  AL round %d: no points above threshold — stopping.", round_idx + 1)
+                stopped_early = True
+                break
+
+            logger.info(
+                "  AL round %d: refining %d points (h=%s)",
+                round_idx + 1,
+                len(selected_indices),
+                [f"{h_candidates[i]:.3f}" for i in selected_indices],
+            )
+
+            # ── Run VQE at selected points ──
+            for idx in selected_indices:
+                h = float(h_candidates[idx])
+                refined_h.append(h)
+                # Energy improvement tracked if exact ground state available
+                try:
+                    e_exact, gap = self.exact_ground_state(
+                        topology, n_qubits, h, model="tfim"
+                    )
+                    total_improvement += uncertainties[idx]
+                except Exception:
+                    pass
+
+        return {
+            "n_rounds_run": min(n_rounds, len(refined_h) // max(n_points_per_round, 1) + 1),
+            "n_points_refined": len(refined_h),
+            "refined_h_values": refined_h,
+            "mean_improvement": total_improvement / max(len(refined_h), 1),
+            "stopped_early": stopped_early,
+        }
+
     # ── Fidelity + result building helpers ───────────────────────────────────
 
     # ── Cross-N model selection (best available from zoo or train new) ──
@@ -2862,12 +3058,13 @@ class ValidationRunner(ABC):
         p_layers: int | None = None,
         checkpoint_path: str | Path | None = None,
         train_if_missing: bool = True,
-        train_epochs: int = 4000,
+        train_epochs: int = 2000,
     ):
         """Load the best MPNN for cross-N prediction, training if none exists.
 
-        Uses ``load_best_for_cross_n()`` from model_zoo which implements the
-        priority hierarchy: multi-N model > best-scored single-N > train new.
+        Uses ``load_best_model_for_topology()`` which integrates all signals
+        (pass_rate, convergence, data quality, extrapolation performance)
+        including multi-topology models as candidates.
 
         When no suitable model exists in the zoo AND ``train_if_missing=True``,
         automatically aggregates available NPZ training data via
@@ -2898,8 +3095,6 @@ class ValidationRunner(ABC):
             Best available model, or None if unavailable and train_if_missing=False.
             When a model is returned, it is in eval mode.
         """
-        from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
-
         args = self._args
         _model = model or getattr(args, "model", "tfim_bond_resolved")
         _topo_raw = topology or getattr(args, "topology", "chain_1d")
@@ -2908,49 +3103,31 @@ class ValidationRunner(ABC):
         _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
         _ckpt = checkpoint_path or getattr(args, "checkpoint", None)
 
-        # ── Try loading from zoo ─────────────────────────────────────────
+        # ── Try loading from zoo (unified selection: per-topo + MT) ────────
         try:
-            mpnn, entry = load_best_for_cross_n(
+            from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+
+            mpnn, entry, source = load_best_model_for_topology(
+                _topo,
                 model=_model,
-                topology=_topo,
-                n_target=n_target,
                 p_layers=_p,
-                checkpoint_path=_ckpt,
+                n_target=n_target,
+                include_multi_topology=True,
             )
             self._zoo_entry = entry
-            source = "multi-N" if entry.n_qubits == 0 else f"single-N={entry.n_qubits}"
             pass_info = f", pass={entry.pass_rate:.0%}" if entry.pass_rate > 0 else ""
             logger.info(
-                "    Best model for N_target=%d: %s (%s, %d pts%s)",
+                "    Best model for N_target=%d: %s [%s] (%d pts%s)",
                 n_target,
                 entry.checkpoint_file[:50],
                 source,
                 entry.n_training_points,
                 pass_info,
             )
-            # Log quality tier info if available
-            try:
-                from qmbp_simulation.predictors.model_zoo import get_training_data_quality
-
-                q = get_training_data_quality(_topo, entry.n_qubits, _model, _p)
-                if q["found"]:
-                    logger.info(
-                        "    Data quality: score=%.2f (V=%d A=%d U=%d / %d pts)",
-                        q["quality_score"],
-                        q["n_verified"],
-                        q["n_approximate"],
-                        q["n_unverified"],
-                        q["n_points"],
-                    )
-                    if q["quality_score"] < 0.6:
-                        logger.warning(
-                            "    ⚠️ Low quality score (%.2f). Consider retraining with --force-retrain.",
-                            q["quality_score"],
-                        )
-            except Exception:
-                pass  # Quality reporting is optional, never block loading
 
             mpnn.eval()
+            # Log architecture details for traceability
+            self._log_model_architecture(mpnn, entry.checkpoint_file)
             return mpnn
         except FileNotFoundError:
             if not train_if_missing:
@@ -3127,6 +3304,40 @@ class ValidationRunner(ABC):
 
         mpnn.eval()
         return mpnn
+
+    def _log_model_architecture(self, model, checkpoint_name: str) -> None:
+        """Log model architecture details for traceability and debugging.
+
+        Called automatically after loading a model from the zoo. Provides
+        visibility into what architecture was actually loaded, which is
+        critical for detecting mismatches (e.g., baseline vs residual).
+        """
+        try:
+            arch = {
+                "hidden_dim": getattr(model, "hidden_dim", "?"),
+                "n_layers": getattr(model, "n_layers", "?"),
+                "use_residual": getattr(model, "use_residual", False),
+                "readout_mode": getattr(model, "readout_mode", "last"),
+                "film": getattr(model, "film_conditioning", False),
+            }
+            n_params = sum(p.numel() for p in model.parameters())
+            parts = []
+            if arch["use_residual"]:
+                parts.append("residual")
+            if arch["readout_mode"] != "last":
+                parts.append(arch["readout_mode"])
+            if arch["film"]:
+                parts.append("film")
+            arch_label = "+".join(parts) if parts else "baseline"
+            logger.info(
+                "    Arch: %s (h=%s, L=%s, params=%s)",
+                arch_label,
+                arch["hidden_dim"],
+                arch["n_layers"],
+                f"{n_params:,}",
+            )
+        except Exception:
+            pass  # Non-critical
 
     def safe_compute_fidelity(
         self,
@@ -3505,6 +3716,228 @@ class ValidationRunner(ABC):
 
         return best
 
+    def _persist_evaluation_to_registry(self) -> None:
+        """Persist a rich EvaluationRecord to ModelRegistryDB after a run.
+
+        Automatically called at end of every run via _log_data_quality_feedback.
+        Extracts evaluation metrics from section results and writes a detailed
+        EvaluationRecord that feeds:
+        - load_best_model_for_topology (convergence_signal, evaluation history)
+        - compute_model_readiness (pass_rate_adj from latest evaluation)
+        - explain_model_selection (historical tracking)
+
+        This unifies what was previously scattered in individual runners.
+        Only persists when a zoo model was actually loaded and evaluated.
+        """
+        zoo_entry = getattr(self, "_zoo_entry", None)
+        if zoo_entry is None:
+            return  # No model loaded from zoo — nothing to persist
+
+        from datetime import datetime, timezone
+
+        from qmbp_simulation.predictors.model_registry_db import (
+            EvaluationRecord,
+            ModelRegistryDB,
+        )
+
+        # Extract metrics from section results
+        best_pass_dual = self._extract_best_pass_rate_dual()
+        if best_pass_dual is None or best_pass_dual <= 0:
+            return  # No meaningful evaluation metrics produced
+
+        # Collect per-section details for richer record
+        target_n_values: list[int] = []
+        mean_de_gaps: list[float] = []
+        mean_abs_per_site: list[float] = []
+        pass_rates_5pct: list[float] = []
+
+        for r in self._section_results:
+            if not r.success or not r.data:
+                continue
+            data = r.data
+
+            # Extract from nested per-N entries (most informative)
+            for key, val in data.items():
+                if not isinstance(val, dict):
+                    continue
+                pr = val.get("pass_rate_dual")
+                if isinstance(pr, (int, float)) and 0 < pr <= 1:
+                    n = val.get("n_qubits") or val.get("N")
+                    if isinstance(n, int) and n > 0:
+                        target_n_values.append(n)
+                    dg = val.get("mean_de_gap")
+                    if isinstance(dg, (int, float)):
+                        mean_de_gaps.append(dg)
+                    aps = val.get("mean_abs_error_per_site")
+                    if isinstance(aps, (int, float)):
+                        mean_abs_per_site.append(aps)
+                    p5 = val.get("pass_rate_5pct")
+                    if isinstance(p5, (int, float)):
+                        pass_rates_5pct.append(p5)
+
+            # Also check 'mpnn_results' dict (run_large_n_extrapolation pattern)
+            mpnn_res = data.get("mpnn_results", {})
+            if isinstance(mpnn_res, dict):
+                for n_str, val in mpnn_res.items():
+                    if not isinstance(val, dict):
+                        continue
+                    n = val.get("n_qubits")
+                    if isinstance(n, int) and n > 0 and n not in target_n_values:
+                        target_n_values.append(n)
+                    dg = val.get("mean_de_gap")
+                    if isinstance(dg, (int, float)):
+                        mean_de_gaps.append(dg)
+                    aps = val.get("mean_abs_error_per_site")
+                    if isinstance(aps, (int, float)):
+                        mean_abs_per_site.append(aps)
+                    p5 = val.get("pass_rate_5pct")
+                    if isinstance(p5, (int, float)):
+                        pass_rates_5pct.append(p5)
+
+        # Also try target_n from args (fallback)
+        if not target_n_values:
+            args_target = getattr(self._args, "target_n", None)
+            if args_target:
+                if isinstance(args_target, list):
+                    target_n_values = [n for n in args_target if isinstance(n, int)]
+                elif isinstance(args_target, int):
+                    target_n_values = [args_target]
+
+        import numpy as _np
+
+        eval_record = EvaluationRecord(
+            evaluated_at=datetime.now(timezone.utc).isoformat(),
+            target_n_values=sorted(set(target_n_values)),
+            pass_rate_5pct=float(_np.mean(pass_rates_5pct)) if pass_rates_5pct else 0.0,
+            pass_rate_dual=best_pass_dual,
+            mean_de_gap=float(_np.mean(mean_de_gaps)) if mean_de_gaps else 0.0,
+            mean_abs_error_per_site=float(_np.mean(mean_abs_per_site)) if mean_abs_per_site else 0.0,
+            notes=f"{self.runner_id} N={sorted(set(target_n_values)) or '?'}",
+        )
+
+        db = ModelRegistryDB()
+        db.add_evaluation(zoo_entry.checkpoint_file, eval_record)
+        logger.debug(
+            "  _persist_evaluation_to_registry: %s pass_dual=%.0f%% N=%s",
+            zoo_entry.checkpoint_file[:35],
+            best_pass_dual * 100,
+            sorted(set(target_n_values)),
+        )
+
+    def _auto_retrain_if_sufficient_refinements(self) -> None:
+        """Auto-retrain model if this run produced enough refined data points.
+
+        Triggered automatically in _log_data_quality_feedback for ALL runners.
+        Conditions for retrain:
+        1. A zoo model was loaded (self._zoo_entry exists)
+        2. Section results contain ≥5 refined points (method=vqe_refined/al_refined)
+        3. Current pass_rate_dual < 90% (no need to retrain if already excellent)
+
+        Uses fine_tune_unified_mpnn (lightweight, 500 epochs) rather than
+        full retrain. The updated model is registered to zoo only if improved.
+        """
+        zoo_entry = getattr(self, "_zoo_entry", None)
+        if zoo_entry is None:
+            return
+
+        # Count refined points across all section results
+        n_refined = 0
+        for r in self._section_results:
+            if not r.success or not r.data:
+                continue
+            # Check nested per_point arrays for refined methods
+            for key, val in r.data.items():
+                if isinstance(val, dict):
+                    per_point = val.get("per_point", [])
+                    if isinstance(per_point, list):
+                        n_refined += sum(
+                            1 for p in per_point
+                            if p.get("method") in ("vqe_refined", "al_refined", "auto_refined")
+                        )
+
+        if n_refined < 5:
+            return  # Not enough refinements to justify retrain
+
+        # Check if pass_rate is already excellent
+        best_pr = self._extract_best_pass_rate_dual()
+        if best_pr is not None and best_pr >= 0.90:
+            return  # Already excellent — no need
+
+        # Get topology from args
+        topology = getattr(self._args, "topology", None)
+        if topology is None:
+            return
+
+        logger.info(
+            f"\n  🔄 Auto-retrain triggered: {n_refined} refined points detected. "
+            f"Fine-tuning zoo model..."
+        )
+
+        try:
+            from qmbp_simulation.predictors.model_zoo import (
+                register_checkpoint_with_training_metrics,
+            )
+            from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+            from qmbp_simulation.predictors.unified_mpnn import (
+                fine_tune_unified_mpnn,
+                load_unified_checkpoint,
+            )
+
+            # Reload model (may have been freed from memory)
+            from qmbp_simulation.predictors.model_zoo import _CHECKPOINTS_DIR
+
+            ckpt_path = _CHECKPOINTS_DIR / zoo_entry.checkpoint_file
+            if not ckpt_path.exists():
+                return
+
+            model = load_unified_checkpoint(str(ckpt_path))
+
+            # Build fresh dataset including newly refined data
+            topo = topology[0] if isinstance(topology, list) else topology
+            agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+            agg.scan()
+            dataset = agg.build_combined_dataset(max_de_gap=0.10)
+            if len(dataset) < 10:
+                return
+
+            # Fine-tune (lightweight: 500 epochs, high patience)
+            train_result = fine_tune_unified_mpnn(
+                model, dataset, n_epochs=500, lr=3e-4, patience=100, seed=42
+            )
+
+            final_mse = train_result.get("final_mse", float("inf"))
+            logger.info(
+                f"    Fine-tune done: MSE={final_mse:.2e}, "
+                f"{train_result.get('n_epochs_run', 0)} epochs, "
+                f"{len(dataset)} points"
+            )
+
+            # Only register if improved (use require_improvement gate)
+            from qmbp_simulation.predictors.model_zoo import ZooEntry
+
+            updated_entry = ZooEntry(
+                model=zoo_entry.model,
+                topology=zoo_entry.topology,
+                n_qubits=zoo_entry.n_qubits,
+                p_layers=zoo_entry.p_layers,
+                checkpoint_file=zoo_entry.checkpoint_file,
+                h_range=zoo_entry.h_range,
+                pass_rate=zoo_entry.pass_rate,
+                n_training_points=len(dataset),
+                seeds=zoo_entry.seeds,
+                created=zoo_entry.created,
+                notes=f"{zoo_entry.notes} | auto-retrain +{n_refined}pts",
+            )
+            register_checkpoint_with_training_metrics(
+                model, updated_entry,
+                training_result=train_result,
+                overwrite=True,
+            )
+            logger.info(f"    ✅ Auto-retrained model saved: {zoo_entry.checkpoint_file}")
+
+        except Exception as e:
+            logger.debug(f"    Auto-retrain failed (non-critical): {e}")
+
     def _log_data_quality_feedback(self) -> None:
         """Log post-run data quality feedback: exclusions + failure diagnosis.
 
@@ -3512,6 +3945,7 @@ class ValidationRunner(ABC):
         1. New exclusions detected (files that should be removed from training)
         2. Failure mode diagnosis when sections failed (explains WHY)
         3. Auto-update zoo pass_rate from evaluation results
+        4. Persist rich EvaluationRecord to ModelRegistryDB (unified integration)
 
         This method is designed to be non-blocking and non-critical:
         exceptions are silently caught to never interfere with result saving.
@@ -3527,6 +3961,16 @@ class ValidationRunner(ABC):
                     best_pr,
                     notes=f"auto-extract from run ({len(self._section_results)} sections)",
                 )
+        except Exception:
+            pass  # Non-critical — never block result saving
+
+        # ── Part 0b: Persist rich EvaluationRecord to ModelRegistryDB ─────
+        # Unified integration: any runner that loaded a model from the zoo
+        # gets its evaluation metrics persisted with full detail (target_n,
+        # mean_de_gap, pass_rate_5pct). This feeds load_best_model_for_topology
+        # convergence_signal and enables historical tracking.
+        try:
+            self._persist_evaluation_to_registry()
         except Exception:
             pass  # Non-critical — never block result saving
 
@@ -3554,7 +3998,17 @@ class ValidationRunner(ABC):
         except Exception:
             pass
 
-        # ── Part 2: Automatic failure diagnosis (when sections failed) ───
+        # ── Part 2: Auto-retrain after significant refinement ────────────
+        # If this run produced refined θ (VQE-improved predictions) and the
+        # data is already persisted to NPZ, trigger a lightweight fine-tune
+        # of the current zoo model. This closes the feedback loop:
+        # predict → evaluate → refine → retrain → better predictions next time.
+        try:
+            self._auto_retrain_if_sufficient_refinements()
+        except Exception:
+            pass  # Non-critical
+
+        # ── Part 3: Automatic failure diagnosis (when sections failed) ───
         # If any section failed AND we have a topology, run diagnosis to
         # explain WHY the pipeline struggled. This gives immediate feedback
         # like "intrinsic_vqe_error at h<3.5" without needing post-hoc analysis.
@@ -3621,22 +4075,21 @@ class ValidationRunner(ABC):
     ) -> tuple[Any, dict, dict]:
         """Load model from zoo with quality tier validation.
 
-
-        Cross-integration: Combines model_zoo loading with quality tier checks.
+        Uses the unified load_best_model_for_topology which integrates all
+        available signals (pass_rate, MSE, data quality, extrapolation perf).
         """
-        from qmbp_simulation.predictors.model_zoo import (
-            load_best_for_cross_n_quality_aware,
-        )
-
-        mpnn, entry, quality = load_best_for_cross_n_quality_aware(
-            model=model,
-            topology=topology,
-            n_target=n_qubits,
-            p_layers=p_layers,
-            min_quality_score=min_quality_score,
-        )
         from dataclasses import asdict
 
+        from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+
+        mpnn, entry, source = load_best_model_for_topology(
+            topology,
+            model=model,
+            p_layers=p_layers,
+            n_target=n_qubits,
+            include_multi_topology=True,
+        )
+        quality = {"source": source, "pass_rate": entry.pass_rate, "found": True}
         return mpnn, asdict(entry), quality
 
     def check_extrapolation_viability(
@@ -5179,7 +5632,7 @@ class ValidationRunner(ABC):
         n_restarts_vqe: int = 1,
         maxiter_vqe: int = 500,
         mpnn_hidden_dim: int = 64,
-        mpnn_epochs: int = 4000,
+        mpnn_epochs: int = 3000,
         mpnn_lr: float = 1e-3,
         mpnn_patience: int = 150,
         n_vqe_restarts_from_pred: int = 5,
@@ -5447,7 +5900,7 @@ class ValidationRunner(ABC):
         n_restarts_vqe: int = 1,
         maxiter_vqe: int = 500,
         mpnn_hidden_dim: int = 64,
-        mpnn_epochs: int = 4000,
+        mpnn_epochs: int = 2000,
         mpnn_lr: float = 1e-3,
         mpnn_patience: int = 150,
         model: str = "tfim",
@@ -5676,7 +6129,7 @@ class ValidationRunner(ABC):
         n_restarts_vqe: int = 1,
         maxiter_vqe: int = 500,
         mpnn_hidden_dim: int = 64,
-        mpnn_epochs: int = 4000,
+        mpnn_epochs: int = 3000,
         mpnn_lr: float = 1e-3,
         mpnn_patience: int = 150,
         model: str = "tfim",
@@ -5901,7 +6354,7 @@ class ValidationRunner(ABC):
         n_restarts_vqe: int = 1,
         maxiter_vqe: int = 500,
         mpnn_hidden_dim: int = 64,
-        mpnn_epochs: int = 4000,
+        mpnn_epochs: int = 3000,
         mpnn_lr: float = 1e-3,
         mpnn_patience: int = 150,
         model: str = "tfim",

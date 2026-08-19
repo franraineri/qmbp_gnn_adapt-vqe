@@ -1,6 +1,6 @@
 # Accelerated Cross-N Coverage Analysis
 
-**Fecha**: 2026-08-17 (auto-updated by update_cross_n_coverage.py)
+**Fecha**: 2026-08-18 (auto-updated by update_cross_n_coverage.py)
 **Modelo**: TFIM bond-resolved, p=1
 **Método**: AcceleratedVQE + UnifiedMPNN cross-N transfer
 **Fuentes**: `model_quality_dashboard.json`, NPZ training data, GT cache
@@ -17,9 +17,9 @@
 |-----------|---------|-----------|---------|--------------|---------------|--------------|
 | chain_1d | 6,8,10,12,15,20 | 606 | [1.5, 5.5] | 99% | — | 20 |
 | heavy_hex | 4,6,10,12,16 | 441 | [0.6, 5.5] | 100% | — | 16 |
-| ladder | 4,6,8,10,12,14,16 | 497 | [1.4, 5.5] | 94% | — | 16 |
-| square | 4,6,8,10,12,14 | 424 | [1.4, 5.5] | 88% | — | 14 |
-| triangular | 3,4,6,8,10,12 | 340 | [0.5, 5.5] | 100% | — | 12 |
+| ladder | 4,6,8,10,12,14,16,20 | 519 | [1.4, 5.5] | 94% | — | 20 |
+| square | 4,6,8,10,12,14 | 435 | [1.4, 5.5] | 88% | — | 14 |
+| triangular | 3,4,6,8,10,12 | 383 | [0.5, 5.5] | 100% | — | 8 |
 <!-- AUTO-GENERATED-END:executive_summary -->
 
 ---
@@ -29,17 +29,17 @@
 <!-- AUTO-GENERATED-BEGIN:health -->
 | Metric | Value | Status |
 |--------|-------|--------|
-| Total NPZ files | 30 | |
-| Total training points | 2308 | |
-| **Quality: Useful** | 24 configs | ✅ |
+| Total NPZ files | 31 | |
+| Total training points | 2384 | |
+| **Quality: Useful** | 25 configs | ✅ |
 | **Quality: Insufficient** | 6 configs | ⚠️ |
 | **Quality: Not Useful** | 0 configs | ✅ |
 | NaN in θ | 0 configs | ✅ |
 | Zoo integrity | True | ✅ |
 | Zoo missing | 0 | ✅ |
-| Zoo orphan checkpoints | 0 | ✅ |
-| GT coverage gaps | 1034 uncovered h-points | ⚠️ |
-| Stale zoo models | 9 | ⚠️ |
+| Zoo orphan checkpoints | 3 | ⚠️ cleanup needed |
+| GT coverage gaps | 1095 uncovered h-points | ⚠️ |
+| Stale zoo models | 23 | ⚠️ |
 | Need retrain | 0 | ✅ |
 | High θ discontinuity (>0.5) | 20 configs | ⚠️ |
 | Gap masking detected | 13 configs | ⚠️ |
@@ -114,14 +114,14 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 | ladder | 12 | 94% | 48% | 46% |
 | ladder | 16 | 72% | 28% | 43% |
 | ladder | 8 | 79% | 50% | 29% |
-| triangular | 12 | 43% | 14% | 29% |
 | triangular | 8 | 40% | 12% | 28% |
+| triangular | 12 | 33% | 7% | 26% |
 | square | 12 | 87% | 63% | 23% |
 | ladder | 14 | 48% | 27% | 21% |
-| triangular | 10 | 32% | 12% | 20% |
 | square | 14 | 73% | 54% | 19% |
+| triangular | 10 | 35% | 17% | 19% |
 | ladder | 6 | 87% | 72% | 14% |
-| square | 10 | 80% | 66% | 14% |
+| square | 10 | 72% | 61% | 12% |
 | triangular | 6 | 69% | 58% | 11% |
 <!-- AUTO-GENERATED-END:gap_masking -->
 
@@ -134,12 +134,12 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 
 | N | Puntos | h-range | Pass@5% | Pass@dual | h_frontier | θ smooth | Observación |
 |---|--------|---------|---------|-----------|------------|---------|-------------|
-| 6 | 90 | [1.50, 5.50] | 99% | 99% | 1.56 | 1.57 ⚠️ | div=0.09 |
-| 8 | 111 | [1.50, 5.50] | 96% | 96% | 1.72 | 1.64 ⚠️ | div=0.07 |
-| 10 | 90 | [1.50, 5.50] | 92% | 92% | 1.84 | 1.57 ⚠️ | div=0.02 |
-| 12 | 69 | [1.50, 5.50] | 91% | 91% | 1.94 | 1.45 ⚠️ | div=0.02 |
-| 15 | 173 | [1.50, 5.50] | 90% | 84% | 2.03 | 1.96 ⚠️ | (6% masked) div=0.00 |
-| 20 | 73 | [1.50, 5.50] | 86% | 78% | 2.21 | 2.70 ⚠️ | (8% masked) div=0.03 |
+| 6 | 90 | [1.50, 5.50] | 99% | 99% | 1.56 | 1.57 ⚠️ | div=0.30 STALE |
+| 8 | 111 | [1.50, 5.50] | 96% | 96% | 1.72 | 1.64 ⚠️ | div=0.27 STALE |
+| 10 | 90 | [1.50, 5.50] | 92% | 92% | 1.84 | 1.57 ⚠️ | div=0.23 STALE |
+| 12 | 69 | [1.50, 5.50] | 91% | 91% | 1.94 | 1.45 ⚠️ | div=0.22 STALE |
+| 15 | 173 | [1.50, 5.50] | 90% | 84% | 2.03 | 1.96 ⚠️ | (6% masked) div=0.21 STALE |
+| 20 | 73 | [1.50, 5.50] | 86% | 78% | 2.21 | 2.70 ⚠️ | (8% masked) div=0.17 STALE |
 <!-- AUTO-GENERATED-END:topo_chain_1d -->
 
 <!-- AUTO-GENERATED-BEGIN:topo_heavy_hex -->
@@ -147,11 +147,11 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 
 | N | Puntos | h-range | Pass@5% | Pass@dual | h_frontier | θ smooth | Observación |
 |---|--------|---------|---------|-----------|------------|---------|-------------|
-| 4 | 84 | [0.58, 5.50] | 94% | 94% | 0.96 | 0.08  | div=0.03 |
-| 6 | 42 | [1.90, 4.50] | 100% | 100% | 1.90 | 0.05  | div=0.09 |
-| 10 | 140 | [1.40, 4.50] | 91% | 91% | 1.90 | 1.62 ⚠️ | div=0.01 |
-| 12 | 77 | [1.40, 4.50] | 87% | 87% | 1.93 | 1.73 ⚠️ | div=0.04 |
-| 16 | 98 | [1.40, 4.50] | 88% | 87% | 2.02 | 1.24 ⚠️ | div=0.03 |
+| 4 | 84 | [0.58, 5.50] | 94% | 94% | 0.96 | 0.08  | div=0.32 STALE |
+| 6 | 42 | [1.90, 4.50] | 100% | 100% | 1.90 | 0.05  | div=0.38 STALE |
+| 10 | 140 | [1.40, 4.50] | 91% | 91% | 1.90 | 1.62 ⚠️ | div=0.29 STALE |
+| 12 | 77 | [1.40, 4.50] | 87% | 87% | 1.93 | 1.73 ⚠️ | div=0.25 STALE |
+| 16 | 98 | [1.40, 4.50] | 88% | 87% | 2.02 | 1.24 ⚠️ | div=0.25 STALE |
 <!-- AUTO-GENERATED-END:topo_heavy_hex -->
 
 <!-- AUTO-GENERATED-BEGIN:topo_ladder -->
@@ -159,13 +159,14 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 
 | N | Puntos | h-range | Pass@5% | Pass@dual | h_frontier | θ smooth | Observación |
 |---|--------|---------|---------|-----------|------------|---------|-------------|
-| 4 | 45 | [1.36, 5.00] | 76% | 73% | 1.85 | 0.14  | div=0.31 STALE |
-| 6 | 69 | [2.00, 4.80] | 87% | 72% | 2.33 | 0.62 ⚠️ | (14% masked) div=0.42 STALE |
-| 8 | 98 | [1.80, 5.00] | 79% | 50% | 2.62 | 0.79 ⚠️ | ⚠️ GAP MASK +29% div=0.34 STALE |
-| 10 | 131 | [2.00, 4.80] | 73% | 24% | 2.82 | 0.79 ⚠️ | ⚠️ GAP MASK +50% div=0.28 STALE |
-| 12 | 54 | [2.50, 5.50] | 94% | 48% | 2.98 | 0.40  | ⚠️ GAP MASK +46% div=0.49 STALE |
-| 14 | 33 | [2.00, 4.80] | 48% | 27% | 3.10 | 0.79 ⚠️ | ⚠️ GAP MASK +21% div=0.03 |
-| 16 | 67 | [2.00, 5.50] | 72% | 28% | 3.21 | 0.79 ⚠️ | ⚠️ GAP MASK +43% div=0.27 STALE |
+| 4 | 45 | [1.36, 5.00] | 76% | 73% | 1.85 | 0.14  | div=0.38 STALE |
+| 6 | 69 | [2.00, 4.80] | 87% | 72% | 2.33 | 0.62 ⚠️ | (14% masked) div=0.49 STALE |
+| 8 | 98 | [1.80, 5.00] | 79% | 50% | 2.62 | 0.79 ⚠️ | ⚠️ GAP MASK +29% div=0.41 STALE |
+| 10 | 131 | [2.00, 4.80] | 73% | 24% | 2.82 | 0.79 ⚠️ | ⚠️ GAP MASK +50% div=0.36 STALE |
+| 12 | 54 | [2.50, 5.50] | 94% | 48% | 2.98 | 0.40  | ⚠️ GAP MASK +46% div=0.57 STALE |
+| 14 | 33 | [2.00, 4.80] | 48% | 27% | 3.10 | 0.79 ⚠️ | ⚠️ GAP MASK +21% div=0.11 |
+| 16 | 67 | [2.00, 5.50] | 72% | 28% | 3.21 | 0.79 ⚠️ | ⚠️ GAP MASK +43% div=0.34 STALE |
+| 20 | 22 | [2.50, 5.00] | 41% | 36% | 3.94 | 0.18  | div=0.03 |
 <!-- AUTO-GENERATED-END:topo_ladder -->
 
 <!-- AUTO-GENERATED-BEGIN:topo_square -->
@@ -173,12 +174,12 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 
 | N | Puntos | h-range | Pass@5% | Pass@dual | h_frontier | θ smooth | Observación |
 |---|--------|---------|---------|-----------|------------|---------|-------------|
-| 4 | 41 | [1.40, 4.50] | 85% | 85% | 1.84 | 0.17  | div=0.09 |
-| 6 | 121 | [1.40, 4.80] | 88% | 85% | 2.33 | 0.79 ⚠️ | div=0.11 |
-| 8 | 119 | [2.00, 5.00] | 87% | 81% | 2.64 | 1.57 ⚠️ | (7% masked) div=0.11 |
-| 10 | 65 | [2.00, 4.80] | 80% | 66% | 2.84 | 1.57 ⚠️ | (14% masked) div=0.04 |
-| 12 | 52 | [2.40, 5.50] | 87% | 63% | 3.16 | 1.87 ⚠️ | ⚠️ GAP MASK +23% div=0.10 |
-| 14 | 26 | [2.50, 5.50] | 73% | 54% | 3.29 | 1.57 ⚠️ | ⚠️ GAP MASK +19% div=0.03 |
+| 4 | 41 | [1.40, 4.50] | 85% | 85% | 1.84 | 0.17  | div=0.52 STALE |
+| 6 | 121 | [1.40, 4.80] | 88% | 85% | 2.33 | 0.79 ⚠️ | div=0.54 STALE |
+| 8 | 119 | [2.00, 5.00] | 87% | 81% | 2.64 | 1.57 ⚠️ | (7% masked) div=0.54 STALE |
+| 10 | 76 | [2.00, 4.80] | 72% | 61% | 2.84 | 1.57 ⚠️ | (12% masked) div=0.39 STALE |
+| 12 | 52 | [2.40, 5.50] | 87% | 63% | 3.16 | 1.87 ⚠️ | ⚠️ GAP MASK +23% div=0.53 STALE |
+| 14 | 26 | [2.50, 5.50] | 73% | 54% | 3.29 | 1.57 ⚠️ | ⚠️ GAP MASK +19% div=0.40 STALE |
 <!-- AUTO-GENERATED-END:topo_square -->
 
 <!-- AUTO-GENERATED-BEGIN:topo_triangular -->
@@ -186,12 +187,12 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 
 | N | Puntos | h-range | Pass@5% | Pass@dual | h_frontier | θ smooth | Observación |
 |---|--------|---------|---------|-----------|------------|---------|-------------|
-| 3 | 37 | [0.50, 4.50] | 100% | 100% | 0.50 | 0.04  | div=0.58 STALE |
-| 4 | 36 | [1.24, 4.50] | 72% | 72% | 1.98 | 0.04  | div=0.30 STALE |
-| 6 | 140 | [2.13, 5.50] | 69% | 58% | 3.15 | 0.03  | (11% masked) div=0.27 STALE |
-| 8 | 58 | [2.70, 4.80] | 40% | 12% | 3.98 | 0.00  | ⚠️ GAP MASK +28% div=0.03 |
-| 10 | 41 | [2.00, 4.80] | 32% | 12% | 3.98 | 1.57 ⚠️ | ⚠️ GAP MASK +20% div=0.11 |
-| 12 | 28 | [3.10, 5.50] | 43% | 14% | 4.44 | 0.00  | ⚠️ GAP MASK +29% div=0.01 |
+| 3 | 37 | [0.50, 4.50] | 100% | 100% | 0.50 | 0.04  | — |
+| 4 | 36 | [1.24, 4.50] | 72% | 72% | 1.98 | 0.04  | — |
+| 6 | 140 | [2.13, 5.50] | 69% | 58% | 3.15 | 0.03  | (11% masked) |
+| 8 | 58 | [2.70, 4.80] | 40% | 12% | 3.98 | 0.00  | ⚠️ GAP MASK +28% |
+| 10 | 54 | [2.00, 5.00] | 35% | 17% | 3.98 | 1.57 ⚠️ | ⚠️ GAP MASK +19% |
+| 12 | 58 | [2.50, 5.50] | 33% | 7% | 4.44 | 0.01  | ⚠️ GAP MASK +26% |
 <!-- AUTO-GENERATED-END:topo_triangular -->
 
 ---
@@ -205,7 +206,7 @@ h_frontier = h below which ΔE/gap ≥ 5% (pipeline fails):
 |-----------|--- | --- | --- | --- | --- | --- | --- | --- | --- | ---|
 | chain_1d | — | — | 1.56 | 1.72 | 1.84 | 1.94 | — | 2.03 | — | 2.21 |
 | heavy_hex | — | 0.96 | 1.90 | — | 1.90 | 1.93 | — | — | 2.02 | — |
-| ladder | — | 1.85 | 2.33 | 2.62 | 2.82 | 2.98 | 3.10 | — | 3.21 | — |
+| ladder | — | 1.85 | 2.33 | 2.62 | 2.82 | 2.98 | 3.10 | — | 3.21 | 3.94 |
 | square | — | 1.84 | 2.33 | 2.64 | 2.84 | 3.16 | 3.29 | — | — | — |
 | triangular | 0.50 | 1.98 | 3.15 | 3.98 | 3.98 | 4.44 | — | — | — | — |
 <!-- AUTO-GENERATED-END:h_frontier -->
@@ -219,9 +220,9 @@ h_frontier = h below which ΔE/gap ≥ 5% (pipeline fails):
 |----------|-------------|-------------|---------------------|
 | chain_1d | 20 | 99% | train_n=10 (@10%=100%) |
 | heavy_hex | 16 | 100% | train_n=10 (@10%=93%) |
-| ladder | 16 | 94% | train_n=16 (@10%=100%) |
+| ladder | 20 | 94% | train_n=10 (@10%=80%) |
 | square | 14 | 88% | no data |
-| triangular | 12 | 100% | no data |
+| triangular | 8 | 100% | no data |
 <!-- AUTO-GENERATED-END:cross_n_transfer -->
 
 ---
@@ -259,7 +260,7 @@ evaluated at N=30-100 via MPS backend. Speedup = VQE_evals / MPNN_evals.
 
 ### ladder
 
-**Model**: `unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt`
+**Model**: `unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt`
 
 | N | h-range | Pts | ΔE/gap | |ΔE|/N | Pass@5% | Pass@dual | Speedup |
 |---|---------|-----|--------|--------|---------|-----------|---------|
@@ -284,9 +285,9 @@ evaluated at N=30-100 via MPS backend. Speedup = VQE_evals / MPNN_evals.
 
 | N | h-range | Pts | ΔE/gap | |ΔE|/N | Pass@5% | Pass@dual | Speedup |
 |---|---------|-----|--------|--------|---------|-----------|---------|
-| 12 | [3.5, 5.0] | 6 | 0.1083 | 2.19e-02 | 2/6 | 0/6 | 3588× |
-| 16 | [3.5, 5.0] | 6 | 0.4003 | 3.55e-02 | 0/6 | 0/6 | 6197× |
-| 24 | [3.5, 5.0] | 6 | 4.0032 | 4.37e-02 | 0/6 | 0/6 | 9520× |
+| 12 | [2.5, 5.0] | 10 | 1.7850 | 7.33e-02 | 2/10 | 0/10 | 3588× |
+| 16 | [2.5, 5.0] | 10 | 28.7030 | 1.63e-01 | 0/10 | 0/10 | 6197× |
+| 24 | [2.5, 5.0] | 10 | 23.4736 | 2.56e-01 | 0/10 | 0/10 | 9520× |
 
 ### Extensive Scaling Summary
 
@@ -296,7 +297,7 @@ evaluated at N=30-100 via MPS backend. Speedup = VQE_evals / MPNN_evals.
 | heavy_hex | 20–40 | 1.09e-02 | 12.2× | ⚠️ degrading |
 | ladder | 20–40 | 8.45e-03 | 1.5× | ✅ extensive |
 | square | 16–30 | 2.26e-02 | 1.5× | ✅ extensive |
-| triangular | 12–24 | 3.37e-02 | 2.0× | ✅ extensive |
+| triangular | 12–24 | 1.64e-01 | 3.5× | ⚠️ degrading |
 
 ### MPNN vs Random VQE vs Ground Truth
 
@@ -348,9 +349,9 @@ Data quality breakdown by tier (verified=VQE-converged, approximate=MPNN-predict
 |----------|-----------|----------|-------------|------------|
 | chain_1d | 606 | 544 (89%) | 45 (7%) | 17 (2%) |
 | heavy_hex | 441 | 400 (90%) | 21 (4%) | 20 (4%) |
-| ladder | 497 | 217 (43%) | 224 (45%) | 56 (11%) |
-| square | 424 | 324 (76%) | 71 (16%) | 29 (6%) |
-| triangular | 340 | 174 (51%) | 91 (26%) | 75 (22%) |
+| ladder | 519 | 239 (46%) | 224 (43%) | 56 (10%) |
+| square | 435 | 337 (77%) | 70 (16%) | 28 (6%) |
+| triangular | 383 | 217 (56%) | 91 (23%) | 75 (19%) |
 <!-- AUTO-GENERATED-END:tier_breakdown -->
 
 ---
@@ -358,7 +359,7 @@ Data quality breakdown by tier (verified=VQE-converged, approximate=MPNN-predict
 <!-- AUTO-GENERATED-BEGIN:training_plan -->
 ## Training Plan (auto-generated)
 
-**Total configs**: 30 | ✅ Useful: 24 | ⚠️ Insufficient: 6 | ❌ Not useful: 0
+**Total configs**: 31 | ✅ Useful: 25 | ⚠️ Insufficient: 6 | ❌ Not useful: 0
 
 ### ⚠️ IMPROVE — Insufficient signal (need more good points)
 
@@ -370,8 +371,8 @@ Run iterative-improve to densify these configs above the frontier:
 | `ladder_N14_p1.npz` | ladder | 14 | 33 | 27% | 3.10 | iterative-improve h≥3.3 |
 | `ladder_N16_p1.npz` | ladder | 16 | 67 | 28% | 3.21 | iterative-improve h≥3.4 |
 | `triangular_N8_p1.npz` | triangular | 8 | 58 | 12% | 3.98 | iterative-improve h≥4.2 |
-| `triangular_N10_p1.npz` | triangular | 10 | 41 | 12% | 3.98 | iterative-improve h≥4.2 |
-| `triangular_N12_p1.npz` | triangular | 12 | 28 | 14% | 4.44 | iterative-improve h≥4.6 |
+| `triangular_N10_p1.npz` | triangular | 10 | 54 | 17% | 3.98 | iterative-improve h≥4.2 |
+| `triangular_N12_p1.npz` | triangular | 12 | 58 | 7% | 4.44 | iterative-improve h≥4.6 |
 
 ### ✅ EXPAND — Useful configs (add more h-points for better generalization)
 
@@ -392,7 +393,7 @@ Run iterative-improve to densify these configs above the frontier:
 | square | 8 | 119 | 81% | 2.64 | LOW (already dense) |
 | chain_1d | 10 | 90 | 92% | 1.84 | LOW (already dense) |
 | heavy_hex | 10 | 140 | 91% | 1.90 | LOW (already dense) |
-| square | 10 | 65 | 66% | 2.84 | LOW (already dense) |
+| square | 10 | 76 | 61% | 2.84 | LOW (already dense) |
 | chain_1d | 12 | 69 | 91% | 1.94 | LOW (already dense) |
 | heavy_hex | 12 | 77 | 87% | 1.93 | LOW (already dense) |
 | ladder | 12 | 54 | 48% | 2.98 | LOW (already dense) |
@@ -401,6 +402,7 @@ Run iterative-improve to densify these configs above the frontier:
 | chain_1d | 15 | 173 | 84% | 2.03 | LOW (already dense) |
 | heavy_hex | 16 | 98 | 87% | 2.02 | LOW (already dense) |
 | chain_1d | 20 | 73 | 78% | 2.21 | LOW (already dense) |
+| ladder | 20 | 22 | 36% | 3.94 | MEDIUM (expand range) |
 
 <!-- AUTO-GENERATED-END:training_plan -->
 

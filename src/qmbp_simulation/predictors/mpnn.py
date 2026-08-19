@@ -1038,7 +1038,7 @@ def load_mpnn_checkpoint(path: str) -> MPNNPredictor:
     MPNNPredictor
         Reconstructed model with loaded weights.
     """
-    data = torch.load(path, map_location="cpu", weights_only=False)
+    data = torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
 
     # Handle legacy checkpoints without metadata
     if "state_dict" not in data:

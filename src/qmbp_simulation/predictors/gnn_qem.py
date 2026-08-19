@@ -724,7 +724,7 @@ def load_qem_checkpoint(
     tuple[GNNQEMCorrector, QEMTrainResult | None, dict]
         (model, train_result, metadata)
     """
-    checkpoint = torch.load(Path(path), map_location=device, weights_only=False)
+    checkpoint = torch.load(Path(path), map_location=device, weights_only=False)  # nosec: trusted checkpoint
 
     config = GNNQEMConfig(**checkpoint["config"])
     model = GNNQEMCorrector(config)
@@ -1591,7 +1591,7 @@ def load_qem_v2_checkpoint(
     path: Path | str,
 ) -> tuple[GNNQEMCorrectorV2, QEMTrainResult | None, dict]:
     """Load V2 checkpoint. Raises ValueError if not a V2 checkpoint."""
-    raw = torch.load(Path(path), map_location="cpu", weights_only=False)
+    raw = torch.load(Path(path), map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
 
     if not isinstance(raw, dict) or raw.get("version") != "2.0":
         raise ValueError(

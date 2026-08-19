@@ -67,8 +67,8 @@ DEFAULT_MAXITER = 1500
 DEFAULT_N_RESTARTS = 10
 DEFAULT_MAX_REFINE_PER_ITER = 50
 
-FINE_TUNE_EPOCHS = 1000
-FULL_TRAIN_EPOCHS = 3500
+FINE_TUNE_EPOCHS = 500
+FULL_TRAIN_EPOCHS = 2000
 
 
 class AcceleratedCrossNRunner(ValidationRunner):
@@ -554,7 +554,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.predictors.model_zoo import (
             ZooEntry,
             load_pretrained,
-            register_checkpoint,
+            register_checkpoint_with_training_metrics,
         )
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
         from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN, train_unified_mpnn
@@ -652,6 +652,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             n_layers=3,
             norm_type="none",  # MANDATORY for cross-N
             dropout=0.1,
+            use_residual=getattr(self._args, "use_residual", False),
         )
 
         logger.info("  Training UnifiedMPNN (multi-N, norm_type=none)...")
@@ -661,13 +662,24 @@ class AcceleratedCrossNRunner(ValidationRunner):
             dataset,
             n_epochs=FULL_TRAIN_EPOCHS,
             lr=1e-3,
-            patience=300,
+            patience=200,
             seed=42,
         )
         elapsed = time.perf_counter() - t0
 
         final_mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0
         logger.info(f"  Training done: MSE={final_mse:.2e}, time={elapsed:.1f}s")
+
+        # Persist training curve for post-hoc analysis
+        try:
+            from qmbp_simulation.utils.helpers import persist_training_curve
+            persist_training_curve(
+                train_result,
+                output_dir=Path("results/training_curves"),
+                prefix=f"{topo}_multiN_p{p}",
+            )
+        except Exception:
+            pass
 
         # Store model for Section 3
         self._models[p] = model
@@ -689,12 +701,35 @@ class AcceleratedCrossNRunner(ValidationRunner):
             n_training_points=len(dataset),
             seeds=[42],
             created=datetime.now(UTC).isoformat(),
-            notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points",
+            notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points"
+            + (", arch=residual" if getattr(self._args, "use_residual", False) else ""),
             runner_tag=get_runner_tag(self.runner_id),
             date_tag=make_date_tag(),
         )
-        register_checkpoint(model, entry, overwrite=True)
+        register_checkpoint_with_training_metrics(
+            model, entry,
+            training_result=train_result,
+            overwrite=True,
+            architecture_config={
+                "hidden_dim": 256,
+                "n_conv_layers": 3,
+                "norm_type": "none",
+                "dropout": 0.1,
+                "use_residual": getattr(self._args, "use_residual", False),
+            },
+        )
         logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
+
+        # Auto-persist training curve
+        try:
+            from qmbp_simulation.utils.helpers import persist_training_curve
+            persist_training_curve(
+                train_result,
+                output_dir=Path("results/training_curves"),
+                prefix=f"{topo}_section_multiN_p{p}",
+            )
+        except Exception:
+            pass
 
         # Enrich model registry with per-N point breakdown
         try:
@@ -791,8 +826,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 per_h_results = []
                 t0 = time.perf_counter()
+                _interrupted = False
 
-                for h in self._h_values:
+                try:
+                  for h in self._h_values:
                     # Build unified graph for N_target
                     g = build_unified_bond_resolved_graph(
                         lattice_target,
@@ -804,6 +841,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         theta_pred = model(g).numpy().flatten()
 
                     theta_pred = np.clip(theta_pred, -np.pi, np.pi)
+
+                    # MC-Dropout uncertainty estimation (reuses model method)
+                    theta_std = 0.0
+                    if hasattr(model, "predict_with_uncertainty"):
+                        _, theta_std = model.predict_with_uncertainty(g)
 
                     # Verify param count matches circuit
                     if len(theta_pred) != n_params_target:
@@ -844,20 +886,27 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         except (MemoryError, ValueError):
                             fidelity = None
 
-                    per_h_results.append(
-                        self.build_per_h_result(
-                            h,
-                            e_pred,
-                            e_exact,
-                            gap,
-                            fidelity=fidelity,
-                            n_params=len(theta_pred),
-                        )
+                    per_h_result = self.build_per_h_result(
+                        h,
+                        e_pred,
+                        e_exact,
+                        gap,
+                        fidelity=fidelity,
+                        n_params=len(theta_pred),
                     )
+                    per_h_result["theta_std"] = theta_std
+                    per_h_results.append(per_h_result)
                     fid_str = f"F={fidelity:.4f}" if fidelity is not None else "F=N/A(N>22)"
                     logger.info(
                         f"    h={h:.2f}: ΔE/gap={de_gap:.4f} {fid_str} "
                         f"|ΔE|={abs_err:.2e} [{len(theta_pred)} params]"
+                    )
+
+                except KeyboardInterrupt:
+                    _interrupted = True
+                    logger.warning(
+                        f"  ⚠️ Interrupted during cross-N predict N={n_target}. "
+                        f"Saving {len(per_h_results)} partial results."
                     )
 
                 elapsed = time.perf_counter() - t0
@@ -1021,6 +1070,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # ── Compute summary via reusable utility ──────────────
                 summary = compute_deploy_summary(per_h_results)
 
+                # ── Uncertainty calibration (θ_std vs ΔE/gap) ─────────
+                from qmbp_simulation.analysis.metrics import compute_uncertainty_correlation
+                uc_report = compute_uncertainty_correlation(per_h_results)
+
                 key = f"p{p}_N{n_target}"
                 all_results[key] = {
                     "train_n": self._args.train_n,
@@ -1028,6 +1081,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     "p_layers": p,
                     "n_params": n_params_target,
                     **summary,
+                    "uncertainty_calibration": uc_report if uc_report["n_points_with_uncertainty"] >= 3 else None,
                     "fidelity_available": n_target <= STATEVECTOR_MAX_N,
                     "active_learning_applied": n_refined > 0,
                     "n_refined": n_refined,
@@ -1157,7 +1211,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.predictors.model_zoo import (
             ZooEntry,
             load_pretrained,
-            register_checkpoint,
+            register_checkpoint_with_training_metrics,
         )
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
         from qmbp_simulation.predictors.unified_graph import (
@@ -1176,6 +1230,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
         improvement_threshold = self._args.improvement_threshold
         spec = get_model_spec("tfim_bond_resolved")
         hva = HVACircuitBuilder()
+
+        # Architecture flag: CLI --use-residual or auto-detected from loaded model
+        use_residual = getattr(self._args, "use_residual", False)
 
         # ── Setup: caches, backend, circuit ───────────────────────────────
         gt_cache = GroundTruthCache()
@@ -1271,54 +1328,32 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # (which we just updated from GT cache above)
                 logger.info(f"  NPZ ground truth refreshed: {n_refreshed} points updated")
 
-        # ── Load model from zoo (quality-aware) ───────────────────────────
+        # ── Load best model (unified selection: per-topo + MT + single-N) ──
         model = None
         _meta = None
-        quality_report = None
         try:
-            from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n_quality_aware
+            from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
 
-            model, _meta, quality_report = load_best_for_cross_n_quality_aware(
+            model, _meta, _source = load_best_model_for_topology(
+                topo,
                 model="tfim_bond_resolved",
-                topology=topo,
-                n_target=n_target,
                 p_layers=p,
-                min_quality_score=0.6,  # Warn if < 60% weighted quality
+                n_target=n_target,
+                include_multi_topology=True,
             )
-            source = "multi-N" if _meta.n_qubits == 0 else f"single-N={_meta.n_qubits}"
+            model.eval()
+            # Auto-detect architecture from loaded model (issue #7)
+            if getattr(model, "use_residual", False) and not use_residual:
+                use_residual = True
+                logger.info("  Auto-detected use_residual=True from loaded model")
             logger.info(
-                f"  Loaded model from zoo: {_meta.checkpoint_file} "
-                f"({source}, {_meta.n_training_points} pts)"
+                f"  Loaded model [{_source}]: {_meta.checkpoint_file} "
+                f"(pass={_meta.pass_rate:.0%}, {_meta.n_training_points} pts)"
             )
-            # Log quality info if available
-            if quality_report and quality_report.get("found"):
-                logger.info(
-                    f"    Quality: {quality_report['n_verified']} verified, "
-                    f"{quality_report['n_approximate']} approx, "
-                    f"{quality_report['n_unverified']} unverified "
-                    f"(score={quality_report['quality_score']:.2f})"
-                )
         except FileNotFoundError:
             pass
         except Exception as e:
-            # Fallback to non-quality-aware loading if new function unavailable
-            logger.debug(f"  Quality-aware loading failed ({e}), trying standard...")
-            try:
-                from qmbp_simulation.predictors.model_zoo import load_best_for_cross_n
-
-                model, _meta = load_best_for_cross_n(
-                    model="tfim_bond_resolved",
-                    topology=topo,
-                    n_target=n_target,
-                    p_layers=p,
-                )
-                source = "multi-N" if _meta.n_qubits == 0 else f"single-N={_meta.n_qubits}"
-                logger.info(
-                    f"  Loaded model from zoo: {_meta.checkpoint_file} "
-                    f"({source}, {_meta.n_training_points} pts)"
-                )
-            except FileNotFoundError:
-                pass
+            logger.debug(f"  Unified model loading failed: {e}")
 
         if model is None:
             try:
@@ -1330,6 +1365,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     allow_cross_n=True,
                 )
                 logger.info(f"  Loaded single-N model from zoo: {_meta.checkpoint_file}")
+                # Auto-detect architecture from single-N fallback (issue #7)
+                if getattr(model, "use_residual", False) and not use_residual:
+                    use_residual = True
+                    logger.info("  Auto-detected use_residual=True from single-N model")
             except FileNotFoundError:
                 # Bootstrap: no model exists → run AcceleratedVQE to generate
                 # initial training data, then train a UnifiedMPNN from it.
@@ -1401,12 +1440,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     n_layers=3,
                     norm_type="none",
                     dropout=0.1,
+                    use_residual=use_residual,
                 )
 
-                train_unified_mpnn(
-                    model, dataset, n_epochs=FULL_TRAIN_EPOCHS, lr=1e-3, patience=300, seed=42
+                boot_train_result = train_unified_mpnn(
+                    model, dataset, n_epochs=FULL_TRAIN_EPOCHS, lr=1e-3, patience=200, seed=42
                 )
-                # Register in zoo
+                # Register in zoo with training metrics
                 from datetime import datetime
 
                 entry = ZooEntry(
@@ -1420,9 +1460,21 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     n_training_points=len(dataset),
                     seeds=[42],
                     created=datetime.now(UTC).isoformat(),
-                    notes=f"Bootstrap from AcceleratedVQE N={n_target}",
+                    notes=f"Bootstrap from AcceleratedVQE N={n_target}"
+                    + (", arch=residual" if use_residual else ""),
                 )
-                register_checkpoint(model, entry, overwrite=True)
+                register_checkpoint_with_training_metrics(
+                    model, entry,
+                    training_result=boot_train_result,
+                    overwrite=True,
+                    architecture_config={
+                        "hidden_dim": 256,
+                        "n_conv_layers": 3,
+                        "norm_type": "none",
+                        "dropout": 0.1,
+                        "use_residual": use_residual,
+                    },
+                )
                 logger.info(f"  Bootstrap model registered: {entry.checkpoint_file}")
 
         # ── Iterative improvement loop ────────────────────────────────────
@@ -1430,8 +1482,28 @@ class AcceleratedCrossNRunner(ValidationRunner):
         total_vqe_calls = 0
         prev_pass_rate = 0.0
         convergence_reason = "max_iterations"
-        # Track the best pass_rate ever exported to zoo for Fix C
+        # Track the best pass_rate ever exported to zoo for Fix C.
+        # Use _meta.pass_rate if available, but also check the zoo manifest
+        # for the ACTUAL best model for this config — _meta could come from
+        # a fallback load_pretrained with pass_rate=0 (unevaluated).
         zoo_best_pass_rate = _meta.pass_rate if _meta is not None else 0.0
+        if zoo_best_pass_rate < 0.01:
+            try:
+                from qmbp_simulation.predictors.model_zoo import _load_manifest
+                _existing = [
+                    e for e in _load_manifest()
+                    if e.topology == topo and e.model == "tfim_bond_resolved"
+                    and e.p_layers == p and e.n_qubits == 0
+                ]
+                if _existing:
+                    zoo_best_pass_rate = max(e.pass_rate for e in _existing)
+                    if zoo_best_pass_rate > 0:
+                        logger.info(
+                            f"  Zoo baseline: existing best pass_rate={zoo_best_pass_rate:.0%} "
+                            f"(loaded model was unevaluated)"
+                        )
+            except Exception:
+                pass
 
         for iteration in range(1, max_iterations + 1):
             logger.info(f"\n  ╔══ Iteration {iteration}/{max_iterations} ══════════════════════╗")
@@ -1998,9 +2070,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 # Fix B: Fine-tune existing model if it has same architecture,
                 # otherwise train from scratch (architecture mismatch).
+                # Validates node_features, hidden_dim, n_layers, and use_residual.
                 can_fine_tune = (
                     hasattr(model, "node_features")
                     and model.node_features == n_node_features
+                    and getattr(model, "hidden_dim", 256) == 256
+                    and getattr(model, "n_layers", 3) == 3
+                    and getattr(model, "use_residual", False) == use_residual
                     and iteration > 1  # First iter after bootstrap → full train
                 )
 
@@ -2022,19 +2098,31 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         n_layers=3,
                         norm_type="none",
                         dropout=0.1,
+                        use_residual=use_residual,
                     )
                     train_result = train_unified_mpnn(
                         model,
                         dataset,
                         n_epochs=FULL_TRAIN_EPOCHS,
                         lr=1e-3,
-                        patience=300,
+                        patience=200,
                         seed=42,
                     )
 
                 mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0
                 mode = train_result.get("mode", "full")
                 logger.info(f"  │ Retrained ({mode}): MSE={mse:.2e}, {len(dataset)} points")
+
+                # Persist training curve (auto, non-blocking)
+                try:
+                    from qmbp_simulation.utils.helpers import persist_training_curve
+                    persist_training_curve(
+                        train_result,
+                        output_dir=Path("results/training_curves"),
+                        prefix=f"{topo}_iter{iteration}_p{p}",
+                    )
+                except Exception:
+                    pass
 
                 # ── 2g: Export to zoo (only if pass_rate improved) ────────
                 # Fix C: Don't overwrite a better model in the zoo with one
@@ -2055,9 +2143,21 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         n_training_points=len(dataset),
                         seeds=[42],
                         created=datetime.now(UTC).isoformat(),
-                        notes=f"Iterative improve iter {iteration}: N={n_vals}",
+                        notes=f"Iterative improve iter {iteration}: N={n_vals}"
+                        + (", arch=residual" if use_residual else ""),
                     )
-                    register_checkpoint(model, entry, overwrite=True)
+                    register_checkpoint_with_training_metrics(
+                        model, entry,
+                        training_result=train_result,
+                        overwrite=True,
+                        architecture_config={
+                            "hidden_dim": 256,
+                            "n_conv_layers": 3,
+                            "norm_type": "none",
+                            "dropout": 0.1,
+                            "use_residual": use_residual,
+                        },
+                    )
                     zoo_best_pass_rate = pass_rate
                     logger.info(f"  │ Exported to zoo: {entry.checkpoint_file}")
                 else:

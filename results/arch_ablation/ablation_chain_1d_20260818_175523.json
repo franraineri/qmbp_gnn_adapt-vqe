@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-08-18T17:55:23.333526+00:00",
+  "topology": "multi_topology",
+  "multi_topology_mode": true,
+  "max_n": 20,
+  "max_de_gap": 0.05,
+  "n_training_graphs": 2199,
+  "hidden_dim": 64,
+  "n_layers": 3,
+  "max_epochs": 500,
+  "seed": 42,
+  "exclusion_policy_applied": false,
+  "results": [
+    {
+      "name": "baseline",
+      "n_params": 26418,
+      "final_mse": 0.20307395185087435,
+      "final_zz_mse": 0.005393121024930463,
+      "final_x_mse": 0.21246372071646694,
+      "val_mse": 0.2348442250561241,
+      "gen_gap": 0.03177027320524975,
+      "n_epochs": 500,
+      "stop_reason": "completed",
+      "elapsed_s": 1851.5
+    },
+    {
+      "name": "residual",
+      "n_params": 27762,
+      "final_mse": 0.13738754912502726,
+      "final_zz_mse": 0.0047297299613643755,
+      "final_x_mse": 0.14559136367249514,
+      "val_mse": 0.1871983861502212,
+      "gen_gap": 0.04981083702519393,
+      "n_epochs": 500,
+      "stop_reason": "completed",
+      "elapsed_s": 4099.8
+    },
+    {
+      "name": "jk_cat",
+      "n_params": 34610,
+      "final_mse": 0.1825907508269072,
+      "final_zz_mse": 0.005276001912394233,
+      "final_x_mse": 0.19175437685247315,
+      "val_mse": 0.24934538581887492,
+      "gen_gap": 0.06675463499196771,
+      "n_epochs": 401,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 2622.2
+    },
+    {
+      "name": "film",
+      "n_params": 27186,
+      "final_mse": 0.20576428889131118,
+      "final_zz_mse": 0.005529584075549471,
+      "final_x_mse": 0.21570173758320213,
+      "val_mse": 0.23162907835650198,
+      "gen_gap": 0.0258647894651908,
+      "n_epochs": 451,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 2040.1
+    },
+    {
+      "name": "res+jk+film",
+      "n_params": 36722,
+      "final_mse": 0.18275042054061136,
+      "final_zz_mse": 0.00531908176059804,
+      "final_x_mse": 0.19107702376961466,
+      "val_mse": 0.22857818266157115,
+      "gen_gap": 0.04582776212095979,
+      "n_epochs": 500,
+      "stop_reason": "completed",
+      "elapsed_s": 2349.0
+    }
+  ],
+  "best_variant": "residual"
+}

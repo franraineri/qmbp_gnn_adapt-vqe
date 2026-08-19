@@ -8,14 +8,16 @@ Features cross-system-size generalization (UnifiedMPNN), iterative self-improvem
 
 | Metric | Value |
 |--------|-------|
-| Pass rate (optimal configs) | 95–100% (ΔE/gap < 5%) |
+| Pass rate (1D topologies) | 90–91% (dual criterion) |
+| Pass rate (2D topologies) | 44–76% (dual criterion) |
 | Speedup vs random-init VQE | 29–500× |
-| Topologies validated | 6 (chain, ladder, square, heavy-hex, triangular, kagome) |
-| System sizes | N = 4–20 (exact), N = 40–250 (MPS) |
+| Topologies validated | 5 (chain\_1d, heavy\_hex, ladder, square, triangular) |
+| System sizes | N = 3–20 (exact/DMRG), N = 30–200 (MPS extrapolation) |
 | Models | 8 (TFIM, longitudinal, frustrated, bond-resolved, Heisenberg, H. transverse, Kitaev, XY) |
-| Cross-N generalization | heavy-hex N=16 94% pass (trained on N=4–12) |
-| GNN-QEM improvement | 100% rate on unseen topologies (zero-shot) |
-| Total experiments | 525 runs, 347 compute-hours, 60+ configurations |
+| Cross-N generalization | chain\_1d N=20 78% pass, heavy\_hex N=16 87% pass |
+| Training data | 2319 pts across 30 configs, 70% verified |
+| Total experiments | 525+ runs, 347+ compute-hours |
+| Zoo models | 5 multi-N + 2 single-N, auto-versioned with rollback |
 
 ## Quick Start
 
@@ -122,15 +124,39 @@ python scripts/maintenance/update_cross_n_coverage.py          # Cross-N report
 python -m project_health --format text                         # Health check
 ```
 
+## Automated Maintenance
+
+The project includes automated integrity checks that run without AI:
+
+```bash
+# Full coherence check + auto-fix (sync pass_rates, refresh GT, update status)
+python scripts/maintenance/check_zoo_coherence.py --fix
+
+# Audit model zoo (detect stale/orphan entries)
+python scripts/maintenance/audit_and_fix_model_zoo.py
+
+# Re-evaluate zoo models against current NPZ data
+python scripts/maintenance/reevaluate_zoo_models.py
+
+# Retrain queue (which models need retraining and why)
+python scripts/maintenance/check_zoo_coherence.py --retrain-queue
+```
+
+Hooks (automatic, no intervention):
+- `zoo-coherence-check` (agentStop) — diagnoses zoo↔dashboard coherence
+- `validate-zoo-registration` (postTaskExecution) — prevents n\_qubits bug
+- `refresh-module-index-on-edit` (fileEdited src/) — keeps module index current
+
 ## Key Findings
 
-1. **HVA depth determines frontier** — for p≥3, h_min is independent of N (area law)
-2. **Circuit-Hamiltonian match is critical** — Heisenberg at h≈3.5 regardless of p
-3. **heavy_hex ≈ chain_1d** — IBM's native topology has no expressibility penalty
-4. **Bond-resolved crosses h_c** — only strategy reaching the ordered phase (h_min=0.83)
-5. **GNN-QEM generalizes cross-topology** — 100% improvement rate zero-shot to heavy_hex
-6. **Gap masking problem** — ΔE/gap alone is misleading at large N+h; dual criterion (ΔE/gap<5% AND |ΔE|<0.10) reveals true viable system sizes
-7. **heavy_hex uniquely scales** — only topology where cross-N genuinely works at N=16 (94% dual criterion)
+1. **HVA depth determines frontier** — for p≥3, h\_min is independent of N (area law)
+2. **1D topologies scale gracefully** — chain\_1d and heavy\_hex maintain >87% pass at N=16–20
+3. **Frustrated topologies hit ansatz limit** — triangular/ladder fail at N≥8 with p=1 (insufficient depth for geometric frustration)
+4. **Gap masking problem** — ΔE/gap alone is misleading at large N; dual criterion (ΔE/gap<5% AND |ΔE|<0.10) reveals true viable sizes
+5. **Bond-resolved crosses h\_c** — only strategy reaching the ordered phase (h\_min=0.83)
+6. **heavy\_hex ≈ chain\_1d** — IBM's native topology has no expressibility penalty
+7. **GNN-QEM generalizes cross-topology** — 100% improvement rate zero-shot to heavy\_hex
+8. **Auto-rollback prevents regressions** — model versioning with >30% drop protection
 
 ## Dependencies
 

@@ -13,13 +13,13 @@ Estrategia MODERADA:
 
 Uso:
     # Dry-run (muestra qué haría):
-    python scripts/maintenance/trim_overdocumented.py [ruta]
+    python scripts/general_project_maintenance/trim_overdocumented.py [ruta]
 
     # Aplicar cambios:
 
 
     # Cambiar ratio mínimo:
-    python scripts/maintenance/trim_overdocumented.py [ruta] --min-ratio 5
+    python scripts/general_project_maintenance/trim_overdocumented.py [ruta] --min-ratio 5
 """
 
 from __future__ import annotations

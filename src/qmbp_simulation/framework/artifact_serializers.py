@@ -98,7 +98,7 @@ class TorchSerializer(ArtifactSerializer):
     def load(self, path: Path) -> Any:
         import torch
 
-        return torch.load(path, map_location="cpu", weights_only=False)
+        return torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
 
 
 class NumpySerializer(ArtifactSerializer):
