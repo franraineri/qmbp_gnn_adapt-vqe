@@ -11,19 +11,19 @@ Uses per-h-point data from Section 4 (Deploy) of each run.
 
 Usage:
     # Full analysis (all successful runs with deploy data)
-    python scripts/analyze_noiseless_scaling.py
+    .venv/bin/python scripts/analyze_noiseless_scaling.py
 
     # Filter by model
-    python scripts/analyze_noiseless_scaling.py --model tfim
+    .venv/bin/python scripts/analyze_noiseless_scaling.py --model tfim
 
     # Only scaling axis (N-dependence)
-    python scripts/analyze_noiseless_scaling.py --axis n-scaling
+    .venv/bin/python scripts/analyze_noiseless_scaling.py --axis n-scaling
 
     # JSON output for further processing
-    python scripts/analyze_noiseless_scaling.py --json results/scaling_analysis.json
+    .venv/bin/python scripts/analyze_noiseless_scaling.py --json results/scaling_analysis.json
 
     # Verbose (per-h tables)
-    python scripts/analyze_noiseless_scaling.py -v
+    .venv/bin/python scripts/analyze_noiseless_scaling.py -v
 """
 
 from __future__ import annotations

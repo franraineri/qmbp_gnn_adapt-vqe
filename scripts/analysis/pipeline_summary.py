@@ -14,6 +14,24 @@ Usage:
     .venv/bin/python scripts/analysis/pipeline_summary.py
     .venv/bin/python scripts/analysis/pipeline_summary.py --json
     .venv/bin/python scripts/analysis/pipeline_summary.py --save
+
+    # ── MT vs ST Analysis (via generate_mt_vs_st_table in Python) ─────────
+
+    # From Python REPL or notebook — all topologies:
+    from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
+    lines, summary = generate_mt_vs_st_table()
+    print(f"MT wins {summary['mt_wins']}/{summary['total']}")
+
+    # Only chain_1d at N=10,16,20 (in-distribution for MT):
+    lines, s = generate_mt_vs_st_table(topology_filter="chain_1d", n_min=10, n_max=20)
+
+    # 2D topologies at extrapolation regime (N>=16):
+    lines, s = generate_mt_vs_st_table(
+        topology_filter=["square", "triangular", "heavy_hex"], n_min=16
+    )
+
+    # Save full comparison to markdown:
+    lines, s = generate_mt_vs_st_table(output_path="results/mt_vs_st_report.md")
 """
 from __future__ import annotations
 
@@ -171,114 +189,54 @@ def load_training_curves() -> list[dict]:
 def analyze_mt_vs_single(zoo_models: list[dict], comparisons: list[dict]) -> dict:
     """Compare multi-topology model performance against per-topology models.
 
-    Uses TWO data sources:
-    1. Model comparison JSONs (real ΔE/gap evaluation on extrapolation grids)
-    2. Zoo pass_rate (evaluated on training data — less reliable for cross-N)
-
-    Priority: comparison data > zoo pass_rate.
+    Delegates to the shared generate_mt_vs_st_table() from evaluation_report,
+    which reads comparison JSONs directly and provides per-N granularity.
+    Also cross-references with dashboard-embedded comparison data for
+    consistency validation.
 
     Returns
     -------
     dict with:
-        per_topology: {topo: {mt_de_gap, single_de_gap, mt_pass, single_pass, winner, delta}}
-        summary: {mt_wins, single_wins, ties, mt_advantage_mean}
+        per_topology: {topo: {mt_avg_pass_rate, st_avg_pass_rate, winner, delta, ...}}
+        summary: {mt_wins, st_wins, ties, mt_avg_pass_rate, st_avg_pass_rate}
+        markdown_lines: list[str]
+        dashboard_consistent: bool | None (None = no dashboard data)
     """
-    per_topo_results: dict[str, dict] = {}
+    from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
 
-    # Source 1: Model comparison JSONs (gold standard — real extrapolation eval)
-    for comp in comparisons:
-        topo = comp.get("topology", "?")
-        results = comp.get("results", [])
+    lines, summary = generate_mt_vs_st_table(latest_only=False)
 
-        mt_de_gaps = []
-        single_de_gaps = []
-        mt_pass_rates = []
-        single_pass_rates = []
-
-        for r in results:
-            if r.get("error"):
-                continue
-            source = r.get("source", "")
-            results_by_n = r.get("results_by_n", {})
-            if not results_by_n:
-                continue
-
-            # Collect mean_de_gap and pass_rate across N values
-            de_gaps = [v.get("mean_de_gap", 1.0) for v in results_by_n.values() if isinstance(v, dict)]
-            pass_rates = [v.get("pass_rate_dual", 0) for v in results_by_n.values() if isinstance(v, dict)]
-            avg_dg = float(np.mean(de_gaps)) if de_gaps else 1.0
-            avg_pr = float(np.mean(pass_rates)) if pass_rates else 0.0
-
-            if "multi_topology" in source or "multi-topo" in source.lower():
-                mt_de_gaps.append(avg_dg)
-                mt_pass_rates.append(avg_pr)
-            elif "per_topology" in source or "per-topo" in source.lower():
-                single_de_gaps.append(avg_dg)
-                single_pass_rates.append(avg_pr)
-            elif "orphan" in source:
-                # Orphan multitopo checkpoints → treat as MT variant
-                mt_de_gaps.append(avg_dg)
-                mt_pass_rates.append(avg_pr)
-
-        if mt_de_gaps or single_de_gaps:
-            best_mt_dg = min(mt_de_gaps) if mt_de_gaps else float("inf")
-            best_single_dg = min(single_de_gaps) if single_de_gaps else float("inf")
-            best_mt_pr = max(mt_pass_rates) if mt_pass_rates else 0.0
-            best_single_pr = max(single_pass_rates) if single_pass_rates else 0.0
-
-            # Winner determined by ΔE/gap (lower is better)
-            if best_mt_dg < best_single_dg * 0.9:
-                winner = "MT"
-            elif best_single_dg < best_mt_dg * 0.9:
-                winner = "single"
-            else:
-                winner = "tie"
-
-            per_topo_results[topo] = {
-                "mt_de_gap": best_mt_dg,
-                "single_de_gap": best_single_dg,
-                "mt_pass_rate": best_mt_pr,
-                "single_pass_rate": best_single_pr,
-                "winner": winner,
-                "delta_de_gap": best_single_dg - best_mt_dg,  # Positive = MT better
-                "source": "comparison",
-            }
-
-    # Source 2: Zoo pass_rate for topologies without comparison data
-    mt_zoo = [m for m in zoo_models if m["is_multi_topology"] and m["is_evaluated"]]
-    best_mt_zoo_pr = max((m["pass_rate"] for m in mt_zoo), default=0.0)
-
-    for m in zoo_models:
-        topo = m["topology"]
-        if not m["is_multi_topology"] and m["is_evaluated"] and topo not in per_topo_results:
-            per_topo_results[topo] = {
-                "mt_de_gap": None,
-                "single_de_gap": None,
-                "mt_pass_rate": best_mt_zoo_pr,
-                "single_pass_rate": m["pass_rate"],
-                "winner": "MT" if best_mt_zoo_pr > m["pass_rate"] + 0.10 else (
-                    "single" if m["pass_rate"] > best_mt_zoo_pr + 0.10 else "tie"
-                ),
-                "delta_de_gap": None,
-                "source": "zoo_only",
-            }
-
-    # Summary
-    mt_wins = sum(1 for v in per_topo_results.values() if v["winner"] == "MT")
-    single_wins = sum(1 for v in per_topo_results.values() if v["winner"] == "single")
-    ties = sum(1 for v in per_topo_results.values() if v["winner"] == "tie")
-    deltas = [v["delta_de_gap"] for v in per_topo_results.values() if v.get("delta_de_gap") is not None]
-    mt_advantage_de_gap = float(np.mean(deltas)) if deltas else 0.0
+    # Cross-reference with dashboard embedded data
+    dashboard_consistent = None
+    dashboard_path = ROOT / "data" / "model_quality_dashboard.json"
+    if dashboard_path.exists():
+        try:
+            with open(dashboard_path) as f:
+                dash = json.load(f)
+            dash_compare = dash.get("mt_vs_st_comparison", {})
+            if dash_compare:
+                dash_global = dash_compare.get("global", {})
+                # Check consistency: same winners count
+                dashboard_consistent = (
+                    dash_global.get("mt_wins") == summary.get("mt_wins")
+                    and dash_global.get("st_wins") == summary.get("st_wins")
+                )
+        except Exception:
+            pass
 
     return {
-        "per_topology": per_topo_results,
+        "per_topology": summary.get("per_topology", {}),
         "summary": {
-            "mt_wins": mt_wins,
-            "single_wins": single_wins,
-            "ties": ties,
-            "mt_advantage_de_gap": mt_advantage_de_gap,
-            "n_topologies_compared": len(per_topo_results),
+            "mt_wins": summary.get("mt_wins", 0),
+            "single_wins": summary.get("st_wins", 0),
+            "ties": summary.get("ties", 0),
+            "mt_avg_pass_rate": summary.get("mt_avg_pass_rate", 0.0),
+            "st_avg_pass_rate": summary.get("st_avg_pass_rate", 0.0),
+            "n_topologies_compared": len(summary.get("per_topology", {})),
         },
+        "per_scenario": summary.get("per_scenario", []),
+        "markdown_lines": lines,
+        "dashboard_consistent": dashboard_consistent,
     }
 
 
@@ -341,16 +299,16 @@ def format_text_report(data: dict) -> str:
     summary = mt_analysis.get("summary", {})
     lines.append("\n┌─ MULTI-TOPOLOGY vs SINGLE-TOPOLOGY (head-to-head) ─────────────────┐")
     if per_topo:
-        lines.append(f"│ {'Topology':<12} {'MT ΔE/gap':>10} {'Single ΔE/gap':>14} {'Winner':>8} {'Source':>10}")
-        lines.append(f"│ {'─'*12} {'─'*10} {'─'*14} {'─'*8} {'─'*10}")
+        lines.append(f"│ {'Topology':<12} {'MT pass%':>9} {'ST pass%':>9} {'Winner':>8} {'Delta':>7}")
+        lines.append(f"│ {'─'*12} {'─'*9} {'─'*9} {'─'*8} {'─'*7}")
         for topo, v in sorted(per_topo.items()):
-            w_icon = "🟢" if v["winner"] == "MT" else ("🔴" if v["winner"] == "single" else "⚪")
-            mt_dg = f"{v['mt_de_gap']:.4f}" if v.get("mt_de_gap") is not None else "N/A"
-            s_dg = f"{v['single_de_gap']:.4f}" if v.get("single_de_gap") is not None else "N/A"
-            src = v.get("source", "?")
+            w_icon = "🟢" if v["winner"] == "MT" else ("🔴" if v["winner"] == "ST" else "⚪")
+            mt_pr = f"{v['mt_avg_pass_rate']:.0%}" if v.get("mt_avg_pass_rate") is not None else "N/A"
+            st_pr = f"{v['st_avg_pass_rate']:.0%}" if v.get("st_avg_pass_rate") is not None else "N/A"
+            delta = f"{v.get('delta', 0):+.0%}"
             lines.append(
-                f"│ {topo:<12} {mt_dg:>10} {s_dg:>14} "
-                f"{w_icon} {v['winner']:<5} {src:>10}"
+                f"│ {topo:<12} {mt_pr:>9} {st_pr:>9} "
+                f"{w_icon} {v['winner']:<5} {delta:>7}"
             )
         lines.append(f"│")
         lines.append(
@@ -358,9 +316,9 @@ def format_text_report(data: dict) -> str:
             f"Single wins {summary.get('single_wins', 0)} | "
             f"Ties {summary.get('ties', 0)}"
         )
-        if summary.get("mt_advantage_de_gap") is not None:
-            adv = summary["mt_advantage_de_gap"]
-            lines.append(f"│ MT ΔE/gap advantage: {adv:+.4f} (positive = MT has lower error)")
+        mt_avg = summary.get("mt_avg_pass_rate", 0)
+        st_avg = summary.get("st_avg_pass_rate", 0)
+        lines.append(f"│ MT avg pass_rate: {mt_avg:.0%} | ST avg pass_rate: {st_avg:.0%}")
         verdict = (
             "MT model generalizes BETTER across topologies"
             if summary.get("mt_wins", 0) > summary.get("single_wins", 0)

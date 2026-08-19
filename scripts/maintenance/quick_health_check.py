@@ -8,10 +8,10 @@ Combines multiple health checks into a single command:
 4. ResultIndex traceability (runner_tag coverage)
 
 Usage:
-    python scripts/maintenance/quick_health_check.py
-    python scripts/maintenance/quick_health_check.py --verbose
-    python scripts/maintenance/quick_health_check.py --topology ladder
-    python scripts/maintenance/quick_health_check.py --check-gap-masking
+    .venv/bin/python scripts/maintenance/quick_health_check.py
+    .venv/bin/python scripts/maintenance/quick_health_check.py --verbose
+    .venv/bin/python scripts/maintenance/quick_health_check.py --topology ladder
+    .venv/bin/python scripts/maintenance/quick_health_check.py --check-gap-masking
 """
 
 from __future__ import annotations

@@ -10,13 +10,13 @@ based on the QPU budget tradeoff.
 
 Usage:
     # Analytical estimation (free, rough)
-    python scripts/estimate_qesem_budget.py
+    .venv/bin/python scripts/estimate_qesem_budget.py
 
     # Empirical estimation (uses ~2 min QPU, more accurate)
-    python scripts/estimate_qesem_budget.py --empirical
+    .venv/bin/python scripts/estimate_qesem_budget.py --empirical
 
     # Custom precision
-    python scripts/estimate_qesem_budget.py --precision 0.005
+    .venv/bin/python scripts/estimate_qesem_budget.py --precision 0.005
 
 Requirements:
     - IBM credentials: export IBM_KEY="..." and IBM_INSTANCE_CRN="..."

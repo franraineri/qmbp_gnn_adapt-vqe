@@ -18,23 +18,23 @@ Sections:
 
 Usage:
     # Full suite (all sections)
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py
 
     # Individual sections
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 2
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 2
 
     # Dry run (list sections)
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --dry-run
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --dry-run
 
     # Custom N for bond-dim test
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 --n-bond-dim 120
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 --n-bond-dim 120
 
     # HE comparison at custom N
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 3 --n-he 20
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 3 --n-he 20
 
     # NLCE with custom max cluster
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 4 --nlce-l-max 10
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 4 --nlce-l-max 10
 """
 
 from __future__ import annotations

@@ -1298,6 +1298,7 @@ def evaluate_theta(
         make_lattice,
     )
     from qmbp_simulation.execution import MPSBackend, NoiselessBackend
+    from qmbp_simulation.models.constants import MPS_DEFAULT_CHI_MAX
 
     t0 = time.perf_counter()
 

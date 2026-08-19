@@ -5,8 +5,8 @@ Scans cross-N experiment results plus data stores (GT cache, eval cache,
 model zoo, NPZ training data) for a given topology.
 
 Usage:
-    python scripts/maintenance/analyze_topology_results.py chain_1d
-    python scripts/maintenance/analyze_topology_results.py heavy_hex
+    .venv/bin/python scripts/maintenance/analyze_topology_results.py chain_1d
+    .venv/bin/python scripts/maintenance/analyze_topology_results.py heavy_hex
 """
 
 import json

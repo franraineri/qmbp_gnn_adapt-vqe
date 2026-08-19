@@ -11,16 +11,16 @@ from already-computed data.
 
 Usage:
     # Regenerate all topologies
-    python scripts/analysis/regenerate_eval_reports.py
+    .venv/bin/python scripts/analysis/regenerate_eval_reports.py
 
     # Specific topology
-    python scripts/analysis/regenerate_eval_reports.py --topology chain_1d
+    .venv/bin/python scripts/analysis/regenerate_eval_reports.py --topology chain_1d
 
     # Include baseline comparison (if baseline NPZ exists)
-    python scripts/analysis/regenerate_eval_reports.py --with-baseline
+    .venv/bin/python scripts/analysis/regenerate_eval_reports.py --with-baseline
 
     # Custom output dir
-    python scripts/analysis/regenerate_eval_reports.py --output-dir results/extrapolation_evals
+    .venv/bin/python scripts/analysis/regenerate_eval_reports.py --output-dir results/extrapolation_evals
 """
 
 from __future__ import annotations

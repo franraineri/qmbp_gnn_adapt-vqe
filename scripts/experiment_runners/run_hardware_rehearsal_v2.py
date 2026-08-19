@@ -20,11 +20,11 @@ Sections:
     4. Adaptive ZNE Fallback: Verify GF→PEA switching works
 
 Usage:
-    python scripts/experiment_runners/run_hardware_rehearsal_v2.py
-    python scripts/experiment_runners/run_hardware_rehearsal_v2.py --zne-amplifier adaptive
-    python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 2
-    python scripts/experiment_runners/run_hardware_rehearsal_v2.py --dry-run
-    python scripts/experiment_runners/run_hardware_rehearsal_v2.py --run-preflight
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v2.py
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v2.py --zne-amplifier adaptive
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v2.py --section 2
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v2.py --dry-run
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v2.py --run-preflight
 """
 
 from __future__ import annotations

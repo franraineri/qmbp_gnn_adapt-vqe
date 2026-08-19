@@ -32,7 +32,7 @@ class TestThesisFindingsValidator:
 
     def test_import(self):
         """Module imports without error."""
-        from project_health.analysis.thesis_findings_validator import (
+        from project_health.analysis.validation.thesis_findings_validator import (
             EvidenceStrength,
             run_validation,
         )
@@ -42,7 +42,7 @@ class TestThesisFindingsValidator:
 
     def test_run_validation_no_crash(self):
         """Full validation runs without crashing."""
-        from project_health.analysis.thesis_findings_validator import run_validation
+        from project_health.analysis.validation.thesis_findings_validator import run_validation
 
         report = run_validation(verbose=False)
         assert report is not None
@@ -51,7 +51,7 @@ class TestThesisFindingsValidator:
 
     def test_validation_report_serializable(self):
         """Report is JSON-serializable."""
-        from project_health.analysis.thesis_findings_validator import run_validation
+        from project_health.analysis.validation.thesis_findings_validator import run_validation
 
         report = run_validation(verbose=False)
         data = report.to_dict()
@@ -60,7 +60,7 @@ class TestThesisFindingsValidator:
 
     def test_category_filter(self):
         """Category filtering works."""
-        from project_health.analysis.thesis_findings_validator import run_validation
+        from project_health.analysis.validation.thesis_findings_validator import run_validation
 
         report = run_validation(categories=["scaling"], verbose=False)
         for f in report.findings:
@@ -68,7 +68,7 @@ class TestThesisFindingsValidator:
 
     def test_empty_data_handling(self):
         """Validators handle empty inputs gracefully."""
-        from project_health.analysis.thesis_findings_validator import (
+        from project_health.analysis.validation.thesis_findings_validator import (
             _VALIDATORS,
             FindingValidation,
         )
@@ -95,7 +95,7 @@ class TestThesisFindingsValidator:
 
     def test_statistical_utilities(self):
         """Statistical helper functions work correctly."""
-        from project_health.analysis.thesis_findings_validator import (
+        from project_health.analysis.validation.thesis_findings_validator import (
             _ci_95,
             _classify_strength,
             _cohens_d,
@@ -127,7 +127,7 @@ class TestThesisTablesCompiler:
 
     def test_import(self):
         """Module imports without error."""
-        from project_health.analysis.thesis_tables_compiler import (
+        from project_health.analysis.thesis.thesis_tables_compiler import (
             compile_tables,
         )
 
@@ -135,7 +135,7 @@ class TestThesisTablesCompiler:
 
     def test_compile_no_crash(self):
         """Full compilation runs without crashing."""
-        from project_health.analysis.thesis_tables_compiler import compile_tables
+        from project_health.analysis.thesis.thesis_tables_compiler import compile_tables
 
         report = compile_tables(verbose=False)
         assert report is not None
@@ -143,7 +143,7 @@ class TestThesisTablesCompiler:
 
     def test_table_structure(self):
         """All tables have valid structure."""
-        from project_health.analysis.thesis_tables_compiler import compile_tables
+        from project_health.analysis.thesis.thesis_tables_compiler import compile_tables
 
         report = compile_tables(verbose=False)
         for table in report.tables:
@@ -157,7 +157,7 @@ class TestThesisTablesCompiler:
 
     def test_markdown_format(self):
         """Markdown output is well-formed."""
-        from project_health.analysis.thesis_tables_compiler import (
+        from project_health.analysis.thesis.thesis_tables_compiler import (
             _format_markdown,
             compile_tables,
         )
@@ -170,7 +170,7 @@ class TestThesisTablesCompiler:
 
     def test_latex_format(self):
         """LaTeX output is well-formed."""
-        from project_health.analysis.thesis_tables_compiler import (
+        from project_health.analysis.thesis.thesis_tables_compiler import (
             _format_latex,
             compile_tables,
         )
@@ -183,7 +183,7 @@ class TestThesisTablesCompiler:
 
     def test_only_filter(self):
         """Table ID filtering works."""
-        from project_health.analysis.thesis_tables_compiler import compile_tables
+        from project_health.analysis.thesis.thesis_tables_compiler import compile_tables
 
         report = compile_tables(only=["T5"], verbose=False)
         ids = [t.table_id for t in report.tables]
@@ -191,7 +191,7 @@ class TestThesisTablesCompiler:
 
     def test_report_serializable(self):
         """Report is JSON-serializable."""
-        from project_health.analysis.thesis_tables_compiler import compile_tables
+        from project_health.analysis.thesis.thesis_tables_compiler import compile_tables
 
         report = compile_tables(verbose=False)
         data = report.to_dict()
@@ -210,7 +210,7 @@ class TestThesisFigures:
 
     def test_import(self):
         """Module imports without error."""
-        from project_health.analysis.thesis_figures import (
+        from project_health.analysis.thesis.thesis_figures import (
             _THESIS_FIGURES,
             generate_all,
         )
@@ -220,7 +220,7 @@ class TestThesisFigures:
 
     def test_figure_registry_complete(self):
         """All registered figures have name, description, and callable."""
-        from project_health.analysis.thesis_figures import _THESIS_FIGURES
+        from project_health.analysis.thesis.thesis_figures import _THESIS_FIGURES
 
         for name, description, func in _THESIS_FIGURES:
             assert isinstance(name, str) and len(name) > 3
@@ -229,7 +229,7 @@ class TestThesisFigures:
 
     def test_generate_no_crash(self, tmp_path):
         """Figure generation doesn't crash (may skip if no data)."""
-        from project_health.analysis.thesis_figures import FigureConfig, generate_all
+        from project_health.analysis.thesis.thesis_figures import FigureConfig, generate_all
 
         cfg = FigureConfig(output_dir=tmp_path, fmt="png", dpi=72, no_titles=True)
         results = generate_all(cfg, verbose=False)
@@ -331,7 +331,7 @@ class TestCrossToolConsistency:
         scanner = ResultScanner(results_root=RESULTS_DIR)
         noiseless, _, _ = scanner.scan_all(exclude_tests=True)
 
-        from project_health.analysis.thesis_tables_compiler import _load_all_data
+        from project_health.analysis.thesis.thesis_tables_compiler import _load_all_data
 
         data = _load_all_data()
         assert len(data["noiseless"]) == len(noiseless)
@@ -343,7 +343,7 @@ class TestCrossToolConsistency:
         scanner = ResultScanner(results_root=RESULTS_DIR)
         _, _, experiments = scanner.scan_all(exclude_tests=True)
 
-        from project_health.analysis.thesis_tables_compiler import _load_all_data
+        from project_health.analysis.thesis.thesis_tables_compiler import _load_all_data
 
         data = _load_all_data()
         assert len(data["experiments"]) == len(experiments)

@@ -13,13 +13,13 @@ Sections:
     3. Deployment: Predict θ at held-out h-values → evaluate via MPS → ΔE/gap
 
 Usage:
-    python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py \\
         --result-file results/scaling/scaling_N40_aer_mps_*.json
 
-    python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py \\
         --result-file results/scaling/scaling_N50_*.json --use-all-seeds
 
-    python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_phase3_mpnn.py --dry-run
 """
 
 from __future__ import annotations

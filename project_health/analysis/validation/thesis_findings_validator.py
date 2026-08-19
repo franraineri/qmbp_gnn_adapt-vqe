@@ -1587,7 +1587,7 @@ def _validate_pca_convergence_hc(**_) -> FindingValidation:
             verdict="UNSUPPORTED",
             strength=EvidenceStrength.NONE,
             evidence=[],
-            notes="Run: python scripts/analysis/theta_pca_phase_detection.py --scaling-analysis",
+            notes="Run: .venv/bin/python scripts/analysis/theta_pca_phase_detection.py --scaling-analysis",
         )
 
     data = json.load(open(pca_file))

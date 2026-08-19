@@ -26323,5 +26323,3223 @@
       "old_version": 29,
       "new_version": 30
     }
+  },
+  {
+    "timestamp": "2026-08-19T05:16:56.368839+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_arch.pt",
+    "topology": "test_topology",
+    "details": {
+      "old_training_points": 5,
+      "new_training_points": 5,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 21,
+      "new_version": 22
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:24.612433+00:00",
+    "event_type": "superseded",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "superseded_by": "ladder_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:24.649412+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "ladder_n10_p1_v1.pt",
+      "old_pass_rate": 0.95,
+      "old_n_training_points": 0,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 0,
+      "new_model_id": "ladder_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:24.710355+00:00",
+    "event_type": "retrained",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "old_training_points": 0,
+      "new_training_points": 0,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 19,
+      "new_version": 20
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:33.785818+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 678,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 72,
+      "new_version": 73
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:33.866695+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:33.902932+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.32,
+      "old_n_training_points": 678,
+      "new_pass_rate": 0.83,
+      "new_n_training_points": 736,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:33.975369+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 678,
+      "new_training_points": 736,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 73,
+      "new_version": 74
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.069877+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 736,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 74,
+      "new_version": 75
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.154049+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.193886+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.3,
+      "old_n_training_points": 500,
+      "new_pass_rate": 0.5,
+      "new_n_training_points": 600,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.261376+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 600,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 75,
+      "new_version": 76
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.343788+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.378015+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 2,
+      "versioned_path": "test_model_p1_v2.pt",
+      "old_pass_rate": 0.5,
+      "old_n_training_points": 600,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.454262+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 600,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 76,
+      "new_version": 77
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.673036+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.708747+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 3,
+      "versioned_path": "test_model_p1_v3.pt",
+      "old_pass_rate": 0.7,
+      "old_n_training_points": 700,
+      "new_pass_rate": 0.83,
+      "new_n_training_points": 736,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.781788+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 736,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 77,
+      "new_version": 78
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.870714+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 600,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 12,
+      "new_version": 13
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.956519+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1_v2.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:34.999390+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.5,
+      "old_n_training_points": 600,
+      "new_pass_rate": 0.8,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1_v2.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.069636+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 600,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 13,
+      "new_version": 14
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.152780+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 736,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 78,
+      "new_version": 79
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.236309+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 79,
+      "new_version": 80
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.320905+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.358945+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.9,
+      "old_n_training_points": 700,
+      "new_pass_rate": 0.95,
+      "new_n_training_points": 800,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.427880+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 800,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 80,
+      "new_version": 81
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.511840+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 800,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 81,
+      "new_version": 82
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.592133+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.777877+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.65,
+      "old_n_training_points": 500,
+      "new_pass_rate": 0.85,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.847945+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 82,
+      "new_version": 83
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:17:35.940589+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 83,
+      "new_version": 84
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:18:37.761615+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 30,
+      "new_version": 31
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:18:37.845754+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_mpnn_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 6,
+      "new_version": 7
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:18:38.003504+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 31,
+      "new_version": 32
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:18:38.085559+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 32,
+      "new_version": 33
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:18:38.167712+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 33,
+      "new_version": 34
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:18:38.251363+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 34,
+      "new_version": 35
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:19:22.917351+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_arch.pt",
+    "topology": "test_topology",
+    "details": {
+      "old_training_points": 5,
+      "new_training_points": 5,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 22,
+      "new_version": 23
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:09.586384+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_arch.pt",
+    "topology": "test_topology",
+    "details": {
+      "old_training_points": 5,
+      "new_training_points": 5,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 23,
+      "new_version": 24
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:35.787503+00:00",
+    "event_type": "superseded",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "superseded_by": "ladder_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:35.815799+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "ladder_n10_p1_v1.pt",
+      "old_pass_rate": 0.95,
+      "old_n_training_points": 0,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 0,
+      "new_model_id": "ladder_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:35.871523+00:00",
+    "event_type": "retrained",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "old_training_points": 0,
+      "new_training_points": 0,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 20,
+      "new_version": 21
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.342533+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 678,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 84,
+      "new_version": 85
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.397251+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.423313+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.32,
+      "old_n_training_points": 678,
+      "new_pass_rate": 0.83,
+      "new_n_training_points": 736,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.472906+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 678,
+      "new_training_points": 736,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 85,
+      "new_version": 86
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.529882+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 736,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 86,
+      "new_version": 87
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.588032+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.613204+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.3,
+      "old_n_training_points": 500,
+      "new_pass_rate": 0.5,
+      "new_n_training_points": 600,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.663155+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 600,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 87,
+      "new_version": 88
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.717521+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.742593+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 2,
+      "versioned_path": "test_model_p1_v2.pt",
+      "old_pass_rate": 0.5,
+      "old_n_training_points": 600,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.806107+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 600,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 88,
+      "new_version": 89
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.867104+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:43.998858+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 3,
+      "versioned_path": "test_model_p1_v3.pt",
+      "old_pass_rate": 0.7,
+      "old_n_training_points": 700,
+      "new_pass_rate": 0.83,
+      "new_n_training_points": 736,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.041850+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 736,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 89,
+      "new_version": 90
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.097523+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 600,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 14,
+      "new_version": 15
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.166536+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1_v2.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.190094+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.5,
+      "old_n_training_points": 600,
+      "new_pass_rate": 0.8,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1_v2.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.236942+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 600,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 15,
+      "new_version": 16
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.291959+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 736,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 90,
+      "new_version": 91
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.353265+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 91,
+      "new_version": 92
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.404788+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.427334+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.9,
+      "old_n_training_points": 700,
+      "new_pass_rate": 0.95,
+      "new_n_training_points": 800,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.473483+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 800,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 92,
+      "new_version": 93
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.525064+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 800,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 93,
+      "new_version": 94
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.573721+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.595436+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.65,
+      "old_n_training_points": 500,
+      "new_pass_rate": 0.85,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.638930+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 94,
+      "new_version": 95
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:20:44.691952+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 95,
+      "new_version": 96
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:21:26.071452+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 35,
+      "new_version": 36
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:21:26.135718+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_mpnn_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 7,
+      "new_version": 8
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:21:26.202512+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 36,
+      "new_version": 37
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:21:26.263930+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 37,
+      "new_version": 38
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:21:26.322036+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 38,
+      "new_version": 39
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:21:26.383273+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 39,
+      "new_version": 40
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:31:43.374931+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 12,
+      "new_version": 13
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:31:43.468842+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 13,
+      "new_version": 14
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:31:43.520013+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:31:43.543216+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:31:43.597369+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 14,
+      "new_version": 15
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:58:45.989744+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 711,
+      "new_training_points": 601,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        60
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        60
+      ],
+      "old_pass_rate": 0.6923076923076923,
+      "old_version": 4,
+      "new_version": 5
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:58:45.991673+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 606
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:58:45.993146+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:58:45.993151+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T05:58:46.046670+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 601,
+      "new_training_points": 601,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        60
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 6,
+      "new_version": 6
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:01:04.799297+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 506,
+      "new_training_points": 506,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.625,
+      "old_version": 2,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:01:04.801268+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 461
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:01:04.802537+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:01:04.802542+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:01:04.857971+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 506,
+      "new_training_points": 506,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 4,
+      "new_version": 4
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.060360+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "superseded_by": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.091050+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "version_number": 4,
+      "versioned_path": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4.pt",
+      "old_pass_rate": 0.2222222222222222,
+      "old_n_training_points": 560,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 485,
+      "new_model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.172840+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 485,
+      "new_training_points": 485,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "old_pass_rate": 0.2222222222222222,
+      "old_version": 3,
+      "new_version": 4
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.233866+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 485,
+      "new_training_points": 485,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 4,
+      "new_version": 5
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.235459+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 455
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.242218+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "tag": "contaminated",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.242226+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "primary_mode": "contaminated_training",
+      "confidence": 0.45,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:02:07.302578+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "old_training_points": 485,
+      "new_training_points": 485,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 6,
+      "new_version": 6
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:37.976206+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "superseded_by": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.008002+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "version_number": 8,
+      "versioned_path": "unified_tfim_br_triangular_multiN_3+4+6_p1_v8.pt",
+      "old_pass_rate": 0.0,
+      "old_n_training_points": 231,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 231,
+      "new_model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.084593+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "old_training_points": 231,
+      "new_training_points": 231,
+      "old_n_values": [
+        3,
+        4,
+        6
+      ],
+      "new_n_values": [
+        3,
+        4,
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 9,
+      "new_version": 10
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.139133+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "old_training_points": 231,
+      "new_training_points": 231,
+      "old_n_values": [
+        3,
+        4,
+        6
+      ],
+      "new_n_values": [
+        3,
+        4,
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 10,
+      "new_version": 11
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.140554+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 402
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.141512+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.141516+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:11:38.197897+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "old_training_points": 231,
+      "new_training_points": 231,
+      "old_n_values": [
+        3,
+        4,
+        6
+      ],
+      "new_n_values": [
+        3,
+        4,
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 12,
+      "new_version": 12
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:03.952373+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_ladder_fromMT_4+6+8+10+12+16+20_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "superseded_by": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:03.972723+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_ladder_fromMT_4+6+8+10+12+16+20_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "version_number": 4,
+      "versioned_path": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1_v4.pt",
+      "old_pass_rate": 0.18181818181818182,
+      "old_n_training_points": 470,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 481,
+      "new_model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:04.052326+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "old_training_points": 474,
+      "new_training_points": 481,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 4,
+      "new_version": 5
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:04.105261+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "old_training_points": 481,
+      "new_training_points": 481,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 5,
+      "new_version": 6
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:04.106977+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 537
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:04.113803+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "contaminated_training"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-19T06:36:04.164415+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "old_training_points": 481,
+      "new_training_points": 481,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 7,
+      "new_version": 7
+    }
+  },
+  {
+    "timestamp": "2026-08-19T07:41:40.333385+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_multi_topology_multiN_ablation_film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "superseded_by": "unified_tfim_br_MT_residual_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T07:41:40.354121+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_multi_topology_multiN_ablation_film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "unified_tfim_br_MT_residual_p1_v1.pt",
+      "old_pass_rate": 0.0,
+      "old_n_training_points": 2243,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 2282,
+      "new_model_id": "unified_tfim_br_MT_residual_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T07:41:40.409929+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2243,
+      "new_training_points": 2282,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.30000000000000004,
+      "old_version": 2,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-19T07:41:40.452433+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2282,
+      "new_training_points": 2282,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 4
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:13:39.763245+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_MT_residual_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "superseded_by": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:13:39.783938+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_MT_residual_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "version_number": 2,
+      "versioned_path": "unified_tfim_br_MT_residual+film_p1_v2.pt",
+      "old_pass_rate": 0.0,
+      "old_n_training_points": 2282,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 2282,
+      "new_model_id": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:13:39.844435+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2259,
+      "new_training_points": 2282,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 4
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:13:39.892905+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2282,
+      "new_training_points": 2282,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 4,
+      "new_version": 5
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:15:46.970369+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.75,
+      "pass_rate_5pct": 0.8750000000000001,
+      "mean_de_gap": 0.02493697815047002,
+      "target_n": [
+        4,
+        6,
+        8,
+        10
+      ],
+      "notes": "model_comparison winner @ladder N=[4, 6, 8, 10]"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:20:53.876122+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.75,
+      "pass_rate_5pct": 1.0,
+      "mean_de_gap": 0.016365412308844154,
+      "target_n": [
+        6,
+        8,
+        10,
+        12
+      ],
+      "notes": "model_comparison winner @chain_1d N=[6, 8, 10, 12]"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:21:02.434836+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.7083333333333334,
+      "pass_rate_5pct": 0.8333333333333334,
+      "mean_de_gap": 0.024460727575503563,
+      "target_n": [
+        4,
+        6,
+        8,
+        10
+      ],
+      "notes": "model_comparison winner @square N=[4, 6, 8, 10]"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T09:24:24.981868+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.7777777777777778,
+      "pass_rate_5pct": 0.8333333333333334,
+      "mean_de_gap": 0.030925655032516607,
+      "target_n": [
+        3,
+        4,
+        6
+      ],
+      "notes": "model_comparison winner @triangular N=[3, 4, 6]"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:55.770730+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.6923076923076923,
+      "delta": -0.05769230769230771,
+      "target_n": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        30,
+        40,
+        60,
+        100,
+        150,
+        200
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:55.799836+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.6923076923076923,
+      "pass_rate_5pct": 0.6923076923076923,
+      "mean_de_gap": 0.1744037786473525,
+      "target_n": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        30,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:55.850648+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.625,
+      "pass_rate_5pct": 0.625,
+      "mean_de_gap": 0.18413773087499882,
+      "target_n": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 10, 12, 16, 20, 30, 40] 5/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:55.890015+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 0.44805800426750786,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 2/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:55.943869+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.1573573606725684,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:55.977821+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.18181818181818182,
+      "delta": -0.5681818181818181,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:56.015216+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.18181818181818182,
+      "pass_rate_5pct": 0.18181818181818182,
+      "mean_de_gap": 0.3450469765946085,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T13:33:56.061158+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.4318181818181818,
+      "pass_rate_5pct": 0.4318181818181818,
+      "mean_de_gap": 0.8840529350542212,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        15,
+        16,
+        16,
+        20,
+        20,
+        24,
+        26,
+        30,
+        30,
+        30,
+        30,
+        40,
+        40,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 20, 20, 24, 26, 30, 30, 30, 30, 40, 40, 40, 60, 100, 150, 200] 19/44"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:06:57.019189+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 502,
+      "n_values": [],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:06:57.071581+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 502,
+      "new_training_points": 502,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:06:57.073263+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 461
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:06:57.074295+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:06:57.074298+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:06:57.403699+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.6414342629482072,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "update_zoo_pass_rate"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:17:11.547049+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 506,
+      "new_training_points": 508,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.625,
+      "old_version": 4,
+      "new_version": 5
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:17:11.548659+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 461
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:17:11.549820+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:17:11.549824+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T14:17:11.599506+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 508,
+      "new_training_points": 508,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 6,
+      "new_version": 6
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:00.999526+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_arch.pt",
+    "topology": "test_topology",
+    "details": {
+      "old_training_points": 5,
+      "new_training_points": 5,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 24,
+      "new_version": 25
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:25.992340+00:00",
+    "event_type": "superseded",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "superseded_by": "ladder_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:26.021562+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "ladder_n10_p1_v1.pt",
+      "old_pass_rate": 0.95,
+      "old_n_training_points": 0,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 0,
+      "new_model_id": "ladder_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:26.085326+00:00",
+    "event_type": "retrained",
+    "model_id": "ladder_n10_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "old_training_points": 0,
+      "new_training_points": 0,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 21,
+      "new_version": 22
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.018722+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 678,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 96,
+      "new_version": 97
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.070843+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.091502+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.32,
+      "old_n_training_points": 678,
+      "new_pass_rate": 0.83,
+      "new_n_training_points": 736,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.140113+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 678,
+      "new_training_points": 736,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 97,
+      "new_version": 98
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.196345+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 736,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 98,
+      "new_version": 99
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.258780+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.280437+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.3,
+      "old_n_training_points": 500,
+      "new_pass_rate": 0.5,
+      "new_n_training_points": 600,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.368907+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 600,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 99,
+      "new_version": 100
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.446537+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.472725+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 2,
+      "versioned_path": "test_model_p1_v2.pt",
+      "old_pass_rate": 0.5,
+      "old_n_training_points": 600,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.526998+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 600,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 100,
+      "new_version": 101
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.669931+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.691452+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 3,
+      "versioned_path": "test_model_p1_v3.pt",
+      "old_pass_rate": 0.7,
+      "old_n_training_points": 700,
+      "new_pass_rate": 0.83,
+      "new_n_training_points": 736,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.746713+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 736,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 101,
+      "new_version": 102
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.818404+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 600,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 16,
+      "new_version": 17
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.882612+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1_v2.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.904420+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.5,
+      "old_n_training_points": 600,
+      "new_pass_rate": 0.8,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1_v2.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:35.959058+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 600,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 17,
+      "new_version": 18
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.029666+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 736,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 102,
+      "new_version": 103
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.115028+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 103,
+      "new_version": 104
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.185257+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.207328+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.9,
+      "old_n_training_points": 700,
+      "new_pass_rate": 0.95,
+      "new_n_training_points": 800,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.270111+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 800,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 104,
+      "new_version": 105
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.340694+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 800,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 105,
+      "new_version": 106
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.417366+00:00",
+    "event_type": "superseded",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.440148+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_model_p1_v1.pt",
+      "old_pass_rate": 0.65,
+      "old_n_training_points": 500,
+      "new_pass_rate": 0.85,
+      "new_n_training_points": 700,
+      "new_model_id": "test_model_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.497150+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 500,
+      "new_training_points": 700,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 106,
+      "new_version": 107
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:09:36.575531+00:00",
+    "event_type": "retrained",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 700,
+      "new_training_points": 500,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 107,
+      "new_version": 108
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:10:42.939537+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 40,
+      "new_version": 41
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:10:43.016849+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_mpnn_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 8,
+      "new_version": 9
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:10:43.092659+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 41,
+      "new_version": 42
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:10:43.172066+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 42,
+      "new_version": 43
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:10:43.246482+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 43,
+      "new_version": 44
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:10:43.315966+00:00",
+    "event_type": "retrained",
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 10,
+      "new_training_points": 10,
+      "old_n_values": [
+        6
+      ],
+      "new_n_values": [
+        6
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 44,
+      "new_version": 45
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:42:25.304761+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 15,
+      "new_version": 16
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:42:25.438344+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 16,
+      "new_version": 17
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:42:25.589405+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:42:25.644327+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T15:42:25.739623+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 17,
+      "new_version": 18
+    }
+  },
+  {
+    "timestamp": "2026-08-19T16:41:37.647703+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 18,
+      "new_version": 19
+    }
+  },
+  {
+    "timestamp": "2026-08-19T16:41:37.796951+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 19,
+      "new_version": 20
+    }
+  },
+  {
+    "timestamp": "2026-08-19T16:41:37.902730+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T16:41:37.948579+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T16:41:38.091932+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 20,
+      "new_version": 21
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:03:12.048713+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.35555555555555557,
+      "delta": -0.39444444444444443,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:03:12.092459+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.35555555555555557,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "Corrected: was 69% (training_data_eval), now 36% (comparison avg)"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:03:12.159959+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "prev_best_pass_rate": 0.4318181818181818,
+      "new_pass_rate": 0.06140350877192983,
+      "delta": -0.370414673046252,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:03:12.203297+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.06140350877192983,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "Corrected: was 43% (training_data_eval), now 6% (comparison avg)"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:18:52.194158+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 21,
+      "new_version": 22
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:18:52.414860+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 22,
+      "new_version": 23
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:18:52.542554+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:18:52.696140+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-19T17:18:52.860370+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 23,
+      "new_version": 24
+    }
   }
 ]

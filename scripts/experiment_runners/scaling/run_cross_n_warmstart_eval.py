@@ -16,15 +16,15 @@ Diagnostics collected:
 
 Usage:
     # Quick test (small sizes, few h-points)
-    python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
         --train-sizes 10 20 40 --target-n 60 --h-points 8 --n-test 3
 
     # Full run
-    python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
         --train-sizes 10 20 40 60 80 --target-n 100 --h-points 20
 
     # Dry run
-    python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py --dry-run
 """
 
 from __future__ import annotations

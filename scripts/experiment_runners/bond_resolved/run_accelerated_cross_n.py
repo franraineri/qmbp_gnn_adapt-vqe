@@ -15,19 +15,19 @@ for downstream analysis.
 
 Usage:
     # Default: Train N=10, predict N=20, p=1, chain_1d
-    python scripts/.../run_accelerated_cross_n.py
+    .venv/bin/python scripts/.../run_accelerated_cross_n.py
 
     # Custom sizes
-    python scripts/.../run_accelerated_cross_n.py --train-n 10 --target-n 20 40
+    .venv/bin/python scripts/.../run_accelerated_cross_n.py --train-n 10 --target-n 20 40
 
     # Use existing model from zoo (skip training)
-    python scripts/.../run_accelerated_cross_n.py --from-zoo --target-n 20
+    .venv/bin/python scripts/.../run_accelerated_cross_n.py --from-zoo --target-n 20
 
     # Multiple p layers
-    python scripts/.../run_accelerated_cross_n.py --p-layers 1 2
+    .venv/bin/python scripts/.../run_accelerated_cross_n.py --p-layers 1 2
 
     # Dry run
-    python scripts/.../run_accelerated_cross_n.py --dry-run
+    .venv/bin/python scripts/.../run_accelerated_cross_n.py --dry-run
 """
 
 from __future__ import annotations

@@ -7,19 +7,19 @@ Runtime jobs.
 
 Usage:
     # Recover specific job IDs
-    python scripts/recover_qesem_jobs.py 82aa33cc-862c-4ba1-8017-6ab61eb7054e
+    .venv/bin/python scripts/recover_qesem_jobs.py 82aa33cc-862c-4ba1-8017-6ab61eb7054e
 
     # Recover multiple jobs
-    python scripts/recover_qesem_jobs.py \
+    .venv/bin/python scripts/recover_qesem_jobs.py \
         82aa33cc-862c-4ba1-8017-6ab61eb7054e \
         4f16e846-9af2-4ee8-a78d-6f829766eefe
 
     # Save to directory
-    python scripts/recover_qesem_jobs.py --save results/recovered/qesem/ \
+    .venv/bin/python scripts/recover_qesem_jobs.py --save results/recovered/qesem/ \
         82aa33cc-862c-4ba1-8017-6ab61eb7054e
 
     # List recent QESEM jobs (find IDs you forgot)
-    python scripts/recover_qesem_jobs.py --list-recent 10
+    .venv/bin/python scripts/recover_qesem_jobs.py --list-recent 10
 """
 
 from __future__ import annotations

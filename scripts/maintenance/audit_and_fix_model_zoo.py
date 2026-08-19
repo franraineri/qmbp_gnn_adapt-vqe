@@ -11,12 +11,12 @@ Addresses:
 7. Models with pass_rate=0 that were never evaluated post-training
 
 Usage:
-    python scripts/maintenance/audit_and_fix_model_zoo.py          # audit only
-    python scripts/maintenance/audit_and_fix_model_zoo.py --fix    # apply safe fixes
-    python scripts/maintenance/audit_and_fix_model_zoo.py --fix --prune-stale
-    python scripts/maintenance/audit_and_fix_model_zoo.py --fix --archive-orphans
-    python scripts/maintenance/audit_and_fix_model_zoo.py --coherence   # include zoo↔dashboard checks
-    python scripts/maintenance/audit_and_fix_model_zoo.py --json
+    .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py          # audit only
+    .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix    # apply safe fixes
+    .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix --prune-stale
+    .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix --archive-orphans
+    .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --coherence   # include zoo↔dashboard checks
+    .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --json
 """
 
 from __future__ import annotations

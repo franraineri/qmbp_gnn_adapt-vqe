@@ -8,10 +8,10 @@ retraining — just syncs the pass_rate to reflect current data quality.
 Zero VQE compute. Only reads existing NPZ data (~1s total).
 
 Usage:
-    python scripts/maintenance/reevaluate_zoo_models.py           # evaluate + update
-    python scripts/maintenance/reevaluate_zoo_models.py --dry-run # show what would change
-    python scripts/maintenance/reevaluate_zoo_models.py --topology heavy_hex
-    python scripts/maintenance/reevaluate_zoo_models.py --force   # update even if worse
+    .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py           # evaluate + update
+    .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py --dry-run # show what would change
+    .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py --topology heavy_hex
+    .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py --force   # update even if worse
 """
 
 from __future__ import annotations

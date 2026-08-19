@@ -10,9 +10,9 @@ Exit codes:
     1 = issues found (printed to stdout)
 
 Usage:
-    python scripts/maintenance/check_zoo_coherence.py
-    python scripts/maintenance/check_zoo_coherence.py --json
-    python scripts/maintenance/check_zoo_coherence.py --retrain-queue
+    .venv/bin/python scripts/maintenance/check_zoo_coherence.py
+    .venv/bin/python scripts/maintenance/check_zoo_coherence.py --json
+    .venv/bin/python scripts/maintenance/check_zoo_coherence.py --retrain-queue
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ def check_coherence() -> dict:
                         "detail": (
                             f"{topo}: model has {entry.n_training_points} pts "
                             f"but pass_rate=0 (never evaluated). "
-                            f"Run: python scripts/maintenance/reevaluate_zoo_models.py --topology {topo}"
+                            f"Run: .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py --topology {topo}"
                         ),
                     }
                 )
@@ -243,7 +243,7 @@ def check_coherence() -> dict:
                     "severity": "info",
                     "detail": (
                         "project-status.md is older than dashboard. "
-                        "Run: python scripts/maintenance/update_project_status.py"
+                        "Run: .venv/bin/python scripts/maintenance/update_project_status.py"
                     ),
                 }
             )

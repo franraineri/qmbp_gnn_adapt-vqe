@@ -88,6 +88,29 @@ def main():
         print("\n[GroundTruthCache] NOT FOUND")
         issues.append("GT cache file missing")
 
+    # 1b. GT ↔ NPZ Coherence Check
+    try:
+        from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence
+
+        coherence = validate_gt_npz_coherence(fix=False)
+        if coherence["n_files_checked"] > 0:
+            if coherence["n_files_with_issues"] == 0:
+                print(f"\n  [GT↔NPZ Coherence] ✅ {coherence['summary']}")
+            else:
+                print(f"\n  [GT↔NPZ Coherence] {coherence['summary']}")
+                for iss in coherence["issues"][:5]:
+                    impact = f" (pass_rate Δ={iss['pass_rate_impact']:+.0%})" if iss["pass_rate_impact"] else ""
+                    print(
+                        f"    ⚠️ {iss['file']}: {iss['n_mismatched']}/{iss['n_total']} points "
+                        f"stale (max_delta={iss['max_delta']:.2e}){impact}"
+                    )
+                issues.append(
+                    f"GT↔NPZ: {coherence['n_files_with_issues']} files with stale e_exact "
+                    f"(max_delta={coherence['max_delta']:.2e})"
+                )
+    except Exception as e:
+        print(f"\n  [GT↔NPZ Coherence] ⚠️ Check failed: {e}")
+
     # 2. Eval Cache
     ec_path = DATA / "eval_cache.json"
     if ec_path.exists():
@@ -222,7 +245,13 @@ def main():
             ntp = entry.get("n_training_points", 0)
             topo = entry.get("topology", "?")
             n = entry.get("n_qubits", "?")
-            print(f"  {name}: {topo} N={n}, pass_dual={pr:.0%}, pts={ntp}")
+            pr_by_n = entry.get("pass_rate_by_n", {})
+            pr_by_n_str = ""
+            if pr_by_n:
+                pr_by_n_str = " | by_N: " + ", ".join(
+                    f"N{k}={v:.0%}" for k, v in sorted(pr_by_n.items(), key=lambda x: int(x[0]))
+                )
+            print(f"  {name}: {topo} N={n}, pass_dual={pr:.0%}, pts={ntp}{pr_by_n_str}")
 
         # Use validate_zoo() for SHA256 integrity + missing file detection
         try:
@@ -368,6 +397,25 @@ def main():
             print(
                 f"    θ max jump: {max_jump:.3f} {'(smooth)' if max_jump < 0.5 else '⚠️ discontinuous'}"
             )
+
+            # Metric reliability warnings (variational violations, outliers, gap issues)
+            from qmbp_simulation.analysis.evaluation_report import validate_metrics
+
+            per_h_rich = [
+                {
+                    "h": float(h_vals[i]),
+                    "e_pred": float(e_vqe[i]),
+                    "e_exact": float(e_exact[i]),
+                    "gap": float(gaps[i]),
+                    "de_gap": float(de_gaps[i]),
+                    "abs_error": float(abs_err[i]),
+                }
+                for i in range(n_pts)
+            ]
+            metric_warnings = validate_metrics(per_h_rich)
+            for w in metric_warnings:
+                print(f"    {w}")
+                issues.append(f"NPZ {npz_file.name}: {w}")
 
             # H-frontier (empirical boundary where ΔE/gap crosses 5%)
             frontier_result = compute_h_frontier_from_npz(npz_file)
@@ -846,6 +894,78 @@ def main():
                 print(f"    {topo:12s}: {bar} {score:.3f}")
         except Exception as e:
             print(f"\n  Zoo quality scores: skipped ({e})")
+
+        # ── MT vs ST Comparison (from dashboard or live) ─────────────────
+        mt_vs_st = dashboard.get("mt_vs_st_comparison")
+        if mt_vs_st:
+            print(f"\n  {'─' * 50}")
+            print("  MT vs ST Model Comparison (embedded in dashboard)")
+            print(f"  {'─' * 50}")
+            g = mt_vs_st.get("global", {})
+            mt_w = g.get("mt_wins", 0)
+            st_w = g.get("st_wins", 0)
+            ties = g.get("ties", 0)
+            total = g.get("total", 0)
+            mt_avg = g.get("mt_avg_pass_rate", 0)
+            st_avg = g.get("st_avg_pass_rate", 0)
+            winner = "MT" if mt_avg > st_avg + 0.01 else ("ST" if st_avg > mt_avg + 0.01 else "Tie")
+            winner_icon = "🟢" if winner == "MT" else ("🔴" if winner == "ST" else "⚪")
+            print(f"    Score: MT {mt_w} — ST {st_w} — Ties {ties} (total: {total})")
+            print(f"    MT avg pass: {mt_avg:.0%} | ST avg pass: {st_avg:.0%}")
+            print(f"    Overall: {winner_icon} {winner}")
+
+            per_topology = mt_vs_st.get("per_topology", {})
+            if per_topology:
+                print(f"\n    {'Topology':<14} {'MT%':>5} {'ST%':>5} {'Win':>4} {'Δ':>6}")
+                for topo_name in sorted(per_topology.keys()):
+                    info = per_topology[topo_name]
+                    icon = "🟢" if info["winner"] == "MT" else (
+                        "🔴" if info["winner"] == "ST" else "⚪"
+                    )
+                    print(
+                        f"    {topo_name:<14} "
+                        f"{info['mt_avg_pass_rate']:>4.0%} "
+                        f"{info['st_avg_pass_rate']:>5.0%} "
+                        f"{icon}{info['winner']:<3} "
+                        f"{info['delta']:>+5.0%}"
+                    )
+        else:
+            # Fall back to live computation
+            try:
+                from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
+
+                _, summary = generate_mt_vs_st_table(latest_only=True)
+                if summary.get("total", 0) > 0:
+                    print(f"\n  {'─' * 50}")
+                    print("  MT vs ST Model Comparison (live from comparison JSONs)")
+                    print(f"  {'─' * 50}")
+                    mt_w = summary["mt_wins"]
+                    st_w = summary["st_wins"]
+                    ties = summary["ties"]
+                    mt_avg = summary.get("mt_avg_pass_rate", 0)
+                    st_avg = summary.get("st_avg_pass_rate", 0)
+                    winner = "MT" if mt_avg > st_avg + 0.01 else (
+                        "ST" if st_avg > mt_avg + 0.01 else "Tie"
+                    )
+                    winner_icon = "🟢" if winner == "MT" else (
+                        "🔴" if winner == "ST" else "⚪"
+                    )
+                    print(f"    Score: MT {mt_w} — ST {st_w} — Ties {ties}")
+                    print(f"    MT avg: {mt_avg:.0%} | ST avg: {st_avg:.0%} → {winner_icon} {winner}")
+                    per_topology = summary.get("per_topology", {})
+                    for topo_name in sorted(per_topology.keys()):
+                        info = per_topology[topo_name]
+                        icon = "🟢" if info["winner"] == "MT" else (
+                            "🔴" if info["winner"] == "ST" else "⚪"
+                        )
+                        print(
+                            f"    {topo_name:<14} "
+                            f"MT={info['mt_avg_pass_rate']:.0%} "
+                            f"ST={info['st_avg_pass_rate']:.0%} "
+                            f"{icon} {info['winner']}"
+                        )
+            except Exception as _mt_e:
+                pass  # No comparison data available
     else:
         print("\n  [Dashboard] NOT FOUND — run any experiment to auto-generate")
 

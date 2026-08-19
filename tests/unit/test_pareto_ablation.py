@@ -8,7 +8,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from project_health.analysis.mitigation_benchmark_analyzer import (
+from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
     MitigationBenchmarkAnalyzer,
 )
 

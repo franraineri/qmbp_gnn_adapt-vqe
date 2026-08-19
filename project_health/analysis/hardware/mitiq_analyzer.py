@@ -322,7 +322,7 @@ def get_mitiq_health_summary() -> dict:
             "status": "not_run",
             "message": "No Mitiq comparison data available",
             "recommendation": (
-                "Run: python scripts/experiment_runners/run_hardware_rehearsal_v3.py --sections 21"
+                "Run: .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py --sections 21"
             ),
         }
 

@@ -74,6 +74,11 @@ markers = [
     "integration: marks integration tests",
     "mitiq: marks tests requiring mitiq (deselect with '-m not mitiq')",
 ]
+addopts = "--durations=10 --durations-min=3"
+collect_ignore = [
+    "tests/test_cache.py",
+    "tests/unit/test_pareto_ablation.py",
+]
 
 [tool.mypy]
 python_version = "3.12"

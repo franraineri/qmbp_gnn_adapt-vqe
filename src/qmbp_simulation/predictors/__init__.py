@@ -40,6 +40,12 @@ from qmbp_simulation.predictors.model_zoo import (
     register_checkpoint,
     register_checkpoint_with_training_metrics,
 )
+from qmbp_simulation.predictors.retrain_loop import (
+    RetrainLoopResult,
+    RetrainResult,
+    regression_guardrail,
+    run_retrain_loop,
+)
 from qmbp_simulation.predictors.model_registry_db import (
     DashboardQuality,
     EvaluationRecord,
@@ -149,6 +155,11 @@ __all__ = [
     "register_checkpoint",
     "register_checkpoint_with_training_metrics",
     "ZooEntry",
+    # Retrain loop (Tier 2 automation)
+    "run_retrain_loop",
+    "regression_guardrail",
+    "RetrainLoopResult",
+    "RetrainResult",
     # Model registry DB (queryable training provenance)
     "ModelRegistryDB",
     "ModelRecord",

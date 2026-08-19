@@ -1272,7 +1272,7 @@ def main() -> int:
     if not reports:
         print(f"No HW_REHEARSAL_V3 results in {args.results_dir}")
         print(
-            "Run: python scripts/experiment_runners/run_hardware_rehearsal_v3.py "
+            "Run: .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py "
             "--skip-hardware-sections"
         )
         return 1

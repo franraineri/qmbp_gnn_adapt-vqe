@@ -6,9 +6,9 @@ from run_*.json files. Provides the detailed per-point view that the
 standard noiseless_pipeline_analyzer summary lacks.
 
 Usage:
-    python scripts/analyze_noiseless_per_h.py <result_json> [--h 1.0 2.0 3.0]
-    python scripts/analyze_noiseless_per_h.py results/experiments/exp_noiseless_tfim_longitudinal_v2/
-    python scripts/analyze_noiseless_per_h.py <result_json> --all
+    .venv/bin/python scripts/analyze_noiseless_per_h.py <result_json> [--h 1.0 2.0 3.0]
+    .venv/bin/python scripts/analyze_noiseless_per_h.py results/experiments/exp_noiseless_tfim_longitudinal_v2/
+    .venv/bin/python scripts/analyze_noiseless_per_h.py <result_json> --all
 """
 
 import argparse

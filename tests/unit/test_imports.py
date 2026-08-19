@@ -16,8 +16,8 @@ DEPENDENCY_ORDER = {
     "circuits": ["models", "utils"],
     "execution": ["circuits", "models", "utils", "framework", "predictors"],
     "optimizers": ["execution", "circuits", "models", "utils"],
-    "predictors": ["models", "utils", "execution", "solvers", "circuits", "analysis"],
-    "analysis": ["predictors", "models", "utils", "solvers", "execution", "circuits"],
+    "predictors": ["models", "utils", "execution", "solvers", "circuits", "analysis", "pipeline", "framework"],
+    "analysis": ["predictors", "models", "utils", "solvers", "execution", "circuits", "framework"],
     "pipeline": [
         "analysis",
         "solvers",
@@ -81,7 +81,16 @@ class TestDependencyOrder:
 
 
 class TestNoExperimentOrScriptImports:
-    """Verify no imports from experiments/ or scripts/."""
+    """Verify no imports from experiments/ or scripts/.
+
+    Exception: function-scoped lazy imports are allowed for optional
+    integrations (e.g., active_learning helper used only when called).
+    """
+
+    # Known lazy imports inside function bodies (not structural dependencies)
+    _ALLOWED_LAZY = {
+        "runner_base.py": {"experiments.helpers.active_learning"},
+    }
 
     def test_no_experiment_imports(self):
         violations = []
@@ -90,15 +99,22 @@ class TestNoExperimentOrScriptImports:
                 tree = ast.parse(py_file.read_text())
             except SyntaxError:
                 continue
+
+            allowed_for_file = self._ALLOWED_LAZY.get(py_file.name, set())
+
             for node in ast.walk(tree):
                 if isinstance(node, ast.ImportFrom) and node.module:
                     if "experiments" in node.module or "scripts" in node.module:
+                        if node.module in allowed_for_file:
+                            continue
                         violations.append(
                             f"{py_file.relative_to(PACKAGE_ROOT)}: from {node.module}"
                         )
                 elif isinstance(node, ast.Import):
                     for alias in node.names:
                         if "experiments" in alias.name or "scripts" in alias.name:
+                            if alias.name in allowed_for_file:
+                                continue
                             violations.append(
                                 f"{py_file.relative_to(PACKAGE_ROOT)}: import {alias.name}"
                             )

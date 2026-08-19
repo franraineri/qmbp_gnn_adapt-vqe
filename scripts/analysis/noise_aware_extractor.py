@@ -7,16 +7,16 @@ unified MPNN architecture benchmark (UNIFIED_MPNN_ARCHITECTURE).
 
 Usage:
     # Auto-find latest noise-aware result:
-    python scripts/analysis/noise_aware_extractor.py
+    .venv/bin/python scripts/analysis/noise_aware_extractor.py
 
     # Unified MPNN architecture benchmark:
-    python scripts/analysis/noise_aware_extractor.py --experiment architecture
+    .venv/bin/python scripts/analysis/noise_aware_extractor.py --experiment architecture
 
     # Specific result file:
-    python scripts/analysis/noise_aware_extractor.py --file results/experiments/exp_unified_mpnn_architecture/run_*.json
+    .venv/bin/python scripts/analysis/noise_aware_extractor.py --file results/experiments/exp_unified_mpnn_architecture/run_*.json
 
     # Output as JSON (for programmatic use):
-    python scripts/analysis/noise_aware_extractor.py --format json
+    .venv/bin/python scripts/analysis/noise_aware_extractor.py --format json
 """
 
 from __future__ import annotations
@@ -389,9 +389,9 @@ def main():
         exp_name = "architecture benchmark" if args.experiment == "architecture" else "noise-aware comparison"
         print(f"❌ No results found for {exp_name}. Run the experiment first:")
         if args.experiment == "architecture":
-            print("   python scripts/experiment_runners/noise_aware/run_unified_mpnn_benchmark.py --topology ladder")
+            print("   .venv/bin/python scripts/experiment_runners/noise_aware/run_unified_mpnn_benchmark.py --topology ladder")
         else:
-            print("   python scripts/experiment_runners/noise_aware/run_noise_aware_comparison.py")
+            print("   .venv/bin/python scripts/experiment_runners/noise_aware/run_noise_aware_comparison.py")
         sys.exit(1)
 
     print(f"📁 Reading: {path.name}")

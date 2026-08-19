@@ -1,7 +1,7 @@
 # Module Index (auto-generated)
 
 Legend: C=class F=func K=const. Base import: `from qmbp_simulation.<module> import ...`
-Run `python scripts/maintenance/generate_module_index.py` to refresh.
+Run `python scripts/general_project_maintenance/generate_module_index.py` to refresh.
 
 ## Quick Lookup
 
@@ -41,7 +41,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 
 ### qsim/analysis/ (25)
-  ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +65
+  ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +66
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
   comparative                ANAL  C:RegimeDiscoveryResult,ComparativeMetrics | F:find_h_min,classify_result,filter_by_threshold+5
@@ -50,7 +50,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   data_models                MODEL C:GradientAnalysisResult,ComparisonResult,BaselineMetrics+1
   diagnostics                CORE  C:DiagnosticCollector | F:configure_pipeline_logging
   entanglement               ANAL  C:EntanglementResult,EntanglementAnalyzer
-  evaluation_report          ANAL  F:validate_metrics,generate_comparison_table,generate_evaluation_report+1
+  evaluation_report          ANAL  F:validate_metrics,generate_comparison_table,generate_evaluation_report+2
   extension_analyzer         PIPE  C:RejectionReportGenerator,PrerequisiteChecker,CalibrationComparator+8
   extension_classifiers      ANAL  C:ClassificationEngine
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
@@ -61,7 +61,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+35
+  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+44
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
@@ -115,7 +115,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   presets                    CFG   F:load_preset,list_presets,preset_to_args
   quality_profile                  C:QualityProfile | F:compute_quality_profile,format_quality_summary,format_per_h_status+2
   result_index               CACHE C:ResultIndex
-  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+17
+  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+18
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -150,14 +150,16 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   benchmark_evaluator        BENCH C:InstanceResult,BenchmarkResult,VQEzyBenchmarkEvaluator
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
-### qsim/predictors/ (7)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +60
+### qsim/predictors/ (9)
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +63
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,heal_manifest+18
+  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,load_best_model_for_topology+20
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
+  retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
+  training_intelligence      VAL   C:RetrainTrigger,HRangeValidation,TrainingConfig | F:check_retrain_triggers,validate_h_range_alignment,prepare_training_config+1
   unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
   unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+3
 
@@ -345,6 +347,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   extract_delta_e_fidelity   CORE  C:PointMetrics,RunSummary | F:extract_from_run,scan_all_runs,scan_cross_n+2
   extract_theta_trajectories PIPE  F:extract_trajectory,scan_results,scan_scaling_results+2
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
+  pipeline_summary           PIPE  F:parse_args,load_latest_ablation,load_model_comparisons+7
   precision_frontier_study         F:run_study,main
   quick_noisy_comparison     EXEC  F:run_comparison,main
   reanalyze_p2_filtered      ANAL  
@@ -353,6 +356,7 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   theta_pca_phase_detection  ANAL  F:load_trajectories,analyze_trajectory,generate_figure+3
   validate_vqezy_robustness  VAL   F:build_lattice_and_circuit,load_training_data,evaluate_mpnn_on_vqezy+4
   verify_hva_periodicity     CIRC  K:H
+  verify_mt_vs_st            ANAL  F:main
   benchmark                  BENCH F:parse_args,main
   benchmark_pea_parallel     BENCH F:benchmark_measurement_only,benchmark_full_pea,main
   benchmark_pea_performance  BENCH F:benchmark_pea,main
@@ -371,22 +375,23 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
   recover_qesem_job          DIAG  F:main
   recover_qesem_jobs               F:connect_catalog,list_recent_jobs,recover_qesem_job+1
   compare_resource_estimation VAL   F:section_1_consistency_check,section_2_cross_topology,section_3_error_budget+3
-  test_batch_hw_path         TEST  K:ROOT
   test_pea_config            TEST  K:H
   validate_gnn_qem_post_zne  VAL   F:generate_post_zne_samples,main
   validate_warm_start_e3     VAL   K:N,P
 
-## Maintenance (scripts/maintenance/)
+## Maintenance (scripts/general_project_maintenance/)
 
 ### Standalone scripts
 
   analyze_topology_results   DIAG  K:ROOT,DATA
   audit_and_fix_model_zoo    VAL   F:audit_manifest,audit_registry,audit_consistency+7
   check_zoo_coherence              F:check_coherence,main
+  detect_overdocumented_functions       F:count_docstring_lines,count_body_lines,scan_file+2
   generate_presets_from_index CFG   F:generate_preset_yaml,main
   generate_scaling_report    PRED  F:load_dashboard,compute_quality_tier_breakdown,format_report_text+1
   inspect_data_stores        CACHE F:main
-  query_model_registry       MODEL F:cmd_list,cmd_get,cmd_summary+17
+  promote_extrapolation_data       F:parse_args,analyze_npz,promote_file+1
+  query_model_registry       MODEL F:cmd_list,cmd_get,cmd_summary+19
   quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+5
   reevaluate_zoo_models            F:evaluate_npz_quality,main
   run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+5
@@ -398,5 +403,4 @@ Run `python scripts/maintenance/generate_module_index.py` to refresh.
 
 ### Standalone scripts
 
-  test_notebooks             TEST  F:test_notebook_01,test_notebook_02,test_notebook_03
   viz_helpers                VIS   F:draw_circuit,draw_circuit_stats,draw_hva_structure+6

@@ -10,9 +10,9 @@ NEW: Also scans NPZ training data with quality_tier information to show
 frontier breakdown by tier: verified, approximate, unverified.
 
 Usage:
-    python scripts/analysis/compute_h_frontier_all.py
-    python scripts/analysis/compute_h_frontier_all.py --model tfim --topology chain_1d
-    python scripts/analysis/compute_h_frontier_all.py --by-tier  # Show tier breakdown
+    .venv/bin/python scripts/analysis/compute_h_frontier_all.py
+    .venv/bin/python scripts/analysis/compute_h_frontier_all.py --model tfim --topology chain_1d
+    .venv/bin/python scripts/analysis/compute_h_frontier_all.py --by-tier  # Show tier breakdown
 """
 
 from __future__ import annotations

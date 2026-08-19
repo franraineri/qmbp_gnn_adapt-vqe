@@ -14,25 +14,25 @@ Checks (in execution order):
 
 Usage:
     # Run all checks (default):
-    python scripts/general_project_maintenance/run_all_checks.py
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py
 
     # Run specific checks only:
-    python scripts/general_project_maintenance/run_all_checks.py --only vulture phantom
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py --only vulture phantom
 
     # Skip specific checks:
-    python scripts/general_project_maintenance/run_all_checks.py --skip pyclean pydoclint
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py --skip pyclean pydoclint
 
     # JSON report:
-    python scripts/general_project_maintenance/run_all_checks.py --json
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py --json
 
     # Fix mode (pyclean executes, steerings --fix):
-    python scripts/general_project_maintenance/run_all_checks.py --fix
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py --fix
 
     # Verbose (show full output from each tool):
-    python scripts/general_project_maintenance/run_all_checks.py -v
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py -v
 
     # CI mode (JSON + non-zero exit on errors):
-    python scripts/general_project_maintenance/run_all_checks.py --ci
+   .venv/bin/python scripts/general_project_maintenance/run_all_checks.py --ci
 """
 
 from __future__ import annotations
@@ -536,6 +536,30 @@ def check_module_index(*, verbose: bool = False) -> CheckResult:
     )
 
 
+def check_test_imports(*, fix: bool = False, verbose: bool = False) -> CheckResult:
+    """Validate test imports — catch broken paths before pytest."""
+    t0 = time.time()
+    try:
+        from validate_test_imports import check_test_imports as _check
+        result = _check(fix=fix, verbose=verbose)
+        duration = time.time() - t0
+        return CheckResult(
+            name="test-imports",
+            status=result["status"],
+            duration_s=duration,
+            n_issues=result["n_issues"],
+            summary=result["summary"],
+            details=result.get("details", []),
+        )
+    except Exception as e:
+        return CheckResult(
+            name="test-imports",
+            status="error",
+            duration_s=time.time() - t0,
+            summary=f"Failed: {e}",
+        )
+
+
 # ─── Orchestrator ────────────────────────────────────────────────────────────
 
 CHECK_FUNCTIONS = {
@@ -545,6 +569,7 @@ CHECK_FUNCTIONS = {
     "phantom": check_phantom,
     "steerings": check_steerings,
     "module-index": check_module_index,
+    "test-imports": check_test_imports,
 }
 
 

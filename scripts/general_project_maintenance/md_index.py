@@ -4,10 +4,10 @@
 """Generate a rich markdown index/TOC from a directory of .md files.
 
 Usage:
-    python scripts/md_index.py documentation/analysis
-    python scripts/md_index.py documentation/binnacles --output INDEX.md
-    python scripts/md_index.py documentation/analysis --format table
-    python scripts/md_index.py documentation/ -r --format full
+    .venv/bin/python scripts/md_index.py documentation/analysis
+    .venv/bin/python scripts/md_index.py documentation/binnacles --output INDEX.md
+    .venv/bin/python scripts/md_index.py documentation/analysis --format table
+    .venv/bin/python scripts/md_index.py documentation/ -r --format full
 
 Replicable to any folder containing markdown files.
 
@@ -558,10 +558,10 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    python scripts/md_index.py documentation/analysis
-    python scripts/md_index.py documentation/analysis --format full
-    python scripts/md_index.py documentation/binnacles -f table -o INDEX.md
-    python scripts/md_index.py documentation/ -r --format table
+    .venv/bin/python scripts/md_index.py documentation/analysis
+    .venv/bin/python scripts/md_index.py documentation/analysis --format full
+    .venv/bin/python scripts/md_index.py documentation/binnacles -f table -o INDEX.md
+    .venv/bin/python scripts/md_index.py documentation/ -r --format table
 """,
     )
     parser.add_argument("folder", type=Path, help="Path to folder with .md files")

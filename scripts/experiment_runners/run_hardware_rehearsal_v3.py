@@ -41,28 +41,28 @@ Results are saved to:
 
 Usage:
     # Full run (sections 1-14):
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py
 
     # MPNN sections only (no FakeKingston ZNE, fast):
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py --skip-hardware-sections
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py --skip-hardware-sections
 
     # Single section:
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 10
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 12
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 10
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py --section 12
 
     # N=6 quick validation:
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py \\
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py \\
         --skip-hardware-sections --n-qubits 6 --topology chain_1d \\
         --h-train 2.0 1.75 1.5 1.25 --h-test 1.875 \\
         --mpnn-epochs 1000 --n-vqe-bench-restarts 2
 
     # With noisy section (FakeKingston):
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py \\
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py \\
         --section 14 --n-qubits 6 --topology chain_1d \\
         --h-train 2.0 1.75 1.5 1.25 --h-test 1.875 --mpnn-epochs 1000
 
     # Dry run:
-    python scripts/experiment_runners/run_hardware_rehearsal_v3.py --dry-run
+    .venv/bin/python scripts/experiment_runners/run_hardware_rehearsal_v3.py --dry-run
 
 References:
     - NN-VQE (Miao et al., PRApplied 2024): MLP warm-start, ~20 training pts.

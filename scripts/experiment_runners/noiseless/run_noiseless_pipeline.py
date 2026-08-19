@@ -19,25 +19,25 @@ heavy_hex, square).
 
 Usage:
     # Default: N=6, p=2, chain_1d, tfim model
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py
 
     # Larger system
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --n-qubits 10 --p-layers 1 --topology heavy_hex
 
     # Multiple topologies comparison
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --n-qubits 6 --p-layers 2 --topology chain_1d ladder triangular
 
     # Custom h-grid
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --n-qubits 8 --h-min 0.5 --h-max 2.0 --h-points 15
 
     # Skip MPNN (just Phase 1+2)
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --section 1 2
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --section 1 2
 
     # Dry run
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --dry-run
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --dry-run
 """
 
 from __future__ import annotations

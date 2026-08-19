@@ -31,6 +31,40 @@ Usage:
     # Promote the winner to zoo
     .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py \
         --topology chain_1d --target-n 20 --auto-detect --promote-best
+
+    # ── MT vs ST Comparison Examples ──────────────────────────────────────
+
+    # MT vs ST on chain_1d, in-distribution N=10,16,20
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py \
+        --topology chain_1d --target-n 10 16 20 \
+        --checkpoints \
+            data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt \
+            data/model_zoo/checkpoints/unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt \
+        --h-min 1.5 --h-max 5.0 --h-points 15 --save-report -v
+
+    # MT vs ST on heavy_hex, extrapolation at N=16,20
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py \
+        --topology heavy_hex --target-n 16 20 \
+        --checkpoints \
+            data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt \
+            data/model_zoo/checkpoints/unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt \
+        --h-min 1.5 --h-max 5.0 --h-points 15 -v
+
+    # MT vs ST on square, small N only (in-distribution for both)
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py \
+        --topology square --target-n 10 12 \
+        --checkpoints \
+            data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt \
+            data/model_zoo/checkpoints/unified_tfim_br_square_multiN_4+6+8+10+12+16+20+30_p1.pt \
+        --h-min 2.0 --h-max 5.0 --h-points 10 -v
+
+    # MT vs ST on triangular (frustrated), small N
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py \
+        --topology triangular --target-n 6 10 \
+        --checkpoints \
+            data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt \
+            data/model_zoo/checkpoints/unified_tfim_br_triangular_multiN_3+4+6+8+10+12+14_p1.pt \
+        --h-min 2.5 --h-max 5.0 --h-points 6 -v
 """
 from __future__ import annotations
 
@@ -58,6 +92,12 @@ from qmbp_simulation.analysis.metrics import (
 )
 from qmbp_simulation.circuits import HVACircuitBuilder
 from qmbp_simulation.execution.backends import select_backend
+from qmbp_simulation.framework.result_io import (
+    build_result_envelope,
+    persist_predictions_to_training_npz,
+    save_experiment_result,
+    upsert_theta_npz,
+)
 from qmbp_simulation.models.hamiltonian import make_lattice
 from qmbp_simulation.models.model_registry import get_model_spec
 from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
@@ -85,6 +125,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--h-min", type=float, default=2.5)
     parser.add_argument("--h-max", type=float, default=5.0)
     parser.add_argument("--h-points", type=int, default=6)
+    parser.add_argument("--smart-h-grid", action="store_true",
+                        help="Use adaptive h-grid based on empirical h_frontier from dashboard "
+                             "(concentrates test points near the pass/fail boundary)")
     parser.add_argument("--model-name", type=str, default="tfim_bond_resolved")
     parser.add_argument("--promote-best", action="store_true",
                         help="Update zoo pass_rate for the best model")
@@ -118,12 +161,77 @@ def discover_checkpoints(
     candidates = []
 
     if explicit:
+        not_found = []
         for path in explicit:
             p = Path(path)
             if not p.exists():
                 p = ZOO_CHECKPOINTS / path
             if p.exists():
                 candidates.append({"path": p, "label": p.stem[:45], "source": "explicit"})
+            else:
+                not_found.append(path)
+
+        # ── Auto-resolve missing checkpoints via fuzzy match ──────────────
+        if not_found:
+            for nf in not_found:
+                nf_stem = Path(nf).stem
+                # Extract topology hint and key tokens from the missing path
+                # e.g. "unified_tfim_br_triangular_multiN_3+4+6+8+10+12+14_p1"
+                # tokens: topology name + "multiN" or "multitopo" + p_layers
+                nf_lower = nf_stem.lower()
+
+                # Strategy 1: find checkpoint with longest common prefix
+                best_match: Path | None = None
+                best_score = 0
+                for f in sorted(ZOO_CHECKPOINTS.glob("*.pt")):
+                    f_lower = f.stem.lower()
+                    # Score: count matching characters from start
+                    common = 0
+                    for a, b in zip(nf_lower, f_lower):
+                        if a == b:
+                            common += 1
+                        else:
+                            break
+                    # Bonus: same p_layers suffix
+                    if f"_p{p_layers}" in f_lower and f"_p{p_layers}" in nf_lower:
+                        common += 10
+                    # Bonus: same topology name present
+                    if topology in f_lower:
+                        common += 15
+                    # Penalty: archived files
+                    if "_archive" in str(f):
+                        common -= 20
+                    if common > best_score:
+                        best_score = common
+                        best_match = f
+
+                if best_match and best_score >= 20:
+                    print(
+                        f"\n  ⚠️ Checkpoint not found: {Path(nf).name}"
+                        f"\n     Auto-resolved to: {best_match.name}"
+                    )
+                    candidates.append({
+                        "path": best_match,
+                        "label": best_match.stem[:45],
+                        "source": "explicit (auto-resolved)",
+                    })
+                else:
+                    print(f"\n  ❌ Checkpoint not found and no suitable match: {Path(nf).name}")
+                    print(f"     Available *{topology}*p{p_layers}* checkpoints:")
+                    matches = sorted(ZOO_CHECKPOINTS.glob(f"*{topology}*p{p_layers}*"))
+                    for f in matches:
+                        print(f"       • {f.name}")
+                    if not matches:
+                        print(f"       (none found for topology={topology})")
+                    raise SystemExit(1)
+
+        # ── Warning: checkpoint count < 2 means no real comparison ────────
+        if len(candidates) < 2:
+            print(
+                f"\n  ⚠️ WARNING: Only {len(candidates)} checkpoint(s) resolved. "
+                f"A comparison requires at least 2 models."
+            )
+
         return candidates
 
     # Auto-detect from zoo manifest
@@ -231,7 +339,7 @@ def evaluate_checkpoint(
             )
             with torch.no_grad():
                 theta_pred = model(g).numpy().flatten()
-            theta_pred = np.clip(theta_pred, -np.pi, np.pi)
+            theta_pred = np.clip(theta_pred.astype(np.float64), -np.pi, np.pi)
 
             # MC-Dropout uncertainty estimation
             theta_std = 0.0
@@ -313,18 +421,103 @@ def evaluate_checkpoint(
     }
 
 
+TRAINING_DATA_DIR = ROOT / "data" / "multi_n_training"
+DE_GAP_THRESHOLD_FOR_TRAINING = 0.10  # Only persist predictions with ΔE/gap < 10%
+
+
+def _persist_best_predictions_to_npz(
+    all_results: list[dict],
+    topology: str,
+    p_layers: int,
+) -> None:
+    """Persist best θ_pred per (N, h) to training NPZ as 'approximate' tier.
+
+    For each N evaluated, collects the best prediction (lowest e_pred) across
+    all models at each h-point. Delegates to the shared
+    persist_predictions_to_training_npz() from result_io for atomic upsert
+    with canonical quality tier assignment.
+    """
+    scoreable = [r for r in all_results if "results_by_n" in r and not r.get("error")]
+    if not scoreable:
+        return
+
+    # Collect all N values evaluated
+    all_ns: set[int] = set()
+    for r in scoreable:
+        all_ns.update(r["results_by_n"].keys())
+
+    # For each (N, h), pick the best prediction (lowest e_pred) across all models
+    best_by_n: dict[int, list[dict]] = {}
+
+    for n_target in sorted(all_ns):
+        best_by_h: dict[float, dict] = {}
+
+        for r in scoreable:
+            if n_target not in r["results_by_n"]:
+                continue
+            per_point = r["results_by_n"][n_target].get("per_point", [])
+            for pt in per_point:
+                h = pt["h"]
+                # Keep the best (lowest e_pred) across models
+                if h not in best_by_h or pt["e_pred"] < best_by_h[h]["e_pred"]:
+                    best_by_h[h] = pt
+
+        if best_by_h:
+            best_by_n[n_target] = list(best_by_h.values())
+
+    if not best_by_n:
+        return
+
+    # Delegate to shared function (handles filtering, tier assignment, upsert)
+    stats = persist_predictions_to_training_npz(
+        per_h_results_by_n=best_by_n,
+        topology=topology,
+        p_layers=p_layers,
+        training_data_dir=TRAINING_DATA_DIR,
+    )
+
+    if stats["total_added"] > 0 or stats["total_updated"] > 0:
+        print(
+            f"\n  💾 Training data: {stats['total_added']} new points, "
+            f"{stats['total_updated']} improved → {TRAINING_DATA_DIR.name}/"
+        )
+
+
 def main() -> int:
     args = parse_args()
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)-5s %(message)s",
     )
+    t0_main = time.perf_counter()
 
     h_values = [round(h, 2) for h in np.linspace(args.h_min, args.h_max, args.h_points)]
+
+    # ── Smart h-grid: adaptive grid based on empirical h_frontier ────────
+    smart_h_info: dict | None = None
+    if args.smart_h_grid:
+        try:
+            from qmbp_simulation.analysis.metrics import compute_smart_comparison_h_grid
+
+            smart_h_info = compute_smart_comparison_h_grid(
+                topology=args.topology,
+                h_min=args.h_min,
+                h_max=args.h_max,
+                n_points=args.h_points,
+            )
+            h_values = smart_h_info["h_values"]
+            logger.info(
+                f"  Smart h-grid ({smart_h_info['strategy']}): "
+                f"h_frontier={smart_h_info['h_frontier_used']}"
+            )
+        except Exception as e:
+            logger.warning(f"  Smart h-grid failed ({e}), using uniform grid")
 
     print("=" * 75)
     print("  MODEL COMPARISON")
     print(f"  Topology: {args.topology} | N: {args.target_n} | h: {h_values}")
+    if smart_h_info:
+        print(f"  Strategy: {smart_h_info['description']}")
     print("=" * 75)
 
     # Discover checkpoints
@@ -424,16 +617,22 @@ def main() -> int:
     # Flush GT cache (persist any new computations)
     gt_cache.flush()
 
+    # ── Persist best θ_pred to training NPZ (approximate tier) ────────────
+    # For each (N, h), pick the model with lowest energy and upsert to
+    # data/multi_n_training/{topology}_N{n}_p{p}.npz if it passes dual criterion.
+    # This enriches training data with MPNN-predicted θ that are "good enough".
+    _persist_best_predictions_to_npz(all_results, args.topology, args.p_layers)
+
     # Determine winner
     print(f"\n{'─' * 75}")
     scoreable = [r for r in all_results if "results_by_n" in r and not r.get("error")]
 
+    def avg_pass_rate(r):
+        rates = [m["pass_rate_dual"] for m in r["results_by_n"].values()]
+        return np.mean(rates) if rates else 0
+
     best = None
     if scoreable:
-        def avg_pass_rate(r):
-            rates = [m["pass_rate_dual"] for m in r["results_by_n"].values()]
-            return np.mean(rates) if rates else 0
-
         best = max(scoreable, key=avg_pass_rate)
         print(f"\n  🏆 BEST: {best['label']} (arch={best['arch']}, avg_pass={avg_pass_rate(best):.0%})")
 
@@ -505,12 +704,24 @@ def main() -> int:
             except Exception as e:
                 logger.debug(f"  Report generation failed for {r['label']}: {e}")
 
-    # Save JSON report
-    output_dir = ROOT / "results" / "model_comparison"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    output_file = output_dir / f"compare_{args.topology}_{timestamp}.json"
+    # ── Update zoo pass_rate_by_n for all evaluated models ───────────────
+    try:
+        from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate_by_n
 
+        for r in scoreable:
+            ckpt = r.get("checkpoint")
+            if not ckpt:
+                continue
+            by_n = {}
+            for n_str, metrics in r.get("results_by_n", {}).items():
+                pr = metrics.get("pass_rate_dual", metrics.get("pass_rate_5pct", 0))
+                by_n[int(n_str)] = float(pr)
+            if by_n:
+                update_zoo_pass_rate_by_n(ckpt, by_n, update_global=False)
+    except Exception:
+        pass  # Non-critical
+
+    # Save JSON report via save_experiment_result (auto-indexes in ResultIndex)
     # Strip per_point from JSON (too verbose)
     results_for_json = []
     for r in all_results:
@@ -522,21 +733,36 @@ def main() -> int:
             }
         results_for_json.append(r_copy)
 
-    report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "topology": args.topology,
-        "target_n": args.target_n,
-        "h_values": h_values,
-        "p_layers": args.p_layers,
-        "model_name": args.model_name,
-        "n_models": len(all_results),
-        "results": results_for_json,
-        "best_model": best["label"] if best else None,
-        "best_arch": best["arch"] if best else None,
-    }
-    with open(output_file, "w") as f:
-        json.dump(report, f, indent=2, default=str)
-    print(f"\n  Results: {output_file.relative_to(ROOT)}")
+    elapsed_total = time.perf_counter() - t0_main
+
+    envelope = build_result_envelope(
+        config={
+            "topology": args.topology,
+            "target_n": args.target_n,
+            "h_values": h_values,
+            "p_layers": args.p_layers,
+            "model_name": args.model_name,
+            "n_models": len(all_results),
+        },
+        results={"models": results_for_json},
+        summary={
+            "best_model": best["label"] if best else None,
+            "best_arch": best["arch"] if best else None,
+            "best_pass_rate": float(avg_pass_rate(best)) if best else 0.0,
+            "n_models_evaluated": len(scoreable),
+        },
+        elapsed_s=elapsed_total,
+    )
+
+    experiment_id = f"model_comparison/tfim_bond_resolved/{args.topology}"
+    output_path = save_experiment_result(
+        envelope, experiment_id=experiment_id, results_dir=ROOT / "results" / "experiments"
+    )
+    try:
+        display_path = output_path.relative_to(ROOT)
+    except ValueError:
+        display_path = output_path
+    print(f"\n  Results: {display_path}")
     print("=" * 75)
     return 0
 

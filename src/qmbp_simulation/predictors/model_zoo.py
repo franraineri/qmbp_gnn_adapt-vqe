@@ -127,6 +127,7 @@ class ZooEntry:
     runner_tag: str = "XX"  # 2-letter runner identifier
     date_tag: str = ""  # DDMMYY format
     training_quality_score: float = -1.0  # [0,1] composite quality, -1 = not computed
+    pass_rate_by_n: dict = field(default_factory=dict)  # {str(n): float} per-N pass rates
 
     def matches(
         self,
@@ -1561,6 +1562,8 @@ def register_checkpoint(
     *,
     overwrite: bool = False,
     require_improvement: bool = False,
+    regression_guard: bool = False,
+    regression_tolerance: float = 0.10,
 ) -> Path:
     """Register a newly trained MPNN into the model zoo.
 
@@ -1585,6 +1588,15 @@ def register_checkpoint(
         than the existing one OR existing has pass_rate=0 (unevaluated).
         If the existing model is better, the new one is saved to
         ``_candidates/`` for manual review instead of overwriting.
+    regression_guard : bool
+        If True (Item 6), run active evaluation of the new model and
+        compare against existing model's pass_rate. Block registration if
+        the new model regresses beyond ``regression_tolerance``.
+        More rigorous than ``require_improvement`` (which only checks
+        training point count, not actual model quality).
+    regression_tolerance : float
+        Maximum allowed pass_rate drop when ``regression_guard=True``.
+        Default: 0.10 (10% absolute drop allowed).
 
     Returns
     -------
@@ -1602,6 +1614,43 @@ def register_checkpoint(
     # ── Pre-registration validation ──────────────────────────────────────
     # Catch common mistakes before writing anything to disk or manifest.
     _validate_zoo_entry(entry)
+
+    # ── Regression guard (Item 6): active quality evaluation ─────────────
+    # More rigorous than require_improvement — actually runs the model and
+    # compares observed pass_rate vs existing model's pass_rate.
+    if regression_guard and overwrite:
+        try:
+            from qmbp_simulation.predictors.retrain_loop import regression_guardrail
+
+            allowed, guard_reason = regression_guardrail(
+                model, entry, tolerance=regression_tolerance,
+            )
+            if not allowed:
+                # Save to _candidates/ for manual review
+                candidates_dir = _CHECKPOINTS_DIR / "_candidates"
+                candidates_dir.mkdir(parents=True, exist_ok=True)
+                candidate_path = candidates_dir / entry.checkpoint_file
+                logger.warning(
+                    "Regression guard BLOCKED registration: %s. "
+                    "Saved to _candidates/ for manual review.",
+                    guard_reason,
+                )
+                # Save checkpoint to candidates
+                try:
+                    from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN as _UM
+                    if isinstance(model, _UM):
+                        from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+                        save_unified_checkpoint(model, str(candidate_path))
+                    else:
+                        from qmbp_simulation.predictors.mpnn import save_mpnn_checkpoint
+                        save_mpnn_checkpoint(model, str(candidate_path))
+                except Exception:
+                    pass
+                return candidate_path
+            else:
+                logger.info("  Regression guard passed: %s", guard_reason)
+        except ImportError:
+            logger.debug("regression_guard: retrain_loop not available, skipping")
 
     # ── Quality gate: require_improvement ────────────────────────────────
     if require_improvement and overwrite:
@@ -1885,6 +1934,8 @@ def register_checkpoint_with_training_metrics(
     auto_sync_dashboard: bool = True,
     architecture_config: dict | None = None,
     optimizer_config: dict | None = None,
+    regression_guard: bool = False,
+    regression_tolerance: float = 0.10,
 ) -> Path:
     """Register checkpoint and capture training metrics in one call.
 
@@ -1942,7 +1993,11 @@ def register_checkpoint_with_training_metrics(
     ... )
     """
     # Save checkpoint via standard function
-    ckpt_path = register_checkpoint(model, entry, overwrite=overwrite)
+    ckpt_path = register_checkpoint(
+        model, entry, overwrite=overwrite,
+        regression_guard=regression_guard,
+        regression_tolerance=regression_tolerance,
+    )
 
     # ── Record training metrics in ModelRegistryDB ────────────────────────
     if training_result is not None:
@@ -2154,6 +2209,119 @@ def update_zoo_pass_rate(
                 logger.debug("Registry evaluation tracking failed (non-critical): %s", e)
 
     return updated
+
+
+def update_zoo_pass_rate_by_n(
+    checkpoint_file: str,
+    pass_rate_by_n: dict[int | str, float],
+    *,
+    update_global: bool = True,
+) -> bool:
+    """Update per-N pass rates for a zoo entry.
+
+    Merges new per-N data with existing data. Also updates the global
+    pass_rate as a weighted average if update_global=True.
+
+    Parameters
+    ----------
+    checkpoint_file : str
+        Checkpoint filename in the zoo manifest.
+    pass_rate_by_n : dict[int | str, float]
+        Mapping of N values to pass rates. Keys are converted to strings.
+        Example: {10: 0.85, 20: 0.60, 30: 0.25}
+    update_global : bool
+        If True, recompute global pass_rate as the mean of all per-N values.
+
+    Returns
+    -------
+    bool
+        True if manifest was updated.
+    """
+    entries = _load_manifest()
+    updated = False
+
+    for entry in entries:
+        if entry.checkpoint_file == checkpoint_file:
+            # Merge (new values overwrite existing for same N)
+            for n, pr in pass_rate_by_n.items():
+                entry.pass_rate_by_n[str(n)] = float(pr)
+
+            if update_global and entry.pass_rate_by_n:
+                # Weighted: larger N gets slightly more weight (extrapolation harder)
+                rates = list(entry.pass_rate_by_n.values())
+                entry.pass_rate = float(sum(rates) / len(rates))
+
+            updated = True
+            logger.info(
+                "update_zoo_pass_rate_by_n: %s → %d N values, global=%.0f%%",
+                checkpoint_file[:40],
+                len(entry.pass_rate_by_n),
+                entry.pass_rate * 100,
+            )
+            break
+    else:
+        logger.warning(
+            "update_zoo_pass_rate_by_n: checkpoint '%s' not found", checkpoint_file
+        )
+        return False
+
+    if updated:
+        _save_manifest(entries)
+    return updated
+
+
+def backfill_pass_rate_by_n_from_comparisons() -> int:
+    """Populate pass_rate_by_n for zoo entries using model_comparison JSONs.
+
+    Scans all compare_*.json files and extracts per-N pass rates for each
+    checkpoint that appears in the zoo manifest. Updates the manifest with
+    the latest per-N data.
+
+    Returns
+    -------
+    int
+        Number of zoo entries updated.
+    """
+    import json as _json
+
+    comp_dir = _PROJECT_ROOT / "results" / "model_comparison"
+    if not comp_dir.exists():
+        return 0
+
+    # Aggregate per-checkpoint, per-N pass rates (latest wins)
+    checkpoint_rates: dict[str, dict[int, float]] = {}
+    for f in sorted(comp_dir.glob("compare_*.json")):
+        try:
+            d = _json.loads(f.read_text())
+            for r in d.get("results", []):
+                ckpt = r.get("checkpoint", "")
+                if not ckpt:
+                    continue
+                for n_str, metrics in r.get("results_by_n", {}).items():
+                    pr = metrics.get("pass_rate_dual", metrics.get("pass_rate_5pct", 0))
+                    checkpoint_rates.setdefault(ckpt, {})[int(n_str)] = float(pr)
+        except Exception:
+            continue
+
+    if not checkpoint_rates:
+        return 0
+
+    entries = _load_manifest()
+    n_updated = 0
+
+    for entry in entries:
+        rates = checkpoint_rates.get(entry.checkpoint_file)
+        if rates and rates != entry.pass_rate_by_n:
+            # Merge (new values into existing)
+            for n, pr in rates.items():
+                entry.pass_rate_by_n[str(n)] = pr
+            n_updated += 1
+
+    if n_updated > 0:
+        _save_manifest(entries)
+        logger.info("backfill_pass_rate_by_n: updated %d entries", n_updated)
+
+    return n_updated
 
 
 def compute_retrain_queue() -> list[dict]:

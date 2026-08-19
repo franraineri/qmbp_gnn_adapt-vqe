@@ -509,7 +509,7 @@ def main():
 
     if not report.analyses:
         print("No accelerated cross-N results found.")
-        print(f"Run: python scripts/.../run_accelerated_cross_n.py")
+        print(f"Run: .venv/bin/python scripts/.../run_accelerated_cross_n.py")
         return
 
     # Print report

@@ -8,10 +8,10 @@ failing point in each VQE sweep.
 Outputs both a formatted matrix and linear fit coefficients for h_frontier(N, p).
 
 Usage:
-    python scripts/analysis/compute_h_frontier.py
-    python scripts/analysis/compute_h_frontier.py --threshold 0.03
-    python scripts/analysis/compute_h_frontier.py --json
-    python scripts/analysis/compute_h_frontier.py --min-n 20  # exclude N<20 from fits
+    .venv/bin/python scripts/analysis/compute_h_frontier.py
+    .venv/bin/python scripts/analysis/compute_h_frontier.py --threshold 0.03
+    .venv/bin/python scripts/analysis/compute_h_frontier.py --json
+    .venv/bin/python scripts/analysis/compute_h_frontier.py --min-n 20  # exclude N<20 from fits
 """
 
 from __future__ import annotations

@@ -130,7 +130,7 @@ os.unlink(prev_path)
 with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
     f.write("{invalid json}")
     corrupt_path = f.name
-result = detect_pass_rate_regression(curr_configs, previous_dashboard_path=corrupt_path)
+result = detect_pass_rate_regression(curr_configs_bad, previous_dashboard_path=corrupt_path)
 check("corrupted prev JSON returns []", result == [])
 os.unlink(corrupt_path)
 

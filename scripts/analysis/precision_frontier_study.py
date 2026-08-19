@@ -14,13 +14,13 @@ This produces the definitive table:
 
 Usage:
     # Full study (N=10,16,22, p=1-4, chi=32-512, h dense near h_c)
-    python scripts/analysis/precision_frontier_study.py
+    .venv/bin/python scripts/analysis/precision_frontier_study.py
 
     # Quick (N=10 only, p=1-2)
-    python scripts/analysis/precision_frontier_study.py --quick
+    .venv/bin/python scripts/analysis/precision_frontier_study.py --quick
 
     # Save output
-    python scripts/analysis/precision_frontier_study.py --output results/analysis/precision_frontier.json
+    .venv/bin/python scripts/analysis/precision_frontier_study.py --output results/analysis/precision_frontier.json
 """
 
 from __future__ import annotations

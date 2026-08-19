@@ -23,12 +23,12 @@ Best practices (from ZNE validation suite, 2026-06-04):
 - Include build_config() with system params for digest/compare.py compatibility.
 
 Usage:
-    python scripts/my_validation.py
-    python scripts/my_validation.py --section 1 2
-    python scripts/my_validation.py --dry-run
-    python scripts/my_validation.py --stop-on-failure
-    python scripts/my_validation.py --verbose
-    python scripts/my_validation.py --skip-preflight
+    .venv/bin/python scripts/my_validation.py
+    .venv/bin/python scripts/my_validation.py --section 1 2
+    .venv/bin/python scripts/my_validation.py --dry-run
+    .venv/bin/python scripts/my_validation.py --stop-on-failure
+    .venv/bin/python scripts/my_validation.py --verbose
+    .venv/bin/python scripts/my_validation.py --skip-preflight
 """
 
 from __future__ import annotations

@@ -11,13 +11,13 @@ Sections:
 Success criterion: ΔE/gap < 5% for all h-points in valid regime.
 
 Usage:
-    python scripts/experiment_runners/scaling/run_scaling_validation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_validation.py \\
         --n-qubits 40 --topology chain_1d
 
-    python scripts/experiment_runners/scaling/run_scaling_validation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_validation.py \\
         --n-qubits 100 --h-min 3.0 --h-max 5.0 --h-points 10
 
-    python scripts/experiment_runners/scaling/run_scaling_validation.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_validation.py --dry-run
 """
 
 from __future__ import annotations

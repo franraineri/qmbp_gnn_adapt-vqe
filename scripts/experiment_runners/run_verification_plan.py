@@ -29,25 +29,25 @@ Estimated Tier 1 only: ~8 min
 
 Usage:
     # List all verification variants
-    python scripts/experiment_runners/run_verification_plan.py --list
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py --list
 
     # Run Tier 1 only (highest priority)
-    python scripts/experiment_runners/run_verification_plan.py --noiseless-only
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py --noiseless-only
 
     # Run Tier 2 (medium priority)
-    python scripts/experiment_runners/run_verification_plan.py --noisy-only
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py --noisy-only
 
     # Run Tier 3 (low priority)
-    python scripts/experiment_runners/run_verification_plan.py --extended-only
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py --extended-only
 
     # Run everything
-    python scripts/experiment_runners/run_verification_plan.py
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py
 
     # Dry run (show commands without executing)
-    python scripts/experiment_runners/run_verification_plan.py --dry-run
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py --dry-run
 
     # Run a specific variant by index
-    python scripts/experiment_runners/run_verification_plan.py --variant 0
+    .venv/bin/python scripts/experiment_runners/run_verification_plan.py --variant 0
 
     # After execution, verify results:
     python analysis/scan_coverage.py --discover --p 1 --extended

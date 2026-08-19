@@ -64,7 +64,7 @@ TOPOLOGIES = {
     "chain_1d": {
         "train_max_n": 20,
         "eval_in_dist": [6, 8, 10, 12],       # Within training range
-        "eval_extrap": [16, 20, 30],           # Beyond training
+        "eval_extrap": [16, 21, 31],           # Beyond training
         "category": "unfrustrated_1d",
         "h_min": 2.5,
         "h_max": 5.0,
@@ -73,7 +73,7 @@ TOPOLOGIES = {
     "heavy_hex": {
         "train_max_n": 16,
         "eval_in_dist": [4, 6, 10, 12],
-        "eval_extrap": [20, 24, 30],
+        "eval_extrap": [20, 24, 29],
         "category": "unfrustrated_quasi1d",
         "h_min": 2.0,
         "h_max": 3.5,
@@ -82,7 +82,7 @@ TOPOLOGIES = {
     "ladder": {
         "train_max_n": 12,
         "eval_in_dist": [4, 6, 8, 10],
-        "eval_extrap": [12, 16, 20],
+        "eval_extrap": [12, 18, 22, 24],
         "category": "frustrated_quasi2d",
         "h_min": 2.5,
         "h_max": 5.0,
@@ -91,7 +91,7 @@ TOPOLOGIES = {
     "square": {
         "train_max_n": 14,
         "eval_in_dist": [4, 6, 8, 10],
-        "eval_extrap": [14, 18],
+        "eval_extrap": [14, 18, 21],
         "category": "frustrated_2d",
         "h_min": 2.5,
         "h_max": 5.0,
@@ -100,7 +100,7 @@ TOPOLOGIES = {
     "triangular": {
         "train_max_n": 6,  # Physics limit: p=1 fails at N≥8
         "eval_in_dist": [3, 4, 6],
-        "eval_extrap": [8, 10, 12],                # Expected to fail (documents limit)
+        "eval_extrap": [8, 11, 12, 13],                # Expected to fail (documents limit)
         "category": "frustrated_2d",
         "h_min": 2.5,
         "h_max": 5.0,
@@ -143,15 +143,31 @@ def run_cmd(cmd: list[str], label: str, dry_run: bool = False) -> dict:
     print(f"    {cmd_str}")
     print(f"{'─' * 70}", flush=True)
 
+    # Create per-task log file
+    log_dir = RESULTS_DIR / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    safe_label = label.replace(" ", "_").replace(":", "").replace("[", "").replace("]", "")[:40]
+    log_file = log_dir / f"seq_{safe_label}.log"
+
     t0 = time.perf_counter()
     result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(ROOT))
     elapsed = time.perf_counter() - t0
 
     status = "ok" if result.returncode == 0 else "failed"
+
+    # Save log
+    with open(log_file, "w") as f:
+        f.write(f"# Task: {label}\n# Status: {status} ({elapsed:.1f}s)\n# {'=' * 60}\n\n")
+        if result.stdout:
+            f.write(result.stdout)
+        if result.stderr:
+            f.write("\n\n# === STDERR ===\n")
+            f.write(result.stderr)
+
     if result.returncode != 0:
-        print(f"  ❌ FAILED ({elapsed:.1f}s)")
-        # Print last 20 lines of stderr
-        for line in result.stderr.strip().split("\n")[-20:]:
+        print(f"  ❌ FAILED ({elapsed:.1f}s) — see {log_file.name}")
+        # Print last 10 lines of stderr as preview
+        for line in result.stderr.strip().split("\n")[-10:]:
             print(f"    {line}")
     else:
         print(f"  ✅ Done ({elapsed:.1f}s)")
@@ -162,7 +178,112 @@ def run_cmd(cmd: list[str], label: str, dry_run: bool = False) -> dict:
         "elapsed_s": round(elapsed, 1),
         "returncode": result.returncode,
         "cmd": cmd_str,
+        "log_file": str(log_file.name),
     }
+
+
+def _run_indexed_task(args_tuple: tuple) -> tuple[int, dict]:
+    """Execute a single indexed task (module-level for pickle compatibility).
+
+    Saves stdout+stderr to a per-task log file for post-hoc debugging.
+    """
+    idx, cmd, label, cwd = args_tuple
+    from pathlib import Path
+
+    # Create per-task log file
+    log_dir = Path(cwd) / "results" / "mt_vs_st_benchmark" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    safe_label = label.replace(" ", "_").replace(":", "").replace("[", "").replace("]", "")[:40]
+    log_file = log_dir / f"{idx:02d}_{safe_label}.log"
+
+    t0 = time.perf_counter()
+    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+    elapsed = time.perf_counter() - t0
+    status = "ok" if proc.returncode == 0 else "failed"
+
+    # Write combined stdout+stderr to log file
+    with open(log_file, "w") as f:
+        f.write(f"# Task: {label}\n")
+        f.write(f"# Cmd: {' '.join(cmd)}\n")
+        f.write(f"# Status: {status} ({elapsed:.1f}s)\n")
+        f.write(f"# {'=' * 60}\n\n")
+        if proc.stdout:
+            f.write(proc.stdout)
+        if proc.stderr:
+            f.write("\n\n# === STDERR ===\n")
+            f.write(proc.stderr)
+
+    return idx, {
+        "label": label,
+        "status": status,
+        "elapsed_s": round(elapsed, 1),
+        "returncode": proc.returncode,
+        "cmd": " ".join(cmd),
+        "log_file": str(log_file.name),
+    }
+
+
+def run_parallel(tasks: list[tuple[list[str], str]], max_workers: int = 0, dry_run: bool = False, force_sequential: bool = False) -> list[dict]:
+    """Run multiple commands in parallel using ProcessPoolExecutor.
+
+    On M2 (8 cores), uses up to 4 workers by default to avoid memory
+    pressure from multiple PyTorch/Qiskit processes. Each subprocess
+    gets its own memory space (no GIL issues).
+
+    Parameters
+    ----------
+    tasks : list[tuple[list[str], str]]
+        List of (cmd, label) tuples.
+    max_workers : int
+        Max parallel processes. 0 = auto (min(4, n_tasks, cpu_count//2)).
+    dry_run : bool
+        If True, just print commands.
+    force_sequential : bool
+        If True, run sequentially regardless of max_workers.
+
+    Returns
+    -------
+    list[dict]
+        Results in original order.
+    """
+    import os
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+
+    if dry_run:
+        return [run_cmd(cmd, label, dry_run=True) for cmd, label in tasks]
+
+    if force_sequential:
+        return [run_cmd(cmd, label) for cmd, label in tasks]
+
+    if max_workers <= 0:
+        cpu_count = os.cpu_count() or 4
+        max_workers = min(4, len(tasks), cpu_count // 2)
+
+    if max_workers <= 1 or len(tasks) <= 1:
+        return [run_cmd(cmd, label) for cmd, label in tasks]
+
+    print(f"\n  ⚡ Parallel execution: {len(tasks)} tasks, {max_workers} workers")
+
+    # Build pickleable task tuples
+    task_args = [(i, cmd, label, str(ROOT)) for i, (cmd, label) in enumerate(tasks)]
+
+    results_map: dict[int, dict] = {}
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(_run_indexed_task, arg): arg[0]
+            for arg in task_args
+        }
+        for future in as_completed(futures):
+            idx, result = future.result()
+            results_map[idx] = result
+            marker = "✅" if result["status"] == "ok" else "❌"
+            print(
+                f"  {marker} [{result['elapsed_s']:.0f}s] {result['label']}",
+                flush=True,
+            )
+
+    # Return in original order
+    return [results_map[i] for i in range(len(tasks))]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -170,13 +291,13 @@ def run_cmd(cmd: list[str], label: str, dry_run: bool = False) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def phase_train_st(dry_run: bool = False) -> list[dict]:
+def phase_train_st(dry_run: bool = False, sequential: bool = False) -> list[dict]:
     """Train fresh ST models for each topology using accelerated cross-N runner."""
-    results = []
     print("\n" + "═" * 70)
     print("  PHASE 1a: Train Single-Topology (ST) models")
     print("═" * 70)
 
+    tasks = []
     for topo, cfg in TOPOLOGIES.items():
         cmd = [
             PYTHON,
@@ -190,10 +311,10 @@ def phase_train_st(dry_run: bool = False) -> list[dict]:
             "--h-points", str(cfg["h_points"]),
             "--target-n", *[str(n) for n in cfg["eval_in_dist"]],
         ]
-        r = run_cmd(cmd, f"ST train: {topo}", dry_run)
-        results.append(r)
+        tasks.append((cmd, f"ST train: {topo}"))
 
-    return results
+    # ST models are independent → parallelize (M2 has 8 cores)
+    return run_parallel(tasks, dry_run=dry_run, force_sequential=sequential)
 
 
 def phase_train_mt(dry_run: bool = False) -> list[dict]:
@@ -231,18 +352,49 @@ def phase_train_mt(dry_run: bool = False) -> list[dict]:
     return results
 
 
+def phase_finetune_mt_per_topology(dry_run: bool = False, sequential: bool = False) -> list[dict]:
+    """Fine-tune the best MT model for each topology (MT→ST transfer).
+
+    Takes the MT_residual_film model (best overall from benchmark) and
+    specializes it with per-topology data. This produces hybrid models
+    that combine MT's generalization with ST's specialization.
+    """
+    print("\n" + "═" * 70)
+    print("  PHASE 1c: Fine-tune MT → per-topology (transfer learning)")
+    print("═" * 70)
+
+    tasks = []
+    for topo, cfg in TOPOLOGIES.items():
+        cmd = [
+            PYTHON,
+            "scripts/experiment_runners/cross_topology/run_finetune_from_mt.py",
+            "--topology", topo,
+            "--max-n", str(cfg["train_max_n"]),
+            "--max-de-gap", str(TRAIN_CONFIG["max_de_gap"]),
+            "--epochs", "500",
+            "--lr", "3e-4",
+            "--patience", "100",
+            "--p-layers", "1",
+            "-v",
+        ]
+        tasks.append((cmd, f"Fine-tune MT→{topo}"))
+
+    # All fine-tunes are independent → parallelize
+    return run_parallel(tasks, max_workers=4, dry_run=dry_run, force_sequential=sequential)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Phase 2: EVALUATE (using model_comparison for head-to-head)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def phase_eval_comparison(dry_run: bool = False) -> list[dict]:
+def phase_eval_comparison(dry_run: bool = False, sequential: bool = False) -> list[dict]:
     """Run head-to-head comparisons: all models on same conditions per topology."""
-    results = []
     print("\n" + "═" * 70)
     print("  PHASE 2a: Head-to-head evaluation (model_comparison)")
     print("═" * 70)
 
+    tasks = []
     for topo, cfg in TOPOLOGIES.items():
         # In-distribution comparison
         target_n_in = cfg["eval_in_dist"]
@@ -260,8 +412,7 @@ def phase_eval_comparison(dry_run: bool = False) -> list[dict]:
             "--save-report",
             "-v",
         ]
-        r = run_cmd(cmd_in, f"Compare IN-DIST: {topo} N={target_n_in}", dry_run)
-        results.append(r)
+        tasks.append((cmd_in, f"Compare IN-DIST: {topo} N={target_n_in}"))
 
         # Extrapolation comparison
         target_n_ext = cfg["eval_extrap"]
@@ -278,10 +429,11 @@ def phase_eval_comparison(dry_run: bool = False) -> list[dict]:
             "--save-report",
             "-v",
         ]
-        r = run_cmd(cmd_ext, f"Compare EXTRAP: {topo} N={target_n_ext}", dry_run)
-        results.append(r)
+        tasks.append((cmd_ext, f"Compare EXTRAP: {topo} N={target_n_ext}"))
 
-    return results
+    # All comparisons are independent → parallelize
+    # Use max 3 workers: each comparison loads a model + does circuit evals (memory-heavy)
+    return run_parallel(tasks, max_workers=3, dry_run=dry_run, force_sequential=sequential)
 
 
 def phase_deep_extrapolation(dry_run: bool = False) -> list[dict]:
@@ -566,6 +718,17 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Limit to specific topologies (default: all 5)",
     )
+    parser.add_argument(
+        "--no-parallel",
+        action="store_true",
+        help="Disable parallel execution (useful for debugging)",
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=0,
+        help="Max parallel workers (0=auto: min(4, cpu//2)). M2 recommended: 3-4.",
+    )
     return parser.parse_args()
 
 
@@ -592,15 +755,19 @@ def main() -> int:
 
     # Phase 1: Train (uses existing NPZ data — including any prior refinements)
     if args.phase in ("train", "all") and not args.skip_training:
-        all_results.extend(phase_train_st(args.dry_run))
+        seq = args.no_parallel
+        all_results.extend(phase_train_st(args.dry_run, sequential=seq))
         all_results.extend(phase_train_mt(args.dry_run))
+        # Fine-tune MT → per-topology (transfer learning, after MT is ready)
+        all_results.extend(phase_finetune_mt_per_topology(args.dry_run, sequential=seq))
 
     # Phase 2a: Evaluate (head-to-head comparisons at moderate N)
     # NOTE: Runs AFTER training so newly trained models are compared.
     # Refined θ from these evaluations are persisted to NPZ automatically,
     # closing the feedback loop for the NEXT training cycle.
     if args.phase in ("eval", "compare", "all"):
-        all_results.extend(phase_eval_comparison(args.dry_run))
+        seq = args.no_parallel
+        all_results.extend(phase_eval_comparison(args.dry_run, sequential=seq))
 
     # Phase 2b: Deep extrapolation (N=40-100, scaling law validation)
     # Refines failing points and persists to NPZ — feeds next retrain cycle.

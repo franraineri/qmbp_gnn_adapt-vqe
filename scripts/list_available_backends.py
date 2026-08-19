@@ -2,7 +2,7 @@
 """List available IBM Quantum backends for your account.
 
 Usage:
-    python scripts/list_available_backends.py
+    .venv/bin/python scripts/list_available_backends.py
 """
 
 import os

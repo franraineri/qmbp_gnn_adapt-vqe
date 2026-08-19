@@ -69,6 +69,10 @@ from qmbp_simulation.analysis.metrics import (
     MIN_TRAINING_POINTS_FOR_SIGNAL,
     compute_quality_score,
     grade_from_score,
+    query_mt_vs_st_comparison,
+    validate_gt_npz_coherence,
+    post_experiment_sync,
+    validate_data_consistency,
 )
 from qmbp_simulation.analysis.failures_tests import (
     FailureDiagnostic,
@@ -212,6 +216,7 @@ __all__ = [
     "nlce_convergence_analysis",
     "print_circuit",
     "print_circuit_comparison",
+    "query_mt_vs_st_comparison",
     "save_circuit_diagram",
     "tfim_analytical_energy_per_site",
 ]

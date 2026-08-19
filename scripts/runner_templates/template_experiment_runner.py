@@ -9,12 +9,12 @@ is handled by BaseExperiment.execute() — this runner just provides the
 entry point with CLI args and error handling.
 
 Usage:
-    python scripts/my_experiment.py
-    python scripts/my_experiment.py --n-qubits 10
-    python scripts/my_experiment.py --seeds 42 43
-    python scripts/my_experiment.py --topology ladder
-    python scripts/my_experiment.py --verbose
-    python scripts/my_experiment.py --skip-preflight
+    .venv/bin/python scripts/my_experiment.py
+    .venv/bin/python scripts/my_experiment.py --n-qubits 10
+    .venv/bin/python scripts/my_experiment.py --seeds 42 43
+    .venv/bin/python scripts/my_experiment.py --topology ladder
+    .venv/bin/python scripts/my_experiment.py --verbose
+    .venv/bin/python scripts/my_experiment.py --skip-preflight
 """
 
 from __future__ import annotations

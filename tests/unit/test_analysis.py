@@ -868,47 +868,48 @@ class TestComputeVariationalViolations:
 class TestComputeViolationsMultiN:
     """Test compute_violations_multi_n for multi-N aggregation."""
 
-    def test_vqe_source_detection(self):
+    def test_basic_multi_n(self):
         from qmbp_simulation.analysis.metrics import compute_violations_multi_n
 
         per_n_data = {
             10: {
-                "e_vqe": [-5.0, -5.1, -4.9],  # -5.1 < -5.0 is violation
-                "e_exact": [-5.0, -5.0, -5.0],
+                "per_point": [
+                    {"e_pred": -5.1, "e_exact": -5.0, "h": 1.0},  # violation
+                    {"e_pred": -4.9, "e_exact": -5.0, "h": 1.5},  # ok
+                ],
             },
             20: {
-                "e_vqe": [-10.0, -10.0],  # No violations
-                "e_exact": [-10.0, -10.0],
+                "per_point": [
+                    {"e_pred": -10.0, "e_exact": -10.0, "h": 2.0},  # ok
+                ],
             },
         }
-        rate, source, per_n = compute_violations_multi_n(per_n_data)
+        result = compute_violations_multi_n(per_n_data)
 
-        assert source == "vqe"
-        assert rate == pytest.approx(1 / 5)  # 1 violation out of 5 points
-        assert per_n[10]["n_violations"] == 1
-        assert per_n[20]["n_violations"] == 0
+        assert isinstance(result, dict)
+        assert 10 in result
+        assert 20 in result
+        assert result[10]["n_violations"] == 1
+        assert result[20]["n_violations"] == 0
 
-    def test_mpnn_source_detection(self):
+    def test_no_violations(self):
         from qmbp_simulation.analysis.metrics import compute_violations_multi_n
 
         per_n_data = {
             10: {
-                "e_pred": [-5.0, -5.0],
-                "e_exact": [-5.0, -5.0],
+                "per_point": [
+                    {"e_pred": -4.9, "e_exact": -5.0, "h": 1.0},
+                ],
             },
         }
-        rate, source, per_n = compute_violations_multi_n(per_n_data)
-
-        assert source == "mpnn"
-        assert rate == 0.0
+        result = compute_violations_multi_n(per_n_data)
+        assert result[10]["n_violations"] == 0
 
     def test_empty_data(self):
         from qmbp_simulation.analysis.metrics import compute_violations_multi_n
 
-        rate, source, per_n = compute_violations_multi_n({})
-        assert rate == 0.0
-        assert source == "unknown"
-        assert per_n == {}
+        result = compute_violations_multi_n({})
+        assert result == {}
 
 
 class TestComputePerNScalingFit:
@@ -926,7 +927,7 @@ class TestComputePerNScalingFit:
 
         assert fit is not None
         assert abs(fit["alpha"]) < 0.3
-        assert fit["interpretation"] == "extensive (α≈0)"
+        assert fit["interpretation"] == "extensive (constant per-site error)"
         assert fit["r_squared"] >= 0  # R² can be low for noisy data
 
     def test_subextensive_scaling(self):
@@ -941,7 +942,7 @@ class TestComputePerNScalingFit:
 
         assert fit is not None
         assert fit["alpha"] < -0.3
-        assert fit["interpretation"] == "sub-extensive (α<0)"
+        assert fit["interpretation"] == "improving with N (good scalability)"
 
     def test_superextensive_scaling(self):
         """Error per site increases with N → α > 0.3 (degrading)."""
@@ -955,7 +956,7 @@ class TestComputePerNScalingFit:
 
         assert fit is not None
         assert fit["alpha"] > 0.3
-        assert fit["interpretation"] == "super-extensive (α>0, degrading)"
+        assert fit["interpretation"] == "degrading with N (poor scalability)"
 
     def test_insufficient_data(self):
         """Less than 3 valid points returns None."""

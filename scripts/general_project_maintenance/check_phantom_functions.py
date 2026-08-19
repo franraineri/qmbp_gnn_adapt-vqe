@@ -12,25 +12,25 @@ Catches:
 
 Usage:
     # Default: check analysis.metrics
-    python scripts/general_project_maintenance/check_phantom_functions.py
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py
 
     # Check specific module(s):
-    python scripts/general_project_maintenance/check_phantom_functions.py qmbp_simulation.predictors.model_zoo
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py qmbp_simulation.predictors.model_zoo
 
     # Check ALL qmbp_simulation submodules (inverted-index makes this fast):
-    python scripts/general_project_maintenance/check_phantom_functions.py --all
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py --all
 
     # JSON output (for CI integration):
-    python scripts/general_project_maintenance/check_phantom_functions.py --all --json
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py --all --json
 
     # SARIF output (for GitHub code scanning):
-    python scripts/general_project_maintenance/check_phantom_functions.py --all --sarif
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py --all --sarif
 
     # Self-test:
-    python scripts/general_project_maintenance/check_phantom_functions.py --self-test
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py --self-test
 
     # Exclude specific directories:
-    python scripts/general_project_maintenance/check_phantom_functions.py --all --exclude tests experiments
+   .venv/bin/python scripts/general_project_maintenance/check_phantom_functions.py --all --exclude tests experiments
 """
 
 from __future__ import annotations

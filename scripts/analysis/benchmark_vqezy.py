@@ -12,23 +12,23 @@ Prerequisites:
 
 Usage:
     # Quick smoke test (10 instances)
-    python scripts/analysis/benchmark_vqezy.py --quick
+    .venv/bin/python scripts/analysis/benchmark_vqezy.py --quick
 
     # Full TFI benchmark (all 1000 instances)
-    python scripts/analysis/benchmark_vqezy.py --dataset data/VQEzy/qmanybody/ti_8_qubit.h5
+    .venv/bin/python scripts/analysis/benchmark_vqezy.py --dataset data/VQEzy/qmanybody/ti_8_qubit.h5
 
     # With MPNN zero-shot evaluation
-    python scripts/analysis/benchmark_vqezy.py \\
+    .venv/bin/python scripts/analysis/benchmark_vqezy.py \\
         --dataset data/VQEzy/qmanybody/ti_8_qubit.h5 \\
         --mpnn-checkpoint results/checkpoints/mpnn_tfim_square_n8_p1.pt
 
     # Filter to our valid regime (h >= 1.0)
-    python scripts/analysis/benchmark_vqezy.py \\
+    .venv/bin/python scripts/analysis/benchmark_vqezy.py \\
         --dataset data/VQEzy/qmanybody/ti_8_qubit.h5 \\
         --h-min 1.0 --h-max 5.0
 
     # Per-instance mode (no warm-start, fair 1:1 comparison)
-    python scripts/analysis/benchmark_vqezy.py \\
+    .venv/bin/python scripts/analysis/benchmark_vqezy.py \\
         --dataset data/VQEzy/qmanybody/ti_8_qubit.h5 \\
         --mode per_instance
 """

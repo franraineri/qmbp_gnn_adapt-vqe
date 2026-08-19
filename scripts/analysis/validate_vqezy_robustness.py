@@ -5,7 +5,7 @@ the VQEzy benchmark infrastructure. No new VQE runs needed — only
 MPNN retraining and evaluation on cached data.
 
 Usage:
-    python scripts/analysis/validate_vqezy_robustness.py
+    .venv/bin/python scripts/analysis/validate_vqezy_robustness.py
 
 Output:
     results/benchmarks/vqezy_robustness_validation.json

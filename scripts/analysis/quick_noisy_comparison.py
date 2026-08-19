@@ -9,7 +9,7 @@ This is NOT a full deployment rehearsal — it uses Gaussian noise approximation
 For real hardware validation, use run_parametric_deployment.py --mode hardware.
 
 Usage:
-    python scripts/analysis/quick_noisy_comparison.py \
+    .venv/bin/python scripts/analysis/quick_noisy_comparison.py \
         --n-qubits 10 --topology heavy_hex --h-values 1.5 2.0 3.0
 """
 

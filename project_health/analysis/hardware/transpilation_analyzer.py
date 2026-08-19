@@ -5,8 +5,8 @@ Shows per-config circuit stats (depth, depth_2q, n_2q, fidelity) and
 groups by optimization_level to reveal the transpilation quality impact.
 
 Usage:
-    python scripts/analyze_transpilation.py
-    python scripts/analyze_transpilation.py --json results/transpilation_analysis.json
+    .venv/bin/python scripts/analyze_transpilation.py
+    .venv/bin/python scripts/analyze_transpilation.py --json results/transpilation_analysis.json
 
 Integration:
     This analysis is also available programmatically via:
@@ -190,7 +190,7 @@ def main() -> None:
     if not stats:
         print("No benchmark results found. Run the mitigation benchmark first:")
         print(
-            "  python scripts/experiment_runners/hardware/run_mitigation_benchmark.py "
+            "  .venv/bin/python scripts/experiment_runners/hardware/run_mitigation_benchmark.py "
             "--mode fake_backend --priority P0"
         )
         sys.exit(1)

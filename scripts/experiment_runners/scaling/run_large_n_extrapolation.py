@@ -19,26 +19,26 @@ All metrics follow dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10).
 
 Usage:
     # Default: chain_1d, N=[30, 40, 60, 100], 6 h-points
-    python scripts/experiment_runners/scaling/run_large_n_extrapolation.py
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py
 
     # Custom topology and sizes
-    python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
         --topology chain_1d --target-n 30 50 80 --h-min 2.5 --h-max 5.0
 
     # Quick smoke test (fewer points)
-    python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
         --target-n 30 --h-points 3
 
     # Skip VQE baseline (faster, MPNN-only)
-    python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
         --skip-random-baseline
 
     # With VQE refinement for failing points
-    python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
         --refine-failing --vqe-maxiter 100
 
     # Dry run
-    python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --dry-run
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from qmbp_simulation.framework.result_io import upsert_theta_npz
+from qmbp_simulation.framework.result_io import persist_predictions_to_training_npz
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
@@ -964,94 +964,23 @@ class LargeNExtrapolationRunner(ValidationRunner):
     def _persist_extrapolation_npz(
         self, topology: str, n_qubits: int, p_layers: int, per_h_results: list[dict]
     ) -> None:
-        """Persist extrapolation predictions to NPZ with anti-regression and quality tiers."""
-        from qmbp_simulation.analysis.metrics import DE_GAP_THRESHOLD, MAX_ABS_ERROR
+        """Persist extrapolation predictions to NPZ with anti-regression and quality tiers.
 
-        npz_path = EXTRAPOLATION_DATA_DIR / f"{topology}_N{n_qubits}_p{p_layers}.npz"
-
-        # Filter out results without theta (cached entries that didn't have it)
-        valid_results = [
-            r for r in per_h_results if r.get("theta") is not None and len(r.get("theta", [])) > 0
-        ]
-        if not valid_results:
-            return
-
-        h_arr = np.array([r["h"] for r in valid_results], dtype=np.float64)
-
-        # Convert theta lists to 2D array (n_points, n_params)
-        theta_list = []
-        for r in valid_results:
-            theta = r["theta"]
-            if isinstance(theta, np.ndarray):
-                theta_list.append(theta.astype(np.float64))
-            else:
-                theta_list.append(np.array(theta, dtype=np.float64))
-
-        # Stack into 2D array if all have same length, otherwise use object array
-        try:
-            if len(theta_list) > 0 and all(len(t) == len(theta_list[0]) for t in theta_list):
-                theta_arr = np.stack(theta_list).astype(np.float64)
-            else:
-                theta_arr = np.array(theta_list, dtype=object)
-        except Exception:
-            theta_arr = np.array(theta_list, dtype=object)
-
-        e_pred_arr = np.array([r["e_pred"] for r in valid_results], dtype=np.float64)
-        e_exact_arr = np.array([r["e_exact"] for r in valid_results], dtype=np.float64)
-        gap_arr = np.array([r["gap"] for r in valid_results], dtype=np.float64)
-        method_arr = [r.get("method", "mpnn") for r in valid_results]
-        theta_std_arr = np.array(
-            [r.get("theta_std", 0.0) for r in valid_results], dtype=np.float64
+        Delegates to the shared persist_predictions_to_training_npz() from result_io,
+        targeting EXTRAPOLATION_DATA_DIR instead of training data.
+        """
+        persist_predictions_to_training_npz(
+            per_h_results_by_n={n_qubits: per_h_results},
+            topology=topology,
+            p_layers=p_layers,
+            training_data_dir=EXTRAPOLATION_DATA_DIR,
+            # Use no threshold filter — persist everything, let upsert_theta_npz
+            # anti-regression handle quality (extrapolation data is valuable even
+            # at higher error for tracking scaling behavior)
+            de_gap_threshold=float("inf"),
+            max_abs_error=float("inf"),
+            persist_theta_std=True,
         )
-
-        # Assign quality tier based on dual criterion
-        quality_tiers = []
-        for r in valid_results:
-            de_gap = r.get("de_gap", 1.0)
-            abs_err = r.get("abs_error", float("inf"))
-            method = r.get("method", "mpnn")
-
-            # VQE-refined points that pass dual criterion → verified
-            if (
-                method in ("vqe_refined", "random_vqe")
-                and de_gap < DE_GAP_THRESHOLD
-                and abs_err < MAX_ABS_ERROR
-            ):
-                quality_tiers.append("verified")
-            # MPNN predictions that pass dual criterion → approximate
-            elif de_gap < DE_GAP_THRESHOLD and abs_err < MAX_ABS_ERROR:
-                quality_tiers.append("approximate")
-            else:
-                quality_tiers.append("unverified")
-
-        n_upd, n_add = upsert_theta_npz(
-            npz_path,
-            h_new=h_arr,
-            theta_new=theta_arr,
-            e_vqe_new=e_pred_arr,
-            e_exact_new=e_exact_arr,
-            gaps_new=gap_arr,
-            method_new=method_arr,
-            quality_tier_new=quality_tiers,
-        )
-        if n_upd + n_add > 0:
-            n_verified = quality_tiers.count("verified")
-            n_approx = quality_tiers.count("approximate")
-            logger.info(
-                f"    NPZ: {n_add} added, {n_upd} improved → {npz_path.name} "
-                f"(✅{n_verified} ⚠️{n_approx})"
-            )
-
-        # Persist theta_std as separate array in the same NPZ (non-destructive append)
-        if np.any(theta_std_arr > 0):
-            try:
-                from qmbp_simulation.utils.helpers import atomic_savez
-
-                existing = dict(np.load(npz_path, allow_pickle=True)) if npz_path.exists() else {}
-                existing["theta_std"] = theta_std_arr
-                atomic_savez(npz_path, **existing)
-            except Exception:
-                pass  # Non-critical — uncertainty is enrichment, not core data
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Active Learning: Ensemble-based uncertainty targeting

@@ -1882,3 +1882,226 @@ def load_theta_npz(npz_path: Path) -> dict[str, np.ndarray]:
                 result[key] = result[key][valid_mask]
 
     return result
+
+
+def persist_predictions_to_training_npz(
+    per_h_results_by_n: dict[int, list[dict]],
+    topology: str,
+    p_layers: int,
+    training_data_dir: Path | str | None = None,
+    de_gap_threshold: float | None = None,
+    max_abs_error: float | None = None,
+    method_label: str = "mpnn_pred",
+    persist_theta_std: bool = True,
+) -> dict[str, int]:
+    """Persist best θ predictions per (N, h) to training NPZ as 'approximate' tier.
+
+    Reusable utility for any runner/script that produces per-h prediction results
+    with θ vectors. Filters by dual criterion (ΔE/gap + |ΔE|) and uses
+    upsert_theta_npz for atomic, anti-regression persistence.
+
+    Quality tier assignment (method-aware):
+    - "verified": VQE-refined points that pass strict dual criterion
+    - "approximate": MPNN/other predictions passing strict dual criterion
+    - "unverified": points that only pass the permissive filter
+
+    Parameters
+    ----------
+    per_h_results_by_n : dict[int, list[dict]]
+        Mapping N → list of per-h result dicts. Each dict must have at minimum:
+        "h", "e_pred", "e_exact", "gap", "de_gap", "theta" (list or ndarray).
+        Optional: "abs_error", "method", "theta_std".
+    topology : str
+        Lattice topology name.
+    p_layers : int
+        HVA layer depth.
+    training_data_dir : Path | str | None
+        Directory for training NPZ files. Defaults to data/multi_n_training/.
+    de_gap_threshold : float | None
+        Max ΔE/gap to qualify as training data. Defaults to 2× DE_GAP_THRESHOLD
+        (i.e., 10%) to be permissive — upsert_theta_npz's anti-regression
+        ensures only the best θ survives.
+    max_abs_error : float | None
+        Max |ΔE| to qualify. Defaults to 2× MAX_ABS_ERROR (i.e., 0.20).
+    method_label : str
+        Default method tag for persisted points when "method" key is absent
+        in per-h dicts. Default "mpnn_pred".
+    persist_theta_std : bool
+        If True and any points have "theta_std" > 0, append theta_std as
+        enrichment metadata to the NPZ. Default True.
+
+    Returns
+    -------
+    dict with keys: "total_added", "total_updated", "per_n" (dict N → (added, updated))
+    """
+    import numpy as np
+
+    from qmbp_simulation.analysis.constants import (
+        DE_GAP_THRESHOLD as _DE_GAP,
+        MAX_ABS_ERROR as _MAX_ABS,
+    )
+    from qmbp_simulation.analysis.metrics import is_point_failure
+
+    # Methods considered VQE-converged (eligible for "verified" tier)
+    _VQE_METHODS = frozenset((
+        "vqe_refined", "random_vqe", "al_refined", "auto_refined", "refined",
+    ))
+
+    if de_gap_threshold is None:
+        de_gap_threshold = _DE_GAP * 2.0  # 10% — permissive filter
+    if max_abs_error is None:
+        max_abs_error = _MAX_ABS * 2.0  # 0.20
+
+    if training_data_dir is None:
+        training_data_dir = Path("data/multi_n_training")
+    else:
+        training_data_dir = Path(training_data_dir)
+    training_data_dir.mkdir(parents=True, exist_ok=True)
+
+    total_added = 0
+    total_updated = 0
+    per_n: dict[int, tuple[int, int]] = {}
+
+    for n_target, per_h_results in per_h_results_by_n.items():
+        # ── Filter: must have valid theta, pass permissive dual criterion ─
+        valid_points = []
+        for pt in per_h_results:
+            theta = pt.get("theta")
+            if theta is None:
+                continue
+            # Handle both list and ndarray
+            if hasattr(theta, "__len__") and len(theta) == 0:
+                continue
+            # Pre-filter NaN/Inf in theta before building arrays
+            try:
+                theta_arr_check = np.asarray(theta, dtype=np.float64)
+                if not np.all(np.isfinite(theta_arr_check)):
+                    continue
+            except (ValueError, TypeError):
+                continue
+
+            # Also skip if energies are non-finite
+            if not (np.isfinite(pt.get("e_pred", float("nan")))
+                    and np.isfinite(pt.get("e_exact", float("nan")))):
+                continue
+
+            # Use permissive threshold for initial filter (let anti-regression
+            # in upsert_theta_npz decide the final outcome)
+            de_gap = pt.get("de_gap", 1.0)
+            abs_error = pt.get("abs_error", abs(pt["e_pred"] - pt["e_exact"]))
+            if de_gap < de_gap_threshold and abs_error < max_abs_error:
+                valid_points.append(pt)
+
+        if not valid_points:
+            per_n[n_target] = (0, 0)
+            continue
+
+        # ── Build arrays (robust to ragged theta dimensions) ──────────────
+        h_arr = np.array([pt["h"] for pt in valid_points], dtype=np.float64)
+
+        theta_list = []
+        for pt in valid_points:
+            theta = pt["theta"]
+            if isinstance(theta, np.ndarray):
+                theta_list.append(theta.astype(np.float64))
+            else:
+                theta_list.append(np.array(theta, dtype=np.float64))
+
+        # Stack into 2D array if uniform, else object array (ragged)
+        try:
+            if len(theta_list) > 0 and all(
+                len(t) == len(theta_list[0]) for t in theta_list
+            ):
+                theta_arr = np.stack(theta_list).astype(np.float64)
+            else:
+                theta_arr = np.array(theta_list, dtype=object)
+        except Exception:
+            theta_arr = np.array(theta_list, dtype=object)
+
+        e_vqe_arr = np.array([pt["e_pred"] for pt in valid_points], dtype=np.float64)
+        e_exact_arr = np.array([pt["e_exact"] for pt in valid_points], dtype=np.float64)
+        gaps_arr = np.array([pt["gap"] for pt in valid_points], dtype=np.float64)
+
+        # ── Assign quality tier (method-aware, using canonical is_point_failure) ─
+        quality_tiers = []
+        method_labels = []
+        for pt in valid_points:
+            de_gap = pt.get("de_gap", 1.0)
+            abs_err = pt.get("abs_error", abs(pt["e_pred"] - pt["e_exact"]))
+            method = pt.get("method", method_label)
+            method_labels.append(str(method))
+
+            # Use is_point_failure with strict thresholds to determine quality:
+            # NOT failure at strict threshold → high quality
+            passes_strict = not is_point_failure(
+                de_gap=de_gap,
+                abs_error=abs_err,
+                fidelity=pt.get("fidelity"),
+            )
+
+            if passes_strict and method in _VQE_METHODS:
+                # VQE-refined + passes strict criterion → verified
+                quality_tiers.append("verified")
+            elif passes_strict:
+                # Non-VQE (MPNN prediction) + passes strict → approximate
+                quality_tiers.append("approximate")
+            else:
+                # Only passes permissive filter → unverified
+                quality_tiers.append("unverified")
+
+        npz_path = training_data_dir / f"{topology}_N{n_target}_p{p_layers}.npz"
+
+        try:
+            n_upd, n_add = upsert_theta_npz(
+                npz_path,
+                h_new=h_arr,
+                theta_new=theta_arr,
+                e_vqe_new=e_vqe_arr,
+                e_exact_new=e_exact_arr,
+                gaps_new=gaps_arr,
+                method_new=method_labels,
+                quality_tier_new=quality_tiers,
+            )
+            per_n[n_target] = (n_add, n_upd)
+            total_added += n_add
+            total_updated += n_upd
+            if n_add > 0 or n_upd > 0:
+                n_verified = quality_tiers.count("verified")
+                n_approx = quality_tiers.count("approximate")
+                logger.info(
+                    f"persist_predictions_to_training_npz: "
+                    f"{topology}_N{n_target}_p{p_layers}: +{n_add} added, "
+                    f"{n_upd} improved (✅{n_verified} ⚠️{n_approx})"
+                )
+        except Exception as e:
+            logger.warning(
+                f"persist_predictions_to_training_npz: failed for "
+                f"{topology}_N{n_target}: {e}"
+            )
+            per_n[n_target] = (0, 0)
+            continue
+
+        # ── Persist theta_std enrichment (non-destructive append) ─────────
+        if persist_theta_std:
+            theta_std_arr = np.array(
+                [pt.get("theta_std", 0.0) for pt in valid_points], dtype=np.float64
+            )
+            if np.any(theta_std_arr > 0):
+                try:
+                    from qmbp_simulation.utils.helpers import atomic_savez
+
+                    existing = (
+                        dict(np.load(npz_path, allow_pickle=True))
+                        if npz_path.exists()
+                        else {}
+                    )
+                    existing["theta_std"] = theta_std_arr
+                    atomic_savez(npz_path, **existing)
+                except Exception:
+                    pass  # Non-critical — uncertainty is enrichment, not core data
+
+    return {
+        "total_added": total_added,
+        "total_updated": total_updated,
+        "per_n": per_n,
+    }

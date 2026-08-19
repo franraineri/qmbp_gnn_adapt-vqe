@@ -5,7 +5,7 @@ Groups results by N, p, topology, and model. Outputs a summary table
 showing how ΔE and Fidelity behave across configurations.
 
 Usage:
-    python scripts/analysis/extract_delta_e_fidelity.py [--json output.json]
+    .venv/bin/python scripts/analysis/extract_delta_e_fidelity.py [--json output.json]
 """
 
 from __future__ import annotations

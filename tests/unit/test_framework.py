@@ -95,13 +95,15 @@ class TestExperimentMetricsValidate:
 
 
 class TestExperimentConfigValidate:
-    """Test ExperimentConfig.validate() rejects p_layers > 2."""
+    """Test ExperimentConfig.validate() validates config constraints."""
 
-    def test_p_layers_3_raises(self):
+    def test_p_layers_3_no_raise(self):
+        """p_layers=3 is valid (allowed for noiseless simulation)."""
         config = ExperimentConfig()
         config.system.p_layers = 3
-        with pytest.raises(ValueError, match="p_layers > 2"):
-            config.validate()
+        # Should NOT raise — p≤5 is fine
+        warnings = config.validate()
+        assert isinstance(warnings, list)
 
     def test_valid_config_returns_empty_warnings(self):
         config = ExperimentConfig()

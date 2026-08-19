@@ -28,9 +28,9 @@ Sections:
   5. Verdict: deployment readiness
 
 Usage:
-    python scripts/experiment_runners/run_pea_full_pipeline.py
-    python scripts/experiment_runners/run_pea_full_pipeline.py --dry-run
-    python scripts/experiment_runners/run_pea_full_pipeline.py --section 3 4 5
+    .venv/bin/python scripts/experiment_runners/run_pea_full_pipeline.py
+    .venv/bin/python scripts/experiment_runners/run_pea_full_pipeline.py --dry-run
+    .venv/bin/python scripts/experiment_runners/run_pea_full_pipeline.py --section 3 4 5
 """
 
 from __future__ import annotations

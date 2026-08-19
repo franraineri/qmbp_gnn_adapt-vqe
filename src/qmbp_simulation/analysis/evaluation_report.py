@@ -6,6 +6,7 @@ ground truth and optional VQE baselines. Reports include:
 - Per-h error breakdown with classification
 - Metric reliability warnings
 - MPNN vs VQE comparison table (if baseline available)
+- MT vs ST head-to-head comparison with topology/N filtering
 
 Designed to be called by any runner that produces per_h_results.
 Decoupled from runner internals — operates on standardized dicts.
@@ -14,6 +15,7 @@ Usage:
     from qmbp_simulation.analysis.evaluation_report import (
         generate_evaluation_report,
         generate_comparison_table,
+        generate_mt_vs_st_table,
         validate_metrics,
     )
 
@@ -32,6 +34,30 @@ Usage:
 
     # Validate metric consistency
     warnings = validate_metrics(per_h_results, n_qubits=16)
+
+    # ── MT vs ST Comparison (with filtering) ──────────────────────────────
+
+    # Full MT vs ST across all topologies and N
+    lines, summary = generate_mt_vs_st_table()
+
+    # Filter: only chain_1d, N between 10 and 20
+    lines, summary = generate_mt_vs_st_table(
+        topology_filter="chain_1d", n_min=10, n_max=20
+    )
+
+    # Filter: heavy_hex + ladder at large N (extrapolation regime)
+    lines, summary = generate_mt_vs_st_table(
+        topology_filter=["heavy_hex", "ladder"], n_min=16
+    )
+
+    # All topologies but only small N (in-distribution for MT)
+    lines, summary = generate_mt_vs_st_table(n_max=12)
+
+    # Save to file + use all historical runs (not just latest)
+    lines, summary = generate_mt_vs_st_table(
+        latest_only=False,
+        output_path="results/mt_vs_st_full_history.md"
+    )
 """
 
 from __future__ import annotations
@@ -591,3 +617,331 @@ def evaluate_theta_prediction(
         result["metric_warnings"] = []
 
     return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MT vs ST Head-to-Head Table
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def generate_mt_vs_st_table(
+    comparison_dir: Path | str | None = None,
+    *,
+    output_path: Path | str | None = None,
+    topology_filter: str | list[str] | None = None,
+    n_min: int | None = None,
+    n_max: int | None = None,
+    latest_only: bool = True,
+) -> tuple[list[str], dict]:
+    """Generate MT vs ST head-to-head comparison table from comparison JSONs.
+
+    Reads all model_comparison JSON files, identifies MT and ST models,
+    and computes which wins per (topology, N). Produces markdown lines +
+    structured summary dict with per-N granularity.
+
+    Parameters
+    ----------
+    comparison_dir : Path | str | None
+        Directory with compare_*.json files. Default: results/model_comparison/
+    output_path : Path | str | None
+        If provided, writes markdown to this file. If None, only returns lines.
+    topology_filter : str | list[str] | None
+        If set, only include these topologies. Can be a single string or list.
+    n_min : int | None
+        If set, only include N values >= n_min.
+    n_max : int | None
+        If set, only include N values <= n_max.
+    latest_only : bool
+        If True (default), only use the latest comparison file per topology.
+        If False, aggregate across all runs.
+
+    Returns
+    -------
+    tuple[list[str], dict]
+        (markdown_lines, summary) where summary has:
+        {
+            "mt_wins": int,
+            "st_wins": int,
+            "ties": int,
+            "total": int,
+            "mt_win_rate": float,
+            "mt_avg_pass_rate": float,
+            "st_avg_pass_rate": float,
+            "per_topology": dict[str, dict],  # per-topology breakdown
+            "per_scenario": list[dict],  # per-row details
+            "generated_at": str,
+        }
+
+    Usage
+    -----
+    >>> from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
+    >>> lines, summary = generate_mt_vs_st_table()
+    >>> # Filter by topology:
+    >>> lines, summary = generate_mt_vs_st_table(topology_filter="chain_1d")
+    >>> # Filter by N range:
+    >>> lines, summary = generate_mt_vs_st_table(n_min=10, n_max=20)
+    >>> # Combine filters:
+    >>> lines, summary = generate_mt_vs_st_table(
+    ...     topology_filter=["chain_1d", "heavy_hex"], n_min=16
+    ... )
+    """
+    import json as _json
+
+    if comparison_dir is None:
+        comparison_dir = Path(__file__).resolve().parents[3] / "results" / "model_comparison"
+    else:
+        comparison_dir = Path(comparison_dir)
+
+    if not comparison_dir.exists():
+        return ["*No comparison data found.*"], {"mt_wins": 0, "st_wins": 0, "total": 0}
+
+    # Normalize topology filter
+    if isinstance(topology_filter, str):
+        topology_filter = [topology_filter]
+
+    # ── Load comparison JSONs (latest per topology if latest_only) ─────────
+    all_jsons: list[tuple[Path, str]] = []  # (path, topology)
+    for f in sorted(comparison_dir.glob("compare_*.json")):
+        try:
+            d = _json.loads(f.read_text())
+            topo = d.get("topology", "?")
+            all_jsons.append((f, topo))
+        except Exception:
+            continue
+
+    # Filter by topology and select latest
+    files_by_topo: dict[str, list[Path]] = {}
+    for fpath, topo in all_jsons:
+        if topology_filter and topo not in topology_filter:
+            continue
+        files_by_topo.setdefault(topo, []).append(fpath)
+
+    files_to_analyze: list[Path] = []
+    for topo, files in files_by_topo.items():
+        if latest_only:
+            files_to_analyze.append(files[-1])  # Already sorted by name (timestamp)
+        else:
+            files_to_analyze.extend(files)
+
+    # ── Parse results with per-N granularity ──────────────────────────────
+    # Structure: per_topo_n[topo][n] = {"mt": [...], "st": [...]}
+    per_topo_n: dict[str, dict[int, dict[str, list]]] = {}
+
+    for f in files_to_analyze:
+        try:
+            d = _json.loads(f.read_text())
+            topo = d.get("topology", "?")
+            if topology_filter and topo not in topology_filter:
+                continue
+
+            for r in d.get("results", []):
+                if r.get("error") or "results_by_n" not in r:
+                    continue
+                label = r.get("label", "?")[:42]
+                source = r.get("source", "")
+                is_mt = (
+                    "multi" in source.lower()
+                    or "orphan" in source.lower()
+                    or "multitopo" in label.lower()
+                )
+                arch = r.get("arch", "baseline")
+
+                for n_str, metrics in r.get("results_by_n", {}).items():
+                    if not isinstance(metrics, dict):
+                        continue
+                    try:
+                        n_val = int(n_str)
+                    except (ValueError, TypeError):
+                        continue
+
+                    # Apply N filters
+                    if n_min is not None and n_val < n_min:
+                        continue
+                    if n_max is not None and n_val > n_max:
+                        continue
+
+                    entry = {
+                        "label": label,
+                        "arch": arch,
+                        "mean_de_gap": metrics.get("mean_de_gap", 1.0),
+                        "pass_rate_dual": metrics.get("pass_rate_dual", 0.0),
+                        "pass_rate_5pct": metrics.get("pass_rate_5pct", 0.0),
+                        "grade": metrics.get("grade", "?"),
+                    }
+
+                    per_topo_n.setdefault(topo, {}).setdefault(n_val, {"mt": [], "st": []})
+                    if is_mt:
+                        per_topo_n[topo][n_val]["mt"].append(entry)
+                    else:
+                        per_topo_n[topo][n_val]["st"].append(entry)
+        except Exception:
+            continue
+
+    if not per_topo_n:
+        return ["*No valid comparison results found.*"], {
+            "mt_wins": 0, "st_wins": 0, "ties": 0, "total": 0
+        }
+
+    # ── Compute per-topology and per-N winners ────────────────────────────
+    per_scenario: list[dict] = []
+    per_topology: dict[str, dict] = {}
+    mt_wins = 0
+    st_wins = 0
+    ties = 0
+    all_mt_pass = []
+    all_st_pass = []
+
+    for topo in sorted(per_topo_n.keys()):
+        topo_mt_pass = []
+        topo_st_pass = []
+        topo_mt_wins = 0
+        topo_st_wins = 0
+        topo_ties = 0
+
+        for n_val in sorted(per_topo_n[topo].keys()):
+            mt_entries = per_topo_n[topo][n_val]["mt"]
+            st_entries = per_topo_n[topo][n_val]["st"]
+
+            if not mt_entries and not st_entries:
+                continue
+
+            # Best MT and ST by pass_rate_dual (higher is better)
+            best_mt = max(mt_entries, key=lambda x: x["pass_rate_dual"]) if mt_entries else None
+            best_st = max(st_entries, key=lambda x: x["pass_rate_dual"]) if st_entries else None
+
+            mt_pr = best_mt["pass_rate_dual"] if best_mt else 0.0
+            st_pr = best_st["pass_rate_dual"] if best_st else 0.0
+            mt_dg = best_mt["mean_de_gap"] if best_mt else float("inf")
+            st_dg = best_st["mean_de_gap"] if best_st else float("inf")
+
+            topo_mt_pass.append(mt_pr)
+            topo_st_pass.append(st_pr)
+            all_mt_pass.append(mt_pr)
+            all_st_pass.append(st_pr)
+
+            # Winner: prefer pass_rate_dual, break ties with mean_de_gap
+            if mt_pr > st_pr + 0.01:
+                winner = "MT"
+                topo_mt_wins += 1
+                mt_wins += 1
+            elif st_pr > mt_pr + 0.01:
+                winner = "ST"
+                topo_st_wins += 1
+                st_wins += 1
+            else:
+                winner = "tie"
+                topo_ties += 1
+                ties += 1
+
+            per_scenario.append({
+                "topology": topo,
+                "n_qubits": n_val,
+                "mt_pass_rate": mt_pr,
+                "st_pass_rate": st_pr,
+                "mt_de_gap": round(mt_dg, 4),
+                "st_de_gap": round(st_dg, 4),
+                "mt_grade": best_mt["grade"] if best_mt else "—",
+                "st_grade": best_st["grade"] if best_st else "—",
+                "mt_model": best_mt["label"] if best_mt else "—",
+                "st_model": best_st["label"] if best_st else "—",
+                "winner": winner,
+            })
+
+        # Per-topology summary
+        mt_avg = float(np.mean(topo_mt_pass)) if topo_mt_pass else 0.0
+        st_avg = float(np.mean(topo_st_pass)) if topo_st_pass else 0.0
+        per_topology[topo] = {
+            "mt_avg_pass_rate": mt_avg,
+            "st_avg_pass_rate": st_avg,
+            "mt_wins": topo_mt_wins,
+            "st_wins": topo_st_wins,
+            "ties": topo_ties,
+            "winner": "MT" if mt_avg > st_avg + 0.01 else (
+                "ST" if st_avg > mt_avg + 0.01 else "tie"
+            ),
+            "delta": mt_avg - st_avg,
+        }
+
+    total = mt_wins + st_wins + ties
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    mt_avg_global = float(np.mean(all_mt_pass)) if all_mt_pass else 0.0
+    st_avg_global = float(np.mean(all_st_pass)) if all_st_pass else 0.0
+
+    # ── Build markdown ────────────────────────────────────────────────────
+    filter_desc = []
+    if topology_filter:
+        filter_desc.append(f"topologies={topology_filter}")
+    if n_min is not None:
+        filter_desc.append(f"N≥{n_min}")
+    if n_max is not None:
+        filter_desc.append(f"N≤{n_max}")
+    filter_str = f" (filter: {', '.join(filter_desc)})" if filter_desc else ""
+
+    lines = [
+        "# MT vs ST Head-to-Head Comparison",
+        "",
+        f"**Generated**: {ts}{filter_str}",
+        f"**Score**: MT **{mt_wins}** — ST **{st_wins}** — Ties **{ties}**",
+        f"**MT avg pass_rate**: {mt_avg_global:.0%} | **ST avg pass_rate**: {st_avg_global:.0%}",
+        "",
+    ]
+
+    # Per-topology summary table
+    lines.extend([
+        "## Per-Topology Summary",
+        "",
+        "| Topology | MT pass% | ST pass% | Winner | Δ | MT wins | ST wins |",
+        "|----------|:--------:|:--------:|:------:|:-:|:-------:|:-------:|",
+    ])
+    for topo, info in sorted(per_topology.items()):
+        icon = "🟢" if info["winner"] == "MT" else ("🔴" if info["winner"] == "ST" else "⚪")
+        lines.append(
+            f"| {topo} | {info['mt_avg_pass_rate']:.0%} | {info['st_avg_pass_rate']:.0%} | "
+            f"{icon} {info['winner']} | {info['delta']:+.0%} | "
+            f"{info['mt_wins']} | {info['st_wins']} |"
+        )
+
+    # Detailed per-N table
+    lines.extend([
+        "",
+        "## Per-N Breakdown",
+        "",
+        "| Topology | N | MT pass% | MT grade | ST pass% | ST grade | Winner |",
+        "|----------|:-:|:--------:|:--------:|:--------:|:--------:|:------:|",
+    ])
+    for s in per_scenario:
+        icon = "✅" if s["winner"] == "MT" else ("❌" if s["winner"] == "ST" else "—")
+        lines.append(
+            f"| {s['topology']} | {s['n_qubits']} | "
+            f"{s['mt_pass_rate']:.0%} | {s['mt_grade']} | "
+            f"{s['st_pass_rate']:.0%} | {s['st_grade']} | "
+            f"{icon} {s['winner']} |"
+        )
+
+    lines.extend([
+        "",
+        "---",
+        f"*Auto-generated from {comparison_dir.name}/ ({len(per_scenario)} comparisons)*",
+    ])
+
+    # Write to file if requested
+    if output_path is not None:
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text("\n".join(lines))
+        logger.info("  MT vs ST table saved: %s", output_path)
+
+    summary = {
+        "mt_wins": mt_wins,
+        "st_wins": st_wins,
+        "ties": ties,
+        "total": total,
+        "mt_win_rate": mt_wins / max(total, 1),
+        "mt_avg_pass_rate": mt_avg_global,
+        "st_avg_pass_rate": st_avg_global,
+        "per_topology": per_topology,
+        "per_scenario": per_scenario,
+        "generated_at": ts,
+    }
+
+    return lines, summary

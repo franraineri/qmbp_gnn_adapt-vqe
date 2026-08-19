@@ -11,9 +11,9 @@ Introspects src/, scripts/, project_health/, experiments/ and extracts:
 Output: ultra-compact markdown optimized for LLM context (min tokens, max info).
 
 Usage:
-    python scripts/general_project_maintenance/generate_module_index.py
-    python scripts/general_project_maintenance/generate_module_index.py --output .kiro/steering/module-index.md
-    python scripts/general_project_maintenance/generate_module_index.py --dry-run
+   .venv/bin/python scripts/general_project_maintenance/generate_module_index.py
+   .venv/bin/python scripts/general_project_maintenance/generate_module_index.py --output .kiro/steering/module-index.md
+   .venv/bin/python scripts/general_project_maintenance/generate_module_index.py --dry-run
 """
 
 from __future__ import annotations

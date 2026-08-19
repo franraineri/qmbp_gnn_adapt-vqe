@@ -6,8 +6,8 @@ recent regressions, and suggested next experiments. Intended as a complement
 to the manually-curated noiseless_v2_analysis.md.
 
 Usage:
-    python scripts/generate_analysis_report.py
-    python scripts/generate_analysis_report.py --output documentation/analysis/auto_report.md
+   .venv/bin/python scripts/generate_analysis_report.py
+   .venv/bin/python scripts/generate_analysis_report.py --output documentation/analysis/auto_report.md
 """
 
 from __future__ import annotations

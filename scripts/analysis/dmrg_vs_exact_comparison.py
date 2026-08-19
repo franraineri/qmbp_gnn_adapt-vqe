@@ -14,16 +14,16 @@ near h_c where quantum correlations diverge.
 
 Usage:
     # Default: N=10-22, heavy_hex + chain_1d, h near critical
-    python scripts/analysis/dmrg_vs_exact_comparison.py
+    .venv/bin/python scripts/analysis/dmrg_vs_exact_comparison.py
 
     # Specific range
-    python scripts/analysis/dmrg_vs_exact_comparison.py \
+    .venv/bin/python scripts/analysis/dmrg_vs_exact_comparison.py \
         --n-values 10 14 18 20 22 \
         --topologies chain_1d heavy_hex triangular \
         --h-values 1.0 1.2 1.5 2.0 3.0 4.0
 
     # Focus on critical region
-    python scripts/analysis/dmrg_vs_exact_comparison.py \
+    .venv/bin/python scripts/analysis/dmrg_vs_exact_comparison.py \
         --h-values 0.8 0.9 1.0 1.1 1.2 1.3 1.5 2.0
 """
 

@@ -10,8 +10,8 @@ Outputs:
   - analysis/raw_data/theta_pca_results.json
 
 Usage:
-    python scripts/analysis/theta_pca_phase_detection.py
-    python scripts/analysis/theta_pca_phase_detection.py --format pdf --theme thesis
+    .venv/bin/python scripts/analysis/theta_pca_phase_detection.py
+    .venv/bin/python scripts/analysis/theta_pca_phase_detection.py --format pdf --theme thesis
 """
 
 from __future__ import annotations

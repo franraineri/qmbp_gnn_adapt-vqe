@@ -22,43 +22,43 @@ Subcommands:
     health-dashboard  Generate full health dashboard for all models
 
 Examples:
-    python scripts/maintenance/query_model_registry.py list
-    python scripts/maintenance/query_model_registry.py list --topology chain_1d
-    python scripts/maintenance/query_model_registry.py list --min-points 100 --json
-    python scripts/maintenance/query_model_registry.py get "unified_tfim_br_chain_1d*"
-    python scripts/maintenance/query_model_registry.py summary
-    python scripts/maintenance/query_model_registry.py history --model-id "unified_tfim_br_chain_1d*"
-    python scripts/maintenance/query_model_registry.py history --event-type regression_detected
-    python scripts/maintenance/query_model_registry.py regressions
-    python scripts/maintenance/query_model_registry.py timeline "unified_tfim_br_chain_1d_multiN_6+8+10+12+20_p1.pt"
-    python scripts/maintenance/query_model_registry.py sync
+    .venv/bin/python scripts/maintenance/query_model_registry.py list
+    .venv/bin/python scripts/maintenance/query_model_registry.py list --topology chain_1d
+    .venv/bin/python scripts/maintenance/query_model_registry.py list --min-points 100 --json
+    .venv/bin/python scripts/maintenance/query_model_registry.py get "unified_tfim_br_chain_1d*"
+    .venv/bin/python scripts/maintenance/query_model_registry.py summary
+    .venv/bin/python scripts/maintenance/query_model_registry.py history --model-id "unified_tfim_br_chain_1d*"
+    .venv/bin/python scripts/maintenance/query_model_registry.py history --event-type regression_detected
+    .venv/bin/python scripts/maintenance/query_model_registry.py regressions
+    .venv/bin/python scripts/maintenance/query_model_registry.py timeline "unified_tfim_br_chain_1d_multiN_6+8+10+12+20_p1.pt"
+    .venv/bin/python scripts/maintenance/query_model_registry.py sync
 
     # Tagging commands :
-    python scripts/maintenance/query_model_registry.py tag <model_id> --add production
-    python scripts/maintenance/query_model_registry.py tag <model_id> --remove experimental
-    python scripts/maintenance/query_model_registry.py tags
-    python scripts/maintenance/query_model_registry.py tags --query production
+    .venv/bin/python scripts/maintenance/query_model_registry.py tag <model_id> --add production
+    .venv/bin/python scripts/maintenance/query_model_registry.py tag <model_id> --remove experimental
+    .venv/bin/python scripts/maintenance/query_model_registry.py tags
+    .venv/bin/python scripts/maintenance/query_model_registry.py tags --query production
 
     # Validation commands (Improvements #4, #8, #9):
-    python scripts/maintenance/query_model_registry.py validate
-    python scripts/maintenance/query_model_registry.py validate <model_id>
-    python scripts/maintenance/query_model_registry.py health <model_id>
-    python scripts/maintenance/query_model_registry.py best -t chain_1d -n 20
-    python scripts/maintenance/query_model_registry.py best -t ladder -n 30 --require-tag production
+    .venv/bin/python scripts/maintenance/query_model_registry.py validate
+    .venv/bin/python scripts/maintenance/query_model_registry.py validate <model_id>
+    .venv/bin/python scripts/maintenance/query_model_registry.py health <model_id>
+    .venv/bin/python scripts/maintenance/query_model_registry.py best -t chain_1d -n 20
+    .venv/bin/python scripts/maintenance/query_model_registry.py best -t ladder -n 30 --require-tag production
 
     # Versioning commands :
-    python scripts/maintenance/query_model_registry.py versions
-    python scripts/maintenance/query_model_registry.py versions --topology chain_1d
-    python scripts/maintenance/query_model_registry.py version <model_id>
-    python scripts/maintenance/query_model_registry.py version <model_id> --chain
+    .venv/bin/python scripts/maintenance/query_model_registry.py versions
+    .venv/bin/python scripts/maintenance/query_model_registry.py versions --topology chain_1d
+    .venv/bin/python scripts/maintenance/query_model_registry.py version <model_id>
+    .venv/bin/python scripts/maintenance/query_model_registry.py version <model_id> --chain
 
     # Failure diagnostics commands :
-    python scripts/maintenance/query_model_registry.py diagnose <model_id>
-    python scripts/maintenance/query_model_registry.py diagnose <model_id> --force
-    python scripts/maintenance/query_model_registry.py diagnostics
-    python scripts/maintenance/query_model_registry.py diagnostics --topology chain_1d
-    python scripts/maintenance/query_model_registry.py comprehensive-health <model_id>
-    python scripts/maintenance/query_model_registry.py health-dashboard
+    .venv/bin/python scripts/maintenance/query_model_registry.py diagnose <model_id>
+    .venv/bin/python scripts/maintenance/query_model_registry.py diagnose <model_id> --force
+    .venv/bin/python scripts/maintenance/query_model_registry.py diagnostics
+    .venv/bin/python scripts/maintenance/query_model_registry.py diagnostics --topology chain_1d
+    .venv/bin/python scripts/maintenance/query_model_registry.py comprehensive-health <model_id>
+    .venv/bin/python scripts/maintenance/query_model_registry.py health-dashboard
 """
 
 import argparse
@@ -286,7 +286,7 @@ def cmd_timeline(args, db: ModelRegistryDB):
 
 
 def cmd_sync(args, db: ModelRegistryDB):
-    """Sync registry from zoo manifest + NPZ enrichment + dashboard."""
+    """Sync registry from zoo manifest + NPZ enrichment + dashboard + training curves."""
     print("  Syncing from zoo manifest...")
     result = db.sync_from_manifest()
     print(f"  → Added: {result['added']}, Skipped: {result['skipped']}")
@@ -298,6 +298,31 @@ def cmd_sync(args, db: ModelRegistryDB):
     print("  Enriching from dashboard...")
     dashboard_enriched = db.enrich_from_dashboard()
     print(f"  → Dashboard enriched: {dashboard_enriched} records")
+
+    # ── Training curves cross-check ──────────────────────────────────────
+    print("  Cross-checking training curves vs registry MSE...")
+    from qmbp_simulation.analysis.metrics import validate_data_consistency
+    dc = validate_data_consistency()
+    reg_curves = dc.get("registry_vs_curves", {})
+    if reg_curves:
+        n_consistent = sum(1 for v in reg_curves.values() if v["consistent"])
+        n_total = len(reg_curves)
+        print(f"  → Curve matches: {n_consistent}/{n_total} consistent")
+        for model_id, info in reg_curves.items():
+            if not info["consistent"]:
+                print(
+                    f"    ⚠️ {model_id[:40]}: reg_mse={info['registry_mse']:.4e} "
+                    f"vs curve={info['curve_final_mse']:.4e} "
+                    f"(epochs: {info['n_epochs_registry']} vs {info['n_epochs_curve']})"
+                )
+    else:
+        print("  → No training curve matches found")
+
+    # ── Backfill pass_rate_by_n ──────────────────────────────────────────
+    print("  Backfilling pass_rate_by_n from comparisons...")
+    from qmbp_simulation.predictors.model_zoo import backfill_pass_rate_by_n_from_comparisons
+    n_backfilled = backfill_pass_rate_by_n_from_comparisons()
+    print(f"  → Backfilled: {n_backfilled} models")
 
     s = db.summary()
     print(
@@ -842,6 +867,246 @@ def cmd_health_dashboard(args, db: ModelRegistryDB):
     print()
 
 
+# ─── Data Consistency Command ────────────────────────────────────────────────
+
+
+def cmd_consistency(args, db: ModelRegistryDB):
+    """Run full data consistency validation across all sources."""
+    import json as _json
+
+    from qmbp_simulation.analysis.metrics import validate_data_consistency
+
+    result = validate_data_consistency(verbose=not args.json)
+
+    if args.json:
+        output = {
+            "is_consistent": result["is_consistent"],
+            "n_checks": result["n_checks"],
+            "n_issues": result["n_issues"],
+            "findings": result["findings"],
+            "zoo_vs_comparison": result["zoo_vs_comparison"],
+            "registry_vs_curves": result["registry_vs_curves"],
+            "cross_n_selection_issues": result["cross_n_selection_issues"],
+        }
+        print(_json.dumps(output, indent=2, default=str))
+        return
+
+    # Additional: GT coherence
+    from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence
+
+    gt = validate_gt_npz_coherence()
+    if gt["n_files_with_issues"] > 0:
+        print(
+            f"\n  🔴 GT↔NPZ: {gt['n_files_with_issues']} files with stale e_exact "
+            f"(max_delta={gt['max_delta']:.2e})"
+        )
+    else:
+        print(f"\n  ✅ GT↔NPZ: coherent ({gt['n_points_checked']} points)")
+
+    # Zoo vs Comparison summary
+    zoo_comp = result["zoo_vs_comparison"]
+    if zoo_comp:
+        print(f"\n  Zoo ↔ Comparison ({len(zoo_comp)} models checked):")
+        for ckpt, info in sorted(zoo_comp.items(), key=lambda x: -x[1]["delta"]):
+            icon = "✅" if info["consistent"] else "⚠️"
+            print(
+                f"    {icon} {ckpt[:45]}: zoo={info['zoo_pass_rate']:.0%} "
+                f"comp={info['comparison_avg']:.0%} (Δ={info['delta']:.0%})"
+            )
+            if info["comparison_by_n"]:
+                by_n_str = ", ".join(
+                    f"N{n}={r:.0%}" for n, r in sorted(info["comparison_by_n"].items())
+                )
+                print(f"         by_N: {by_n_str}")
+
+    # Cross-N selection issues
+    xn_issues = result["cross_n_selection_issues"]
+    if xn_issues:
+        print(f"\n  Cross-N Selection Issues ({len(xn_issues)}):")
+        for iss in xn_issues:
+            print(f"    ⚠️ {iss['topology']} N={iss['n_target']}: {iss['issue']}")
+
+
+# ─── MT vs ST Comparison Command ─────────────────────────────────────────────
+
+
+def cmd_compare(args, db: ModelRegistryDB):
+    """Compare MT vs ST models with full dashboard integration.
+
+    Reads comparison results from model_comparison/ JSONs and cross-references
+    with the dashboard NPZ data for a unified view of model performance.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
+
+    # Build filter kwargs
+    kwargs = {}
+    if args.topology:
+        kwargs["topology_filter"] = args.topology
+    if args.n_min:
+        kwargs["n_min"] = args.n_min
+    if args.n_max:
+        kwargs["n_max"] = args.n_max
+
+    lines, summary = generate_mt_vs_st_table(latest_only=not args.all_runs, **kwargs)
+
+    if args.json:
+        print(_json.dumps(summary, indent=2, default=str))
+        return
+
+    total = summary.get("total", 0)
+    if total == 0:
+        print("\n  ⚠️ No comparison data found.")
+        print("  Run model comparisons first:")
+        print(
+            "    .venv/bin/python scripts/experiment_runners/cross_topology/"
+            "run_model_comparison.py --topology chain_1d --target-n 10 16 20 --auto-detect"
+        )
+        return
+
+    # Global summary
+    mt_wins = summary["mt_wins"]
+    st_wins = summary["st_wins"]
+    ties = summary["ties"]
+    mt_avg = summary.get("mt_avg_pass_rate", 0.0)
+    st_avg = summary.get("st_avg_pass_rate", 0.0)
+
+    global_winner = "MT" if mt_avg > st_avg + 0.01 else ("ST" if st_avg > mt_avg + 0.01 else "Tie")
+    winner_icon = "🟢" if global_winner == "MT" else ("🔴" if global_winner == "ST" else "⚪")
+
+    print(f"\n  ╔{'═' * 56}╗")
+    print(f"  ║  MT vs ST Model Comparison{'':>28}║")
+    print(f"  ║  Generated: {summary.get('generated_at', '?')[:19]:<33}║")
+    print(f"  ╠{'═' * 56}╣")
+    print(f"  ║  Score: MT {mt_wins} — ST {st_wins} — Ties {ties}{'':<25}║")
+    print(f"  ║  MT avg pass_rate: {mt_avg:.0%} | ST avg: {st_avg:.0%}{'':<16}║")
+    print(f"  ║  Overall winner: {winner_icon} {global_winner:<34}║")
+    print(f"  ╚{'═' * 56}╝\n")
+
+    # Per-topology breakdown
+    per_topology = summary.get("per_topology", {})
+    if per_topology:
+        print(f"  {'Topology':<14} {'MT pass%':>9} {'ST pass%':>9} {'Winner':>8} {'Δ':>7} {'MT W':>5} {'ST W':>5}")
+        print(f"  {'─' * 14} {'─' * 9} {'─' * 9} {'─' * 8} {'─' * 7} {'─' * 5} {'─' * 5}")
+        for topo in sorted(per_topology.keys()):
+            info = per_topology[topo]
+            icon = "🟢" if info["winner"] == "MT" else ("🔴" if info["winner"] == "ST" else "⚪")
+            print(
+                f"  {topo:<14} {info['mt_avg_pass_rate']:>8.0%} "
+                f"{info['st_avg_pass_rate']:>9.0%} "
+                f"{icon} {info['winner']:<5} "
+                f"{info['delta']:>+6.0%} "
+                f"{info['mt_wins']:>5} {info['st_wins']:>5}"
+            )
+        print()
+
+    # Per-scenario detail (if verbose)
+    if args.verbose:
+        per_scenario = summary.get("per_scenario", [])
+        if per_scenario:
+            print(f"  {'Topology':<14} {'N':>3} {'MT%':>5} {'MT gr':>5} {'ST%':>5} {'ST gr':>5} {'Win':>4}")
+            print(f"  {'─' * 14} {'─' * 3} {'─' * 5} {'─' * 5} {'─' * 5} {'─' * 5} {'─' * 4}")
+            for s in per_scenario:
+                icon = "✅" if s["winner"] == "MT" else ("❌" if s["winner"] == "ST" else "—")
+                print(
+                    f"  {s['topology']:<14} {s['n_qubits']:>3} "
+                    f"{s['mt_pass_rate']:>4.0%} {s['mt_grade']:>5} "
+                    f"{s['st_pass_rate']:>4.0%} {s['st_grade']:>5} "
+                    f"{icon:>4}"
+                )
+            print()
+
+    # Cross-reference with dashboard NPZ data for enriched context
+    if args.enrich:
+        _enrich_with_dashboard(per_topology, summary)
+
+    # Save report if requested
+    if args.save:
+        out_path = _Path(__file__).resolve().parents[2] / "results" / "mt_vs_st_report.md"
+        generate_mt_vs_st_table(output_path=out_path, latest_only=not args.all_runs, **kwargs)
+        print(f"  📄 Report saved: {out_path.relative_to(out_path.parents[2])}")
+
+
+def _enrich_with_dashboard(per_topology: dict, summary: dict):
+    """Cross-reference MT vs ST comparison with dashboard NPZ quality data."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    _ROOT = _Path(__file__).resolve().parents[2]
+    dash_path = _ROOT / "data" / "model_quality_dashboard.json"
+    if not dash_path.exists():
+        print("  ⚠️ Dashboard not found — skipping enrichment.")
+        return
+
+    with open(dash_path) as f:
+        dashboard = _json.load(f)
+
+    configs = dashboard.get("configs", [])
+
+    # Group NPZ configs by topology
+    npz_by_topo: dict[str, list[dict]] = {}
+    for c in configs:
+        npz_by_topo.setdefault(c["topology"], []).append(c)
+
+    print("  ┌─ Dashboard Enrichment (NPZ training data quality) ─────────────────┐")
+    for topo, info in sorted(per_topology.items()):
+        topo_configs = npz_by_topo.get(topo, [])
+        if not topo_configs:
+            continue
+
+        # Aggregate training data quality for this topology
+        total_pts = sum(c.get("n_points", 0) for c in topo_configs)
+        n_useful = sum(1 for c in topo_configs if c.get("training_utility") == "useful")
+        avg_de_gap = (
+            sum(c.get("mean_de_gap", 0) for c in topo_configs) / max(len(topo_configs), 1)
+        )
+        best_pass_dual = max(
+            (c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0
+        )
+        n_values = sorted(set(c["n_qubits"] for c in topo_configs))
+
+        # Check if MT or ST models are stale for this topology
+        zoo_pass = max(
+            (c.get("zoo_pass_rate", 0) or 0 for c in topo_configs), default=0
+        )
+        is_stale = any(c.get("model_stale") for c in topo_configs)
+
+        status = "✅" if n_useful == len(topo_configs) else "⚠️"
+        stale_str = " (⚠️ stale model)" if is_stale else ""
+
+        print(
+            f"  │ {topo:<12} {total_pts:>4} pts, "
+            f"{n_useful}/{len(topo_configs)} useful, "
+            f"best_dual={best_pass_dual:.0%}, "
+            f"N={n_values}{stale_str} {status}"
+        )
+
+    # MT model info from dashboard
+    mt_info = dashboard.get("multi_topology_models", {})
+    if mt_info.get("n_models", 0) > 0:
+        best_mt = mt_info["best_pass_rate"]
+        n_mt_pts = sum(m.get("n_training_points", 0) for m in mt_info.get("models", []))
+        print(f"  │")
+        print(f"  │ MT model: pass_rate={best_mt:.0%}, training_pts={n_mt_pts}")
+
+    # Dashboard comparison section (if already embedded)
+    dash_compare = dashboard.get("mt_vs_st_comparison", {})
+    if dash_compare:
+        dash_global = dash_compare.get("global", {})
+        print(f"  │")
+        print(
+            f"  │ Dashboard embedded: "
+            f"MT {dash_global.get('mt_wins', 0)} — "
+            f"ST {dash_global.get('st_wins', 0)} — "
+            f"Ties {dash_global.get('ties', 0)}"
+        )
+
+    print("  └──────────────────────────────────────────────────────────────────────┘")
+    print()
+
+
 # ─── Helpers ────────────────────────────────────────────────────────────────
 
 
@@ -1089,6 +1354,29 @@ def main():
     # health-dashboard
     subparsers.add_parser("health-dashboard", help="Generate health dashboard for all models")
 
+    # compare (MT vs ST)
+    p_compare = subparsers.add_parser(
+        "compare", help="MT vs ST model comparison with dashboard integration"
+    )
+    p_compare.add_argument("--topology", "-t", nargs="*", help="Filter by topology (one or more)")
+    p_compare.add_argument("--n-min", type=int, help="Minimum N value")
+    p_compare.add_argument("--n-max", type=int, help="Maximum N value")
+    p_compare.add_argument("--all-runs", action="store_true",
+                           help="Use all comparison runs (not just latest per topology)")
+    p_compare.add_argument("--enrich", action="store_true", default=True,
+                           help="Cross-reference with dashboard NPZ quality data")
+    p_compare.add_argument("--no-enrich", dest="enrich", action="store_false")
+    p_compare.add_argument("--save", action="store_true",
+                           help="Save markdown report to results/mt_vs_st_report.md")
+    p_compare.add_argument("-v", "--verbose", action="store_true",
+                           help="Show per-N breakdown")
+
+    # consistency (cross-source data validation)
+    subparsers.add_parser(
+        "consistency",
+        help="Validate data consistency across zoo, dashboard, comparisons, registry",
+    )
+
     args = parser.parse_args()
 
     if not args.command:
@@ -1118,6 +1406,8 @@ def main():
         "diagnostics": cmd_diagnostics,
         "comprehensive-health": cmd_comprehensive_health,
         "health-dashboard": cmd_health_dashboard,
+        "compare": cmd_compare,
+        "consistency": cmd_consistency,
     }
     dispatch[args.command](args, db)
 

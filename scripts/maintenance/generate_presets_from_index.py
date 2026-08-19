@@ -5,9 +5,9 @@ Scans the result index for configurations with >80% pass rate and
 generates YAML preset files in configs/presets/noiseless/.
 
 Usage:
-    python scripts/generate_presets_from_index.py
-    python scripts/generate_presets_from_index.py --min-pass-rate 0.9
-    python scripts/generate_presets_from_index.py --dry-run
+   .venv/bin/python scripts/generate_presets_from_index.py
+   .venv/bin/python scripts/generate_presets_from_index.py --min-pass-rate 0.9
+   .venv/bin/python scripts/generate_presets_from_index.py --dry-run
 """
 
 from __future__ import annotations

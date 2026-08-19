@@ -5,10 +5,10 @@ Reuses the loading and per-point extraction logic from analyze_noiseless_per_h.p
 but outputs a structured markdown file suitable for documentation/thesis.
 
 Usage:
-    python scripts/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ \
+    .venv/bin/python scripts/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ \
         --h 1.0 1.5 2.0 3.0 4.0 5.0 -o noiseless_v2_report.md
 
-    python scripts/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ --all
+    .venv/bin/python scripts/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ --all
 """
 
 import argparse

@@ -379,24 +379,24 @@ def main() -> None:
         epilog=textwrap.dedent("""\
             Examples:
               # Setup session with T4 GPU
-              python scripts/remote/colab_runner.py setup --gpu T4
+              .venv/bin/python scripts/remote/colab_runner.py setup --gpu T4
 
               # Run MPNN training (good Colab use case — GPU-bound)
-              python scripts/remote/colab_runner.py run \\
+              .venv/bin/python scripts/remote/colab_runner.py run \\
                 scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
                 --topology chain_1d --n-qubits 20 --model tfim --p-layers 2
 
               # Quick benchmark to compare Colab vs local
-              python scripts/remote/colab_runner.py bench
+              .venv/bin/python scripts/remote/colab_runner.py bench
 
               # Sync latest code (after git push)
-              python scripts/remote/colab_runner.py sync
+              .venv/bin/python scripts/remote/colab_runner.py sync
 
               # Fetch results
-              python scripts/remote/colab_runner.py fetch
+              .venv/bin/python scripts/remote/colab_runner.py fetch
 
               # Stop session (preserves GPU quota)
-              python scripts/remote/colab_runner.py stop
+              .venv/bin/python scripts/remote/colab_runner.py stop
         """),
     )
     sub = parser.add_subparsers(dest="command", required=True)

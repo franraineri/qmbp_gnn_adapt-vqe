@@ -13,7 +13,7 @@ Output:
     (also prints summary to stdout)
 
 Usage:
-    python scripts/audit_affine_overshoot.py
+    .venv/bin/python scripts/audit_affine_overshoot.py
 """
 
 import json

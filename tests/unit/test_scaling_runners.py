@@ -103,12 +103,12 @@ class TestComputeThetaSmoothness:
         assert abs(runner.compute_theta_smoothness(theta) - expected) < 1e-10
 
     def test_single_point_gives_zero(self, runner):
-        """Single point → zero (no consecutive pairs)."""
+        """Single point → 0.0 (wrapper coalesces None from metrics)."""
         theta = np.array([[0.5, 0.3]])
         assert runner.compute_theta_smoothness(theta) == 0.0
 
     def test_empty_gives_zero(self, runner):
-        """Empty array → zero."""
+        """Empty array → 0.0 (wrapper coalesces None from metrics)."""
         theta = np.array([]).reshape(0, 2)
         assert runner.compute_theta_smoothness(theta) == 0.0
 

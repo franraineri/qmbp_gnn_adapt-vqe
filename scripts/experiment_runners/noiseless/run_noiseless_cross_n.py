@@ -17,18 +17,18 @@ Constraints:
 
 Usage:
     # Default: train on N=6,10 → predict N=8, chain_1d, p=1, 30 h-points
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py
 
     # Custom sizes
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
         --train-sizes 6 10 --target-n 8
 
     # Custom h-grid
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
         --h-min 0.5 --h-max 2.0 --h-points 30
 
     # With interpolation baseline comparison
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py --with-interp
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py --with-interp
 """
 
 from __future__ import annotations

@@ -1877,6 +1877,44 @@ def _compute_topology_summary(configs: list) -> dict:
     return summary
 
 
+def _compute_confidence_level(
+    n_points: int,
+    eval_cache_density: int,
+    pass_rate_dual: float,
+) -> str:
+    """Compute confidence level for a config's reported metrics.
+
+    Based on:
+    - n_points: more training points → more reliable pass_rate
+    - eval_cache_density: more evaluations → more reproducible results
+    - Statistical power: at n_points, the standard error of pass_rate is
+      SE = sqrt(p*(1-p)/n), so confidence depends on both p and n.
+
+    Returns
+    -------
+    str
+        One of: "high", "medium", "low", "very_low"
+    """
+    # Standard error of the pass_rate estimate
+    p = max(0.01, min(0.99, pass_rate_dual))
+    se = (p * (1 - p) / max(n_points, 1)) ** 0.5
+
+    # Score components
+    points_score = min(1.0, n_points / 50)  # 50+ pts = full score
+    density_score = min(1.0, eval_cache_density / 10)  # 10+ evals = full score
+    precision_score = max(0.0, 1.0 - se * 10)  # SE < 0.05 → high precision
+
+    composite = 0.5 * points_score + 0.3 * density_score + 0.2 * precision_score
+
+    if composite >= 0.7:
+        return "high"
+    elif composite >= 0.4:
+        return "medium"
+    elif composite >= 0.2:
+        return "low"
+    return "very_low"
+
+
 def generate_model_quality_dashboard(
     output_path: str | Path | None = None,
 ) -> dict:
@@ -1951,6 +1989,19 @@ def generate_model_quality_dashboard(
             )
             with open(output_path) as f:
                 return json.load(f)
+
+    # ── Phase 0: Auto-fix stale e_exact in NPZ (GT cache is authoritative) ──
+    # This ensures all derived metrics (ΔE/gap, pass_rate) use current ground truth.
+    try:
+        coherence = validate_gt_npz_coherence(fix=True)
+        if coherence["n_points_fixed"] > 0:
+            logger.info(
+                "Dashboard pre-fix: corrected %d stale e_exact points in %d files",
+                coherence["n_points_fixed"],
+                coherence["n_files_with_issues"],
+            )
+    except Exception as _gt_fix_err:
+        logger.debug("GT auto-fix skipped: %s", _gt_fix_err)
 
     # ── Phase 1: Scan cross-N experiment results for transfer quality ────
     cross_n_data = _scan_cross_n_transfer_results(_ROOT)
@@ -2142,6 +2193,11 @@ def generate_model_quality_dashboard(
                     abs(zoo_pass_rate - pass_rate_5) if zoo_pass_rate is not None else None
                 ),
                 "eval_cache_density": eval_cache_density,
+                "confidence_level": _compute_confidence_level(
+                    n_points=n_points,
+                    eval_cache_density=eval_cache_density,
+                    pass_rate_dual=pass_rate_dual,
+                ),
                 "model_stale": model_stale,
                 "needs_retrain": needs_retrain,
                 "theta_smoothness": theta_smoothness,
@@ -2254,6 +2310,7 @@ def generate_model_quality_dashboard(
                 mt_models.append({
                     "checkpoint": e.checkpoint_file,
                     "pass_rate": e.pass_rate,
+                    "pass_rate_by_n": e.pass_rate_by_n if e.pass_rate_by_n else None,
                     "n_training_points": e.n_training_points,
                     "notes": e.notes[:80] if e.notes else "",
                     "created": getattr(e, "created", ""),
@@ -2265,6 +2322,66 @@ def generate_model_quality_dashboard(
             }
     except Exception as _mt_err:
         logger.debug("MT models section skipped: %s", _mt_err)
+
+    # ── MT vs ST comparison section ──────────────────────────────────────
+    # Integrate model comparison results into the dashboard for unified querying
+    try:
+        from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
+
+        _mt_st_lines, _mt_st_summary = generate_mt_vs_st_table(latest_only=True)
+        if _mt_st_summary.get("total", 0) > 0:
+            dashboard["mt_vs_st_comparison"] = {
+                "generated_at": _mt_st_summary.get("generated_at", ""),
+                "global": {
+                    "mt_wins": _mt_st_summary["mt_wins"],
+                    "st_wins": _mt_st_summary["st_wins"],
+                    "ties": _mt_st_summary["ties"],
+                    "total": _mt_st_summary["total"],
+                    "mt_win_rate": _mt_st_summary.get("mt_win_rate", 0.0),
+                    "mt_avg_pass_rate": _mt_st_summary.get("mt_avg_pass_rate", 0.0),
+                    "st_avg_pass_rate": _mt_st_summary.get("st_avg_pass_rate", 0.0),
+                },
+                "per_topology": _mt_st_summary.get("per_topology", {}),
+                "per_scenario": _mt_st_summary.get("per_scenario", []),
+            }
+    except Exception as _mt_st_err:
+        logger.debug("MT vs ST comparison section skipped: %s", _mt_st_err)
+
+    # ── GT ↔ NPZ coherence summary ──────────────────────────────────────
+    try:
+        coherence = validate_gt_npz_coherence(fix=False)
+        if coherence["n_files_checked"] > 0:
+            dashboard["gt_npz_coherence"] = {
+                "n_files_checked": coherence["n_files_checked"],
+                "n_files_with_issues": coherence["n_files_with_issues"],
+                "n_points_mismatched": coherence["n_points_mismatched"],
+                "max_delta": coherence["max_delta"],
+                "is_coherent": coherence["n_files_with_issues"] == 0,
+                "issues": coherence["issues"][:10],  # Top 10
+            }
+            if coherence["n_files_with_issues"] > 0:
+                logger.warning(
+                    "GT↔NPZ coherence: %d files stale (max_delta=%.2e)",
+                    coherence["n_files_with_issues"],
+                    coherence["max_delta"],
+                )
+    except Exception as _gt_err:
+        logger.debug("GT coherence check skipped: %s", _gt_err)
+
+    # ── Per-topology zoo pass_rate_by_n (from zoo manifest) ──────────────
+    try:
+        all_zoo_by_n: dict[str, dict] = {}
+        for e in _zoo_entries:
+            if e.pass_rate_by_n:
+                all_zoo_by_n[e.checkpoint_file] = {
+                    "topology": e.topology,
+                    "pass_rate_by_n": e.pass_rate_by_n,
+                    "global_pass_rate": e.pass_rate,
+                }
+        if all_zoo_by_n:
+            dashboard["zoo_pass_rate_by_n"] = all_zoo_by_n
+    except Exception:
+        pass
 
     # Write to disk
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2297,6 +2414,23 @@ def generate_model_quality_dashboard(
         "zoo_n_missing": getattr(generate_model_quality_dashboard, "_zoo_n_missing", 0),
     }
 
+    # ── Tier 3 note: eval_report vs comparison semantics ─────────────────
+    dashboard["quality_semantics"] = {
+        "eval_report": (
+            "Measures TRAINING DATA quality: uses θ_opt directly from NPZ. "
+            "Grade reflects VQE optimization quality, NOT MPNN prediction accuracy."
+        ),
+        "comparison": (
+            "Measures DEPLOYMENT quality: uses θ_pred from MPNN inference. "
+            "Pass rate reflects end-to-end pipeline accuracy at test time."
+        ),
+        "expected_gap": (
+            "eval_report grade ≥ comparison pass_rate is NORMAL "
+            "(training data is easier than generalization). "
+            "Reverse (comparison > eval) suggests stale eval report."
+        ),
+    }
+
     # Re-write with integrity info
     with open(output_path, "w") as f:
         json.dump(dashboard, f, indent=2)
@@ -2312,6 +2446,1041 @@ def generate_model_quality_dashboard(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Cross-Integration Utilities — combining quality tier, extrapolation, and coverage
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+def query_mt_vs_st_comparison(
+    topology: str | None = None,
+    *,
+    n_min: int | None = None,
+    n_max: int | None = None,
+    from_dashboard: bool = True,
+) -> dict:
+    """Query MT vs ST model comparison data.
+
+    Provides a unified API for accessing comparison results, either from
+    the dashboard cache (fast, no I/O beyond reading one JSON) or from
+    live comparison files (slower, always fresh).
+
+    Parameters
+    ----------
+    topology : str | None
+        Filter to a specific topology. If None, returns all topologies.
+    n_min : int | None
+        Minimum N value filter.
+    n_max : int | None
+        Maximum N value filter.
+    from_dashboard : bool
+        If True (default), reads from cached dashboard. Falls back to live
+        computation if dashboard data is unavailable.
+
+    Returns
+    -------
+    dict
+        {
+            "global": {mt_wins, st_wins, ties, total, mt_win_rate, mt_avg_pass_rate, st_avg_pass_rate},
+            "per_topology": {topo: {mt_avg_pass_rate, st_avg_pass_rate, winner, delta, ...}},
+            "per_scenario": [...],
+            "source": "dashboard" | "live",
+        }
+    """
+    import json as _json
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+
+    result = None
+
+    # Try dashboard first (fast path)
+    if from_dashboard:
+        dash_path = _ROOT / "data" / "model_quality_dashboard.json"
+        if dash_path.exists():
+            try:
+                with open(dash_path) as f:
+                    dash = _json.load(f)
+                mt_st = dash.get("mt_vs_st_comparison")
+                if mt_st and mt_st.get("global", {}).get("total", 0) > 0:
+                    result = {
+                        "global": mt_st["global"],
+                        "per_topology": mt_st.get("per_topology", {}),
+                        "per_scenario": mt_st.get("per_scenario", []),
+                        "source": "dashboard",
+                    }
+            except Exception:
+                pass
+
+    # Fall back to live computation
+    if result is None:
+        try:
+            from qmbp_simulation.analysis.evaluation_report import generate_mt_vs_st_table
+
+            kwargs: dict = {"latest_only": True}
+            if topology:
+                kwargs["topology_filter"] = topology
+            if n_min is not None:
+                kwargs["n_min"] = n_min
+            if n_max is not None:
+                kwargs["n_max"] = n_max
+
+            _, summary = generate_mt_vs_st_table(**kwargs)
+            if summary.get("total", 0) > 0:
+                result = {
+                    "global": {
+                        "mt_wins": summary["mt_wins"],
+                        "st_wins": summary["st_wins"],
+                        "ties": summary["ties"],
+                        "total": summary["total"],
+                        "mt_win_rate": summary.get("mt_win_rate", 0.0),
+                        "mt_avg_pass_rate": summary.get("mt_avg_pass_rate", 0.0),
+                        "st_avg_pass_rate": summary.get("st_avg_pass_rate", 0.0),
+                    },
+                    "per_topology": summary.get("per_topology", {}),
+                    "per_scenario": summary.get("per_scenario", []),
+                    "source": "live",
+                }
+        except Exception:
+            pass
+
+    if result is None:
+        return {
+            "global": {"mt_wins": 0, "st_wins": 0, "ties": 0, "total": 0},
+            "per_topology": {},
+            "per_scenario": [],
+            "source": "none",
+        }
+
+    # Apply post-hoc filters if dashboard source (live already filtered via kwargs)
+    if result["source"] == "dashboard":
+        if topology or n_min is not None or n_max is not None:
+            scenarios = result["per_scenario"]
+            if topology:
+                topo_list = [topology] if isinstance(topology, str) else topology
+                scenarios = [s for s in scenarios if s.get("topology") in topo_list]
+            if n_min is not None:
+                scenarios = [s for s in scenarios if s.get("n_qubits", 0) >= n_min]
+            if n_max is not None:
+                scenarios = [s for s in scenarios if s.get("n_qubits", 999) <= n_max]
+
+            # Recompute global stats from filtered scenarios
+            mt_wins = sum(1 for s in scenarios if s.get("winner") == "MT")
+            st_wins = sum(1 for s in scenarios if s.get("winner") == "ST")
+            ties = sum(1 for s in scenarios if s.get("winner") == "tie")
+            total = mt_wins + st_wins + ties
+            mt_pass = [s["mt_pass_rate"] for s in scenarios if "mt_pass_rate" in s]
+            st_pass = [s["st_pass_rate"] for s in scenarios if "st_pass_rate" in s]
+
+            result["global"] = {
+                "mt_wins": mt_wins,
+                "st_wins": st_wins,
+                "ties": ties,
+                "total": total,
+                "mt_win_rate": mt_wins / max(total, 1),
+                "mt_avg_pass_rate": sum(mt_pass) / max(len(mt_pass), 1) if mt_pass else 0.0,
+                "st_avg_pass_rate": sum(st_pass) / max(len(st_pass), 1) if st_pass else 0.0,
+            }
+            result["per_scenario"] = scenarios
+
+            # Recompute per_topology from filtered scenarios
+            from collections import defaultdict as _dd
+            _pt: dict = _dd(lambda: {"mt_pass": [], "st_pass": [], "mt_wins": 0, "st_wins": 0, "ties": 0})
+            for s in scenarios:
+                t = s.get("topology", "?")
+                _pt[t]["mt_pass"].append(s.get("mt_pass_rate", 0))
+                _pt[t]["st_pass"].append(s.get("st_pass_rate", 0))
+                if s.get("winner") == "MT":
+                    _pt[t]["mt_wins"] += 1
+                elif s.get("winner") == "ST":
+                    _pt[t]["st_wins"] += 1
+                else:
+                    _pt[t]["ties"] += 1
+            per_topo_filtered = {}
+            for t, info in _pt.items():
+                mt_a = sum(info["mt_pass"]) / max(len(info["mt_pass"]), 1)
+                st_a = sum(info["st_pass"]) / max(len(info["st_pass"]), 1)
+                per_topo_filtered[t] = {
+                    "mt_avg_pass_rate": mt_a,
+                    "st_avg_pass_rate": st_a,
+                    "mt_wins": info["mt_wins"],
+                    "st_wins": info["st_wins"],
+                    "ties": info["ties"],
+                    "winner": "MT" if mt_a > st_a + 0.01 else ("ST" if st_a > mt_a + 0.01 else "tie"),
+                    "delta": mt_a - st_a,
+                }
+            result["per_topology"] = per_topo_filtered
+
+    return result
+
+
+def validate_gt_npz_coherence(
+    *,
+    fix: bool = False,
+    tolerance: float = 1e-6,
+) -> dict:
+    """Cross-validate GT cache energies against NPZ stored e_exact values.
+
+    If the GT cache was updated (e.g., better DMRG precision), but the NPZ
+    files still store old e_exact values, all derived metrics (ΔE/gap, pass_rate,
+    grade) become unreliable.
+
+    Parameters
+    ----------
+    fix : bool
+        If True, update NPZ e_exact and recompute de_gaps from current GT cache.
+        Creates .bak backup before modifying.
+    tolerance : float
+        Absolute tolerance for considering values as matching (default: 1e-6).
+
+    Returns
+    -------
+    dict
+        {
+            "n_files_checked": int,
+            "n_files_with_issues": int,
+            "n_points_checked": int,
+            "n_points_mismatched": int,
+            "n_points_fixed": int (only if fix=True),
+            "max_delta": float,
+            "issues": [{file, topology, n_qubits, n_mismatched, max_delta, affected_metrics}],
+            "summary": str,
+        }
+    """
+    import json as _json
+    import shutil
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+    gt_path = _ROOT / "data" / "ground_truth_cache.json"
+    npz_dir = _ROOT / "data" / "multi_n_training"
+
+    if not gt_path.exists() or not npz_dir.exists():
+        return {
+            "n_files_checked": 0,
+            "n_files_with_issues": 0,
+            "n_points_checked": 0,
+            "n_points_mismatched": 0,
+            "n_points_fixed": 0,
+            "max_delta": 0.0,
+            "issues": [],
+            "summary": "GT cache or NPZ dir not found.",
+        }
+
+    with open(gt_path) as f:
+        raw = _json.load(f)
+    gt = raw.get("entries", raw)
+
+    n_files_checked = 0
+    n_files_with_issues = 0
+    n_points_checked = 0
+    n_points_mismatched = 0
+    n_points_fixed = 0
+    max_delta_global = 0.0
+    issues: list[dict] = []
+
+    for npz_file in sorted(npz_dir.glob("*.npz")):
+        data = np.load(str(npz_file), allow_pickle=True)
+        if "e_exact" not in data or "h_values" not in data:
+            continue
+
+        h_vals = data["h_values"]
+        e_exact_npz = data["e_exact"]
+
+        # Parse topology and N from filename
+        parts = npz_file.stem.split("_")
+        n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+        if n_idx is None:
+            continue
+        topo = "_".join(parts[:n_idx])
+        try:
+            n_val = int(parts[n_idx][1:])
+        except ValueError:
+            continue
+
+        n_files_checked += 1
+        file_mismatches = 0
+        file_max_delta = 0.0
+        corrections: dict[int, float] = {}  # idx → new e_exact
+
+        for i, h in enumerate(h_vals):
+            key = f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.6f}"
+            if key not in gt:
+                continue
+            gt_entry = gt[key]
+            gt_e = gt_entry.get("energy", gt_entry.get("e_exact"))
+            if gt_e is None:
+                continue
+
+            n_points_checked += 1
+            delta = abs(float(e_exact_npz[i]) - float(gt_e))
+            if delta > tolerance:
+                file_mismatches += 1
+                file_max_delta = max(file_max_delta, delta)
+                max_delta_global = max(max_delta_global, delta)
+                corrections[i] = float(gt_e)
+
+        if file_mismatches > 0:
+            n_files_with_issues += 1
+            n_points_mismatched += file_mismatches
+
+            # Compute impact on metrics
+            affected_pass_rate_delta = 0.0
+            if "gaps" in data and corrections:
+                e_key = "e_vqe" if "e_vqe" in data else (
+                    "energies" if "energies" in data else None
+                )
+                if e_key:
+                    e_vqe = data[e_key]
+                    gaps = data["gaps"]
+                    # Old de_gaps
+                    old_de_gaps = np.abs(e_vqe - e_exact_npz) / np.maximum(gaps, 1e-10)
+                    old_pass = float((old_de_gaps < DE_GAP_THRESHOLD).mean())
+                    # New de_gaps (with corrected e_exact)
+                    new_e_exact = e_exact_npz.copy()
+                    for idx, val in corrections.items():
+                        new_e_exact[idx] = val
+                    new_de_gaps = np.abs(e_vqe - new_e_exact) / np.maximum(gaps, 1e-10)
+                    new_pass = float((new_de_gaps < DE_GAP_THRESHOLD).mean())
+                    affected_pass_rate_delta = new_pass - old_pass
+
+            issues.append({
+                "file": npz_file.name,
+                "topology": topo,
+                "n_qubits": n_val,
+                "n_mismatched": file_mismatches,
+                "n_total": len(h_vals),
+                "max_delta": file_max_delta,
+                "pass_rate_impact": affected_pass_rate_delta,
+            })
+
+            if fix and corrections:
+                # Backup original
+                bak_path = npz_file.with_suffix(".npz.bak")
+                if not bak_path.exists():
+                    shutil.copy2(npz_file, bak_path)
+
+                # Reload, fix, and save
+                arrays = dict(np.load(str(npz_file), allow_pickle=True))
+                new_e_exact = arrays["e_exact"].copy()
+                for idx, val in corrections.items():
+                    new_e_exact[idx] = val
+                arrays["e_exact"] = new_e_exact
+
+                # Also recompute de_gaps if present
+                e_key = "e_vqe" if "e_vqe" in arrays else (
+                    "energies" if "energies" in arrays else None
+                )
+                if e_key and "gaps" in arrays:
+                    new_de_gaps = (
+                        np.abs(arrays[e_key] - new_e_exact)
+                        / np.maximum(arrays["gaps"], 1e-10)
+                    )
+                    arrays["de_gaps"] = new_de_gaps
+
+                np.savez(str(npz_file), **arrays)
+                n_points_fixed += len(corrections)
+                logger.info(
+                    "validate_gt_npz_coherence: fixed %s (%d points, max_delta=%.2e)",
+                    npz_file.name,
+                    len(corrections),
+                    file_max_delta,
+                )
+
+    # Summary
+    if n_files_with_issues == 0:
+        summary = f"✅ All {n_files_checked} NPZ files coherent with GT cache ({n_points_checked} points checked)."
+    else:
+        total_impact = sum(abs(iss["pass_rate_impact"]) for iss in issues)
+        fix_status = f" ({n_points_fixed} points fixed)" if fix else " (run with fix=True to correct)"
+        summary = (
+            f"⚠️ {n_files_with_issues}/{n_files_checked} files have stale e_exact "
+            f"({n_points_mismatched} points, max_delta={max_delta_global:.2e}, "
+            f"aggregate pass_rate impact≈{total_impact:.1%}){fix_status}"
+        )
+        if not fix:
+            logger.warning("GT↔NPZ coherence: %s", summary)
+
+    return {
+        "n_files_checked": n_files_checked,
+        "n_files_with_issues": n_files_with_issues,
+        "n_points_checked": n_points_checked,
+        "n_points_mismatched": n_points_mismatched,
+        "n_points_fixed": n_points_fixed,
+        "max_delta": max_delta_global,
+        "issues": issues,
+        "summary": summary,
+    }
+
+
+def post_experiment_sync(*, verbose: bool = False) -> dict:
+    """Consolidated post-experiment synchronization of all data stores.
+
+    Runs all maintenance tasks in the correct dependency order to ensure
+    data coherence across the entire pipeline. Call after any experiment
+    that produces new data (VQE, training, evaluation, comparison).
+
+    Execution order:
+    1. GT↔NPZ coherence check (detect stale e_exact)
+    2. Regenerate model quality dashboard (reads NPZ)
+    3. MT vs ST comparison refresh (reads model_comparison/)
+    4. Eval report regeneration (reads zoo + NPZ)
+    5. Cross-N coverage doc update (reads dashboard)
+    6. ResultIndex rebuild + project-status.md refresh
+    7. Auto-detect exclusions (fire-and-forget)
+
+    Parameters
+    ----------
+    verbose : bool
+        If True, print progress and issue details.
+
+    Returns
+    -------
+    dict
+        {
+            "steps_completed": list[str],
+            "steps_failed": list[str],
+            "gt_coherence": dict | None,
+            "dashboard_regenerated": bool,
+            "eval_report_updated": bool,
+            "coverage_updated": bool,
+            "status_updated": bool,
+        }
+    """
+    import subprocess
+    import sys
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+    results: dict = {
+        "steps_completed": [],
+        "steps_failed": [],
+        "gt_coherence": None,
+        "dashboard_regenerated": False,
+        "eval_report_updated": False,
+        "coverage_updated": False,
+        "status_updated": False,
+    }
+
+    def _log(msg: str):
+        if verbose:
+            print(f"  [sync] {msg}")
+        logger.info("post_experiment_sync: %s", msg)
+
+    # ── Step 1: GT↔NPZ coherence check ──────────────────────────────────
+    _log("Step 1/6: Validating GT↔NPZ coherence...")
+    try:
+        coherence = validate_gt_npz_coherence(fix=False)
+        results["gt_coherence"] = coherence
+        results["steps_completed"].append("gt_npz_coherence")
+        if coherence["n_files_with_issues"] > 0:
+            _log(f"  ⚠️ {coherence['summary']}")
+        else:
+            _log(f"  ✅ {coherence['summary']}")
+    except Exception as e:
+        results["steps_failed"].append(f"gt_npz_coherence: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 2: Regenerate dashboard ─────────────────────────────────────
+    _log("Step 2/6: Regenerating model quality dashboard...")
+    try:
+        # Force regeneration by importing and calling directly
+        dashboard = generate_model_quality_dashboard()
+        results["dashboard_regenerated"] = True
+        results["steps_completed"].append("dashboard")
+        _log(f"  ✅ Dashboard: {dashboard.get('n_configs', 0)} configs")
+    except Exception as e:
+        results["steps_failed"].append(f"dashboard: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 3: Eval report regeneration ─────────────────────────────────
+    _log("Step 3/6: Regenerating evaluation report...")
+    try:
+        eval_script = _ROOT / "scripts" / "analysis" / "evaluate_zoo_models.py"
+        if not eval_script.exists():
+            eval_script = _ROOT / "scripts" / "maintenance" / "evaluate_zoo_models.py"
+        if eval_script.exists():
+            proc = subprocess.run(
+                [sys.executable, str(eval_script)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(_ROOT),
+            )
+            if proc.returncode == 0:
+                results["eval_report_updated"] = True
+                results["steps_completed"].append("eval_report")
+                _log("  ✅ Evaluation report updated")
+            else:
+                results["steps_failed"].append(f"eval_report: exit={proc.returncode}")
+                _log(f"  ❌ Exit code {proc.returncode}")
+        else:
+            results["steps_completed"].append("eval_report (skipped, script not found)")
+            _log("  ⏭️ evaluate_zoo_models.py not found, skipped")
+    except subprocess.TimeoutExpired:
+        results["steps_failed"].append("eval_report: timeout (120s)")
+        _log("  ⏰ Timed out (120s limit)")
+    except Exception as e:
+        results["steps_failed"].append(f"eval_report: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 4: Cross-N coverage doc update ──────────────────────────────
+    _log("Step 4/6: Updating cross-N coverage documentation...")
+    try:
+        coverage_script = _ROOT / "scripts" / "maintenance" / "update_cross_n_coverage.py"
+        if coverage_script.exists():
+            proc = subprocess.run(
+                [sys.executable, str(coverage_script)],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(_ROOT),
+            )
+            if proc.returncode == 0:
+                results["coverage_updated"] = True
+                results["steps_completed"].append("coverage_doc")
+                _log("  ✅ Coverage documentation updated")
+            else:
+                results["steps_failed"].append(f"coverage_doc: exit={proc.returncode}")
+                _log(f"  ❌ Exit code {proc.returncode}")
+        else:
+            results["steps_completed"].append("coverage_doc (skipped)")
+            _log("  ⏭️ update_cross_n_coverage.py not found")
+    except subprocess.TimeoutExpired:
+        results["steps_failed"].append("coverage_doc: timeout")
+        _log("  ⏰ Timed out")
+    except Exception as e:
+        results["steps_failed"].append(f"coverage_doc: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 5: ResultIndex + project-status.md ──────────────────────────
+    _log("Step 5/6: Rebuilding ResultIndex + project-status.md...")
+    try:
+        from qmbp_simulation.framework.result_index import ResultIndex
+
+        idx = ResultIndex()
+        idx.rebuild()
+        idx.refresh_status()
+        results["status_updated"] = True
+        results["steps_completed"].append("result_index")
+        _log("  ✅ ResultIndex rebuilt + project-status.md refreshed")
+    except Exception as e:
+        results["steps_failed"].append(f"result_index: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 6: Auto-detect exclusions ───────────────────────────────────
+    _log("Step 6/7: Auto-detecting training exclusions...")
+    try:
+        auto_detect_exclusions()
+        results["steps_completed"].append("exclusions")
+        _log("  ✅ Exclusion registry updated")
+    except Exception as e:
+        results["steps_failed"].append(f"exclusions: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 7: Auto-correct zoo inflation + backfill pass_rate_by_n ─────
+    _log("Step 7/7: Zoo pass_rate coherence + backfill...")
+    try:
+        from qmbp_simulation.predictors.model_zoo import (
+            _load_manifest,
+            backfill_pass_rate_by_n_from_comparisons,
+            update_zoo_pass_rate,
+        )
+
+        # Backfill pass_rate_by_n from comparison history
+        n_backfilled = backfill_pass_rate_by_n_from_comparisons()
+
+        # Auto-correct inflated zoo entries (zoo > comparison by >25%)
+        entries = _load_manifest()
+        n_deflated = 0
+        for entry in entries:
+            if not entry.pass_rate_by_n or entry.pass_rate == 0:
+                continue
+            rates = [float(v) for v in entry.pass_rate_by_n.values()]
+            comp_avg = sum(rates) / len(rates)
+            if entry.pass_rate > comp_avg + 0.25:
+                update_zoo_pass_rate(
+                    entry.checkpoint_file,
+                    comp_avg,
+                    only_if_better=False,
+                    pass_rate_source="comparison_eval",
+                    add_notes=f"auto-deflated from {entry.pass_rate:.0%}",
+                )
+                n_deflated += 1
+
+        results["steps_completed"].append("zoo_coherence")
+        _log(f"  ✅ Backfilled {n_backfilled} models, deflated {n_deflated} inflated entries")
+    except Exception as e:
+        results["steps_failed"].append(f"zoo_coherence: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 8: Retrain trigger detection ────────────────────────────────
+    _log("Step 8/9: Checking retrain triggers...")
+    try:
+        from qmbp_simulation.predictors.training_intelligence import check_retrain_triggers
+
+        triggers = check_retrain_triggers()
+        results["retrain_triggers"] = [
+            {"topology": t.topology, "priority": t.priority, "reason": t.reason}
+            for t in triggers
+        ]
+        results["steps_completed"].append("retrain_triggers")
+        if triggers:
+            _log(f"  ⚠️ {len(triggers)} retrain triggers detected:")
+            for t in triggers[:3]:
+                _log(f"    P{t.priority} {t.topology}: {t.reason[:60]}")
+        else:
+            _log("  ✅ No retrain triggers (all models up-to-date)")
+    except Exception as e:
+        results["steps_failed"].append(f"retrain_triggers: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 9: Auto-retrain loop (Tier 2 — train→eval→compare→zoo) ────
+    # Only fires when ≥1 trigger has priority ≤ 3 (P1=contaminated,
+    # P2=stale, P3=expanded). Spawns as subprocess to avoid blocking.
+    _log("Step 9/9: Auto-retrain loop...")
+    results["retrain_loop"] = None
+    try:
+        retrain_candidates = results.get("retrain_triggers", [])
+        high_priority = [t for t in retrain_candidates if t["priority"] <= 3]
+
+        if high_priority:
+            _log(f"  Launching retrain loop for {len(high_priority)} P≤3 candidates...")
+            # Run in-process (not subprocess) so post_experiment_sync can report
+            from qmbp_simulation.predictors.retrain_loop import run_retrain_loop
+
+            loop_result = run_retrain_loop(
+                max_retrains=min(len(high_priority), 2),
+                min_priority=3,
+                dry_run=False,
+            )
+            results["retrain_loop"] = {
+                "n_retrained": loop_result.n_retrained,
+                "n_improved": loop_result.n_improved,
+                "n_blocked": loop_result.n_blocked,
+                "n_failed": loop_result.n_failed,
+                "elapsed_s": loop_result.total_elapsed_s,
+            }
+            results["steps_completed"].append("retrain_loop")
+            _log(f"  ✅ {loop_result.summary}")
+        else:
+            results["steps_completed"].append("retrain_loop (no P≤3 triggers)")
+            _log("  ⏭️ No high-priority triggers — skipping retrain loop")
+    except Exception as e:
+        results["steps_failed"].append(f"retrain_loop: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    n_ok = len(results["steps_completed"])
+    n_fail = len(results["steps_failed"])
+
+    # ── Tier 3 cross-validations (lightweight, non-blocking) ─────────────
+    try:
+        tier3 = run_tier3_validations(verbose=verbose)
+        results["tier3"] = {
+            "summary": tier3["summary"],
+            "n_issues": tier3["n_total_issues"],
+            "undertrained": tier3["training_convergence"]["n_undertrained"],
+            "eval_comparison_gaps": tier3["eval_vs_comparison"]["n_discrepancies"],
+            "retrain_plan_size": tier3["cascading_retrain"]["n_models_to_retrain"],
+        }
+        results["steps_completed"].append("tier3_validations")
+        if tier3["n_total_issues"] > 0:
+            _log(f"  ⚠️ Tier 3: {tier3['summary']}")
+        else:
+            _log("  ✅ Tier 3: all cross-validations pass")
+    except Exception as e:
+        results["steps_failed"].append(f"tier3_validations: {e}")
+        _log(f"  ❌ Tier 3 failed: {e}")
+
+    if verbose:
+        print(f"\n  [sync] Done: {n_ok} completed, {n_fail} failed")
+        if results["steps_failed"]:
+            for f in results["steps_failed"]:
+                print(f"    ❌ {f}")
+
+    return results
+
+
+def validate_data_consistency(*, verbose: bool = False) -> dict:
+    """Cross-validate pass_rates across all data sources for coherence.
+
+    Compares metrics from 3 independent sources:
+    1. **Dashboard** (NPZ training data): pass_rate of the VQE θ_opt themselves
+    2. **Model comparison JSONs**: MPNN prediction quality on specific (topo, N, h-grid)
+    3. **Eval report / Zoo manifest**: registered model quality
+
+    Expected differences:
+    - Dashboard pass_rate > comparison pass_rate (training data is easier than predictions)
+    - Zoo pass_rate should correlate with comparison results
+
+    Detects:
+    - Stale data (eval report grades inconsistent with latest comparisons)
+    - Incoherent signals (zoo says 100% but comparison shows 30%)
+    - Registry MSE drift vs training curves
+    - Cross-N model selection vs dashboard evidence mismatch
+
+    Parameters
+    ----------
+    verbose : bool
+        Print detailed findings.
+
+    Returns
+    -------
+    dict
+        {
+            "is_consistent": bool,
+            "n_checks": int,
+            "n_issues": int,
+            "findings": list[dict],  # [{source_a, source_b, field, value_a, value_b, severity}]
+            "zoo_vs_comparison": dict,  # Per-model: zoo pass_rate vs latest comparison
+            "registry_vs_curves": dict,  # MSE cross-check
+            "cross_n_selection_issues": list,
+        }
+    """
+    import json as _json
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+    findings: list[dict] = []
+    n_checks = 0
+
+    # ── Source 1: Dashboard ──────────────────────────────────────────────
+    dash_path = _ROOT / "data" / "model_quality_dashboard.json"
+    dashboard = None
+    if dash_path.exists():
+        with open(dash_path) as f:
+            dashboard = _json.load(f)
+
+    # ── Source 2: Zoo manifest ───────────────────────────────────────────
+    zoo_entries: list = []
+    try:
+        from qmbp_simulation.predictors.model_zoo import _load_manifest
+        zoo_entries = _load_manifest()
+    except Exception:
+        pass
+
+    # ── Source 3: Model comparison JSONs ─────────────────────────────────
+    comp_dir = _ROOT / "results" / "model_comparison"
+    comparison_data: dict[str, dict] = {}  # checkpoint → {topology, pass_rates_by_n}
+    if comp_dir.exists():
+        for f in sorted(comp_dir.glob("compare_*.json")):
+            try:
+                d = _json.loads(f.read_text())
+                topo = d.get("topology")
+                for r in d.get("results", []):
+                    ckpt = r.get("checkpoint", "")
+                    if not ckpt:
+                        continue
+                    by_n: dict[int, float] = {}
+                    for n_str, metrics in r.get("results_by_n", {}).items():
+                        by_n[int(n_str)] = metrics.get("pass_rate_dual", 0.0)
+                    if ckpt not in comparison_data:
+                        comparison_data[ckpt] = {"topology": topo, "pass_rates_by_n": {}}
+                    comparison_data[ckpt]["pass_rates_by_n"].update(by_n)
+            except Exception:
+                continue
+
+    # ── Check A: Zoo pass_rate vs comparison reality ─────────────────────
+    zoo_vs_comparison: dict[str, dict] = {}
+    for entry in zoo_entries:
+        ckpt = entry.checkpoint_file
+        if ckpt in comparison_data:
+            comp_rates = comparison_data[ckpt]["pass_rates_by_n"]
+            if comp_rates:
+                comp_avg = sum(comp_rates.values()) / len(comp_rates)
+                zoo_rate = entry.pass_rate
+                delta = abs(zoo_rate - comp_avg)
+                n_checks += 1
+
+                zoo_vs_comparison[ckpt] = {
+                    "zoo_pass_rate": zoo_rate,
+                    "comparison_avg": comp_avg,
+                    "comparison_by_n": comp_rates,
+                    "delta": delta,
+                    "consistent": delta < 0.25,
+                }
+
+                if delta > 0.25:
+                    findings.append({
+                        "source_a": "zoo_manifest",
+                        "source_b": "model_comparison",
+                        "field": "pass_rate",
+                        "value_a": zoo_rate,
+                        "value_b": comp_avg,
+                        "delta": delta,
+                        "severity": "high" if delta > 0.40 else "medium",
+                        "model": ckpt[:50],
+                        "explanation": (
+                            f"Zoo says {zoo_rate:.0%} but comparison shows {comp_avg:.0%}. "
+                            f"Note: zoo may reflect training pass_rate, comparison uses MPNN prediction."
+                        ),
+                    })
+
+    # ── Check B: Registry MSE vs training curves ─────────────────────────
+    registry_vs_curves: dict[str, dict] = {}
+    try:
+        reg_path = _ROOT / "data" / "model_zoo" / "model_registry.json"
+        curves_dir = _ROOT / "results" / "training_curves"
+        if reg_path.exists() and curves_dir.exists():
+            reg_data = _json.loads(reg_path.read_text())
+            models = reg_data if isinstance(reg_data, list) else reg_data.get("models", [])
+            curves_by_stem = {f.stem: f for f in curves_dir.glob("*.npz")}
+
+            for model in models:
+                model_id = model.get("model_id", "")
+                tm = model.get("training", {}).get("training_metrics", {})
+                reg_mse = tm.get("final_mse")
+                reg_val_mse = tm.get("final_val_mse")
+                reg_epochs = tm.get("epochs", 0)
+                if reg_mse is None:
+                    continue
+
+                # Match curve file by: exact stem, topology substring, or date overlap
+                topo = model.get("topology", "")
+                curve_file = None
+
+                # Strategy 1: exact match
+                curve_file = curves_by_stem.get(model_id.replace(".pt", ""))
+
+                # Strategy 2: topology + partial match
+                if curve_file is None:
+                    for stem, path in curves_by_stem.items():
+                        if topo in stem and (
+                            model_id[:25] in stem
+                            or stem[:25] in model_id
+                            or (topo in stem and "section" in stem)
+                        ):
+                            curve_file = path
+                            break
+
+                # Strategy 3: MT model → mt_training curve
+                if curve_file is None and topo == "multi_topology":
+                    for stem, path in curves_by_stem.items():
+                        if "mt_training" in stem:
+                            curve_file = path  # Take latest MT curve
+                            # Don't break — last one is latest
+
+                if curve_file:
+                    try:
+                        curve_data = np.load(str(curve_file))
+                        mse_history = curve_data["mse_history"]
+                        val_mse_history = curve_data.get("val_mse_history", np.array([]))
+                        actual_final_mse = float(mse_history[-1])
+                        actual_val_mse = float(val_mse_history[-1]) if len(val_mse_history) > 0 else None
+                        n_checks += 1
+
+                        # Compare MSE (use val_mse if available, more comparable)
+                        compare_mse = reg_val_mse if reg_val_mse is not None else reg_mse
+                        actual_compare = actual_val_mse if actual_val_mse is not None else actual_final_mse
+                        mse_delta = abs(compare_mse - actual_compare)
+
+                        # Epoch count check
+                        epoch_match = abs(reg_epochs - len(mse_history)) <= 5
+
+                        registry_vs_curves[model_id[:50]] = {
+                            "registry_mse": reg_mse,
+                            "registry_val_mse": reg_val_mse,
+                            "curve_final_mse": actual_final_mse,
+                            "curve_val_mse": actual_val_mse,
+                            "delta": mse_delta,
+                            "n_epochs_registry": reg_epochs,
+                            "n_epochs_curve": len(mse_history),
+                            "epoch_match": epoch_match,
+                            "curve_file": curve_file.name,
+                            "consistent": mse_delta < 0.01 and epoch_match,
+                        }
+
+                        if mse_delta > 0.01:
+                            findings.append({
+                                "source_a": "model_registry",
+                                "source_b": "training_curves",
+                                "field": "final_mse",
+                                "value_a": compare_mse,
+                                "value_b": actual_compare,
+                                "delta": mse_delta,
+                                "severity": "medium",
+                                "model": model_id[:50],
+                                "explanation": (
+                                    f"Registry MSE={compare_mse:.4e} vs curve "
+                                    f"{actual_compare:.4e} (Δ={mse_delta:.4e}). "
+                                    f"Epochs: reg={reg_epochs} curve={len(mse_history)}. "
+                                    f"Curve file: {curve_file.name}"
+                                ),
+                            })
+                    except Exception:
+                        continue
+    except Exception:
+        pass
+
+    # ── Check B2: Eval report grades → zoo pass_rate_by_n coherence ──────
+    # If eval report shows grade F at N=30 but zoo doesn't have pass_rate_by_n
+    # for that N, flag it as missing data.
+    try:
+        eval_report_path = _ROOT / "results" / "model_evaluation_report.md"
+        if eval_report_path.exists():
+            eval_text = eval_report_path.read_text()
+            # Parse grades from markdown tables
+            current_topo = None
+            eval_grades: dict[str, dict[int, str]] = {}  # topo → {N: grade}
+            for line in eval_text.splitlines():
+                if line.startswith("## ") and " — " in line:
+                    current_topo = line.split(" — ")[0].replace("## ", "").strip()
+                if "|" in line and current_topo and line.count("|") >= 7:
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 8 and parts[1].isdigit():
+                        n_val = int(parts[1])
+                        grade = parts[-2].strip()
+                        if grade in ("A", "B", "C", "D", "F"):
+                            eval_grades.setdefault(current_topo, {})[n_val] = grade
+
+            # Cross-check: eval grades vs zoo pass_rate_by_n
+            for entry in zoo_entries:
+                if not entry.pass_rate_by_n:
+                    continue
+                topo = entry.topology
+                topo_grades = eval_grades.get(topo, {})
+                for n_str, pr in entry.pass_rate_by_n.items():
+                    n = int(n_str)
+                    grade = topo_grades.get(n)
+                    if grade is None:
+                        continue
+                    n_checks += 1
+                    # Grade→pass_rate rough mapping: A≥80%, B≥50%, C≥20%, D≥5%, F<5%
+                    expected_ranges = {
+                        "A": (0.50, 1.0), "B": (0.30, 0.80),
+                        "C": (0.10, 0.50), "D": (0.0, 0.30), "F": (0.0, 0.10),
+                    }
+                    lo, hi = expected_ranges.get(grade, (0, 1))
+                    if not (lo - 0.10 <= pr <= hi + 0.20):
+                        # Significant mismatch between grade and pass_rate
+                        findings.append({
+                            "source_a": "eval_report",
+                            "source_b": "zoo_pass_rate_by_n",
+                            "field": f"grade_vs_pass_rate N={n}",
+                            "value_a": grade,
+                            "value_b": pr,
+                            "delta": 0,
+                            "severity": "low",
+                            "is_informational": True,
+                            "model": f"{topo} N={n}",
+                            "explanation": (
+                                f"Eval report grade={grade} but zoo pass_rate_by_n={pr:.0%}. "
+                                f"Expected range for {grade}: [{lo:.0%}, {hi:.0%}]. "
+                                f"(Different h-ranges or evaluation conditions.)"
+                            ),
+                        })
+    except Exception:
+        pass
+
+    # ── Check C: Cross-N selection coherence ─────────────────────────────
+    cross_n_selection_issues: list[dict] = []
+    if dashboard:
+        for c in dashboard.get("configs", []):
+            best_source = c.get("cross_n_best_source")
+            if not best_source or c["n_qubits"] < 16:
+                continue
+
+            topo = c["topology"]
+            n_target = c["n_qubits"]
+            best_train_n = best_source.get("train_n")
+            best_pass = best_source.get("pass_rate_5pct", 0)
+
+            # Check: does the zoo model's training data cover this N?
+            for entry in zoo_entries:
+                if entry.topology == topo and entry.is_multi_n and entry.p_layers == 1:
+                    # The zoo model exists for this topology
+                    # Check if it was trained with data from best_train_n
+                    n_checks += 1
+                    # If zoo pass_rate_by_n has this N and it's much worse than
+                    # what cross_n_transfers says, there's a selection issue
+                    if entry.pass_rate_by_n:
+                        zoo_n_rate = entry.pass_rate_by_n.get(str(n_target), -1)
+                        if zoo_n_rate >= 0 and best_pass > 0:
+                            delta = best_pass - zoo_n_rate
+                            if delta > 0.20:
+                                cross_n_selection_issues.append({
+                                    "topology": topo,
+                                    "n_target": n_target,
+                                    "dashboard_best_source": f"train_N{best_train_n}",
+                                    "dashboard_pass": best_pass,
+                                    "zoo_model_pass_at_n": zoo_n_rate,
+                                    "delta": delta,
+                                    "issue": (
+                                        f"Dashboard says train_N{best_train_n} achieves "
+                                        f"{best_pass:.0%} at N={n_target}, but zoo model "
+                                        f"only shows {zoo_n_rate:.0%}. Model may need retrain "
+                                        f"with better source data."
+                                    ),
+                                })
+                    break
+
+    if cross_n_selection_issues:
+        for iss in cross_n_selection_issues:
+            findings.append({
+                "source_a": "dashboard_cross_n",
+                "source_b": "zoo_model",
+                "field": "pass_rate_at_n",
+                "value_a": iss["dashboard_pass"],
+                "value_b": iss["zoo_model_pass_at_n"],
+                "delta": iss["delta"],
+                "severity": "info",
+                "is_informational": True,
+                "model": f"{iss['topology']} N={iss['n_target']}",
+                "explanation": (
+                    f"{iss['issue']} "
+                    f"(Expected: multi-N generalist vs single-N specialist trade-off.)"
+                ),
+            })
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    # Only count non-informational findings as real issues
+    real_findings = [f for f in findings if not f.get("is_informational")]
+    n_issues = len(real_findings)
+    is_consistent = n_issues == 0
+
+    if verbose:
+        print(f"\n  Data Consistency Report ({n_checks} cross-checks)")
+        print(f"  {'─' * 50}")
+        if is_consistent and not findings:
+            print("  ✅ All sources are consistent")
+        elif is_consistent and findings:
+            print(f"  ✅ Consistent ({len(findings)} informational notes)")
+            for f in findings:
+                if f.get("is_informational"):
+                    print(f"  ℹ️  [{f['source_a']} ↔ {f['source_b']}] {f['model']}")
+                    print(f"     {f['explanation'][:100]}")
+        else:
+            for f in real_findings:
+                sev_icon = "🔴" if f["severity"] == "high" else "🟡"
+                print(f"  {sev_icon} [{f['source_a']} ↔ {f['source_b']}] {f['model']}")
+                print(f"     {f['explanation']}")
+            if findings != real_findings:
+                info_count = len(findings) - len(real_findings)
+                print(f"\n  + {info_count} informational note(s) (not errors)")
+            print(f"\n  Total: {n_issues} real inconsistencies")
+
+    # ── Tier 3: Advanced cross-validations (run non-blocking) ────────────
+    tier3_report: dict | None = None
+    try:
+        tier3_report = run_tier3_validations(verbose=verbose)
+        n_checks += tier3_report.get("eval_vs_comparison", {}).get("n_checked", 0)
+        tier3_issues = tier3_report.get("n_total_issues", 0)
+        if tier3_issues > 0:
+            n_issues += tier3_issues
+            is_consistent = False
+            if verbose:
+                print(f"\n  Tier 3: {tier3_report['summary']}")
+    except Exception as e:
+        logger.debug("validate_data_consistency: tier3 failed: %s", e)
+        tier3_report = {"error": str(e)}
+
+    return {
+        "is_consistent": is_consistent,
+        "n_checks": n_checks,
+        "n_issues": n_issues,
+        "findings": findings,
+        "zoo_vs_comparison": zoo_vs_comparison,
+        "registry_vs_curves": registry_vs_curves,
+        "cross_n_selection_issues": cross_n_selection_issues,
+        "tier3": tier3_report,
+    }
 
 
 def compute_scalability_score(
@@ -3143,14 +4312,21 @@ def auto_detect_exclusions(
                     n_points,
                     pass_dual,
                     pass_5pct,
-                    mean_abs_error=mean_abs_err,
                 )
 
                 if category == "not_useful":
                     # Parse topology and N from filename
-                    parsed = parse_npz_filename(npz_path.name)
-                    if parsed:
-                        topology, n_qubits, _p = parsed
+                    # Format: <topo>_N<n>_p<p>.npz
+                    stem = npz_path.stem
+                    parts = stem.split("_")
+                    n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+                    if n_idx is not None:
+                        topology = "_".join(parts[:n_idx])
+                        try:
+                            n_qubits = int(parts[n_idx][1:])
+                        except ValueError:
+                            topology = "unknown"
+                            n_qubits = 0
                     else:
                         topology = "unknown"
                         n_qubits = 0
@@ -3187,6 +4363,710 @@ def auto_detect_exclusions(
         save_training_exclusions(registry)
 
     return new_candidates
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Tier 3 — Cross-Validation & Advanced Coherence Checks
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def validate_eval_vs_comparison_gap(*, verbose: bool = False) -> dict:
+    """Tier 3 Validation #7: Detect eval report grade ↔ comparison pass_rate discrepancies.
+
+    The eval report measures *training data quality* (using θ_opt from NPZ),
+    while comparisons measure *deployment quality* (using θ_pred from MPNN).
+    Large discrepancies indicate:
+    - Eval grade A + comparison F → model cannot generalize (MPNN underfitting)
+    - Eval grade F + comparison A → stale eval report (model was retrained)
+
+    Returns
+    -------
+    dict
+        {
+            "n_checked": int,
+            "n_discrepancies": int,
+            "discrepancies": list[dict],
+            "note": str,  # Explanatory note for dashboard consumers
+        }
+    """
+    import json as _json
+
+    _ROOT = Path(__file__).resolve().parents[3]
+
+    # ── Load eval report grades (from model_evaluation_report.md) ────────
+    eval_report_path = _ROOT / "results" / "model_evaluation_report.md"
+    eval_grades: dict[str, dict[int, str]] = {}  # {topology: {N: grade}}
+
+    if eval_report_path.exists():
+        current_topo = None
+        for line in eval_report_path.read_text().splitlines():
+            # Detect topology headers: "## chain_1d — ..."
+            if line.startswith("## ") and "—" in line:
+                current_topo = line.split("##")[1].strip().split(" ")[0].strip()
+            # Parse table rows: "| 10 | IN | ... | A |"
+            if current_topo and line.startswith("|") and "|" in line[1:]:
+                cells = [c.strip() for c in line.split("|")[1:-1]]
+                if len(cells) >= 7 and cells[0].isdigit():
+                    try:
+                        n_val = int(cells[0])
+                        grade = cells[-1].strip()
+                        if grade in ("A", "B", "C", "D", "F"):
+                            eval_grades.setdefault(current_topo, {})[n_val] = grade
+                    except (ValueError, IndexError):
+                        pass
+
+    # ── Load latest comparison results per topology ──────────────────────
+    comp_dir = _ROOT / "results" / "model_comparison"
+    comp_pass_rates: dict[str, dict[int, float]] = {}  # {topology: {N: pass_rate_dual}}
+
+    if comp_dir.exists():
+        # Use latest comparison file per topology
+        for topo_dir in comp_dir.iterdir():
+            if not topo_dir.is_dir():
+                # Try exp_model_comparison structure
+                continue
+
+    # Also check experiments/exp_model_comparison/
+    exp_comp_dir = _ROOT / "results" / "experiments" / "exp_model_comparison"
+    if exp_comp_dir.exists():
+        for model_dir in exp_comp_dir.iterdir():
+            if not model_dir.is_dir():
+                continue
+            for topo_dir in model_dir.iterdir():
+                if not topo_dir.is_dir():
+                    continue
+                topo = topo_dir.name
+                # Find latest run
+                runs = sorted(topo_dir.glob("run_*.json"))
+                if not runs:
+                    continue
+                try:
+                    latest = _json.loads(runs[-1].read_text())
+                    models = latest.get("results", {}).get("models", [])
+                    # Use best model's results
+                    best_pass = 0.0
+                    best_by_n: dict[int, float] = {}
+                    for m in models:
+                        if "error" in m:
+                            continue
+                        results_by_n = m.get("results_by_n", {})
+                        rates = [
+                            v.get("pass_rate_dual", 0)
+                            for v in results_by_n.values()
+                        ]
+                        avg = float(np.mean(rates)) if rates else 0.0
+                        if avg > best_pass:
+                            best_pass = avg
+                            best_by_n = {
+                                int(n): v.get("pass_rate_dual", 0.0)
+                                for n, v in results_by_n.items()
+                            }
+                    if best_by_n:
+                        comp_pass_rates[topo] = best_by_n
+                except Exception:
+                    continue
+
+    # ── Cross-validate ───────────────────────────────────────────────────
+    discrepancies: list[dict] = []
+    n_checked = 0
+
+    # Grade → expected pass_rate range
+    grade_to_pass_range = {
+        "A": (0.60, 1.0),   # Grade A eval → deployment should be ≥60%
+        "B": (0.40, 1.0),   # Grade B → ≥40%
+        "C": (0.20, 1.0),   # Grade C → ≥20%
+        "D": (0.0, 1.0),    # Grade D → anything possible
+        "F": (0.0, 0.30),   # Grade F eval → deployment shouldn't be >30%
+    }
+
+    for topo in set(eval_grades.keys()) & set(comp_pass_rates.keys()):
+        for n_val in set(eval_grades[topo].keys()) & set(comp_pass_rates[topo].keys()):
+            n_checked += 1
+            grade = eval_grades[topo][n_val]
+            comp_rate = comp_pass_rates[topo][n_val]
+
+            expected_min, expected_max = grade_to_pass_range.get(grade, (0.0, 1.0))
+
+            # Case 1: Eval says A but comparison is terrible
+            if grade in ("A", "B") and comp_rate < expected_min:
+                discrepancies.append({
+                    "topology": topo,
+                    "n_qubits": n_val,
+                    "eval_grade": grade,
+                    "comparison_pass_rate": comp_rate,
+                    "severity": "high" if grade == "A" and comp_rate < 0.3 else "medium",
+                    "diagnosis": (
+                        "MPNN underfitting: training data quality is high "
+                        f"(grade {grade}) but deployment accuracy is low "
+                        f"({comp_rate:.0%}). Model cannot generalize θ_opt → θ_pred."
+                    ),
+                    "action": "retrain_with_more_data_or_epochs",
+                })
+
+            # Case 2: Eval says F but comparison is good (stale eval report)
+            if grade == "F" and comp_rate > expected_max:
+                discrepancies.append({
+                    "topology": topo,
+                    "n_qubits": n_val,
+                    "eval_grade": grade,
+                    "comparison_pass_rate": comp_rate,
+                    "severity": "low",
+                    "diagnosis": (
+                        "Stale eval report: eval gives F but comparison shows "
+                        f"{comp_rate:.0%}. Likely the model was retrained since "
+                        "last eval report generation."
+                    ),
+                    "action": "regenerate_eval_report",
+                })
+
+            if verbose and discrepancies and discrepancies[-1]["topology"] == topo:
+                d = discrepancies[-1]
+                logger.info(
+                    f"  Tier3 gap: {topo} N={n_val} eval={grade} comp={comp_rate:.0%} "
+                    f"→ {d['diagnosis'][:60]}..."
+                )
+
+    return {
+        "n_checked": n_checked,
+        "n_discrepancies": len(discrepancies),
+        "discrepancies": discrepancies,
+        "note": (
+            "eval_report measures training data quality (θ_opt from NPZ), "
+            "comparison measures deployment quality (θ_pred from MPNN). "
+            "Discrepancies are expected when model generalization is imperfect."
+        ),
+    }
+
+
+def detect_undertrained_models(*, verbose: bool = False) -> dict:
+    """Tier 3 Validation #8: Detect models whose training curves suggest incomplete training.
+
+    Analyzes training_metrics.loss_history from model_registry.json:
+    - If val_mse is still decreasing at the end → undertrained (more epochs needed)
+    - If final_val_mse > 2× best_val_mse → overfitting / instability
+    - If convergence_status == "unknown" with sufficient data → needs recomputation
+
+    A model flagged as "undertrained" is a prime candidate for resuming training
+    (more epochs) before initiating a full retrain.
+
+    Returns
+    -------
+    dict
+        {
+            "n_models_checked": int,
+            "n_undertrained": int,
+            "n_overfitting": int,
+            "n_unknown_convergence": int,
+            "undertrained": list[dict],  # [{model_id, topology, reason, details}]
+            "overfitting": list[dict],
+            "recommendations": list[str],
+        }
+    """
+    import json as _json
+
+    _ROOT = Path(__file__).resolve().parents[3]
+    registry_path = _ROOT / "data" / "model_zoo" / "model_registry.json"
+
+    if not registry_path.exists():
+        return {
+            "n_models_checked": 0,
+            "n_undertrained": 0,
+            "n_overfitting": 0,
+            "n_unknown_convergence": 0,
+            "undertrained": [],
+            "overfitting": [],
+            "recommendations": ["model_registry.json not found"],
+        }
+
+    registry = _json.loads(registry_path.read_text())
+    undertrained: list[dict] = []
+    overfitting: list[dict] = []
+    n_unknown = 0
+    n_checked = 0
+
+    for entry in registry:
+        if entry.get("status") != "active":
+            continue
+
+        model_id = entry.get("model_id", "unknown")
+        topology = entry.get("topology", "unknown")
+        training = entry.get("training", {})
+        metrics = training.get("training_metrics", {})
+
+        if not metrics:
+            continue
+
+        n_checked += 1
+        loss_history = metrics.get("loss_history", [])
+        final_val_mse = metrics.get("final_val_mse")
+        convergence_status = metrics.get("convergence_status", "unknown")
+        early_stopped = metrics.get("early_stopped", False)
+        epochs = metrics.get("epochs", 0)
+        best_epoch = metrics.get("best_epoch", 0)
+        generalization_gap = metrics.get("generalization_gap")
+
+        # ── Check 1: Still-decreasing loss → undertrained ────────────────
+        if loss_history and len(loss_history) >= 10:
+            # Compare last 20% of loss curve to second-to-last 20%
+            n = len(loss_history)
+            tail_20 = loss_history[int(0.8 * n):]
+            prev_20 = loss_history[int(0.6 * n):int(0.8 * n)]
+
+            if tail_20 and prev_20:
+                tail_mean = float(np.mean(tail_20))
+                prev_mean = float(np.mean(prev_20))
+
+                # If tail is still decreasing (>5% improvement in last segment)
+                if prev_mean > 0 and (prev_mean - tail_mean) / prev_mean > 0.05:
+                    undertrained.append({
+                        "model_id": model_id,
+                        "topology": topology,
+                        "reason": "loss_still_decreasing",
+                        "details": {
+                            "epochs_trained": epochs,
+                            "tail_mean_loss": round(tail_mean, 6),
+                            "prev_segment_mean": round(prev_mean, 6),
+                            "improvement_pct": round(
+                                100 * (prev_mean - tail_mean) / prev_mean, 1
+                            ),
+                            "early_stopped": early_stopped,
+                        },
+                        "recommendation": (
+                            f"Resume training for ~{max(50, epochs // 2)} more epochs. "
+                            f"Loss was still improving at epoch {epochs}."
+                        ),
+                    })
+                    if verbose:
+                        logger.info(
+                            f"  Tier3 undertrained: {model_id} "
+                            f"(loss ↓{(prev_mean - tail_mean)/prev_mean:.1%} in last segment)"
+                        )
+
+        # ── Check 2: final_val_mse >> best achievable → overfitting ──────
+        if final_val_mse is not None and best_epoch > 0 and epochs > 0:
+            # If best was achieved much earlier than end, model overfit
+            epoch_ratio = best_epoch / epochs if epochs > 0 else 1.0
+            if epoch_ratio < 0.6 and not early_stopped:
+                # Best epoch was in first 60% of training → later epochs overfit
+                overfitting.append({
+                    "model_id": model_id,
+                    "topology": topology,
+                    "reason": "best_epoch_early",
+                    "details": {
+                        "best_epoch": best_epoch,
+                        "total_epochs": epochs,
+                        "ratio": round(epoch_ratio, 2),
+                        "final_val_mse": final_val_mse,
+                        "convergence_status": convergence_status,
+                    },
+                    "recommendation": (
+                        f"Enable early stopping (patience=50) or reduce epochs to "
+                        f"~{int(best_epoch * 1.3)}. Model peaked at epoch {best_epoch}/{epochs}."
+                    ),
+                })
+
+        # ── Check 3: Generalization gap → potential overfitting ──────────
+        if generalization_gap is not None and generalization_gap > 0.5:
+            # Train MSE << Val MSE → overfitting
+            overfitting.append({
+                "model_id": model_id,
+                "topology": topology,
+                "reason": "high_generalization_gap",
+                "details": {
+                    "generalization_gap": round(generalization_gap, 4),
+                    "final_val_mse": final_val_mse,
+                },
+                "recommendation": (
+                    f"Generalization gap={generalization_gap:.2f} is too high. "
+                    "Consider: more training data, more dropout, or smaller model."
+                ),
+            })
+
+        # ── Check 4: Unknown convergence with enough info ────────────────
+        if convergence_status == "unknown" and epochs > 0:
+            n_unknown += 1
+
+    # ── Recommendations ──────────────────────────────────────────────────
+    recommendations: list[str] = []
+    if undertrained:
+        topo_counts = {}
+        for u in undertrained:
+            topo_counts[u["topology"]] = topo_counts.get(u["topology"], 0) + 1
+        worst_topo = max(topo_counts, key=topo_counts.get)
+        recommendations.append(
+            f"Priority: resume training for {worst_topo} models "
+            f"({topo_counts[worst_topo]} undertrained). Use --epochs +50%."
+        )
+    if overfitting:
+        recommendations.append(
+            f"{len(overfitting)} models show overfitting. "
+            "Enable early stopping with patience=50 in training config."
+        )
+    if n_unknown > 0:
+        recommendations.append(
+            f"{n_unknown} models have unknown convergence status. "
+            "Run audit_and_fix_model_zoo.py --fix to recompute."
+        )
+
+    return {
+        "n_models_checked": n_checked,
+        "n_undertrained": len(undertrained),
+        "n_overfitting": len(overfitting),
+        "n_unknown_convergence": n_unknown,
+        "undertrained": undertrained,
+        "overfitting": overfitting,
+        "recommendations": recommendations,
+    }
+
+
+def compute_smart_comparison_h_grid(
+    topology: str,
+    *,
+    h_min: float = 1.0,
+    h_max: float = 5.0,
+    n_points: int = 15,
+    dense_fraction: float = 0.5,
+) -> dict:
+    """Tier 3 Enhancement: Compute an adaptive h-grid for model comparisons.
+
+    Instead of using uniform h=[2.5, 5.0] or a fixed linspace, this uses the
+    empirical h_frontier from the dashboard to concentrate test points where
+    the model transitions from pass → fail. This reveals true deployment
+    quality in the critical region.
+
+    Strategy:
+    1. Load h_frontier for the topology from dashboard
+    2. If available → use ``generate_frontier_dense_h_grid`` centered on frontier
+    3. If not → fall back to nonuniform grid centered on h_critical=1.0 (TFIM)
+
+    Parameters
+    ----------
+    topology : str
+        Topology name (chain_1d, heavy_hex, ladder, square, triangular).
+    h_min : float
+        Minimum h-value for comparison grid.
+    h_max : float
+        Maximum h-value.
+    n_points : int
+        Number of h-points in the grid.
+    dense_fraction : float
+        Fraction of points to concentrate near the frontier.
+
+    Returns
+    -------
+    dict
+        {
+            "h_values": list[float],
+            "h_frontier_used": float | None,
+            "strategy": str,  # "frontier_dense" | "nonuniform" | "uniform"
+            "description": str,
+        }
+    """
+    import json as _json
+
+    _ROOT = Path(__file__).resolve().parents[3]
+    dash_path = _ROOT / "data" / "model_quality_dashboard.json"
+
+    h_frontier: float | None = None
+
+    # ── Try to get h_frontier from dashboard ─────────────────────────────
+    if dash_path.exists():
+        try:
+            dashboard = _json.loads(dash_path.read_text())
+            # Find best (lowest) h_frontier for this topology across all N/p
+            topo_configs = [
+                c for c in dashboard.get("configs", [])
+                if c.get("topology") == topology and c.get("h_frontier") is not None
+            ]
+            if topo_configs:
+                # Use the h_frontier from the largest N (most representative)
+                topo_configs.sort(key=lambda c: c.get("n_qubits", 0), reverse=True)
+                h_frontier = topo_configs[0]["h_frontier"]
+        except Exception:
+            pass
+
+    # ── Generate grid ────────────────────────────────────────────────────
+    if h_frontier is not None and h_min <= h_frontier <= h_max:
+        try:
+            from qmbp_simulation.pipeline.dataset_io import generate_frontier_dense_h_grid
+
+            grid = generate_frontier_dense_h_grid(
+                h_min=h_min,
+                h_max=h_max,
+                n_points=n_points,
+                h_frontier=h_frontier,
+                dense_fraction=dense_fraction,
+                include_below_frontier=True,
+            )
+            h_values = sorted([round(float(h), 2) for h in grid], reverse=True)
+            return {
+                "h_values": h_values,
+                "h_frontier_used": round(h_frontier, 3),
+                "strategy": "frontier_dense",
+                "description": (
+                    f"Adaptive grid with {int(dense_fraction*100)}% of points "
+                    f"near h_frontier={h_frontier:.3f} (empirical pass/fail boundary)"
+                ),
+            }
+        except Exception as e:
+            logger.debug(f"  compute_smart_comparison_h_grid: frontier grid failed: {e}")
+
+    # ── Fallback: nonuniform around h_critical=1.0 (TFIM default) ────────
+    if h_frontier is not None and h_frontier < h_min:
+        # Frontier is below our test range → most points should pass
+        # Use uniform grid (no need to densify where everything is easy)
+        h_values = [round(h, 2) for h in np.linspace(h_max, h_min, n_points).tolist()]
+        return {
+            "h_values": h_values,
+            "h_frontier_used": round(h_frontier, 3),
+            "strategy": "uniform",
+            "description": (
+                f"Uniform grid: h_frontier={h_frontier:.3f} is below test range "
+                f"[{h_min}, {h_max}], most points expected to pass."
+            ),
+        }
+
+    # No frontier data → nonuniform with TFIM h_c ≈ 1.0
+    try:
+        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+
+        h_critical = 1.0  # TFIM critical point
+        grid = generate_nonuniform_h_grid(
+            h_min=h_min,
+            h_max=h_max,
+            n_points=n_points,
+            h_critical=h_critical,
+            dense_fraction=dense_fraction,
+        )
+        h_values = sorted([round(float(h), 2) for h in grid], reverse=True)
+        return {
+            "h_values": h_values,
+            "h_frontier_used": None,
+            "strategy": "nonuniform",
+            "description": (
+                f"Nonuniform grid around h_c=1.0 (no empirical frontier for {topology})"
+            ),
+        }
+    except Exception:
+        # Final fallback: uniform
+        h_values = [round(h, 2) for h in np.linspace(h_max, h_min, n_points).tolist()]
+        return {
+            "h_values": h_values,
+            "h_frontier_used": None,
+            "strategy": "uniform",
+            "description": "Uniform grid (fallback)",
+        }
+
+
+def compute_cascading_retrain_plan(*, verbose: bool = False) -> dict:
+    """Tier 3 Enhancement: Compute a cascading retrain strategy using MT as warm-start.
+
+    Instead of retraining all 5 topology-specific models independently,
+    this computes a plan to:
+    1. Use the MT (multi-topology) model as starting checkpoint
+    2. Fine-tune for each topology independently
+    3. Prioritize topologies by their current gap to desired pass_rate
+
+    Uses existing infrastructure: ``run_finetune_from_mt.py``.
+
+    Returns
+    -------
+    dict
+        {
+            "mt_checkpoint": str | None,
+            "n_models_to_retrain": int,
+            "plan": list[dict],  # [{topology, priority, current_pass_rate, ...}]
+            "estimated_speedup": str,
+            "commands": list[str],  # Ready-to-run CLI commands
+        }
+    """
+    import json as _json
+
+    _ROOT = Path(__file__).resolve().parents[3]
+
+    # ── Find MT checkpoint ───────────────────────────────────────────────
+    mt_ckpt_path = _ROOT / "data" / "model_zoo" / "checkpoints"
+    mt_candidates = sorted(mt_ckpt_path.glob("*MT*residual*film*.pt"))
+    mt_checkpoint: str | None = None
+    if mt_candidates:
+        mt_checkpoint = str(mt_candidates[-1].relative_to(_ROOT))
+
+    # ── Load manifest for current pass_rates ─────────────────────────────
+    manifest_path = _ROOT / "data" / "model_zoo" / "manifest.json"
+    per_topo_models: dict[str, dict] = {}
+
+    if manifest_path.exists():
+        try:
+            manifest = _json.loads(manifest_path.read_text())
+            for entry in manifest:
+                topo = entry.get("topology", "")
+                # Skip the MT model itself
+                if "MT" in entry.get("checkpoint_file", ""):
+                    continue
+                # Keep the highest pass_rate per topology
+                current = per_topo_models.get(topo)
+                if current is None or entry.get("pass_rate", 0) > current.get("pass_rate", 0):
+                    per_topo_models[topo] = entry
+        except Exception:
+            pass
+
+    # ── Load retrain queue priorities ────────────────────────────────────
+    registry_path = _ROOT / "data" / "model_zoo" / "model_registry.json"
+    retrain_flags: dict[str, bool] = {}
+
+    if registry_path.exists():
+        try:
+            registry = _json.loads(registry_path.read_text())
+            for entry in registry:
+                if entry.get("status") != "active":
+                    continue
+                topo = entry.get("topology", "")
+                needs = entry.get("dashboard_quality", {}).get("needs_retrain", False)
+                if needs:
+                    retrain_flags[topo] = True
+        except Exception:
+            pass
+
+    # ── Build retrain plan ───────────────────────────────────────────────
+    TARGET_PASS_RATE = 0.7  # Target: 70% deployment pass rate
+    plan: list[dict] = []
+
+    for topo, model_info in sorted(per_topo_models.items()):
+        current_pass = model_info.get("pass_rate", 0.0)
+        n_training = model_info.get("n_training_points", 0)
+        gap_to_target = max(0, TARGET_PASS_RATE - current_pass)
+
+        # Only include if below target or flagged for retrain
+        if gap_to_target > 0 or retrain_flags.get(topo, False):
+            plan.append({
+                "topology": topo,
+                "priority": round(gap_to_target, 3),
+                "current_pass_rate": round(current_pass, 3),
+                "target_pass_rate": TARGET_PASS_RATE,
+                "gap_to_target": round(gap_to_target, 3),
+                "n_training_points": n_training,
+                "current_checkpoint": model_info.get("checkpoint_file", ""),
+                "needs_retrain_flagged": retrain_flags.get(topo, False),
+                "strategy": "finetune_from_mt" if mt_checkpoint else "retrain_from_scratch",
+            })
+
+    # Sort by priority (largest gap first)
+    plan.sort(key=lambda x: x["priority"], reverse=True)
+
+    # ── Generate CLI commands ────────────────────────────────────────────
+    commands: list[str] = []
+    ft_script = "scripts/experiment_runners/cross_topology/run_finetune_from_mt.py"
+    for item in plan:
+        if mt_checkpoint:
+            cmd = (
+                f".venv/bin/python {ft_script} "
+                f"--topology {item['topology']} "
+                f"--mt-checkpoint {mt_checkpoint} "
+                f"--epochs 200 --lr 5e-4"
+            )
+        else:
+            cmd = (
+                f".venv/bin/python scripts/experiment_runners/cross_topology/"
+                f"run_multi_topology_training.py "
+                f"--topology {item['topology']} --epochs 400"
+            )
+        commands.append(cmd)
+
+    # Speedup estimate
+    if mt_checkpoint and plan:
+        speedup = "~3-5× faster than training from scratch (warm-start converges in ~100-200 epochs vs 500+)"
+    else:
+        speedup = "No MT checkpoint available — full training required"
+
+    if verbose and plan:
+        logger.info(f"  Tier3 cascading retrain: {len(plan)} models to retrain")
+        for p in plan[:3]:
+            logger.info(
+                f"    {p['topology']}: pass_rate={p['current_pass_rate']:.0%} "
+                f"→ target={p['target_pass_rate']:.0%} (gap={p['gap_to_target']:.0%})"
+            )
+
+    return {
+        "mt_checkpoint": mt_checkpoint,
+        "n_models_to_retrain": len(plan),
+        "plan": plan,
+        "estimated_speedup": speedup,
+        "commands": commands,
+    }
+
+
+def run_tier3_validations(*, verbose: bool = False) -> dict:
+    """Run all Tier 3 cross-validations and return consolidated report.
+
+    Combines:
+    - Validation #7: Eval report grades ↔ comparison pass_rate
+    - Validation #8: Training curve convergence → model readiness
+    - Smart h-grid recommendations
+    - Cascading retrain strategy
+
+    This is the single entry point for Tier 3, callable from
+    ``validate_data_consistency()`` and ``post_experiment_sync()``.
+
+    Returns
+    -------
+    dict
+        {
+            "eval_vs_comparison": dict,
+            "training_convergence": dict,
+            "smart_h_grid": dict[str, dict],  # per-topology
+            "cascading_retrain": dict,
+            "summary": str,
+            "n_total_issues": int,
+        }
+    """
+    # ── Validation #7 ────────────────────────────────────────────────────
+    eval_comp = validate_eval_vs_comparison_gap(verbose=verbose)
+
+    # ── Validation #8 ────────────────────────────────────────────────────
+    convergence = detect_undertrained_models(verbose=verbose)
+
+    # ── Smart h-grid per topology ────────────────────────────────────────
+    topologies = ["chain_1d", "heavy_hex", "ladder", "square", "triangular"]
+    smart_grids: dict[str, dict] = {}
+    for topo in topologies:
+        try:
+            grid_info = compute_smart_comparison_h_grid(topology=topo)
+            # Only include if strategy is not plain uniform (i.e., we have useful data)
+            if grid_info["strategy"] != "uniform" or grid_info["h_frontier_used"] is not None:
+                smart_grids[topo] = grid_info
+        except Exception:
+            pass
+
+    # ── Cascading retrain ────────────────────────────────────────────────
+    retrain = compute_cascading_retrain_plan(verbose=verbose)
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    n_issues = (
+        eval_comp["n_discrepancies"]
+        + convergence["n_undertrained"]
+        + convergence["n_overfitting"]
+    )
+
+    parts = []
+    if eval_comp["n_discrepancies"] > 0:
+        parts.append(f"{eval_comp['n_discrepancies']} eval↔comparison gaps")
+    if convergence["n_undertrained"] > 0:
+        parts.append(f"{convergence['n_undertrained']} undertrained models")
+    if convergence["n_overfitting"] > 0:
+        parts.append(f"{convergence['n_overfitting']} overfitting models")
+    if retrain["n_models_to_retrain"] > 0:
+        parts.append(f"{retrain['n_models_to_retrain']} need retraining")
+
+    summary = " | ".join(parts) if parts else "All Tier 3 checks pass ✅"
+
+    return {
+        "eval_vs_comparison": eval_comp,
+        "training_convergence": convergence,
+        "smart_h_grid": smart_grids,
+        "cascading_retrain": retrain,
+        "summary": summary,
+        "n_total_issues": n_issues,
+    }
 
 
 def _infer_failure_mode(pass_dual: float, pass_5pct: float, mean_abs_error: float) -> str:

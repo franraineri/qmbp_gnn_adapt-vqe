@@ -21,16 +21,16 @@ Phases:
 
 Usage (CLI):
     # N=20 heavy_hex (requires IBM credentials)
-    python scripts/experiment_runners/hardware/run_parametric_deployment.py \
+    .venv/bin/python scripts/experiment_runners/hardware/run_parametric_deployment.py \
         --n-qubits 20 --topology heavy_hex --p-layers 1 \
         --h-test 4.0 3.5 3.0 --h-train 4.5 4.0 3.5 3.0 2.5
 
     # Dry run (cost estimation only, no QPU)
-    python scripts/experiment_runners/hardware/run_parametric_deployment.py \
+    .venv/bin/python scripts/experiment_runners/hardware/run_parametric_deployment.py \
         --n-qubits 20 --dry-run
 
     # FakeTorino rehearsal mode (no QPU credits, local noise simulation)
-    python scripts/experiment_runners/hardware/run_parametric_deployment.py \
+    .venv/bin/python scripts/experiment_runners/hardware/run_parametric_deployment.py \
         --n-qubits 20 --mode fake_backend
 
 Usage (Notebook):

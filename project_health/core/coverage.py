@@ -1098,7 +1098,7 @@ def _gap_zoo_coherence() -> list[CoverageGap]:
                         f"{zoo_report['n_corrupted']} corrupted checkpoints"
                     ),
                     recommendation=(
-                        "Run: python scripts/maintenance/audit_and_fix_model_zoo.py --fix"
+                        "Run: .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix"
                     ),
                     priority=Priority.HIGH,
                 )
@@ -1119,7 +1119,7 @@ def _gap_zoo_coherence() -> list[CoverageGap]:
                             f"but pass_rate=0 (never evaluated post-training)"
                         ),
                         recommendation=(
-                            "Run: python scripts/maintenance/reevaluate_zoo_models.py "
+                            "Run: .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py "
                             f"--topology {entry.topology}"
                         ),
                         priority=Priority.MEDIUM,
@@ -1160,7 +1160,7 @@ def _gap_zoo_coherence() -> list[CoverageGap]:
                                 f"vs npz_weighted={weighted_dual:.0%} (Δ={divergence:.0%})"
                             ),
                             recommendation=(
-                                "Run: python scripts/maintenance/check_zoo_coherence.py --fix"
+                                "Run: .venv/bin/python scripts/maintenance/check_zoo_coherence.py --fix"
                             ),
                             priority=Priority.MEDIUM,
                         )

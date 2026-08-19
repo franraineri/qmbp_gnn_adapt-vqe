@@ -5,8 +5,8 @@ QESEM jobs are submitted via QiskitFunctionsCatalog (not QiskitRuntimeService).
 They must be recovered via the catalog API, not the standard runtime job retrieval.
 
 Usage:
-    python scripts/recover_qesem_job.py 82aa33cc-862c-4ba1-8017-6ab61eb7054e
-    python scripts/recover_qesem_job.py 82aa33cc-862c-4ba1-8017-6ab61eb7054e --save results/recovered/
+    .venv/bin/python scripts/recover_qesem_job.py 82aa33cc-862c-4ba1-8017-6ab61eb7054e
+    .venv/bin/python scripts/recover_qesem_job.py 82aa33cc-862c-4ba1-8017-6ab61eb7054e --save results/recovered/
 """
 
 import os

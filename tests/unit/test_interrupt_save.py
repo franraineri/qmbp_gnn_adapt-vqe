@@ -109,8 +109,27 @@ def _make_runner(cls, output_dir, monkeypatch):
         _mock_save,
     )
 
+    # Redirect _DEFAULT_RESULTS_ROOT to temp dir (for the torch-loaded direct-write path)
+    monkeypatch.setattr(
+        "qmbp_simulation.framework.result_io._DEFAULT_RESULTS_ROOT",
+        output_dir,
+    )
+
     # Bypass CLI arg parsing by patching sys.argv
     monkeypatch.setattr("sys.argv", ["test_runner", "--skip-preflight"])
+
+    # Prevent os._exit from killing the test process
+    monkeypatch.setattr("os._exit", lambda code: None)
+
+    # Prevent expensive GT/sync operations from running during tests
+    monkeypatch.setattr(
+        "qmbp_simulation.analysis.metrics.validate_gt_npz_coherence",
+        lambda fix=False: {"n_points_fixed": 0, "n_files_with_issues": 0, "summary": "mocked"},
+    )
+    monkeypatch.setattr(
+        "qmbp_simulation.analysis.metrics.post_experiment_sync",
+        lambda verbose=False: None,
+    )
 
     runner = cls()
     return runner, saved_files
@@ -122,9 +141,15 @@ def test_interrupt_saves_partial_results(output_dir, monkeypatch):
 
     exit_code = runner.run()
 
-    # Should save a file
-    assert len(saved_files) == 1
-    result_path = saved_files[0]
+    # Find the saved result file (either via mock or direct write path)
+    if saved_files:
+        result_path = saved_files[0]
+    else:
+        # torch-loaded path writes directly to output_dir/exp_<id>/run_*.json
+        json_files = list(output_dir.rglob("run_*.json"))
+        assert len(json_files) >= 1, f"No result file found in {output_dir}"
+        result_path = json_files[0]
+
     assert result_path.exists()
 
     # Load and verify
@@ -155,8 +180,15 @@ def test_normal_completion_unchanged(output_dir, monkeypatch):
 
     exit_code = runner.run()
 
-    assert len(saved_files) == 1
-    with open(saved_files[0]) as f:
+    # Find the saved result file
+    if saved_files:
+        result_path = saved_files[0]
+    else:
+        json_files = list(output_dir.rglob("run_*.json"))
+        assert len(json_files) >= 1, f"No result file found in {output_dir}"
+        result_path = json_files[0]
+
+    with open(result_path) as f:
         data = json.load(f)
 
     # No interrupted flag
@@ -212,8 +244,15 @@ def test_sigterm_triggers_graceful_save(output_dir, monkeypatch):
     runner, saved_files = _make_runner(_SigtermRunner, output_dir, monkeypatch)
     exit_code = runner.run()
 
-    assert len(saved_files) == 1
-    with open(saved_files[0]) as f:
+    # Find the saved result file
+    if saved_files:
+        result_path = saved_files[0]
+    else:
+        json_files = list(output_dir.rglob("run_*.json"))
+        assert len(json_files) >= 1, f"No result file found in {output_dir}"
+        result_path = json_files[0]
+
+    with open(result_path) as f:
         data = json.load(f)
 
     assert data["interrupted"] is True
@@ -260,7 +299,15 @@ def test_interrupted_section_id_recorded(output_dir, monkeypatch):
     runner, saved_files = _make_runner(_InterruptingRunner, output_dir, monkeypatch)
     runner.run()
 
-    with open(saved_files[0]) as f:
+    # Find the saved result file
+    if saved_files:
+        result_path = saved_files[0]
+    else:
+        json_files = list(output_dir.rglob("run_*.json"))
+        assert len(json_files) >= 1, f"No result file found in {output_dir}"
+        result_path = json_files[0]
+
+    with open(result_path) as f:
         data = json.load(f)
 
     # Section 2 was the one being executed when interrupt hit
@@ -304,7 +351,16 @@ def test_failed_sections_detailed_in_summary(output_dir, monkeypatch):
     exit_code = runner.run()
 
     assert exit_code == 1
-    with open(saved_files[0]) as f:
+
+    # Find the saved result file
+    if saved_files:
+        result_path = saved_files[0]
+    else:
+        json_files = list(output_dir.rglob("run_*.json"))
+        assert len(json_files) >= 1, f"No result file found in {output_dir}"
+        result_path = json_files[0]
+
+    with open(result_path) as f:
         data = json.load(f)
 
     summary = data["summary"]

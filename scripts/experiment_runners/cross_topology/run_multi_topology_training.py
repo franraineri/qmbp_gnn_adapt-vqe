@@ -77,6 +77,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-register", dest="register_zoo", action="store_false")
     parser.add_argument("--auto-compare", action="store_true",
                         help="After registration, run model_comparison on all topologies to validate")
+    parser.add_argument("--regression-guard", action="store_true", default=True,
+                        help="Run active evaluation before registration to block regressions (default: True)")
+    parser.add_argument("--no-regression-guard", dest="regression_guard", action="store_false",
+                        help="Skip regression guard (allow any model to register)")
+    parser.add_argument("--force", action="store_true",
+                        help="Override pre-training readiness check (proceed despite issues)")
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -91,6 +97,51 @@ def main() -> int:
     print("=" * 70)
     print("Multi-Topology MPNN Training")
     print("=" * 70)
+
+    # ── Pre-training gate: validate readiness ────────────────────────────
+    from qmbp_simulation.predictors.training_intelligence import (
+        validate_training_readiness,
+        prepare_training_config,
+    )
+
+    # Resolve topologies (None = auto-detect from available data)
+    check_topologies = args.topologies
+    if check_topologies is None:
+        # Auto-detect: will be resolved later by MultiTopologyAggregator
+        # For validation, use all known topologies
+        check_topologies = ["chain_1d", "heavy_hex", "ladder", "square", "triangular"]
+
+    is_ready, readiness_issues = validate_training_readiness(
+        check_topologies,
+        min_useful_points=30,
+        min_h_coverage=0.50,
+    )
+    if readiness_issues:
+        print("\n  Pre-training validation:")
+        for issue in readiness_issues:
+            print(f"    ⚠️ {issue}")
+        if not is_ready and not getattr(args, "force", False):
+            print("\n  ❌ Training NOT ready. Fix issues above or use --force to override.")
+            return 1
+        elif not is_ready:
+            print("\n  ⚠️ Proceeding with --force despite issues.")
+    else:
+        print("  ✅ Pre-training validation passed")
+
+    # Prepare optimized config (informational)
+    config = prepare_training_config(
+        topologies=args.topologies,
+        max_n=args.max_n,
+        include_extrapolation=True,
+    )
+    if config.warnings:
+        print(f"\n  Training config warnings:")
+        for w in config.warnings[:3]:
+            print(f"    ⚠️ {w}")
+    print(f"  Data: {config.n_useful_points} useful pts, "
+          f"extrap={config.use_extrapolation_data} (weight={config.extrapolation_weight:.2f}), "
+          f"confidence={config.confidence}")
+    print()
 
     # ── Phase 1: Aggregate data ──────────────────────────────────────────
     t0 = time.perf_counter()
@@ -436,6 +487,7 @@ def main() -> int:
             },
             auto_diagnose=True,
             auto_sync_dashboard=False,  # Multi-topo not in per-topology dashboard
+            regression_guard=args.regression_guard,
         )
         print(f"  Registered: {checkpoint_file}")
 

@@ -20,9 +20,9 @@ Sections:
   5. Hardware readiness verdict — ΔE/gap < 5% check
 
 Usage:
-    python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py
-    python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py --topology chain_1d --n-qubits 6
-    python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py --dry-run
+    .venv/bin/python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py
+    .venv/bin/python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py --topology chain_1d --n-qubits 6
+    .venv/bin/python scripts/experiment_runners/noise_zne_gf_pea/run_pea_hardware_readiness.py --dry-run
 """
 
 from __future__ import annotations

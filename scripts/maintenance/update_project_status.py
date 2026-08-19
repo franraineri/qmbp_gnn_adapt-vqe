@@ -10,7 +10,7 @@ is rarely needed. Use `python -m project_health --refresh-status` as
 the canonical alternative.
 
 Usage:
-    python scripts/update_project_status.py
+    .venv/bin/python scripts/update_project_status.py
     python -m project_health --refresh-status    # equivalent
 """
 

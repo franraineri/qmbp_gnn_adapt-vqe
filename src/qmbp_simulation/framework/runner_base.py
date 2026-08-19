@@ -529,6 +529,22 @@ class ValidationRunner(ABC):
         if getattr(self._args, "resume", None):
             _resumed_sections = self._load_resume(self._args.resume)
 
+        # ─── Step 2c: Pre-analysis data integrity check ──────────────────
+        # Ensure NPZ e_exact values match GT cache before any analysis.
+        # GT cache is the authoritative ground truth source.
+        try:
+            from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence
+
+            coherence = validate_gt_npz_coherence(fix=True)
+            if coherence["n_points_fixed"] > 0:
+                logger.info(
+                    "Pre-analysis fix: corrected %d stale e_exact points in %d NPZ files",
+                    coherence["n_points_fixed"],
+                    coherence["n_files_with_issues"],
+                )
+        except Exception:
+            pass  # Non-blocking: continue even if check fails
+
         # ─── Step 3: Execute sections ────────────────────────────────────
         self._print_header(selected)
         interrupted = False
@@ -733,6 +749,8 @@ class ValidationRunner(ABC):
         except Exception:
             pass
 
+        from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence, post_experiment_sync; validate_gt_npz_coherence(fix=True); post_experiment_sync(verbose=False)
+
         # Print summary to console
         if not interrupted and saved_path:
             self._print_summary(total_elapsed, saved_path)
@@ -753,15 +771,11 @@ class ValidationRunner(ABC):
                 [
                     sys.executable,
                     "-c",
-                    "from qmbp_simulation.framework.result_index import ResultIndex; "
-                    "idx = ResultIndex(); idx.rebuild(); idx.refresh_status(); "
-                    "from qmbp_simulation.analysis.metrics import "
-                    "generate_model_quality_dashboard, auto_detect_exclusions; "
-                    "generate_model_quality_dashboard(); "
-                    "auto_detect_exclusions(); "
+                    "from qmbp_simulation.analysis.metrics import post_experiment_sync; "
+                    "post_experiment_sync(verbose=False); "
                     "from qmbp_simulation.predictors.model_zoo import "
                     "heal_manifest, compute_retrain_queue, _load_manifest, "
-                    "_CHECKPOINTS_DIR, update_zoo_pass_rate; "
+                    "_CHECKPOINTS_DIR; "
                     "heal_manifest(dry_run=False); "
                     "queue = compute_retrain_queue(); "
                     "print(f'Retrain queue: {len(queue)} models') if queue else None; "
@@ -3339,6 +3353,138 @@ class ValidationRunner(ABC):
         except Exception:
             pass  # Non-critical
 
+    def predict_with_model_routing(
+        self,
+        graph,
+        *,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        p_layers: int = 1,
+        model_name: str = "tfim_bond_resolved",
+    ) -> tuple[np.ndarray, dict]:
+        """Predict θ using selective model routing: pick best model per point.
+
+        Loads the top-K candidate models from the zoo (via explain_model_selection),
+        runs forward pass on each, and selects the prediction with lowest
+        uncertainty (MC-Dropout θ_std). Falls back to the single best model
+        if only one is available.
+
+        This gives better predictions in borderline regions where one model
+        may be confident while another is uncertain.
+
+        Parameters
+        ----------
+        graph : Data
+            PyG graph for the target (topology, N, h).
+        topology : str
+            Lattice topology.
+        n_qubits : int
+            System size.
+        h : float
+            Field strength.
+        p_layers : int
+            HVA depth.
+        model_name : str
+            Hamiltonian model.
+
+        Returns
+        -------
+        tuple[np.ndarray, dict]
+            (best_theta_pred, routing_info) where routing_info contains:
+            - "model_used": checkpoint filename of selected model
+            - "n_candidates": how many models were evaluated
+            - "theta_std": uncertainty of selected prediction
+            - "selection_reason": why this model was picked
+        """
+        import torch
+
+        from qmbp_simulation.predictors.model_zoo import (
+            _CHECKPOINTS_DIR,
+            explain_model_selection,
+        )
+        from qmbp_simulation.predictors.unified_mpnn import load_unified_checkpoint
+
+        # Get top candidates (max 3 for efficiency)
+        candidates = explain_model_selection(
+            topology, model=model_name, p_layers=p_layers, n_target=n_qubits,
+        )[:3]
+
+        if not candidates:
+            raise FileNotFoundError(f"No models for {topology}/{model_name}")
+
+        # If only 1 candidate, use it directly
+        if len(candidates) == 1:
+            ckpt = _CHECKPOINTS_DIR / candidates[0]["checkpoint"]
+            model = load_unified_checkpoint(str(ckpt))
+            model.eval()
+            with torch.no_grad():
+                pred = model(graph).numpy().flatten()
+            return pred, {
+                "model_used": candidates[0]["checkpoint"],
+                "n_candidates": 1,
+                "theta_std": 0.0,
+                "selection_reason": "only_candidate",
+            }
+
+        # Multiple candidates: predict with each, select by lowest uncertainty
+        best_pred = None
+        best_std = float("inf")
+        best_info = {}
+
+        for cand in candidates:
+            ckpt_path = _CHECKPOINTS_DIR / cand["checkpoint"]
+            if not ckpt_path.exists():
+                continue
+
+            try:
+                model = load_unified_checkpoint(str(ckpt_path))
+                model.eval()
+
+                with torch.no_grad():
+                    pred = model(graph).numpy().flatten()
+
+                # MC-Dropout uncertainty (quick: 3 passes)
+                theta_std = 0.0
+                if hasattr(model, "dropout_rate") and model.dropout_rate > 0:
+                    model.train()
+                    mc_preds = []
+                    with torch.no_grad():
+                        for seed in (42, 137, 256):
+                            torch.manual_seed(seed)
+                            mc_preds.append(model(graph).numpy().flatten())
+                    model.eval()
+                    theta_std = float(np.mean(np.std(mc_preds, axis=0)))
+
+                if theta_std < best_std:
+                    best_std = theta_std
+                    best_pred = pred
+                    best_info = {
+                        "model_used": cand["checkpoint"],
+                        "n_candidates": len(candidates),
+                        "theta_std": theta_std,
+                        "final_score": cand["final_score"],
+                        "selection_reason": "lowest_uncertainty",
+                    }
+            except Exception:
+                continue
+
+        if best_pred is None:
+            # Fallback: use first candidate without uncertainty
+            ckpt = _CHECKPOINTS_DIR / candidates[0]["checkpoint"]
+            model = load_unified_checkpoint(str(ckpt))
+            model.eval()
+            with torch.no_grad():
+                best_pred = model(graph).numpy().flatten()
+            best_info = {
+                "model_used": candidates[0]["checkpoint"],
+                "n_candidates": len(candidates),
+                "theta_std": 0.0,
+                "selection_reason": "fallback_no_uncertainty",
+            }
+
+        return best_pred, best_info
+
     def safe_compute_fidelity(
         self,
         circuit,
@@ -5470,11 +5616,11 @@ class ValidationRunner(ABC):
         }
 
     @staticmethod
-    def compute_theta_smoothness(theta_array) -> float | None:
+    def compute_theta_smoothness(theta_array) -> float:
         """Compute max L-inf change between consecutive θ vectors."""
         from qmbp_simulation.analysis.metrics import compute_theta_smoothness as _compute
 
-        return _compute(theta_array)
+        return _compute(theta_array) or 0.0
 
     @staticmethod
     def select_mpnn_hidden_dim(
