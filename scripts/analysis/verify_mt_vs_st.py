@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Verify MT vs ST comparison fairness and coherence."""
-import json
+
 import sys
 from pathlib import Path
 
@@ -50,7 +50,7 @@ def main():
     seen = set()
     duplicates = 0
     for s in summary["per_scenario"]:
-        key = (s["topology"], s["target_n"])
+        key = (s["topology"], s["n_qubits"])
         if key in seen:
             duplicates += 1
             print(f"\n  ⚠️ DUPLICATE scenario: {s['topology']} {s['target_n']}")
@@ -63,12 +63,14 @@ def main():
 
     # 4. N-range bias: are MT and ST evaluated at the same N?
     print("\n\n  Per-scenario details:")
-    print(f"  {'Topo':12} {'N':22} {'MT dE/gap':>10} {'ST dE/gap':>10} {'Win':>5} {'Fair?':>6}")
+    print(f"  {'Topo':12} {'N':>5} {'MT dE/gap':>10} {'ST dE/gap':>10} {'Win':>5} {'Fair?':>6}")
     print("  " + "-" * 72)
     for s in summary["per_scenario"]:
-        fair = "✅" if s["mt_de_gap"] < 2.0 and s["st_de_gap"] < 2.0 else "⚠️"
+        fair = "✅" if s["mt_mean_de_gap"] < 2.0 and s["st_mean_de_gap"] < 2.0 else "⚠️"
         win = "MT" if s["winner"] == "MT" else "ST"
-        print(f"  {s['topology']:12} {s['target_n']:22} {s['mt_de_gap']:>10.4f} {s['st_de_gap']:>10.4f} {win:>5} {fair:>6}")
+        print(
+            f"  {s['topology']:12} {s['n_qubits']:>5} {s['mt_mean_de_gap']:>10.4f} {s['st_mean_de_gap']:>10.4f} {win:>5} {fair:>6}"
+        )
 
     # 5. Margin analysis
     print("\n\nMARGIN ANALYSIS:")
@@ -77,10 +79,10 @@ def main():
     st_margins = []
     for s in summary["per_scenario"]:
         if s["winner"] == "MT":
-            ratio = s["st_de_gap"] / max(s["mt_de_gap"], 1e-6)
+            ratio = s["st_mean_de_gap"] / max(s["mt_mean_de_gap"], 1e-6)
             mt_margins.append(ratio)
         else:
-            ratio = s["mt_de_gap"] / max(s["st_de_gap"], 1e-6)
+            ratio = s["mt_mean_de_gap"] / max(s["st_mean_de_gap"], 1e-6)
             st_margins.append(ratio)
 
     if mt_margins:

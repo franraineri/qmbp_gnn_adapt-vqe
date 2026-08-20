@@ -13,7 +13,7 @@ import time
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, is_dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -644,14 +644,14 @@ def persist_training_curve(
     >>> from qmbp_simulation.utils.helpers import persist_training_curve
     >>> curve_path = persist_training_curve(train_result, Path("results/curves"))
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     mse_history = result.get("mse_history", [])
     if not mse_history:
         return None
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     curve_path = output_dir / f"{prefix}_{ts}.npz"
 
     curve_data = {
@@ -663,3 +663,273 @@ def persist_training_curve(
 
     np.savez_compressed(curve_path, **curve_data)
     return curve_path
+
+
+def tile_theta_for_higher_p(
+    theta_p_low: np.ndarray,
+    p_target: int,
+    p_source: int = 1,
+    *,
+    noise_std: float = 0.05,
+    noise_layers: str = "extra",
+    seed: int | None = None,
+    expected_n_params: int | None = None,
+) -> np.ndarray:
+    """Construct warm-start θ for higher p_layers by tiling lower-p solution.
+
+    For HVA circuits, repeating the same layer parameters is a natural
+    stationary point — the VQE converges much faster from this initialization
+    than from random. A small perturbation on additional layers breaks
+    symmetry and allows the optimizer to explore the expanded parameter space.
+
+    Parameters
+    ----------
+    theta_p_low : np.ndarray
+        Optimized θ from a lower p_layers circuit. Shape (n_params_per_layer * p_source,).
+    p_target : int
+        Target number of HVA layers (must be > p_source).
+    p_source : int
+        Number of layers in theta_p_low. Default 1.
+    noise_std : float
+        Standard deviation of Gaussian noise added to break symmetry.
+        Default 0.05 rad (~3°). Set to 0.0 for exact tiling.
+    noise_layers : str
+        Which layers get noise: "extra" (only new layers, default),
+        "all" (all layers including original).
+    seed : int | None
+        Random seed for reproducibility.
+    expected_n_params : int | None
+        If provided, validates that the output has exactly this many parameters.
+        Raises ValueError if mismatch (helps catch topology/p inconsistencies).
+
+    Returns
+    -------
+    np.ndarray
+        θ initialization for p_target layers. Shape (n_params_per_layer * p_target,).
+
+    Raises
+    ------
+    ValueError
+        If p_target <= p_source, theta is empty, dimensions inconsistent,
+        or expected_n_params doesn't match output.
+
+    Examples
+    --------
+    >>> theta_p1 = np.array([0.1, -0.2, 0.3])  # 3 params per layer, p=1
+    >>> theta_p2 = tile_theta_for_higher_p(theta_p1, p_target=2)
+    >>> theta_p2.shape
+    (6,)
+    >>> np.allclose(theta_p2[:3], theta_p1)  # first layer is exact copy
+    True
+    """
+    theta_p_low = np.asarray(theta_p_low, dtype=np.float64)
+
+    if p_target <= p_source:
+        raise ValueError(
+            f"p_target ({p_target}) must be > p_source ({p_source}). "
+            f"Use theta directly if p_target == p_source."
+        )
+
+    if theta_p_low.size == 0:
+        raise ValueError("theta_p_low is empty.")
+
+    if theta_p_low.size % p_source != 0:
+        raise ValueError(
+            f"theta_p_low size ({theta_p_low.size}) is not divisible by "
+            f"p_source ({p_source}). Cannot determine params_per_layer."
+        )
+
+    params_per_layer = theta_p_low.size // p_source
+    n_params_target = params_per_layer * p_target
+
+    # Tile: repeat the per-layer block to fill p_target layers
+    # For p_source=1 → p_target=2: [θ_layer1] → [θ_layer1, θ_layer1]
+    # For p_source=2 → p_target=4: [θ_l1, θ_l2] → [θ_l1, θ_l2, θ_l1, θ_l2]
+    n_repeats = p_target // p_source
+    remainder = p_target % p_source
+
+    theta_tiled = np.tile(theta_p_low, n_repeats)
+    if remainder > 0:
+        # Append first `remainder` layers for non-integer multiples
+        extra_params = params_per_layer * remainder
+        theta_tiled = np.concatenate([theta_tiled, theta_p_low[:extra_params]])
+
+    assert theta_tiled.size == n_params_target, (
+        f"Tiling bug: got {theta_tiled.size}, expected {n_params_target}"
+    )
+
+    # Add noise to break layer symmetry
+    if noise_std > 0:
+        rng = np.random.default_rng(seed)
+        noise = rng.normal(0, noise_std, n_params_target)
+
+        if noise_layers == "extra":
+            # Only perturb layers beyond the original p_source
+            noise[: theta_p_low.size] = 0.0
+        elif noise_layers == "all":
+            pass  # noise everywhere
+        else:
+            raise ValueError(f"noise_layers must be 'extra' or 'all', got '{noise_layers}'")
+
+        theta_tiled += noise
+
+    if expected_n_params is not None and theta_tiled.size != expected_n_params:
+        raise ValueError(
+            f"Tiled theta has {theta_tiled.size} params but circuit expects "
+            f"{expected_n_params}. This likely means the topology/N doesn't "
+            f"produce (n_edges + N) * p_target = {expected_n_params} parameters. "
+            f"(theta_p_low.size={theta_p_low.size}, p_source={p_source}, "
+            f"p_target={p_target}, params_per_layer={params_per_layer})"
+        )
+
+    return theta_tiled
+
+
+def load_theta_from_npz(
+    topology: str,
+    n_qubits: int,
+    p_layers: int = 1,
+    h_values: np.ndarray | None = None,
+    source: str = "multi_n_training",
+) -> dict[float, np.ndarray] | None:
+    """Load θ_opt from an existing NPZ file for warm-start or analysis.
+
+    General-purpose NPZ loader for any (topology, N, p) combination.
+    Reads from `data/{source}/{topology}_N{n}_p{p}.npz` and returns
+    a dict mapping h → θ_opt for each available h-point.
+
+    Use cases:
+    - Warm-starting p=2 VQE from p=1 solutions (tile after loading)
+    - Loading checkpoint data for analysis/comparison
+    - Seeding iterative improvement from previous round
+
+    Parameters
+    ----------
+    topology : str
+        Lattice topology name.
+    n_qubits : int
+        System size.
+    p_layers : int
+        HVA depth of the data to load. Default 1.
+    h_values : np.ndarray | None
+        If provided, only return entries for these h-values (nearest match
+        with tolerance 1e-4). If None, return all available.
+    source : str
+        Subdirectory under `data/`. Default "multi_n_training".
+        Other option: "large_n_extrapolation".
+
+    Returns
+    -------
+    dict[float, np.ndarray] | None
+        Mapping h → θ_opt array. None if no data exists or all entries
+        have NaN/Inf values.
+    """
+    project_root = Path(__file__).resolve().parents[3]
+    npz_path = project_root / "data" / source / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+
+    if not npz_path.exists():
+        return None
+
+    try:
+        data = np.load(npz_path, allow_pickle=True)
+        h_stored = np.asarray(data["h_values"], dtype=np.float64)
+        theta_stored = data["theta_opt"]
+
+        if h_values is None:
+            result = {}
+            for i in range(len(h_stored)):
+                theta_i = np.asarray(theta_stored[i], dtype=np.float64)
+                if np.all(np.isfinite(theta_i)):
+                    result[float(h_stored[i])] = theta_i
+            return result if result else None
+
+        # Match requested h-values to nearest stored (tolerance 1e-4)
+        h_values = np.asarray(h_values, dtype=np.float64)
+        result = {}
+        for h_req in h_values:
+            diffs = np.abs(h_stored - h_req)
+            idx = int(np.argmin(diffs))
+            if diffs[idx] < 1e-4:
+                theta_i = np.asarray(theta_stored[idx], dtype=np.float64)
+                if np.all(np.isfinite(theta_i)):
+                    result[float(h_req)] = theta_i
+
+        return result if result else None
+    except Exception:
+        return None
+
+
+def load_p1_theta_for_warmstart(
+    topology: str,
+    n_qubits: int,
+    h_values: np.ndarray | None = None,
+) -> dict[float, np.ndarray] | None:
+    """Load θ_opt from p=1 NPZ for use as warm-start seed when running p>1.
+
+    Convenience wrapper around ``load_theta_from_npz`` for the common
+    pattern of loading p=1 data to tile into p=2 initialization.
+
+    Parameters
+    ----------
+    topology : str
+        Lattice topology name.
+    n_qubits : int
+        System size.
+    h_values : np.ndarray | None
+        If provided, only return entries for these h-values (nearest match).
+        If None, return all available.
+
+    Returns
+    -------
+    dict[float, np.ndarray] | None
+        Mapping h → θ_p1 array. None if no p=1 data exists.
+    """
+    return load_theta_from_npz(topology, n_qubits, p_layers=1, h_values=h_values)
+
+
+def compute_npz_fingerprint(npz_path: Path | str) -> str:
+    """Compute a stable fingerprint for an NPZ training data file.
+
+    Hashes the content of h_values + theta_opt + e_vqe arrays to create
+    a unique identifier. Changes when any training point is added, modified,
+    or removed. Used for:
+    - Tracking whether a model was trained on this exact data version
+    - Detecting post-training data corruption/modification
+    - Enabling reproducibility verification
+
+    Parameters
+    ----------
+    npz_path : Path | str
+        Path to the NPZ file.
+
+    Returns
+    -------
+    str
+        12-character hex hash uniquely identifying the data content.
+
+    Example
+    -------
+    >>> fp = compute_npz_fingerprint("data/multi_n_training/chain_1d_N10_p1.npz")
+    >>> print(fp)  # e.g., "a3f8b21c4e9d"
+    """
+    import hashlib
+
+    npz_path = Path(npz_path)
+    if not npz_path.exists():
+        return "missing"
+
+    try:
+        data = np.load(str(npz_path), allow_pickle=True)
+        h = np.asarray(data.get("h_values", []), dtype=np.float64)
+        theta = data.get("theta_opt", np.array([]))
+        e = np.asarray(data.get("e_vqe", []), dtype=np.float64)
+
+        # Hash the raw bytes of the key arrays
+        hasher = hashlib.sha256()
+        hasher.update(h.tobytes())
+        if hasattr(theta, 'tobytes'):
+            hasher.update(np.asarray(theta, dtype=np.float64).tobytes())
+        hasher.update(e.tobytes())
+        return hasher.hexdigest()[:12]
+    except Exception:
+        return "error"

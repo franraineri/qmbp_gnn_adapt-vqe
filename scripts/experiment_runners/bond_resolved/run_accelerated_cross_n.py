@@ -60,11 +60,11 @@ DEFAULT_TARGET_N = [20]
 DEFAULT_P = 1
 DEFAULT_TOPOLOGY = "chain_1d"
 DEFAULT_H_MIN = 2.0
-DEFAULT_H_MAX = 3.5
-DEFAULT_H_POINTS = 14
+DEFAULT_H_MAX = 4.5
+DEFAULT_H_POINTS = 15
 DEFAULT_N_ANCHORS = 14
-DEFAULT_MAXITER = 1500
-DEFAULT_N_RESTARTS = 10
+DEFAULT_MAXITER = 1000
+DEFAULT_N_RESTARTS = 4
 DEFAULT_MAX_REFINE_PER_ITER = 50
 
 FINE_TUNE_EPOCHS = 500
@@ -673,6 +673,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # Persist training curve for post-hoc analysis
         try:
             from qmbp_simulation.utils.helpers import persist_training_curve
+
             persist_training_curve(
                 train_result,
                 output_dir=Path("results/training_curves"),
@@ -707,7 +708,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
             date_tag=make_date_tag(),
         )
         register_checkpoint_with_training_metrics(
-            model, entry,
+            model,
+            entry,
             training_result=train_result,
             overwrite=True,
             architecture_config={
@@ -723,6 +725,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # Auto-persist training curve
         try:
             from qmbp_simulation.utils.helpers import persist_training_curve
+
             persist_training_curve(
                 train_result,
                 output_dir=Path("results/training_curves"),
@@ -829,78 +832,80 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 _interrupted = False
 
                 try:
-                  for h in self._h_values:
-                    # Build unified graph for N_target
-                    g = build_unified_bond_resolved_graph(
-                        lattice_target,
-                        h_value=float(h),
-                        p_layers=p,
-                        include_circuit_nodes=True,
-                    )
-                    with torch.no_grad():
-                        theta_pred = model(g).numpy().flatten()
-
-                    theta_pred = np.clip(theta_pred, -np.pi, np.pi)
-
-                    # MC-Dropout uncertainty estimation (reuses model method)
-                    theta_std = 0.0
-                    if hasattr(model, "predict_with_uncertainty"):
-                        _, theta_std = model.predict_with_uncertainty(g)
-
-                    # Verify param count matches circuit
-                    if len(theta_pred) != n_params_target:
-                        logger.warning(
-                            f"    Param mismatch at h={h:.2f}: "
-                            f"predicted {len(theta_pred)}, need {n_params_target}"
+                    for h in self._h_values:
+                        # Build unified graph for N_target
+                        g = build_unified_bond_resolved_graph(
+                            lattice_target,
+                            h_value=float(h),
+                            p_layers=p,
+                            include_circuit_nodes=True,
                         )
-                        if len(theta_pred) < n_params_target:
-                            theta_pred = np.pad(theta_pred, (0, n_params_target - len(theta_pred)))
-                        else:
-                            theta_pred = theta_pred[:n_params_target]
+                        with torch.no_grad():
+                            theta_pred = model(g).numpy().flatten()
 
-                    # Evaluate energy via CachedBackend
-                    lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
-                    H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
-                    eval_backend.set_h(float(h))
-                    e_pred = eval_backend.evaluate(circuit_target, H, theta_pred)
+                        theta_pred = np.clip(theta_pred, -np.pi, np.pi)
 
-                    # Ground truth via parent's cached exact_ground_state
-                    e_exact, gap = self.exact_ground_state(
-                        topo, n_target, float(h), model="tfim_bond_resolved"
-                    )
+                        # MC-Dropout uncertainty estimation (reuses model method)
+                        theta_std = 0.0
+                        if hasattr(model, "predict_with_uncertainty"):
+                            _, theta_std = model.predict_with_uncertainty(g)
 
-                    de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
-                    abs_err = abs(e_pred - e_exact)
-
-                    # Fidelity via parent's compute_fidelity (only N ≤ 22)
-                    fidelity = None
-                    if n_target <= STATEVECTOR_MAX_N:
-                        try:
-                            gt_obj = solver.solve(H, lat_h)
-                            if gt_obj.ground_state is not None:
-                                fidelity = float(
-                                    self.compute_fidelity(
-                                        circuit_target, theta_pred, gt_obj.ground_state
-                                    )
+                        # Verify param count matches circuit
+                        if len(theta_pred) != n_params_target:
+                            logger.warning(
+                                f"    Param mismatch at h={h:.2f}: "
+                                f"predicted {len(theta_pred)}, need {n_params_target}"
+                            )
+                            if len(theta_pred) < n_params_target:
+                                theta_pred = np.pad(
+                                    theta_pred, (0, n_params_target - len(theta_pred))
                                 )
-                        except (MemoryError, ValueError):
-                            fidelity = None
+                            else:
+                                theta_pred = theta_pred[:n_params_target]
 
-                    per_h_result = self.build_per_h_result(
-                        h,
-                        e_pred,
-                        e_exact,
-                        gap,
-                        fidelity=fidelity,
-                        n_params=len(theta_pred),
-                    )
-                    per_h_result["theta_std"] = theta_std
-                    per_h_results.append(per_h_result)
-                    fid_str = f"F={fidelity:.4f}" if fidelity is not None else "F=N/A(N>22)"
-                    logger.info(
-                        f"    h={h:.2f}: ΔE/gap={de_gap:.4f} {fid_str} "
-                        f"|ΔE|={abs_err:.2e} [{len(theta_pred)} params]"
-                    )
+                        # Evaluate energy via CachedBackend
+                        lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                        H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                        eval_backend.set_h(float(h))
+                        e_pred = eval_backend.evaluate(circuit_target, H, theta_pred)
+
+                        # Ground truth via parent's cached exact_ground_state
+                        e_exact, gap = self.exact_ground_state(
+                            topo, n_target, float(h), model="tfim_bond_resolved"
+                        )
+
+                        de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+                        abs_err = abs(e_pred - e_exact)
+
+                        # Fidelity via parent's compute_fidelity (only N ≤ 22)
+                        fidelity = None
+                        if n_target <= STATEVECTOR_MAX_N:
+                            try:
+                                gt_obj = solver.solve(H, lat_h)
+                                if gt_obj.ground_state is not None:
+                                    fidelity = float(
+                                        self.compute_fidelity(
+                                            circuit_target, theta_pred, gt_obj.ground_state
+                                        )
+                                    )
+                            except (MemoryError, ValueError):
+                                fidelity = None
+
+                        per_h_result = self.build_per_h_result(
+                            h,
+                            e_pred,
+                            e_exact,
+                            gap,
+                            fidelity=fidelity,
+                            n_params=len(theta_pred),
+                        )
+                        per_h_result["theta_std"] = theta_std
+                        per_h_results.append(per_h_result)
+                        fid_str = f"F={fidelity:.4f}" if fidelity is not None else "F=N/A(N>22)"
+                        logger.info(
+                            f"    h={h:.2f}: ΔE/gap={de_gap:.4f} {fid_str} "
+                            f"|ΔE|={abs_err:.2e} [{len(theta_pred)} params]"
+                        )
 
                 except KeyboardInterrupt:
                     _interrupted = True
@@ -1072,6 +1077,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 # ── Uncertainty calibration (θ_std vs ΔE/gap) ─────────
                 from qmbp_simulation.analysis.metrics import compute_uncertainty_correlation
+
                 uc_report = compute_uncertainty_correlation(per_h_results)
 
                 key = f"p{p}_N{n_target}"
@@ -1081,7 +1087,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     "p_layers": p,
                     "n_params": n_params_target,
                     **summary,
-                    "uncertainty_calibration": uc_report if uc_report["n_points_with_uncertainty"] >= 3 else None,
+                    "uncertainty_calibration": uc_report
+                    if uc_report["n_points_with_uncertainty"] >= 3
+                    else None,
                     "fidelity_available": n_target <= STATEVECTOR_MAX_N,
                     "active_learning_applied": n_refined > 0,
                     "n_refined": n_refined,
@@ -1464,7 +1472,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     + (", arch=residual" if use_residual else ""),
                 )
                 register_checkpoint_with_training_metrics(
-                    model, entry,
+                    model,
+                    entry,
                     training_result=boot_train_result,
                     overwrite=True,
                     architecture_config={
@@ -1490,10 +1499,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
         if zoo_best_pass_rate < 0.01:
             try:
                 from qmbp_simulation.predictors.model_zoo import _load_manifest
+
                 _existing = [
-                    e for e in _load_manifest()
-                    if e.topology == topo and e.model == "tfim_bond_resolved"
-                    and e.p_layers == p and e.n_qubits == 0
+                    e
+                    for e in _load_manifest()
+                    if e.topology == topo
+                    and e.model == "tfim_bond_resolved"
+                    and e.p_layers == p
+                    and e.n_qubits == 0
                 ]
                 if _existing:
                     zoo_best_pass_rate = max(e.pass_rate for e in _existing)
@@ -2116,6 +2129,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # Persist training curve (auto, non-blocking)
                 try:
                     from qmbp_simulation.utils.helpers import persist_training_curve
+
                     persist_training_curve(
                         train_result,
                         output_dir=Path("results/training_curves"),
@@ -2147,7 +2161,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         + (", arch=residual" if use_residual else ""),
                     )
                     register_checkpoint_with_training_metrics(
-                        model, entry,
+                        model,
+                        entry,
                         training_result=train_result,
                         overwrite=True,
                         architecture_config={

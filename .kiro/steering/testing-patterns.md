@@ -87,22 +87,13 @@ When adding a new feature to `src/qmbp_simulation/`:
 | `qmbp_simulation.utils` | `tests/unit/test_utils.py` |
 | `qmbp_simulation.models` | `tests/unit/test_models.py` |
 | `qmbp_simulation.solvers` | `tests/unit/test_solvers.py` |
-| `qmbp_simulation.circuits` | `tests/unit/test_circuits.py` |
-| `qmbp_simulation.execution` | `tests/unit/test_execution.py` |
 | `qmbp_simulation.optimizers` | `tests/unit/test_optimizers.py` |
 | `qmbp_simulation.predictors` | `tests/unit/test_predictors.py` |
 | `qmbp_simulation.pipeline` | `tests/unit/test_pipeline.py` |
 | `qmbp_simulation.framework` | `tests/unit/test_framework.py` |
-| MPNN evaluation helpers (runner_base) | `tests/mpnn/test_mpnn_eval_helpers.py` |
-| MPNN evaluation extended helpers (sections 15-19) | `tests/mpnn/test_mpnn_eval_extended.py` |
 | `qmbp_simulation.analysis` | `tests/unit/test_analysis.py` |
 | Import dependency order | `tests/unit/test_imports.py` |
 | Smoke test (all imports) | `tests/integration/test_smoke.py` |
 | End-to-end pipeline | `tests/integration/test_pipeline_e2e.py` |
 | Backward compatibility | `tests/integration/test_backward_compat.py` |
-| `project_health.engine` | `tests/project_health/test_project_health.py` |
-| `project_health.digest` (scanner, formatters, CLI) | `tests/project_health/test_digest.py` |
 | `project_health.analysis.diagnose` | `tests/project_health/test_diagnose.py` |
-| `project_health.compare` (ResultStore) | `tests/project_health/test_compare.py` |
-| `project_health.analysis` (scan_coverage, heisenberg, validate_s) | `tests/project_health/test_analysis_tools.py` |
-| `project_health` (state, coverage, verify, sanity, scaling, reporter, models) | `tests/project_health/test_project_health_coverage.py` |

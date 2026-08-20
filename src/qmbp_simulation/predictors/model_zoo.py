@@ -118,7 +118,9 @@ class ZooEntry:
     checkpoint_file: str
     h_range: tuple[float, float] = (1.0, 3.5)
     pass_rate: float = 0.0
-    pass_rate_source: str = ""  # "training_data_eval" | "extrapolation_eval" | "cross_n_deployment" | ""
+    pass_rate_source: str = (
+        ""  # "training_data_eval" | "extrapolation_eval" | "cross_n_deployment" | ""
+    )
     n_training_points: int = 0
     seeds: list[int] = field(default_factory=list)
     created: str = ""
@@ -128,6 +130,7 @@ class ZooEntry:
     date_tag: str = ""  # DDMMYY format
     training_quality_score: float = -1.0  # [0,1] composite quality, -1 = not computed
     pass_rate_by_n: dict = field(default_factory=dict)  # {str(n): float} per-N pass rates
+    run_json: str = ""  # Path to training run JSON envelope (traceability/reproducibility)
 
     def matches(
         self,
@@ -215,7 +218,8 @@ def prune_test_entries(*, dry_run: bool = True) -> list[str]:
     entries = _load_manifest()
     test_patterns = ("test_", "kiro_test_")
     to_prune = [
-        e.checkpoint_file for e in entries
+        e.checkpoint_file
+        for e in entries
         if any(e.checkpoint_file.lower().startswith(p) for p in test_patterns)
     ]
     if not dry_run and to_prune:
@@ -242,10 +246,7 @@ def list_multi_topology_entries(*, p_layers: int = 1) -> list[ZooEntry]:
         Multi-topology entries sorted by n_training_points (descending).
     """
     entries = _load_manifest()
-    mt = [
-        e for e in entries
-        if e.is_multi_topology and e.p_layers == p_layers
-    ]
+    mt = [e for e in entries if e.is_multi_topology and e.p_layers == p_layers]
     return sorted(mt, key=lambda e: e.n_training_points, reverse=True)
 
 
@@ -264,8 +265,9 @@ def _get_extrapolation_performance(topology: str, entry: ZooEntry) -> float | No
         Average pass_rate@5% across all N values for this topology,
         or None if no extrapolation data exists.
     """
-    import numpy as _np
     from pathlib import Path as _Path
+
+    import numpy as _np
 
     extrap_dir = _Path(__file__).resolve().parents[3] / "data" / "large_n_extrapolation"
     if not extrap_dir.exists():
@@ -346,6 +348,7 @@ def load_best_model_for_topology(
     db_records = {}
     try:
         from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
+
         _db = ModelRegistryDB()
         for r in _db.list_all():
             db_records[r.model_id] = r
@@ -355,6 +358,7 @@ def load_best_model_for_topology(
     dashboard_configs = {}
     try:
         import json as _json
+
         _dash_path = _PROJECT_ROOT / "data" / "model_quality_dashboard.json"
         if _dash_path.exists():
             _dash = _json.loads(_dash_path.read_text())
@@ -403,7 +407,9 @@ def load_best_model_for_topology(
             db_rec = db_records.get(entry.checkpoint_file)
             if db_rec and db_rec.evaluations:
                 latest_eval = db_rec.evaluations[-1]
-                n_values_evaluated = len(latest_eval.target_n_values) if latest_eval.target_n_values else 0
+                n_values_evaluated = (
+                    len(latest_eval.target_n_values) if latest_eval.target_n_values else 0
+                )
                 if n_values_evaluated >= 4:
                     pass_confidence = min(1.0, pass_confidence + 0.1)  # Bonus for broad eval
                 elif n_values_evaluated <= 1:
@@ -444,7 +450,7 @@ def load_best_model_for_topology(
         db_rec = db_records.get(entry.checkpoint_file)
         if db_rec and db_rec.training and db_rec.training.training_metrics:
             tm = db_rec.training.training_metrics
-            if hasattr(tm, 'final_mse') and tm.final_mse > 0:
+            if hasattr(tm, "final_mse") and tm.final_mse > 0:
                 # Lower MSE = better convergence
                 if tm.final_mse < 0.05:
                     convergence_signal = 1.0
@@ -454,16 +460,17 @@ def load_best_model_for_topology(
                     convergence_signal = 0.4
                 else:
                     convergence_signal = 0.2
-            if hasattr(tm, 'status') and tm.status == "converged":
+            if hasattr(tm, "status") and tm.status == "converged":
                 convergence_signal = min(1.0, convergence_signal + 0.1)
 
         # ── Signal 4: freshness (recent models preferred) ────────────────
         freshness_signal = 0.5
         if entry.created:
             try:
-                from datetime import datetime, timezone
+                from datetime import datetime
+
                 created_dt = datetime.fromisoformat(entry.created.replace("Z", "+00:00"))
-                age_days = (datetime.now(timezone.utc) - created_dt).days
+                age_days = (datetime.now(UTC) - created_dt).days
                 freshness_signal = max(0.3, 1.0 - age_days / 30.0)  # Decays over 30 days
             except (ValueError, TypeError):
                 pass
@@ -497,7 +504,7 @@ def load_best_model_for_topology(
         else:
             raw_score = (
                 0.10 * pass_rate_signal  # 0.3 floor × 0.10 = minimal contribution
-                + 0.40 * data_signal     # Data quality dominates
+                + 0.40 * data_signal  # Data quality dominates
                 + 0.35 * convergence_signal
                 + 0.15 * freshness_signal
             )
@@ -509,26 +516,37 @@ def load_best_model_for_topology(
 
     # Pool 1: per-topology multi-N
     for e in entries:
-        if (e.topology == topology and e.model == model
-                and e.p_layers == p_layers and e.n_qubits == 0
-                and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()):
+        if (
+            e.topology == topology
+            and e.model == model
+            and e.p_layers == p_layers
+            and e.n_qubits == 0
+            and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+        ):
             score = _score_entry(e, 1.0)
             candidates.append((score, e, "per_topology"))
 
     # Pool 2: multi-topology
     if include_multi_topology:
         for e in entries:
-            if (e.topology == "multi_topology" and e.model == model
-                    and e.p_layers == p_layers
-                    and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()):
+            if (
+                e.topology == "multi_topology"
+                and e.model == model
+                and e.p_layers == p_layers
+                and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+            ):
                 score = _score_entry(e, 0.95)
                 candidates.append((score, e, "multi_topology"))
 
     # Pool 3: single-N
     for e in entries:
-        if (e.topology == topology and e.model == model
-                and e.p_layers == p_layers and e.n_qubits > 0
-                and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()):
+        if (
+            e.topology == topology
+            and e.model == model
+            and e.p_layers == p_layers
+            and e.n_qubits > 0
+            and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+        ):
             score = _score_entry(e, 0.85)
             candidates.append((score, e, "single_n"))
 
@@ -546,8 +564,11 @@ def load_best_model_for_topology(
     logger.info(
         "load_best_model_for_topology(%s): %s model selected "
         "(score=%.3f, pass=%.0f%%, pts=%d, ckpt=%s)",
-        topology, source, best_score,
-        best_entry.pass_rate * 100, best_entry.n_training_points,
+        topology,
+        source,
+        best_score,
+        best_entry.pass_rate * 100,
+        best_entry.n_training_points,
         best_entry.checkpoint_file[:40],
     )
 
@@ -595,12 +616,39 @@ def explain_model_selection(
     results: list[dict] = []
 
     source_configs = [
-        ([e for e in entries if e.topology == topology and e.model == model
-          and e.p_layers == p_layers and e.n_qubits == 0], "per_topology", 1.0),
-        ([e for e in entries if e.topology == "multi_topology" and e.model == model
-          and e.p_layers == p_layers], "multi_topology", 0.95),
-        ([e for e in entries if e.topology == topology and e.model == model
-          and e.p_layers == p_layers and e.n_qubits > 0], "single_n", 0.85),
+        (
+            [
+                e
+                for e in entries
+                if e.topology == topology
+                and e.model == model
+                and e.p_layers == p_layers
+                and e.n_qubits == 0
+            ],
+            "per_topology",
+            1.0,
+        ),
+        (
+            [
+                e
+                for e in entries
+                if e.topology == "multi_topology" and e.model == model and e.p_layers == p_layers
+            ],
+            "multi_topology",
+            0.95,
+        ),
+        (
+            [
+                e
+                for e in entries
+                if e.topology == topology
+                and e.model == model
+                and e.p_layers == p_layers
+                and e.n_qubits > 0
+            ],
+            "single_n",
+            0.85,
+        ),
     ]
 
     for pool, source_label, multiplier in source_configs:
@@ -610,18 +658,20 @@ def explain_model_selection(
             readiness = compute_model_readiness(e, n_target=n_target)
             raw = readiness["readiness_score"]
             final = raw * multiplier
-            results.append({
-                "checkpoint": e.checkpoint_file,
-                "topology": e.topology,
-                "source": source_label,
-                "raw_readiness": round(raw, 4),
-                "penalty_factor": multiplier,
-                "final_score": round(final, 4),
-                "pass_rate": e.pass_rate,
-                "n_training_points": e.n_training_points,
-                "recommendation": readiness["recommendation"],
-                "selected": False,
-            })
+            results.append(
+                {
+                    "checkpoint": e.checkpoint_file,
+                    "topology": e.topology,
+                    "source": source_label,
+                    "raw_readiness": round(raw, 4),
+                    "penalty_factor": multiplier,
+                    "final_score": round(final, 4),
+                    "pass_rate": e.pass_rate,
+                    "n_training_points": e.n_training_points,
+                    "recommendation": readiness["recommendation"],
+                    "selected": False,
+                }
+            )
 
     results.sort(key=lambda x: x["final_score"], reverse=True)
     if results:
@@ -657,14 +707,12 @@ def heal_manifest(*, dry_run: bool = True) -> dict:
 
     # 1. Missing checkpoints
     missing = [
-        e.checkpoint_file for e in entries
-        if not (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+        e.checkpoint_file for e in entries if not (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
     ]
 
     # 2. Orphan files
     orphans = [
-        f.name for f in sorted(_CHECKPOINTS_DIR.glob("*.pt"))
-        if f.name not in manifest_files
+        f.name for f in sorted(_CHECKPOINTS_DIR.glob("*.pt")) if f.name not in manifest_files
     ]
 
     # 3. Duplicates (keep last occurrence)
@@ -684,10 +732,7 @@ def heal_manifest(*, dry_run: bool = True) -> dict:
 
     if not dry_run and (missing or duplicates):
         # Remove missing + deduplicate
-        clean = [
-            e for e in entries
-            if (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
-        ]
+        clean = [e for e in entries if (_CHECKPOINTS_DIR / e.checkpoint_file).exists()]
         # Deduplicate: keep last occurrence (most recent registration)
         deduped = {}
         for e in clean:
@@ -700,7 +745,10 @@ def heal_manifest(*, dry_run: bool = True) -> dict:
         logger.info(
             "heal_manifest: removed %d entries (%d missing, %d duplicates). "
             "%d orphan .pt files on disk.",
-            n_removed, len(missing), len(duplicates), len(orphans),
+            n_removed,
+            len(missing),
+            len(duplicates),
+            len(orphans),
         )
 
     return result
@@ -1368,7 +1416,6 @@ def load_pretrained(
     return mpnn, best
 
 
-
 def _get_contaminated_model_ids(
     model: str,
     topology: str,
@@ -1556,6 +1603,51 @@ def _validate_zoo_entry(entry: ZooEntry) -> None:
         )
 
 
+def _next_version_filename(base_filename: str) -> str:
+    """Compute the next versioned filename for a checkpoint.
+
+    Given "model_p1.pt", if "model_p1.pt" exists on disk, returns "model_p1_v2.pt".
+    If "model_p1_v2.pt" already exists, returns "model_p1_v3.pt", etc.
+
+    Handles edge cases:
+    - Input already has version suffix ("model_v2.pt") → strips it first, then increments
+    - Multiple versions exist → finds max and returns +1
+
+    Returns the FIRST available versioned filename.
+    """
+    import re as _re
+
+    # Strip any existing version suffix to get the canonical base
+    # Pattern: _v{N}.pt at the end
+    stem = Path(base_filename).stem
+    suffix = Path(base_filename).suffix  # .pt
+
+    # Remove existing _v{N} suffix to get canonical base
+    base_stem = _re.sub(r"_v\d+$", "", stem)
+
+    # Scan existing files in checkpoints dir to find max version
+    existing_versions: list[int] = []
+
+    # The base file (no version) counts as v1
+    base_path = _CHECKPOINTS_DIR / f"{base_stem}{suffix}"
+    if base_path.exists():
+        existing_versions.append(1)
+
+    # Scan for _v{N} files
+    for f in _CHECKPOINTS_DIR.glob(f"{base_stem}_v*{suffix}"):
+        match = _re.search(r"_v(\d+)" + _re.escape(suffix) + "$", f.name)
+        if match:
+            existing_versions.append(int(match.group(1)))
+
+    if not existing_versions:
+        # No existing file — use the base name as-is
+        return base_filename
+
+    # Next version = max + 1
+    next_v = max(existing_versions) + 1
+    return f"{base_stem}_v{next_v}{suffix}"
+
+
 def register_checkpoint(
     model,
     entry: ZooEntry,
@@ -1623,7 +1715,9 @@ def register_checkpoint(
             from qmbp_simulation.predictors.retrain_loop import regression_guardrail
 
             allowed, guard_reason = regression_guardrail(
-                model, entry, tolerance=regression_tolerance,
+                model,
+                entry,
+                tolerance=regression_tolerance,
             )
             if not allowed:
                 # Save to _candidates/ for manual review
@@ -1638,11 +1732,14 @@ def register_checkpoint(
                 # Save checkpoint to candidates
                 try:
                     from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN as _UM
+
                     if isinstance(model, _UM):
                         from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+
                         save_unified_checkpoint(model, str(candidate_path))
                     else:
                         from qmbp_simulation.predictors.mpnn import save_mpnn_checkpoint
+
                         save_mpnn_checkpoint(model, str(candidate_path))
                 except Exception:
                     pass
@@ -1654,7 +1751,9 @@ def register_checkpoint(
 
     # ── Quality gate: require_improvement ────────────────────────────────
     if require_improvement and overwrite:
-        existing_entries = [e for e in _load_manifest() if e.checkpoint_file == entry.checkpoint_file]
+        existing_entries = [
+            e for e in _load_manifest() if e.checkpoint_file == entry.checkpoint_file
+        ]
         if existing_entries:
             existing = existing_entries[0]
             # Block if existing is evaluated AND has more training data
@@ -1678,11 +1777,14 @@ def register_checkpoint(
                 # Save checkpoint to candidates dir
                 try:
                     from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN as _UM
+
                     if isinstance(model, _UM):
                         from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+
                         save_unified_checkpoint(model, str(candidate_path))
                     else:
                         from qmbp_simulation.predictors.mpnn import save_mpnn_checkpoint
+
                         save_mpnn_checkpoint(model, str(candidate_path))
                 except Exception:
                     pass
@@ -1698,138 +1800,74 @@ def register_checkpoint(
         logger.warning("Checkpoint already exists: %s. Use overwrite=True to replace.", ckpt_path)
         return ckpt_path
 
-    # ── ANTI-REGRESSION + AUTO-VERSION: preserve ALL previous checkpoints ─
-    # When overwriting, we:
-    # 1. Copy existing to _versions/ with incremental version number
-    # 2. Copy to _best/ if it has the highest pass_rate seen
-    # 3. Mark old model as superseded in ModelRegistryDB
-    # 4. The new model ALWAYS gets saved (no interactive prompts, no timeouts)
-    if ckpt_path.exists() and overwrite:
-        # Find existing manifest entry for this config
-        existing_entries = _load_manifest()
-        existing_entry = next(
-            (
-                e
-                for e in existing_entries
-                if e.model == entry.model
-                and e.topology == entry.topology
-                and e.n_qubits == entry.n_qubits
-                and e.p_layers == entry.p_layers
-            ),
-            None,
-        )
-
-        old_pass_rate = (existing_entry.pass_rate or 0.0) if existing_entry else 0.0
-        new_pass_rate = entry.pass_rate or 0.0
-        old_pts = (existing_entry.n_training_points or 0) if existing_entry else 0
-
-        # ── _versions/: sequential archive (NEVER lose any model) ────────
-        from qmbp_simulation.utils.helpers import versioned_backup
-
-        _sidecar = {
-            "pass_rate": old_pass_rate,
-            "n_training_points": old_pts,
-            "date_tag": existing_entry.date_tag if existing_entry else "",
-            "superseded_by": entry.checkpoint_file,
-            "superseded_at": entry.date_tag,
-        }
-        _versioned_path, _version_num = versioned_backup(
-            ckpt_path,
-            version_dir=_CHECKPOINTS_DIR / "_versions",
-            sidecar_metadata=_sidecar,
-        )
-
-        # Derive base stem for logging and _best/ naming (use same regex as versioned_backup)
-        import re as _re_ver
-
-        from qmbp_simulation.utils.helpers import _VERSION_SUFFIX_RE
-
-        _base_stem = _re_ver.sub(_VERSION_SUFFIX_RE, "", ckpt_path.stem)
-        _suffix = ckpt_path.suffix
-
-        _old_info = f" ({old_pts} pts, pass={old_pass_rate:.0%})" if existing_entry else ""
+    # ── VERSIONING: when file exists, save new model with _v{N+1} suffix ──
+    # NEVER overwrite an existing checkpoint. The old model stays in place,
+    # the new model gets a versioned filename. Both coexist in checkpoints/.
+    # This prevents the data loss that caused the phantom model issues.
+    if ckpt_path.exists():
+        versioned_name = _next_version_filename(entry.checkpoint_file)
         logger.info(
-            "  Zoo auto-version: %s%s → _versions/%s_v%d%s  |  New: %d pts, pass=%.0f%%",
-            ckpt_path.name,
-            _old_info,
-            _base_stem,
-            _version_num,
-            _suffix,
-            entry.n_training_points,
-            new_pass_rate * 100,
+            "  Zoo version-up: %s already exists → saving new model as %s",
+            entry.checkpoint_file,
+            versioned_name,
         )
+        # Update entry to use versioned filename
+        entry.checkpoint_file = versioned_name
+        ckpt_path = _CHECKPOINTS_DIR / versioned_name
 
-        # ── _best/: keep the highest pass_rate version for quick recovery ─
-        best_dir = _CHECKPOINTS_DIR / "_best"
-        best_dir.mkdir(parents=True, exist_ok=True)
+    # ── ANTI-REGRESSION: track version lineage in ModelRegistryDB ─────────
+    # Record the supersession relationship for provenance tracking.
+    if ckpt_path.name != entry.checkpoint_file:
+        pass  # Already updated above
 
-        if existing_entry is not None:
-            import shutil as _shutil_ver
+    # Find existing manifest entry for this config (for provenance)
+    existing_entries_list = _load_manifest()
+    existing_entry = next(
+        (
+            e
+            for e in existing_entries_list
+            if e.model == entry.model
+            and e.topology == entry.topology
+            and e.n_qubits == entry.n_qubits
+            and e.p_layers == entry.p_layers
+        ),
+        None,
+    )
 
-            backup_name = (
-                f"{_base_stem}_pass{old_pass_rate:.0%}"
-                f"_{existing_entry.date_tag or 'nodate'}{_suffix}"
-            ).replace("%", "pct")
-            backup_path = best_dir / backup_name
-            if not backup_path.exists():
-                _shutil_ver.copy2(ckpt_path, backup_path)
-                logger.info(
-                    "  Zoo anti-regression: backed up %s (pass=%.0f%%) → _best/%s",
-                    ckpt_path.name,
-                    old_pass_rate * 100,
-                    backup_name,
-                )
+    if existing_entry is not None:
+        old_pass_rate = existing_entry.pass_rate or 0.0
+        new_pass_rate = entry.pass_rate or 0.0
 
-        # Warn if new model is worse (but still save it — never block)
-        if new_pass_rate < old_pass_rate - 0.01:
-            logger.warning(
-                "  ⚠️ Zoo DOWNGRADE: %s pass_rate %.0f%% → %.0f%%. "
-                "Previous best preserved in _best/ and _versions/.",
-                entry.topology,
-                old_pass_rate * 100,
-                new_pass_rate * 100,
-            )
-
-            # ── AUTO-ROLLBACK: severe regression (>30% relative drop) ────
-            # If new model is drastically worse, don't overwrite the
-            # production checkpoint. Save new model as candidate in _versions/
-            # and keep the existing model in place.
-            relative_drop = (old_pass_rate - new_pass_rate) / max(old_pass_rate, 0.01)
-            if relative_drop > 0.30 and old_pass_rate > 0.3:
-                logger.warning(
-                    "  🔄 AUTO-ROLLBACK: regression too severe (%.0f%% relative drop). "
-                    "New model saved to _versions/ as candidate. "
-                    "Production checkpoint unchanged.",
-                    relative_drop * 100,
-                )
-                # The new model was already saved to _versions/ above.
-                # Return the existing (better) checkpoint path without overwriting.
-                return ckpt_path
-
-        # ── ModelRegistryDB: mark old model superseded + record event ────
+        # ── ModelRegistryDB: record version lineage ──────────────────────
         try:
             from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
 
             _db = ModelRegistryDB()
-            _old_model_id = existing_entry.checkpoint_file if existing_entry else None
-            if _old_model_id:
-                _db.mark_superseded(_old_model_id, superseded_by=entry.checkpoint_file)
-                _db._record_event(
-                    "auto_versioned",
-                    _old_model_id,
-                    topology=entry.topology,
-                    details={
-                        "version_number": _version_num,
-                        "versioned_path": str(_versioned_path.name),
-                        "old_pass_rate": old_pass_rate,
-                        "old_n_training_points": old_pts,
-                        "new_pass_rate": new_pass_rate,
-                        "new_n_training_points": entry.n_training_points,
-                        "new_model_id": entry.checkpoint_file,
-                    },
-                )
+            _db._record_event(
+                "auto_versioned",
+                existing_entry.checkpoint_file,
+                topology=entry.topology,
+                details={
+                    "new_model_id": entry.checkpoint_file,
+                    "old_pass_rate": old_pass_rate,
+                    "new_pass_rate": new_pass_rate,
+                    "old_n_training_points": existing_entry.n_training_points,
+                    "new_n_training_points": entry.n_training_points,
+                },
+            )
         except Exception as _e_db:
-            logger.debug("ModelRegistryDB auto-version tracking failed (non-critical): %s", _e_db)
+            logger.debug("ModelRegistryDB version tracking failed (non-critical): %s", _e_db)
+
+        # Warn if new model has lower pass_rate (informational only, never blocks)
+        if new_pass_rate > 0 and new_pass_rate < old_pass_rate - 0.01:
+            logger.warning(
+                "  ⚠️ New model %s has lower pass_rate (%.0f%%) than existing %s (%.0f%%). "
+                "Both versions preserved.",
+                entry.checkpoint_file,
+                new_pass_rate * 100,
+                existing_entry.checkpoint_file,
+                old_pass_rate * 100,
+            )
 
     if hasattr(model, "training") and model.training:
         logger.warning(
@@ -1885,20 +1923,8 @@ def register_checkpoint(
         except Exception:
             entry.training_quality_score = 0.0
 
-    # Update manifest
+    # Update manifest (ADD new entry, keep existing entries intact)
     entries = _load_manifest()
-    # Remove existing entry for same config if overwriting
-    if overwrite:
-        entries = [
-            e
-            for e in entries
-            if not (
-                e.model == entry.model
-                and e.topology == entry.topology
-                and e.n_qubits == entry.n_qubits
-                and e.p_layers == entry.p_layers
-            )
-        ]
     entries.append(entry)
     _save_manifest(entries)
 
@@ -1936,6 +1962,7 @@ def register_checkpoint_with_training_metrics(
     optimizer_config: dict | None = None,
     regression_guard: bool = False,
     regression_tolerance: float = 0.10,
+    run_json_path: str = "",
 ) -> Path:
     """Register checkpoint and capture training metrics in one call.
 
@@ -1945,9 +1972,7 @@ def register_checkpoint_with_training_metrics(
     - Integrates with ModelRegistryDB for full provenance tracking
     - Auto-runs failure diagnostics post-registration
     - Auto-syncs dashboard quality data
-
-    This is the recommended function for pipeline runners to use after
-    training, as it captures full training provenance automatically.
+    - Records run_json path for traceability/reproducibility
 
     Parameters
     ----------
@@ -1960,41 +1985,63 @@ def register_checkpoint_with_training_metrics(
         If provided, metrics are extracted and stored in ModelRegistryDB.
         Expected keys: final_mse, n_epochs_run, stopped_early, stop_reason, etc.
     overwrite : bool
-        If True, overwrite existing entry for the same config.
+        If True, allow saving even if a model for the same config exists.
+        The new model gets a versioned filename (_v2, _v3, etc.) — the old
+        model is NEVER deleted or overwritten.
     auto_tag : bool
-        If True (default), auto-add tags based on pass_rate:
-        - pass_rate ≥ 0.90 → "production"
-        - pass_rate ≥ 0.70 → "validated"
-        - pass_rate < 0.50 → "experimental"
+        If True (default), auto-add tags based on pass_rate.
     auto_diagnose : bool
         If True (default), run failure diagnostics after registration.
-        Detects: gap_masking, contaminated_training, intrinsic_vqe_error, etc.
     auto_sync_dashboard : bool
         If True (default), sync dashboard quality data after registration.
     architecture_config : dict | None
-        Model architecture config: {hidden_dim, n_conv_layers, n_heads, ...}
-        Stored for reproducibility.
+        Model architecture config for reproducibility.
     optimizer_config : dict | None
-        Optimizer config: {learning_rate, weight_decay, scheduler_patience, ...}
-        Stored for reproducibility.
+        Optimizer config for reproducibility.
+    run_json_path : str
+        Path to the training run JSON envelope for traceability. Stored in
+        ZooEntry.run_json so the training can be traced and reproduced.
 
     Returns
     -------
     Path
-        Path to the saved checkpoint file.
-
-    Example
-    -------
-    >>> model = UnifiedMPNN(...)
-    >>> train_result = train_unified_mpnn(model, dataset, n_epochs=4000)
-    >>> entry = ZooEntry(model="tfim_br", topology="chain_1d", ...)
-    >>> path = register_checkpoint_with_training_metrics(
-    ...     model, entry, training_result=train_result, overwrite=True
-    ... )
+        Path to the saved checkpoint file (may have _v{N} suffix).
     """
+    # ── Safety-first: persist model to _recovery/ BEFORE registration ────
+    # Protects against crashes in regression_guardrail, validation, or
+    # manifest update. Cleaned up on success.
+    _recovery_path = None
+    try:
+        _recovery_dir = _CHECKPOINTS_DIR / "_recovery"
+        _recovery_dir.mkdir(parents=True, exist_ok=True)
+        _recovery_path = _recovery_dir / f"pre_register_{entry.checkpoint_file}"
+        try:
+            from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN as _UM_check
+
+            if isinstance(model, _UM_check):
+                from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+
+                save_unified_checkpoint(model, str(_recovery_path))
+            else:
+                from qmbp_simulation.predictors.mpnn import save_mpnn_checkpoint
+
+                save_mpnn_checkpoint(model, str(_recovery_path))
+            logger.debug("Safety backup saved: %s", _recovery_path.name)
+        except Exception as _e_recovery:
+            logger.debug("Safety backup failed (non-critical): %s", _e_recovery)
+            _recovery_path = None
+    except Exception:
+        _recovery_path = None
+
+    # Set run_json for traceability (before saving, so it's in the manifest)
+    if run_json_path:
+        entry.run_json = run_json_path
+
     # Save checkpoint via standard function
     ckpt_path = register_checkpoint(
-        model, entry, overwrite=overwrite,
+        model,
+        entry,
+        overwrite=overwrite,
         regression_guard=regression_guard,
         regression_tolerance=regression_tolerance,
     )
@@ -2063,6 +2110,14 @@ def register_checkpoint_with_training_metrics(
                 db.add_tag(entry.checkpoint_file, "experimental")
         except Exception as e:
             logger.debug("Auto-tagging failed (non-critical): %s", e)
+
+    # ── Clean up safety backup (registration succeeded) ───────────────────
+    if _recovery_path and _recovery_path.exists():
+        try:
+            _recovery_path.unlink()
+            logger.debug("Cleaned up safety backup: %s", _recovery_path.name)
+        except Exception:
+            pass
 
     return ckpt_path
 
@@ -2260,9 +2315,7 @@ def update_zoo_pass_rate_by_n(
             )
             break
     else:
-        logger.warning(
-            "update_zoo_pass_rate_by_n: checkpoint '%s' not found", checkpoint_file
-        )
+        logger.warning("update_zoo_pass_rate_by_n: checkpoint '%s' not found", checkpoint_file)
         return False
 
     if updated:
@@ -2716,5 +2769,3 @@ def get_training_data_quality(
         "npz_path": str(npz_files[0]) if len(npz_files) == 1 else f"{len(npz_files)} files",
         "warnings": warnings,
     }
-
-

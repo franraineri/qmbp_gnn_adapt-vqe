@@ -22,25 +22,18 @@ When asked to test or verify functionality:
 | `qmbp_simulation.utils` | `tests/unit/test_utils.py` |
 | `qmbp_simulation.models` | `tests/unit/test_models.py` |
 | `qmbp_simulation.solvers` | `tests/unit/test_solvers.py` |
-| `qmbp_simulation.circuits` | `tests/unit/test_circuits.py` |
-| `qmbp_simulation.execution` | `tests/unit/test_execution.py` |
 | `qmbp_simulation.execution.hardware` | `tests/unit/test_layout_optimizer.py`, `tests/integration/test_layout_optimizer_integration.py` |
-| `qmbp_simulation.execution.mitiq_utils` | `tests/mitigation_benchmark/test_mitiq_integration.py` |
 | `qmbp_simulation.optimizers` | `tests/unit/test_optimizers.py` |
 | `qmbp_simulation.predictors` | `tests/unit/test_predictors.py` |
 | `qmbp_simulation.pipeline` | `tests/unit/test_pipeline.py` |
 | `qmbp_simulation.framework` | `tests/unit/test_framework.py` |
 | `qmbp_simulation.analysis` | `tests/unit/test_analysis.py` |
-| `project_health` | `tests/project_health/test_project_health_coverage.py` |
-| `project_health.digest` | `tests/project_health/test_digest.py` |
-| MPNN eval helpers | `tests/mpnn/test_mpnn_eval_helpers.py`, `tests/mpnn/test_mpnn_eval_extended.py` |
 
 ### How to Run Tests
 
 ```bash
 make test              # Fast tests only (~12s)
 make test-full         # All tests including @pytest.mark.slow (~60s)
-pytest tests/unit/test_circuits.py -v   # Specific module
 pytest tests/ -k "test_specific_name"   # By name
 ```
 

@@ -1098,7 +1098,11 @@ def check_clarity(files: list[Path], report: VerificationReport, *, fix: bool = 
     scanned_paths = {f.resolve() for f in files}
 
     # Rules we consider noise for steering files (too chatty, not actionable)
-    skip_rules = {"content-unlinked-internal-reference"}
+    skip_rules = {
+        "content-unlinked-internal-reference",
+        "content-inconsistent-terminology",  # Cross-file issue, not fixable per-file
+        "content-section-length",  # Advisory, sections are intentionally dense
+    }
 
     # Collect weak-language fixes to apply per file
     weak_lang_fixes: dict[Path, list[tuple[str, str, str]]] = defaultdict(list)
@@ -1122,6 +1126,38 @@ def check_clarity(files: list[Path], report: VerificationReport, *, fix: bool = 
 
         sev = severity_map.get(v.severity, "note")
         rel_file = _relative_path(Path(v.file_path)) if v.file_path else ".kiro/steering/"
+
+        # Skip context-budget violations for manual-inclusion files (they don't consume
+        # context unless explicitly referenced — the limit is irrelevant)
+        if v.rule_id == "context-budget" and v.file_path:
+            fm = parse_front_matter(Path(v.file_path))
+            if fm.get("inclusion") == "manual":
+                continue  # Manual files don't auto-load — budget is irrelevant
+
+            # --fix: if it's always-included and exceeds error limit, convert to manual
+            if fix and sev == "error" and fm.get("inclusion", "always") == "always":
+                fpath = Path(v.file_path)
+                text = fpath.read_text(errors="replace")
+                if text.startswith("---"):
+                    # Has front-matter — change inclusion to manual
+                    text = re.sub(
+                        r"^(---\n(?:.*\n)*?)inclusion:\s*always",
+                        r"\1inclusion: manual",
+                        text,
+                    )
+                else:
+                    # No front-matter — add one
+                    text = "---\ninclusion: manual\n---\n\n" + text
+                fpath.write_text(text)
+                issue = report.add(
+                    "clarity",
+                    sev,
+                    rel_file,
+                    f"[{v.rule_id}] Exceeds error limit → FIXED (converted to manual inclusion)",
+                    line=v.file_line or 0,
+                )
+                issue.fix_applied = True
+                continue
 
         # If --fix and it's a weak-language violation, queue the fix
         if fix and v.rule_id == "content-weak-language" and v.file_path:

@@ -49,40 +49,6 @@
   },
   {
     "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
-    "h_range": [
-      2.0,
-      5.0
-    ],
-    "pass_rate": 0.35555555555555557,
-    "pass_rate_source": "comparison_eval",
-    "n_training_points": 711,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-14T04:40:02.300904+00:00",
-    "notes": "Iterative improve iter 2: N=[6, 8, 10, 12, 15, 16, 20, 60] | reevaluate: 606 pts NPZ eval | eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | eval@20260819 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | comparison@chain_1d N=[6, 8, 10, 12] | eval@20260819 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13 | Corrected: was 69% (training_data_eval), now 36% (comparison avg)",
-    "sha256": "5900d1f2da592ea9a441fc2c7d21fe6eeb5be25ca32a28c96607a63c9846d975",
-    "runner_tag": "XX",
-    "date_tag": "140826",
-    "training_quality_score": 0.918,
-    "pass_rate_by_n": {
-      "20": 0.0,
-      "30": 0.0,
-      "10": 0.5333333333333333,
-      "16": 0.0,
-      "6": 1.0,
-      "21": 0.0,
-      "31": 0.16666666666666666,
-      "8": 1.0,
-      "12": 0.5
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
     "topology": "square",
     "n_qubits": 0,
     "p_layers": 1,
@@ -91,14 +57,14 @@
       2.5,
       5.0
     ],
-    "pass_rate": 0.2222222222222222,
+    "pass_rate": 0.3333333333333333,
     "pass_rate_source": "training_data_eval",
     "n_training_points": 485,
     "seeds": [
       42
     ],
     "created": "2026-08-19T06:02:07.029803+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14], 485 points | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 2/9",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14], 485 points | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 2/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
     "sha256": "308c08c473344073a818383c628a0d4b1216a060e8d246078537f9f9fdc37099",
     "runner_tag": "AC",
     "date_tag": "190826",
@@ -111,7 +77,8 @@
       "6": 0.6666666666666666,
       "14": 0.0,
       "18": 0.0,
-      "21": 0.0
+      "21": 0.0,
+      "20": 0.0
     }
   },
   {
@@ -131,7 +98,7 @@
       42
     ],
     "created": "2026-08-19T06:11:37.946810+00:00",
-    "notes": "Multi-N training: N=[3, 4, 6], 231 points | eval@20260819 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8",
+    "notes": "Multi-N training: N=[3, 4, 6], 231 points | eval@20260819 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8",
     "sha256": "adc2d75b98f0efbf46c3bd0d7933b0b3cfebcb5fe9582f4fc4ebfa3df57d2e6f",
     "runner_tag": "AC",
     "date_tag": "190826",
@@ -143,7 +110,9 @@
       "8": 0.0,
       "11": 0.0,
       "12": 0.0,
-      "13": 0.0
+      "13": 0.0,
+      "16": 0.0,
+      "10": 0.0
     }
   },
   {
@@ -156,14 +125,14 @@
       2.5,
       5.0
     ],
-    "pass_rate": 0.18181818181818182,
+    "pass_rate": 0.36363636363636365,
     "pass_rate_source": "training_data_eval",
     "n_training_points": 481,
     "seeds": [
       42
     ],
     "created": "2026-08-19T06:36:03.910048+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 16, 20, 26, 40], 481 points | comparison@ladder N=[4, 6, 8, 10] | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 16, 20, 26, 40], 481 points | comparison@ladder N=[4, 6, 8, 10] | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | extrap@N=[20] | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11",
     "sha256": "2a037edbd8fd855d9cd7cb7777dd987176c8eed553d268f35ef58f3648f8ac10",
     "runner_tag": "AC",
     "date_tag": "190826",
@@ -193,25 +162,23 @@
     ],
     "pass_rate": 0.06140350877192983,
     "pass_rate_source": "comparison_eval",
-    "n_training_points": 2282,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-19T09:13:39.723272+00:00",
-    "notes": "Multi-topology model (residual+film): chain_1d+heavy_hex+ladder+square+triangular. MSE=1.28e-01, val=2.09e-01. 2282 graphs from 5 topologies. | eval@20260819 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 20, 20, 24, 26, 30, 30, 30, 30, 40, 40, 40, 60, 100, 150, 200] 19/44 | Corrected: was 43% (training_data_eval), now 6% (comparison avg)",
-    "sha256": "1ef822c96efae3f52687a20f90391a2595b833a0b1901a0bd05909091e803507",
+    "n_training_points": 2519,
+    "seeds": [],
+    "created": "",
+    "notes": "Re-registered from _recovery. Trained 401 epochs (overfitting_detected), MSE=1.70e-01, val_MSE=2.07e-01. | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47 | auto-deflated from 53% | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47 | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47 | auto-deflated from 53% | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 80, 100, 150, 200] 25/48 | auto-deflated from 52%",
+    "sha256": "cf3e12eeab5fbf45f8107cb6908cb11d0f78c4a325033a2ced4b4110487d6ca0",
     "runner_tag": "XX",
-    "date_tag": "190826",
+    "date_tag": "200826",
     "training_quality_score": 0.0,
     "pass_rate_by_n": {
+      "10": 0.0,
+      "16": 0.0,
       "20": 0.0,
       "30": 0.0,
-      "16": 0.0,
       "21": 0.0,
       "31": 0.0,
       "6": 0.5,
       "8": 0.0,
-      "10": 0.0,
       "12": 0.0,
       "4": 0.5,
       "24": 0.0,
@@ -230,23 +197,210 @@
     "topology": "heavy_hex",
     "n_qubits": 0,
     "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "h_range": [
+      3.0,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "comparison_eval",
+    "n_training_points": 596,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-20T14:29:59.887081+00:00",
+    "notes": "Multi-N training: N=[4, 6, 10, 12, 16, 20, 40], 596 points | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33%",
+    "sha256": "ac75010db266c185eeed4f37177dd076e0052a45cdae95c50a5ad3921cfb0da3",
+    "runner_tag": "AC",
+    "date_tag": "200826",
+    "training_quality_score": 0.836,
+    "pass_rate_by_n": {
+      "10": 0.0,
+      "12": 0.0,
+      "16": 0.0,
+      "4": 0.0,
+      "6": 0.0,
+      "20": 0.0,
+      "24": 0.0,
+      "29": 0.0
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "h_range": [
+      2.0,
+      5.0
+    ],
+    "pass_rate": 0.6666666666666666,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 674,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-20T15:04:30.392802+00:00",
+    "notes": "Multi-N training: N=[6, 8, 10, 12, 15, 16, 20, 26, 60], 674 points | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 10/15",
+    "sha256": "23bd0b21e51ccfcf8172794cdfca82ec7578c1947b4e4b1618c2c3cd3648429b",
+    "runner_tag": "AC",
+    "date_tag": "200826",
+    "training_quality_score": 0.815,
+    "pass_rate_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:20 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=6, grade A, \u0394E/gap=0.0224)",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "16": 0.0,
+      "21": 0.0,
+      "31": 0.16666666666666666,
+      "6": 1.0,
+      "8": 1.0,
+      "10": 0.5,
+      "12": 0.5
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 15:12 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=10, grade B, \u0394E/gap=0.0313)",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "20": 0.0,
+      "30": 0.0,
+      "10": 0.5333333333333333,
+      "16": 0.0,
+      "6": 1.0,
+      "21": 0.0,
+      "31": 0.16666666666666666,
+      "8": 1.0,
+      "12": 0.5
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1_v1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:13 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=4, grade B, \u0394E/gap=0.0443)",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "4": 0.0,
+      "6": 0.0,
+      "10": 0.0,
+      "12": 0.0,
+      "20": 0.0,
+      "24": 0.0,
+      "29": 0.0
+    }
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
     "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
     "h_range": [
       0.5,
       5.0
     ],
-    "pass_rate": 0.6414342629482072,
-    "pass_rate_source": "training_data_eval",
-    "n_training_points": 502,
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 0,
     "seeds": [
       42
     ],
-    "created": "2026-08-19T14:06:56.984403+00:00",
-    "notes": "Fine-tuned from MT (unified_tfim_br_MT_residual+fi). MSE=1.23e-01, 502 graphs.",
-    "sha256": "57c41df50d0d114b969de4da1e9153fd23214b0181d1dcdfbc533937fc94bed3",
+    "created": "2026-08-20 14:13 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=10, grade A, \u0394E/gap=0.0150)",
+    "sha256": "",
     "runner_tag": "XX",
-    "date_tag": "190826",
-    "training_quality_score": 0.926,
+    "date_tag": "",
+    "training_quality_score": -1.0,
     "pass_rate_by_n": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:21 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for square N=4, grade A, \u0394E/gap=0.0232)",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "4": 1.0,
+      "6": 0.8333333333333334,
+      "8": 0.8333333333333334,
+      "10": 0.0,
+      "14": 0.0,
+      "18": 0.0,
+      "21": 0.0
+    }
   }
 ]

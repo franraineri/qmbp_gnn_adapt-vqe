@@ -145,6 +145,19 @@ class AcceleratedConfig:
     force_method: str | None = None  # If set, bypasses COBYLA_AUTO_SWITCH. "COBYLA" or "L-BFGS-B"
     bidirectional_anchors: bool = False  # If True, run ascending merge on failing anchors
 
+    # ── p≥2 optimization (A2/A3/A4) ──────────────────────────────────────
+    # When True, automatically adjusts VQE parameters for higher-p circuits:
+    # - force_method → "L-BFGS-B" (gradient-based scales better with n_params)
+    # - n_restarts reduced when warm-start tile provides good init
+    # - n_anchors reduced (MPNN predictions better with more data)
+    auto_optimize_for_higher_p: bool = True
+
+    # Adaptive maxiter: reduce maxiter when warm-start init achieves ΔE/gap < this
+    # (the optimizer only needs fine-tuning, not global search)
+    warmstart_quality_threshold: float = 0.15  # If init ΔE/gap < 15%, use reduced maxiter
+    warmstart_reduced_maxiter: int = 200  # maxiter when warm-start is good
+    warmstart_reduced_restarts: int = 3  # restarts when warm-start is good
+
     # MPNN training
     mpnn_epochs: int = 3000
     mpnn_hidden_dim: int = 256
@@ -163,6 +176,49 @@ class AcceleratedConfig:
 
     # Active learning (P4)
     active_learning_rounds: int = 0  # 0 = disabled. Each round adds uncertain points.
+
+    def resolve_for_p(self, p_layers: int, n_params: int) -> "AcceleratedConfig":
+        """Return a copy with parameters auto-optimized for the given p_layers.
+
+        For p≥2 with auto_optimize_for_higher_p=True:
+        - force_method → "L-BFGS-B" (10-100× faster for n_params > 20)
+        - n_anchors reduced by 30% (MPNN needs fewer anchors with warm-start)
+        - anchor_strategy → "p1_informed" (only anchor at hard h-points)
+        - maxiter reduced if warm-start tile is available
+
+        For p=1 or auto_optimize_for_higher_p=False: returns self unchanged.
+        """
+        if not self.auto_optimize_for_higher_p or p_layers < 2:
+            return self
+
+        from dataclasses import replace
+
+        adjustments = {}
+
+        # A4: L-BFGS-B as default for high-dimensional circuits
+        if self.force_method is None and n_params > 20:
+            adjustments["force_method"] = "L-BFGS-B"
+            # L-BFGS-B converges much faster than COBYLA — reduce maxiter
+            # COBYLA needs ~500-1500 iters, L-BFGS-B needs ~100-300
+            if self.maxiter > 300:
+                adjustments["maxiter"] = 300
+
+        # A3: Fewer anchors for p≥2 (MPNN predictions are better with tile init)
+        if self.n_anchors > 3:
+            adjusted_anchors = max(3, int(self.n_anchors * 0.7))
+            adjustments["n_anchors"] = adjusted_anchors
+
+        # Reduce restarts: warm-start tile gives good init, less exploration needed
+        if self.n_restarts > 3:
+            adjustments["n_restarts"] = max(2, self.n_restarts // 3)
+
+        # C2: Smart anchor placement using p=1 failure data
+        if self.anchor_strategy == "uniform":
+            adjustments["anchor_strategy"] = "p1_informed"
+
+        if adjustments:
+            return replace(self, **adjustments)
+        return self
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -282,6 +338,16 @@ class AcceleratedVQE:
         t_total_start = time.perf_counter()
         cfg = self.config
 
+        # ── Auto-optimize config for p≥2 (A2/A3/A4) ─────────────────
+        cfg = cfg.resolve_for_p(p_layers, self._n_params)
+        if cfg is not self.config:
+            logger.info(
+                "  ⚡ Auto-optimized for p=%d: method=%s, n_anchors=%d",
+                p_layers,
+                cfg.force_method or "auto",
+                cfg.n_anchors,
+            )
+
         # ── Validation (Table 3) ─────────────────────────────────────
         if p_layers < 1:
             raise ValueError(f"p_layers must be ≥ 1, got {p_layers}.")
@@ -351,7 +417,7 @@ class AcceleratedVQE:
                     logger.info("  P2: Loaded pre-trained model from zoo")
 
         # ── Step 3: Anchor selection + full VQE (P1) ──────────────────
-        anchor_idx = self._select_anchors(h_values, gaps)
+        anchor_idx = self._select_anchors(h_values, gaps, config=cfg)
         target_idx = np.array([i for i in range(len(h_values)) if i not in anchor_idx])
 
         logger.info("  P1: %d anchor points, %d target points", len(anchor_idx), len(target_idx))
@@ -616,18 +682,23 @@ class AcceleratedVQE:
             # No matching model in zoo — will train from scratch
             return None
 
-    def _select_anchors(self, h_values: np.ndarray, gaps: np.ndarray) -> np.ndarray:
+    def _select_anchors(self, h_values: np.ndarray, gaps: np.ndarray, config: "AcceleratedConfig | None" = None) -> np.ndarray:
         """Select K anchor points for full VQE.
 
-        Strategy: non-uniform spacing weighted toward h_critical (where the
-        landscape is hardest), ensuring endpoints are always included.
+        Strategies:
+        - "uniform": non-uniform spacing weighted toward h_critical
+        - "endpoints_plus_center": evenly spaced with endpoints
+        - "p1_informed": place anchors only where p=1 data shows ΔE/gap > 5%
+          (hard zones). Easy zones (p=1 pass) are left to MPNN prediction.
+
         Uses generate_nonuniform_h_grid logic for anchor placement.
         """
-        K = min(self.config.n_anchors, len(h_values))
+        _cfg = config or self.config
+        K = min(_cfg.n_anchors, len(h_values))
         if len(h_values) <= K:
             return np.arange(len(h_values))
 
-        if self.config.anchor_strategy == "endpoints_plus_center":
+        if _cfg.anchor_strategy == "endpoints_plus_center":
             idx = [0, len(h_values) - 1]
             remaining = K - 2
             if remaining > 0:
@@ -635,8 +706,29 @@ class AcceleratedVQE:
                 idx.extend(interior.tolist())
             return np.unique(idx)
 
+        # ── C2: p1-informed anchor placement (for p≥2) ───────────────
+        # Only anchors where p=1 struggled (ΔE/gap > 5%) — easy zones
+        # get MPNN prediction with tile warmstart (no VQE needed).
+        if _cfg.anchor_strategy == "p1_informed":
+            hard_indices = self._get_p1_hard_h_indices(h_values)
+            if hard_indices is not None and len(hard_indices) >= 2:
+                # Use hard indices as anchors (up to K)
+                if len(hard_indices) <= K:
+                    selected = set(hard_indices)
+                else:
+                    # Too many hard points — subsample uniformly among them
+                    step = max(1, len(hard_indices) // K)
+                    selected = set(hard_indices[::step][:K])
+                # Always include endpoints
+                selected.add(0)
+                selected.add(len(h_values) - 1)
+                logger.info(
+                    "  Anchor strategy=p1_informed: %d/%d h-points are hard (p1 ΔE/gap>5%%)",
+                    len(hard_indices), len(h_values),
+                )
+                return np.array(sorted(selected)[:K])
+
         # Default: non-uniform anchoring — denser near h_critical
-        # Use gap information: smaller gap = harder point = needs anchor
         h_min, h_max = float(h_values[-1]), float(h_values[0])  # Descending
         h_critical = 1.0
         if hasattr(self.spec, "name"):
@@ -674,6 +766,53 @@ class AcceleratedVQE:
                 indices.add(int(u))
 
         return np.array(sorted(indices)[:K])
+
+    def _get_p1_hard_h_indices(self, h_values: np.ndarray) -> np.ndarray | None:
+        """Identify h-indices where p=1 data shows ΔE/gap > 5% (hard points).
+
+        Uses existing p=1 NPZ data to determine which h-points the pipeline
+        struggled with at p=1. For p≥2 runs, these are the points that need
+        full VQE anchors — easy points can use MPNN prediction directly.
+
+        Returns
+        -------
+        np.ndarray | None
+            Indices into h_values that correspond to hard points.
+            None if no p=1 data available.
+        """
+        from qmbp_simulation.utils.helpers import load_theta_from_npz
+
+        # Load p=1 NPZ for this (topology, N)
+        npz_data = load_theta_from_npz(self._topology, self._N, p_layers=1)
+        if not npz_data:
+            return None
+
+        # Load the full NPZ to get de_gaps
+        from pathlib import Path as _P
+        _ROOT = _P(__file__).resolve().parents[3]
+        npz_path = _ROOT / "data" / "multi_n_training" / f"{self._topology}_N{self._N}_p1.npz"
+        if not npz_path.exists():
+            return None
+
+        try:
+            data = np.load(str(npz_path), allow_pickle=True)
+            h_p1 = np.asarray(data["h_values"], dtype=np.float64)
+            de_gaps_p1 = np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else None
+            if de_gaps_p1 is None:
+                return None
+        except Exception:
+            return None
+
+        # For each h in h_values, find nearest p=1 point and check if hard
+        hard_indices = []
+        for i, h in enumerate(h_values):
+            diffs = np.abs(h_p1 - h)
+            idx = int(np.argmin(diffs))
+            if diffs[idx] < 0.1:  # tolerance for matching
+                if de_gaps_p1[idx] > 0.05:  # p=1 ΔE/gap > 5% = hard
+                    hard_indices.append(i)
+
+        return np.array(hard_indices) if hard_indices else None
 
     def _run_anchor_vqe(
         self, h_values, anchor_idx, e_exact, gaps, seed, p_layers
@@ -726,23 +865,93 @@ class AcceleratedVQE:
         rng = np.random.default_rng(seed)
         prev_theta = rng.uniform(-0.01, 0.01, self._n_params)
 
+        # ── p>1 warm-start from existing p=1 data ────────────────────
+        # If running at p_layers > 1 and p=1 NPZ data exists for this
+        # (topology, N), load it and use tile_theta_for_higher_p per anchor.
+        # This gives VQE a much better starting point (converges 3-5× faster).
+        _p1_theta_map: dict[float, np.ndarray] | None = None
+        _p1_h_sorted: np.ndarray | None = None
+        if p_layers > 1:
+            from qmbp_simulation.utils.helpers import (
+                load_p1_theta_for_warmstart,
+                tile_theta_for_higher_p,
+            )
+
+            _p1_theta_map = load_p1_theta_for_warmstart(
+                self._topology, self._N, h_values[anchor_idx]
+            )
+            if _p1_theta_map:
+                _p1_h_sorted = np.array(sorted(_p1_theta_map.keys()))
+                logger.info(
+                    "  ⚡ p>1 warm-start: loaded %d p=1 solutions for tiling to p=%d",
+                    len(_p1_theta_map),
+                    p_layers,
+                )
+            else:
+                logger.debug("  No p=1 data available for warm-start tiling")
+
         # Sort anchors descending for warm-start
         h_anchors_sorted = sorted([(h_values[i], i) for i in anchor_idx], reverse=True)
 
         results_map: dict[int, tuple[np.ndarray, float]] = {}
         n_violations = 0
         prev_de_gap: float | None = None
+        n_p1_warmstarted = 0
 
         for h, orig_idx in h_anchors_sorted:
+            # ── Per-point θ₀ selection: p1-tile > prev_theta > random ─
+            theta_init = prev_theta.copy()
+            if _p1_theta_map and _p1_h_sorted is not None:
+                # Nearest-h lookup with tolerance (avoids float equality issues)
+                idx_nearest = int(np.argmin(np.abs(_p1_h_sorted - float(h))))
+                h_nearest = float(_p1_h_sorted[idx_nearest])
+                if abs(h_nearest - float(h)) < 1e-3:
+                    try:
+                        theta_p1 = _p1_theta_map[h_nearest]
+                        # Guard: skip if p1 theta has NaN/Inf
+                        if np.all(np.isfinite(theta_p1)):
+                            theta_from_p1 = tile_theta_for_higher_p(
+                                theta_p1,
+                                p_target=p_layers,
+                                p_source=1,
+                                noise_std=0.03,
+                                noise_layers="extra",
+                                seed=(seed + int(h * 1000)) % (2**31),
+                                expected_n_params=self._n_params,
+                            )
+                            theta_init = theta_from_p1
+                            n_p1_warmstarted += 1
+                    except (ValueError, RuntimeError) as e:
+                        logger.debug("  p1-tile failed at h=%.3f: %s", h, e)
+
             # Adaptive restarts: allocate based on neighbor difficulty + h_critical
             n_restarts = compute_adaptive_restarts(
                 float(h), prev_de_gap=prev_de_gap, config=adaptive_cfg
             )
 
+            # ── A2: Adaptive maxiter — reduce if warm-start init is good ──
+            effective_maxiter = cfg.maxiter
+            if n_p1_warmstarted > 0 and cfg.auto_optimize_for_higher_p and p_layers > 1:
+                # Quick eval of theta_init to check if it's already close
+                try:
+                    lat_check = make_lattice(self._topology, self._N, J=1.0, h=float(h))
+                    H_check = self.spec.build_hamiltonian(lat_check, **self.spec.hamiltonian_kwargs)
+                    if hasattr(self.backend, "set_h"):
+                        self.backend.set_h(float(h))
+                    e_init = self.backend.evaluate(self.circuit, H_check, theta_init)
+                    gap_h = gaps[orig_idx] if gaps[orig_idx] > 1e-10 else 1e-10
+                    init_de_gap = abs(e_init - e_exact[orig_idx]) / gap_h
+                    if init_de_gap < cfg.warmstart_quality_threshold:
+                        # Warm-start is already good — only fine-tune
+                        effective_maxiter = cfg.warmstart_reduced_maxiter
+                        n_restarts = min(n_restarts, cfg.warmstart_reduced_restarts)
+                except Exception:
+                    pass  # If eval fails, use default maxiter
+
             vqe_config = VQEConfig(
                 p_layers=p_layers,
                 n_restarts=n_restarts,
-                maxiter=cfg.maxiter,
+                maxiter=effective_maxiter,
                 method=cfg.force_method if cfg.force_method else "L-BFGS-B",
             )
             optimizer = VQEOptimizer(config=vqe_config, backend=self.backend, seed=seed)
@@ -752,7 +961,7 @@ class AcceleratedVQE:
             # Update CachedBackend h for correct cache key generation
             if hasattr(self.backend, "set_h"):
                 self.backend.set_h(float(h))
-            result = optimizer.optimize(H, self.circuit, initial_guess=prev_theta)
+            result = optimizer.optimize(H, self.circuit, initial_guess=theta_init)
 
             # NaN guard (Table 3): never propagate NaN through warm-start
             if np.all(np.isfinite(result.theta_opt)):
@@ -785,6 +994,13 @@ class AcceleratedVQE:
                 "  ⚠️ %d/%d anchor points violate variational principle. "
                 "E_exact reference may be approximate (e.g., DMRG on 2D topology).",
                 n_violations,
+                len(anchor_idx),
+            )
+
+        if n_p1_warmstarted > 0:
+            logger.info(
+                "  ⚡ p1-tile warm-start used for %d/%d anchor points",
+                n_p1_warmstarted,
                 len(anchor_idx),
             )
 

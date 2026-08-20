@@ -299,6 +299,55 @@ def step_7_cleanup_orphans(dry_run: bool = True) -> int:
     return len(orphans)
 
 
+def step_8_npz_integrity(fix: bool = False) -> dict:
+    """Step 8: Validate NPZ training data integrity (all p-values).
+
+    When fix=True, auto-removes NaN rows from NPZ files (creates .bak backup).
+    """
+    print("\n── Step 8: NPZ Integrity Check ──")
+    from qmbp_simulation.analysis.metrics import validate_npz_integrity
+
+    result = validate_npz_integrity(include_extrapolation=True, fix=fix)
+    print(f"  {result['summary']}")
+
+    by_p = result.get("by_p_layers", {})
+    for p, stats in sorted(by_p.items()):
+        fixed_str = f", fixed={stats.get('n_fixed', 0)}" if stats.get("n_fixed") else ""
+        print(
+            f"    p={p}: {stats['n_files']} files, {stats['n_points']} pts, "
+            f"nan={stats['n_nan']}, dim_mismatch={stats['n_dim_mismatch']}{fixed_str}"
+        )
+
+    if result["issues"]:
+        print(f"\n  Issues ({result['n_issues']}):")
+        for iss in result["issues"][:5]:
+            dir_name = iss.get("dir", "?")
+            print(f"    {dir_name}/{iss['file']}: {'; '.join(iss['issues'])}")
+        if result["n_issues"] > 5:
+            print(f"    ... and {result['n_issues'] - 5} more")
+
+    return result
+
+
+def step_9_p2_vs_p1_monotonicity() -> dict:
+    """Step 9: Cross-validate p=2 vs p=1 energy monotonicity."""
+    print("\n── Step 9: p=2 vs p=1 Energy Monotonicity ──")
+    from qmbp_simulation.analysis.metrics import validate_p2_vs_p1_energy_monotonicity
+
+    result = validate_p2_vs_p1_energy_monotonicity()
+    print(f"  {result['summary']}")
+
+    if result["violations"]:
+        print("\n  Worst violations:")
+        for v in sorted(result["violations"], key=lambda x: -x["delta"])[:5]:
+            print(
+                f"    {v['topology']} N={v['n_qubits']} h={v['h']:.3f}: "
+                f"Δ={v['delta']:.4f} (p1={v['e_p1']:.4f}, p2={v['e_p2']:.4f})"
+            )
+
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Full pipeline validation and reporting")
     parser.add_argument(
@@ -306,6 +355,10 @@ def main() -> int:
     )
     parser.add_argument(
         "--fix-orphans", action="store_true", help="Actually delete orphan checkpoint files"
+    )
+    parser.add_argument(
+        "--fix", action="store_true",
+        help="Auto-fix recoverable issues (NaN rows in NPZ, stale e_exact from GT cache)"
     )
     args = parser.parse_args()
 
@@ -324,6 +377,15 @@ def main() -> int:
         step_5_update_coverage_doc()
         step_6_detect_discrepancies(dashboard)
         step_7_cleanup_orphans(dry_run=not args.fix_orphans)
+        step_8_npz_integrity(fix=args.fix)
+        step_9_p2_vs_p1_monotonicity()
+
+        # Auto-fix GT↔NPZ coherence if --fix
+        if args.fix:
+            from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence
+            print("\n── Auto-fix: GT↔NPZ Coherence ──")
+            gt_result = validate_gt_npz_coherence(fix=True)
+            print(f"  {gt_result['summary']}")
 
     # Final summary
     print("\n" + "=" * 60)

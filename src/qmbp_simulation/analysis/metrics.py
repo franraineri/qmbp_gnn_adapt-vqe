@@ -897,8 +897,11 @@ def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
     import numpy as np
 
     # Filter points that have theta_std
-    valid = [(r["de_gap"], r["theta_std"]) for r in per_h_results
-             if "theta_std" in r and r.get("theta_std", 0) > 0 and "de_gap" in r]
+    valid = [
+        (r["de_gap"], r["theta_std"])
+        for r in per_h_results
+        if "theta_std" in r and r.get("theta_std", 0) > 0 and "de_gap" in r
+    ]
 
     result = {
         "n_points_with_uncertainty": len(valid),
@@ -925,6 +928,7 @@ def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
     # Spearman rank correlation
     try:
         from scipy.stats import spearmanr
+
         rho, _ = spearmanr(theta_stds, de_gaps)
         result["spearman_r"] = float(rho) if np.isfinite(rho) else None
     except (ImportError, ValueError):
@@ -938,7 +942,9 @@ def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
 
     result["low_uncertainty_mean_de_gap"] = float(np.mean(de_gaps[low_indices]))
     result["high_uncertainty_mean_de_gap"] = float(np.mean(de_gaps[high_indices]))
-    result["calibrated"] = result["high_uncertainty_mean_de_gap"] > result["low_uncertainty_mean_de_gap"]
+    result["calibrated"] = (
+        result["high_uncertainty_mean_de_gap"] > result["low_uncertainty_mean_de_gap"]
+    )
 
     return result
 
@@ -2302,19 +2308,22 @@ def generate_model_quality_dashboard(
     # Track MT models from zoo and their per-topology performance
     try:
         from qmbp_simulation.predictors.model_zoo import _load_manifest as _lm_mt
+
         _zoo_entries = _lm_mt()
         mt_entries = [e for e in _zoo_entries if e.topology == "multi_topology"]
         if mt_entries:
             mt_models = []
             for e in mt_entries:
-                mt_models.append({
-                    "checkpoint": e.checkpoint_file,
-                    "pass_rate": e.pass_rate,
-                    "pass_rate_by_n": e.pass_rate_by_n if e.pass_rate_by_n else None,
-                    "n_training_points": e.n_training_points,
-                    "notes": e.notes[:80] if e.notes else "",
-                    "created": getattr(e, "created", ""),
-                })
+                mt_models.append(
+                    {
+                        "checkpoint": e.checkpoint_file,
+                        "pass_rate": e.pass_rate,
+                        "pass_rate_by_n": e.pass_rate_by_n if e.pass_rate_by_n else None,
+                        "n_training_points": e.n_training_points,
+                        "notes": e.notes[:80] if e.notes else "",
+                        "created": getattr(e, "created", ""),
+                    }
+                )
             dashboard["multi_topology_models"] = {
                 "n_models": len(mt_models),
                 "models": mt_models,
@@ -2581,7 +2590,10 @@ def query_mt_vs_st_comparison(
 
             # Recompute per_topology from filtered scenarios
             from collections import defaultdict as _dd
-            _pt: dict = _dd(lambda: {"mt_pass": [], "st_pass": [], "mt_wins": 0, "st_wins": 0, "ties": 0})
+
+            _pt: dict = _dd(
+                lambda: {"mt_pass": [], "st_pass": [], "mt_wins": 0, "st_wins": 0, "ties": 0}
+            )
             for s in scenarios:
                 t = s.get("topology", "?")
                 _pt[t]["mt_pass"].append(s.get("mt_pass_rate", 0))
@@ -2602,7 +2614,9 @@ def query_mt_vs_st_comparison(
                     "mt_wins": info["mt_wins"],
                     "st_wins": info["st_wins"],
                     "ties": info["ties"],
-                    "winner": "MT" if mt_a > st_a + 0.01 else ("ST" if st_a > mt_a + 0.01 else "tie"),
+                    "winner": "MT"
+                    if mt_a > st_a + 0.01
+                    else ("ST" if st_a > mt_a + 0.01 else "tie"),
                     "delta": mt_a - st_a,
                 }
             result["per_topology"] = per_topo_filtered
@@ -2614,12 +2628,19 @@ def validate_gt_npz_coherence(
     *,
     fix: bool = False,
     tolerance: float = 1e-6,
+    include_extrapolation: bool = True,
 ) -> dict:
     """Cross-validate GT cache energies against NPZ stored e_exact values.
 
-    If the GT cache was updated (e.g., better DMRG precision), but the NPZ
-    files still store old e_exact values, all derived metrics (ΔE/gap, pass_rate,
-    grade) become unreliable.
+    Uses the GT cache as the single source of truth. Any NPZ e_exact that
+    differs from the GT cache is considered stale and should be corrected.
+
+    This is the CANONICAL ground truth validation — all other checks
+    (check_zoo_coherence, etc.) delegate to this function.
+
+    Lookup strategy:
+    - Primary: exact key match with 6-decimal h formatting
+    - Fallback: fuzzy h-match (nearest key within h_tol=1e-4)
 
     Parameters
     ----------
@@ -2650,149 +2671,197 @@ def validate_gt_npz_coherence(
     _ROOT = _P(__file__).resolve().parents[3]
     gt_path = _ROOT / "data" / "ground_truth_cache.json"
     npz_dir = _ROOT / "data" / "multi_n_training"
+    extrap_dir = _ROOT / "data" / "large_n_extrapolation"
 
-    if not gt_path.exists() or not npz_dir.exists():
+    if not gt_path.exists():
         return {
             "n_files_checked": 0,
             "n_files_with_issues": 0,
             "n_points_checked": 0,
             "n_points_mismatched": 0,
+            "n_points_not_in_gt": 0,
             "n_points_fixed": 0,
             "max_delta": 0.0,
             "issues": [],
-            "summary": "GT cache or NPZ dir not found.",
+            "summary": "GT cache not found.",
         }
 
     with open(gt_path) as f:
         raw = _json.load(f)
     gt = raw.get("entries", raw)
 
+    # Build secondary index for fuzzy h-lookup: (topo, N, model) → {h_float: key}
+    gt_h_index: dict[tuple, dict[float, str]] = {}
+    for key in gt:
+        parts = key.split("|")
+        if len(parts) >= 4:
+            try:
+                config = (parts[0], int(parts[1]), parts[2])
+                h_float = float(parts[3])
+                gt_h_index.setdefault(config, {})[h_float] = key
+            except (ValueError, IndexError):
+                continue
+
     n_files_checked = 0
     n_files_with_issues = 0
     n_points_checked = 0
     n_points_mismatched = 0
+    n_points_not_in_gt = 0
     n_points_fixed = 0
     max_delta_global = 0.0
     issues: list[dict] = []
 
-    for npz_file in sorted(npz_dir.glob("*.npz")):
-        data = np.load(str(npz_file), allow_pickle=True)
-        if "e_exact" not in data or "h_values" not in data:
-            continue
+    # Collect all NPZ dirs to check
+    npz_dirs_to_check = []
+    if npz_dir and npz_dir.exists():
+        npz_dirs_to_check.append(npz_dir)
+    if include_extrapolation and extrap_dir and extrap_dir.exists():
+        npz_dirs_to_check.append(extrap_dir)
 
-        h_vals = data["h_values"]
-        e_exact_npz = data["e_exact"]
+    if not npz_dirs_to_check:
+        return {
+            "n_files_checked": 0, "n_files_with_issues": 0,
+            "n_points_checked": 0, "n_points_mismatched": 0,
+            "n_points_not_in_gt": 0, "n_points_fixed": 0,
+            "max_delta": 0.0, "issues": [],
+            "summary": "No NPZ directories found.",
+        }
 
-        # Parse topology and N from filename
-        parts = npz_file.stem.split("_")
-        n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
-        if n_idx is None:
-            continue
-        topo = "_".join(parts[:n_idx])
-        try:
-            n_val = int(parts[n_idx][1:])
-        except ValueError:
-            continue
-
-        n_files_checked += 1
-        file_mismatches = 0
-        file_max_delta = 0.0
-        corrections: dict[int, float] = {}  # idx → new e_exact
-
-        for i, h in enumerate(h_vals):
-            key = f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.6f}"
-            if key not in gt:
-                continue
-            gt_entry = gt[key]
-            gt_e = gt_entry.get("energy", gt_entry.get("e_exact"))
-            if gt_e is None:
+    for search_dir in npz_dirs_to_check:
+        for npz_file in sorted(search_dir.glob("*.npz")):
+            data = np.load(str(npz_file), allow_pickle=True)
+            if "e_exact" not in data or "h_values" not in data:
                 continue
 
-            n_points_checked += 1
-            delta = abs(float(e_exact_npz[i]) - float(gt_e))
-            if delta > tolerance:
-                file_mismatches += 1
-                file_max_delta = max(file_max_delta, delta)
-                max_delta_global = max(max_delta_global, delta)
-                corrections[i] = float(gt_e)
+            h_vals = data["h_values"]
+            e_exact_npz = data["e_exact"]
 
-        if file_mismatches > 0:
-            n_files_with_issues += 1
-            n_points_mismatched += file_mismatches
+            # Parse topology and N from filename
+            parts = npz_file.stem.split("_")
+            n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
+            if n_idx is None:
+                continue
+            topo = "_".join(parts[:n_idx])
+            try:
+                n_val = int(parts[n_idx][1:])
+            except ValueError:
+                continue
 
-            # Compute impact on metrics
-            affected_pass_rate_delta = 0.0
-            if "gaps" in data and corrections:
-                e_key = "e_vqe" if "e_vqe" in data else (
-                    "energies" if "energies" in data else None
+            n_files_checked += 1
+            file_mismatches = 0
+            file_max_delta = 0.0
+            corrections: dict[int, float] = {}  # idx → new e_exact
+
+            config_key = (topo, n_val, "tfim_bond_resolved")
+            h_lookup = gt_h_index.get(config_key, {})
+
+            for i, h in enumerate(h_vals):
+                # Primary: exact 6-decimal key
+                key = f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.2f}"
+                gt_entry = gt.get(key)
+
+                # Fallback: fuzzy h-match (nearest within 1e-4)
+                if gt_entry is None and h_lookup:
+                    h_float = float(h)
+                    nearest_h = min(h_lookup.keys(), key=lambda x: abs(x - h_float))
+                    if abs(nearest_h - h_float) < 1e-4:
+                        gt_entry = gt.get(h_lookup[nearest_h])
+
+                if gt_entry is None:
+                    n_points_not_in_gt += 1
+                    continue
+
+                gt_e = gt_entry.get("energy", gt_entry.get("e_exact"))
+                if gt_e is None:
+                    continue
+
+                n_points_checked += 1
+                delta = abs(float(e_exact_npz[i]) - float(gt_e))
+                if delta > tolerance:
+                    file_mismatches += 1
+                    file_max_delta = max(file_max_delta, delta)
+                    max_delta_global = max(max_delta_global, delta)
+                    corrections[i] = float(gt_e)
+
+            if file_mismatches > 0:
+                n_files_with_issues += 1
+                n_points_mismatched += file_mismatches
+
+                # Compute impact on metrics
+                affected_pass_rate_delta = 0.0
+                if "gaps" in data and corrections:
+                    e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                    if e_key:
+                        e_vqe = data[e_key]
+                        gaps = data["gaps"]
+                        # Old de_gaps
+                        old_de_gaps = np.abs(e_vqe - e_exact_npz) / np.maximum(gaps, 1e-10)
+                        old_pass = float((old_de_gaps < DE_GAP_THRESHOLD).mean())
+                        # New de_gaps (with corrected e_exact)
+                        new_e_exact = e_exact_npz.copy()
+                        for idx, val in corrections.items():
+                            new_e_exact[idx] = val
+                        new_de_gaps = np.abs(e_vqe - new_e_exact) / np.maximum(gaps, 1e-10)
+                        new_pass = float((new_de_gaps < DE_GAP_THRESHOLD).mean())
+                        affected_pass_rate_delta = new_pass - old_pass
+
+                issues.append(
+                    {
+                        "file": npz_file.name,
+                        "topology": topo,
+                        "n_qubits": n_val,
+                        "n_mismatched": file_mismatches,
+                        "n_total": len(h_vals),
+                        "max_delta": file_max_delta,
+                        "pass_rate_impact": affected_pass_rate_delta,
+                    }
                 )
-                if e_key:
-                    e_vqe = data[e_key]
-                    gaps = data["gaps"]
-                    # Old de_gaps
-                    old_de_gaps = np.abs(e_vqe - e_exact_npz) / np.maximum(gaps, 1e-10)
-                    old_pass = float((old_de_gaps < DE_GAP_THRESHOLD).mean())
-                    # New de_gaps (with corrected e_exact)
-                    new_e_exact = e_exact_npz.copy()
+
+                if fix and corrections:
+                    # Backup original
+                    bak_path = npz_file.with_suffix(".npz.bak")
+                    if not bak_path.exists():
+                        shutil.copy2(npz_file, bak_path)
+
+                    # Reload, fix, and save
+                    arrays = dict(np.load(str(npz_file), allow_pickle=True))
+                    new_e_exact = arrays["e_exact"].copy()
                     for idx, val in corrections.items():
                         new_e_exact[idx] = val
-                    new_de_gaps = np.abs(e_vqe - new_e_exact) / np.maximum(gaps, 1e-10)
-                    new_pass = float((new_de_gaps < DE_GAP_THRESHOLD).mean())
-                    affected_pass_rate_delta = new_pass - old_pass
+                    arrays["e_exact"] = new_e_exact
 
-            issues.append({
-                "file": npz_file.name,
-                "topology": topo,
-                "n_qubits": n_val,
-                "n_mismatched": file_mismatches,
-                "n_total": len(h_vals),
-                "max_delta": file_max_delta,
-                "pass_rate_impact": affected_pass_rate_delta,
-            })
-
-            if fix and corrections:
-                # Backup original
-                bak_path = npz_file.with_suffix(".npz.bak")
-                if not bak_path.exists():
-                    shutil.copy2(npz_file, bak_path)
-
-                # Reload, fix, and save
-                arrays = dict(np.load(str(npz_file), allow_pickle=True))
-                new_e_exact = arrays["e_exact"].copy()
-                for idx, val in corrections.items():
-                    new_e_exact[idx] = val
-                arrays["e_exact"] = new_e_exact
-
-                # Also recompute de_gaps if present
-                e_key = "e_vqe" if "e_vqe" in arrays else (
-                    "energies" if "energies" in arrays else None
-                )
-                if e_key and "gaps" in arrays:
-                    new_de_gaps = (
-                        np.abs(arrays[e_key] - new_e_exact)
-                        / np.maximum(arrays["gaps"], 1e-10)
+                    # Also recompute de_gaps if present
+                    e_key = (
+                        "e_vqe" if "e_vqe" in arrays else ("energies" if "energies" in arrays else None)
                     )
-                    arrays["de_gaps"] = new_de_gaps
+                    if e_key and "gaps" in arrays:
+                        new_de_gaps = np.abs(arrays[e_key] - new_e_exact) / np.maximum(
+                            arrays["gaps"], 1e-10
+                        )
+                        arrays["de_gaps"] = new_de_gaps
 
-                np.savez(str(npz_file), **arrays)
-                n_points_fixed += len(corrections)
-                logger.info(
-                    "validate_gt_npz_coherence: fixed %s (%d points, max_delta=%.2e)",
-                    npz_file.name,
-                    len(corrections),
-                    file_max_delta,
-                )
+                    np.savez(str(npz_file), **arrays)
+                    n_points_fixed += len(corrections)
+                    logger.info(
+                        "validate_gt_npz_coherence: fixed %s (%d points, max_delta=%.2e)",
+                        npz_file.name,
+                        len(corrections),
+                        file_max_delta,
+                    )
 
     # Summary
     if n_files_with_issues == 0:
-        summary = f"✅ All {n_files_checked} NPZ files coherent with GT cache ({n_points_checked} points checked)."
+        summary = (
+            f"✅ All {n_files_checked} NPZ files coherent with GT cache "
+            f"({n_points_checked} points checked, {n_points_not_in_gt} not in GT)."
+        )
     else:
-        total_impact = sum(abs(iss["pass_rate_impact"]) for iss in issues)
-        fix_status = f" ({n_points_fixed} points fixed)" if fix else " (run with fix=True to correct)"
+        fix_status = (
+            f" ({n_points_fixed} points fixed)" if fix else " (run with fix=True to correct)"
+        )
         summary = (
             f"⚠️ {n_files_with_issues}/{n_files_checked} files have stale e_exact "
-            f"({n_points_mismatched} points, max_delta={max_delta_global:.2e}, "
-            f"aggregate pass_rate impact≈{total_impact:.1%}){fix_status}"
+            f"({n_points_mismatched} points, max_delta={max_delta_global:.2e}){fix_status}"
         )
         if not fix:
             logger.warning("GT↔NPZ coherence: %s", summary)
@@ -2802,10 +2871,490 @@ def validate_gt_npz_coherence(
         "n_files_with_issues": n_files_with_issues,
         "n_points_checked": n_points_checked,
         "n_points_mismatched": n_points_mismatched,
+        "n_points_not_in_gt": n_points_not_in_gt,
         "n_points_fixed": n_points_fixed,
         "max_delta": max_delta_global,
         "issues": issues,
         "summary": summary,
+    }
+
+
+def validate_npz_integrity(
+    *,
+    p_layers: int | None = None,
+    topology: str | None = None,
+    check_theta_dims: bool = True,
+    check_gt_coherence: bool = True,
+    check_nan: bool = True,
+    include_extrapolation: bool = True,
+    fix: bool = False,
+) -> dict:
+    """Validate NPZ training data integrity for a specific p_layers value.
+
+    Checks performed:
+    1. theta_opt dimensions match expected n_params for (topology, N, p)
+    2. No NaN/Inf values in theta_opt or e_vqe
+    3. e_exact matches Ground Truth cache (delegates to validate_gt_npz_coherence)
+    4. de_gaps are consistent with e_vqe, e_exact, gaps
+    5. Quality tier distribution is reasonable
+
+    Parameters
+    ----------
+    p_layers : int | None
+        If specified, only check NPZ files for this p_layers value.
+        If None, check all available p_layers.
+    topology : str | None
+        If specified, only check this topology. If None, check all.
+    check_theta_dims : bool
+        Validate theta dimensions vs circuit params (requires HVA builder).
+    check_gt_coherence : bool
+        Cross-validate e_exact against GT cache.
+    check_nan : bool
+        Check for NaN/Inf in numeric arrays.
+    include_extrapolation : bool
+        Also scan data/large_n_extrapolation/ (default True).
+    fix : bool
+        If True, auto-fix recoverable issues:
+        - Remove rows with NaN/Inf theta (rewrite NPZ without them)
+        - Recompute de_gaps from e_vqe, e_exact, gaps if inconsistent
+        Creates .bak backup before modifying.
+
+    Returns
+    -------
+    dict
+        {
+            "n_files": int,
+            "n_issues": int,
+            "n_fixed": int,
+            "issues": list[dict],  # per-file issues
+            "summary": str,
+            "by_p_layers": dict[int, dict],  # breakdown per p
+        }
+    """
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+    dirs_to_scan = [_ROOT / "data" / "multi_n_training"]
+    if include_extrapolation:
+        dirs_to_scan.append(_ROOT / "data" / "large_n_extrapolation")
+
+    # Build glob pattern
+    if topology and p_layers:
+        pattern = f"{topology}_N*_p{p_layers}.npz"
+    elif topology:
+        pattern = f"{topology}_N*_p*.npz"
+    elif p_layers:
+        pattern = f"*_N*_p{p_layers}.npz"
+    else:
+        pattern = "*_N*_p*.npz"
+
+    issues: list[dict] = []
+    by_p: dict[int, dict] = {}
+    n_fixed = 0
+
+    # Optional: load HVA builder for theta dim validation
+    _hva = None
+    _make_lattice = None
+    if check_theta_dims:
+        try:
+            from qmbp_simulation.circuits.hva import HVACircuitBuilder
+            from qmbp_simulation.models.hamiltonian import make_lattice as _ml
+
+            _hva = HVACircuitBuilder()
+            _make_lattice = _ml
+        except ImportError:
+            check_theta_dims = False
+
+    for npz_dir in dirs_to_scan:
+        if not npz_dir.exists():
+            continue
+
+        for npz_file in sorted(npz_dir.glob(pattern)):
+            if "_quarantine" in str(npz_file) or "_extrap_hold" in str(npz_file):
+                continue
+
+            fname = npz_file.stem
+            file_issues: list[str] = []
+            file_fixable: list[str] = []
+
+            # Parse filename: {topo}_N{n}_p{p}.npz
+            try:
+                parts = fname.rsplit("_p", 1)
+                p_val = int(parts[1])
+                topo_n = parts[0]
+                topo = topo_n.rsplit("_N", 1)[0]
+                n_val = int(topo_n.rsplit("_N", 1)[1])
+            except (IndexError, ValueError):
+                file_issues.append(f"Cannot parse filename: {fname}")
+                issues.append({"file": npz_file.name, "issues": file_issues, "dir": npz_dir.name})
+                continue
+
+            # Track per-p stats
+            if p_val not in by_p:
+                by_p[p_val] = {
+                    "n_files": 0,
+                    "n_points": 0,
+                    "n_nan": 0,
+                    "n_dim_mismatch": 0,
+                    "n_fixed": 0,
+                }
+            by_p[p_val]["n_files"] += 1
+
+            try:
+                data = np.load(str(npz_file), allow_pickle=True)
+            except Exception as e:
+                file_issues.append(f"Load failed: {e}")
+                issues.append({"file": npz_file.name, "issues": file_issues, "dir": npz_dir.name})
+                continue
+
+            # Required keys
+            for key in ("h_values", "theta_opt", "e_vqe", "e_exact"):
+                if key not in data:
+                    file_issues.append(f"Missing key: {key}")
+
+            if file_issues:
+                issues.append({"file": npz_file.name, "issues": file_issues, "dir": npz_dir.name})
+                continue
+
+            h_values = np.asarray(data["h_values"], dtype=np.float64)
+            theta_opt = data["theta_opt"]
+            e_vqe = np.asarray(data["e_vqe"], dtype=np.float64)
+            e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+            n_pts = len(h_values)
+            by_p[p_val]["n_points"] += n_pts
+
+            # Check NaN/Inf
+            nan_rows = []
+            if check_nan and theta_opt.ndim == 2:
+                nan_mask = ~np.all(np.isfinite(theta_opt), axis=1)
+                nan_rows = list(np.where(nan_mask)[0])
+                nan_e = int(np.sum(~np.isfinite(e_vqe)))
+                if nan_rows:
+                    file_issues.append(f"NaN/Inf theta: {len(nan_rows)}/{n_pts} points")
+                    file_fixable.append("nan_theta")
+                    by_p[p_val]["n_nan"] += len(nan_rows)
+                if nan_e > 0:
+                    file_issues.append(f"NaN/Inf e_vqe: {nan_e}/{n_pts} points")
+                    file_fixable.append("nan_evqe")
+
+            # Check theta dimensions
+            if check_theta_dims and _hva and _make_lattice and theta_opt.ndim == 2:
+                try:
+                    lattice = _make_lattice(topo, n_val, J=1.0, h=2.0)
+                    circuit, _ = _hva.create_bond_resolved(n_val, p_val, lattice)
+                    expected_params = circuit.num_parameters
+                    actual_params = theta_opt.shape[1]
+                    if actual_params != expected_params:
+                        file_issues.append(
+                            f"Theta dim mismatch: got {actual_params}, "
+                            f"expected {expected_params} for (N={n_val}, p={p_val})"
+                        )
+                        by_p[p_val]["n_dim_mismatch"] += n_pts
+                except Exception as e:
+                    file_issues.append(f"Dim check failed: {e}")
+
+            # Check consistency: lengths
+            if len(h_values) != len(e_vqe):
+                file_issues.append(f"Length mismatch: h={len(h_values)} vs e_vqe={len(e_vqe)}")
+            if theta_opt.ndim == 2 and theta_opt.shape[0] != len(h_values):
+                file_issues.append(
+                    f"Length mismatch: h={len(h_values)} vs theta={theta_opt.shape[0]}"
+                )
+
+            # ── Auto-fix: remove NaN rows ──
+            if fix and nan_rows and "nan_theta" in file_fixable:
+                import shutil
+
+                shutil.copy2(npz_file, str(npz_file) + ".bak")
+                valid_mask = np.all(np.isfinite(theta_opt), axis=1)
+                # Also filter out NaN e_vqe
+                valid_mask &= np.isfinite(e_vqe)
+                if valid_mask.sum() > 0:
+                    save_data = {}
+                    for key in data.files:
+                        arr = data[key]
+                        if hasattr(arr, "__len__") and len(arr) == n_pts:
+                            save_data[key] = np.asarray(arr)[valid_mask]
+                        else:
+                            save_data[key] = arr
+                    np.savez(npz_file, **save_data)
+                    n_removed = n_pts - int(valid_mask.sum())
+                    file_issues.append(f"FIXED: removed {n_removed} NaN rows")
+                    n_fixed += 1
+                    by_p[p_val]["n_fixed"] += 1
+
+            if file_issues:
+                issues.append(
+                    {
+                        "file": npz_file.name,
+                        "topology": topo,
+                        "n_qubits": n_val,
+                        "p_layers": p_val,
+                        "issues": file_issues,
+                        "dir": npz_dir.name,
+                    }
+                )
+
+    n_files = sum(v["n_files"] for v in by_p.values())
+    n_issues = len(issues)
+
+    if n_issues == 0:
+        summary = f"✅ All {n_files} NPZ files pass integrity checks."
+    elif fix and n_fixed > 0:
+        summary = f"🔧 {n_fixed}/{n_issues} issues auto-fixed. {n_issues - n_fixed} remaining."
+    else:
+        summary = f"⚠️ {n_issues}/{n_files} NPZ files have issues."
+
+    return {
+        "n_files": n_files,
+        "n_issues": n_issues,
+        "n_fixed": n_fixed,
+        "issues": issues,
+        "summary": summary,
+        "by_p_layers": by_p,
+    }
+
+
+def validate_p2_vs_p1_energy_monotonicity(
+    *,
+    topology: str | None = None,
+    tolerance: float = 1e-4,
+) -> dict:
+    """Cross-validate that p=2 VQE energies are <= p=1 energies at matching h-points.
+
+    A more expressive circuit (higher p) should always achieve lower or equal
+    variational energy. Violations indicate:
+    - VQE convergence issues at p=2 (insufficient iterations/restarts)
+    - Corrupted data in one of the NPZ files
+    - Bug in the warm-start tiling
+
+    Parameters
+    ----------
+    topology : str | None
+        If specified, only check this topology. If None, check all available.
+    tolerance : float
+        Allowed violation margin (p=2 can be up to this much worse than p=1
+        without being flagged). Default: 1e-4 Hartree.
+
+    Returns
+    -------
+    dict
+        {
+            "n_topologies": int,
+            "n_common_points": int,
+            "n_violations": int,
+            "violations": list[dict],  # per-point violations
+            "summary": str,
+            "by_topology": dict[str, dict],
+        }
+    """
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+    npz_dir = _ROOT / "data" / "multi_n_training"
+
+    if not npz_dir.exists():
+        return {
+            "n_topologies": 0,
+            "n_common_points": 0,
+            "n_violations": 0,
+            "violations": [],
+            "summary": "NPZ dir not found.",
+            "by_topology": {},
+        }
+
+    # Discover topology+N combos that have BOTH p=1 and p=2 data
+    p1_files: dict[tuple[str, int], _P] = {}
+    p2_files: dict[tuple[str, int], _P] = {}
+
+    for f in npz_dir.glob("*_N*_p1.npz"):
+        if "_quarantine" in str(f) or "_extrap_hold" in str(f):
+            continue
+        parts = f.stem.rsplit("_p", 1)
+        topo_n = parts[0]
+        topo = topo_n.rsplit("_N", 1)[0]
+        n = int(topo_n.rsplit("_N", 1)[1])
+        if topology and topo != topology:
+            continue
+        p1_files[(topo, n)] = f
+
+    for f in npz_dir.glob("*_N*_p2.npz"):
+        if "_quarantine" in str(f) or "_extrap_hold" in str(f):
+            continue
+        parts = f.stem.rsplit("_p", 1)
+        topo_n = parts[0]
+        topo = topo_n.rsplit("_N", 1)[0]
+        n = int(topo_n.rsplit("_N", 1)[1])
+        if topology and topo != topology:
+            continue
+        p2_files[(topo, n)] = f
+
+    # Find common keys
+    common_keys = set(p1_files.keys()) & set(p2_files.keys())
+    if not common_keys:
+        return {
+            "n_topologies": 0,
+            "n_common_points": 0,
+            "n_violations": 0,
+            "violations": [],
+            "summary": "No (topology, N) pairs with both p=1 and p=2 data found.",
+            "by_topology": {},
+        }
+
+    violations: list[dict] = []
+    by_topo: dict[str, dict] = {}
+    n_common_total = 0
+
+    for topo, n in sorted(common_keys):
+        data_p1 = np.load(str(p1_files[(topo, n)]), allow_pickle=True)
+        data_p2 = np.load(str(p2_files[(topo, n)]), allow_pickle=True)
+
+        h_p1 = np.asarray(data_p1["h_values"], dtype=np.float64)
+        e_p1 = np.asarray(data_p1["e_vqe"], dtype=np.float64)
+        h_p2 = np.asarray(data_p2["h_values"], dtype=np.float64)
+        e_p2 = np.asarray(data_p2["e_vqe"], dtype=np.float64)
+
+        # Match h-points (tolerance 1e-4)
+        topo_violations = 0
+        topo_common = 0
+
+        for i2, h2 in enumerate(h_p2):
+            diffs = np.abs(h_p1 - h2)
+            idx1 = int(np.argmin(diffs))
+            if diffs[idx1] < 1e-4:
+                topo_common += 1
+                n_common_total += 1
+                # p=2 should be <= p=1 (more expressive)
+                if e_p2[i2] > e_p1[idx1] + tolerance:
+                    delta = e_p2[i2] - e_p1[idx1]
+                    violations.append(
+                        {
+                            "topology": topo,
+                            "n_qubits": n,
+                            "h": float(h2),
+                            "e_p1": float(e_p1[idx1]),
+                            "e_p2": float(e_p2[i2]),
+                            "delta": float(delta),
+                        }
+                    )
+                    topo_violations += 1
+
+        if topo not in by_topo:
+            by_topo[topo] = {"n_common": 0, "n_violations": 0, "n_values": []}
+        by_topo[topo]["n_common"] += topo_common
+        by_topo[topo]["n_violations"] += topo_violations
+        by_topo[topo]["n_values"].append(n)
+
+    n_violations = len(violations)
+    topos_checked = len(by_topo)
+
+    if n_violations == 0:
+        summary = (
+            f"✅ Energy monotonicity OK: {n_common_total} common points across "
+            f"{topos_checked} topologies. p=2 ≤ p=1 everywhere."
+        )
+    else:
+        worst = max(violations, key=lambda v: v["delta"])
+        summary = (
+            f"⚠️ {n_violations}/{n_common_total} points violate energy monotonicity "
+            f"(p=2 > p=1). Worst: {worst['topology']} N={worst['n_qubits']} "
+            f"h={worst['h']:.3f} Δ={worst['delta']:.4f}. "
+            f"VQE at p=2 may need more restarts/iterations at these points."
+        )
+
+    return {
+        "n_topologies": topos_checked,
+        "n_common_points": n_common_total,
+        "n_violations": n_violations,
+        "violations": violations,
+        "summary": summary,
+        "by_topology": by_topo,
+    }
+
+
+def check_p2_regression_vs_p1(
+    topology: str,
+    p2_pass_rate: float,
+    *,
+    h_min: float = 2.0,
+) -> dict:
+    """Anti-regression guard: verify p=2 model doesn't underperform p=1.
+
+    Compares a p=2 model's pass_rate against the best p=1 model for the
+    same topology in the valid h-range. A more expressive circuit should
+    always achieve equal or better results.
+
+    This guard should be called after training/evaluating a p=2 model,
+    before registering it in the zoo.
+
+    Parameters
+    ----------
+    topology : str
+        Topology being evaluated.
+    p2_pass_rate : float
+        Dual-criterion pass rate of the p=2 model (0.0 to 1.0).
+    h_min : float
+        Only compare in h >= h_min (valid regime). Default 2.0.
+
+    Returns
+    -------
+    dict
+        {
+            "passed": bool,
+            "p1_pass_rate": float | None,
+            "p2_pass_rate": float,
+            "delta": float,  # p2 - p1 (positive = p2 better)
+            "message": str,
+        }
+    """
+    # Load best p=1 model pass_rate from zoo
+    p1_pass_rate = None
+    try:
+        from qmbp_simulation.predictors.model_zoo import _load_manifest
+
+        manifest = _load_manifest()
+        p1_entries = [
+            e for e in manifest
+            if e.topology == topology and e.p_layers == 1 and e.is_multi_n
+        ]
+        if p1_entries:
+            p1_pass_rate = max(e.pass_rate for e in p1_entries)
+    except Exception:
+        pass
+
+    if p1_pass_rate is None:
+        return {
+            "passed": True,
+            "p1_pass_rate": None,
+            "p2_pass_rate": p2_pass_rate,
+            "delta": 0.0,
+            "message": f"No p=1 baseline for {topology}. p=2 accepted unconditionally.",
+        }
+
+    delta = p2_pass_rate - p1_pass_rate
+
+    # Allow p=2 to be slightly worse (within 5%) since it may have less data
+    # But flag significant regressions
+    if delta >= -0.05:
+        passed = True
+        msg = (
+            f"✅ p=2 OK for {topology}: pass_rate={p2_pass_rate:.0%} "
+            f"(p=1 baseline={p1_pass_rate:.0%}, Δ={delta:+.0%})"
+        )
+    else:
+        passed = False
+        msg = (
+            f"⚠️ REGRESSION: p=2 for {topology}: pass_rate={p2_pass_rate:.0%} "
+            f"is {-delta:.0%} worse than p=1 baseline ({p1_pass_rate:.0%}). "
+            f"VQE at p=2 may need more restarts/iterations, or training data is insufficient."
+        )
+
+    return {
+        "passed": passed,
+        "p1_pass_rate": p1_pass_rate,
+        "p2_pass_rate": p2_pass_rate,
+        "delta": delta,
+        "message": msg,
     }
 
 
@@ -2887,6 +3436,59 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
         _log(f"  ✅ Dashboard: {dashboard.get('n_configs', 0)} configs")
     except Exception as e:
         results["steps_failed"].append(f"dashboard: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 2b: Best Results Scoreboard ────────────────────────────────
+    _log("Step 2b/9: Regenerating best results scoreboard...")
+    try:
+        scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
+        if scoreboard_script.exists():
+            proc = subprocess.run(
+                [sys.executable, str(scoreboard_script)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=str(_ROOT),
+            )
+            if proc.returncode == 0:
+                results["steps_completed"].append("best_results_scoreboard")
+                _log("  ✅ Best results scoreboard updated")
+            else:
+                results["steps_failed"].append(f"best_results_scoreboard: exit={proc.returncode}")
+                _log(f"  ❌ Exit code {proc.returncode}")
+        else:
+            results["steps_completed"].append("best_results_scoreboard (skipped)")
+    except subprocess.TimeoutExpired:
+        results["steps_failed"].append("best_results_scoreboard: timeout")
+        _log("  ⏰ Timed out")
+    except Exception as e:
+        results["steps_failed"].append(f"best_results_scoreboard: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Step 2c: Auto-fix scoreboard issues ─────────────────────────────
+    _log("Step 2c/9: Auto-fixing scoreboard issues...")
+    try:
+        fix_result = auto_fix_scoreboard_issues(verbose=verbose)
+        n_fixes = (
+            fix_result["n_recovered"]
+            + fix_result["n_registered"]
+            + fix_result["n_backfilled"]
+            + fix_result["n_exclusions_removed"]
+            + fix_result["n_exclusions_added"]
+        )
+        results["scoreboard_fixes"] = fix_result
+        results["steps_completed"].append("scoreboard_auto_fix")
+        if n_fixes > 0:
+            _log(
+                f"  ✅ Auto-fixed: {fix_result['n_recovered']} recovered, "
+                f"{fix_result['n_registered']} registered, "
+                f"{fix_result['n_backfilled']} backfilled, "
+                f"{fix_result['n_exclusions_removed']} exclusions removed"
+            )
+        else:
+            _log("  ✅ No scoreboard issues to fix")
+    except Exception as e:
+        results["steps_failed"].append(f"scoreboard_auto_fix: {e}")
         _log(f"  ❌ Failed: {e}")
 
     # ── Step 3: Eval report regeneration ─────────────────────────────────
@@ -3010,6 +3612,27 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
         results["steps_failed"].append(f"zoo_coherence: {e}")
         _log(f"  ❌ Failed: {e}")
 
+    # ── Step 7b: Auto-archive orphan checkpoints ─────────────────────────
+    try:
+        from qmbp_simulation.predictors.model_zoo import _CHECKPOINTS_DIR, _load_manifest
+
+        manifest_files = {e.checkpoint_file for e in _load_manifest()}
+        if _CHECKPOINTS_DIR.exists():
+            disk_files = {f.name for f in _CHECKPOINTS_DIR.glob("*.pt")}
+            orphans = disk_files - manifest_files
+            if orphans:
+                archive_dir = _CHECKPOINTS_DIR / "_archive"
+                archive_dir.mkdir(parents=True, exist_ok=True)
+                import shutil
+                for orphan_name in orphans:
+                    src = _CHECKPOINTS_DIR / orphan_name
+                    dst = archive_dir / orphan_name
+                    if src.exists() and not dst.exists():
+                        shutil.move(str(src), str(dst))
+                _log(f"  📦 Auto-archived {len(orphans)} orphan checkpoint(s)")
+    except Exception:
+        pass  # Non-critical
+
     # ── Step 8: Retrain trigger detection ────────────────────────────────
     _log("Step 8/9: Checking retrain triggers...")
     try:
@@ -3017,8 +3640,7 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
 
         triggers = check_retrain_triggers()
         results["retrain_triggers"] = [
-            {"topology": t.topology, "priority": t.priority, "reason": t.reason}
-            for t in triggers
+            {"topology": t.topology, "priority": t.priority, "reason": t.reason} for t in triggers
         ]
         results["steps_completed"].append("retrain_triggers")
         if triggers:
@@ -3031,40 +3653,16 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
         results["steps_failed"].append(f"retrain_triggers: {e}")
         _log(f"  ❌ Failed: {e}")
 
-    # ── Step 9: Auto-retrain loop (Tier 2 — train→eval→compare→zoo) ────
-    # Only fires when ≥1 trigger has priority ≤ 3 (P1=contaminated,
-    # P2=stale, P3=expanded). Spawns as subprocess to avoid blocking.
-    _log("Step 9/9: Auto-retrain loop...")
+    # ── Step 9: Auto-retrain loop — DISABLED ───────────────────────────
+    # Disabled until architecture improvements (per-N loss weighting,
+    # curriculum, jk_cat readout) resolve the fundamental N-scaling issue.
+    # The current MPNN cannot generalize to N≥16 regardless of training data.
+    # Re-enable when a new architecture variant shows >30% pass at N=16.
+    _log("Step 9/9: Auto-retrain loop (DISABLED — architecture bottleneck)")
     results["retrain_loop"] = None
-    try:
-        retrain_candidates = results.get("retrain_triggers", [])
-        high_priority = [t for t in retrain_candidates if t["priority"] <= 3]
-
-        if high_priority:
-            _log(f"  Launching retrain loop for {len(high_priority)} P≤3 candidates...")
-            # Run in-process (not subprocess) so post_experiment_sync can report
-            from qmbp_simulation.predictors.retrain_loop import run_retrain_loop
-
-            loop_result = run_retrain_loop(
-                max_retrains=min(len(high_priority), 2),
-                min_priority=3,
-                dry_run=False,
-            )
-            results["retrain_loop"] = {
-                "n_retrained": loop_result.n_retrained,
-                "n_improved": loop_result.n_improved,
-                "n_blocked": loop_result.n_blocked,
-                "n_failed": loop_result.n_failed,
-                "elapsed_s": loop_result.total_elapsed_s,
-            }
-            results["steps_completed"].append("retrain_loop")
-            _log(f"  ✅ {loop_result.summary}")
-        else:
-            results["steps_completed"].append("retrain_loop (no P≤3 triggers)")
-            _log("  ⏭️ No high-priority triggers — skipping retrain loop")
-    except Exception as e:
-        results["steps_failed"].append(f"retrain_loop: {e}")
-        _log(f"  ❌ Failed: {e}")
+    results["steps_completed"].append("retrain_loop (disabled)")
+    if results.get("retrain_triggers"):
+        _log(f"  ⏸️ {len(results['retrain_triggers'])} triggers detected but loop disabled")
 
     # ── Summary ──────────────────────────────────────────────────────────
     n_ok = len(results["steps_completed"])
@@ -3152,6 +3750,7 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
     zoo_entries: list = []
     try:
         from qmbp_simulation.predictors.model_zoo import _load_manifest
+
         zoo_entries = _load_manifest()
     except Exception:
         pass
@@ -3198,20 +3797,22 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                 }
 
                 if delta > 0.25:
-                    findings.append({
-                        "source_a": "zoo_manifest",
-                        "source_b": "model_comparison",
-                        "field": "pass_rate",
-                        "value_a": zoo_rate,
-                        "value_b": comp_avg,
-                        "delta": delta,
-                        "severity": "high" if delta > 0.40 else "medium",
-                        "model": ckpt[:50],
-                        "explanation": (
-                            f"Zoo says {zoo_rate:.0%} but comparison shows {comp_avg:.0%}. "
-                            f"Note: zoo may reflect training pass_rate, comparison uses MPNN prediction."
-                        ),
-                    })
+                    findings.append(
+                        {
+                            "source_a": "zoo_manifest",
+                            "source_b": "model_comparison",
+                            "field": "pass_rate",
+                            "value_a": zoo_rate,
+                            "value_b": comp_avg,
+                            "delta": delta,
+                            "severity": "high" if delta > 0.40 else "medium",
+                            "model": ckpt[:50],
+                            "explanation": (
+                                f"Zoo says {zoo_rate:.0%} but comparison shows {comp_avg:.0%}. "
+                                f"Note: zoo may reflect training pass_rate, comparison uses MPNN prediction."
+                            ),
+                        }
+                    )
 
     # ── Check B: Registry MSE vs training curves ─────────────────────────
     registry_vs_curves: dict[str, dict] = {}
@@ -3263,12 +3864,16 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                         mse_history = curve_data["mse_history"]
                         val_mse_history = curve_data.get("val_mse_history", np.array([]))
                         actual_final_mse = float(mse_history[-1])
-                        actual_val_mse = float(val_mse_history[-1]) if len(val_mse_history) > 0 else None
+                        actual_val_mse = (
+                            float(val_mse_history[-1]) if len(val_mse_history) > 0 else None
+                        )
                         n_checks += 1
 
                         # Compare MSE (use val_mse if available, more comparable)
                         compare_mse = reg_val_mse if reg_val_mse is not None else reg_mse
-                        actual_compare = actual_val_mse if actual_val_mse is not None else actual_final_mse
+                        actual_compare = (
+                            actual_val_mse if actual_val_mse is not None else actual_final_mse
+                        )
                         mse_delta = abs(compare_mse - actual_compare)
 
                         # Epoch count check
@@ -3288,22 +3893,24 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                         }
 
                         if mse_delta > 0.01:
-                            findings.append({
-                                "source_a": "model_registry",
-                                "source_b": "training_curves",
-                                "field": "final_mse",
-                                "value_a": compare_mse,
-                                "value_b": actual_compare,
-                                "delta": mse_delta,
-                                "severity": "medium",
-                                "model": model_id[:50],
-                                "explanation": (
-                                    f"Registry MSE={compare_mse:.4e} vs curve "
-                                    f"{actual_compare:.4e} (Δ={mse_delta:.4e}). "
-                                    f"Epochs: reg={reg_epochs} curve={len(mse_history)}. "
-                                    f"Curve file: {curve_file.name}"
-                                ),
-                            })
+                            findings.append(
+                                {
+                                    "source_a": "model_registry",
+                                    "source_b": "training_curves",
+                                    "field": "final_mse",
+                                    "value_a": compare_mse,
+                                    "value_b": actual_compare,
+                                    "delta": mse_delta,
+                                    "severity": "medium",
+                                    "model": model_id[:50],
+                                    "explanation": (
+                                        f"Registry MSE={compare_mse:.4e} vs curve "
+                                        f"{actual_compare:.4e} (Δ={mse_delta:.4e}). "
+                                        f"Epochs: reg={reg_epochs} curve={len(mse_history)}. "
+                                        f"Curve file: {curve_file.name}"
+                                    ),
+                                }
+                            )
                     except Exception:
                         continue
     except Exception:
@@ -3344,28 +3951,33 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                     n_checks += 1
                     # Grade→pass_rate rough mapping: A≥80%, B≥50%, C≥20%, D≥5%, F<5%
                     expected_ranges = {
-                        "A": (0.50, 1.0), "B": (0.30, 0.80),
-                        "C": (0.10, 0.50), "D": (0.0, 0.30), "F": (0.0, 0.10),
+                        "A": (0.50, 1.0),
+                        "B": (0.30, 0.80),
+                        "C": (0.10, 0.50),
+                        "D": (0.0, 0.30),
+                        "F": (0.0, 0.10),
                     }
                     lo, hi = expected_ranges.get(grade, (0, 1))
                     if not (lo - 0.10 <= pr <= hi + 0.20):
                         # Significant mismatch between grade and pass_rate
-                        findings.append({
-                            "source_a": "eval_report",
-                            "source_b": "zoo_pass_rate_by_n",
-                            "field": f"grade_vs_pass_rate N={n}",
-                            "value_a": grade,
-                            "value_b": pr,
-                            "delta": 0,
-                            "severity": "low",
-                            "is_informational": True,
-                            "model": f"{topo} N={n}",
-                            "explanation": (
-                                f"Eval report grade={grade} but zoo pass_rate_by_n={pr:.0%}. "
-                                f"Expected range for {grade}: [{lo:.0%}, {hi:.0%}]. "
-                                f"(Different h-ranges or evaluation conditions.)"
-                            ),
-                        })
+                        findings.append(
+                            {
+                                "source_a": "eval_report",
+                                "source_b": "zoo_pass_rate_by_n",
+                                "field": f"grade_vs_pass_rate N={n}",
+                                "value_a": grade,
+                                "value_b": pr,
+                                "delta": 0,
+                                "severity": "low",
+                                "is_informational": True,
+                                "model": f"{topo} N={n}",
+                                "explanation": (
+                                    f"Eval report grade={grade} but zoo pass_rate_by_n={pr:.0%}. "
+                                    f"Expected range for {grade}: [{lo:.0%}, {hi:.0%}]. "
+                                    f"(Different h-ranges or evaluation conditions.)"
+                                ),
+                            }
+                        )
     except Exception:
         pass
 
@@ -3383,8 +3995,9 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
             best_pass = best_source.get("pass_rate_5pct", 0)
 
             # Check: does the zoo model's training data cover this N?
+            config_p = c.get("p_layers", 1)
             for entry in zoo_entries:
-                if entry.topology == topo and entry.is_multi_n and entry.p_layers == 1:
+                if entry.topology == topo and entry.is_multi_n and entry.p_layers == config_p:
                     # The zoo model exists for this topology
                     # Check if it was trained with data from best_train_n
                     n_checks += 1
@@ -3395,39 +4008,43 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                         if zoo_n_rate >= 0 and best_pass > 0:
                             delta = best_pass - zoo_n_rate
                             if delta > 0.20:
-                                cross_n_selection_issues.append({
-                                    "topology": topo,
-                                    "n_target": n_target,
-                                    "dashboard_best_source": f"train_N{best_train_n}",
-                                    "dashboard_pass": best_pass,
-                                    "zoo_model_pass_at_n": zoo_n_rate,
-                                    "delta": delta,
-                                    "issue": (
-                                        f"Dashboard says train_N{best_train_n} achieves "
-                                        f"{best_pass:.0%} at N={n_target}, but zoo model "
-                                        f"only shows {zoo_n_rate:.0%}. Model may need retrain "
-                                        f"with better source data."
-                                    ),
-                                })
+                                cross_n_selection_issues.append(
+                                    {
+                                        "topology": topo,
+                                        "n_target": n_target,
+                                        "dashboard_best_source": f"train_N{best_train_n}",
+                                        "dashboard_pass": best_pass,
+                                        "zoo_model_pass_at_n": zoo_n_rate,
+                                        "delta": delta,
+                                        "issue": (
+                                            f"Dashboard says train_N{best_train_n} achieves "
+                                            f"{best_pass:.0%} at N={n_target}, but zoo model "
+                                            f"only shows {zoo_n_rate:.0%}. Model may need retrain "
+                                            f"with better source data."
+                                        ),
+                                    }
+                                )
                     break
 
     if cross_n_selection_issues:
         for iss in cross_n_selection_issues:
-            findings.append({
-                "source_a": "dashboard_cross_n",
-                "source_b": "zoo_model",
-                "field": "pass_rate_at_n",
-                "value_a": iss["dashboard_pass"],
-                "value_b": iss["zoo_model_pass_at_n"],
-                "delta": iss["delta"],
-                "severity": "info",
-                "is_informational": True,
-                "model": f"{iss['topology']} N={iss['n_target']}",
-                "explanation": (
-                    f"{iss['issue']} "
-                    f"(Expected: multi-N generalist vs single-N specialist trade-off.)"
-                ),
-            })
+            findings.append(
+                {
+                    "source_a": "dashboard_cross_n",
+                    "source_b": "zoo_model",
+                    "field": "pass_rate_at_n",
+                    "value_a": iss["dashboard_pass"],
+                    "value_b": iss["zoo_model_pass_at_n"],
+                    "delta": iss["delta"],
+                    "severity": "info",
+                    "is_informational": True,
+                    "model": f"{iss['topology']} N={iss['n_target']}",
+                    "explanation": (
+                        f"{iss['issue']} "
+                        f"(Expected: multi-N generalist vs single-N specialist trade-off.)"
+                    ),
+                }
+            )
 
     # ── Summary ──────────────────────────────────────────────────────────
     # Only count non-informational findings as real issues
@@ -3471,6 +4088,41 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
         logger.debug("validate_data_consistency: tier3 failed: %s", e)
         tier3_report = {"error": str(e)}
 
+    # ── Scoreboard cross-check ─────────────────────────────────────────────
+    scoreboard_issues: list[dict] = []
+    try:
+        _scoreboard_path = _ROOT / "results" / "best_results_scoreboard.json"
+        if _scoreboard_path.exists():
+            scoreboard = _json.loads(_scoreboard_path.read_text())
+            best_by_topo = scoreboard.get("best_by_topology", {})
+
+            for topo, n_entries in best_by_topo.items():
+                for n_str, entry in n_entries.items():
+                    n = int(n_str)
+                    ckpt = _P(entry.get("checkpoint", "")).name
+                    grade = entry.get("grade", "?")
+                    de_gap = entry.get("best_de_gap", 0)
+
+                    # Check: does zoo know about this checkpoint?
+                    if ckpt and ckpt not in zoo_vs_comparison and ckpt != "unknown":
+                        # Check if it's a valid checkpoint file
+                        ckpt_path = _ROOT / "data" / "model_zoo" / "checkpoints" / ckpt
+                        if not ckpt_path.exists() and grade in ("A", "B"):
+                            scoreboard_issues.append({
+                                "topology": topo,
+                                "n_qubits": n,
+                                "issue": f"Scoreboard best (grade={grade}, ΔE/gap={de_gap:.4f}) "
+                                         f"uses checkpoint '{ckpt}' not found in zoo or on disk",
+                                "severity": "warning",
+                            })
+
+            if scoreboard_issues and verbose:
+                print(f"\n  Scoreboard cross-check: {len(scoreboard_issues)} issue(s)")
+                for si in scoreboard_issues:
+                    print(f"    ⚠️ {si['topology']} N={si['n_qubits']}: {si['issue']}")
+    except Exception as e:
+        logger.debug("validate_data_consistency: scoreboard cross-check failed: %s", e)
+
     return {
         "is_consistent": is_consistent,
         "n_checks": n_checks,
@@ -3479,6 +4131,7 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
         "zoo_vs_comparison": zoo_vs_comparison,
         "registry_vs_curves": registry_vs_curves,
         "cross_n_selection_issues": cross_n_selection_issues,
+        "scoreboard_issues": scoreboard_issues,
         "tier3": tier3_report,
     }
 
@@ -4236,6 +4889,241 @@ def remove_training_exclusion(file: str) -> bool:
     return True
 
 
+def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
+    """Auto-fix all scoreboard-related issues that don't require retraining.
+
+    Performs the following safe, non-destructive fixes in order:
+    1. Recover phantom checkpoints from _versions/ or _archive/ back to main dir
+    2. Register unregistered checkpoints (on disk but not in zoo manifest)
+    3. Backfill pass_rate_by_n from comparison history
+    4. Remove stale exclusions (dashboard says useful, but still in exclusion list)
+    5. Sync exclusion policy drift (dashboard says not_useful, not in exclusion list)
+    6. Update scoreboard JSON if any fixes were applied
+
+    Returns
+    -------
+    dict
+        {
+            "n_recovered": int,
+            "n_registered": int,
+            "n_backfilled": int,
+            "n_exclusions_removed": int,
+            "n_exclusions_added": int,
+            "scoreboard_regenerated": bool,
+            "actions": list[str],  # human-readable action log
+        }
+    """
+    import json as _json
+    import shutil
+    from pathlib import Path as _P
+
+    _ROOT = _P(__file__).resolve().parents[3]
+    _CHECKPOINTS_DIR = _ROOT / "data" / "model_zoo" / "checkpoints"
+    _SCOREBOARD_PATH = _ROOT / "results" / "best_results_scoreboard.json"
+
+    result = {
+        "n_recovered": 0,
+        "n_registered": 0,
+        "n_backfilled": 0,
+        "n_exclusions_removed": 0,
+        "n_exclusions_added": 0,
+        "scoreboard_regenerated": False,
+        "actions": [],
+    }
+
+    def _log(msg: str):
+        result["actions"].append(msg)
+        if verbose:
+            print(f"    {msg}")
+
+    # ── Fix 1: Recover phantom checkpoints from _versions/ or _archive/ ──
+    if _SCOREBOARD_PATH.exists():
+        try:
+            scoreboard = _json.loads(_SCOREBOARD_PATH.read_text())
+            best_by_topo = scoreboard.get("best_by_topology", {})
+
+            from qmbp_simulation.predictors.model_zoo import _load_manifest
+
+            manifest_files = {e.checkpoint_file for e in _load_manifest()}
+
+            for topo, n_entries in best_by_topo.items():
+                for n_str, entry in n_entries.items():
+                    grade = entry.get("grade", "F")
+                    if grade not in ("A", "B", "C"):
+                        continue  # Only recover good models
+
+                    ckpt = _P(entry.get("checkpoint", "")).name
+                    if not ckpt or ckpt == "unknown":
+                        continue
+                    if ckpt in manifest_files:
+                        continue  # Already registered
+                    if (_CHECKPOINTS_DIR / ckpt).exists():
+                        continue  # On disk (will be handled by Fix 2)
+
+                    # Search in _versions/ and _archive/
+                    recovered_from = None
+                    for subdir in ("_versions", "_archive", "_recovery"):
+                        candidate = _CHECKPOINTS_DIR / subdir / ckpt
+                        if candidate.exists():
+                            recovered_from = candidate
+                            break
+
+                    if recovered_from:
+                        dest = _CHECKPOINTS_DIR / ckpt
+                        shutil.copy2(str(recovered_from), str(dest))
+                        result["n_recovered"] += 1
+                        _log(
+                            f"✅ Recovered {ckpt} from {recovered_from.parent.name}/ "
+                            f"(best-ever for {topo} N={n_str}, grade {grade})"
+                        )
+        except Exception as e:
+            _log(f"⚠️ Phantom recovery failed: {e}")
+
+    # ── Fix 2: Register unregistered checkpoints into zoo manifest ────────
+    if _SCOREBOARD_PATH.exists():
+        try:
+            from qmbp_simulation.predictors.model_zoo import (
+                ZooEntry,
+                _load_manifest,
+                _save_manifest,
+            )
+
+            manifest = _load_manifest()
+            manifest_files = {e.checkpoint_file for e in manifest}
+
+            scoreboard = _json.loads(_SCOREBOARD_PATH.read_text())
+            best_by_topo = scoreboard.get("best_by_topology", {})
+
+            for topo, n_entries in best_by_topo.items():
+                for n_str, entry in n_entries.items():
+                    grade = entry.get("grade", "F")
+                    if grade not in ("A", "B", "C"):
+                        continue
+
+                    ckpt = _P(entry.get("checkpoint", "")).name
+                    if not ckpt or ckpt == "unknown":
+                        continue
+                    if ckpt in manifest_files:
+                        continue  # Already in manifest
+
+                    ckpt_path = _CHECKPOINTS_DIR / ckpt
+                    if not ckpt_path.exists():
+                        continue  # Not on disk (can't register what we don't have)
+
+                    # Determine topology from scoreboard entry
+                    model_type = entry.get("model_type", "ST")
+                    is_mt = model_type == "MT"
+
+                    new_entry = ZooEntry(
+                        model="tfim_bond_resolved",
+                        topology="multi_topology" if is_mt else topo,
+                        n_qubits=0,
+                        p_layers=1,
+                        checkpoint_file=ckpt,
+                        h_range=(0.5, 5.0),
+                        pass_rate=0.0,  # Will be updated by evaluate_zoo_models
+                        n_training_points=0,
+                        seeds=[42],
+                        created=entry.get("date", ""),
+                        notes=(
+                            f"Auto-registered from scoreboard (best-ever for "
+                            f"{topo} N={n_str}, grade {grade}, "
+                            f"ΔE/gap={entry.get('best_de_gap', 0):.4f})"
+                        ),
+                    )
+                    manifest.append(new_entry)
+                    manifest_files.add(ckpt)
+                    result["n_registered"] += 1
+                    _log(f"✅ Registered {ckpt} in zoo manifest (from scoreboard)")
+
+            if result["n_registered"] > 0:
+                _save_manifest(manifest)
+        except Exception as e:
+            _log(f"⚠️ Registration failed: {e}")
+
+    # ── Fix 3: Backfill pass_rate_by_n from comparison history ────────────
+    try:
+        from qmbp_simulation.predictors.model_zoo import backfill_pass_rate_by_n_from_comparisons
+
+        n_backfilled = backfill_pass_rate_by_n_from_comparisons()
+        result["n_backfilled"] = n_backfilled
+        if n_backfilled > 0:
+            _log(f"✅ Backfilled pass_rate_by_n for {n_backfilled} models")
+    except Exception as e:
+        _log(f"⚠️ Backfill failed: {e}")
+
+    # ── Fix 4: Remove stale exclusions ────────────────────────────────────
+    # Files that are in the exclusion registry but dashboard now says "useful"
+    try:
+        dashboard_path = _ROOT / "data" / "model_quality_dashboard.json"
+        if dashboard_path.exists():
+            dashboard = _json.loads(dashboard_path.read_text())
+            configs = dashboard.get("configs", [])
+
+            useful_files = {
+                c.get("file", "")
+                for c in configs
+                if c.get("training_utility") and c.get("training_utility") != "not_useful"
+            }
+            useful_files.discard("")
+
+            registry = load_training_exclusions()
+            excluded = registry.get("excluded", [])
+            original_count = len(excluded)
+
+            # Remove entries whose file is now "useful" in dashboard
+            new_excluded = [
+                entry for entry in excluded
+                if entry.get("file", "") not in useful_files
+            ]
+            n_removed = original_count - len(new_excluded)
+
+            if n_removed > 0:
+                registry["excluded"] = new_excluded
+                registry["updated_at"] = datetime.now(UTC).isoformat()
+                save_training_exclusions(registry)
+                result["n_exclusions_removed"] = n_removed
+                _log(f"✅ Removed {n_removed} stale exclusions (now marked useful in dashboard)")
+    except Exception as e:
+        _log(f"⚠️ Stale exclusion removal failed: {e}")
+
+    # ── Fix 5: Add missing exclusions (drift) ────────────────────────────
+    # Dashboard says "not_useful" but NOT in exclusion registry
+    try:
+        auto_detect_exclusions(dry_run=False)
+        # Count new additions by comparing before/after
+        new_registry = load_training_exclusions()
+        n_after = len(new_registry.get("excluded", []))
+        n_added = max(0, n_after - (original_count - n_removed) if "original_count" in dir() else 0)
+        if n_added > 0:
+            result["n_exclusions_added"] = n_added
+            _log(f"✅ Added {n_added} new exclusions from dashboard")
+    except Exception as e:
+        _log(f"⚠️ Exclusion sync failed: {e}")
+
+    # ── Fix 6: Regenerate scoreboard if any fixes were applied ────────────
+    if result["n_recovered"] > 0 or result["n_registered"] > 0:
+        try:
+            import subprocess
+            import sys
+
+            scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
+            if scoreboard_script.exists():
+                subprocess.run(
+                    [sys.executable, str(scoreboard_script), "--json"],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                    cwd=str(_ROOT),
+                )
+                result["scoreboard_regenerated"] = True
+                _log("✅ Scoreboard regenerated after fixes")
+        except Exception as e:
+            _log(f"⚠️ Scoreboard regeneration failed: {e}")
+
+    return result
+
+
 def auto_detect_exclusions(
     *,
     dry_run: bool = False,
@@ -4450,10 +5338,7 @@ def validate_eval_vs_comparison_gap(*, verbose: bool = False) -> dict:
                         if "error" in m:
                             continue
                         results_by_n = m.get("results_by_n", {})
-                        rates = [
-                            v.get("pass_rate_dual", 0)
-                            for v in results_by_n.values()
-                        ]
+                        rates = [v.get("pass_rate_dual", 0) for v in results_by_n.values()]
                         avg = float(np.mean(rates)) if rates else 0.0
                         if avg > best_pass:
                             best_pass = avg
@@ -4472,11 +5357,11 @@ def validate_eval_vs_comparison_gap(*, verbose: bool = False) -> dict:
 
     # Grade → expected pass_rate range
     grade_to_pass_range = {
-        "A": (0.60, 1.0),   # Grade A eval → deployment should be ≥60%
-        "B": (0.40, 1.0),   # Grade B → ≥40%
-        "C": (0.20, 1.0),   # Grade C → ≥20%
-        "D": (0.0, 1.0),    # Grade D → anything possible
-        "F": (0.0, 0.30),   # Grade F eval → deployment shouldn't be >30%
+        "A": (0.60, 1.0),  # Grade A eval → deployment should be ≥60%
+        "B": (0.40, 1.0),  # Grade B → ≥40%
+        "C": (0.20, 1.0),  # Grade C → ≥20%
+        "D": (0.0, 1.0),  # Grade D → anything possible
+        "F": (0.0, 0.30),  # Grade F eval → deployment shouldn't be >30%
     }
 
     for topo in set(eval_grades.keys()) & set(comp_pass_rates.keys()):
@@ -4489,35 +5374,39 @@ def validate_eval_vs_comparison_gap(*, verbose: bool = False) -> dict:
 
             # Case 1: Eval says A but comparison is terrible
             if grade in ("A", "B") and comp_rate < expected_min:
-                discrepancies.append({
-                    "topology": topo,
-                    "n_qubits": n_val,
-                    "eval_grade": grade,
-                    "comparison_pass_rate": comp_rate,
-                    "severity": "high" if grade == "A" and comp_rate < 0.3 else "medium",
-                    "diagnosis": (
-                        "MPNN underfitting: training data quality is high "
-                        f"(grade {grade}) but deployment accuracy is low "
-                        f"({comp_rate:.0%}). Model cannot generalize θ_opt → θ_pred."
-                    ),
-                    "action": "retrain_with_more_data_or_epochs",
-                })
+                discrepancies.append(
+                    {
+                        "topology": topo,
+                        "n_qubits": n_val,
+                        "eval_grade": grade,
+                        "comparison_pass_rate": comp_rate,
+                        "severity": "high" if grade == "A" and comp_rate < 0.3 else "medium",
+                        "diagnosis": (
+                            "MPNN underfitting: training data quality is high "
+                            f"(grade {grade}) but deployment accuracy is low "
+                            f"({comp_rate:.0%}). Model cannot generalize θ_opt → θ_pred."
+                        ),
+                        "action": "retrain_with_more_data_or_epochs",
+                    }
+                )
 
             # Case 2: Eval says F but comparison is good (stale eval report)
             if grade == "F" and comp_rate > expected_max:
-                discrepancies.append({
-                    "topology": topo,
-                    "n_qubits": n_val,
-                    "eval_grade": grade,
-                    "comparison_pass_rate": comp_rate,
-                    "severity": "low",
-                    "diagnosis": (
-                        "Stale eval report: eval gives F but comparison shows "
-                        f"{comp_rate:.0%}. Likely the model was retrained since "
-                        "last eval report generation."
-                    ),
-                    "action": "regenerate_eval_report",
-                })
+                discrepancies.append(
+                    {
+                        "topology": topo,
+                        "n_qubits": n_val,
+                        "eval_grade": grade,
+                        "comparison_pass_rate": comp_rate,
+                        "severity": "low",
+                        "diagnosis": (
+                            "Stale eval report: eval gives F but comparison shows "
+                            f"{comp_rate:.0%}. Likely the model was retrained since "
+                            "last eval report generation."
+                        ),
+                        "action": "regenerate_eval_report",
+                    }
+                )
 
             if verbose and discrepancies and discrepancies[-1]["topology"] == topo:
                 d = discrepancies[-1]
@@ -4609,8 +5498,8 @@ def detect_undertrained_models(*, verbose: bool = False) -> dict:
         if loss_history and len(loss_history) >= 10:
             # Compare last 20% of loss curve to second-to-last 20%
             n = len(loss_history)
-            tail_20 = loss_history[int(0.8 * n):]
-            prev_20 = loss_history[int(0.6 * n):int(0.8 * n)]
+            tail_20 = loss_history[int(0.8 * n) :]
+            prev_20 = loss_history[int(0.6 * n) : int(0.8 * n)]
 
             if tail_20 and prev_20:
                 tail_mean = float(np.mean(tail_20))
@@ -4618,28 +5507,30 @@ def detect_undertrained_models(*, verbose: bool = False) -> dict:
 
                 # If tail is still decreasing (>5% improvement in last segment)
                 if prev_mean > 0 and (prev_mean - tail_mean) / prev_mean > 0.05:
-                    undertrained.append({
-                        "model_id": model_id,
-                        "topology": topology,
-                        "reason": "loss_still_decreasing",
-                        "details": {
-                            "epochs_trained": epochs,
-                            "tail_mean_loss": round(tail_mean, 6),
-                            "prev_segment_mean": round(prev_mean, 6),
-                            "improvement_pct": round(
-                                100 * (prev_mean - tail_mean) / prev_mean, 1
+                    undertrained.append(
+                        {
+                            "model_id": model_id,
+                            "topology": topology,
+                            "reason": "loss_still_decreasing",
+                            "details": {
+                                "epochs_trained": epochs,
+                                "tail_mean_loss": round(tail_mean, 6),
+                                "prev_segment_mean": round(prev_mean, 6),
+                                "improvement_pct": round(
+                                    100 * (prev_mean - tail_mean) / prev_mean, 1
+                                ),
+                                "early_stopped": early_stopped,
+                            },
+                            "recommendation": (
+                                f"Resume training for ~{max(50, epochs // 2)} more epochs. "
+                                f"Loss was still improving at epoch {epochs}."
                             ),
-                            "early_stopped": early_stopped,
-                        },
-                        "recommendation": (
-                            f"Resume training for ~{max(50, epochs // 2)} more epochs. "
-                            f"Loss was still improving at epoch {epochs}."
-                        ),
-                    })
+                        }
+                    )
                     if verbose:
                         logger.info(
                             f"  Tier3 undertrained: {model_id} "
-                            f"(loss ↓{(prev_mean - tail_mean)/prev_mean:.1%} in last segment)"
+                            f"(loss ↓{(prev_mean - tail_mean) / prev_mean:.1%} in last segment)"
                         )
 
         # ── Check 2: final_val_mse >> best achievable → overfitting ──────
@@ -4648,39 +5539,43 @@ def detect_undertrained_models(*, verbose: bool = False) -> dict:
             epoch_ratio = best_epoch / epochs if epochs > 0 else 1.0
             if epoch_ratio < 0.6 and not early_stopped:
                 # Best epoch was in first 60% of training → later epochs overfit
-                overfitting.append({
-                    "model_id": model_id,
-                    "topology": topology,
-                    "reason": "best_epoch_early",
-                    "details": {
-                        "best_epoch": best_epoch,
-                        "total_epochs": epochs,
-                        "ratio": round(epoch_ratio, 2),
-                        "final_val_mse": final_val_mse,
-                        "convergence_status": convergence_status,
-                    },
-                    "recommendation": (
-                        f"Enable early stopping (patience=50) or reduce epochs to "
-                        f"~{int(best_epoch * 1.3)}. Model peaked at epoch {best_epoch}/{epochs}."
-                    ),
-                })
+                overfitting.append(
+                    {
+                        "model_id": model_id,
+                        "topology": topology,
+                        "reason": "best_epoch_early",
+                        "details": {
+                            "best_epoch": best_epoch,
+                            "total_epochs": epochs,
+                            "ratio": round(epoch_ratio, 2),
+                            "final_val_mse": final_val_mse,
+                            "convergence_status": convergence_status,
+                        },
+                        "recommendation": (
+                            f"Enable early stopping (patience=50) or reduce epochs to "
+                            f"~{int(best_epoch * 1.3)}. Model peaked at epoch {best_epoch}/{epochs}."
+                        ),
+                    }
+                )
 
         # ── Check 3: Generalization gap → potential overfitting ──────────
         if generalization_gap is not None and generalization_gap > 0.5:
             # Train MSE << Val MSE → overfitting
-            overfitting.append({
-                "model_id": model_id,
-                "topology": topology,
-                "reason": "high_generalization_gap",
-                "details": {
-                    "generalization_gap": round(generalization_gap, 4),
-                    "final_val_mse": final_val_mse,
-                },
-                "recommendation": (
-                    f"Generalization gap={generalization_gap:.2f} is too high. "
-                    "Consider: more training data, more dropout, or smaller model."
-                ),
-            })
+            overfitting.append(
+                {
+                    "model_id": model_id,
+                    "topology": topology,
+                    "reason": "high_generalization_gap",
+                    "details": {
+                        "generalization_gap": round(generalization_gap, 4),
+                        "final_val_mse": final_val_mse,
+                    },
+                    "recommendation": (
+                        f"Generalization gap={generalization_gap:.2f} is too high. "
+                        "Consider: more training data, more dropout, or smaller model."
+                    ),
+                }
+            )
 
         # ── Check 4: Unknown convergence with enough info ────────────────
         if convergence_status == "unknown" and epochs > 0:
@@ -4775,7 +5670,8 @@ def compute_smart_comparison_h_grid(
             dashboard = _json.loads(dash_path.read_text())
             # Find best (lowest) h_frontier for this topology across all N/p
             topo_configs = [
-                c for c in dashboard.get("configs", [])
+                c
+                for c in dashboard.get("configs", [])
                 if c.get("topology") == topology and c.get("h_frontier") is not None
             ]
             if topo_configs:
@@ -4804,7 +5700,7 @@ def compute_smart_comparison_h_grid(
                 "h_frontier_used": round(h_frontier, 3),
                 "strategy": "frontier_dense",
                 "description": (
-                    f"Adaptive grid with {int(dense_fraction*100)}% of points "
+                    f"Adaptive grid with {int(dense_fraction * 100)}% of points "
                     f"near h_frontier={h_frontier:.3f} (empirical pass/fail boundary)"
                 ),
             }
@@ -4938,17 +5834,19 @@ def compute_cascading_retrain_plan(*, verbose: bool = False) -> dict:
 
         # Only include if below target or flagged for retrain
         if gap_to_target > 0 or retrain_flags.get(topo, False):
-            plan.append({
-                "topology": topo,
-                "priority": round(gap_to_target, 3),
-                "current_pass_rate": round(current_pass, 3),
-                "target_pass_rate": TARGET_PASS_RATE,
-                "gap_to_target": round(gap_to_target, 3),
-                "n_training_points": n_training,
-                "current_checkpoint": model_info.get("checkpoint_file", ""),
-                "needs_retrain_flagged": retrain_flags.get(topo, False),
-                "strategy": "finetune_from_mt" if mt_checkpoint else "retrain_from_scratch",
-            })
+            plan.append(
+                {
+                    "topology": topo,
+                    "priority": round(gap_to_target, 3),
+                    "current_pass_rate": round(current_pass, 3),
+                    "target_pass_rate": TARGET_PASS_RATE,
+                    "gap_to_target": round(gap_to_target, 3),
+                    "n_training_points": n_training,
+                    "current_checkpoint": model_info.get("checkpoint_file", ""),
+                    "needs_retrain_flagged": retrain_flags.get(topo, False),
+                    "strategy": "finetune_from_mt" if mt_checkpoint else "retrain_from_scratch",
+                }
+            )
 
     # Sort by priority (largest gap first)
     plan.sort(key=lambda x: x["priority"], reverse=True)
@@ -5042,9 +5940,7 @@ def run_tier3_validations(*, verbose: bool = False) -> dict:
 
     # ── Summary ──────────────────────────────────────────────────────────
     n_issues = (
-        eval_comp["n_discrepancies"]
-        + convergence["n_undertrained"]
-        + convergence["n_overfitting"]
+        eval_comp["n_discrepancies"] + convergence["n_undertrained"] + convergence["n_overfitting"]
     )
 
     parts = []

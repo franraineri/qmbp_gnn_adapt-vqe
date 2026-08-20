@@ -186,7 +186,7 @@ def main():
                 n_val = int(parts[n_idx][1:])
                 missing_gt = 0
                 for h in h_vals:
-                    key = f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.6f}"
+                    key = f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.2f}"
                     if key not in gt:
                         missing_gt += 1
                 if missing_gt:

@@ -225,8 +225,8 @@ Interrupted partial saves are always allowed (they contain completed section dat
 | `python project_health/cli/analyze_data_quality.py --purge-garbage --yes` | Remove garbage entries (non-interactive) |
 | `python project_health/cli/inspect_noiseless_run.py --latest exp_noiseless_tfim_4` | Per-h-point breakdown |
 | `python project_health/cli/inspect_noiseless_run.py run.json --vqe-detail` | Per-h VQE table |
-| `python _deprecated/_deprecated/scripts/maintenance/scan_new_runs.py --dirs exp_noiseless_tfim_4` | Deep per-run analysis |
-| `python _deprecated/_deprecated/scripts/maintenance/scan_new_runs.py --filter-model tfim --json report.json` | Filtered JSON report |
+| `python _deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/scripts/maintenance/scan_new_runs.py --dirs exp_noiseless_tfim_4` | Deep per-run analysis |
+| `python _deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/scripts/maintenance/scan_new_runs.py --filter-model tfim --json report.json` | Filtered JSON report |
 | `python scripts/analyze_noiseless_scaling.py` | Multi-axis scaling analysis (h, p, N, topology) |
 | `python scripts/analyze_noiseless_scaling.py --axis n-scaling` | N-dependence only |
 | `python scripts/verify_thesis_runs.py` | Verify thesis-grade runs (completeness + robustness) |
@@ -419,7 +419,7 @@ Runner.run() → save_experiment_result()
 Later:
     python -m project_health --diagnose     → reads from ResultIndex (cached, fast)
     python -m project_health                → ResultScanner → full health report
-    python _deprecated/_deprecated/scripts/maintenance/scan_new_runs.py         → deep per-point analysis
+    python _deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/scripts/maintenance/scan_new_runs.py         → deep per-point analysis
     python scripts/analyze_noiseless_scaling.py → multi-axis scaling study
     python scripts/verify_thesis_runs.py    → thesis data integrity check
 ```

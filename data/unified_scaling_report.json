@@ -1,46 +1,46 @@
 {
-  "generated_at": "2026-08-17T21:36:48.606108+00:00",
+  "generated_at": "2026-08-20T15:33:10.742633+00:00",
   "n_topologies": 5,
-  "n_configs": 30,
+  "n_configs": 43,
   "topologies": {
     "chain_1d": {
-      "n_max_viable": 20,
+      "n_max_viable": 60,
       "best_pass_rate": 0.9888888888888889,
-      "h_frontier": 2.2079973002326283,
-      "scalability_score": 0.9767151973530601,
+      "h_frontier": 3.75,
+      "scalability_score": 0.9022222222222223,
       "scalability_reason": "excellent_scaling",
-      "n_configs": 6
+      "n_configs": 11
     },
     "heavy_hex": {
-      "n_max_viable": 16,
+      "n_max_viable": 40,
       "best_pass_rate": 1.0,
-      "h_frontier": 2.0202633918284905,
-      "scalability_score": 0.9179939851496146,
+      "h_frontier": 4.0,
+      "scalability_score": 0.9,
       "scalability_reason": "excellent_scaling",
-      "n_configs": 5
+      "n_configs": 9
     },
     "ladder": {
-      "n_max_viable": 16,
+      "n_max_viable": 30,
       "best_pass_rate": 0.7333333333333333,
-      "h_frontier": 3.209454680536504,
-      "scalability_score": 0.7379650978588679,
+      "h_frontier": 4.373553003004851,
+      "scalability_score": 0.7847921540507637,
       "scalability_reason": "moderate_scaling",
-      "n_configs": 7
+      "n_configs": 10
     },
     "square": {
-      "n_max_viable": 14,
+      "n_max_viable": 16,
       "best_pass_rate": 0.8536585365853658,
-      "h_frontier": 3.28713113961604,
-      "scalability_score": 0.7431500717861098,
-      "scalability_reason": "moderate_scaling",
-      "n_configs": 6
+      "h_frontier": 3.60466388093917,
+      "scalability_score": 0.7724307650479062,
+      "scalability_reason": "excellent_scaling",
+      "n_configs": 7
     },
     "triangular": {
-      "n_max_viable": 12,
+      "n_max_viable": 6,
       "best_pass_rate": 1.0,
-      "h_frontier": 4.443073133848681,
-      "scalability_score": 0.7300277776102038,
-      "scalability_reason": "moderate_scaling",
+      "h_frontier": 4.442835863951597,
+      "scalability_score": 0.6100325855486877,
+      "scalability_reason": "limited_h_range",
       "n_configs": 6
     }
   },
@@ -51,133 +51,134 @@
     "utility_partition_available": true,
     "verified_ratio": 0.0,
     "total_verified": 0,
-    "total_points": 2308,
-    "n_legacy_npz": 30,
-    "n_useful_configs": 24,
-    "n_not_useful_configs": 0
+    "total_points": 2870,
+    "n_legacy_npz": 43,
+    "n_useful_configs": 30,
+    "n_not_useful_configs": 1
   },
   "extrapolation_viability": {
     "chain_1d": {
       "30": {
         "viable": true,
-        "reason": "extrapolation_below_threshold",
+        "reason": "target_n_within_viable_range",
         "topology": "chain_1d",
         "target_n": 30,
-        "n_max_viable": 20,
-        "extrapolated_de_gap": 0.04163491116528041
+        "n_max_viable": 60
       },
       "40": {
         "viable": true,
-        "reason": "extrapolation_below_threshold",
+        "reason": "target_n_within_viable_range",
         "topology": "chain_1d",
         "target_n": 40,
-        "n_max_viable": 20,
-        "extrapolated_de_gap": 0.05425768021853333
+        "n_max_viable": 60
       },
       "60": {
-        "viable": false,
-        "reason": "target_n_60_far_beyond_n_max_20",
+        "viable": true,
+        "reason": "target_n_within_viable_range",
         "topology": "chain_1d",
         "target_n": 60,
-        "n_max_viable": 20
+        "n_max_viable": 60
       }
     },
     "heavy_hex": {
       "30": {
         "viable": true,
-        "reason": "extrapolation_below_threshold",
+        "reason": "target_n_within_viable_range",
         "topology": "heavy_hex",
         "target_n": 30,
-        "n_max_viable": 16,
-        "extrapolated_de_gap": 0.05032202545789103
+        "n_max_viable": 40
       },
       "40": {
-        "viable": false,
-        "reason": "target_n_40_far_beyond_n_max_16",
+        "viable": true,
+        "reason": "target_n_within_viable_range",
         "topology": "heavy_hex",
         "target_n": 40,
-        "n_max_viable": 16
+        "n_max_viable": 40
       },
       "60": {
-        "viable": false,
-        "reason": "target_n_60_far_beyond_n_max_16",
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
         "topology": "heavy_hex",
         "target_n": 60,
-        "n_max_viable": 16
+        "n_max_viable": 40,
+        "extrapolated_de_gap": 0.05017300049139381
       }
     },
     "ladder": {
       "30": {
         "viable": true,
-        "reason": "extrapolation_below_threshold",
+        "reason": "target_n_within_viable_range",
         "topology": "ladder",
         "target_n": 30,
+        "n_max_viable": 30
+      },
+      "40": {
+        "viable": false,
+        "reason": "extrapolated_de_gap_0.66_above_threshold",
+        "topology": "ladder",
+        "target_n": 40,
+        "n_max_viable": 30,
+        "extrapolated_de_gap": 0.6553661148846025
+      },
+      "60": {
+        "viable": false,
+        "reason": "extrapolated_de_gap_1.00_above_threshold",
+        "topology": "ladder",
+        "target_n": 60,
+        "n_max_viable": 30,
+        "extrapolated_de_gap": 0.9994948332399183
+      }
+    },
+    "square": {
+      "30": {
+        "viable": true,
+        "reason": "extrapolation_below_threshold",
+        "topology": "square",
+        "target_n": 30,
         "n_max_viable": 16,
-        "extrapolated_de_gap": 0.1368396254894964
+        "extrapolated_de_gap": 0.1478328099973775
       },
       "40": {
         "viable": false,
         "reason": "target_n_40_far_beyond_n_max_16",
-        "topology": "ladder",
+        "topology": "square",
         "target_n": 40,
         "n_max_viable": 16
       },
       "60": {
         "viable": false,
         "reason": "target_n_60_far_beyond_n_max_16",
-        "topology": "ladder",
+        "topology": "square",
         "target_n": 60,
         "n_max_viable": 16
-      }
-    },
-    "square": {
-      "30": {
-        "viable": false,
-        "reason": "target_n_30_far_beyond_n_max_14",
-        "topology": "square",
-        "target_n": 30,
-        "n_max_viable": 14
-      },
-      "40": {
-        "viable": false,
-        "reason": "target_n_40_far_beyond_n_max_14",
-        "topology": "square",
-        "target_n": 40,
-        "n_max_viable": 14
-      },
-      "60": {
-        "viable": false,
-        "reason": "target_n_60_far_beyond_n_max_14",
-        "topology": "square",
-        "target_n": 60,
-        "n_max_viable": 14
       }
     },
     "triangular": {
       "30": {
         "viable": false,
-        "reason": "target_n_30_far_beyond_n_max_12",
+        "reason": "target_n_30_far_beyond_n_max_6",
         "topology": "triangular",
         "target_n": 30,
-        "n_max_viable": 12
+        "n_max_viable": 6
       },
       "40": {
         "viable": false,
-        "reason": "target_n_40_far_beyond_n_max_12",
+        "reason": "target_n_40_far_beyond_n_max_6",
         "topology": "triangular",
         "target_n": 40,
-        "n_max_viable": 12
+        "n_max_viable": 6
       },
       "60": {
         "viable": false,
-        "reason": "target_n_60_far_beyond_n_max_12",
+        "reason": "target_n_60_far_beyond_n_max_6",
         "topology": "triangular",
         "target_n": 60,
-        "n_max_viable": 12
+        "n_max_viable": 6
       }
     }
   },
   "recommendations": [
-    "BLOCKING: Training not ready \u2014 verified_ratio_too_low_0%"
+    "BLOCKING: Training not ready \u2014 verified_ratio_too_low_0%",
+    "triangular: Limited n_max_viable=6 \u2014 investigate VQE refinement budget"
   ]
 }

@@ -97,7 +97,7 @@ Total for Tier 1 (4 h-points, no SPSA): ~15 min QPU time.
 - [ ] Verify results in `results/hardware/run_*/summary.json`
 - [ ] Run automated post-execution validation:
   ```bash
-  .venv/bin/python _deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --validate results/hardware/run_XXXXXXXX_XXXXXX
+  .venv/bin/python _deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/_deprecated/scripts/standalone/verify_affine_bug.py --validate results/hardware/run_XXXXXXXX_XXXXXX
   ```
   Checks: energy bounds, affine consistency, observable bounds, cross-validation,
   ZNE R², variational principle, SNR, phase confidence, circuit metrics, QPU time.

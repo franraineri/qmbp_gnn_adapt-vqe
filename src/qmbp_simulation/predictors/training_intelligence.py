@@ -679,7 +679,7 @@ def _check_gt_coherence_for_topology(topology: str) -> str:
             n_val = int(parts[n_idx][1:])
 
             for i, h in enumerate(h_vals):
-                key = f"{topology}|{n_val}|tfim_bond_resolved|{float(h):.6f}"
+                key = f"{topology}|{n_val}|tfim_bond_resolved|{float(h):.2f}"
                 if key in gt:
                     gt_e = gt[key].get("energy", gt[key].get("e_exact"))
                     if gt_e is not None and abs(float(e_exact_npz[i]) - float(gt_e)) > 1e-6:

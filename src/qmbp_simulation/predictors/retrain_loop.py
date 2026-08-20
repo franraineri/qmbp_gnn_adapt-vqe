@@ -24,8 +24,8 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import UTC
 from pathlib import Path
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +71,7 @@ class RetrainLoopResult:
     @property
     def summary(self) -> str:
         if self.dry_run:
-            return (
-                f"[DRY-RUN] Retrain loop: {self.n_candidates} candidates found"
-            )
+            return f"[DRY-RUN] Retrain loop: {self.n_candidates} candidates found"
         return (
             f"Retrain loop: {self.n_retrained} retrained, "
             f"{self.n_improved} improved, {self.n_blocked} blocked, "
@@ -102,12 +100,16 @@ def evaluate_model_quick(
     Handles both MPNNPredictor (simple graphs) and UnifiedMPNN (unified
     bond-resolved graphs) automatically.
 
+    For multi_topology models, evaluates on representative topologies and
+    returns the average pass_rate.
+
     Parameters
     ----------
     model : UnifiedMPNN | MPNNPredictor
         Model to evaluate.
     topology : str
-        Lattice topology.
+        Lattice topology. If "multi_topology", evaluates on chain_1d,
+        heavy_hex, and ladder.
     n_qubits : int
         System size for evaluation.
     p_layers : int
@@ -123,6 +125,22 @@ def evaluate_model_quick(
         pass_rate_dual in [0, 1].
     """
     import numpy as np
+
+    # Multi-topology: evaluate on representative topologies and average
+    if topology == "multi_topology":
+        _MT_EVAL_TOPOLOGIES = ("chain_1d", "heavy_hex", "ladder")
+        rates = []
+        for topo in _MT_EVAL_TOPOLOGIES:
+            rate = evaluate_model_quick(
+                model,
+                topology=topo,
+                n_qubits=n_qubits,
+                p_layers=p_layers,
+                n_h_points=n_h_points,
+                h_range=h_range,
+            )
+            rates.append(rate)
+        return float(np.mean(rates)) if rates else 0.0
 
     try:
         import torch
@@ -190,6 +208,7 @@ def evaluate_model_quick(
                 else:
                     # MPNNPredictor path
                     from qmbp_simulation.predictors.mpnn import predict_theta
+
                     predictions = predict_theta(model, lattice_h, [float(h)])
                     if not predictions:
                         continue
@@ -205,14 +224,16 @@ def evaluate_model_quick(
             # Build result dict
             abs_error = abs(e_pred - e_exact)
             de_gap = abs_error / max(abs(gap), 1e-10) if gap != 0 else abs_error
-            per_h_results.append({
-                "h": float(h),
-                "e_pred": float(e_pred),
-                "e_exact": float(e_exact),
-                "gap": float(gap),
-                "abs_error": float(abs_error),
-                "de_gap": float(de_gap),
-            })
+            per_h_results.append(
+                {
+                    "h": float(h),
+                    "e_pred": float(e_pred),
+                    "e_exact": float(e_exact),
+                    "gap": float(gap),
+                    "abs_error": float(abs_error),
+                    "de_gap": float(de_gap),
+                }
+            )
         except Exception as exc:
             logger.debug("evaluate_model_quick: h=%.2f failed: %s", h, exc)
             continue
@@ -258,7 +279,8 @@ def regression_guardrail(
 
     # Find existing model for same config
     existing_entries = [
-        e for e in _load_manifest()
+        e
+        for e in _load_manifest()
         if e.topology == entry.topology
         and e.model == entry.model
         and e.p_layers == entry.p_layers
@@ -335,7 +357,10 @@ def _retrain_single(
 
     logger.info(
         "  Retraining %s (P%d: %s) with %d N-values...",
-        topo, priority, reason, len(n_values),
+        topo,
+        priority,
+        reason,
+        len(n_values),
     )
 
     try:
@@ -408,7 +433,7 @@ def _retrain_single(
             norm_type="none",
             dropout=0.1,
             use_residual=use_residual,
-            film=film,
+            film_conditioning=film,
         )
         train_result = train_unified_mpnn(
             model,
@@ -449,9 +474,7 @@ def _retrain_single(
     )
 
     if not allowed:
-        logger.warning(
-            "  🚫 Retrain BLOCKED for %s: %s", topo, guardrail_reason
-        )
+        logger.warning("  🚫 Retrain BLOCKED for %s: %s", topo, guardrail_reason)
         return RetrainResult(
             topology=topo,
             checkpoint_file=checkpoint_file,
@@ -467,7 +490,7 @@ def _retrain_single(
 
     # ── Step 4: Register with training metrics ───────────────────────────
     try:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         new_entry = ZooEntry(
             model="tfim_bond_resolved",
@@ -479,10 +502,10 @@ def _retrain_single(
             pass_rate=0.0,  # Will be updated by comparison
             n_training_points=len(dataset),
             seeds=[42],
-            created=datetime.now(timezone.utc).isoformat(),
+            created=datetime.now(UTC).isoformat(),
             notes=f"Auto-retrain (P{priority}): {reason}",
             runner_tag="AR",
-            date_tag=datetime.now(timezone.utc).strftime("%d%m%y"),
+            date_tag=datetime.now(UTC).strftime("%d%m%y"),
         )
 
         register_checkpoint_with_training_metrics(
@@ -537,8 +560,7 @@ def _run_comparison_after_retrain(topology: str) -> float:
     Returns the winning model's pass_rate (or 0.0 on failure).
     """
     comparison_script = (
-        _ROOT / "scripts" / "experiment_runners"
-        / "cross_topology" / "run_model_comparison.py"
+        _ROOT / "scripts" / "experiment_runners" / "cross_topology" / "run_model_comparison.py"
     )
     if not comparison_script.exists():
         logger.warning("  Comparison script not found: %s", comparison_script)
@@ -547,11 +569,16 @@ def _run_comparison_after_retrain(topology: str) -> float:
     cmd = [
         sys.executable,
         str(comparison_script),
-        "--topology", topology,
-        "--target-n", "10", "16", "20",
+        "--topology",
+        topology,
+        "--target-n",
+        "10",
+        "16",
+        "20",
         "--auto-detect",
         "--promote-best",
-        "--h-points", "8",
+        "--h-points",
+        "8",
     ]
 
     logger.info("  Running post-retrain comparison on %s...", topology)
@@ -585,10 +612,7 @@ def _run_comparison_after_retrain(topology: str) -> float:
         # Fallback: read from zoo manifest
         from qmbp_simulation.predictors.model_zoo import _load_manifest
 
-        entries = [
-            e for e in _load_manifest()
-            if e.topology == topology and e.n_qubits == 0
-        ]
+        entries = [e for e in _load_manifest() if e.topology == topology and e.n_qubits == 0]
         if entries:
             return max(e.pass_rate for e in entries)
         return 0.0
@@ -661,21 +685,25 @@ def run_retrain_loop(
         return result
 
     if verbose:
-        print(f"\n  {'[DRY-RUN] ' if dry_run else ''}Retrain loop: "
-              f"{len(filtered)} candidates (from {len(queue)} total)")
+        print(
+            f"\n  {'[DRY-RUN] ' if dry_run else ''}Retrain loop: "
+            f"{len(filtered)} candidates (from {len(queue)} total)"
+        )
         for item in filtered:
             print(f"    P{item['priority']}: {item['topology']} — {item['reason']}")
 
     if dry_run:
         for item in filtered:
-            result.results.append(RetrainResult(
-                topology=item["topology"],
-                checkpoint_file=item["checkpoint_file"],
-                priority=item["priority"],
-                reason=item["reason"],
-                action="would_retrain",
-                old_pass_rate=item.get("current_pass_rate", 0.0),
-            ))
+            result.results.append(
+                RetrainResult(
+                    topology=item["topology"],
+                    checkpoint_file=item["checkpoint_file"],
+                    priority=item["priority"],
+                    reason=item["reason"],
+                    action="would_retrain",
+                    old_pass_rate=item.get("current_pass_rate", 0.0),
+                )
+            )
         result.total_elapsed_s = time.time() - t_start
         return result
 
@@ -743,15 +771,21 @@ def main() -> int:
         description="Automated retrain loop: train→eval→compare→update_zoo"
     )
     parser.add_argument(
-        "--max-retrains", type=int, default=3,
+        "--max-retrains",
+        type=int,
+        default=3,
         help="Maximum models to retrain (default: 3)",
     )
     parser.add_argument(
-        "--min-priority", type=int, default=4,
+        "--min-priority",
+        type=int,
+        default=4,
         help="Max priority level to include (1=highest, 4=lowest, default: 4)",
     )
     parser.add_argument(
-        "--n-epochs", type=int, default=3500,
+        "--n-epochs",
+        type=int,
+        default=3500,
         help="Training epochs (default: 3500)",
     )
     parser.add_argument("--dry-run", action="store_true", help="Report without executing")

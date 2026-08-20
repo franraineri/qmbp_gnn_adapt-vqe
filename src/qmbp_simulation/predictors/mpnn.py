@@ -750,7 +750,7 @@ def train_mpnn(
     dict (when model is provided) or tuple[MPNNPredictor, dict] (when model=None)
         When model=None: returns (model, history_dict).
         When model is provided: returns history_dict only (backward compatible).
-        
+
         history_dict has keys: 'mse_history', 'energy_val_history', 'final_mse',
         'stopped_early', 'stop_reason',
         and optionally 'zz_head_loss_history', 'x_head_loss_history'
@@ -1457,7 +1457,7 @@ def train_bond_resolved_mpnn(
             val_mse_history.append(v_loss / len(val_data))
             model.train()
 
-        if (epoch + 1) % 1000 == 0:
+        if (epoch + 1) % 250 == 0:
             val_str = f", val={val_mse_history[-1]:.2e}" if val_mse_history else ""
             logger.info(
                 f"  Epoch {epoch + 1}: MSE={avg_loss:.2e} "

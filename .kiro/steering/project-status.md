@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-08-19 14:56
+**Last updated**: 2026-08-20 16:25
 **Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
 **Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -32,23 +32,26 @@
 
 | Topology | N | Pts | ΔE/gap | |ΔE|/N | Grade |
 |----------|---|-----|--------|--------|-------|
-| chain_1d | 16 | 6 | 0.021 | 8.95e-03 | B |
+| chain_1d | 16 | 10 | 0.105 | 3.19e-02 | F |
 | chain_1d | 20 | 7 | 0.068 | 1.81e-02 | D |
-| chain_1d | 30 | 28 | 0.038 | 7.49e-03 | B |
+| chain_1d | 30 | 28 | 0.035 | 7.10e-03 | B |
 | chain_1d | 40 | 24 | 0.041 | 5.90e-03 | B |
 | chain_1d | 60 | 22 | 0.072 | 7.45e-03 | C |
+| chain_1d | 80 | 8 | 0.166 | 8.85e-03 | D |
 | chain_1d | 100 | 19 | 0.137 | 7.98e-03 | D |
 | chain_1d | 150 | 3 | 0.784 | 3.58e-02 | F |
 | chain_1d | 200 | 3 | 1.047 | 3.59e-02 | F |
-| heavy_hex | 20 | 37 | 0.334 | 1.12e-02 | F |
-| heavy_hex | 30 | 27 | 0.971 | 1.84e-02 | F |
-| heavy_hex | 40 | 6 | 0.039 | 1.79e-03 | C |
-| ladder | 20 | 24 | 0.258 | 7.10e-03 | F |
+| heavy_hex | 16 | 6 | 0.106 | 3.74e-02 | F |
+| heavy_hex | 20 | 54 | 0.261 | 1.52e-02 | F |
+| heavy_hex | 30 | 33 | 0.861 | 2.23e-02 | F |
+| heavy_hex | 40 | 10 | 0.203 | 2.12e-02 | F |
+| ladder | 16 | 6 | 0.078 | 1.40e-02 | D |
+| ladder | 20 | 24 | 0.259 | 7.24e-03 | F |
 | ladder | 26 | 14 | 0.517 | 8.95e-03 | F |
 | ladder | 30 | 14 | 0.513 | 7.44e-03 | F |
 | ladder | 40 | 6 | 1.558 | 9.88e-03 | F |
-| square | 16 | 26 | 0.081 | 1.64e-02 | D |
-| square | 20 | 26 | 0.790 | 1.74e-02 | F |
+| square | 16 | 26 | 0.081 | 1.65e-02 | D |
+| square | 20 | 26 | 0.791 | 1.75e-02 | F |
 | square | 30 | 12 | 2.578 | 2.89e-02 | F |
 | triangular | 12 | 10 | 1.785 | 7.33e-02 | F |
 | triangular | 16 | 10 | 28.703 | 1.63e-01 | F |
@@ -56,14 +59,19 @@
 
 ## Best Model per Topology (Auto-Tracked)
 
-| Topology | Checkpoint | Arch | Pass% | N-range | Best N | Worst N |
-|----------|-----------|------|-------|---------|--------|---------|
-| chain_1d | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 36% | N=6-31 | N6=100% | N31=17% |
-| heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+... | residual | 64% | — | — | — |
-| ladder | unified_tfim_br_ladder_multiN_4+6+8... | baseline | 18% | N=4-24 | N4=83% | N10=47% |
-| multi_topology | unified_tfim_br_MT_residual+film_p1.pt | residual+film | 6% | N=3-31 | N4=50% | N3=17% |
-| square | unified_tfim_br_square_multiN_4+6+8... | baseline | 22% | N=4-21 | N4=83% | N10=33% |
-| triangular | unified_tfim_br_triangular_multiN_3... | baseline | 25% | N=3-13 | N6=50% | N4=33% |
+| Topology | p | Checkpoint | Arch | Pass% | N-range | Best N | Worst N |
+|----------|---|-----------|------|-------|---------|--------|---------|
+| chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 67% | — | — | — |
+| chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 0% | N=6-31 | N6=100% | N31=17% |
+| chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 0% | N=6-31 | N6=100% | N31=17% |
+| heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | N=4-29 | N4=0% | all 0% |
+| heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | N=4-29 | N4=0% | all 0% |
+| heavy_hex | 1 | unified_tfim_br_heavy_hex_fromMT_4+... | baseline | 0% | — | — | — |
+| ladder | 1 | unified_tfim_br_ladder_multiN_4+6+8... | baseline | 36% | N=4-24 | N4=83% | N10=47% |
+| multi_topology | 1 | unified_tfim_br_MT_residual+film_p1.pt | residual+film | 6% | N=3-31 | N4=50% | N3=17% |
+| square | 1 | unified_tfim_br_square_multiN_4+6+8... | baseline | 33% | N=4-21 | N4=83% | N10=33% |
+| square | 1 | unified_tfim_br_square_multiN_4+6+8... | baseline | 0% | N=4-21 | N4=100% | N6=83% |
+| triangular | 1 | unified_tfim_br_triangular_multiN_3... | baseline | 25% | N=3-16 | N6=50% | N4=33% |
 | **multi_topo** | unified_tfim_br_MT_residual+film_p1.pt | residual+film | 6% | N=3-31 | N4=50% | N3=17% |
 
 ---

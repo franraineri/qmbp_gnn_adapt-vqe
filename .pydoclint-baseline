@@ -1,0 +1,536 @@
+src/qmbp_simulation/analysis/circuit_visualizer.py
+    DOC107: Function `compute_error_budget`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_error_budget`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `_extract_error_rates_from_target`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `_extract_error_rates_from_target`: Argument names match, but type hints in these args do not match: target
+    DOC107: Function `build_error_prediction`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `build_error_prediction`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `validate_prediction_vs_result`: Argument names match, but type hints in these args do not match: prediction
+    DOC107: Function `compute_decoherence_penalty`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_decoherence_penalty`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `compute_circuit_feasibility`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_circuit_feasibility`: Argument names match, but type hints in these args do not match: backend
+--------------------
+src/qmbp_simulation/analysis/cross_n_validator.py
+    DOC105: Method `CrossNValidator.__init__`: Argument names match, but type hints in these args do not match: model_spec, backend
+    DOC105: Method `CrossNValidator.validate_prediction`: Argument names match, but type hints in these args do not match: model, training_data
+    DOC105: Function `preflight_cross_n`: Argument names match, but type hints in these args do not match: model
+--------------------
+src/qmbp_simulation/analysis/diagnostics.py
+    DOC105: Method `DiagnosticCollector.record_vqe_validation`: Argument names match, but type hints in these args do not match: report
+    DOC107: Method `DiagnosticCollector.record_deployment`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `DiagnosticCollector.record_deployment`: Argument names match, but type hints in these args do not match: result
+    DOC107: Method `DiagnosticCollector.record_baseline`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `DiagnosticCollector.record_baseline`: Argument names match, but type hints in these args do not match: comparison
+--------------------
+src/qmbp_simulation/analysis/evaluation_report.py
+    DOC105: Function `generate_comparison_table`: Argument names match, but type hints in these args do not match: mpnn_results_by_n
+    DOC105: Function `generate_evaluation_report`: Argument names match, but type hints in these args do not match: h_range
+    DOC107: Function `evaluate_theta_prediction`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `evaluate_theta_prediction`: Argument names match, but type hints in these args do not match: model
+    DOC001: Function/method `generate_mt_vs_st_table`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Usage" (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
+--------------------
+src/qmbp_simulation/analysis/extension_ranker.py
+    DOC001: Class `ExtensionScore`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Fields"
+    DOC109: Method `ExtensionPriorityRanker.rank`: The option `--arg-type-hints-in-docstring` is `True` but there are no type hints in the docstring arg list
+    DOC110: Method `ExtensionPriorityRanker.rank`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC105: Method `ExtensionPriorityRanker.rank`: Argument names match, but type hints in these args do not match: scores
+    DOC109: Method `ExtensionPriorityRanker.rank_with_rationale`: The option `--arg-type-hints-in-docstring` is `True` but there are no type hints in the docstring arg list
+    DOC110: Method `ExtensionPriorityRanker.rank_with_rationale`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC105: Method `ExtensionPriorityRanker.rank_with_rationale`: Argument names match, but type hints in these args do not match: scores
+--------------------
+src/qmbp_simulation/analysis/failures_tests.py
+    DOC105: Function `diagnose_gap_masking`: Argument names match, but type hints in these args do not match: h_values, de_gaps, abs_errors, n_qubits, h_critical
+    DOC101: Function `_compute_violation_rate`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_compute_violation_rate`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [per_n_data: dict[int, dict]].
+    DOC105: Function `_diagnose_generalization_failure_dashboard`: Argument names match, but type hints in these args do not match: per_n_data
+    DOC105: Function `_diagnose_intrinsic_vqe_error_dashboard`: Argument names match, but type hints in these args do not match: dashboard_configs, npz_dir
+    DOC105: Function `_diagnose_contaminated_training_dashboard`: Argument names match, but type hints in these args do not match: dashboard_configs
+    DOC101: Function `classify_topology_failure_mode`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `classify_topology_failure_mode`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [abs_errors: np.ndarray, de_gaps: np.ndarray, h_values: np.ndarray]. Arguments in the docstring but not in the function signature: [h_values, de_gaps, abs_errors: np.ndarray].
+    DOC105: Function `diagnose_h_range_mismatch`: Argument names match, but type hints in these args do not match: per_n_data
+    DOC105: Function `classify_topology_failure_mode_from_dashboard`: Argument names match, but type hints in these args do not match: dashboard_configs, extrapolation_data
+--------------------
+src/qmbp_simulation/analysis/flow_multishot.py
+    DOC105: Method `FlowMultiShotPredictor.__init__`: Argument names match, but type hints in these args do not match: n_oversample
+--------------------
+src/qmbp_simulation/analysis/flow_warmstart.py
+    DOC105: Function `_extract_embedding`: Argument names match, but type hints in these args do not match: model
+    DOC105: Method `FlowWarmstartManager.train`: Argument names match, but type hints in these args do not match: model
+    DOC201: Method `FlowWarmstartManager.trainable_param_count` does not have a return section in docstring
+    DOC105: Method `FlowWarmstartManager.load`: Argument names match, but type hints in these args do not match: model
+--------------------
+src/qmbp_simulation/analysis/ground_truth_validator.py
+    DOC105: Method `GroundTruthValidator.validate`: Argument names match, but type hints in these args do not match: results
+--------------------
+src/qmbp_simulation/analysis/landscape.py
+    DOC105: Function `compute_hessian`: Argument names match, but type hints in these args do not match: cost_fn
+    DOC105: Function `landscape_fluctuation`: Argument names match, but type hints in these args do not match: cost_fn, bounds
+--------------------
+src/qmbp_simulation/analysis/metrics.py
+    DOC101: Function `identify_failures`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `identify_failures`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, max_abs_error: float, min_fidelity: float].
+    DOC107: Function `compute_fraction_near_gs`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_fraction_near_gs`: Argument names match, but type hints in these args do not match: cost_fn
+    DOC101: Function `_compute_confidence_level`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_compute_confidence_level`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [eval_cache_density: int, n_points: int, pass_rate_dual: float].
+    DOC101: Function `validate_gt_npz_coherence`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `validate_gt_npz_coherence`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [include_extrapolation: bool].
+    DOC105: Function `compute_training_readiness`: Argument names match, but type hints in these args do not match: tier_breakdown, utility_partition
+    DOC105: Function `compute_extrapolation_viability`: Argument names match, but type hints in these args do not match: mean_de_gap_per_n
+    DOC105: Function `generate_unified_scaling_report`: Argument names match, but type hints in these args do not match: tier_breakdown
+    DOC101: Function `compute_mpnn_diagnostics`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `compute_mpnn_diagnostics`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model_name: str | None, p_layers: int | None, topology: str | None]. Arguments in the docstring but not in the function signature: [topology, model_name, p_layers: str | None].
+    DOC101: Function `auto_fix_scoreboard_issues`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `auto_fix_scoreboard_issues`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [verbose: bool].
+    DOC101: Function `validate_eval_vs_comparison_gap`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `validate_eval_vs_comparison_gap`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [verbose: bool].
+    DOC101: Function `detect_undertrained_models`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `detect_undertrained_models`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [verbose: bool].
+    DOC101: Function `compute_cascading_retrain_plan`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `compute_cascading_retrain_plan`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [verbose: bool].
+    DOC101: Function `run_tier3_validations`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `run_tier3_validations`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [verbose: bool].
+--------------------
+src/qmbp_simulation/analysis/nlce.py
+    DOC601: Class `NLCEConfig`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `NLCEConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [J: float, J2: float, convergence_threshold: float, l_max: int, model: str, periodic: bool, solver_method: str, topology: str]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC105: Method `NLCERunner.compute_sweep`: Argument names match, but type hints in these args do not match: h_values
+--------------------
+src/qmbp_simulation/analysis/quality_predictor.py
+    DOC001: Class `QualityPredictor`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Integration Examples"
+    DOC001: Function/method `__init__`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Integration Examples" (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
+    DOC101: Method `QualityPredictor.predict`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `QualityPredictor.predict`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [h_max: float, h_min: float]. Arguments in the docstring but not in the function signature: [h_min, h_max: float].
+    DOC105: Method `QualityPredictor.batch_predict`: Argument names match, but type hints in these args do not match: configs
+    DOC105: Method `QualityPredictor.prioritize_configs`: Argument names match, but type hints in these args do not match: configs
+    DOC105: Method `QualityPredictor.suggest_viable_configs`: Argument names match, but type hints in these args do not match: n_qubits_range, p_range
+--------------------
+src/qmbp_simulation/analysis/theta_alignment.py
+    DOC101: Function `_reoptimize_point`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_reoptimize_point`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [backend: ExecutionBackend, circuit: QuantumCircuit, hamiltonian: SparsePauliOp, maxiter: int, seed_theta: np.ndarray].
+    DOC105: Function `detect_theta_outliers`: Argument names match, but type hints in these args do not match: theta_array, h_values, fidelities
+    DOC105: Function `filter_theta_outliers`: Argument names match, but type hints in these args do not match: theta_array, h_values, e_exact, fidelities
+    DOC105: Function `cross_h_energy_guard`: Argument names match, but type hints in these args do not match: vqe_energies, exact_energies, gaps, theta_array, h_values, reoptimize_fn
+--------------------
+src/qmbp_simulation/analysis/theta_validator.py
+    DOC105: Method `ThetaValidator.__init__`: Argument names match, but type hints in these args do not match: theta_mean, theta_std, theta_min, theta_max, training_thetas, training_h_values
+    DOC105: Method `ThetaValidator.from_training_data`: Argument names match, but type hints in these args do not match: theta_opt, h_values
+    DOC105: Method `ThetaValidator.check_fidelity`: Argument names match, but type hints in these args do not match: circuit
+    DOC105: Method `ThetaValidator.check_gradient_norm`: Argument names match, but type hints in these args do not match: energy_fn
+    DOC105: Method `ThetaValidator.check_mc_dropout`: Argument names match, but type hints in these args do not match: model, graph_data
+    DOC105: Method `ThetaValidator.check_sensitivity`: Argument names match, but type hints in these args do not match: energy_fn
+    DOC105: Method `ThetaValidator.validate`: Argument names match, but type hints in these args do not match: circuit, energy_fn, model, graph_data
+--------------------
+src/qmbp_simulation/analysis/vqe_validator.py
+    DOC105: Method `VQEValidator.validate_single`: Argument names match, but type hints in these args do not match: vqe_result, exact_result
+    DOC105: Method `VQEValidator.validate_sweep`: Argument names match, but type hints in these args do not match: vqe_results, exact_data
+    DOC105: Method `VQEValidator.from_lattice`: Argument names match, but type hints in these args do not match: lattice
+    DOC201: Method `VQEValidator.from_lattice` does not have a return section in docstring
+--------------------
+src/qmbp_simulation/circuits/aqc_compression.py
+    DOC601: Class `AQCCompressionConfig`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `AQCCompressionConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [gradient_tol: float]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC105: Method `AQCCircuitCompressor.__init__`: Argument names match, but type hints in these args do not match: config
+    DOC105: Method `AQCCircuitCompressor.compress_circuit`: Argument names match, but type hints in these args do not match: good_circuit, coupling_map
+    DOC110: Method `AQCCircuitCompressor.compress_from_mps`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC105: Method `AQCCircuitCompressor.compress_from_mps`: Argument names match, but type hints in these args do not match: target_mps
+    DOC105: Method `AQCCircuitCompressor.validate_compression`: Argument names match, but type hints in these args do not match: energy_original
+    DOC105: Method `AQCCompressionCache.__init__`: Argument names match, but type hints in these args do not match: cache_dir
+--------------------
+src/qmbp_simulation/execution/backends.py
+    DOC101: Method `NoisyBackend.__init__`: Docstring contains fewer arguments than in function signature.
+    DOC107: Method `NoisyBackend.__init__`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC103: Method `NoisyBackend.__init__`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [mitigation: MitigationOptions | None, noise_model: , seed_simulator: int | None, shots: int].
+--------------------
+src/qmbp_simulation/execution/eval_cache.py
+    DOC001: Class `CachedBackend`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Usage"
+    DOC001: Function/method `__init__`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Usage" (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
+--------------------
+src/qmbp_simulation/execution/hardware/backend.py
+    DOC101: Method `HardwareBackend._rank_layouts_by_depth_2q`: Docstring contains fewer arguments than in function signature.
+    DOC106: Method `HardwareBackend._rank_layouts_by_depth_2q`: The option `--arg-type-hints-in-signature` is `True` but there are no argument type hints in the signature
+    DOC107: Method `HardwareBackend._rank_layouts_by_depth_2q`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC103: Method `HardwareBackend._rank_layouts_by_depth_2q`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [layout_selection: ].
+    DOC101: Method `HardwareBackend._aggregate_zne_results`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `HardwareBackend._aggregate_zne_results`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [gap: float, hamiltonian: SparsePauliOp, layout_selection: LayoutSelection, raw_results: list[dict[str, Any]]].
+--------------------
+src/qmbp_simulation/execution/hardware/layout_optimizer.py
+    DOC605: Class `LayoutOptimizationResult`: Attribute names match, but type hints in these attributes do not match: filtering_stats  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC107: Function `build_filtered_coupling_map`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `build_filtered_coupling_map`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `find_vf2_layouts`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `find_vf2_layouts`: Argument names match, but type hints in these args do not match: backend_or_cmap
+    DOC107: Function `compute_layout_fidelity_cost`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_layout_fidelity_cost`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `select_optimal_layouts`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `select_optimal_layouts`: Argument names match, but type hints in these args do not match: backend, strategy
+    DOC105: Function `rank_backends`: Argument names match, but type hints in these args do not match: backends
+--------------------
+src/qmbp_simulation/execution/hardware/observables.py
+    DOC105: Function `extract_array_result`: Argument names match, but type hints in these args do not match: result
+--------------------
+src/qmbp_simulation/execution/hardware/persistence.py
+    DOC101: Function `save_run`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `save_run`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [calibration_info: dict[str, Any], config: HardwareConfig, execution_mode_name: str, logger: StructuredLogger, options_dict: dict[str, Any], raw_per_layout: list[dict], result: HardwareRunResult, zne_data: dict[str, Any]].
+    DOC201: Function `save_run` does not have a return section in docstring
+--------------------
+src/qmbp_simulation/execution/hardware/preflight.py
+    DOC106: Function `compute_mean_2q_error`: The option `--arg-type-hints-in-signature` is `True` but there are no argument type hints in the signature
+    DOC107: Function `compute_mean_2q_error`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_mean_2q_error`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `compute_layout_2q_error`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_layout_2q_error`: Argument names match, but type hints in these args do not match: backend
+    DOC106: Function `compute_mean_readout_error`: The option `--arg-type-hints-in-signature` is `True` but there are no argument type hints in the signature
+    DOC107: Function `compute_mean_readout_error`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_mean_readout_error`: Argument names match, but type hints in these args do not match: backend
+    DOC106: Function `compute_min_t1_t2`: The option `--arg-type-hints-in-signature` is `True` but there are no argument type hints in the signature
+    DOC107: Function `compute_min_t1_t2`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_min_t1_t2`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `_compute_t1_percentile`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `_compute_t1_percentile`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `run_preflight_checks`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_preflight_checks`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `validate_circuit_for_zne`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `validate_circuit_for_zne`: Argument names match, but type hints in these args do not match: circuit
+    DOC107: Function `validate_transpiled_circuit_quality`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `validate_transpiled_circuit_quality`: Argument names match, but type hints in these args do not match: transpiled_circuit, backend
+    DOC001: Class `QPUCostEstimate`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Fields"
+    DOC601: Class `QPUThroughputProfile`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `QPUThroughputProfile`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [base_clops: int, classical_latency_per_job_s: float, clops_ceiling: int, clops_floor: int, depth_exponent: float, name: str, ref_depth: int, ref_n_qubits: int, total_qubits: int, width_exponent: float]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC601: Class `SPSACostModel`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `SPSACostModel`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [evals_per_iteration: int, n_iterations: int, trigger_probability: float]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC001: Class `QPUCostEstimateExtended`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "New Fields"
+    DOC107: Function `estimate_qpu_cost_extended`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `estimate_qpu_cost_extended`: Argument names match, but type hints in these args do not match: backend
+--------------------
+src/qmbp_simulation/execution/hardware/qesem.py
+    DOC105: Function `validate_qesem_submission`: Argument names match, but type hints in these args do not match: options
+    DOC105: Function `run_qesem_deployment`: Argument names match, but type hints in these args do not match: structured_logger
+    DOC105: Function `run_qesem_sweep`: Argument names match, but type hints in these args do not match: structured_logger
+--------------------
+src/qmbp_simulation/execution/hardware/spsa.py
+    DOC105: Function `spsa_refinement`: Argument names match, but type hints in these args do not match: evaluate_fn, initial_params, initial_energy, e_exact, gap, config, spsa_config, logger, rng, current_total_shots
+--------------------
+src/qmbp_simulation/execution/hardware/submission.py
+    DOC101: Function `_maybe_escalate_layouts`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_maybe_escalate_layouts`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [backend: Any, bound_circuit: QuantumCircuit, config: HardwareConfig, logger: StructuredLogger].
+    DOC105: Function `wait_for_qpu_execution`: Argument names match, but type hints in these args do not match: job
+--------------------
+src/qmbp_simulation/execution/mitiq_utils.py
+    DOC105: Function `make_mitiq_executor`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `run_mitiq_zne`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `run_mitiq_cdr`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `run_mitiq_ddd_zne`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `run_mitiq_pec`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `compare_mitigation_strategies`: Argument names match, but type hints in these args do not match: backend
+--------------------
+src/qmbp_simulation/execution/mps_backend.py
+    DOC601: Class `MPSBackend`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `MPSBackend`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [SUPPORTED_STRATEGIES: tuple[str, ...]]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+--------------------
+src/qmbp_simulation/execution/noisy_utils.py
+    DOC601: Class `NoisyEstimatorConfig`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `NoisyEstimatorConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [optimization_level: int, seed_simulator: int, shots: int]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC106: Function `build_adjacency`: The option `--arg-type-hints-in-signature` is `True` but there are no argument type hints in the signature
+    DOC107: Function `build_adjacency`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `build_adjacency`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `compute_circuit_ces`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `compute_circuit_ces`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `select_layouts_by_circuit_ces`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `select_layouts_by_circuit_ces`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `select_layouts_low_ces`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `select_layouts_low_ces`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `noisy_estimate`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `noisy_estimate`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `noisy_estimate_batch`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `noisy_estimate_batch`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `linear_zne`: Argument names match, but type hints in these args do not match: sigmas
+    DOC107: Function `run_zne_deployment`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_zne_deployment`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `_extrapolate_linear`: Argument names match, but type hints in these args do not match: sigmas
+    DOC107: Function `run_gate_folding_zne`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_gate_folding_zne`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `run_gate_folding_zne_deployment`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_gate_folding_zne_deployment`: Argument names match, but type hints in these args do not match: backend
+    DOC106: Function `_learn_noise_rates`: The option `--arg-type-hints-in-signature` is `True` but there are no argument type hints in the signature
+    DOC107: Function `_learn_noise_rates`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `_learn_noise_rates`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `_build_amplified_noise_model`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `_build_amplified_noise_model`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `_pea_estimate`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `_pea_estimate`: Argument names match, but type hints in these args do not match: backend, prebuilt_noise_model
+    DOC107: Function `_measure_noise_factors`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `_measure_noise_factors`: Argument names match, but type hints in these args do not match: backend, relevant_rates
+    DOC107: Function `run_pea_zne`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_pea_zne`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `run_pea_zne_deployment`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_pea_zne_deployment`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `run_adaptive_zne`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_adaptive_zne`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `run_block_zne`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `run_block_zne`: Argument names match, but type hints in these args do not match: backend
+    DOC107: Function `take_calibration_snapshot`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `take_calibration_snapshot`: Argument names match, but type hints in these args do not match: backend
+--------------------
+src/qmbp_simulation/framework/artifact_store.py
+    DOC105: Method `ArtifactCollector.__init__`: Argument names match, but type hints in these args do not match: config_fingerprint
+    DOC105: Method `ArtifactCollector.register`: Argument names match, but type hints in these args do not match: metadata
+--------------------
+src/qmbp_simulation/framework/base.py
+    DOC105: Method `BaseExperiment.report`: Argument names match, but type hints in these args do not match: analysis
+    DOC102: Method `BaseExperiment.execute`: Docstring contains more arguments than in function signature.
+    DOC110: Method `BaseExperiment.execute`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `BaseExperiment.execute`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the docstring but not in the function signature: [Returns the analysis dict.: ].
+    DOC201: Method `BaseExperiment.execute` does not have a return section in docstring
+    DOC107: Method `BaseExperiment.run_warm_cold_comparison`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `BaseExperiment.run_warm_cold_comparison`: Argument names match, but type hints in these args do not match: hamiltonian
+    DOC107: Method `BaseExperiment.run_vqe_sweep`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `BaseExperiment.run_vqe_sweep`: Argument names match, but type hints in these args do not match: h_values, circuit
+--------------------
+src/qmbp_simulation/framework/benchmarking.py
+    DOC605: Class `BenchmarkResult`: Attribute names match, but type hints in these attributes do not match: details  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC601: Class `BenchmarkSuite`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `BenchmarkSuite`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [AVAILABLE_COMPONENTS: ]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC105: Method `BenchmarkSuite.__init__`: Argument names match, but type hints in these args do not match: n_qubits
+--------------------
+src/qmbp_simulation/framework/criteria.py
+    DOC105: Function `compute_verdict`: Argument names match, but type hints in these args do not match: summary
+--------------------
+src/qmbp_simulation/framework/logging.py
+    DOC105: Method `ProgressReporter.summary`: Argument names match, but type hints in these args do not match: metrics
+--------------------
+src/qmbp_simulation/framework/preflight.py
+    DOC101: Function `get_valid_regime`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `get_valid_regime`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [p: int].
+    DOC201: Function `get_valid_regime` does not have a return section in docstring
+    DOC201: Method `PreflightChecker.run_all` does not have a return section in docstring
+--------------------
+src/qmbp_simulation/framework/presets.py
+    DOC105: Function `preset_to_args`: Argument names match, but type hints in these args do not match: preset
+--------------------
+src/qmbp_simulation/framework/quality_profile.py
+    DOC001: Function/method `format_per_h_status`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Format a per-h point status as continuous value with grade indicator." (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
+--------------------
+src/qmbp_simulation/framework/result_index.py
+    DOC105: Method `ResultIndex.add_entry`: Argument names match, but type hints in these args do not match: data
+    DOC101: Method `ResultIndex.query`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ResultIndex.query`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [experiment_id: str | None, model: str | None, n_qubits: int | None, p_layers: int | None, passed: bool | None, topology: str | None].
+--------------------
+src/qmbp_simulation/framework/result_io.py
+    DOC105: Function `build_result_envelope`: Argument names match, but type hints in these args do not match: config, summary, metadata
+    DOC105: Function `save_experiment_result`: Argument names match, but type hints in these args do not match: data
+    DOC105: Function `save_pipeline_result`: Argument names match, but type hints in these args do not match: data
+    DOC105: Function `save_benchmark_result`: Argument names match, but type hints in these args do not match: data
+    DOC105: Function `_write_json`: Argument names match, but type hints in these args do not match: data
+    DOC107: Function `build_simulation_diagnostics`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `build_simulation_diagnostics`: Argument names match, but type hints in these args do not match: backend
+    DOC105: Function `extract_checkpoint_used`: Argument names match, but type hints in these args do not match: result
+    DOC105: Function `extract_run_metadata_summary`: Argument names match, but type hints in these args do not match: data
+--------------------
+src/qmbp_simulation/framework/result_store.py
+    DOC201: Method `ResultStore.list_experiments` does not have a return section in docstring
+    DOC201: Method `ResultStore.load_noisy_results` does not have a return section in docstring
+    DOC105: Method `ResultStore.analyze_noisy_by_group`: Argument names match, but type hints in these args do not match: results
+--------------------
+src/qmbp_simulation/framework/runner_base.py
+    DOC001: Function/method `define_sections`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Important" (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
+    DOC102: Method `ValidationRunner.restore_section_state`: Docstring contains more arguments than in function signature.
+    DOC103: Method `ValidationRunner.restore_section_state`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the docstring but not in the function signature: [Example (in NoiselessPipelineRunner): :].
+    DOC101: Method `ValidationRunner.select_backend`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ValidationRunner.select_backend`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [for_vqe_loop: bool, n_qubits: int].
+    DOC105: Method `ValidationRunner.estimate_compute_budget`: Argument names match, but type hints in these args do not match: h_values
+    DOC101: Method `ValidationRunner.log_budget_summary`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ValidationRunner.log_budget_summary`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [n_qubits: int | None, p_layers: int | None, topology: str | None]. Arguments in the docstring but not in the function signature: [topology, n_qubits, p_layers: optional].
+    DOC201: Method `ValidationRunner.get_spec` does not have a return section in docstring
+    DOC105: Method `ValidationRunner.save_checkpoint`: Argument names match, but type hints in these args do not match: data
+    DOC101: Method `ValidationRunner.load_mpnn_from_zoo`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ValidationRunner.load_mpnn_from_zoo`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [allow_cross_n: bool, checkpoint_path: str | Path | None, model: str | None, n_qubits: int | None, p_layers: int | None, topology: str | None].
+    DOC101: Method `ValidationRunner.save_mpnn_to_zoo`: Docstring contains fewer arguments than in function signature.
+    DOC107: Method `ValidationRunner.save_mpnn_to_zoo`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC103: Method `ValidationRunner.save_mpnn_to_zoo`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model: str | None, n_qubits: int | None, n_training_points: int, notes: str, overwrite: bool, p_layers: int | None, predictor: , topology: str | None].
+    DOC107: Method `ValidationRunner.maybe_fine_tune_mpnn`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.maybe_fine_tune_mpnn`: Argument names match, but type hints in these args do not match: model, dataset
+    DOC107: Method `ValidationRunner.active_learning_refine`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.active_learning_refine`: Argument names match, but type hints in these args do not match: model
+    DOC107: Method `ValidationRunner.predict_with_model_routing`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.predict_with_model_routing`: Argument names match, but type hints in these args do not match: graph
+    DOC101: Method `ValidationRunner.get_topology_scalability_score`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ValidationRunner.get_topology_scalability_score`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [topology: str].
+    DOC107: Method `ValidationRunner.predict_mpnn_at_h`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.predict_mpnn_at_h`: Argument names match, but type hints in these args do not match: predictor
+    DOC105: Method `ValidationRunner.safe_per_h_loop`: Argument names match, but type hints in these args do not match: fn
+    DOC107: Method `ValidationRunner.compute_fidelity`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.compute_fidelity`: Argument names match, but type hints in these args do not match: circuit
+    DOC107: Method `ValidationRunner.validate_theta_prediction`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.validate_theta_prediction`: Argument names match, but type hints in these args do not match: theta_training, circuit, energy_fn, model, graph_data
+    DOC101: Method `ValidationRunner.mpnn_landscape_quality`: Docstring contains fewer arguments than in function signature.
+    DOC109: Method `ValidationRunner.mpnn_landscape_quality`: The option `--arg-type-hints-in-docstring` is `True` but there are no type hints in the docstring arg list
+    DOC110: Method `ValidationRunner.mpnn_landscape_quality`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_landscape_quality`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, h_test: list[float], h_train: list[float], maxiter_vqe: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_qubits: int, n_restarts_vqe: int, p_layers: int, seed: int, topology: str]. Arguments in the docstring but not in the function signature: [mpnn_lr, mpnn_patience, model, de_gap_threshold: , n_restarts_vqe, maxiter_vqe, mpnn_hidden_dim, mpnn_epochs,: , topology, n_qubits, h_train, h_test, p_layers, seed,: ].
+    DOC101: Method `ValidationRunner.mpnn_interpolation_extrapolation`: Docstring contains fewer arguments than in function signature.
+    DOC110: Method `ValidationRunner.mpnn_interpolation_extrapolation`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_interpolation_extrapolation`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, h_train: list[float], maxiter_vqe: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_qubits: int, n_restarts_vqe: int, p_layers: int, seed: int, topology: str]. Arguments in the docstring but not in the function signature: [maxiter_vqe, mpnn_hidden_dim, mpnn_epochs, mpnn_lr, mpnn_patience,: , model, de_gap_threshold: , topology, n_qubits, h_train, p_layers, seed, n_restarts_vqe,: ].
+    DOC101: Method `ValidationRunner.mpnn_scaling_with_system_size`: Docstring contains fewer arguments than in function signature.
+    DOC110: Method `ValidationRunner.mpnn_scaling_with_system_size`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_scaling_with_system_size`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, h_test: list[float], h_train: list[float], maxiter_refine: int, maxiter_vqe: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_restarts_vqe: int, n_vqe_restarts_from_pred: int, p_layers: int, seed: int]. Arguments in the docstring but not in the function signature: [h_train, h_test, p_layers, seed, n_restarts_vqe, maxiter_vqe,: , mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold: , n_vqe_restarts_from_pred, maxiter_refine, mpnn_hidden_dim,: ].
+    DOC101: Method `ValidationRunner.mpnn_learning_curve`: Docstring contains fewer arguments than in function signature.
+    DOC110: Method `ValidationRunner.mpnn_learning_curve`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_learning_curve`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, maxiter_vqe: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_restarts_vqe: int, p_layers: int, seed: int]. Arguments in the docstring but not in the function signature: [mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold: , p_layers, seed, n_restarts_vqe, maxiter_vqe, mpnn_hidden_dim,: ].
+    DOC101: Method `ValidationRunner.mpnn_topology_transfer`: Docstring contains fewer arguments than in function signature.
+    DOC110: Method `ValidationRunner.mpnn_topology_transfer`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_topology_transfer`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, h_test: list[float], h_train: list[float], maxiter_vqe: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_restarts_vqe: int, p_layers: int, seed: int]. Arguments in the docstring but not in the function signature: [h_train, h_test: list[float], mpnn_epochs, mpnn_lr, mpnn_patience, model, de_gap_threshold: , p_layers, seed, n_restarts_vqe, maxiter_vqe, mpnn_hidden_dim,: ].
+    DOC101: Method `ValidationRunner.mpnn_data_efficiency_vs_loo`: Docstring contains fewer arguments than in function signature.
+    DOC110: Method `ValidationRunner.mpnn_data_efficiency_vs_loo`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_data_efficiency_vs_loo`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, h_pool: list[float], maxiter_vqe: int, min_train_size: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_qubits: int, n_restarts_vqe: int, p_layers: int, seed: int, topology: str]. Arguments in the docstring but not in the function signature: [maxiter_vqe, mpnn_hidden_dim, mpnn_epochs, mpnn_lr, mpnn_patience,: , model, de_gap_threshold: , topology, n_qubits, h_pool, p_layers, seed, n_restarts_vqe,: ].
+    DOC101: Method `ValidationRunner.mpnn_curvature_noise_correlation`: Docstring contains fewer arguments than in function signature.
+    DOC110: Method `ValidationRunner.mpnn_curvature_noise_correlation`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Method `ValidationRunner.mpnn_curvature_noise_correlation`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [de_gap_threshold: float, h_grid: list[float], maxiter_vqe: int, model: str, mpnn_epochs: int, mpnn_hidden_dim: int, mpnn_lr: float, mpnn_patience: int, n_qubits: int, n_restarts_vqe: int, p_layers: int, seed: int, topology: str]. Arguments in the docstring but not in the function signature: [maxiter_vqe, mpnn_hidden_dim, mpnn_epochs, mpnn_lr, mpnn_patience,: , model, de_gap_threshold: , topology, n_qubits, h_grid, p_layers, seed, n_restarts_vqe,: ].
+    DOC107: Method `ValidationRunner.validate_vqe_results`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `ValidationRunner.validate_vqe_results`: Argument names match, but type hints in these args do not match: vqe_results, exact_data, lattice
+    DOC107: Method `HardwareValidationRunner.validate_transpiled_quality`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `HardwareValidationRunner.validate_transpiled_quality`: Argument names match, but type hints in these args do not match: transpiled_circuit
+--------------------
+src/qmbp_simulation/framework/variant_runner.py
+    DOC201: Method `VariantRunner.run_all` does not have a return section in docstring
+    DOC105: Function `run_variant_script`: Argument names match, but type hints in these args do not match: build_noiseless, build_noisy, build_extended
+--------------------
+src/qmbp_simulation/models/data_models.py
+    DOC606: Class `GroundTruthResult`, Attribute `gap_method`: This attribute is documented inline, but it should be documented in the class docstring instead.
+    DOC601: Class `GroundTruthResult`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `GroundTruthResult`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [gap_method: str]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC601: Class `VQEResult`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `VQEResult`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [energy_variance: float | None]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+--------------------
+src/qmbp_simulation/models/hamiltonian.py
+    DOC101: Method `HamiltonianBuilder._generate_nnn_edges`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `HamiltonianBuilder._generate_nnn_edges`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [lattice: LatticeConfig].
+    DOC101: Method `HamiltonianBuilder.build_kitaev_observables`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `HamiltonianBuilder.build_kitaev_observables`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [lattice: LatticeConfig].
+    DOC101: Method `HamiltonianBuilder.validate`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `HamiltonianBuilder.validate`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [H: SparsePauliOp, n_qubits: int].
+--------------------
+src/qmbp_simulation/models/model_spec.py
+    DOC601: Class `ModelSpec`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `ModelSpec`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [build_hamiltonian: Callable[..., Any], build_observables: Callable[..., Any], circuit_kwargs: dict[str, Any], create_circuit: Callable[..., Any], description: str, fidelity_threshold: float, hamiltonian_kwargs: dict[str, Any], initial_state: str, mpnn_hidden_dim: int, name: str, params_per_layer: int, vqe_defaults: dict[str, Any]]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC101: Method `ModelSpec.with_params`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ModelSpec.with_params`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [**kwargs: Any].
+    DOC201: Method `ModelSpec.with_params` does not have a return section in docstring
+--------------------
+src/qmbp_simulation/optimizers/sweep_strategies.py
+    DOC601: Class `AdaptiveRestartConfig`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `AdaptiveRestartConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [base_restarts: int, critical_radius: float, critical_restarts: int, de_gap_threshold: float, h_critical: float | None, max_restarts: int]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC105: Function `compute_restarts_for_sweep`: Argument names match, but type hints in these args do not match: h_values
+    DOC601: Class `SelectiveAscendingConfig`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `SelectiveAscendingConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [de_gap_threshold: float, include_neighbors: bool, max_fraction: float, min_points: int]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC105: Function `select_suspicious_points`: Argument names match, but type hints in these args do not match: results
+--------------------
+src/qmbp_simulation/optimizers/vqe.py
+    DOC101: Method `VQEOptimizer.__init__`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `VQEOptimizer.__init__`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [seed: int | None].
+    DOC105: Method `VQEOptimizer.optimize`: Argument names match, but type hints in these args do not match: circuit, initial_guess, exact_energy, exact_state
+    DOC105: Method `VQEOptimizer.get_initial_guess`: Argument names match, but type hints in these args do not match: n_params, h_value, previous_theta
+    DOC105: Method `VQEOptimizer.descending_sweep`: Argument names match, but type hints in these args do not match: h_values, circuit, lattice, exact_data
+--------------------
+src/qmbp_simulation/pipeline/accelerated.py
+    DOC101: Method `AcceleratedVQE.__init__`: Docstring contains fewer arguments than in function signature.
+    DOC107: Method `AcceleratedVQE.__init__`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC103: Method `AcceleratedVQE.__init__`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [eval_cache: bool].
+    DOC105: Method `AcceleratedVQE.run`: Argument names match, but type hints in these args do not match: h_values
+    DOC101: Method `AcceleratedVQE._get_p1_hard_h_indices`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `AcceleratedVQE._get_p1_hard_h_indices`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [h_values: np.ndarray].
+--------------------
+src/qmbp_simulation/predictors/external_benchmarks/benchmark_evaluator.py
+    DOC601: Class `BenchmarkResult`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `BenchmarkResult`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [criteria_details: dict, mean_abs_error_ours: float, mean_abs_error_per_site_ours: float, mean_abs_error_vqezy: float, n_gap_floor_used: int, n_variational_violations: int, regime_stats: dict, success_criteria_met: bool]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC107: Method `VQEzyBenchmarkEvaluator.evaluate`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `VQEzyBenchmarkEvaluator.evaluate`: Argument names match, but type hints in these args do not match: dataset
+    DOC107: Method `VQEzyBenchmarkEvaluator._mpnn_predict_sweep`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Method `VQEzyBenchmarkEvaluator._mpnn_predict_sweep`: Argument names match, but type hints in these args do not match: lattice, exact_data, circuit
+--------------------
+src/qmbp_simulation/predictors/external_benchmarks/vqezy_loader.py
+    DOC101: Function `load_vqezy_tfi`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `load_vqezy_tfi`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [h_max: float | None, h_min: float | None, j_max: float | None, j_min: float | None]. Arguments in the docstring but not in the function signature: [h_min, h_max: float | None, j_min, j_max: float | None].
+--------------------
+src/qmbp_simulation/predictors/gnn_qem.py
+    DOC601: Class `GNNQEMConfig`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `GNNQEMConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [context_dim: int, dropout: float, epochs: int, hidden_dim: int, lr: float, n_layers: int, node_feature_dim: int, patience: int]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC105: Method `GNNQEMCorrector.__init__`: Argument names match, but type hints in these args do not match: config
+    DOC105: Function `generate_qem_training_data_v2`: Argument names match, but type hints in these args do not match: theta_source
+--------------------
+src/qmbp_simulation/predictors/model_registry_db.py
+    DOC605: Class `TrainingMetrics`: Attribute names match, but type hints in these attributes do not match: final_val_mse, generalization_gap  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC201: Method `ModelRegistryDB.batch` does not have a return section in docstring
+    DOC201: Method `ModelRegistryDB.get_history` does not have a return section in docstring
+    DOC101: Method `ModelRegistryDB.remove_tag`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ModelRegistryDB.remove_tag`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model_id: str, tag: str].
+    DOC101: Method `ModelRegistryDB.get_training_health`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ModelRegistryDB.get_training_health`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model_id: str].
+    DOC101: Method `ModelRegistryDB.set_training_metrics`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ModelRegistryDB.set_training_metrics`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [batch_size: int | None, best_epoch: int | None, convergence_status: str | None, early_stopped: bool | None, epochs: int | None, final_loss: float | None, final_mse: float | None, learning_rate: float | None, loss_history: list[float] | None, model_id: str, training_time_seconds: float | None].
+    DOC101: Method `ModelRegistryDB.get_comprehensive_health`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `ModelRegistryDB.get_comprehensive_health`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model_id: str].
+    DOC105: Method `ModelRegistryDB.sync_evaluation_from_result`: Argument names match, but type hints in these args do not match: result_envelope
+    DOC105: Method `ModelRegistryDB.register_with_training_metrics`: Argument names match, but type hints in these args do not match: training_result, architecture_config, optimizer_config
+--------------------
+src/qmbp_simulation/predictors/model_zoo.py
+    DOC601: Class `ZooEntry`: Class docstring contains fewer class attributes than actual class attributes.  (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC603: Class `ZooEntry`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [pass_rate_by_n: dict, pass_rate_source: str, run_json: str, sha256: str, training_quality_score: float]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
+    DOC101: Function `_get_extrapolation_performance`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_get_extrapolation_performance`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [entry: ZooEntry, topology: str].
+    DOC101: Function `compute_model_readiness`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `compute_model_readiness`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [_db: ModelRegistryDB | None].
+    DOC101: Function `auto_retrain_stale_models`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `auto_retrain_stale_models`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [n_epochs: int].
+    DOC101: Function `list_pretrained`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `list_pretrained`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model: str | None, n_qubits: int | None, p_layers: int | None, topology: str | None]. Arguments in the docstring but not in the function signature: [model, topology, n_qubits, p_layers: optional filters].
+    DOC101: Function `_get_contaminated_model_ids`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_get_contaminated_model_ids`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model: str, p_layers: int, topology: str].
+    DOC201: Function `_get_contaminated_model_ids` does not have a return section in docstring
+    DOC107: Function `register_checkpoint`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `register_checkpoint`: Argument names match, but type hints in these args do not match: model
+    DOC101: Function `register_checkpoint_with_training_metrics`: Docstring contains fewer arguments than in function signature.
+    DOC107: Function `register_checkpoint_with_training_metrics`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC103: Function `register_checkpoint_with_training_metrics`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [regression_guard: bool, regression_tolerance: float].
+--------------------
+src/qmbp_simulation/predictors/mpnn.py
+    DOC101: Method `MPNNPredictor.__init__`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `MPNNPredictor.__init__`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [dropout_between_layers: float, dropout_rate: float].
+    DOC105: Method `MPNNPredictor.forward`: Argument names match, but type hints in these args do not match: data
+    DOC105: Function `build_graph_dataset`: Argument names match, but type hints in these args do not match: h_values, theta_opt, e_exact, fidelities, de_gaps, extra_node_features
+    DOC101: Function `train_mpnn`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `train_mpnn`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [weight_decay: float].
+--------------------
+src/qmbp_simulation/predictors/retrain_loop.py
+    DOC107: Function `evaluate_model_quick`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `evaluate_model_quick`: Argument names match, but type hints in these args do not match: model, h_range
+    DOC107: Function `regression_guardrail`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC105: Function `regression_guardrail`: Argument names match, but type hints in these args do not match: new_model, entry
+    DOC101: Function `_retrain_single`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `_retrain_single`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [film: bool, hidden_dim: int, n_epochs: int, n_layers: int, queue_item: dict, use_residual: bool].
+--------------------
+src/qmbp_simulation/predictors/training_intelligence.py
+    DOC101: Function `validate_h_range_alignment`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `validate_h_range_alignment`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [eval_h_max: float, eval_h_min: float]. Arguments in the docstring but not in the function signature: [eval_h_min, eval_h_max: float].
+--------------------
+src/qmbp_simulation/predictors/unified_graph.py
+    DOC105: Function `build_unified_dataset`: Argument names match, but type hints in these args do not match: h_values, theta_opts
+--------------------
+src/qmbp_simulation/predictors/unified_mpnn.py
+    DOC101: Method `UnifiedMPNN.__init__`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `UnifiedMPNN.__init__`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [film_conditioning: bool, readout_mode: str, use_residual: bool].
+    DOC101: Function `should_retrain_with_diagnostics`: Docstring contains fewer arguments than in function signature.
+    DOC110: Function `should_retrain_with_diagnostics`: The option `--arg-type-hints-in-docstring` is `True` but not all args in the docstring arg list have type hints
+    DOC103: Function `should_retrain_with_diagnostics`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [current_pass_rate: float, dataset_size: int, min_new_fraction: float, min_new_points: int, n_new_points: int, prev_pass_rate: float]. Arguments in the docstring but not in the function signature: [min_new_fraction, min_new_points: , n_new_points, current_pass_rate, prev_pass_rate, dataset_size: ].
+    DOC105: Function `transfer_model_to_higher_p`: Argument names match, but type hints in these args do not match: dataset
+--------------------
+src/qmbp_simulation/solvers/classical.py
+    DOC001: Class `ClassicalSolver`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Methods"
+    DOC105: Method `ClassicalSolver._estimate_tfim_gap_analytical`: Argument names match, but type hints in these args do not match: edges
+--------------------
+src/qmbp_simulation/utils/helpers.py
+    DOC105: Function `canonicalize_theta`: Argument names match, but type hints in these args do not match: theta
+    DOC105: Function `versioned_backup`: Argument names match, but type hints in these args do not match: sidecar_metadata
+    DOC001: Class `BatchWriteMixin`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Usage"
+    DOC105: Function `compute_dataset_fingerprint`: Argument names match, but type hints in these args do not match: dataset
+--------------------

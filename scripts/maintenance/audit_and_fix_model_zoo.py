@@ -494,6 +494,100 @@ def audit_coherence() -> list[dict]:
     except Exception:
         pass  # Retrain check is best-effort
 
+    # ── Check: scoreboard phantom models (best-ever checkpoints not in zoo) ──
+    try:
+        scoreboard_path = ROOT / "results" / "best_results_scoreboard.json"
+        if scoreboard_path.exists():
+            import json as _json
+
+            scoreboard = _json.loads(scoreboard_path.read_text())
+            best_by_topo = scoreboard.get("best_by_topology", {})
+            manifest_files = {e.checkpoint_file for e in multi_n_entries}
+
+            for topo, n_entries in best_by_topo.items():
+                for n_str, entry in n_entries.items():
+                    grade = entry.get("grade", "F")
+                    if grade not in ("A", "B", "C"):
+                        continue  # Only flag good results that are missing
+
+                    ckpt = Path(entry.get("checkpoint", "")).name
+                    if not ckpt or ckpt == "unknown":
+                        continue
+
+                    # Check: is this checkpoint in the zoo manifest?
+                    if ckpt not in manifest_files:
+                        # Is it on disk at all?
+                        ckpt_path = ROOT / "data" / "model_zoo" / "checkpoints" / ckpt
+                        # Also check _versions/ and _archive/
+                        versions_path = ROOT / "data" / "model_zoo" / "checkpoints" / "_versions" / ckpt
+                        archive_path = ROOT / "data" / "model_zoo" / "checkpoints" / "_archive" / ckpt
+
+                        if ckpt_path.exists():
+                            findings.append(
+                                {
+                                    "issue": "scoreboard_phantom_unregistered",
+                                    "severity": "warning",
+                                    "checkpoint_file": ckpt,
+                                    "fix_description": (
+                                        f"Scoreboard best-ever for {topo} N={n_str} "
+                                        f"(grade {grade}, ΔE/gap={entry.get('best_de_gap', 0):.4f}) "
+                                        f"uses '{ckpt}' which exists on disk but is NOT in zoo manifest. "
+                                        f"Register it or it may be lost."
+                                    ),
+                                }
+                            )
+                        elif versions_path.exists() or archive_path.exists():
+                            # Found in _versions/ or _archive/ — this is a superseded model
+                            # This is informational, not critical
+                            loc = "_versions/" if versions_path.exists() else "_archive/"
+                            findings.append(
+                                {
+                                    "issue": "scoreboard_phantom_archived",
+                                    "severity": "info",
+                                    "checkpoint_file": ckpt,
+                                    "fix_description": (
+                                        f"Scoreboard best-ever for {topo} N={n_str} "
+                                        f"(grade {grade}) uses '{ckpt}' — found in {loc}. "
+                                        f"Current model may be equivalent or better."
+                                    ),
+                                }
+                            )
+                        elif not ckpt_path.exists():
+                            # Check if a newer version (without _vN suffix) exists
+                            import re as _re
+
+                            base_name = _re.sub(r"_v\d+\.pt$", ".pt", ckpt)
+                            base_path = ROOT / "data" / "model_zoo" / "checkpoints" / base_name
+                            if base_path.exists() or base_name in manifest_files:
+                                # Model was superseded by a newer version
+                                findings.append(
+                                    {
+                                        "issue": "scoreboard_phantom_superseded",
+                                        "severity": "info",
+                                        "checkpoint_file": ckpt,
+                                        "fix_description": (
+                                            f"Scoreboard best-ever for {topo} N={n_str} "
+                                            f"(grade {grade}) used '{ckpt}' — "
+                                            f"superseded by '{base_name}' (current)."
+                                        ),
+                                    }
+                                )
+                            else:
+                                findings.append(
+                                    {
+                                        "issue": "scoreboard_phantom_missing",
+                                        "severity": "critical",
+                                        "checkpoint_file": ckpt,
+                                        "fix_description": (
+                                            f"Scoreboard best-ever for {topo} N={n_str} "
+                                            f"(grade {grade}) uses '{ckpt}' which is MISSING from disk. "
+                                            f"Check _versions/ or _archive/ for recovery."
+                                        ),
+                                    }
+                                )
+    except Exception:
+        pass  # Scoreboard check is best-effort
+
     return findings
 
 
@@ -822,6 +916,32 @@ def main():
                 print(
                     f"\n  [EXCLUSIONS] {n_would} new exclusion(s) detected (use --sync-exclusions)"
                 )
+
+        # Fix 5: Scoreboard auto-fix (recover phantoms, register, backfill)
+        print("\n  [SCOREBOARD] Running auto-fix...")
+        try:
+            from qmbp_simulation.analysis.metrics import auto_fix_scoreboard_issues
+
+            fix_result = auto_fix_scoreboard_issues(verbose=True)
+            n_total = (
+                fix_result["n_recovered"]
+                + fix_result["n_registered"]
+                + fix_result["n_backfilled"]
+                + fix_result["n_exclusions_removed"]
+                + fix_result["n_exclusions_added"]
+            )
+            if n_total > 0:
+                print(
+                    f"  [SCOREBOARD] Fixed: "
+                    f"{fix_result['n_recovered']} recovered, "
+                    f"{fix_result['n_registered']} registered, "
+                    f"{fix_result['n_backfilled']} backfilled, "
+                    f"{fix_result['n_exclusions_removed']+fix_result['n_exclusions_added']} exclusions synced"
+                )
+            else:
+                print("  [SCOREBOARD] No issues to fix")
+        except Exception as e:
+            print(f"  [SCOREBOARD] ⚠️ Failed: {e}")
 
         print("\n  Done. Re-run without --fix to verify.")
 

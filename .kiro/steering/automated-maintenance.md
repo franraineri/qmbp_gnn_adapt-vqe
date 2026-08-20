@@ -13,7 +13,7 @@ inclusion: always
 
 | Qué | Cuándo | Cómo |
 |-----|--------|------|
-| **post_experiment_sync()** | Post-run, fire-and-forget subprocess | Consolidated: GT check → dashboard → eval report → coverage → ResultIndex → exclusions |
+| **post_experiment_sync()** | Post-run, fire-and-forget subprocess | Consolidated: GT check → dashboard → best results scoreboard → auto-fix issues → eval report → coverage → ResultIndex → exclusions |
 | Zoo pass_rate update | Post-run, if sections produced pass_rate_dual | `_log_data_quality_feedback` → `_extract_best_pass_rate_dual` → `auto_update_zoo_pass_rate` |
 | Zoo pass_rate_by_n | Post model_comparison | `update_zoo_pass_rate_by_n()` per evaluated model |
 | Exclusion-policy N-level filter | During `load_best_mpnn_for_cross_n` training branch | Removes N-values with `contaminated_training`/`gap_masking` failure modes |
@@ -77,16 +77,16 @@ inclusion: always
 
 # ── Test maintenance ──
 # Validar imports de tests (detecta paths rotos en <2s)
-.venv/bin/python scripts/maintenance/validate_test_imports.py
+.venv/bin/python scripts/general_project_maintenance/validate_test_imports.py
 
 # Auto-fix imports reubicados
-.venv/bin/python scripts/maintenance/validate_test_imports.py --fix
+.venv/bin/python scripts/general_project_maintenance/validate_test_imports.py --fix
 
 # Correr test suite con timeout + parallel
-.venv/bin/python scripts/maintenance/run_test_suite.py -j 4
+.venv/bin/python scripts/general_project_maintenance/run_test_suite.py -j 4
 
 # Re-correr solo los que fallaron antes
-.venv/bin/python scripts/maintenance/run_test_suite.py --lf
+.venv/bin/python scripts/general_project_maintenance/run_test_suite.py --lf
 ```
 
 ## Cuándo Correr Qué
@@ -119,4 +119,5 @@ inclusion: always
 | **GT↔NPZ coherencia** | `from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence` |
 | **Consistency cross-check** | `from qmbp_simulation.analysis.metrics import validate_data_consistency` |
 | **Post-experiment full sync** | `from qmbp_simulation.analysis.metrics import post_experiment_sync` |
+| **Auto-fix scoreboard issues** | `from qmbp_simulation.analysis.metrics import auto_fix_scoreboard_issues` |
 | **MT vs ST query** | `from qmbp_simulation.analysis.metrics import query_mt_vs_st_comparison` |

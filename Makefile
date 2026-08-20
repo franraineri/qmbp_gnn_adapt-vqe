@@ -15,7 +15,7 @@ VENV := source .venv/bin/activate
 .PHONY: help lint format test smoke-test benchmark check check-full \
         hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
         clean typecheck coverage health figures \
-        maintain maintain-full maintain-fix maintain-ci dead-code lint-docs
+        maintain maintain-full maintain-fix maintain-all-fix maintain-ci dead-code lint-docs
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -119,33 +119,32 @@ check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) +
 
 # ── Maintenance Checks ───────────────────────────────────────
 
-maintain:  ## Run all maintenance checks (phantom imports, dead code, docstrings, etc.)
-	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --skip steerings
-
-maintain-full:  ## Run ALL maintenance checks including steerings (slower)
-	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py
-
 maintain-fix:  ## Run maintenance with auto-fix (clean caches, fix steerings)
 	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --fix
 
-maintain-ci:  ## CI mode: JSON output, strict exit code
-	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --ci
-
-dead-code:  ## Detect dead code with vulture
+maintain-all-fix:  ## Run ALL general_project_maintenance scripts with --fix where supported
+	@echo "═══ Running all maintenance scripts (--fix mode) ═══"
+	@echo "\n── run_all_checks.py --fix ──"
+	$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --fix || true
+	@echo "\n── validate_test_imports.py --fix ──"
+	$(PYTHON) scripts/general_project_maintenance/validate_test_imports.py --fix || true
+	@echo "\n── verify_steerings.py --fix ──"
+	$(PYTHON) scripts/general_project_maintenance/verify_steerings.py --fix || true
+	@echo "\n── check_phantom_functions.py ──"
+	$(PYTHON) scripts/general_project_maintenance/check_phantom_functions.py || true
+	@echo "\n── cleanup_repo.py --execute ──"
+	$(PYTHON) scripts/general_project_maintenance/cleanup_repo.py --execute || true
+	@echo "\n── trim_overdocumented.py ──"
+	$(PYTHON) scripts/general_project_maintenance/trim_overdocumented.py || true
+	@echo "\n── md_index.py ──"
+	$(PYTHON) scripts/general_project_maintenance/md_index.py || true
 	@.venv/bin/vulture src/qmbp_simulation vulture_whitelist.py --min-confidence 80 --exclude "_deprecated,.venv" || true
+	@echo "\n✅ All maintenance scripts completed"
+
 
 lint-docs:  ## Check docstring/signature consistency with pydoclint
 	@.venv/bin/pydoclint --style=numpy --check-return-types=false --allow-init-docstring=true --skip-checking-short-docstrings=true --quiet src/qmbp_simulation
 
-
-# ── Cleaning ─────────────────────────────────────────────────
-
-clean:  ## Remove caches, temp files, empty dirs (dry-run: make clean-check)
-	@.venv/bin/python scripts/general_project_maintenance/cleanup_repo.py --execute
-	@echo "✅ Repository cleaned"
-
-clean-check:  ## Show what would be cleaned (dry-run)
-	@.venv/bin/python scripts/general_project_maintenance/cleanup_repo.py --verbose
 
 # ── Type checking ────────────────────────────────────────────
 

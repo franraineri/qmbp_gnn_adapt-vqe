@@ -24,13 +24,14 @@ Usage:
     .venv/bin/python scripts/experiment_runners/cross_topology/run_multi_topology_training.py \
         --hidden-dim 512 --n-layers 4
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -45,12 +46,18 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Train a universal multi-topology UnifiedMPNN"
+    parser = argparse.ArgumentParser(description="Train a universal multi-topology UnifiedMPNN")
+    parser.add_argument(
+        "--topologies",
+        nargs="+",
+        default=None,
+        help="Topologies to include (default: auto-detect all available)",
     )
     parser.add_argument(
-        "--topologies", nargs="+", default=None,
-        help="Topologies to include (default: auto-detect all available)",
+        "--p-layers",
+        type=int,
+        default=1,
+        help="HVA depth — trains on data from this p only (default: 1)",
     )
     parser.add_argument("--max-n", type=int, default=20, help="Max N per topology")
     parser.add_argument("--max-de-gap", type=float, default=0.10, help="Quality filter")
@@ -61,28 +68,54 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--patience", type=int, default=200, help="LR scheduler patience")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
-    parser.add_argument("--mse-floor", type=float, default=0.0,
-                        help="Stop early when MSE < this (0=disabled)")
-    parser.add_argument("--use-residual", action="store_true",
-                        help="Enable residual connections (P1)")
-    parser.add_argument("--readout-mode", choices=["last", "jk_cat", "jk_max"], default="last",
-                        help="Readout aggregation mode (P2)")
-    parser.add_argument("--film", action="store_true",
-                        help="Enable FiLM conditioning by h (P4)")
-    parser.add_argument("--curriculum", action="store_true",
-                        help="Curriculum training: first high-quality topos, then fine-tune all")
+    parser.add_argument(
+        "--mse-floor", type=float, default=0.0, help="Stop early when MSE < this (0=disabled)"
+    )
+    parser.add_argument(
+        "--use-residual", action="store_true", help="Enable residual connections (P1)"
+    )
+    parser.add_argument(
+        "--readout-mode",
+        choices=["last", "jk_cat", "jk_max"],
+        default="last",
+        help="Readout aggregation mode (P2)",
+    )
+    parser.add_argument("--film", action="store_true", help="Enable FiLM conditioning by h (P4)")
+    parser.add_argument(
+        "--curriculum",
+        action="store_true",
+        help="Curriculum training: first high-quality topos, then fine-tune all",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Only aggregate, don't train")
-    parser.add_argument("--register-zoo", action="store_true", default=True,
-                        help="Register trained model in zoo (default: True)")
+    parser.add_argument(
+        "--register-zoo",
+        action="store_true",
+        default=True,
+        help="Register trained model in zoo (default: True)",
+    )
     parser.add_argument("--no-register", dest="register_zoo", action="store_false")
-    parser.add_argument("--auto-compare", action="store_true",
-                        help="After registration, run model_comparison on all topologies to validate")
-    parser.add_argument("--regression-guard", action="store_true", default=True,
-                        help="Run active evaluation before registration to block regressions (default: True)")
-    parser.add_argument("--no-regression-guard", dest="regression_guard", action="store_false",
-                        help="Skip regression guard (allow any model to register)")
-    parser.add_argument("--force", action="store_true",
-                        help="Override pre-training readiness check (proceed despite issues)")
+    parser.add_argument(
+        "--auto-compare",
+        action="store_true",
+        help="After registration, run model_comparison on all topologies to validate",
+    )
+    parser.add_argument(
+        "--regression-guard",
+        action="store_true",
+        default=True,
+        help="Run active evaluation before registration to block regressions (default: True)",
+    )
+    parser.add_argument(
+        "--no-regression-guard",
+        dest="regression_guard",
+        action="store_false",
+        help="Skip regression guard (allow any model to register)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Override pre-training readiness check (proceed despite issues)",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -96,12 +129,13 @@ def main() -> int:
 
     print("=" * 70)
     print("Multi-Topology MPNN Training")
+    print(f"  p_layers = {args.p_layers}")
     print("=" * 70)
 
     # ── Pre-training gate: validate readiness ────────────────────────────
     from qmbp_simulation.predictors.training_intelligence import (
-        validate_training_readiness,
         prepare_training_config,
+        validate_training_readiness,
     )
 
     # Resolve topologies (None = auto-detect from available data)
@@ -135,12 +169,14 @@ def main() -> int:
         include_extrapolation=True,
     )
     if config.warnings:
-        print(f"\n  Training config warnings:")
+        print("\n  Training config warnings:")
         for w in config.warnings[:3]:
             print(f"    ⚠️ {w}")
-    print(f"  Data: {config.n_useful_points} useful pts, "
-          f"extrap={config.use_extrapolation_data} (weight={config.extrapolation_weight:.2f}), "
-          f"confidence={config.confidence}")
+    print(
+        f"  Data: {config.n_useful_points} useful pts, "
+        f"extrap={config.use_extrapolation_data} (weight={config.extrapolation_weight:.2f}), "
+        f"confidence={config.confidence}"
+    )
     print()
 
     # ── Phase 1: Aggregate data ──────────────────────────────────────────
@@ -150,6 +186,7 @@ def main() -> int:
         model="tfim_bond_resolved",
         max_n=args.max_n,
         min_verified_points=args.min_verified,
+        p_layers=args.p_layers,
     )
     summary = agg.scan()
 
@@ -161,13 +198,13 @@ def main() -> int:
     # Remove N-values flagged with hard failure modes from each topology's data.
     try:
         from qmbp_simulation.analysis.metrics import load_training_exclusions
+
         _excl_registry = load_training_exclusions()
         _hard_modes = {"contaminated_training", "gap_masking", "intrinsic_vqe_error"}
         for topo, inner_agg in list(agg._aggregators.items()):
             excluded_ns = set()
             for entry in _excl_registry.get("excluded", []):
-                if (entry.get("topology") == topo
-                        and entry.get("failure_mode") in _hard_modes):
+                if entry.get("topology") == topo and entry.get("failure_mode") in _hard_modes:
                     n_val = entry.get("n_qubits", 0)
                     if n_val > 0:
                         excluded_ns.add(n_val)
@@ -201,10 +238,13 @@ def main() -> int:
 
     # Pre-training validation per topology
     from qmbp_simulation.analysis.metrics import validate_training_dataset
+
     for topo, inner_agg in list(agg._aggregators.items()):
         viable, report = validate_training_dataset(
-            inner_agg._data_by_n, max_de_gap=args.max_de_gap,
-            min_total_points=5, min_n_values=1,
+            inner_agg._data_by_n,
+            max_de_gap=args.max_de_gap,
+            min_total_points=5,
+            min_n_values=1,
         )
         if not viable:
             print(f"  ⚠️  {topo}: data not viable — {report.get('recommendation', 'skip')}")
@@ -230,13 +270,14 @@ def main() -> int:
                 f"{len(dataset)}/{len(dataset_relaxed)} graphs ({retention_ratio:.0%})."
             )
             print(
-                f"      Consider using --max-de-gap 0.07 as a compromise, or verify "
-                f"that remaining data has sufficient topology/N diversity."
+                "      Consider using --max-de-gap 0.07 as a compromise, or verify "
+                "that remaining data has sufficient topology/N diversity."
             )
         del dataset_relaxed  # Free memory
 
     # Show topology distribution
     from collections import Counter
+
     topo_dist = Counter(g.topology for g in dataset)
     print(f"\nDataset: {len(dataset)} training graphs")
     for topo, count in sorted(topo_dist.items()):
@@ -248,6 +289,7 @@ def main() -> int:
 
     # Dataset fingerprint for reproducibility tracking
     from qmbp_simulation.utils.helpers import compute_dataset_fingerprint
+
     _dataset_fp = compute_dataset_fingerprint(dataset)
     print(f"Dataset fingerprint: {_dataset_fp}")
 
@@ -269,7 +311,9 @@ def main() -> int:
     if arch_parts:
         arch_label = "+".join(arch_parts)
 
-    print(f"\nTraining UnifiedMPNN (hidden={args.hidden_dim}, layers={args.n_layers}, arch={arch_label})...")
+    print(
+        f"\nTraining UnifiedMPNN (hidden={args.hidden_dim}, layers={args.n_layers}, arch={arch_label})..."
+    )
     model = UnifiedMPNN(
         node_features=feat_dim,
         hidden_dim=args.hidden_dim,
@@ -302,11 +346,14 @@ def main() -> int:
             phase_a_epochs = int(args.epochs * 0.6)
             phase_b_epochs = args.epochs - phase_a_epochs
 
-            print(f"\n  [CURRICULUM] Phase A: {len(hq_dataset)} graphs from {sorted(high_quality_topos)} "
-                  f"({phase_a_epochs} epochs)")
+            print(
+                f"\n  [CURRICULUM] Phase A: {len(hq_dataset)} graphs from {sorted(high_quality_topos)} "
+                f"({phase_a_epochs} epochs)"
+            )
 
             result_a = train_unified_mpnn(
-                model, hq_dataset,
+                model,
+                hq_dataset,
                 n_epochs=phase_a_epochs,
                 lr=args.lr,
                 patience=args.patience,
@@ -315,37 +362,51 @@ def main() -> int:
                 val_fraction=0.15,
                 mse_floor=args.mse_floor,
             )
-            print(f"    Phase A done: MSE={result_a['final_mse']:.2e}, val={result_a['val_mse']:.2e}")
+            print(
+                f"    Phase A done: MSE={result_a['final_mse']:.2e}, val={result_a['val_mse']:.2e}"
+            )
 
             # Phase B: fine-tune on ALL data with reduced LR
-            print(f"\n  [CURRICULUM] Phase B: {len(dataset)} graphs (all) "
-                  f"({phase_b_epochs} epochs, lr={args.lr * 0.3:.1e})")
+            print(
+                f"\n  [CURRICULUM] Phase B: {len(dataset)} graphs (all) "
+                f"({phase_b_epochs} epochs, lr={args.lr * 0.3:.1e})"
+            )
 
             from qmbp_simulation.predictors.unified_mpnn import fine_tune_unified_mpnn
+
             result = fine_tune_unified_mpnn(
-                model, dataset,
+                model,
+                dataset,
                 n_epochs=phase_b_epochs,
                 lr=args.lr * 0.3,
                 patience=args.patience // 2,
             )
             # Merge metrics
             result["n_epochs_run"] = result_a["n_epochs_run"] + result.get("n_epochs_run", 0)
-            result["stop_reason"] = f"curriculum: A={result_a['stop_reason']}, B={result.get('stop_reason', '?')}"
+            result["stop_reason"] = (
+                f"curriculum: A={result_a['stop_reason']}, B={result.get('stop_reason', '?')}"
+            )
             if "final_zz_mse" not in result:
                 result["final_zz_mse"] = result.get("final_mse", 0)
                 result["final_x_mse"] = result.get("final_mse", 0)
         else:
-            print(f"\n  [CURRICULUM] Skipped: all topos are high-quality or insufficient split")
+            print("\n  [CURRICULUM] Skipped: all topos are high-quality or insufficient split")
             result = train_unified_mpnn(
-                model, dataset,
-                n_epochs=args.epochs, lr=args.lr, patience=args.patience,
-                seed=args.seed, weight_decay=1e-4, val_fraction=0.15,
+                model,
+                dataset,
+                n_epochs=args.epochs,
+                lr=args.lr,
+                patience=args.patience,
+                seed=args.seed,
+                weight_decay=1e-4,
+                val_fraction=0.15,
                 mse_floor=args.mse_floor,
             )
     else:
         try:
             result = train_unified_mpnn(
-                model, dataset,
+                model,
+                dataset,
                 n_epochs=args.epochs,
                 lr=args.lr,
                 patience=args.patience,
@@ -359,6 +420,7 @@ def main() -> int:
             print("\n  ⚠️  Training interrupted! Saving partial model to _recovery/...")
             try:
                 from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+
                 recovery_dir = ROOT / "data" / "model_zoo" / "checkpoints" / "_recovery"
                 recovery_dir.mkdir(parents=True, exist_ok=True)
                 recovery_path = recovery_dir / "interrupted_mt_model.pt"
@@ -367,17 +429,25 @@ def main() -> int:
             except Exception as _save_err:
                 print(f"  Recovery save failed: {_save_err}")
             result = {
-                "final_mse": float("inf"), "final_zz_mse": float("inf"),
-                "final_x_mse": float("inf"), "val_mse": None,
-                "n_epochs_run": 0, "stop_reason": "interrupted",
-                "n_train": len(dataset), "n_val": 0,
-                "mse_history": [], "val_mse_history": [],
-                "zz_loss_history": [], "x_loss_history": [],
+                "final_mse": float("inf"),
+                "final_zz_mse": float("inf"),
+                "final_x_mse": float("inf"),
+                "val_mse": None,
+                "n_epochs_run": 0,
+                "stop_reason": "interrupted",
+                "n_train": len(dataset),
+                "n_val": 0,
+                "mse_history": [],
+                "val_mse_history": [],
+                "zz_loss_history": [],
+                "x_loss_history": [],
             }
 
     elapsed = time.perf_counter() - t0
     print(f"\nTraining complete ({elapsed:.1f}s):")
-    print(f"  Final MSE: {result['final_mse']:.2e} (ZZ={result['final_zz_mse']:.2e}, X={result['final_x_mse']:.2e})")
+    print(
+        f"  Final MSE: {result['final_mse']:.2e} (ZZ={result['final_zz_mse']:.2e}, X={result['final_x_mse']:.2e})"
+    )
     print(f"  Val MSE: {result['val_mse']:.2e}" if result["val_mse"] else "  Val MSE: N/A")
     print(f"  Epochs: {result['n_epochs_run']}, stop_reason: {result['stop_reason']}")
     print(f"  Train/Val: {result['n_train']}/{result['n_val']}")
@@ -408,7 +478,60 @@ def main() -> int:
             "\n      but generalization is limited. Consider: more data or regularization."
         )
 
-    # ── Phase 4: Register in zoo ─────────────────────────────────────────
+    # ── Phase 4: Save experiment envelope + Register in zoo ─────────────
+    # Save JSON envelope FIRST (even if registration fails, we have the record)
+    _run_json_path = ""
+    try:
+        from qmbp_simulation.framework.result_io import build_result_envelope, save_experiment_result
+
+        envelope = build_result_envelope(
+            config={
+                "runner": "run_multi_topology_training",
+                "topologies": sorted(topo_dist.keys()),
+                "max_n": args.max_n,
+                "max_de_gap": args.max_de_gap,
+                "hidden_dim": args.hidden_dim,
+                "n_layers": args.n_layers,
+                "epochs": args.epochs,
+                "lr": args.lr,
+                "patience": args.patience,
+                "use_residual": args.use_residual,
+                "readout_mode": args.readout_mode,
+                "film": args.film,
+                "curriculum": args.curriculum,
+                "seed": args.seed,
+                "dataset_fingerprint": _dataset_fp,
+                "n_graphs": len(dataset),
+                "graphs_per_topology": dict(sorted(topo_dist.items())),
+            },
+            results={
+                "final_mse": result.get("final_mse"),
+                "final_zz_mse": result.get("final_zz_mse"),
+                "final_x_mse": result.get("final_x_mse"),
+                "val_mse": result.get("val_mse"),
+                "n_epochs_run": result.get("n_epochs_run"),
+                "stop_reason": result.get("stop_reason"),
+                "n_train": result.get("n_train"),
+                "n_val": result.get("n_val"),
+            },
+            summary={
+                "arch_label": arch_label,
+                "n_topologies": len(topo_dist),
+                "total_graphs": len(dataset),
+                "training_time_s": elapsed,
+            },
+            elapsed_s=elapsed,
+        )
+        output_path = save_experiment_result(
+            envelope,
+            experiment_id="multi_topology_training/tfim_bond_resolved",
+            results_dir=ROOT / "results" / "experiments",
+        )
+        _run_json_path = str(output_path.relative_to(ROOT))
+        print(f"\n  📄 Experiment JSON: {_run_json_path}")
+    except Exception as _e_env:
+        print(f"\n  ⚠️ Experiment envelope save failed (non-blocking): {_e_env}")
+
     if _training_interrupted:
         print("\n  Skipping zoo registration (training was interrupted).")
         print("  Resume from: data/model_zoo/checkpoints/_recovery/interrupted_mt_model.pt")
@@ -417,19 +540,28 @@ def main() -> int:
     if args.register_zoo:
         print("\nRegistering in model zoo...")
         from qmbp_simulation.predictors.model_zoo import (
-            ZooEntry, register_checkpoint_with_training_metrics,
-            _load_manifest, _CHECKPOINTS_DIR,
+            _CHECKPOINTS_DIR,
+            ZooEntry,
+            _load_manifest,
+            register_checkpoint_with_training_metrics,
         )
 
         topo_str = "+".join(sorted(topo_dist.keys()))
         arch_suffix = f"_{arch_label}" if arch_label != "baseline" else ""
-        checkpoint_file = f"unified_tfim_br_MT{arch_suffix}_p1.pt"
+        checkpoint_file = f"unified_tfim_br_MT{arch_suffix}_p{args.p_layers}.pt"
+
+        # ── Safety: save to _recovery/ BEFORE registration attempt ───────
+        # If registration crashes (guardrail, validation, etc.), model is preserved.
+        from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+
+        recovery_dir = _CHECKPOINTS_DIR / "_recovery"
+        recovery_dir.mkdir(parents=True, exist_ok=True)
+        recovery_path = recovery_dir / f"pre_register_{checkpoint_file}"
+        save_unified_checkpoint(model, str(recovery_path))
+        print(f"  Safety backup: {recovery_path.relative_to(ROOT)}")
 
         # ── Pre-flight: check if existing model is better ────────────────
-        existing_entries = [
-            e for e in _load_manifest()
-            if e.checkpoint_file == checkpoint_file
-        ]
+        existing_entries = [e for e in _load_manifest() if e.checkpoint_file == checkpoint_file]
         if existing_entries:
             existing = existing_entries[0]
             existing_pass_rate = existing.pass_rate
@@ -437,30 +569,32 @@ def main() -> int:
             print(f"  Pre-flight: existing model found ({checkpoint_file})")
             print(f"    Existing: pass_rate={existing_pass_rate:.2f}, pts={existing_pts}")
             print(f"    New:      MSE={result['final_mse']:.2e}, pts={len(dataset)}")
-            print(f"    Anti-regression: old model auto-backed up to _versions/ + _best/")
+            print("    Anti-regression: old model auto-backed up to _versions/ + _best/")
         else:
-            print(f"  Pre-flight: no existing model with this name. Fresh registration.")
+            print("  Pre-flight: no existing model with this name. Fresh registration.")
 
         entry = ZooEntry(
             model="tfim_bond_resolved",
             topology="multi_topology",
             n_qubits=0,
-            p_layers=1,
+            p_layers=args.p_layers,
             checkpoint_file=checkpoint_file,
             h_range=(0.5, 5.0),
             pass_rate=0.0,
             n_training_points=len(dataset),
             seeds=[args.seed],
-            created=datetime.now(timezone.utc).isoformat(),
+            created=datetime.now(UTC).isoformat(),
             notes=(
                 f"Multi-topology model ({arch_label}): {topo_str}. "
+                f"p={args.p_layers}. "
                 f"MSE={result['final_mse']:.2e}, val={result['val_mse']:.2e}. "
                 f"{len(dataset)} graphs from {len(topo_dist)} topologies."
             ),
         )
 
         register_checkpoint_with_training_metrics(
-            model, entry,
+            model,
+            entry,
             training_result=result,
             overwrite=True,
             architecture_config={
@@ -478,6 +612,7 @@ def main() -> int:
                 "max_n": args.max_n,
                 "graphs_per_topology": dict(sorted(topo_dist.items())),
                 "curriculum": args.curriculum,
+                "dataset_fingerprint": _dataset_fp,
             },
             optimizer_config={
                 "learning_rate": args.lr,
@@ -488,8 +623,14 @@ def main() -> int:
             auto_diagnose=True,
             auto_sync_dashboard=False,  # Multi-topo not in per-topology dashboard
             regression_guard=args.regression_guard,
+            run_json_path=_run_json_path,
         )
-        print(f"  Registered: {checkpoint_file}")
+        print(f"  Registered: {entry.checkpoint_file}")
+
+        # ── Clean up safety backup (registration succeeded) ──────────────
+        if recovery_path.exists():
+            recovery_path.unlink()
+            print("  Cleaned up safety backup")
 
         # ── Quick evaluation: compute val-set pass_rate ──────────────────
         print("  Running quick evaluation...", end="", flush=True)
@@ -515,6 +656,7 @@ def main() -> int:
                 print(f" pass_rate={quick_pass_rate:.0%} ({n_pass}/{n_total})")
 
                 from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+
                 update_zoo_pass_rate(checkpoint_file, quick_pass_rate)
             else:
                 print(" skipped (no valid graphs)")
@@ -531,16 +673,22 @@ def main() -> int:
             cmd = [
                 sys.executable,
                 str(ROOT / "scripts/experiment_runners/cross_topology/run_model_comparison.py"),
-                "--topology", topo,
-                "--target-n", "20",
+                "--topology",
+                topo,
+                "--target-n",
+                "20",
                 "--auto-detect",
                 "--promote-best",
-                "--h-points", "6",
+                "--h-points",
+                "6",
             ]
             print(f"    Comparing on {topo}...", end="", flush=True)
             try:
                 proc = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=300,
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
                     cwd=str(ROOT),
                 )
                 # Extract the winner line from output

@@ -4,6 +4,12 @@
 # Project status (coverage matrix, regressions, large-N grades)
 cat .kiro/steering/project-status.md
 
+# Best-ever results per topology × N (at h=2.5)
+cat results/best_results_scoreboard.md
+
+# Regenerate best results scoreboard
+.venv/bin/python scripts/analysis/generate_best_results_scoreboard.py
+
 # Data integrity check (GT, NPZ, zoo, dashboard coherencia)
 .venv/bin/python scripts/maintenance/inspect_data_stores.py
 
@@ -25,9 +31,6 @@ cat .kiro/steering/project-status.md
 
 # Filtrado por N (solo extrapolation regime)
 .venv/bin/python scripts/maintenance/query_model_registry.py compare --n-min 16 -v
-
-# Combinado
-.venv/bin/python scripts/maintenance/query_model_registry.py compare -t chain_1d --n-min 10 --n-max 20 -v
 
 # JSON output (para programmatic access)
 .venv/bin/python scripts/maintenance/query_model_registry.py --json compare -t chain_1d
@@ -129,23 +132,18 @@ for item in queue[:10]:
 # GT↔NPZ coherence check (read-only)
 .venv/bin/python -c "from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence; print(validate_gt_npz_coherence()['summary'])"
 
-# GT↔NPZ auto-fix (updates stale NPZ e_exact from GT cache)
-.venv/bin/python -c "from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence; validate_gt_npz_coherence(fix=True)"
-
 # Backfill pass_rate_by_n from comparison history
 .venv/bin/python -c "from qmbp_simulation.predictors.model_zoo import backfill_pass_rate_by_n_from_comparisons; print(f'Updated: {backfill_pass_rate_by_n_from_comparisons()}')"
 8. Coverage & Documentation
 # Cross-N coverage documentation (auto-generated)
 cat internal/documentation/analysis/accelerated_cross_n_coverage.md
 
-# Regenerate coverage doc
-.venv/bin/python scripts/maintenance/update_cross_n_coverage.py
-
 # Cross-topology summary (thesis)
 cat internal/documentation/thesis/cross_topology_summary.md
 Quick Reference: "Dame el estado de X"
 Quiero saber...	Comando
 Estado global	cat .kiro/steering/project-status.md
+Best-ever por topo×N	cat results/best_results_scoreboard.md
 MT gana o pierde?	query_model_registry.py compare -v
 chain_1d cómo va?	query_model_registry.py compare -t chain_1d -v
 Qué modelo usar para N=20?	query_model_registry.py best -t chain_1d -n 20

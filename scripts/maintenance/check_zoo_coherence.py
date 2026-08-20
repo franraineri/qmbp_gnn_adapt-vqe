@@ -178,57 +178,28 @@ def check_coherence() -> dict:
             )
 
     # ── Check 5: GT cache ↔ NPZ e_exact staleness ────────────────────────
-    # If GT cache has more accurate values (lower energy) than what's in
-    # the NPZ e_exact field, the NPZ metrics are inflated.
+    # Delegated to the consolidated validate_gt_npz_coherence() which checks
+    # ALL NPZ files, ALL h-points, in both directions, and can auto-fix.
     try:
-        import numpy as _np
+        from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence
 
-        from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
-
-        gt_cache = GroundTruthCache()
-        npz_dir = ROOT / "data" / "multi_n_training"
-        n_stale_npz = 0
-        stale_details = []
-
-        if npz_dir.exists() and len(gt_cache) > 0:
-            for npz_file in sorted(npz_dir.glob("*.npz"))[:10]:  # Sample first 10
-                stem = npz_file.stem
-                parts = stem.split("_")
-                n_idx = next((i for i, p in enumerate(parts) if p.startswith("N")), None)
-                if n_idx is None:
-                    continue
-                topo = "_".join(parts[:n_idx])
-                n_q = int(parts[n_idx][1:])
-
-                data = _np.load(npz_file, allow_pickle=True)
-                h_vals = data["h_values"]
-                e_exact = data["e_exact"].astype(_np.float64)
-
-                n_stale_pts = 0
-                for i, h in enumerate(h_vals[:20]):  # Sample 20 pts
-                    cached = gt_cache.get(topo, n_q, "tfim_bond_resolved", float(h))
-                    if cached and cached["energy"] < e_exact[i] - 1e-6:
-                        n_stale_pts += 1
-
-                if n_stale_pts > 0:
-                    n_stale_npz += 1
-                    stale_details.append(f"{npz_file.name}: {n_stale_pts} pts with stale e_exact")
-
-        if n_stale_npz > 0:
+        coherence = validate_gt_npz_coherence(fix=False)
+        if coherence["n_files_with_issues"] > 0:
+            n_stale_npz = coherence["n_files_with_issues"]
             issues.append(
                 {
                     "check": "gt_npz_staleness",
                     "severity": "warning",
                     "detail": (
                         f"{n_stale_npz} NPZ file(s) have stale e_exact "
-                        f"(GT cache has lower energy). Run: "
-                        f'python -c "from qmbp_simulation.framework.result_io import '
-                        f'refresh_npz_ground_truth; ..."'
+                        f"({coherence['n_points_mismatched']} points, "
+                        f"max_delta={coherence['max_delta']:.2e}). "
+                        f"Fix: validate_gt_npz_coherence(fix=True)"
                     ),
                 }
             )
     except Exception:
-        pass  # GT cache unavailable
+        pass  # GT check unavailable
 
     # ── Check 6: Dashboard ↔ project-status freshness ─────────────────────
     status_path = ROOT / ".kiro" / "steering" / "project-status.md"
@@ -247,6 +218,23 @@ def check_coherence() -> dict:
                     ),
                 }
             )
+
+    # ── Check 7: Scoreboard cross-validation ──────────────────────────────
+    try:
+        from qmbp_simulation.analysis.metrics import validate_data_consistency
+
+        dc = validate_data_consistency()
+        sb_issues = dc.get("scoreboard_issues", [])
+        for si in sb_issues:
+            issues.append(
+                {
+                    "check": "scoreboard_phantom",
+                    "severity": si.get("severity", "warning"),
+                    "detail": f"{si['topology']} N={si['n_qubits']}: {si['issue']}",
+                }
+            )
+    except Exception:
+        pass  # Scoreboard validation is best-effort
 
     return {
         "n_issues": len(issues),

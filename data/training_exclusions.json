@@ -1,30 +1,6 @@
 {
   "excluded": [
     {
-      "file": "triangular_N10_p1.npz",
-      "topology": "triangular",
-      "n_qubits": 10,
-      "reason": "Auto-excluded: mean |\u0394E|=0.227 > 0.2 with pass_dual=18% < 20%. Bulk errors too large \u2014 including this data contaminates MPNN training.",
-      "method": "auto",
-      "detected_at": "2026-08-13T17:11:50.614424+00:00",
-      "pass_rate_dual": 0.17857142857142858,
-      "mean_abs_error": 0.22665068769780067,
-      "failure_mode": "intrinsic_vqe_error",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "triangular_N12_p1.npz",
-      "topology": "triangular",
-      "n_qubits": 12,
-      "reason": "Auto-excluded: mean |\u0394E|=0.295 > 0.2 with pass_dual=14% < 20%. Bulk errors too large \u2014 including this data contaminates MPNN training.",
-      "method": "auto",
-      "detected_at": "2026-08-13T17:11:50.618886+00:00",
-      "pass_rate_dual": 0.14285714285714285,
-      "mean_abs_error": 0.2948128248157652,
-      "failure_mode": "intrinsic_vqe_error",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
       "file": "triangular_N14_p1.npz",
       "topology": "triangular",
       "n_qubits": 14,
@@ -46,18 +22,6 @@
       "pass_rate_dual": 0.0,
       "mean_abs_error": 0.5431558663480132,
       "failure_mode": "gap_masking",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "triangular_N8_p1.npz",
-      "topology": "triangular",
-      "n_qubits": 8,
-      "reason": "Auto-excluded: mean |\u0394E|=0.270 > 0.2 with pass_dual=12% < 20%. Bulk errors too large \u2014 including this data contaminates MPNN training.",
-      "method": "auto",
-      "detected_at": "2026-08-13T17:11:50.633132+00:00",
-      "pass_rate_dual": 0.1206896551724138,
-      "mean_abs_error": 0.26976200271238227,
-      "failure_mode": "intrinsic_vqe_error",
       "source_dir": "large_n_extrapolation"
     },
     {
@@ -97,66 +61,6 @@
       "source_dir": "large_n_extrapolation"
     },
     {
-      "file": "chain_1d_N30_p1.npz",
-      "topology": "chain_1d",
-      "n_qubits": 30,
-      "reason": "Auto-excluded: mean |\u0394E|=0.273 > 0.2 with pass_dual=15% < 20%. Bulk errors too large \u2014 including this data contaminates MPNN training.",
-      "method": "auto",
-      "detected_at": "2026-08-13T18:06:22.646967+00:00",
-      "pass_rate_dual": 0.15,
-      "mean_abs_error": 0.27331332880540415,
-      "failure_mode": "intrinsic_vqe_error",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "chain_1d_N40_p1.npz",
-      "topology": "chain_1d",
-      "n_qubits": 40,
-      "reason": "0% dual pass (gap masking: 53% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
-      "method": "auto",
-      "detected_at": "2026-08-13T18:06:22.646967+00:00",
-      "pass_rate_dual": 0.0,
-      "mean_abs_error": 0.4026315049542442,
-      "failure_mode": "gap_masking",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "heavy_hex_N30_p1.npz",
-      "topology": "heavy_hex",
-      "n_qubits": 30,
-      "reason": "0% dual pass rate \u2014 no learnable signal. Possible causes: p=1 insufficient expressivity, h outside valid regime, or VQE trapped in local minimum for all points.",
-      "method": "auto",
-      "detected_at": "2026-08-13T18:06:22.646967+00:00",
-      "pass_rate_dual": 0.0,
-      "mean_abs_error": 1.4084685614651593,
-      "failure_mode": "intrinsic_vqe_error",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "ladder_N30_p1.npz",
-      "topology": "ladder",
-      "n_qubits": 30,
-      "reason": "Auto-excluded: mean |\u0394E|=0.309 > 0.2 with pass_dual=18% < 20%. Bulk errors too large \u2014 including this data contaminates MPNN training.",
-      "method": "auto",
-      "detected_at": "2026-08-13T18:06:22.646967+00:00",
-      "pass_rate_dual": 0.18181818181818182,
-      "mean_abs_error": 0.3090477032675432,
-      "failure_mode": "intrinsic_vqe_error",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "square_N16_p1.npz",
-      "topology": "square",
-      "n_qubits": 16,
-      "reason": "0% dual pass (gap masking: 27% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
-      "method": "auto",
-      "detected_at": "2026-08-13T18:06:22.646967+00:00",
-      "pass_rate_dual": 0.0,
-      "mean_abs_error": 0.3341068441584639,
-      "failure_mode": "gap_masking",
-      "source_dir": "large_n_extrapolation"
-    },
-    {
       "file": "square_N20_p1.npz",
       "topology": "square",
       "n_qubits": 20,
@@ -179,17 +83,6 @@
       "mean_abs_error": 1.1629440285127775,
       "failure_mode": "intrinsic_vqe_error",
       "source_dir": "large_n_extrapolation"
-    },
-    {
-      "file": "ladder_N14_p1.npz",
-      "topology": "ladder",
-      "n_qubits": 14,
-      "reason": "0% dual pass (gap masking: 29% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
-      "method": "auto",
-      "detected_at": "2026-08-14T02:33:55.053023+00:00",
-      "pass_rate_dual": 0.0,
-      "mean_abs_error": 0.27710306933782874,
-      "failure_mode": "gap_masking"
     },
     {
       "file": "heavy_hex_N26_p1.npz",
@@ -226,8 +119,56 @@
       "mean_abs_error": 6.145365078285974,
       "failure_mode": "intrinsic_vqe_error",
       "source_dir": "large_n_extrapolation"
+    },
+    {
+      "file": "chain_1d_N80_p1.npz",
+      "topology": "chain_1d",
+      "n_qubits": 80,
+      "reason": "0% dual pass rate \u2014 no learnable signal. Possible causes: p=1 insufficient expressivity, h outside valid regime, or VQE trapped in local minimum for all points.",
+      "method": "auto",
+      "detected_at": "2026-08-20T16:51:05.244408+00:00",
+      "pass_rate_dual": 0.0,
+      "mean_abs_error": 0.7079562752087867,
+      "failure_mode": "intrinsic_vqe_error",
+      "source_dir": "large_n_extrapolation"
+    },
+    {
+      "file": "heavy_hex_N16_p1.npz",
+      "topology": "heavy_hex",
+      "n_qubits": 16,
+      "reason": "0% dual pass rate \u2014 no learnable signal. Possible causes: p=1 insufficient expressivity, h outside valid regime, or VQE trapped in local minimum for all points.",
+      "method": "auto",
+      "detected_at": "2026-08-20T19:25:04.688870+00:00",
+      "pass_rate_dual": 0.0,
+      "mean_abs_error": 0.5978916566826081,
+      "failure_mode": "intrinsic_vqe_error",
+      "source_dir": "large_n_extrapolation"
+    },
+    {
+      "file": "ladder_N16_p1.npz",
+      "topology": "ladder",
+      "n_qubits": 16,
+      "reason": "0% dual pass (gap masking: 67% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
+      "method": "auto",
+      "detected_at": "2026-08-20T19:25:04.692458+00:00",
+      "pass_rate_dual": 0.0,
+      "mean_abs_error": 0.22389126474707174,
+      "failure_mode": "gap_masking",
+      "source_dir": "large_n_extrapolation"
+    },
+    {
+      "file": "triangular_N12_p1.npz",
+      "topology": "triangular",
+      "n_qubits": 12,
+      "reason": "0% dual pass (gap masking: 20% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
+      "method": "auto",
+      "detected_at": "2026-08-20T19:25:04.697314+00:00",
+      "pass_rate_dual": 0.0,
+      "mean_abs_error": 0.8794048518298105,
+      "failure_mode": "gap_masking",
+      "source_dir": "large_n_extrapolation"
     }
   ],
-  "updated_at": "2026-08-19T17:05:33.391737+00:00",
+  "updated_at": "2026-08-20T19:25:04.697721+00:00",
   "version": 1
 }

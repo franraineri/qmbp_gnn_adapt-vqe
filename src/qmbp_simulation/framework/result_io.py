@@ -1047,7 +1047,7 @@ def load_npz_as_theta_dict(
     npz_path: Path,
     n_params: int,
     *,
-    h_precision: int = 6,
+    h_precision: int = 2,
 ) -> dict[float, tuple[np.ndarray, float | None]]:
     """Load NPZ and build a validated h→(θ, energy) lookup dict.
 
@@ -1062,7 +1062,7 @@ def load_npz_as_theta_dict(
     n_params : int
         Expected number of parameters (entries with different dim are skipped).
     h_precision : int
-        Decimal places for rounding h keys (default: 6).
+        Decimal places for rounding h keys (default: 2).
 
     Returns
     -------

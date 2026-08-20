@@ -302,6 +302,7 @@ def cmd_sync(args, db: ModelRegistryDB):
     # ── Training curves cross-check ──────────────────────────────────────
     print("  Cross-checking training curves vs registry MSE...")
     from qmbp_simulation.analysis.metrics import validate_data_consistency
+
     dc = validate_data_consistency()
     reg_curves = dc.get("registry_vs_curves", {})
     if reg_curves:
@@ -321,6 +322,7 @@ def cmd_sync(args, db: ModelRegistryDB):
     # ── Backfill pass_rate_by_n ──────────────────────────────────────────
     print("  Backfilling pass_rate_by_n from comparisons...")
     from qmbp_simulation.predictors.model_zoo import backfill_pass_rate_by_n_from_comparisons
+
     n_backfilled = backfill_pass_rate_by_n_from_comparisons()
     print(f"  → Backfilled: {n_backfilled} models")
 
@@ -970,10 +972,13 @@ def cmd_compare(args, db: ModelRegistryDB):
     mt_wins = summary["mt_wins"]
     st_wins = summary["st_wins"]
     ties = summary["ties"]
-    mt_avg = summary.get("mt_avg_pass_rate", 0.0)
-    st_avg = summary.get("st_avg_pass_rate", 0.0)
 
-    global_winner = "MT" if mt_avg > st_avg + 0.01 else ("ST" if st_avg > mt_avg + 0.01 else "Tie")
+    # Use quality_score as primary metric (continuous), fall back to pass_rate
+    mt_avg = summary.get("mt_avg_quality_score", summary.get("mt_avg_pass_rate", 0.0))
+    st_avg = summary.get("st_avg_quality_score", summary.get("st_avg_pass_rate", 0.0))
+    st_avg = summary.get("st_avg_quality_score", summary.get("st_avg_pass_rate", 0.0))
+
+    global_winner = "MT" if mt_avg > st_avg + 0.03 else ("ST" if st_avg > mt_avg + 0.03 else "Tie")
     winner_icon = "🟢" if global_winner == "MT" else ("🔴" if global_winner == "ST" else "⚪")
 
     print(f"\n  ╔{'═' * 56}╗")
@@ -981,23 +986,27 @@ def cmd_compare(args, db: ModelRegistryDB):
     print(f"  ║  Generated: {summary.get('generated_at', '?')[:19]:<33}║")
     print(f"  ╠{'═' * 56}╣")
     print(f"  ║  Score: MT {mt_wins} — ST {st_wins} — Ties {ties}{'':<25}║")
-    print(f"  ║  MT avg pass_rate: {mt_avg:.0%} | ST avg: {st_avg:.0%}{'':<16}║")
+    print(f"  ║  MT avg score: {mt_avg:.3f} | ST avg: {st_avg:.3f}{'':<18}║")
     print(f"  ║  Overall winner: {winner_icon} {global_winner:<34}║")
     print(f"  ╚{'═' * 56}╝\n")
 
     # Per-topology breakdown
     per_topology = summary.get("per_topology", {})
     if per_topology:
-        print(f"  {'Topology':<14} {'MT pass%':>9} {'ST pass%':>9} {'Winner':>8} {'Δ':>7} {'MT W':>5} {'ST W':>5}")
+        print(
+            f"  {'Topology':<14} {'MT score':>9} {'ST score':>9} {'Winner':>8} {'Δ':>7} {'MT W':>5} {'ST W':>5}"
+        )
         print(f"  {'─' * 14} {'─' * 9} {'─' * 9} {'─' * 8} {'─' * 7} {'─' * 5} {'─' * 5}")
         for topo in sorted(per_topology.keys()):
             info = per_topology[topo]
             icon = "🟢" if info["winner"] == "MT" else ("🔴" if info["winner"] == "ST" else "⚪")
+            mt_s = info.get("mt_avg_quality_score", info.get("mt_avg_pass_rate", 0.0))
+            st_s = info.get("st_avg_quality_score", info.get("st_avg_pass_rate", 0.0))
             print(
-                f"  {topo:<14} {info['mt_avg_pass_rate']:>8.0%} "
-                f"{info['st_avg_pass_rate']:>9.0%} "
+                f"  {topo:<14} {mt_s:>8.3f} "
+                f"{st_s:>9.3f} "
                 f"{icon} {info['winner']:<5} "
-                f"{info['delta']:>+6.0%} "
+                f"{info['delta']:>+6.3f} "
                 f"{info['mt_wins']:>5} {info['st_wins']:>5}"
             )
         print()
@@ -1006,14 +1015,24 @@ def cmd_compare(args, db: ModelRegistryDB):
     if args.verbose:
         per_scenario = summary.get("per_scenario", [])
         if per_scenario:
-            print(f"  {'Topology':<14} {'N':>3} {'MT%':>5} {'MT gr':>5} {'ST%':>5} {'ST gr':>5} {'Win':>4}")
-            print(f"  {'─' * 14} {'─' * 3} {'─' * 5} {'─' * 5} {'─' * 5} {'─' * 5} {'─' * 4}")
+            print(
+                f"  {'Topology':<14} {'N':>3} {'MT sc':>6} {'MT ΔE':>7} {'MT gr':>5} {'ST sc':>6} {'ST ΔE':>7} {'ST gr':>5} {'Win':>4}"
+            )
+            print(
+                f"  {'─' * 14} {'─' * 3} {'─' * 6} {'─' * 7} {'─' * 5} {'─' * 6} {'─' * 7} {'─' * 5} {'─' * 4}"
+            )
             for s in per_scenario:
                 icon = "✅" if s["winner"] == "MT" else ("❌" if s["winner"] == "ST" else "—")
+                mt_sc = s.get("mt_quality_score", s.get("mt_pass_rate", 0.0))
+                st_sc = s.get("st_quality_score", s.get("st_pass_rate", 0.0))
+                mt_dg = s.get("mt_mean_de_gap", s.get("mt_de_gap", 0.0))
+                st_dg = s.get("st_mean_de_gap", s.get("st_de_gap", 0.0))
+                mt_dg_str = f"{mt_dg:.1%}" if mt_dg < 10 else "—"
+                st_dg_str = f"{st_dg:.1%}" if st_dg < 10 else "—"
                 print(
                     f"  {s['topology']:<14} {s['n_qubits']:>3} "
-                    f"{s['mt_pass_rate']:>4.0%} {s['mt_grade']:>5} "
-                    f"{s['st_pass_rate']:>4.0%} {s['st_grade']:>5} "
+                    f"{mt_sc:>5.3f} {mt_dg_str:>7} {s['mt_grade']:>5} "
+                    f"{st_sc:>5.3f} {st_dg_str:>7} {s['st_grade']:>5} "
                     f"{icon:>4}"
                 )
             print()
@@ -1059,18 +1078,14 @@ def _enrich_with_dashboard(per_topology: dict, summary: dict):
         # Aggregate training data quality for this topology
         total_pts = sum(c.get("n_points", 0) for c in topo_configs)
         n_useful = sum(1 for c in topo_configs if c.get("training_utility") == "useful")
-        avg_de_gap = (
-            sum(c.get("mean_de_gap", 0) for c in topo_configs) / max(len(topo_configs), 1)
-        )
+        avg_de_gap = sum(c.get("mean_de_gap", 0) for c in topo_configs) / max(len(topo_configs), 1)
         best_pass_dual = max(
             (c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0
         )
         n_values = sorted(set(c["n_qubits"] for c in topo_configs))
 
         # Check if MT or ST models are stale for this topology
-        zoo_pass = max(
-            (c.get("zoo_pass_rate", 0) or 0 for c in topo_configs), default=0
-        )
+        zoo_pass = max((c.get("zoo_pass_rate", 0) or 0 for c in topo_configs), default=0)
         is_stale = any(c.get("model_stale") for c in topo_configs)
 
         status = "✅" if n_useful == len(topo_configs) else "⚠️"
@@ -1088,14 +1103,14 @@ def _enrich_with_dashboard(per_topology: dict, summary: dict):
     if mt_info.get("n_models", 0) > 0:
         best_mt = mt_info["best_pass_rate"]
         n_mt_pts = sum(m.get("n_training_points", 0) for m in mt_info.get("models", []))
-        print(f"  │")
+        print("  │")
         print(f"  │ MT model: pass_rate={best_mt:.0%}, training_pts={n_mt_pts}")
 
     # Dashboard comparison section (if already embedded)
     dash_compare = dashboard.get("mt_vs_st_comparison", {})
     if dash_compare:
         dash_global = dash_compare.get("global", {})
-        print(f"  │")
+        print("  │")
         print(
             f"  │ Dashboard embedded: "
             f"MT {dash_global.get('mt_wins', 0)} — "
@@ -1172,7 +1187,7 @@ def _print_model_card(r, verbose: bool = False):
             n_qubits=0
             if len(r.training.n_values_used or []) > 1
             else (r.training.n_values_used[0] if r.training.n_values_used else 0),
-            p_layers=1,
+            p_layers=r.p_layers,
             model=r.model_name,
         )
         bar = "█" * int(score * 10) + "░" * (10 - int(score * 10))
@@ -1361,15 +1376,22 @@ def main():
     p_compare.add_argument("--topology", "-t", nargs="*", help="Filter by topology (one or more)")
     p_compare.add_argument("--n-min", type=int, help="Minimum N value")
     p_compare.add_argument("--n-max", type=int, help="Maximum N value")
-    p_compare.add_argument("--all-runs", action="store_true",
-                           help="Use all comparison runs (not just latest per topology)")
-    p_compare.add_argument("--enrich", action="store_true", default=True,
-                           help="Cross-reference with dashboard NPZ quality data")
+    p_compare.add_argument(
+        "--all-runs",
+        action="store_true",
+        help="Use all comparison runs (not just latest per topology)",
+    )
+    p_compare.add_argument(
+        "--enrich",
+        action="store_true",
+        default=True,
+        help="Cross-reference with dashboard NPZ quality data",
+    )
     p_compare.add_argument("--no-enrich", dest="enrich", action="store_false")
-    p_compare.add_argument("--save", action="store_true",
-                           help="Save markdown report to results/mt_vs_st_report.md")
-    p_compare.add_argument("-v", "--verbose", action="store_true",
-                           help="Show per-N breakdown")
+    p_compare.add_argument(
+        "--save", action="store_true", help="Save markdown report to results/mt_vs_st_report.md"
+    )
+    p_compare.add_argument("-v", "--verbose", action="store_true", help="Show per-N breakdown")
 
     # consistency (cross-source data validation)
     subparsers.add_parser(

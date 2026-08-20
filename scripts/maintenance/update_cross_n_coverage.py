@@ -328,7 +328,7 @@ def compute_gt_coverage(npz_dir: Path) -> dict[str, int]:
         n_miss = sum(
             1
             for h in h_vals
-            if f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.6f}" not in gt_entries
+            if f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.2f}" not in gt_entries
         )
         if n_miss > 0:
             missing[npz_file.name] = n_miss

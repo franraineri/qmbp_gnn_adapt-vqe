@@ -124,7 +124,7 @@ def _make_runner(cls, output_dir, monkeypatch):
     # Prevent expensive GT/sync operations from running during tests
     monkeypatch.setattr(
         "qmbp_simulation.analysis.metrics.validate_gt_npz_coherence",
-        lambda fix=False: {"n_points_fixed": 0, "n_files_with_issues": 0, "summary": "mocked"},
+        lambda fix=False, **kwargs: {"n_points_fixed": 0, "n_files_with_issues": 0, "summary": "mocked"},
     )
     monkeypatch.setattr(
         "qmbp_simulation.analysis.metrics.post_experiment_sync",

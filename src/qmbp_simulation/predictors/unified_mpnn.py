@@ -101,7 +101,9 @@ class UnifiedMPNN(nn.Module):
         if norm_type not in ("batch", "layer", "none"):
             raise ValueError(f"norm_type must be 'batch', 'layer', or 'none'. Got: {norm_type!r}")
         if readout_mode not in ("last", "jk_cat", "jk_max"):
-            raise ValueError(f"readout_mode must be 'last', 'jk_cat', or 'jk_max'. Got: {readout_mode!r}")
+            raise ValueError(
+                f"readout_mode must be 'last', 'jk_cat', or 'jk_max'. Got: {readout_mode!r}"
+            )
 
         self.node_features = node_features
         self.hidden_dim = hidden_dim
@@ -161,12 +163,8 @@ class UnifiedMPNN(nn.Module):
 
         # ── FiLM conditioning layers (modulate by h) ─────────────────
         if film_conditioning:
-            self.film_gamma = nn.ModuleList([
-                nn.Linear(1, hidden_dim) for _ in range(n_layers)
-            ])
-            self.film_beta = nn.ModuleList([
-                nn.Linear(1, hidden_dim) for _ in range(n_layers)
-            ])
+            self.film_gamma = nn.ModuleList([nn.Linear(1, hidden_dim) for _ in range(n_layers)])
+            self.film_beta = nn.ModuleList([nn.Linear(1, hidden_dim) for _ in range(n_layers)])
             # Initialize to identity: γ=1, β=0 (backward-compatible behavior)
             for gamma_layer in self.film_gamma:
                 nn.init.ones_(gamma_layer.weight)
@@ -274,7 +272,7 @@ class UnifiedMPNN(nn.Module):
             # FiLM conditioning: modulate by h after each layer
             if self.film_conditioning and h_global is not None:
                 gamma = self.film_gamma[i](h_global).squeeze(0)  # [hidden_dim]
-                beta = self.film_beta[i](h_global).squeeze(0)    # [hidden_dim]
+                beta = self.film_beta[i](h_global).squeeze(0)  # [hidden_dim]
                 x = gamma * x + beta
 
             x = torch.relu(x)
@@ -334,10 +332,10 @@ class UnifiedMPNN(nn.Module):
 
     def predict_with_uncertainty(
         self,
-        data: "Data",
+        data: Data,
         n_samples: int = 5,
         seeds: tuple[int, ...] = (42, 137, 256, 511, 769),
-    ) -> tuple["torch.Tensor", float]:
+    ) -> tuple[torch.Tensor, float]:
         """Predict θ with MC-Dropout uncertainty estimation.
 
         Runs K forward passes with dropout enabled (train mode) to estimate
@@ -570,6 +568,7 @@ def train_unified_mpnn(
     stop_reason = "completed"
 
     model.train()
+    print("total epochs to train: ", n_epochs)
     for epoch in range(n_epochs):
         total_loss = 0.0
         total_zz = 0.0
@@ -718,7 +717,7 @@ def train_unified_mpnn(
                     stop_reason = "overfitting_detected"
                     break
 
-        if (epoch + 1) % 1000 == 0:
+        if (epoch + 1) % 250 == 0:
             logger.info(
                 "  Epoch %d: MSE=%.2e (ZZ=%.2e, X=%.2e)",
                 epoch + 1,
@@ -764,7 +763,7 @@ def train_unified_mpnn(
                         # captures same signal for gradient direction)
                         diff = torch.abs(pred_e - target_e)
                         # Penalize large deviations more (L2-like but on abs)
-                        energy_proxy = torch.mean(diff ** 2).item()
+                        energy_proxy = torch.mean(diff**2).item()
                         energy_errors.append(energy_proxy)
 
                 # Apply as additional gradient step
@@ -781,14 +780,12 @@ def train_unified_mpnn(
                         target_s = data_s.y
                         # Physics loss: penalize predictions far from target
                         # weighted by physics_loss_weight
-                        physics_loss = physics_loss_weight * torch.mean(
-                            (pred_s - target_s) ** 2
-                        )
+                        physics_loss = physics_loss_weight * torch.mean((pred_s - target_s) ** 2)
                         physics_loss.backward()
                         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
                         optimizer.step()
 
-                    if (epoch + 1) % 500 == 0:
+                    if (epoch + 1) % 250 == 0:
                         logger.info(
                             "  [Physics] epoch %d: energy_proxy=%.2e (λ=%.3f)",
                             epoch + 1,
@@ -1495,3 +1492,162 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         model.gate_readout,
     )
     return model
+
+
+def transfer_model_to_higher_p(
+    source_checkpoint: str,
+    p_target: int,
+    dataset: list | None = None,
+    topology: str | None = None,
+    fine_tune_epochs: int = 2000,
+    fine_tune_lr: float = 5e-4,
+    freeze_early_layers: bool = True,
+    layerwise_decay: float = 0.2,
+    seed: int = 42,
+) -> tuple[UnifiedMPNN, dict]:
+    """Transfer a trained model from lower p to higher p_layers via fine-tuning.
+
+    Since UnifiedMPNN predicts per-node θ values and the graph structure
+    encodes p_layers (via gate node replication), the same architecture
+    handles any p_layers without modification. Transfer learning here means:
+
+    1. Load the source checkpoint (e.g. p=1) in training mode
+    2. Fine-tune on p_target dataset (e.g. p=2 graphs)
+
+    The GNN encoder learns topology-aware embeddings that are largely
+    p-independent (lattice structure, h-conditioning). The readout heads
+    learn to predict θ from node embeddings — since gate nodes for p=2
+    have the same feature structure as p=1, the heads transfer well.
+
+    Parameters
+    ----------
+    source_checkpoint : str
+        Path to the source model checkpoint (typically a p=1 model).
+    p_target : int
+        Target p_layers for the fine-tuned model.
+    dataset : list[Data] | None
+        Pre-built p_target dataset. If None, will be built automatically
+        using MultiNAggregator(p_layers=p_target, topology=topology).
+    topology : str | None
+        Required if dataset is None — topology to scan for training data.
+    fine_tune_epochs : int
+        Number of fine-tuning epochs (default 2000, more than standard
+        fine-tune since it's cross-p transfer).
+    fine_tune_lr : float
+        Learning rate (default 5e-4, slightly higher than standard fine-tune
+        to allow the heads to adapt to the new output structure).
+    freeze_early_layers : bool
+        If True (default), early backbone layers learn slowly while heads
+        adapt to p_target output patterns.
+    layerwise_decay : float
+        LR multiplier for early layers (default 0.2 = heads adapt 5× faster).
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    tuple[UnifiedMPNN, dict]
+        (fine-tuned model, training metrics dict)
+
+    Raises
+    ------
+    FileNotFoundError
+        If source_checkpoint does not exist.
+    ValueError
+        If no training data available for p_target.
+
+    Examples
+    --------
+    >>> model, metrics = transfer_model_to_higher_p(
+    ...     source_checkpoint="data/model_zoo/checkpoints/unified_tfim_br_chain_1d_multiN_..._p1.pt",
+    ...     p_target=2,
+    ...     topology="chain_1d",
+    ... )
+    >>> print(f"Transfer MSE: {metrics['final_mse']:.2e}")
+    """
+    from pathlib import Path as _Path
+
+    # Step 1: Load source model in training mode
+    if not _Path(source_checkpoint).exists():
+        raise FileNotFoundError(f"Source checkpoint not found: {source_checkpoint}")
+
+    logger.info(
+        "Transfer learning: %s → p=%d",
+        _Path(source_checkpoint).name,
+        p_target,
+    )
+    model = load_unified_checkpoint(str(source_checkpoint), eval_mode=False)
+
+    # Step 2: Build or validate dataset for p_target
+    if dataset is None:
+        if topology is None:
+            raise ValueError(
+                "Either 'dataset' or 'topology' must be provided "
+                "to build training data for p_target."
+            )
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        agg = MultiNAggregator(topology=topology, p_layers=p_target)
+        scan_result = agg.scan()
+        total_points = sum(scan_result.values())
+        if total_points == 0:
+            raise ValueError(
+                f"No p={p_target} training data found for topology='{topology}'. "
+                f"Run AcceleratedCrossNRunner with --p-layers {p_target} first to "
+                f"generate VQE data."
+            )
+        logger.info(
+            "  Built p=%d dataset: %d N-values, %d total points",
+            p_target,
+            len(scan_result),
+            total_points,
+        )
+        dataset = agg.build_combined_dataset()
+
+    if len(dataset) < 5:
+        raise ValueError(
+            f"Insufficient p={p_target} data for transfer learning "
+            f"({len(dataset)} graphs, need ≥5). Generate more VQE data first."
+        )
+
+    # Step 3: Fine-tune with cross-p transfer settings
+    logger.info(
+        "  Fine-tuning: %d epochs, lr=%.1e, layerwise_decay=%.2f, %d graphs",
+        fine_tune_epochs,
+        fine_tune_lr,
+        layerwise_decay,
+        len(dataset),
+    )
+    metrics = fine_tune_unified_mpnn(
+        model=model,
+        dataset=dataset,
+        n_epochs=fine_tune_epochs,
+        lr=fine_tune_lr,
+        patience=300,
+        seed=seed,
+        freeze_early_layers=freeze_early_layers,
+        layerwise_decay=layerwise_decay,
+    )
+
+    metrics["transfer_source"] = str(source_checkpoint)
+    metrics["p_source"] = _infer_p_from_checkpoint_name(source_checkpoint)
+    metrics["p_target"] = p_target
+    metrics["mode"] = "transfer_p1_to_p2"
+
+    logger.info(
+        "  Transfer complete: MSE %.2e → %.2e (ratio=%.3f)",
+        metrics.get("initial_mse", float("inf")),
+        metrics.get("final_mse", float("inf")),
+        metrics.get("improvement_ratio", 1.0),
+    )
+
+    model.eval()
+    return model, metrics
+
+
+def _infer_p_from_checkpoint_name(path: str) -> int:
+    """Infer p_layers from checkpoint filename (e.g. ..._p1.pt → 1)."""
+    import re
+
+    match = re.search(r"_p(\d+)\.pt$", str(path))
+    return int(match.group(1)) if match else 1

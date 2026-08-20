@@ -112,7 +112,7 @@ class HardwareRehearsalV2(ValidationRunner):
             "--topology",
             type=str,
             default=DEFAULT_TOPOLOGY,
-            choices=["chain_1d", "ladder", "heavy_hex"],
+            choices=["chain_1d", "ladder", "heavy_hex", "square", "triangular"],
             help=f"Lattice topology (default: {DEFAULT_TOPOLOGY})",
         )
         parser.add_argument(

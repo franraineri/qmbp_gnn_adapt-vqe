@@ -72,6 +72,7 @@ from qmbp_simulation.analysis.metrics import (
     query_mt_vs_st_comparison,
     validate_gt_npz_coherence,
     post_experiment_sync,
+    auto_fix_scoreboard_issues,
     validate_data_consistency,
 )
 from qmbp_simulation.analysis.failures_tests import (

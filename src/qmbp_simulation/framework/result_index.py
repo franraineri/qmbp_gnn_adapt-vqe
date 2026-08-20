@@ -1121,19 +1121,23 @@ class ResultIndex:
                 return None
 
             zoo = _json.loads(zoo_path.read_text())
-            multi_n = [e for e in zoo if e.get("n_qubits") == 0 and e.get("p_layers") == 1]
+            # Include all p_layers (not just p=1) — show best model per topology per p
+            multi_n = [e for e in zoo if e.get("n_qubits") == 0]
             if not multi_n:
                 return None
 
             lines = [
                 "## Best Model per Topology (Auto-Tracked)",
                 "",
-                "| Topology | Checkpoint | Arch | Pass% | N-range | Best N | Worst N |",
-                "|----------|-----------|------|-------|---------|--------|---------|",
+                "| Topology | p | Checkpoint | Arch | Pass% | N-range | Best N | Worst N |",
+                "|----------|---|-----------|------|-------|---------|--------|---------|",
             ]
 
-            for entry in sorted(multi_n, key=lambda e: e.get("topology", "")):
+            for entry in sorted(
+                multi_n, key=lambda e: (e.get("topology", ""), e.get("p_layers", 1))
+            ):
                 topo = entry.get("topology", "?")
+                p_val = entry.get("p_layers", 1)
                 ckpt = entry.get("checkpoint_file", "?")
                 pr = entry.get("pass_rate", 0)
                 by_n = entry.get("pass_rate_by_n", {})
@@ -1167,7 +1171,7 @@ class ResultIndex:
                 ckpt_short = ckpt[:35] + "..." if len(ckpt) > 38 else ckpt
 
                 lines.append(
-                    f"| {topo} | {ckpt_short} | {arch} | {pr:.0%} | "
+                    f"| {topo} | {p_val} | {ckpt_short} | {arch} | {pr:.0%} | "
                     f"{n_range} | {best_n_str} | {worst_n_str} |"
                 )
 
@@ -1180,14 +1184,26 @@ class ResultIndex:
                 by_n = mt.get("pass_rate_by_n", {})
                 arch = "baseline"
                 if "residual" in ckpt.lower() or "residual" in mt.get("notes", "").lower():
-                    arch = "residual+film" if "film" in (ckpt + mt.get("notes", "")).lower() else "residual"
+                    arch = (
+                        "residual+film"
+                        if "film" in (ckpt + mt.get("notes", "")).lower()
+                        else "residual"
+                    )
 
                 if by_n:
                     sorted_ns = sorted(by_n.items(), key=lambda x: int(x[0]))
                     n_range = f"N={sorted_ns[0][0]}-{sorted_ns[-1][0]}"
                     non_zero = [(n, v) for n, v in sorted_ns if float(v) > 0]
-                    best_n_str = f"N{max(non_zero, key=lambda x: float(x[1]))[0]}={float(max(non_zero, key=lambda x: float(x[1]))[1]):.0%}" if non_zero else "all 0%"
-                    worst_n_str = f"N{min(non_zero, key=lambda x: float(x[1]))[0]}={float(min(non_zero, key=lambda x: float(x[1]))[1]):.0%}" if non_zero else "—"
+                    best_n_str = (
+                        f"N{max(non_zero, key=lambda x: float(x[1]))[0]}={float(max(non_zero, key=lambda x: float(x[1]))[1]):.0%}"
+                        if non_zero
+                        else "all 0%"
+                    )
+                    worst_n_str = (
+                        f"N{min(non_zero, key=lambda x: float(x[1]))[0]}={float(min(non_zero, key=lambda x: float(x[1]))[1]):.0%}"
+                        if non_zero
+                        else "—"
+                    )
                 else:
                     n_range = "—"
                     best_n_str = "—"

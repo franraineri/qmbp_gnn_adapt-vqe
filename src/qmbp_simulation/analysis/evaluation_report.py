@@ -324,21 +324,25 @@ def generate_evaluation_report(
 
     # Multi-topology banner
     if is_multi_topology:
-        lines.extend([
-            "> **🌐 MULTI-TOPOLOGY MODEL** — This evaluation uses a model trained on "
-            "multiple topologies simultaneously. Results reflect cross-topology "
-            "transfer capability.",
-            "",
-        ])
+        lines.extend(
+            [
+                "> **🌐 MULTI-TOPOLOGY MODEL** — This evaluation uses a model trained on "
+                "multiple topologies simultaneously. Results reflect cross-topology "
+                "transfer capability.",
+                "",
+            ]
+        )
 
-    lines.extend([
-        f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
-        f"**Model**: {checkpoint_display}",
-        f"**Multi-topology**: {'YES' if is_multi_topology else 'no'}",
-        f"**h-range**: [{h_range[0]}, {h_range[1]}] ({n_h_points} pts)",
-        f"**Target N**: {target_n}",
-        "",
-    ])
+    lines.extend(
+        [
+            f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
+            f"**Model**: {checkpoint_display}",
+            f"**Multi-topology**: {'YES' if is_multi_topology else 'no'}",
+            f"**h-range**: [{h_range[0]}, {h_range[1]}] ({n_h_points} pts)",
+            f"**Target N**: {target_n}",
+            "",
+        ]
+    )
 
     # ── Comparison table (MPNN vs VQE) ────────────────────────────────────
     if comparison:
@@ -766,6 +770,7 @@ def generate_mt_vs_st_table(
                         "mean_de_gap": metrics.get("mean_de_gap", 1.0),
                         "pass_rate_dual": metrics.get("pass_rate_dual", 0.0),
                         "pass_rate_5pct": metrics.get("pass_rate_5pct", 0.0),
+                        "quality_score": metrics.get("quality_score", 0.0),
                         "grade": metrics.get("grade", "?"),
                     }
 
@@ -779,7 +784,10 @@ def generate_mt_vs_st_table(
 
     if not per_topo_n:
         return ["*No valid comparison results found.*"], {
-            "mt_wins": 0, "st_wins": 0, "ties": 0, "total": 0
+            "mt_wins": 0,
+            "st_wins": 0,
+            "ties": 0,
+            "total": 0,
         }
 
     # ── Compute per-topology and per-N winners ────────────────────────────
@@ -788,12 +796,12 @@ def generate_mt_vs_st_table(
     mt_wins = 0
     st_wins = 0
     ties = 0
-    all_mt_pass = []
-    all_st_pass = []
+    all_mt_scores = []
+    all_st_scores = []
 
     for topo in sorted(per_topo_n.keys()):
-        topo_mt_pass = []
-        topo_st_pass = []
+        topo_mt_scores = []
+        topo_st_scores = []
         topo_mt_wins = 0
         topo_st_wins = 0
         topo_ties = 0
@@ -805,26 +813,32 @@ def generate_mt_vs_st_table(
             if not mt_entries and not st_entries:
                 continue
 
-            # Best MT and ST by pass_rate_dual (higher is better)
-            best_mt = max(mt_entries, key=lambda x: x["pass_rate_dual"]) if mt_entries else None
-            best_st = max(st_entries, key=lambda x: x["pass_rate_dual"]) if st_entries else None
+            # Best MT and ST by quality_score (higher is better, continuous)
+            best_mt = (
+                max(mt_entries, key=lambda x: x.get("quality_score", 0.0)) if mt_entries else None
+            )
+            best_st = (
+                max(st_entries, key=lambda x: x.get("quality_score", 0.0)) if st_entries else None
+            )
 
-            mt_pr = best_mt["pass_rate_dual"] if best_mt else 0.0
-            st_pr = best_st["pass_rate_dual"] if best_st else 0.0
+            mt_qs = best_mt.get("quality_score", 0.0) if best_mt else 0.0
+            st_qs = best_st.get("quality_score", 0.0) if best_st else 0.0
             mt_dg = best_mt["mean_de_gap"] if best_mt else float("inf")
             st_dg = best_st["mean_de_gap"] if best_st else float("inf")
+            mt_pr = best_mt.get("pass_rate_dual", 0.0) if best_mt else 0.0
+            st_pr = best_st.get("pass_rate_dual", 0.0) if best_st else 0.0
 
-            topo_mt_pass.append(mt_pr)
-            topo_st_pass.append(st_pr)
-            all_mt_pass.append(mt_pr)
-            all_st_pass.append(st_pr)
+            topo_mt_scores.append(mt_qs)
+            topo_st_scores.append(st_qs)
+            all_mt_scores.append(mt_qs)
+            all_st_scores.append(st_qs)
 
-            # Winner: prefer pass_rate_dual, break ties with mean_de_gap
-            if mt_pr > st_pr + 0.01:
+            # Winner: use quality_score (continuous), small tolerance for ties
+            if mt_qs > st_qs + 0.03:
                 winner = "MT"
                 topo_mt_wins += 1
                 mt_wins += 1
-            elif st_pr > mt_pr + 0.01:
+            elif st_qs > mt_qs + 0.03:
                 winner = "ST"
                 topo_st_wins += 1
                 st_wins += 1
@@ -833,39 +847,49 @@ def generate_mt_vs_st_table(
                 topo_ties += 1
                 ties += 1
 
-            per_scenario.append({
-                "topology": topo,
-                "n_qubits": n_val,
-                "mt_pass_rate": mt_pr,
-                "st_pass_rate": st_pr,
-                "mt_de_gap": round(mt_dg, 4),
-                "st_de_gap": round(st_dg, 4),
-                "mt_grade": best_mt["grade"] if best_mt else "—",
-                "st_grade": best_st["grade"] if best_st else "—",
-                "mt_model": best_mt["label"] if best_mt else "—",
-                "st_model": best_st["label"] if best_st else "—",
-                "winner": winner,
-            })
+            per_scenario.append(
+                {
+                    "topology": topo,
+                    "n_qubits": n_val,
+                    "mt_quality_score": round(mt_qs, 3),
+                    "st_quality_score": round(st_qs, 3),
+                    "mt_pass_rate": mt_pr,
+                    "st_pass_rate": st_pr,
+                    "mt_mean_de_gap": round(mt_dg, 4),
+                    "st_mean_de_gap": round(st_dg, 4),
+                    "mt_grade": best_mt["grade"] if best_mt else "—",
+                    "st_grade": best_st["grade"] if best_st else "—",
+                    "mt_model": best_mt["label"] if best_mt else "—",
+                    "st_model": best_st["label"] if best_st else "—",
+                    "winner": winner,
+                }
+            )
 
         # Per-topology summary
-        mt_avg = float(np.mean(topo_mt_pass)) if topo_mt_pass else 0.0
-        st_avg = float(np.mean(topo_st_pass)) if topo_st_pass else 0.0
+        mt_avg = float(np.mean(topo_mt_scores)) if topo_mt_scores else 0.0
+        st_avg = float(np.mean(topo_st_scores)) if topo_st_scores else 0.0
         per_topology[topo] = {
-            "mt_avg_pass_rate": mt_avg,
-            "st_avg_pass_rate": st_avg,
+            "mt_avg_quality_score": mt_avg,
+            "st_avg_quality_score": st_avg,
+            "mt_avg_pass_rate": float(
+                np.mean([s["mt_pass_rate"] for s in per_scenario if s["topology"] == topo])
+            ),
+            "st_avg_pass_rate": float(
+                np.mean([s["st_pass_rate"] for s in per_scenario if s["topology"] == topo])
+            ),
             "mt_wins": topo_mt_wins,
             "st_wins": topo_st_wins,
             "ties": topo_ties,
-            "winner": "MT" if mt_avg > st_avg + 0.01 else (
-                "ST" if st_avg > mt_avg + 0.01 else "tie"
-            ),
+            "winner": "MT"
+            if mt_avg > st_avg + 0.03
+            else ("ST" if st_avg > mt_avg + 0.03 else "tie"),
             "delta": mt_avg - st_avg,
         }
 
     total = mt_wins + st_wins + ties
     ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
-    mt_avg_global = float(np.mean(all_mt_pass)) if all_mt_pass else 0.0
-    st_avg_global = float(np.mean(all_st_pass)) if all_st_pass else 0.0
+    mt_avg_global = float(np.mean(all_mt_scores)) if all_mt_scores else 0.0
+    st_avg_global = float(np.mean(all_st_scores)) if all_st_scores else 0.0
 
     # ── Build markdown ────────────────────────────────────────────────────
     filter_desc = []
@@ -882,47 +906,56 @@ def generate_mt_vs_st_table(
         "",
         f"**Generated**: {ts}{filter_str}",
         f"**Score**: MT **{mt_wins}** — ST **{st_wins}** — Ties **{ties}**",
-        f"**MT avg pass_rate**: {mt_avg_global:.0%} | **ST avg pass_rate**: {st_avg_global:.0%}",
+        f"**MT avg quality_score**: {mt_avg_global:.3f} | **ST avg quality_score**: {st_avg_global:.3f}",
         "",
     ]
 
     # Per-topology summary table
-    lines.extend([
-        "## Per-Topology Summary",
-        "",
-        "| Topology | MT pass% | ST pass% | Winner | Δ | MT wins | ST wins |",
-        "|----------|:--------:|:--------:|:------:|:-:|:-------:|:-------:|",
-    ])
+    lines.extend(
+        [
+            "## Per-Topology Summary",
+            "",
+            "| Topology | MT score | ST score | Winner | Δ | MT wins | ST wins |",
+            "|----------|:--------:|:--------:|:------:|:-:|:-------:|:-------:|",
+        ]
+    )
     for topo, info in sorted(per_topology.items()):
         icon = "🟢" if info["winner"] == "MT" else ("🔴" if info["winner"] == "ST" else "⚪")
         lines.append(
-            f"| {topo} | {info['mt_avg_pass_rate']:.0%} | {info['st_avg_pass_rate']:.0%} | "
-            f"{icon} {info['winner']} | {info['delta']:+.0%} | "
+            f"| {topo} | {info['mt_avg_quality_score']:.3f} | {info['st_avg_quality_score']:.3f} | "
+            f"{icon} {info['winner']} | {info['delta']:+.3f} | "
             f"{info['mt_wins']} | {info['st_wins']} |"
         )
 
     # Detailed per-N table
-    lines.extend([
-        "",
-        "## Per-N Breakdown",
-        "",
-        "| Topology | N | MT pass% | MT grade | ST pass% | ST grade | Winner |",
-        "|----------|:-:|:--------:|:--------:|:--------:|:--------:|:------:|",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Per-N Breakdown",
+            "",
+            "| Topology | N | MT score | MT ΔE/gap | MT grade | ST score | ST ΔE/gap | ST grade | Winner |",
+            "|----------|:-:|:--------:|:---------:|:--------:|:--------:|:---------:|:--------:|:------:|",
+        ]
+    )
     for s in per_scenario:
         icon = "✅" if s["winner"] == "MT" else ("❌" if s["winner"] == "ST" else "—")
+        mt_dg_str = f"{s['mt_mean_de_gap']:.1%}" if s["mt_mean_de_gap"] < 10 else "—"
+        st_dg_str = f"{s['st_mean_de_gap']:.1%}" if s["st_mean_de_gap"] < 10 else "—"
         lines.append(
             f"| {s['topology']} | {s['n_qubits']} | "
-            f"{s['mt_pass_rate']:.0%} | {s['mt_grade']} | "
-            f"{s['st_pass_rate']:.0%} | {s['st_grade']} | "
+            f"{s['mt_quality_score']:.3f} | {mt_dg_str} | {s['mt_grade']} | "
+            f"{s['st_quality_score']:.3f} | {st_dg_str} | {s['st_grade']} | "
             f"{icon} {s['winner']} |"
         )
 
-    lines.extend([
-        "",
-        "---",
-        f"*Auto-generated from {comparison_dir.name}/ ({len(per_scenario)} comparisons)*",
-    ])
+    lines.extend(
+        [
+            "",
+            "---",
+            f"*Auto-generated from {comparison_dir.name}/ ({len(per_scenario)} comparisons)*",
+            "*Decision metric: quality_score (continuous 0-1, sigmoid-based on mean ΔE/gap + P90 + |ΔE|/N)*",
+        ]
+    )
 
     # Write to file if requested
     if output_path is not None:
@@ -937,11 +970,18 @@ def generate_mt_vs_st_table(
         "ties": ties,
         "total": total,
         "mt_win_rate": mt_wins / max(total, 1),
-        "mt_avg_pass_rate": mt_avg_global,
-        "st_avg_pass_rate": st_avg_global,
+        "mt_avg_quality_score": mt_avg_global,
+        "st_avg_quality_score": st_avg_global,
+        "mt_avg_pass_rate": float(np.mean([s["mt_pass_rate"] for s in per_scenario]))
+        if per_scenario
+        else 0.0,
+        "st_avg_pass_rate": float(np.mean([s["st_pass_rate"] for s in per_scenario]))
+        if per_scenario
+        else 0.0,
         "per_topology": per_topology,
         "per_scenario": per_scenario,
         "generated_at": ts,
+        "decision_metric": "quality_score",
     }
 
     return lines, summary

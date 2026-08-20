@@ -235,6 +235,8 @@ class ValidationRunner(ABC):
         self._sections_cache: list[Section] | None = None
         # Cache for exact_ground_state results (avoids redundant DMRG/eigsh calls)
         self._gt_cache: dict[tuple, tuple[float, float]] = {}
+        # Model provenance tracking (auto-populated by load_best_mpnn_for_cross_n)
+        self._model_provenance: dict[str, Any] = {}
         # Artifact collector (register during execution, persist at end)
         from qmbp_simulation.framework.artifact_store import ArtifactCollector
 
@@ -687,6 +689,7 @@ class ValidationRunner(ABC):
                     "results": results,
                     "summary": summary,
                     "elapsed_s": round(total_elapsed, 2),
+                    "model_provenance": _deep_serialize(self._model_provenance) if self._model_provenance else None,
                     "analysis": {
                         "experiment_id": self.experiment_id,
                         "summary": summary,
@@ -749,7 +752,10 @@ class ValidationRunner(ABC):
         except Exception:
             pass
 
-        from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence, post_experiment_sync; validate_gt_npz_coherence(fix=True); post_experiment_sync(verbose=False)
+        from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence, post_experiment_sync
+
+        validate_gt_npz_coherence(fix=True)
+        post_experiment_sync(verbose=False)
 
         # Print summary to console
         if not interrupted and saved_path:
@@ -1148,6 +1154,10 @@ class ValidationRunner(ABC):
             elapsed_s=total_elapsed,
             metadata=collect_run_metadata(),
         )
+
+        # Add model provenance for traceability (which MPNN was used)
+        if self._model_provenance:
+            envelope["model_provenance"] = self._model_provenance
 
         # Add simulation diagnostics block (documents backend + numerical method)
         try:
@@ -1788,7 +1798,7 @@ class ValidationRunner(ABC):
         from qmbp_simulation.execution.eval_cache import CachedBackend, EvalCache
 
         backend = self.select_backend(n_qubits)
-        cache = EvalCache(enabled=enabled)
+        cache = EvalCache(enabled=enabled, p_layers=p_layers)
         return CachedBackend(
             backend,
             topology=topology,
@@ -2895,7 +2905,7 @@ class ValidationRunner(ABC):
     def active_learning_refine(
         self,
         model,
-        h_candidates: "np.ndarray",
+        h_candidates: np.ndarray,
         *,
         n_rounds: int = 3,
         n_points_per_round: int = 3,
@@ -2947,7 +2957,6 @@ class ValidationRunner(ABC):
         import numpy as np
 
         from experiments.helpers.active_learning import (
-            compute_ensemble_uncertainty,
             select_next_point,
             should_stop,
         )
@@ -2956,6 +2965,7 @@ class ValidationRunner(ABC):
             ensemble_seeds = [42, 137, 256]
         if de_gap_threshold is None:
             from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD
+
             de_gap_threshold = DE_GAP_THRESHOLD
 
         refined_h: list[float] = []
@@ -3017,9 +3027,7 @@ class ValidationRunner(ABC):
                 # Use acquisition function
                 sub_h = np.array([h_candidates[i] for i, _ in above_thr])
                 sub_uncert = [u for _, u in above_thr]
-                best_sub_idx = select_next_point(
-                    sub_h, sub_uncert, acquisition=acquisition
-                )[0]
+                best_sub_idx = select_next_point(sub_h, sub_uncert, acquisition=acquisition)[0]
                 actual_idx = above_thr[best_sub_idx][0]
                 selected_indices.append(actual_idx)
                 available_uncertainties = [
@@ -3044,9 +3052,7 @@ class ValidationRunner(ABC):
                 refined_h.append(h)
                 # Energy improvement tracked if exact ground state available
                 try:
-                    e_exact, gap = self.exact_ground_state(
-                        topology, n_qubits, h, model="tfim"
-                    )
+                    e_exact, gap = self.exact_ground_state(topology, n_qubits, h, model="tfim")
                     total_improvement += uncertainties[idx]
                 except Exception:
                     pass
@@ -3129,6 +3135,15 @@ class ValidationRunner(ABC):
                 include_multi_topology=True,
             )
             self._zoo_entry = entry
+            self._model_provenance = {
+                "checkpoint": entry.checkpoint_file,
+                "source": source,
+                "topology": entry.topology,
+                "p_layers": entry.p_layers,
+                "pass_rate": entry.pass_rate,
+                "n_training_points": entry.n_training_points,
+                "created": entry.created,
+            }
             pass_info = f", pass={entry.pass_rate:.0%}" if entry.pass_rate > 0 else ""
             logger.info(
                 "    Best model for N_target=%d: %s [%s] (%d pts%s)",
@@ -3168,7 +3183,7 @@ class ValidationRunner(ABC):
             train_unified_mpnn,
         )
 
-        agg = MultiNAggregator(topology=_topo, model=_model)
+        agg = MultiNAggregator(topology=_topo, model=_model, p_layers=_p)
         summary = agg.scan()
         if not summary:
             logger.warning(
@@ -3407,7 +3422,10 @@ class ValidationRunner(ABC):
 
         # Get top candidates (max 3 for efficiency)
         candidates = explain_model_selection(
-            topology, model=model_name, p_layers=p_layers, n_target=n_qubits,
+            topology,
+            model=model_name,
+            p_layers=p_layers,
+            n_target=n_qubits,
         )[:3]
 
         if not candidates:
@@ -3879,7 +3897,7 @@ class ValidationRunner(ABC):
         if zoo_entry is None:
             return  # No model loaded from zoo — nothing to persist
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from qmbp_simulation.predictors.model_registry_db import (
             EvaluationRecord,
@@ -3952,12 +3970,14 @@ class ValidationRunner(ABC):
         import numpy as _np
 
         eval_record = EvaluationRecord(
-            evaluated_at=datetime.now(timezone.utc).isoformat(),
+            evaluated_at=datetime.now(UTC).isoformat(),
             target_n_values=sorted(set(target_n_values)),
             pass_rate_5pct=float(_np.mean(pass_rates_5pct)) if pass_rates_5pct else 0.0,
             pass_rate_dual=best_pass_dual,
             mean_de_gap=float(_np.mean(mean_de_gaps)) if mean_de_gaps else 0.0,
-            mean_abs_error_per_site=float(_np.mean(mean_abs_per_site)) if mean_abs_per_site else 0.0,
+            mean_abs_error_per_site=float(_np.mean(mean_abs_per_site))
+            if mean_abs_per_site
+            else 0.0,
             notes=f"{self.runner_id} N={sorted(set(target_n_values)) or '?'}",
         )
 
@@ -3997,7 +4017,8 @@ class ValidationRunner(ABC):
                     per_point = val.get("per_point", [])
                     if isinstance(per_point, list):
                         n_refined += sum(
-                            1 for p in per_point
+                            1
+                            for p in per_point
                             if p.get("method") in ("vqe_refined", "al_refined", "auto_refined")
                         )
 
@@ -4020,7 +4041,9 @@ class ValidationRunner(ABC):
         )
 
         try:
+            # Reload model (may have been freed from memory)
             from qmbp_simulation.predictors.model_zoo import (
+                _CHECKPOINTS_DIR,
                 register_checkpoint_with_training_metrics,
             )
             from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
@@ -4028,9 +4051,6 @@ class ValidationRunner(ABC):
                 fine_tune_unified_mpnn,
                 load_unified_checkpoint,
             )
-
-            # Reload model (may have been freed from memory)
-            from qmbp_simulation.predictors.model_zoo import _CHECKPOINTS_DIR
 
             ckpt_path = _CHECKPOINTS_DIR / zoo_entry.checkpoint_file
             if not ckpt_path.exists():
@@ -4040,7 +4060,9 @@ class ValidationRunner(ABC):
 
             # Build fresh dataset including newly refined data
             topo = topology[0] if isinstance(topology, list) else topology
-            agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+            _p = getattr(self._args, "p_layers", 1)
+            _p_val = _p[0] if isinstance(_p, list) else _p
+            agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved", p_layers=_p_val)
             agg.scan()
             dataset = agg.build_combined_dataset(max_de_gap=0.10)
             if len(dataset) < 10:
@@ -4075,7 +4097,8 @@ class ValidationRunner(ABC):
                 notes=f"{zoo_entry.notes} | auto-retrain +{n_refined}pts",
             )
             register_checkpoint_with_training_metrics(
-                model, updated_entry,
+                model,
+                updated_entry,
                 training_result=train_result,
                 overwrite=True,
             )

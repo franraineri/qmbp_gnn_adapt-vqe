@@ -29541,5 +29541,1934 @@
       "old_version": 23,
       "new_version": 24
     }
+  },
+  {
+    "timestamp": "2026-08-20T13:14:35.316019+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 24,
+      "new_version": 25
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:14:35.398883+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 25,
+      "new_version": 26
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:14:35.566909+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:14:35.589532+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:14:35.644310+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 26,
+      "new_version": 27
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:38:46.366455+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "superseded_by": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:38:46.441996+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "version_number": 3,
+      "versioned_path": "unified_tfim_br_MT_residual+film_p1_v3.pt",
+      "old_pass_rate": 0.06140350877192983,
+      "old_n_training_points": 2282,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 2519,
+      "new_model_id": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:38:47.019582+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2282,
+      "new_training_points": 2519,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.06140350877192983,
+      "old_version": 5,
+      "new_version": 6
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:38:47.602069+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2519,
+      "new_training_points": 2519,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 6,
+      "new_version": 7
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:18.000605+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "superseded_by": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:18.040228+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "version_number": 4,
+      "versioned_path": "unified_tfim_br_MT_residual+film_p1_v4.pt",
+      "old_pass_rate": 0.0,
+      "old_n_training_points": 2519,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 2519,
+      "new_model_id": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:18.793122+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2519,
+      "new_training_points": 2519,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 7,
+      "new_version": 8
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:19.383979+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2519,
+      "new_training_points": 2519,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 8,
+      "new_version": 9
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:28.786996+00:00",
+    "event_type": "superseded",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "superseded_by": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:28.833540+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "version_number": 5,
+      "versioned_path": "unified_tfim_br_MT_residual+film_p1_v5.pt",
+      "old_pass_rate": 0.0,
+      "old_n_training_points": 2519,
+      "new_pass_rate": 0.0,
+      "new_n_training_points": 2519,
+      "new_model_id": "unified_tfim_br_MT_residual+film_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:29.271999+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2519,
+      "new_training_points": 2519,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 9,
+      "new_version": 10
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:39:29.728840+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 2519,
+      "new_training_points": 2519,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 10,
+      "new_version": 11
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:47:00.786345+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.44,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "update_zoo_pass_rate"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:50:32.418472+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 27,
+      "new_version": 28
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:50:33.282169+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 28,
+      "new_version": 29
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:50:33.781757+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:50:33.846249+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T13:50:36.023995+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 29,
+      "new_version": 30
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:54.770490+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.7142857142857143,
+      "pass_rate_5pct": 0.7142857142857143,
+      "mean_de_gap": 0.1612987747017462,
+      "target_n": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:54.812010+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 0.4408895632279649,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:54.858559+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:54.894950+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.36363636363636365,
+      "delta": -0.38636363636363635,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:54.939400+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.36363636363636365,
+      "pass_rate_5pct": 0.36363636363636365,
+      "mean_de_gap": 0.30936714565017137,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:54.979184+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.6666666666666666,
+      "pass_rate_5pct": 0.6666666666666666,
+      "mean_de_gap": 0.11610796196126971,
+      "target_n": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:14:55.030216+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.5319148936170213,
+      "pass_rate_5pct": 0.5319148936170213,
+      "mean_de_gap": 0.7294729621979583,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        20,
+        20,
+        20,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        40,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:27:30.001420+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.16666666666666666,
+      "delta": -0.5833333333333334,
+      "target_n": [
+        10,
+        16,
+        20
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:27:30.034121+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.16666666666666666,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 0.18845968527029414,
+      "target_n": [
+        10,
+        16,
+        20
+      ],
+      "notes": "model_comparison winner @chain_1d N=[10, 16, 20]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:27:45.027641+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.6111111111111112,
+      "delta": -0.05555555555555547,
+      "target_n": [
+        10,
+        16,
+        20
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:27:45.060042+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.6111111111111112,
+      "pass_rate_5pct": 0.8333333333333334,
+      "mean_de_gap": 0.04058136214846934,
+      "target_n": [
+        10,
+        16,
+        20
+      ],
+      "notes": "model_comparison winner @heavy_hex N=[10, 16, 20]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:27:54.266937+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.3333333333333333,
+      "delta": -0.4166666666666667,
+      "target_n": [
+        10,
+        16
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:27:54.299991+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.75,
+      "mean_de_gap": 0.05928867623747868,
+      "target_n": [
+        10,
+        16
+      ],
+      "notes": "model_comparison winner @ladder N=[10, 16]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:29:59.927249+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 508,
+      "new_training_points": 596,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 6,
+      "new_version": 7
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:29:59.978215+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 596,
+      "new_training_points": 596,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 7,
+      "new_version": 8
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:29:59.979484+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 581
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:29:59.980608+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:29:59.980611+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:30:00.030268+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 596,
+      "new_training_points": 596,
+      "old_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 9,
+      "new_version": 9
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:30:11.729629+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.35555555555555557,
+      "delta": -0.39444444444444443,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:30:11.759287+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.35555555555555557,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 71%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:30:11.812545+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "prev_best_pass_rate": 0.5319148936170213,
+      "new_pass_rate": 0.06140350877192983,
+      "delta": -0.4705113848450914,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:30:11.843100+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.06140350877192983,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 53%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:31:20.515815+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 30,
+      "new_version": 31
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:31:20.611513+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 31,
+      "new_version": 32
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:31:20.667345+00:00",
+    "event_type": "superseded",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "superseded_by": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:31:20.694341+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "version_number": 1,
+      "versioned_path": "test_rollback_n10_p1_v1.pt",
+      "old_pass_rate": 0.8,
+      "old_n_training_points": 50,
+      "new_pass_rate": 0.7,
+      "new_n_training_points": 50,
+      "new_model_id": "test_rollback_n10_p1.pt"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:31:20.755601+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 32,
+      "new_version": 33
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:36:32.030020+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.6333333333333333,
+      "delta": -0.1166666666666667,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:36:32.062491+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.6333333333333333,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[16, 20, 30, 40, 60]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:36:46.434170+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.35555555555555557,
+      "delta": -0.39444444444444443,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T14:36:46.467038+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.35555555555555557,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 63%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:04:30.446055+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 674,
+      "n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:04:30.504707+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 674,
+      "new_training_points": 674,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        60
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:04:30.506391+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 761
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:04:30.507520+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:04:30.507523+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:04:30.561240+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 674,
+      "new_training_points": 674,
+      "old_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        60
+      ],
+      "new_n_values": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:14:00.758953+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.4,
+      "delta": -0.35,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:14:00.795039+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.4,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[20]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:26:35.265599+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[16, 20, 30, 40]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T15:26:53.435495+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 33%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:47.763277+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 0.4408895632279649,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:47.856238+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:47.912001+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.36363636363636365,
+      "delta": -0.38636363636363635,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:47.964806+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.36363636363636365,
+      "pass_rate_5pct": 0.36363636363636365,
+      "mean_de_gap": 0.30936714565017137,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:48.040875+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.5319148936170213,
+      "pass_rate_5pct": 0.5319148936170213,
+      "mean_de_gap": 0.7294729621979583,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        20,
+        20,
+        20,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        40,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:48.103837+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.6666666666666666,
+      "pass_rate_5pct": 0.6666666666666666,
+      "mean_de_gap": 0.11610796196126971,
+      "target_n": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:09:48.177414+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.7142857142857143,
+      "pass_rate_5pct": 0.7142857142857143,
+      "mean_de_gap": 0.1612987747017462,
+      "target_n": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.278266+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 0.4408895632279649,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.366228+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.440707+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.36363636363636365,
+      "delta": -0.38636363636363635,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.503491+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.36363636363636365,
+      "pass_rate_5pct": 0.36363636363636365,
+      "mean_de_gap": 0.30936714565017137,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.647102+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.5319148936170213,
+      "pass_rate_5pct": 0.5319148936170213,
+      "mean_de_gap": 0.7294729621979583,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        20,
+        20,
+        20,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        40,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.737991+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.6666666666666666,
+      "pass_rate_5pct": 0.6666666666666666,
+      "mean_de_gap": 0.11610796196126971,
+      "target_n": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:10:18.821844+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.7142857142857143,
+      "pass_rate_5pct": 0.7142857142857143,
+      "mean_de_gap": 0.1612987747017462,
+      "target_n": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:11:43.566308+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "prev_best_pass_rate": 0.5319148936170213,
+      "new_pass_rate": 0.06140350877192983,
+      "delta": -0.4705113848450914,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:11:43.626955+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.06140350877192983,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 53%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T16:11:43.727109+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 67%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T17:55:35.650009+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.3333333333333333,
+      "delta": -0.3333333333333333,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T17:55:35.695344+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[16, 20, 30, 40]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T17:55:59.754361+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 33%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:52.836204+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 0.4411974510430246,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:52.898839+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:52.950787+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.36363636363636365,
+      "delta": -0.38636363636363635,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:52.998037+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.36363636363636365,
+      "pass_rate_5pct": 0.36363636363636365,
+      "mean_de_gap": 0.3091811886233697,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:53.064088+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.5208333333333334,
+      "pass_rate_5pct": 0.5208333333333334,
+      "mean_de_gap": 0.7177191151264717,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        20,
+        20,
+        20,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        40,
+        40,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 80, 100, 150, 200] 25/48"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:53.118573+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.6666666666666666,
+      "pass_rate_5pct": 0.6666666666666666,
+      "mean_de_gap": 0.11609575105848362,
+      "target_n": [
+        4,
+        6,
+        10,
+        12,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:53.187968+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.6666666666666666,
+      "pass_rate_5pct": 0.6666666666666666,
+      "mean_de_gap": 0.1616015685989423,
+      "target_n": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 10/15"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:56.880845+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "prev_best_pass_rate": 0.5319148936170213,
+      "new_pass_rate": 0.06140350877192983,
+      "delta": -0.4705113848450914,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:56.922709+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.06140350877192983,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 52%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:19:56.995227+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 67%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:37:03.661754+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.3333333333333333,
+      "delta": -0.3333333333333333,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:37:03.743774+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[16, 20, 30, 40]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T18:37:33.346645+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 33%"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T19:08:01.985306+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.3333333333333333,
+      "delta": -0.3333333333333333,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-20T19:08:02.079895+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[16, 20, 30, 40]"
+    }
+  },
+  {
+    "timestamp": "2026-08-20T19:08:42.205341+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 33%"
+    }
   }
 ]

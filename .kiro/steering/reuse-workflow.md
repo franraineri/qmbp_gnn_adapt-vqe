@@ -29,6 +29,15 @@ When adding ANY new functionality (helper, utility, pattern, fix):
 1. **Ask**: "Could more than one runner/script benefit from this?"
 2. **If YES** → implement in the appropriate shared module:
    - Runner patterns → `src/qmbp_simulation/framework/runner_base.py` (ValidationRunner methods)
+        - 1. setup_physics() en lugar de imports manuales. ValidationRunner.setup_physics() ya provee self.builder, self.solver,  etc
+
+        - 2. exact_ground_state() del base class — Ya existe con 2-level cache (in-memory + GroundTruthCache en disco)
+
+        - 3. build_per_h_result() de runner_base — Para Section 1 results.
+
+        - 4. get_cached_backend() para Section 2 MPS evaluation — En lugar de instanciar MPSBackend manualmente.
+
+5. Usar load_best_mpnn_for_cross_n() del runner_base
    - CLI args → `src/qmbp_simulation/framework/cli.py`
    - Analysis utilities → `src/qmbp_simulation/analysis/metrics.py`
    - Model persistence → `src/qmbp_simulation/predictors/model_zoo.py`

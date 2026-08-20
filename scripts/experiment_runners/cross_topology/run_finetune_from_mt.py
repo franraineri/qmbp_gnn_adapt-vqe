@@ -130,13 +130,41 @@ def main() -> int:
     # Fine-tune
     print(f"\n  Fine-tuning ({args.epochs} epochs, lr={args.lr})...")
     t0 = time.perf_counter()
-    result = fine_tune_unified_mpnn(
-        model, dataset,
-        n_epochs=args.epochs,
-        lr=args.lr,
-        patience=args.patience,
-    )
+    _training_interrupted = False
+    try:
+        result = fine_tune_unified_mpnn(
+            model, dataset,
+            n_epochs=args.epochs,
+            lr=args.lr,
+            patience=args.patience,
+        )
+    except KeyboardInterrupt:
+        _training_interrupted = True
+        print("\n  ⚠️  Fine-tune interrupted! Saving partial model to _recovery/...")
+        try:
+            from qmbp_simulation.predictors.unified_mpnn import save_unified_checkpoint
+
+            _ROOT = Path(__file__).resolve().parents[3]
+            recovery_dir = _ROOT / "data" / "model_zoo" / "checkpoints" / "_recovery"
+            recovery_dir.mkdir(parents=True, exist_ok=True)
+            recovery_path = recovery_dir / f"interrupted_finetune_{args.topology}.pt"
+            save_unified_checkpoint(model, str(recovery_path))
+            print(f"  Recovery checkpoint: {recovery_path}")
+        except Exception as _save_err:
+            print(f"  Recovery save failed: {_save_err}")
+        result = {
+            "final_mse": float("inf"),
+            "val_mse": None,
+            "n_epochs_run": 0,
+            "stop_reason": "interrupted",
+        }
     elapsed = time.perf_counter() - t0
+
+    if _training_interrupted:
+        print(f"\n  Training interrupted after {elapsed:.1f}s.")
+        print(f"  Resume from: data/model_zoo/checkpoints/_recovery/interrupted_finetune_{args.topology}.pt")
+        print("=" * 65)
+        return 1
 
     final_mse = result.get("final_mse", 0)
     print(f"  Done: MSE={final_mse:.2e}, epochs={result.get('n_epochs_run', 0)}, "
@@ -159,6 +187,53 @@ def main() -> int:
     if not args.no_register:
         n_str = "+".join(str(n) for n in sorted(summary.keys()))
         ckpt_name = f"unified_tfim_br_{args.topology}_fromMT_{n_str}_p{args.p_layers}.pt"
+
+        # ── Save experiment JSON envelope for traceability ────────────────
+        _run_json_path = ""
+        try:
+            from qmbp_simulation.framework.result_io import (
+                build_result_envelope,
+                save_experiment_result,
+            )
+
+            _ROOT = Path(__file__).resolve().parents[3]
+            envelope = build_result_envelope(
+                config={
+                    "runner": "run_finetune_from_mt",
+                    "topology": args.topology,
+                    "source_checkpoint": source_path.name,
+                    "max_n": args.max_n,
+                    "max_de_gap": args.max_de_gap,
+                    "epochs": args.epochs,
+                    "lr": args.lr,
+                    "patience": args.patience,
+                    "dataset_fingerprint": _fp,
+                    "n_graphs": len(dataset),
+                    "n_values": sorted(summary.keys()),
+                },
+                results={
+                    "final_mse": final_mse,
+                    "n_epochs_run": result.get("n_epochs_run"),
+                    "stop_reason": result.get("stop_reason"),
+                    "val_mse": result.get("val_mse"),
+                },
+                summary={
+                    "topology": args.topology,
+                    "source_model": source_path.name,
+                    "n_graphs": len(dataset),
+                    "training_time_s": elapsed,
+                },
+                elapsed_s=elapsed,
+            )
+            output_path = save_experiment_result(
+                envelope,
+                experiment_id=f"finetune_from_mt/{args.topology}",
+                results_dir=_ROOT / "results" / "experiments",
+            )
+            _run_json_path = str(output_path.relative_to(_ROOT))
+            print(f"  📄 Experiment JSON: {_run_json_path}")
+        except Exception as _e:
+            print(f"  ⚠️ Envelope save failed (non-blocking): {_e}")
 
         entry = ZooEntry(
             model="tfim_bond_resolved",
@@ -186,11 +261,13 @@ def main() -> int:
                 "readout_mode": model.readout_mode,
                 "film_conditioning": model.film_conditioning,
                 "fine_tuned_from": source_path.name,
+                "dataset_fingerprint": _fp,
             },
             optimizer_config={"learning_rate": args.lr, "patience": args.patience},
             auto_diagnose=True,
+            run_json_path=_run_json_path,
         )
-        print(f"\n  Registered: {ckpt_name}")
+        print(f"\n  Registered: {entry.checkpoint_file}")
 
         # ── Quick post-evaluation: compute pass_rate on training data ────
         print("  Running quick evaluation...")

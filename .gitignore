@@ -130,3 +130,6 @@ workloads*/
 
 # ── Notebook test script (dev only) ─────────────────────────
 notebooks/test_notebooks.py
+
+results/extrapolation_evals/*
+results/model_comparison/*

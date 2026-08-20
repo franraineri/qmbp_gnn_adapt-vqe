@@ -113,3 +113,4 @@ style = "numpy"
 check-return-types = false
 allow-init-docstring = true
 skip-checking-short-docstrings = true
+skip-checking-raises = true

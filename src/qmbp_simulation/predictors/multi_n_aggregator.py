@@ -42,6 +42,11 @@ class MultiNAggregator:
         Hamiltonian model name.
     results_dir : Path | None
         Results directory to scan. Default: results/experiments/.
+    max_n : int | None
+        If set, exclude N > max_n from training data.
+    p_layers : int
+        Number of HVA layers (determines NPZ file suffix and graph structure).
+        Default 1 for backward compatibility.
     """
 
     def __init__(
@@ -50,12 +55,17 @@ class MultiNAggregator:
         model: str = "tfim_bond_resolved",
         results_dir: Path | None = None,
         max_n: int | None = None,
+        p_layers: int = 1,
     ) -> None:
         self.topology = topology
         self.model = model
+        self.p_layers = p_layers
         self._results_dir = results_dir or _RESULTS_DIR
         self._data_by_n: dict[int, list[dict[str, Any]]] = {}
         self.max_n = max_n  # If set, exclude N > max_n from training data
+
+        if p_layers < 1:
+            raise ValueError(f"p_layers must be >= 1, got {p_layers}")
 
     def scan(self) -> dict[int, int]:
         """Scan results for available N values and per-point data.
@@ -80,7 +90,7 @@ class MultiNAggregator:
         # Source 1: NPZ files in data/multi_n_training/ (primary, high quality)
         npz_dir = _PROJECT_ROOT / "data" / "multi_n_training"
         if npz_dir.exists():
-            for npz_file in sorted(npz_dir.glob(f"{self.topology}_N*_p1.npz")):
+            for npz_file in sorted(npz_dir.glob(f"{self.topology}_N*_p{self.p_layers}.npz")):
                 # Skip NPZ files excluded from training
                 # Check both dir-qualified path and bare filename (legacy compat)
                 qualified = f"multi_n_training/{npz_file.name}"
@@ -214,7 +224,7 @@ class MultiNAggregator:
         # iterative improvement cycle: predict(N=30) → train → predict(N=40) → ...
         extrap_dir = _PROJECT_ROOT / "data" / "large_n_extrapolation"
         if extrap_dir.exists():
-            for npz_file in sorted(extrap_dir.glob(f"{self.topology}_N*_p1.npz")):
+            for npz_file in sorted(extrap_dir.glob(f"{self.topology}_N*_p{self.p_layers}.npz")):
                 # Check both dir-qualified path and bare filename (legacy compat)
                 qualified = f"large_n_extrapolation/{npz_file.name}"
                 if qualified in skip_files or npz_file.name in skip_files:
@@ -304,7 +314,7 @@ class MultiNAggregator:
         for run in runs:
             n = run.get("n_qubits", 0)
             p = run.get("p_layers", 0)
-            if n == 0 or p != 1:
+            if n == 0 or p != self.p_layers:
                 continue
             file_path = run.get("_file", "")
             if not file_path:
@@ -514,7 +524,7 @@ class MultiNAggregator:
                 g = build_unified_bond_resolved_graph(
                     lattice,
                     h_value=pt["h"],
-                    p_layers=1,
+                    p_layers=self.p_layers,
                     include_circuit_nodes=True,
                 )
                 # Ensure theta is float before torch conversion (safety against object arrays)
@@ -560,7 +570,7 @@ class MultiNAggregator:
                                 g_aug = build_unified_bond_resolved_graph(
                                     lattice,
                                     h_value=pt["h"],
-                                    p_layers=1,
+                                    p_layers=self.p_layers,
                                     include_circuit_nodes=True,
                                 )
                                 g_aug.y = torch.tensor(
@@ -675,6 +685,8 @@ class MultiTopologyAggregator:
         Maximum N to include per topology.
     min_verified_points : int
         Minimum verified points per topology to include it (quality gate).
+    p_layers : int
+        Number of HVA layers. Default 1.
     """
 
     def __init__(
@@ -683,13 +695,18 @@ class MultiTopologyAggregator:
         model: str = "tfim_bond_resolved",
         max_n: int | None = None,
         min_verified_points: int = 10,
+        p_layers: int = 1,
     ) -> None:
         self.model = model
         self.max_n = max_n
         self.min_verified_points = min_verified_points
+        self.p_layers = p_layers
         self._topologies = topologies
         self._aggregators: dict[str, MultiNAggregator] = {}
         self._summary: dict[str, dict] = {}
+
+        if p_layers < 1:
+            raise ValueError(f"p_layers must be >= 1, got {p_layers}")
 
     @property
     def topologies(self) -> list[str]:
@@ -701,7 +718,7 @@ class MultiTopologyAggregator:
         if not npz_dir.exists():
             return MULTI_TOPOLOGY_DEFAULTS
         found = set()
-        for f in npz_dir.glob("*_N*_p1.npz"):
+        for f in npz_dir.glob(f"*_N*_p{self.p_layers}.npz"):
             topo = f.stem.rsplit("_N", 1)[0]
             found.add(topo)
         return sorted(found) if found else MULTI_TOPOLOGY_DEFAULTS
@@ -722,6 +739,7 @@ class MultiTopologyAggregator:
                 topology=topo,
                 model=self.model,
                 max_n=self.max_n,
+                p_layers=self.p_layers,
             )
             topo_summary = agg.scan()
 
@@ -787,7 +805,8 @@ class MultiTopologyAggregator:
 
             # Quality gate: check verified count
             n_verified = sum(
-                1 for g in topo_dataset
+                1
+                for g in topo_dataset
                 if hasattr(g, "sample_weight") and g.sample_weight.item() >= 0.95
             )
             if n_verified < self.min_verified_points:
@@ -806,10 +825,7 @@ class MultiTopologyAggregator:
                 "n_graphs": len(topo_dataset),
                 "n_verified": n_verified,
             }
-            logger.info(
-                f"  MultiTopo: {topo} → {len(topo_dataset)} graphs "
-                f"({n_verified} verified)"
-            )
+            logger.info(f"  MultiTopo: {topo} → {len(topo_dataset)} graphs ({n_verified} verified)")
 
         # Validate feature dimension consistency across topologies
         if len(combined_dataset) > 1:
