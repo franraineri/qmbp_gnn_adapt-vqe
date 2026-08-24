@@ -83,13 +83,7 @@ def get_body(filepath: Path) -> str:
 
 
 def get_inclusion_mode(filepath: Path) -> str:
-    """Determine the inclusion mode of a steering file.
-
-    Returns
-    -------
-    str
-        One of: "always", "fileMatch", "manual"
-    """
+    """Determine the inclusion mode of a steering file."""
     fm = parse_front_matter(filepath)
     return fm.get("inclusion", "always")
 

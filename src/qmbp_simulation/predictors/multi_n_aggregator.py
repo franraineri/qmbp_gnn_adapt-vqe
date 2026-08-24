@@ -525,9 +525,7 @@ class MultiNAggregator:
                 from qmbp_simulation.utils.helpers import canonicalize_sweep_z2
 
                 h_arr = np.array([p["h"] for p in filtered])
-                theta_mat = np.array(
-                    [np.asarray(p["theta"], dtype=np.float64) for p in filtered]
-                )
+                theta_mat = np.array([np.asarray(p["theta"], dtype=np.float64) for p in filtered])
                 theta_canon = canonicalize_sweep_z2(theta_mat, h_arr)
                 for i, pt in enumerate(filtered):
                     pt["theta"] = theta_canon[i]
@@ -551,6 +549,12 @@ class MultiNAggregator:
                     "unverified": QUALITY_TIER_WEIGHT_UNVERIFIED,
                 }.get(tier, QUALITY_TIER_WEIGHT_UNVERIFIED)
                 g.sample_weight = torch.tensor([weight], dtype=torch.float32)
+
+                # Attach energy metadata for energy-weighted loss
+                g.e_exact = torch.tensor([pt["e_exact"]], dtype=torch.float32)
+                g.de_gap = torch.tensor([pt["de_gap"]], dtype=torch.float32)
+                if "abs_error" in pt and pt["abs_error"] is not None:
+                    g.abs_error = torch.tensor([pt["abs_error"]], dtype=torch.float32)
 
                 dataset.append(g)
 

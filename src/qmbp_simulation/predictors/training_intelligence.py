@@ -23,7 +23,6 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -123,7 +122,9 @@ def check_retrain_triggers(
         # Data growth detection
         data_growth = 0.0
         if entry.n_training_points > 0:
-            data_growth = (total_points_available - entry.n_training_points) / entry.n_training_points
+            data_growth = (
+                total_points_available - entry.n_training_points
+            ) / entry.n_training_points
         elif total_points_available >= min_points_for_retrain:
             data_growth = 1.0  # Model has 0 pts registered → definitely retrain
 
@@ -151,7 +152,9 @@ def check_retrain_triggers(
 
         if data_growth >= data_growth_threshold:
             priority = min(priority, 3)
-            reasons.append(f"data grew {data_growth:.0%} ({entry.n_training_points}→{total_points_available}pts)")
+            reasons.append(
+                f"data grew {data_growth:.0%} ({entry.n_training_points}→{total_points_available}pts)"
+            )
 
         if n_with_zero_pass:
             priority = min(priority, 2)
@@ -163,7 +166,42 @@ def check_retrain_triggers(
 
         if useful_points >= min_points_for_retrain and entry.pass_rate < 0.20:
             priority = min(priority, 2)
-            reasons.append(f"pass_rate={entry.pass_rate:.0%} with {useful_points} useful pts available")
+            reasons.append(
+                f"pass_rate={entry.pass_rate:.0%} with {useful_points} useful pts available"
+            )
+
+        # QPT h_c accuracy trigger: if model fails near the critical point,
+        # it cannot track the phase transition — a fundamental quality issue.
+        # Uses get_h_critical() to find the topology-specific h_c, then checks
+        # if pass_rate near h_c is significantly worse than far from h_c.
+        try:
+            from scripts.analysis.qpt_detection import get_h_critical
+
+            h_c = get_h_critical(topo)
+            if h_c is not None:
+                # Check configs near h_c (within ±0.5) vs far from h_c
+                near_hc = [
+                    c
+                    for c in topo_configs
+                    if c.get("h_frontier") is not None and abs(c.get("h_frontier", 99) - h_c) < 0.5
+                ]
+                far_hc = [
+                    c
+                    for c in topo_configs
+                    if c.get("h_frontier") is not None and abs(c.get("h_frontier", 99) - h_c) >= 0.5
+                ]
+                if near_hc and far_hc:
+                    pass_near = np.mean([c.get("pass_rate_dual_criterion", 0) for c in near_hc])
+                    pass_far = np.mean([c.get("pass_rate_dual_criterion", 0) for c in far_hc])
+                    # If accuracy near h_c is >30% worse than far from h_c → retrain
+                    if pass_far > 0.3 and (pass_far - pass_near) > 0.30:
+                        priority = min(priority, 2)
+                        reasons.append(
+                            f"QPT h_c accuracy gap: pass_near_hc={pass_near:.0%} "
+                            f"vs pass_far={pass_far:.0%} (h_c≈{h_c:.2f})"
+                        )
+        except Exception:
+            pass  # QPT detection not available — skip this trigger
 
         if not reasons:
             continue  # No trigger for this model
@@ -175,17 +213,19 @@ def check_retrain_triggers(
             f"--max-n {max(n_values_available) if n_values_available else 20}"
         )
 
-        triggers.append(RetrainTrigger(
-            topology=topo,
-            reason=" | ".join(reasons),
-            priority=priority,
-            data_growth_pct=data_growth,
-            n_values_available=n_values_available,
-            n_training_points=total_points_available,
-            current_model_pass_rate=entry.pass_rate,
-            h_range_coverage=h_range_coverage,
-            command=cmd,
-        ))
+        triggers.append(
+            RetrainTrigger(
+                topology=topo,
+                reason=" | ".join(reasons),
+                priority=priority,
+                data_growth_pct=data_growth,
+                n_values_available=n_values_available,
+                n_training_points=total_points_available,
+                current_model_pass_rate=entry.pass_rate,
+                h_range_coverage=h_range_coverage,
+                command=cmd,
+            )
+        )
 
     return sorted(triggers, key=lambda t: t.priority)
 
@@ -237,8 +277,10 @@ def validate_h_range_alignment(
     dashboard_path = _PROJECT_ROOT / "data" / "model_quality_dashboard.json"
     if not dashboard_path.exists():
         return HRangeValidation(
-            is_valid=False, coverage=0.0,
-            training_range=(0, 0), eval_range=(eval_h_min, eval_h_max),
+            is_valid=False,
+            coverage=0.0,
+            training_range=(0, 0),
+            eval_range=(eval_h_min, eval_h_max),
             gap_regions=[(eval_h_min, eval_h_max)],
             recommendations=["Dashboard not found. Run an experiment first."],
         )
@@ -249,8 +291,10 @@ def validate_h_range_alignment(
     configs = [c for c in dashboard.get("configs", []) if c["topology"] == topology]
     if not configs:
         return HRangeValidation(
-            is_valid=False, coverage=0.0,
-            training_range=(0, 0), eval_range=(eval_h_min, eval_h_max),
+            is_valid=False,
+            coverage=0.0,
+            training_range=(0, 0),
+            eval_range=(eval_h_min, eval_h_max),
             gap_regions=[(eval_h_min, eval_h_max)],
             recommendations=[f"No training data found for topology '{topology}'."],
         )
@@ -277,8 +321,7 @@ def validate_h_range_alignment(
     if gap_regions:
         for lo, hi in gap_regions:
             recommendations.append(
-                f"Gap: no training data in h=[{lo:.2f}, {hi:.2f}]. "
-                f"Run VQE to fill this region."
+                f"Gap: no training data in h=[{lo:.2f}, {hi:.2f}]. Run VQE to fill this region."
             )
     if all_h_min > eval_h_min + 0.5:
         recommendations.append(
@@ -370,6 +413,7 @@ def prepare_training_config(
     excluded_n: dict[str, list[int]] = {}
     try:
         from qmbp_simulation.analysis.metrics import load_training_exclusions
+
         registry = load_training_exclusions()
         for exc in registry.get("excluded", []):
             topo = exc.get("topology", "")
@@ -387,10 +431,7 @@ def prepare_training_config(
     all_h_values: list[float] = []
 
     for topo in topologies:
-        topo_configs = [
-            c for c in configs
-            if c["topology"] == topo and c["n_qubits"] <= max_n
-        ]
+        topo_configs = [c for c in configs if c["topology"] == topo and c["n_qubits"] <= max_n]
         excluded_ns = excluded_n.get(topo, [])
         topo_configs = [c for c in topo_configs if c["n_qubits"] not in excluded_ns]
 
@@ -633,7 +674,7 @@ def _find_gap_regions(
     in_gap = False
     gap_start = 0.0
 
-    for i, (b, c) in enumerate(zip(bins, covered)):
+    for i, (b, c) in enumerate(zip(bins, covered, strict=False)):
         if not c and not in_gap:
             gap_start = float(b)
             in_gap = True

@@ -232,18 +232,9 @@ def prune_test_entries(*, dry_run: bool = True) -> list[str]:
 def list_multi_topology_entries(*, p_layers: int = 1) -> list[ZooEntry]:
     """List all multi-topology entries in the zoo manifest.
 
+
     Convenience function for scripts that need quick access to MT models
     without loading the full manifest and filtering manually.
-
-    Parameters
-    ----------
-    p_layers : int
-        HVA depth filter (default: 1).
-
-    Returns
-    -------
-    list[ZooEntry]
-        Multi-topology entries sorted by n_training_points (descending).
     """
     entries = _load_manifest()
     mt = [e for e in entries if e.is_multi_topology and e.p_layers == p_layers]
@@ -296,19 +287,24 @@ def _get_extrapolation_performance(topology: str, entry: ZooEntry) -> float | No
     return float(_np.mean(pass_rates))
 
 
-def load_best_model_for_topology(
+def load_best_model_for(
     topology: str,
     *,
     model: str = "tfim_bond_resolved",
     p_layers: int = 1,
-    n_target: int = 20,
+    n_target: int | None = None,
+    h_regime: str | None = None,
     include_multi_topology: bool = True,
 ) -> tuple:
     """Load the best available model for a topology using ALL available signals.
 
+    Supports regime-specific selection: when `n_target` or `h_regime` are
+    specified, the scoring prioritizes models with proven performance in
+    those regimes over models with high global pass_rate.
+
     Integrates information from 3 sources to make the best selection:
-    1. Zoo manifest: checkpoint existence, pass_rate, n_training_points
-    2. ModelRegistryDB: training_metrics (MSE, convergence), architecture, diagnostics
+    1. Zoo manifest: checkpoint existence, pass_rate, pass_rate_by_n, h_range
+    2. ModelRegistryDB: training_metrics (MSE, convergence), architecture
     3. Dashboard: per-topology quality tiers, staleness, h_frontier
 
     The final score for each candidate is:
@@ -326,8 +322,19 @@ def load_best_model_for_topology(
         Hamiltonian model (default: "tfim_bond_resolved").
     p_layers : int
         HVA depth (default: 1).
-    n_target : int
-        Target system size (for proximity scoring).
+    n_target : int | None
+        Target system size for regime-specific selection. When set, models
+        with high pass_rate at this N (from pass_rate_by_n) are boosted.
+        Models trained on N values near n_target are preferred.
+        Examples: n_target=30 for large-N extrapolation, n_target=10 for
+        deployment at small N.
+    h_regime : str | None
+        Target h-regime for selection. Options:
+        - "critical" — prefer models trained/evaluated near h_c ≈ 1.0
+          (h_range overlapping [0.5, 2.0])
+        - "paramagnetic" — prefer models with h_range in [2.5, 5.0]
+          (the standard extrapolation regime)
+        - None (default) — no h-regime bias
     include_multi_topology : bool
         If True, also considers multi_topology models as candidates.
 
@@ -511,6 +518,120 @@ def load_best_model_for_topology(
 
         return raw_score * source_multiplier
 
+    # ── Regime-specific scoring adjustments ───────────────────────────
+    def _regime_bonus(entry: ZooEntry, raw_score: float) -> float:
+        """Apply regime-specific bonuses/penalties based on n_target and h_regime.
+
+        Uses real evaluation data (pass_rate_by_n, dashboard h_frontier,
+        extrapolation reports) rather than heuristics from checkpoint filenames.
+        """
+        bonus = 0.0
+
+        # ── N-target regime: boost models with proven performance at target N ──
+        if n_target is not None:
+            import re
+
+            by_n = entry.pass_rate_by_n
+            if by_n:
+                n_values = [int(k) for k in by_n.keys() if k.isdigit()]
+                if n_values:
+                    # Direct match: pass_rate at exactly this N (strongest signal)
+                    n_key = str(n_target)
+                    if n_key in by_n:
+                        n_pass_rate = float(by_n[n_key])
+                        bonus += 0.30 * n_pass_rate  # Gold: real eval at target N
+
+                    # Interpolation: weighted average of nearby evaluated N values
+                    # Closer N values are more predictive of target performance
+                    else:
+                        weighted_sum = 0.0
+                        weight_total = 0.0
+                        for n_val in n_values:
+                            distance = abs(n_val - n_target) / max(n_target, 1)
+                            if distance < 1.0:  # Only consider N within 100% of target
+                                w = 1.0 / (1.0 + 5.0 * distance)  # Sharp decay
+                                weighted_sum += w * float(by_n[str(n_val)])
+                                weight_total += w
+                        if weight_total > 0:
+                            interpolated_rate = weighted_sum / weight_total
+                            bonus += 0.20 * interpolated_rate
+
+                    # Coverage bonus: model evaluated at N >= target
+                    max_n_evaluated = max(n_values)
+                    if max_n_evaluated >= n_target:
+                        bonus += 0.08
+                    elif max_n_evaluated >= n_target * 0.7:
+                        bonus += 0.04
+
+            # Training N coverage from checkpoint filename (fallback when no by_n data)
+            elif entry.n_training_points > 0:
+                n_in_name = re.findall(r"\d+", entry.checkpoint_file)
+                train_n_values = [int(x) for x in n_in_name if 3 <= int(x) <= 200]
+                if train_n_values:
+                    max_train_n = max(train_n_values)
+                    if max_train_n >= n_target:
+                        bonus += 0.10
+                    elif max_train_n >= n_target * 0.6:
+                        bonus += 0.05
+
+            # Penalty: model only trained at small N, target is large
+            if n_target >= 20 and entry.n_training_points > 0:
+                n_in_name = (
+                    re.findall(r"\d+", entry.checkpoint_file) if entry.checkpoint_file else []
+                )
+                train_n_values = [int(x) for x in n_in_name if 3 <= int(x) <= 200]
+                if train_n_values and max(train_n_values) < n_target * 0.4:
+                    bonus -= 0.10  # Penalty: trained only at small N, extrapolating too far
+
+        # ── H-regime preference ──────────────────────────────────────────
+        if h_regime is not None:
+            h_lo, h_hi = entry.h_range if entry.h_range else (1.0, 3.5)
+
+            # Use dashboard h_frontier if available (more accurate than h_range)
+            topo_configs = dashboard_configs.get(entry.topology, [])
+            h_frontier_val = None
+            if topo_configs:
+                frontiers = [c.get("h_frontier", 0) for c in topo_configs if c.get("h_frontier")]
+                if frontiers:
+                    h_frontier_val = min(frontiers)  # Lowest h where model starts working
+
+            if h_regime == "critical":
+                # Near phase transition: h ∈ [0.5, 2.0], h_c ≈ 1.0 for TFIM
+                # Best: model trained in this regime AND has low h_frontier
+                if h_frontier_val is not None and h_frontier_val <= 1.5:
+                    bonus += 0.20  # Model proven to work near h_c
+                elif h_frontier_val is not None and h_frontier_val <= 2.5:
+                    bonus += 0.10  # Partial critical coverage
+                elif h_lo <= 1.5:
+                    bonus += 0.12  # h_range covers critical (less reliable)
+                elif h_lo <= 2.0:
+                    bonus += 0.05
+                else:
+                    bonus -= 0.12  # Penalty: model only knows h >> h_c
+
+            elif h_regime == "paramagnetic":
+                # Deep paramagnetic: h ∈ [2.5, 5.5]
+                if h_hi >= 5.0 and h_lo <= 3.0:
+                    bonus += 0.12  # Full paramagnetic coverage
+                elif h_hi >= 4.0:
+                    bonus += 0.06
+                # Penalty if model only covers critical regime
+                if h_hi < 3.0:
+                    bonus -= 0.08
+
+        # ── Architecture affinity (bonus for models with enhanced features) ──
+        # Models trained with bipartite coloring + global node are better for
+        # heavy_hex extrapolation (topology-aware sign assignment)
+        if n_target is not None and n_target >= 16:
+            notes_lower = (entry.notes or "").lower()
+            ckpt_lower = entry.checkpoint_file.lower()
+            if "coloring" in notes_lower or "global" in notes_lower:
+                bonus += 0.05  # Trained with new architecture features
+            if "residual" in ckpt_lower or "film" in ckpt_lower:
+                bonus += 0.03  # More expressive architecture
+
+        return max(0.0, raw_score + bonus)  # Floor at 0
+
     # Build candidate pool
     candidates: list[tuple[float, ZooEntry, str]] = []
 
@@ -523,7 +644,7 @@ def load_best_model_for_topology(
             and e.n_qubits == 0
             and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
         ):
-            score = _score_entry(e, 1.0)
+            score = _regime_bonus(e, _score_entry(e, 1.0))
             candidates.append((score, e, "per_topology"))
 
     # Pool 2: multi-topology
@@ -535,7 +656,7 @@ def load_best_model_for_topology(
                 and e.p_layers == p_layers
                 and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
             ):
-                score = _score_entry(e, 0.95)
+                score = _regime_bonus(e, _score_entry(e, 0.95))
                 candidates.append((score, e, "multi_topology"))
 
     # Pool 3: single-N
@@ -547,7 +668,7 @@ def load_best_model_for_topology(
             and e.n_qubits > 0
             and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
         ):
-            score = _score_entry(e, 0.85)
+            score = _regime_bonus(e, _score_entry(e, 0.85))
             candidates.append((score, e, "single_n"))
 
     if not candidates:
@@ -562,8 +683,7 @@ def load_best_model_for_topology(
     loaded_model = _smart_load_checkpoint(str(ckpt_path))
 
     logger.info(
-        "load_best_model_for_topology(%s): %s model selected "
-        "(score=%.3f, pass=%.0f%%, pts=%d, ckpt=%s)",
+        "load_best_model_for(%s): %s model selected (score=%.3f, pass=%.0f%%, pts=%d, ckpt=%s)",
         topology,
         source,
         best_score,

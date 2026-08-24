@@ -77,19 +77,22 @@ def evaluate_direct_fidelity(
     Uses NoiselessBackend.get_statevector() for the HVA state and
     exact diagonalization for the ground state.
     """
+    import torch
+
     from qmbp_simulation.circuits import HVACircuitBuilder
     from qmbp_simulation.execution import NoiselessBackend
     from qmbp_simulation.models.hamiltonian import HamiltonianBuilder, make_lattice
-    from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+    from qmbp_simulation.predictors.model_zoo import load_best_model_for
     from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
     from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
 
-    import torch
-
     # Load MPNN model
     try:
-        model, entry, source = load_best_model_for_topology(
-            topology, model="tfim_bond_resolved", p_layers=p_layers, n_target=n_qubits,
+        model, entry, source = load_best_model_for(
+            topology,
+            model="tfim_bond_resolved",
+            p_layers=p_layers,
+            n_target=n_qubits,
         )
         model.eval()
     except Exception as e:
@@ -120,6 +123,7 @@ def evaluate_direct_fidelity(
     H_op = builder.build(lattice)
     if n_qubits <= 14:
         from scipy.linalg import eigh
+
         H_dense = np.asarray(H_op.to_matrix())
         eigenvalues, eigenvectors = eigh(H_dense)
         psi_exact = eigenvectors[:, 0]
@@ -127,6 +131,7 @@ def evaluate_direct_fidelity(
         gap = eigenvalues[1] - eigenvalues[0]
     else:
         from scipy.sparse.linalg import eigsh
+
         H_sparse = H_op.to_matrix(sparse=True)
         eigenvalues, eigenvectors = eigsh(H_sparse, k=2, which="SA")
         idx = np.argsort(eigenvalues)
@@ -149,17 +154,27 @@ def evaluate_direct_fidelity(
         gt_cache = GroundTruthCache()
         if gt_cache.get(topology, n_qubits, "tfim_bond_resolved", h) is None:
             gt_cache.put(
-                topology=topology, n_qubits=n_qubits, model="tfim_bond_resolved", h=h,
-                energy=float(e_exact), gap=float(gap), method="fidelity_eval",
+                topology=topology,
+                n_qubits=n_qubits,
+                model="tfim_bond_resolved",
+                h=h,
+                energy=float(e_exact),
+                gap=float(gap),
+                method="fidelity_eval",
             )
             gt_cache.flush()
     except Exception:
         pass
 
     return FidelityResult(
-        n_qubits=n_qubits, h=h, fidelity=fidelity,
+        n_qubits=n_qubits,
+        h=h,
+        fidelity=fidelity,
         method="direct_statevector",
-        e_pred=e_pred, e_exact=float(e_exact), gap=float(gap), de_gap=de_gap,
+        e_pred=e_pred,
+        e_exact=float(e_exact),
+        gap=float(gap),
+        de_gap=de_gap,
     )
 
 
@@ -174,10 +189,14 @@ def evaluate_energy_bound(
 
     Uses existing evaluated data — zero compute cost.
     """
-    npz_path = _project_root / "data" / "large_n_extrapolation" / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+    npz_path = (
+        _project_root / "data" / "large_n_extrapolation" / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+    )
     if not npz_path.exists():
         # Try training data
-        npz_path = _project_root / "data" / "multi_n_training" / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+        npz_path = (
+            _project_root / "data" / "multi_n_training" / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+        )
     if not npz_path.exists():
         return []
 
@@ -206,12 +225,18 @@ def evaluate_energy_bound(
         f_bound = max(0.0, min(1.0, f_bound))  # Clamp to [0, 1]
         de_gap = abs(e_vqe[i] - e_exact[i]) / gaps[i]
 
-        results.append(FidelityResult(
-            n_qubits=n_qubits, h=float(h_values[i]),
-            fidelity=f_bound, method="energy_bound",
-            e_pred=float(e_vqe[i]), e_exact=float(e_exact[i]),
-            gap=float(gaps[i]), de_gap=de_gap,
-        ))
+        results.append(
+            FidelityResult(
+                n_qubits=n_qubits,
+                h=float(h_values[i]),
+                fidelity=f_bound,
+                method="energy_bound",
+                e_pred=float(e_vqe[i]),
+                e_exact=float(e_exact[i]),
+                gap=float(gaps[i]),
+                de_gap=de_gap,
+            )
+        )
 
     return results
 
@@ -248,7 +273,9 @@ def run_fidelity_evaluation(
     report = FidelityReport(topology=topology)
 
     # Load F_min from threshold analysis (if available)
-    threshold_path = _project_root / "results" / "analysis" / f"dqpt_fidelity_threshold_{topology}_N10.json"
+    threshold_path = (
+        _project_root / "results" / "analysis" / f"dqpt_fidelity_threshold_{topology}_N10.json"
+    )
     if threshold_path.exists():
         try:
             with open(threshold_path) as f:
@@ -272,8 +299,7 @@ def run_fidelity_evaluation(
                 if result is not None:
                     report.results.append(result)
                     logger.info(
-                        f"  N={n}, h={h:.1f}: F={result.fidelity:.4f}, "
-                        f"ΔE/gap={result.de_gap:.4f}"
+                        f"  N={n}, h={h:.1f}: F={result.fidelity:.4f}, ΔE/gap={result.de_gap:.4f}"
                     )
 
     # Hardware viability check
@@ -287,16 +313,16 @@ def run_fidelity_evaluation(
 
 def print_report(report: FidelityReport) -> None:
     """Pretty-print the fidelity report."""
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(f"  GNN Fidelity Evaluation: {report.topology}")
-    print(f"{'='*70}")
+    print(f"{'=' * 70}")
 
     if not report.results:
         print("  No results.")
         return
 
     print(f"\n  {'N':>3} | {'h':>4} | {'F':>6} | {'ΔE/gap':>7} | {'Method':>16} | Go?")
-    print(f"  {'-'*55}")
+    print(f"  {'-' * 55}")
 
     f_min = report.f_min_reference or 0.50
     for r in sorted(report.results, key=lambda x: (x.n_qubits, x.h)):
@@ -313,7 +339,7 @@ def print_report(report: FidelityReport) -> None:
     by_n = {}
     for r in report.results:
         by_n.setdefault(r.n_qubits, []).append(r.fidelity)
-    print(f"\n  Summary by N:")
+    print("\n  Summary by N:")
     for n in sorted(by_n.keys()):
         fs = by_n[n]
         print(f"    N={n}: mean F={np.mean(fs):.4f}, min F={min(fs):.4f} ({len(fs)} pts)")
@@ -329,9 +355,14 @@ def save_report(report: FidelityReport, out_path: Path) -> None:
         "hardware_viable": report.hardware_viable,
         "results": [
             {
-                "n_qubits": r.n_qubits, "h": r.h, "fidelity": r.fidelity,
-                "method": r.method, "e_pred": r.e_pred, "e_exact": r.e_exact,
-                "gap": r.gap, "de_gap": r.de_gap,
+                "n_qubits": r.n_qubits,
+                "h": r.h,
+                "fidelity": r.fidelity,
+                "method": r.method,
+                "e_pred": r.e_pred,
+                "e_exact": r.e_exact,
+                "gap": r.gap,
+                "de_gap": r.de_gap,
             }
             for r in report.results
         ],
@@ -348,8 +379,11 @@ def main():
     parser.add_argument("--n-qubits", type=int, nargs="+", default=[10, 12, 14, 16, 20])
     parser.add_argument("--h-values", type=float, nargs="+", default=[3.0, 2.5])
     parser.add_argument("--p-layers", type=int, default=1)
-    parser.add_argument("--from-extrapolation", action="store_true",
-                        help="Use energy bound from existing NPZ (zero compute)")
+    parser.add_argument(
+        "--from-extrapolation",
+        action="store_true",
+        help="Use energy bound from existing NPZ (zero compute)",
+    )
     parser.add_argument("--save", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
@@ -371,7 +405,9 @@ def main():
 
     if args.save:
         suffix = "bound" if args.from_extrapolation else "direct"
-        out_path = _project_root / "results" / "analysis" / f"gnn_fidelity_{args.topology}_{suffix}.json"
+        out_path = (
+            _project_root / "results" / "analysis" / f"gnn_fidelity_{args.topology}_{suffix}.json"
+        )
         save_report(report, out_path)
 
 

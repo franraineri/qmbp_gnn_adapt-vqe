@@ -97,6 +97,10 @@ src/qmbp_simulation/analysis/nlce.py
     DOC603: Class `NLCEConfig`: Class docstring attributes are different from actual class attributes. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Attributes in the class definition but not in the docstring: [J: float, J2: float, convergence_threshold: float, l_max: int, model: str, periodic: bool, solver_method: str, topology: str]. (Please read https://jsh9.github.io/pydoclint/checking_class_attributes.html on how to correctly document class attributes.)
     DOC105: Method `NLCERunner.compute_sweep`: Argument names match, but type hints in these args do not match: h_values
 --------------------
+src/qmbp_simulation/analysis/observables.py
+    DOC105: Function `detect_dqpt_critical_times`: Argument names match, but type hints in these args do not match: times, loschmidt_values
+    DOC105: Function `detect_rate_function_peaks`: Argument names match, but type hints in these args do not match: times, rate_values
+--------------------
 src/qmbp_simulation/analysis/quality_predictor.py
     DOC001: Class `QualityPredictor`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Integration Examples"
     DOC001: Function/method `__init__`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Integration Examples" (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
@@ -514,7 +518,10 @@ src/qmbp_simulation/predictors/training_intelligence.py
     DOC103: Function `validate_h_range_alignment`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [eval_h_max: float, eval_h_min: float]. Arguments in the docstring but not in the function signature: [eval_h_min, eval_h_max: float].
 --------------------
 src/qmbp_simulation/predictors/unified_graph.py
-    DOC105: Function `build_unified_dataset`: Argument names match, but type hints in these args do not match: h_values, theta_opts
+    DOC101: Function `build_unified_bond_resolved_graph`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `build_unified_bond_resolved_graph`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [bipartite_coloring: bool, virtual_global_node: bool].
+    DOC101: Function `build_unified_dataset`: Docstring contains fewer arguments than in function signature.
+    DOC103: Function `build_unified_dataset`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [bipartite_coloring: bool, virtual_global_node: bool].
 --------------------
 src/qmbp_simulation/predictors/unified_mpnn.py
     DOC101: Method `UnifiedMPNN.__init__`: Docstring contains fewer arguments than in function signature.

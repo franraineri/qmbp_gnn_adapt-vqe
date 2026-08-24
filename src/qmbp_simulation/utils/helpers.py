@@ -210,7 +210,6 @@ def canonicalize_theta(theta: np.ndarray, *, period: float = np.pi) -> np.ndarra
     return result
 
 
-
 def canonicalize_sweep_z2(
     theta_array: np.ndarray,
     h_values: np.ndarray | None = None,
@@ -914,23 +913,9 @@ def load_p1_theta_for_warmstart(
 ) -> dict[float, np.ndarray] | None:
     """Load θ_opt from p=1 NPZ for use as warm-start seed when running p>1.
 
+
     Convenience wrapper around ``load_theta_from_npz`` for the common
     pattern of loading p=1 data to tile into p=2 initialization.
-
-    Parameters
-    ----------
-    topology : str
-        Lattice topology name.
-    n_qubits : int
-        System size.
-    h_values : np.ndarray | None
-        If provided, only return entries for these h-values (nearest match).
-        If None, return all available.
-
-    Returns
-    -------
-    dict[float, np.ndarray] | None
-        Mapping h → θ_p1 array. None if no p=1 data exists.
     """
     return load_theta_from_npz(topology, n_qubits, p_layers=1, h_values=h_values)
 
@@ -975,7 +960,7 @@ def compute_npz_fingerprint(npz_path: Path | str) -> str:
         # Hash the raw bytes of the key arrays
         hasher = hashlib.sha256()
         hasher.update(h.tobytes())
-        if hasattr(theta, 'tobytes'):
+        if hasattr(theta, "tobytes"):
             hasher.update(np.asarray(theta, dtype=np.float64).tobytes())
         hasher.update(e.tobytes())
         return hasher.hexdigest()[:12]

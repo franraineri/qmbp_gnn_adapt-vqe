@@ -902,7 +902,7 @@ class ModelRegistryDB:
 
     def list_by_topology(
         self, topology: str, *, include_archived: bool = False
-    ) -> list["ModelRecord"]:
+    ) -> list[ModelRecord]:
         """List all models for a specific topology.
 
         Parameters
@@ -918,36 +918,24 @@ class ModelRegistryDB:
             Matching models sorted by training points (descending).
         """
         results = [
-            r for r in self._records
-            if r.topology == topology
-            and (include_archived or r.status != "archived")
+            r
+            for r in self._records
+            if r.topology == topology and (include_archived or r.status != "archived")
         ]
         return sorted(results, key=lambda r: r.training.total_training_points, reverse=True)
 
-    def get_multi_topology_models(self, *, p_layers: int = 1) -> list["ModelRecord"]:
+    def get_multi_topology_models(self, *, p_layers: int = 1) -> list[ModelRecord]:
         """Get all multi-topology models.
+
 
         Convenience method that filters for topology="multi_topology".
         Used by the MT selection policy and comparison scripts.
-
-        Parameters
-        ----------
-        p_layers : int
-            Filter by HVA depth (default: 1).
-
-        Returns
-        -------
-        list[ModelRecord]
-            Multi-topology models sorted by training points (descending).
         """
-        return [
-            r for r in self.list_by_topology("multi_topology")
-            if r.p_layers == p_layers
-        ]
+        return [r for r in self.list_by_topology("multi_topology") if r.p_layers == p_layers]
 
     def get_best_for_topology(
         self, topology: str, *, p_layers: int = 1, n_target: int = 0
-    ) -> "ModelRecord | None":
+    ) -> ModelRecord | None:
         """Get the best active model for a given topology.
 
         Scoring: pass_rate (if evaluated) > training_points > proximity.
@@ -967,13 +955,14 @@ class ModelRegistryDB:
             Best model or None if no models exist.
         """
         candidates = [
-            r for r in self.list_by_topology(topology)
+            r
+            for r in self.list_by_topology(topology)
             if r.p_layers == p_layers and r.status == "active"
         ]
         if not candidates:
             return None
 
-        def _score(r: "ModelRecord") -> float:
+        def _score(r: ModelRecord) -> float:
             tm = r.training.training_metrics
             pr = tm.pass_rate if tm and hasattr(tm, "pass_rate") else 0.0
             pts = r.training.total_training_points
@@ -1004,14 +993,12 @@ class ModelRegistryDB:
         """
         test_patterns = ("test_", "kiro_test_")
         to_prune = [
-            r.model_id for r in self._records
+            r.model_id
+            for r in self._records
             if any(r.model_id.lower().startswith(p) for p in test_patterns)
         ]
         if not dry_run and to_prune:
-            self._records = [
-                r for r in self._records
-                if r.model_id not in to_prune
-            ]
+            self._records = [r for r in self._records if r.model_id not in to_prune]
             self._save()
             for mid in to_prune:
                 self._record_event("pruned", mid, details={"reason": "test_entry"})
@@ -1056,10 +1043,7 @@ class ModelRegistryDB:
             record = self.get_model(current_id)
             if record is None:
                 # Try fuzzy match (partial model_id)
-                matches = [
-                    r for r in self._records
-                    if current_id in r.model_id
-                ]
+                matches = [r for r in self._records if current_id in r.model_id]
                 record = matches[0] if matches else None
 
             if record is None:
@@ -1067,25 +1051,30 @@ class ModelRegistryDB:
 
             arch_config = {}
             if record.training and hasattr(record.training, "architecture"):
-                arch_config = record.training.architecture.__dict__ if record.training.architecture else {}
+                arch_config = (
+                    record.training.architecture.__dict__ if record.training.architecture else {}
+                )
 
             parent = arch_config.get("fine_tuned_from", None)
 
-            lineage.append({
-                "model_id": record.model_id,
-                "topology": record.topology,
-                "n_training_points": record.training.total_training_points,
-                "created": record.created,
-                "fine_tuned_from": parent,
-                "depth": depth,
-            })
+            lineage.append(
+                {
+                    "model_id": record.model_id,
+                    "topology": record.topology,
+                    "n_training_points": record.training.total_training_points,
+                    "created": record.created,
+                    "fine_tuned_from": parent,
+                    "depth": depth,
+                }
+            )
 
             if not parent:
                 break  # Root of the lineage
 
             # Find parent model_id (parent is a filename, not model_id)
             parent_matches = [
-                r.model_id for r in self._records
+                r.model_id
+                for r in self._records
                 if parent in r.model_id or r.model_id.endswith(parent)
             ]
             current_id = parent_matches[0] if parent_matches else parent

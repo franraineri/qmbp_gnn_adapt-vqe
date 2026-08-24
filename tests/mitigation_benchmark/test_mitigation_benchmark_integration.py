@@ -356,7 +356,9 @@ def test_idempotency_skip_existing(tmp_path, monkeypatch):
 
     # Verify original file content unchanged
     data = json.loads(fake_result_file.read_text())
-    assert data == {"existing": True, "results": {"e_raw": -5.0}}, "File content should not be modified"
+    assert data == {"existing": True, "results": {"e_raw": -5.0}}, (
+        "File content should not be modified"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -489,7 +491,7 @@ class TestAnalyzerWithSyntheticResults:
 
     def test_analyzer_scan_loads_entries(self, results_dir):
         """Analyzer scan loads all valid result JSONs from results directory."""
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 
@@ -506,7 +508,7 @@ class TestAnalyzerWithSyntheticResults:
 
         Validates Requirement 16.1.
         """
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 
@@ -532,7 +534,7 @@ class TestAnalyzerWithSyntheticResults:
 
         Validates Requirement 16.1 (Spearman gating at ≥5 configs).
         """
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 
@@ -550,7 +552,7 @@ class TestAnalyzerWithSyntheticResults:
 
         Validates Requirement 17.1.
         """
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 
@@ -579,7 +581,7 @@ class TestAnalyzerWithSyntheticResults:
 
         Validates Requirement 18.2: verdicts are CONFIRMED/REFUTED/INCONCLUSIVE.
         """
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 
@@ -608,7 +610,7 @@ class TestAnalyzerWithSyntheticResults:
 
     def test_analyzer_derived_metrics(self, results_dir):
         """compute_derived_metrics computes improvement, overhead, etc."""
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 

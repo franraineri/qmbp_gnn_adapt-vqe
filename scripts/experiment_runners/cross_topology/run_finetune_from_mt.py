@@ -23,20 +23,21 @@ Usage:
     .venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py \
         --topology triangular --epochs 1000 --max-de-gap 0.05
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
 
 from qmbp_simulation.predictors.model_zoo import (
-    ZooEntry,
     _CHECKPOINTS_DIR,
+    ZooEntry,
     _load_manifest,
     register_checkpoint_with_training_metrics,
 )
@@ -52,14 +53,23 @@ logger = logging.getLogger(__name__)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fine-tune MT model for a specific topology")
     parser.add_argument("--topology", required=True, help="Target topology to specialize for")
-    parser.add_argument("--source-checkpoint", default=None,
-                        help="MT checkpoint path (auto-detect from zoo if not provided)")
+    parser.add_argument(
+        "--source-checkpoint",
+        default=None,
+        help="MT checkpoint path (auto-detect from zoo if not provided)",
+    )
     parser.add_argument("--max-n", type=int, default=20, help="Max N for training data")
     parser.add_argument("--max-de-gap", type=float, default=0.10, help="Quality filter")
     parser.add_argument("--epochs", type=int, default=500, help="Fine-tune epochs (default: 500)")
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate (default: 3e-4)")
     parser.add_argument("--patience", type=int, default=150, help="Scheduler patience")
     parser.add_argument("--p-layers", type=int, default=1)
+    parser.add_argument(
+        "--loss-type",
+        choices=["theta_mse", "energy_weighted"],
+        default="theta_mse",
+        help="Loss function type (default: theta_mse)",
+    )
     parser.add_argument("--no-register", action="store_true", help="Don't register in zoo")
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
@@ -69,8 +79,10 @@ def find_mt_checkpoint() -> Path | None:
     """Find the best multi-topology checkpoint from zoo."""
     entries = _load_manifest()
     mt_entries = [
-        e for e in entries
-        if e.topology == "multi_topology" and e.n_qubits == 0
+        e
+        for e in entries
+        if e.topology == "multi_topology"
+        and e.n_qubits == 0
         and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
     ]
     if not mt_entries:
@@ -103,8 +115,10 @@ def main() -> int:
     print(f"  Source: {source_path.name}")
     model = load_unified_checkpoint(str(source_path), eval_mode=False)
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"  Architecture: hidden={model.hidden_dim}, layers={model.n_layers}, "
-          f"residual={model.use_residual}, film={model.film_conditioning}")
+    print(
+        f"  Architecture: hidden={model.hidden_dim}, layers={model.n_layers}, "
+        f"residual={model.use_residual}, film={model.film_conditioning}"
+    )
     print(f"  Parameters: {n_params:,}")
 
     # Build topology-specific dataset
@@ -124,6 +138,7 @@ def main() -> int:
 
     # Dataset fingerprint for provenance
     from qmbp_simulation.utils.helpers import compute_dataset_fingerprint
+
     _fp = compute_dataset_fingerprint(dataset)
     print(f"  Dataset fingerprint: {_fp}")
 
@@ -133,10 +148,12 @@ def main() -> int:
     _training_interrupted = False
     try:
         result = fine_tune_unified_mpnn(
-            model, dataset,
+            model,
+            dataset,
             n_epochs=args.epochs,
             lr=args.lr,
             patience=args.patience,
+            loss_type=args.loss_type,
         )
     except KeyboardInterrupt:
         _training_interrupted = True
@@ -162,17 +179,21 @@ def main() -> int:
 
     if _training_interrupted:
         print(f"\n  Training interrupted after {elapsed:.1f}s.")
-        print(f"  Resume from: data/model_zoo/checkpoints/_recovery/interrupted_finetune_{args.topology}.pt")
+        print(
+            f"  Resume from: data/model_zoo/checkpoints/_recovery/interrupted_finetune_{args.topology}.pt"
+        )
         print("=" * 65)
         return 1
 
     final_mse = result.get("final_mse", 0)
-    print(f"  Done: MSE={final_mse:.2e}, epochs={result.get('n_epochs_run', 0)}, "
-          f"time={elapsed:.1f}s")
+    print(
+        f"  Done: MSE={final_mse:.2e}, epochs={result.get('n_epochs_run', 0)}, time={elapsed:.1f}s"
+    )
 
     # Persist training curve
     try:
         from qmbp_simulation.utils.helpers import persist_training_curve
+
         curve = persist_training_curve(
             result,
             output_dir=Path(__file__).resolve().parents[3] / "results" / "training_curves",
@@ -245,13 +266,16 @@ def main() -> int:
             pass_rate=0.0,
             n_training_points=len(dataset),
             seeds=[42],
-            created=datetime.now(timezone.utc).isoformat(),
-            notes=(f"Fine-tuned from MT ({source_path.name[:30]}). "
-                   f"MSE={final_mse:.2e}, {len(dataset)} graphs."),
+            created=datetime.now(UTC).isoformat(),
+            notes=(
+                f"Fine-tuned from MT ({source_path.name[:30]}). "
+                f"MSE={final_mse:.2e}, {len(dataset)} graphs."
+            ),
         )
 
         register_checkpoint_with_training_metrics(
-            model, entry,
+            model,
+            entry,
             training_result=result,
             overwrite=True,
             architecture_config={
@@ -294,6 +318,7 @@ def main() -> int:
 
                 # Auto-update zoo pass_rate
                 from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+
                 update_zoo_pass_rate(ckpt_name, quick_pass_rate)
                 print(f"  Zoo pass_rate updated: {quick_pass_rate:.2f}")
         except Exception as eval_err:

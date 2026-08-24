@@ -689,7 +689,9 @@ class ValidationRunner(ABC):
                     "results": results,
                     "summary": summary,
                     "elapsed_s": round(total_elapsed, 2),
-                    "model_provenance": _deep_serialize(self._model_provenance) if self._model_provenance else None,
+                    "model_provenance": _deep_serialize(self._model_provenance)
+                    if self._model_provenance
+                    else None,
                     "analysis": {
                         "experiment_id": self.experiment_id,
                         "summary": summary,
@@ -752,7 +754,7 @@ class ValidationRunner(ABC):
         except Exception:
             pass
 
-        from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence, post_experiment_sync
+        from qmbp_simulation.analysis.metrics import post_experiment_sync, validate_gt_npz_coherence
 
         validate_gt_npz_coherence(fix=True)
         post_experiment_sync(verbose=False)
@@ -3082,7 +3084,7 @@ class ValidationRunner(ABC):
     ):
         """Load the best MPNN for cross-N prediction, training if none exists.
 
-        Uses ``load_best_model_for_topology()`` which integrates all signals
+        Uses ``load_best_model_for()`` which integrates all signals
         (pass_rate, convergence, data quality, extrapolation performance)
         including multi-topology models as candidates.
 
@@ -3125,13 +3127,23 @@ class ValidationRunner(ABC):
 
         # ── Try loading from zoo (unified selection: per-topo + MT) ────────
         try:
-            from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+            from qmbp_simulation.predictors.model_zoo import load_best_model_for
 
-            mpnn, entry, source = load_best_model_for_topology(
+            # Infer h_regime from runner args context
+            _h_min = getattr(args, "h_min", None)
+            _h_max = getattr(args, "h_max", None)
+            _h_regime = None
+            if _h_min is not None and _h_min <= 1.5:
+                _h_regime = "critical"
+            elif _h_min is not None and _h_min >= 2.0:
+                _h_regime = "paramagnetic"
+
+            mpnn, entry, source = load_best_model_for(
                 _topo,
                 model=_model,
                 p_layers=_p,
                 n_target=n_target,
+                h_regime=_h_regime,
                 include_multi_topology=True,
             )
             self._zoo_entry = entry
@@ -3886,7 +3898,7 @@ class ValidationRunner(ABC):
         Automatically called at end of every run via _log_data_quality_feedback.
         Extracts evaluation metrics from section results and writes a detailed
         EvaluationRecord that feeds:
-        - load_best_model_for_topology (convergence_signal, evaluation history)
+        - load_best_model_for (convergence_signal, evaluation history)
         - compute_model_readiness (pass_rate_adj from latest evaluation)
         - explain_model_selection (historical tracking)
 
@@ -4136,7 +4148,7 @@ class ValidationRunner(ABC):
         # ── Part 0b: Persist rich EvaluationRecord to ModelRegistryDB ─────
         # Unified integration: any runner that loaded a model from the zoo
         # gets its evaluation metrics persisted with full detail (target_n,
-        # mean_de_gap, pass_rate_5pct). This feeds load_best_model_for_topology
+        # mean_de_gap, pass_rate_5pct). This feeds load_best_model_for
         # convergence_signal and enables historical tracking.
         try:
             self._persist_evaluation_to_registry()
@@ -4176,6 +4188,46 @@ class ValidationRunner(ABC):
             self._auto_retrain_if_sufficient_refinements()
         except Exception:
             pass  # Non-critical
+
+        # ── Part 2b: Auto-refresh QPT detection (free data from GT cache) ─
+        # If this run computed new ground truth points (gt_misses > 0), the
+        # GT cache grew. QPT detection reads from GT cache + NPZ, so fresh
+        # GT data means better h_c detection. Re-run qpt and persist the
+        # updated JSON so the next quench/hardware runner benefits.
+        try:
+            topology = getattr(self._args, "topology", None)
+            if topology and not isinstance(topology, list):
+                # Check if GT cache has entries for this topology
+                disk_cache = getattr(self, "_disk_gt_cache", None)
+                if disk_cache is not None and len(disk_cache) > 0:
+                    from scripts.analysis.qpt_detection import run_qpt_analysis
+
+                    qpt_result = run_qpt_analysis(topology, p_layers=1, use_predicted=False)
+                    if "error" not in qpt_result and qpt_result.get("n_values_reliable"):
+                        # Persist for downstream (quench auto_select, validate_dqpt)
+                        import json
+
+                        from qmbp_simulation.utils.helpers import json_serialize
+
+                        qpt_path = (
+                            self._get_project_root()
+                            / "results"
+                            / "analysis"
+                            / f"qpt_detection_{topology}_exact.json"
+                        )
+                        qpt_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(qpt_path, "w") as f:
+                            json.dump(qpt_result, f, indent=2, default=json_serialize)
+                        h_c_inf = (qpt_result.get("finite_size_scaling") or {}).get("h_c_inf")
+                        if h_c_inf:
+                            logger.debug(
+                                "  QPT auto-refresh: %s h_c(∞)=%.3f (%d reliable N)",
+                                topology,
+                                h_c_inf,
+                                len(qpt_result["n_values_reliable"]),
+                            )
+        except Exception:
+            pass  # Non-critical: QPT detection is best-effort enrichment
 
         # ── Part 3: Automatic failure diagnosis (when sections failed) ───
         # If any section failed AND we have a topology, run diagnosis to
@@ -4244,14 +4296,14 @@ class ValidationRunner(ABC):
     ) -> tuple[Any, dict, dict]:
         """Load model from zoo with quality tier validation.
 
-        Uses the unified load_best_model_for_topology which integrates all
+        Uses the unified load_best_model_for which integrates all
         available signals (pass_rate, MSE, data quality, extrapolation perf).
         """
         from dataclasses import asdict
 
-        from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+        from qmbp_simulation.predictors.model_zoo import load_best_model_for
 
-        mpnn, entry, source = load_best_model_for_topology(
+        mpnn, entry, source = load_best_model_for(
             topology,
             model=model,
             p_layers=p_layers,
@@ -4886,6 +4938,76 @@ class ValidationRunner(ABC):
 
         return result
 
+    def exact_ground_state_with_observables(
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        *,
+        model: str = "tfim",
+    ) -> dict:
+        """Compute exact ground state energy, gap, AND observables (mag_x, corr_zz).
+
+        Extends exact_ground_state() to also return magnetization and correlation
+        from the ClassicalSolver result. Uses GroundTruthCache for observable
+        retrieval when the solver already computed them.
+
+        Returns
+        -------
+        dict
+            {"energy": float, "gap": float, "mag_x": float|None, "corr_zz": float|None}
+        """
+        # Get energy + gap from the standard 2-level cached path
+        e, gap = self.exact_ground_state(topology, n_qubits, h, model=model)
+
+        # Check if observables are already in the disk GT cache
+        mag_x = None
+        corr_zz = None
+        try:
+            disk_cache = getattr(self, "_disk_gt_cache", None)
+            if disk_cache is not None:
+                cached = disk_cache.get(topology, n_qubits, model, h)
+                if cached is not None:
+                    mag_x = cached.get("mag_x")
+                    corr_zz = cached.get("corr_zz")
+        except Exception:
+            pass
+
+        # If observables not cached, re-solve (only for N ≤ 22 where it's fast)
+        if mag_x is None and n_qubits <= 22:
+            try:
+                from qmbp_simulation import make_lattice
+                from qmbp_simulation.models.model_registry import get_model_spec
+                from qmbp_simulation.solvers import ClassicalSolver
+
+                spec = get_model_spec(model)
+                lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
+                H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+                solver = getattr(self, "solver", None) or ClassicalSolver()
+                gt = solver.solve(H, lattice)
+                mag_x = float(gt.mag_x) if hasattr(gt, "mag_x") and gt.mag_x is not None else None
+                corr_zz = (
+                    float(gt.corr_zz) if hasattr(gt, "corr_zz") and gt.corr_zz is not None else None
+                )
+
+                # Update GT cache with observables (enriches existing entry)
+                if disk_cache is not None and (mag_x is not None or corr_zz is not None):
+                    disk_cache.put(
+                        topology,
+                        n_qubits,
+                        model,
+                        h,
+                        energy=e,
+                        gap=gap,
+                        method="eigsh_enriched",
+                        mag_x=mag_x,
+                        corr_zz=corr_zz,
+                    )
+            except Exception:
+                pass
+
+        return {"energy": e, "gap": gap, "mag_x": mag_x, "corr_zz": corr_zz}
+
     @staticmethod
     def compute_vqe_restarts(p_layers: int, n_qubits: int = 10) -> int:
         """Compute recommended VQE restart count based on circuit complexity."""
@@ -5406,6 +5528,144 @@ class ValidationRunner(ABC):
             self.cleanup_checkpoints(checkpoint_label)
 
         return results
+
+    def auto_persist_vqe_results(
+        self,
+        per_h_results: list[dict],
+        *,
+        topology: str | None = None,
+        n_qubits: int | None = None,
+        p_layers: int | None = None,
+        model: str = "tfim_bond_resolved",
+        de_gap_threshold: float = 0.05,
+        persist_all: bool = False,
+    ) -> int:
+        """Auto-persist VQE sweep results to training NPZ for reuse by any runner.
+
+        This is the canonical "data reuse" helper: after ANY section produces
+        per-h VQE results (energy, theta_opt, e_exact, gap), call this to
+        ensure passing points are immediately available to:
+        - MPNN training (MultiNAggregator scans NPZ files)
+        - QPT detection (load_energy_curves reads NPZ)
+        - Quality dashboard (reads NPZ for pass_rate computation)
+        - Cross-N extrapolation (load_extrapolation_npz reads NPZ)
+
+        Parameters
+        ----------
+        per_h_results : list[dict]
+            Per-h results with keys: h, e_pred/energy_vqe, e_exact/energy_exact,
+            gap, theta_opt (list or ndarray), de_gap (optional).
+        topology : str | None
+            Lattice topology. Default: from self._args.
+        n_qubits : int | None
+            System size. Default: from self._args.
+        p_layers : int | None
+            HVA depth. Default: from self._args.
+        model : str
+            Hamiltonian model name for NPZ path.
+        de_gap_threshold : float
+            Only persist points with ΔE/gap < threshold (default 0.05).
+            Set persist_all=True to override.
+        persist_all : bool
+            If True, persist ALL points regardless of ΔE/gap.
+
+        Returns
+        -------
+        int
+            Number of points persisted (updated + added).
+        """
+        import numpy as np
+
+        from qmbp_simulation.framework.result_io import upsert_theta_npz
+
+        args = self._args
+        _topo_raw = topology or getattr(args, "topology", "chain_1d")
+        _topo = _topo_raw[0] if isinstance(_topo_raw, list) else _topo_raw
+        _n = n_qubits or getattr(args, "n_qubits", None) or getattr(args, "train_n", 10)
+        _p_raw = p_layers or getattr(args, "p_layers", 1)
+        _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
+
+        # Resolve NPZ path
+        npz_dir = self._get_project_root() / "data" / "multi_n_training"
+        npz_dir.mkdir(parents=True, exist_ok=True)
+        npz_path = npz_dir / f"{_topo}_N{_n}_p{_p}.npz"
+
+        # Filter and normalize results
+        h_list, theta_list, e_vqe_list, e_exact_list, gap_list = [], [], [], [], []
+        method_list, tier_list = [], []
+
+        for r in per_h_results:
+            h = r.get("h")
+            theta = r.get("theta_opt") or r.get("theta_pred")
+            e_vqe = r.get("e_pred") or r.get("energy_vqe")
+            e_exact = r.get("e_exact") or r.get("energy_exact")
+            gap = r.get("gap", 1e-10)
+
+            if h is None or theta is None or e_vqe is None or e_exact is None:
+                continue
+
+            theta_arr = np.asarray(theta, dtype=float)
+            if not np.all(np.isfinite(theta_arr)):
+                continue
+
+            # Compute de_gap if not provided
+            de_gap = r.get("de_gap")
+            if de_gap is None:
+                de_gap = abs(float(e_vqe) - float(e_exact)) / max(float(gap), 1e-10)
+
+            # Filter by threshold (unless persist_all)
+            if not persist_all and de_gap >= de_gap_threshold:
+                continue
+
+            h_list.append(float(h))
+            theta_list.append(theta_arr)
+            e_vqe_list.append(float(e_vqe))
+            e_exact_list.append(float(e_exact))
+            gap_list.append(float(gap))
+            method_list.append(r.get("method", "vqe_sweep"))
+            tier_list.append("verified" if de_gap < 0.01 else "approximate")
+
+        if not h_list:
+            return 0
+
+        # Persist via anti-regression upsert
+        n_upd, n_add = upsert_theta_npz(
+            npz_path,
+            h_new=np.array(h_list),
+            theta_new=np.array(theta_list),
+            e_vqe_new=np.array(e_vqe_list),
+            e_exact_new=np.array(e_exact_list),
+            gaps_new=np.array(gap_list),
+            method_new=method_list,
+            quality_tier_new=tier_list,
+        )
+
+        total = n_upd + n_add
+        if total > 0:
+            logger.info(
+                "    💾 Auto-persisted %d VQE results → %s (%d updated, %d added)",
+                total,
+                npz_path.name,
+                n_upd,
+                n_add,
+            )
+            # Structured log for post-hoc analysis
+            try:
+                self.slog.log(
+                    "auto_persist_vqe",
+                    data={
+                        "npz_file": str(npz_path.name),
+                        "n_updated": n_upd,
+                        "n_added": n_add,
+                        "total_persisted": total,
+                        "topology": _topo,
+                        "n_qubits": _n,
+                        "p_layers": _p,
+                    },
+                )
+            except Exception:
+                pass  # Structured logging is best-effort
+        return total
 
     def vqe_noisy_sweep(
         self,

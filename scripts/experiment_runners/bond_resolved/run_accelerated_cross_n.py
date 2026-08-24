@@ -194,6 +194,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "exists in the zoo. Default: reuse best existing model.",
         )
         parser.add_argument(
+            "--model-name",
+            type=str,
+            default=None,
+            help="Custom model name suffix. Checkpoint will be saved as "
+            "unifMPNN__<topology>_p<N>_<model-name>.pt (e.g., --model-name coloring_v1)",
+        )
+        parser.add_argument(
             "--no-eval-cache",
             action="store_true",
             default=False,
@@ -691,6 +698,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.predictors.model_zoo import get_runner_tag, make_date_tag
 
         n_values_str = "+".join(str(n) for n in agg.available_n_values())
+        if getattr(self._args, "model_name", None):
+            ckpt_file = f"unifMPNN__{topo}_p{p}_{self._args.model_name}.pt"
+        else:
+            ckpt_file = f"unified_tfim_br_{topo}_multiN_{n_values_str}_p{p}.pt"
         entry = ZooEntry(
             model="tfim_bond_resolved",
             topology=topo,
@@ -1243,7 +1254,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
         use_residual = getattr(self._args, "use_residual", False)
 
         # ── Setup: caches, backend, circuit ───────────────────────────────
-        gt_cache = GroundTruthCache()
+        gt_cache = getattr(self, "_disk_gt_cache", None) or GroundTruthCache()
+        if not hasattr(self, "_disk_gt_cache"):
+            self._disk_gt_cache = gt_cache
         use_eval_cache = not getattr(self._args, "no_eval_cache", False)
         eval_cache = EvalCache(enabled=use_eval_cache)
         backend = NoiselessBackend()
@@ -1340,9 +1353,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
         model = None
         _meta = None
         try:
-            from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+            from qmbp_simulation.predictors.model_zoo import load_best_model_for
 
-            model, _meta, _source = load_best_model_for_topology(
+            model, _meta, _source = load_best_model_for(
                 topo,
                 model="tfim_bond_resolved",
                 p_layers=p,
@@ -1428,7 +1441,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 for i, h in enumerate(self._h_values[: len(boot_result.theta_opt)]):
                     th_i = boot_result.theta_opt[i]
                     if np.all(np.isfinite(th_i)) and len(th_i) == n_params:
-                        prev_theta_by_h[round(float(h), 6)] = (th_i, float(boot_result.energies[i]))
+                        prev_theta_by_h[round(float(h), 2)] = (th_i, float(boot_result.energies[i]))
                 # Train initial UnifiedMPNN from bootstrap data
                 agg = MultiNAggregator(
                     topology=topo, model="tfim_bond_resolved", max_n=self.N_MAX_VIABLE.get(topo, 20)
@@ -1561,7 +1574,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             energies = np.zeros(len(self._h_values))
             eval_hits = 0
             for i, h in enumerate(self._h_values):
-                h_key = round(float(h), 6)
+                h_key = round(float(h), 2)
 
                 # Always evaluate the MPNN prediction (cheap via eval_cache)
                 key = eval_cache.make_key(
@@ -1630,7 +1643,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             for i, h in enumerate(self._h_values):
                 if de_gaps[i] >= 0.05:
                     continue  # only persist passing predictions
-                h_key = round(float(h), 6)
+                h_key = round(float(h), 2)
                 # Only persist if not already in memory dict OR if new energy is lower
                 if h_key in prev_theta_by_h:
                     _, e_existing = prev_theta_by_h[h_key]
@@ -1666,7 +1679,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             for i, h in enumerate(self._h_values):
                 if not dual_mask[i]:
                     continue  # Only promote passing points
-                h_key = round(float(h), 6)
+                h_key = round(float(h), 2)
                 if h_key not in prev_theta_by_h:
                     continue
                 theta_prev, e_prev = prev_theta_by_h[h_key]
@@ -1697,7 +1710,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 n_safety_persisted = 0
                 for i, h in enumerate(self._h_values):
-                    h_key = round(float(h), 6)
+                    h_key = round(float(h), 2)
                     if h_key not in prev_theta_by_h and de_gaps[i] < 0.05:
                         upsert_theta_npz(
                             npz_path,
@@ -1793,7 +1806,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             n_skipped_priority = 0
             for idx in failures:
                 h = float(self._h_values[idx])
-                h_key = round(h, 6)
+                h_key = round(h, 2)
                 abs_err_i = abs(energies[idx] - e_exact_arr[idx])
 
                 # Previous VQE energy (if refined before)
@@ -1861,7 +1874,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
             for fail_idx_pos, idx in enumerate(failures):
                 h = float(self._h_values[idx])
-                h_key = round(h, 6)
+                h_key = round(h, 2)
                 t_refine_start = time.perf_counter()
 
                 # Adaptive VQE config: scale budget based on priority

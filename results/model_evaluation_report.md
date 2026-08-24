@@ -1,7 +1,7 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-08-24 05:23 UTC
-**Elapsed**: 38.4s
+**Generated**: 2026-08-24 14:47 UTC
+**Elapsed**: 3.6s
 **Models evaluated**: 12
 
 ---
@@ -145,7 +145,7 @@
 | 40 | IN | 8 | 3.7375e-03 | — | — | 0.0424 | B |
 | 40 | IN | 6 | 3.3313e-01 | — | — | 0.0390 | C |
 | 40 | IN | 2 | 3.2678e-03 | — | — | 0.0465 | D |
-| 50 | EXT | 6 | — | — | 4.03e-02 | 0.5088 | F |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
 | 60 | IN | 8 | 4.7969e-03 | — | — | 0.0594 | C |
 | 80 | EXT | 8 | — | — | 8.85e-03 | 0.1658 | D |
 | 100 | EXT | 19 | — | — | 7.98e-03 | 0.1369 | D |
@@ -240,8 +240,8 @@
 | 30 | IN | 8 | 7.1095e+02 | — | — | 0.7698 | F |
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 6.9620e+02 | — | — | 0.0390 | C |
-| 50 | EXT | 6 | — | — | 4.03e-02 | 0.5088 | F |
-| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
+| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -398,8 +398,8 @@
 | 30 | IN | 8 | 2.1755e+00 | — | — | 0.7698 | F |
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 2.1194e+00 | — | — | 0.0390 | C |
-| 50 | EXT | 6 | — | — | 4.03e-02 | 0.5088 | F |
-| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
+| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -442,8 +442,8 @@
 | 30 | IN | 8 | 8.2041e-01 | — | — | 0.7698 | F |
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 3.2228e+00 | — | — | 0.0390 | C |
-| 50 | EXT | 6 | — | — | 4.03e-02 | 0.5088 | F |
-| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
+| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -512,8 +512,8 @@
 | 30 | IN | 8 | 1.8248e-01 | — | — | 0.7698 | F |
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 7.0268e-02 | — | — | 0.0390 | C |
-| 50 | EXT | 6 | — | — | 4.03e-02 | 0.5088 | F |
-| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
+| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -543,23 +543,23 @@
 | Topology | Checkpoint | In-dist θ MSE | Out-dist |ΔE|/N | Grade |
 |----------|-----------|:---:|:---:|:---:|
 | ladder | unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26 | 1.7927e-02 | — | B (good) |
+| multi_topology | unified_tfim_br_MT_residual+film_p1.pt | 1.2656e-01 | 2.12e-02 | F (failing) |
 | chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 2.4984e-02 | 2.21e-02 | F (failing) |
 | chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.2300e-01 | 2.21e-02 | F (failing) |
 | chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.2300e-01 | 2.21e-02 | F (failing) |
-| multi_topology | unified_tfim_br_MT_residual+film_p1.pt | 1.2656e-01 | 2.48e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 3.6151e+02 | 2.37e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 1.4488e+00 | 2.37e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p | 1.3037e+00 | 2.37e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18 | 3.9629e-01 | 2.37e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt | 4.5781e-02 | 2.97e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4 | 7.8955e-02 | 2.97e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 3.6151e+02 | 4.34e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 1.4488e+00 | 4.34e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p | 1.3037e+00 | 4.34e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18 | 3.9629e-01 | 4.34e-02 | F (failing) |
 | triangular | unified_tfim_br_triangular_multiN_3+4+6_p1.pt | 9.5203e-02 | 2.09e-01 | F (failing) |
 
 ---
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-08-24 05:23 UTC
+**Generated**: 2026-08-24 14:47 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

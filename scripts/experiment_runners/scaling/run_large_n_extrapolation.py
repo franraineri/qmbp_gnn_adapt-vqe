@@ -107,7 +107,7 @@ def load_extrapolation_npz(topology: str, n_qubits: int, p_layers: int) -> dict[
         theta_arr = data["theta_opt"]
 
         for i, h in enumerate(data["h_values"]):
-            h_key = round(float(h), 6)
+            h_key = round(float(h), 2)
 
             # Handle object array (variable-length theta) vs 2D numeric array
             theta_raw = theta_arr[i]
@@ -538,7 +538,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
             if n_target == self._args.target_n[0]:  # Only on first N (lightweight)
                 try:
                     g_probe = build_unified_bond_resolved_graph(
-                        lat_ref, h_value=2.0, p_layers=p, include_circuit_nodes=True,
+                        lat_ref,
+                        h_value=2.0,
+                        p_layers=p,
+                        include_circuit_nodes=True,
                     )
                     with torch.no_grad():
                         probe_out = model(g_probe).numpy().flatten()
@@ -567,103 +570,103 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 n_cached, n_predicted = 0, 0
 
                 try:
-                  for h in self._h_values:
-                    h_key = round(float(h), 6)
+                    for h in self._h_values:
+                        h_key = round(float(h), 2)
 
-                    # Check NPZ cache first
-                    if existing_data and h_key in existing_data and not force_recompute:
-                        cached = existing_data[h_key]
-                        # Only use cache if we have energy (theta might not be stored)
-                        if cached.get("e_pred") is not None:
-                            gt_entry = next(
-                                pt
-                                for pt in self._gt_data[n_target]
-                                if abs(pt["h"] - float(h)) < 1e-8
-                            )
-                            result = self.build_per_h_result(
-                                h,
-                                cached["e_pred"],
-                                gt_entry["e_exact"],
-                                gt_entry["gap"],
-                                n_params=n_params,
-                                n_qubits=n_target,
-                                method="cached",
-                                theta=cached.get("theta", np.zeros(0)).tolist()
-                                if cached.get("theta") is not None
-                                else None,
-                            )
-                            per_h_results.append(result)
-                            n_cached += 1
-                            continue
+                        # Check NPZ cache first
+                        if existing_data and h_key in existing_data and not force_recompute:
+                            cached = existing_data[h_key]
+                            # Only use cache if we have energy (theta might not be stored)
+                            if cached.get("e_pred") is not None:
+                                gt_entry = next(
+                                    pt
+                                    for pt in self._gt_data[n_target]
+                                    if abs(pt["h"] - float(h)) < 1e-8
+                                )
+                                result = self.build_per_h_result(
+                                    h,
+                                    cached["e_pred"],
+                                    gt_entry["e_exact"],
+                                    gt_entry["gap"],
+                                    n_params=n_params,
+                                    n_qubits=n_target,
+                                    method="cached",
+                                    theta=cached.get("theta", np.zeros(0)).tolist()
+                                    if cached.get("theta") is not None
+                                    else None,
+                                )
+                                per_h_results.append(result)
+                                n_cached += 1
+                                continue
 
-                    # Fresh prediction
-                    t0 = time.perf_counter()
-                    g = build_unified_bond_resolved_graph(
-                        lat_ref,
-                        h_value=float(h),
-                        p_layers=p,
-                        include_circuit_nodes=True,
-                    )
-                    with torch.no_grad():
-                        theta_pred = model(g).numpy().flatten()
-                    theta_pred = np.clip(theta_pred, -np.pi, np.pi)
+                        # Fresh prediction
+                        t0 = time.perf_counter()
+                        g = build_unified_bond_resolved_graph(
+                            lat_ref,
+                            h_value=float(h),
+                            p_layers=p,
+                            include_circuit_nodes=True,
+                        )
+                        with torch.no_grad():
+                            theta_pred = model(g).numpy().flatten()
+                        theta_pred = np.clip(theta_pred, -np.pi, np.pi)
 
-                    # ── MC-Dropout confidence estimation ─────────────────
-                    # Delegates to model.predict_with_uncertainty() which
-                    # handles train/eval mode toggling and seed management.
-                    theta_std = 0.0
-                    if hasattr(model, 'predict_with_uncertainty'):
-                        _, theta_std = model.predict_with_uncertainty(g)
-                    elif hasattr(model, 'dropout') and getattr(model, 'dropout', 0) > 0:
-                        # Fallback for older model versions without the method.
-                        # Uses was_training pattern to guarantee mode restoration.
-                        mc_preds = []
-                        was_training = model.training
-                        model.train()
-                        try:
-                            with torch.no_grad():
-                                for _mc_seed in (42, 137, 256, 511, 769):
-                                    torch.manual_seed(_mc_seed)
-                                    mc_pred = model(g).numpy().flatten()
-                                    mc_preds.append(mc_pred)
-                        finally:
-                            if not was_training:
-                                model.eval()
-                        mc_preds_arr = np.array(mc_preds)
-                        theta_std = float(np.mean(np.std(mc_preds_arr, axis=0)))
+                        # ── MC-Dropout confidence estimation ─────────────────
+                        # Delegates to model.predict_with_uncertainty() which
+                        # handles train/eval mode toggling and seed management.
+                        theta_std = 0.0
+                        if hasattr(model, "predict_with_uncertainty"):
+                            _, theta_std = model.predict_with_uncertainty(g)
+                        elif hasattr(model, "dropout") and getattr(model, "dropout", 0) > 0:
+                            # Fallback for older model versions without the method.
+                            # Uses was_training pattern to guarantee mode restoration.
+                            mc_preds = []
+                            was_training = model.training
+                            model.train()
+                            try:
+                                with torch.no_grad():
+                                    for _mc_seed in (42, 137, 256, 511, 769):
+                                        torch.manual_seed(_mc_seed)
+                                        mc_pred = model(g).numpy().flatten()
+                                        mc_preds.append(mc_pred)
+                            finally:
+                                if not was_training:
+                                    model.eval()
+                            mc_preds_arr = np.array(mc_preds)
+                            theta_std = float(np.mean(np.std(mc_preds_arr, axis=0)))
 
-                    # Pad/trim if dimension mismatch
-                    if len(theta_pred) != n_params:
-                        if len(theta_pred) < n_params:
-                            theta_pred = np.pad(theta_pred, (0, n_params - len(theta_pred)))
-                        else:
-                            theta_pred = theta_pred[:n_params]
+                        # Pad/trim if dimension mismatch
+                        if len(theta_pred) != n_params:
+                            if len(theta_pred) < n_params:
+                                theta_pred = np.pad(theta_pred, (0, n_params - len(theta_pred)))
+                            else:
+                                theta_pred = theta_pred[:n_params]
 
-                    # Evaluate energy
-                    lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
-                    H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
-                    eval_backend.set_h(float(h))
-                    e_pred = eval_backend.evaluate(circuit, H, theta_pred)
-                    elapsed = time.perf_counter() - t0
+                        # Evaluate energy
+                        lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
+                        H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
+                        eval_backend.set_h(float(h))
+                        e_pred = eval_backend.evaluate(circuit, H, theta_pred)
+                        elapsed = time.perf_counter() - t0
 
-                    # Get GT
-                    gt_entry = next(
-                        pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
-                    )
-                    result = self.build_per_h_result(
-                        h,
-                        e_pred,
-                        gt_entry["e_exact"],
-                        gt_entry["gap"],
-                        n_params=n_params,
-                        n_qubits=n_target,
-                        method="mpnn",
-                        time_s=elapsed,
-                        theta=theta_pred.tolist(),
-                    )
-                    result["theta_std"] = theta_std  # MC-Dropout uncertainty
-                    per_h_results.append(result)
-                    n_predicted += 1
+                        # Get GT
+                        gt_entry = next(
+                            pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
+                        )
+                        result = self.build_per_h_result(
+                            h,
+                            e_pred,
+                            gt_entry["e_exact"],
+                            gt_entry["gap"],
+                            n_params=n_params,
+                            n_qubits=n_target,
+                            method="mpnn",
+                            time_s=elapsed,
+                            theta=theta_pred.tolist(),
+                        )
+                        result["theta_std"] = theta_std  # MC-Dropout uncertainty
+                        per_h_results.append(result)
+                        n_predicted += 1
 
                 except KeyboardInterrupt:
                     logger.warning(
@@ -699,18 +702,23 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         # ── Auto-update zoo pass_rate with real extrapolation results ─────
         # The zoo model was used at large N — update its pass_rate so that
-        # load_best_model_for_topology reflects actual deployment quality.
+        # load_best_model_for reflects actual deployment quality.
         try:
             zoo_entry = getattr(self, "_zoo_entry", None)
             if zoo_entry is not None:
                 # Compute average pass_rate_dual across all target N
-                avg_pass = float(np.mean([
-                    mpnn_results[n]["pass_rate_dual"]
-                    for n in self._args.target_n
-                    if "pass_rate_dual" in mpnn_results.get(n, {})
-                ]))
+                avg_pass = float(
+                    np.mean(
+                        [
+                            mpnn_results[n]["pass_rate_dual"]
+                            for n in self._args.target_n
+                            if "pass_rate_dual" in mpnn_results.get(n, {})
+                        ]
+                    )
+                )
                 if avg_pass > 0:
                     from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+
                     update_zoo_pass_rate(
                         zoo_entry.checkpoint_file,
                         avg_pass,
@@ -775,7 +783,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
             # Find high-uncertainty AND failing points
             candidates = [
-                (i, pt) for i, pt in enumerate(per_point)
+                (i, pt)
+                for i, pt in enumerate(per_point)
                 if pt.get("theta_std", 0) > threshold
                 and pt.get("de_gap", 0) > 0.05
                 and pt.get("method") == "mpnn"
@@ -810,11 +819,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     )
                     if res.fun < pt["e_pred"]:
                         gt_entry = next(
-                            g for g in self._gt_data[n_target]
-                            if abs(g["h"] - float(h)) < 1e-8
+                            g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
                         )
                         new_result = self.build_per_h_result(
-                            h, res.fun, gt_entry["e_exact"], gt_entry["gap"],
+                            h,
+                            res.fun,
+                            gt_entry["e_exact"],
+                            gt_entry["gap"],
                             n_params=circuit.num_parameters,
                             n_qubits=n_target,
                             method="auto_refined",
@@ -993,14 +1004,12 @@ class LargeNExtrapolationRunner(ValidationRunner):
         then selects points where the model is most uncertain for VQE refinement.
         Reuses: active_learning helpers, build_per_h_result, _persist_extrapolation_npz.
         """
-        from experiments.helpers.active_learning import (
-            compute_ensemble_uncertainty,
-            select_next_point,
-        )
+        import torch
         from scipy.optimize import minimize as _minimize
 
-        import torch
-
+        from experiments.helpers.active_learning import (
+            select_next_point,
+        )
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
@@ -1027,7 +1036,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
             # Identify candidate h-values (those not already VQE-refined)
             candidates = [
-                (i, pt) for i, pt in enumerate(per_point)
+                (i, pt)
+                for i, pt in enumerate(per_point)
                 if pt.get("method", "mpnn") == "mpnn" and pt.get("de_gap", 0) > 0.01
             ]
             if not candidates:
@@ -1073,7 +1083,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         (pt.get("de_gap", 1.0) for _, pt in candidates), default=0.05
                     )
                     best_sub = select_next_point(
-                        sub_h, sub_u,
+                        sub_h,
+                        sub_u,
                         acquisition=acq_fn,
                         current_best_error=current_best_dg,
                         predictions_mean=[sub_u[i] for i in range(len(sub_h))],
@@ -1083,8 +1094,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     avail.remove(actual_idx)
 
                 if not selected:
-                    logger.info(f"    N={n_target} AL round {al_round + 1}: "
-                                f"uncertainty below threshold — stopping.")
+                    logger.info(
+                        f"    N={n_target} AL round {al_round + 1}: "
+                        f"uncertainty below threshold — stopping."
+                    )
                     break
 
                 # VQE refinement at selected points
@@ -1113,11 +1126,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         )
                         if res.fun < pt["e_pred"]:
                             gt = next(
-                                g for g in self._gt_data[n_target]
-                                if abs(g["h"] - float(h)) < 1e-8
+                                g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
                             )
                             new_result = self.build_per_h_result(
-                                h, res.fun, gt["e_exact"], gt["gap"],
+                                h,
+                                res.fun,
+                                gt["e_exact"],
+                                gt["gap"],
                                 n_params=circuit.num_parameters,
                                 n_qubits=n_target,
                                 method="al_refined",
@@ -1131,6 +1146,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
                 if n_improved > 0:
                     from qmbp_simulation.analysis.metrics import compute_deploy_summary
+
                     mpnn_results[n_target].update(compute_deploy_summary(per_point))
                     mpnn_results[n_target]["per_point"] = per_point
                     self._persist_extrapolation_npz(topo, n_target, p, per_point)
@@ -1143,10 +1159,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
                 # Remove successfully refined from candidates for next round
                 candidates = [
-                    (i, pt) for i, pt in enumerate(per_point)
+                    (i, pt)
+                    for i, pt in enumerate(per_point)
                     if pt.get("method", "mpnn") == "mpnn" and pt.get("de_gap", 0) > 0.01
                 ]
-                h_candidates = np.array([pt["h"] for _, pt in candidates]) if candidates else np.array([])
+                h_candidates = (
+                    np.array([pt["h"] for _, pt in candidates]) if candidates else np.array([])
+                )
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 3: Random VQE Baseline (Optional)
@@ -1193,7 +1212,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     _data = np.load(baseline_npz, allow_pickle=True)
                     cached_baseline = {}
                     for i, h in enumerate(_data["h_values"]):
-                        cached_baseline[round(float(h), 6)] = {
+                        cached_baseline[round(float(h), 2)] = {
                             "e_vqe": float(_data["e_vqe"][i]),
                             "e_exact": float(_data["e_exact"][i]),
                             "gap": float(_data["gaps"][i]) if "gaps" in _data else 0.0,
@@ -1217,7 +1236,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             n_cached_pts, n_computed_pts = 0, 0
 
             for h in self._h_values:
-                h_key = round(float(h), 6)
+                h_key = round(float(h), 2)
 
                 # Check cache first
                 if cached_baseline and h_key in cached_baseline and not force_recompute:
@@ -1410,9 +1429,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 )
 
         # Extensive scaling check: |ΔE| should be approximately constant
-        per_site_errors = [
-            self._mpnn_results[n].get("mean_abs_error") for n in self._args.target_n
-        ]
+        per_site_errors = [self._mpnn_results[n].get("mean_abs_error") for n in self._args.target_n]
         # Filter None values (n_qubits missing in result dicts)
         per_site_errors = [e for e in per_site_errors if e is not None and e > 0]
         if len(per_site_errors) >= 2:

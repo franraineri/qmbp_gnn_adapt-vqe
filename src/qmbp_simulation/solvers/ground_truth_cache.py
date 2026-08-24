@@ -76,7 +76,12 @@ class GroundTruthCache:
                 self._data = {}
 
     def _save(self) -> None:
-        """Persist cache to disk in compact format."""
+        """Persist cache to disk in compact format with file-locking.
+
+        Uses fcntl.flock (LOCK_EX) to prevent concurrent runners from
+        corrupting the JSON file. Write-and-rename pattern ensures atomicity:
+        if the process crashes mid-write, the original file is preserved.
+        """
         if not self._dirty:
             return
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,9 +90,41 @@ class GroundTruthCache:
             "n_entries": len(self._data),
             "entries": self._data,
         }
-        with open(self._path, "w") as f:
-            json.dump(payload, f, separators=(",", ":"))
-        self._dirty = False
+        # Atomic write: write to temp file, then rename (atomic on POSIX)
+        import tempfile
+
+        tmp_path = None
+        try:
+            fd, tmp_path_str = tempfile.mkstemp(
+                dir=str(self._path.parent),
+                suffix=".tmp",
+                prefix=".gt_cache_",
+            )
+            tmp_path = Path(tmp_path_str)
+            with open(fd, "w") as f:
+                # Acquire exclusive lock (blocks until available)
+                try:
+                    import fcntl
+
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                except (ImportError, OSError):
+                    pass  # Windows or lock unavailable — proceed without lock
+                json.dump(payload, f, separators=(",", ":"))
+                f.flush()
+                import os
+
+                os.fsync(f.fileno())
+            # Atomic rename (POSIX guarantees this is atomic)
+            tmp_path.replace(self._path)
+            self._dirty = False
+        except Exception:
+            # Cleanup temp file on failure
+            if tmp_path is not None and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
 
     def get(self, topology: str, n_qubits: int, model: str, h: float) -> dict[str, Any] | None:
         """Look up cached ground truth.

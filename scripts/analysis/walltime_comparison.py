@@ -175,7 +175,7 @@ def measure_mpnn_inference(
     import torch
 
     from qmbp_simulation.models.hamiltonian import make_lattice
-    from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
+    from qmbp_simulation.predictors.model_zoo import load_best_model_for
     from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
 
     if n_qubits_list is None:
@@ -183,7 +183,12 @@ def measure_mpnn_inference(
 
     # Load model once
     try:
-        model, entry, source = load_best_model_for_topology(topology, p_layers=p_layers)
+        model, entry, source = load_best_model_for(
+            topology,
+            p_layers=p_layers,
+            n_target=max(n_qubits_list) if n_qubits_list else 20,
+            h_regime="paramagnetic",
+        )
     except Exception as e:
         logger.warning(f"  No MPNN available for {topology}: {e}")
         return {}
@@ -231,45 +236,55 @@ def build_comparison_table(
 
         method = "exact_diag" if n <= 22 else "dmrg"
 
-        records.append({
-            "n_qubits": n,
-            "method": method,
-            "gt_mean_s": gt_mean,
-            "gt_max_s": gt_max,
-            "gt_n_points": len(gt),
-            "mpnn_mean_s": mpnn_mean,
-            "mpnn_n_points": len(mpnn),
-            "speedup": speedup,
-        })
+        records.append(
+            {
+                "n_qubits": n,
+                "method": method,
+                "gt_mean_s": gt_mean,
+                "gt_max_s": gt_max,
+                "gt_n_points": len(gt),
+                "mpnn_mean_s": mpnn_mean,
+                "mpnn_n_points": len(mpnn),
+                "speedup": speedup,
+            }
+        )
 
     return records
 
 
 def print_table(records: list[dict]) -> None:
     """Pretty-print the comparison table."""
-    print(f"\n{'='*75}")
+    print(f"\n{'=' * 75}")
     print("  WALL-TIME COMPARISON: Classical GT vs MPNN Inference")
-    print(f"{'='*75}")
-    print(f"  {'N':>4} | {'Method':<11} | {'GT mean':>9} | {'GT max':>9} | "
-          f"{'MPNN mean':>10} | {'Speedup':>8} | {'GT pts':>6}")
-    print(f"  {'-'*4}-+-{'-'*11}-+-{'-'*9}-+-{'-'*9}-+-{'-'*10}-+-{'-'*8}-+-{'-'*6}")
+    print(f"{'=' * 75}")
+    print(
+        f"  {'N':>4} | {'Method':<11} | {'GT mean':>9} | {'GT max':>9} | "
+        f"{'MPNN mean':>10} | {'Speedup':>8} | {'GT pts':>6}"
+    )
+    print(f"  {'-' * 4}-+-{'-' * 11}-+-{'-' * 9}-+-{'-' * 9}-+-{'-' * 10}-+-{'-' * 8}-+-{'-' * 6}")
 
     for r in records:
-        gt_m = f"{r['gt_mean_s']:.3f}s" if r['gt_mean_s'] else "—"
-        gt_x = f"{r['gt_max_s']:.1f}s" if r['gt_max_s'] else "—"
-        mpnn_m = f"{r['mpnn_mean_s']*1000:.2f}ms" if r['mpnn_mean_s'] else "—"
-        sp = f"{r['speedup']:.0f}×" if r['speedup'] else "—"
-        print(f"  {r['n_qubits']:>4} | {r['method']:<11} | {gt_m:>9} | {gt_x:>9} | "
-              f"{mpnn_m:>10} | {sp:>8} | {r['gt_n_points']:>6}")
+        gt_m = f"{r['gt_mean_s']:.3f}s" if r["gt_mean_s"] else "—"
+        gt_x = f"{r['gt_max_s']:.1f}s" if r["gt_max_s"] else "—"
+        mpnn_m = f"{r['mpnn_mean_s'] * 1000:.2f}ms" if r["mpnn_mean_s"] else "—"
+        sp = f"{r['speedup']:.0f}×" if r["speedup"] else "—"
+        print(
+            f"  {r['n_qubits']:>4} | {r['method']:<11} | {gt_m:>9} | {gt_x:>9} | "
+            f"{mpnn_m:>10} | {sp:>8} | {r['gt_n_points']:>6}"
+        )
 
     # Summary
-    valid = [r for r in records if r['speedup']]
+    valid = [r for r in records if r["speedup"]]
     if valid:
-        mean_speedup = np.mean([r['speedup'] for r in valid])
-        max_speedup = max(r['speedup'] for r in valid)
+        mean_speedup = np.mean([r["speedup"] for r in valid])
+        max_speedup = max(r["speedup"] for r in valid)
         print(f"\n  Mean speedup: {mean_speedup:.0f}×")
-        print(f"  Max speedup:  {max_speedup:.0f}× (N={max(valid, key=lambda x: x['speedup'])['n_qubits']})")
-        print(f"\n  Thesis claim: GNN amortizes O(100) DMRG points into O(∞) predictions at ~1ms each.")
+        print(
+            f"  Max speedup:  {max_speedup:.0f}× (N={max(valid, key=lambda x: x['speedup'])['n_qubits']})"
+        )
+        print(
+            "\n  Thesis claim: GNN amortizes O(100) DMRG points into O(∞) predictions at ~1ms each."
+        )
 
 
 def save_results(records: list[dict], topology: str) -> Path:
@@ -285,9 +300,12 @@ def save_results(records: list[dict], topology: str) -> Path:
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "records": records,
         "summary": {
-            "n_values_with_speedup": len([r for r in records if r['speedup']]),
-            "mean_speedup": float(np.mean([r['speedup'] for r in records if r['speedup']])) if any(r['speedup'] for r in records) else None,
-            "max_speedup": float(max((r['speedup'] for r in records if r['speedup']), default=0)) or None,
+            "n_values_with_speedup": len([r for r in records if r["speedup"]]),
+            "mean_speedup": float(np.mean([r["speedup"] for r in records if r["speedup"]]))
+            if any(r["speedup"] for r in records)
+            else None,
+            "max_speedup": float(max((r["speedup"] for r in records if r["speedup"]), default=0))
+            or None,
         },
     }
 
@@ -303,31 +321,40 @@ def save_results(records: list[dict], topology: str) -> Path:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Wall-time comparison: DMRG/ED vs MPNN inference"
-    )
+    parser = argparse.ArgumentParser(description="Wall-time comparison: DMRG/ED vs MPNN inference")
     parser.add_argument(
-        "--topology", type=str, default="chain_1d",
+        "--topology",
+        type=str,
+        default="chain_1d",
         help="Topology to analyze (default: chain_1d)",
     )
     parser.add_argument(
-        "--backfill", action="store_true",
+        "--backfill",
+        action="store_true",
         help="Re-compute a sample of GT points to measure timing",
     )
     parser.add_argument(
-        "--sample-per-n", type=int, default=5,
+        "--sample-per-n",
+        type=int,
+        default=5,
         help="Points per N to backfill timing (default: 5)",
     )
     parser.add_argument(
-        "--model", type=str, default="tfim",
+        "--model",
+        type=str,
+        default="tfim",
         help="Hamiltonian model (default: tfim)",
     )
     parser.add_argument(
-        "--p-layers", type=int, default=1,
+        "--p-layers",
+        type=int,
+        default=1,
         help="HVA depth for MPNN (default: 1)",
     )
     parser.add_argument(
-        "--save", action="store_true", default=True,
+        "--save",
+        action="store_true",
+        default=True,
         help="Save results to JSON (default: True)",
     )
     parser.add_argument("-v", "--verbose", action="store_true")

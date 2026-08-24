@@ -26,6 +26,7 @@ Usage:
     .venv/bin/python scripts/experiment_runners/cross_topology/run_arch_ablation.py --epochs 2000 --register-best
     .venv/bin/python scripts/experiment_runners/cross_topology/run_arch_ablation.py --quick
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,7 +34,7 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -54,7 +55,9 @@ def _compute_dataset_fingerprint(dataset: list) -> str:
     Delegates to the shared utility in qmbp_simulation.utils.helpers.
     """
     from qmbp_simulation.utils.helpers import compute_dataset_fingerprint
+
     return compute_dataset_fingerprint(dataset)
+
 
 # Architecture variants to compare
 VARIANTS = [
@@ -62,7 +65,12 @@ VARIANTS = [
     {"name": "residual", "use_residual": True, "readout_mode": "last", "film_conditioning": False},
     {"name": "jk_cat", "use_residual": False, "readout_mode": "jk_cat", "film_conditioning": False},
     {"name": "film", "use_residual": False, "readout_mode": "last", "film_conditioning": True},
-    {"name": "res+jk+film", "use_residual": True, "readout_mode": "jk_cat", "film_conditioning": True},
+    {
+        "name": "res+jk+film",
+        "use_residual": True,
+        "readout_mode": "jk_cat",
+        "film_conditioning": True,
+    },
 ]
 
 
@@ -71,32 +79,40 @@ def parse_args() -> argparse.Namespace:
         description="Architecture ablation study",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--topology", default="chain_1d",
-                        help="Topology to use (default: chain_1d)")
-    parser.add_argument("--max-n", type=int, default=20,
-                        help="Max N for training data")
-    parser.add_argument("--hidden-dim", type=int, default=256,
-                        help="Hidden dim (same for all)")
-    parser.add_argument("--n-layers", type=int, default=3,
-                        help="GNN layers (same for all)")
-    parser.add_argument("--epochs", type=int, default=2000,
-                        help="Max epochs per variant")
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed (same for all)")
-    parser.add_argument("--n-seeds", type=int, default=1,
-                        help="Number of seeds for statistical significance (default: 1, use 3+ for thesis claims)")
-    parser.add_argument("--quick", action="store_true",
-                        help="Quick mode: 500 epochs, hidden=64")
-    parser.add_argument("--register-best", action="store_true",
-                        help="Register the best variant in the zoo")
-    parser.add_argument("--skip-zoo-ref", action="store_true",
-                        help="Skip loading zoo model as reference")
-    parser.add_argument("--multi-topology", action="store_true",
-                        help="Use combined data from ALL topologies (MultiTopologyAggregator)")
-    parser.add_argument("--max-de-gap", type=float, default=0.10,
-                        help="Quality filter threshold (default: 0.10)")
-    parser.add_argument("--auto-compare", action="store_true",
-                        help="After registration, run model_comparison to validate with ΔE/gap")
+    parser.add_argument(
+        "--topology", default="chain_1d", help="Topology to use (default: chain_1d)"
+    )
+    parser.add_argument("--max-n", type=int, default=20, help="Max N for training data")
+    parser.add_argument("--hidden-dim", type=int, default=256, help="Hidden dim (same for all)")
+    parser.add_argument("--n-layers", type=int, default=3, help="GNN layers (same for all)")
+    parser.add_argument("--epochs", type=int, default=2000, help="Max epochs per variant")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed (same for all)")
+    parser.add_argument(
+        "--n-seeds",
+        type=int,
+        default=1,
+        help="Number of seeds for statistical significance (default: 1, use 3+ for thesis claims)",
+    )
+    parser.add_argument("--quick", action="store_true", help="Quick mode: 500 epochs, hidden=64")
+    parser.add_argument(
+        "--register-best", action="store_true", help="Register the best variant in the zoo"
+    )
+    parser.add_argument(
+        "--skip-zoo-ref", action="store_true", help="Skip loading zoo model as reference"
+    )
+    parser.add_argument(
+        "--multi-topology",
+        action="store_true",
+        help="Use combined data from ALL topologies (MultiTopologyAggregator)",
+    )
+    parser.add_argument(
+        "--max-de-gap", type=float, default=0.10, help="Quality filter threshold (default: 0.10)"
+    )
+    parser.add_argument(
+        "--auto-compare",
+        action="store_true",
+        help="After registration, run model_comparison to validate with ΔE/gap",
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
@@ -105,11 +121,11 @@ def apply_exclusion_policy(agg: MultiNAggregator, topology: str) -> None:
     """Apply N-level exclusion policy (same logic as runner_base)."""
     try:
         from qmbp_simulation.analysis.metrics import load_training_exclusions
+
         registry = load_training_exclusions()
         hard_modes = {"contaminated_training", "gap_masking", "intrinsic_vqe_error"}
         for entry in registry.get("excluded", []):
-            if (entry.get("topology") == topology
-                    and entry.get("failure_mode") in hard_modes):
+            if entry.get("topology") == topology and entry.get("failure_mode") in hard_modes:
                 n_val = entry.get("n_qubits", 0)
                 if n_val > 0 and n_val in agg._data_by_n:
                     n_pts = len(agg._data_by_n.pop(n_val))
@@ -121,8 +137,9 @@ def apply_exclusion_policy(agg: MultiNAggregator, topology: str) -> None:
 def evaluate_zoo_model(topology: str, dataset: list, val_dataset: list) -> dict | None:
     """Load the current zoo model and evaluate on the same val set."""
     try:
-        from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
-        mpnn, entry, _source = load_best_model_for_topology(
+        from qmbp_simulation.predictors.model_zoo import load_best_model_for
+
+        mpnn, entry, _source = load_best_model_for(
             topology,
             model="tfim_bond_resolved",
             n_target=20,
@@ -166,7 +183,9 @@ def evaluate_zoo_model(topology: str, dataset: list, val_dataset: list) -> dict 
         return None
 
 
-def train_variant(variant: dict, dataset: list, args: argparse.Namespace, seed: int | None = None) -> dict:
+def train_variant(
+    variant: dict, dataset: list, args: argparse.Namespace, seed: int | None = None
+) -> dict:
     """Train a single architecture variant and return metrics."""
     _seed = seed if seed is not None else args.seed
     torch.manual_seed(_seed)
@@ -193,7 +212,8 @@ def train_variant(variant: dict, dataset: list, args: argparse.Namespace, seed: 
     t0 = time.perf_counter()
 
     result = train_unified_mpnn(
-        model, dataset,
+        model,
+        dataset,
         n_epochs=epochs,
         lr=1e-3,
         patience=200,
@@ -240,9 +260,7 @@ def main() -> int:
     print("\nAggregating training data...")
 
     if args.multi_topology:
-        mt_agg = MultiTopologyAggregator(
-            model="tfim_bond_resolved", max_n=args.max_n
-        )
+        mt_agg = MultiTopologyAggregator(model="tfim_bond_resolved", max_n=args.max_n)
         mt_agg.scan()
         dataset = mt_agg.build_combined_dataset(max_de_gap=args.max_de_gap)
         if not dataset:
@@ -250,9 +268,7 @@ def main() -> int:
             return 1
         summary = {f"MT({len(mt_agg._aggregators)} topos)": len(dataset)}
     else:
-        agg = MultiNAggregator(
-            topology=args.topology, model="tfim_bond_resolved", max_n=args.max_n
-        )
+        agg = MultiNAggregator(topology=args.topology, model="tfim_bond_resolved", max_n=args.max_n)
         summary = agg.scan()
         if not summary:
             print("ERROR: no data available")
@@ -289,8 +305,9 @@ def main() -> int:
         zoo_result = evaluate_zoo_model(args.topology, dataset, val_dataset)
         if zoo_result:
             results.append(zoo_result)
-            print(f" val_MSE={zoo_result['val_mse']:.2e} "
-                  f"(pass={zoo_result.get('pass_rate', 0):.0%})")
+            print(
+                f" val_MSE={zoo_result['val_mse']:.2e} (pass={zoo_result.get('pass_rate', 0):.0%})"
+            )
         else:
             print(" not available")
     elif args.multi_topology:
@@ -298,15 +315,19 @@ def main() -> int:
 
     # ── Train each variant ────────────────────────────────────────────────
     print(f"\n{'─' * 70}")
-    print(f"  {'Variant':<28} {'Params':>8} {'MSE':>10} {'Val MSE':>10} "
-          f"{'GenGap':>8} {'Epochs':>6} {'Time':>6}")
+    print(
+        f"  {'Variant':<28} {'Params':>8} {'MSE':>10} {'Val MSE':>10} "
+        f"{'GenGap':>8} {'Epochs':>6} {'Time':>6}"
+    )
     print(f"{'─' * 70}")
 
     # Print zoo reference first if available
     for r in results:
         val_str = f"{r['val_mse']:.2e}" if r["val_mse"] is not None else "N/A"
-        print(f"  {r['name']:<28} {r['n_params']:>8,} {'(ref)':>10} "
-              f"{val_str:>10} {'—':>8} {'—':>6} {'0':>5}s")
+        print(
+            f"  {r['name']:<28} {r['n_params']:>8,} {'(ref)':>10} "
+            f"{val_str:>10} {'—':>8} {'—':>6} {'0':>5}s"
+        )
 
     trained_results = []
     seeds = [args.seed + i * 100 for i in range(args.n_seeds)]
@@ -320,8 +341,10 @@ def main() -> int:
 
             gen_gap_str = f"{r['gen_gap']:.2e}" if r["gen_gap"] is not None else "N/A"
             val_str = f"{r['val_mse']:.2e}" if r["val_mse"] is not None else "N/A"
-            print(f"\r  {r['name']:<28} {r['n_params']:>8,} {r['final_mse']:>10.2e} "
-                  f"{val_str:>10} {gen_gap_str:>8} {r['n_epochs']:>6} {r['elapsed_s']:>5.0f}s")
+            print(
+                f"\r  {r['name']:<28} {r['n_params']:>8,} {r['final_mse']:>10.2e} "
+                f"{val_str:>10} {gen_gap_str:>8} {r['n_epochs']:>6} {r['elapsed_s']:>5.0f}s"
+            )
         else:
             # Multi-seed: train K times, report mean ± std
             print(f"  Training {variant['name']} ({args.n_seeds} seeds)...", end="", flush=True)
@@ -338,7 +361,9 @@ def main() -> int:
             mean_mse = float(np.mean(final_mses))
 
             # Use best seed as the representative model
-            best_seed_result = min(seed_results, key=lambda x: x["val_mse"] if x["val_mse"] else float("inf"))
+            best_seed_result = min(
+                seed_results, key=lambda x: x["val_mse"] if x["val_mse"] else float("inf")
+            )
             aggregated = {
                 **best_seed_result,
                 "val_mse": mean_val,
@@ -352,17 +377,21 @@ def main() -> int:
             trained_results.append(aggregated)
 
             val_str = f"{mean_val:.2e}±{std_val:.1e}" if mean_val else "N/A"
-            print(f"\r  {variant['name']:<28} {best_seed_result['n_params']:>8,} "
-                  f"{mean_mse:>10.2e} {val_str:>14} "
-                  f"{'—':>8} {best_seed_result['n_epochs']:>6} {best_seed_result['elapsed_s']:>5.0f}s")
+            print(
+                f"\r  {variant['name']:<28} {best_seed_result['n_params']:>8,} "
+                f"{mean_mse:>10.2e} {val_str:>14} "
+                f"{'—':>8} {best_seed_result['n_epochs']:>6} {best_seed_result['elapsed_s']:>5.0f}s"
+            )
 
     # ── Convergence warnings ──────────────────────────────────────────────
     completed_variants = [r for r in trained_results if r["stop_reason"] == "completed"]
     if completed_variants:
         names = [r["name"] for r in completed_variants]
-        print(f"\n  ⚠️  {len(completed_variants)} variant(s) hit max epochs without convergence: "
-              f"{', '.join(names)}")
-        print(f"      Consider increasing --epochs or adding more training data.")
+        print(
+            f"\n  ⚠️  {len(completed_variants)} variant(s) hit max epochs without convergence: "
+            f"{', '.join(names)}"
+        )
+        print("      Consider increasing --epochs or adding more training data.")
 
     # Combine results (zoo + trained)
     all_results_for_json = results + [
@@ -375,7 +404,9 @@ def main() -> int:
     if scoreable:
         best = min(scoreable, key=lambda r: r["val_mse"])
         baseline_result = next((r for r in trained_results if r["name"] == "baseline"), None)
-        baseline_mse = baseline_result["val_mse"] if baseline_result and baseline_result["val_mse"] else None
+        baseline_mse = (
+            baseline_result["val_mse"] if baseline_result and baseline_result["val_mse"] else None
+        )
 
         print(f"\n  Best variant: {best['name']}")
         print(f"  Best val_MSE: {best['val_mse']:.2e}")
@@ -391,11 +422,16 @@ def main() -> int:
 
     # ── Register best if requested ────────────────────────────────────────
     if args.register_best and trained_results:
-        best_trained = min(trained_results, key=lambda r: r["val_mse"] if r["val_mse"] else float("inf"))
+        best_trained = min(
+            trained_results, key=lambda r: r["val_mse"] if r["val_mse"] else float("inf")
+        )
         if best_trained.get("model") is not None:
             from qmbp_simulation.predictors.model_zoo import (
-                ZooEntry, register_checkpoint_with_training_metrics, _load_manifest,
+                ZooEntry,
+                _load_manifest,
+                register_checkpoint_with_training_metrics,
             )
+
             variant_cfg = next(v for v in VARIANTS if v["name"] == best_trained["name"])
             arch_parts = []
             if variant_cfg["use_residual"]:
@@ -406,22 +442,22 @@ def main() -> int:
                 arch_parts.append("film")
             arch_label = "+".join(arch_parts) if arch_parts else "baseline"
 
-            ckpt_name = (f"unified_tfim_br_{args.topology if not args.multi_topology else 'multi_topology'}"
-                        f"_multiN_ablation_{arch_label}_p1.pt")
+            ckpt_name = (
+                f"unified_tfim_br_{args.topology if not args.multi_topology else 'multi_topology'}"
+                f"_multiN_ablation_{arch_label}_p1.pt"
+            )
 
             # ── Pre-flight: check if existing model would be overwritten ──
-            existing_entries = [
-                e for e in _load_manifest()
-                if e.checkpoint_file == ckpt_name
-            ]
+            existing_entries = [e for e in _load_manifest() if e.checkpoint_file == ckpt_name]
             if existing_entries:
                 existing = existing_entries[0]
                 print(f"\n  Pre-flight: existing model found ({ckpt_name[:50]}...)")
-                print(f"    Existing: pass_rate={existing.pass_rate:.2f}, "
-                      f"pts={existing.n_training_points}")
-                print(f"    New:      val_MSE={best_trained['val_mse']:.2e}, "
-                      f"pts={len(dataset)}")
-                print(f"    Anti-regression: old model auto-backed up to _versions/ + _best/")
+                print(
+                    f"    Existing: pass_rate={existing.pass_rate:.2f}, "
+                    f"pts={existing.n_training_points}"
+                )
+                print(f"    New:      val_MSE={best_trained['val_mse']:.2e}, pts={len(dataset)}")
+                print("    Anti-regression: old model auto-backed up to _versions/ + _best/")
 
             entry = ZooEntry(
                 model="tfim_bond_resolved",
@@ -433,12 +469,15 @@ def main() -> int:
                 pass_rate=0.0,
                 n_training_points=len(dataset),
                 seeds=[args.seed],
-                created=datetime.now(timezone.utc).isoformat(),
-                notes=(f"Ablation best ({arch_label}): MSE={best_trained['final_mse']:.2e}, "
-                       f"val={best_trained['val_mse']:.2e}"),
+                created=datetime.now(UTC).isoformat(),
+                notes=(
+                    f"Ablation best ({arch_label}): MSE={best_trained['final_mse']:.2e}, "
+                    f"val={best_trained['val_mse']:.2e}"
+                ),
             )
             register_checkpoint_with_training_metrics(
-                best_trained["model"], entry,
+                best_trained["model"],
+                entry,
                 training_result=best_trained,
                 overwrite=True,
                 architecture_config={
@@ -455,11 +494,11 @@ def main() -> int:
     # ── Save results ──────────────────────────────────────────────────────
     output_dir = ROOT / "results" / "arch_ablation"
     output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     output_file = output_dir / f"ablation_{args.topology}_{timestamp}.json"
 
     report = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "topology": "multi_topology" if args.multi_topology else args.topology,
         "multi_topology_mode": args.multi_topology,
         "max_n": args.max_n,
@@ -488,15 +527,21 @@ def main() -> int:
         cmd = [
             sys.executable,
             str(ROOT / "scripts/experiment_runners/cross_topology/run_model_comparison.py"),
-            "--topology", topo_for_compare,
-            "--target-n", "20",
+            "--topology",
+            topo_for_compare,
+            "--target-n",
+            "20",
             "--auto-detect",
             "--promote-best",
-            "--h-points", "6",
+            "--h-points",
+            "6",
         ]
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=300,
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
                 cwd=str(ROOT),
             )
             # Show key results

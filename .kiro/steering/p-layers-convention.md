@@ -41,8 +41,8 @@ mt = MultiTopologyAggregator(p_layers=2)
 backend = self.get_cached_backend(topology=topo, n_qubits=N, model="tfim", p_layers=2)
 
 # Zoo query — filters by p_layers
-from qmbp_simulation.predictors.model_zoo import load_best_model_for_topology
-model, entry, source = load_best_model_for_topology("chain_1d", p_layers=2)
+from qmbp_simulation.predictors.model_zoo import load_best_model_for
+model, entry, source = load_best_model_for("chain_1d", p_layers=2)
 
 # ResultIndex — query by p_layers
 idx = ResultIndex()

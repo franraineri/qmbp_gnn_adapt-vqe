@@ -135,7 +135,7 @@ maintain-all-fix:  ## Run ALL general_project_maintenance scripts with --fix whe
 	@echo "\n── cleanup_repo.py --execute ──"
 	$(PYTHON) scripts/general_project_maintenance/cleanup_repo.py --execute || true
 	@echo "\n── trim_overdocumented.py ──"
-	$(PYTHON) scripts/general_project_maintenance/trim_overdocumented.py || true
+	$(PYTHON) scripts/general_project_maintenance/trim_overdocumented.py --apply || true
 	@echo "\n── md_index.py ──"
 	$(PYTHON) scripts/general_project_maintenance/md_index.py || true
 	@.venv/bin/vulture src/qmbp_simulation vulture_whitelist.py --min-confidence 80 --exclude "_deprecated,.venv" || true

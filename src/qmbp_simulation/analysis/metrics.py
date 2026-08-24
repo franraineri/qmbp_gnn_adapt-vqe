@@ -1170,12 +1170,18 @@ def compute_h_frontier(
     # Scan from low-h (typically failing) to high-h (typically passing)
     for i in range(len(h_sorted) - 1):
         if not passes[i] and passes[i + 1]:
-            # Linear interpolation using de_gap values for smooth frontier
             h0, h1 = float(h_sorted[i]), float(h_sorted[i + 1])
+            # Interpolate using de_gap if de_gap drives the transition
             dg0, dg1 = float(dg_sorted[i]), float(dg_sorted[i + 1])
-            if abs(dg0 - dg1) < 1e-12:
+            if dg0 >= threshold and dg1 < threshold:
+                # de_gap transition: use standard linear interpolation
+                if abs(dg0 - dg1) < 1e-12:
+                    return (h0 + h1) / 2
+                return h0 + (threshold - dg0) / (dg1 - dg0) * (h1 - h0)
+            else:
+                # abs_error drives the transition: use midpoint
+                # (can't interpolate meaningfully on a different metric)
                 return (h0 + h1) / 2
-            return h0 + (threshold - dg0) / (dg1 - dg0) * (h1 - h0)
 
     # No crossing found
     if np.all(passes):
@@ -1221,7 +1227,11 @@ def compute_h_frontier_from_npz(
 
     if "de_gaps" in data:
         de_gaps = data["de_gaps"]
-        abs_err = np.abs(data["e_vqe"] - data["e_exact"]) if ("e_vqe" in data and "e_exact" in data) else None
+        abs_err = (
+            np.abs(data["e_vqe"] - data["e_exact"])
+            if ("e_vqe" in data and "e_exact" in data)
+            else None
+        )
     elif "e_vqe" in data and "e_exact" in data and "gaps" in data:
         abs_err = np.abs(data["e_vqe"] - data["e_exact"])
         gaps = np.maximum(data["gaps"], 1e-10)
@@ -2740,10 +2750,14 @@ def validate_gt_npz_coherence(
 
     if not npz_dirs_to_check:
         return {
-            "n_files_checked": 0, "n_files_with_issues": 0,
-            "n_points_checked": 0, "n_points_mismatched": 0,
-            "n_points_not_in_gt": 0, "n_points_fixed": 0,
-            "max_delta": 0.0, "issues": [],
+            "n_files_checked": 0,
+            "n_files_with_issues": 0,
+            "n_points_checked": 0,
+            "n_points_mismatched": 0,
+            "n_points_not_in_gt": 0,
+            "n_points_fixed": 0,
+            "max_delta": 0.0,
+            "issues": [],
             "summary": "No NPZ directories found.",
         }
 
@@ -2810,7 +2824,9 @@ def validate_gt_npz_coherence(
                 # Compute impact on metrics
                 affected_pass_rate_delta = 0.0
                 if "gaps" in data and corrections:
-                    e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                    e_key = (
+                        "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                    )
                     if e_key:
                         e_vqe = data[e_key]
                         gaps = data["gaps"]
@@ -2852,7 +2868,9 @@ def validate_gt_npz_coherence(
 
                     # Also recompute de_gaps if present
                     e_key = (
-                        "e_vqe" if "e_vqe" in arrays else ("energies" if "energies" in arrays else None)
+                        "e_vqe"
+                        if "e_vqe" in arrays
+                        else ("energies" if "energies" in arrays else None)
                     )
                     if e_key and "gaps" in arrays:
                         new_de_gaps = np.abs(arrays[e_key] - new_e_exact) / np.maximum(
@@ -3334,8 +3352,7 @@ def check_p2_regression_vs_p1(
 
         manifest = _load_manifest()
         p1_entries = [
-            e for e in manifest
-            if e.topology == topology and e.p_layers == 1 and e.is_multi_n
+            e for e in manifest if e.topology == topology and e.p_layers == 1 and e.is_multi_n
         ]
         if p1_entries:
             p1_pass_rate = max(e.pass_rate for e in p1_entries)
@@ -3644,6 +3661,7 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
                 archive_dir = _CHECKPOINTS_DIR / "_archive"
                 archive_dir.mkdir(parents=True, exist_ok=True)
                 import shutil
+
                 for orphan_name in orphans:
                     src = _CHECKPOINTS_DIR / orphan_name
                     dst = archive_dir / orphan_name
@@ -3706,6 +3724,28 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
     except Exception as e:
         results["steps_failed"].append(f"tier3_validations: {e}")
         _log(f"  ❌ Tier 3 failed: {e}")
+
+    # ── DQPT trajectory inventory (lightweight scan for status report) ───
+    try:
+        dqpt_dir = _ROOT / "data" / "dqpt_trajectories"
+        if dqpt_dir.exists():
+            dqpt_files = list(dqpt_dir.glob("*.npz"))
+            # Group by topology
+            dqpt_by_topo: dict[str, int] = {}
+            for f in dqpt_files:
+                topo_part = f.stem.rsplit("_N", 1)[0] if "_N" in f.stem else f.stem
+                dqpt_by_topo[topo_part] = dqpt_by_topo.get(topo_part, 0) + 1
+            results["dqpt_trajectories"] = {
+                "n_files": len(dqpt_files),
+                "by_topology": dqpt_by_topo,
+            }
+            if dqpt_files:
+                _log(
+                    f"  📊 DQPT trajectories: {len(dqpt_files)} files "
+                    f"({', '.join(f'{t}:{n}' for t, n in sorted(dqpt_by_topo.items()))})"
+                )
+    except Exception:
+        pass  # Non-critical
 
     if verbose:
         print(f"\n  [sync] Done: {n_ok} completed, {n_fail} failed")
@@ -4128,13 +4168,15 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                         # Check if it's a valid checkpoint file
                         ckpt_path = _ROOT / "data" / "model_zoo" / "checkpoints" / ckpt
                         if not ckpt_path.exists() and grade in ("A", "B"):
-                            scoreboard_issues.append({
-                                "topology": topo,
-                                "n_qubits": n,
-                                "issue": f"Scoreboard best (grade={grade}, ΔE/gap={de_gap:.4f}) "
-                                         f"uses checkpoint '{ckpt}' not found in zoo or on disk",
-                                "severity": "warning",
-                            })
+                            scoreboard_issues.append(
+                                {
+                                    "topology": topo,
+                                    "n_qubits": n,
+                                    "issue": f"Scoreboard best (grade={grade}, ΔE/gap={de_gap:.4f}) "
+                                    f"uses checkpoint '{ckpt}' not found in zoo or on disk",
+                                    "severity": "warning",
+                                }
+                            )
 
             if scoreboard_issues and verbose:
                 print(f"\n  Scoreboard cross-check: {len(scoreboard_issues)} issue(s)")
@@ -5093,8 +5135,7 @@ def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
 
             # Remove entries whose file is now "useful" in dashboard
             new_excluded = [
-                entry for entry in excluded
-                if entry.get("file", "") not in useful_files
+                entry for entry in excluded if entry.get("file", "") not in useful_files
             ]
             n_removed = original_count - len(new_excluded)
 
@@ -5127,7 +5168,9 @@ def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
             import subprocess
             import sys
 
-            scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
+            scoreboard_script = (
+                _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
+            )
             if scoreboard_script.exists():
                 subprocess.run(
                     [sys.executable, str(scoreboard_script), "--json"],

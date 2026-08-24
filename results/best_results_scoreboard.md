@@ -1,8 +1,8 @@
 # Best Results Scoreboard
 
-**Updated**: 2026-08-24 05:20 UTC
+**Updated**: 2026-08-24 14:47 UTC
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
-**Reports scanned**: 291
+**Reports scanned**: 299
 **Criterion**: Best ΔE/gap achieved at h≈2.5 per (topology × N)
 
 > This report shows the **best single-point result ever achieved** at h≈2.5 for each
@@ -71,7 +71,7 @@
 | 32 | 1.9998 | 1.7715 | 1.1289 | F | MT | data/model_zoo/checkpoints/unified_tf... | 2026-08-24 | `eval_heavy_hex_MT_20260824_005323.md` |
 | 40 | 0.1416 | 0.1284 | 1.1025 | C | ST | unified_tfim_br_heavy_hex_multiN_4+6+... | 2026-08-17 | `eval_heavy_hex_20260817_164925.md` |
 | 50 | 0.1741 | 0.1609 | 1.0816 | C | ST | unified_tfim_br_heavy_hex_multiN_4+6+... | 2026-08-24 | `eval_heavy_hex_20260824_045946.md` |
-| 60 | 5.9593 | 5.5811 | 1.0678 | F | ST | unified_tfim_br_heavy_hex_multiN_4+6+... | 2026-08-24 | `eval_heavy_hex_20260824_045946.md` |
+| 60 | 0.2739 | 0.2565 | 1.0678 | C | ST | data/model_zoo/checkpoints/unified_mu... | 2026-08-24 | `eval_heavy_hex_20260824_055819.md` |
 
 
 ## ladder

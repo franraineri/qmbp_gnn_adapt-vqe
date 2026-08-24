@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-08-24 02:23
+**Last updated**: 2026-08-24 11:48
 **Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
 **Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -44,8 +44,8 @@
 | heavy_hex | 8 | 6 | 0.031 | 2.33e-02 | C |
 | heavy_hex | 10 | 17 | 0.011 | 6.52e-03 | A |
 | heavy_hex | 14 | 14 | 0.020 | 7.96e-03 | A |
-| heavy_hex | 16 | 6 | 0.106 | 3.74e-02 | F |
-| heavy_hex | 20 | 60 | 0.207 | 1.06e-02 | F |
+| heavy_hex | 16 | 6 | 0.032 | 9.23e-03 | B |
+| heavy_hex | 20 | 60 | 0.207 | 1.05e-02 | F |
 | heavy_hex | 21 | 14 | 0.341 | 4.44e-02 | F |
 | heavy_hex | 22 | 10 | 0.201 | 1.80e-02 | F |
 | heavy_hex | 24 | 14 | 0.090 | 8.22e-03 | D |
@@ -53,8 +53,8 @@
 | heavy_hex | 30 | 45 | 0.366 | 1.08e-02 | F |
 | heavy_hex | 32 | 10 | 0.384 | 2.02e-02 | F |
 | heavy_hex | 40 | 33 | 0.201 | 1.45e-02 | F |
-| heavy_hex | 50 | 6 | 0.509 | 4.03e-02 | F |
-| heavy_hex | 60 | 6 | 1.900 | 6.97e-02 | F |
+| heavy_hex | 50 | 6 | 0.286 | 1.84e-02 | F |
+| heavy_hex | 60 | 6 | 0.547 | 3.25e-02 | F |
 | ladder | 16 | 6 | 0.078 | 1.40e-02 | D |
 | ladder | 20 | 24 | 0.259 | 7.24e-03 | F |
 | ladder | 26 | 14 | 0.517 | 8.95e-03 | F |

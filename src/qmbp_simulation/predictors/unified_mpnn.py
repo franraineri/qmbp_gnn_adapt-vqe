@@ -34,7 +34,6 @@ from torch_geometric.data import Data
 from torch_geometric.nn import GINConv
 
 from qmbp_simulation.predictors.unified_graph import (
-    NODE_TYPE_GLOBAL,
     NODE_TYPE_QUBIT,
     NODE_TYPE_RX_GATE,
     NODE_TYPE_ZZ_GATE,
@@ -396,6 +395,7 @@ def train_unified_mpnn(
     physics_loss_weight: float = 0.0,
     physics_loss_start_epoch: int = 500,
     physics_loss_eval_every: int = 100,
+    loss_type: str = "theta_mse",
 ) -> dict:
     """Train the UnifiedMPNN with per-edge/per-node MSE loss.
 
@@ -453,6 +453,14 @@ def train_unified_mpnn(
     physics_loss_eval_every : int
         How often to evaluate energy loss (default 100 epochs). Each evaluation
         runs forward pass on a subset of training points — cheap if using cached backend.
+    loss_type : str
+        Loss function type:
+        - ``"theta_mse"`` (default): standard MSE(θ_pred, θ_target), weighted by
+          sample_weight (quality tier). The baseline approach.
+        - ``"energy_weighted"``: MSE(θ_pred, θ_target) weighted by
+          1/(1 + de_gap), where de_gap = |E_vqe - E_exact|/gap. Points with
+          low energy error (good θ) contribute more to the loss. Requires
+          graphs to have ``de_gap`` attribute (set by MultiNAggregator).
 
     Returns
     -------
@@ -461,6 +469,9 @@ def train_unified_mpnn(
     import torch.nn.functional as F
 
     # ── Input validation ────────────────────────────────────────────────────
+    _VALID_LOSS_TYPES = ("theta_mse", "energy_weighted")
+    if loss_type not in _VALID_LOSS_TYPES:
+        raise ValueError(f"loss_type must be one of {_VALID_LOSS_TYPES}, got '{loss_type}'.")
     if not isinstance(model, UnifiedMPNN):
         raise TypeError(
             f"Expected UnifiedMPNN, got {type(model).__name__}. "
@@ -641,6 +652,22 @@ def train_unified_mpnn(
                     )
                     w = max(SAMPLE_WEIGHT_MIN, min(SAMPLE_WEIGHT_MAX, w))
                 loss = loss * w
+
+            # ── Energy-weighted loss: boost samples with low energy error ─
+            # Points where VQE found good θ (low |ΔE|/gap) are more reliable
+            # training targets. Weight by 1/(1 + de_gap) so:
+            #   de_gap=0.01 → weight=0.99 (excellent point, full contribution)
+            #   de_gap=0.05 → weight=0.95 (pass threshold, still high weight)
+            #   de_gap=0.50 → weight=0.67 (mediocre, reduced contribution)
+            #   de_gap=2.00 → weight=0.33 (poor, heavily downweighted)
+            if (
+                loss_type == "energy_weighted"
+                and hasattr(data, "de_gap")
+                and data.de_gap is not None
+            ):
+                de_gap_val = data.de_gap.item()
+                energy_w = 1.0 / (1.0 + de_gap_val)
+                loss = loss * energy_w
 
             # Guard: skip NaN/Inf losses (can occur with bad θ_opt data)
             if not torch.isfinite(loss):
@@ -871,6 +898,7 @@ def train_unified_mpnn(
         "stopped_early": stop_reason != "completed",
         "stop_reason": stop_reason,
         "weight_distribution": non_zero,
+        "loss_type": loss_type,
     }
 
 
@@ -889,6 +917,7 @@ def fine_tune_unified_mpnn(
     mse_floor: float = 1e-5,
     freeze_early_layers: bool = True,
     layerwise_decay: float = 0.1,
+    loss_type: str = "theta_mse",
 ) -> dict:
     """Fine-tune an existing UnifiedMPNN on an updated dataset.
 
@@ -989,6 +1018,7 @@ def fine_tune_unified_mpnn(
         val_fraction=val_fraction,
         mse_floor=mse_floor,
         _layerwise_lr=_lw_lr,
+        loss_type=loss_type,
     )
 
     # Enrich result with fine-tuning diagnostics

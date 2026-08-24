@@ -115,7 +115,6 @@ Per-experiment thresholds live in `EXPERIMENT_CRITERIA` (same module).
 
 ## Diagnostic Tools
 
-For full tool reference with all flags, see #[[file:.kiro/steering/analysis-tooling.md]].
 
 Quick commands for result interpretation:
 ```bash
@@ -244,4 +243,3 @@ python -m project_health.analysis.mpnn_eval_analyzer --json report.json
 
 - JSON field reference: #[[file:.kiro/knowledge/result-schemas.md]]
 - Known error patterns: #[[file:.kiro/knowledge/error-patterns.md]]
-- Tool invocation reference: #[[file:.kiro/steering/analysis-tooling.md]]

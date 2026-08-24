@@ -82,11 +82,24 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--film", action="store_true", help="Enable FiLM conditioning by h (P4)")
     parser.add_argument(
+        "--loss-type",
+        choices=["theta_mse", "energy_weighted"],
+        default="theta_mse",
+        help="Loss function (default: theta_mse)",
+    )
+    parser.add_argument(
         "--curriculum",
         action="store_true",
         help="Curriculum training: first high-quality topos, then fine-tune all",
     )
     parser.add_argument("--dry-run", action="store_true", help="Only aggregate, don't train")
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default=None,
+        help="Custom model name suffix. Checkpoint will be saved as "
+        "unifMPNN__<topology>_p<N>_<model-name>.pt (e.g., --model-name bipartite_v1)",
+    )
     parser.add_argument(
         "--register-zoo",
         action="store_true",
@@ -361,6 +374,7 @@ def main() -> int:
                 weight_decay=1e-4,
                 val_fraction=0.15,
                 mse_floor=args.mse_floor,
+                loss_type=args.loss_type,
             )
             print(
                 f"    Phase A done: MSE={result_a['final_mse']:.2e}, val={result_a['val_mse']:.2e}"
@@ -401,6 +415,7 @@ def main() -> int:
                 weight_decay=1e-4,
                 val_fraction=0.15,
                 mse_floor=args.mse_floor,
+                loss_type=args.loss_type,
             )
     else:
         try:
@@ -414,6 +429,7 @@ def main() -> int:
                 weight_decay=1e-4,
                 val_fraction=0.15,
                 mse_floor=args.mse_floor,
+                loss_type=args.loss_type,
             )
         except KeyboardInterrupt:
             _training_interrupted = True
@@ -482,7 +498,10 @@ def main() -> int:
     # Save JSON envelope FIRST (even if registration fails, we have the record)
     _run_json_path = ""
     try:
-        from qmbp_simulation.framework.result_io import build_result_envelope, save_experiment_result
+        from qmbp_simulation.framework.result_io import (
+            build_result_envelope,
+            save_experiment_result,
+        )
 
         envelope = build_result_envelope(
             config={
@@ -548,7 +567,10 @@ def main() -> int:
 
         topo_str = "+".join(sorted(topo_dist.keys()))
         arch_suffix = f"_{arch_label}" if arch_label != "baseline" else ""
-        checkpoint_file = f"unified_tfim_br_MT{arch_suffix}_p{args.p_layers}.pt"
+        if args.model_name:
+            checkpoint_file = f"unifMPNN__MT_p{args.p_layers}_{args.model_name}.pt"
+        else:
+            checkpoint_file = f"unified_tfim_br_MT{arch_suffix}_p{args.p_layers}.pt"
 
         # ── Safety: save to _recovery/ BEFORE registration attempt ───────
         # If registration crashes (guardrail, validation, etc.), model is preserved.

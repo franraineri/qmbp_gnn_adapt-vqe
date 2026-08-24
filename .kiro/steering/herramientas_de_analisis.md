@@ -35,9 +35,6 @@ cat results/best_results_scoreboard.md
 # JSON output (para programmatic access)
 .venv/bin/python scripts/maintenance/query_model_registry.py --json compare -t chain_1d
 
-# Guardar reporte markdown
-.venv/bin/python scripts/maintenance/query_model_registry.py compare --save
-
 # Desde Python (más flexible):
 .venv/bin/python -c "
 from qmbp_simulation.analysis.metrics import query_mt_vs_st_comparison

@@ -40,7 +40,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +20
 
 
-### qsim/analysis/ (25)
+### qsim/analysis/ (26)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +66
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
@@ -64,16 +64,18 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+48
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
+  observables                      F:half_chain_entropy,magnetization_z,magnetization_x+6
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
   theta_alignment            POST  C:AlignmentReport,OutlierReport,EnergyGuardReport | F:detect_jumps,align_theta_sweep,align_theta_array+3
   theta_validator            VAL   C:BoundCheckResult,NumericalSanityResult,InterpolationResult+6
   vqe_validator              VAL   C:Severity,ValidationIssue,VQEValidationReport+1
 
-### qsim/circuits/ (2)
+### qsim/circuits/ (3)
   ↳ HVACircuitBuilder AQCCircuitCompressor AQCCompressionConfig AQCCompressionResult CompressionValidation AQCCompressionCache
 
   aqc_compression            CIRC  C:AQCCompressionConfig,AQCCompressionResult,CompressionValidation+2
   hva                        MODEL C:HVACircuitBuilder | F:do_checks
+  trotter                    CIRC  F:build_trotter_step,build_trotter_step_from_topology
 
 ### qsim/execution/hardware/ (10)
   ↳ HardwareBackend HardwareConfig HardwareRunResult SPSAConfig MAPOMATIC_AVAILABLE LayoutOptimizationResult build_filtered_coupling_map compute_layout_fidelity_cost +8
@@ -151,11 +153,11 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
 ### qsim/predictors/ (9)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +63
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +64
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,load_best_model_for_topology+20
+  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,load_best_model_for+20
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
@@ -163,16 +165,18 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
   unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+4
 
-### qsim/solvers/ (2)
+### qsim/solvers/ (4)
   ↳ ClassicalSolver
 
+  _sse_kernels                     F:diagonal_update,cluster_update_tfim,build_vertex_list+5
   classical                  SOLVE C:ClassicalSolver
   ground_truth_cache         CACHE C:GroundTruthCache
+  sse                        SOLVE C:SSEConfig,SSESolver
 
 ### qsim/utils/ (1)
   ↳ BatchWriteMixin TimerResult atomic_savez augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize +3
 
-  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,json_serialize,json_dump+12
+  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,json_serialize,json_dump+13
 
 ## Project Health (project_health/)
 
@@ -212,7 +216,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   thesis_figures             VIS   C:FigureConfig | F:register_thesis_figure,fig_global_de_gap_distribution,fig_scaling_law_comprehensive+20
   thesis_tables_compiler           C:TableSpec,TablesReport | F:register_table,compile_tables,parse_args+1
 
-### ph/analysis/validation/ (6)
+### ph/analysis/validation/ (7)
 
   affine_overshoot_auditor   VAL   F:scan_experiment_file,main
   audit_findings             VAL   F:audit_f2_pea_zne,audit_f3_scaling_law,audit_f4_gnn_qem+27
@@ -220,12 +224,12 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   sanity_check               VAL   C:CheckResult,SanityReport | F:register_check,check_theta_trajectories_exist,check_pca_results_exist+16
   thesis_findings_validator  VAL   C:EvidenceStrength,StatisticalEvidence,FindingValidation+1 | F:register_finding,run_validation,parse_args+1
   verify_results             PIPE  C:VerificationResult,GroupConclusion,VerificationReport | F:parse_pass_criteria,evaluate_criteria,classify_de_gap+5
+  verify_thesis_runs               F:check_run,main
 
-### ph/analysis/ (6)
+### ph/analysis/ (5)
 
   accelerated_cross_n_analyzer PIPE  C:CrossNAnalysis,AcceleratedReport,LargeNResult | F:scan_results,analyze_cross_n_result,format_report+5
   diagnose                   PRED  C:RootCause,DeploymentPoint,Diagnosis | F:parse_pipeline_run,classify_root_causes,scan_folder+3
-  gnn_qem_analyzer           PRED  
   noiseless_model_comparison CORE  C:PerHPoint,SectionMetrics,RunResult+4 | F:parse_markdown_report,build_model_summaries,build_topology_summaries+8
   noiseless_pipeline_analyzer PIPE  C:NoiselessRunSummary,TopologyComparison,NoiselessReport | F:scan_noiseless_results,parse_run,detect_anomalies+6
   statistical_tests          TEST  F:paired_ttest,improvement_rate,effect_size_cohens_d+4
@@ -286,10 +290,15 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
 ### Standalone scripts
 
+  run_pea_cross_topology_dense VAL   C:PEACrossTopologyDenseRunner
+  run_pea_full_pipeline      VAL   C:PEAFullPipelineRunner
+  run_pea_hardware_readiness       C:PEAHardwareReadinessRunner
+  run_pea_scaling_n40        VAL   C:PEAScalingRunner
   run_accelerated_cross_n    PRED  C:AcceleratedCrossNRunner
   run_bond_resolved_validation VAL   C:BondResolvedValidationRunner
   run_n16_square_dmrg2d      CIRC  C:N16SquareDMRG2DRunner
   run_scaling_extensions     ANAL  C:ScalingExtensionsRunner | F:analytical_theta_x
+  run_noisy_pipeline         EXEC  F:parse_args,main
   gen_qem_v2_data_ladder     PRED  F:main
   gen_qem_v2_data_ladder_n10 PRED  F:main
   run_gnn_qem_ablation_no_enoisy PRED  C:MLPContextOnly | F:augment,zero_out_enoisy_in_dataset,evaluate_model+3
@@ -301,13 +310,11 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   benchmark_configs          BENCH C:BenchmarkConfig
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
   run_hardware_mitigation_flow       F:log_step,run_command,check_credentials+10
+  run_hardware_rehearsal_v2        C:HardwareRehearsalV2
+  run_hardware_rehearsal_v3  PRED  C:HardwareRehearsalV3
   run_ibm_deployment               C:TierMetrics | F:check_credentials,load_sigma_flow_from_rehearsal,build_hardware_config+10
   run_mitigation_benchmark   BENCH F:append_to_manifest,compute_derived_circuit_stats,apply_affine_on_raw+7
   run_parametric_deployment  CORE  C:DeploymentConfig,ParametricDeployment | F:build_parser,main
-  run_pea_cross_topology_dense VAL   C:PEACrossTopologyDenseRunner
-  run_pea_full_pipeline      VAL   C:PEAFullPipelineRunner
-  run_pea_hardware_readiness       C:PEAHardwareReadinessRunner
-  run_pea_scaling_n40        VAL   C:PEAScalingRunner
   run_noiseless_cross_n      PRED  C:NoiselessCrossNRunner
   run_noiseless_pipeline     PIPE  C:NoiselessPipelineRunner
   run_cross_n_warmstart_eval       C:CrossNWarmstartEvalRunner
@@ -327,17 +334,29 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
 ### Standalone scripts
 
+  compute_h_frontier               F:parse_args,interpolate_frontier,main
+  compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4
+  compute_h_frontier_models        F:compute_frontier
+  compute_h_frontier_topologies DIAG  F:compute_frontier
+  noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
+  quick_noisy_comparison     EXEC  F:run_comparison,main
+  benchmark_vqezy            VAL   F:parse_args,find_vqezy_dataset,main
+  validate_vqezy_robustness  VAL   F:build_lattice_and_circuit,load_training_data,evaluate_mpnn_on_vqezy+4
   _test_dmrg_2d_heavy_hex    TEST  C:HeavyHexTFIM | F:run_dmrg_2d
   _test_dmrg_chi_convergence_large_n TEST  K:ROOT
   _test_dmrg_exact           TEST  K:ROOT
   _test_dmrg_vs_vqe_scaling  TEST  F:run_vqe_best,main
   _test_vqe_expressibility   TEST  K:ROOT,N
+  active_learning_advisor          C:Recommendation,CoverageReport | F:analyze_coverage,generate_recommendations,print_coverage+3
+  amortization_plot          VIS   F:estimate_dmrg_cost_per_point,get_zoo_training_info,measure_mpnn_training_time_estimate+2
   analyze_all_phase3         PRED  F:h_min_scaling_law,parse_args,load_phase3_result+8
   analyze_extrapolation_runs ANAL  F:parse_args,load_and_filter_runs,extract_metrics+2
+  backfill_gt_timing         CACHE F:main
   benchmark_vqezy            VAL   F:parse_args,find_vqezy_dataset,main
   campaign_extractor         CORE  F:find_latest_result,extract_a1_qpu_scaling,extract_a5_mps_precision+3
   check_delta_e_by_topo_p    DIAG  F:extract_deploy_points,get_config,main
   check_matrix_gaps                F:parse_args,main
+  circuit_cost_check         CIRC  C:CircuitCostResult | F:compute_circuit_cost,print_cost_report,save_report+1
   compare_ablation_runs      ANAL  F:parse_args,load_runs,format_table+1
   compile_multiseed_report   ANAL  F:extract_metrics,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
@@ -345,6 +364,8 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   compute_h_frontier_models        F:compute_frontier
   compute_h_frontier_topologies DIAG  F:compute_frontier
   dmrg_vs_exact_comparison   SOLVE F:run_comparison,main
+  dqpt_fidelity_threshold    ANAL  C:FidelityScanResult,FidelityThresholdReport | F:compute_ground_and_excited,construct_approximate_state,evolve_and_measure_dqpt+4
+  evaluate_gnn_fidelity      PRED  C:FidelityResult,FidelityReport | F:evaluate_direct_fidelity,evaluate_energy_bound,run_fidelity_evaluation+3
   evaluate_zoo_models              F:parse_args,evaluate_model,format_markdown_report+1
   extract_delta_e_fidelity   CORE  C:PointMetrics,RunSummary | F:extract_from_run,scan_all_runs,scan_cross_n+2
   extract_theta_trajectories PIPE  F:extract_trajectory,scan_results,scan_scaling_results+2
@@ -352,14 +373,17 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   pipeline_summary           PIPE  F:parse_args,load_latest_ablation,load_model_comparisons+7
   precision_frontier_study         F:run_study,main
+  qpt_detection                    F:load_energy_curves,get_h_critical,compute_second_derivative+4
   quick_noisy_comparison     EXEC  F:run_comparison,main
   reanalyze_p2_filtered      ANAL  
   regenerate_eval_reports    ANAL  F:parse_args,load_npz_as_per_h_results,load_baseline_summary+3
   theta_derivative_analysis  ANAL  F:load_d1_gradients,compute_theta_derivative,compute_correlation+3
   theta_pca_phase_detection  ANAL  F:load_trajectories,analyze_trajectory,generate_figure+3
+  validate_dqpt_results      VAL   C:DQPTTrajectory,ValidationCheck,DQPTValidationReport+1 | F:load_dqpt_trajectories,check_analytical_t_star,check_periodicity+10
   validate_vqezy_robustness  VAL   F:build_lattice_and_circuit,load_training_data,evaluate_mpnn_on_vqezy+4
   verify_hva_periodicity     CIRC  K:H
   verify_mt_vs_st            ANAL  F:main
+  walltime_comparison        PRED  F:extract_gt_timing,backfill_gt_timing,measure_mpnn_inference+4
   benchmark                  BENCH F:parse_args,main
   benchmark_pea_parallel     BENCH F:benchmark_measurement_only,benchmark_full_pea,main
   benchmark_pea_performance  BENCH F:benchmark_pea,main
@@ -370,6 +394,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   convert_qesem_to_hwresult        F:convert_qesem_recovered,main
   estimate_qesem_budget            F:build_test_circuit,main
   hardware                   CLI   F:cmd_cost,cmd_preflight,cmd_rehearsal+3
+  list_available_qpu_backends EXEC  
   preflight_hw                     F:ok,fail,warn
   print_ladder_circuit       IO    K:ROOT
   print_tier0_circuit        CIRC  K:ROOT
@@ -398,9 +423,10 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+5
   reevaluate_zoo_models            F:evaluate_npz_quality,main
   run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+7
-  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+19
+  update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+18
   update_project_status            F:main
   upgrade_npz_quality_tiers        F:compute_quality_tier_for_npz,upgrade_single_npz,main
+  validate_scoreboard        VAL   F:validate,main
 
 ## Notebooks
 
