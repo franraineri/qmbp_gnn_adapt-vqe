@@ -32336,5 +32336,43 @@
       "target_n": [],
       "notes": "auto-deflated from 71%"
     }
+  },
+  {
+    "timestamp": "2026-08-24T15:33:28.839439+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.8500000000000001,
+      "new_pass_rate": 0.1,
+      "delta": -0.7500000000000001,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-24T15:33:28.882135+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.1,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[14]"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T15:39:45.995379+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.75,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[10]"
+    }
   }
 ]

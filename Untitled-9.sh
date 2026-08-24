@@ -20,7 +20,7 @@ Runner:
 run_multi_topology_training.py
  Datos: 2474 graphs (después de filtro de calidad) de 5 topologías Arquitectura: residual + FiLM (la misma que dio los mejores resultados la vez anterior)
 
-.venv/bin/python scripts/experiment_runners/cross_topology/run_multi_topology_training.py --use-residual --film --curriculum --epochs 5000 --patience 300 --max-n 40 --max-de-gap 0.10 --hidden-dim 256 --n-layers 3 -v
+.venv/bin/python scripts/experiment_runners/cross_topology/run_multi_topology_training.py --use-residual --film --curriculum --epochs 5000 --patience 300 --max-n 40 --max-de-gap 0.10 --hidden-dim 256 --n-layers 3  
 Por qué estos parámetros:
 
 --curriculum: entrena primero en chain_1d + heavy_hex (mayor calidad), luego fine-tune en todas. Esto funcionó antes.
@@ -35,19 +35,19 @@ Runner: run_finetune_from_mt.py
 Una vez que el MT está entrenado, especializamos para cada topología:
 
 # Heavy_hex (la que mejor respondió al fine-tune antes)
-.venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topology heavy_hex --epochs 1000 --lr 3e-4 --max-n 40 -v
+.venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topology heavy_hex --epochs 1000 --lr 3e-4 --max-n 40  
 
 # Ladder
-.venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topology ladder --epochs 1000 --lr 3e-4 --max-n 30 -v
+.venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topology ladder --epochs 1000 --lr 3e-4 --max-n 30  
 
 # Square
-.venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topology square --epochs 1000 --lr 3e-4 --max-n 16 -v
+.venv/bin/python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topology square --epochs 1000 --lr 3e-4 --max-n 16  
 Output: unified_tfim_br_heavy_hex_fromMT_..._p1.pt, etc. (nuevos, sin pisar nada)
 
 Paso 3: Validación (model_comparison)
 # Evaluar MT vs ST vs fromMT en cada topología
 for topo in heavy_hex ladder square; do
-    .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py     --topology $topo --target-n 10 16 20 --auto-detect --promote-best -v
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py     --topology $topo --target-n 10 16 20 --auto-detect --promote-best  
 done
 Esto genera los eval reports que alimentan el scoreboard automáticamente.
 
@@ -93,7 +93,7 @@ done
 .venv/bin/python scripts/analysis/active_learning_advisor.py --topology heavy_hex --auto-report
 
 
-.venv/bin/python scripts/analysis/validate_dqpt_results.py --topology heavy_hex --save -v
+.venv/bin/python scripts/analysis/validate_dqpt_results.py --topology heavy_hex --save  
 
 
 .venv/bin/python scripts/analysis/qpt_detection.py --topology heavy_hex --compare --save
@@ -109,3 +109,17 @@ done
 
 
 .venv/bin/python scripts/analysis/evaluate_gnn_fidelity.py --topology heavy_hex --n-qubits 20 30 40 --from-extrapolation --save
+
+
+
+
+
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 10 --h-min 2.5 --h-max 5.0 --h-points 20 --p-layers 1  --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 12 --h-min 2.5 --h-max 5.0 --h-points 20 --p-layers 1   --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 14 --h-min 2.5 --h-max 5.0 --h-points 20 --p-layers 1    --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 16 --h-min 2.5 --h-max 5.0 --h-points 20 --p-layers 1     --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 18 --h-min 2.5 --h-max 5.0 --h-points 20 --p-layers 1     --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 20 --h-min 2.5 --h-max 5.0 --h-points 20 --p-layers 1     --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 24 --h-min 2.5 --h-max 5.0 --h-points 15 --p-layers 1     --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 26 --h-min 2.5 --h-max 5.0 --h-points 15 --p-layers 1     --refine-failing --vqe-maxiter 200 --skip-random-baseline 
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 30 --h-min 2.5 --h-max 5.0 --h-points 15 --p-layers 1     --refine-failing --vqe-maxiter 200 --skip-random-baseline 

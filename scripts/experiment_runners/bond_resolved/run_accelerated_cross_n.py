@@ -707,7 +707,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             topology=topo,
             n_qubits=0,  # 0 = multi-N
             p_layers=p,
-            checkpoint_file=f"unified_tfim_br_{topo}_multiN_{n_values_str}_p{p}.pt",
+            checkpoint_file=ckpt_file,
             h_range=(self._args.h_min, self._args.h_max),
             pass_rate=0.0,  # Updated after eval
             n_training_points=len(dataset),
@@ -1475,7 +1475,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     topology=topo,
                     n_qubits=0,
                     p_layers=p,
-                    checkpoint_file=f"unified_tfim_br_{topo}_multiN_{n_target}_p{p}.pt",
+                    checkpoint_file=(
+                        f"unifMPNN__{topo}_p{p}_{self._args.model_name}.pt"
+                        if getattr(self._args, "model_name", None)
+                        else f"unified_tfim_br_{topo}_multiN_{n_target}_p{p}.pt"
+                    ),
                     h_range=(self._args.h_min, self._args.h_max),
                     pass_rate=boot_result.pass_rate,
                     n_training_points=len(dataset),
@@ -2164,7 +2168,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         topology=topo,
                         n_qubits=0,
                         p_layers=p,
-                        checkpoint_file=f"unified_tfim_br_{topo}_multiN_{n_str}_p{p}.pt",
+                        checkpoint_file=(
+                            f"unifMPNN__{topo}_p{p}_{self._args.model_name}.pt"
+                            if getattr(self._args, "model_name", None)
+                            else f"unified_tfim_br_{topo}_multiN_{n_str}_p{p}.pt"
+                        ),
                         h_range=(self._args.h_min, self._args.h_max),
                         pass_rate=pass_rate,
                         n_training_points=len(dataset),

@@ -6017,6 +6017,15 @@
         "mean_de_gap": 0.0,
         "mean_abs_error_per_site": 0.0,
         "notes": "auto-deflated from 44%"
+      },
+      {
+        "evaluated_at": "2026-08-24T15:33:28.832636+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.1,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[14]"
       }
     ],
     "status": "active",
@@ -7617,6 +7626,15 @@
         "mean_de_gap": 29.591118395791113,
         "mean_abs_error_per_site": 0.007233832475577858,
         "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18"
+      },
+      {
+        "evaluated_at": "2026-08-24T15:39:45.983787+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.75,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[10]"
       }
     ],
     "status": "active",

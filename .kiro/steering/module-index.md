@@ -103,7 +103,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/framework/ (18)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
-  __main__                   CLI  
+  __main__                   CLI   
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -125,7 +125,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG  
+  constants                  CFG   
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -203,7 +203,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL  
+  gnn_qem_analyzer           VAL   
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (1)
@@ -306,9 +306,10 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  _sanity_check_envelope     IO  
+  _sanity_check_envelope     IO    
   benchmark_configs          BENCH C:BenchmarkConfig
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
+  run_gnn_warmstart_demo     VAL   C:GNNWarmstartDemoRunner
   run_hardware_mitigation_flow       F:log_step,run_command,check_credentials+10
   run_hardware_rehearsal_v2        C:HardwareRehearsalV2
   run_hardware_rehearsal_v3  PRED  C:HardwareRehearsalV3
@@ -349,6 +350,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   _test_vqe_expressibility   TEST  K:ROOT,N
   active_learning_advisor          C:Recommendation,CoverageReport | F:analyze_coverage,generate_recommendations,print_coverage+3
   amortization_plot          VIS   F:estimate_dmrg_cost_per_point,get_zoo_training_info,measure_mpnn_training_time_estimate+2
+  amortized_efficiency_paper PRED  F:panel_walltime_table,print_walltime_table,panel_amortization+9
   analyze_all_phase3         PRED  F:h_min_scaling_law,parse_args,load_phase3_result+8
   analyze_extrapolation_runs ANAL  F:parse_args,load_and_filter_runs,extract_metrics+2
   backfill_gt_timing         CACHE F:main
@@ -370,6 +372,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   extract_delta_e_fidelity   CORE  C:PointMetrics,RunSummary | F:extract_from_run,scan_all_runs,scan_cross_n+2
   extract_theta_trajectories PIPE  F:extract_trajectory,scan_results,scan_scaling_results+2
   generate_best_results_scoreboard DIAG  C:PerHResult,EvalEntry,BestResult | F:parse_eval_report,scan_all_reports,compute_best_per_topology_n+5
+  hardware_viability_assessment       F:assess_amortized_efficiency,assess_gnn_fidelity,assess_quench_directions+6
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   pipeline_summary           PIPE  F:parse_args,load_latest_ablation,load_model_comparisons+7
   precision_frontier_study         F:run_study,main

@@ -1,8 +1,8 @@
 # Best Results Scoreboard
 
-**Updated**: 2026-08-24 14:47 UTC
+**Updated**: 2026-08-24 17:54 UTC
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
-**Reports scanned**: 299
+**Reports scanned**: 308
 **Criterion**: Best ΔE/gap achieved at h≈2.5 per (topology × N)
 
 > This report shows the **best single-point result ever achieved** at h≈2.5 for each
@@ -50,7 +50,7 @@
 
 ## heavy_hex
 
-**h used**: varies (2.500 – 2.600)
+**h used**: varies (2.500 – 2.630)
 
 | N | |ΔE| | ΔE/gap | gap | Grade | Model | Checkpoint | Date | Source |
 |--:|-----:|-------:|----:|:-----:|:-----:|-----------|------|--------|
@@ -60,7 +60,8 @@
 | 10 | 0.0441 | 0.0150 | 2.9452 | A | ST | unified_tfim_br_heavy_hex_fromMT_4+6+... | 2026-08-20 | `eval_heavy_hex_20260820_141344.md` |
 | 12 | 0.2262 | 0.0733 | 3.0867 | C | MT | unified_tfim_br_MT_residual+film_p1.pt | 2026-08-21 | `eval_heavy_hex_MT_20260821_022124.md` |
 | 14 | 0.0928 | 0.0324 | 2.8645 | B | ST | data/model_zoo/checkpoints/unified_tf... | 2026-08-23 | `eval_heavy_hex_20260823_031107.md` |
-| 16 | 0.0580 | 0.0204 | 2.8412 | B | ST | unified_tfim_br_heavy_hex_fromMT_4+6+... | 2026-08-20 | `eval_heavy_hex_20260820_141430.md` |
+| 16 | 0.0501 | 0.0176 | 2.8412 | B | ST | unified_tfim_br_heavy_hex_multiN_4+6+... | 2026-08-24 | `eval_heavy_hex_20260824_160401.md` |
+| 18 | 1.5039 | 0.4556 | 3.3011 | F | ST | unified_tfim_br_heavy_hex_multiN_4+6+... | 2026-08-24 | `eval_heavy_hex_20260824_160900.md` |
 | 20 | 0.0705 | 0.0583 | 1.2099 | B | ST | unified_tfim_br_heavy_hex_multiN_4+6+... | 2026-08-17 | `eval_heavy_hex_20260817_164925.md` |
 | 21 | 1.1831 | 0.9864 | 1.1994 | F | ST | data/model_zoo/checkpoints/unified_mu... | 2026-08-23 | `eval_heavy_hex_20260823_031400.md` |
 | 22 | 1.0425 | 0.8760 | 1.1900 | F | MT | data/model_zoo/checkpoints/unified_tf... | 2026-08-24 | `eval_heavy_hex_MT_20260824_005323.md` |
