@@ -43,9 +43,48 @@ logger = logging.getLogger(__name__)
 NODE_TYPE_QUBIT = 0
 NODE_TYPE_ZZ_GATE = 1
 NODE_TYPE_RX_GATE = 2
+NODE_TYPE_GLOBAL = 3
 
-# Feature dimension (fixed for all node types)
-UNIFIED_NODE_FEATURES = 4  # [feat1, feat2, N/100, node_type]
+# Feature dimension (5 features: added bipartite coloring)
+UNIFIED_NODE_FEATURES = 5  # [feat1, feat2, N/100, node_type, coloring]
+
+
+def _compute_bipartite_coloring(lattice: "LatticeConfig") -> "np.ndarray":
+    """Compute bipartite 2-coloring of the lattice graph.
+
+    For bipartite graphs (chain_1d, ladder, heavy_hex, square), returns
+    a deterministic 0/1 coloring where adjacent nodes have different colors.
+    For non-bipartite graphs (triangular, kagome), returns a spectral
+    approximation: sign of the Fiedler vector.
+
+    The coloring is canonicalized so the majority color is 1.0.
+    """
+    import networkx as nx
+
+    N = lattice.n_qubits
+    if N == 0:
+        return np.array([])
+
+    G = nx.Graph()
+    G.add_nodes_from(range(N))
+    G.add_edges_from(lattice.edges)
+
+    if nx.is_bipartite(G):
+        coloring_dict = nx.bipartite.color(G)
+        coloring = np.array([float(coloring_dict.get(i, 0)) for i in range(N)])
+    else:
+        try:
+            L = nx.laplacian_matrix(G).toarray().astype(float)
+            eigenvalues, eigenvectors = np.linalg.eigh(L)
+            fiedler = eigenvectors[:, 1]
+            coloring = (fiedler >= 0).astype(float)
+        except Exception:
+            coloring = np.array([float(i % 2) for i in range(N)])
+
+    if coloring.sum() < N / 2.0:
+        coloring = 1.0 - coloring
+
+    return coloring
 
 
 def build_unified_bond_resolved_graph(
@@ -55,6 +94,8 @@ def build_unified_bond_resolved_graph(
     theta_opt: np.ndarray | None = None,
     include_circuit_nodes: bool = True,
     n_feature: bool = True,
+    bipartite_coloring: bool = True,
+    virtual_global_node: bool = True,
 ) -> Data:
     """Build a unified Hamiltonian+Circuit graph for bond-resolved prediction.
 
@@ -94,6 +135,12 @@ def build_unified_bond_resolved_graph(
     n_edges = len(lattice.edges)
     edges_unique = np.array(sorted(lattice.edges))
 
+    # ── Compute bipartite coloring (once, reused for all node types) ──
+    if bipartite_coloring:
+        coloring = _compute_bipartite_coloring(lattice)
+    else:
+        coloring = np.full(N, 0.5)
+
     # ── Input validation ─────────────────────────────────────────────
     if N < 2:
         raise ValueError(f"n_qubits must be >= 2, got {N}")
@@ -126,12 +173,13 @@ def build_unified_bond_resolved_graph(
         # Same as build_bond_resolved_graph but with 4 features (padded type=0)
         h_feat = np.full(N, float(h_value))
         n_scale = N / 100.0 if n_feature else 0.0
-        # Features: [h_i, coord_i, N/100, node_type=0]
+        # Features: [h_i, coord_i, N/100, node_type=0, coloring]
         node_features = np.column_stack([
             h_feat,
             coord.astype(float),
             np.full(N, n_scale),
             np.zeros(N),  # node_type = 0 (qubit)
+            coloring,     # bipartite coloring
         ])
 
         x = torch.tensor(node_features, dtype=torch.float32)
@@ -160,12 +208,13 @@ def build_unified_bond_resolved_graph(
 
 
     # ── Build node features ──────────────────────────────────────────
-    # Qubit nodes: [h_i, coord_i, N/100, type=0]
+    # Qubit nodes: [h_i, coord_i, N/100, type=0, coloring]
     qubit_features = np.column_stack([
         np.full(N, float(h_value)),
         coord.astype(float),
         np.full(N, n_scale),
         np.zeros(N),  # type=0
+        coloring,     # bipartite coloring
     ])
 
     # ZZ gate nodes: [layer/p_layers, bond_idx/n_edges, N/100, type=1]
@@ -175,8 +224,10 @@ def build_unified_bond_resolved_graph(
         layer_norm = (layer + 0.5) / p_layers  # center in [0, 1]
         for bond_idx in range(n_edges):
             bond_norm = (bond_idx + 0.5) / n_edges
-            zz_feat_list.append([layer_norm, bond_norm, n_scale, 1.0])
-    zz_features = np.array(zz_feat_list) if zz_feat_list else np.empty((0, 4))
+            qi, qj = lattice.edges[bond_idx]
+            edge_color = (coloring[qi] + coloring[qj]) / 2.0
+            zz_feat_list.append([layer_norm, bond_norm, n_scale, 1.0, edge_color])
+    zz_features = np.array(zz_feat_list) if zz_feat_list else np.empty((0, 5))
 
     # RX gate nodes: [layer/p_layers, qubit_idx/N, N/100, type=2]
     rx_feat_list = []
@@ -184,19 +235,26 @@ def build_unified_bond_resolved_graph(
         layer_norm = (layer + 0.5) / p_layers
         for qubit_idx in range(N):
             qubit_norm = (qubit_idx + 0.5) / N
-            rx_feat_list.append([layer_norm, qubit_norm, n_scale, 2.0])
-    rx_features = np.array(rx_feat_list) if rx_feat_list else np.empty((0, 4))
+            rx_feat_list.append([layer_norm, qubit_norm, n_scale, 2.0, coloring[qubit_idx]])
+    rx_features = np.array(rx_feat_list) if rx_feat_list else np.empty((0, 5))
 
-    # Stack all node features
-    all_features = np.vstack([qubit_features, zz_features, rx_features])
+    # Stack all node features + optional virtual global node
+    if virtual_global_node:
+        global_features = np.array([[float(h_value), float(coord.mean()), n_scale, 3.0, 0.5]])
+        all_features = np.vstack([qubit_features, zz_features, rx_features, global_features])
+    else:
+        all_features = np.vstack([qubit_features, zz_features, rx_features])
     x = torch.tensor(all_features, dtype=torch.float32)
 
     # Node type tensor
-    node_type = torch.cat([
+    node_type_parts = [
         torch.full((N,), NODE_TYPE_QUBIT, dtype=torch.long),
         torch.full((n_zz_gates,), NODE_TYPE_ZZ_GATE, dtype=torch.long),
         torch.full((n_rx_gates,), NODE_TYPE_RX_GATE, dtype=torch.long),
-    ])
+    ]
+    if virtual_global_node:
+        node_type_parts.append(torch.full((1,), NODE_TYPE_GLOBAL, dtype=torch.long))
+    node_type = torch.cat(node_type_parts)
 
 
     # ── Build edge index ─────────────────────────────────────────────
@@ -251,10 +309,20 @@ def build_unified_bond_resolved_graph(
                     edge_src.append(rx_node)
                     edge_dst.append(zz_next)
 
+    # 6. Virtual global node ↔ all qubit nodes (bidirectional)
+    if virtual_global_node:
+        global_node_idx = N + n_zz_gates + n_rx_gates
+        for qubit_idx in range(N):
+            edge_src.extend([global_node_idx, qubit_idx])
+            edge_dst.extend([qubit_idx, global_node_idx])
+
     edge_index = torch.tensor([edge_src, edge_dst], dtype=torch.long)
 
     # ── Edge list for θ_zz prediction (same as Hamiltonian-only) ─────
     edge_list = torch.tensor(edges_unique, dtype=torch.long)
+
+    n_global = 1 if virtual_global_node else 0
+    total_nodes = N + n_zz_gates + n_rx_gates + n_global
 
     # ── Assemble Data object ─────────────────────────────────────────
     data = Data(x=x, edge_index=edge_index, edge_list=edge_list)
@@ -262,6 +330,7 @@ def build_unified_bond_resolved_graph(
     data.n_qubit_nodes = N
     data.n_nodes = total_nodes
     data.n_edges_unique = n_edges
+    data.has_global_node = virtual_global_node
 
     if theta_opt is not None:
         data.y = torch.tensor(theta_opt, dtype=torch.float32)
@@ -275,6 +344,8 @@ def build_unified_dataset(
     theta_opts: np.ndarray,
     p_layers: int = 1,
     include_circuit_nodes: bool = True,
+    bipartite_coloring: bool = True,
+    virtual_global_node: bool = True,
 ) -> list[Data]:
     """Build a list of unified graphs for training the BondResolvedMPNN.
 
@@ -321,6 +392,8 @@ def build_unified_dataset(
             p_layers=p_layers,
             theta_opt=theta,
             include_circuit_nodes=include_circuit_nodes,
+            bipartite_coloring=bipartite_coloring,
+            virtual_global_node=virtual_global_node,
         )
         dataset.append(graph)
 

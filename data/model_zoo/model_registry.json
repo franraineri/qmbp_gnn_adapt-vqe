@@ -5637,6 +5637,177 @@
         "mean_de_gap": 0.0,
         "mean_abs_error_per_site": 0.0,
         "notes": "auto-deflated from 33%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:13:21.168646+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8500000000000001,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[20, 30]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:14:05.721143+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 85%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:14:19.690346+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8500000000000001,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[20, 30]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:15:00.467514+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 85%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:15:07.457939+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8333333333333334,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[30, 40]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:15:14.642690+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8500000000000001,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[20, 30]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:15:59.202573+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 85%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:16:24.371572+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8333333333333334,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[30, 40]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:16:39.023784+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8500000000000001,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[20, 30]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:17:20.885642+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 85%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:17:42.255856+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8333333333333334,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[30, 40]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:17:42.888387+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 83%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:17:56.507465+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8500000000000001,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[20, 30]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:18:47.088073+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 85%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:19:05.340845+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8333333333333334,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[30, 40]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:19:12.115010+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8500000000000001,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[20, 30]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:19:58.844606+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 85%"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:20:14.509711+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.8333333333333334,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "extrap@N=[30, 40]"
+      },
+      {
+        "evaluated_at": "2026-08-24T01:21:05.897327+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 83%"
       }
     ],
     "status": "active",

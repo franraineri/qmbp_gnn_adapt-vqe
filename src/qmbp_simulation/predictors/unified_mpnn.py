@@ -34,6 +34,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import GINConv
 
 from qmbp_simulation.predictors.unified_graph import (
+    NODE_TYPE_GLOBAL,
     NODE_TYPE_QUBIT,
     NODE_TYPE_RX_GATE,
     NODE_TYPE_ZZ_GATE,
@@ -117,7 +118,7 @@ class UnifiedMPNN(nn.Module):
         self.film_conditioning = film_conditioning
 
         # ── Type embedding (learned) ─────────────────────────────────
-        n_types = 3  # qubit=0, zz_gate=1, rx_gate=2
+        n_types = 4  # qubit=0, zz_gate=1, rx_gate=2, global=3
         if type_embedding_dim > 0:
             self.type_emb = nn.Embedding(n_types, type_embedding_dim)
             effective_input_dim = node_features + type_embedding_dim
@@ -1465,6 +1466,9 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
             gate_readout,
         )
 
+    # Always use current UNIFIED_NODE_FEATURES (compat shim expands weights)
+    node_features = UNIFIED_NODE_FEATURES
+
     model = UnifiedMPNN(
         node_features=node_features,
         hidden_dim=hidden_dim,
@@ -1479,6 +1483,30 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     )
 
     state_dict = data.get("state_dict", data)
+
+    # ── Backward compat: expand type_emb 3→4 types ──────────────────
+    if "type_emb.weight" in state_dict:
+        old_emb = state_dict["type_emb.weight"]
+        if old_emb.shape[0] == 3 and type_embedding_dim > 0:
+            global_emb = old_emb.mean(dim=0, keepdim=True)
+            state_dict["type_emb.weight"] = torch.cat([old_emb, global_emb], dim=0)
+
+    # ── Backward compat: expand first conv for 4→5 node features ────
+    first_conv_key = "convs.0.nn.0.weight"
+    if first_conv_key in state_dict:
+        old_weight = state_dict[first_conv_key]
+        expected_input = UNIFIED_NODE_FEATURES + type_embedding_dim
+        actual_input = old_weight.shape[1]
+        if actual_input < expected_input:
+            diff = expected_input - actual_input
+            pad = torch.zeros(old_weight.shape[0], diff, dtype=old_weight.dtype)
+            state_dict[first_conv_key] = torch.cat([old_weight, pad], dim=1)
+            if "input_proj.weight" in state_dict:
+                ip_w = state_dict["input_proj.weight"]
+                if ip_w.shape[1] == actual_input:
+                    pad_ip = torch.zeros(ip_w.shape[0], diff, dtype=ip_w.dtype)
+                    state_dict["input_proj.weight"] = torch.cat([ip_w, pad_ip], dim=1)
+
     model.load_state_dict(state_dict)
 
     if eval_mode:

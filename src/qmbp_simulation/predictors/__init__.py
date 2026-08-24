@@ -71,6 +71,7 @@ from qmbp_simulation.predictors.mpnn import (
     train_mpnn,
 )
 from qmbp_simulation.predictors.unified_graph import (
+    NODE_TYPE_GLOBAL,
     NODE_TYPE_QUBIT,
     NODE_TYPE_RX_GATE,
     NODE_TYPE_ZZ_GATE,
@@ -109,6 +110,7 @@ __all__ = [
     "NODE_TYPE_QUBIT",
     "NODE_TYPE_ZZ_GATE",
     "NODE_TYPE_RX_GATE",
+    "NODE_TYPE_GLOBAL",
     "UNIFIED_NODE_FEATURES",
     # Phase 3d: Type-aware UnifiedMPNN (Qracle-inspired architecture)
     "UnifiedMPNN",

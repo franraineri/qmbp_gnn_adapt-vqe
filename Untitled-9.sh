@@ -12,6 +12,9 @@
 .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology ladder --p-layers 2 --train-n 10 --target-n 10 12 14 16 20 --multi-n-train --force-retrain --iterative-improve --max-iterations 2
 
 
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology heavy_hex --p-layers 1 --multi-n-train --n-anchors 10 --force-retrain
+
+
 Paso 1: Re-entrenar MT universal (con curriculum)
 Runner:
 run_multi_topology_training.py
@@ -56,3 +59,14 @@ for topo in heavy_hex ladder square; do
         --topology $topo --target-n 10 16 20 --auto-detect --promote-best -v
 done
 Esto genera los eval reports que alimentan el scoreboard automáticamente.
+
+
+
+
+
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1  --target-n 30 40 50 60 --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1  --target-n 30 40 50 60 --checkpoint data/model_zoo/checkpoints/unified_tfim_br_MT_residual+film_p1_v2.pt --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1  --target-n 30 40 50 60 --checkpoint data/model_zoo/checkpoints/unified_multiN_heavyhex_p1.pt --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1  --target-n 30 40 50 60 --checkpoint data/model_zoo/checkpoints/unified_tfim_br_MT_residual+film_p1.pt --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1  --target-n 30 40 50 60 --checkpoint data/model_zoo/checkpoints/unified_tfim_br_heavy_hex_fromMT_4+6+8+10+12+14+18+20+21+26+30+40_p1.pt --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute
+.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1  --target-n 30 40 50 60 --checkpoint data/model_zoo/checkpoints/unified_multiN_heavyhex_p1_v2.pt --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute

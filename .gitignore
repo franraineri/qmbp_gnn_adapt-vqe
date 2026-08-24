@@ -95,6 +95,11 @@ plot_*
 .env.*
 *.env
 
+# ── Secrets & credentials (NEVER commit) ─────────────────────
+.env
+.env.*
+*.env
+
 digest_poc/*
 *_TEMP.py
 

@@ -520,6 +520,18 @@ class MultiNAggregator:
             n_unverified = len(filtered) - n_verified - n_approx
             n_augmented = 0
 
+            # ── Z₂ sweep canonicalization ─────────────────────────────────
+            if len(filtered) >= 3:
+                from qmbp_simulation.utils.helpers import canonicalize_sweep_z2
+
+                h_arr = np.array([p["h"] for p in filtered])
+                theta_mat = np.array(
+                    [np.asarray(p["theta"], dtype=np.float64) for p in filtered]
+                )
+                theta_canon = canonicalize_sweep_z2(theta_mat, h_arr)
+                for i, pt in enumerate(filtered):
+                    pt["theta"] = theta_canon[i]
+
             for pt in filtered:
                 g = build_unified_bond_resolved_graph(
                     lattice,

@@ -251,7 +251,6 @@ def main() -> None:
     out("=" * 90)
 
     from collections import defaultdict
-
     by_config = defaultdict(list)
     for r in all_rows:
         by_config[r["config"]].append(r)

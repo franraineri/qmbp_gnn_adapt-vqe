@@ -210,6 +210,54 @@ def canonicalize_theta(theta: np.ndarray, *, period: float = np.pi) -> np.ndarra
     return result
 
 
+
+def canonicalize_sweep_z2(
+    theta_array: np.ndarray,
+    h_values: np.ndarray | None = None,
+    *,
+    period: float = np.pi,
+) -> np.ndarray:
+    """Canonicalize a sweep of θ vectors to enforce Z₂ continuity.
+
+    Greedily chooses between θ_i and -θ_i at each point to minimize
+    ||θ_i - θ_{i-1}||₂, enforcing branch continuity across the sweep.
+    """
+    theta_array = np.asarray(theta_array, dtype=np.float64)
+    if theta_array.ndim != 2 or theta_array.shape[0] < 2:
+        if theta_array.ndim == 1:
+            return canonicalize_theta(theta_array, period=period)
+        if theta_array.shape[0] == 1:
+            return canonicalize_theta(theta_array[0], period=period).reshape(1, -1)
+        return theta_array.copy()
+
+    K, n_params = theta_array.shape
+
+    if h_values is not None:
+        h_values = np.asarray(h_values, dtype=np.float64)
+        sort_idx = np.argsort(h_values)
+        unsort_idx = np.argsort(sort_idx)
+        theta_sorted = theta_array[sort_idx].copy()
+    else:
+        theta_sorted = theta_array.copy()
+        unsort_idx = None
+
+    half = period / 2.0
+    theta_sorted = ((theta_sorted + half) % period) - half
+
+    if theta_sorted[0, -1] < 0:
+        theta_sorted[0] = -theta_sorted[0]
+
+    for i in range(1, K):
+        d_same = np.sum((theta_sorted[i] - theta_sorted[i - 1]) ** 2)
+        d_flip = np.sum((-theta_sorted[i] - theta_sorted[i - 1]) ** 2)
+        if d_flip < d_same:
+            theta_sorted[i] = -theta_sorted[i]
+
+    if unsort_idx is not None:
+        return theta_sorted[unsort_idx]
+    return theta_sorted
+
+
 def filter_consistent_theta(
     theta_array: np.ndarray,
     *,

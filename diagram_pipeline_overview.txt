@@ -1,0 +1,102 @@
+
+================================================================================
+          GNN-HVA PIPELINE: HOW WE PREDICT VARIATIONAL ANGLES
+================================================================================
+
+
+  PHASE 1: Ground Truth                PHASE 2: VQE Optimization
+  (Classical Reference)                (Generate Training Labels)
+  ┌─────────────────────┐              ┌──────────────────────────┐
+  │                     │              │                          │
+  │  H(topology, N, h)  │              │  For each h in sweep:    │
+  │        │            │              │                          │
+  │        ▼            │              │  HVA(theta)|+>^N = |psi> │
+  │  ED / DMRG solver   │              │        │                 │
+  │        │            │              │        ▼                 │
+  │        ▼            │              │  min <psi|H|psi>         │
+  │  E_exact, gap       │──────┐       │  (L-BFGS-B, warm-start) │
+  │                     │      │       │        │                 │
+  └─────────────────────┘      │       │        ▼                 │
+                               │       │  theta_opt(h)            │
+                               │       │                          │
+                               │       └────────────┬─────────────┘
+                               │                    │
+                               ▼                    ▼
+                    ┌───────────────────────────────────────────┐
+                    │                                           │
+                    │   TRAINING DATA: (h, theta_opt, E_exact)  │
+                    │   Per topology, per N = 4, 6, 8, 10...40  │
+                    │   Stored as NPZ files                     │
+                    │                                           │
+                    └─────────────────────┬─────────────────────┘
+                                          │
+                                          ▼
+  PHASE 3: GNN Training              ┌───────────────────────────┐
+  (Learn h -> theta mapping)          │                           │
+  ┌───────────────────────────┐       │  Graph Representation:    │
+  │                           │       │                           │
+  │  UnifiedMPNN (GINConv)    │◄──────│  Lattice(N, topology)     │
+  │  + FiLM conditioning by h │       │    + bond parameters      │
+  │  + Residual connections   │       │    + h-value features      │
+  │                           │       │                           │
+  │  Input:  Graph(lattice,h) │       └───────────────────────────┘
+  │  Output: theta_pred (dim  │
+  │          = n_edges + N)   │
+  │                           │
+  │  Loss: MSE(theta_pred,    │
+  │         theta_opt)        │
+  │                           │
+  └─────────────┬─────────────┘
+                │
+                │  TRAINED ONCE (~30s-3min)
+                │  Then predicts in ~1ms for ANY h, ANY N
+                ▼
+  PHASE 4: Zero-Shot Prediction     ┌──────────────────────────────┐
+  (Instant theta for new systems)   │                              │
+  ┌─────────────────────────┐       │  WHAT MAKES THIS SPECIAL:    │
+  │                         │       │                              │
+  │  New system:            │       │  - Trained on N=4-40         │
+  │  N=127, h=3.0           │       │  - Predicts N=127 (zero-shot)│
+  │  topology=heavy_hex     │       │  - Graph structure encodes   │
+  │        │                │       │    topology naturally         │
+  │        ▼                │       │  - 1ms vs 10-1000s (DMRG)   │
+  │  Build graph (0.002s)   │       │  - Works for any h > h_min  │
+  │        │                │       │                              │
+  │        ▼                │       └──────────────────────────────┘
+  │  MPNN forward pass (1ms)│
+  │        │                │
+  │        ▼                │
+  │  theta_pred (253 params)│
+  │        │                │
+  │        ▼                │
+  │  HVA(theta_pred)|+>^N   │
+  │  = |psi_0(h)>           │
+  │                         │
+  └─────────────────────────┘
+
+
+  QUALITY METRICS:
+  ┌────────────────────────────────────────────────────────────────┐
+  │   Delta_E =  |E(theta_pred) - E_exact                          |                                               │
+  │   Delta_E / gap  =  |E(theta_pred) - E_exact| / spectral_gap   │
+  │                                                                │
+  │   < 5%  =  CORRECT PHASE (ground state well-approximated)      │
+  │   > 5%  =  FAILURE (circuit cannot express GS at this h)       │
+  │                                                                │
+  └────────────────────────────────────────────────────────────────┘
+
+
+  KEY INSIGHT:
+  ┌────────────────────────────────────────────────────────────────┐
+  │                                                                │
+  │  The GNN AMORTIZES the cost of DMRG/VQE:                      │
+  │                                                                │
+  │  WITHOUT GNN: Each new (h, N) costs 10-1000s of compute       │
+  │  WITH GNN:    Train once (O(100) DMRG points)                 │
+  │               Then predict forever (O(1ms) per point)          │
+  │                                                                │
+  │  Crossover: ~20 queries. After that, GNN is 50-100000x faster │
+  │                                                                │
+  └────────────────────────────────────────────────────────────────┘
+
+================================================================================

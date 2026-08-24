@@ -1346,7 +1346,9 @@ def run_tier_1(
                 # Landscape curvature (noiseless risk proxy — section 19 validated)
                 "kappa": kappa_per_h.get(h, float("nan")),
                 "hardware_risk": kappa_recommendations.get(h, {}).get("risk_level", "unknown"),
-                "spsa_recommended": kappa_recommendations.get(h, {}).get("spsa_recommended", False),
+                "spsa_recommended": kappa_recommendations.get(h, {}).get(
+                    "spsa_recommended", False
+                ),
             }
         )
 
