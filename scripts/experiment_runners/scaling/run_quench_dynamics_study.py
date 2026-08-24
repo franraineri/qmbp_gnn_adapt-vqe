@@ -35,6 +35,11 @@ Usage:
     python scripts/experiment_runners/scaling/run_quench_dynamics_study.py \\
         --section 3 --n-qubits 20 --topology heavy_hex
 
+    # Multi-N DQPT scaling ladder (builds trajectories for validate_dqpt_results)
+    python scripts/experiment_runners/scaling/run_quench_dynamics_study.py \\
+        --section 1 --topology heavy_hex --dqpt-n-values 8 10 12 14 16 20 \\
+        --h1 3.0 --h2 0.5 --dt 0.05 --n-trotter 60
+
 References:
     - IBM+Qedma arXiv:2607.24937: Floquet dynamics quantum advantage at N=51-74
     - This project: GNN-HVA state preparation as enabling technology
@@ -110,6 +115,12 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         parser.add_argument(
             "--seeds", type=int, nargs="+", default=[42], help="Random seeds",
         )
+        parser.add_argument(
+            "--dqpt-n-values", type=int, nargs="+", default=None,
+            help="Multiple N values for DQPT scaling ladder (e.g., 8 10 12 14 16 20). "
+            "When set, Section 1 iterates over all N values, producing one trajectory "
+            "per N. Required for validate_dqpt_results scaling checks (needs >=4 N).",
+        )
 
     def build_config(self) -> dict:
         args = self._args
@@ -182,10 +193,38 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         For N > 22: MPS-based comparison (energy trajectory proxy).
         """
         args = self._args
+        topo = self._topology
+
+        # Multi-N mode: iterate over dqpt_n_values to build scaling ladder
+        if args.dqpt_n_values:
+            logger.info(f"  Multi-N DQPT mode: N={args.dqpt_n_values}")
+            all_results = {}
+            for n_val in args.dqpt_n_values:
+                if n_val > _ED_MAX_N:
+                    logger.info(f"  Skipping N={n_val} (> ED limit {_ED_MAX_N})")
+                    continue
+                logger.info(f"\n  ── N={n_val} ──")
+                single = self._section1_single_n(n_val, topo, args)
+                all_results[n_val] = single
+            # Aggregate pass/fail
+            n_pass = sum(1 for r in all_results.values() if r.get("pass"))
+            return {
+                "mode": "multi_n",
+                "n_values": list(all_results.keys()),
+                "results_by_n": all_results,
+                "n_passed": n_pass,
+                "n_total": len(all_results),
+                "pass": n_pass > 0,
+            }
+
+        # Single-N mode (default)
         n = args.n_qubits
+        return self._section1_single_n(n, topo, args)
+
+    def _section1_single_n(self, n: int, topo: str, args) -> dict:
+        """Section 1 logic for a single N value."""
         dt = args.dt
         n_steps = args.n_trotter
-        topo = self._topology
 
         logger.info(f"  Initial-state dependence: N={n}, {topo}")
         logger.info(f"  h₁={args.h1} → h₂={args.h2}, {n_steps} steps × dt={dt}")
@@ -263,6 +302,68 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             f"  Qualitatively different: "
             f"{'YES ✅' if qualitatively_different else 'NO ❌'}"
         )
+
+        # ── Persist DQPT trajectory NPZ (feeds validate_dqpt_results + qpt_detection) ──
+        # Compute Loschmidt echo + rate function for the GNN ground-state quench.
+        # This data is already "free" since we have psi_gnn and the evolution operator.
+        try:
+            self._persist_dqpt_trajectory(
+                psi_0=psi_gnn,
+                n_qubits=n,
+                topology=topo,
+                h_pre=args.h1,
+                h_post=args.h2,
+                dt=dt,
+                n_steps=n_steps,
+                energies=results_by_state["gnn_gs"]["energies"],
+                entropies=results_by_state["gnn_gs"]["entropies"],
+                H_post_op=H2_op,
+                use_sparse=use_sparse,
+                H_sparse=H2_sparse if use_sparse else None,
+                U_dt=U_dt if not use_sparse else None,
+            )
+        except Exception as e:
+            logger.warning(f"  DQPT trajectory persistence failed (non-blocking): {e}")
+
+        # ── Auto-run DQPT fidelity threshold (reuses psi_gnn + H_post_op) ──────
+        # Determines minimum state-preparation fidelity for hardware DQPT detection.
+        # "Free" since we already have the ground state and the evolution operator.
+        try:
+            from scripts.analysis.dqpt_fidelity_threshold import (
+                run_fidelity_threshold_scan,
+                save_report as save_fidelity_report,
+            )
+
+            fidelities = [1.0, 0.95, 0.90, 0.85, 0.80, 0.70, 0.50, 0.30]
+            logger.info("  Running DQPT fidelity threshold scan (piggyback)...")
+            fid_report = run_fidelity_threshold_scan(
+                topology=topo,
+                n_qubits=n,
+                fidelities=fidelities,
+                h_pre=args.h1,
+                h_post=args.h2,
+                dt=dt,
+                n_steps=n_steps,
+            )
+            if fid_report.f_min is not None:
+                logger.info(f"  F_min = {fid_report.f_min:.2f} (hardware go/no-go threshold)")
+                result["fidelity_threshold"] = {
+                    "f_min": fid_report.f_min,
+                    "t_star_reference": fid_report.t_star_reference,
+                }
+            else:
+                logger.info("  F_min = None (no detectable DQPTs at any fidelity)")
+                result["fidelity_threshold"] = {"f_min": None}
+
+            # Persist fidelity report
+            fid_path = (
+                self._get_project_root() / "results" / "analysis"
+                / f"dqpt_fidelity_threshold_{topo}_N{n}.json"
+            )
+            save_fidelity_report(fid_report, fid_path)
+        except Exception as e:
+            logger.debug(f"  Fidelity threshold scan skipped: {e}")
+
         return result
 
     # ─── Section 2: MPS Crossover Point ──────────────────────────────────────
@@ -662,21 +763,32 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         lattice = self.make_lattice(topology, n_qubits, J=1.0, h=h)
         H_op = self.builder.build(lattice)
 
+        e_gs = None
+        gap = 0.0
+
         if n_qubits <= 16:
-            gs = self.solver.ground_state_vector(H_op, n_qubits=n_qubits)
+            # Dense diag: get 2 lowest eigenvalues for gap (negligible overhead)
+            H_dense = np.asarray(H_op.to_matrix())
+            eigenvalues, eigenvectors = np.linalg.eigh(H_dense)
+            gs = eigenvectors[:, 0]
+            gs /= np.linalg.norm(gs)
+            e_gs = float(eigenvalues[0])
+            gap = float(eigenvalues[1] - eigenvalues[0])
         else:
             from scipy.sparse.linalg import eigsh
-            logger.info(f"  Computing ground state (sparse eigsh, N={n_qubits})...")
+            logger.info(f"  Computing ground state (sparse eigsh k=2, N={n_qubits})...")
             H_sparse = H_op.to_matrix(sparse=True)
-            _, evecs = eigsh(H_sparse, k=1, which="SA")
-            gs = evecs[:, 0]
+            eigenvalues, evecs = eigsh(H_sparse, k=2, which="SA")
+            idx = np.argsort(eigenvalues)
+            gs = evecs[:, idx[0]]
             gs /= np.linalg.norm(gs)
+            e_gs = float(eigenvalues[idx[0]])
+            gap = float(eigenvalues[idx[1]] - eigenvalues[idx[0]])
 
-        # Store in GT cache if not already there
+        # Store in GT cache if not already there (now with real spectral gap)
         if not cached:
-            e_gs = float(np.real(gs.conj() @ (H_op.to_matrix(sparse=True) @ gs)))
             gt_cache.put(topology, n_qubits, self._args.model, float(h),
-                         energy=e_gs, gap=0.0, method="eigsh")
+                         energy=e_gs, gap=gap, method="eigsh_k2")
             gt_cache.flush()
 
         return gs
@@ -752,9 +864,165 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         z_eigenvalues = (n_qubits - 2 * popcount) / n_qubits
         return float(np.dot(probs, z_eigenvalues))
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Post-run auto-validation
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _log_data_quality_feedback(self) -> None:
+        """Override: run DQPT validation after all sections, then call super()."""
+        # Auto-validate DQPT trajectories produced by this run
+        try:
+            from scripts.analysis.validate_dqpt_results import (
+                validate_dqpt_topology,
+                save_report as save_dqpt_report,
+            )
+
+            topo = self._topology
+            report = validate_dqpt_topology(topo, verbose=False)
+            if report.n_trajectories > 0:
+                n_pass = sum(1 for c in report.checks if c.passed)
+                n_total = len(report.checks)
+                status = "PASS" if report.overall_pass else "FAIL"
+                logger.info(
+                    f"\n  ── DQPT Auto-Validation ({topo}) ──"
+                    f"\n  {n_pass}/{n_total} checks passed [{status}]"
+                    f"\n  Trajectories: {report.n_trajectories}"
+                )
+                # Persist validation report
+                out_path = (
+                    self._get_project_root() / "results" / "analysis"
+                    / f"dqpt_validation_{topo}.json"
+                )
+                save_dqpt_report(report, out_path)
+        except Exception as e:
+            logger.debug(f"  DQPT auto-validation skipped: {e}")
+
+        # Call parent's implementation (zoo pass_rate, retrain triggers, etc.)
+        super()._log_data_quality_feedback()
+
     @staticmethod
     def _get_project_root() -> Path:
         return Path(__file__).resolve().parents[3]
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # Private helpers — DQPT trajectory persistence
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    def _persist_dqpt_trajectory(
+        self,
+        psi_0: np.ndarray,
+        n_qubits: int,
+        topology: str,
+        h_pre: float,
+        h_post: float,
+        dt: float,
+        n_steps: int,
+        energies: list,
+        entropies: list,
+        H_post_op,
+        use_sparse: bool,
+        H_sparse=None,
+        U_dt=None,
+    ) -> None:
+        """Compute Loschmidt echo and persist full DQPT trajectory as NPZ.
+
+        Saves to data/dqpt_trajectories/{topology}_N{n_qubits}.npz in the format
+        expected by validate_dqpt_results.py and qpt_detection.py.
+
+        This is "free" computation since we already have psi_0 and the evolution
+        operator from Section 1. The Loschmidt echo only requires re-evolving
+        psi_0 and computing overlaps |<psi_0|psi(t)>|^2 at each step.
+        """
+        from qmbp_simulation.analysis.observables import (
+            detect_dqpt_critical_times,
+            loschmidt_echo,
+            rate_function,
+        )
+
+        logger.info("  Persisting DQPT trajectory (Loschmidt echo + rate function)...")
+
+        # Re-evolve psi_0 and compute Loschmidt echo at each step
+        psi_t = psi_0.copy().astype(complex)
+        times = [0.0]
+        loschmidt_values = [1.0]
+        rate_values = [0.0]
+
+        for step in range(1, n_steps + 1):
+            if use_sparse:
+                from scipy.sparse.linalg import expm_multiply
+
+                psi_t = expm_multiply(-1j * H_sparse * dt, psi_t)
+            else:
+                psi_t = U_dt @ psi_t
+            psi_t /= np.linalg.norm(psi_t)
+
+            t = step * dt
+            times.append(t)
+
+            L_t = loschmidt_echo(psi_0, psi_t)
+            loschmidt_values.append(L_t)
+            rate_values.append(rate_function(L_t, n_qubits))
+
+        # Detect critical times
+        critical_times = detect_dqpt_critical_times(times, loschmidt_values, threshold=0.1)
+
+        # Get ground-state energy and gap at h_pre (for qpt_detection.py integration)
+        e_exact_h_pre = float(energies[0]) if energies else 0.0
+        gap_h_pre = 0.0
+        try:
+            from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
+
+            gt_cache = GroundTruthCache()
+            cached = gt_cache.get(topology, n_qubits, self._args.model, h_pre)
+            if cached is not None:
+                gap_h_pre = float(cached.get("gap", 0.0))
+        except Exception:
+            pass
+
+        # Persist to NPZ (immediate write, crash-safe)
+        out_dir = self._get_project_root() / "data" / "dqpt_trajectories"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{topology}_N{n_qubits}.npz"
+
+        # Anti-regression: skip overwrite if existing trajectory has more steps
+        if out_path.exists():
+            try:
+                existing = np.load(out_path, allow_pickle=True)
+                existing_steps = int(existing.get("n_steps", 0))
+                if existing_steps > n_steps:
+                    logger.info(
+                        f"  Skipping NPZ write: existing {out_path.name} has "
+                        f"{existing_steps} steps > current {n_steps}"
+                    )
+                    return
+            except Exception:
+                pass  # Corrupted file — overwrite is fine
+
+        np.savez(
+            out_path,
+            # Required keys (validate_dqpt_results.py schema)
+            n_qubits=n_qubits,
+            topology=topology,
+            h_pre=h_pre,
+            h_post=h_post,
+            dt=dt,
+            n_steps=n_steps,
+            times=np.array(times),
+            loschmidt_echo=np.array(loschmidt_values),
+            rate_function=np.array(rate_values),
+            energies=np.array(energies, dtype=float),
+            entropies=np.array(entropies, dtype=float),
+            critical_times=np.array(critical_times),
+            method="exact_ed" if n_qubits <= _ED_MAX_N else "mps",
+            # Extra keys for qpt_detection.py integration
+            e_exact_h_pre=e_exact_h_pre,
+            gap_h_pre=gap_h_pre,
+        )
+        logger.info(
+            f"  Saved DQPT trajectory: {out_path.name} "
+            f"({len(critical_times)} DQPTs detected, "
+            f"r_peak={max(rate_values):.4f})"
+        )
 
 
 if __name__ == "__main__":

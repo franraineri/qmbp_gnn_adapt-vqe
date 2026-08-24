@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Validate DQPT on trajectory creation",
+      "trigger": "PostFileCreate",
+      "description": "When a new DQPT trajectory NPZ is created in data/dqpt_trajectories/, automatically runs validate_dqpt_results to give instant feedback on physics checks.",
+      "matcher": "dqpt_trajectories.*\\.npz$",
+      "action": {
+        "type": "command",
+        "command": ".venv/bin/python -c \"import sys,json,re; sys.path.insert(0,'.'); sys.path.insert(0,'src'); stdin_data=json.loads(sys.stdin.read()) if not sys.stdin.isatty() else {}; path=stdin_data.get('filePath',''); m=re.search(r'([a-z_]+)_N',path); topo=m.group(1) if m else 'heavy_hex'; from scripts.analysis.validate_dqpt_results import validate_dqpt_topology; r=validate_dqpt_topology(topo); n_pass=sum(1 for c in r.checks if c.passed); print(json.dumps({'topology':topo,'n_trajectories':r.n_trajectories,'checks_passed':n_pass,'checks_total':len(r.checks),'overall_pass':r.overall_pass}))\"",
+        "timeout": 60
+      }
+    }
+  ]
+}

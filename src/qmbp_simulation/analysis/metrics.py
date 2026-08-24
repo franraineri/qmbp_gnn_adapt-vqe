@@ -1107,17 +1107,18 @@ def compute_h_frontier(
     h_values: np.ndarray,
     de_gaps: np.ndarray,
     *,
+    abs_errors: np.ndarray | None = None,
     threshold: float = DE_GAP_THRESHOLD,
+    max_abs_error: float = MAX_ABS_ERROR,
 ) -> float | None:
-    """Compute h_frontier: the h where ΔE/gap crosses the pass threshold.
+    """Compute h_frontier: the h where the dual criterion transitions from fail to pass.
 
-    Uses linear interpolation between the last failing and first passing
-    h-point (scanning from low-h to high-h).  This gives the empirical
-    boundary below which VQE/MPNN cannot achieve the target accuracy for
-    a specific (topology, N, p) configuration.
+    Uses the dual criterion (ΔE/gap < threshold AND |ΔE| < max_abs_error) to
+    determine pass/fail at each h-point. This prevents gap masking where large
+    gaps artificially suppress the relative metric.
 
-    Extracted from ``compute_h_frontier_topologies.py`` for reuse in
-    ``compute_refinement_priority`` and iterative improvement loops.
+    Scans from low-h (typically failing) to high-h (typically passing) and
+    interpolates the crossing point.
 
     Parameters
     ----------
@@ -1125,13 +1126,19 @@ def compute_h_frontier(
         Array of h-values (will be sorted internally).
     de_gaps : np.ndarray
         Corresponding ΔE/gap values (same length as h_values).
+    abs_errors : np.ndarray | None
+        Absolute errors |ΔE| per point. If None, falls back to ΔE/gap-only
+        criterion (backward compatible with old NPZ files lacking this field).
     threshold : float
-        Pass/fail threshold (default: 0.05).
+        ΔE/gap pass threshold (default: 0.05).
+    max_abs_error : float
+        Absolute error cap (default: 0.10). Points above this fail regardless
+        of ΔE/gap.
 
     Returns
     -------
     float | None
-        Interpolated h where ΔE/gap = threshold.
+        Interpolated h where the dual criterion transitions.
         None if all points pass or all fail (frontier not determinable).
 
     Examples
@@ -1149,11 +1156,21 @@ def compute_h_frontier(
     h_sorted = np.asarray(h_values)[sort_idx]
     dg_sorted = np.asarray(de_gaps)[sort_idx]
 
-    # Find crossing: last point where dg >= threshold, followed by dg < threshold
+    # Build pass/fail array using dual criterion
+    passes_dg = dg_sorted < threshold
+    if abs_errors is not None and len(abs_errors) == len(h_values):
+        ae_sorted = np.asarray(abs_errors)[sort_idx]
+        passes_ae = ae_sorted < max_abs_error
+        passes = passes_dg & passes_ae
+    else:
+        # Fallback: ΔE/gap only (backward compat)
+        passes = passes_dg
+
+    # Find crossing: last failing point followed by first passing point
     # Scan from low-h (typically failing) to high-h (typically passing)
     for i in range(len(h_sorted) - 1):
-        if dg_sorted[i] >= threshold and dg_sorted[i + 1] < threshold:
-            # Linear interpolation
+        if not passes[i] and passes[i + 1]:
+            # Linear interpolation using de_gap values for smooth frontier
             h0, h1 = float(h_sorted[i]), float(h_sorted[i + 1])
             dg0, dg1 = float(dg_sorted[i]), float(dg_sorted[i + 1])
             if abs(dg0 - dg1) < 1e-12:
@@ -1161,7 +1178,7 @@ def compute_h_frontier(
             return h0 + (threshold - dg0) / (dg1 - dg0) * (h1 - h0)
 
     # No crossing found
-    if np.all(dg_sorted < threshold):
+    if np.all(passes):
         return float(h_sorted[0])  # All pass → frontier is at lowest h tested
     return None  # All fail → frontier not determinable
 
@@ -1204,6 +1221,7 @@ def compute_h_frontier_from_npz(
 
     if "de_gaps" in data:
         de_gaps = data["de_gaps"]
+        abs_err = np.abs(data["e_vqe"] - data["e_exact"]) if ("e_vqe" in data and "e_exact" in data) else None
     elif "e_vqe" in data and "e_exact" in data and "gaps" in data:
         abs_err = np.abs(data["e_vqe"] - data["e_exact"])
         gaps = np.maximum(data["gaps"], 1e-10)
@@ -1211,12 +1229,14 @@ def compute_h_frontier_from_npz(
     else:
         return {"h_frontier": None, "error": "missing_energy_fields"}
 
-    h_frontier = compute_h_frontier(h_values, de_gaps, threshold=threshold)
+    h_frontier = compute_h_frontier(h_values, de_gaps, abs_errors=abs_err, threshold=threshold)
 
     n_pass = int((de_gaps < threshold).sum())
-    abs_errors = None
-    if "e_vqe" in data and "e_exact" in data:
-        abs_errors = np.abs(data["e_vqe"] - data["e_exact"])
+    abs_errors = abs_err
+    if abs_errors is not None:
+        # Dual criterion pass count
+        dual_mask = (de_gaps < threshold) & (abs_errors < MAX_ABS_ERROR)
+        n_pass = int(dual_mask.sum())
 
     return {
         "h_frontier": float(h_frontier) if h_frontier is not None else None,

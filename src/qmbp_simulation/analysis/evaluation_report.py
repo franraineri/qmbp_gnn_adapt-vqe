@@ -171,7 +171,7 @@ def generate_comparison_table(
     ----------
     comparison : dict[int, dict]
         Comparison dict keyed by N with entries:
-        - "mpnn": {"mean_de_gap": ..., "mean_abs_error_per_site": ...}
+        - "mpnn": {"mean_de_gap": ...}
         - "random_vqe": {"mean_de_gap": ..., "mean_abs_error": ..., "total_evals": ...}
         - "speedup": float
         - "mpnn_win_rate": float
@@ -400,7 +400,7 @@ def generate_evaluation_report(
 
         # Per-h table
         lines.append(
-            "| h | E_pred | E_exact | |ΔE| | |ΔE|/N | gap | ΔE/gap | Category | Action | Note |"
+            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Category | Action | Note |"
         )
         lines.append(
             "|---|--------|---------|------|--------|-----|--------|----------|--------|------|"
@@ -413,7 +413,6 @@ def generate_evaluation_report(
             abs_err = p.get("abs_error", abs(e_pred - e_exact))
             gap = p.get("gap", 0)
             de_gap = p.get("de_gap", 0)
-            per_site = abs_err / max(n_target, 1)
             method = p.get("method", "mpnn")
 
             # Per-point classification
@@ -435,7 +434,7 @@ def generate_evaluation_report(
 
             lines.append(
                 f"| {h:.3f} | {e_pred:.4f} | {e_exact:.4f} | "
-                f"{abs_err:.4f} | {per_site:.2e} | {gap:.4f} | "
+                f"{abs_err:.4f} | {gap:.4f} | "
                 f"{de_gap:.4f} | {cat_display} | {cls.action} | {note} |"
             )
 
@@ -500,7 +499,6 @@ def evaluate_theta_prediction(
             "theta_mse_mean": float,
             "theta_mse_max": float,
             "theta_mse_per_h": list[float],
-            "energy_per_site_mean": float | None,
             "de_gap_mean": float | None,
             "abs_error_mean": float | None,
             "metric_warnings": list[str],
@@ -605,7 +603,6 @@ def evaluate_theta_prediction(
         "theta_mse_mean": float(np.mean(mse_list)),
         "theta_mse_max": float(np.max(mse_list)),
         "theta_mse_per_h": mse_list,
-        "energy_per_site_mean": float(np.mean(energy_errors)) if energy_errors else None,
         "de_gap_mean": float(np.mean(de_gap_list)) if de_gap_list else None,
         "abs_error_mean": (float(np.mean(energy_errors)) * n_qubits if energy_errors else None),
     }
@@ -953,7 +950,7 @@ def generate_mt_vs_st_table(
             "",
             "---",
             f"*Auto-generated from {comparison_dir.name}/ ({len(per_scenario)} comparisons)*",
-            "*Decision metric: quality_score (continuous 0-1, sigmoid-based on mean ΔE/gap + P90 + |ΔE|/N)*",
+            "*Decision metric: quality_score (continuous 0-1, sigmoid-based on mean ΔE/gap + P90 )*",
         ]
     )
 

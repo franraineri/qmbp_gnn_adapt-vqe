@@ -16,7 +16,7 @@
 | Topología | N values | Total pts | h-range | Best pass@5% | Zoo (multi-N) | n_max_viable |
 |-----------|---------|-----------|---------|--------------|---------------|--------------|
 | chain_1d | 4,6,8,10,12,14,15,16,20,26,30,40,60 | 772 | [1.5, 5.5] | 100% | — | 60 |
-| heavy_hex | 4,6,8,10,12,14,16,18,20,21,22,24,26,30,40 | 833 | [0.3, 5.5] | 100% | — | 40 |
+| heavy_hex | 4,6,8,10,12,14,16,18,20,21,22,24,26,30,40 | 853 | [0.3, 5.5] | 100% | — | 40 |
 | ladder | 4,6,8,10,12,14,16,20,26,30,40 | 624 | [1.4, 5.5] | 94% | — | 40 |
 | square | 4,6,8,10,12,14,16,20 | 507 | [1.2, 5.5] | 88% | — | 16 |
 | triangular | 3,4,6,8,10,12 | 407 | [0.5, 5.5] | 100% | — | 6 |
@@ -30,7 +30,7 @@
 | Metric | Value | Status |
 |--------|-------|--------|
 | Total NPZ files | 53 | |
-| Total training points | 3143 | |
+| Total training points | 3163 | |
 | **Quality: Useful** | 37 configs | ✅ |
 | **Quality: Insufficient** | 13 configs | ⚠️ |
 | **Quality: Not Useful** | 3 configs | ❌ |
@@ -38,7 +38,7 @@
 | Zoo integrity | True | ✅ |
 | Zoo missing | 0 | ✅ |
 | Zoo orphan checkpoints | 0 | ✅ |
-| GT coverage gaps | 1893 uncovered h-points | ⚠️ |
+| GT coverage gaps | 1897 uncovered h-points | ⚠️ |
 | Stale zoo models | 26 | ⚠️ |
 | Need retrain | 0 | ✅ |
 | High θ discontinuity (>0.5) | 29 configs | ⚠️ |
@@ -174,7 +174,7 @@ Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/g
 | 10 | 164 | [1.40, 5.50] | 93% | 90% | 1.90 | 1.62 ⚠️ | — |
 | 12 | 77 | [1.40, 4.50] | 87% | 87% | 1.93 | 1.73 ⚠️ | — |
 | 14 | 59 | [0.30, 5.00] | 42% | 36% | 1.99 | 1.57 ⚠️ | (7% masked) |
-| 16 | 149 | [1.40, 5.50] | 88% | 83% | 2.02 | 3.16 ⚠️ | — |
+| 16 | 169 | [0.30, 5.50] | 78% | 73% | 2.02 | 3.19 ⚠️ | — |
 | 18 | 36 | [2.50, 5.00] | 100% | 100% | 2.50 | 1.57 ⚠️ | — |
 | 20 | 38 | [2.00, 5.00] | 55% | 50% | 2.77 | 1.78 ⚠️ | (5% masked) |
 | 21 | 8 | [4.08, 5.00] | 100% | 100% | 4.08 | 1.57 ⚠️ | — |
@@ -402,7 +402,7 @@ Data quality breakdown by tier (verified=VQE-converged, approximate=MPNN-predict
 | Topology | Total pts | Verified | Approximate | Unverified |
 |----------|-----------|----------|-------------|------------|
 | chain_1d | 772 | 560 (72%) | 144 (18%) | 68 (8%) |
-| heavy_hex | 833 | 689 (82%) | 82 (9%) | 62 (7%) |
+| heavy_hex | 853 | 709 (83%) | 82 (9%) | 62 (7%) |
 | ladder | 624 | 261 (41%) | 259 (41%) | 104 (16%) |
 | square | 507 | 364 (71%) | 96 (18%) | 47 (9%) |
 | triangular | 407 | 235 (57%) | 96 (23%) | 76 (18%) |
@@ -482,7 +482,7 @@ Run iterative-improve to densify these configs above the frontier:
 | square | 14 | 26 | 54% | 3.29 | MEDIUM (expand range) |
 | chain_1d | 15 | 173 | 86% | 3.00 | LOW (already dense) |
 | chain_1d | 16 | 26 | 73% | 3.00 | MEDIUM (expand range) |
-| heavy_hex | 16 | 149 | 83% | 2.02 | LOW (already dense) |
+| heavy_hex | 16 | 169 | 73% | 2.02 | LOW (already dense) |
 | heavy_hex | 18 | 36 | 100% | 2.50 | LOW (already dense) |
 | chain_1d | 20 | 88 | 78% | 3.00 | LOW (already dense) |
 | heavy_hex | 20 | 38 | 50% | 2.77 | LOW (already dense) |

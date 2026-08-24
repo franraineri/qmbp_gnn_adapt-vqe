@@ -31717,5 +31717,624 @@
       "target_n": [],
       "notes": "auto-deflated from 83%"
     }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:21.061500+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 892
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:24.017823+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 892,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:24.991016+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 892,
+      "new_training_points": 892,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:25.033246+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 922
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:25.039333+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:25.039341+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:10:25.705864+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 892,
+      "new_training_points": 892,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-24T04:28:16.500029+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.2,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "extrap@N=[8, 10, 20, 30, 40]"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:42.707919+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 1.8468068440456038,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:43.082108+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:43.333990+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.45454545454545453,
+      "delta": -0.29545454545454547,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:43.458947+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.45454545454545453,
+      "pass_rate_5pct": 0.45454545454545453,
+      "mean_de_gap": 0.17178082508411674,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:44.173957+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.5084745762711864,
+      "pass_rate_5pct": 0.5084745762711864,
+      "mean_de_gap": 9.39584252830887,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        18,
+        20,
+        20,
+        20,
+        20,
+        21,
+        22,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        32,
+        40,
+        40,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 60, 80, 100, 150, 200] 30/59"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:44.764627+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.8500000000000001,
+      "new_pass_rate": 0.4444444444444444,
+      "delta": -0.40555555555555567,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:45.061303+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.4444444444444444,
+      "pass_rate_5pct": 0.4444444444444444,
+      "mean_de_gap": 29.591118395791113,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:45.359064+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.7058823529411765,
+      "pass_rate_5pct": 0.7058823529411765,
+      "mean_de_gap": 0.14386924496524406,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:46.631627+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.7058823529411765,
+      "pass_rate_5pct": 0.7058823529411765,
+      "mean_de_gap": 0.14386924496524406,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:47.037264+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.4444444444444444,
+      "delta": -0.2222222222222222,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:47.409818+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.4444444444444444,
+      "pass_rate_5pct": 0.4444444444444444,
+      "mean_de_gap": 29.591118395791113,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:05:48.013733+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.4444444444444444,
+      "pass_rate_5pct": 0.4444444444444444,
+      "mean_de_gap": 29.591118395791113,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:12:32.312183+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "prev_best_pass_rate": 0.5319148936170213,
+      "new_pass_rate": 0.06140350877192983,
+      "delta": -0.4705113848450914,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:12:33.093277+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.06140350877192983,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 51%"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:12:35.561318+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 44%"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:12:37.637685+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.35555555555555557,
+      "delta": -0.39444444444444443,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-24T05:12:38.036512+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.35555555555555557,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 71%"
+    }
   }
 ]

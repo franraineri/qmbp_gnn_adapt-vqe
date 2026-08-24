@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Data Quality Audit",
+      "description": "Run the data quality analyzer on the ResultIndex to check for garbage entries, missing metadata, and report health metrics. Trigger periodically after batches of experiments.",
+      "trigger": "Manual",
+      "action": {
+        "type": "command",
+        "command": ".venv/bin/python project_health/cli/analyze_data_quality.py --verbose"
+      },
+      "enabled": true
+    }
+  ]
+}

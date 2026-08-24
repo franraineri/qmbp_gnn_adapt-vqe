@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Refresh Module Index on Edit",
+      "description": "Regenerates module-index.md when Python source files in src/ are edited. Keeps the steering file synchronized with actual function signatures.",
+      "trigger": "PostFileSave",
+      "matcher": "src/.*[^/]*\\.py$",
+      "action": {
+        "type": "command",
+        "command": ".venv/bin/python scripts/general_project_maintenance/generate_module_index.py 2>/dev/null || .venv/bin/python scripts/maintenance/generate_module_index.py 2>/dev/null || true"
+      },
+      "timeout": 30,
+      "enabled": false
+    }
+  ]
+}

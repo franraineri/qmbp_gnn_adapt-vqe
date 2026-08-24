@@ -14,7 +14,7 @@ All data persisted to:
 - θ predictions: data/large_n_extrapolation/{topo}_N{N}_p{p}.npz
 - Model tracking: data/model_zoo/manifest.json
 
-Reports ΔE/gap, |ΔE|, |ΔE|/N, speedup (n_evals ratio), and wall time.
+Reports ΔE/gap, |ΔE|, |ΔE|, speedup (n_evals ratio), and wall time.
 All metrics follow dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10).
 
 Usage:
@@ -159,7 +159,7 @@ def compute_extrapolation_summary(per_h_results: list[dict]) -> dict:
             "max_de_gap": 0.0,
             "quality_score": 0.0,
             "grade": "F",
-            "mean_abs_error_per_site": None,
+            "mean_abs_error": None,
         }
 
     return compute_deploy_summary(per_h_results)
@@ -188,7 +188,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
     description = "MPNN extrapolation test at N=30-100 vs random VQE baseline"
     hypothesis = (
         "UnifiedMPNN trained on N≤20 can predict θ at N=30-100 with "
-        "per-site error |ΔE|/N ≈ constant, demonstrating extensive scaling."
+        "per-site error |ΔE| ≈ constant, demonstrating extensive scaling."
     )
 
     @classmethod
@@ -380,7 +380,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 id=2,
                 name="MPNN Prediction",
                 fn=self.section_mpnn_prediction,
-                hypothesis="MPNN achieves |ΔE|/N ≈ constant (extensive scaling)",
+                hypothesis="MPNN achieves |ΔE| ≈ constant (extensive scaling)",
             ),
         ]
         if not self._args.skip_random_baseline:
@@ -688,7 +688,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             # Concise progress log
             logger.info(
                 f"    N={n_target}: ΔE/gap={summary['mean_de_gap']:.4f} "
-                f"|ΔE|/N={summary['mean_abs_error_per_site']:.2e} "
+                f"|ΔE|={summary['mean_abs_error']:.2e} "
                 f"pass={summary['n_pass_dual']}/{summary['n_points']} "
                 f"({n_cached} cached, {n_predicted} new)"
             )
@@ -857,7 +857,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
         maxiter = self._args.vqe_maxiter
         max_refine = self._args.max_refine
 
-        logger.info(f"  Refining failing points (maxiter={maxiter}, max={max_refine}/N)...")
+        logger.info(f"  Refining failing points (maxiter={maxiter}, max={max_refine})...")
 
         for n_target in self._args.target_n:
             per_point = mpnn_results[n_target]["per_point"]
@@ -1357,7 +1357,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 "n_params": mpnn["n_params"],
                 "mpnn": {
                     "mean_de_gap": mpnn["mean_de_gap"],
-                    "mean_abs_error_per_site": mpnn["mean_abs_error_per_site"],
+                    "mean_abs_error": mpnn["mean_abs_error"],
                     "pass_rate_dual": mpnn["pass_rate_dual"],
                     "n_evals": mpnn["n_points"],  # 1 eval per point
                 },
@@ -1409,9 +1409,9 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     f"single={pass_5pct:.0%} vs dual={pass_dual:.0%}"
                 )
 
-        # Extensive scaling check: |ΔE|/N should be approximately constant
+        # Extensive scaling check: |ΔE| should be approximately constant
         per_site_errors = [
-            self._mpnn_results[n].get("mean_abs_error_per_site") for n in self._args.target_n
+            self._mpnn_results[n].get("mean_abs_error") for n in self._args.target_n
         ]
         # Filter None values (n_qubits missing in result dicts)
         per_site_errors = [e for e in per_site_errors if e is not None and e > 0]
@@ -1419,7 +1419,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             err_ratio = max(per_site_errors) / max(min(per_site_errors), 1e-10)
             if err_ratio < 3.0:
                 logger.info(
-                    f"  ✅ Extensive scaling confirmed: |ΔE|/N varies by {err_ratio:.1f}× "
+                    f"  ✅ Extensive scaling confirmed: |ΔE| varies by {err_ratio:.1f}× "
                     f"across N={self._args.target_n}"
                 )
             else:
@@ -1551,13 +1551,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
         if has_random:
             header = (
                 f"{'N':>5} | {'params':>6} | {'ΔE/gap(mean±std)':>18} | "
-                f"{'P90':>6} | {'|ΔE|/N':>10} | {'Grade':>5} | "
+                f"{'P90':>6} | {'|ΔE|':>10} | {'Grade':>5} | "
                 f"{'VQE ΔE/gap':>10} | {'speedup':>8}"
             )
         else:
             header = (
                 f"{'N':>5} | {'params':>6} | {'ΔE/gap(mean±std)':>18} | "
-                f"{'P90':>6} | {'|ΔE|/N':>10} | {'Grade':>5}"
+                f"{'P90':>6} | {'|ΔE|':>10} | {'Grade':>5}"
             )
 
         logger.info(header)
@@ -1571,7 +1571,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             mpnn_dg = mpnn["mean_de_gap"]
             mpnn_std = self._mpnn_results[n_target].get("std_de_gap", 0.0) or 0.0
             mpnn_p90 = self._mpnn_results[n_target].get("p90_de_gap", mpnn_dg) or mpnn_dg
-            mpnn_per_site = mpnn.get("mean_abs_error_per_site", 0.0) or 0.0
+            mpnn_abs_error = mpnn.get("mean_abs_error", 0.0) or 0.0
             grade = self._mpnn_results[n_target].get("grade", "?")
 
             if has_random and "random_vqe" in entry:
@@ -1580,14 +1580,14 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 logger.info(
                     f"{n_target:>5} | {entry['n_params']:>6} | "
                     f"{mpnn_dg:.4f}±{mpnn_std:.4f}   | "
-                    f"{mpnn_p90:>5.3f} | {mpnn_per_site:>10.2e} | "
+                    f"{mpnn_p90:>5.3f} | {mpnn_abs_error:>10.2e} | "
                     f"{grade:>5} | {rand_dg:>10.4f} | {spd:>7.0f}×"
                 )
             else:
                 logger.info(
                     f"{n_target:>5} | {entry['n_params']:>6} | "
                     f"{mpnn_dg:.4f}±{mpnn_std:.4f}   | "
-                    f"{mpnn_p90:>5.3f} | {mpnn_per_site:>10.2e} | "
+                    f"{mpnn_p90:>5.3f} | {mpnn_abs_error:>10.2e} | "
                     f"{grade:>5}"
                 )
 

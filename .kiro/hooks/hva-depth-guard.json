@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "HVA Depth Guard",
+      "description": "Before any write operation to Python files, verify the content doesn't introduce HEA ansatz or HVA depth p>2. These are non-negotiable architectural constraints (Mele et al. 2026).",
+      "trigger": "PreToolUse",
+      "matcher": "^(fs_write|fs_append|str_replace|delete_file|code)$",
+      "action": {
+        "type": "agent",
+        "prompt": "Before completing this write, check the content for violations of the two non-negotiable circuit constraints: (1) HVA only — never HEA. Flag any usage of EfficientSU2, RealAmplitudes, TwoLocal, or any reference to 'HEA' as ansatz. (2) Circuit depth p must be ≤ 2 layers. Flag any p_layers > 2, p > 2, or n_layers > 2 in HVA/circuit context (not MPNN layers which can be higher). If the file being written is not quantum-circuit-related (e.g., documentation, config, MPNN-only code), respond '✅ No circuit constraints apply'. If violations found, explain why they violate the Mele et al. depth truncation principle and suggest the correct approach."
+      },
+      "enabled": false
+    }
+  ]
+}

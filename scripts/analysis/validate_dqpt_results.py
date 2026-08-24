@@ -209,8 +209,17 @@ def check_analytical_t_star(traj: DQPTTrajectory) -> ValidationCheck:
 
     # Upper bound: thermodynamic limit prediction
     # t*_inf = pi / (2 * max(|h_post - h_c|, |h_pre - h_c|))
-    # For heavy_hex, h_c ~ 1.0; for chain_1d, h_c = 1.0
-    h_c_approx = 1.0  # TFIM critical field (topology-independent leading order)
+    # Use topology-specific h_c from QPT detection (cached results or quick computation)
+    h_c_approx = 1.0  # Fallback: TFIM leading-order estimate
+    try:
+        from scripts.analysis.qpt_detection import get_h_critical
+
+        h_c_detected = get_h_critical(traj.topology)
+        if h_c_detected is not None:
+            h_c_approx = h_c_detected
+    except Exception:
+        pass  # Fall back to 1.0 if QPT detection unavailable
+
     energy_scale = max(abs(traj.h_post - h_c_approx), abs(traj.h_pre - h_c_approx), h_diff / 2)
     t_star_upper = np.pi / (2.0 * energy_scale)
 
@@ -988,13 +997,36 @@ def compute_go_no_go(topology: str, p_layers: int = 1) -> dict:
             from scripts.analysis.evaluate_gnn_fidelity import evaluate_direct_fidelity
 
             f_result = evaluate_direct_fidelity(topology, 10, 3.0, p_layers)
-            if f_result is not None:
-                f_min = 0.50  # From fidelity threshold analysis
+            if f_result is not None and f_result.fidelity > 0.01:
+                # Load real F_min from fidelity threshold report (if available)
+                f_min = 0.50  # Fallback
+                try:
+                    fid_report_path = (
+                        _project_root / "results" / "analysis"
+                        / f"dqpt_fidelity_threshold_{topology}_N10.json"
+                    )
+                    if fid_report_path.exists():
+                        with open(fid_report_path) as _f:
+                            fid_data = json.load(_f)
+                        if fid_data.get("f_min") is not None:
+                            f_min = float(fid_data["f_min"])
+                except Exception:
+                    pass  # Use fallback 0.50
+
                 results.append(GoNoGoResult(
                     criterion="GNN fidelity > F_min at h=3.0",
                     threshold=f"F > {f_min:.2f} (DQPT detectable with QESEM)",
                     current_value=f"F={f_result.fidelity:.4f} (N=10, h=3.0)",
                     passed=f_result.fidelity > f_min,
+                    category="hardware",
+                ))
+            else:
+                # Fidelity eval returned 0 or None — likely model mismatch, skip criterion
+                results.append(GoNoGoResult(
+                    criterion="GNN fidelity > F_min at h=3.0",
+                    threshold="F > 0.50",
+                    current_value="evaluation failed (model loading issue)",
+                    passed=False,
                     category="hardware",
                 ))
         except Exception:

@@ -395,7 +395,12 @@ def generate_executive_summary(dashboard: dict) -> str:
 
 
 def generate_topology_table(topo: str, configs: list[dict]) -> str:
-    """Generate the per-topology detail table from dashboard data."""
+    """Generate the per-topology detail table from dashboard data.
+
+    Uses dual criterion (ΔE/gap < 5% AND |ΔE| < 0.10) as the single pass metric.
+    h_frontier is computed from dual criterion (not ΔE/gap alone).
+    Shows h_min attempted to track coverage near h_c=1.0.
+    """
     topo_configs = sorted(
         [c for c in configs if c["topology"] == topo], key=lambda c: c["n_qubits"]
     )
@@ -407,9 +412,14 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
         N = c["n_qubits"]
         pts = c["n_points"]
         h_range = c.get("h_range", [0, 0])
-        h_str = f"[{h_range[0]:.2f}, {h_range[1]:.2f}]" if len(h_range) == 2 else "—"
-        pass5 = c.get("pass_rate_5pct", 0)
-        pass_dual = c.get("pass_rate_dual_criterion", pass5)
+        h_min = h_range[0] if len(h_range) == 2 else 0
+        h_max = h_range[1] if len(h_range) == 2 else 0
+        h_str = f"[{h_min:.2f}, {h_max:.2f}]" if len(h_range) == 2 else "—"
+
+        # h_c coverage indicator: mark if h_min ≤ 1.0 (near critical point)
+        h_c_str = "✓" if h_min <= 1.05 else "—"
+
+        pass_dual = c.get("pass_rate_dual_criterion", c.get("pass_rate_5pct", 0))
         h_front = c.get("h_frontier")
         h_front_str = f"{h_front:.2f}" if h_front is not None else "N/A"
         smooth = c.get("theta_smoothness")
@@ -417,7 +427,8 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
             f"{smooth:.2f} {'⚠️' if smooth and smooth > 0.5 else ''}" if smooth is not None else "—"
         )
 
-        # Gap masking detection
+        # Gap masking detection (dual vs single criterion divergence)
+        pass5 = c.get("pass_rate_5pct", 0)
         gap_mask = pass5 - pass_dual
         mask_str = ""
         if gap_mask > 0.15:
@@ -432,47 +443,16 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
         obs = f"{mask_str} {div_str}{stale}".strip() or "—"
 
         rows.append(
-            f"| {N} | {pts} | {h_str} | {pass5:.0%} | {pass_dual:.0%} | {h_front_str} | {smooth_str} | {obs} |"
+            f"| {N} | {pts} | {h_str} | {h_c_str} | {pass_dual:.0%} | {h_front_str} | {smooth_str} | {obs} |"
         )
 
     lines = [
         f"### {topo.replace('_', ' ').title()}",
         "",
-        "| N | Puntos | h-range | Pass@5% | Pass@dual | h_frontier | θ smooth | Observación |",
-        "|---|--------|---------|---------|-----------|------------|---------|-------------|",
+        "| N | Puntos | h-range | h≤h_c | Pass@dual | h_frontier | θ smooth | Observación |",
+        "|---|--------|---------|-------|-----------|------------|---------|-------------|",
     ] + rows
     return "\n".join(lines)
-
-
-def generate_gap_masking_table(configs: list[dict]) -> str:
-    """Show configs where pass_rate_5pct >> pass_rate_dual (gap masking)."""
-    from qmbp_simulation.analysis.metrics import GAP_MASKING_THRESHOLD
-
-    masked = [
-        c
-        for c in configs
-        if c.get("pass_rate_5pct", 0) - c.get("pass_rate_dual_criterion", 0) > GAP_MASKING_THRESHOLD
-    ]
-    if not masked:
-        return "*(No significant gap masking detected)*"
-
-    rows = []
-    for c in sorted(
-        masked, key=lambda x: -(x["pass_rate_5pct"] - x.get("pass_rate_dual_criterion", 0))
-    ):
-        diff = c["pass_rate_5pct"] - c.get("pass_rate_dual_criterion", 0)
-        rows.append(
-            f"| {c['topology']} | {c['n_qubits']} | "
-            f"{c['pass_rate_5pct']:.0%} | {c.get('pass_rate_dual_criterion', 0):.0%} | "
-            f"{diff:.0%} |"
-        )
-
-    lines = [
-        "| Topology | N | Pass@5% | Pass@dual | Gap masked |",
-        "|----------|---|---------|-----------|------------|",
-    ] + rows
-    return "\n".join(lines)
-
 
 def generate_h_frontier_table(configs: list[dict]) -> str:
     """Cross-topology h_frontier table."""
@@ -703,24 +683,7 @@ def generate_document(
                 + [""]
             )
 
-    lines.extend(
-        [
-            "---",
-            "",
-            "## Gap Masking Analysis",
-            "",
-            "Configs where `pass@5% - pass@dual_criterion > 10%` — large gap inflates ΔE/gap metric:",
-            "",
-            "<!-- AUTO-GENERATED-BEGIN:gap_masking -->",
-            generate_gap_masking_table(configs),
-            "<!-- AUTO-GENERATED-END:gap_masking -->",
-            "",
-            "---",
-            "",
-            "## Detalle por Topología",
-            "",
-        ]
-    )
+    
 
     for topo in topologies:
         lines.append(f"<!-- AUTO-GENERATED-BEGIN:topo_{topo} -->")
@@ -943,41 +906,40 @@ def generate_large_n_extrapolation_section() -> str:
         if ckpt and ckpt != "unknown":
             lines.append(f"**Model**: `{ckpt}`")
             lines.append("")
-        lines.append("| N | h-range | Pts | ΔE/gap | |ΔE|/N | Pass@5% | Pass@dual | Speedup |")
-        lines.append("|---|---------|-----|--------|--------|---------|-----------|---------|")
+        lines.append("| N | h-range | Pts | ΔE/gap | |ΔE| | Pass@dual | Speedup |")
+        lines.append("|---|---------|-----|--------|------|-----------|---------|")
 
         for e in entries:
             n = e["n_qubits"]
             h_range = f"[{e['h_min']:.1f}, {e['h_max']:.1f}]"
             de_gap_str = f"{e['mean_de_gap']:.4f}" if e["mean_de_gap"] >= 0 else "—"
-            per_site_str = f"{e['per_site_err']:.2e}"
-            pass5_str = f"{e['pass_5pct']}/{e['n_pts']}"
+            abs_err_str = f"{e['mean_abs_err']:.3f}"
             passd_str = f"{e['pass_dual']}/{e['n_pts']}"
             spd = speedup_data.get(topo, {}).get(n)
             spd_str = f"{spd:.0f}×" if spd else "—"
 
             lines.append(
                 f"| {n} | {h_range} | {e['n_pts']} | {de_gap_str} | "
-                f"{per_site_str} | {pass5_str} | {passd_str} | {spd_str} |"
+                f"{abs_err_str} | {passd_str} | {spd_str} |"
             )
         lines.append("")
 
     # Extensive scaling summary
     lines.append("### Extensive Scaling Summary")
     lines.append("")
-    lines.append("| Topology | N range | |ΔE|/N (mean) | Variation | Scaling |")
-    lines.append("|----------|---------|--------------|-----------|---------|")
+    lines.append("| Topology | N range | |ΔE| (mean) | Variation | Scaling |")
+    lines.append("|----------|---------|-------------|-----------|---------|")
 
     for topo in sorted(topo_data.keys()):
         entries = sorted(topo_data[topo], key=lambda x: x["n_qubits"])
         if len(entries) < 2:
             continue
-        per_site_errs = [e["per_site_err"] for e in entries]
+        abs_errs = [e["mean_abs_err"] for e in entries]
         n_range = f"{entries[0]['n_qubits']}–{entries[-1]['n_qubits']}"
-        mean_ps = np.mean(per_site_errs)
-        variation = max(per_site_errs) / max(min(per_site_errs), 1e-10)
+        mean_ae = np.mean(abs_errs)
+        variation = max(abs_errs) / max(min(abs_errs), 1e-10)
         scaling_ok = "✅ extensive" if variation < 3.0 else "⚠️ degrading"
-        lines.append(f"| {topo} | {n_range} | {mean_ps:.2e} | {variation:.1f}× | {scaling_ok} |")
+        lines.append(f"| {topo} | {n_range} | {mean_ae:.3f} | {variation:.1f}× | {scaling_ok} |")
 
     lines.append("")
 
@@ -1020,6 +982,7 @@ def generate_large_n_extrapolation_section() -> str:
                             "n": n_val,
                             "mpnn_de_gap": m.get("mean_de_gap", -1),
                             "mpnn_per_site": m.get("mean_abs_error_per_site", -1),
+                            "mpnn_abs_err": m.get("mean_abs_error", m.get("mean_abs_error_per_site", 0) * n_val),
                             "mpnn_pass_dual": m.get("pass_rate_dual", 0),
                             "vqe_de_gap": v.get("mean_de_gap", -1),
                             "vqe_pass_dual": v.get("pass_rate_dual", 0),
@@ -1045,20 +1008,21 @@ def generate_large_n_extrapolation_section() -> str:
         )
         lines.append("")
         lines.append(
-            "| Topology | N | MPNN ΔE/gap | VQE ΔE/gap | MPNN |ΔE|/N | MPNN wins? | Speedup | VQE evals |"
+            "| Topology | N | MPNN ΔE/gap | VQE ΔE/gap | MPNN |ΔE| | MPNN wins? | Speedup | VQE evals |"
         )
         lines.append(
-            "|----------|---|-------------|------------|------|-------|---------|-----------|"
+            "|----------|---|-------------|------------|---------|-------|---------|-----------|"
         )
 
         for key in sorted(best_by_key.keys()):
             row = best_by_key[key]
             mpnn_win = "✅" if row["mpnn_de_gap"] < row["vqe_de_gap"] else "❌"
             spd = row["vqe_evals"] / max(row["mpnn_evals"], 1)
+            mpnn_abs_err = row.get("mpnn_abs_err", row["mpnn_per_site"] * row["n"])
             lines.append(
                 f"| {row['topo']} | {row['n']} | "
                 f"{row['mpnn_de_gap']:.4f} | {row['vqe_de_gap']:.4f} | "
-                f"{row['mpnn_per_site']:.2e} | {mpnn_win} | "
+                f"{mpnn_abs_err:.3f} | {mpnn_win} | "
                 f"{spd:.0f}× | {row['vqe_evals']:,} |"
             )
         lines.append("")
@@ -1102,24 +1066,6 @@ def generate_training_plan(dashboard: dict) -> str:
         f"❌ Not useful: {len(not_useful)}"
     )
     lines.append("")
-
-    # DELETE section
-    if not_useful:
-        lines.append("### ❌ DELETE — Not useful for MPNN training")
-        lines.append("")
-        lines.append("These NPZ files teach the MPNN wrong mappings. Remove or regenerate:")
-        lines.append("")
-        lines.append("| File | Topology | N | Reason |")
-        lines.append("|------|----------|---|--------|")
-        for c in sorted(not_useful, key=lambda x: (x["topology"], x["n_qubits"])):
-            reason = c.get("training_utility_reason", "")[:60]
-            lines.append(f"| `{c['file']}` | {c['topology']} | {c['n_qubits']} | {reason} |")
-        lines.append("")
-        lines.append("```bash")
-        for c in sorted(not_useful, key=lambda x: (x["topology"], x["n_qubits"])):
-            lines.append(f"rm data/multi_n_training/{c['file']}")
-        lines.append("```")
-        lines.append("")
 
     # IMPROVE section
     if insufficient:
@@ -1245,7 +1191,6 @@ def update_existing_document(
     if found:
         existing = updated
 
-    updated, found = update_section(existing, "gap_masking", generate_gap_masking_table(configs))
     if found:
         existing = updated
 
@@ -1355,6 +1300,10 @@ def generate_cross_topology_report(
         h_frontiers = [c["h_frontier"] for c in topo_configs if c.get("h_frontier")]
         h_frontier_str = f"{min(h_frontiers):.2f}" if h_frontiers else "—"
 
+        # h_c coverage: whether any config has attempted h ≤ 1.0 (near critical point)
+        h_mins = [c.get("h_range", [99])[0] for c in topo_configs if c.get("h_range")]
+        h_c_reached = "✓" if any(h <= 1.05 for h in h_mins) else "—"
+
         # Extrapolation best
         topo_extrap = extrap_data.get(topo, [])
         if topo_extrap:
@@ -1386,6 +1335,7 @@ def generate_cross_topology_report(
                 "dq_icon": dq_icon,
                 "extrap_str": extrap_str,
                 "h_frontier": h_frontier_str,
+                "h_c_reached": h_c_reached,
             }
         )
 
@@ -1507,14 +1457,14 @@ def _build_scorecard_section(rows: list[dict]) -> list[str]:
         "<!-- AUTO-GENERATED-BEGIN:scorecard -->",
         "## 1. Scorecard",
         "",
-        "| Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier |",
-        "|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
+        "| Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier | h≤h_c |",
+        "|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|",
     ]
     for r in rows:
         lines.append(
             f"| {r['topo']} | {r['n_max_dual']} | {r['best_dual']:.0%} | "
             f"{r['zoo_icon']} {r['zoo_str']} | {r['total_pts']} | "
-            f"{r['dq_icon']} {r['verified_pct']}% | {r['extrap_str']} | {r['h_frontier']} |"
+            f"{r['dq_icon']} {r['verified_pct']}% | {r['extrap_str']} | {r['h_frontier']} | {r['h_c_reached']} |"
         )
     lines.append("<!-- AUTO-GENERATED-END:scorecard -->")
     return lines
@@ -1570,7 +1520,6 @@ def _build_scaling_matrix_section(
 
 
 def _build_gap_masking_section(configs: list[dict]) -> list[str]:
-    """Show gap masking severity per topology (reuses generate_gap_masking_table logic)."""
     masked = [
         c
         for c in configs
@@ -1617,8 +1566,8 @@ def _build_extrapolation_section(extrap_data: dict[str, list[dict]]) -> list[str
         lines.append("<!-- AUTO-GENERATED-END:extrapolation -->")
         return lines
 
-    lines.append("| Topology | N | h-range | Pts | pass_dual | |ΔE|/N | ΔE/gap (mean) |")
-    lines.append("|----------|---|---------|-----|-----------|--------|---------------|")
+    lines.append("| Topology | N | h-range | Pts | pass_dual | |ΔE| | ΔE/gap (mean) |")
+    lines.append("|----------|---|---------|-----|-----------|------|---------------|")
 
     for topo in sorted(extrap_data.keys()):
         entries = sorted(extrap_data[topo], key=lambda x: x["n_qubits"])
@@ -1629,7 +1578,7 @@ def _build_extrapolation_section(extrap_data: dict[str, list[dict]]) -> list[str
             lines.append(
                 f"| {topo} | {n} | [{e['h_min']:.1f}, {e['h_max']:.1f}] | "
                 f"{e['n_pts']} | {e['pass_dual']}/{e['n_pts']} {icon} | "
-                f"{e['mean_per_site']:.2e} | {e['mean_de_gap']:.4f} |"
+                f"{e['mean_abs_err']:.3f} | {e['mean_de_gap']:.4f} |"
             )
 
     lines.append("<!-- AUTO-GENERATED-END:extrapolation -->")
@@ -1741,7 +1690,7 @@ def _build_failure_summary_section(topologies: list[str], configs: list[dict]) -
             per_site = mean_abs / max(avg_n, 1)
             if per_site > 0.015:
                 mode = "⚠️ ansatz_limit"
-                evidence = f"|ΔE|/N={per_site:.2e} (high), best_dual={best_dual:.0%}"
+                evidence = f"|ΔE|={mean_abs:.2e} (high), best_dual={best_dual:.0%}"
                 implication = "HVA p=1 insufficient; needs p≥2 or fewer bonds"
             else:
                 mode = "❓ unknown"

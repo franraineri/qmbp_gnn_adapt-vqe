@@ -46,7 +46,6 @@ class PerHResult:
     e_pred: float
     e_exact: float
     abs_error: float
-    abs_error_per_site: float
     gap: float
     de_gap: float
 
@@ -73,7 +72,6 @@ class BestResult:
     n_qubits: int
     best_de_gap: float
     best_abs_error: float
-    best_abs_error_per_site: float
     gap_at_best: float
     h_used: float
     grade: str
@@ -146,7 +144,7 @@ def parse_eval_report(report_path: Path, target_h: float = TARGET_H) -> list[Eva
         # Parse table row
         if in_table and current_n is not None and line.startswith("|"):
             parts = [p.strip() for p in line.split("|")[1:-1]]  # strip empty first/last
-            if len(parts) < 7:
+            if len(parts) < 6:
                 continue
             try:
                 h_val = float(parts[0])
@@ -161,9 +159,12 @@ def parse_eval_report(report_path: Path, target_h: float = TARGET_H) -> list[Eva
                 e_pred = float(parts[1])
                 e_exact = float(parts[2])
                 abs_error = float(parts[3])
-                abs_error_per_site = float(parts[4])
-                gap = float(parts[5])
-                de_gap = float(parts[6])
+                if len(parts) >= 10:
+                    gap = float(parts[5])
+                    de_gap = float(parts[6])
+                else:
+                    gap = float(parts[4])
+                    de_gap = float(parts[5])
             except (ValueError, IndexError):
                 continue
 
@@ -184,7 +185,6 @@ def parse_eval_report(report_path: Path, target_h: float = TARGET_H) -> list[Eva
                 # More than 10% discrepancy — likely stale e_exact in report
                 # Use recomputed value (e_pred and e_exact are authoritative)
                 abs_error = recomputed_abs_error
-                abs_error_per_site = abs_error / max(current_n, 1)
                 if gap > 1e-10:
                     de_gap = abs_error / gap
 
@@ -193,7 +193,6 @@ def parse_eval_report(report_path: Path, target_h: float = TARGET_H) -> list[Eva
                 e_pred=e_pred,
                 e_exact=e_exact,
                 abs_error=abs_error,
-                abs_error_per_site=abs_error_per_site,
                 gap=gap,
                 de_gap=de_gap,
             )
@@ -347,14 +346,14 @@ def compute_best_per_topology_n(
         seen: dict[tuple[str, int, float], EvalEntry] = {}
         deduped = []
         for entry in grouped[key]:
-            dedup_key = (entry.checkpoint, entry.n_qubits, round(entry.result.de_gap, 6))
+            dedup_key = (entry.checkpoint, entry.n_qubits, round(entry.result.abs_error, 6))
             if dedup_key not in seen:
                 seen[dedup_key] = entry
                 deduped.append(entry)
             else:
-                # Keep the one with lower de_gap (prefer extrapolation_evals source)
+                # Keep the one with lower |ΔE| (prefer extrapolation_evals source)
                 existing = seen[dedup_key]
-                if entry.result.de_gap < existing.result.de_gap:
+                if entry.result.abs_error < existing.result.abs_error:
                     deduped.remove(existing)
                     deduped.append(entry)
                     seen[dedup_key] = entry
@@ -363,35 +362,33 @@ def compute_best_per_topology_n(
     results: dict[str, dict[int, BestResult]] = {}
 
     for (topo, n), group in sorted(grouped.items()):
-        # Find entry with lowest ΔE/gap
-        best_entry = min(group, key=lambda e: e.result.de_gap)
+        # Find entry with lowest |ΔE| (abs_error) — primary ranking criterion
+        best_entry = min(group, key=lambda e: e.result.abs_error)
         r = best_entry.result
 
-        # Grade based on ΔE/gap thresholds directly (more intuitive for
-        # single-point best-ever tracking than the composite quality score
-        # which penalizes low n_points via confidence).
-        # Thresholds aligned with DE_GAP_THRESHOLD=0.05 dual criterion:
-        #   A: ΔE/gap < 0.03 (well below threshold)
-        #   B: ΔE/gap < 0.05 (passes dual criterion)
-        #   C: ΔE/gap < 0.10 (near-pass, within 2× threshold)
-        #   D: ΔE/gap < 0.50 (moderate error)
-        #   F: ΔE/gap ≥ 0.50
-        if r.de_gap < 0.03:
+        # Grade based on |ΔE| (absolute energy error).
+        # Thresholds are N-independent — what matters is the raw energy accuracy.
+        #   A: |ΔE| < 0.05 (chemical accuracy regime)
+        #   B: |ΔE| < 0.10
+        #   C: |ΔE| < 0.30
+        #   D: |ΔE| < 1.00
+        #   F: |ΔE| ≥ 1.00
+        if r.abs_error < 0.05:
             grade = "A"
-        elif r.de_gap < 0.05:
+        elif r.abs_error < 0.10:
             grade = "B"
-        elif r.de_gap < 0.10:
+        elif r.abs_error < 0.30:
             grade = "C"
-        elif r.de_gap < 0.50:
+        elif r.abs_error < 1.00:
             grade = "D"
         else:
             grade = "F"
 
-        # Also compute the composite score for reference
+        # Composite score for reference (higher = better)
         score = compute_quality_score(
             mean_de_gap=r.de_gap,
             p90_de_gap=r.de_gap,
-            mean_abs_error_per_site=r.abs_error_per_site,
+            mean_abs_error_per_site=r.abs_error / max(n, 1),
             n_points=8,  # treat as full-confidence for scoreboard display
         )
 
@@ -405,7 +402,6 @@ def compute_best_per_topology_n(
             n_qubits=n,
             best_de_gap=r.de_gap,
             best_abs_error=r.abs_error,
-            best_abs_error_per_site=r.abs_error_per_site,
             gap_at_best=r.gap,
             h_used=r.h,
             grade=grade,
@@ -449,7 +445,7 @@ def format_markdown(
         "> It does NOT average over h — it tracks the "
         "hardest operating point near h_critical.",
         "> For in-distribution quality (training N), see `model_evaluation_report.md`.",
-        "> Grade thresholds: A (<3%), B (<5%), C (<10%), D (<50%), F (≥50%).",
+        "> Grade thresholds: A (|ΔE|<0.05), B (<0.10), C (<0.30), D (<1.00), F (≥1.00).",
         "",
         "---",
         "",
@@ -460,25 +456,25 @@ def format_markdown(
     lines.append("")
     lines.append(
         "| Topology | Max N evaluated | Best grade | "
-        "Best ΔE/gap (any N) | Best model type | N trained up to |"
+        "Best |ΔE| (any N) | Best model type | N trained up to |"
     )
     lines.append("|---|---|---|---|---|---|")
 
     for topo in sorted(best_by_topo.keys()):
         n_results = best_by_topo[topo]
         max_n = max(n_results.keys())
-        # Best grade across all N
-        best_grade_entry = min(n_results.values(), key=lambda r: r.best_de_gap)
+        # Best grade across all N (lowest |ΔE|)
+        best_grade_entry = min(n_results.values(), key=lambda r: r.best_abs_error)
         best_grade = best_grade_entry.grade
-        best_dg = best_grade_entry.best_de_gap
+        best_abs = best_grade_entry.best_abs_error
         best_type = best_grade_entry.model_type
         # Max N with reasonable results
-        reasonable_ns = [n for n, r in n_results.items() if r.best_de_gap < 10.0]
+        reasonable_ns = [n for n, r in n_results.items() if r.best_abs_error < 10.0]
         max_n_trained = max(reasonable_ns) if reasonable_ns else max_n
 
         lines.append(
             f"| {topo} | {max_n} | {best_grade} | "
-            f"{best_dg:.4f} | {best_type} | {max_n_trained} |"
+            f"{best_abs:.4f} | {best_type} | {max_n_trained} |"
         )
 
     lines.extend(["", "---", ""])
@@ -501,11 +497,11 @@ def format_markdown(
         lines.append("")
 
         lines.append(
-            "| N | ΔE/gap | |ΔE| | |ΔE|/N | gap | Grade | "
+            "| N | |ΔE| | ΔE/gap | gap | Grade | "
             "Model | Checkpoint | Date | Source |"
         )
         lines.append(
-            "|--:|-------:|-----:|------:|----:|:-----:|"
+            "|--:|-----:|-------:|----:|:-----:|"
             ":-----:|-----------|------|--------|"
         )
 
@@ -522,8 +518,7 @@ def format_markdown(
                 source_link += f" ([json]({r.run_json}))"
 
             lines.append(
-                f"| {n} | {r.best_de_gap:.4f} | {r.best_abs_error:.4f} | "
-                f"{r.best_abs_error_per_site:.2e} | {r.gap_at_best:.4f} | "
+                f"| {n} | {r.best_abs_error:.4f} | {r.best_de_gap:.4f} | {r.gap_at_best:.4f} | "
                 f"{r.grade} | {r.model_type} | "
                 f"{ckpt_short} | {r.date[:10] if r.date else '—'} | "
                 f"{source_link} |"
@@ -595,7 +590,7 @@ def cross_validate_with_registry(
                         # If zoo says good pass but we show F, flag
                         elif best.grade == "F" and zoo_pass_at_n > 0.50:
                             validation_lines.append(
-                                f"⚠️ {topo} N={n}: scoreboard grade=F (ΔE/gap={best.best_de_gap:.3f}) "
+                                f"⚠️ {topo} N={n}: scoreboard grade=F (|ΔE|={best.best_abs_error:.3f}) "
                                 f"but zoo pass_rate_by_n[{n}]={zoo_pass_at_n:.0%} — "
                                 f"possible inflated zoo or h-grid difference"
                             )
@@ -611,9 +606,9 @@ def cross_validate_with_registry(
                             # Our per-h best is very different from the registry's mean
                             # This is expected (we pick best h, registry averages all h)
                             # Only flag if direction is inverted
-                            if best.best_de_gap > latest_eval.mean_de_gap * 3:
+                            if best.best_abs_error > latest_eval.mean_de_gap * best.gap_at_best * 3:
                                 validation_lines.append(
-                                    f"⚠️ {topo} N={n}: scoreboard ΔE/gap@h=2.5 = {best.best_de_gap:.3f} "
+                                    f"⚠️ {topo} N={n}: scoreboard |ΔE|@h=2.5 = {best.best_abs_error:.3f} "
                                     f">> registry mean ΔE/gap = {latest_eval.mean_de_gap:.3f} — "
                                     f"h=2.5 is anomalously hard for this config"
                                 )
@@ -641,6 +636,33 @@ def generate_scoreboard(
         return {"n_entries": 0, "best_by_topo": {}}
 
     best_by_topo = compute_best_per_topology_n(entries)
+
+    # ── GT cache freshness check (validate e_exact against authoritative source) ──
+    gt_warnings: list[str] = []
+    try:
+        from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
+
+        gt_cache = GroundTruthCache()
+        for topo, n_results in best_by_topo.items():
+            for n, best in n_results.items():
+                cached = gt_cache.get(topo, n, "tfim_bond_resolved", best.h_used)
+                if cached is None:
+                    cached = gt_cache.get(topo, n, "tfim", best.h_used)
+                if cached is not None:
+                    gt_energy = float(cached["energy"])
+                    if abs(gt_energy - best.e_exact) > 0.001:
+                        gt_warnings.append(
+                            f"⚠️ {topo} N={n} h={best.h_used:.2f}: "
+                            f"report e_exact={best.e_exact:.4f} vs GT cache={gt_energy:.4f} "
+                            f"(Δ={abs(gt_energy - best.e_exact):.4f}) — STALE e_exact in report"
+                        )
+    except Exception:
+        pass  # GT cache validation is best-effort
+
+    if gt_warnings:
+        print(f"  ⚠️ GT freshness issues ({len(gt_warnings)}):")
+        for w in gt_warnings[:5]:
+            print(f"    {w}")
 
     # Count unique reports
     unique_reports = set(e.report_file for e in entries)
@@ -736,10 +758,10 @@ def main():
 
     for topo, n_results in sorted(summary["best_by_topology"].items()):
         n_vals = sorted(int(k) for k in n_results.keys())
-        best_grade = min(n_results.values(), key=lambda r: r["best_de_gap"])
+        best_grade = min(n_results.values(), key=lambda r: r["best_abs_error"])
         print(
             f"  {topo:14s}: N={n_vals}, "
-            f"best ΔE/gap={best_grade['best_de_gap']:.4f} ({best_grade['grade']})"
+            f"best |ΔE|={best_grade['best_abs_error']:.4f} ({best_grade['grade']})"
         )
 
     return 0

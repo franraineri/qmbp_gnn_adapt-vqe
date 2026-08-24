@@ -358,9 +358,47 @@ def run_fidelity_threshold_scan(
     # Reference: F=1.0 (exact ground state)
     t_star_ref = None
 
+    # ── Checkpoint resume (crash-safe: skip already-computed fidelities) ─────
+    checkpoint_dir = _project_root / "data" / "checkpoints"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    cp_path = checkpoint_dir / f"fidelity_threshold_{topology}_N{n_qubits}.json"
+    completed_fidelities: dict[str, dict] = {}
+
+    if cp_path.exists():
+        try:
+            with open(cp_path) as f:
+                cp_data = json.load(f)
+            completed_fidelities = cp_data.get("results_by_f", {})
+            t_star_ref = cp_data.get("t_star_ref")
+            logger.info(f"  Resumed checkpoint: {len(completed_fidelities)} fidelities already done")
+        except Exception:
+            completed_fidelities = {}
+
     # Scan fidelities
     fidelities_sorted = sorted(fidelities, reverse=True)
     for F in fidelities_sorted:
+        f_key = f"{F:.4f}"
+
+        # Skip if already completed (from checkpoint)
+        if f_key in completed_fidelities:
+            cached = completed_fidelities[f_key]
+            scan_result = FidelityScanResult(
+                fidelity=F,
+                n_dqpts=cached["n_dqpts"],
+                critical_times=cached["critical_times"],
+                L_min=cached["L_min"],
+                r_peak=cached["r_peak"],
+                t_star_1=cached["t_star_1"],
+                t_star_shift=cached["t_star_shift"],
+                detectable=cached["detectable"],
+            )
+            report.results.append(scan_result)
+            if t_star_ref is None and (F == 1.0 or F >= 0.99):
+                t_star_ref = cached["t_star_1"]
+                report.t_star_reference = t_star_ref
+            logger.info(f"  F={F:.2f}: (from checkpoint) r_peak={cached['r_peak']:.4f}")
+            continue
+
         psi_approx = construct_approximate_state(psi_0, psi_1, F)
 
         # Verify fidelity
@@ -395,6 +433,23 @@ def run_fidelity_threshold_scan(
         )
         report.results.append(scan_result)
 
+        # ── Immediate checkpoint save (crash-safe) ───────────────────────
+        completed_fidelities[f_key] = {
+            "fidelity": F,
+            "n_dqpts": scan_result.n_dqpts,
+            "critical_times": scan_result.critical_times,
+            "L_min": scan_result.L_min,
+            "r_peak": scan_result.r_peak,
+            "t_star_1": scan_result.t_star_1,
+            "t_star_shift": scan_result.t_star_shift,
+            "detectable": scan_result.detectable,
+        }
+        try:
+            with open(cp_path, "w") as f:
+                json.dump({"results_by_f": completed_fidelities, "t_star_ref": t_star_ref}, f)
+        except Exception:
+            pass  # Checkpoint save is best-effort
+
         logger.info(
             f"  F={F:.2f}: DQPTs={scan_result.n_dqpts}, "
             f"r_peak={scan_result.r_peak:.4f}, "
@@ -408,6 +463,13 @@ def run_fidelity_threshold_scan(
         report.f_min = min(r.fidelity for r in detectable_results)
     else:
         report.f_min = None  # No fidelity produces detectable DQPTs (bad quench params)
+
+    # Clean up checkpoint on successful completion
+    try:
+        if cp_path.exists():
+            cp_path.unlink()
+    except Exception:
+        pass
 
     return report
 
