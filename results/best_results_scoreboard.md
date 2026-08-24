@@ -1,6 +1,6 @@
 # Best Results Scoreboard
 
-**Updated**: 2026-08-24 01:27 UTC
+**Updated**: 2026-08-24 01:44 UTC
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
 **Reports scanned**: 289
 **Criterion**: Best ΔE/gap achieved at h≈2.5 per (topology × N)

@@ -38,7 +38,7 @@
 | Zoo integrity | True | ✅ |
 | Zoo missing | 0 | ✅ |
 | Zoo orphan checkpoints | 0 | ✅ |
-| GT coverage gaps | 1913 uncovered h-points | ⚠️ |
+| GT coverage gaps | 1893 uncovered h-points | ⚠️ |
 | Stale zoo models | 26 | ⚠️ |
 | Need retrain | 0 | ✅ |
 | High θ discontinuity (>0.5) | 29 configs | ⚠️ |
@@ -303,7 +303,7 @@ evaluated at N=30-100 via MPS backend. Speedup = VQE_evals / MPNN_evals.
 | 32 | [2.5, 5.0] | 10 | 0.3840 | 2.02e-02 | 6/10 | 6/10 | — |
 | 40 | [2.5, 5.0] | 33 | 0.2009 | 1.45e-02 | 13/33 | 13/33 | 9333× |
 | 50 | [2.5, 5.0] | 6 | 2.5883 | 1.23e-01 | 0/6 | 0/6 | 11100× |
-| 60 | [2.5, 5.0] | 6 | 3.3160 | 1.32e-01 | 0/6 | 0/6 | 13480× |
+| 60 | [2.5, 5.0] | 6 | 1.9004 | 6.97e-02 | 0/6 | 0/6 | 13480× |
 
 ### ladder
 
@@ -342,7 +342,7 @@ evaluated at N=30-100 via MPS backend. Speedup = VQE_evals / MPNN_evals.
 | Topology | N range | |ΔE|/N (mean) | Variation | Scaling |
 |----------|---------|--------------|-----------|---------|
 | chain_1d | 16–200 | 1.77e-02 | 6.1× | ⚠️ degrading |
-| heavy_hex | 10–60 | 3.44e-02 | 21.1× | ⚠️ degrading |
+| heavy_hex | 10–60 | 2.96e-02 | 19.6× | ⚠️ degrading |
 | ladder | 16–40 | 9.50e-03 | 1.9× | ✅ extensive |
 | square | 16–30 | 2.12e-02 | 1.8× | ✅ extensive |
 | triangular | 12–24 | 1.64e-01 | 3.5× | ⚠️ degrading |

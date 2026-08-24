@@ -1,6 +1,6 @@
 # Cross-Topology Unified Report
 
-**Generated**: 2026-08-24 01:28 UTC
+**Generated**: 2026-08-24 01:44 UTC
 **Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)
 **Model**: TFIM bond-resolved, HVA p=1
 
@@ -88,7 +88,7 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 | heavy_hex | 32 | [2.5, 5.0] | 10 | 6/10 ⚠️ | 2.02e-02 | 0.3840 |
 | heavy_hex | 40 | [2.5, 5.0] | 33 | 13/33 ⚠️ | 1.45e-02 | 0.2009 |
 | heavy_hex | 50 | [2.5, 5.0] | 6 | 0/6 ❌ | 1.23e-01 | 2.5883 |
-| heavy_hex | 60 | [2.5, 5.0] | 6 | 0/6 ❌ | 1.32e-01 | 3.3160 |
+| heavy_hex | 60 | [2.5, 5.0] | 6 | 0/6 ❌ | 6.97e-02 | 1.9004 |
 | ladder | 16 | [2.5, 5.0] | 6 | 0/6 ❌ | 1.40e-02 | 0.0784 |
 | ladder | 20 | [2.5, 5.5] | 24 | 6/24 ❌ | 7.24e-03 | 0.2592 |
 | ladder | 26 | [2.5, 5.0] | 14 | 2/14 ❌ | 8.95e-03 | 0.5173 |

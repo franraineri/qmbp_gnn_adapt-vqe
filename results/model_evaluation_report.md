@@ -1,7 +1,7 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-08-24 01:28 UTC
-**Elapsed**: 3.9s
+**Generated**: 2026-08-24 01:44 UTC
+**Elapsed**: 3.8s
 **Models evaluated**: 11
 
 ---
@@ -240,7 +240,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 6.9620e+02 | 0.0716 | 1.79e-03 | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.23e-01 | 2.5883 | F |
-| 60 | EXT | 6 | — | — | 1.32e-01 | 3.3160 | F |
+| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -397,7 +397,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 2.1194e+00 | 0.0716 | 1.79e-03 | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.23e-01 | 2.5883 | F |
-| 60 | EXT | 6 | — | — | 1.32e-01 | 3.3160 | F |
+| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -440,7 +440,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 3.2228e+00 | 0.0716 | 1.79e-03 | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.23e-01 | 2.5883 | F |
-| 60 | EXT | 6 | — | — | 1.32e-01 | 3.3160 | F |
+| 60 | EXT | 6 | — | — | 6.97e-02 | 1.9004 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0499 (possible stale e_exact or gap) N=4
@@ -499,9 +499,9 @@
 | chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.2300e-01 | 2.21e-02 | D (poor) |
 | ladder | unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26 | 1.7927e-02 | — | F (failing) |
 | multi_topology | unified_tfim_br_MT_residual+film_p1.pt | 9.0614e-02 | 3.86e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 3.9318e+02 | 9.18e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 1.2437e+00 | 9.18e-02 | F (failing) |
-| heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p | 1.1601e+00 | 9.18e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 3.9318e+02 | 7.09e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 1.2437e+00 | 7.09e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p | 1.1601e+00 | 7.09e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt | 4.5781e-02 | 2.97e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4 | 7.8955e-02 | 2.97e-02 | F (failing) |
 | triangular | unified_tfim_br_triangular_multiN_3+4+6_p1.pt | 9.5203e-02 | 2.09e-01 | F (failing) |
@@ -510,7 +510,7 @@
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-08-24 01:28 UTC
+**Generated**: 2026-08-24 01:44 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

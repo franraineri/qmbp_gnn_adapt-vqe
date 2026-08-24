@@ -1,6 +1,6 @@
 {
  "version": "1.0",
- "n_entries": 1889,
+ "n_entries": 1891,
  "runs": [
   {
    "model": "tfim",
@@ -17809,6 +17809,32 @@
    "_file": "results/experiments/exp_accel_cross_n/run_20260823_222641.json"
   },
   {
+   "model": "",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": [
+    1
+   ],
+   "passed": false,
+   "pass_rate": 0.6666666666666666,
+   "n_sections": 3,
+   "timestamp": "20260823_224316",
+   "elapsed_s": 5388.48,
+   "schema_version": "2.0",
+   "experiment_id": "ACCEL_CROSS_N",
+   "interrupted": false,
+   "gap_methods": null,
+   "quality_score": 0.6,
+   "grade": "C",
+   "mean_de_gap": null,
+   "backend_type": null,
+   "method_exact": null,
+   "runner_tag": null,
+   "date_tag": null,
+   "runner_id": "accelerated_cross_n_v1",
+   "_file": "results/experiments/exp_accel_cross_n/run_20260823_224316.json"
+  },
+  {
    "model": "tfim_bond_resolved",
    "topology": "[]",
    "n_qubits": 40,
@@ -25151,6 +25177,30 @@
    "date_tag": null,
    "runner_id": "large_n_extrapolation_v2",
    "_file": "results/experiments/exp_large_n_extrap/run_20260823_222019.json"
+  },
+  {
+   "model": "tfim_bond_resolved",
+   "topology": "[]",
+   "n_qubits": 0,
+   "p_layers": 1,
+   "passed": true,
+   "pass_rate": 0.0,
+   "n_sections": 0,
+   "timestamp": "20260823_223216",
+   "elapsed_s": 644.03,
+   "schema_version": "2.0",
+   "experiment_id": "LARGE_N_EXTRAP",
+   "interrupted": true,
+   "gap_methods": null,
+   "quality_score": 0.0,
+   "grade": "F",
+   "mean_de_gap": null,
+   "backend_type": null,
+   "method_exact": null,
+   "runner_tag": null,
+   "date_tag": null,
+   "runner_id": "large_n_extrapolation_v2",
+   "_file": "results/experiments/exp_large_n_extrap/run_20260823_223216.json"
   },
   {
    "model": "",
