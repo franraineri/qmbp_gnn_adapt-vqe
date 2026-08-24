@@ -138,3 +138,6 @@ notebooks/test_notebooks.py
 
 results/extrapolation_evals/*
 results/model_comparison/*
+
+backup_data_*
+*.tar.gzbackup_data_20260821.tar.gz
