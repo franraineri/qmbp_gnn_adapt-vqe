@@ -27,8 +27,16 @@ data/colab_job.json
 
 # ── Whitelist: trained data we keep (tracked) ────────────────
 !data/model_zoo/
-!data/model_zoo/**
+# Metadata (manifest/registry/history) — always tracked
+!data/model_zoo/*.json
+# The "best" checkpoints referenced by the manifest (~29MB, needed after clone)
+!data/model_zoo/checkpoints/
 !data/model_zoo/checkpoints/*.pt
+# Fallback checkpoints (defense-in-depth if a best checkpoint is missing)
+!data/model_zoo/archived/
+!data/model_zoo/archived/*.pt
+# Local-only working dirs (versions/best/candidates/recovery) stay OUT of git
+data/model_zoo/checkpoints/_*/
 !data/multi_n_training/
 !data/multi_n_training/*.npz
 !data/ground_truth_cache.json
@@ -83,12 +91,19 @@ scripts/notebook_results/
 # ── Logs & temp ──────────────────────────────────────────────
 *.log
 tmp/
-checkpoint*
+# NOTE: only match root-level checkpoint LOG files, not data/model_zoo/checkpoints/
+/checkpoint_*
+/checkpoint.*
 log_*
 digest_*
 .project_health_state.json
 
 plot_*
+
+# ── Secrets & credentials (NEVER commit) ─────────────────────
+.env
+.env.*
+*.env
 
 # ── Secrets & credentials (NEVER commit) ─────────────────────
 .env
@@ -130,3 +145,9 @@ workloads*/
 
 # ── Notebook test script (dev only) ─────────────────────────
 notebooks/test_notebooks.py
+
+results/extrapolation_evals/*
+results/model_comparison/*
+
+backup_data_*
+*.tar.gzbackup_data_20260821.tar.gz

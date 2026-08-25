@@ -24,6 +24,7 @@ from typing import Any
 
 import numpy as np
 
+from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD
 from qmbp_simulation.execution import ExecutionBackend, NoiselessBackend
 from qmbp_simulation.framework.config import ExperimentConfig
 from qmbp_simulation.framework.logging import StructuredLogger
@@ -244,7 +245,7 @@ class BaseExperiment(ABC):
                 "median_de_gap": float(np.median(de_gaps)),
                 "min_de_gap": float(np.min(de_gaps)),
                 "max_de_gap": float(np.max(de_gaps)),
-                "pass_rate": (sum(1 for d in de_gaps if d < 0.05) / len(de_gaps)),
+                "pass_rate": (sum(1 for d in de_gaps if d < DE_GAP_THRESHOLD) / len(de_gaps)),
                 "n_total_points": len(all_metrics),
                 "total_time_s": sum(m.wall_time_s for m in all_metrics),
                 "convergence_rate": (sum(1 for m in all_metrics if m.converged) / len(all_metrics)),
@@ -440,20 +441,7 @@ class BaseExperiment(ABC):
         return {"lattice": lattice, "hamiltonian": H, "exact": exact}
 
     def evaluate_energy(self, params: np.ndarray, hamiltonian) -> float:
-        """Evaluate energy using the configured backend.
-
-        Parameters
-        ----------
-        params : np.ndarray
-            Circuit parameters.
-        hamiltonian : SparsePauliOp
-            Hamiltonian operator.
-
-        Returns
-        -------
-        float
-            Expectation value ⟨H⟩.
-        """
+        """Evaluate energy using the configured backend."""
         return self.backend.evaluate(self.circuit, hamiltonian, params)
 
     def run_warm_cold_comparison(

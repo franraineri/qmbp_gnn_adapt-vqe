@@ -15,7 +15,6 @@ Fixes applied (2026-05-30):
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -66,6 +65,7 @@ class ResultScanner:
         """Lazily-initialized ResultIndex for fast experiment discovery."""
         if self._index is None:
             from qmbp_simulation.framework.result_index import ResultIndex
+
             exp_root = self.root / "experiments"
             self._index = ResultIndex(root=exp_root)
         return self._index
@@ -848,6 +848,8 @@ class ResultScanner:
 
         # Extract p_layers
         p_layers_val = system.get("p_layers") or config.get("p_layers")
+        if isinstance(p_layers_val, list):
+            p_layers_val = p_layers_val[0] if p_layers_val else 1
         p_layers = int(p_layers_val) if p_layers_val is not None else 2
 
         # Extract model type
@@ -931,6 +933,7 @@ def _load_json(path: Path) -> dict[str, Any] | None:
     """
     try:
         from qmbp_simulation.framework.result_io import load_result
+
         return load_result(path)
     except (FileNotFoundError, ValueError) as e:
         logger.debug("Failed to load %s: %s", path, e)

@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-08-19T03:13:26.501649+00:00",
+  "topology": "multi_topology",
+  "multi_topology_mode": true,
+  "max_n": 20,
+  "max_de_gap": 0.05,
+  "n_training_graphs": 2243,
+  "dataset_fingerprint": "92816b4a",
+  "hidden_dim": 256,
+  "n_layers": 3,
+  "max_epochs": 4000,
+  "seed": 42,
+  "n_seeds": 1,
+  "exclusion_policy_applied": false,
+  "results": [
+    {
+      "name": "baseline",
+      "n_params": 400434,
+      "final_mse": 0.19057194498913302,
+      "final_zz_mse": 0.0057956265457408595,
+      "final_x_mse": 0.20085076043645336,
+      "val_mse": 0.2533973243984552,
+      "gen_gap": 0.06282537940932217,
+      "n_epochs": 1251,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 11063.8
+    },
+    {
+      "name": "residual",
+      "n_params": 405810,
+      "final_mse": 0.16199214634456835,
+      "final_zz_mse": 0.005164580119656385,
+      "final_x_mse": 0.16956787854764924,
+      "val_mse": 0.24094059423688513,
+      "gen_gap": 0.07894844789231678,
+      "n_epochs": 251,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 4129.6
+    },
+    {
+      "name": "jk_cat",
+      "n_params": 531506,
+      "final_mse": 0.1715348313715515,
+      "final_zz_mse": 0.005289377378062343,
+      "final_x_mse": 0.17926656013152042,
+      "val_mse": 0.26036348258652914,
+      "gen_gap": 0.08882865121497763,
+      "n_epochs": 251,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 4190.0
+    },
+    {
+      "name": "film",
+      "n_params": 403506,
+      "final_mse": 0.20548108473650165,
+      "final_zz_mse": 0.005821280924781658,
+      "final_x_mse": 0.21540127502078818,
+      "val_mse": 0.23444788044175116,
+      "gen_gap": 0.028966795705249515,
+      "n_epochs": 951,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 7296.9
+    },
+    {
+      "name": "res+jk+film",
+      "n_params": 539954,
+      "final_mse": 0.18348638389078759,
+      "final_zz_mse": 0.005359543087645612,
+      "final_x_mse": 0.19322980360715586,
+      "val_mse": 0.25034020376050475,
+      "gen_gap": 0.06685381986971717,
+      "n_epochs": 251,
+      "stop_reason": "overfitting_detected",
+      "elapsed_s": 2130.1
+    }
+  ],
+  "best_variant": "film"
+}

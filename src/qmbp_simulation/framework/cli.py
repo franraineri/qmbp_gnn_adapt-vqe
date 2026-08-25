@@ -134,6 +134,13 @@ def add_sweep_args(parser: argparse.ArgumentParser) -> argparse._ArgumentGroup:
         default=[1.5],
         help="Unseen h-value(s) for deployment (default: 1.5)",
     )
+    group.add_argument(
+        "--frontier-dense",
+        action="store_true",
+        default=False,
+        help="Auto-densify h-grid around empirical h_frontier from NPZ data. "
+        "Concentrates points where the pipeline transitions from pass to fail.",
+    )
     return group
 
 
@@ -278,29 +285,9 @@ def validate_descending_sweep(
 ) -> np.ndarray:
     """Validate and normalize h-values to descending order.
 
+
     If h_values is None, generates a default linspace.
     If provided, sorts into descending order.
-
-    Parameters
-    ----------
-    h_values : list[float] | None
-        User-provided h-values, or None for default.
-    default_start : float
-        Start of default linspace (highest h).
-    default_end : float
-        End of default linspace (lowest h).
-    default_n : int
-        Number of points in default linspace.
-
-    Returns
-    -------
-    np.ndarray
-        h-values in descending order.
-
-    Raises
-    ------
-    ValueError
-        If h_values is empty after filtering.
     """
     if h_values is None:
         return np.linspace(default_start, default_end, default_n)
@@ -390,18 +377,7 @@ def build_mpnn_config_dict(args: argparse.Namespace) -> dict:
 
 
 def resolve_output_dir(path: str | Path) -> Path:
-    """Resolve and create output directory.
-
-    Parameters
-    ----------
-    path : str | Path
-        Output directory path.
-
-    Returns
-    -------
-    Path
-        Resolved Path object (directory is created if needed).
-    """
+    """Resolve and create output directory."""
     output_dir = Path(path)
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
@@ -489,7 +465,7 @@ def add_iterative_improve_args(parser: argparse.ArgumentParser) -> argparse._Arg
     """Add iterative improvement loop arguments.
 
     Provides: --iterative-improve, --max-iterations, --improvement-threshold,
-    --budget-only, --force-method, --bidirectional-anchors
+    --budget-only, --force-method, --bidirectional-anchors, --use-residual
 
     These are reusable by any runner that supports the predict→refine→retrain
     cycle for cross-N transfer or deployment quality improvement.
@@ -533,6 +509,22 @@ def add_iterative_improve_args(parser: argparse.ArgumentParser) -> argparse._Arg
         default=False,
         help="Enable bidirectional ascending merge for anchor VQE. "
         "Re-optimizes failing anchors in ascending direction.",
+    )
+    group.add_argument(
+        "--use-residual",
+        action="store_true",
+        default=False,
+        help="Enable residual connections in UnifiedMPNN architecture. "
+        "When set, retrain steps in iterative improve use use_residual=True. "
+        "Auto-detected from loaded model if not explicitly passed.",
+    )
+    group.add_argument(
+        "--film",
+        action="store_true",
+        default=False,
+        help="Enable FiLM conditioning by h in UnifiedMPNN. Modulates each "
+        "GNN layer by the transverse field, helping the model adapt "
+        "predictions across the h-sweep (especially near h_critical).",
     )
     return group
 

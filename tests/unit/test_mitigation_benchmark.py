@@ -455,7 +455,7 @@ class TestHypothesisVerdicts:
 
     def _make_analyzer_with_entries(self, entries: list[dict]):
         """Create an analyzer pre-loaded with synthetic entries."""
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 
@@ -569,7 +569,7 @@ class TestTransferRatio:
 
     def _make_analyzer_with_entries(self, entries: list[dict]):
         """Create an analyzer pre-loaded with synthetic entries."""
-        from project_health.analysis.mitigation_benchmark_analyzer import (
+        from project_health.analysis.hardware.mitigation_benchmark_analyzer import (
             MitigationBenchmarkAnalyzer,
         )
 

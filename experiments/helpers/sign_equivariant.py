@@ -22,20 +22,9 @@ import torch
 def canonicalize_sign(theta: np.ndarray, reference_index: int = -1) -> np.ndarray:
     """Strategy A: Enforce canonical sign convention.
 
+
     Ensures the parameter at reference_index is positive.
     If negative, flips ALL parameters (exploiting Z2 symmetry).
-
-    Parameters
-    ----------
-    theta : np.ndarray
-        Parameter vector (any length).
-    reference_index : int
-        Which parameter to use as sign reference (default: last = theta_x).
-
-    Returns
-    -------
-    np.ndarray
-        Canonicalized parameters with theta[reference_index] >= 0.
     """
     if theta[reference_index] < 0:
         return -theta
@@ -46,20 +35,7 @@ def canonicalize_dataset(
     theta_array: np.ndarray,
     reference_index: int = -1,
 ) -> np.ndarray:
-    """Canonicalize an entire dataset of theta vectors.
-
-    Parameters
-    ----------
-    theta_array : np.ndarray
-        Shape (n_points, n_params).
-    reference_index : int
-        Which parameter to use as sign reference.
-
-    Returns
-    -------
-    np.ndarray
-        Canonicalized array (same shape).
-    """
+    """Canonicalize an entire dataset of theta vectors."""
     result = theta_array.copy()
     for i in range(len(result)):
         result[i] = canonicalize_sign(result[i], reference_index)

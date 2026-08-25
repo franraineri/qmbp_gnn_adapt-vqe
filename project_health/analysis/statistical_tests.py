@@ -9,10 +9,20 @@ Usage:
         paired_ttest,
         improvement_rate,
         effect_size_cohens_d,
+        binomial_ci,
+        spearman_correlation,
+        mann_whitney_u,
+        bootstrap_ci,
     )
 
     result = paired_ttest(before=[0.15, 0.12, 0.18], after=[0.02, 0.01, 0.03])
     # {'t_stat': 8.5, 'p_value': 0.006, 'significant_005': True, ...}
+
+    ci = binomial_ci(17, 20)
+    # {'proportion': 0.85, 'ci_lower': 0.64, 'ci_upper': 0.95, ...}
+
+    rho = spearman_correlation(h_values, de_gaps)
+    # {'rho': -0.95, 'interpretation': 'very_strong_negative', ...}
 """
 
 from __future__ import annotations
@@ -295,3 +305,345 @@ def _betai(a: float, b: float, x: float) -> float:
             break
 
     return front * f
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Binomial confidence interval
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def binomial_ci(
+    n_success: int,
+    n_total: int,
+    *,
+    confidence: float = 0.95,
+    method: str = "wilson",
+) -> dict[str, Any]:
+    """Binomial confidence interval for pass/fail rates.
+
+    Useful for reporting pass_rate with uncertainty bounds (e.g.,
+    "pass_rate = 85% [76%, 92%] at 95% CI").
+
+    Parameters
+    ----------
+    n_success : int
+        Number of successes (e.g., points passing dual criterion).
+    n_total : int
+        Total number of trials.
+    confidence : float
+        Confidence level (default 0.95 = 95% CI).
+    method : str
+        "wilson" (default, recommended for small N) or "normal" (Wald interval).
+
+    Returns
+    -------
+    dict with keys: n_success, n_total, proportion, ci_lower, ci_upper,
+    confidence, method.
+
+    Examples
+    --------
+    >>> binomial_ci(17, 20)
+    {'proportion': 0.85, 'ci_lower': 0.62, 'ci_upper': 0.96, ...}
+    """
+    if n_total <= 0:
+        return {
+            "n_success": 0, "n_total": 0, "proportion": 0.0,
+            "ci_lower": 0.0, "ci_upper": 0.0,
+            "confidence": confidence, "method": method,
+        }
+
+    p_hat = n_success / n_total
+    alpha = 1.0 - confidence
+    z = _normal_ppf(1.0 - alpha / 2.0)
+
+    if method == "wilson":
+        # Wilson score interval (better coverage for small n)
+        denom = 1 + z * z / n_total
+        center = (p_hat + z * z / (2 * n_total)) / denom
+        margin = z * math.sqrt(p_hat * (1 - p_hat) / n_total + z * z / (4 * n_total * n_total)) / denom
+        ci_lower = max(0.0, center - margin)
+        ci_upper = min(1.0, center + margin)
+    else:
+        # Normal (Wald) interval
+        se = math.sqrt(p_hat * (1 - p_hat) / n_total) if 0 < p_hat < 1 else 0.0
+        ci_lower = max(0.0, p_hat - z * se)
+        ci_upper = min(1.0, p_hat + z * se)
+
+    return {
+        "n_success": n_success,
+        "n_total": n_total,
+        "proportion": p_hat,
+        "ci_lower": round(ci_lower, 4),
+        "ci_upper": round(ci_upper, 4),
+        "confidence": confidence,
+        "method": method,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Spearman rank correlation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def spearman_correlation(
+    x: list[float],
+    y: list[float],
+) -> dict[str, Any]:
+    """Spearman rank correlation coefficient.
+
+    Non-parametric measure of monotonic association. Useful for:
+    - Correlating ΔE/gap vs h (monotonic decrease expected)
+    - Correlating training MSE vs evaluation pass_rate
+    - Checking if h_frontier scales monotonically with N
+
+    Parameters
+    ----------
+    x, y : list[float]
+        Paired observations (same length, ≥ 3).
+
+    Returns
+    -------
+    dict with keys: rho, n, t_stat, p_value, significant_005,
+    interpretation.
+
+    Examples
+    --------
+    >>> spearman_correlation([1, 2, 3, 4], [10, 20, 30, 40])
+    {'rho': 1.0, 'interpretation': 'perfect_positive', ...}
+    """
+    if len(x) != len(y):
+        raise ValueError(f"x ({len(x)}) and y ({len(y)}) must have same length")
+    n = len(x)
+    if n < 3:
+        return {
+            "rho": 0.0, "n": n, "t_stat": 0.0, "p_value": 1.0,
+            "significant_005": False, "interpretation": "insufficient_data",
+        }
+
+    # Compute ranks (average rank for ties)
+    rank_x = _compute_ranks(x)
+    rank_y = _compute_ranks(y)
+
+    # Pearson correlation on ranks
+    mean_rx = sum(rank_x) / n
+    mean_ry = sum(rank_y) / n
+
+    num = sum((rx - mean_rx) * (ry - mean_ry) for rx, ry in zip(rank_x, rank_y))
+    den_x = math.sqrt(sum((rx - mean_rx) ** 2 for rx in rank_x))
+    den_y = math.sqrt(sum((ry - mean_ry) ** 2 for ry in rank_y))
+
+    if den_x * den_y == 0:
+        rho = 0.0
+    else:
+        rho = num / (den_x * den_y)
+
+    # t-test for significance
+    if abs(rho) >= 1.0 - 1e-10:
+        t_stat = float("inf") if rho > 0 else float("-inf")
+        p_value = 0.0
+    else:
+        t_stat = rho * math.sqrt((n - 2) / (1 - rho * rho))
+        p_value = 2 * _t_sf(abs(t_stat), n - 2)
+
+    # Interpretation
+    abs_rho = abs(rho)
+    if abs_rho >= 0.9:
+        interp = "very_strong"
+    elif abs_rho >= 0.7:
+        interp = "strong"
+    elif abs_rho >= 0.4:
+        interp = "moderate"
+    elif abs_rho >= 0.2:
+        interp = "weak"
+    else:
+        interp = "negligible"
+    if rho < 0:
+        interp += "_negative"
+    elif rho > 0:
+        interp += "_positive"
+
+    return {
+        "rho": round(rho, 4),
+        "n": n,
+        "t_stat": round(t_stat, 4) if math.isfinite(t_stat) else t_stat,
+        "p_value": round(p_value, 6),
+        "significant_005": p_value < 0.05,
+        "interpretation": interp,
+    }
+
+
+def _compute_ranks(values: list[float]) -> list[float]:
+    """Compute ranks with average rank for ties."""
+    n = len(values)
+    indexed = sorted(range(n), key=lambda i: values[i])
+    ranks = [0.0] * n
+
+    i = 0
+    while i < n:
+        # Find tied group
+        j = i + 1
+        while j < n and values[indexed[j]] == values[indexed[i]]:
+            j += 1
+        # Average rank for tied group
+        avg_rank = (i + j - 1) / 2.0 + 1.0  # 1-based ranks
+        for k in range(i, j):
+            ranks[indexed[k]] = avg_rank
+        i = j
+
+    return ranks
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Mann-Whitney U test (non-parametric, unpaired)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def mann_whitney_u(
+    group_a: list[float],
+    group_b: list[float],
+) -> dict[str, Any]:
+    """Mann-Whitney U test for comparing two independent groups.
+
+    Non-parametric alternative to independent t-test. Useful for:
+    - Comparing MPNN warm-start vs random-init VQE results
+    - Comparing different model architectures
+    - Comparing topologies (where pairing is not possible)
+
+    Parameters
+    ----------
+    group_a, group_b : list[float]
+        Independent samples from two groups.
+
+    Returns
+    -------
+    dict with keys: U, n_a, n_b, z_stat, p_value, significant_005,
+    effect_size_r (rank-biserial correlation).
+    """
+    n_a = len(group_a)
+    n_b = len(group_b)
+    if n_a < 2 or n_b < 2:
+        return {
+            "U": 0, "n_a": n_a, "n_b": n_b, "z_stat": 0.0,
+            "p_value": 1.0, "significant_005": False, "effect_size_r": 0.0,
+        }
+
+    # Combine and rank
+    combined = [(v, "a") for v in group_a] + [(v, "b") for v in group_b]
+    combined_values = [v for v, _ in combined]
+    ranks = _compute_ranks(combined_values)
+
+    # Sum of ranks for group A
+    rank_sum_a = sum(ranks[i] for i in range(n_a))
+
+    # U statistic
+    U_a = rank_sum_a - n_a * (n_a + 1) / 2
+    U_b = n_a * n_b - U_a
+    U = min(U_a, U_b)
+
+    # Normal approximation for large samples
+    mu_U = n_a * n_b / 2
+    sigma_U = math.sqrt(n_a * n_b * (n_a + n_b + 1) / 12)
+
+    if sigma_U > 0:
+        z_stat = (U_a - mu_U) / sigma_U
+        p_value = 2 * _normal_sf(abs(z_stat))
+    else:
+        z_stat = 0.0
+        p_value = 1.0
+
+    # Effect size: rank-biserial correlation
+    r = 1 - (2 * U) / (n_a * n_b)
+
+    return {
+        "U": U,
+        "n_a": n_a,
+        "n_b": n_b,
+        "z_stat": round(z_stat, 4),
+        "p_value": round(p_value, 6),
+        "significant_005": p_value < 0.05,
+        "effect_size_r": round(r, 4),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Bootstrap confidence interval (for small samples)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+def bootstrap_ci(
+    data: list[float],
+    *,
+    statistic: str = "mean",
+    n_bootstrap: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 42,
+) -> dict[str, Any]:
+    """Bootstrap confidence interval for arbitrary statistics.
+
+    Useful when distributional assumptions are unclear (e.g., ΔE/gap
+    distributions which are often skewed).
+
+    Parameters
+    ----------
+    data : list[float]
+        Sample data.
+    statistic : str
+        "mean" or "median".
+    n_bootstrap : int
+        Number of bootstrap resamples.
+    confidence : float
+        Confidence level.
+    seed : int
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    dict with keys: estimate, ci_lower, ci_upper, se_bootstrap, n, confidence.
+    """
+    import random
+
+    n = len(data)
+    if n < 2:
+        val = data[0] if n == 1 else 0.0
+        return {
+            "estimate": val, "ci_lower": val, "ci_upper": val,
+            "se_bootstrap": 0.0, "n": n, "confidence": confidence,
+        }
+
+    rng = random.Random(seed)
+
+    # Compute statistic on bootstrap resamples
+    bootstrap_stats = []
+    for _ in range(n_bootstrap):
+        resample = [rng.choice(data) for _ in range(n)]
+        if statistic == "median":
+            sorted_r = sorted(resample)
+            val = sorted_r[n // 2] if n % 2 == 1 else (sorted_r[n // 2 - 1] + sorted_r[n // 2]) / 2
+        else:
+            val = sum(resample) / n
+        bootstrap_stats.append(val)
+
+    bootstrap_stats.sort()
+    alpha = 1.0 - confidence
+    lower_idx = int(n_bootstrap * alpha / 2)
+    upper_idx = int(n_bootstrap * (1 - alpha / 2))
+
+    # Original estimate
+    if statistic == "median":
+        sorted_data = sorted(data)
+        estimate = sorted_data[n // 2] if n % 2 == 1 else (sorted_data[n // 2 - 1] + sorted_data[n // 2]) / 2
+    else:
+        estimate = sum(data) / n
+
+    # Bootstrap SE
+    mean_boot = sum(bootstrap_stats) / n_bootstrap
+    se = math.sqrt(sum((s - mean_boot) ** 2 for s in bootstrap_stats) / (n_bootstrap - 1))
+
+    return {
+        "estimate": round(estimate, 6),
+        "ci_lower": round(bootstrap_stats[lower_idx], 6),
+        "ci_upper": round(bootstrap_stats[min(upper_idx, n_bootstrap - 1)], 6),
+        "se_bootstrap": round(se, 6),
+        "n": n,
+        "confidence": confidence,
+    }

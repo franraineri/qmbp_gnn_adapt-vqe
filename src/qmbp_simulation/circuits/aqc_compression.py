@@ -163,18 +163,7 @@ class AQCCompressionResult:
         }
 
     def is_zne_viable(self, *, amplifier: str = "pea") -> bool:
-        """Check if compressed circuit's 2Q gate count is within ZNE budget.
-
-        Parameters
-        ----------
-        amplifier : str
-            ZNE amplifier strategy: "pea" (threshold=50), "gate_folding" (threshold=18).
-
-        Returns
-        -------
-        bool
-            True if 2Q gate count is within the ZNE perturbative regime.
-        """
+        """Check if compressed circuit's 2Q gate count is within ZNE budget."""
         thresholds = {"pea": 50, "gate_folding": 18, "adaptive": 50}
         threshold = thresholds.get(amplifier, 50)
         return self.n_2q_compressed <= threshold

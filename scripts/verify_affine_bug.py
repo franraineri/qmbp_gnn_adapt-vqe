@@ -56,13 +56,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import logging
-
 import numpy as np
 
 # Suppress INFO/WARNING from noisy_utils during edge-case testing
 logging.getLogger("qmbp_simulation.execution.noisy_utils").setLevel(logging.ERROR)
 
 from qmbp_simulation.execution import affine_correct_energy
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Configuration
@@ -105,7 +105,7 @@ report_section(1, "Numerical reproduction — what the OLD code produced")
 
 # Run 141440 values
 mitigated_energy = -33.20130666097003  # e_zne from PEA
-e_ground = -33.198273652500575  # e_exact
+e_ground = -33.198273652500575        # e_exact
 n_qubits = 10
 h_value = 3.25
 gap = 4.429858148786295
@@ -120,7 +120,7 @@ violation = e_ground - mitigated_energy  # 0.003
 alpha_old = violation / margin
 corrected_old = e_ground - margin * (1 - alpha_old) * 0.5  # THE BUG
 
-print("\n  Run: run_20260617_141440 (h=3.25, PEA-ZNE)")
+print(f"\n  Run: run_20260617_141440 (h=3.25, PEA-ZNE)")
 print(f"  e_zne (input)  = {mitigated_energy:.6f}")
 print(f"  e_ground       = {e_ground:.6f}")
 print(f"  violation      = {violation:.6f} (barely below ground state)")
@@ -160,9 +160,9 @@ else:
     ok("Correctly clips to e_ground")
 
 if delta_fixed >= 0.05:
-    fail(f"Should PASS (<5%), got {delta_fixed * 100:.2f}%")
+    fail(f"Should PASS (<5%), got {delta_fixed*100:.2f}%")
 else:
-    ok(f"PASS — dE/gap={delta_fixed * 100:.4f}% < 5%")
+    ok(f"PASS — dE/gap={delta_fixed*100:.4f}% < 5%")
 
 # Verify energy above ground (no correction needed)
 e_above = -33.0  # 0.198 above ground state
@@ -238,10 +238,8 @@ for run_dir in sorted(results_dir.glob("run_*")):
     if verdict_pre == "PASS" and fixed_result.correction_applied:
         previously_affected += 1
         now_fixed += 1
-        print(
-            f"  {run_dir.name}: dE/gap={delta_pre * 100:.4f}% (pre-affine) "
-            f"→ {delta_fixed * 100:.4f}% (post-fix) → {verdict_fixed}"
-        )
+        print(f"  {run_dir.name}: dE/gap={delta_pre*100:.4f}% (pre-affine) "
+              f"→ {delta_fixed*100:.4f}% (post-fix) → {verdict_fixed}")
 
 print(f"\n  Total runs scanned: {total_runs}")
 print(f"  Previously affected (PASS→incorrectly worsened): {previously_affected}")
@@ -291,9 +289,9 @@ for e_test in test_energies:
             part4_violations += 1
 
 if part4_violations == 0:
-    ok("ALL 200 test points pass monotonicity check")
-    print("     - In-bounds energies: never modified")
-    print("     - Out-of-bounds energies: always clipped toward bound")
+    ok(f"ALL 200 test points pass monotonicity check")
+    print(f"     - In-bounds energies: never modified")
+    print(f"     - Out-of-bounds energies: always clipped toward bound")
 
 if QUICK_MODE:
     print("\n" + "=" * 70)
@@ -328,10 +326,8 @@ if QUICK_MODE:
 report_section(5, "Bounds consistency across 3 implementations")
 
 print("\n  Testing e_upper calculations for TFIM 1D chain, J=1, N=10:")
-print(
-    f"  {'h':>5} | {'A: affine_correct':>18} | {'B: _compute_upper':>18} | {'C: VQEValidator':>18} | {'Status':>10}"
-)
-print(f"  {'-' * 5}-+-{'-' * 18}-+-{'-' * 18}-+-{'-' * 18}-+-{'-' * 10}")
+print(f"  {'h':>5} | {'A: affine_correct':>18} | {'B: _compute_upper':>18} | {'C: VQEValidator':>18} | {'Status':>10}")
+print(f"  {'-'*5}-+-{'-'*18}-+-{'-'*18}-+-{'-'*18}-+-{'-'*10}")
 
 N_TEST = 10
 n_edges_test = N_TEST - 1  # 1D chain
@@ -367,9 +363,7 @@ for h_test in [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.25, 4.0, 5.0]:
     if abs(e_upper_A - e_upper_B) > 0.01:
         note = f" [B differs by {e_upper_A - e_upper_B:+.1f}]"
 
-    print(
-        f"  {h_test:5.2f} | {e_upper_A:18.4f} | {e_upper_B:18.4f} | {e_upper_C:18.4f} | {status:>10}{note}"
-    )
+    print(f"  {h_test:5.2f} | {e_upper_A:18.4f} | {e_upper_B:18.4f} | {e_upper_C:18.4f} | {status:>10}{note}")
 
 if part5_violations == 0:
     ok("A (affine_correct) and C (VQEValidator) are always consistent")
@@ -401,9 +395,7 @@ if not np.isfinite(result_const.extrapolated_value):
     fail(f"Constant CES → NaN/Inf: {result_const.extrapolated_value}")
     part6_violations += 1
 else:
-    ok(
-        f"Constant CES → mean fallback: {result_const.extrapolated_value:.4f} (R²={result_const.r_squared:.4f})"
-    )
+    ok(f"Constant CES → mean fallback: {result_const.extrapolated_value:.4f} (R²={result_const.r_squared:.4f})")
 
 # Test 2: Single point (len < 2 → should return mean)
 ces_single = np.array([0.05])
@@ -423,9 +415,7 @@ if not np.isfinite(result_large.extrapolated_value):
     fail(f"Large CES spread → NaN/Inf: {result_large.extrapolated_value}")
     part6_violations += 1
 else:
-    ok(
-        f"Large CES spread → {result_large.extrapolated_value:.4f} (R²={result_large.r_squared:.4f})"
-    )
+    ok(f"Large CES spread → {result_large.extrapolated_value:.4f} (R²={result_large.r_squared:.4f})")
 
 # Test 4: Negative measured values near machine precision
 ces_tiny = np.array([0.01, 0.03, 0.05])
@@ -466,7 +456,7 @@ else:
     ok(f"Flat data → R²={result_zero.r_squared:.6f} ≈ 0 (correct)")
 
 if part6_violations == 0:
-    ok("All ZNE extrapolation edge cases produce finite results")
+    ok(f"All ZNE extrapolation edge cases produce finite results")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -493,18 +483,18 @@ n_qubits_h8 = 10
 h_value_h8 = 3.25
 
 # Generate 1000 realistic ZNE energies (some below ground, some above)
-zne_offsets = np.concatenate(
-    [
-        np_rng.normal(0.0, 0.5, size=500),  # Normal spread around exact
-        np_rng.normal(-0.01, 0.005, size=200),  # Slight sub-ground (PEA overshoot)
-        np_rng.normal(2.0, 1.0, size=200),  # Noisy (above ground)
-        np.array([-0.003, -0.1, -5.0, -50.0, 10.0, 50.0, 100.0, 0.0, -1e-10, 1e-10]),
-    ]
-)
+zne_offsets = np.concatenate([
+    np_rng.normal(0.0, 0.5, size=500),       # Normal spread around exact
+    np_rng.normal(-0.01, 0.005, size=200),   # Slight sub-ground (PEA overshoot)
+    np_rng.normal(2.0, 1.0, size=200),       # Noisy (above ground)
+    np.array([-0.003, -0.1, -5.0, -50.0, 10.0, 50.0, 100.0, 0.0, -1e-10, 1e-10]),
+])
 zne_energies = e_exact_h8 + zne_offsets
 
 for i, e_zne in enumerate(zne_energies):
-    result_h8 = affine_correct_energy(e_zne, e_exact_h8, n_qubits=n_qubits_h8, h_value=h_value_h8)
+    result_h8 = affine_correct_energy(
+        e_zne, e_exact_h8, n_qubits=n_qubits_h8, h_value=h_value_h8
+    )
     error_before = abs(e_zne - e_exact_h8)
     error_after = abs(result_h8.corrected_energy - e_exact_h8)
 
@@ -523,14 +513,11 @@ if part7_violations == 0:
     ok(f"H8 holds for all {len(zne_energies)} simulated ZNE outputs")
     # Additional statistics
     corrections_applied = sum(
-        1
-        for e in zne_energies
-        if affine_correct_energy(
-            e, e_exact_h8, n_qubits=n_qubits_h8, h_value=h_value_h8
-        ).correction_applied
+        1 for e in zne_energies
+        if affine_correct_energy(e, e_exact_h8, n_qubits=n_qubits_h8, h_value=h_value_h8).correction_applied
     )
     print(f"     {corrections_applied}/{len(zne_energies)} energies were corrected")
-    print("     All corrections moved energy TOWARD e_exact (never away)")
+    print(f"     All corrections moved energy TOWARD e_exact (never away)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -586,9 +573,7 @@ for desc, e_mit, e_gnd, kwargs in edge_cases:
             else:
                 ok(f"{desc}: Inf input → {result_edge.corrected_energy} (propagated)")
         else:
-            ok(
-                f"{desc}: {result_edge.corrected_energy:.6g} (applied={result_edge.correction_applied})"
-            )
+            ok(f"{desc}: {result_edge.corrected_energy:.6g} (applied={result_edge.correction_applied})")
     except Exception as exc:
         # Exceptions on NaN/Inf inputs are acceptable if documented
         if np.isnan(e_mit) or np.isnan(e_gnd) or not np.isfinite(e_mit):
@@ -699,11 +684,11 @@ print(f"  Verdict inconsistencies (stored ≠ recomputed): {verdict_inconsistenc
 
 if energy_violations > 0:
     print(f"  ⚠️  {energy_violations} results have stale e_after_affine from the old formula")
-    print("     (These need re-running or the JSON needs updating post-fix)")
+    print(f"     (These need re-running or the JSON needs updating post-fix)")
 
 if verdict_inconsistencies > 0:
     print(f"  ⚠️  {verdict_inconsistencies} results have inconsistent verdict vs delta_e_gap")
-    print("     (verdict says one thing, but delta_e_gap implies another)")
+    print(f"     (verdict says one thing, but delta_e_gap implies another)")
 
 # These are warnings, not hard failures (stale data is expected before re-run)
 if total_results_scanned > 0:
@@ -734,6 +719,7 @@ if VALIDATE_DIR is not None:
         compute_classification_confidence,
         compute_snr,
     )
+    from qmbp_simulation.framework.criteria import compute_verdict
 
     # project_health validation utilities
     sys.path.insert(0, str(ROOT))
@@ -762,9 +748,7 @@ if VALIDATE_DIR is not None:
         n_edges_v = n_qubits_v - 1
 
         print(f"\n  Run: {validate_path.name}")
-        print(
-            f"  h={h_v}, n_qubits={n_qubits_v}, e_zne={e_zne_v}, e_exact={e_exact_v}, gap={gap_v}"
-        )
+        print(f"  h={h_v}, n_qubits={n_qubits_v}, e_zne={e_zne_v}, e_exact={e_exact_v}, gap={gap_v}")
         print(f"  verdict={verdict_v}, delta_e_gap={delta_v}, R²={r2_v}")
 
         # ── Check 1: Basic data integrity ─────────────────────────────
@@ -779,7 +763,9 @@ if VALIDATE_DIR is not None:
             ok(f"gap={gap_v:.6f} > 0")
 
         # ── Check 2: Energy bounds via VQEValidator (reuse) ───────────
-        validator = VQEValidator(n_qubits=n_qubits_v, n_edges=n_edges_v, J=1.0, model_name="tfim")
+        validator = VQEValidator(
+            n_qubits=n_qubits_v, n_edges=n_edges_v, J=1.0, model_name="tfim"
+        )
         e_lower, e_upper_physics = validator.compute_energy_bounds(h_v)
 
         if e_zne_v is not None:
@@ -796,12 +782,12 @@ if VALIDATE_DIR is not None:
             corrected_delta = abs(affine_v.corrected_energy - e_exact_v) / gap_v
             true_delta = abs(e_zne_v - e_exact_v) / gap_v
 
-            print("\n  Energy analysis:")
-            print(f"    ΔE/gap from e_zne (raw): {true_delta * 100:.4f}%")
-            print(f"    ΔE/gap after affine:     {corrected_delta * 100:.4f}%")
+            print(f"\n  Energy analysis:")
+            print(f"    ΔE/gap from e_zne (raw): {true_delta*100:.4f}%")
+            print(f"    ΔE/gap after affine:     {corrected_delta*100:.4f}%")
 
             if delta_v is not None:
-                print(f"    ΔE/gap stored in JSON:   {delta_v * 100:.4f}%")
+                print(f"    ΔE/gap stored in JSON:   {delta_v*100:.4f}%")
                 if abs(delta_v - corrected_delta) < 0.001:
                     ok("Stored delta matches affine-corrected computation")
                 elif abs(delta_v - true_delta) < 0.001:
@@ -811,38 +797,28 @@ if VALIDATE_DIR is not None:
                     if e_after_aff is not None:
                         delta_from_stored_affine = abs(e_after_aff - e_exact_v) / gap_v
                         if abs(delta_v - delta_from_stored_affine) < 0.001:
-                            print(
-                                "    ⚠️  Stored delta matches STALE e_after_affine (old buggy formula)"
-                            )
-                            print(
-                                f"        TRUE ΔE/gap = {true_delta * 100:.4f}% → should be "
-                                f"{'PASS' if corrected_delta < 0.05 else 'FAIL'}"
-                            )
+                            print(f"    ⚠️  Stored delta matches STALE e_after_affine (old buggy formula)")
+                            print(f"        TRUE ΔE/gap = {true_delta*100:.4f}% → should be "
+                                  f"{'PASS' if corrected_delta < 0.05 else 'FAIL'}")
                         else:
                             fail(f"Stored delta={delta_v:.4f} doesn't match any known computation!")
                     else:
-                        fail(
-                            f"Stored delta={delta_v:.4f} doesn't match e_zne ({true_delta:.4f}) "
-                            f"or affine ({corrected_delta:.4f})"
-                        )
+                        fail(f"Stored delta={delta_v:.4f} doesn't match e_zne ({true_delta:.4f}) "
+                             f"or affine ({corrected_delta:.4f})")
 
             # Verdict consistency
             true_verdict = "PASS" if corrected_delta < 0.05 else "FAIL"
             if verdict_v and verdict_v != true_verdict and verdict_v != "INDETERMINATE":
-                print(
-                    f"\n    ⚠️  VERDICT MISMATCH: stored={verdict_v}, "
-                    f"recomputed={true_verdict} (ΔE/gap={corrected_delta * 100:.4f}%)"
-                )
+                print(f"\n    ⚠️  VERDICT MISMATCH: stored={verdict_v}, "
+                      f"recomputed={true_verdict} (ΔE/gap={corrected_delta*100:.4f}%)")
             elif verdict_v:
                 ok(f"Verdict '{verdict_v}' is consistent with recomputed ΔE/gap")
 
             # Stale e_after_affine check
             if e_after_aff is not None:
                 if abs(e_after_aff - affine_v.corrected_energy) > 1e-6:
-                    print(
-                        f"    ⚠️  STALE e_after_affine: stored={e_after_aff:.6f}, "
-                        f"current={affine_v.corrected_energy:.6f}"
-                    )
+                    print(f"    ⚠️  STALE e_after_affine: stored={e_after_aff:.6f}, "
+                          f"current={affine_v.corrected_energy:.6f}")
                 else:
                     ok("e_after_affine matches current affine_correct_energy()")
 
@@ -850,10 +826,8 @@ if VALIDATE_DIR is not None:
         if x_vals:
             expected_bonds = n_qubits_v - 1
             if len(zz_vals) != expected_bonds:
-                fail(
-                    f"per_site_x has {n_qubits_v} entries but per_bond_zz has "
-                    f"{len(zz_vals)} (expected {expected_bonds})"
-                )
+                fail(f"per_site_x has {n_qubits_v} entries but per_bond_zz has "
+                     f"{len(zz_vals)} (expected {expected_bonds})")
             else:
                 ok(f"Observable dimensions: {n_qubits_v} sites, {len(zz_vals)} bonds")
 
@@ -887,9 +861,7 @@ if VALIDATE_DIR is not None:
         if e_zne_v is not None and e_exact_v is not None:
             overshoot = e_exact_v - e_zne_v
             if overshoot > gap_v * 0.01:
-                print(
-                    f"  ℹ️  ZNE overshoot: e_zne is {overshoot:.6f} below e_exact (affine clips it)"
-                )
+                print(f"  ℹ️  ZNE overshoot: e_zne is {overshoot:.6f} below e_exact (affine clips it)")
             elif overshoot > 0:
                 ok(f"Minor ZNE overshoot ({overshoot:.6f}) — affine handles it")
             else:
@@ -915,17 +887,17 @@ if VALIDATE_DIR is not None:
             shots_per_obs = shots_v // max(n_qubits_v, 1)
             cls_conf = compute_classification_confidence(mag_x_mean, corr_zz_mean, shots_per_obs)
 
-            print("\n  Measurement quality:")
+            print(f"\n  Measurement quality:")
             print(f"    Min per-site SNR(X): {min_x_snr:.1f} (>1 = signal above noise)")
             print(f"    Classification confidence: {cls_conf:.1f} (>5 = reliable phase label)")
 
             if min_x_snr < 1.0:
-                print("  ⚠️  Some ⟨X⟩ measurements are below shot noise floor!")
+                print(f"  ⚠️  Some ⟨X⟩ measurements are below shot noise floor!")
             else:
                 ok(f"All ⟨X⟩ measurements above noise (min SNR={min_x_snr:.1f})")
 
             if cls_conf < 5.0:
-                print("  ⚠️  Low classification confidence — phase label may be unreliable")
+                print(f"  ⚠️  Low classification confidence — phase label may be unreliable")
             else:
                 ok(f"Phase classification confident (conf={cls_conf:.1f})")
 
@@ -936,9 +908,9 @@ if VALIDATE_DIR is not None:
             print(f"\n  Verdict classification (from verify_results): {classification}")
             if verdict_v and verdict_v != "INDETERMINATE":
                 if classification == "PASS" and verdict_v == "FAIL":
-                    print("  ⚠️  classify_de_gap says PASS but stored verdict is FAIL")
+                    print(f"  ⚠️  classify_de_gap says PASS but stored verdict is FAIL")
                 elif classification == "FAIL" and verdict_v == "PASS":
-                    fail("classify_de_gap says FAIL but stored verdict is PASS — inconsistency!")
+                    fail(f"classify_de_gap says FAIL but stored verdict is PASS — inconsistency!")
                 else:
                     ok(f"classify_de_gap('{classification}') consistent with stored verdict")
 
@@ -955,9 +927,10 @@ if VALIDATE_DIR is not None:
     report_section(11, "Circuit metrics & QPU time estimate")
 
     from qmbp_simulation.execution.hardware.preflight import (
+        QPUThroughputProfile,
+        SPSACostModel,
         _ZNE_CX_THRESHOLD_GF,
         _ZNE_CX_THRESHOLD_PEA,
-        SPSACostModel,
         estimate_qpu_cost,
     )
 
@@ -995,7 +968,7 @@ if VALIDATE_DIR is not None:
             spread_ratio = ces_spread / ces_mean if ces_mean > 1e-10 else 0
             print(f"    CES spread ratio: {spread_ratio:.3f} (>0.3 = good for CES-ZNE)")
             if spread_ratio < 0.3:
-                print("  ℹ️  Low CES spread — CES-ZNE would fail here (gate-folding/PEA preferred)")
+                print(f"  ℹ️  Low CES spread — CES-ZNE would fail here (gate-folding/PEA preferred)")
 
     if circuit_stats:
         depth = circuit_stats.get("depth", 0)
@@ -1005,17 +978,15 @@ if VALIDATE_DIR is not None:
         total_gates = circuit_stats.get("total_gates", 0)
         fid_est = circuit_stats.get("fidelity_estimate")
 
-        print("\n  Transpiled circuit metrics:")
-        print(
-            f"    Depth: {depth}  |  Depth-2Q: {depth_2q}  |  2Q gates: {n_2q}  |  1Q gates: {n_1q}"
-        )
+        print(f"\n  Transpiled circuit metrics:")
+        print(f"    Depth: {depth}  |  Depth-2Q: {depth_2q}  |  2Q gates: {n_2q}  |  1Q gates: {n_1q}")
         print(f"    Total gates: {total_gates}")
         if fid_est is not None:
-            print(f"    Predicted fidelity: {fid_est:.4f} ({fid_est * 100:.1f}%)")
+            print(f"    Predicted fidelity: {fid_est:.4f} ({fid_est*100:.1f}%)")
             if fid_est < 0.10:
-                print("  ⚠️  Very low predicted fidelity — circuit may be too deep")
+                print(f"  ⚠️  Very low predicted fidelity — circuit may be too deep")
             elif fid_est < 0.50:
-                print("  ℹ️  Low fidelity estimate — ZNE essential for usable results")
+                print(f"  ℹ️  Low fidelity estimate — ZNE essential for usable results")
             else:
                 ok(f"Fidelity estimate {fid_est:.2%} reasonable for ZNE")
 
@@ -1026,11 +997,9 @@ if VALIDATE_DIR is not None:
         cx_threshold = _ZNE_CX_THRESHOLD_PEA if "pea" in amplifier_used else _ZNE_CX_THRESHOLD_GF
 
         if n_2q > cx_threshold:
-            print(
-                f"  ⚠️  n_2q_gates={n_2q} > ZNE threshold={cx_threshold} "
-                f"(amplifier={amplifier_used})"
-            )
-            print("      ZNE extrapolation may be unreliable for this circuit depth")
+            print(f"  ⚠️  n_2q_gates={n_2q} > ZNE threshold={cx_threshold} "
+                  f"(amplifier={amplifier_used})")
+            print(f"      ZNE extrapolation may be unreliable for this circuit depth")
         else:
             ok(f"n_2q_gates={n_2q} ≤ ZNE threshold={cx_threshold} ({amplifier_used})")
 
@@ -1044,59 +1013,42 @@ if VALIDATE_DIR is not None:
 
             n_q_est = circuit_stats.get("active_qubits", 10)
             hw_config = HardwareConfig(n_qubits=n_q_est, shots=16384, n_layouts=3)
-            hw_config.mitigation.zne_amplifier = (
-                "pea" if "pea" in amplifier_used else "gate_folding"
-            )
+            hw_config.mitigation.zne_amplifier = "pea" if "pea" in amplifier_used else "gate_folding"
 
             cost = estimate_qpu_cost(
-                hw_config,
-                n_h_points=1,
-                circuit_depth=depth,
-                cx_count=n_2q,
-                spsa_model=SPSACostModel.disabled(),
+                hw_config, n_h_points=1, circuit_depth=depth,
+                cx_count=n_2q, spsa_model=SPSACostModel.disabled(),
             )
 
-            print("\n  QPU time estimate (via preflight.estimate_qpu_cost):")
-            print(
-                f"    Amplifier: {hw_config.mitigation.zne_amplifier}  |  "
-                f"Effective CLOPS: {cost.effective_clops}"
-            )
-            print(
-                f"    Per-h optimistic: {cost.est_total_optimistic_s:.1f}s  |  "
-                f"Expected: {cost.est_total_s:.1f}s"
-            )
-            print(
-                f"    Fits per-job timeout: {cost.fits_per_job}  |  "
-                f"PEA learning: {cost.pea_noise_learning_s:.1f}s"
-            )
+            print(f"\n  QPU time estimate (via preflight.estimate_qpu_cost):")
+            print(f"    Amplifier: {hw_config.mitigation.zne_amplifier}  |  "
+                  f"Effective CLOPS: {cost.effective_clops}")
+            print(f"    Per-h optimistic: {cost.est_total_optimistic_s:.1f}s  |  "
+                  f"Expected: {cost.est_total_s:.1f}s")
+            print(f"    Fits per-job timeout: {cost.fits_per_job}  |  "
+                  f"PEA learning: {cost.pea_noise_learning_s:.1f}s")
 
             actual = qpu_seconds if qpu_seconds is not None else wall_time
             if actual is not None:
                 ratio = actual / cost.est_total_s if cost.est_total_s > 0 else 0
                 print(f"    Actual time: {actual:.1f}s (ratio: {ratio:.1f}× vs expected)")
                 if ratio > 3.0:
-                    print(
-                        f"  ⚠️  QPU time {ratio:.1f}× above estimate — possible queue delays or SPSA"
-                    )
+                    print(f"  ⚠️  QPU time {ratio:.1f}× above estimate — possible queue delays or SPSA")
                 elif ratio < 0.3:
-                    print(
-                        f"  ℹ️  QPU time {ratio:.1f}× below estimate — model may be too conservative"
-                    )
+                    print(f"  ℹ️  QPU time {ratio:.1f}× below estimate — model may be too conservative")
                 else:
                     ok(f"QPU time within expected range ({ratio:.1f}× estimate)")
             else:
-                print("    (No actual timing data available for comparison)")
+                print(f"    (No actual timing data available for comparison)")
 
         # Routing overhead check
         routing_overhead = circuit_stats.get("routing_overhead_pct")
         transpile_ratio = circuit_stats.get("transpiled_vs_logical_ratio")
         if transpile_ratio is not None:
-            print("\n  Transpilation quality:")
+            print(f"\n  Transpilation quality:")
             print(f"    Transpiled/logical ratio: {transpile_ratio:.2f}×")
             if transpile_ratio > 10.0:
-                print(
-                    f"  ⚠️  High routing overhead ({transpile_ratio:.1f}×) — layout selection may be suboptimal"
-                )
+                print(f"  ⚠️  High routing overhead ({transpile_ratio:.1f}×) — layout selection may be suboptimal")
             else:
                 ok(f"Routing overhead acceptable ({transpile_ratio:.1f}×)")
 
@@ -1123,9 +1075,7 @@ if AUDIT_MODE:
     else:
         result_audit = subprocess.run(
             [sys.executable, str(audit_script)],
-            capture_output=True,
-            text=True,
-            cwd=str(ROOT),
+            capture_output=True, text=True, cwd=str(ROOT),
         )
         # Print the audit output (indented)
         for line in result_audit.stdout.splitlines():

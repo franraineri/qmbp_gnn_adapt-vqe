@@ -14,7 +14,8 @@ VENV := source .venv/bin/activate
 
 .PHONY: help lint format test smoke-test benchmark check check-full \
         hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
-        clean typecheck coverage health figures
+        clean typecheck coverage health figures \
+        maintain maintain-full maintain-fix maintain-all-fix maintain-ci dead-code lint-docs
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -86,8 +87,12 @@ strip-notebooks:  ## Strip outputs from tracked notebooks
 
 # ── Reproducibility ──────────────────────────────────────────
 
-freeze:  ## Pin dependency versions to requirements.lock
-	pip freeze > requirements.lock
+freeze:  ## Pin resolved dependency versions to requirements.lock (reproducible installs)
+	@echo "# Auto-generated lockfile — DO NOT edit by hand." > requirements.lock
+	@echo "# Source of truth for dependencies is pyproject.toml." >> requirements.lock
+	@echo "# Regenerate with: make freeze" >> requirements.lock
+	@echo "# Reproduce env with: pip install -r requirements.lock" >> requirements.lock
+	$(PYTHON) -m pip freeze --exclude-editable >> requirements.lock
 	@echo "✅ Frozen to requirements.lock"
 
 # ── Preflight ─────────────────────────────────────────────────
@@ -116,14 +121,34 @@ check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) +
 	@echo "✅ Complete validation passed (including slow tests)"
 
 
-# ── Cleaning ─────────────────────────────────────────────────
+# ── Maintenance Checks ───────────────────────────────────────
 
-clean:  ## Remove caches, temp files, empty dirs (dry-run: make clean-check)
-	@.venv/bin/python scripts/maintenance/cleanup_repo.py --execute
-	@echo "✅ Repository cleaned"
+maintain-fix:  ## Run maintenance with auto-fix (clean caches, fix steerings)
+	@$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --fix
 
-clean-check:  ## Show what would be cleaned (dry-run)
-	@.venv/bin/python scripts/maintenance/cleanup_repo.py --verbose
+maintain-all-fix:  ## Run ALL general_project_maintenance scripts with --fix where supported
+	@echo "═══ Running all maintenance scripts (--fix mode) ═══"
+	@echo "\n── run_all_checks.py --fix ──"
+	$(PYTHON) scripts/general_project_maintenance/run_all_checks.py --fix || true
+	@echo "\n── validate_test_imports.py --fix ──"
+	$(PYTHON) scripts/general_project_maintenance/validate_test_imports.py --fix || true
+	@echo "\n── verify_steerings.py --fix ──"
+	$(PYTHON) scripts/general_project_maintenance/verify_steerings.py --fix || true
+	@echo "\n── check_phantom_functions.py ──"
+	$(PYTHON) scripts/general_project_maintenance/check_phantom_functions.py || true
+	@echo "\n── cleanup_repo.py --execute ──"
+	$(PYTHON) scripts/general_project_maintenance/cleanup_repo.py --execute || true
+	@echo "\n── trim_overdocumented.py ──"
+	$(PYTHON) scripts/general_project_maintenance/trim_overdocumented.py --apply || true
+	@echo "\n── md_index.py ──"
+	$(PYTHON) scripts/general_project_maintenance/md_index.py || true
+	@.venv/bin/vulture src/qmbp_simulation vulture_whitelist.py --min-confidence 80 --exclude "_deprecated,.venv" || true
+	@echo "\n✅ All maintenance scripts completed"
+
+
+lint-docs:  ## Check docstring/signature consistency with pydoclint
+	@.venv/bin/pydoclint --style=numpy --check-return-types=false --allow-init-docstring=true --skip-checking-short-docstrings=true --quiet src/qmbp_simulation
+
 
 # ── Type checking ────────────────────────────────────────────
 

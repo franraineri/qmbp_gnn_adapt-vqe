@@ -1,0 +1,16 @@
+{
+  
+  "enabled": true,
+  "name": "Test Import Guard",
+  "description": "When a source module is edited (moved, renamed, deleted), reminds the agent to check if any tests import from it and need updating. Prevents the #1 cause of test failures: stale import paths.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": ["src/qmbp_simulation/**/*.py", "project_health/**/*.py", "scripts/experiment_runners/**/*.py"]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A source module was edited. If you renamed, moved, or deleted any public function/class/module, run `grep -r 'from <old_module>' tests/` to check if any test files reference the old path. If broken imports exist, fix them now. Also check if any return value dict keys or function signatures changed — tests may assert on old key names."
+  }
+}
+

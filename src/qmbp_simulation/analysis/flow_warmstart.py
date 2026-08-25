@@ -294,7 +294,7 @@ class FlowWarmstartManager:
         """
         from qmbp_simulation.analysis.normalizing_flow import EmbeddingMAF
 
-        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
         config = checkpoint["config"]
 
         mgr = cls(

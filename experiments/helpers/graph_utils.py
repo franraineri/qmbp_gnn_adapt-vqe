@@ -298,12 +298,17 @@ def train_bond_resolved_variant(
         theta = canonicalize_theta(theta_opts[i])
         if include_circuit_nodes:
             graph = build_unified_bond_resolved_graph(
-                lattice, h_value=float(h), p_layers=p_layers,
-                theta_opt=theta, include_circuit_nodes=True,
+                lattice,
+                h_value=float(h),
+                p_layers=p_layers,
+                theta_opt=theta,
+                include_circuit_nodes=True,
             )
         else:
             graph = build_bond_resolved_graph(
-                lattice, h_value=float(h), theta_opt=theta,
+                lattice,
+                h_value=float(h),
+                theta_opt=theta,
             )
         dataset.append(graph)
 
@@ -372,7 +377,9 @@ def train_bond_resolved_variant(
                     pred = model(data).squeeze(0)
                     target = data.y
                     n_e = data.n_edges_unique
-                    loss_v = F.mse_loss(pred[:n_e], target[:n_e]) + F.mse_loss(pred[n_e:], target[n_e:])
+                    loss_v = F.mse_loss(pred[:n_e], target[:n_e]) + F.mse_loss(
+                        pred[n_e:], target[n_e:]
+                    )
                     val_loss += loss_v.item()
             val_mse_history.append(val_loss / len(val_dataset))
             model.train()
@@ -481,7 +488,6 @@ def evaluate_bond_resolved_variant(
     import torch
 
     from qmbp_simulation import ClassicalSolver, make_lattice
-    from qmbp_simulation.models import HamiltonianBuilder
     from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
     from qmbp_simulation.predictors import build_bond_resolved_graph
     from qmbp_simulation.predictors.unified_graph import (
@@ -496,7 +502,9 @@ def evaluate_bond_resolved_variant(
         # Build prediction graph (no target)
         if include_circuit_nodes:
             graph = build_unified_bond_resolved_graph(
-                lattice, h_value=float(h), p_layers=p_layers,
+                lattice,
+                h_value=float(h),
+                p_layers=p_layers,
                 include_circuit_nodes=True,
             )
         else:
@@ -537,16 +545,18 @@ def evaluate_bond_resolved_variant(
         de_gap = abs(e_pred - e_ex) / max(gap, 1e-10)
         de_abs = abs(e_pred - e_ex)
 
-        per_point.append({
-            "h": float(h),
-            "e_pred": float(e_pred),
-            "e_pred_std": e_pred_std,
-            "e_exact": e_ex,
-            "gap": gap,
-            "de_gap": float(de_gap),
-            "de_abs": float(de_abs),
-            "theta_pred": theta_pred.tolist(),
-        })
+        per_point.append(
+            {
+                "h": float(h),
+                "e_pred": float(e_pred),
+                "e_pred_std": e_pred_std,
+                "e_exact": e_ex,
+                "gap": gap,
+                "de_gap": float(de_gap),
+                "de_abs": float(de_abs),
+                "theta_pred": theta_pred.tolist(),
+            }
+        )
 
     de_gaps = np.array([p["de_gap"] for p in per_point])
     de_abs_arr = np.array([p["de_abs"] for p in per_point])
@@ -600,9 +610,7 @@ def compare_theta_arrays(
     theta_b = np.asarray(theta_b)
 
     if theta_a.shape != theta_b.shape:
-        raise ValueError(
-            f"Shape mismatch: theta_a={theta_a.shape}, theta_b={theta_b.shape}"
-        )
+        raise ValueError(f"Shape mismatch: theta_a={theta_a.shape}, theta_b={theta_b.shape}")
 
     # Per-point L2 displacement
     diffs = theta_a - theta_b
@@ -643,7 +651,7 @@ def train_unified_mpnn_variant(
     p_layers: int = 1,
     hidden_dim: int = 256,
     n_layers: int = 3,
-    n_epochs: int = 6000,
+    n_epochs: int = 5000,
     lr: float = 1e-3,
     patience: int = 300,
     seed: int = 42,
@@ -702,8 +710,8 @@ def train_unified_mpnn_variant(
         (trained_model, training_metrics)
     """
     from qmbp_simulation.predictors.unified_graph import (
-        build_unified_bond_resolved_graph,
         UNIFIED_NODE_FEATURES,
+        build_unified_bond_resolved_graph,
     )
     from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN, train_unified_mpnn
     from qmbp_simulation.utils.helpers import canonicalize_theta
@@ -713,8 +721,11 @@ def train_unified_mpnn_variant(
     for i, h in enumerate(h_values):
         theta = canonicalize_theta(theta_opts[i])
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=float(h), p_layers=p_layers,
-            theta_opt=theta, include_circuit_nodes=True,
+            lattice,
+            h_value=float(h),
+            p_layers=p_layers,
+            theta_opt=theta,
+            include_circuit_nodes=True,
         )
         dataset.append(graph)
 
@@ -731,7 +742,8 @@ def train_unified_mpnn_variant(
 
     # Train
     metrics = train_unified_mpnn(
-        model, dataset,
+        model,
+        dataset,
         n_epochs=n_epochs,
         lr=lr,
         patience=patience,

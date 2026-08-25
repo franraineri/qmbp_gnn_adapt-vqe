@@ -18,23 +18,23 @@ Sections:
 
 Usage:
     # Full suite (all sections)
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py
 
     # Individual sections
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 2
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 2
 
     # Dry run (list sections)
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --dry-run
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --dry-run
 
     # Custom N for bond-dim test
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 --n-bond-dim 120
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 1 --n-bond-dim 120
 
     # HE comparison at custom N
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 3 --n-he 20
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 3 --n-he 20
 
     # NLCE with custom max cluster
-    python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 4 --nlce-l-max 10
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_scaling_extensions.py --section 4 --nlce-l-max 10
 """
 
 from __future__ import annotations
@@ -865,27 +865,7 @@ class ScalingExtensionsRunner(ValidationRunner):
 def analytical_theta_x(
     h: float, J: float = 1.0, coordination: np.ndarray | None = None
 ) -> np.ndarray:
-    """Leading-order perturbation theory for per-site RX rotation angles.
-
-    For TFIM at h >> J (deep paramagnetic, perturbative regime):
-        θ_x_i ≈ arctan(J · z_i / (2h))
-
-    where z_i is the coordination number of site i.
-
-    Parameters
-    ----------
-    h : float
-        Transverse field strength.
-    J : float
-        Nearest-neighbor coupling (default 1.0).
-    coordination : np.ndarray | None
-        Per-site coordination numbers. If None, assumes uniform z=2 (bulk chain).
-
-    Returns
-    -------
-    np.ndarray
-        Per-site θ_x values (N elements).
-    """
+    """Leading-order perturbation theory for per-site RX rotation angles."""
     if coordination is None:
         raise ValueError("coordination array is required")
     return np.arctan(J * coordination / (2.0 * h))

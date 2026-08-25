@@ -40,12 +40,13 @@ on 2D topologies (heavy_hex, triangular) whereas sparse eigsh is exact
 by construction. At N=22, eigsh(k=2) takes ~50-60s and requires ~4GB RAM.
 For N > 22, DMRG with graph-based CouplingMPOModel is used."""
 
-EXACT_GAP_QUBIT_LIMIT: int = 20
-"""n_qubits ≤ 20 → sparse eigsh(k=2) for exact gap computation.
+EXACT_GAP_QUBIT_LIMIT: int = 18
+"""n_qubits ≤ 18 → sparse eigsh(k=2) for exact gap computation.
 
 Used as fallback when DMRG excited-state fails on non-chain topologies.
-At N=20, sparse eigsh(k=2) on a 1M×1M matrix takes ~40-60s and ~4GB RAM.
-This is cheaper than full exact diag (which needs the eigenvector).
+Previously set to 20, but N=20 sparse eigsh causes segfaults on macOS ARM64
+due to ARPACK/Accelerate framework bugs with dim > 500k matrices.
+For N > 18, gap is estimated via DMRG excitation or finite-size floor (2π/N).
 """
 
 DMRG_QUBIT_LIMIT: int = 500
@@ -67,7 +68,7 @@ SUPPORTED_VQE_METHODS: tuple[str, ...] = ("L-BFGS-B", "COBYLA", "Nelder-Mead")
 # Statevector / MPS thresholds
 # ---------------------------------------------------------------------------
 
-STATEVECTOR_MAX_N: int = 18
+STATEVECTOR_MAX_N: int = 16
 """Maximum N for sparse eigsh ground state vector extraction.
 
 At N=22, the statevector has 2^22 = 4M complex128 amplitudes (~64 MB).

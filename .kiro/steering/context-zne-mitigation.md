@@ -70,9 +70,6 @@ Analyzer: `python -m project_health.analysis.mitigation_benchmark_analyzer`
 
 ## Adaptive Strategy
 
-```python
-from qmbp_simulation.execution import MitigationOptions
-
 # Default: PEA primary
 opts = MitigationOptions(zne_amplifier="pea")
 
@@ -162,8 +159,8 @@ if drift.t1_relative_change > 0.20:
 ## Source Files
 
 - #[[file:src/qmbp_simulation/execution/noisy_utils.py]]
-- #[[file:src/qmbp_simulation/execution/hardware.py]]
-- #[[file:documentation/binnacles/binnacle-gate-folding-zne.md]]
-- #[[file:documentation/analysis/13_hardware_zne_improvements.md]]
-- #[[file:documentation/analysis/15_advanced_mitigation_techniques.md]]
+- #[[file:scripts/hardware/hardware.py]]
+- #[[file:internal/documentation/binnacles/binnacle-gate-folding-zne.md]]
+- #[[file:internal/documentation/analysis/13_hardware_zne_improvements.md]]
+- #[[file:internal/documentation/analysis/15_advanced_mitigation_techniques.md]]
 - #[[file:results/experiments/exp_zne_cross_topo/]]

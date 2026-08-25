@@ -15,20 +15,7 @@ from project_health.core.models import (
 
 
 def generate_timestamped_filename(base: str, ext: str) -> str:
-    """Generate a filename with ISO timestamp for unique report outputs.
-
-    Parameters
-    ----------
-    base : str
-        Base name (e.g., "health_report").
-    ext : str
-        File extension without dot (e.g., "txt", "json", "md").
-
-    Returns
-    -------
-    str
-        Filename like "health_report_20260603_143022.txt".
-    """
+    """Generate a filename with ISO timestamp for unique report outputs."""
     ts = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
     return f"{base}_{ts}.{ext}"
 
@@ -91,7 +78,7 @@ def format_text(report: HealthReport, *, compact: bool = False) -> str:
 
     # ── Noiseless Quality ─────────────────────────────────────────────────
     lines.append("─── NOISELESS QUALITY ─────────────────────────────────────────────")
-    lines.append(f"  Pass rate (ΔE/gap < 5%): {report.noiseless_pass_rate:.0%}")
+    lines.append(f"  Pass rate (ΔE/gap < 5%, single-criterion): {report.noiseless_pass_rate:.0%}")
     if report.noiseless_median_de is not None:
         lines.append(f"  Median ΔE/gap:           {report.noiseless_median_de:.4f}")
 
@@ -347,7 +334,9 @@ def format_markdown(report: HealthReport, *, compact: bool = False) -> str:
     # Noiseless quality
     lines.append("## Noiseless Quality")
     lines.append("")
-    lines.append(f"- Pass rate (ΔE/gap < 5%): **{report.noiseless_pass_rate:.0%}**")
+    lines.append(
+        f"- Pass rate (ΔE/gap < 5%, single-criterion): **{report.noiseless_pass_rate:.0%}**"
+    )
     if report.noiseless_median_de is not None:
         lines.append(f"- Median ΔE/gap: **{report.noiseless_median_de:.4f}**")
     lines.append("")

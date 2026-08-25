@@ -6,12 +6,12 @@ blanket ΔE/gap baseline. Verdicts: confirmed (hypothesis holds),
 rejected (hypothesis disproved = valid finding), failed (unexpected).
 
 Usage:
-    python scripts/compare.py --all
-    python scripts/compare.py --exp G1 G5
-    python scripts/compare.py --category G
-    python scripts/compare.py --noisy
-    python scripts/compare.py --noisy --group-by seed_layout
-    python scripts/compare.py --all --json output.json
+    .venv/bin/python scripts/compare.py --all
+    .venv/bin/python scripts/compare.py --exp G1 G5
+    .venv/bin/python scripts/compare.py --category G
+    .venv/bin/python scripts/compare.py --noisy
+    .venv/bin/python scripts/compare.py --noisy --group-by seed_layout
+    .venv/bin/python scripts/compare.py --all --json output.json
 """
 
 from __future__ import annotations

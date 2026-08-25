@@ -17,18 +17,18 @@ Constraints:
 
 Usage:
     # Default: train on N=6,10 → predict N=8, chain_1d, p=1, 30 h-points
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py
 
     # Custom sizes
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
         --train-sizes 6 10 --target-n 8
 
     # Custom h-grid
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py \\
         --h-min 0.5 --h-max 2.0 --h-points 30
 
     # With interpolation baseline comparison
-    python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py --with-interp
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_cross_n.py --with-interp
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
+from pathlib import Path
 
 import numpy as np
 
@@ -474,6 +475,35 @@ class NoiselessCrossNRunner(ValidationRunner):
 
             # ── Canonicalize theta (sign convention for MPNN) ─────────────
             theta_opts = [self._canonicalize_theta(t) for t in theta_opts]
+
+            # ── Immediate persistence (crash-safe) ───────────────────────
+            # Save training data to NPZ after each N completes.
+            # Uses upsert_theta_npz with anti-regression (only improves).
+            from qmbp_simulation.framework.result_io import upsert_theta_npz
+
+            training_data_dir = Path("data/multi_n_training")
+            training_data_dir.mkdir(parents=True, exist_ok=True)
+            npz_path = training_data_dir / f"{topo}_N{n_train}_p{p}.npz"
+
+            # Compute gaps for each h (needed by upsert)
+            gaps_for_npz = []
+            for i, h in enumerate(h_values):
+                lattice_h = self.make_lattice(topo, n_train, J=1.0, h=h)
+                H = spec.build_hamiltonian(lattice_h, **spec.hamiltonian_kwargs)
+                gt = self.solver.solve(H, lattice_h)
+                gaps_for_npz.append(gt.gap)
+
+            n_upd, n_add = upsert_theta_npz(
+                npz_path,
+                h_new=np.array(h_values),
+                theta_new=np.array(theta_opts),
+                e_vqe_new=np.array(energies_vqe),
+                e_exact_new=np.array(e_exacts),
+                gaps_new=np.array(gaps_for_npz),
+                method_new=["vqe_full"] * len(h_values),
+                quality_tier_new=["verified"] * len(h_values),
+            )
+            logger.info(f"    💾 Persisted: {npz_path.name} ({n_add} added, {n_upd} improved)")
 
             # Store for cross-section use
             self._training_data[n_train] = {

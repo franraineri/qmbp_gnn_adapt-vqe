@@ -11,13 +11,13 @@ Sections:
 Success criterion: ΔE/gap < 5% for all h-points in valid regime.
 
 Usage:
-    python scripts/experiment_runners/scaling/run_scaling_validation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_validation.py \\
         --n-qubits 40 --topology chain_1d
 
-    python scripts/experiment_runners/scaling/run_scaling_validation.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_validation.py \\
         --n-qubits 100 --h-min 3.0 --h-max 5.0 --h-points 10
 
-    python scripts/experiment_runners/scaling/run_scaling_validation.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_scaling_validation.py --dry-run
 """
 
 from __future__ import annotations
@@ -166,7 +166,10 @@ class MPSScalingValidationRunner(ValidationRunner):
             self._args.h_min if self._args.h_min is not None else self._h_min_predicted + 0.5
         )
         self._h_max = self._args.h_max if self._args.h_max is not None else self._h_min + 1.5
-        self._h_values = np.linspace(self._h_max, self._h_min, self._args.h_points).tolist()
+        # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+        self._h_values = [
+            round(h, 2) for h in np.linspace(self._h_max, self._h_min, self._args.h_points)
+        ]
 
         logger.info(f"  Scaling law h_min_safe = {self._h_min_predicted:.3f} for N={N}")
         logger.info(

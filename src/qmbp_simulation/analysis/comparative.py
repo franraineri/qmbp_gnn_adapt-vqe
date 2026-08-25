@@ -134,20 +134,7 @@ def filter_by_threshold(
     fidelities: list[float],
     threshold: float,
 ) -> list[int]:
-    """Return indices of results with fidelity ≥ threshold, preserving order.
-
-    Parameters
-    ----------
-    fidelities : list[float]
-        Fidelity values.
-    threshold : float
-        Minimum fidelity threshold.
-
-    Returns
-    -------
-    list[int]
-        Indices of qualifying points.
-    """
+    """Return indices of results with fidelity ≥ threshold, preserving order."""
     return [i for i, f in enumerate(fidelities) if f >= threshold]
 
 
@@ -224,20 +211,7 @@ class ComparativeMetrics:
 
 
 def compute_cx_budget(n_edges: int, model_type: str) -> int:
-    """Compute the number of 2-qubit gates per HVA layer.
-
-    Parameters
-    ----------
-    n_edges : int
-        Number of lattice edges.
-    model_type : str
-        Model type ("tfim" or "heisenberg"/"xy").
-
-    Returns
-    -------
-    int
-        Number of 2-qubit gates per layer.
-    """
+    """Compute the number of 2-qubit gates per HVA layer."""
     if model_type in ("heisenberg", "xy"):
         return 3 * n_edges  # RXX + RYY + RZZ per edge
     return n_edges  # RZZ only for TFIM
@@ -265,7 +239,9 @@ def classify_outcome(
     """
     if not has_valid_regime:
         return "failure"
-    if delta_e_over_gap is not None and delta_e_over_gap < 0.05:
+    from qmbp_simulation.analysis.constants import DE_GAP_THRESHOLD
+
+    if delta_e_over_gap is not None and delta_e_over_gap < DE_GAP_THRESHOLD:
         return "full_success"
     return "partial_success"
 
@@ -273,17 +249,8 @@ def classify_outcome(
 def compute_staggered_magnetization(z_expectations: list[float] | np.ndarray) -> float:
     """Compute staggered (Néel) magnetization from per-site Z expectations.
 
+
     M_s = (1/N) Σ_i (-1)^i ⟨Z_i⟩
-
-    Parameters
-    ----------
-    z_expectations : list[float] or np.ndarray
-        Per-site Z expectation values ⟨Z_i⟩.
-
-    Returns
-    -------
-    float
-        Staggered magnetization M_s.
     """
     z = np.asarray(z_expectations)
     n = len(z)

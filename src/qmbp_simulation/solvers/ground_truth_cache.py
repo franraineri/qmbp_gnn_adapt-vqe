@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 from pathlib import Path
 from typing import Any
 
@@ -57,8 +56,8 @@ class GroundTruthCache:
         self._load()
 
     def _make_key(self, topology: str, n_qubits: int, model: str, h: float) -> str:
-        """Create cache key with 6-decimal h for float stability."""
-        return f"{topology}|{n_qubits}|{model}|{h:.6f}"
+        """Create cache key with 2-decimal h for float stability."""
+        return f"{topology}|{n_qubits}|{model}|{h:.2f}"
 
     def _load(self) -> None:
         """Load cache from disk. Handles both legacy and v2 formats."""
@@ -77,7 +76,12 @@ class GroundTruthCache:
                 self._data = {}
 
     def _save(self) -> None:
-        """Persist cache to disk in compact format."""
+        """Persist cache to disk in compact format with file-locking.
+
+        Uses fcntl.flock (LOCK_EX) to prevent concurrent runners from
+        corrupting the JSON file. Write-and-rename pattern ensures atomicity:
+        if the process crashes mid-write, the original file is preserved.
+        """
         if not self._dirty:
             return
         self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -86,13 +90,43 @@ class GroundTruthCache:
             "n_entries": len(self._data),
             "entries": self._data,
         }
-        with open(self._path, "w") as f:
-            json.dump(payload, f, separators=(",", ":"))
-        self._dirty = False
+        # Atomic write: write to temp file, then rename (atomic on POSIX)
+        import tempfile
 
-    def get(
-        self, topology: str, n_qubits: int, model: str, h: float
-    ) -> dict[str, Any] | None:
+        tmp_path = None
+        try:
+            fd, tmp_path_str = tempfile.mkstemp(
+                dir=str(self._path.parent),
+                suffix=".tmp",
+                prefix=".gt_cache_",
+            )
+            tmp_path = Path(tmp_path_str)
+            with open(fd, "w") as f:
+                # Acquire exclusive lock (blocks until available)
+                try:
+                    import fcntl
+
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                except (ImportError, OSError):
+                    pass  # Windows or lock unavailable — proceed without lock
+                json.dump(payload, f, separators=(",", ":"))
+                f.flush()
+                import os
+
+                os.fsync(f.fileno())
+            # Atomic rename (POSIX guarantees this is atomic)
+            tmp_path.replace(self._path)
+            self._dirty = False
+        except Exception:
+            # Cleanup temp file on failure
+            if tmp_path is not None and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
+
+    def get(self, topology: str, n_qubits: int, model: str, h: float) -> dict[str, Any] | None:
         """Look up cached ground truth.
 
         Returns dict with {energy, gap, method, mag_x, corr_zz} or None.
@@ -122,12 +156,23 @@ class GroundTruthCache:
         """
         # Validation: reject non-physical values
         if not np.isfinite(energy):
-            logger.warning("GroundTruthCache: rejecting non-finite energy for %s|%d|%s|%.4f",
-                           topology, n_qubits, model, h)
+            logger.warning(
+                "GroundTruthCache: rejecting non-finite energy for %s|%d|%s|%.4f",
+                topology,
+                n_qubits,
+                model,
+                h,
+            )
             return
         if not np.isfinite(gap) or gap < 0:
-            logger.warning("GroundTruthCache: rejecting invalid gap=%.4e for %s|%d|%s|%.4f",
-                           gap, topology, n_qubits, model, h)
+            logger.warning(
+                "GroundTruthCache: rejecting invalid gap=%.4e for %s|%d|%s|%.4f",
+                gap,
+                topology,
+                n_qubits,
+                model,
+                h,
+            )
             return
         if abs(energy) > 1e6:
             logger.warning("GroundTruthCache: rejecting |energy|=%.2e > 1e6", abs(energy))
@@ -147,13 +192,15 @@ class GroundTruthCache:
         if self._write_count % 10 == 0:
             self._save()
 
-    def put_from_result(
-        self, topology: str, n_qubits: int, model: str, h: float, gt: Any
-    ) -> None:
+    def put_from_result(self, topology: str, n_qubits: int, model: str, h: float, gt: Any) -> None:
         """Store from a GroundTruthResult object."""
         self.put(
-            topology=topology, n_qubits=n_qubits, model=model, h=h,
-            energy=gt.ground_energy, gap=gt.gap,
+            topology=topology,
+            n_qubits=n_qubits,
+            model=model,
+            h=h,
+            energy=gt.ground_energy,
+            gap=gt.gap,
             method=gt.gap_method if hasattr(gt, "gap_method") else "unknown",
             mag_x=gt.mag_x if hasattr(gt, "mag_x") else None,
             corr_zz=gt.corr_zz if hasattr(gt, "corr_zz") else None,

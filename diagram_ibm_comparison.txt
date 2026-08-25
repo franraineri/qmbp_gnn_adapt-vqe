@@ -1,0 +1,122 @@
+
+================================================================================
+      HOW GNN-HVA EXTENDS IBM's QUANTUM ADVANTAGE (arXiv:2607.24937)
+================================================================================
+
+
+  IBM+Qedma (July 2026):               Our Approach (GNN-HVA + QPU):
+  ══════════════════════                ═══════════════════════════════
+
+  ┌─────────────────────┐              ┌──────────────────────────────┐
+  │  PREPARATION:       │              │  PREPARATION:                │
+  │                     │              │                              │
+  │  |0>^N              │              │  GNN predicts theta (1ms)    │
+  │  (trivial state)    │              │  HVA(theta)|+>^N = |psi_0(h)>│
+  │                     │              │  (non-trivial ground state)  │
+  │  Cost: FREE         │              │  Cost: 1ms (amortized)       │
+  │  Physics: NONE      │              │  Physics: FULL phase diagram │
+  └────────┬────────────┘              └──────────────┬───────────────┘
+           │                                          │
+           │ Single fixed protocol                    │ Arbitrary quench
+           │ (Kicked TFIM Floquet)                    │ H(h1) -> H(h2)
+           ▼                                          ▼
+  ┌─────────────────────┐              ┌──────────────────────────────┐
+  │  EVOLUTION:         │              │  EVOLUTION:                  │
+  │                     │              │                              │
+  │  U_Floquet^t |0>^N  │              │  e^{-iH(h2)t} |psi_0(h1)>    │
+  │                     │              │                              │
+  │  Fixed gates,       │              │  Trotter steps,              │
+  │  fixed parameters   │              │  tunable h1, h2, N, topology │
+  │                     │              │                              │
+  │  N = 74 (fixed)     │              │  N = 51+ (variable)          │
+  └────────┬────────────┘              └──────────────┬───────────────┘
+           │                                          │
+           ▼                                          ▼
+  ┌─────────────────────┐              ┌──────────────────────────────┐
+  │  RESULT:            │              │  RESULT:                     │
+  │                     │              │                              │
+  │  Quantum advantage  │              │  Quantum advantage           │
+  │  at ONE point       │              │  MAPPED across {h1,h2,N,top} │
+  │                     │              │                              │
+  │  "QPU can do this"  │              │  "QPU is needed HERE but     │
+  │                     │              │   not THERE"                 │
+  └─────────────────────┘              └──────────────────────────────┘
+
+
+
+  WHY NON-TRIVIAL PREPARATION MATTERS:
+  ═════════════════════════════════════
+
+  IBM's |0>^N ──► Floquet ──► Prethermal dynamics
+      │                            │
+      │  SAME for all experiments  │  ONE physics scenario
+      ▼                            ▼
+
+  GNN-HVA (this) |psi_0(h1)> ──► Quench to H(h2) ──► Rich dynamics
+      │                                         │
+      │  DIFFERENT for each h1                  │  DQPTs, phase transitions,
+      │  (GNN provides instantly)               │  entanglement growth,
+      ▼                                         │  correlation spreading
+                                                ▼
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │  The GNN unlocks a CONTINUOUS parameter space:                  │
+  │                                                                 │
+  │     h1 in [2.5, 5.0]  x  h2 in [0.1, 2.0]  x  N in [10, 127]    │
+  │                                                                 │
+  │  = THOUSANDS of distinct quantum dynamics experiments           │
+  │    each requiring 1ms of classical compute (GNN prediction)     │
+  │    + minutes of QPU time (Trotter evolution)                    │
+  │                                                                 │
+  │  vs IBM: 1 experiment, 1 protocol, 1 N                          │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+
+
+  THE TWO-PANEL ARGUMENT:
+  ═══════════════════════
+
+  ┌──────────────────────────────┐    ┌───────────────────────────────┐
+  │  PANEL A: Ground States      │    │  PANEL B: Dynamics            │
+  │  (Preparation is EASY)       │    │  (Evolution is HARD)          │
+  │                              │    │                               │
+  │  |psi_0> = area-law state    │    │  e^{-iHt}|psi_0> = volume-law│
+  │                              │    │                               │
+  │  MPS chi=64 converges ✓      │    │  MPS chi=256 DIVERGES ✗      │
+  │  GNN predicts in 1ms ✓       │    │  After ~10-15 Trotter steps  │
+  │  No QPU needed               │    │  ONLY QPU can simulate       │
+  │                              │    │                               │
+  │  "We prepare here"           │    │  "QPU evolves here"           │
+  │         │                    │    │         ▲                     │
+  └─────────┼────────────────────┘    └─────────┼─────────────────────┘
+            │                                   │
+            └───────────────────────────────────┘
+                    GNN-prepared state feeds into
+                    QPU-executed dynamics
+
+
+
+  CONCRETE EXPERIMENT (N=127 heavy-hex on IBM Eagle):
+  ═══════════════════════════════════════════════════
+
+  Step 1: GNN predicts theta(h1=3.0) ──► 253 parameters in 1ms
+  Step 2: Build HVA circuit           ──► 126 RZZ + 127 RX gates, depth=87
+  Step 3: Append Trotter(H(h2=0.5))   ──► 15-20 steps, crossing h_c
+  Step 4: Execute on QPU              ──► Measure <E(t)>, <Mx(t)>, <ZiZj(t)>
+  Step 5: Compare with MPS(chi=256)   ──► MPS fails at step ~10-15
+  Step 6: Beyond step 15              ──► ONLY QPU data is trustworthy
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                                                                 │
+  │  THESIS CLAIM:                                                  │
+  │                                                                 │
+  │  "The GNN eliminates the state preparation bottleneck,          │
+  │   enabling systematic exploration of the quantum advantage      │
+  │   regime for quench dynamics across {h1, h2, N, topology}       │
+  │   — a parameter space inaccessible without ML-assisted          │
+  │   preparation."                                                 │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
+
+================================================================================

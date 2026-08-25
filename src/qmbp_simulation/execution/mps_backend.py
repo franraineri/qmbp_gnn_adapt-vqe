@@ -423,29 +423,7 @@ class MPSBackend(ExecutionBackend):
         hamiltonian: SparsePauliOp,
         params: np.ndarray,
     ) -> float:
-        """Evaluate ⟨ψ(params)|H|ψ(params)⟩ via MPS simulation.
-
-        Parameters
-        ----------
-        circuit : QuantumCircuit
-            Parameterized HVA circuit (not yet bound).
-        hamiltonian : SparsePauliOp
-            Observable to measure.
-        params : np.ndarray
-            Parameter values to bind.
-
-        Returns
-        -------
-        float
-            Expectation value ⟨H⟩.
-
-        Raises
-        ------
-        ValueError
-            If parameter count does not match circuit.
-        RuntimeError
-            If the evaluation returns a non-finite value.
-        """
+        """Evaluate ⟨ψ(params)|H|ψ(params)⟩ via MPS simulation."""
         if len(params) != circuit.num_parameters:
             raise ValueError(
                 f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."

@@ -137,8 +137,10 @@ if errors:
     print(f"  FAILED: {len(errors)} error(s)")
     for e in errors:
         print(f"    - {e}")
-    sys.exit(1)
+    if __name__ == "__main__":
+        sys.exit(1)
 else:
     print("  ALL RELIABILITY TESTS PASSED ✅")
     print("  Data integrity verified: what goes in = what comes out")
-    sys.exit(0)
+    if __name__ == "__main__":
+        sys.exit(0)

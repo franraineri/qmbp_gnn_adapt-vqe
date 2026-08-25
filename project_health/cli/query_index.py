@@ -40,6 +40,73 @@ sys.path.insert(0, str(ROOT / "src"))
 from qmbp_simulation.framework.result_index import ResultIndex
 
 
+def _enrich_regressions_with_scoreboard(regressions: list[dict]) -> None:
+    """Enrich regression entries with scoreboard best-ever context.
+
+    For each regression, looks up the (topology, N) in the scoreboard JSON
+    and classifies whether the regression is:
+    - "real_regression": latest pass_rate is significantly below historical best
+    - "fluctuation": latest is close to the scoreboard best (h=2.5 is just hard)
+    - "no_data": scoreboard has no entry for this config
+
+    Modifies regressions in-place by adding 'scoreboard_context' dict.
+    """
+    scoreboard_path = ROOT / "results" / "best_results_scoreboard.json"
+    if not scoreboard_path.exists():
+        return
+
+    try:
+        scoreboard = json.loads(scoreboard_path.read_text())
+        best_by_topo = scoreboard.get("best_by_topology", {})
+    except (json.JSONDecodeError, OSError):
+        return
+
+    for reg in regressions:
+        config = reg.get("config", "")
+        # Config format: "model|topology|n_qubits|p_layers"
+        parts = config.split("|")
+        if len(parts) < 3:
+            continue
+
+        topology = parts[1]
+        try:
+            n_qubits = int(parts[2])
+        except (ValueError, IndexError):
+            continue
+
+        topo_data = best_by_topo.get(topology, {})
+        n_data = topo_data.get(str(n_qubits))
+
+        if not n_data:
+            reg["scoreboard_context"] = {"verdict": "no_data"}
+            continue
+
+        best_de_gap = n_data.get("best_de_gap", 999)
+        grade = n_data.get("grade", "?")
+        latest_pass = reg.get("latest_pass_rate", 0)
+
+        # Decision logic:
+        # If the scoreboard best-ever grade is D or F, then a low pass_rate
+        # is expected — this config is inherently hard. Not a real regression.
+        # If the scoreboard best-ever grade is A/B/C, then a low latest_pass
+        # means something broke — real regression.
+        if grade in ("A", "B", "C") and latest_pass < 0.50:
+            verdict = "real_regression"
+        elif grade in ("D", "F"):
+            verdict = "fluctuation"
+        elif latest_pass < 0.20 and best_de_gap < 0.10:
+            verdict = "real_regression"
+        else:
+            verdict = "fluctuation"
+
+        reg["scoreboard_context"] = {
+            "best_de_gap": best_de_gap,
+            "grade": grade,
+            "best_checkpoint": n_data.get("checkpoint", "unknown"),
+            "verdict": verdict,
+        }
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Query the experiment result index.")
     # Filters
@@ -125,11 +192,16 @@ def main() -> int:
     if args.regressions:
         regs = index.detect_regressions()
         if args.json:
+            # Enrich with scoreboard context before JSON output
+            _enrich_regressions_with_scoreboard(regs)
             print(json.dumps(regs, indent=2))
         else:
             if not regs:
                 print("No regressions detected.")
             else:
+                # Enrich regressions with scoreboard best-ever data
+                _enrich_regressions_with_scoreboard(regs)
+
                 print(f"=== {len(regs)} Regression(s) Detected ===\n")
                 for r in regs:
                     print(f"  {r['config']}")
@@ -138,6 +210,15 @@ def main() -> int:
                         f"Median prev: {r.get('median_previous_pass_rate', r['best_previous_pass_rate']):.0%}  "
                         f"(delta={r['delta']:+.0%})"
                     )
+                    # Scoreboard context: is this a real regression or fluctuation?
+                    sb = r.get("scoreboard_context")
+                    if sb and sb.get("verdict") != "no_data":
+                        verdict = sb.get("verdict", "unknown")
+                        icon = "🔴" if verdict == "real_regression" else "🟡"
+                        print(
+                            f"     {icon} Scoreboard best-ever: ΔE/gap={sb['best_de_gap']:.4f} "
+                            f"(grade {sb['grade']}) — {verdict.replace('_', ' ')}"
+                        )
                     print(f"     File: {r['latest_file']}")
 
                 # Temporal drift summary
@@ -155,6 +236,21 @@ def main() -> int:
                     print("  Action: check git log around breakpoint date for introduced bugs")
                 else:
                     print(f"\n  No temporal drift (slope={drift['trend_slope']:+.4f}).")
+
+                # Scoreboard summary
+                n_real = sum(
+                    1 for r in regs
+                    if r.get("scoreboard_context", {}).get("verdict") == "real_regression"
+                )
+                n_fluct = sum(
+                    1 for r in regs
+                    if r.get("scoreboard_context", {}).get("verdict") == "fluctuation"
+                )
+                if n_real or n_fluct:
+                    print(
+                        f"\n  Scoreboard verdict: {n_real} real regressions, "
+                        f"{n_fluct} likely fluctuations"
+                    )
 
                 # Stats at the end
                 print(

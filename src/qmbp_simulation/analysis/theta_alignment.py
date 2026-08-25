@@ -102,26 +102,7 @@ def detect_jumps(
     theta_array: np.ndarray,
     threshold: float = 2.0,
 ) -> list[int]:
-    """Detect indices where θ has a discontinuity.
-
-    A jump is detected at index i if ||θ[i] - θ[i-1]||_∞ > threshold.
-    The threshold default of 2.0 (~2π/3) catches branch switches while
-    ignoring normal parameter evolution.
-
-    Parameters
-    ----------
-    theta_array : np.ndarray
-        Shape (n_points, n_params). Ordered by h (descending sweep).
-    threshold : float
-        L-infinity norm threshold for declaring a jump.
-
-    Returns
-    -------
-    list[int]
-        Indices of points where a jump FROM the previous point was detected.
-        E.g., [5, 12] means θ[5] jumped relative to θ[4], and θ[12] jumped
-        relative to θ[11].
-    """
+    """Detect indices where θ has a discontinuity."""
     if theta_array.shape[0] < 2:
         return []
 

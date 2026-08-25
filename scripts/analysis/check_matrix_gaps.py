@@ -4,9 +4,9 @@
 h_expr = lowest h tested that still passes ΔE/gap < 5% (coarse lower bound).
 
 Usage:
-    python scripts/analysis/check_matrix_gaps.py
-    python scripts/analysis/check_matrix_gaps.py --target-ns 20 30 40 50 60 80 100 120
-    python scripts/analysis/check_matrix_gaps.py --target-ps 1 2 3 4
+    .venv/bin/python scripts/analysis/check_matrix_gaps.py
+    .venv/bin/python scripts/analysis/check_matrix_gaps.py --target-ns 20 30 40 50 60 80 100 120
+    .venv/bin/python scripts/analysis/check_matrix_gaps.py --target-ps 1 2 3 4
 """
 
 from __future__ import annotations

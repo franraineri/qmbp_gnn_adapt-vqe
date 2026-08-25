@@ -1,0 +1,203 @@
+======================================================================
+  TEST SUITE — 2026-08-19 17:09 UTC
+  Mode: FULL (entire project) | Files: 93 | Timeout: 80s/file | Workers: 4
+======================================================================
+
+  [  1/93] ✅ scripts/validation/test_pea_config.py                   0 passed, 40.8s
+  [  2/93] ❌ test_validation_functions.py                            2 failed, 9.5s
+  [  3/93] ✅ tests/hardware/test_hardware_deployment_api.py          20 passed, 34.5s
+  [  4/93] ✅ tests/hardware/test_hardware_module.py                  38 passed, 29.2s
+  [  5/93] ✅ tests/hardware/test_layout_priority.py                  5 passed, 18.1s
+  [  6/93] ✅ tests/hardware/test_noise_mitigation_refactor.py        34 passed, 21.6s
+  [  7/93] ✅ tests/hardware/test_noisy_utils_integration.py          8 passed, 22.9s
+  [  8/93] ✅ tests/hardware/test_p2a_guard.py                        3 passed, 19.0s
+  [  9/93] ✅ tests/hardware/test_pea_ibm_tutorial_config.py          39 passed, 20.7s
+  [ 10/93] ✅ tests/hardware/test_qesem_integration.py                25 passed, 40.1s
+  [ 11/93] ✅ tests/hardware/test_qesem_validator_checks.py           24 passed, 27.3s
+  [ 12/93] ✅ tests/hardware/test_qet_integration.py                  17 passed, 28.6s
+  [ 13/93] ✅ tests/hardware/test_wait_for_qpu.py                     7 passed, 24.0s
+  [ 14/93] ✅ tests/integration/test_backward_compat.py               4 passed, 20.2s
+  [ 15/93] ✅ tests/integration/test_layout_optimizer_integration.py  8 passed, 24.9s
+  [ 16/93] ❌ tests/integration/test_mapomatic_e2e.py                 1 failed, 31.1s
+  [ 17/93] ✅ tests/integration/test_module_contracts.py              61 passed, 24.1s
+  [ 18/93] 🧊 tests/integration/test_pipeline_confidence.py           FROZEN (killed after 80s) [DELETED]
+  [ 19/93] ✅ tests/integration/test_pipeline_e2e.py                  1 passed, 29.5s
+  [ 20/93] ✅ tests/integration/test_smoke.py                         11 passed, 23.2s
+  [ 21/93] ❌ tests/integration/test_vqezy_regression.py              8 failed, 22.1s
+  [ 22/93] ✅ tests/mps/test_mps_backend_cache.py                     9 passed, 23.4s
+  [ 23/93] ✅ tests/project_health/test_diagnose.py                   41 passed, 22.3s
+  [ 24/93] ❌ tests/project_health/test_thesis_tools.py               12 failed, 24.5s
+  [ 25/93] ✅ tests/property/test_benchmark_config_properties.py      12 passed, 16.6s
+  [ 26/93] ❌ tests/property/test_cli_filter_property.py              3 failed, 19.0s
+  [ 27/93] ✅ tests/property/test_cross_topology_properties.py        29 passed, 42.0s
+  [ 28/93] ✅ tests/property/test_dd_sequence_properties.py           3 passed, 19.3s
+  [ 29/93] ✅ tests/property/test_extension_classifier_properties.py  22 passed, 23.8s
+  [ 30/93] ✅ tests/property/test_hardware_calibration_property.py    8 passed, 19.1s
+  [ 31/93] ✅ tests/property/test_manifest_lock_property.py           3 passed, 22.4s
+  [ 32/93] ✅ tests/property/test_transpiled_stats_properties.py      8 passed, 23.6s
+  [ 33/93] ❌ tests/test_cache.py                                     1 failed, 20.8s
+  [ 34/93] ✅ tests/test_energy_variance_integration.py               13 passed, 22.8s
+  [ 35/93] ✅ tests/test_exact_energy_cache.py                        0 passed, 27.0s
+  [ 36/93] ✅ tests/test_extension_fixes.py                           11 passed, 25.9s
+  [ 37/93] ❌ tests/test_iterative_pipeline.py                        1 failed, 29.5s
+  [ 38/93] ✅ tests/test_model_comparison_fairness.py                 20 passed, 25.2s
+  [ 39/93] ✅ tests/test_runner_base.py                               0 passed, 50.7s
+  [ 40/93] ✅ tests/test_theta_validator.py                           20 passed, 21.6s
+  [ 41/93] ✅ tests/test_unified_graph.py                             26 passed, 19.4s
+  [ 42/93] ✅ tests/unit/test_analysis.py                             86 passed, 19.4s
+  [ 43/93] ✅ tests/unit/test_apply_affine_on_raw.py                  6 passed, 14.9s
+  [ 44/93] ✅ tests/unit/test_failures_and_frontier_grid.py           41 passed, 13.7s
+  [ 45/93] ✅ tests/unit/test_framework.py                            22 passed, 17.0s
+  [ 46/93] ✅ tests/unit/test_gnn_qem_v2_edge_cases.py                21 passed, 16.4s
+  [ 47/93] ✅ tests/unit/test_guards_and_validations.py               18 passed, 25.9s
+  [ 48/93] ✅ tests/unit/test_h_grid.py                               29 passed, 16.5s
+  [ 49/93] ✅ tests/unit/test_imports.py                              11 passed, 23.8s
+  [ 50/93] ❌ tests/unit/test_interrupt_save.py                       1 failed, 60.6s
+  [ 51/93] ✅ tests/unit/test_layout_optimizer.py                     19 passed, 24.2s
+  [ 52/93] ✅ tests/unit/test_layout_optimizer_extended.py            21 passed, 25.0s
+  [ 53/93] ✅ tests/unit/test_mitigation_benchmark.py                 100 passed, 39.1s
+  [ 54/93] ✅ tests/unit/test_model_registry_db.py                    111 passed, 27.4s
+  [ 55/93] ✅ tests/unit/test_model_spec.py                           15 passed, 19.1s
+  [ 56/93] ✅ tests/unit/test_models.py                               25 passed, 12.7s
+  [ 57/93] ✅ tests/unit/test_mt_integrations.py                      47 passed, 71.5s
+  [ 58/93] ✅ tests/unit/test_multi_n_aggregator.py                   28 passed, 13.6s
+  [ 59/93] ✅ tests/unit/test_new_utilities.py                        10 passed, 12.5s
+  [ 60/93] ✅ tests/unit/test_optimizers.py                           15 passed, 52.2s
+  [ 61/93] ✅ tests/unit/test_pareto_ablation.py                      11 passed, 13.1s
+  [ 62/93] ✅ tests/unit/test_persistence_guarantees.py               16 passed, 14.4s
+  [ 63/93] ✅ tests/unit/test_pipeline.py                             3 passed, 14.7s
+  [ 64/93] ✅ tests/unit/test_predictors.py                           5 passed, 15.2s
+  [ 65/93] ❌ tests/unit/test_prop_analysis.py                        1 failed, 13.7s
+  [ 66/93] ✅ tests/unit/test_prop_circuits.py                        5 passed, 14.1s
+  [ 67/93] ✅ tests/unit/test_prop_execution.py                       2 passed, 13.5s
+  [ 68/93] ✅ tests/unit/test_prop_framework.py                       5 passed, 13.8s
+  [ 69/93] ✅ tests/unit/test_prop_imports.py                         3 passed, 17.4s
+  [ 70/93] ✅ tests/unit/test_prop_models.py                          6 passed, 15.0s
+  [ 71/93] ✅ tests/unit/test_prop_optimizers.py                      5 passed, 18.0s
+  [ 72/93] ✅ tests/unit/test_prop_pipeline.py                        4 passed, 15.5s
+  [ 73/93] ❌ tests/unit/test_prop_predictors.py                      1 failed, 14.5s
+  [ 74/93] ✅ tests/unit/test_prop_robustness.py                      13 passed, 39.4s
+  [ 75/93] ✅ tests/unit/test_prop_solvers.py                         6 passed, 14.6s
+  [ 76/93] ✅ tests/unit/test_prop_utils.py                           7 passed, 14.9s
+  [ 77/93] ✅ tests/unit/test_refinement_priority.py                  29 passed, 16.4s
+  [ 78/93] ✅ tests/unit/test_resource_estimation.py                  33 passed, 17.4s
+  [ 79/93] ✅ tests/unit/test_robustness.py                           26 passed, 23.2s
+  [ 80/93] ✅ tests/unit/test_run_test_suite.py                       20 passed, 31.0s
+  [ 81/93] ✅ tests/unit/test_runner_helpers.py                       42 passed, 20.3s
+  [ 82/93] ✅ tests/unit/test_scaling_runners.py                      22 passed, 17.1s
+  [ 83/93] ✅ tests/unit/test_solver_phase1.py                        11 passed, 27.9s
+  [ 84/93] ✅ tests/unit/test_solvers.py                              5 passed, 21.5s
+  [ 85/93] ✅ tests/unit/test_tfim_longitudinal.py                    47 passed, 76.5s
+  [ 86/93] ✅ tests/unit/test_thesis_extension_units.py               16 passed, 24.9s
+  [ 87/93] ✅ tests/unit/test_theta_npz.py                            33 passed, 20.4s
+  [ 88/93] ✅ tests/unit/test_theta_outlier_filter.py                 16 passed, 19.0s
+  [ 89/93] ✅ tests/unit/test_training_improvements.py                17 passed, 18.4s
+  [ 90/93] ✅ tests/unit/test_utils.py                                22 passed, 19.9s
+  [ 91/93] ✅ tests/unit/test_variant_runner.py                       52 passed, 24.4s
+  [ 92/93] ✅ tests/unit/test_zoo_integrity_extended.py               17 passed, 25.4s
+  [ 93/93] ❌ tests/unit/test_zoo_integrity_fixes.py                  1 failed, 24.0s
+
+======================================================================
+  SUMMARY: 1654 passed | 32 failed | 1 frozen
+======================================================================
+
+  ── FAILURES (test function + reason) ──
+
+  📁 test_validation_functions.py
+     E   NameError: name 'curr_configs' is not defined
+     ERROR test_validation_functions.py - NameError: name 'curr_configs' is not de...
+
+  📁 tests/integration/test_mapomatic_e2e.py
+     E   assert 5 == 3
+     FAILED tests/integration/test_mapomatic_e2e.py::TestStructuredLogEvents::test_selection_event_has_ces_values
+
+  📁 tests/integration/test_vqezy_regression.py
+     E   AssertionError: Not enough VQEzy instances found: 1
+     E   assert 1 >= 3
+     E    +  where 1 = len(VQEzyDataset(instances=[VQEzyInstance(instance_id='sample_3', n_qubits=8, model='tfi', h=2.3, j=0.9, coupling_params={...rce_file='/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/data/VQEzy/qmanybody/ti_8_qubit.h5', n_qubits=8))
+
+  📁 tests/project_health/test_thesis_tools.py
+     E   NameError: name 'DEFAULT_SEEDS' is not defined
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisFindingsValidator::test_run_validation_no_crash
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisFindingsValidator::test_validation_report_serializable
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisFindingsValidator::test_category_filter
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisTablesCompiler::test_compile_no_crash
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisTablesCompiler::test_table_structure
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisTablesCompiler::test_markdown_format
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisTablesCompiler::test_latex_format
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisTablesCompiler::test_only_filter
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisTablesCompiler::test_report_serializable
+     FAILED tests/project_health/test_thesis_tools.py::TestThesisFigures::test_generate_no_crash
+     FAILED tests/project_health/test_thesis_tools.py::TestCrossToolConsistency::test_noiseless_count_agrees
+     FAILED tests/project_health/test_thesis_tools.py::TestCrossToolConsistency::test_experiment_count_agrees
+
+  📁 tests/property/test_cli_filter_property.py
+     E   AssertionError: Prefix 'C1' should resolve to 'C10_kitchen_sink', but it's not in result: ['C1_dd_only']
+     E   assert 'C10_kitchen_sink' in ['C1_dd_only']
+     E   Falsifying example: test_valid_prefixes_resolve_to_all_matching_configs(
+     E       self=<test_cli_filter_property.TestValidPrefixesResolveCorrectly object at 0x138669c70>,
+     E       prefixes=['C1'],
+     E   )
+     E   AssertionError: Order mismatch for prefixes ['C1'].
+     E     Expected: ['C1_dd_only', 'C10_kitchen_sink', 'C11_mitiq_zne', 'C12_mitiq_cdr', 'C13_mitiq_ddd_zne', 'C16_aqc_pea', 'C14_dd_mitiq_cdr', 'C15_pea_no_affine', 'C17_aqc_mitiq_cdr', 'C18_aqc_raw', 'C19_aqc_gf']
+     E     Got:      ['C1_dd_only']
+     E   assert ['C1_dd_only'] == ['C1_dd_only'...aqc_pea', ...]
+     E     Right contains 10 more items, first extra item: 'C10_kitchen_sink'
+     E     Use -v to get more diff
+     E   Falsifying example: test_order_follows_shortname_order(
+     E       self=<test_cli_filter_property.TestPrefixOrderPreserved object at 0x13866a690>,
+     E   AssertionError: Combined filter mismatch.
+     E     Prefixes: ['C0', 'C1'], Priority levels: frozenset({0, 1})
+     E     Expected: ['C0_raw', 'C1_dd_only', 'C10_kitchen_sink']
+     E     Got:      ['C0_raw', 'C1_dd_only']
+     E   assert ['C0_raw', 'C1_dd_only'] == ['C0_raw', 'C...kitchen_sink']
+     E     Right contains one more item: 'C10_kitchen_sink'
+
+  📁 tests/test_cache.py
+
+  📁 tests/test_iterative_pipeline.py
+     E   AssertionError: assert 'MAX_LBFGSB_ITERS' in '    def optimize(\n        self,\n        hamiltonian: SparsePauliOp,\n        circuit: QuantumCircuit,\n        init...        exact_state,\n            )\n        finally:\n            if _gc_was_enabled:\n                _gc.enable()\n'
+     FAILED tests/test_iterative_pipeline.py::TestVQECap::test_vqe_imports_cap - A...
+
+  📁 tests/unit/test_interrupt_save.py
+
+  📁 tests/unit/test_prop_analysis.py
+     E   AssertionError: Should be None for single-point array, got 0.0
+     E   assert 0.0 is None
+     E   Falsifying example: test_theta_smoothness_none_for_single_point(
+     E       theta=array([[ 0.30471708, -1.03998411]]),
+     E   )
+     FAILED tests/unit/test_prop_analysis.py::test_theta_smoothness_none_for_single_point
+
+  📁 tests/unit/test_prop_predictors.py
+     raise ValueError(
+     E   ValueError: Fewer than 3 data points (2) passed quality filters (no filter active). Cannot build a reliable training dataset. Consider widening the h-grid, increasing VQE maxiter/restarts, or relaxing thresholds.
+     E   Falsifying example: test_node_features_shape(
+     E       self=<tests.unit.test_prop_predictors.TestProperty10GraphDatasetConstructionPreservesStructure object at 0x13671f080>,
+     E       data=(3,
+     E        array([1., 1., 1.]),
+     E        np.array([[0.5, 0.5], [0.375, 0.25], [0.40625, 0.25]]),
+     E        array([-1., -1., -1.]),
+     E        array([1., 1., 1.])),
+     E   )
+     FAILED tests/unit/test_prop_predictors.py::TestProperty10GraphDatasetConstructionPreservesStructure::test_node_features_shape
+
+  📁 tests/unit/test_zoo_integrity_fixes.py
+     E   NameError: name '_compute_confidence_level' is not defined
+     FAILED tests/unit/test_zoo_integrity_fixes.py::TestDashboardFreshnessCheck::test_regenerates_when_npz_newer_than_dashboard
+
+  ── FROZEN FILES (exceeded 80s — deleted) ──
+  🧊 tests/integration/test_pipeline_confidence.py
+
+  ── SLOW FILES (>40s but completed) ──
+  🐢 tests/unit/test_tfim_longitudinal.py (76.5s)
+  🐢 tests/unit/test_mt_integrations.py (71.5s)
+  🐢 tests/unit/test_optimizers.py (52.2s)
+  🐢 tests/test_runner_base.py (50.7s)
+  🐢 tests/property/test_cross_topology_properties.py (42.0s)
+  🐢 scripts/validation/test_pea_config.py (40.8s)
+  🐢 tests/hardware/test_qesem_integration.py (40.1s)
+
+  Report: results/test_report.txt
+  Re-run failures: python scripts/general_project_maintenance/run_test_suite.py --lf
+======================================================================

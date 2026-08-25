@@ -9,8 +9,6 @@ fileMatchPattern: "**/thesis*,documentation/analysis/09*,documentation/analysis/
 
 ## General Objective (CANONICAL)
 
-"Demostrar que la integración de predicción GNN con HVA en un pipeline unificado permite reducir el costo de la clasificación de fases entre 29× y 500×, manteniendo ΔE/gap < 5% dentro del régimen operativo válido, y documentar formalmente los límites de dicho régimen."
-
 ## Core Contributions (Chapter 5)
 
 ### 1. Pipeline GNN-HVA clasifica fases correctamente

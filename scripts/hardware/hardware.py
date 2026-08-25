@@ -9,13 +9,13 @@ Subcommands:
     deploy      (future) Submit to real IBM Torino hardware
 
 Usage:
-    python scripts/hardware.py cost --n-qubits 10 --h-points 3
-    python scripts/hardware.py cost --n-qubits 10 --profile nighthawk --spsa disabled
-    python scripts/hardware.py preflight --n-qubits 10
-    python scripts/hardware.py rehearsal --topology heavy_hex --zne-amplifier pea
-    python scripts/hardware.py rehearsal --run-preflight --section 1 2 3
-    python scripts/hardware.py analyze --all
-    python scripts/hardware.py analyze --json --threshold 0.03
+    .venv/bin/python scripts/hardware.py cost --n-qubits 10 --h-points 3
+    .venv/bin/python scripts/hardware.py cost --n-qubits 10 --profile nighthawk --spsa disabled
+    .venv/bin/python scripts/hardware.py preflight --n-qubits 10
+    .venv/bin/python scripts/hardware.py rehearsal --topology heavy_hex --zne-amplifier pea
+    .venv/bin/python scripts/hardware.py rehearsal --run-preflight --section 1 2 3
+    .venv/bin/python scripts/hardware.py analyze --all
+    .venv/bin/python scripts/hardware.py analyze --json --threshold 0.03
 
 Equivalent make targets:
     make hw-cost N=10 H=3

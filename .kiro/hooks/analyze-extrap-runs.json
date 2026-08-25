@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Auto-analyze extrapolation",
+      "description": "After a large-N extrapolation run result JSON is created, automatically runs the analysis script to update the extrapolation_analysis.md report.",
+      "trigger": "PostFileCreate",
+      "matcher": "results/experiments/exp_large_n_extrap/run_[^/]*\\.json$",
+      "action": {
+        "type": "command",
+        "command": ".venv/bin/python scripts/analysis/analyze_extrapolation_runs.py --after 20260812_000000"
+      },
+      "timeout": 120,
+      "enabled": false
+    }
+  ]
+}

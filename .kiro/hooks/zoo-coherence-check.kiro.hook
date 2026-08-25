@@ -1,0 +1,13 @@
+{
+  "enabled": true,
+  "name": "Zoo Coherence Check",
+  "description": "After agent execution completes, runs zoo ↔ dashboard coherence check to detect divergences, stale models, and orphan checkpoints. Non-blocking (exit 0 always).",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ".venv/bin/python scripts/maintenance/check_zoo_coherence.py 2>&1 || true"
+  }
+}

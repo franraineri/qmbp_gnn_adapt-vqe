@@ -24,10 +24,10 @@ Hypotheses:
     H5: Heavy-hex behavior matches chain_1d at same chi
 
 Usage:
-    python scripts/run_mps_pseudo_hardware.py
-    python scripts/run_mps_pseudo_hardware.py --section 1 2
-    python scripts/run_mps_pseudo_hardware.py --n-qubits 20 --section 2
-    python scripts/run_mps_pseudo_hardware.py --dry-run
+    .venv/bin/python scripts/run_mps_pseudo_hardware.py
+    .venv/bin/python scripts/run_mps_pseudo_hardware.py --section 1 2
+    .venv/bin/python scripts/run_mps_pseudo_hardware.py --n-qubits 20 --section 2
+    .venv/bin/python scripts/run_mps_pseudo_hardware.py --dry-run
 """
 
 from __future__ import annotations

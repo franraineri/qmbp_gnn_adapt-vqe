@@ -144,6 +144,7 @@ The term "Deploy %" was replaced by "PassRate" on 2026-07-16.
 | Physics loss experiment | `noiseless_v2_analysis.md` (Section 10) |
 | N=6/N=10 baseline | `internal/documentation/analysis/09_thesis_tables.md` |
 | Cross-N zero-shot | `binnacle-cross-n-zero-shot.md` |
+| Cross-N UnifiedMPNN + large-N | `internal/documentation/analysis/accelerated_cross_n_coverage.md` |
 | GitHub repository | `https://github.com/franraineri/qmbp_gnn_adapt-vqe` |
 
 ## Current Document Status (internal/tesis-v3.0.tex — Updated 2026-07-21)

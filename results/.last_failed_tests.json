@@ -1,0 +1,14 @@
+[
+  "test_validation_functions.py",
+  "tests/integration/test_mapomatic_e2e.py",
+  "tests/integration/test_vqezy_regression.py",
+  "tests/project_health/test_thesis_tools.py",
+  "tests/property/test_cli_filter_property.py",
+  "tests/test_cache.py",
+  "tests/test_iterative_pipeline.py",
+  "tests/unit/test_interrupt_save.py",
+  "tests/unit/test_prop_analysis.py",
+  "tests/unit/test_prop_predictors.py",
+  "tests/unit/test_zoo_integrity_fixes.py",
+  "tests/integration/test_pipeline_confidence.py"
+]

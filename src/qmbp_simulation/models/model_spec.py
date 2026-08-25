@@ -72,12 +72,7 @@ class ModelSpec:
         return self.params_per_layer * 2
 
     def get_vqe_config_overrides(self) -> dict[str, Any]:
-        """Return model-specific VQE configuration overrides.
-
-        These override the default VQEConfig values when the model
-        requires different optimization settings (e.g., more restarts
-        for higher-dimensional landscapes).
-        """
+        """Return model-specific VQE configuration overrides."""
         return self.vqe_defaults.copy()
 
     def total_params_for_p(self, p_layers: int) -> int:
@@ -87,17 +82,8 @@ class ModelSpec:
     def with_delta(self, delta: float) -> ModelSpec:
         """Return a new ModelSpec with overridden delta in hamiltonian_kwargs.
 
+
         Convenience method for varying anisotropy without manual replace().
-
-        Parameters
-        ----------
-        delta : float
-            New anisotropy parameter value.
-
-        Returns
-        -------
-        ModelSpec
-            New frozen instance with updated hamiltonian_kwargs.
         """
         from dataclasses import replace
 
@@ -107,18 +93,9 @@ class ModelSpec:
     def with_g(self, g: float) -> ModelSpec:
         """Return a new ModelSpec with overridden g in hamiltonian_kwargs.
 
+
         Convenience method for varying the longitudinal field strength
         in the TFIM + longitudinal model.
-
-        Parameters
-        ----------
-        g : float
-            New longitudinal field strength.
-
-        Returns
-        -------
-        ModelSpec
-            New frozen instance with updated hamiltonian_kwargs.
         """
         from dataclasses import replace
 
@@ -127,20 +104,6 @@ class ModelSpec:
 
     def with_params(self, **kwargs: Any) -> ModelSpec:
         """Return a new ModelSpec with arbitrary hamiltonian_kwargs overrides.
-
-        Generic method for varying any Hamiltonian parameter. Preferred over
-        model-specific methods (with_delta, with_g) when writing code that
-        must work across multiple models.
-
-        Parameters
-        ----------
-        **kwargs
-            Key-value pairs to merge into hamiltonian_kwargs.
-
-        Returns
-        -------
-        ModelSpec
-            New frozen instance with updated hamiltonian_kwargs.
 
         Examples
         --------

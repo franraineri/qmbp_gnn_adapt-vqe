@@ -6,16 +6,6 @@
 
 ## Quick Reference: Core Imports
 
-```python
-# Core imports (from package top-level)
-from qmbp_simulation import (
-    HamiltonianBuilder, make_lattice, ClassicalSolver,
-    HVACircuitBuilder, VQEOptimizer,
-    LatticeConfig, VQEConfig, GroundTruthResult, VQEResult,
-    save_phase12_dataset, load_phase12_dataset,
-    PipelineRunner,
-)
-
 # Execution backends
 from qmbp_simulation.execution import (
     ExecutionBackend, NoiselessBackend, NoisyBackend, HardwareBackend,
@@ -214,7 +204,6 @@ class ExperimentX1(BaseExperiment):
 
 Register in `experiments/<category>/__init__.py` and run with:
 ```bash
-python scripts/run_experiment.py --exp X1 --verbose
 ```
 
 ## Benchmarking
@@ -228,7 +217,7 @@ results = suite.run(components=["solver", "vqe", "mpnn"])
 suite.print_summary(results)
 
 # Or via CLI
-# python scripts/benchmark.py --components solver vqe --n-qubits 4 6 8
+# python scripts/benchmarks/benchmark.py --components solver vqe --n-qubits 4 6 8
 ```
 
 ## Result Comparison
@@ -342,16 +331,13 @@ save_phase12_dataset(
 data = load_phase12_dataset("phase12_N6_p2.npz")
 ```
 
-
 ## Decision Guide: Which Tool to Use
 
 | I need to... | Use this | Example |
 |---|---|---|
-| Validate a script before running | `scripts/preflight.py` | `--from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py` |
-| Run a registered experiment | `scripts/run_experiment.py --exp <ID>` | `--exp B4 --verbose` |
-| Run the full 4-phase pipeline | `scripts/run_pipeline.py` | `--n-qubits 6 --p 2` |
-| Compare experiment results | `scripts/compare.py --all` | `--category optimization` |
-| Benchmark performance | `scripts/benchmark.py` | `--components solver vqe` |
+| Validate a script before running | `src/qmbp_simulation/framework/preflight.py` | `--from-script _deprecated/scripts/experiment_runners/standalone_runners/run_p1_pipeline_variants_r2.py` |
+| Compare experiment results | `project_health/compare.py --all` | `--category optimization` |
+| Benchmark performance | `scripts/benchmarks/benchmark.py` | `--components solver vqe` |
 | Validate package works | `tests/smoke_test.py` | (no args needed) |
 | Compute ground truth only | `run_exact_diag_sweep()` | See pipeline module |
 | Run pipeline programmatically | `PipelineRunner.run_full()` | See Example 1 below |
@@ -371,7 +357,7 @@ Always follow this pattern:
 4. **Use `ProgressReporter`** for console output (not raw `print()`)
 5. **Use `build_result_envelope()` + `save_experiment_result()`** for saving
 6. **Never use `sys.path.insert()`** — the package is installed
-7. **Run preflight before first execution** — `python scripts/preflight.py --from-script <your_script>`
+7. **Run preflight before first execution** — `python src/qmbp_simulation/framework/preflight.py --from-script <your_script>`
 
 ## When Writing a New Experiment
 
@@ -379,8 +365,6 @@ Always follow this pattern:
 2. Implement `default_config()` → returns `ExperimentConfig`
 3. Implement `run_single(seed)` → returns `list[ExperimentMetrics]`
 4. Register in `experiments/<category>/__init__.py`
-5. Add to `EXPERIMENT_REGISTRY` in `scripts/run_experiment.py`
-6. Run with `python scripts/run_experiment.py --exp <ID>`
 
 ## When Analyzing Results
 
@@ -465,7 +449,6 @@ slog = StructuredLogger("A3")
 slog.log("vqe_start", seed=42, h_value=1.5)
 slog.start_timer("vqe_point")
 slog.stop_timer("vqe_point", event_type="vqe_complete", data={"energy": -5.2})
-slog.save(Path("results/experiments/exp_a3/log.json"))
 ```
 
 ### `framework/preflight.py`
@@ -505,19 +488,19 @@ report = checker.run_all()
 **CLI usage:**
 ```bash
 # Validate before running
-python scripts/preflight.py --from-script scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+python src/qmbp_simulation/framework/preflight.py --from-script _deprecated/scripts/experiment_runners/standalone_runners/run_p1_pipeline_variants_r2.py
 
 # Strict mode (CI — warnings become errors)
-python scripts/preflight.py --from-script my_script.py --strict
+python src/qmbp_simulation/framework/preflight.py --from-script my_script.py --strict
 
 # Quiet mode (summary only)
-python scripts/preflight.py --from-script my_script.py --quiet
+python src/qmbp_simulation/framework/preflight.py --from-script my_script.py --quiet
 
 # From JSON
-python scripts/preflight.py --from-json variants.json
+python src/qmbp_simulation/framework/preflight.py --from-json variants.json
 
 # Via Makefile
-make preflight SCRIPT=scripts/experiment_runners/run_p1_pipeline_variants_r2.py
+make preflight SCRIPT=_deprecated/scripts/experiment_runners/standalone_runners/run_p1_pipeline_variants_r2.py
 ```
 
 **Checks performed (9 total):**
@@ -547,7 +530,6 @@ runner = PipelineRunner(lattice=lattice, config=vqe_config, verbose=True)
 results = runner.run_full(h_values=h_values, h_test=[1.5], mpnn_config={...})
 # results keys: "phase1", "phase2", "phase3", "phase4", "diagnostics"
 ```
-
 
 ## Simulation Modes
 

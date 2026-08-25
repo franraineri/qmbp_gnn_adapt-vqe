@@ -61,8 +61,4 @@ PEA available?
 ## Source Files
 
 - #[[file:src/qmbp_simulation/predictors/gnn_qem.py]]
-- #[[file:documentation/binnacles/binnacle-gnn-qem-validation.md]]
-- #[[file:results/gnn_qem/cross_topology_results.json]]
-- #[[file:results/gnn_qem/ablation_no_enoisy_results.json]]
-- #[[file:results/gnn_qem/post_zne_validation.json]]
-- #[[file:results/gnn_qem/vqe_realistic_results.json]]
+- #[[file:internal/documentation/binnacles/binnacle-gnn-qem-validation.md]]

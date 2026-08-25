@@ -13,8 +13,8 @@ Outputs:
   - analysis/raw_data/theta_derivative_vs_d1.json
 
 Usage:
-    python scripts/analysis/theta_derivative_analysis.py
-    python scripts/analysis/theta_derivative_analysis.py --format pdf --theme thesis
+    .venv/bin/python scripts/analysis/theta_derivative_analysis.py
+    .venv/bin/python scripts/analysis/theta_derivative_analysis.py --format pdf --theme thesis
 """
 
 from __future__ import annotations

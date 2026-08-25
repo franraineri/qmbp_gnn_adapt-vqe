@@ -5,7 +5,7 @@ Run alongside the main training pipeline to pre-generate data for ladder.
 Output: results/gnn_qem_v2/training_data_v2_ladder.json
 
 Usage:
-    python scripts/experiment_runners/gnn_experiments/gen_qem_v2_data_ladder.py
+    .venv/bin/python scripts/experiment_runners/gnn_experiments/gen_qem_v2_data_ladder.py
 """
 
 import logging

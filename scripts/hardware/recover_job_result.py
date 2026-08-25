@@ -5,9 +5,9 @@ When a local process times out but the QPU job finished server-side,
 this script retrieves the result using the job ID.
 
 Usage:
-    python scripts/recover_job_result.py d8tche5bh0os73epdphg
-    python scripts/recover_job_result.py d8tche5bh0os73epdphg --save results/recovered/
-    python scripts/recover_job_result.py d8tche5bh0os73epdphg --verbose
+    .venv/bin/python scripts/recover_job_result.py d8tche5bh0os73epdphg
+    .venv/bin/python scripts/recover_job_result.py d8tche5bh0os73epdphg --save results/recovered/
+    .venv/bin/python scripts/recover_job_result.py d8tche5bh0os73epdphg --verbose
 """
 
 from __future__ import annotations

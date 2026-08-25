@@ -50,20 +50,7 @@ def max_variance_acquisition(
     candidate_h: np.ndarray,
     uncertainties: list[float],
 ) -> int:
-    """Select h-point with maximum prediction variance.
-
-    Parameters
-    ----------
-    candidate_h : np.ndarray
-        Array of candidate h-values.
-    uncertainties : list[float]
-        Uncertainty (variance) at each candidate.
-
-    Returns
-    -------
-    int
-        Index of selected h-point.
-    """
+    """Select h-point with maximum prediction variance."""
     return int(np.argmax(uncertainties))
 
 

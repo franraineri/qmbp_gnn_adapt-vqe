@@ -25,7 +25,7 @@ Exit codes:
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
@@ -193,9 +193,11 @@ test_result = subprocess.run(
     cwd=str(ROOT),
     timeout=30,
 )
-if test_result.returncode == 0:
-    # Extract pass count
-    last_line = test_result.stdout.strip().split("\n")[-1]
+# Check stdout for "passed" (returncode can be unreliable due to torch segfault on exit)
+last_line = test_result.stdout.strip().split("\n")[-1] if test_result.stdout.strip() else ""
+if "passed" in last_line and "failed" not in last_line:
+    ok(f"All layout + affine tests pass: {last_line}")
+elif test_result.returncode == 0:
     ok(f"All layout + affine tests pass: {last_line}")
 else:
     fail("Test failures detected!")

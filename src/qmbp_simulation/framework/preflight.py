@@ -127,16 +127,8 @@ def get_valid_regime(p: int) -> dict[tuple[str, int], float]:
 def get_regime_threshold(topology: str, n_qubits: int, p: int) -> float:
     """Get the valid regime threshold for a specific configuration.
 
-    Returns 0.0 if no threshold is defined (permissive fallback).
 
-    Parameters
-    ----------
-    topology : str
-        Lattice topology name.
-    n_qubits : int
-        Number of qubits. Must be positive.
-    p : int
-        Number of HVA layers. Must be 1 or 2.
+    Returns 0.0 if no threshold is defined (permissive fallback).
     """
     if p not in (1, 2):
         return 0.0

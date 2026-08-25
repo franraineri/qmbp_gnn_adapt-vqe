@@ -10,12 +10,12 @@ provides detailed analysis including:
 - Hardware readiness verdict (GO/NO-GO for IBM Torino)
 
 Usage:
-    python scripts/analyze_hw_rehearsal_v2.py
-    python scripts/analyze_hw_rehearsal_v2.py --all          # All runs (comparison)
-    python scripts/analyze_hw_rehearsal_v2.py --json         # Machine-readable output
-    python scripts/analyze_hw_rehearsal_v2.py --exp-dir results/experiments/exp_hw_rehearsal_v2
-    python scripts/analyze_hw_rehearsal_v2.py --threshold 0.03
-    python scripts/analyze_hw_rehearsal_v2.py --section-filter 1 2 3
+    .venv/bin/python scripts/analyze_hw_rehearsal_v2.py
+    .venv/bin/python scripts/analyze_hw_rehearsal_v2.py --all          # All runs (comparison)
+    .venv/bin/python scripts/analyze_hw_rehearsal_v2.py --json         # Machine-readable output
+    .venv/bin/python scripts/analyze_hw_rehearsal_v2.py --exp-dir results/experiments/exp_hw_rehearsal_v2
+    .venv/bin/python scripts/analyze_hw_rehearsal_v2.py --threshold 0.03
+    .venv/bin/python scripts/analyze_hw_rehearsal_v2.py --section-filter 1 2 3
 """
 
 from __future__ import annotations

@@ -81,7 +81,7 @@ from qmbp_simulation.execution.hardware import (
 - Unit tests: `tests/unit/test_layout_optimizer.py` (19 tests)
 - Extended tests: `tests/unit/test_layout_optimizer_extended.py` (21 tests)
 - Integration: `tests/integration/test_layout_optimizer_integration.py` (8 tests, needs FakeTorino)
-- Sanity check: `check_layout_optimizer_integration` in `project_health/analysis/sanity_check.py`
+- Sanity check: `check_layout_optimizer_integration` in `project_health/analysis/validation/sanity_check.py`
 
 ## Project Health Integration
 

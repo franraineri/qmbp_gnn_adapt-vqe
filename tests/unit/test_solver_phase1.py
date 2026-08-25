@@ -59,13 +59,14 @@ class TestMethodDispatch:
         assert result.ground_state is not None
         assert result.ground_state.shape == (2**15,)
 
-    def test_n16_uses_dmrg(self, solver, tfim_spec):
-        """N=16 should use DMRG (above EXACT_DIAG_QUBIT_LIMIT)."""
+    def test_n16_uses_exact(self, solver, tfim_spec):
+        """N=16 should use exact (at STATEVECTOR_MAX_N boundary)."""
         lattice = make_lattice("chain_1d", 16, J=1.0, h=2.0)
         H = tfim_spec.build_hamiltonian(lattice, **tfim_spec.hamiltonian_kwargs)
         result = solver.solve(H, lattice)
-        # DMRG does not return ground_state vector
-        assert result.ground_state is None
+        # N=16 == STATEVECTOR_MAX_N → exact diag, returns ground_state
+        assert result.ground_state is not None
+        assert result.ground_state.shape == (2**16,)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

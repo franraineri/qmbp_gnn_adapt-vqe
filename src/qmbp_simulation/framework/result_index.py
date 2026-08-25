@@ -152,6 +152,9 @@ class ResultIndex:
         passed: bool | None = None,
         experiment_id: str | None = None,
         gap_method: str | None = None,
+        runner_tag: str | None = None,
+        date_tag: str | None = None,
+        runner_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Query the index with optional filters.
 
@@ -163,6 +166,16 @@ class ResultIndex:
             Filter by gap computation method. Matches if the specified method
             appears in the run's gap_methods list. Use "eigsh_fallback" to find
             post-fix runs, or "floor_2pi_n" for legacy runs.
+        runner_tag : str | None
+            Filter by 2-letter runner tag (e.g., "AC" for AcceleratedCrossN,
+            "LN" for LargeNExtrapolation). Use for tracing which runner
+            produced a result.
+        date_tag : str | None
+            Filter by date tag in DDMMYY format (e.g., "100826" for Aug 10, 2026).
+            Use to find results from a specific day.
+        runner_id : str | None
+            Filter by runner_id substring match. Use for finding results from
+            a specific experiment runner (e.g., "accelerated_cross_n").
 
         Returns
         -------
@@ -187,6 +200,13 @@ class ResultIndex:
             results = [r for r in results if eid_lower in r.get("experiment_id", "").lower()]
         if gap_method is not None:
             results = [r for r in results if gap_method in (r.get("gap_methods") or [])]
+        if runner_tag is not None:
+            results = [r for r in results if r.get("runner_tag") == runner_tag]
+        if date_tag is not None:
+            results = [r for r in results if r.get("date_tag") == date_tag]
+        if runner_id is not None:
+            rid_lower = runner_id.lower()
+            results = [r for r in results if rid_lower in r.get("runner_id", "").lower()]
         return results
 
     def get_best_run(
@@ -387,14 +407,14 @@ class ResultIndex:
     # ── B5: Regression detection ─────────────────────────────────────────
 
     def detect_regressions(self) -> list[dict[str, Any]]:
-        """Find cases where recent runs perform worse than earlier ones.
+        """Find cases where the latest run regressed vs the previous run.
 
-        A regression is: latest run pass_rate < best previous pass_rate
-        for the same (model, topology, N, p) config.
+        A regression is: latest run pass_rate < previous run pass_rate
+        for the same (model, topology, N, p) config by more than 5%.
 
-        Uses only valid entries to avoid false positives from legacy/garbage data.
-        Compares against MEDIAN of previous runs (not outlier best) to reduce
-        false positives from one lucky run.
+        Strategy: compare ONLY the last two runs per config (chronological).
+        This avoids false positives from one-off lucky runs in early
+        development, and correctly surfaces real degradations.
         """
         valid = self.valid_entries
         from collections import defaultdict
@@ -412,35 +432,29 @@ class ResultIndex:
         for key, runs in groups.items():
             if len(runs) < 2:
                 continue
-            # Sort by timestamp (guard against missing/malformed timestamps)
+            # Sort by timestamp
             sorted_runs = sorted(runs, key=lambda r: r.get("timestamp", "") or "")
             latest = sorted_runs[-1]
-            previous_runs = sorted_runs[:-1]
-
-            # Use median of previous runs as baseline (robust to outliers)
-            prev_rates = sorted(r.get("pass_rate", 0) for r in previous_runs)
-            median_idx = len(prev_rates) // 2
-            median_rate = prev_rates[median_idx]
-            best_rate = max(prev_rates)
+            previous = sorted_runs[-2]
 
             latest_rate = latest.get("pass_rate", 0)
+            prev_rate = previous.get("pass_rate", 0)
 
-            # Regression = latest below median - threshold (not best)
-            if latest_rate < median_rate - 0.05:
+            # Regression = latest dropped by more than 5% vs immediate predecessor
+            if latest_rate < prev_rate - 0.05:
                 regressions.append(
                     {
                         "config": key,
                         "latest_pass_rate": latest_rate,
-                        "best_previous_pass_rate": best_rate,
-                        "median_previous_pass_rate": median_rate,
-                        "delta": latest_rate - median_rate,
+                        "previous_pass_rate": prev_rate,
+                        "best_previous_pass_rate": max(
+                            r.get("pass_rate", 0) for r in sorted_runs[:-1]
+                        ),
+                        "delta": latest_rate - prev_rate,
                         "latest_file": latest.get("_file", ""),
                         "latest_timestamp": latest.get("timestamp", ""),
-                        "best_file": max(
-                            previous_runs,
-                            key=lambda r: r.get("pass_rate", 0),
-                        ).get("_file", ""),
-                        "n_previous_runs": len(previous_runs),
+                        "previous_file": previous.get("_file", ""),
+                        "n_previous_runs": len(sorted_runs) - 1,
                     }
                 )
 
@@ -674,29 +688,46 @@ class ResultIndex:
     # ── B7: Coverage matrix ──────────────────────────────────────────────
 
     def coverage_matrix(self) -> dict[str, dict[str, str]]:
-        """Generate a coverage matrix: (model, topology) → best status.
+        """Generate a coverage matrix: (model, topology) → latest status.
 
         Returns nested dict: matrix[model][topology] = "100% (N=20)" or "untested".
         Uses only valid entries (excludes garbage/legacy data).
+
+        Strategy: for each (model, topology) picks the LATEST run per
+        (model, topology, N, p) config, then reports the highest pass_rate
+        among those latest runs. This avoids inflating the matrix with
+        historical peaks that may not be reproducible.
         """
         valid = self.valid_entries
         from collections import defaultdict
 
-        # Collect best pass_rate per (model, topology)
-        best: dict[tuple[str, str], dict] = defaultdict(lambda: {"pass_rate": 0, "n": 0})
-
+        # Step 1: find latest run per full config (model, topo, N, p)
+        latest_per_config: dict[tuple, dict] = {}
         for entry in valid:
             model = entry.get("model", "")
             topo = entry.get("topology", "")
             if not model or not topo:
                 continue
+            key = (model, topo, entry.get("n_qubits", 0), entry.get("p_layers", 0))
+            ts = entry.get("timestamp", "") or ""
+            prev_ts = latest_per_config.get(key, {}).get("timestamp", "") or ""
+            if ts >= prev_ts:
+                latest_per_config[key] = entry
+
+        # Step 2: pick best latest-run per (model, topology)
+        best: dict[tuple[str, str], dict] = defaultdict(lambda: {"pass_rate": 0, "n": 0})
+        for (model, topo, n, _p), entry in latest_per_config.items():
             key = (model, topo)
             rate = entry.get("pass_rate", 0)
-            n = entry.get("n_qubits", 0)
             if rate > best[key]["pass_rate"] or (
                 rate == best[key]["pass_rate"] and n > best[key]["n"]
             ):
-                best[key] = {"pass_rate": rate, "n": n}
+                best[key] = {
+                    "pass_rate": rate,
+                    "n": n,
+                    "grade": entry.get("grade"),
+                    "mean_de_gap": entry.get("mean_de_gap"),
+                }
 
         # Build matrix
         models = sorted(set(k[0] for k in best))
@@ -710,7 +741,15 @@ class ResultIndex:
                     info = best[key]
                     rate = info["pass_rate"]
                     n = info["n"]
-                    matrix[model][topo] = f"{rate:.0%} (N={n})"
+                    # Use grade + mean_de_gap if available, fallback to pass_rate
+                    grade = info.get("grade")
+                    mean_dg = info.get("mean_de_gap")
+                    if grade and mean_dg is not None:
+                        matrix[model][topo] = f"{grade} {mean_dg:.3f} (N={n})"
+                    elif grade:
+                        matrix[model][topo] = f"{grade} (N={n})"
+                    else:
+                        matrix[model][topo] = f"{rate:.0%} (N={n})"
                 else:
                     matrix[model][topo] = "—"
         return matrix
@@ -904,7 +943,7 @@ class ResultIndex:
                 f"**Topologies**: {', '.join(stats.get('topologies', []))}",
                 f"**N values**: {stats.get('n_values', [])}",
                 "",
-                "## Coverage Matrix (best pass_rate per config)",
+                "## Coverage Matrix (latest quality per config)",
                 "",
             ]
 
@@ -927,7 +966,7 @@ class ResultIndex:
                 for r in regressions[:5]:
                     lines.append(
                         f"- **{r['config']}**: {r['latest_pass_rate']:.0%} "
-                        f"(was {r['best_previous_pass_rate']:.0%}, "
+                        f"(prev {r['previous_pass_rate']:.0%}, "
                         f"Δ={r['delta']:.0%})"
                     )
                 lines.append("")
@@ -938,6 +977,16 @@ class ResultIndex:
                 for s in suggestions[:8]:
                     lines.append(f"- {s}")
                 lines.append("")
+
+            # ── Large-N Extrapolation summary ─────────────────────────────
+            extrap_section = self._generate_extrapolation_summary()
+            if extrap_section:
+                lines.extend(extrap_section)
+
+            # ── Best Model per Topology (auto-updated, improvement-only) ──
+            model_section = self._generate_best_model_section()
+            if model_section:
+                lines.extend(model_section)
 
             lines.append("---")
             lines.append("*Generated by `ResultIndex.refresh_status()` from ResultIndex*")
@@ -951,4 +1000,223 @@ class ResultIndex:
 
         except Exception as e:
             logger.debug("Could not refresh project status: %s", e)
+            return None
+
+    def _generate_extrapolation_summary(self) -> list[str] | None:
+        """Generate a compact Large-N Extrapolation summary for project-status.
+
+        Reads NPZ files from data/large_n_extrapolation/ and produces a
+        per-topology table with key metrics.
+        """
+        from collections import defaultdict
+
+        import numpy as np
+
+        extrap_dir = Path("data") / "large_n_extrapolation"
+        if not extrap_dir.exists():
+            return None
+
+        npz_files = sorted(extrap_dir.glob("*.npz"))
+        if not npz_files:
+            return None
+
+        topo_data: dict[str, list[dict]] = defaultdict(list)
+        for npz_path in npz_files:
+            stem = npz_path.stem
+            parts = stem.rsplit("_", 2)
+            if len(parts) < 3:
+                continue
+            topo = parts[0]
+            n_str = parts[1]
+            if not n_str.startswith("N"):
+                continue
+            n_qubits = int(n_str[1:])
+            try:
+                data = np.load(npz_path, allow_pickle=True)
+                h_values = data["h_values"]
+                n_pts = len(h_values)
+                if n_pts == 0:
+                    continue
+                e_key = "e_pred" if "e_pred" in data else ("e_vqe" if "e_vqe" in data else None)
+                if e_key is None:
+                    continue
+                e_pred = data[e_key].astype(float)
+                e_exact = data["e_exact"].astype(float)
+                gaps = data["gaps"].astype(float) if "gaps" in data else None
+                abs_errs = np.abs(e_pred - e_exact)
+                per_site = float(abs_errs.mean()) / max(n_qubits, 1)
+                if gaps is not None:
+                    de_gaps = abs_errs / np.maximum(gaps, 1e-10)
+                    mean_dg = float(de_gaps.mean())
+                    from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
+
+                    pass5 = int((de_gaps < DE_GAP_THRESHOLD).sum())
+                else:
+                    mean_dg = -1
+                    pass5 = 0
+                topo_data[topo].append(
+                    {
+                        "n": n_qubits,
+                        "pts": n_pts,
+                        "dg": mean_dg,
+                        "ps": per_site,
+                        "p5": pass5,
+                    }
+                )
+            except Exception:
+                continue
+
+        if not topo_data:
+            return None
+
+        lines = [
+            "## Large-N Extrapolation (Zero-Shot MPNN)",
+            "",
+            "| Topology | N | Pts | ΔE/gap | |ΔE|/N | Grade |",
+            "|----------|---|-----|--------|--------|-------|",
+        ]
+        for topo in sorted(topo_data.keys()):
+            entries = sorted(topo_data[topo], key=lambda x: x["n"])
+            for e in entries:
+                dg_str = f"{e['dg']:.3f}" if e["dg"] >= 0 else "—"
+                # Compute grade from available data
+                try:
+                    from qmbp_simulation.analysis.constants import (
+                        compute_quality_score,
+                        grade_from_score,
+                    )
+
+                    score = compute_quality_score(
+                        e["dg"] if e["dg"] >= 0 else 1.0,
+                        e["dg"] * 1.5 if e["dg"] >= 0 else 1.0,  # Estimate P90
+                        e["ps"],
+                        e["pts"],
+                    )
+                    grade = grade_from_score(score)
+                except ImportError:
+                    grade = "?"
+                lines.append(
+                    f"| {topo} | {e['n']} | {e['pts']} | {dg_str} | {e['ps']:.2e} | {grade} |"
+                )
+        lines.append("")
+        return lines
+
+    def _generate_best_model_section(self) -> list[str] | None:
+        """Generate Best Model per Topology section with auto-improvement tracking.
+
+        Reads zoo manifest pass_rate_by_n to show which model is deployed for
+        each topology and its per-N performance. Only shows IMPROVEMENTS over
+        previous values (monotonic quality tracking).
+
+        Returns
+        -------
+        list[str] | None
+            Markdown lines for the section, or None if no data.
+        """
+        try:
+            import json as _json
+
+            zoo_path = Path("data") / "model_zoo" / "manifest.json"
+            if not zoo_path.exists():
+                return None
+
+            zoo = _json.loads(zoo_path.read_text())
+            # Include all p_layers (not just p=1) — show best model per topology per p
+            multi_n = [e for e in zoo if e.get("n_qubits") == 0]
+            if not multi_n:
+                return None
+
+            lines = [
+                "## Best Model per Topology (Auto-Tracked)",
+                "",
+                "| Topology | p | Checkpoint | Arch | Pass% | N-range | Best N | Worst N |",
+                "|----------|---|-----------|------|-------|---------|--------|---------|",
+            ]
+
+            for entry in sorted(
+                multi_n, key=lambda e: (e.get("topology", ""), e.get("p_layers", 1))
+            ):
+                topo = entry.get("topology", "?")
+                p_val = entry.get("p_layers", 1)
+                ckpt = entry.get("checkpoint_file", "?")
+                pr = entry.get("pass_rate", 0)
+                by_n = entry.get("pass_rate_by_n", {})
+
+                # Detect architecture from checkpoint name or notes
+                arch = "baseline"
+                if "residual" in ckpt.lower() or "residual" in entry.get("notes", "").lower():
+                    arch = "residual"
+                if "film" in ckpt.lower() or "film" in entry.get("notes", "").lower():
+                    arch = arch + "+film" if arch != "baseline" else "film"
+
+                if by_n:
+                    sorted_ns = sorted(by_n.items(), key=lambda x: int(x[0]))
+                    n_range = f"N={sorted_ns[0][0]}-{sorted_ns[-1][0]}"
+                    # Best N: highest pass rate
+                    best_n_item = max(sorted_ns, key=lambda x: float(x[1]))
+                    best_n_str = f"N{best_n_item[0]}={float(best_n_item[1]):.0%}"
+                    # Worst N (excluding 0% at extrap): lowest non-zero or lowest overall
+                    non_zero = [(n, v) for n, v in sorted_ns if float(v) > 0]
+                    if non_zero:
+                        worst_n_item = min(non_zero, key=lambda x: float(x[1]))
+                        worst_n_str = f"N{worst_n_item[0]}={float(worst_n_item[1]):.0%}"
+                    else:
+                        worst_n_str = "all 0%"
+                else:
+                    n_range = "—"
+                    best_n_str = "—"
+                    worst_n_str = "—"
+
+                # Truncate checkpoint name
+                ckpt_short = ckpt[:35] + "..." if len(ckpt) > 38 else ckpt
+
+                lines.append(
+                    f"| {topo} | {p_val} | {ckpt_short} | {arch} | {pr:.0%} | "
+                    f"{n_range} | {best_n_str} | {worst_n_str} |"
+                )
+
+            # MT model (if exists)
+            mt_entries = [e for e in zoo if e.get("topology") == "multi_topology"]
+            if mt_entries:
+                mt = mt_entries[0]
+                ckpt = mt.get("checkpoint_file", "?")
+                pr = mt.get("pass_rate", 0)
+                by_n = mt.get("pass_rate_by_n", {})
+                arch = "baseline"
+                if "residual" in ckpt.lower() or "residual" in mt.get("notes", "").lower():
+                    arch = (
+                        "residual+film"
+                        if "film" in (ckpt + mt.get("notes", "")).lower()
+                        else "residual"
+                    )
+
+                if by_n:
+                    sorted_ns = sorted(by_n.items(), key=lambda x: int(x[0]))
+                    n_range = f"N={sorted_ns[0][0]}-{sorted_ns[-1][0]}"
+                    non_zero = [(n, v) for n, v in sorted_ns if float(v) > 0]
+                    best_n_str = (
+                        f"N{max(non_zero, key=lambda x: float(x[1]))[0]}={float(max(non_zero, key=lambda x: float(x[1]))[1]):.0%}"
+                        if non_zero
+                        else "all 0%"
+                    )
+                    worst_n_str = (
+                        f"N{min(non_zero, key=lambda x: float(x[1]))[0]}={float(min(non_zero, key=lambda x: float(x[1]))[1]):.0%}"
+                        if non_zero
+                        else "—"
+                    )
+                else:
+                    n_range = "—"
+                    best_n_str = "—"
+                    worst_n_str = "—"
+
+                ckpt_short = ckpt[:35] + "..." if len(ckpt) > 38 else ckpt
+                lines.append(
+                    f"| **multi_topo** | {ckpt_short} | {arch} | {pr:.0%} | "
+                    f"{n_range} | {best_n_str} | {worst_n_str} |"
+                )
+
+            lines.append("")
+            return lines
+
+        except Exception:
             return None

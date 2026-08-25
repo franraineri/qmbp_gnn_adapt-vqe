@@ -12,13 +12,13 @@ Guarantees:
 - Results saved as execution_log_{timestamp}.json in the output base dir.
 
 Usage:
-    python scripts/my_variants.py
-    python scripts/my_variants.py --dry-run
-    python scripts/my_variants.py --list
-    python scripts/my_variants.py --variant 0
-    python scripts/my_variants.py --noiseless-only
-    python scripts/my_variants.py --n-qubits 6
-    python scripts/my_variants.py --skip-preflight
+    .venv/bin/python scripts/my_variants.py
+    .venv/bin/python scripts/my_variants.py --dry-run
+    .venv/bin/python scripts/my_variants.py --list
+    .venv/bin/python scripts/my_variants.py --variant 0
+    .venv/bin/python scripts/my_variants.py --noiseless-only
+    .venv/bin/python scripts/my_variants.py --n-qubits 6
+    .venv/bin/python scripts/my_variants.py --skip-preflight
 """
 
 from __future__ import annotations

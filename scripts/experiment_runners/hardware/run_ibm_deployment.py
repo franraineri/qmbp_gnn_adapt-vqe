@@ -29,19 +29,19 @@ Prerequisites:
 
 Usage:
     # Full deployment (Tier 0 → 1 → 2 → 3, auto-advancing)
-    python scripts/experiment_runners/hardware/run_ibm_deployment.py
+    .venv/bin/python scripts/experiment_runners/hardware/run_ibm_deployment.py
 
     # Calibration only (Tier 0 + budget estimate)
-    python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0
+    .venv/bin/python scripts/experiment_runners/hardware/run_ibm_deployment.py --tier 0
 
     # Safe mode (no SPSA, prevents 400-min budget blowout)
-    python scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
+    .venv/bin/python scripts/experiment_runners/hardware/run_ibm_deployment.py --no-spsa
 
     # Dry run (preflight + cost estimate only, no QPU usage)
-    python scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run
+    .venv/bin/python scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run
 
     # Custom configuration
-    python scripts/experiment_runners/hardware/run_ibm_deployment.py \\
+    .venv/bin/python scripts/experiment_runners/hardware/run_ibm_deployment.py \\
         --shots 32768 --zne-amplifier adaptive --tier 1
 """
 
@@ -1346,7 +1346,9 @@ def run_tier_1(
                 # Landscape curvature (noiseless risk proxy — section 19 validated)
                 "kappa": kappa_per_h.get(h, float("nan")),
                 "hardware_risk": kappa_recommendations.get(h, {}).get("risk_level", "unknown"),
-                "spsa_recommended": kappa_recommendations.get(h, {}).get("spsa_recommended", False),
+                "spsa_recommended": kappa_recommendations.get(h, {}).get(
+                    "spsa_recommended", False
+                ),
             }
         )
 

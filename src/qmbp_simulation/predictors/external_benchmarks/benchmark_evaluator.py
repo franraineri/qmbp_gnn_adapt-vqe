@@ -189,7 +189,7 @@ class BenchmarkResult:
             f"({self.pass_rate * 100:.1f}%)",
             f"Beat VQEzy rate: {self.n_beat_vqezy}/{self.n_instances} "
             f"({self.beat_rate * 100:.1f}%)",
-            f"",
+            "",
             f"Mean ΔE/gap — Ours: {self.mean_de_gap_ours:.4f} | "
             f"VQEzy: {self.mean_de_gap_vqezy:.4f}",
             f"Median ΔE/gap — Ours: {self.median_de_gap_ours:.4f}",
@@ -199,13 +199,15 @@ class BenchmarkResult:
         ]
         if self.mean_de_gap_mpnn is not None:
             lines.append(f"Mean ΔE/gap — MPNN zero-shot: {self.mean_de_gap_mpnn:.4f}")
-        lines.extend([
-            f"",
-            f"Iterations — Ours total: {self.total_vqe_iters_ours} | "
-            f"VQEzy total: {self.total_vqe_iters_vqezy}",
-            f"Speedup factor: {self.speedup_factor:.1f}×",
-            f"Wall-clock: {self.elapsed_s:.1f}s",
-        ])
+        lines.extend(
+            [
+                "",
+                f"Iterations — Ours total: {self.total_vqe_iters_ours} | "
+                f"VQEzy total: {self.total_vqe_iters_vqezy}",
+                f"Speedup factor: {self.speedup_factor:.1f}×",
+                f"Wall-clock: {self.elapsed_s:.1f}s",
+            ]
+        )
         # Diagnostics
         if self.n_variational_violations > 0:
             lines.append(
@@ -236,6 +238,7 @@ class BenchmarkResult:
     def to_dict(self) -> dict:
         """Serialize to JSON-compatible dictionary."""
         from qmbp_simulation.utils.helpers import json_serialize
+
         return {
             "n_instances": self.n_instances,
             "n_pass_5pct": self.n_pass_5pct,
@@ -287,7 +290,6 @@ class BenchmarkResult:
                 for r in self.instance_results
             ],
         }
-
 
 
 class VQEzyBenchmarkEvaluator:
@@ -374,29 +376,31 @@ class VQEzyBenchmarkEvaluator:
         # Load MPNN if checkpoint provided
         if self.mpnn_checkpoint is not None:
             from qmbp_simulation.predictors import load_mpnn_checkpoint
+
             self._mpnn = load_mpnn_checkpoint(str(self.mpnn_checkpoint))
             self._mpnn.eval()
             logger.info(f"Loaded MPNN checkpoint: {self.mpnn_checkpoint}")
 
     def _build_lattice_for_instance(self, instance):
         """Build a LatticeConfig matching the VQEzy instance topology."""
+        from qmbp_simulation.models.data_models import LatticeConfig
         from qmbp_simulation.predictors.external_benchmarks.vqezy_loader import (
             _build_rectangular_edges,
         )
-        from qmbp_simulation.models.data_models import LatticeConfig
 
-        n_qubits = instance.n_qubits if hasattr(instance, 'n_qubits') else self.n_qubits
-        j_val = instance.j if hasattr(instance, 'j') else 1.0
-        h_val = instance.h if hasattr(instance, 'h') else 1.0
+        n_qubits = instance.n_qubits if hasattr(instance, "n_qubits") else self.n_qubits
+        j_val = instance.j if hasattr(instance, "j") else 1.0
+        h_val = instance.h if hasattr(instance, "h") else 1.0
 
         # Build correct edges for VQEzy's grid
-        grid_shape = getattr(instance, 'grid_shape', None)
+        grid_shape = getattr(instance, "grid_shape", None)
         if grid_shape is not None:
             rows, cols = grid_shape[0], grid_shape[1]
             edges = _build_rectangular_edges(rows, cols)
         else:
             # Default: use our framework's square generation
             from qmbp_simulation.models.hamiltonian import generate_square
+
             edges = generate_square(n_qubits)
 
         # Compute coordination numbers
@@ -417,9 +421,7 @@ class VQEzyBenchmarkEvaluator:
 
     def _get_circuit_for_lattice(self, lattice):
         """Get or build HVA circuit for a given lattice."""
-        circuit, _ = self._circuit_builder.create(
-            lattice.n_qubits, self.p_layers, lattice
-        )
+        circuit, _ = self._circuit_builder.create(lattice.n_qubits, self.p_layers, lattice)
         return circuit
 
     def evaluate(
@@ -596,17 +598,19 @@ class VQEzyBenchmarkEvaluator:
                     e_mpnn = mpnn_energies[i]
                     fid_mpnn = mpnn_fidelities[i] if mpnn_fidelities is not None else None
 
-                all_results.append(self._build_instance_result(
-                    inst=inst,
-                    e_exact=e_exact,
-                    gap=gap,
-                    gap_is_floor=gap_is_floor,
-                    vqe_energy=vqe_r.energy,
-                    vqe_fidelity=vqe_r.fidelity,
-                    vqe_iters=vqe_r.n_iterations,
-                    e_mpnn=e_mpnn,
-                    fid_mpnn=fid_mpnn,
-                ))
+                all_results.append(
+                    self._build_instance_result(
+                        inst=inst,
+                        e_exact=e_exact,
+                        gap=gap,
+                        gap_is_floor=gap_is_floor,
+                        vqe_energy=vqe_r.energy,
+                        vqe_fidelity=vqe_r.fidelity,
+                        vqe_iters=vqe_r.n_iterations,
+                        e_mpnn=e_mpnn,
+                        fid_mpnn=fid_mpnn,
+                    )
+                )
 
         return all_results
 
@@ -627,7 +631,6 @@ class VQEzyBenchmarkEvaluator:
 
     def _evaluate_single(self, inst, builder) -> InstanceResult:
         """Evaluate a single VQEzy instance."""
-        from qmbp_simulation.models.data_models import LatticeConfig
 
         lattice = self._build_lattice_for_instance(inst)
         circuit = self._get_circuit_for_lattice(lattice)
@@ -641,11 +644,11 @@ class VQEzyBenchmarkEvaluator:
         gap_is_floor = gt.gap is None or gt.gap < 1e-6
 
         # Phase 2: Single-point VQE
-        initial_guess = np.random.default_rng(self.seed).uniform(
-            -0.01, 0.01, n_params
-        )
+        initial_guess = np.random.default_rng(self.seed).uniform(-0.01, 0.01, n_params)
         vqe_result = self._optimizer.optimize(
-            H, circuit, initial_guess,
+            H,
+            circuit,
+            initial_guess,
             exact_energy=e_exact,
             exact_state=gt.ground_state,
         )
@@ -676,15 +679,13 @@ class VQEzyBenchmarkEvaluator:
         """Build an InstanceResult with all metrics and checks."""
         abs_error_vqezy = abs(inst.e_optimal - e_exact)
         abs_error_ours = abs(vqe_energy - e_exact)
-        n_qubits = inst.n_qubits if hasattr(inst, 'n_qubits') else self.n_qubits
+        n_qubits = inst.n_qubits if hasattr(inst, "n_qubits") else self.n_qubits
 
         de_gap_vqezy = abs_error_vqezy / gap
         de_gap_ours = abs_error_ours / gap
 
         # Variational principle check: E_VQE should never be below E_exact
-        variational_violation = (
-            np.isfinite(vqe_energy) and vqe_energy < e_exact - 1e-8
-        )
+        variational_violation = np.isfinite(vqe_energy) and vqe_energy < e_exact - 1e-8
         if variational_violation:
             logger.warning(
                 f"Variational violation at j={inst.j:.2f}, h={inst.h:.2f}: "
@@ -720,7 +721,7 @@ class VQEzyBenchmarkEvaluator:
             fidelity_mpnn=fid_mpnn,
             our_vqe_iters=vqe_iters,
             vqezy_iters=inst.n_vqe_iterations,
-            pass_5pct=de_gap_ours < 0.05,
+            pass_5pct=de_gap_ours < DE_GAP_THRESHOLD,
             we_beat_vqezy=vqe_energy < inst.e_optimal,
             regime=regime,
             variational_violation=variational_violation,
@@ -905,12 +906,14 @@ class VQEzyBenchmarkEvaluator:
     def _classify_regime(h: float, j: float) -> str:
         """Classify the (j, h) point into a physical regime."""
         from qmbp_simulation.analysis.metrics import classify_regime
+
         return classify_regime(h, j)
 
     @staticmethod
     def _compute_regime_stats(instance_results: list[InstanceResult]) -> dict:
         """Compute per-regime statistics."""
         from collections import defaultdict
+
         regime_groups: dict[str, list[InstanceResult]] = defaultdict(list)
         for r in instance_results:
             regime_groups[r.regime].append(r)

@@ -1492,31 +1492,7 @@ class MitigationBenchmarkAnalyzer:
         }
 
     def compute_sensitivity_curves(self) -> dict[str, dict]:
-        """Compute parameter sensitivity curves for PEA budget and twirling.
-
-        PEA budget curve:
-          Groups entries for C4/C5/C6 by their total PEA budget
-          (num_randomizations × shots_per_randomization). Computes
-          mean delta_e_gap per budget level.
-
-        Twirling curve:
-          Groups configs by twirling_num_randomizations value.
-          Computes mean delta_e_gap per randomization count.
-
-        Saturation logic:
-          For consecutive sorted points (x1, y1) and (x2, y2):
-            improvement = y1 - y2 (positive means y decreased = better)
-            cost_delta = x2 - x1
-          Saturation where |improvement| / cost_delta < 0.1 (normalized).
-
-        Returns
-        -------
-        dict[str, dict]
-            Keys: "pea_budget", "twirling". Each value is a dict with:
-            - "data_points": list of (parameter_value, mean_delta_e_gap) sorted
-            - "saturation_point": parameter value where saturation occurs or None
-            - "sufficient_data": bool (True if ≥3 data points)
-        """
+        """Compute parameter sensitivity curves for PEA budget and twirling."""
         return {
             "pea_budget": self._compute_pea_budget_curve(),
             "twirling": self._compute_twirling_curve(),

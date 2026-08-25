@@ -6,7 +6,7 @@ This answers: do ladder/square/triangular improve in absolute energy error
 when we increase depth, even if ΔE/gap doesn't pass the 5% threshold?
 
 Usage:
-    python scripts/analysis/check_delta_e_by_topo_p.py
+    .venv/bin/python scripts/analysis/check_delta_e_by_topo_p.py
 """
 
 from __future__ import annotations

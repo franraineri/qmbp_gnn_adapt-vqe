@@ -34,18 +34,18 @@ Output metrics per N:
 
 Usage:
     # Default: N=[20,30,40,50,80,100,127], heavy_hex, p=1
-    python scripts/experiment_runners/scaling/run_qpu_time_scaling.py
+    .venv/bin/python scripts/experiment_runners/scaling/run_qpu_time_scaling.py
 
     # Quick test (fewer N values)
-    python scripts/experiment_runners/scaling/run_qpu_time_scaling.py \
+    .venv/bin/python scripts/experiment_runners/scaling/run_qpu_time_scaling.py \
         --n-values 20 40 80
 
     # Different topology
-    python scripts/experiment_runners/scaling/run_qpu_time_scaling.py \
+    .venv/bin/python scripts/experiment_runners/scaling/run_qpu_time_scaling.py \
         --topology chain_1d --n-values 20 40 60 80 100
 
     # Dry run
-    python scripts/experiment_runners/scaling/run_qpu_time_scaling.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_qpu_time_scaling.py --dry-run
 """
 
 from __future__ import annotations

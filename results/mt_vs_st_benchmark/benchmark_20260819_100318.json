@@ -1,0 +1,297 @@
+{
+  "timestamp": "2026-08-19T10:03:18.292296+00:00",
+  "config": {
+    "train_hyperparams": {
+      "hidden_dim": 256,
+      "n_layers": 3,
+      "epochs": 2000,
+      "patience": 200,
+      "lr": 0.001,
+      "seed": 42,
+      "max_de_gap": 0.1
+    },
+    "topologies": {
+      "chain_1d": {
+        "train_max_n": 20,
+        "eval_in_dist": [
+          6,
+          8,
+          10,
+          12
+        ],
+        "eval_extrap": [
+          16,
+          21,
+          31
+        ],
+        "category": "unfrustrated_1d",
+        "h_min": 2.5,
+        "h_max": 5.0,
+        "h_points": 6
+      },
+      "heavy_hex": {
+        "train_max_n": 16,
+        "eval_in_dist": [
+          4,
+          6,
+          10,
+          12
+        ],
+        "eval_extrap": [
+          20,
+          24,
+          29
+        ],
+        "category": "unfrustrated_quasi1d",
+        "h_min": 2.0,
+        "h_max": 3.5,
+        "h_points": 6
+      },
+      "ladder": {
+        "train_max_n": 12,
+        "eval_in_dist": [
+          4,
+          6,
+          8,
+          10
+        ],
+        "eval_extrap": [
+          12,
+          18,
+          22,
+          24
+        ],
+        "category": "frustrated_quasi2d",
+        "h_min": 2.5,
+        "h_max": 5.0,
+        "h_points": 6
+      },
+      "square": {
+        "train_max_n": 14,
+        "eval_in_dist": [
+          4,
+          6,
+          8,
+          10
+        ],
+        "eval_extrap": [
+          14,
+          18,
+          21
+        ],
+        "category": "frustrated_2d",
+        "h_min": 2.5,
+        "h_max": 5.0,
+        "h_points": 6
+      },
+      "triangular": {
+        "train_max_n": 6,
+        "eval_in_dist": [
+          3,
+          4,
+          6
+        ],
+        "eval_extrap": [
+          8,
+          11,
+          12,
+          13
+        ],
+        "category": "frustrated_2d",
+        "h_min": 2.5,
+        "h_max": 5.0,
+        "h_points": 6
+      }
+    },
+    "mt_variants": [
+      {
+        "name": "MT_residual",
+        "use_residual": true,
+        "film": false,
+        "readout_mode": "last"
+      },
+      {
+        "name": "MT_residual_film",
+        "use_residual": true,
+        "film": true,
+        "readout_mode": "last"
+      }
+    ]
+  },
+  "phases": [
+    {
+      "label": "ST train: chain_1d",
+      "status": "ok",
+      "elapsed_s": 2436.6,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --multi-n-train --force-retrain --p-layers 1 --h-min 2.5 --h-max 5.0 --h-points 6 --target-n 6 8 10 12",
+      "log_file": "00_ST_train_chain_1d.log"
+    },
+    {
+      "label": "ST train: heavy_hex",
+      "status": "ok",
+      "elapsed_s": 2467.5,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology heavy_hex --multi-n-train --force-retrain --p-layers 1 --h-min 2.0 --h-max 3.5 --h-points 6 --target-n 4 6 10 12",
+      "log_file": "01_ST_train_heavy_hex.log"
+    },
+    {
+      "label": "ST train: ladder",
+      "status": "ok",
+      "elapsed_s": 3189.4,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology ladder --multi-n-train --force-retrain --p-layers 1 --h-min 2.5 --h-max 5.0 --h-points 6 --target-n 4 6 8 10",
+      "log_file": "02_ST_train_ladder.log"
+    },
+    {
+      "label": "ST train: square",
+      "status": "ok",
+      "elapsed_s": 1160.8,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology square --multi-n-train --force-retrain --p-layers 1 --h-min 2.5 --h-max 5.0 --h-points 6 --target-n 4 6 8 10",
+      "log_file": "03_ST_train_square.log"
+    },
+    {
+      "label": "ST train: triangular",
+      "status": "ok",
+      "elapsed_s": 558.7,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology triangular --multi-n-train --force-retrain --p-layers 1 --h-min 2.5 --h-max 5.0 --h-points 6 --target-n 3 4 6",
+      "log_file": "04_ST_train_triangular.log"
+    },
+    {
+      "label": "MT train: MT_residual",
+      "status": "ok",
+      "elapsed_s": 3931.2,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_multi_topology_training.py --max-n 20 --max-de-gap 0.1 --hidden-dim 256 --n-layers 3 --epochs 2000 --patience 200 --lr 0.001 --seed 42 --register-zoo -v --use-residual",
+      "log_file": "seq_MT_train_MT_residual.log"
+    },
+    {
+      "label": "MT train: MT_residual_film",
+      "status": "ok",
+      "elapsed_s": 5519.5,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_multi_topology_training.py --max-n 20 --max-de-gap 0.1 --hidden-dim 256 --n-layers 3 --epochs 2000 --patience 200 --lr 0.001 --seed 42 --register-zoo -v --use-residual --film",
+      "log_file": "seq_MT_train_MT_residual_film.log"
+    },
+    {
+      "label": "Compare IN-DIST: chain_1d N=[6, 8, 10, 12]",
+      "status": "ok",
+      "elapsed_s": 434.3,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology chain_1d --target-n 6 8 10 12 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --promote-best --save-report -v",
+      "log_file": "00_Compare_IN-DIST_chain_1d_N=6,_8,_10,_12.log"
+    },
+    {
+      "label": "Compare EXTRAP: chain_1d N=[16, 21, 31]",
+      "status": "ok",
+      "elapsed_s": 117.6,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology chain_1d --target-n 16 21 31 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --save-report -v",
+      "log_file": "01_Compare_EXTRAP_chain_1d_N=16,_21,_31.log"
+    },
+    {
+      "label": "Compare IN-DIST: heavy_hex N=[4, 6, 10, 12]",
+      "status": "ok",
+      "elapsed_s": 6.5,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology heavy_hex --target-n 4 6 10 12 --h-min 2.0 --h-max 3.5 --h-points 6 --auto-detect --include-versions --promote-best --save-report -v",
+      "log_file": "02_Compare_IN-DIST_heavy_hex_N=4,_6,_10,_12.log"
+    },
+    {
+      "label": "Compare EXTRAP: heavy_hex N=[20, 24, 29]",
+      "status": "ok",
+      "elapsed_s": 2333.8,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology heavy_hex --target-n 20 24 29 --h-min 2.0 --h-max 3.5 --h-points 6 --auto-detect --include-versions --save-report -v",
+      "log_file": "03_Compare_EXTRAP_heavy_hex_N=20,_24,_29.log"
+    },
+    {
+      "label": "Compare IN-DIST: ladder N=[4, 6, 8, 10]",
+      "status": "ok",
+      "elapsed_s": 9.8,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology ladder --target-n 4 6 8 10 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --promote-best --save-report -v",
+      "log_file": "04_Compare_IN-DIST_ladder_N=4,_6,_8,_10.log"
+    },
+    {
+      "label": "Compare EXTRAP: ladder N=[12, 18, 22, 24]",
+      "status": "ok",
+      "elapsed_s": 2314.5,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology ladder --target-n 12 18 22 24 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --save-report -v",
+      "log_file": "05_Compare_EXTRAP_ladder_N=12,_18,_22,_24.log"
+    },
+    {
+      "label": "Compare IN-DIST: square N=[4, 6, 8, 10]",
+      "status": "ok",
+      "elapsed_s": 8.3,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology square --target-n 4 6 8 10 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --promote-best --save-report -v",
+      "log_file": "06_Compare_IN-DIST_square_N=4,_6,_8,_10.log"
+    },
+    {
+      "label": "Compare EXTRAP: square N=[14, 18, 21]",
+      "status": "ok",
+      "elapsed_s": 195.0,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology square --target-n 14 18 21 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --save-report -v",
+      "log_file": "07_Compare_EXTRAP_square_N=14,_18,_21.log"
+    },
+    {
+      "label": "Compare IN-DIST: triangular N=[3, 4, 6]",
+      "status": "ok",
+      "elapsed_s": 7.5,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology triangular --target-n 3 4 6 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --promote-best --save-report -v",
+      "log_file": "08_Compare_IN-DIST_triangular_N=3,_4,_6.log"
+    },
+    {
+      "label": "Compare EXTRAP: triangular N=[8, 11, 12, 13]",
+      "status": "ok",
+      "elapsed_s": 65.0,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/cross_topology/run_model_comparison.py --topology triangular --target-n 8 11 12 13 --h-min 2.5 --h-max 5.0 --h-points 6 --auto-detect --include-versions --save-report -v",
+      "log_file": "09_Compare_EXTRAP_triangular_N=8,_11,_12,_1.log"
+    },
+    {
+      "label": "Deep extrap: chain_1d N=[30, 40, 60]",
+      "status": "ok",
+      "elapsed_s": 21.9,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology chain_1d --target-n 30 40 60 --h-min 2.5 --h-max 5.0 --h-points 6 --model-name tfim_bond_resolved --p-layers 1 --refine-failing --max-refine 2 --vqe-maxiter 50 --vqe-restarts 2",
+      "log_file": "seq_Deep_extrap_chain_1d_N=30,_40,_60.log"
+    },
+    {
+      "label": "VQE baseline: chain_1d N=[30, 40]",
+      "status": "ok",
+      "elapsed_s": 183.9,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology chain_1d --target-n 30 40 --h-min 2.5 --h-max 5.0 --h-points 4 --model-name tfim_bond_resolved --p-layers 1 --vqe-maxiter 50 --vqe-restarts 3",
+      "log_file": "seq_VQE_baseline_chain_1d_N=30,_40.log"
+    },
+    {
+      "label": "Deep extrap: heavy_hex N=[20, 30]",
+      "status": "ok",
+      "elapsed_s": 232.3,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 20 30 --h-min 2.0 --h-max 3.5 --h-points 6 --model-name tfim_bond_resolved --p-layers 1 --refine-failing --max-refine 2 --vqe-maxiter 50 --vqe-restarts 2",
+      "log_file": "seq_Deep_extrap_heavy_hex_N=20,_30.log"
+    },
+    {
+      "label": "VQE baseline: heavy_hex N=[20, 30]",
+      "status": "ok",
+      "elapsed_s": 97.8,
+      "returncode": 0,
+      "cmd": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/.venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --target-n 20 30 --h-min 2.0 --h-max 3.5 --h-points 4 --model-name tfim_bond_resolved --p-layers 1 --vqe-maxiter 50 --vqe-restarts 3",
+      "log_file": "seq_VQE_baseline_heavy_hex_N=20,_30.log"
+    }
+  ],
+  "summary": {
+    "total_steps": 21,
+    "passed": 21,
+    "failed": 0,
+    "total_time_s": 25291.9
+  }
+}

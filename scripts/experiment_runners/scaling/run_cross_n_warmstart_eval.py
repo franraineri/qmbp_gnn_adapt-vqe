@@ -16,15 +16,15 @@ Diagnostics collected:
 
 Usage:
     # Quick test (small sizes, few h-points)
-    python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
         --train-sizes 10 20 40 --target-n 60 --h-points 8 --n-test 3
 
     # Full run
-    python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
+    .venv/bin/python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py \\
         --train-sizes 10 20 40 60 80 --target-n 100 --h-points 20
 
     # Dry run
-    python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_cross_n_warmstart_eval.py --dry-run
 """
 
 from __future__ import annotations
@@ -171,8 +171,10 @@ class CrossNWarmstartEvalRunner(ValidationRunner):
 
         # h-grid (descending, dense near h_critical=1.0 for TFIM)
         self._h_train = self.generate_h_grid()
-        # Test h-values for deployment
-        self._h_test = np.linspace(self._args.h_max, self._args.h_min, self._args.n_test)
+        # Test h-values for deployment (round to 2 decimals for cache key stability)
+        self._h_test = [
+            round(h, 2) for h in np.linspace(self._args.h_max, self._args.h_min, self._args.n_test)
+        ]
 
         self._training_data: dict[int, dict] = {}
         self._mpnn_model = None

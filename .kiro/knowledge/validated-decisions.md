@@ -220,7 +220,7 @@ Do NOT duplicate this content in other files — reference this document instead
 
 **Affected file**: `src/qmbp_simulation/execution/noisy_utils.py` → `affine_correct_energy()`
 **Test file**: `tests/unit/test_affine_correction.py` (69 regression tests)
-**Verification**: `scripts/verify_affine_bug.py`
+**Verification**: `_deprecated/scripts/standalone/verify_affine_bug.py`
 
 ### P0 Enhancements (zero QPU cost)
 

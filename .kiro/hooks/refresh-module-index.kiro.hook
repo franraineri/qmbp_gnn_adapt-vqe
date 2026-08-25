@@ -1,16 +1,16 @@
 {
   "enabled": true,
-  "name": "Auto-refresh module index",
-  "description": "Regenerates .kiro/steering/module-index.md automatically when a new Python file is created, ensuring the index is always up-to-date for reuse checks.",
+  "name": "Refresh Module Index",
+  "description": "Regenerates .kiro/steering/module-index.md when Python source files are created in src/, ensuring the index stays current.",
   "version": "1",
   "when": {
     "type": "fileCreated",
     "patterns": [
-      "**/*.py"
+      "src/**/*.py"
     ]
   },
   "then": {
     "type": "runCommand",
-    "command": ".venv/bin/python scripts/maintenance/generate_module_index.py"
+    "command": ".venv/bin/python scripts/general_project_maintenance/generate_module_index.py 2>/dev/null || .venv/bin/python scripts/maintenance/generate_module_index.py 2>/dev/null || true"
   }
 }

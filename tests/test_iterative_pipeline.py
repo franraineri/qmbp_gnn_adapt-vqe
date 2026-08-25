@@ -379,11 +379,11 @@ class TestVQECap:
         assert MAX_LBFGSB_ITERS > 0
 
     def test_vqe_imports_cap(self):
-        """VQEOptimizer.optimize should reference MAX_LBFGSB_ITERS."""
+        """VQEOptimizer._optimize_inner should reference MAX_LBFGSB_ITERS."""
         import inspect
         from qmbp_simulation.optimizers.vqe import VQEOptimizer
 
-        source = inspect.getsource(VQEOptimizer.optimize)
+        source = inspect.getsource(VQEOptimizer._optimize_inner)
         assert "MAX_LBFGSB_ITERS" in source
 
 

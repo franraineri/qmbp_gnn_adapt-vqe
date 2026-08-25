@@ -238,5 +238,5 @@ The `HardwareBackend.run_deployment()` pipeline:
 - #[[file:src/qmbp_simulation/execution/noisy_utils.py]]
 - #[[file:src/qmbp_simulation/execution/hardware/backend.py]]
 - #[[file:src/qmbp_simulation/execution/hardware/preflight.py]]
-- #[[file:documentation/binnacles/binnacle-gate-folding-zne.md]]
-- #[[file:documentation/binnacles/binnacle-performance-optimizations.md]]
+- #[[file:internal/documentation/binnacles/binnacle-gate-folding-zne.md]]
+- #[[file:internal/documentation/binnacles/binnacle-performance-optimizations.md]]

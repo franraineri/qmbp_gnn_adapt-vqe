@@ -149,9 +149,9 @@ class TestSubmissionDispatcher:
 
         result = select_layouts_for_hardware(hva_circuit_n10, backend, config, logger)
 
-        assert len(result.layouts) == 3
-        assert len(result.transpiled_circuits) == 3
-        assert len(result.ces_values) == 3
+        assert len(result.layouts) >= 3  # May escalate via P2-A dynamic layout
+        assert len(result.transpiled_circuits) >= 3
+        assert len(result.ces_values) >= 3
         assert all(ces > 0 for ces in result.ces_values)
 
     def test_bfs_path_when_disabled(self, backend, hva_circuit_n10, logger):
@@ -166,8 +166,8 @@ class TestSubmissionDispatcher:
 
         result = select_layouts_for_hardware(hva_circuit_n10, backend, config, logger)
 
-        assert len(result.layouts) == 3
-        assert len(result.transpiled_circuits) == 3
+        assert len(result.layouts) >= 3  # May escalate via P2-A
+        assert len(result.transpiled_circuits) >= 3
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -286,7 +286,7 @@ class TestLayoutOptimizerAnalyzer:
 
     def test_analyze_returns_report(self):
         """Analyzer produces a valid report."""
-        from project_health.analysis.layout_optimizer_analyzer import analyze
+        from project_health.analysis.hardware.layout_optimizer_analyzer import analyze
 
         report = analyze(verbose=False)
         assert report.mapomatic_available is True
@@ -298,7 +298,7 @@ class TestLayoutOptimizerAnalyzer:
         """Report is JSON-serializable."""
         import json
 
-        from project_health.analysis.layout_optimizer_analyzer import analyze
+        from project_health.analysis.hardware.layout_optimizer_analyzer import analyze
 
         report = analyze(verbose=False)
         d = report.to_dict()
@@ -316,7 +316,7 @@ class TestSanityCheckIntegration:
 
     def test_all_checks_pass(self):
         """All hardware_readiness sanity checks should pass."""
-        from project_health.analysis.sanity_check import check_layout_optimizer_integration
+        from project_health.analysis.validation.sanity_check import check_layout_optimizer_integration
 
         checks = check_layout_optimizer_integration(verbose=False)
         assert len(checks) == 3

@@ -1,8 +1,8 @@
 """Deep audit of key thesis findings against raw data.
 
 Usage:
-    python scripts/audit_findings.py [--only F2,F5,...]
-    python scripts/audit_findings.py --summary
+    .venv/bin/python scripts/audit_findings.py [--only F2,F5,...]
+    .venv/bin/python scripts/audit_findings.py --summary
 
 Verifies ALL quantitative claims in project-status against raw result JSON files.
 Reports discrepancies that require attention or re-execution.

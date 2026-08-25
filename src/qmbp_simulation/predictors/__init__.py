@@ -30,10 +30,34 @@ from qmbp_simulation.predictors.gnn_qem import (
 )
 from qmbp_simulation.predictors.model_zoo import (
     ZooEntry,
+    auto_retrain_stale_models,
+    compute_training_quality_score,
+    get_training_data_quality,
     list_pretrained,
-    load_best_for_cross_n,
+    load_best_model_for,
     load_pretrained,
+    refresh_zoo_quality_scores,
     register_checkpoint,
+    register_checkpoint_with_training_metrics,
+)
+from qmbp_simulation.predictors.retrain_loop import (
+    RetrainLoopResult,
+    RetrainResult,
+    regression_guardrail,
+    run_retrain_loop,
+)
+from qmbp_simulation.predictors.model_registry_db import (
+    DashboardQuality,
+    EvaluationRecord,
+    FailureDiagnosticSummary,
+    HistoryEvent,
+    IntegrityReport,
+    ModelArchitectureConfig,
+    ModelRecord,
+    ModelRegistryDB,
+    OptimizerConfig,
+    TrainingMetrics,
+    TrainingProvenance,
 )
 from qmbp_simulation.predictors.mpnn import (
     BondResolvedMPNN,
@@ -47,6 +71,7 @@ from qmbp_simulation.predictors.mpnn import (
     train_mpnn,
 )
 from qmbp_simulation.predictors.unified_graph import (
+    NODE_TYPE_GLOBAL,
     NODE_TYPE_QUBIT,
     NODE_TYPE_RX_GATE,
     NODE_TYPE_ZZ_GATE,
@@ -62,6 +87,7 @@ from qmbp_simulation.predictors.unified_mpnn import (
     load_unified_checkpoint,
     save_unified_checkpoint,
     should_retrain,
+    should_retrain_with_diagnostics,
     train_unified_mpnn,
 )
 
@@ -84,12 +110,14 @@ __all__ = [
     "NODE_TYPE_QUBIT",
     "NODE_TYPE_ZZ_GATE",
     "NODE_TYPE_RX_GATE",
+    "NODE_TYPE_GLOBAL",
     "UNIFIED_NODE_FEATURES",
     # Phase 3d: Type-aware UnifiedMPNN (Qracle-inspired architecture)
     "UnifiedMPNN",
     "train_unified_mpnn",
     "fine_tune_unified_mpnn",
     "should_retrain",
+    "should_retrain_with_diagnostics",
     "save_unified_checkpoint",
     "load_unified_checkpoint",
     # Phase 4+: GNN-QEM error correction
@@ -123,8 +151,27 @@ __all__ = [
     "external_benchmarks",
     # Model zoo (pre-trained MPNN registry)
     "load_pretrained",
-    "load_best_for_cross_n",
+    "load_best_model_for",
+    "get_training_data_quality",
     "list_pretrained",
     "register_checkpoint",
+    "register_checkpoint_with_training_metrics",
     "ZooEntry",
+    # Retrain loop (Tier 2 automation)
+    "run_retrain_loop",
+    "regression_guardrail",
+    "RetrainLoopResult",
+    "RetrainResult",
+    # Model registry DB (queryable training provenance)
+    "ModelRegistryDB",
+    "ModelRecord",
+    "TrainingProvenance",
+    "TrainingMetrics",
+    "ModelArchitectureConfig",
+    "OptimizerConfig",
+    "EvaluationRecord",
+    "HistoryEvent",
+    "DashboardQuality",
+    "IntegrityReport",
+    "FailureDiagnosticSummary",
 ]

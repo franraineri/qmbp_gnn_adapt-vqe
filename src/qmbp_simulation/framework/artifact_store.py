@@ -241,20 +241,7 @@ def load_manifest(artifact_dir: Path) -> dict:
 
 
 def load_artifact(path: Path, *, format: str | None = None) -> Any:
-    """Load a single artifact file.
-
-    Parameters
-    ----------
-    path : Path
-        Path to the artifact file (e.g., mpnn_model.pt).
-    format : str | None
-        Format override. If None, inferred from extension.
-
-    Returns
-    -------
-    Any
-        Deserialized artifact object.
-    """
+    """Load a single artifact file."""
     if format is None:
         format = _extension_to_format(path.suffix)
     serializer = get_serializer(format)
@@ -262,18 +249,7 @@ def load_artifact(path: Path, *, format: str | None = None) -> Any:
 
 
 def find_artifacts_for_run(run_path: Path) -> Path | None:
-    """Find the artifacts directory for a given run result file.
-
-    Parameters
-    ----------
-    run_path : Path
-        Path to run_*.json.
-
-    Returns
-    -------
-    Path | None
-        Path to .artifacts/ directory if it exists.
-    """
+    """Find the artifacts directory for a given run result file."""
     artifact_dir = run_path.with_suffix(ARTIFACTS_SUFFIX)
     return artifact_dir if artifact_dir.exists() else None
 

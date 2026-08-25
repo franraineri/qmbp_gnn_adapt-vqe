@@ -15,7 +15,7 @@ Two usage patterns:
     if cached is not None:
         energy = cached
     else:
-        energy = backend.evaluate(circuit, H, theta)
+        energy = backend.evaluate(circui jt, H, theta)
         cache.put(key, energy)
 
 2. Transparent (wrap any backend — recommended):
@@ -41,7 +41,6 @@ import hashlib
 import json
 import logging
 import os
-import time
 from pathlib import Path
 from typing import Any
 
@@ -60,11 +59,15 @@ class EvalCache:
     Parameters
     ----------
     path : Path | None
-        Path to JSON cache file. Defaults to data/eval_cache.json.
+        Path to JSON cache file. Defaults to data/eval_cache_p{p_layers}.json.
     enabled : bool
         If False, all operations are no-ops (zero overhead).
     max_entries : int
         Maximum cache size. Oldest entries evicted when exceeded.
+    p_layers : int | None
+        If provided and path is None, uses data/eval_cache_p{p_layers}.json.
+        Falls back to data/eval_cache.json for backward compatibility when
+        p_layers is None or 0.
     """
 
     def __init__(
@@ -72,8 +75,16 @@ class EvalCache:
         path: Path | None = None,
         enabled: bool = True,
         max_entries: int = _MAX_ENTRIES,
+        p_layers: int | None = None,
     ) -> None:
-        self._path = path or _DEFAULT_CACHE_PATH
+        if path is not None:
+            self._path = path
+        elif p_layers and p_layers > 1:
+            # Partition cache by p_layers for scalability
+            self._path = _PROJECT_ROOT / "data" / f"eval_cache_p{p_layers}.json"
+        else:
+            # Default: backward compatible single file (covers p=1 and legacy)
+            self._path = _DEFAULT_CACHE_PATH
         self._enabled = enabled
         self._max_entries = max_entries
         self._data: dict[str, float] = {}
@@ -150,19 +161,12 @@ class EvalCache:
         p_layers: int = 0,
         J: float = 1.0,
     ) -> str:
-        """Create a deterministic cache key from evaluation parameters.
-
-        Uses SHA256 of theta at full float64 precision (not rounded) to avoid
-        hash collisions during VQE optimization where adjacent parameter steps
-        may differ by < 1e-6. The 32-char hash prefix gives 128 bits of
-        collision resistance (p(collision) < 1e-38 for 50k entries).
-
-        Includes J (coupling) in key — different J → different Hamiltonian.
-        """
-        # Full precision — no rounding. VQE steps can differ by < 1e-7.
+        """Create a deterministic cache key from evaluation parameters."""
+        # h rounded to 2 decimals (our grid never uses finer resolution).
+        # theta_hash ensures unique key even at same h.
         theta_bytes = np.asarray(theta, dtype=np.float64).tobytes()
         theta_hash = hashlib.sha256(theta_bytes).hexdigest()[:32]
-        return f"{model}|{topology}|{n_qubits}|{p_layers}|J{J:.4f}|{h:.8f}|{theta_hash}"
+        return f"{model}|{topology}|{n_qubits}|{p_layers}|J{J:.4f}|{h:.2f}|{theta_hash}"
 
     def get(self, key: str) -> float | None:
         """Look up cached energy. Returns None on miss."""
@@ -196,7 +200,8 @@ class EvalCache:
         if abs(energy) > 1e6:
             logger.warning(
                 "EvalCache: rejecting suspiciously large energy %.2e for key %s",
-                energy, key[:40],
+                energy,
+                key[:40],
             )
             return
         self._data[key] = energy
@@ -213,15 +218,19 @@ class EvalCache:
         self, topology: str, n_qubits: int, h: float, model: str = "tfim"
     ) -> float | None:
         """Look up cached ground truth energy (from ClassicalSolver)."""
-        key = f"GT|{model}|{topology}|{n_qubits}|{h:.6f}"
+        key = f"GT|{model}|{topology}|{n_qubits}|{h:.2f}"
         return self.get(key)
 
     def put_ground_truth(
-        self, topology: str, n_qubits: int, h: float, energy: float,
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        energy: float,
         model: str = "tfim",
     ) -> None:
         """Cache a ground truth energy computation."""
-        key = f"GT|{model}|{topology}|{n_qubits}|{h:.6f}"
+        key = f"GT|{model}|{topology}|{n_qubits}|{h:.2f}"
         self.put(key, energy)
 
     def flush(self) -> None:
@@ -251,27 +260,13 @@ class EvalCache:
         }
 
     def count_entries_for_config(
-        self, topology: str, n_qubits: int, model: str = "tfim", p_layers: int = 0,
+        self,
+        topology: str,
+        n_qubits: int,
+        model: str = "tfim",
+        p_layers: int = 0,
     ) -> int:
-        """Count cached entries matching a (model, topology, N) prefix.
-
-        Useful as a "data density" signal — more cached evals means the config
-        has been well-explored (many VQE restarts, different θ vectors tested).
-
-        Note: p_layers in cache keys is approximated (circuit.num_parameters//2)
-        which can be inaccurate for bond-resolved circuits. We match on
-        (model, topology, n_qubits) only for reliability.
-
-        Parameters
-        ----------
-        topology, n_qubits, model : config identifiers
-        p_layers : ignored (kept for API compat, not used in matching)
-
-        Returns
-        -------
-        int
-            Number of cache entries for this config.
-        """
+        """Count cached entries matching a (model, topology, N) prefix."""
         if not self._enabled:
             return 0
         prefix = f"{model}|{topology}|{n_qubits}|"
@@ -303,7 +298,10 @@ class EvalCache:
             logger.warning(
                 "EvalCache MISMATCH: key=%s, cached=%.10f, fresh=%.10f, diff=%.2e. "
                 "Removing stale entry.",
-                key[:40], cached, fresh, abs(cached - fresh),
+                key[:40],
+                cached,
+                fresh,
+                abs(cached - fresh),
             )
             self._data.pop(key, None)
             self._dirty = True
@@ -382,7 +380,7 @@ class CachedBackend:
         object.__setattr__(self, "_model", model)
         object.__setattr__(self, "_p_layers", p_layers)
         object.__setattr__(self, "_J", J)
-        object.__setattr__(self, "_cache", cache if cache is not None else EvalCache())
+        object.__setattr__(self, "_cache", cache if cache is not None else EvalCache(p_layers=p_layers))
         object.__setattr__(self, "_h_resolver", h_resolver)
         object.__setattr__(self, "_h_current", 0.0)
 
@@ -469,24 +467,9 @@ class CachedBackend:
     ) -> bool:
         """Spot-check a cached entry against a fresh computation.
 
+
         Delegates to EvalCache.validate_entry() using the wrapped backend
         for the fresh evaluation. Useful for detecting cache corruption.
-
-        Parameters
-        ----------
-        key : str
-            Cache key to validate (from cache.make_key()).
-        circuit : QuantumCircuit
-            The parametrized circuit.
-        hamiltonian : SparsePauliOp
-            The Hamiltonian operator.
-        theta : np.ndarray
-            Parameter vector.
-
-        Returns
-        -------
-        bool
-            True if cached value matches fresh computation (or key absent).
         """
         return self._cache.validate_entry(key, self._backend, circuit, hamiltonian, theta)
 
@@ -531,24 +514,11 @@ class CachedBackend:
 
     # ── Context manager protocol ─────────────────────────────────────────────
 
-    def __enter__(self) -> "CachedBackend":
-        """Context manager entry — returns self.
-
-        Usage::
-
-            with CachedBackend(backend, ...) as eval_backend:
-                eval_backend.evaluate(circuit, H, theta)
-            # Automatically flushed here, even on exception
-        """
+    def __enter__(self) -> CachedBackend:
+        """Context manager entry — returns self."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
-        """Context manager exit — flush cache regardless of exception.
-
-        This ensures that evaluations computed before an exception are not lost
-        (os._exit bypasses __del__, but try/finally honors __exit__).
-
-        Returns False to not suppress exceptions.
-        """
+        """Context manager exit — flush cache regardless of exception."""
         self.flush()
         return False

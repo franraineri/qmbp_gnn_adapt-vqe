@@ -1,0 +1,3764 @@
+[
+  {
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "ladder",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_ladder_multiN_4+6+8+10+12+16_p1.pt",
+    "created": "2026-08-10T19:32:00+00:00",
+    "runner_tag": "AC",
+    "date_tag": "100826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16
+      ],
+      "total_training_points": 291,
+      "points_per_n": {
+        "4": 13,
+        "6": 57,
+        "8": 57,
+        "10": 101,
+        "12": 39,
+        "16": 24
+      },
+      "h_range": [
+        3.3,
+        5.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "benchmark test",
+    "tags": [
+      "gap-masked"
+    ],
+    "dashboard_quality": {
+      "training_utility": "useful",
+      "training_utility_reason": "Aggregated from 6 configs",
+      "pass_rate_dual_criterion": 0.33718761552268584,
+      "mean_de_gap": 0.04479989044282343,
+      "zoo_model_available": true,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 291,
+      "h_frontier": 1.8454737620502497,
+      "last_synced": "2026-08-13T02:02:35.130919+00:00",
+      "failure_diagnostic": {
+        "primary_mode": "gap_masking",
+        "confidence": 0.9070991937811623,
+        "secondary_modes": [
+          "contaminated_training"
+        ],
+        "explanation": "Gap masking: 5 configs, severity=41%. Model predicts well (|ΔE|/N consistent), |ΔE|>0.10 from N×ε.",
+        "per_site_verified": 0.010488135180475302,
+        "gap_masked_fraction": 0.34549878345498786,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:47.106625+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "created": "20260812T003023",
+    "runner_tag": "XX",
+    "date_tag": "120826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 45,
+      "points_per_n": {
+        "10": 45
+      },
+      "h_range": [
+        2.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "benchmark test",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "useful",
+      "training_utility_reason": "Aggregated from 6 configs",
+      "pass_rate_dual_criterion": 0.8861135018910297,
+      "mean_de_gap": 0.01853826026562235,
+      "zoo_model_available": true,
+      "zoo_integrity_ok": true,
+      "needs_retrain": true,
+      "model_stale": false,
+      "n_points": 333,
+      "h_frontier": 1.5573334310882319,
+      "last_synced": "2026-08-13T02:02:35.130919+00:00",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:47.423158+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_bond_resolved_heavy_hex_n10_p1_20260812T003836.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "heavy_hex",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_bond_resolved_heavy_hex_n10_p1_20260812T003836.pt",
+    "created": "20260812T003836",
+    "runner_tag": "XX",
+    "date_tag": "120826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 131,
+      "points_per_n": {
+        "10": 131
+      },
+      "h_range": [
+        2.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "benchmark test",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "useful",
+      "training_utility_reason": "Aggregated from 5 configs",
+      "pass_rate_dual_criterion": 0.8625080844273864,
+      "mean_de_gap": 0.027866638416705874,
+      "zoo_model_available": true,
+      "zoo_integrity_ok": true,
+      "needs_retrain": true,
+      "model_stale": false,
+      "n_points": 363,
+      "h_frontier": 0.9594858036377504,
+      "last_synced": "2026-08-13T02:02:35.130919+00:00",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=100% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:48.220689+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "square",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_square_multiN_4+6+8+10+12_p1.pt",
+    "created": "2026-08-12T20:51:01.799421+00:00",
+    "runner_tag": "AC",
+    "date_tag": "120826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        8,
+        10,
+        12
+      ],
+      "total_training_points": 259,
+      "points_per_n": {
+        "4": 41,
+        "6": 64,
+        "8": 91,
+        "10": 38,
+        "12": 25
+      },
+      "h_range": [
+        2.0,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "benchmark test",
+    "tags": [
+      "contaminated"
+    ],
+    "dashboard_quality": {
+      "training_utility": "useful",
+      "training_utility_reason": "Aggregated from 5 configs",
+      "pass_rate_dual_criterion": 0.6727160190579639,
+      "mean_de_gap": 0.042345706347359006,
+      "zoo_model_available": true,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 259,
+      "h_frontier": 1.8443598396810348,
+      "last_synced": "2026-08-13T02:02:35.130919+00:00",
+      "failure_diagnostic": {
+        "primary_mode": "contaminated_training",
+        "confidence": 0.45,
+        "secondary_modes": [],
+        "explanation": "Contaminated training (mild): 0 not-useful configs, 8% points gap-masked, θ_smoothness=1.87.",
+        "per_site_verified": 0.007820564862560692,
+        "gap_masked_fraction": 0.07537688442211055,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:49.200488+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "triangular",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "created": "2026-08-18T01:09:50.721689+00:00",
+    "runner_tag": "AC",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [
+        3,
+        4,
+        6
+      ],
+      "total_training_points": 231,
+      "points_per_n": {
+        "3": 37,
+        "4": 36,
+        "6": 140
+      },
+      "h_range": [
+        2.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [
+      {
+        "evaluated_at": "2026-08-18T13:11:02.978929+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.25,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+      },
+      {
+        "evaluated_at": "2026-08-18T13:18:08.814314+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.25,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+      }
+    ],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-N training: N=[3, 4, 6], 231 points",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 4,
+    "version_history": [
+      "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+      "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+      "unified_tfim_br_triangular_multiN_3+4+6_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+20_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_chain_1d_multiN_6+8+10+12+20_p1.pt",
+    "created": "2026-08-10T22:38:14+00:00",
+    "runner_tag": "XX",
+    "date_tag": "100826",
+    "training": {
+      "n_values_used": [
+        6,
+        8,
+        10,
+        12,
+        20
+      ],
+      "total_training_points": 252,
+      "points_per_n": {
+        "6": 40,
+        "8": 69,
+        "10": 45,
+        "12": 69,
+        "20": 29
+      },
+      "h_range": [
+        1.5,
+        5.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Restored from _archived. Original iterative improve (no extrap contamination).",
+    "tags": [
+      "production",
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "useful",
+      "training_utility_reason": "Aggregated from 6 configs",
+      "pass_rate_dual_criterion": 0.8861135018910297,
+      "mean_de_gap": 0.01853826026562235,
+      "zoo_model_available": true,
+      "zoo_integrity_ok": true,
+      "needs_retrain": true,
+      "model_stale": false,
+      "n_points": 333,
+      "h_frontier": 1.5573334310882319,
+      "last_synced": "2026-08-13T02:02:35.130919+00:00",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:51.035350+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "heavy_hex",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_heavy_hex_multiN_4+6+10+12+16_p1.pt",
+    "created": "2026-08-12T22:05:39.858730+00:00",
+    "runner_tag": "AC",
+    "date_tag": "120826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        10,
+        12,
+        16
+      ],
+      "total_training_points": 363,
+      "points_per_n": {
+        "4": 15,
+        "6": 42,
+        "10": 131,
+        "12": 77,
+        "16": 98
+      },
+      "h_range": [
+        1.4,
+        4.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [
+      {
+        "evaluated_at": "2026-08-18T13:11:02.806781+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.625,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[4, 6, 10, 12, 16, 20, 30, 40] 5/8"
+      },
+      {
+        "evaluated_at": "2026-08-18T13:18:08.627321+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.625,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[4, 6, 10, 12, 16, 20, 30, 40] 5/8"
+      }
+    ],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-N training: N=[4, 6, 10, 12, 16], 439 points",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "useful",
+      "training_utility_reason": "Aggregated from 5 configs",
+      "pass_rate_dual_criterion": 0.8625080844273864,
+      "mean_de_gap": 0.027866638416705874,
+      "zoo_model_available": true,
+      "zoo_integrity_ok": true,
+      "needs_retrain": true,
+      "model_stale": false,
+      "n_points": 363,
+      "h_frontier": 0.9594858036377504,
+      "last_synced": "2026-08-13T02:02:35.130919+00:00",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=100% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:51.552012+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "chain_1d_n10_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/chain_1d_n10_p1.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 50,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:53.376837+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "ladder_n10_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "ladder",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/ladder_n10_p1.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 0,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 13,
+    "version_history": [
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt",
+      "ladder_n10_p1.pt"
+    ]
+  },
+  {
+    "model_id": "chain_1d_n10_p2.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 2,
+    "checkpoint_path": "data/model_zoo/checkpoints/chain_1d_n10_p2.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 0,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "chain_1d_n20_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/chain_1d_n20_p1.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        20
+      ],
+      "total_training_points": 0,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:54.826929+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "ladder_n0_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "ladder",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/ladder_n0_p1.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 0,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [
+      "gap-masked"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "gap_masking",
+        "confidence": 0.9070991937811623,
+        "secondary_modes": [
+          "contaminated_training"
+        ],
+        "explanation": "Gap masking: 5 configs, severity=41%. Model predicts well (|ΔE|/N consistent), |ΔE|>0.10 from N×ε.",
+        "per_site_verified": 0.010488135180475302,
+        "gap_masked_fraction": 0.34549878345498786,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:56.358488+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "triangular_n6_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "triangular",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/triangular_n6_p1.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        6
+      ],
+      "total_training_points": 0,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 9,
+    "version_history": [
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt",
+      "triangular_n6_p1.pt"
+    ]
+  },
+  {
+    "model_id": "square_n10_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "square",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/square_n10_p1.pt",
+    "created": "",
+    "runner_tag": "AC",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 50,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [
+      "contaminated"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "contaminated_training",
+        "confidence": 0.45,
+        "secondary_modes": [],
+        "explanation": "Contaminated training (mild): 0 not-useful configs, 8% points gap-masked, θ_smoothness=1.87.",
+        "per_site_verified": 0.007820564862560692,
+        "gap_masked_fraction": 0.07537688442211055,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:57.745882+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "chain_1d_n10_p1_v1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/chain_1d_n10_p1_v1.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "100826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 50,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:58.264442+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "chain_1d_n10_p1_v2.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/chain_1d_n10_p1_v2.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "110826",
+    "training": {
+      "n_values_used": [
+        10
+      ],
+      "total_training_points": 60,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "archived",
+    "superseded_by": "",
+    "notes": "checkpoint_missing — archived 2026-08-13",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:28:58.865615+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "ladder",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt",
+    "created": "2026-08-14T05:57:43.171763+00:00",
+    "runner_tag": "XX",
+    "date_tag": "140826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        30
+      ],
+      "total_training_points": 411,
+      "points_per_n": {},
+      "h_range": [
+        2.0,
+        4.8
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 12, 16, 20, 30]",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 5,
+    "version_history": [
+      "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt",
+      "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt",
+      "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt",
+      "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+30_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+30+40+60+100+150+200_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+30+40+60+100+150+200_p1.pt",
+    "created": "2026-08-13T11:35:44.216117+00:00",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        30,
+        40,
+        60,
+        100,
+        150,
+        200
+      ],
+      "total_training_points": 678,
+      "points_per_n": {},
+      "h_range": [
+        1.5,
+        5.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 1: N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200]",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": true,
+      "model_stale": true,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=99% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:29:00.351955+00:00"
+      }
+    },
+    "version": 2,
+    "version_history": [
+      "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+30+40+60+100+150+200_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6+8+10+12_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "triangular",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_triangular_multiN_3+4+6+8+10+12_p1.pt",
+    "created": "2026-08-13T10:06:25.860951+00:00",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12
+      ],
+      "total_training_points": 460,
+      "points_per_n": {},
+      "h_range": [
+        3.1,
+        5.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 1: N=[3, 4, 6, 8, 10, 12]",
+    "tags": [
+      "clean"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=100% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:29:01.003751+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6+8+10+12+14_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "triangular",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_triangular_multiN_3+4+6+8+10+12+14_p1.pt",
+    "created": "2026-08-13T11:32:51.065441+00:00",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "total_training_points": 512,
+      "points_per_n": {},
+      "h_range": [
+        3.2,
+        5.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 1: N=[3, 4, 6, 8, 10, 12, 14]",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "healthy",
+        "confidence": 1.0,
+        "secondary_modes": [],
+        "explanation": "Best pass_rate_dual=100% — no significant failures.",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:29:02.180400+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+16+20+30_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "square",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_square_multiN_4+6+8+10+12+16+20+30_p1.pt",
+    "created": "2026-08-13T13:41:09.269364+00:00",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        30
+      ],
+      "total_training_points": 512,
+      "points_per_n": {},
+      "h_range": [
+        3.1,
+        5.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 12, 16, 20, 30]",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "contaminated_training",
+        "confidence": 0.45,
+        "secondary_modes": [],
+        "explanation": "Contaminated training (mild): 0 not-useful configs, 8% points gap-masked, θ_smoothness=1.87.",
+        "per_site_verified": 0.007820564862560692,
+        "gap_masked_fraction": 0.07537688442211055,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-13T13:42:20.634122+00:00"
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "square",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "created": "2026-08-13T22:57:16.646908+00:00",
+    "runner_tag": "XX",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "total_training_points": 560,
+      "points_per_n": {},
+      "h_range": [
+        2.5,
+        4.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [
+      {
+        "evaluated_at": "2026-08-18T13:11:02.853518+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.3333333333333333,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+      },
+      {
+        "evaluated_at": "2026-08-18T13:18:08.681298+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.3333333333333333,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+      }
+    ],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 12, 14]",
+    "tags": [
+      "contaminated"
+    ],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "contaminated_training",
+        "confidence": 0.45,
+        "secondary_modes": [],
+        "explanation": "Contaminated training (mild): 0 not-useful configs, 8% points gap-masked, θ_smoothness=1.87.",
+        "per_site_verified": 0.006392166854166475,
+        "gap_masked_fraction": 0.08254716981132075,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": "2026-08-14T14:08:20.360673+00:00"
+      }
+    },
+    "version": 2,
+    "version_history": [
+      "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "created": "2026-08-14T04:40:02.300904+00:00",
+    "runner_tag": "XX",
+    "date_tag": "140826",
+    "training": {
+      "n_values_used": [
+        6,
+        8,
+        10,
+        12,
+        15,
+        16,
+        20,
+        60
+      ],
+      "total_training_points": 711,
+      "points_per_n": {},
+      "h_range": [
+        2.0,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [
+      {
+        "evaluated_at": "2026-08-18T13:11:02.897892+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.6923076923076923,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13"
+      },
+      {
+        "evaluated_at": "2026-08-18T13:18:08.730666+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.6923076923076923,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[6, 8, 10, 12, 15, 16, 20, 30, 40, 60, 100, 150, 200] 9/13"
+      }
+    ],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Iterative improve iter 2: N=[6, 8, 10, 12, 15, 16, 20, 60]",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 4,
+    "version_history": [
+      "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+      "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+      "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt"
+    ]
+  },
+  {
+    "model_id": "test_multiN_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/test_multiN_p1.pt",
+    "created": "2026-08-18T00:31:19.197637+00:00",
+    "runner_tag": "AC",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [
+        6,
+        8,
+        10
+      ],
+      "total_training_points": 150,
+      "points_per_n": {},
+      "h_range": [
+        2.0,
+        4.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-N training: N=[6, 8, 10]",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 1,
+    "version_history": []
+  },
+  {
+    "model_id": "test_model_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/test_model_p1.pt",
+    "created": "2026-08-13T00:00:00Z",
+    "runner_tag": "TE",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 500,
+      "points_per_n": {},
+      "h_range": [
+        2.0,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 48,
+    "version_history": [
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt",
+      "test_model_p1.pt"
+    ]
+  },
+  {
+    "model_id": "test_model_p1_v2.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/test_model_p1_v2.pt",
+    "created": "2026-08-13T00:00:00Z",
+    "runner_tag": "TE",
+    "date_tag": "130826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 700,
+      "points_per_n": {},
+      "h_range": [
+        2.0,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 8,
+    "version_history": [
+      "test_model_p1_v2.pt",
+      "test_model_p1_v2.pt",
+      "test_model_p1_v2.pt",
+      "test_model_p1_v2.pt",
+      "test_model_p1_v2.pt",
+      "test_model_p1_v2.pt",
+      "test_model_p1_v2.pt"
+    ]
+  },
+  {
+    "model_id": "kiro_test_unified_n6_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/kiro_test_unified_n6_p1.pt",
+    "created": "2026-08-18T13:56:03.380451+00:00",
+    "runner_tag": "XX",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [
+        6
+      ],
+      "total_training_points": 10,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Test entry",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 40,
+    "version_history": [
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt",
+      "kiro_test_unified_n6_p1.pt"
+    ]
+  },
+  {
+    "model_id": "kiro_test_mpnn_n6_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "chain_1d",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/kiro_test_mpnn_n6_p1.pt",
+    "created": "2026-08-18T13:56:02.920429+00:00",
+    "runner_tag": "XX",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [
+        6
+      ],
+      "total_training_points": 10,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Test entry",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 8,
+    "version_history": [
+      "kiro_test_mpnn_n6_p1.pt",
+      "kiro_test_mpnn_n6_p1.pt",
+      "kiro_test_mpnn_n6_p1.pt",
+      "kiro_test_mpnn_n6_p1.pt",
+      "kiro_test_mpnn_n6_p1.pt",
+      "kiro_test_mpnn_n6_p1.pt",
+      "kiro_test_mpnn_n6_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "ladder",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "created": "2026-08-18T01:03:21.871958+00:00",
+    "runner_tag": "AC",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        20,
+        26,
+        40
+      ],
+      "total_training_points": 430,
+      "points_per_n": {
+        "10": 131,
+        "12": 54,
+        "16": 67,
+        "4": 45,
+        "6": 69,
+        "8": 98,
+        "20": 16,
+        "26": 6,
+        "40": 6
+      },
+      "h_range": [
+        2.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [
+      {
+        "evaluated_at": "2026-08-18T13:11:02.932344+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.18181818181818182,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11"
+      },
+      {
+        "evaluated_at": "2026-08-18T13:18:08.768922+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.18181818181818182,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "eval@20260818 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11"
+      }
+    ],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 16, 20, 26, 40], 430 points",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 2,
+    "version_history": [
+      "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "multi_topology",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_p1.pt",
+    "created": "2026-08-18T02:10:59.550298+00:00",
+    "runner_tag": "XX",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 2219,
+      "points_per_n": {},
+      "h_range": [
+        0.5,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.19773641520405882,
+        "final_mse": 0.19773641520405882,
+        "final_val_mse": 0.2783576897269875,
+        "generalization_gap": 0.08062127452292867,
+        "epochs": 1001,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": true,
+        "stop_reason": "overfitting_detected",
+        "convergence_status": "diverged",
+        "loss_history": [
+          0.19873835674999835,
+          0.19787430723040625,
+          0.19761301213826984,
+          0.19553143344181792,
+          0.19699694425143655,
+          0.1981448633263581,
+          0.1939077036847917,
+          0.19747788773000674,
+          0.19918530002943927,
+          0.20056054954165867,
+          0.19583517779010695,
+          0.19716604003730714,
+          0.19710840095009405,
+          0.19674561583964595,
+          0.19896243173185255,
+          0.19953503637972628,
+          0.1969408584304881,
+          0.19591704380962657,
+          0.1970759348389272,
+          0.1940531635307352,
+          0.19627097078432804,
+          0.19829334381925956,
+          0.19697256333650248,
+          0.19668975674051253,
+          0.1985966734106807,
+          0.19524060179187905,
+          0.19756963704573802,
+          0.1971337436107432,
+          0.19685210622962138,
+          0.19864094963612317,
+          0.1977881034585621,
+          0.20000530384521686,
+          0.19693840474119778,
+          0.19738672387056694,
+          0.1965531847051131,
+          0.19772771318677262,
+          0.19750441828927226,
+          0.19973154916671426,
+          0.19928197388355356,
+          0.19573008452588428,
+          0.19834296938376655,
+          0.19645235438575942,
+          0.19633243043307436,
+          0.19673505747050704,
+          0.19883189722594868,
+          0.19946383838798643,
+          0.20125521485354192,
+          0.19951155069137774,
+          0.1941829794032303,
+          0.19612726232511338,
+          0.19942491973544577,
+          0.19648809751145255,
+          0.1960623352938535,
+          0.198759199601615,
+          0.19783062361936124,
+          0.20066215105124252,
+          0.19975585672007826,
+          0.19984076837781412,
+          0.197653880690271,
+          0.19896810731229034,
+          0.19684267806995687,
+          0.1987074533497306,
+          0.1940400455633079,
+          0.19752435956041436,
+          0.19748226912433092,
+          0.1968358689519187,
+          0.19893134945367452,
+          0.1935672474193956,
+          0.20030695685040298,
+          0.19421895099687667,
+          0.19494617425054553,
+          0.1968795926460754,
+          0.19737914776468077,
+          0.20006336158985505,
+          0.1993454498045476,
+          0.19735115231179817,
+          0.20009851465759143,
+          0.2008977719176999,
+          0.1959272773304682,
+          0.2005284670821994,
+          0.19729768439475073,
+          0.1993480029827346,
+          0.19816374985126414,
+          0.19464892822054317,
+          0.19582624576763538,
+          0.19686156077136838,
+          0.1954316045919524,
+          0.19698888067959078,
+          0.1958540024246803,
+          0.19616334538889044,
+          0.19628804681352394,
+          0.19762695047412487,
+          0.19878342976063906,
+          0.1978480410877035,
+          0.19670214385475207,
+          0.19787386422374031,
+          0.19422609900354118,
+          0.1991136552997917,
+          0.1980143923203159,
+          0.19773641520405882
+        ],
+        "weight_distribution": {
+          "verified (1.0)": 1390,
+          "augmented (0.8)": 247,
+          "approximate (0.7)": 250
+        }
+      },
+      "architecture_config": {
+        "hidden_dim": 256,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.1,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-topology model: chain_1d+heavy_hex+ladder+square+triangular. MSE=1.98e-01, val=2.78e-01. 2219 graphs from 5 topologies.",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 2,
+    "version_history": [
+      "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_multitopo_chain_1d_maxN20_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "multi_topology",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d_maxN20_p1.pt",
+    "created": "2026-08-18T03:27:29.853090+00:00",
+    "runner_tag": "XX",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 592,
+      "points_per_n": {},
+      "h_range": [
+        0.5,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.12257466464420182,
+        "final_mse": 0.12257466464420182,
+        "final_val_mse": 0.12309817826396531,
+        "generalization_gap": 0.0005235136197634938,
+        "epochs": 251,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": true,
+        "stop_reason": "overfitting_detected",
+        "convergence_status": "diverged",
+        "loss_history": [
+          0.12264636159788429,
+          0.12292345900297212,
+          0.12350034021709155,
+          0.12284412379920699,
+          0.12230505008888788,
+          0.1227043367671899,
+          0.12292917103602324,
+          0.12296296430679557,
+          0.12308642086441429,
+          0.12300104601754247,
+          0.12287756098957621,
+          0.12312190532126503,
+          0.12338968405398941,
+          0.12350968542198514,
+          0.12252734891340619,
+          0.12320223109537394,
+          0.12312434642568867,
+          0.12306411515999206,
+          0.12359808160768836,
+          0.12299023506330553,
+          0.12346196160398817,
+          0.1229981770933851,
+          0.12326028780574916,
+          0.1233548925920187,
+          0.12286651165868534,
+          0.12269073585402732,
+          0.12347203900098398,
+          0.1226344279817488,
+          0.1231029912544886,
+          0.12269197949529602,
+          0.12326731478180179,
+          0.12268243764426173,
+          0.12333402503441354,
+          0.12275172096512925,
+          0.12291171149993875,
+          0.12329713891282039,
+          0.1228798408777991,
+          0.12256733589331831,
+          0.12302725135311578,
+          0.12360657139353341,
+          0.12229221629215158,
+          0.12293324675469165,
+          0.12354696361003406,
+          0.12311377659338292,
+          0.12295420111327292,
+          0.12329235293041815,
+          0.12328645917487227,
+          0.12241877732092343,
+          0.12305051849985137,
+          0.12339287112875369,
+          0.12314254188791054,
+          0.12304249657597485,
+          0.12360827866899987,
+          0.12300817061107351,
+          0.1221695362855122,
+          0.12313952870571997,
+          0.12335737918616245,
+          0.12260888194661733,
+          0.12385127549668329,
+          0.12289649614187118,
+          0.1232758198146777,
+          0.12284253944953853,
+          0.1232593267897885,
+          0.12320167275365315,
+          0.12295562160200042,
+          0.12296509858547253,
+          0.12294528263599941,
+          0.12297329094909466,
+          0.12293027892754917,
+          0.12351550285333475,
+          0.12214550889879434,
+          0.12244617045250798,
+          0.12331882883562151,
+          0.12323453746892714,
+          0.12317500096527048,
+          0.12297501059230767,
+          0.12340401830160483,
+          0.1228615606563301,
+          0.12351059230653096,
+          0.12306340110003547,
+          0.12295742914490065,
+          0.12275298059236615,
+          0.12254786683268191,
+          0.12297582083240177,
+          0.12226328722959402,
+          0.12240312662913586,
+          0.12277662938120354,
+          0.12334867107504233,
+          0.12321767536685088,
+          0.12346007910315483,
+          0.12316640144432775,
+          0.12216252589104215,
+          0.12309569902852614,
+          0.12302403519125286,
+          0.1230825620049985,
+          0.12377721603945882,
+          0.12254521701061455,
+          0.12279910334688887,
+          0.123094696449005,
+          0.12257466464420182
+        ],
+        "weight_distribution": {
+          "verified (1.0)": 465,
+          "approximate (0.7)": 39
+        }
+      },
+      "architecture_config": {
+        "hidden_dim": 256,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.1,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-topology model: chain_1d. MSE=1.23e-01, val=1.23e-01. 592 graphs from 1 topologies.",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 2,
+    "version_history": [
+      "unified_tfim_br_multitopo_chain_1d_maxN20_p1.pt"
+    ]
+  },
+  {
+    "model_id": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "multi_topology",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+    "created": "2026-08-18T05:06:38.300843+00:00",
+    "runner_tag": "XX",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 2219,
+      "points_per_n": {},
+      "h_range": [
+        0.5,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.14938761660014124,
+        "final_mse": 0.14938761660014124,
+        "final_val_mse": 0.2217806987233219,
+        "generalization_gap": 0.07239308212318066,
+        "epochs": 701,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": true,
+        "stop_reason": "overfitting_detected",
+        "convergence_status": "diverged",
+        "loss_history": [
+          0.14918035801784288,
+          0.15331084258907074,
+          0.17031429969258496,
+          0.16602965893161603,
+          0.16063012627245418,
+          0.15125894983185778,
+          0.16572573728468118,
+          0.16057753008261758,
+          0.1474610754909769,
+          0.16469651336628172,
+          0.14902438008356073,
+          0.16079149201572057,
+          0.1522125886145923,
+          0.15766390331210448,
+          0.156512517402134,
+          0.1510517621317264,
+          0.15429130462485044,
+          0.15327963036359687,
+          0.16227991871004013,
+          0.1488624135876014,
+          0.16157664931841803,
+          0.1538459218421156,
+          0.17278962858930635,
+          0.14580458364819895,
+          0.16507001158796242,
+          0.15337717478998036,
+          0.1660578160124996,
+          0.1567119864501458,
+          0.15212330821456851,
+          0.15764890898142894,
+          0.1529839875634591,
+          0.1589100636003006,
+          0.14959102773495517,
+          0.16230345385522413,
+          0.15592404668346074,
+          0.16413375782054543,
+          0.15198274711013693,
+          0.16136123213810627,
+          0.15891593016812872,
+          0.1644299478187113,
+          0.1645492774456335,
+          0.15935923303046462,
+          0.1596120140389776,
+          0.16338867818612338,
+          0.1561535960649155,
+          0.16094967665004364,
+          0.1563210142304339,
+          0.17349226038717794,
+          0.1661556746246327,
+          0.17157780801278014,
+          0.15703483127627924,
+          0.154035275075985,
+          0.16389266544518652,
+          0.1621436037809665,
+          0.1647893323281841,
+          0.15641519571702003,
+          0.15281154902219599,
+          0.16370467065058922,
+          0.15898620126965057,
+          0.1609341962155549,
+          0.15607157107557776,
+          0.15381462992603345,
+          0.16069608883908543,
+          0.1498190743421409,
+          0.15228567151294464,
+          0.15842334689047843,
+          0.15345215241879215,
+          0.1559016058965776,
+          0.17625977362908687,
+          0.16723268095453772,
+          0.1645704574658027,
+          0.16890675828489363,
+          0.15214998773348667,
+          0.17816050362998545,
+          0.17370625068764434,
+          0.162432951031406,
+          0.16265353076263753,
+          0.15820147522061376,
+          0.1636227238583728,
+          0.16837675926284434,
+          0.17761846967893785,
+          0.16700001316713936,
+          0.16782205362612437,
+          0.15978221762852202,
+          0.15638712833343052,
+          0.1557421840349388,
+          0.15125625554513497,
+          0.14676658977924395,
+          0.1497772440022977,
+          0.14817507512612257,
+          0.15411198126221193,
+          0.1546692738901558,
+          0.1645425784650343,
+          0.16870128811192397,
+          0.16322803809825798,
+          0.15210870646856017,
+          0.1640748650359554,
+          0.16773805779821346,
+          0.14635321902700638,
+          0.14938761660014124
+        ],
+        "weight_distribution": {
+          "verified (1.0)": 1390,
+          "augmented (0.8)": 247,
+          "approximate (0.7)": 250
+        }
+      },
+      "architecture_config": {
+        "hidden_dim": 256,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.1,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "Multi-topology model (residual+film): chain_1d+heavy_hex+ladder+square+triangular. MSE=1.49e-01, val=2.22e-01. 2219 graphs from 5 topologies.",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 2,
+    "version_history": [
+      "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt"
+    ]
+  },
+  {
+    "model_id": "test_model_arch.pt",
+    "model_name": "tfim_bond_resolved",
+    "architecture": "UnifiedMPNN",
+    "topology": "test_topology",
+    "p_layers": 1,
+    "checkpoint_path": "data/model_zoo/checkpoints/test_model_arch.pt",
+    "created": "",
+    "runner_tag": "XX",
+    "date_tag": "180826",
+    "training": {
+      "n_values_used": [],
+      "total_training_points": 5,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        3.5
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [],
+      "data_source": "multi_n_training",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 11,
+    "version_history": [
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt",
+      "test_model_arch.pt"
+    ]
+  }
+]

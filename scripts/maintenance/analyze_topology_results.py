@@ -5,13 +5,15 @@ Scans cross-N experiment results plus data stores (GT cache, eval cache,
 model zoo, NPZ training data) for a given topology.
 
 Usage:
-    python scripts/maintenance/analyze_topology_results.py chain_1d
-    python scripts/maintenance/analyze_topology_results.py heavy_hex
+    .venv/bin/python scripts/maintenance/analyze_topology_results.py chain_1d
+    .venv/bin/python scripts/maintenance/analyze_topology_results.py heavy_hex
 """
+
 import json
 import sys
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
@@ -31,8 +33,7 @@ print(f"TOPOLOGY ANALYSIS: {_topology}")
 print(f"{'═' * 60}")
 
 results_dir = ROOT / "results" / "experiments" / "exp_accel_cross_n"
-topology_runs = [f for f in results_dir.glob("run_*.json")
-                 if _topology in f.read_text()[:500]]
+topology_runs = [f for f in results_dir.glob("run_*.json") if _topology in f.read_text()[:500]]
 
 if not topology_runs:
     print(f"\n[Cross-N Results] No runs found in {results_dir.name}")
@@ -41,7 +42,14 @@ else:
     with open(latest) as f:
         data = json.load(f)
 
+    # Extract which model was used
+    sys.path.insert(0, str(ROOT / "src"))
+    from qmbp_simulation.framework.result_io import extract_checkpoint_used
+
+    checkpoint_used = extract_checkpoint_used(data)
+
     print(f"\n[Cross-N Results] Latest: {latest.name}")
+    print(f"  Checkpoint: {checkpoint_used}")
     print(f"  Config: {data.get('config', {})}")
     print()
 
@@ -72,12 +80,12 @@ else:
             mid = [r for r in per_point if 2.4 <= r["h"] < 2.7]
             hard = [r for r in per_point if r["h"] < 2.4]
             print()
-            print(f"  h >= 2.7: {sum(1 for r in easy if r['de_gap']<0.05)}/{len(easy)} pass")
-            print(f"  2.4<=h<2.7: {sum(1 for r in mid if r['de_gap']<0.05)}/{len(mid)} pass")
-            print(f"  h < 2.4: {sum(1 for r in hard if r['de_gap']<0.05)}/{len(hard)} pass")
+            print(f"  h >= 2.7: {sum(1 for r in easy if r['de_gap'] < 0.05)}/{len(easy)} pass")
+            print(f"  2.4<=h<2.7: {sum(1 for r in mid if r['de_gap'] < 0.05)}/{len(mid)} pass")
+            print(f"  h < 2.4: {sum(1 for r in hard if r['de_gap'] < 0.05)}/{len(hard)} pass")
             print()
             if easy:
-                passing = [r['h'] for r in easy if r['de_gap'] < 0.05]
+                passing = [r["h"] for r in easy if r["de_gap"] < 0.05]
                 if passing:
                     print(f"  → Safe zone h>={min(passing):.2f}")
 
@@ -95,6 +103,7 @@ if gt_path.exists():
     if topo_gt:
         # Group by N|model
         from collections import defaultdict
+
         gt_groups = defaultdict(list)
         for key in topo_gt:
             parts = key.split("|")
@@ -103,7 +112,7 @@ if gt_path.exists():
             hs = sorted(gt_groups[gk])
             print(f"  {gk}: {len(hs)} pts, h=[{hs[0]:.2f}, {hs[-1]:.2f}]")
 else:
-    print(f"\n[Ground Truth Cache] NOT FOUND")
+    print("\n[Ground Truth Cache] NOT FOUND")
 
 # ═══════════════════════════════════════════════════════════════
 # Section C: Eval Cache
@@ -117,6 +126,7 @@ if ec_path.exists():
     print(f"\n[Eval Cache] {len(topo_ec)} entries for {_topology}")
     if topo_ec:
         from collections import defaultdict
+
         ec_groups = defaultdict(int)
         for key in topo_ec:
             parts = key.split("|")
@@ -126,7 +136,7 @@ if ec_path.exists():
         for gk in sorted(ec_groups.keys()):
             print(f"  {gk}: {ec_groups[gk]} cached evaluations")
 else:
-    print(f"\n[Eval Cache] NOT FOUND")
+    print("\n[Eval Cache] NOT FOUND")
 
 # ═══════════════════════════════════════════════════════════════
 # Section D: Model Zoo
@@ -139,14 +149,16 @@ if manifest_path.exists():
     topo_zoo = [e for e in zoo_entries if e.get("topology") == _topology]
     print(f"\n[Model Zoo] {len(topo_zoo)} models for {_topology}")
     for entry in sorted(topo_zoo, key=lambda e: (-e.get("pass_rate", 0), e.get("n_qubits", 0))):
-        print(f"  {entry.get('checkpoint_file', '?')}: "
-              f"{entry.get('model', '?')} N={entry.get('n_qubits', '?')} "
-              f"p={entry.get('p_layers', '?')}, "
-              f"pass={entry.get('pass_rate', 0):.0%}, "
-              f"pts={entry.get('n_training_points', 0)}, "
-              f"h={entry.get('h_range', [])}")
+        print(
+            f"  {entry.get('checkpoint_file', '?')}: "
+            f"{entry.get('model', '?')} N={entry.get('n_qubits', '?')} "
+            f"p={entry.get('p_layers', '?')}, "
+            f"pass={entry.get('pass_rate', 0):.0%}, "
+            f"pts={entry.get('n_training_points', 0)}, "
+            f"h={entry.get('h_range', [])}"
+        )
 else:
-    print(f"\n[Model Zoo] NOT FOUND")
+    print("\n[Model Zoo] NOT FOUND")
 
 # ═══════════════════════════════════════════════════════════════
 # Section E: NPZ Training Data
@@ -178,10 +190,12 @@ if npz_dir.exists():
             quality = f"  pass@5%={n_good}/{n_pts}"
 
         status = "✅" if n_nan == 0 else f"⚠️ {n_nan} NaN"
-        print(f"  {npz_file.name}: {n_pts} pts, {n_params} params, "
-              f"h=[{h_vals.min():.2f},{h_vals.max():.2f}] {status}{quality}")
+        print(
+            f"  {npz_file.name}: {n_pts} pts, {n_params} params, "
+            f"h=[{h_vals.min():.2f},{h_vals.max():.2f}] {status}{quality}"
+        )
 else:
-    print(f"\n[NPZ Training Data] NOT FOUND")
+    print("\n[NPZ Training Data] NOT FOUND")
 
 # Also check colab data
 colab_dir = DATA / "vqe_colab"
@@ -220,7 +234,9 @@ if dashboard_path.exists():
             if "de_gaps" in data:
                 de_gaps_fresh = data["de_gaps"]
             elif "e_vqe" in data and "e_exact" in data and "gaps" in data:
-                de_gaps_fresh = np.abs(data["e_vqe"] - data["e_exact"]) / np.maximum(data["gaps"], 1e-10)
+                de_gaps_fresh = np.abs(data["e_vqe"] - data["e_exact"]) / np.maximum(
+                    data["gaps"], 1e-10
+                )
             else:
                 continue
             fresh_pass = float((de_gaps_fresh < 0.05).mean())
@@ -231,11 +247,11 @@ if dashboard_path.exists():
                 )
 
         if mismatches:
-            print(f"  ⚠️ STALE dashboard data:")
+            print("  ⚠️ STALE dashboard data:")
             for m in mismatches:
                 print(f"    {m}")
         else:
-            print(f"  ✅ Dashboard data consistent with raw NPZ")
+            print("  ✅ Dashboard data consistent with raw NPZ")
 
         # Show dashboard-enriched info (cross-N, divergence)
         print(f"\n  Dashboard enrichment for {_topology}:")
@@ -244,8 +260,10 @@ if dashboard_path.exists():
             best_src = topo_summary.get("cross_n_best_source_for_largest")
             print(f"    n_max_viable: {n_max}")
             if best_src:
-                print(f"    cross_n_best_source (largest N): "
-                      f"train_n={best_src['train_n']} pass@10%={best_src['pass_rate_10pct']:.0%}")
+                print(
+                    f"    cross_n_best_source (largest N): "
+                    f"train_n={best_src['train_n']} pass@10%={best_src['pass_rate_10pct']:.0%}"
+                )
 
         for dc in sorted(topo_configs, key=lambda c: c["n_qubits"]):
             div = dc.get("zoo_vs_npz_divergence")
@@ -253,8 +271,10 @@ if dashboard_path.exists():
             stale = " STALE" if dc.get("model_stale") else ""
             xn = dc.get("cross_n_best_source")
             xn_str = f"best_src=N{xn['train_n']}" if xn else ""
-            print(f"    N={dc['n_qubits']:>2}: pass={dc['pass_rate_5pct']:.0%} "
-                  f"h_front={dc.get('h_frontier', '—')} "
-                  f"{div_str}{stale} {xn_str}")
+            print(
+                f"    N={dc['n_qubits']:>2}: pass={dc['pass_rate_5pct']:.0%} "
+                f"h_front={dc.get('h_frontier', '—')} "
+                f"{div_str}{stale} {xn_str}"
+            )
 else:
-    print(f"\n[Dashboard] NOT FOUND — run a pipeline to auto-generate")
+    print("\n[Dashboard] NOT FOUND — run a pipeline to auto-generate")

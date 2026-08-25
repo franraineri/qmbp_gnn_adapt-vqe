@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Post-Experiment Data Sync",
+  "description": "Runs post_experiment_sync after agent stops to keep all data stores (dashboard, eval report, coverage, ResultIndex) coherent. Also fixes GT↔NPZ e_exact drift automatically.",
+  "version": "1",
+  "when": {
+    "type": "agentStop"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ".venv/bin/python -c \"from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence, post_experiment_sync; validate_gt_npz_coherence(fix=True); post_experiment_sync(verbose=False)\"",
+    "timeout": 180
+  }
+}

@@ -7,9 +7,9 @@ Orchestrates the two-step flow:
   3. Pass it to run_ibm_deployment.py --sigma-flow-results <path>
 
 Usage:
-    python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py
-    python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py --skip-rehearsal
-    python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py --dry-run
+    .venv/bin/python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py
+    .venv/bin/python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py --skip-rehearsal
+    .venv/bin/python scripts/experiment_runners/hardware/run_full_deployment_pipeline.py --dry-run
 """
 
 from __future__ import annotations

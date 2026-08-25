@@ -19,25 +19,25 @@ heavy_hex, square).
 
 Usage:
     # Default: N=6, p=2, chain_1d, tfim model
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py
 
     # Larger system
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --n-qubits 10 --p-layers 1 --topology heavy_hex
 
     # Multiple topologies comparison
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --n-qubits 6 --p-layers 2 --topology chain_1d ladder triangular
 
     # Custom h-grid
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --n-qubits 8 --h-min 0.5 --h-max 2.0 --h-points 15
 
     # Skip MPNN (just Phase 1+2)
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --section 1 2
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --section 1 2
 
     # Dry run
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --dry-run
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py --dry-run
 """
 
 from __future__ import annotations
@@ -833,6 +833,7 @@ class NoiselessPipelineRunner(ValidationRunner):
 
             # Pass/fail using centralized dual criterion
             from qmbp_simulation.analysis.metrics import identify_failures
+
             fail_indices = identify_failures(topo_results)
             n_pass = len(topo_results) - len(fail_indices)
             topo_pass = n_pass >= len(topo_results) * 0.8 if topo_results else False
@@ -1473,13 +1474,19 @@ class NoiselessPipelineRunner(ValidationRunner):
             from qiskit.quantum_info import Statevector
 
             # ── VQE refinement for marginal predictions ───────────────────
-            # If the point fails quality criteria (dual: ΔE/gap OR |ΔE| OR fidelity),
-            # use θ_pred as warm-start for a short VQE to "polish" the result.
-            from qmbp_simulation.analysis.metrics import is_point_failure
+            # Use classify_point_failure to determine if refinement is worthwhile.
+            from qmbp_simulation.analysis.metrics import classify_point_failure
 
             abs_error = abs(e_pred - e_exact)
             refined = False
-            if is_point_failure(de_gap, abs_error=abs_error) and de_gap < 5.0:
+            cls = classify_point_failure(
+                de_gap=de_gap,
+                abs_error=abs_error,
+                gap=gap,
+                h=h_test,
+                n_params=len(theta_pred),
+            )
+            if cls.refinable:
                 # Short VQE: 50 iters, 1 restart, using θ_pred as seed
                 res_refine = self.minimize(
                     lambda params, _H=H, _c=circuit: self._vqe_backend.evaluate(_c, _H, params),
@@ -1673,8 +1680,12 @@ class NoiselessPipelineRunner(ValidationRunner):
             cross_n_note = f" [cross-N transfer from N={entry.n_qubits}]"
         logger.info(
             "  ✅ Loaded pre-trained MPNN: %s/%s N=%d p=%d (pass_rate=%.0f%%)%s",
-            entry.model, entry.topology, entry.n_qubits,
-            entry.p_layers, entry.pass_rate * 100, cross_n_note,
+            entry.model,
+            entry.topology,
+            entry.n_qubits,
+            entry.p_layers,
+            entry.pass_rate * 100,
+            cross_n_note,
         )
         return {
             "pass": True,
@@ -1752,7 +1763,8 @@ class NoiselessPipelineRunner(ValidationRunner):
                     anchor_h_arr = np.array(list(vqe_anchors.keys()))
                     try:
                         theta_validator = ThetaValidator.from_training_data(
-                            theta_opt=anchor_theta_arr, h_values=anchor_h_arr,
+                            theta_opt=anchor_theta_arr,
+                            h_values=anchor_h_arr,
                         )
                     except Exception:
                         theta_validator = None
@@ -1785,7 +1797,8 @@ class NoiselessPipelineRunner(ValidationRunner):
                 # Run VQE at uncertain points
                 logger.info(
                     "    AL round %d: VQE at %d uncertain h-points: %s",
-                    al_round + 1, len(uncertain_h),
+                    al_round + 1,
+                    len(uncertain_h),
                     [f"{h:.2f}" for h in uncertain_h],
                 )
                 for h in uncertain_h:
@@ -1835,30 +1848,39 @@ class NoiselessPipelineRunner(ValidationRunner):
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
             abs_err = abs(e_pred - e_exact)
 
-            results.append({
-                "h": h,
-                "e_pred": float(e_pred),
-                "e_exact": float(e_exact),
-                "gap": float(gap),
-                "de_gap": float(de_gap),
-                "abs_error": float(abs_err),
-                "abs_error_per_site": float(abs_err / N),
-                "pass": de_gap < DE_GAP_THRESHOLD,
-                "method": method,
-            })
+            results.append(
+                {
+                    "h": h,
+                    "e_pred": float(e_pred),
+                    "e_exact": float(e_exact),
+                    "gap": float(gap),
+                    "de_gap": float(de_gap),
+                    "abs_error": float(abs_err),
+                    "abs_error_per_site": float(abs_err / N),
+                    "pass": de_gap < DE_GAP_THRESHOLD,
+                    "method": method,
+                }
+            )
             logger.info(
                 "    h=%.4f: ΔE/gap=%.4f |ΔE|=%.2e [%s] %s",
-                h, de_gap, abs_err, method, "✓" if de_gap < DE_GAP_THRESHOLD else "✗",
+                h,
+                de_gap,
+                abs_err,
+                method,
+                "✓" if de_gap < DE_GAP_THRESHOLD else "✗",
             )
 
         # Compute summary via reusable utility
         summary = compute_deploy_summary(results)
-        pass_rate = summary["pass_rate_5pct"]
-        n_pass = summary["n_pass_5pct"]
+        pass_rate = summary["pass_rate_dual"]
+        n_pass = summary["n_pass_dual"]
 
         logger.info(
-            "  Accelerated deploy: %d/%d passed (%.0f%%), mean |ΔE|=%.2e",
-            n_pass, len(results), pass_rate * 100, summary.get("mean_abs_error", 0),
+            "  Accelerated deploy: %d/%d passed dual (%.0f%%), mean |ΔE|=%.2e",
+            n_pass,
+            len(results),
+            pass_rate * 100,
+            summary.get("mean_abs_error", 0),
         )
 
         return {

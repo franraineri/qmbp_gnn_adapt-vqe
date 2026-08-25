@@ -1,0 +1,28 @@
+{
+  "task_type": "dmrg",
+  "metadata": {
+    "purpose": "Ground truth computation for heavy_hex N=20 (segfaults on macOS ARM64)",
+    "topology": "heavy_hex",
+    "n_qubits": 20,
+    "model": "tfim_bond_resolved",
+    "created_by": "update_cross_n_coverage analysis"
+  },
+  "tasks": [
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.0},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.1},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.2},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.3},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.4},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.5},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.6},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.7},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.8},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 2.9},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 3.0},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 3.1},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 3.2},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 3.3},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 3.4},
+    {"topology": "heavy_hex", "n_qubits": 20, "model": "tfim_bond_resolved", "h": 3.5}
+  ]
+}

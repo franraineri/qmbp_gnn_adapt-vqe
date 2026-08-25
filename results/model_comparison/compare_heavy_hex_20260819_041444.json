@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-08-19T04:14:44.422456+00:00",
+  "topology": "heavy_hex",
+  "target_n": [
+    10,
+    12,
+    16
+  ],
+  "h_values": [
+    2.5,
+    3.0,
+    3.5,
+    4.0,
+    4.5,
+    5.0
+  ],
+  "p_layers": 1,
+  "model_name": "tfim_bond_resolved",
+  "n_models": 3,
+  "results": [
+    {
+      "label": "per-topo (unified_tfim_br_heavy_hex_multiN_4+6+10+)",
+      "source": "zoo_per_topology",
+      "checkpoint": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+      "error": "GroundTruthCache.put() takes 5 positional arguments but 7 were given"
+    },
+    {
+      "label": "multi-topo (unified_tfim_br_multi_topology_multiN_ab)",
+      "source": "zoo_multi_topology",
+      "checkpoint": "unified_tfim_br_multi_topology_multiN_ablation_film_p1.pt",
+      "error": "GroundTruthCache.put() takes 5 positional arguments but 7 were given"
+    },
+    {
+      "label": "multi-topo (unified_tfim_br_multitopo_chain_1d+heavy)",
+      "source": "zoo_multi_topology",
+      "checkpoint": "unified_tfim_br_multitopo_chain_1d+heavy_hex+ladder+square+triangular_maxN20_residual+film_p1.pt",
+      "error": "GroundTruthCache.put() takes 5 positional arguments but 7 were given"
+    }
+  ],
+  "best_model": null,
+  "best_arch": null
+}

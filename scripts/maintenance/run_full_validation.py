@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""Full Pipeline Validation — Unified quality check and reporting.
+
+Runs all validation checks and generates a comprehensive report:
+1. Dashboard regeneration
+2. Quality tier analysis
+3. Training readiness assessment
+4. Scaling report generation
+5. Cross-N coverage update
+6. Discrepancy detection
+
+Usage:
+    .venv/bin/python scripts/maintenance/run_full_validation.py
+    .venv/bin/python scripts/maintenance/run_full_validation.py --quick
+    .venv/bin/python scripts/maintenance/run_full_validation.py --fix-orphans
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+DATA = ROOT / "data"
+
+
+def step_1_regenerate_dashboard() -> dict:
+    """Regenerate model quality dashboard from NPZ data."""
+    print("\n" + "=" * 60)
+    print("STEP 1: Regenerating Model Quality Dashboard")
+    print("=" * 60)
+
+    from qmbp_simulation.analysis.metrics import generate_model_quality_dashboard
+
+    dashboard = generate_model_quality_dashboard()
+    n_configs = dashboard.get("n_configs", 0)
+    n_topos = len(dashboard.get("topology_summary", {}))
+
+    print(f"  ✅ Dashboard regenerated: {n_configs} configs, {n_topos} topologies")
+    return dashboard
+
+
+def step_2_quality_tier_analysis(dashboard: dict) -> dict:
+    """Analyze quality tier distribution — reads from dashboard integrity section.
+
+    The dashboard (generated in step 1) already aggregates tier data from NPZ.
+    We read it directly instead of re-scanning disk.
+    """
+    print("\n" + "=" * 60)
+    print("STEP 2: Quality Tier Analysis")
+    print("=" * 60)
+
+    integrity = dashboard.get("integrity", {})
+    configs = dashboard.get("configs", [])
+
+    if not configs:
+        print("  ⚠️ Dashboard has no configs — regenerate with step 1")
+        return {}
+
+    # Aggregate from dashboard configs (each has quality_tier_* fields if available)
+    total_verified = 0
+    total_approx = 0
+    total_unverified = 0
+    n_legacy = 0
+    tier_breakdown = {}
+
+    for c in configs:
+        fname = c.get("file", "")
+        n_pts = c.get("n_points", 0)
+        n_v = c.get("n_verified", 0)
+        n_a = c.get("n_approximate", 0)
+        n_u = c.get("n_unverified", n_pts - n_v - n_a)
+
+        # If no tier data in dashboard entry, treat as legacy
+        if n_v == 0 and n_a == 0 and n_u == n_pts:
+            is_legacy = not c.get("has_quality_tiers", False)
+        else:
+            is_legacy = False
+
+        if is_legacy:
+            n_legacy += 1
+
+        total_verified += n_v
+        total_approx += n_a
+        total_unverified += n_u
+        tier_breakdown[fname] = {
+            "verified": n_v,
+            "approximate": n_a,
+            "unverified": n_u,
+            "total": n_pts,
+            "legacy": is_legacy,
+        }
+
+    # Also check integrity section if available (pre-aggregated totals)
+    if integrity.get("total_verified"):
+        total_verified = integrity["total_verified"]
+        total_approx = integrity.get("total_approximate", total_approx)
+        total_unverified = integrity.get("total_unverified", total_unverified)
+
+    total = total_verified + total_approx + total_unverified
+    print(f"  Total points: {total}")
+    print(f"  ✅ Verified: {total_verified} ({total_verified * 100 // max(total, 1)}%)")
+    print(f"  ⚠️ Approximate: {total_approx} ({total_approx * 100 // max(total, 1)}%)")
+    print(f"  ❓ Unverified: {total_unverified} ({total_unverified * 100 // max(total, 1)}%)")
+    if n_legacy > 0:
+        print(f"  📜 Legacy NPZ (no tier field): {n_legacy} files")
+
+    return tier_breakdown
+
+
+def step_3_training_readiness(dashboard: dict, tier_breakdown: dict) -> dict:
+    """Check if training data is ready for MPNN training."""
+    print("\n" + "=" * 60)
+    print("STEP 3: Training Readiness Assessment")
+    print("=" * 60)
+
+    from qmbp_simulation.analysis.metrics import (
+        compute_training_readiness,
+        get_usable_training_configs,
+    )
+
+    utility_partition = get_usable_training_configs(dashboard)
+    ready, reason, stats = compute_training_readiness(tier_breakdown, utility_partition)
+
+    status = "✅ READY" if ready else "❌ NOT READY"
+    print(f"  Status: {status}")
+    print(f"  Reason: {reason}")
+
+    if "n_useful_configs" in stats:
+        print(f"  Useful configs: {stats['n_useful_configs']}")
+    if "verified_ratio" in stats:
+        print(f"  Verified ratio: {stats['verified_ratio']:.0%}")
+
+    return {"ready": ready, "reason": reason, **stats}
+
+
+def step_4_scaling_report(dashboard: dict, tier_breakdown: dict) -> dict:
+    """Generate unified scaling report.
+
+    Delegates to generate_scaling_report.format_report_text for consistent output.
+    """
+    print("\n" + "=" * 60)
+    print("STEP 4: Scaling Report Generation")
+    print("=" * 60)
+
+    import sys
+    from pathlib import Path as _Path
+
+    _maint_dir = str(_Path(__file__).resolve().parent)
+    if _maint_dir not in sys.path:
+        sys.path.insert(0, _maint_dir)
+
+    from generate_scaling_report import format_report_text
+
+    from qmbp_simulation.analysis.metrics import generate_unified_scaling_report
+
+    report = generate_unified_scaling_report(
+        dashboard,
+        tier_breakdown=tier_breakdown,
+        target_n_values=[30, 40, 60],
+    )
+
+    # Print summary
+    print("\n  Topology Scalability Scores:")
+    for topo, info in sorted(report.get("topologies", {}).items()):
+        score = info.get("scalability_score", 0)
+        n_max = info.get("n_max_viable", "—")
+        emoji = "🟢" if score >= 0.7 else "🟡" if score >= 0.4 else "🔴"
+        print(f"    {emoji} {topo}: score={score:.2f}, n_max={n_max}")
+
+    # Save report
+    output_path = DATA / "unified_scaling_report.json"
+    with open(output_path, "w") as f:
+        json.dump(report, f, indent=2)
+    print(f"\n  Saved to: {output_path.relative_to(ROOT)}")
+
+    # Also save text version
+    text_path = DATA / "unified_scaling_report.txt"
+    text_path.write_text(format_report_text(report))
+
+    return report
+
+
+def step_5_update_coverage_doc() -> None:
+    """Update the cross-N coverage documentation via direct import."""
+    print("\n" + "=" * 60)
+    print("STEP 5: Updating Cross-N Coverage Document")
+    print("=" * 60)
+
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "update_cross_n_coverage",
+        ROOT / "scripts" / "maintenance" / "update_cross_n_coverage.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    try:
+        rc = mod.main()
+        if rc == 0:
+            print("  ✅ Coverage document updated successfully")
+        else:
+            print(f"  ⚠️ update_cross_n_coverage returned code {rc}")
+    except Exception as e:
+        print(f"  ⚠️ Update failed: {e}")
+
+
+def step_6_detect_discrepancies(dashboard: dict) -> list:
+    """Detect discrepancies between dashboard and analyzer data."""
+    print("\n" + "=" * 60)
+    print("STEP 6: Discrepancy Detection")
+    print("=" * 60)
+
+    from qmbp_simulation.analysis.metrics import (
+        detect_h_frontier_anomalies,
+        detect_pass_rate_regression,
+        detect_training_zoo_incoherence,
+    )
+
+    configs = dashboard.get("configs", [])
+    issues = []
+
+    # h_frontier anomalies
+    anomalies = detect_h_frontier_anomalies(configs)
+    if anomalies:
+        print(f"  ⚠️ h_frontier anomalies: {len(anomalies)}")
+        for a in anomalies[:3]:
+            print(f"    - {a['topology']}: N={a['n_i']}→N={a['n_j']} (drop={a['drop']:.2f})")
+        issues.extend(anomalies)
+
+    # Training/zoo incoherence
+    incoherent = detect_training_zoo_incoherence(configs)
+    if incoherent:
+        print(f"  ⚠️ Training/zoo incoherence: {len(incoherent)}")
+        for i in incoherent[:3]:
+            print(
+                f"    - {i['topology']} N={i['n_qubits']}: "
+                f"bad_ratio={i['bad_ratio']:.0%}, zoo_pass={i['zoo_pass_rate']:.0%}"
+            )
+        issues.extend(incoherent)
+
+    # Pass rate regressions
+    regressions = detect_pass_rate_regression(configs)
+    if regressions:
+        print(f"  ⚠️ Pass rate regressions: {len(regressions)}")
+        for r in regressions[:3]:
+            print(f"    - {r['topology']}: {r['prev_max']:.0%} → {r['curr_max']:.0%}")
+        issues.extend(regressions)
+
+    if not issues:
+        print("  ✅ No significant discrepancies detected")
+
+    return issues
+
+
+def step_7_cleanup_orphans(dry_run: bool = True) -> int:
+    """Identify and optionally clean up orphan checkpoints."""
+    print("\n" + "=" * 60)
+    print("STEP 7: Orphan Checkpoint Analysis")
+    print("=" * 60)
+
+    manifest_path = DATA / "model_zoo" / "manifest.json"
+    ckpt_dir = DATA / "model_zoo" / "checkpoints"
+
+    if not manifest_path.exists() or not ckpt_dir.exists():
+        print("  No model zoo found")
+        return 0
+
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+
+    entries = manifest if isinstance(manifest, list) else manifest.get("entries", [])
+    registered = {e.get("checkpoint_file") for e in entries}
+
+    orphans = [f for f in ckpt_dir.glob("*.pt") if f.name not in registered]
+
+    if not orphans:
+        print("  ✅ No orphan checkpoints")
+        return 0
+
+    print(f"  Found {len(orphans)} orphan checkpoints:")
+    for o in orphans[:5]:
+        size_kb = o.stat().st_size / 1024
+        print(f"    - {o.name} ({size_kb:.1f} KB)")
+    if len(orphans) > 5:
+        print(f"    ... and {len(orphans) - 5} more")
+
+    if not dry_run:
+        print("\n  Cleaning up orphans...")
+        for o in orphans:
+            o.unlink()
+        print(f"  ✅ Removed {len(orphans)} orphan files")
+    else:
+        print("\n  Run with --fix-orphans to remove them")
+
+    return len(orphans)
+
+
+def step_8_npz_integrity(fix: bool = False) -> dict:
+    """Step 8: Validate NPZ training data integrity (all p-values).
+
+    When fix=True, auto-removes NaN rows from NPZ files (creates .bak backup).
+    """
+    print("\n── Step 8: NPZ Integrity Check ──")
+    from qmbp_simulation.analysis.metrics import validate_npz_integrity
+
+    result = validate_npz_integrity(include_extrapolation=True, fix=fix)
+    print(f"  {result['summary']}")
+
+    by_p = result.get("by_p_layers", {})
+    for p, stats in sorted(by_p.items()):
+        fixed_str = f", fixed={stats.get('n_fixed', 0)}" if stats.get("n_fixed") else ""
+        print(
+            f"    p={p}: {stats['n_files']} files, {stats['n_points']} pts, "
+            f"nan={stats['n_nan']}, dim_mismatch={stats['n_dim_mismatch']}{fixed_str}"
+        )
+
+    if result["issues"]:
+        print(f"\n  Issues ({result['n_issues']}):")
+        for iss in result["issues"][:5]:
+            dir_name = iss.get("dir", "?")
+            print(f"    {dir_name}/{iss['file']}: {'; '.join(iss['issues'])}")
+        if result["n_issues"] > 5:
+            print(f"    ... and {result['n_issues'] - 5} more")
+
+    return result
+
+
+def step_9_p2_vs_p1_monotonicity() -> dict:
+    """Step 9: Cross-validate p=2 vs p=1 energy monotonicity."""
+    print("\n── Step 9: p=2 vs p=1 Energy Monotonicity ──")
+    from qmbp_simulation.analysis.metrics import validate_p2_vs_p1_energy_monotonicity
+
+    result = validate_p2_vs_p1_energy_monotonicity()
+    print(f"  {result['summary']}")
+
+    if result["violations"]:
+        print("\n  Worst violations:")
+        for v in sorted(result["violations"], key=lambda x: -x["delta"])[:5]:
+            print(
+                f"    {v['topology']} N={v['n_qubits']} h={v['h']:.3f}: "
+                f"Δ={v['delta']:.4f} (p1={v['e_p1']:.4f}, p2={v['e_p2']:.4f})"
+            )
+
+    return result
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Full pipeline validation and reporting")
+    parser.add_argument(
+        "--quick", action="store_true", help="Skip slow steps (orphan cleanup, detailed analysis)"
+    )
+    parser.add_argument(
+        "--fix-orphans", action="store_true", help="Actually delete orphan checkpoint files"
+    )
+    parser.add_argument(
+        "--fix", action="store_true",
+        help="Auto-fix recoverable issues (NaN rows in NPZ, stale e_exact from GT cache)"
+    )
+    args = parser.parse_args()
+
+    print("=" * 60)
+    print("  FULL PIPELINE VALIDATION")
+    print(f"  {datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S UTC')}")
+    print("=" * 60)
+
+    # Run all steps
+    dashboard = step_1_regenerate_dashboard()
+    tier_breakdown = step_2_quality_tier_analysis(dashboard)
+    readiness = step_3_training_readiness(dashboard, tier_breakdown)
+    scaling_report = step_4_scaling_report(dashboard, tier_breakdown)
+
+    if not args.quick:
+        step_5_update_coverage_doc()
+        step_6_detect_discrepancies(dashboard)
+        step_7_cleanup_orphans(dry_run=not args.fix_orphans)
+        step_8_npz_integrity(fix=args.fix)
+        step_9_p2_vs_p1_monotonicity()
+
+        # Auto-fix GT↔NPZ coherence if --fix
+        if args.fix:
+            from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence
+            print("\n── Auto-fix: GT↔NPZ Coherence ──")
+            gt_result = validate_gt_npz_coherence(fix=True)
+            print(f"  {gt_result['summary']}")
+
+    # Final summary
+    print("\n" + "=" * 60)
+    print("  VALIDATION SUMMARY")
+    print("=" * 60)
+
+    ready = readiness.get("ready", False)
+    n_recs = len(scaling_report.get("recommendations", []))
+
+    if ready and n_recs == 0:
+        print("  🟢 Pipeline is healthy and ready for training")
+    elif ready:
+        print(f"  🟡 Pipeline is ready but has {n_recs} recommendations")
+    else:
+        print(f"  🔴 Pipeline NOT ready: {readiness.get('reason', 'unknown')}")
+
+    # Print recommendations
+    recs = scaling_report.get("recommendations", [])
+    if recs:
+        print("\n  Recommendations:")
+        for rec in recs[:5]:
+            print(f"    • {rec}")
+
+    print("\n" + "=" * 60)
+    return 0 if ready else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

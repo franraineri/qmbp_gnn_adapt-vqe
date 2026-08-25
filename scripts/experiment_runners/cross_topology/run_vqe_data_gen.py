@@ -8,12 +8,12 @@ regime per size, saving results in the standard scaling JSON format.
 Supports both p=1 (2 params, single start) and p=2 (4 params, 5 restarts).
 
 Usage:
-    python scripts/experiment_runners/cross_topology/run_vqe_data_gen.py \\
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_vqe_data_gen.py \\
         --topology heavy_hex --n 6 16 --p 1 \\
         --seeds 42,43,44 --output-dir results/scaling/cross_topology
 
     # Skip existing results:
-    python scripts/experiment_runners/cross_topology/run_vqe_data_gen.py \\
+    .venv/bin/python scripts/experiment_runners/cross_topology/run_vqe_data_gen.py \\
         --topology heavy_hex --n 6 16 --p 1 --skip-existing
 
 Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 7.3
@@ -80,7 +80,8 @@ def get_h_values(n: int) -> list[float]:
     # Fallback: compute from scaling law
     h_min = 1.5 + 0.020 * n**1.31 + 0.5  # add safety margin
     h_max = h_min + 2.5
-    return np.linspace(h_max, h_min, 6).tolist()
+    # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+    return [round(h, 2) for h in np.linspace(h_max, h_min, 6)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

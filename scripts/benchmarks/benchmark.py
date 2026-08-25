@@ -6,10 +6,10 @@ Benchmarks key pipeline components at various system sizes to track
 performance regressions and establish timing baselines.
 
 Usage:
-    python scripts/benchmark.py
-    python scripts/benchmark.py --components vqe solver
-    python scripts/benchmark.py --n-qubits 4 6 8
-    python scripts/benchmark.py --output results/benchmarks/run.json
+    .venv/bin/python scripts/benchmark.py
+    .venv/bin/python scripts/benchmark.py --components vqe solver
+    .venv/bin/python scripts/benchmark.py --n-qubits 4 6 8
+    .venv/bin/python scripts/benchmark.py --output results/benchmarks/run.json
 """
 
 from __future__ import annotations

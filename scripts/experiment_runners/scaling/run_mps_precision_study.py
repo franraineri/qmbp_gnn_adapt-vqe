@@ -28,18 +28,18 @@ Key metrics:
 
 Usage:
     # Default: N=20 on heavy_hex + triangular + chain_1d
-    python scripts/experiment_runners/scaling/run_mps_precision_study.py
+    .venv/bin/python scripts/experiment_runners/scaling/run_mps_precision_study.py
 
     # Specific topology and N range
-    python scripts/experiment_runners/scaling/run_mps_precision_study.py \
+    .venv/bin/python scripts/experiment_runners/scaling/run_mps_precision_study.py \
         --n-values 20 22 24 26 30 --topologies heavy_hex triangular
 
     # Quick check (N=20 only, fewer chi values)
-    python scripts/experiment_runners/scaling/run_mps_precision_study.py \
+    .venv/bin/python scripts/experiment_runners/scaling/run_mps_precision_study.py \
         --n-values 20 --chi-values 32 64 128
 
     # Dry run
-    python scripts/experiment_runners/scaling/run_mps_precision_study.py --dry-run
+    .venv/bin/python scripts/experiment_runners/scaling/run_mps_precision_study.py --dry-run
 """
 
 from __future__ import annotations

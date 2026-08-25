@@ -60,7 +60,7 @@ All sections that evaluate MPNN predictions MUST include:
    for L1 (energy) and L2 (bounds/NaN) checks. L3 (LOO-CV) is optional (expensive).
 
 3. **Warm vs Cold comparison** (when applicable): Use 1 restart for warm-start
-   vs full n_restarts for cold-start to properly measure warm-start advantage.
+   vs full n_restarts for cold-start to measure warm-start advantage.
 
 ## Backend Selection Rules
 

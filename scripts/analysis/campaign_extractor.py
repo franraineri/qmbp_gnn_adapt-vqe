@@ -7,17 +7,17 @@ inspection required — just run after each experiment completes.
 
 Usage:
     # After running experiments:
-    python scripts/analysis/campaign_extractor.py
+    .venv/bin/python scripts/analysis/campaign_extractor.py
 
     # Specific step:
-    python scripts/analysis/campaign_extractor.py --step A1
-    python scripts/analysis/campaign_extractor.py --step A5
+    .venv/bin/python scripts/analysis/campaign_extractor.py --step A1
+    .venv/bin/python scripts/analysis/campaign_extractor.py --step A5
 
     # Output as markdown table:
-    python scripts/analysis/campaign_extractor.py --format md
+    .venv/bin/python scripts/analysis/campaign_extractor.py --format md
 
     # Output as JSON (for programmatic use):
-    python scripts/analysis/campaign_extractor.py --format json
+    .venv/bin/python scripts/analysis/campaign_extractor.py --format json
 """
 
 from __future__ import annotations

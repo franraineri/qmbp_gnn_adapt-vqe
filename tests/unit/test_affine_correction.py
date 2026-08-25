@@ -181,7 +181,8 @@ class TestAffineCorrectionMonotonicity:
             error_before = abs(e_input - e_exact)
             error_after = abs(result.corrected_energy - e_exact)
             assert error_after <= error_before + 1e-10, (
-                f"e_input={e_input}: error increased from {error_before:.6f} to {error_after:.6f}"
+                f"e_input={e_input}: error increased from {error_before:.6f} "
+                f"to {error_after:.6f}"
             )
 
 
@@ -208,7 +209,9 @@ class TestAffineCorrectionRegressionRun141440:
 
         # Verify verdict would be PASS
         delta_e_gap = abs(result.corrected_energy - e_exact) / gap
-        assert delta_e_gap < 0.05, f"Expected PASS (dE/gap < 5%), got {delta_e_gap * 100:.4f}%"
+        assert delta_e_gap < 0.05, (
+            f"Expected PASS (dE/gap < 5%), got {delta_e_gap*100:.4f}%"
+        )
 
     def test_run_155721_values(self):
         """Reproduce run_20260616_155721 scenario (another affected run)."""

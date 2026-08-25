@@ -108,6 +108,7 @@ class CrossNValidationReport:
     # Overall
     overall_pass: bool = False
     issues: list[str] = field(default_factory=list)
+    failure_diagnostic: Any = None  # FailureDiagnostic when overall_pass=False
 
     def summary(self) -> str:
         """Human-readable summary."""
@@ -323,17 +324,41 @@ class CrossNValidator:
         # ── Level 4: Post-prediction consistency checks ──────────────────
         # These are zero-cost sanity checks on the L1 results.
         if report.l1_results:
-            try:
-                l4_issues = self._run_l4_consistency_checks(
-                    model, n_target, h_test_values, report.l1_results, training_sizes
-                )
-                report.issues.extend(l4_issues)
-            except AttributeError:
-                # _run_l4 is defined but not properly scoped — skip gracefully
-                logger.debug("L4 consistency checks unavailable, skipping.")
+            l4_issues = self._run_l4_consistency_checks(
+                model, n_target, h_test_values, report.l1_results, training_sizes
+            )
+            report.issues.extend(l4_issues)
 
         # ── Overall verdict ──────────────────────────────────────────────
         report.overall_pass = report.l1_pass_rate >= 0.80 and report.l2_mean_confidence >= 0.5
+
+        # Auto-diagnose failure mode when prediction fails
+        if not report.overall_pass and report.l1_results and len(report.l1_results) >= 3:
+            try:
+                from qmbp_simulation.analysis.failures_tests import diagnose_gap_masking
+
+                h_arr = np.array([r.h_test for r in report.l1_results])
+                dg_arr = np.array([r.de_gap for r in report.l1_results])
+                abs_arr = np.array([abs(r.e_pred - r.e_exact) for r in report.l1_results])
+
+                gm = diagnose_gap_masking(h_arr, dg_arr, abs_arr, n_target)
+
+                from qmbp_simulation.analysis.failures_tests import FailureDiagnostic
+
+                diag = FailureDiagnostic(
+                    topology=self.topology,
+                    primary_mode="gap_masking" if gm["is_gap_masking"] else "unknown",
+                    confidence=0.8 if gm["is_gap_masking"] else 0.3,
+                    explanation=(
+                        f"L1 pass_rate={report.l1_pass_rate:.0%}: "
+                        f"{gm['n_masked']} gap-masked, {gm['n_real_fail']} real failures."
+                        if gm["n_masked"] > 0
+                        else f"L1 pass_rate={report.l1_pass_rate:.0%}, mean ΔE/gap={report.l1_mean_de_gap:.4f}"
+                    ),
+                )
+                report.failure_diagnostic = diag
+            except Exception:
+                pass  # Non-critical enrichment
 
         # Add known limitation warnings
         if n_target in training_sizes:
@@ -397,6 +422,14 @@ class CrossNValidator:
             )
             e_pred = self.backend.evaluate(circuit, H, theta_pred)
             de_gap = abs(e_pred - gt.ground_energy) / max(gt.gap, 1e-10)
+            abs_error = abs(e_pred - gt.ground_energy)
+
+            # Use dual criterion (prevents gap masking at large h)
+            from qmbp_simulation.analysis.metrics import is_point_failure
+
+            passed = not is_point_failure(
+                de_gap, abs_error=abs_error, de_gap_threshold=self.de_gap_threshold
+            )
 
             results.append(
                 L1Result(
@@ -406,7 +439,7 @@ class CrossNValidator:
                     e_exact=gt.ground_energy,
                     gap=gt.gap,
                     de_gap=float(de_gap),
-                    passed=de_gap < self.de_gap_threshold,
+                    passed=passed,
                 )
             )
 
@@ -566,8 +599,14 @@ class CrossNValidator:
                 )
                 e_pred = self.backend.evaluate(circuit, H, theta_pred)
                 de_gap = abs(e_pred - gt.ground_energy) / max(gt.gap, 1e-10)
+                abs_error = abs(e_pred - gt.ground_energy)
                 de_gaps.append(float(de_gap))
-                if de_gap < self.de_gap_threshold:
+
+                from qmbp_simulation.analysis.metrics import is_point_failure
+
+                if not is_point_failure(
+                    de_gap, abs_error=abs_error, de_gap_threshold=self.de_gap_threshold
+                ):
                     n_passed += 1
 
             pass_rate = n_passed / len(test_fold) if test_fold else 0.0
@@ -589,6 +628,159 @@ class CrossNValidator:
             )
 
         return results
+
+    # ── Level 4: Post-Prediction Consistency Checks ──────────────────────
+
+    def _run_l4_consistency_checks(
+        self,
+        model: Any,
+        n_target: int,
+        h_values: list[float],
+        l1_results: list[L1Result],
+        training_sizes: list[int],
+    ) -> list[str]:
+        """Run zero-cost post-prediction sanity checks on L1 results.
+
+        Checks:
+          4a. Scaling consistency — ΔE/gap at N_target vs training-N trend
+          4b. θ magnitude scaling — ||θ_pred|| should not be ~0 (undertrained)
+          4c. Interpolation comparison hint (output_dim ≤ 2)
+          4d. Variational principle — E_pred ≥ E_exact (physics)
+          4e. Observable range — ⟨X⟩ in [-1, 1] (sample check)
+          4f. Structured failure mode via diagnose_gap_masking
+        """
+        import torch
+        from torch_geometric.data import Data
+
+        from qmbp_simulation import HamiltonianBuilder, make_lattice
+
+        issues: list[str] = []
+        builder = HamiltonianBuilder()
+
+        logger.info("  📊 L4 consistency checks: %d predictions at N=%d", len(l1_results), n_target)
+
+        # ── 4a: Scaling consistency ──────────────────────────────────────
+        de_gaps = [r.de_gap for r in l1_results]
+        mean_de = float(np.mean(de_gaps))
+        if training_sizes and len(training_sizes) >= 2:
+            max_train_n = max(training_sizes)
+            if n_target > max_train_n * 2.5:
+                issues.append(
+                    f"L4a WARNING: N_target={n_target} is >2.5× max training N "
+                    f"({max_train_n}). Extrapolation far beyond training range."
+                )
+            if mean_de > 0.10:
+                issues.append(
+                    f"L4a WARNING: mean ΔE/gap={mean_de:.4f} at N={n_target} "
+                    f"is high (>10%). Cross-N prediction may not be reliable."
+                )
+
+        # ── 4b: θ magnitude scaling ─────────────────────────────────────
+        model.eval()
+        theta_norms: list[float] = []
+        for h in h_values[:5]:  # Sample up to 5 points
+            lattice = make_lattice(self.topology, n_target, J=1.0, h=h)
+            edge_index_np, coord = builder.build_graph_data(lattice)
+            h_feat = np.full(n_target, float(h))
+            x = torch.tensor(
+                np.stack([h_feat, coord.astype(float)], axis=1),
+                dtype=torch.float32,
+            )
+            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+            graph = Data(x=x, edge_index=edge_index)
+            with torch.no_grad():
+                theta_pred = model(graph).numpy().flatten()
+            theta_norms.append(float(np.linalg.norm(theta_pred)))
+
+        mean_norm = float(np.mean(theta_norms)) if theta_norms else 0.0
+        if mean_norm < 1e-6:
+            issues.append(
+                f"L4b WARNING: mean ||θ_pred||={mean_norm:.2e} ≈ 0. "
+                f"GNN may be outputting near-zero predictions (undertrained)."
+            )
+
+        # ── 4c: Interpolation comparison hint ────────────────────────────
+        if hasattr(model, "output_dim") and model.output_dim <= 2:
+            issues.append(
+                "L4c INFO: output_dim≤2 — consider comparing GNN vs "
+                "scipy.interpolate.interp1d for cross-validation."
+            )
+
+        # ── 4d: Variational principle ────────────────────────────────────
+        n_violations = sum(1 for r in l1_results if r.e_pred < r.e_exact - 1e-8)
+        if n_violations > 0:
+            max_violation = max(
+                (r.e_exact - r.e_pred) for r in l1_results if r.e_pred < r.e_exact - 1e-8
+            )
+            if max_violation >= 0.1:
+                issues.append(
+                    f"L4d ERROR: {n_violations}/{len(l1_results)} variational "
+                    f"principle violations (max Δ={max_violation:.4e})."
+                )
+            else:
+                issues.append(
+                    f"L4d WARNING: {n_violations}/{len(l1_results)} variational "
+                    f"violations (max Δ={max_violation:.2e}). Likely numerical noise."
+                )
+
+        # ── 4e: Observable consistency (sample) ──────────────────────────
+        try:
+            from qiskit.quantum_info import SparsePauliOp, Statevector
+
+            for h in h_values[:2]:
+                lattice = make_lattice(self.topology, n_target, J=1.0, h=h)
+                edge_index_np, coord = builder.build_graph_data(lattice)
+                h_feat = np.full(n_target, float(h))
+                x = torch.tensor(
+                    np.stack([h_feat, coord.astype(float)], axis=1),
+                    dtype=torch.float32,
+                )
+                edge_index = torch.tensor(edge_index_np, dtype=torch.long)
+                graph = Data(x=x, edge_index=edge_index)
+                with torch.no_grad():
+                    theta_pred = np.clip(model(graph).numpy().flatten(), -np.pi, np.pi)
+                circuit, _ = self.model_spec.create_circuit(
+                    n_target, 1, lattice, **self.model_spec.circuit_kwargs
+                )
+                bound = circuit.assign_parameters(theta_pred)
+                sv = Statevector(bound)
+                op_x = SparsePauliOp.from_sparse_list([("X", [0], 1.0)], num_qubits=n_target)
+                mag_x = float(sv.expectation_value(op_x).real)
+                if abs(mag_x) > 1.01:
+                    issues.append(f"L4e ERROR: |⟨X_0⟩|={abs(mag_x):.4f} > 1 at h={h}.")
+                    break
+        except Exception as e:
+            logger.debug(f"L4e observable check skipped: {e}")
+
+        # ── 4f: Structured failure mode diagnosis ────────────────────────
+        if len(l1_results) >= 3:
+            try:
+                from qmbp_simulation.analysis.failures_tests import diagnose_gap_masking
+
+                h_arr = np.array([r.h_test for r in l1_results])
+                dg_arr = np.array([r.de_gap for r in l1_results])
+                abs_arr = np.array([abs(r.e_pred - r.e_exact) for r in l1_results])
+                gm = diagnose_gap_masking(h_arr, dg_arr, abs_arr, n_target)
+                if gm["is_gap_masking"]:
+                    issues.append(
+                        f"L4f INFO: Gap masking — {gm['n_masked']} points pass ΔE/gap "
+                        f"but fail |ΔE|<0.10. Per-site ratio={gm['per_site_ratio']:.2f}."
+                    )
+            except Exception as e:
+                logger.debug(f"L4f diagnosis skipped: {e}")
+
+        # Log summary
+        for issue in issues:
+            if "ERROR" in issue:
+                logger.error(f"  {issue}")
+            elif "WARNING" in issue:
+                logger.warning(f"  {issue}")
+            else:
+                logger.info(f"  {issue}")
+        if not issues:
+            logger.info("  📊 L4: all consistency checks pass")
+
+        return issues
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -681,163 +873,68 @@ def preflight_cross_n(
 
     return issues
 
-    # ── Level 4: Post-Prediction Consistency Checks ──────────────────────
 
-    def _run_l4_consistency_checks(
-        self,
-        model: Any,
-        n_target: int,
-        h_values: list[float],
-        l1_results: list[L1Result],
-        training_sizes: list[int],
-    ) -> list[str]:
-        """Run zero-cost post-prediction sanity checks on L1 results.
+# ═══════════════════════════════════════════════════════════════════════════════
+# Lightweight L1 validation from precomputed data (no re-evaluation needed)
+# ═══════════════════════════════════════════════════════════════════════════════
 
-        Checks:
-          4a. Scaling consistency — ΔE/gap at N_target should fit the trend
-          4b. θ magnitude scaling — ||θ_pred|| / N should be ~constant
-          4c. Interpolation comparison — GNN vs scipy at N_target
-          4d. Variational principle — E_pred ≥ E_exact (physics)
-          4e. Observable range — predicted ⟨X⟩, ⟨ZZ⟩ in [-1, 1]
-        """
-        import torch
-        from torch_geometric.data import Data
 
-        from qmbp_simulation import HamiltonianBuilder, make_lattice
+def build_l1_from_precomputed(
+    per_h_results: list[dict],
+    n_target: int,
+    *,
+    de_gap_threshold: float = 0.05,
+) -> list[L1Result]:
+    """Build L1Result list from already-evaluated per-h data."""
+    from qmbp_simulation.analysis.metrics import is_point_failure
 
-        issues: list[str] = []
-        builder = HamiltonianBuilder()
+    results: list[L1Result] = []
+    for r in per_h_results:
+        h = r.get("h", 0.0)
+        e_pred = r.get("e_pred", r.get("energy", 0.0))
+        e_exact = r.get("e_exact", 0.0)
+        gap = r.get("gap", 1e-10)
+        de_gap = r.get("de_gap", abs(e_pred - e_exact) / max(gap, 1e-10))
+        abs_error = abs(e_pred - e_exact)
 
-        logger.info("  📊 L4 consistency checks: %d predictions at N=%d", len(l1_results), n_target)
-
-        # ── 4a: Scaling consistency ──────────────────────────────────────
-        # If ΔE/gap at training sizes follows a trend (typically decreasing
-        # with N for paramagnetic regime), N_target should fit that trend.
-        de_gaps = [r.de_gap for r in l1_results]
-        mean_de = float(np.mean(de_gaps))
-        if training_sizes and len(training_sizes) >= 2:
-            max_train_n = max(training_sizes)
-            min_train_n = min(training_sizes)
-            if n_target > max_train_n * 2.5:
-                issues.append(
-                    f"L4a WARNING: N_target={n_target} is >2.5× max training N "
-                    f"({max_train_n}). Extrapolation far beyond training range."
-                )
-            if mean_de > 0.10:
-                issues.append(
-                    f"L4a WARNING: mean ΔE/gap={mean_de:.4f} at N={n_target} "
-                    f"is high (>10%). Cross-N prediction may not be reliable."
-                )
-
-        # ── 4b: θ magnitude scaling ─────────────────────────────────────
-        # For standard HVA p=1, ||θ||/√N should be roughly constant across N.
-        # Large deviations suggest the GNN is predicting wrong-scale params.
-        model.eval()
-        theta_norms: list[float] = []
-        for h in h_values:
-            lattice = make_lattice(self.topology, n_target, J=1.0, h=h)
-            edge_index_np, coord = builder.build_graph_data(lattice)
-            h_feat = np.full(n_target, float(h))
-            x = torch.tensor(
-                np.stack([h_feat, coord.astype(float)], axis=1),
-                dtype=torch.float32,
+        passed = not is_point_failure(
+            de_gap, abs_error=abs_error, de_gap_threshold=de_gap_threshold
+        )
+        results.append(
+            L1Result(
+                h_test=float(h),
+                n_target=n_target,
+                e_pred=float(e_pred),
+                e_exact=float(e_exact),
+                gap=float(gap),
+                de_gap=float(de_gap),
+                passed=passed,
             )
-            edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-            graph = Data(x=x, edge_index=edge_index)
-            with torch.no_grad():
-                theta_pred = model(graph).numpy().flatten()
-            theta_norms.append(float(np.linalg.norm(theta_pred)))
+        )
+    return results
 
-        mean_norm = float(np.mean(theta_norms))
-        if mean_norm > np.pi * len(l1_results[0].de_gap if l1_results else 2):
-            # Heuristic: if average θ norm is much larger than π × n_params,
-            # something is wrong
-            pass  # θ is bounded [-π, π] by clip, so this shouldn't fire
-        if mean_norm < 1e-6:
-            issues.append(
-                f"L4b WARNING: mean ||θ_pred||={mean_norm:.2e} ≈ 0. "
-                f"GNN may be outputting near-zero predictions (undertrained)."
-            )
 
-        # ── 4c: Interpolation comparison ─────────────────────────────────
-        # Compare GNN prediction vs simple linear interpolation from training
-        # sizes. If they disagree by >50%, flag as suspicious.
-        # (Only meaningful if we have θ_opt at multiple N for reference)
-        # Skip if output_dim > 2 (interpolation in high-D is unreliable)
-        if hasattr(model, "output_dim") and model.output_dim <= 2:
-            issues.append(
-                "L4c INFO: output_dim≤2 — consider comparing GNN vs "
-                "scipy.interpolate.interp1d for cross-validation."
-            )
+def quick_cross_n_report(
+    per_h_results: list[dict],
+    n_target: int,
+    topology: str,
+    training_sizes: list[int],
+    *,
+    de_gap_threshold: float = 0.05,
+) -> CrossNValidationReport:
+    """Build a CrossNValidationReport from precomputed evaluation data (L1 only, zero cost)."""
+    l1_results = build_l1_from_precomputed(
+        per_h_results, n_target, de_gap_threshold=de_gap_threshold
+    )
 
-        # ── 4d: Variational principle ────────────────────────────────────
-        n_violations = sum(1 for r in l1_results if r.e_pred < r.e_exact - 1e-8)
-        if n_violations > 0:
-            # Check for large violations (≥ 0.1) that indicate a real bug
-            max_violation = max(
-                (r.e_exact - r.e_pred) for r in l1_results if r.e_pred < r.e_exact - 1e-8
-            )
-            if max_violation >= 0.1:
-                issues.append(
-                    f"L4d ERROR: {n_violations}/{len(l1_results)} variational "
-                    f"principle violations (max Δ={max_violation:.4e}). "
-                    f"This is NOT numerical noise — check Hamiltonian or "
-                    f"circuit at N={n_target}."
-                )
-            else:
-                issues.append(
-                    f"L4d WARNING: {n_violations}/{len(l1_results)} variational "
-                    f"principle violations (max Δ={max_violation:.2e}, E_pred < E_exact). "
-                    f"Likely numerical noise from eigsh tolerance."
-                )
-
-        # ── 4e: Observable consistency ───────────────────────────────────
-        # Check that predicted states give physical observable values
-        # (|⟨X⟩| ≤ 1, |⟨ZZ⟩| ≤ 1) for at least a sample of h-points
-        try:
-            from qiskit.quantum_info import SparsePauliOp, Statevector
-
-            sample_h = h_values[:3]  # Check first 3 points only
-            for h in sample_h:
-                lattice = make_lattice(self.topology, n_target, J=1.0, h=h)
-                edge_index_np, coord = builder.build_graph_data(lattice)
-                h_feat = np.full(n_target, float(h))
-                x = torch.tensor(
-                    np.stack([h_feat, coord.astype(float)], axis=1),
-                    dtype=torch.float32,
-                )
-                edge_index = torch.tensor(edge_index_np, dtype=torch.long)
-                graph = Data(x=x, edge_index=edge_index)
-                with torch.no_grad():
-                    theta_pred = np.clip(model(graph).numpy().flatten(), -np.pi, np.pi)
-
-                circuit, _ = self.model_spec.create_circuit(
-                    n_target, 1, lattice, **self.model_spec.circuit_kwargs
-                )
-                bound = circuit.assign_parameters(theta_pred)
-                sv = Statevector(bound)
-
-                # Check ⟨X_0⟩ is in [-1, 1]
-                op_x = SparsePauliOp.from_sparse_list([("X", [0], 1.0)], num_qubits=n_target)
-                mag_x = float(sv.expectation_value(op_x).real)
-                if abs(mag_x) > 1.01:
-                    issues.append(
-                        f"L4e ERROR: |⟨X_0⟩|={abs(mag_x):.4f} > 1 at h={h}. "
-                        f"Non-physical state produced."
-                    )
-                    break
-        except Exception as e:
-            logger.debug(f"L4e observable check skipped: {e}")
-
-        if issues:
-            for issue in issues:
-                if "ERROR" in issue:
-                    logger.error(f"  {issue}")
-                elif "WARNING" in issue:
-                    logger.warning(f"  {issue}")
-                else:
-                    logger.info(f"  {issue}")
-        else:
-            logger.info("  📊 L4: all consistency checks pass")
-
-        return issues
+    report = CrossNValidationReport(
+        n_target=n_target,
+        topology=topology,
+        training_sizes=training_sizes,
+        l1_results=l1_results,
+    )
+    if l1_results:
+        report.l1_pass_rate = sum(1 for r in l1_results if r.passed) / len(l1_results)
+        report.l1_mean_de_gap = float(np.mean([r.de_gap for r in l1_results]))
+    report.overall_pass = report.l1_pass_rate >= 0.80
+    return report

@@ -12,7 +12,7 @@ Sections:
   5. Logical vs transpiled comparison (gate overhead analysis)
 
 Usage:
-    python scripts/compare_resource_estimation.py
+    .venv/bin/python scripts/compare_resource_estimation.py
 """
 
 from __future__ import annotations

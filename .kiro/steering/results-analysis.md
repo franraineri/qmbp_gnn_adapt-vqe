@@ -115,7 +115,6 @@ Per-experiment thresholds live in `EXPERIMENT_CRITERIA` (same module).
 
 ## Diagnostic Tools
 
-For full tool reference with all flags, see #[[file:.kiro/steering/analysis-tooling.md]].
 
 Quick commands for result interpretation:
 ```bash
@@ -151,8 +150,6 @@ python -m project_health.digest --compare folder_A folder_B   # A/B comparison
 2. **Solution**: Use p=1 (reduces CX to ~18, recovers +49% gain)
 3. Check n_layouts — more layouts doesn't help at N≥10 p=2
 4. Check topology — triangular has worst ZNE performance but p=1 still works (+50%)
-
-For detailed JSON schemas, see #[[file:.kiro/knowledge/result-schemas.md]]
 
 ## Detecting Broken or Corrupted Results
 
@@ -246,4 +243,3 @@ python -m project_health.analysis.mpnn_eval_analyzer --json report.json
 
 - JSON field reference: #[[file:.kiro/knowledge/result-schemas.md]]
 - Known error patterns: #[[file:.kiro/knowledge/error-patterns.md]]
-- Tool invocation reference: #[[file:.kiro/steering/analysis-tooling.md]]

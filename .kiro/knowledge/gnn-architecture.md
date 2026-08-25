@@ -80,12 +80,6 @@ Rule of thumb: `hidden_dim ≈ 10-13 × N_nodes`. Always validate with energy-dr
 - Node features encoding noise information improves noisy predictions
 - Direct comparison scheme (predicting relative performance) outperforms indirect (predicting absolute values) by 36.2%
 
-### GNN for Ising Magnetization (Slavin, 2025)
-- Lattice geometry encoded as graph → GNN → magnetization prediction
-- Captures plateaus, critical transitions, geometric frustration effects
-- Trained on Monte Carlo data (analogous to our exact diag training)
-- Validates: graph → physical property paradigm works for Ising systems specifically
-
 ### Transferability Limits (Bincoletto et al., 2025)
 - ML parameter prediction transfers between "similar" systems (same topology, different size)
 - Degrades for qualitatively different structures (1D chain → 2D lattice)

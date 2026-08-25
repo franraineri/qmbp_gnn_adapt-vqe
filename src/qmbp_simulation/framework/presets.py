@@ -6,7 +6,7 @@ the need to create near-identical runner scripts for each configuration.
 
 Usage:
     # From CLI
-    python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
+    .venv/bin/python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \\
         --preset noiseless/tfim_heavy_hex_n20_p4
 
     # Programmatic

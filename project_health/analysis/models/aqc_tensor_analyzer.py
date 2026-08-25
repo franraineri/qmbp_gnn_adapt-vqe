@@ -486,7 +486,7 @@ def print_statistical_report(stats: dict) -> None:
     """Print formatted statistical analysis."""
     if not stats.get("available"):
         print("\n  No paired comparison data available for statistical analysis.")
-        print("  Run: python scripts/experiment_runners/aqc_tensor/run_aqc_vs_direct.py")
+        print("  Run: .venv/bin/python scripts/experiment_runners/aqc_tensor/run_aqc_vs_direct.py")
         return
 
     print("\n  Statistical Analysis: AQC-Compressed vs Direct p=1")
@@ -534,7 +534,7 @@ def get_aqc_health_summary() -> dict:
         return {
             "status": "not_run",
             "message": "AQC-Tensor experiments not yet executed",
-            "recommendation": "Run: python scripts/experiment_runners/aqc_tensor/run_aqc_poc.py",
+            "recommendation": "Run: .venv/bin/python scripts/experiment_runners/aqc_tensor/run_aqc_poc.py",
         }
 
     # Check if heavy_hex (hardware target) is validated

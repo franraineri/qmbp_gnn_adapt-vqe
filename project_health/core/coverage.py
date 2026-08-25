@@ -54,16 +54,8 @@ def detect_coverage_gaps(
     gaps.extend(_gap_missing_zne(noiseless, noisy))
     gaps.extend(_gap_missing_experiments(experiments))
     gaps.extend(_gap_low_dashboard_pass_rate())
-
-    # Sort by priority (CRITICAL first)
-    gaps.sort(key=lambda g: g.priority.value)
-    return gaps
-
-    gaps.extend(_gap_missing_p1_noiseless(noiseless))
-    gaps.extend(_gap_invalid_regime(noiseless))
-    gaps.extend(_gap_insufficient_seeds(noiseless))
-    gaps.extend(_gap_missing_zne(noiseless, noisy))
-    gaps.extend(_gap_missing_experiments(experiments))
+    gaps.extend(_gap_low_quality_training_data())
+    gaps.extend(_gap_zoo_coherence())
 
     # Sort by priority (CRITICAL first)
     gaps.sort(key=lambda g: g.priority.value)
@@ -501,8 +493,7 @@ def _actions_from_quality_prediction() -> list[ActionItem]:
 
         if novel:
             detail_parts = [
-                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} "
-                f"({c['pass_probability']:.0%})"
+                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} ({c['pass_probability']:.0%})"
                 for c in novel[:5]
             ]
             actions.append(
@@ -712,6 +703,11 @@ def compute_noiseless_stats(
     """Compute pass rate and median ΔE/gap for noiseless results.
 
     Returns (pass_rate, median_de_gap).
+
+    NOTE: This uses single-criterion (ΔE/gap < 5%) because historical result
+    JSONs do not carry abs_error. This is an execution monitoring metric,
+    NOT a thesis-citable quality metric. For thesis data, use the dashboard's
+    pass_rate_dual_criterion from NPZ files.
     """
     de_gaps = [r.delta_e_over_gap for r in noiseless if r.delta_e_over_gap is not None]
     if not de_gaps:
@@ -991,7 +987,7 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
         return gaps
 
     for config in dashboard.get("configs", []):
-        pass_rate = config.get("pass_rate_5pct", 0)
+        pass_rate = config.get("pass_rate_dual_criterion", config.get("pass_rate_5pct", 0))
         topology = config.get("topology", "")
         n_qubits = config.get("n_qubits", 0)
         p_layers = config.get("p_layers", 1)
@@ -1012,7 +1008,7 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
             circuit_type = "bond-resolved" if n_params > 2 * p_layers else "global"
             detail = (
                 f"{topology} N={n_qubits} p={p_layers} ({circuit_type}, {n_params} params): "
-                f"pass_rate={pass_rate:.0%} ({n_points} pts, "
+                f"pass_rate_dual={pass_rate:.0%} ({n_points} pts, "
                 f"h=[{h_range[0]:.1f},{h_range[1]:.1f}])"
             )
             if h_frontier:
@@ -1033,5 +1029,144 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
                     priority=Priority.HIGH if pass_rate < 0.30 else Priority.MEDIUM,
                 )
             )
+
+    return gaps
+
+
+def _gap_low_quality_training_data() -> list[CoverageGap]:
+    """Detect multi-N zoo models that need retraining.
+
+    Integrates with compute_retrain_queue() from model_zoo which already
+    implements the full priority logic (contaminated > stale > expanded > low_pass).
+    """
+    gaps: list[CoverageGap] = []
+
+    try:
+        from qmbp_simulation.predictors.model_zoo import compute_retrain_queue
+
+        queue = compute_retrain_queue()
+        for item in queue:
+            priority_map = {1: Priority.HIGH, 2: Priority.HIGH, 3: Priority.MEDIUM, 4: Priority.LOW}
+            gaps.append(
+                CoverageGap(
+                    gap_type=GapType.LOW_PASS_RATE,
+                    topology=item["topology"],
+                    n_qubits=0,
+                    p_layers=1,
+                    detail=(
+                        f"{item['topology']} (priority {item['priority']}): "
+                        f"{item['reason']}. Current pass_rate={item['current_pass_rate']:.0%}"
+                    ),
+                    recommendation=item["command"],
+                    priority=priority_map.get(item["priority"], Priority.LOW),
+                )
+            )
+    except (ImportError, Exception):
+        pass  # Non-blocking: zoo functions unavailable
+
+    return gaps
+
+
+def _gap_zoo_coherence() -> list[CoverageGap]:
+    """Detect zoo ↔ dashboard ↔ GT desynchronization issues.
+
+    Calls check_zoo_coherence logic directly (no subprocess) to surface
+    divergences, stale data, and missing evaluations as CoverageGap items.
+    """
+    gaps: list[CoverageGap] = []
+
+    try:
+        import json
+        from pathlib import Path
+
+        from qmbp_simulation.predictors.model_zoo import list_pretrained, validate_zoo
+
+        root = Path(__file__).resolve().parents[2]
+        dashboard_path = root / "data" / "model_quality_dashboard.json"
+
+        # Check 1: Zoo integrity (missing/corrupted checkpoints)
+        zoo_report = validate_zoo()
+        if zoo_report["n_missing"] > 0 or zoo_report["n_corrupted"] > 0:
+            gaps.append(
+                CoverageGap(
+                    gap_type=GapType.MISSING_DATA,
+                    topology="all",
+                    n_qubits=0,
+                    p_layers=1,
+                    detail=(
+                        f"Zoo integrity: {zoo_report['n_missing']} missing, "
+                        f"{zoo_report['n_corrupted']} corrupted checkpoints"
+                    ),
+                    recommendation=(
+                        "Run: .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix"
+                    ),
+                    priority=Priority.HIGH,
+                )
+            )
+
+        # Check 2: Never-evaluated models
+        multi_n = list_pretrained(n_qubits=0)
+        for entry in multi_n:
+            if entry.pass_rate == 0 and entry.n_training_points > 0:
+                gaps.append(
+                    CoverageGap(
+                        gap_type=GapType.LOW_PASS_RATE,
+                        topology=entry.topology,
+                        n_qubits=0,
+                        p_layers=entry.p_layers,
+                        detail=(
+                            f"{entry.topology}: model has {entry.n_training_points} pts "
+                            f"but pass_rate=0 (never evaluated post-training)"
+                        ),
+                        recommendation=(
+                            "Run: .venv/bin/python scripts/maintenance/reevaluate_zoo_models.py "
+                            f"--topology {entry.topology}"
+                        ),
+                        priority=Priority.MEDIUM,
+                    )
+                )
+
+        # Check 3: Zoo pass_rate divergence vs NPZ weighted average
+        if dashboard_path.exists():
+            with open(dashboard_path) as f:
+                dashboard = json.load(f)
+            configs = dashboard.get("configs", [])
+
+            for entry in multi_n:
+                if entry.pass_rate == 0:
+                    continue  # Already flagged above
+                topo_configs = [c for c in configs if c["topology"] == entry.topology]
+                total_pts = sum(c.get("n_points", 0) for c in topo_configs)
+                if total_pts == 0:
+                    continue
+                weighted_dual = (
+                    sum(
+                        c.get("pass_rate_dual_criterion", 0) * c.get("n_points", 0)
+                        for c in topo_configs
+                    )
+                    / total_pts
+                )
+
+                divergence = abs(entry.pass_rate - weighted_dual)
+                if divergence > 0.15:
+                    gaps.append(
+                        CoverageGap(
+                            gap_type=GapType.LOW_PASS_RATE,
+                            topology=entry.topology,
+                            n_qubits=0,
+                            p_layers=entry.p_layers,
+                            detail=(
+                                f"{entry.topology}: zoo_pass_rate={entry.pass_rate:.0%} "
+                                f"vs npz_weighted={weighted_dual:.0%} (Δ={divergence:.0%})"
+                            ),
+                            recommendation=(
+                                "Run: .venv/bin/python scripts/maintenance/check_zoo_coherence.py --fix"
+                            ),
+                            priority=Priority.MEDIUM,
+                        )
+                    )
+
+    except (ImportError, Exception):
+        pass  # Non-blocking
 
     return gaps

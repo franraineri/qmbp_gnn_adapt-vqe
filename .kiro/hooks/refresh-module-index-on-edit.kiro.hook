@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Refresh Module Index on Edit",
+  "description": "Regenerates module-index.md when Python source files in src/ are edited. Keeps the steering file synchronized with actual function signatures.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "src/**/*.py"
+    ]
+  },
+  "then": {
+    "type": "runCommand",
+    "command": ".venv/bin/python scripts/general_project_maintenance/generate_module_index.py 2>/dev/null || .venv/bin/python scripts/maintenance/generate_module_index.py 2>/dev/null || true",
+    "timeout": 30
+  }
+}

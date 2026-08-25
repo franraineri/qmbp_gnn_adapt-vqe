@@ -177,32 +177,7 @@ def _build_result_path(
     mode: str,
     seed: int,
 ) -> Path:
-    """Build deterministic result file path.
-
-    Convention:
-        results/mitigation_benchmark/{mode}/{config_id}/h{val}_run_{timestamp}[_seed{N}].json
-
-    Naming rules:
-        - h_value formatted as "3p25" (replace '.' with 'p')
-        - If seed != 42, append "_seed{seed}" before .json
-        - Timestamp from framework's generate_timestamp() (YYYYMMDD_HHMMSS)
-
-    Parameters
-    ----------
-    config_id : str
-        Configuration identifier (e.g., "C0_raw").
-    h_value : float
-        Transverse field strength.
-    mode : str
-        Execution mode ("fake_backend" or "hardware").
-    seed : int
-        Random seed used for this run.
-
-    Returns
-    -------
-    Path
-        Full path to the result JSON file.
-    """
+    """Build deterministic result file path."""
     from qmbp_simulation.framework.result_io import generate_timestamp
 
     h_str = f"h{str(h_value).replace('.', 'p')}"
@@ -485,20 +460,7 @@ def _collect_hardware_calibration(backend: Any, job: Any) -> dict[str, Any] | No
 
 
 def _save_result(envelope: dict[str, Any], result_path: Path) -> None:
-    """Persist a ResultEnvelope to disk as JSON.
-
-    Uses json_dump from qmbp_simulation.utils.helpers which handles:
-    - Directory creation (mkdir -p)
-    - numpy type serialization via json_serialize
-    - Pretty-printing with indent=2
-
-    Parameters
-    ----------
-    envelope : dict
-        Complete ResultEnvelope from _build_envelope().
-    result_path : Path
-        Target file path (from _build_result_path()).
-    """
+    """Persist a ResultEnvelope to disk as JSON."""
     json_dump(envelope, result_path)
 
 
@@ -646,31 +608,7 @@ def apply_affine_on_raw(
     e_exact: float,
     e_upper: float,
 ) -> dict[str, Any]:
-    """Apply affine correction directly to e_raw when no ZNE is configured.
-
-    When affine_enabled=True and zne_method=None, there is no ZNE-mitigated
-    energy to clip. Instead, we apply affine_correct_energy to e_raw itself.
-    This validates hypothesis H8: affine correction never worsens the result,
-    even without ZNE.
-
-    Parameters
-    ----------
-    config : BenchmarkConfig
-        The benchmark configuration for the current run.
-    execution_result : dict
-        Execution result dict containing at least "e_raw".
-    e_exact : float
-        Ground state energy (rigorous lower bound from ClassicalSolver).
-    e_upper : float
-        Upper bound on energy for the system.
-
-    Returns
-    -------
-    dict
-        Updated execution_result. If affine-on-raw applies, sets
-        "e_mitigated" to the affine-corrected e_raw. Otherwise returns
-        the dict unchanged.
-    """
+    """Apply affine correction directly to e_raw when no ZNE is configured."""
     if config.affine_enabled and config.zne_method is None:
         e_raw = execution_result["e_raw"]
         corrected = affine_correct_energy(e_raw, e_exact, e_upper)
@@ -2300,18 +2238,9 @@ def _build_aqc_circuit(h_value: float) -> tuple[QuantumCircuit, dict[str, Any] |
 def _compute_upper_bound(h_value: float) -> float:
     """Compute the energy upper bound for TFIM using the canonical formula.
 
+
     Delegates to affine_correct_energy's internal calculation to ensure
     consistency. The bound is: |J|*(N-1) + |h|*N for 1D chain.
-
-    Parameters
-    ----------
-    h_value : float
-        Transverse field value.
-
-    Returns
-    -------
-    float
-        Upper bound on the energy spectrum.
     """
     # Use affine_correct_energy with a dummy energy to extract its upper_bound.
     # This ensures perfect consistency with the canonical implementation.

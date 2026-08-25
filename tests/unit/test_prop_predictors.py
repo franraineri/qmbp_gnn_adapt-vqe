@@ -46,20 +46,22 @@ def vqe_results_strategy(draw):
         )
     )
     # theta_opt: realistic VQE-like angles in [0, pi/2], shape [n_points, 2] for p=1
-    # (Real VQE produces θ in the canonical domain after optimization;
-    # using [0, π/2] avoids triggering the basin outlier filter which is
-    # designed to catch MULTI-SEED inconsistencies, not random noise.)
-    theta_opt = draw(
+    # (Real VQE produces θ in the canonical domain after optimization.
+    # We generate from a common base with small perturbations to ensure all
+    # points stay in the same basin and pass the MAD-based outlier filter,
+    # which can be aggressive with only 3 points.)
+    base_theta = draw(
         st.lists(
-            st.lists(
-                st.floats(min_value=0.01, max_value=0.5, allow_nan=False, allow_infinity=False),
-                min_size=2,
-                max_size=2,
-            ),
-            min_size=n_points,
-            max_size=n_points,
-        ).map(lambda x: np.array(x))
+            st.floats(min_value=0.15, max_value=0.35, allow_nan=False, allow_infinity=False),
+            min_size=2,
+            max_size=2,
+        )
     )
+    theta_opt = np.array([
+        [base_theta[0] + draw(st.floats(min_value=-0.02, max_value=0.02)),
+         base_theta[1] + draw(st.floats(min_value=-0.02, max_value=0.02))]
+        for _ in range(n_points)
+    ])
     # e_exact: negative energies
     e_exact = draw(
         st.lists(

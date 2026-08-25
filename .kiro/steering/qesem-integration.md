@@ -23,13 +23,13 @@ utility-scale quantum circuits"
 | Routing logic | `src/qmbp_simulation/execution/hardware/backend.py` (QESEM alternate path) |
 | Config fields | `src/qmbp_simulation/execution/hardware/config.py` (HardwareConfig + HardwareRunResult) |
 | Flag definition | `src/qmbp_simulation/execution/backends.py` (MitigationOptions.qesem_enabled) |
-| Budget estimator | `scripts/estimate_qesem_budget.py` |
+| Budget estimator | `scripts/hardware/estimate_qesem_budget.py` |
 | Tests (QESEM) | `tests/hardware/test_qesem_integration.py` |
 | Tests (QET) | `tests/hardware/test_qet_integration.py` |
 | QET validator | `project_health/analysis/hardware/validate_qet.py` |
 | Deployment CLI | `scripts/experiment_runners/hardware/run_ibm_deployment.py` (--qesem flag) |
-| Recovery script | `scripts/recover_qesem_job.py` |
-| Result converter | `scripts/convert_qesem_to_hwresult.py` |
+| Recovery script | `scripts/hardware/recover_qesem_job.py` |
+| Result converter | `scripts/hardware/convert_qesem_to_hwresult.py` |
 
 ## Architecture
 
@@ -124,14 +124,11 @@ qesem_noise_scales: dict[float, float] | None = None  # QET mode (see below)
 # In QESEMResult (qesem.py) — new QET fields:
 noise_scale_results: list[dict[float, tuple[float, float]]] | None  # Per-observable scale data
 extrapolation_method: str  # "qesem_standard" | "qet_user_wls" | "qesem_heuristic"
-qesem_heuristic_energy: float | None  # Exponential ZNE from scales 1.0+2.0
 qesem_heuristic_std: float | None
 
 # In HardwareRunResult (config.py):
 qesem_used: bool                     # True if QESEM was the mitigation method
 qesem_job_id: str                    # Job ID for provenance/recovery
-qesem_total_qpu_time: float | None   # Seconds reported by QESEM
-qesem_gate_fidelities: dict | None   # Per-gate fidelities from characterization
 qesem_total_shots: int | None        # Total shots used
 qesem_mitigation_shots: int | None   # Shots allocated to mitigation
 qesem_noisy_evs: list[float] | None  # Pre-mitigation raw estimates (None if unavailable)

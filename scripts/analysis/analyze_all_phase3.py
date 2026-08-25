@@ -9,10 +9,10 @@ Features:
 - Flags cases where ΔE/gap < 5% but ΔE absolute is large
 
 Usage:
-    python scripts/analysis/analyze_all_phase3.py                    # all results
-    python scripts/analysis/analyze_all_phase3.py --date 20260717    # filter by date
-    python scripts/analysis/analyze_all_phase3.py --pass-only -v     # detailed pass
-    python scripts/analysis/analyze_all_phase3.py --json             # machine output
+    .venv/bin/python scripts/analysis/analyze_all_phase3.py                    # all results
+    .venv/bin/python scripts/analysis/analyze_all_phase3.py --date 20260717    # filter by date
+    .venv/bin/python scripts/analysis/analyze_all_phase3.py --pass-only -v     # detailed pass
+    .venv/bin/python scripts/analysis/analyze_all_phase3.py --json             # machine output
 """
 
 from __future__ import annotations

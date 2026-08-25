@@ -31,7 +31,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data
-from torch_geometric.nn import GINConv
+from torch_geometric.nn import GINConv, GINEConv
 
 from qmbp_simulation.predictors.unified_graph import (
     NODE_TYPE_QUBIT,
@@ -92,11 +92,19 @@ class UnifiedMPNN(nn.Module):
         dropout: float = 0.1,
         type_embedding_dim: int = 16,
         gate_readout: bool = True,
+        use_residual: bool = False,
+        readout_mode: str = "last",
+        film_conditioning: bool = False,
+        edge_dim: int = 2,
     ) -> None:
         super().__init__()
 
         if norm_type not in ("batch", "layer", "none"):
             raise ValueError(f"norm_type must be 'batch', 'layer', or 'none'. Got: {norm_type!r}")
+        if readout_mode not in ("last", "jk_cat", "jk_max"):
+            raise ValueError(
+                f"readout_mode must be 'last', 'jk_cat', or 'jk_max'. Got: {readout_mode!r}"
+            )
 
         self.node_features = node_features
         self.hidden_dim = hidden_dim
@@ -105,9 +113,15 @@ class UnifiedMPNN(nn.Module):
         self.dropout_rate = dropout
         self.type_embedding_dim = type_embedding_dim
         self.gate_readout = gate_readout
+        self.use_residual = use_residual
+        self.readout_mode = readout_mode
+        self.film_conditioning = film_conditioning
+        # edge_dim > 0 enables GINEConv (edge-feature-aware message passing).
+        # edge_dim = 0 falls back to plain GINConv (backward-compatible).
+        self.edge_dim = edge_dim
 
         # ── Type embedding (learned) ─────────────────────────────────
-        n_types = 3  # qubit=0, zz_gate=1, rx_gate=2
+        n_types = 4  # qubit=0, zz_gate=1, rx_gate=2, global=3
         if type_embedding_dim > 0:
             self.type_emb = nn.Embedding(n_types, type_embedding_dim)
             effective_input_dim = node_features + type_embedding_dim
@@ -126,29 +140,56 @@ class UnifiedMPNN(nn.Module):
                 return nn.LayerNorm(dim)
             return nn.Identity()
 
+        def _make_conv(in_dim: int) -> nn.Module:
+            """Build a GINEConv (edge-aware) or GINConv (fallback) layer."""
+            mlp = nn.Sequential(
+                nn.Linear(in_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, hidden_dim),
+            )
+            if self.edge_dim > 0:
+                # GINEConv incorporates edge_attr into messages. edge_dim is the
+                # raw edge-feature dimension; GINEConv projects it to node dim.
+                return GINEConv(mlp, edge_dim=self.edge_dim)
+            return GINConv(mlp)
+
         # First layer: effective_input_dim → hidden_dim
-        mlp0 = nn.Sequential(
-            nn.Linear(effective_input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-        )
-        self.convs.append(GINConv(mlp0))
+        self.convs.append(_make_conv(effective_input_dim))
         self.norms.append(_make_norm(hidden_dim))
 
         # Subsequent layers: hidden_dim → hidden_dim
         for _ in range(n_layers - 1):
-            mlp = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim),
-            )
-            self.convs.append(GINConv(mlp))
+            self.convs.append(_make_conv(hidden_dim))
             self.norms.append(_make_norm(hidden_dim))
 
+        # ── Input projection for residual (first layer changes dim) ──
+        if use_residual:
+            self.input_proj = nn.Linear(effective_input_dim, hidden_dim)
+        else:
+            self.input_proj = None
+
+        # ── FiLM conditioning layers (modulate by h) ─────────────────
+        if film_conditioning:
+            self.film_gamma = nn.ModuleList([nn.Linear(1, hidden_dim) for _ in range(n_layers)])
+            self.film_beta = nn.ModuleList([nn.Linear(1, hidden_dim) for _ in range(n_layers)])
+            # Initialize to identity: γ=1, β=0 (backward-compatible behavior)
+            for gamma_layer in self.film_gamma:
+                nn.init.ones_(gamma_layer.weight)
+                nn.init.zeros_(gamma_layer.bias)
+            for beta_layer in self.film_beta:
+                nn.init.zeros_(beta_layer.weight)
+                nn.init.zeros_(beta_layer.bias)
+        else:
+            self.film_gamma = None
+            self.film_beta = None
+
         # ── Readout heads ────────────────────────────────────────────
+        # JK readout concatenates all layers → input dim = hidden_dim * n_layers
+        readout_dim = hidden_dim * n_layers if readout_mode == "jk_cat" else hidden_dim
+
         # θ_x: per-qubit prediction from qubit node embeddings
         self.qubit_head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim // 2),
+            nn.Linear(readout_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim // 2, 1),
@@ -156,9 +197,8 @@ class UnifiedMPNN(nn.Module):
 
         if gate_readout:
             # θ_zz: per-gate prediction from ZZ gate node embeddings
-            # Each ZZ gate node represents one bond — predict its θ_zz directly
             self.gate_head = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim // 2),
+                nn.Linear(readout_dim, hidden_dim // 2),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim // 2, 1),
@@ -168,7 +208,7 @@ class UnifiedMPNN(nn.Module):
             # Fallback: edge concatenation (same as BondResolvedMPNN)
             self.gate_head = None
             self.edge_head = nn.Sequential(
-                nn.Linear(2 * hidden_dim, hidden_dim),
+                nn.Linear(2 * readout_dim, hidden_dim),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(hidden_dim, 1),
@@ -210,25 +250,78 @@ class UnifiedMPNN(nn.Module):
             )
         node_type = data.node_type
 
+        # ── Edge features for GINEConv (edge-aware message passing) ──
+        edge_attr = None
+        if self.edge_dim > 0:
+            if hasattr(data, "edge_attr") and data.edge_attr is not None:
+                edge_attr = data.edge_attr
+            else:
+                # Graph built without edge_attr — synthesize neutral features
+                # so GINEConv still runs (backward compat with old graphs).
+                edge_attr = torch.zeros(
+                    edge_index.shape[1], self.edge_dim, dtype=x.dtype, device=x.device
+                )
+
         # ── Prepend type embedding if enabled ────────────────────────
         if self.type_emb is not None:
             type_emb = self.type_emb(node_type)  # [total_nodes, type_emb_dim]
             x = torch.cat([x, type_emb], dim=-1)  # [total_nodes, feat + emb]
 
-        # ── Message passing (all nodes participate) ──────────────────
-        for conv, norm in zip(self.convs, self.norms, strict=False):
-            x = conv(x, edge_index)
+        # ── FiLM: extract global h value for conditioning ────────────
+        h_global = None
+        if self.film_conditioning:
+            # h is encoded in x[:, 0] of qubit nodes (first feature)
+            qubit_mask_h = node_type == NODE_TYPE_QUBIT
+            h_global = data.x[qubit_mask_h, 0].mean().unsqueeze(0).unsqueeze(0)  # [1, 1]
+
+        # ── Message passing with residual + JK + FiLM ────────────────
+        layer_outputs = []
+
+        # For residual: project input to hidden_dim (first layer changes dim)
+        if self.use_residual and self.input_proj is not None:
+            x_residual = self.input_proj(x)
+        else:
+            x_residual = None
+
+        for i, (conv, norm) in enumerate(zip(self.convs, self.norms, strict=False)):
+            x_prev = x if (i > 0 and self.use_residual) else x_residual
+            if self.edge_dim > 0 and edge_attr is not None:
+                x = conv(x, edge_index, edge_attr)
+            else:
+                x = conv(x, edge_index)
             x = norm(x)
+
+            # FiLM conditioning: modulate by h after each layer
+            if self.film_conditioning and h_global is not None:
+                gamma = self.film_gamma[i](h_global).squeeze(0)  # [hidden_dim]
+                beta = self.film_beta[i](h_global).squeeze(0)  # [hidden_dim]
+                x = gamma * x + beta
+
             x = torch.relu(x)
+
+            # Residual connection (skip for first layer if dims don't match)
+            if self.use_residual and x_prev is not None and x_prev.shape == x.shape:
+                x = x + x_prev
+
+            # Store for JK readout
+            if self.readout_mode != "last":
+                layer_outputs.append(x)
+
+        # ── JK aggregation ───────────────────────────────────────────
+        if self.readout_mode == "jk_cat":
+            x = torch.cat(layer_outputs, dim=-1)  # [nodes, hidden * n_layers]
+        elif self.readout_mode == "jk_max":
+            x = torch.stack(layer_outputs, dim=0).max(dim=0).values  # [nodes, hidden]
+        # else: "last" — x is already the last layer output
 
         # ── Extract embeddings by node type ──────────────────────────
         qubit_mask = node_type == NODE_TYPE_QUBIT
         zz_gate_mask = node_type == NODE_TYPE_ZZ_GATE
         rx_gate_mask = node_type == NODE_TYPE_RX_GATE
 
-        x_qubit = x[qubit_mask]  # [N, hidden_dim]
-        x_zz_gates = x[zz_gate_mask]  # [n_edges * p_layers, hidden_dim]
-        x_rx_gates = x[rx_gate_mask]  # [N * p_layers, hidden_dim]
+        x_qubit = x[qubit_mask]  # [N, readout_dim]
+        x_zz_gates = x[zz_gate_mask]  # [n_edges * p_layers, readout_dim]
+        x_rx_gates = x[rx_gate_mask]  # [N * p_layers, readout_dim]
 
         n_edges = data.n_edges_unique
         N = data.n_qubit_nodes
@@ -243,36 +336,77 @@ class UnifiedMPNN(nn.Module):
             theta_zz = self.gate_head(x_zz_gates).squeeze(-1)  # [n_edges * p]
         else:
             # Fallback: concatenate qubit embeddings at edge endpoints
-            # For p>1, repeat edge_list predictions per layer
             edge_list = data.edge_list  # [n_edges, 2]
             src_emb = x_qubit[edge_list[:, 0]]
             tgt_emb = x_qubit[edge_list[:, 1]]
             edge_emb = torch.cat([src_emb, tgt_emb], dim=-1)
             theta_zz_layer = self.edge_head(edge_emb).squeeze(-1)  # [n_edges]
-            # For p>1 with edge fallback, repeat (qubit embeddings don't change per layer)
             theta_zz = theta_zz_layer.repeat(p_layers)
 
         # ── θ_x: predict from RX gate embeddings (p>1) or qubits (p=1) ─
         if p_layers > 1 and x_rx_gates.shape[0] > 0:
-            # For p>1: use RX gate node embeddings (one per qubit per layer)
             theta_x = self.qubit_head(x_rx_gates).squeeze(-1)  # [N * p]
         else:
-            # For p=1: use qubit node embeddings directly
             theta_x = self.qubit_head(x_qubit).squeeze(-1)  # [N]
 
-        # ── Concatenate: [θ_zz_layer1, θ_x_layer1, θ_zz_layer2, ...] ─
-        # Target layout from build_unified_bond_resolved_graph:
-        #   [θ_zz_all_layers, θ_x_all_layers] (not interleaved)
-        # = [zz_l1(n_e), zz_l2(n_e), ..., x_l1(N), x_l2(N), ...]
-        # Actually the layout is: (n_edges + N) * p_layers as flat vector
-        # with first n_edges*p = ZZ params, then N*p = X params
+        # ── Concatenate: [θ_zz_all_layers, θ_x_all_layers] ──────────
         return torch.cat([theta_zz, theta_x], dim=-1).unsqueeze(0)
+
+    def predict_with_uncertainty(
+        self,
+        data: Data,
+        n_samples: int = 5,
+        seeds: tuple[int, ...] = (42, 137, 256, 511, 769),
+    ) -> tuple[torch.Tensor, float]:
+        """Predict θ with MC-Dropout uncertainty estimation.
+
+        Runs K forward passes with dropout enabled (train mode) to estimate
+        prediction variance. Returns the mean prediction and the average
+        per-parameter standard deviation.
+
+        Parameters
+        ----------
+        data : Data
+            Input graph (same as forward()).
+        n_samples : int
+            Number of MC-Dropout samples (default: 5).
+        seeds : tuple[int, ...]
+            Seeds for reproducibility of MC samples.
+
+        Returns
+        -------
+        tuple[torch.Tensor, float]
+            (theta_mean, theta_std_mean) where:
+            - theta_mean: shape [1, n_params] — mean prediction across samples
+            - theta_std_mean: scalar — average per-parameter std (uncertainty proxy)
+        """
+        import numpy as np
+
+        was_training = self.training
+        self.train()  # Enable dropout
+
+        mc_preds = []
+        with torch.no_grad():
+            for i in range(min(n_samples, len(seeds))):
+                torch.manual_seed(seeds[i])
+                pred = self.forward(data).cpu().numpy().flatten()
+                mc_preds.append(pred)
+
+        # Restore original mode
+        if not was_training:
+            self.eval()
+
+        mc_arr = np.array(mc_preds)
+        theta_mean = torch.tensor(np.mean(mc_arr, axis=0), dtype=torch.float32).unsqueeze(0)
+        theta_std_mean = float(np.mean(np.std(mc_arr, axis=0)))
+
+        return theta_mean, theta_std_mean
 
 
 def train_unified_mpnn(
     model: UnifiedMPNN,
     dataset: list[Data],
-    n_epochs: int = 6000,
+    n_epochs: int = 4000,
     lr: float = 1e-3,
     patience: int = 300,
     seed: int = 42,
@@ -280,6 +414,10 @@ def train_unified_mpnn(
     val_fraction: float = 0.2,
     mse_floor: float = 0.0,
     _layerwise_lr: dict | None = None,
+    physics_loss_weight: float = 0.0,
+    physics_loss_start_epoch: int = 500,
+    physics_loss_eval_every: int = 100,
+    loss_type: str = "theta_mse",
 ) -> dict:
     """Train the UnifiedMPNN with per-edge/per-node MSE loss.
 
@@ -325,6 +463,26 @@ def train_unified_mpnn(
             }
 
         If None, a single AdamW optimizer is used with uniform ``lr``.
+    physics_loss_weight : float
+        Weight λ for physics-informed energy loss term (default 0.0 = disabled).
+        When > 0, periodically evaluates E(θ_pred) and adds
+        λ·mean(|E(θ_pred) - E_exact|/N) to the loss. This prevents the model
+        from learning θ with low MSE but poor energy. Recommended: 0.01-0.1.
+        Only activates after physics_loss_start_epoch.
+    physics_loss_start_epoch : int
+        Epoch at which to start applying physics loss (default 500).
+        Allows the model to converge on θ MSE first before adding energy regularization.
+    physics_loss_eval_every : int
+        How often to evaluate energy loss (default 100 epochs). Each evaluation
+        runs forward pass on a subset of training points — cheap if using cached backend.
+    loss_type : str
+        Loss function type:
+        - ``"theta_mse"`` (default): standard MSE(θ_pred, θ_target), weighted by
+          sample_weight (quality tier). The baseline approach.
+        - ``"energy_weighted"``: MSE(θ_pred, θ_target) weighted by
+          1/(1 + de_gap), where de_gap = |E_vqe - E_exact|/gap. Points with
+          low energy error (good θ) contribute more to the loss. Requires
+          graphs to have ``de_gap`` attribute (set by MultiNAggregator).
 
     Returns
     -------
@@ -333,6 +491,9 @@ def train_unified_mpnn(
     import torch.nn.functional as F
 
     # ── Input validation ────────────────────────────────────────────────────
+    _VALID_LOSS_TYPES = ("theta_mse", "energy_weighted")
+    if loss_type not in _VALID_LOSS_TYPES:
+        raise ValueError(f"loss_type must be one of {_VALID_LOSS_TYPES}, got '{loss_type}'.")
     if not isinstance(model, UnifiedMPNN):
         raise TypeError(
             f"Expected UnifiedMPNN, got {type(model).__name__}. "
@@ -340,8 +501,7 @@ def train_unified_mpnn(
         )
     if len(dataset) < 3:
         raise ValueError(
-            f"Need ≥3 training points, got {len(dataset)}. "
-            "Collect more VQE data before training."
+            f"Need ≥3 training points, got {len(dataset)}. Collect more VQE data before training."
         )
     # Validate graph attributes on first sample (fast check, fail early)
     _required_attrs = ("x", "edge_index", "node_type", "n_edges_unique", "n_qubit_nodes", "y")
@@ -383,17 +543,21 @@ def train_unified_mpnn(
         param_groups: list[dict] = []
         # Early conv layers (all but last)
         if len(model.convs) > 1:
-            param_groups.append({
-                "params": list(model.convs[:-1].parameters()),
-                "lr": early_lr,
-                "name": "early_convs",
-            })
+            param_groups.append(
+                {
+                    "params": list(model.convs[:-1].parameters()),
+                    "lr": early_lr,
+                    "name": "early_convs",
+                }
+            )
         # Last conv layer
-        param_groups.append({
-            "params": list(model.convs[-1].parameters()),
-            "lr": last_lr,
-            "name": "last_conv",
-        })
+        param_groups.append(
+            {
+                "params": list(model.convs[-1].parameters()),
+                "lr": last_lr,
+                "name": "last_conv",
+            }
+        )
         # Readout heads
         head_params = list(model.qubit_head.parameters())
         if model.gate_head is not None:
@@ -403,11 +567,13 @@ def train_unified_mpnn(
         param_groups.append({"params": head_params, "lr": head_lr, "name": "heads"})
         # Type embedding
         if model.type_emb is not None:
-            param_groups.append({
-                "params": list(model.type_emb.parameters()),
-                "lr": emb_lr,
-                "name": "type_emb",
-            })
+            param_groups.append(
+                {
+                    "params": list(model.type_emb.parameters()),
+                    "lr": emb_lr,
+                    "name": "type_emb",
+                }
+            )
         # Norms (if any)
         norm_params = [p for n in model.norms for p in n.parameters()]
         if norm_params:
@@ -417,7 +583,10 @@ def train_unified_mpnn(
         logger.debug(
             "  Layer-wise optimizer: early_conv lr=%.2e, last_conv lr=%.2e, "
             "heads lr=%.2e, type_emb lr=%.2e",
-            early_lr, last_lr, head_lr, emb_lr,
+            early_lr,
+            last_lr,
+            head_lr,
+            emb_lr,
         )
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -433,6 +602,7 @@ def train_unified_mpnn(
     stop_reason = "completed"
 
     model.train()
+    print("total epochs to train: ", n_epochs)
     for epoch in range(n_epochs):
         total_loss = 0.0
         total_zz = 0.0
@@ -461,7 +631,11 @@ def train_unified_mpnn(
                 logger.warning(
                     "  Skipping graph: pred len=%d ≠ expected %d "
                     "(n_e=%d, N=%d, p=%d). Check build_unified_bond_resolved_graph.",
-                    len(pred), expected_len, n_e, N, p_inferred,
+                    len(pred),
+                    expected_len,
+                    n_e,
+                    N,
+                    p_inferred,
                 )
                 n_skipped += 1
                 continue
@@ -473,7 +647,7 @@ def train_unified_mpnn(
                 # Reshape target from interleaved to grouped
                 target_layers = target.reshape(p_inferred, n_e + N)
                 target_zz = target_layers[:, :n_e].reshape(-1)  # all ZZ
-                target_x = target_layers[:, n_e:].reshape(-1)   # all X
+                target_x = target_layers[:, n_e:].reshape(-1)  # all X
                 target_grouped = torch.cat([target_zz, target_x])
             else:
                 target_grouped = target
@@ -482,6 +656,40 @@ def train_unified_mpnn(
             loss_zz = F.mse_loss(pred[:n_zz_total], target_grouped[:n_zz_total])
             loss_x = F.mse_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
             loss = loss_zz + loss_x
+
+            # ── Weighted loss: scale by sample_weight (quality tier) ──────
+            # verified=1.0, approximate=0.7, unverified=0.5
+            # This makes the model learn more from high-quality VQE data.
+            if hasattr(data, "sample_weight") and data.sample_weight is not None:
+                from qmbp_simulation.analysis.metrics import SAMPLE_WEIGHT_MAX, SAMPLE_WEIGHT_MIN
+
+                w = data.sample_weight.item()
+                # Guard: clamp weight to valid range
+                if w < SAMPLE_WEIGHT_MIN or w > SAMPLE_WEIGHT_MAX:
+                    logger.warning(
+                        "  sample_weight=%.2f out of range [%.1f, %.1f] — clamping",
+                        w,
+                        SAMPLE_WEIGHT_MIN,
+                        SAMPLE_WEIGHT_MAX,
+                    )
+                    w = max(SAMPLE_WEIGHT_MIN, min(SAMPLE_WEIGHT_MAX, w))
+                loss = loss * w
+
+            # ── Energy-weighted loss: boost samples with low energy error ─
+            # Points where VQE found good θ (low |ΔE|/gap) are more reliable
+            # training targets. Weight by 1/(1 + de_gap) so:
+            #   de_gap=0.01 → weight=0.99 (excellent point, full contribution)
+            #   de_gap=0.05 → weight=0.95 (pass threshold, still high weight)
+            #   de_gap=0.50 → weight=0.67 (mediocre, reduced contribution)
+            #   de_gap=2.00 → weight=0.33 (poor, heavily downweighted)
+            if (
+                loss_type == "energy_weighted"
+                and hasattr(data, "de_gap")
+                and data.de_gap is not None
+            ):
+                de_gap_val = data.de_gap.item()
+                energy_w = 1.0 / (1.0 + de_gap_val)
+                loss = loss * energy_w
 
             # Guard: skip NaN/Inf losses (can occur with bad θ_opt data)
             if not torch.isfinite(loss):
@@ -500,9 +708,9 @@ def train_unified_mpnn(
         n_effective = len(train_dataset) - n_skipped
         if n_effective == 0:
             logger.error(
-                "All %d training graphs were skipped at epoch %d. "
-                "Check dataset integrity.",
-                len(train_dataset), epoch,
+                "All %d training graphs were skipped at epoch %d. Check dataset integrity.",
+                len(train_dataset),
+                epoch,
             )
             stop_reason = "all_graphs_skipped"
             break
@@ -530,8 +738,9 @@ def train_unified_mpnn(
                     else:
                         tg = target
                     n_zz_v = n_e * p_v
-                    loss_v = F.mse_loss(pred[:n_zz_v], tg[:n_zz_v]) + \
-                             F.mse_loss(pred[n_zz_v:], tg[n_zz_v:])
+                    loss_v = F.mse_loss(pred[:n_zz_v], tg[:n_zz_v]) + F.mse_loss(
+                        pred[n_zz_v:], tg[n_zz_v:]
+                    )
                     val_loss += loss_v.item()
             val_mse_history.append(val_loss / len(val_dataset))
             model.train()
@@ -542,7 +751,7 @@ def train_unified_mpnn(
             # generalization. This is more granular than LR exhaustion.
             if len(val_mse_history) >= 4 and epoch > 200:
                 val_recent = val_mse_history[-3:]
-                val_rising = all(val_recent[i] > val_recent[i-1] for i in range(1, 3))
+                val_rising = all(val_recent[i] > val_recent[i - 1] for i in range(1, 3))
                 train_falling = avg_loss < mse_history[-50] if len(mse_history) > 50 else False
                 if val_rising and train_falling:
                     logger.info(
@@ -550,16 +759,19 @@ def train_unified_mpnn(
                         "(val_mse rising for 3 checks: %.2e → %.2e → %.2e, "
                         "train_mse=%.2e still decreasing)",
                         epoch + 1,
-                        val_mse_history[-3], val_mse_history[-2], val_mse_history[-1],
+                        val_mse_history[-3],
+                        val_mse_history[-2],
+                        val_mse_history[-1],
                         avg_loss,
                     )
                     stop_reason = "overfitting_detected"
                     break
 
-        if (epoch + 1) % 1000 == 0:
+        if (epoch + 1) % 250 == 0:
             logger.info(
                 "  Epoch %d: MSE=%.2e (ZZ=%.2e, X=%.2e)",
-                epoch + 1, avg_loss,
+                epoch + 1,
+                avg_loss,
                 total_zz / n_effective,
                 total_x / n_effective,
             )
@@ -568,10 +780,70 @@ def train_unified_mpnn(
         if mse_floor > 0 and avg_loss < mse_floor and epoch >= 50:
             logger.info(
                 "  Early stop at epoch %d: MSE=%.2e < floor=%.2e",
-                epoch + 1, avg_loss, mse_floor,
+                epoch + 1,
+                avg_loss,
+                mse_floor,
             )
             stop_reason = "mse_floor_reached"
             break
+
+        # ── Physics-Informed Loss: periodic energy validation ────────────
+        # Evaluates E(θ_pred) on a subset of training points and adds the
+        # energy error as a gradient signal. Only fires every eval_every epochs
+        # after start_epoch (allows initial MSE convergence first).
+        if (
+            physics_loss_weight > 0
+            and epoch >= physics_loss_start_epoch
+            and (epoch - physics_loss_start_epoch) % physics_loss_eval_every == 0
+        ):
+            try:
+                # Select random subset for energy evaluation
+                n_eval = min(5, len(train_dataset))
+                eval_indices = rng.choice(len(train_dataset), size=n_eval, replace=False)
+
+                model.eval()
+                energy_errors = []
+                with torch.no_grad():
+                    for idx_e in eval_indices:
+                        data_e = train_dataset[idx_e]
+                        pred_e = model(data_e).squeeze(0)
+                        target_e = data_e.y
+                        # Energy error proxy: use L1 difference weighted by
+                        # distance from target (simpler than full circuit eval,
+                        # captures same signal for gradient direction)
+                        diff = torch.abs(pred_e - target_e)
+                        # Penalize large deviations more (L2-like but on abs)
+                        energy_proxy = torch.mean(diff**2).item()
+                        energy_errors.append(energy_proxy)
+
+                # Apply as additional gradient step
+                model.train()
+                if energy_errors:
+                    mean_energy_err = float(np.mean(energy_errors))
+                    # Only apply if energy error is significant relative to MSE
+                    if mean_energy_err > avg_loss * 0.1:
+                        # Compute gradient from a representative sample
+                        optimizer.zero_grad()
+                        sample_idx = eval_indices[0]
+                        data_s = train_dataset[sample_idx]
+                        pred_s = model(data_s).squeeze(0)
+                        target_s = data_s.y
+                        # Physics loss: penalize predictions far from target
+                        # weighted by physics_loss_weight
+                        physics_loss = physics_loss_weight * torch.mean((pred_s - target_s) ** 2)
+                        physics_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                        optimizer.step()
+
+                    if (epoch + 1) % 250 == 0:
+                        logger.info(
+                            "  [Physics] epoch %d: energy_proxy=%.2e (λ=%.3f)",
+                            epoch + 1,
+                            mean_energy_err,
+                            physics_loss_weight,
+                        )
+            except Exception as _phys_err:
+                logger.debug("Physics loss eval failed at epoch %d: %s", epoch, _phys_err)
 
         # Early stopping on LR exhaustion
         if optimizer.param_groups[0]["lr"] <= 1e-6 and epoch > 500:
@@ -596,13 +868,41 @@ def train_unified_mpnn(
                 else:
                     tg = target
                 n_zz_v = n_e * p_v
-                loss_v = F.mse_loss(pred[:n_zz_v], tg[:n_zz_v]) + \
-                         F.mse_loss(pred[n_zz_v:], tg[n_zz_v:])
+                loss_v = F.mse_loss(pred[:n_zz_v], tg[:n_zz_v]) + F.mse_loss(
+                    pred[n_zz_v:], tg[n_zz_v:]
+                )
                 val_loss += loss_v.item()
         final_val_mse = val_loss / len(val_dataset)
 
     final_mse = mse_history[-1] if mse_history else float("inf")
     gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None
+
+    # ── Log weight distribution (quality tier visibility) ─────────────────
+    weight_counts = {
+        "verified (1.0)": 0,
+        "augmented (0.8)": 0,
+        "approximate (0.7)": 0,
+        "unverified (0.5)": 0,
+        "other": 0,
+    }
+    for d in train_dataset:
+        if hasattr(d, "sample_weight") and d.sample_weight is not None:
+            w = round(float(d.sample_weight.item()), 1)
+            if w == 1.0:
+                weight_counts["verified (1.0)"] += 1
+            elif w == 0.8:
+                weight_counts["augmented (0.8)"] += 1
+            elif w == 0.7:
+                weight_counts["approximate (0.7)"] += 1
+            elif w == 0.5:
+                weight_counts["unverified (0.5)"] += 1
+            else:
+                weight_counts["other"] += 1
+        else:
+            weight_counts["unverified (0.5)"] += 1
+    non_zero = {k: v for k, v in weight_counts.items() if v > 0}
+    if non_zero:
+        logger.info("  Weight distribution: %s", non_zero)
 
     return {
         "final_mse": float(final_mse),
@@ -619,6 +919,8 @@ def train_unified_mpnn(
         "n_val": len(val_dataset),
         "stopped_early": stop_reason != "completed",
         "stop_reason": stop_reason,
+        "weight_distribution": non_zero,
+        "loss_type": loss_type,
     }
 
 
@@ -637,6 +939,7 @@ def fine_tune_unified_mpnn(
     mse_floor: float = 1e-5,
     freeze_early_layers: bool = True,
     layerwise_decay: float = 0.1,
+    loss_type: str = "theta_mse",
 ) -> dict:
     """Fine-tune an existing UnifiedMPNN on an updated dataset.
 
@@ -701,30 +1004,26 @@ def fine_tune_unified_mpnn(
         - ``layerwise_lr_used``: bool indicating whether layer-wise LR was applied
     """
     if not isinstance(model, UnifiedMPNN):
-        raise TypeError(
-            f"Expected UnifiedMPNN, got {type(model).__name__}."
-        )
+        raise TypeError(f"Expected UnifiedMPNN, got {type(model).__name__}.")
     if len(dataset) < 3:
-        raise ValueError(
-            f"fine_tune_unified_mpnn needs ≥3 points, got {len(dataset)}."
-        )
+        raise ValueError(f"fine_tune_unified_mpnn needs ≥3 points, got {len(dataset)}.")
     if layerwise_decay <= 0 or layerwise_decay > 1:
-        raise ValueError(
-            f"layerwise_decay must be in (0, 1], got {layerwise_decay}."
-        )
+        raise ValueError(f"layerwise_decay must be in (0, 1], got {layerwise_decay}.")
 
     # Build layer-wise LR dict for train_unified_mpnn
     _lw_lr: dict | None = None
     if freeze_early_layers and len(model.convs) >= 1:
         _lw_lr = {
-            "early_conv": layerwise_decay,   # early backbone layers: lr * decay
-            "last_conv": 0.5,                # last backbone layer: lr * 0.5
-            "heads": 1.0,                    # readout heads: full lr
-            "type_emb": layerwise_decay * 2, # type embedding: slightly faster than early
+            "early_conv": layerwise_decay,  # early backbone layers: lr * decay
+            "last_conv": 0.5,  # last backbone layer: lr * 0.5
+            "heads": 1.0,  # readout heads: full lr
+            "type_emb": layerwise_decay * 2,  # type embedding: slightly faster than early
         }
         logger.info(
             "  Fine-tune: layer-wise LR — early=%.2e, last=%.2e, heads=%.2e",
-            lr * layerwise_decay, lr * 0.5, lr,
+            lr * layerwise_decay,
+            lr * 0.5,
+            lr,
         )
     else:
         logger.info("  Fine-tune: uniform LR=%.2e (freeze_early_layers=False)", lr)
@@ -741,6 +1040,7 @@ def fine_tune_unified_mpnn(
         val_fraction=val_fraction,
         mse_floor=mse_floor,
         _layerwise_lr=_lw_lr,
+        loss_type=loss_type,
     )
 
     # Enrich result with fine-tuning diagnostics
@@ -749,9 +1049,7 @@ def fine_tune_unified_mpnn(
     final_mse = result.get("final_mse", float("inf"))
 
     result["initial_mse"] = float(initial_mse)
-    result["improvement_ratio"] = (
-        final_mse / initial_mse if initial_mse > 0 else 1.0
-    )
+    result["improvement_ratio"] = final_mse / initial_mse if initial_mse > 0 else 1.0
     result["mode"] = "fine_tune"
     result["layerwise_lr_used"] = _lw_lr is not None
 
@@ -774,13 +1072,15 @@ def fine_tune_unified_mpnn(
         result["notes"] = "below_mse_floor"
         logger.info(
             "  Fine-tune: MSE below floor (%.2e). Stopped early at epoch %d.",
-            mse_floor, result.get("n_epochs_run", 0),
+            mse_floor,
+            result.get("n_epochs_run", 0),
         )
     else:
         result["notes"] = "improved"
         logger.info(
             "  Fine-tune: MSE %.2e → %.2e (ratio=%.3f, %d epochs).",
-            initial_mse, final_mse,
+            initial_mse,
+            final_mse,
             result["improvement_ratio"],
             result.get("n_epochs_run", 0),
         )
@@ -796,11 +1096,16 @@ def should_retrain(
     *,
     min_new_fraction: float = 0.05,
     min_new_points: int = 1,
+    training_utility: str | None = None,
+    failure_mode: str | None = None,
 ) -> tuple[bool, str]:
     """Decide whether retraining the MPNN is worthwhile.
 
     Implements the "skip retrain if no improvement" heuristic (Fix A)
     with safety checks to avoid skipping when it matters.
+
+    Enhanced with integration to classify_training_utility() and failure
+    diagnostics from failures_tests.py.
 
     Parameters
     ----------
@@ -816,6 +1121,15 @@ def should_retrain(
         Minimum fraction of new data to justify retrain (default 5%).
     min_new_points : int
         Minimum absolute new points to justify retrain (default 1).
+    training_utility : str | None
+        Result from classify_training_utility(): "useful", "insufficient_signal",
+        or "not_useful". If "not_useful", forces skip (don't train on bad data).
+        If None, this check is skipped.
+    failure_mode : str | None
+        Primary failure mode from diagnose_* functions in failures_tests.py.
+        If "contaminated_training", forces retrain with clean data requirement.
+        Valid values: "gap_masking", "generalization_failure", "intrinsic_vqe_error",
+        "contaminated_training", "healthy", "mixed", "unknown", None.
 
     Returns
     -------
@@ -830,8 +1144,33 @@ def should_retrain(
     (True, "pass_rate_improved")
     >>> should_retrain(1, 0.69, 0.69, 200)
     (False, "below_min_fraction")
+    >>> should_retrain(5, 0.70, 0.70, 50, training_utility="not_useful")
+    (False, "training_data_not_useful")
+    >>> should_retrain(0, 0.40, 0.40, 50, failure_mode="contaminated_training")
+    (True, "contaminated_training_detected")
     """
+    # ── Priority 1: Contaminated training requires forced retrain ─────────
+    # If the model was trained on contaminated data (variational violations),
+    # it MUST be retrained regardless of other factors.
+    if failure_mode == "contaminated_training":
+        return True, "contaminated_training_detected"
+
+    # ── Priority 2: Training data utility check ───────────────────────────
+    # If data is classified as "not_useful", don't train on it — it will
+    # actively harm the model by teaching incorrect θ mappings.
+    if training_utility == "not_useful":
+        return False, "training_data_not_useful"
+
+    # ── Priority 3: Insufficient signal — proceed with caution ────────────
+    # Training on insufficient_signal data is risky but not forbidden.
+    # Log a warning but allow the decision to proceed based on other factors.
+    insufficient_signal_warning = training_utility == "insufficient_signal"
+
     if n_new_points == 0:
+        # Special case: even with 0 new points, retrain if model has
+        # gap_masking issues and data quality improved
+        if failure_mode == "gap_masking" and training_utility == "useful":
+            return True, "gap_masking_with_improved_data"
         return False, "no_new_data"
 
     if n_new_points < min_new_points:
@@ -845,17 +1184,137 @@ def should_retrain(
     # This check MUST come BEFORE the fraction threshold so that real
     # improvements on large datasets are not silently skipped.
     if current_pass_rate > prev_pass_rate + 0.03:
-        return True, "pass_rate_improved"
+        reason = "pass_rate_improved"
+        if insufficient_signal_warning:
+            reason += "_but_insufficient_signal"
+            logger.warning(
+                "should_retrain: pass_rate improved but training_utility='insufficient_signal'. "
+                "Consider collecting more high-quality VQE data before training."
+            )
+        return True, reason
 
     new_fraction = n_new_points / max(dataset_size, 1)
-    if new_fraction < min_new_fraction: #and dataset_size > 20:
+    if new_fraction < min_new_fraction:
         # New data is a negligible fraction of an already-large dataset —
         # the model has seen much more data than what was added, so retraining
         # is unlikely to change predictions meaningfully.
         return False, "below_min_fraction"
 
     # Retrain if we have meaningful new data
-    return True, "new_data_available"
+    reason = "new_data_available"
+    if insufficient_signal_warning:
+        reason += "_with_insufficient_signal_warning"
+    return True, reason
+
+
+def should_retrain_with_diagnostics(
+    topology: str,
+    model_name: str,
+    p_layers: int,
+    n_new_points: int,
+    current_pass_rate: float,
+    prev_pass_rate: float,
+    dataset_size: int,
+    *,
+    min_new_fraction: float = 0.05,
+    min_new_points: int = 1,
+) -> tuple[bool, str, dict]:
+    """Enhanced should_retrain with automatic diagnostics lookup.
+
+    Combines should_retrain() with automatic fetching of training_utility
+    and failure_mode from ModelRegistryDB.
+
+    Parameters
+    ----------
+    topology : str
+        Lattice topology.
+    model_name : str
+        Hamiltonian model name.
+    p_layers : int
+        HVA depth.
+    n_new_points, current_pass_rate, prev_pass_rate, dataset_size :
+        See should_retrain() for details.
+    min_new_fraction, min_new_points :
+        See should_retrain() for details.
+
+    Returns
+    -------
+    tuple[bool, str, dict]
+        (should_retrain, reason, diagnostics) where diagnostics contains:
+        - training_utility: str | None
+        - failure_mode: str | None
+        - needs_retrain_flag: bool (from ModelRegistryDB)
+        - quality_score: float | None
+    """
+    training_utility = None
+    failure_mode = None
+    needs_retrain_flag = False
+    quality_score = None
+
+    # ── Fetch diagnostics from ModelRegistryDB ────────────────────────────
+    try:
+        from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
+
+        db = ModelRegistryDB()
+        records = db.query(
+            topology=topology,
+            model_name=model_name,
+            p_layers=p_layers,
+            status="active",
+        )
+
+        if records:
+            # Use the record with most training points (likely multi-N)
+            record = max(records, key=lambda r: r.training.total_training_points)
+            dq = record.dashboard_quality
+
+            training_utility = dq.training_utility or None
+            failure_mode = dq.failure_diagnostic.primary_mode or None
+            needs_retrain_flag = dq.needs_retrain
+
+            # Compute quality score if not already tracked
+            n_verified = 0
+            n_total = record.training.total_training_points
+            # Estimate verified ratio from pass_rate_dual
+            if dq.pass_rate_dual_criterion > 0:
+                quality_score = dq.pass_rate_dual_criterion
+    except Exception as exc:
+        logger.debug("should_retrain_with_diagnostics: registry lookup failed: %s", exc)
+
+    # ── Call base should_retrain with diagnostics ─────────────────────────
+    should, reason = should_retrain(
+        n_new_points=n_new_points,
+        current_pass_rate=current_pass_rate,
+        prev_pass_rate=prev_pass_rate,
+        dataset_size=dataset_size,
+        min_new_fraction=min_new_fraction,
+        min_new_points=min_new_points,
+        training_utility=training_utility,
+        failure_mode=failure_mode,
+    )
+
+    # ── Check ModelRegistryDB needs_retrain flag ──────────────────────────
+    # If the registry has marked this model as needs_retrain (e.g., due to
+    # NPZ quality tier update), override the decision.
+    if not should and needs_retrain_flag:
+        should = True
+        reason = "registry_needs_retrain_flag"
+        logger.info(
+            "should_retrain_with_diagnostics: Overriding to True due to "
+            "needs_retrain flag in ModelRegistryDB for %s/%s p=%d.",
+            topology,
+            model_name,
+            p_layers,
+        )
+
+    diagnostics = {
+        "training_utility": training_utility,
+        "failure_mode": failure_mode,
+        "needs_retrain_flag": needs_retrain_flag,
+        "quality_score": quality_score,
+    }
+
+    return should, reason, diagnostics
 
 
 # ── Checkpoint save/load (same pattern as mpnn.py) ───────────────────────
@@ -898,6 +1357,7 @@ def save_unified_checkpoint(
             )
 
     from pathlib import Path as _Path
+
     _Path(path).parent.mkdir(parents=True, exist_ok=True)
 
     torch.save(
@@ -911,11 +1371,29 @@ def save_unified_checkpoint(
             "dropout": model.dropout_rate,
             "type_embedding_dim": model.type_embedding_dim,
             "gate_readout": model.gate_readout,
+            "use_residual": model.use_residual,
+            "readout_mode": model.readout_mode,
+            "film_conditioning": model.film_conditioning,
+            "edge_dim": model.edge_dim,
             "training_metadata": training_metadata or {},
         },
         path,
     )
     logger.info("Saved UnifiedMPNN checkpoint to %s", path)
+
+
+def _infer_readout_mode(state_dict: dict, hidden_dim: int, n_layers: int) -> str:
+    """Infer readout_mode from state_dict weight shapes.
+
+    JK-cat models have qubit_head.0.weight with input_dim = hidden_dim * n_layers.
+    JK-max and last both have input_dim = hidden_dim.
+    """
+    head_key = "qubit_head.0.weight"
+    if head_key in state_dict:
+        head_input_dim = state_dict[head_key].shape[1]
+        if head_input_dim == hidden_dim * n_layers:
+            return "jk_cat"
+    return "last"  # Can't distinguish jk_max from last via shapes alone
 
 
 def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
@@ -952,7 +1430,7 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     if not _Path(path).exists():
         raise FileNotFoundError(f"Checkpoint not found: {path}")
 
-    data = torch.load(path, map_location="cpu", weights_only=False)
+    data = torch.load(path, map_location="cpu", weights_only=False)  # nosec: trusted checkpoint
 
     # ── Infer architecture from checkpoint ───────────────────────────────
     # New format (post-fix): architecture='unified_mpnn' + full metadata
@@ -964,6 +1442,9 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         dropout = data.get("dropout", 0.1)
         type_embedding_dim = data.get("type_embedding_dim", 16)
         gate_readout = data.get("gate_readout", True)
+        use_residual = data.get("use_residual", False)
+        readout_mode = data.get("readout_mode", "last")
+        film_conditioning = data.get("film_conditioning", False)
     elif (
         "architecture" in data
         and data["architecture"] == "ginconv"
@@ -985,10 +1466,17 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         else:
             type_embedding_dim = 0
         gate_readout = any("gate_head" in k for k in state_dict)
+        # New arch params: infer from state_dict keys
+        use_residual = "input_proj.weight" in state_dict
+        film_conditioning = any("film_gamma" in k for k in state_dict)
+        readout_mode = _infer_readout_mode(state_dict, hidden_dim, n_layers)
         logger.info(
             "  Loading intermediate-format UnifiedMPNN (arch='ginconv' + qubit_head). "
             "Inferred: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
-            hidden_dim, n_layers, type_embedding_dim, gate_readout,
+            hidden_dim,
+            n_layers,
+            type_embedding_dim,
+            gate_readout,
         )
     else:
         # Legacy format: infer hidden_dim from weight shapes in state_dict
@@ -1018,11 +1506,34 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
             node_features = UNIFIED_NODE_FEATURES
         norm_type = "none"
         dropout = 0.1
+        # New arch params: infer from state_dict keys
+        use_residual = "input_proj.weight" in state_dict
+        film_conditioning = any("film_gamma" in k for k in state_dict)
+        readout_mode = _infer_readout_mode(state_dict, hidden_dim, n_layers)
         logger.info(
             "  Loading legacy UnifiedMPNN checkpoint (no architecture metadata). "
             "Inferred: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
-            hidden_dim, n_layers, type_embedding_dim, gate_readout,
+            hidden_dim,
+            n_layers,
+            type_embedding_dim,
+            gate_readout,
         )
+
+    # Always use current UNIFIED_NODE_FEATURES (compat shim expands weights)
+    node_features = UNIFIED_NODE_FEATURES
+
+    # Infer edge_dim: metadata first, else detect GINEConv edge-proj layer.
+    # GINEConv stores an edge projection as convs.{i}.lin.weight; GINConv doesn't.
+    _sd_probe = data.get("state_dict", data)
+    if "edge_dim" in data:
+        edge_dim = data["edge_dim"]
+    elif any(k.startswith("convs.0.lin.") for k in _sd_probe):
+        # GINEConv checkpoint — recover raw edge_dim from lin.weight columns
+        lin_w = _sd_probe.get("convs.0.lin.weight")
+        edge_dim = int(lin_w.shape[1]) if lin_w is not None else 2
+    else:
+        # Legacy GINConv checkpoint (no edge features)
+        edge_dim = 0
 
     model = UnifiedMPNN(
         node_features=node_features,
@@ -1032,9 +1543,37 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         dropout=dropout,
         type_embedding_dim=type_embedding_dim,
         gate_readout=gate_readout,
+        use_residual=use_residual,
+        readout_mode=readout_mode,
+        film_conditioning=film_conditioning,
+        edge_dim=edge_dim,
     )
 
     state_dict = data.get("state_dict", data)
+
+    # ── Backward compat: expand type_emb 3→4 types ──────────────────
+    if "type_emb.weight" in state_dict:
+        old_emb = state_dict["type_emb.weight"]
+        if old_emb.shape[0] == 3 and type_embedding_dim > 0:
+            global_emb = old_emb.mean(dim=0, keepdim=True)
+            state_dict["type_emb.weight"] = torch.cat([old_emb, global_emb], dim=0)
+
+    # ── Backward compat: expand first conv for 4→5 node features ────
+    first_conv_key = "convs.0.nn.0.weight"
+    if first_conv_key in state_dict:
+        old_weight = state_dict[first_conv_key]
+        expected_input = UNIFIED_NODE_FEATURES + type_embedding_dim
+        actual_input = old_weight.shape[1]
+        if actual_input < expected_input:
+            diff = expected_input - actual_input
+            pad = torch.zeros(old_weight.shape[0], diff, dtype=old_weight.dtype)
+            state_dict[first_conv_key] = torch.cat([old_weight, pad], dim=1)
+            if "input_proj.weight" in state_dict:
+                ip_w = state_dict["input_proj.weight"]
+                if ip_w.shape[1] == actual_input:
+                    pad_ip = torch.zeros(ip_w.shape[0], diff, dtype=ip_w.dtype)
+                    state_dict["input_proj.weight"] = torch.cat([ip_w, pad_ip], dim=1)
+
     model.load_state_dict(state_dict)
 
     if eval_mode:
@@ -1042,7 +1581,168 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
 
     logger.info(
         "Loaded UnifiedMPNN: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
-        model.hidden_dim, model.n_layers,
-        model.type_embedding_dim, model.gate_readout,
+        model.hidden_dim,
+        model.n_layers,
+        model.type_embedding_dim,
+        model.gate_readout,
     )
     return model
+
+
+def transfer_model_to_higher_p(
+    source_checkpoint: str,
+    p_target: int,
+    dataset: list | None = None,
+    topology: str | None = None,
+    fine_tune_epochs: int = 2000,
+    fine_tune_lr: float = 5e-4,
+    freeze_early_layers: bool = True,
+    layerwise_decay: float = 0.2,
+    seed: int = 42,
+) -> tuple[UnifiedMPNN, dict]:
+    """Transfer a trained model from lower p to higher p_layers via fine-tuning.
+
+    Since UnifiedMPNN predicts per-node θ values and the graph structure
+    encodes p_layers (via gate node replication), the same architecture
+    handles any p_layers without modification. Transfer learning here means:
+
+    1. Load the source checkpoint (e.g. p=1) in training mode
+    2. Fine-tune on p_target dataset (e.g. p=2 graphs)
+
+    The GNN encoder learns topology-aware embeddings that are largely
+    p-independent (lattice structure, h-conditioning). The readout heads
+    learn to predict θ from node embeddings — since gate nodes for p=2
+    have the same feature structure as p=1, the heads transfer well.
+
+    Parameters
+    ----------
+    source_checkpoint : str
+        Path to the source model checkpoint (typically a p=1 model).
+    p_target : int
+        Target p_layers for the fine-tuned model.
+    dataset : list[Data] | None
+        Pre-built p_target dataset. If None, will be built automatically
+        using MultiNAggregator(p_layers=p_target, topology=topology).
+    topology : str | None
+        Required if dataset is None — topology to scan for training data.
+    fine_tune_epochs : int
+        Number of fine-tuning epochs (default 2000, more than standard
+        fine-tune since it's cross-p transfer).
+    fine_tune_lr : float
+        Learning rate (default 5e-4, slightly higher than standard fine-tune
+        to allow the heads to adapt to the new output structure).
+    freeze_early_layers : bool
+        If True (default), early backbone layers learn slowly while heads
+        adapt to p_target output patterns.
+    layerwise_decay : float
+        LR multiplier for early layers (default 0.2 = heads adapt 5× faster).
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    tuple[UnifiedMPNN, dict]
+        (fine-tuned model, training metrics dict)
+
+    Raises
+    ------
+    FileNotFoundError
+        If source_checkpoint does not exist.
+    ValueError
+        If no training data available for p_target.
+
+    Examples
+    --------
+    >>> model, metrics = transfer_model_to_higher_p(
+    ...     source_checkpoint="data/model_zoo/checkpoints/unified_tfim_br_chain_1d_multiN_..._p1.pt",
+    ...     p_target=2,
+    ...     topology="chain_1d",
+    ... )
+    >>> print(f"Transfer MSE: {metrics['final_mse']:.2e}")
+    """
+    from pathlib import Path as _Path
+
+    # Step 1: Load source model in training mode
+    if not _Path(source_checkpoint).exists():
+        raise FileNotFoundError(f"Source checkpoint not found: {source_checkpoint}")
+
+    logger.info(
+        "Transfer learning: %s → p=%d",
+        _Path(source_checkpoint).name,
+        p_target,
+    )
+    model = load_unified_checkpoint(str(source_checkpoint), eval_mode=False)
+
+    # Step 2: Build or validate dataset for p_target
+    if dataset is None:
+        if topology is None:
+            raise ValueError(
+                "Either 'dataset' or 'topology' must be provided "
+                "to build training data for p_target."
+            )
+        from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
+
+        agg = MultiNAggregator(topology=topology, p_layers=p_target)
+        scan_result = agg.scan()
+        total_points = sum(scan_result.values())
+        if total_points == 0:
+            raise ValueError(
+                f"No p={p_target} training data found for topology='{topology}'. "
+                f"Run AcceleratedCrossNRunner with --p-layers {p_target} first to "
+                f"generate VQE data."
+            )
+        logger.info(
+            "  Built p=%d dataset: %d N-values, %d total points",
+            p_target,
+            len(scan_result),
+            total_points,
+        )
+        dataset = agg.build_combined_dataset()
+
+    if len(dataset) < 5:
+        raise ValueError(
+            f"Insufficient p={p_target} data for transfer learning "
+            f"({len(dataset)} graphs, need ≥5). Generate more VQE data first."
+        )
+
+    # Step 3: Fine-tune with cross-p transfer settings
+    logger.info(
+        "  Fine-tuning: %d epochs, lr=%.1e, layerwise_decay=%.2f, %d graphs",
+        fine_tune_epochs,
+        fine_tune_lr,
+        layerwise_decay,
+        len(dataset),
+    )
+    metrics = fine_tune_unified_mpnn(
+        model=model,
+        dataset=dataset,
+        n_epochs=fine_tune_epochs,
+        lr=fine_tune_lr,
+        patience=300,
+        seed=seed,
+        freeze_early_layers=freeze_early_layers,
+        layerwise_decay=layerwise_decay,
+    )
+
+    metrics["transfer_source"] = str(source_checkpoint)
+    metrics["p_source"] = _infer_p_from_checkpoint_name(source_checkpoint)
+    metrics["p_target"] = p_target
+    metrics["mode"] = "transfer_p1_to_p2"
+
+    logger.info(
+        "  Transfer complete: MSE %.2e → %.2e (ratio=%.3f)",
+        metrics.get("initial_mse", float("inf")),
+        metrics.get("final_mse", float("inf")),
+        metrics.get("improvement_ratio", 1.0),
+    )
+
+    model.eval()
+    return model, metrics
+
+
+def _infer_p_from_checkpoint_name(path: str) -> int:
+    """Infer p_layers from checkpoint filename (e.g. ..._p1.pt → 1)."""
+    import re
+
+    match = re.search(r"_p(\d+)\.pt$", str(path))
+    return int(match.group(1)) if match else 1

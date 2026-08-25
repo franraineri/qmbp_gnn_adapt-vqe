@@ -10,9 +10,9 @@ Groups by (topology, n_qubits, p_layers, seed) and saves to
 analysis/raw_data/theta_trajectories.json.
 
 Usage:
-    python scripts/analysis/extract_theta_trajectories.py
-    python scripts/analysis/extract_theta_trajectories.py --include-scaling
-    python scripts/analysis/extract_theta_trajectories.py --only-scaling
+    .venv/bin/python scripts/analysis/extract_theta_trajectories.py
+    .venv/bin/python scripts/analysis/extract_theta_trajectories.py --include-scaling
+    .venv/bin/python scripts/analysis/extract_theta_trajectories.py --only-scaling
 """
 
 from __future__ import annotations

@@ -11,20 +11,20 @@ a clear diagnostic message. No QPU time is wasted on misconfigured runs.
 
 Usage:
     # Full automated flow (recommended):
-    python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py
+    .venv/bin/python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py
 
     # Skip rehearsal (if already passed recently):
-    python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py --skip-rehearsal
+    .venv/bin/python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py --skip-rehearsal
 
     # Dry-run (print what would execute, no QPU):
-    python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py --dry-run
+    .venv/bin/python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py --dry-run
 
     # Custom parameters:
-    python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py \
+    .venv/bin/python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py \
         --h-values 3.5,3.75,4.0 --shots 8192 --seed 43 --backend ibm_boston
 
     # Multi-seed (Tier 2):
-    python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py \
+    .venv/bin/python scripts/experiment_runners/hardware/run_hardware_mitigation_flow.py \
         --seeds 42,43,44
 """
 

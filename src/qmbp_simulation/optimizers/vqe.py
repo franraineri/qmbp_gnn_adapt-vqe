@@ -33,8 +33,8 @@ from qmbp_simulation.models import (
 )
 from qmbp_simulation.models.constants import (
     COBYLA_AUTO_SWITCH_THRESHOLD,
+    MAX_LBFGSB_ITERS,
     VQE_WALL_CLOCK_LIMIT_PER_POINT,
-    MAX_LBFGSB_ITERS
 )
 
 logger = logging.getLogger(__name__)
@@ -154,13 +154,19 @@ class VQEOptimizer:
         # _mi_arenas_page_unabandon. Disabling GC during VQE optimization
         # prevents this. GC is re-enabled on exit (always, via finally).
         import gc as _gc
+
         _gc_was_enabled = _gc.isenabled()
         _gc.disable()
 
         try:
             return self._optimize_inner(
-                cfg, backend, hamiltonian, circuit, initial_guess,
-                exact_energy, exact_state,
+                cfg,
+                backend,
+                hamiltonian,
+                circuit,
+                initial_guess,
+                exact_energy,
+                exact_state,
             )
         finally:
             if _gc_was_enabled:
@@ -200,7 +206,7 @@ class VQEOptimizer:
         n_params = len(initial_guess)
         backend_name = self._backend.name
 
-        _is_noiseless = ("noiseless" in backend_name or "mps" in backend_name)
+        _is_noiseless = "noiseless" in backend_name or "mps" in backend_name
 
         if _is_noiseless and cfg.method == "COBYLA" and n_params > 4:
             effective_method = "L-BFGS-B"
@@ -208,7 +214,11 @@ class VQEOptimizer:
                 f"    ⚙️ Auto-upgraded COBYLA → L-BFGS-B "
                 f"(noiseless backend '{backend_name}', n_params={n_params})"
             )
-        elif not _is_noiseless and cfg.method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD:
+        elif (
+            not _is_noiseless
+            and cfg.method == "L-BFGS-B"
+            and n_params > COBYLA_AUTO_SWITCH_THRESHOLD
+        ):
             effective_method = "COBYLA"
             logger.info(
                 f"    ⚙️ Auto-switched L-BFGS-B → COBYLA "
@@ -222,11 +232,10 @@ class VQEOptimizer:
 
         effective_maxiter = cfg.maxiter
         if effective_method == "L-BFGS-B":
-
             if cfg.maxiter > MAX_LBFGSB_ITERS:
                 effective_maxiter = MAX_LBFGSB_ITERS
                 logger.info(
-                    f"    ⚙️ Capped maxiter {cfg.maxiter} → {MAX_LBFGSB_ITERS} (L-BFGS-B iters cost {2*n_params+1} evals each)"
+                    f"    ⚙️ Capped maxiter {cfg.maxiter} → {MAX_LBFGSB_ITERS} (L-BFGS-B iters cost {2 * n_params + 1} evals each)"
                 )
 
         effective_cfg = replace(cfg, method=effective_method, maxiter=effective_maxiter)
@@ -529,9 +538,7 @@ class VQEOptimizer:
                 # function — this is the only way to escape COBYLA's Fortran loop.
                 if _interrupted[0]:
                     _signal.signal(_signal.SIGINT, _orig_handler)
-                    raise KeyboardInterrupt(
-                        "COBYLA interrupted by user (Ctrl+C)"
-                    )
+                    raise KeyboardInterrupt("COBYLA interrupted by user (Ctrl+C)")
                 # Eval cap
                 if _eval_count[0] > maxfun:
                     return _last_value[0]
@@ -586,75 +593,6 @@ class VQEOptimizer:
             raise ValueError(f"Unsupported method: {method}")
 
     # ── warm-start seeding ───────────────────────────────────────────
-
-    @staticmethod
-    def compute_adaptive_restarts(
-        h_value: float,
-        gap: float | None = None,
-        n_restarts_base: int = 5,
-        *,
-        h_critical: float = 1.0,
-        gap_easy_threshold: float = 0.5,
-        gap_hard_threshold: float = 0.1,
-    ) -> int:
-        """Compute adaptive number of restarts based on landscape difficulty.
-
-        Near the critical point (small gap), the energy landscape is flat
-        and multi-restart search is essential. Far from criticality (large gap),
-        the warm-start converges immediately and extra restarts are wasted.
-
-        This implements the observation from B4 experiment: condition number
-        varies 14→1400 across the h-range, but NO saddle points exist.
-        More restarts help at high κ (small gap), not at low κ (easy regime).
-
-        Parameters
-        ----------
-        h_value : float
-            Current transverse field value.
-        gap : float | None
-            Spectral gap at this h-value (from exact diag). If None,
-            uses h-value heuristic only.
-        n_restarts_base : int
-            Configured n_restarts (the maximum; adaptive reduces from here).
-        h_critical : float
-            Estimated critical h (TFIM: ~1.0). Used for h-distance heuristic.
-        gap_easy_threshold : float
-            Gap above this = easy landscape → reduce restarts to 1.
-        gap_hard_threshold : float
-            Gap below this = hard landscape → use full n_restarts_base.
-
-        Returns
-        -------
-        int
-            Adaptive number of restarts (1 ≤ result ≤ n_restarts_base).
-        """
-        if n_restarts_base <= 1:
-            return 1
-
-        # If gap is available, use it directly (most reliable signal)
-        if gap is not None and gap > 0:
-            if gap >= gap_easy_threshold:
-                # Easy: paramagnetic limit, warm-start always converges
-                return 1
-            elif gap >= gap_hard_threshold:
-                # Medium: interpolate between 1 and base
-                frac = (gap - gap_hard_threshold) / (gap_easy_threshold - gap_hard_threshold)
-                return max(1, int(round(n_restarts_base * (1 - frac * 0.8))))
-            else:
-                # Hard: near/at critical point, use full budget
-                return n_restarts_base
-
-        # Fallback: h-distance heuristic (when gap is not available)
-        h_distance = abs(h_value - h_critical)
-        if h_distance > 1.0:
-            # Far from critical: very easy landscape
-            return max(1, n_restarts_base // 3)
-        elif h_distance > 0.3:
-            # Moderate distance
-            return max(1, n_restarts_base // 2)
-        else:
-            # Near critical: full budget
-            return n_restarts_base
 
     @staticmethod
     def get_initial_guess(
@@ -1072,7 +1010,9 @@ class VQEOptimizer:
                 break
 
             result_asc = self.optimize(
-                H, circuit, warm_theta,
+                H,
+                circuit,
+                warm_theta,
                 exact_energy=exact_e,
                 exact_state=exact_psi,
             )

@@ -5,7 +5,7 @@ Generates (noisy, exact) energy pairs from FakeTorino, trains the GNN-QEM
 model to predict energy corrections, and evaluates cross-topology generalization.
 
 Usage:
-    python scripts/run_gnn_qem_training.py [--quick]
+    .venv/bin/python scripts/run_gnn_qem_training.py [--quick]
 
     --quick: Use minimal config (4 h-values, 2 seeds) for fast validation (~2 min)
     Default: Full config (6 h-values, 3 seeds) for proper training (~15 min)

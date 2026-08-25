@@ -5,9 +5,9 @@ Generates V2 training data using θ_opt from Zoo/NPZ (not random),
 trains the GATv2Conv-based GNNQEMCorrectorV2, evaluates, and compares vs V1.
 
 Usage:
-    python scripts/experiment_runners/gnn_experiments/run_gnn_qem_v2_training.py
-    python scripts/experiment_runners/gnn_experiments/run_gnn_qem_v2_training.py --quick
-    python scripts/experiment_runners/gnn_experiments/run_gnn_qem_v2_training.py --skip-gen
+    .venv/bin/python scripts/experiment_runners/gnn_experiments/run_gnn_qem_v2_training.py
+    .venv/bin/python scripts/experiment_runners/gnn_experiments/run_gnn_qem_v2_training.py --quick
+    .venv/bin/python scripts/experiment_runners/gnn_experiments/run_gnn_qem_v2_training.py --skip-gen
 
 Flags:
     --quick:     Minimal config (chain_1d N=6, 4 h-values, 2048 shots) ~3 min
