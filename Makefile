@@ -87,8 +87,12 @@ strip-notebooks:  ## Strip outputs from tracked notebooks
 
 # ── Reproducibility ──────────────────────────────────────────
 
-freeze:  ## Pin dependency versions to requirements.lock
-	pip freeze > requirements.lock
+freeze:  ## Pin resolved dependency versions to requirements.lock (reproducible installs)
+	@echo "# Auto-generated lockfile — DO NOT edit by hand." > requirements.lock
+	@echo "# Source of truth for dependencies is pyproject.toml." >> requirements.lock
+	@echo "# Regenerate with: make freeze" >> requirements.lock
+	@echo "# Reproduce env with: pip install -r requirements.lock" >> requirements.lock
+	$(PYTHON) -m pip freeze --exclude-editable >> requirements.lock
 	@echo "✅ Frozen to requirements.lock"
 
 # ── Preflight ─────────────────────────────────────────────────

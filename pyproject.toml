@@ -7,9 +7,14 @@ dependencies = [
     "numpy>=1.26,<3",
     "scipy>=1.12,<2",
     "qiskit>=2.0,<3",
+    "qiskit-algorithms>=0.3",
     "torch>=2.2,<3",
     "torch-geometric>=2.5,<3",
     "physics-tenpy>=1.0,<2",
+    "matplotlib>=3.9,<4",
+    "scikit-learn>=1.4,<2",
+    "networkx>=3.0,<4",
+    "pylatexenc>=2.10",
 ]
 
 [project.optional-dependencies]
@@ -22,13 +27,27 @@ dev = [
     "pyclean>=3.1",
 ]
 test = ["pytest>=8.0", "pytest-cov>=4.1", "hypothesis>=6.98"]
-hardware = ["qiskit-ibm-runtime>=0.20", "qiskit-aer>=0.14", "mapomatic>=0.14"]
+# Local high-accuracy simulation for N>22 (MPS backend). Recommended in Quick Start.
+sim = ["qiskit-aer>=0.14"]
+# Jupyter environment for the demo notebooks.
+notebooks = ["jupyterlab>=4.2", "ipykernel>=7.0"]
+# IBM Quantum hardware execution + layout optimization.
+hardware = ["qiskit-ibm-runtime>=0.20", "qiskit-ibm-catalog>=0.10", "qiskit-aer>=0.14", "mapomatic>=0.14"]
 mitiq = ["mitiq>=0.38"]
-all = ["qiskit-ibm-runtime>=0.20", "qiskit-aer>=0.14", "mapomatic>=0.14", "mitiq>=0.38"]
 aqc = [
     "qiskit-addon-aqc-tensor[quimb-jax]>=0.3",
     "quimb>=0.11",
     "qiskit-quimb>=0.0.9",
+]
+# Everything needed for full local development + simulation + hardware + mitigation.
+all = [
+    "qiskit-aer>=0.14",
+    "qiskit-ibm-runtime>=0.20",
+    "qiskit-ibm-catalog>=0.10",
+    "mapomatic>=0.14",
+    "mitiq>=0.38",
+    "jupyterlab>=4.2",
+    "ipykernel>=7.0",
 ]
 
 [build-system]

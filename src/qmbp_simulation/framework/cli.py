@@ -518,6 +518,14 @@ def add_iterative_improve_args(parser: argparse.ArgumentParser) -> argparse._Arg
         "When set, retrain steps in iterative improve use use_residual=True. "
         "Auto-detected from loaded model if not explicitly passed.",
     )
+    group.add_argument(
+        "--film",
+        action="store_true",
+        default=False,
+        help="Enable FiLM conditioning by h in UnifiedMPNN. Modulates each "
+        "GNN layer by the transverse field, helping the model adapt "
+        "predictions across the h-sweep (especially near h_critical).",
+    )
     return group
 
 

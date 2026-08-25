@@ -69,6 +69,44 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 _ZOO_DIR = _PROJECT_ROOT / "data" / "model_zoo"
 _MANIFEST_PATH = _ZOO_DIR / "manifest.json"
 _CHECKPOINTS_DIR = _ZOO_DIR / "checkpoints"
+# Fallback location for checkpoints that are version-controlled in git.
+# On a fresh clone, a "best" checkpoint may live only in archived/ (tracked),
+# not in checkpoints/ (regenerable). Loaders resolve through both directories.
+_ARCHIVED_DIR = _ZOO_DIR / "archived"
+
+
+def _resolve_checkpoint_path(checkpoint_file: str) -> Path | None:
+    """Resolve a checkpoint filename to an existing path.
+
+    Search order:
+    1. ``data/model_zoo/checkpoints/`` — the canonical (regenerable) location.
+    2. ``data/model_zoo/archived/`` — version-controlled fallback, guarantees a
+       usable checkpoint exists after a fresh ``git clone``.
+
+    Parameters
+    ----------
+    checkpoint_file : str
+        Bare checkpoint filename (e.g. ``"model_p1.pt"``).
+
+    Returns
+    -------
+    Path | None
+        The first existing path, or ``None`` if the checkpoint is in neither
+        location.
+    """
+    primary = _CHECKPOINTS_DIR / checkpoint_file
+    if primary.exists():
+        return primary
+    fallback = _ARCHIVED_DIR / checkpoint_file
+    if fallback.exists():
+        return fallback
+    return None
+
+
+def _checkpoint_available(checkpoint_file: str) -> bool:
+    """Return True if a checkpoint exists in checkpoints/ or archived/."""
+    return _resolve_checkpoint_path(checkpoint_file) is not None
+
 
 # If a multi-N model has training_quality_score below this, it's likely
 # trained on insufficient or contaminated data.
@@ -642,7 +680,7 @@ def load_best_model_for(
             and e.model == model
             and e.p_layers == p_layers
             and e.n_qubits == 0
-            and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+            and _checkpoint_available(e.checkpoint_file)
         ):
             score = _regime_bonus(e, _score_entry(e, 1.0))
             candidates.append((score, e, "per_topology"))
@@ -654,7 +692,7 @@ def load_best_model_for(
                 e.topology == "multi_topology"
                 and e.model == model
                 and e.p_layers == p_layers
-                and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+                and _checkpoint_available(e.checkpoint_file)
             ):
                 score = _regime_bonus(e, _score_entry(e, 0.95))
                 candidates.append((score, e, "multi_topology"))
@@ -666,7 +704,7 @@ def load_best_model_for(
             and e.model == model
             and e.p_layers == p_layers
             and e.n_qubits > 0
-            and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
+            and _checkpoint_available(e.checkpoint_file)
         ):
             score = _regime_bonus(e, _score_entry(e, 0.85))
             candidates.append((score, e, "single_n"))
@@ -679,7 +717,21 @@ def load_best_model_for(
     candidates.sort(key=lambda x: x[0], reverse=True)
     best_score, best_entry, source = candidates[0]
 
-    ckpt_path = _CHECKPOINTS_DIR / best_entry.checkpoint_file
+    ckpt_path = _resolve_checkpoint_path(best_entry.checkpoint_file)
+    if ckpt_path is None:
+        # Should not happen (candidates were filtered by availability), but guard
+        # against a race where the file is removed between filtering and load.
+        raise FileNotFoundError(
+            f"Checkpoint {best_entry.checkpoint_file!r} vanished from "
+            f"checkpoints/ and archived/ before load."
+        )
+    if ckpt_path.parent == _ARCHIVED_DIR:
+        logger.warning(
+            "load_best_model_for(%s): using ARCHIVED fallback for %s "
+            "(not present in checkpoints/). Regenerate the canonical checkpoint.",
+            topology,
+            best_entry.checkpoint_file,
+        )
     loaded_model = _smart_load_checkpoint(str(ckpt_path))
 
     logger.info(
@@ -1513,12 +1565,18 @@ def load_pretrained(
         )
 
     best = candidates[0]  # Already sorted by pass_rate
-    ckpt_path = _CHECKPOINTS_DIR / best.checkpoint_file
-    if not ckpt_path.exists():
+    ckpt_path = _resolve_checkpoint_path(best.checkpoint_file)
+    if ckpt_path is None:
         raise FileNotFoundError(
-            f"Checkpoint file missing: {ckpt_path}\n"
-            f"The manifest references it but the file is not on disk. "
+            f"Checkpoint file missing: {best.checkpoint_file}\n"
+            f"The manifest references it but it is not in checkpoints/ or archived/. "
             f"Re-run the pipeline with --export-zoo to regenerate."
+        )
+    if ckpt_path.parent == _ARCHIVED_DIR:
+        logger.warning(
+            "load_pretrained: using ARCHIVED fallback for %s "
+            "(not present in checkpoints/). Regenerate the canonical checkpoint.",
+            best.checkpoint_file,
         )
 
     # Verify integrity before deserializing (prevents loading corrupted/tampered files)

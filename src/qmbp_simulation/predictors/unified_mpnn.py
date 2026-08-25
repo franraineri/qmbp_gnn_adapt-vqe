@@ -31,7 +31,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch_geometric.data import Data
-from torch_geometric.nn import GINConv
+from torch_geometric.nn import GINConv, GINEConv
 
 from qmbp_simulation.predictors.unified_graph import (
     NODE_TYPE_QUBIT,
@@ -95,6 +95,7 @@ class UnifiedMPNN(nn.Module):
         use_residual: bool = False,
         readout_mode: str = "last",
         film_conditioning: bool = False,
+        edge_dim: int = 2,
     ) -> None:
         super().__init__()
 
@@ -115,6 +116,9 @@ class UnifiedMPNN(nn.Module):
         self.use_residual = use_residual
         self.readout_mode = readout_mode
         self.film_conditioning = film_conditioning
+        # edge_dim > 0 enables GINEConv (edge-feature-aware message passing).
+        # edge_dim = 0 falls back to plain GINConv (backward-compatible).
+        self.edge_dim = edge_dim
 
         # ── Type embedding (learned) ─────────────────────────────────
         n_types = 4  # qubit=0, zz_gate=1, rx_gate=2, global=3
@@ -136,23 +140,26 @@ class UnifiedMPNN(nn.Module):
                 return nn.LayerNorm(dim)
             return nn.Identity()
 
+        def _make_conv(in_dim: int) -> nn.Module:
+            """Build a GINEConv (edge-aware) or GINConv (fallback) layer."""
+            mlp = nn.Sequential(
+                nn.Linear(in_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Linear(hidden_dim, hidden_dim),
+            )
+            if self.edge_dim > 0:
+                # GINEConv incorporates edge_attr into messages. edge_dim is the
+                # raw edge-feature dimension; GINEConv projects it to node dim.
+                return GINEConv(mlp, edge_dim=self.edge_dim)
+            return GINConv(mlp)
+
         # First layer: effective_input_dim → hidden_dim
-        mlp0 = nn.Sequential(
-            nn.Linear(effective_input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-        )
-        self.convs.append(GINConv(mlp0))
+        self.convs.append(_make_conv(effective_input_dim))
         self.norms.append(_make_norm(hidden_dim))
 
         # Subsequent layers: hidden_dim → hidden_dim
         for _ in range(n_layers - 1):
-            mlp = nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim),
-            )
-            self.convs.append(GINConv(mlp))
+            self.convs.append(_make_conv(hidden_dim))
             self.norms.append(_make_norm(hidden_dim))
 
         # ── Input projection for residual (first layer changes dim) ──
@@ -243,6 +250,18 @@ class UnifiedMPNN(nn.Module):
             )
         node_type = data.node_type
 
+        # ── Edge features for GINEConv (edge-aware message passing) ──
+        edge_attr = None
+        if self.edge_dim > 0:
+            if hasattr(data, "edge_attr") and data.edge_attr is not None:
+                edge_attr = data.edge_attr
+            else:
+                # Graph built without edge_attr — synthesize neutral features
+                # so GINEConv still runs (backward compat with old graphs).
+                edge_attr = torch.zeros(
+                    edge_index.shape[1], self.edge_dim, dtype=x.dtype, device=x.device
+                )
+
         # ── Prepend type embedding if enabled ────────────────────────
         if self.type_emb is not None:
             type_emb = self.type_emb(node_type)  # [total_nodes, type_emb_dim]
@@ -266,7 +285,10 @@ class UnifiedMPNN(nn.Module):
 
         for i, (conv, norm) in enumerate(zip(self.convs, self.norms, strict=False)):
             x_prev = x if (i > 0 and self.use_residual) else x_residual
-            x = conv(x, edge_index)
+            if self.edge_dim > 0 and edge_attr is not None:
+                x = conv(x, edge_index, edge_attr)
+            else:
+                x = conv(x, edge_index)
             x = norm(x)
 
             # FiLM conditioning: modulate by h after each layer
@@ -1352,6 +1374,7 @@ def save_unified_checkpoint(
             "use_residual": model.use_residual,
             "readout_mode": model.readout_mode,
             "film_conditioning": model.film_conditioning,
+            "edge_dim": model.edge_dim,
             "training_metadata": training_metadata or {},
         },
         path,
@@ -1499,6 +1522,19 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     # Always use current UNIFIED_NODE_FEATURES (compat shim expands weights)
     node_features = UNIFIED_NODE_FEATURES
 
+    # Infer edge_dim: metadata first, else detect GINEConv edge-proj layer.
+    # GINEConv stores an edge projection as convs.{i}.lin.weight; GINConv doesn't.
+    _sd_probe = data.get("state_dict", data)
+    if "edge_dim" in data:
+        edge_dim = data["edge_dim"]
+    elif any(k.startswith("convs.0.lin.") for k in _sd_probe):
+        # GINEConv checkpoint — recover raw edge_dim from lin.weight columns
+        lin_w = _sd_probe.get("convs.0.lin.weight")
+        edge_dim = int(lin_w.shape[1]) if lin_w is not None else 2
+    else:
+        # Legacy GINConv checkpoint (no edge features)
+        edge_dim = 0
+
     model = UnifiedMPNN(
         node_features=node_features,
         hidden_dim=hidden_dim,
@@ -1510,6 +1546,7 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         use_residual=use_residual,
         readout_mode=readout_mode,
         film_conditioning=film_conditioning,
+        edge_dim=edge_dim,
     )
 
     state_dict = data.get("state_dict", data)

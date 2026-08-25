@@ -14,7 +14,7 @@
   │  ED / DMRG solver   │              │        │                 │
   │        │            │              │        ▼                 │
   │        ▼            │              │  min <psi|H|psi>         │
-  │  E_exact, gap       │──────┐       │  (L-BFGS-B, warm-start) │
+  │  E_exact, gap       │──────┐       │  (L-BFGS-B, warm-start)  │
   │                     │      │       │        │                 │
   └─────────────────────┘      │       │        ▼                 │
                                │       │  theta_opt(h)            │
@@ -31,13 +31,13 @@
                     └─────────────────────┬─────────────────────┘
                                           │
                                           ▼
-  PHASE 3: GNN Training              ┌───────────────────────────┐
+   PHASE 3: GNN Training              ┌───────────────────────────┐
   (Learn h -> theta mapping)          │                           │
   ┌───────────────────────────┐       │  Graph Representation:    │
   │                           │       │                           │
   │  UnifiedMPNN (GINConv)    │◄──────│  Lattice(N, topology)     │
   │  + FiLM conditioning by h │       │    + bond parameters      │
-  │  + Residual connections   │       │    + h-value features      │
+  │  + Residual connections   │       │    + h-value features     │
   │                           │       │                           │
   │  Input:  Graph(lattice,h) │       └───────────────────────────┘
   │  Output: theta_pred (dim  │
@@ -58,9 +58,9 @@
   │  New system:            │       │  - Trained on N=4-40         │
   │  N=127, h=3.0           │       │  - Predicts N=127 (zero-shot)│
   │  topology=heavy_hex     │       │  - Graph structure encodes   │
-  │        │                │       │    topology naturally         │
-  │        ▼                │       │  - 1ms vs 10-1000s (DMRG)   │
-  │  Build graph (0.002s)   │       │  - Works for any h > h_min  │
+  │        │                │       │    topology naturally        │
+  │        ▼                │       │  - 1ms vs 10-1000s (DMRG)    │
+  │  Build graph (0.002s)   │       │  - Works for any h > h_min   │
   │        │                │       │                              │
   │        ▼                │       └──────────────────────────────┘
   │  MPNN forward pass (1ms)│
@@ -77,7 +77,7 @@
 
   QUALITY METRICS:
   ┌────────────────────────────────────────────────────────────────┐
-  │   Delta_E =  |E(theta_pred) - E_exact                          |                                               │
+  │   Delta_E =  |E(theta_pred) - E_exact|                          |
   │   Delta_E / gap  =  |E(theta_pred) - E_exact| / spectral_gap   │
   │                                                                │
   │   < 5%  =  CORRECT PHASE (ground state well-approximated)      │
@@ -89,13 +89,13 @@
   KEY INSIGHT:
   ┌────────────────────────────────────────────────────────────────┐
   │                                                                │
-  │  The GNN AMORTIZES the cost of DMRG/VQE:                      │
+  │  The GNN AMORTIZES the cost of DMRG/VQE:                       │
   │                                                                │
-  │  WITHOUT GNN: Each new (h, N) costs 10-1000s of compute       │
-  │  WITH GNN:    Train once (O(100) DMRG points)                 │
+  │  WITHOUT GNN: Each new (h, N) costs 10-1000s of compute        │
+  │  WITH GNN:    Train once (O(100) DMRG points)                  │
   │               Then predict forever (O(1ms) per point)          │
   │                                                                │
-  │  Crossover: ~20 queries. After that, GNN is 50-100000x faster │
+  │  Crossover: ~20 queries. After that, GNN is 50-100000x faster  │
   │                                                                │
   └────────────────────────────────────────────────────────────────┘
 

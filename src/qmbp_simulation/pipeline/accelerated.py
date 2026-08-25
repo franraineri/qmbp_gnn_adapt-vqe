@@ -177,7 +177,7 @@ class AcceleratedConfig:
     # Active learning (P4)
     active_learning_rounds: int = 0  # 0 = disabled. Each round adds uncertain points.
 
-    def resolve_for_p(self, p_layers: int, n_params: int) -> "AcceleratedConfig":
+    def resolve_for_p(self, p_layers: int, n_params: int) -> AcceleratedConfig:
         """Return a copy with parameters auto-optimized for the given p_layers.
 
         For p≥2 with auto_optimize_for_higher_p=True:
@@ -682,7 +682,9 @@ class AcceleratedVQE:
             # No matching model in zoo — will train from scratch
             return None
 
-    def _select_anchors(self, h_values: np.ndarray, gaps: np.ndarray, config: "AcceleratedConfig | None" = None) -> np.ndarray:
+    def _select_anchors(
+        self, h_values: np.ndarray, gaps: np.ndarray, config: AcceleratedConfig | None = None
+    ) -> np.ndarray:
         """Select K anchor points for full VQE.
 
         Strategies:
@@ -724,7 +726,8 @@ class AcceleratedVQE:
                 selected.add(len(h_values) - 1)
                 logger.info(
                     "  Anchor strategy=p1_informed: %d/%d h-points are hard (p1 ΔE/gap>5%%)",
-                    len(hard_indices), len(h_values),
+                    len(hard_indices),
+                    len(h_values),
                 )
                 return np.array(sorted(selected)[:K])
 
@@ -789,6 +792,7 @@ class AcceleratedVQE:
 
         # Load the full NPZ to get de_gaps
         from pathlib import Path as _P
+
         _ROOT = _P(__file__).resolve().parents[3]
         npz_path = _ROOT / "data" / "multi_n_training" / f"{self._topology}_N{self._N}_p1.npz"
         if not npz_path.exists():
@@ -797,7 +801,9 @@ class AcceleratedVQE:
         try:
             data = np.load(str(npz_path), allow_pickle=True)
             h_p1 = np.asarray(data["h_values"], dtype=np.float64)
-            de_gaps_p1 = np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else None
+            de_gaps_p1 = (
+                np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else None
+            )
             if de_gaps_p1 is None:
                 return None
         except Exception:
@@ -1140,7 +1146,10 @@ class AcceleratedVQE:
         Applies canonicalization + basin filtering (Table 1) before training
         to ensure the MPNN only sees consistent, high-quality targets.
         """
-        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+        from qmbp_simulation.predictors.unified_graph import (
+            UNIFIED_NODE_FEATURES,
+            build_unified_bond_resolved_graph,
+        )
         from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN, train_unified_mpnn
         from qmbp_simulation.utils.helpers import filter_consistent_theta
 
@@ -1179,8 +1188,9 @@ class AcceleratedVQE:
             )
             dataset.append(g)
 
+        n_node_features = dataset[0].x.shape[1] if dataset else UNIFIED_NODE_FEATURES
         model = UnifiedMPNN(
-            node_features=4,
+            node_features=n_node_features,
             hidden_dim=cfg.mpnn_hidden_dim,
             n_layers=3,
             type_embedding_dim=cfg.mpnn_type_embedding_dim,

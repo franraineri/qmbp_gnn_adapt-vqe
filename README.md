@@ -21,18 +21,36 @@ Features cross-system-size generalization (UnifiedMPNN), iterative self-improvem
 
 ## Quick Start
 
-```bash
-# Install
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev,test]"
+Requires Python 3.12+.
 
-# Smoke test (~30s)
+```bash
+# 1. Create environment
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install --upgrade pip
+
+# 2. Install. Extras:
+#    [sim]       qiskit-aer — required for the MPS backend at N>22
+#    [notebooks] JupyterLab + ipykernel for the demo notebooks
+#    [dev,test]  linters, type-checker, pytest
+pip install -e ".[dev,test,sim]"
+
+# 3. Smoke test (~30s)
 python tests/smoke_test.py
 
-# Full pipeline (N=10, chain_1d, p=2)
+# 4. Full pipeline (N=10, chain_1d, p=2)
 python scripts/experiment_runners/noiseless/run_noiseless_pipeline.py \
     --model tfim_longitudinal --topology chain_1d --n-qubits 10 --p-layers 2
 ```
+
+For a fully reproducible install with pinned versions, use the lockfile instead:
+
+```bash
+pip install -e . && pip install -r requirements.lock   # exact versions
+```
+
+Optional extras: `.[notebooks]` (Jupyter demos), `.[hardware]` (IBM QPU),
+`.[mitiq]` (error mitigation), `.[aqc]` (tensor-network circuit compression),
+or `.[all]` for everything. Dependencies are defined solely in `pyproject.toml`.
 
 ## Demo Notebooks
 
@@ -160,11 +178,17 @@ Hooks (automatic, no intervention):
 
 ## Dependencies
 
+Declared in `pyproject.toml` (single source of truth). Core install pulls:
+
 - Python 3.12+
-- Qiskit 2.x (Primitives V2, SparsePauliOp)
+- Qiskit 2.x (Primitives V2, SparsePauliOp) + qiskit-algorithms
 - PyTorch + PyTorch Geometric (GINConv)
-- qiskit-aer (MPS backend for N>22)
 - TeNPy (DMRG ground truth)
+- NumPy / SciPy / scikit-learn / matplotlib / networkx
+
+Optional extras: `qiskit-aer` (`[sim]`, MPS backend for N>22),
+JupyterLab (`[notebooks]`), IBM Quantum runtime (`[hardware]`),
+mitiq (`[mitiq]`), tensor-network compression (`[aqc]`).
 
 ## References
 

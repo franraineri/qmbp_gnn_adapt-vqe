@@ -70,6 +70,13 @@ def parse_args() -> argparse.Namespace:
         default="theta_mse",
         help="Loss function type (default: theta_mse)",
     )
+    parser.add_argument(
+        "--model-name",
+        type=str,
+        default=None,
+        help="Custom model name suffix. Checkpoint saved as "
+        "unifMPNN__<topology>_p<N>_<model-name>.pt (e.g., --model-name ft_from_MT)",
+    )
     parser.add_argument("--no-register", action="store_true", help="Don't register in zoo")
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
@@ -207,7 +214,10 @@ def main() -> int:
     # Register
     if not args.no_register:
         n_str = "+".join(str(n) for n in sorted(summary.keys()))
-        ckpt_name = f"unified_tfim_br_{args.topology}_fromMT_{n_str}_p{args.p_layers}.pt"
+        if args.model_name:
+            ckpt_name = f"unifMPNN__{args.topology}_p{args.p_layers}_{args.model_name}.pt"
+        else:
+            ckpt_name = f"unified_tfim_br_{args.topology}_fromMT_{n_str}_p{args.p_layers}.pt"
 
         # ── Save experiment JSON envelope for traceability ────────────────
         _run_json_path = ""

@@ -62,13 +62,13 @@
   │                                                                 │
   │  The GNN unlocks a CONTINUOUS parameter space:                  │
   │                                                                 │
-  │     h1 in [2.5, 5.0]  x  h2 in [0.1, 2.0]  x  N in [10, 127] │
+  │     h1 in [2.5, 5.0]  x  h2 in [0.1, 2.0]  x  N in [10, 127]    │
   │                                                                 │
   │  = THOUSANDS of distinct quantum dynamics experiments           │
   │    each requiring 1ms of classical compute (GNN prediction)     │
   │    + minutes of QPU time (Trotter evolution)                    │
   │                                                                 │
-  │  vs IBM: 1 experiment, 1 protocol, 1 N                         │
+  │  vs IBM: 1 experiment, 1 protocol, 1 N                          │
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 

@@ -440,5 +440,130 @@
     "training_quality_score": 0.835,
     "pass_rate_by_n": {},
     "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "h_range": [
+      1.85,
+      4.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1102,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-24T21:01:16.457036+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1102 points",
+    "sha256": "64f24139609596dee8f90828c54eba1c0ee95caedb1334ee63274b4a6df66eab",
+    "runner_tag": "AC",
+    "date_tag": "240826",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "h_range": [
+      0.25,
+      2.0
+    ],
+    "pass_rate": 0.32,
+    "pass_rate_source": "",
+    "n_training_points": 1102,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-24T22:35:04.248325+00:00",
+    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "sha256": "1d72b71b8e359aeb81019d7f3d0d5e5bb233ed89c874ed4e66f3ed886401e116",
+    "runner_tag": "XX",
+    "date_tag": "240826",
+    "training_quality_score": 0.928,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "h_range": [
+      0.25,
+      2.0
+    ],
+    "pass_rate": 0.36,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-24T23:07:22.531993+00:00",
+    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "sha256": "5aef31423a422129aa9b281852fa8c9fb1843c7ee853a9e88f7896e816dafa13",
+    "runner_tag": "XX",
+    "date_tag": "240826",
+    "training_quality_score": 0.916,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "h_range": [
+      1.5,
+      4.0
+    ],
+    "pass_rate": 0.85,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-25T03:49:36.023913+00:00",
+    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "sha256": "a193cbd54adf116cfa98ae2fa3b9fb9f1255ae7b3ca6ad724385ff782014a11d",
+    "runner_tag": "XX",
+    "date_tag": "250826",
+    "training_quality_score": 0.927,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "h_range": [
+      1.5,
+      4.0
+    ],
+    "pass_rate": 0.6,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-25T05:44:28.116795+00:00",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "sha256": "6e1640ba8047ab49feff1480789fa03f5349e88d1a46676dfca441b1e73034a7",
+    "runner_tag": "XX",
+    "date_tag": "250826",
+    "training_quality_score": 0.932,
+    "pass_rate_by_n": {},
+    "run_json": ""
   }
 ]

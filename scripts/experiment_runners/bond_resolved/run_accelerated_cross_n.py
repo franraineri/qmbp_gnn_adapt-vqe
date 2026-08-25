@@ -201,6 +201,23 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "unifMPNN__<topology>_p<N>_<model-name>.pt (e.g., --model-name coloring_v1)",
         )
         parser.add_argument(
+            "--loss-type",
+            type=str,
+            default="theta_mse",
+            choices=["theta_mse", "energy_weighted"],
+            help="MPNN training loss. 'theta_mse' (default): standard MSE on θ. "
+            "'energy_weighted': weights MSE by 1/(1+de_gap) so points with "
+            "low energy error contribute more.",
+        )
+        parser.add_argument(
+            "--physics-loss-weight",
+            type=float,
+            default=0.0,
+            help="Weight λ for physics-informed energy loss term (default 0.0 = "
+            "disabled). Recommended 0.01-0.1. Adds λ·mean(|E(θ_pred)-E_exact|/N) "
+            "after physics_loss_start_epoch.",
+        )
+        parser.add_argument(
             "--no-eval-cache",
             action="store_true",
             default=False,
@@ -660,6 +677,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             norm_type="none",  # MANDATORY for cross-N
             dropout=0.1,
             use_residual=getattr(self._args, "use_residual", False),
+            film_conditioning=getattr(self._args, "film", False),
         )
 
         logger.info("  Training UnifiedMPNN (multi-N, norm_type=none)...")
@@ -671,6 +689,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
             lr=1e-3,
             patience=200,
             seed=42,
+            loss_type=getattr(self._args, "loss_type", "theta_mse"),
+            physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
         )
         elapsed = time.perf_counter() - t0
 
@@ -729,6 +749,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 "norm_type": "none",
                 "dropout": 0.1,
                 "use_residual": getattr(self._args, "use_residual", False),
+                "film_conditioning": getattr(self._args, "film", False),
             },
         )
         logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
@@ -1462,6 +1483,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     norm_type="none",
                     dropout=0.1,
                     use_residual=use_residual,
+                    film_conditioning=getattr(self._args, "film", False),
                 )
 
                 boot_train_result = train_unified_mpnn(
@@ -2129,6 +2151,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         norm_type="none",
                         dropout=0.1,
                         use_residual=use_residual,
+                        film_conditioning=getattr(self._args, "film", False),
                     )
                     train_result = train_unified_mpnn(
                         model,
@@ -2137,6 +2160,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         lr=1e-3,
                         patience=200,
                         seed=42,
+                        loss_type=getattr(self._args, "loss_type", "theta_mse"),
+                        physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
                     )
 
                 mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0

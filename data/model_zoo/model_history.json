@@ -32374,5 +32374,607 @@
       "target_n": [],
       "notes": "extrap@N=[10]"
     }
+  },
+  {
+    "timestamp": "2026-08-24T21:01:16.503032+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1102,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-24T21:01:16.555356+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1102,
+      "new_training_points": 1102,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-24T21:01:16.611513+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1102,
+      "new_training_points": 1102,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.272630+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.32,
+      "old_n_training_points": 1102,
+      "new_n_training_points": 1102
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.346712+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1102,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.415986+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1102,
+      "new_training_points": 1102,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.418189+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 152
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.423791+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "contaminated",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.423795+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "contaminated_training",
+      "confidence": 0.45,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-24T22:35:04.494750+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "production"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.563390+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.36,
+      "old_n_training_points": 1102,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.639879+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.708645+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.710881+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 175
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.716887+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "gap-masked",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.716892+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "gap_masking",
+      "confidence": 0.9431818181818181,
+      "secondary_modes": [
+        "contaminated_training"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-24T23:07:22.797218+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "production"
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.050227+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.85,
+      "old_n_training_points": 1102,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.123374+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.179642+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.182157+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 230
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.183609+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.183613+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-25T03:49:36.244562+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "production"
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.137436+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.6,
+      "old_n_training_points": 1102,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.199466+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.255205+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.257480+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 250
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.258839+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.258842+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-25T05:44:28.319070+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "production"
+    }
   }
 ]

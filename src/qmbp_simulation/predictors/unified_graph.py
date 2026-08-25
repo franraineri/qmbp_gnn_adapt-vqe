@@ -33,10 +33,9 @@ import numpy as np
 import torch
 from torch_geometric.data import Data
 
-from qmbp_simulation.models import LatticeConfig, HamiltonianBuilder
+from qmbp_simulation.models import HamiltonianBuilder, LatticeConfig
 
 logger = logging.getLogger(__name__)
-
 
 
 # Node type constants
@@ -48,8 +47,11 @@ NODE_TYPE_GLOBAL = 3
 # Feature dimension (5 features: added bipartite coloring)
 UNIFIED_NODE_FEATURES = 5  # [feat1, feat2, N/100, node_type, coloring]
 
+# Edge feature dimension for GINEConv: [edge_type_norm, coloring_signature]
+UNIFIED_EDGE_FEATURES = 2
 
-def _compute_bipartite_coloring(lattice: "LatticeConfig") -> "np.ndarray":
+
+def _compute_bipartite_coloring(lattice: LatticeConfig) -> np.ndarray:
     """Compute bipartite 2-coloring of the lattice graph.
 
     For bipartite graphs (chain_1d, ladder, heavy_hex, square), returns
@@ -164,9 +166,9 @@ def build_unified_bond_resolved_graph(
             n_bad = np.sum(~np.isfinite(theta_opt))
             logger.warning(
                 "theta_opt contains %d non-finite values (NaN/Inf). "
-                "Graph will be built but training may diverge.", n_bad
+                "Graph will be built but training may diverge.",
+                n_bad,
             )
-
 
     if not include_circuit_nodes:
         # ── Backward-compatible path: Hamiltonian-only graph ─────────
@@ -174,13 +176,15 @@ def build_unified_bond_resolved_graph(
         h_feat = np.full(N, float(h_value))
         n_scale = N / 100.0 if n_feature else 0.0
         # Features: [h_i, coord_i, N/100, node_type=0, coloring]
-        node_features = np.column_stack([
-            h_feat,
-            coord.astype(float),
-            np.full(N, n_scale),
-            np.zeros(N),  # node_type = 0 (qubit)
-            coloring,     # bipartite coloring
-        ])
+        node_features = np.column_stack(
+            [
+                h_feat,
+                coord.astype(float),
+                np.full(N, n_scale),
+                np.zeros(N),  # node_type = 0 (qubit)
+                coloring,  # bipartite coloring
+            ]
+        )
 
         x = torch.tensor(node_features, dtype=torch.float32)
         edge_index = torch.tensor(edge_index_np, dtype=torch.long)
@@ -206,16 +210,17 @@ def build_unified_bond_resolved_graph(
 
     n_scale = N / 100.0 if n_feature else 0.0
 
-
     # ── Build node features ──────────────────────────────────────────
     # Qubit nodes: [h_i, coord_i, N/100, type=0, coloring]
-    qubit_features = np.column_stack([
-        np.full(N, float(h_value)),
-        coord.astype(float),
-        np.full(N, n_scale),
-        np.zeros(N),  # type=0
-        coloring,     # bipartite coloring
-    ])
+    qubit_features = np.column_stack(
+        [
+            np.full(N, float(h_value)),
+            coord.astype(float),
+            np.full(N, n_scale),
+            np.zeros(N),  # type=0
+            coloring,  # bipartite coloring
+        ]
+    )
 
     # ZZ gate nodes: [layer/p_layers, bond_idx/n_edges, N/100, type=1]
     # Normalized indices for scale-invariance across system sizes
@@ -256,7 +261,6 @@ def build_unified_bond_resolved_graph(
         node_type_parts.append(torch.full((1,), NODE_TYPE_GLOBAL, dtype=torch.long))
     node_type = torch.cat(node_type_parts)
 
-
     # ── Build edge index ─────────────────────────────────────────────
     # We collect all edges as (src, dst) pairs, then make symmetric.
     edge_src = []
@@ -296,7 +300,6 @@ def build_unified_bond_resolved_graph(
             edge_src.extend([zz_node, zz_node])
             edge_dst.extend([rx_node_i, rx_node_j])
 
-
     # 5. Inter-layer edges: RX gate (layer l) → ZZ gate (layer l+1)
     #    Connects sequential layers for deep HVA (p>1).
     for layer in range(p_layers - 1):
@@ -318,6 +321,43 @@ def build_unified_bond_resolved_graph(
 
     edge_index = torch.tensor([edge_src, edge_dst], dtype=torch.long)
 
+    # ── Edge features (edge_attr) for GINEConv ───────────────────────
+    # 2 features per directed edge:
+    #   [0] edge_type_norm: relation type in [0,1]
+    #       0.00 = Hamiltonian (qubit-qubit), 0.25 = gate-qubit binding,
+    #       0.50 = intra-layer causal, 0.75 = inter-layer, 1.00 = global
+    #   [1] coloring_signature: relationship between endpoint colorings
+    #       For qubit-qubit / gate-qubit edges this encodes the bipartite
+    #       sign structure (|c_src - c_dst|): 0 = same sublattice, 1 = opposite.
+    #       This gives GINEConv the signal needed to learn θ_zz sign per bond.
+    node_type_np = node_type.numpy()
+    # Per-node coloring lookup: qubit nodes use `coloring`, others use feature col 4
+    node_coloring = x[:, 4].numpy()  # coloring is the 5th feature for all node types
+    src_arr = np.asarray(edge_src)
+    dst_arr = np.asarray(edge_dst)
+
+    def _edge_type_code(ts: int, td: int) -> float:
+        # Classify edge by endpoint node types
+        if ts == NODE_TYPE_GLOBAL or td == NODE_TYPE_GLOBAL:
+            return 1.0
+        if ts == NODE_TYPE_QUBIT and td == NODE_TYPE_QUBIT:
+            return 0.0  # Hamiltonian edge
+        if {ts, td} == {NODE_TYPE_ZZ_GATE, NODE_TYPE_RX_GATE}:
+            return 0.5  # intra-layer causal (ZZ→RX)
+        if ts == NODE_TYPE_RX_GATE and td == NODE_TYPE_ZZ_GATE:
+            return 0.75  # inter-layer (RX→ZZ next)
+        return 0.25  # gate-qubit binding
+
+    edge_type_feat = np.array(
+        [
+            _edge_type_code(int(node_type_np[s]), int(node_type_np[d]))
+            for s, d in zip(src_arr, dst_arr, strict=False)
+        ],
+        dtype=np.float32,
+    )
+    coloring_sig = np.abs(node_coloring[src_arr] - node_coloring[dst_arr]).astype(np.float32)
+    edge_attr = torch.tensor(np.column_stack([edge_type_feat, coloring_sig]), dtype=torch.float32)
+
     # ── Edge list for θ_zz prediction (same as Hamiltonian-only) ─────
     edge_list = torch.tensor(edges_unique, dtype=torch.long)
 
@@ -325,7 +365,7 @@ def build_unified_bond_resolved_graph(
     total_nodes = N + n_zz_gates + n_rx_gates + n_global
 
     # ── Assemble Data object ─────────────────────────────────────────
-    data = Data(x=x, edge_index=edge_index, edge_list=edge_list)
+    data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, edge_list=edge_list)
     data.node_type = node_type
     data.n_qubit_nodes = N
     data.n_nodes = total_nodes
@@ -385,7 +425,7 @@ def build_unified_dataset(
         )
 
     dataset = []
-    for h, theta in zip(h_values, theta_opts):
+    for h, theta in zip(h_values, theta_opts, strict=False):
         graph = build_unified_bond_resolved_graph(
             lattice=lattice,
             h_value=float(h),
@@ -434,16 +474,12 @@ def validate_unified_graph(data: Data) -> list[str]:
     # 2. Node type consistency
     n_qubits_actual = (data.node_type == NODE_TYPE_QUBIT).sum().item()
     if n_qubits_actual != N:
-        issues.append(
-            f"node_type qubit count ({n_qubits_actual}) != n_qubit_nodes ({N})"
-        )
+        issues.append(f"node_type qubit count ({n_qubits_actual}) != n_qubit_nodes ({N})")
 
     # 3. Edge index bounds
     max_idx = data.edge_index.max().item()
     if max_idx >= total_nodes:
-        issues.append(
-            f"edge_index contains index {max_idx} >= total_nodes ({total_nodes})"
-        )
+        issues.append(f"edge_index contains index {max_idx} >= total_nodes ({total_nodes})")
     min_idx = data.edge_index.min().item()
     if min_idx < 0:
         issues.append(f"edge_index contains negative index {min_idx}")
@@ -455,15 +491,11 @@ def validate_unified_graph(data: Data) -> list[str]:
             f"edge_list must reference qubit nodes only."
         )
     if data.edge_list.shape[0] != n_edges:
-        issues.append(
-            f"edge_list has {data.edge_list.shape[0]} edges, expected {n_edges}"
-        )
+        issues.append(f"edge_list has {data.edge_list.shape[0]} edges, expected {n_edges}")
 
     # 5. Feature dimensions
     if data.x.shape[1] != UNIFIED_NODE_FEATURES:
-        issues.append(
-            f"Feature dim is {data.x.shape[1]}, expected {UNIFIED_NODE_FEATURES}"
-        )
+        issues.append(f"Feature dim is {data.x.shape[1]}, expected {UNIFIED_NODE_FEATURES}")
 
     # 6. NaN/Inf in features
     if not torch.all(torch.isfinite(data.x)):
@@ -519,7 +551,6 @@ def compute_graph_metrics(data: Data) -> dict[str, Any]:
         - include_circuit_nodes: whether circuit nodes are present
         - graph_density: edge_count / (nodes * (nodes - 1))
     """
-    from typing import Any  # noqa: F811
 
     N = data.n_qubit_nodes
     n_edges_unique = data.n_edges_unique
@@ -548,6 +579,7 @@ def compute_graph_metrics(data: Data) -> dict[str, Any]:
     gate_neighborhood_cv = 0.0  # 2nd-order: variance of qubit-degrees around each gate
     if total_nodes > 0 and total_edges > 0:
         import torch as _torch
+
         edge_index = data.edge_index
         # Compute per-node degree
         degrees = _torch.zeros(total_nodes, dtype=_torch.long)
