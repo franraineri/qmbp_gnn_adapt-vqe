@@ -1657,7 +1657,8 @@ def auto_retrain_stale_models(
             from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
             from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN, train_unified_mpnn
 
-            agg = MultiNAggregator(topology=topo, model=entry.model)
+            # p-scoped: retrain uses only the entry's own p_layers data.
+            agg = MultiNAggregator(topology=topo, model=entry.model, p_layers=p)
             agg.scan()
             dataset = agg.build_combined_dataset(max_de_gap=0.10)
 
@@ -2952,6 +2953,7 @@ def compute_retrain_queue() -> list[dict]:
         queue.append(
             {
                 "topology": topo,
+                "p_layers": p,
                 "checkpoint_file": entry.checkpoint_file,
                 "priority": priority,
                 "reason": reason,

@@ -128,9 +128,14 @@ def main() -> int:
     )
     print(f"  Parameters: {n_params:,}")
 
-    # Build topology-specific dataset
-    print(f"\n  Aggregating {args.topology} data (max_n={args.max_n})...")
-    agg = MultiNAggregator(topology=args.topology, model="tfim_bond_resolved", max_n=args.max_n)
+    # Build topology-specific dataset (p-scoped: only *_p{p}.npz data)
+    print(f"\n  Aggregating {args.topology} data (max_n={args.max_n}, p={args.p_layers})...")
+    agg = MultiNAggregator(
+        topology=args.topology,
+        model="tfim_bond_resolved",
+        max_n=args.max_n,
+        p_layers=args.p_layers,
+    )
     summary = agg.scan()
     if not summary:
         print(f"ERROR: No data for {args.topology}")

@@ -613,9 +613,12 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
         # 1. Scan and aggregate all available data for this topology
         logger.info(f"  Scanning all bond-resolved data for topology={topo}...")
-        # Use max_n to prevent contamination from extrapolation data beyond viable range
+        # Use max_n to prevent contamination from extrapolation data beyond viable range.
+        # p_layers MUST be passed so only *_p{p}.npz data is used — never mix p=1 and p=2.
         max_n = self.N_MAX_VIABLE.get(topo, 20)
-        agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved", max_n=max_n)
+        agg = MultiNAggregator(
+            topology=topo, model="tfim_bond_resolved", max_n=max_n, p_layers=p
+        )
         summary = agg.scan()
 
         if not summary:
@@ -1469,9 +1472,12 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     th_i = boot_result.theta_opt[i]
                     if np.all(np.isfinite(th_i)) and len(th_i) == n_params:
                         prev_theta_by_h[round(float(h), 2)] = (th_i, float(boot_result.energies[i]))
-                # Train initial UnifiedMPNN from bootstrap data
+                # Train initial UnifiedMPNN from bootstrap data (p-scoped: only *_p{p}.npz)
                 agg = MultiNAggregator(
-                    topology=topo, model="tfim_bond_resolved", max_n=self.N_MAX_VIABLE.get(topo, 20)
+                    topology=topo,
+                    model="tfim_bond_resolved",
+                    max_n=self.N_MAX_VIABLE.get(topo, 20),
+                    p_layers=p,
                 )
                 agg.scan()
                 dataset = agg.build_combined_dataset(max_de_gap=0.15)
@@ -2090,8 +2096,12 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 should_retrain_with_diagnostics,
             )
 
+            # p-scoped aggregation: only *_p{p}.npz data (no cross-p mixing)
             agg = MultiNAggregator(
-                topology=topo, model="tfim_bond_resolved", max_n=self.N_MAX_VIABLE.get(topo, 20)
+                topology=topo,
+                model="tfim_bond_resolved",
+                max_n=self.N_MAX_VIABLE.get(topo, 20),
+                p_layers=p,
             )
             agg.scan()
             dataset = agg.build_combined_dataset(max_de_gap=0.10)
@@ -2286,7 +2296,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
             try:
                 from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
 
-                _agg_report = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+                _agg_report = MultiNAggregator(
+                    topology=topo, model="tfim_bond_resolved", p_layers=p
+                )
                 _agg_report.scan()
                 training_sizes = _agg_report.available_n_values()
             except Exception:

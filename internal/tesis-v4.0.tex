@@ -96,7 +96,7 @@ Las contribuciones específicas de este trabajo son:
 
     \item \textbf{Validación sistemática:} Se valida el pipeline de forma sistemática en simulación ideal, cubriendo 5 topologías de red, profundidades $p = 1$--$4$, tamaños $N = 4$--$20$, y variantes del Hamiltoniano de Ising (longitudinal, frustrado), estableciendo una metodología de benchmark.
 
-    \item \textbf{Documentación formal de límites:} Se documentan cuantitativamente las fronteras de expresividad del HVA por topología, profundidad y modelo ---incluyendo resultados negativos reproducibles en las configuraciones evaluadas para Heisenberg (46 ejecuciones) y Kitaev---, proporcionando un mapa de aplicabilidad del enfoque.
+    \item \textbf{Documentación formal de límites:} Se documentan cuantitativamente las fronteras de expresividad del HVA por topología, profundidad y modelo ---incluyendo resultados negativos reproducibles para Heisenberg (46 ejecuciones: 26 de la variante XXZ estándar y 20 de la variante transversal) y Kitaev---, proporcionando un mapa de aplicabilidad del enfoque.
 \end{enumerate}
 
 \section{Estructura del documento}
@@ -611,13 +611,13 @@ Se implementa un sistema de diagnóstico que clasifica automáticamente las ejec
 
 \begin{itemize}
     \item \textbf{CHAIN\_BREAK} ($\theta_{\text{smooth}} > 1.0$): Discontinuidad en la cadena de warm-start, detectable en Fase 2.
-    \item \textbf{MPNN\_OVERFIT} (gen\_gap $> 0.01$): Sobreajuste del predictor, detectable en Fase 3.
+    \item \textbf{MPNN\_OVERFIT} (generalization gap $> 0.01$): Sobreajuste del predictor, detectable en Fase 3.
     \item \textbf{BOUNDARY\_EFFECT}: Punto de test demasiado cercano al límite del régimen válido.
     \item \textbf{OUTSIDE\_REGIME}: Punto de test por debajo del régimen válido.
     \item \textbf{VQE\_DIVERGENCE}: No convergencia del optimizador.
 \end{itemize}
 
-El pipeline de early-stopping (alertar si $\theta_{\text{smooth}} > 1.0$, abortar si gen\_gap $> 0.01$) previene el 69\% de los fallos sin rechazar ninguna configuración exitosa (véase Figura~\ref{fig:failure_treemap} en Capítulo~5).
+El pipeline de early-stopping (alertar si $\theta_{\text{smooth}} > 1.0$, abortar si el generalization gap $> 0.01$) previene el 69\% de los fallos sin rechazar ninguna configuración exitosa (véase Figura~\ref{fig:failure_treemap} en el Capítulo~5).
 
 \section{Entorno computacional}
 
@@ -646,7 +646,16 @@ La profundidad $p$ se define como el número de capas del HVA ($2p$ parámetros 
 
 \noindent Todas las energías se expresan en unidades del acoplamiento ($J = 1$).
 
-Este capítulo presenta la evaluación completa del pipeline GNN-HVA mediante simulación ideal (sin ruido). Todos los resultados se obtienen con el backend \texttt{StatevectorEstimator} (Qiskit Primitives V2), que calcula valores esperados de forma exacta sin shots ni modelo de ruido, estableciendo el techo teórico del pipeline. La campaña experimental comprende más de 400 ejecuciones del pipeline completo (Fases 1--3), distribuidas en 5 topologías $\times$ 4 profundidades $\times$ múltiples tamaños y semillas.
+\noindent\textbf{Terminología de conteo (usada de forma consistente en todo el capítulo).} Para evitar ambigüedades, se distinguen cuatro unidades de medida de la campaña experimental:
+\begin{itemize}
+    \item \textbf{Configuración:} una combinación única de (modelo, topología, $N$, $p$). Ejemplo: TFIM, cadena 1D, $N = 10$, $p = 3$.
+    \item \textbf{Semilla:} una realización aleatoria (42, 43, 44) de una configuración. Cada configuración se ejecuta con $\geq 3$ semillas.
+    \item \textbf{Ejecución del pipeline:} una corrida completa de las Fases 1--3 para una (configuración, semilla). La campaña total comprende más de 400 ejecuciones.
+    \item \textbf{Experimento formal:} una prueba de hipótesis con veredicto (confirmado / negativo válido / fallido), que agrupa varias ejecuciones. Se realizaron 49 experimentos formales (Figura~\ref{fig:experiment_verdicts}).
+\end{itemize}
+\noindent Todos los porcentajes de aprobación se reportan con el número absoluto de casos entre paréntesis, e.g., ``95\% (37/39)''.
+
+Este capítulo presenta la evaluación completa del pipeline GNN-HVA mediante simulación ideal (sin ruido). Todos los resultados se obtienen con el backend \texttt{StatevectorEstimator} (Qiskit Primitives V2), que calcula valores esperados de forma exacta sin shots ni modelo de ruido, estableciendo el techo teórico del pipeline. La campaña experimental comprende más de 400 ejecuciones del pipeline completo (Fases 1--3, según la terminología definida al inicio de este capítulo), distribuidas en 5 topologías $\times$ 4 profundidades $\times$ múltiples tamaños y semillas.
 
 \section{Validación del pipeline base}
 
@@ -672,7 +681,7 @@ Escalera & 3.25 & 2.90\% $\pm$ 0.40\% & 3/3 \\
 Triangular & 4.25 & 3.30\% & 3/3 \\
 heavy-hex & 3.25 & 0.56\% $\pm$ 0.03\% & 3/3 \\
 \bottomrule
-\end{tabular}#
+\end{tabular}
 \end{table}
 \footnotetext{Se reporta mediana; la dispersión $\pm$ std corresponde a la variabilidad entre 3 semillas aleatorias. Valores sin $\pm$ indican concordancia exacta entre semillas.}
 
@@ -741,7 +750,7 @@ Se valida la escalabilidad del pipeline en dos dimensiones: (a) tamaño del sist
 
 \begin{table}[h]
 \centering
-\caption{Mejores configuraciones por tamaño del sistema (cadena 1D, $h \geq 1.3$, pipeline completo). Backend: StatevectorEstimator ($N \leq 22$).}
+\caption{Mejores configuraciones por tamaño del sistema (cadena 1D, pipeline completo, backend StatevectorEstimator $N \leq 22$). El PassRate se mide sobre el conjunto de puntos $h$ interiores al régimen válido de cada $N$ (número de puntos entre paréntesis en la columna PassRate). El 100\% (24/24) a $N = 10$, $p = 3$ corresponde a este conjunto restringido, más estrecho que el rango $h \in [1.3, 3.0]$ (39 puntos) de la Tabla~\ref{tab:cross_topo}; ambos son consistentes: los puntos adicionales de la Tabla~\ref{tab:cross_topo} caen sobre la frontera $h_{\min}$, donde se concentran los 2 fallos que reducen el 100\% al 95\%.}
 \label{tab:scaling}
 \begin{tabular}{rcccc}
 \toprule
@@ -903,14 +912,14 @@ El modelo frustrado alcanza fidelidad $\geq 0.99$ en simulación a $N = 6$, $p =
 
 \subsection{Heisenberg: límite de expresividad del ansatz evaluado}
 
-Se evalúa de forma sistemática el modelo Heisenberg como caso negativo para documentar la frontera del HVA. Se ejecutaron \textbf{46 ejecuciones} independientes cubriendo dos variantes (Heisenberg estándar XXZ y Heisenberg transversal), 5 topologías, y profundidades $p = 1$--$4$ para $N = 10$. El resultado es concluyente: ninguna configuración alcanza PassRate $> 10\%$ y la fidelidad VQE permanece por debajo de la utilidad ($< 0.56$) en todos los casos.
+Se evalúa de forma sistemática el modelo Heisenberg como caso negativo para documentar la frontera del HVA. Se ejecutaron \textbf{46 ejecuciones} independientes que agrupan dos variantes del modelo: Heisenberg estándar XXZ (26 ejecuciones, 5 topologías $\times$ $p = 1$--$4$) y Heisenberg transversal $H = J(XX + YY + 0.5 \cdot ZZ) - h \cdot X$ (20 ejecuciones, 5 topologías $\times$ $p = 1$--$4$), todas a $N = 10$. El resultado es concluyente: ninguna configuración alcanza PassRate $> 10\%$ (0/39 en todas), y la fidelidad VQE permanece por debajo del umbral de utilidad ($F = 0.93$) en todos los casos ---la variante transversal alcanza como máximo $F = 0.54$ y la estándar $F = 0.56$---.
 
 Hallazgos principales:
 \begin{enumerate}
     \item El fallo es \textbf{independiente} de profundidad ($p = 1$--$4$), topología (5 evaluadas), semilla y número de reinicios, confirmando un límite de expresividad del ansatz dentro de las configuraciones evaluadas ($p = 1$--$4$, $N = 10$) ---no de optimización---.
     \item La variante transversal ($H = J(XX + YY + 0.5 \cdot ZZ) - h \cdot X$) muestra mejores fidelidades (0.54 vs 0.11) pero sigue siendo insuficiente para generar datos de entrenamiento válidos para la MPNN (umbral: fidelidad $\geq 0.93$).
     \item Incrementar de $p = 3$ a $p = 4$ mejora la fidelidad marginalmente (+0.14 en heavy-hex) pero duplica el costo computacional sin beneficio funcional.
-    \item La MPNN alcanza MSE bajas en algunos ejecuciones Heisenberg porque el paisaje VQE \emph{es suave} ---simplemente converge a estados incorrectos---. MSE bajo $\neq$ buena predicción cuando los datos de entrenamiento son erróneos.
+    \item La MPNN alcanza MSE bajas en algunas ejecuciones Heisenberg porque el paisaje VQE \emph{es suave} ---simplemente converge a estados incorrectos---. MSE bajo $\neq$ buena predicción cuando los datos de entrenamiento son erróneos.
 \end{enumerate}
 
 Este resultado es consistente con \citet{wiersema2020}, quienes demuestran que HVA para Heisenberg requiere $p \propto N$ capas, y con \citet{huang2026frustration}, quienes formalizan las limitaciones de expresividad inducidas por frustración geométrica en algoritmos variacionales.
@@ -978,7 +987,7 @@ El diagnóstico automatizado sobre 174 ejecuciones clasificó 76 fallos por caus
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.90\textwidth]{tesis-figures/fig_failure_mode_treemap.pdf}
-\caption{Análisis de causa raíz sobre 174 ejecuciones del pipeline. El 69\% de los fallos es prevenible: CHAIN\_BREAK ($\theta_{\text{smooth}} > 1.0$, detectable en Fase 2) y MPNN\_OVERFIT (gen\_gap $> 0.01$, detectable en Fase 3). El 23\% restante (BOUNDARY\_EFFECT + OUTSIDE\_REGIME) es prevenible en pre-ejecución con la regla de $h_{\min}$.}
+\caption{Análisis de causa raíz sobre las 174 ejecuciones diagnosticadas del pipeline (76 no aprobadas). El 69\% de los fallos es prevenible: CHAIN\_BREAK ($\theta_{\text{smooth}} > 1.0$, detectable en Fase 2) y MPNN\_OVERFIT (generalization gap $> 0.01$, detectable en Fase 3). El 23\% restante (BOUNDARY\_EFFECT + OUTSIDE\_REGIME) es prevenible en pre-ejecución con la regla de $h_{\min}$. Nota: una misma ejecución fallida puede tener más de una causa raíz (p.\,ej.\ CHAIN\_BREAK y MPNN\_OVERFIT simultáneos), por lo que la suma de las categorías excede el número de ejecuciones fallidas.}
 \label{fig:failure_treemap}
 \end{figure}
 
@@ -987,7 +996,7 @@ La relación entre calidad de la MPNN y resultado final del pipeline se visualiz
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.85\textwidth]{tesis-figures/fig_mpnn_generalization_scatter.pdf}
-\caption{Correlación entre la calidad de la MPNN (generalization gap) y la precisión final del pipeline ($\Delta E/\text{gap}$). El umbral gen\_gap $= 0.01$ separa eficazmente ejecuciones exitosas ($< 5\%$) de fallidas, justificando su uso como criterio de aborto temprano en Fase 3.}
+\caption{Correlación entre la calidad de la MPNN (generalization gap) y la precisión final del pipeline ($\Delta E/\text{gap}$), con correlación log-log $r = 0.46$. El umbral de generalization gap $= 0.01$ separa eficazmente ejecuciones exitosas ($< 5\%$) de fallidas, justificando su uso como criterio de aborto temprano en Fase 3.}
 \label{fig:mpnn_scatter}
 \end{figure}
 
@@ -1160,16 +1169,16 @@ Se evaluó si una técnica de predicción dinámica de parámetros (DyPP) reduce
 
 \section{Contribuciones y cumplimiento de objetivos}
 
-El presente trabajo abordó el problema de la caracterización de fases cuánticas, donde las tres barreras fundamentales ---barren plateaus \citep{mcclean2018}, truncamiento por ruido \citep{mele2026} y costo de evaluación \citep{tilly2022}--- limitan la aplicación directa de VQE convencional. Se desarrolló una Arquitectura Predictiva Híbrida (GNN-HVA) que elimina la optimización cuántica iterativa mediante la predicción clásica de parámetros variacionales ---siguiendo el paradigma propuesto por \citet{miao2024} y \citet{zhang2025}---, operando dentro del régimen donde el HVA es simultáneamente entrenable \citep{cerezo2021} y expresivo \citep{wiersema2020}. La contribución específica es la \emph{integración} de estas técnicas existentes en un pipeline end-to-end y su \emph{validación sistemática} mediante simulación ideal sobre múltiples topologías ($5$), profundidades ($p = 1$--$4$), modelos (TFIM + variantes) y escalas ($N = 4$--$20$), validado sobre más de 400 ejecuciones.
+El presente trabajo abordó el problema de la caracterización de fases cuánticas, donde las tres barreras fundamentales ---barren plateaus \citep{mcclean2018}, truncamiento por ruido \citep{mele2026} y costo de evaluación \citep{tilly2022}--- limitan la aplicación directa de VQE convencional. Se desarrolló una Arquitectura Predictiva Híbrida (GNN-HVA) que elimina la optimización cuántica iterativa mediante la predicción clásica de parámetros variacionales ---siguiendo el paradigma propuesto por \citet{miao2024} y \citet{zhang2025}---, operando dentro del régimen donde el HVA es simultáneamente entrenable \citep{cerezo2021} y expresivo \citep{wiersema2020}. La contribución específica es la \emph{integración} de estas técnicas existentes en un pipeline end-to-end y su \emph{validación sistemática} mediante simulación ideal sobre múltiples topologías ($5$), profundidades ($p = 1$--$4$), modelos (TFIM + variantes) y escalas ($N = 4$--$20$), sobre las más de 400 ejecuciones del pipeline que componen la campaña experimental (Capítulo~5).
 
 Las contribuciones principales son:
 
 \begin{enumerate}
-    \item \textbf{El pipeline GNN-HVA clasifica correctamente fases cuánticas} con $\Delta E/\text{gap} < 5\%$ en el régimen operativo válido, validado sobre 5 topologías, $p = 1$--$4$, y $N = 4$--$20$ (Tabla~\ref{tab:cross_topo} y Tabla~\ref{tab:cross_topo_depth}). La tasa de aprobación alcanza 95--100\% para las configuraciones óptimas.
+    \item \textbf{El pipeline GNN-HVA clasifica correctamente fases cuánticas} con $\Delta E/\text{gap} < 5\%$ en el régimen operativo válido, validado sobre 5 topologías, $p = 1$--$4$, y $N = 4$--$20$ (Tabla~\ref{tab:cross_topo} y Tabla~\ref{tab:cross_topo_depth}). La tasa de aprobación alcanza 95--100\% para las topologías de baja conectividad (cadena 1D y heavy-hex, sus configuraciones óptimas) y decrece con la conectividad del grafo hasta 56\% para triangular (Tabla~\ref{tab:cross_topo}), un comportamiento atribuible a la expresividad finita del ansatz y no al predictor.
 
     \item \textbf{La aceleración respecto a VQE convencional es de 29--500$\times$} (Tabla~\ref{tab:comparison_literature}, Figura~\ref{fig:gap_widens}). La MPNN predice parámetros en una única pasada forward clásica, eliminando el bucle de optimización iterativa.
 
-    \item \textbf{El framework es extensible a variantes del Hamiltoniano de Ising} cuando los términos adicionales se mapean a compuertas de un qubit (TFIM + longitudinal: PassRate 90\%+, sin compuertas 2Q adicionales, Tabla~\ref{tab:tfim_long}). El límite se alcanza con modelos que requieren interacciones de dos cuerpos adicionales (Heisenberg: 0\% en las 46 configuraciones evaluadas, Sección~\ref{sec:extensibilidad}).
+    \item \textbf{El framework es extensible a variantes del Hamiltoniano de Ising} cuando los términos adicionales se mapean a compuertas de un qubit (TFIM + longitudinal: PassRate 90\%+, sin compuertas 2Q adicionales, Tabla~\ref{tab:tfim_long}). El límite se alcanza con modelos que requieren interacciones de dos cuerpos adicionales (Heisenberg: 0\% de aprobación en las 46 ejecuciones evaluadas ---26 XXZ + 20 transversal---, Sección~\ref{sec:extensibilidad}).
 
     \item \textbf{La predicción satisface los criterios con alta eficiencia de datos y escala con $N$:} 16--39 puntos VQE bastan para 100\% PassRate en interpolación a $N = 30$--$60$. La variante UnifiedMPNN permite cross-N con 98--100\% PassRate en 4 de 5 topologías (Tabla~\ref{tab:cross_n_transfer}).
 
@@ -1186,7 +1195,7 @@ Como se discutió en el Capítulo~6, los resultados validan las seis hipótesis 
     \item \textbf{OE3} (VQE warm-start): Completado --- Fidelidad media $> 0.95$, 93\%+ de puntos $\geq 0.93$ en régimen válido.
     \item \textbf{OE4} (Predictor MPNN): Completado --- $\Delta E/\text{gap} < 5\%$ en 5 topologías dentro del régimen válido; cross-N resuelto mediante UnifiedMPNN bond-resolved (Tabla~\ref{tab:cross_n_transfer}), con escalado extensivo confirmado hasta $N = 40$ (Tabla~\ref{tab:large_n_chain}).
     \item \textbf{OE5} (Validación sistemática): Completado --- Validación sistemática sobre 5 topologías, $N = 4$--$20$, $p = 1$--$4$.
-    \item \textbf{OE6} (Extensibilidad): Completado --- TFIM longitudinal ($g \leq 0.5$, PassRate 90\%+), Heisenberg transversal (resultado negativo reproducible en las configuraciones evaluadas: 0\% en 26 ejecuciones), TFIM frustrado (simulación viable).
+    \item \textbf{OE6} (Extensibilidad): Completado --- TFIM longitudinal ($g \leq 0.5$, PassRate 90\%+), Heisenberg (resultado negativo reproducible: 0\% de aprobación en 46 ejecuciones, 26 XXZ + 20 transversal), TFIM frustrado (simulación viable).
 \end{itemize}
 
 Los objetivos OE1--OE6 se cumplen íntegramente. El despliegue en hardware cuántico real queda como línea de trabajo futuro inmediata, para la cual el pipeline está preparado arquitectónicamente.
@@ -1242,14 +1251,10 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 
 \bibitem[Huang et al.(2026b)]{huang2026frustration} Huang, C. et al. (2026). \emph{Frustration-induced expressibility limitations in variational quantum algorithms}. arXiv preprint arXiv:2604.11688.
 
-\bibitem[Kiiamov et al.(2026)]{kiiamov2026} Kiiamov, A. G. et al. (2026). \emph{Simulating Wigner localisation with the IBM Heron 2 quantum processor}. arXiv preprint arXiv:2601.01263.
-
 \bibitem[Kim et al.(2023)]{kim2023} Kim, Y. et al. (2023). \emph{Evidence for the utility of quantum computing before fault tolerance}. Nature, 618, 500--505.
 
 
 \bibitem[Kochkov et al.(2021)]{kochkov2021} Kochkov, D., Pfaff, T., Sanchez-Gonzalez, A., Battaglia, P., \& Clark, B. K. (2021). \emph{Learning ground states of quantum Hamiltonians with graph networks}. arXiv preprint arXiv:2110.06390.
-
-\bibitem[Kumar et al.(2026)]{kumar2026} Kumar, S. et al. (2026). \emph{A study of entanglement and ansatz expressivity for the transverse-field Ising model using variational quantum eigensolver}. arXiv preprint arXiv:2602.17662.
 
 \bibitem[Lee et al.(2026)]{lee2026} Lee, J. et al. (2026). \emph{Improving generalization and trainability of quantum eigensolvers via graph neural encoding}. arXiv preprint arXiv:2602.19752.
 
@@ -1277,8 +1282,6 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 
 \bibitem[Sachdev(2011)]{sachdev2011} Sachdev, S. (2011). \emph{Quantum Phase Transitions}. Cambridge University Press, 2nd edition.
 
-\bibitem[Savary \& Balents(2016)]{savary2016} Savary, L., \& Balents, L. (2016). \emph{Quantum spin liquids: a review}. Reports on Progress in Physics, 80(1), 016502.
-
 \bibitem[Schollw\"ock(2011)]{schollwock2011} Schollw\"ock, U. (2011). \emph{The density-matrix renormalization group in the age of matrix product states}. Annals of Physics, 326(1), 96--192.
 
 \bibitem[Schiffer et al.(2026)]{schiffer2026} Schiffer, B. et al. (2026). \emph{Scalable, self-verifying variational quantum eigensolver using adiabatic warm starts}. arXiv preprint arXiv:2602.17612.
@@ -1294,8 +1297,6 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 
 \bibitem[Sumeet et al.(2025)]{sumeet2025} Sumeet, K. et al. (2025). \emph{Depth requirements for variational quantum circuits in many-body ground state preparation}. arXiv preprint arXiv:2310.07600.
 
-\bibitem[Sun et al.(2025)]{sun2025} Sun, W. et al. (2025). \emph{Noise-mitigated variational quantum eigensolver with pre-training and zero-noise extrapolation}. arXiv preprint arXiv:2501.01646.
-
 \bibitem[Teoh et al.(2025)]{teoh2025} Teoh, Y. H. et al. (2025). \emph{Variational quantum simulations of a two-dimensional frustrated transverse-field Ising model on a trapped-ion quantum computer}. arXiv preprint arXiv:2505.22932.
 
 \bibitem[Tilly et al.(2022)]{tilly2022} Tilly, J. et al. (2022). \emph{The variational quantum eigensolver: A review of methods and best practices}. Physics Reports, 986, 1--128.
@@ -1305,12 +1306,6 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 \bibitem[Troyer \& Wiese(2005)]{troyer2005} Troyer, M., \& Wiese, U. J. (2005). \emph{Computational complexity and fundamental limitations to fermionic quantum Monte Carlo simulations}. Physical Review Letters, 94(17), 170201.
 
 \bibitem[Tsubouchi et al.(2023)]{tsubouchi2023} Tsubouchi, K., Sagawa, T., \& Takagi, K. (2023). \emph{Universal cost bound of quantum error mitigation based on quantum estimation theory}. Physical Review Letters, 131, 210602.
-
-\bibitem[Uvarov et al.(2024)]{uvarov2024} Uvarov, A. et al. (2024). \emph{Mitigating quantum gate errors for variational eigensolvers using hardware-inspired zero-noise extrapolation}. arXiv preprint arXiv:2307.11156v3.
-
-\bibitem[van den Berg et al.(2022)]{vandenberg2022} van den Berg, E., Minev, Z. K., Kandala, A., \& Temme, K. (2022). \emph{Probabilistic error cancellation with multi-copy Clifford circuits}. Nature Physics, 19, 752--759.
-
-\bibitem[Wang et al.(2024)]{wang2024} Wang, S. et al. (2024). \emph{Error-mitigated variational quantum eigensolver with affine correction}. arXiv preprint arXiv:2604.16815.
 
 \bibitem[Wiersema et al.(2020)]{wiersema2020} Wiersema, R., Zhou, C., de Sereville, Y., Carrasquilla, J., \& Kim, Y. B. (2020). \emph{Exploring entanglement and optimization within the Hamiltonian Variational Ansatz}. PRX Quantum, 1(2), 020319.
 

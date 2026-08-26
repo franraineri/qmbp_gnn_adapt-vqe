@@ -350,6 +350,7 @@ def _retrain_single(
     """
     t_start = time.time()
     topo = queue_item["topology"]
+    p_layers = int(queue_item.get("p_layers", 1))
     checkpoint_file = queue_item["checkpoint_file"]
     priority = queue_item["priority"]
     reason = queue_item["reason"]
@@ -396,7 +397,8 @@ def _retrain_single(
             agg.scan()
             dataset = agg.build_combined_dataset(max_de_gap=0.10, max_n=20)
         else:
-            agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved")
+            # p-scoped: only *_p{p}.npz data (no cross-p mixing)
+            agg = MultiNAggregator(topology=topo, model="tfim_bond_resolved", p_layers=p_layers)
             agg.scan()
             dataset = agg.build_combined_dataset(max_de_gap=0.10)
 
@@ -466,7 +468,7 @@ def _retrain_single(
             model="tfim_bond_resolved",
             topology=topo,
             n_qubits=0,
-            p_layers=1,
+            p_layers=p_layers,
             checkpoint_file=checkpoint_file,
         ),
         eval_n_qubits=10,
@@ -496,7 +498,7 @@ def _retrain_single(
             model="tfim_bond_resolved",
             topology=topo,
             n_qubits=0,
-            p_layers=1,
+            p_layers=p_layers,
             checkpoint_file=checkpoint_file,
             h_range=(1.0, 5.0),
             pass_rate=0.0,  # Will be updated by comparison

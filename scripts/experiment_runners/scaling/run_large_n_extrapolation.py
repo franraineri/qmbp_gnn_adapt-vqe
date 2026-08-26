@@ -1551,7 +1551,11 @@ class LargeNExtrapolationRunner(ValidationRunner):
             # Determine training sizes from MultiNAggregator data
             from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
 
-            agg = MultiNAggregator(topology=self._args.topology, model=self._args.model_name)
+            agg = MultiNAggregator(
+                topology=self._args.topology,
+                model=self._args.model_name,
+                p_layers=self._args.p_layers,
+            )
             agg.scan()
             training_sizes = agg.available_n_values()
 
