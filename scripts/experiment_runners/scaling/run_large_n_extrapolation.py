@@ -475,6 +475,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
         import torch
 
         from qmbp_simulation.circuits import HVACircuitBuilder
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import (
             build_unified_bond_resolved_graph,
@@ -583,16 +584,35 @@ class LargeNExtrapolationRunner(ValidationRunner):
                                     for pt in self._gt_data[n_target]
                                     if abs(pt["h"] - float(h)) < 1e-8
                                 )
+                                cached_theta = cached.get("theta")
+
+                                # Recompute fidelity for cached points when a
+                                # stored theta is available. Exact for N ≤ 16,
+                                # variance lower bound for larger N.
+                                fid_info = None
+                                if cached_theta is not None and len(cached_theta) == n_params:
+                                    fid_info = self.estimate_fidelity(
+                                        circuit,
+                                        np.asarray(cached_theta, dtype=np.float64),
+                                        topo,
+                                        n_target,
+                                        float(h),
+                                        model=self._args.model_name,
+                                        gap=gt_entry["gap"],
+                                        e_pred=cached["e_pred"],
+                                    )
+
                                 result = self.build_per_h_result(
                                     h,
                                     cached["e_pred"],
                                     gt_entry["e_exact"],
                                     gt_entry["gap"],
+                                    fidelity_info=fid_info,
                                     n_params=n_params,
                                     n_qubits=n_target,
                                     method="cached",
-                                    theta=cached.get("theta", np.zeros(0)).tolist()
-                                    if cached.get("theta") is not None
+                                    theta=cached_theta.tolist()
+                                    if cached_theta is not None
                                     else None,
                                 )
                                 per_h_results.append(result)
@@ -653,11 +673,28 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         gt_entry = next(
                             pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                         )
+
+                        # State fidelity at any N: exact statevector for
+                        # N ≤ STATEVECTOR_MAX_N, rigorous variance-based lower
+                        # bound (Eckart) for larger N. estimate_fidelity records
+                        # method/is_bound/energy_variance provenance.
+                        fid_info = self.estimate_fidelity(
+                            circuit,
+                            theta_pred,
+                            topo,
+                            n_target,
+                            float(h),
+                            model=self._args.model_name,
+                            gap=gt_entry["gap"],
+                            e_pred=e_pred,
+                        )
+
                         result = self.build_per_h_result(
                             h,
                             e_pred,
                             gt_entry["e_exact"],
                             gt_entry["gap"],
+                            fidelity_info=fid_info,
                             n_params=n_params,
                             n_qubits=n_target,
                             method="mpnn",
@@ -689,9 +726,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
             }
 
             # Concise progress log
+            mean_fid = summary.get("mean_fidelity")
+            fid_str = (
+                f"F={mean_fid:.4f}" if mean_fid is not None else f"F=N/A(N>{STATEVECTOR_MAX_N})"
+            )
             logger.info(
                 f"    N={n_target}: ΔE/gap={summary['mean_de_gap']:.4f} "
-                f"|ΔE|={summary['mean_abs_error']:.2e} "
+                f"|ΔE|={summary['mean_abs_error']:.2e} {fid_str} "
                 f"pass={summary['n_pass_dual']}/{summary['n_points']} "
                 f"({n_cached} cached, {n_predicted} new)"
             )

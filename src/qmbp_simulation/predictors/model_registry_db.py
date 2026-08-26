@@ -238,6 +238,14 @@ class EvaluationRecord:
     mean_de_gap: float = 0.0
     mean_abs_error_per_site: float = 0.0
     notes: str = ""
+    # ── Statistical confidence (95% CI) — populated from compute_deploy_summary ──
+    pass_rate_dual_ci: list[float] = field(default_factory=list)  # [lower, upper]
+    mean_de_gap_ci: list[float] = field(default_factory=list)  # [lower, upper]
+    # ── Per-h raw arrays (per N) — enables paired significance tests between ──
+    # models without re-parsing markdown. Format: {str(n): [values...]}.
+    per_h_de_gaps: dict[str, list[float]] = field(default_factory=dict)
+    per_h_abs_errors: dict[str, list[float]] = field(default_factory=dict)
+    per_h_h_values: dict[str, list[float]] = field(default_factory=dict)
 
 
 @dataclass

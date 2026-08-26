@@ -398,12 +398,44 @@ def generate_evaluation_report(
                 lines.append(f"> - {w}")
             lines.append("")
 
+        # Fidelity summary line (exact for N≤16, variance lower bound above).
+        summary_stats = mpnn if isinstance(mpnn, dict) else {}
+        mean_fid = summary_stats.get("mean_fidelity")
+        if mean_fid is None:
+            # Recompute from per_point if the section summary lacked it.
+            _fids = [pt["fidelity"] for pt in per_point if pt.get("fidelity") is not None]
+            mean_fid = float(sum(_fids) / len(_fids)) if _fids else None
+        if mean_fid is not None:
+            min_fid = summary_stats.get("min_fidelity")
+            is_bound = summary_stats.get("fidelity_is_lower_bound") or any(
+                pt.get("fidelity_is_bound") for pt in per_point
+            )
+            n_bound = summary_stats.get("n_fidelity_bound")
+            if n_bound is None:
+                n_bound = sum(1 for pt in per_point if pt.get("fidelity_is_bound"))
+            rel = "≥" if is_bound else "="
+            fid_note = (
+                " (variance lower bound — N>16, exact statevector infeasible)"
+                if is_bound
+                else " (exact statevector overlap)"
+            )
+            min_str = f", min F{rel}{min_fid:.4f}" if min_fid is not None else ""
+            lines.append(f"**Fidelity: mean F{rel}{mean_fid:.4f}{min_str}**{fid_note}")
+            if n_bound:
+                mev = summary_stats.get("mean_energy_variance")
+                mev_str = f", mean Var(H)={mev:.4f}" if mev is not None else ""
+                lines.append(
+                    f"> {n_bound}/{len(per_point)} points use the Eckart bound "
+                    f"F ≥ 1 − Var(H)/gap²{mev_str}."
+                )
+            lines.append("")
+
         # Per-h table
         lines.append(
-            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Category | Action | Note |"
+            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Category | Action | Note |"
         )
         lines.append(
-            "|---|--------|---------|------|--------|-----|--------|----------|--------|------|"
+            "|---|--------|---------|------|--------|-----|----------|----------|--------|------|"
         )
 
         for p in per_point:
@@ -414,6 +446,15 @@ def generate_evaluation_report(
             gap = p.get("gap", 0)
             de_gap = p.get("de_gap", 0)
             method = p.get("method", "mpnn")
+
+            # Fidelity cell: annotate lower bounds with ≥.
+            fid = p.get("fidelity")
+            if fid is None:
+                fid_cell = "N/A"
+            elif p.get("fidelity_is_bound"):
+                fid_cell = f"≥{fid:.4f}"
+            else:
+                fid_cell = f"{fid:.4f}"
 
             # Per-point classification
             cls = classify_point_failure(
@@ -435,7 +476,7 @@ def generate_evaluation_report(
             lines.append(
                 f"| {h:.3f} | {e_pred:.4f} | {e_exact:.4f} | "
                 f"{abs_err:.4f} | {gap:.4f} | "
-                f"{de_gap:.4f} | {cat_display} | {cls.action} | {note} |"
+                f"{de_gap:.4f} | {fid_cell} | {cat_display} | {cls.action} | {note} |"
             )
 
         lines.append("")

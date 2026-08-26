@@ -851,6 +851,250 @@ def explain_model_selection(
     return results
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Objective-driven model selection (validated params + CI-based confidence)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_VALID_H_REGIMES = ("critical", "paramagnetic", "full", None)
+
+
+def select_model_for_objective(
+    topology: str,
+    *,
+    objective: str = "deploy",
+    model: str = "tfim_bond_resolved",
+    p_layers: int = 1,
+    n_target: int | None = None,
+    h_regime: str | None = None,
+    include_multi_topology: bool = True,
+    min_confidence: float = 0.0,
+) -> dict:
+    """Select the best model for a SPECIFIC objective, with validated params
+    and a statistically-grounded confidence assessment.
+
+    Unlike ``load_best_model_for`` (returns the model + entry), this returns a
+    rich decision report that explains *why* a model was chosen, *how much to
+    trust it* (via the Wilson CI lower bound at the target regime), and *what
+    is missing* if the objective cannot be met reliably.
+
+    Objective presets (translate a high-level goal into scoring params):
+    - "deploy"        → paramagnetic regime, uses n_target as given
+    - "critical"      → h_regime=critical (near h_c physics, e.g. DQPT/QPT)
+    - "extrapolation" → large-N focus; requires n_target, prefers broad-N eval
+    - "custom"        → use n_target/h_regime exactly as passed
+
+    Parameters
+    ----------
+    topology : str
+        Target topology. Validated against SUPPORTED_TOPOLOGIES.
+    objective : str
+        One of "deploy", "critical", "extrapolation", "custom".
+    model, p_layers : str, int
+        Hamiltonian model and HVA depth.
+    n_target : int | None
+        Target system size. Required for objective="extrapolation".
+    h_regime : str | None
+        Overrides the objective preset when objective="custom".
+    include_multi_topology : bool
+        Consider MT models as candidates.
+    min_confidence : float
+        Minimum acceptable confidence (Wilson CI lower bound of pass_rate at
+        the target N). If the best model is below this, the report flags it
+        as unreliable (but still returns the model — caller decides).
+
+    Returns
+    -------
+    dict
+        {
+            "model": UnifiedMPNN,          # loaded model (or None if none found)
+            "entry": ZooEntry,             # selected zoo entry
+            "source": str,                 # per_topology|multi_topology|single_n
+            "objective": str,
+            "resolved_params": {"n_target", "h_regime"},
+            "confidence": float,           # Wilson CI lower bound [0,1]
+            "confidence_basis": str,       # how confidence was derived
+            "reliable": bool,              # confidence >= min_confidence
+            "warnings": list[str],         # actionable diagnostics
+        }
+
+    Raises
+    ------
+    ValueError
+        If topology, objective, or h_regime are invalid, or if a required
+        param for the objective is missing.
+    """
+    from qmbp_simulation.models import SUPPORTED_TOPOLOGIES
+
+    warnings: list[str] = []
+
+    # ── Parameter validation (fail loud, not silent) ─────────────────────
+    if topology not in SUPPORTED_TOPOLOGIES and topology != "multi_topology":
+        raise ValueError(f"Unknown topology {topology!r}. Valid: {SUPPORTED_TOPOLOGIES}")
+    _valid_obj = ("deploy", "critical", "extrapolation", "custom")
+    if objective not in _valid_obj:
+        raise ValueError(f"objective must be one of {_valid_obj}, got {objective!r}")
+    if h_regime not in _VALID_H_REGIMES:
+        raise ValueError(f"h_regime must be one of {_VALID_H_REGIMES}, got {h_regime!r}")
+    if not (0.0 <= min_confidence <= 1.0):
+        raise ValueError(f"min_confidence must be in [0,1], got {min_confidence}")
+
+    # ── Resolve objective → scoring params ───────────────────────────────
+    resolved_h_regime = h_regime
+    resolved_n_target = n_target
+
+    if objective == "deploy":
+        resolved_h_regime = h_regime or "paramagnetic"
+    elif objective == "critical":
+        resolved_h_regime = "critical"
+    elif objective == "extrapolation":
+        if n_target is None:
+            raise ValueError(
+                "objective='extrapolation' requires n_target (the large-N "
+                "system size you want to predict for)."
+            )
+        resolved_h_regime = h_regime or "paramagnetic"
+    # objective == "custom" uses params as-is
+
+    # ── Delegate ranking to the unified selector ─────────────────────────
+    try:
+        loaded_model, entry, source = load_best_model_for(
+            topology,
+            model=model,
+            p_layers=p_layers,
+            n_target=resolved_n_target,
+            h_regime=resolved_h_regime,
+            include_multi_topology=include_multi_topology,
+        )
+    except FileNotFoundError as e:
+        return {
+            "model": None,
+            "entry": None,
+            "source": None,
+            "objective": objective,
+            "resolved_params": {"n_target": resolved_n_target, "h_regime": resolved_h_regime},
+            "confidence": 0.0,
+            "confidence_basis": "no_model_available",
+            "reliable": False,
+            "warnings": [str(e)],
+        }
+
+    # ── Confidence: Wilson CI lower bound of pass_rate at target N ───────
+    # Prefer the registry EvaluationRecord (has real per-N CIs). Fall back to
+    # pass_rate_by_n (point estimate → conservative) then global pass_rate.
+    confidence = 0.0
+    confidence_basis = "none"
+
+    ci_lower = _confidence_from_registry(entry.checkpoint_file, resolved_n_target)
+    if ci_lower is not None:
+        confidence = ci_lower
+        confidence_basis = "registry_wilson_ci_lower"
+    elif entry.pass_rate_by_n and resolved_n_target is not None:
+        n_key = str(resolved_n_target)
+        if n_key in entry.pass_rate_by_n:
+            confidence = float(entry.pass_rate_by_n[n_key])
+            confidence_basis = "pass_rate_by_n_point_estimate"
+            warnings.append(
+                f"No CI data for N={resolved_n_target}; confidence is a point "
+                f"estimate. Re-run evaluation to get statistical bounds."
+            )
+    if confidence == 0.0 and entry.pass_rate > 0:
+        confidence = entry.pass_rate * 0.7  # discount: global, not target-specific
+        confidence_basis = "global_pass_rate_discounted"
+        warnings.append(
+            "Confidence derived from GLOBAL pass_rate (not target-specific). "
+            "Treat as a rough lower bound."
+        )
+
+    # ── Regime reachability check ────────────────────────────────────────
+    if resolved_h_regime == "critical":
+        h_lo = entry.h_range[0] if entry.h_range else 1.0
+        if h_lo > 2.0:
+            warnings.append(
+                f"Objective='critical' but selected model's h_range starts at "
+                f"{h_lo:.2f} (> 2.0). It likely never saw near-h_c data — "
+                f"predictions near the transition may be unreliable."
+            )
+    if objective == "extrapolation" and resolved_n_target is not None:
+        by_n = entry.pass_rate_by_n or {}
+        n_vals = [int(k) for k in by_n if k.isdigit()]
+        if n_vals and max(n_vals) < resolved_n_target:
+            warnings.append(
+                f"No evaluation at N>={resolved_n_target} (max evaluated N="
+                f"{max(n_vals)}). Extrapolation confidence is inferred, not measured."
+            )
+
+    reliable = confidence >= min_confidence
+
+    logger.info(
+        "select_model_for_objective(%s, obj=%s): %s (conf=%.0f%% [%s], reliable=%s)",
+        topology,
+        objective,
+        entry.checkpoint_file[:40],
+        confidence * 100,
+        confidence_basis,
+        reliable,
+    )
+
+    return {
+        "model": loaded_model,
+        "entry": entry,
+        "source": source,
+        "objective": objective,
+        "resolved_params": {"n_target": resolved_n_target, "h_regime": resolved_h_regime},
+        "confidence": round(confidence, 4),
+        "confidence_basis": confidence_basis,
+        "reliable": reliable,
+        "warnings": warnings,
+    }
+
+
+def _confidence_from_registry(checkpoint_file: str, n_target: int | None) -> float | None:
+    """Return the Wilson CI lower bound of pass_rate at n_target from the
+    ModelRegistryDB EvaluationRecord, or None if unavailable.
+
+    Uses the per-N CI persisted by runner_base._persist_evaluation_to_registry.
+    If a per-h array exists for n_target, recomputes a fresh Wilson CI from it
+    (most accurate); otherwise uses the stored pass_rate_dual_ci.
+    """
+    try:
+        from qmbp_simulation.analysis.metrics import (
+            DE_GAP_THRESHOLD,
+            MAX_ABS_ERROR,
+            wilson_ci,
+        )
+        from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
+
+        db = ModelRegistryDB()
+        record = db.get_model(checkpoint_file)
+        if not record or not record.evaluations:
+            return None
+        latest = record.evaluations[-1]
+
+        # Best: recompute Wilson CI from per-h arrays at target N
+        if n_target is not None:
+            n_key = str(n_target)
+            dgs = latest.per_h_de_gaps.get(n_key) if latest.per_h_de_gaps else None
+            aes = latest.per_h_abs_errors.get(n_key) if latest.per_h_abs_errors else None
+            if dgs:
+                if aes and len(aes) == len(dgs):
+                    n_pass = sum(
+                        1
+                        for d, a in zip(dgs, aes, strict=False)
+                        if d < DE_GAP_THRESHOLD and a < MAX_ABS_ERROR
+                    )
+                else:
+                    n_pass = sum(1 for d in dgs if d < DE_GAP_THRESHOLD)
+                lo, _hi = wilson_ci(n_pass, len(dgs))
+                return lo
+
+        # Fallback: stored aggregate CI (not N-specific but statistically valid)
+        if latest.pass_rate_dual_ci and len(latest.pass_rate_dual_ci) == 2:
+            return float(latest.pass_rate_dual_ci[0])
+    except Exception:
+        return None
+    return None
+
+
 def heal_manifest(*, dry_run: bool = True) -> dict:
     """Detect and fix inconsistencies between manifest and disk.
 

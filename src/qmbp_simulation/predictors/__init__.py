@@ -35,6 +35,7 @@ from qmbp_simulation.predictors.model_zoo import (
     get_training_data_quality,
     list_pretrained,
     load_best_model_for,
+    select_model_for_objective,
     load_pretrained,
     refresh_zoo_quality_scores,
     register_checkpoint,
@@ -152,6 +153,7 @@ __all__ = [
     # Model zoo (pre-trained MPNN registry)
     "load_pretrained",
     "load_best_model_for",
+    "select_model_for_objective",
     "get_training_data_quality",
     "list_pretrained",
     "register_checkpoint",

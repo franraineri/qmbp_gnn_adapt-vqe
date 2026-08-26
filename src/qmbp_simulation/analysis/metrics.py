@@ -949,6 +949,79 @@ def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
     return result
 
 
+def wilson_ci(n_success: int, n_total: int, *, z: float = 1.96) -> tuple[float, float]:
+    """Wilson score confidence interval for a binomial proportion (pass rate).
+
+    More reliable than the normal (Wald) interval for small n, which is the
+    typical case here (6-20 h-points per evaluation). Default z=1.96 → 95% CI.
+
+    Parameters
+    ----------
+    n_success : int
+        Number of successes (e.g., h-points passing the dual criterion).
+    n_total : int
+        Total number of trials (h-points evaluated).
+    z : float
+        Normal quantile for the confidence level (1.96 = 95%, 1.645 = 90%).
+
+    Returns
+    -------
+    tuple[float, float]
+        (ci_lower, ci_upper), both clamped to [0, 1]. Returns (0.0, 0.0) when
+        n_total == 0.
+    """
+    if n_total <= 0:
+        return (0.0, 0.0)
+    p = n_success / n_total
+    denom = 1.0 + z * z / n_total
+    center = (p + z * z / (2 * n_total)) / denom
+    margin = z * np.sqrt(p * (1 - p) / n_total + z * z / (4 * n_total * n_total)) / denom
+    return (float(max(0.0, center - margin)), float(min(1.0, center + margin)))
+
+
+def bootstrap_ci_mean(
+    data: np.ndarray,
+    *,
+    n_bootstrap: int = 1000,
+    confidence: float = 0.95,
+    seed: int = 42,
+) -> tuple[float, float]:
+    """Bootstrap percentile confidence interval for the mean of a sample.
+
+    Distribution-free — appropriate for ΔE/gap which is typically skewed
+    (long tail near h_critical). Reproducible via fixed seed.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Sample values (e.g., per-h ΔE/gap).
+    n_bootstrap : int
+        Number of bootstrap resamples.
+    confidence : float
+        Confidence level (0.95 = 95% CI).
+    seed : int
+        RNG seed for reproducibility.
+
+    Returns
+    -------
+    tuple[float, float]
+        (ci_lower, ci_upper) of the mean. For n < 2 returns (mean, mean).
+    """
+    data = np.asarray(data, dtype=float)
+    n = len(data)
+    if n < 2:
+        val = float(data[0]) if n == 1 else 0.0
+        return (val, val)
+    rng = np.random.default_rng(seed)
+    # Vectorized resampling: [n_bootstrap, n] index matrix
+    idx = rng.integers(0, n, size=(n_bootstrap, n))
+    boot_means = data[idx].mean(axis=1)
+    alpha = 1.0 - confidence
+    lo = float(np.percentile(boot_means, 100 * alpha / 2))
+    hi = float(np.percentile(boot_means, 100 * (1 - alpha / 2)))
+    return (lo, hi)
+
+
 def compute_deploy_summary(
     per_h_results: list[dict],
     *,
@@ -1016,15 +1089,34 @@ def compute_deploy_summary(
         summary["n_pass_dual"] = summary.get("n_pass_5pct", 0)
         summary["pass_rate_dual"] = summary.get("pass_rate_5pct", 0.0)
 
-    # Fidelity stats (if available — only for N ≤ STATEVECTOR_MAX_N)
+    # Fidelity stats. Exact for N ≤ STATEVECTOR_MAX_N, else a rigorous
+    # variance-based lower bound (Eckart). We track how many points are
+    # bounds vs exact so downstream reports can annotate correctly.
     fids = [r["fidelity"] for r in per_h_results if r.get("fidelity") is not None]
     if fids:
-        summary["mean_fidelity"] = float(np.mean(fids))
-        summary["min_fidelity"] = float(np.min(fids))
-        summary["fidelity_pass_rate"] = float(np.mean(np.array(fids) > 0.90))
+        fids_arr = np.array(fids)
+        summary["mean_fidelity"] = float(np.mean(fids_arr))
+        summary["min_fidelity"] = float(np.min(fids_arr))
+        summary["fidelity_pass_rate"] = float(np.mean(fids_arr > 0.90))
+        # Provenance: distinguish exact fidelity from variance lower bounds.
+        n_bound = sum(1 for r in per_h_results if r.get("fidelity_is_bound"))
+        n_fid = len(fids)
+        summary["n_fidelity_points"] = n_fid
+        summary["n_fidelity_bound"] = int(n_bound)
+        summary["n_fidelity_exact"] = int(n_fid - n_bound)
+        summary["fidelity_is_lower_bound"] = bool(n_bound > 0)
+        # Mean energy variance (only present on bound points).
+        evs = [r["energy_variance"] for r in per_h_results if r.get("energy_variance") is not None]
+        summary["mean_energy_variance"] = float(np.mean(evs)) if evs else None
     else:
         summary["mean_fidelity"] = None
+        summary["min_fidelity"] = None
         summary["fidelity_pass_rate"] = None
+        summary["n_fidelity_points"] = 0
+        summary["n_fidelity_bound"] = 0
+        summary["n_fidelity_exact"] = 0
+        summary["fidelity_is_lower_bound"] = False
+        summary["mean_energy_variance"] = None
 
     # Standard deviation (useful for confidence intervals and thesis tables)
     summary["std_de_gap"] = float(np.std(de_gaps))
@@ -1049,6 +1141,26 @@ def compute_deploy_summary(
     )
     summary["quality_score"] = score
     summary["grade"] = grade_from_score(score)
+
+    # ── Statistical confidence intervals (95%) ─────────────────────────────
+    # Wilson CI on pass_rate_dual: reports the uncertainty of the pass rate
+    # given the number of h-points. With few points (6-8), the point estimate
+    # is noisy; the CI lower bound is a conservative, comparable quality signal.
+    n_pass_dual = summary.get("n_pass_dual", 0)
+    pd_lo, pd_hi = wilson_ci(int(n_pass_dual), n)
+    summary["pass_rate_dual_ci_lower"] = pd_lo
+    summary["pass_rate_dual_ci_upper"] = pd_hi
+
+    # Wilson CI on pass_rate_5pct (single criterion) for reference
+    n_pass_5 = summary.get("n_pass_5pct", 0)
+    p5_lo, p5_hi = wilson_ci(int(n_pass_5), n)
+    summary["pass_rate_5pct_ci_lower"] = p5_lo
+    summary["pass_rate_5pct_ci_upper"] = p5_hi
+
+    # Bootstrap CI on mean ΔE/gap: distribution-free error bar on the mean.
+    dg_lo, dg_hi = bootstrap_ci_mean(de_gaps)
+    summary["mean_de_gap_ci_lower"] = dg_lo
+    summary["mean_de_gap_ci_upper"] = dg_hi
 
     return summary
 

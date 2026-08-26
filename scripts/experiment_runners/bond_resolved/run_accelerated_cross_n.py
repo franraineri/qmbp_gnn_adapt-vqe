@@ -807,7 +807,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
 
         spec = get_model_spec("tfim_bond_resolved")
-        solver = self.solver
         hva = HVACircuitBuilder()
         topo = self._args.topology
 
@@ -909,31 +908,35 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
                         abs_err = abs(e_pred - e_exact)
 
-                        # Fidelity via parent's compute_fidelity (only N ≤ 22)
-                        fidelity = None
-                        if n_target <= STATEVECTOR_MAX_N:
-                            try:
-                                gt_obj = solver.solve(H, lat_h)
-                                if gt_obj.ground_state is not None:
-                                    fidelity = float(
-                                        self.compute_fidelity(
-                                            circuit_target, theta_pred, gt_obj.ground_state
-                                        )
-                                    )
-                            except (MemoryError, ValueError):
-                                fidelity = None
+                        # Fidelity at any N: exact (N ≤ 16) or variance-based
+                        # lower bound (Eckart) for larger N. Records provenance.
+                        fid_info = self.estimate_fidelity(
+                            circuit_target,
+                            theta_pred,
+                            topo,
+                            n_target,
+                            float(h),
+                            model="tfim_bond_resolved",
+                            gap=gap,
+                            e_pred=e_pred,
+                        )
+                        fidelity = fid_info.get("fidelity")
 
                         per_h_result = self.build_per_h_result(
                             h,
                             e_pred,
                             e_exact,
                             gap,
-                            fidelity=fidelity,
+                            fidelity_info=fid_info,
                             n_params=len(theta_pred),
                         )
                         per_h_result["theta_std"] = theta_std
                         per_h_results.append(per_h_result)
-                        fid_str = f"F={fidelity:.4f}" if fidelity is not None else "F=N/A(N>22)"
+                        if fidelity is not None:
+                            _bnd = "≥" if fid_info.get("is_lower_bound") else "="
+                            fid_str = f"F{_bnd}{fidelity:.4f}"
+                        else:
+                            fid_str = "F=N/A"
                         logger.info(
                             f"    h={h:.2f}: ΔE/gap={de_gap:.4f} {fid_str} "
                             f"|ΔE|={abs_err:.2e} [{len(theta_pred)} params]"
@@ -1062,19 +1065,18 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                 )
                                 de_gap_new = abs(res.fun - e_exact_ref) / max(gap_ref, 1e-10)
 
-                                # Fidelity (only N ≤ 22)
-                                fid_new = None
-                                if n_target <= STATEVECTOR_MAX_N:
-                                    try:
-                                        gt_ref_obj = solver.solve(H_ref, lat_ref)
-                                        if gt_ref_obj.ground_state is not None:
-                                            fid_new = float(
-                                                self.compute_fidelity(
-                                                    circuit_target, res.x, gt_ref_obj.ground_state
-                                                )
-                                            )
-                                    except Exception:
-                                        pass
+                                # Fidelity: exact (N≤16) or variance bound (N>16)
+                                fid_info_new = self.estimate_fidelity(
+                                    circuit_target,
+                                    res.x,
+                                    topo,
+                                    n_target,
+                                    h_val,
+                                    model="tfim_bond_resolved",
+                                    gap=gap_ref,
+                                    e_pred=float(res.fun),
+                                )
+                                fid_new = fid_info_new.get("fidelity")
 
                                 if de_gap_new < r["de_gap"]:
                                     per_h_results[idx] = {
@@ -1084,6 +1086,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                         "fidelity": fid_new
                                         if fid_new is not None
                                         else r.get("fidelity"),
+                                        "fidelity_method": fid_info_new.get("method"),
+                                        "fidelity_is_bound": fid_info_new.get(
+                                            "is_lower_bound", False
+                                        ),
                                         "e_pred": float(res.fun),
                                         "method": "refined",
                                         "de_gap_before_refine": float(r["de_gap"]),

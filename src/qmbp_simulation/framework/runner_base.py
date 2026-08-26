@@ -1215,6 +1215,18 @@ class ValidationRunner(ABC):
             "per_section": results,
         }
 
+        # ── Statistical summary block (top-level, stable, queryable) ──────────
+        # Surfaces the per-N confidence intervals and per-h arrays produced by
+        # compute_deploy_summary into a compact structure so every run.json is
+        # self-contained for later statistical study (CI comparison, paired
+        # tests between models) without deep-diving section internals.
+        try:
+            stat_summary = self._build_statistical_summary()
+            if stat_summary:
+                envelope["statistical_summary"] = stat_summary
+        except Exception:
+            pass  # best-effort; never block result saving
+
         # Add baseline comparison: deferred to detached subprocess to avoid
         # mimalloc spinlock from ResultIndex.rebuild() with PyTorch in memory.
         # The baseline_ref field will be added by the index refresh subprocess.
@@ -3545,24 +3557,230 @@ class ValidationRunner(ABC):
         *,
         model: str = "tfim",
     ) -> float | None:
-        """Compute state fidelity with N-guard and error handling.
+        """Compute state fidelity |⟨ψ_exact|ψ_vqe⟩|² with N-guard and error handling.
 
-        Returns None for N > STATEVECTOR_MAX_N or on computation error.
+        Robust across all runner subclasses: resolves the model spec from the
+        explicit ``model`` argument (falling back to ``_get_spec()`` when a
+        subclass defines it), so it works even for runners that do not implement
+        ``_get_spec`` (e.g. bond-resolved and large-N extrapolation runners).
+
+        Returns None for N > STATEVECTOR_MAX_N (dense statevector infeasible) or
+        on any computation error. Failures are logged at debug level rather than
+        swallowed silently, so missing fidelity is diagnosable.
+
+        Parameters
+        ----------
+        circuit : QuantumCircuit
+            Parametrized quantum circuit.
+        theta : np.ndarray
+            Optimized/predicted parameters.
+        topology, n_qubits, h : str, int, float
+            Lattice specification for the exact ground state.
+        model : str
+            Model name used to build the Hamiltonian (e.g. "tfim",
+            "tfim_bond_resolved"). Must match the circuit's Hamiltonian.
         """
+        import numpy as np
+
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 
         if n_qubits > STATEVECTOR_MAX_N:
             return None
         try:
             lat = self.make_lattice(topology, n_qubits, J=1.0, h=h)
-            spec = self._get_spec()
+            # Prefer the explicit model arg (works for every runner). Fall back
+            # to _get_spec() only when the caller relies on runner-configured
+            # model params and did not override the default model name.
+            spec = None
+            if model == "tfim" and hasattr(self, "_get_spec"):
+                try:
+                    spec = self._get_spec()
+                except Exception:  # noqa: BLE001 - fall through to registry
+                    spec = None
+            if spec is None:
+                from qmbp_simulation.models.model_registry import get_model_spec
+
+                spec = get_model_spec(model)
             H = spec.build_hamiltonian(lat, **spec.hamiltonian_kwargs)
             gt = self.solver.solve(H, lat)
             if gt.ground_state is None:
                 return None
-            return float(self.compute_fidelity(circuit, theta, gt.ground_state))
-        except (MemoryError, ValueError, AttributeError):
+            fid = float(self.compute_fidelity(circuit, theta, gt.ground_state))
+            if not np.isfinite(fid):
+                return None
+            return fid
+        except (MemoryError, ValueError, AttributeError, KeyError) as exc:
+            logger.debug(
+                "safe_compute_fidelity failed for %s N=%d h=%.2f model=%s: %s",
+                topology,
+                n_qubits,
+                h,
+                model,
+                exc,
+            )
             return None
+
+    def compute_fidelity_bound(
+        self,
+        circuit,
+        theta: np.ndarray,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        *,
+        model: str = "tfim",
+        gap: float | None = None,
+        e_pred: float | None = None,
+    ) -> dict | None:
+        """Rigorous lower bound on ground-state fidelity for large N (>16).
+
+        Uses the Eckart / Weinstein–Temple inequality, which bounds the overlap
+        with the exact ground state |E₀⟩ using only expectation values of the
+        variational state |ψ⟩ (no dense statevector, no basis-convention risk):
+
+            F = |⟨E₀|ψ⟩|²  ≥  1 − Var(H) / gap²      (valid when E_pred < E₁)
+
+        where Var(H) = ⟨H²⟩ − ⟨H⟩² and gap = E₁ − E₀. The bound is exact (F=1)
+        when |ψ⟩ is an eigenstate (Var→0) and degrades gracefully otherwise.
+        It is a *guaranteed lower bound*, so a high value certifies high
+        fidelity; a low value is inconclusive (could be loose).
+
+        This is the robust large-N method: it reuses the MPS-based
+        ``compute_energy_variance`` (works at any N via ``save_expectation_value``)
+        and never needs the exact ground state vector.
+
+        Parameters
+        ----------
+        circuit, theta, topology, n_qubits, h : circuit + lattice specification.
+        model : str
+            Model name for the Hamiltonian (e.g. "tfim_bond_resolved").
+        gap : float | None
+            Spectral gap E₁ − E₀. If None, resolved via exact_ground_state().
+        e_pred : float | None
+            Variational energy ⟨H⟩. Used to check the E_pred < E₁ validity
+            condition. If None, the check is skipped (bound still returned).
+
+        Returns
+        -------
+        dict | None
+            Keys: ``fidelity`` (lower bound in [0,1]), ``method``
+            ("variance_bound"), ``is_lower_bound`` (True), ``energy_variance``
+            (Var(H)). Returns None if the variance is not computable (NaN) or
+            the gap is non-positive.
+        """
+        import numpy as np
+
+        try:
+            from qmbp_simulation.models.model_registry import get_model_spec
+
+            # Resolve gap if not provided (uses 2-level GT cache).
+            if gap is None:
+                _, gap = self.exact_ground_state(topology, n_qubits, h, model=model)
+            if gap is None or gap <= 1e-9:
+                return None
+
+            spec = get_model_spec(model)
+            lat = self.make_lattice(topology, n_qubits, J=1.0, h=h)
+            H = spec.build_hamiltonian(lat, **spec.hamiltonian_kwargs)
+
+            # Var(H) = ⟨H²⟩ − ⟨H⟩². We need a backend whose
+            # compute_energy_variance works for N > STATEVECTOR_MAX_N. The
+            # default NoiselessBackend returns NaN there, and select_backend
+            # only switches to MPS above EXACT_DIAG_QUBIT_LIMIT (22), leaving a
+            # gap for 17–22. Use a deterministic MPS backend directly so the
+            # variance is always computable via save_expectation_value.
+            from qmbp_simulation.execution import MPSBackend
+
+            backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True)
+            var_h = backend.compute_energy_variance(circuit, H, np.asarray(theta))
+            if var_h is None or not np.isfinite(var_h):
+                return None
+
+            # Eckart lower bound. Var/gap² can exceed 1 (loose/invalid regime);
+            # clip to [0, 1]. A returned 0.0 means "inconclusive", not "F=0".
+            fid_lb = float(np.clip(1.0 - var_h / (gap * gap), 0.0, 1.0))
+
+            # Validity note: the bound assumes E_pred < E₁ = E₀ + gap.
+            # We record it but do not discard — a violated condition just makes
+            # the bound loose, not wrong (still a valid ≤ inequality in practice
+            # for near-ground states).
+            return {
+                "fidelity": fid_lb,
+                "method": "variance_bound",
+                "is_lower_bound": True,
+                "energy_variance": float(var_h),
+            }
+        except (MemoryError, ValueError, AttributeError, KeyError) as exc:
+            logger.debug(
+                "compute_fidelity_bound failed for %s N=%d h=%.2f model=%s: %s",
+                topology,
+                n_qubits,
+                h,
+                model,
+                exc,
+            )
+            return None
+
+    def estimate_fidelity(
+        self,
+        circuit,
+        theta: np.ndarray,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        *,
+        model: str = "tfim",
+        gap: float | None = None,
+        e_pred: float | None = None,
+    ) -> dict:
+        """Best-available fidelity estimate at any N, with provenance metadata.
+
+        Dispatches to the most accurate method the system size allows:
+        - N ≤ STATEVECTOR_MAX_N: exact fidelity |⟨E₀|ψ⟩|² via statevector.
+        - N > STATEVECTOR_MAX_N: rigorous variance-based lower bound (Eckart).
+
+        Always returns a dict (never raises) so callers can persist it directly.
+        The ``fidelity`` key is None only when even the bound is uncomputable.
+
+        Returns
+        -------
+        dict
+            ``fidelity`` : float | None
+            ``method`` : "exact" | "variance_bound" | "unavailable"
+            ``is_lower_bound`` : bool  (False for exact, True for the bound)
+            ``energy_variance`` : float | None  (only for the bound path)
+        """
+        from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+        if n_qubits <= STATEVECTOR_MAX_N:
+            fid = self.safe_compute_fidelity(circuit, theta, topology, n_qubits, h, model=model)
+            if fid is not None:
+                return {
+                    "fidelity": fid,
+                    "method": "exact",
+                    "is_lower_bound": False,
+                    "energy_variance": None,
+                }
+            # Fall through to the bound if exact failed unexpectedly.
+
+        bound = self.compute_fidelity_bound(
+            circuit,
+            theta,
+            topology,
+            n_qubits,
+            h,
+            model=model,
+            gap=gap,
+            e_pred=e_pred,
+        )
+        if bound is not None:
+            return bound
+        return {
+            "fidelity": None,
+            "method": "unavailable",
+            "is_lower_bound": False,
+            "energy_variance": None,
+        }
 
     @staticmethod
     def build_per_h_result(
@@ -3572,11 +3790,23 @@ class ValidationRunner(ABC):
         gap: float,
         *,
         fidelity: float | None = None,
+        fidelity_info: dict | None = None,
         **extra,
     ) -> dict:
         """Build standardized per-h result dict for compute_deploy_summary.
 
         Ensures all required keys are present and float-typed.
+
+        Parameters
+        ----------
+        fidelity : float | None
+            Fidelity value (exact or lower bound). Kept for backward
+            compatibility; ignored if ``fidelity_info`` is given.
+        fidelity_info : dict | None
+            Provenance dict from ``estimate_fidelity`` with keys ``fidelity``,
+            ``method``, ``is_lower_bound``, ``energy_variance``. When provided,
+            these are recorded so downstream reports can distinguish an exact
+            fidelity from a variance-based lower bound (large N).
         """
         de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
         result: dict = {
@@ -3587,7 +3817,16 @@ class ValidationRunner(ABC):
             "e_exact": float(e_exact),
             "gap": float(gap),
         }
-        if fidelity is not None:
+        if fidelity_info is not None:
+            fid_val = fidelity_info.get("fidelity")
+            if fid_val is not None:
+                result["fidelity"] = float(fid_val)
+                result["fidelity_method"] = fidelity_info.get("method", "exact")
+                result["fidelity_is_bound"] = bool(fidelity_info.get("is_lower_bound", False))
+                ev = fidelity_info.get("energy_variance")
+                if ev is not None:
+                    result["energy_variance"] = float(ev)
+        elif fidelity is not None:
             result["fidelity"] = float(fidelity)
         result.update(extra)
         return result
@@ -3912,6 +4151,96 @@ class ValidationRunner(ABC):
 
         return best
 
+    def _build_statistical_summary(self) -> dict:
+        """Aggregate per-N statistical metrics (CIs + per-h arrays) into a
+        compact top-level block for the run JSON.
+
+        Scans section results for per-N evaluation dicts (both the nested
+        per-N pattern and the ``mpnn_results`` pattern) and extracts the
+        confidence intervals and per-h raw arrays produced by
+        ``compute_deploy_summary``. Makes every run self-contained for later
+        statistical study without walking section internals.
+
+        Returns
+        -------
+        dict
+            {
+                "per_n": {
+                    str(N): {
+                        "pass_rate_dual", "pass_rate_dual_ci",
+                        "mean_de_gap", "mean_de_gap_ci",
+                        "n_points", "de_gaps", "abs_errors", "h_values",
+                    }, ...
+                },
+                "model_checkpoint": str | None,
+            }
+            Empty dict if no per-N evaluation data was produced.
+        """
+        per_n: dict[str, dict] = {}
+
+        def _ingest(val: dict, n: int) -> None:
+            if not isinstance(val, dict):
+                return
+            pr = val.get("pass_rate_dual")
+            if not isinstance(pr, (int, float)):
+                return
+            entry: dict = {
+                "pass_rate_dual": float(pr),
+                "n_points": val.get("n_points"),
+                "mean_de_gap": val.get("mean_de_gap"),
+            }
+            # Confidence intervals (may be absent for legacy summaries)
+            if isinstance(val.get("pass_rate_dual_ci_lower"), (int, float)):
+                entry["pass_rate_dual_ci"] = [
+                    float(val["pass_rate_dual_ci_lower"]),
+                    float(val.get("pass_rate_dual_ci_upper", val["pass_rate_dual_ci_lower"])),
+                ]
+            if isinstance(val.get("mean_de_gap_ci_lower"), (int, float)):
+                entry["mean_de_gap_ci"] = [
+                    float(val["mean_de_gap_ci_lower"]),
+                    float(val.get("mean_de_gap_ci_upper", val["mean_de_gap_ci_lower"])),
+                ]
+            # Per-h raw arrays (for paired tests between models later)
+            pts = val.get("per_point")
+            if isinstance(pts, list) and pts:
+                dgs = [p.get("de_gap") for p in pts if isinstance(p.get("de_gap"), (int, float))]
+                aes = [
+                    p.get("abs_error") for p in pts if isinstance(p.get("abs_error"), (int, float))
+                ]
+                hvs = [p.get("h") for p in pts if isinstance(p.get("h"), (int, float))]
+                if dgs:
+                    entry["de_gaps"] = [float(x) for x in dgs]
+                if aes:
+                    entry["abs_errors"] = [float(x) for x in aes]
+                if hvs:
+                    entry["h_values"] = [float(x) for x in hvs]
+            per_n[str(n)] = entry
+
+        for r in self._section_results:
+            if not r.success or not r.data:
+                continue
+            data = r.data
+            for _key, val in data.items():
+                if isinstance(val, dict):
+                    n = val.get("n_qubits") or val.get("N")
+                    if isinstance(n, int) and n > 0:
+                        _ingest(val, n)
+            mpnn_res = data.get("mpnn_results", {})
+            if isinstance(mpnn_res, dict):
+                for _n_str, val in mpnn_res.items():
+                    if isinstance(val, dict):
+                        n = val.get("n_qubits")
+                        if isinstance(n, int) and n > 0:
+                            _ingest(val, n)
+
+        if not per_n:
+            return {}
+
+        ckpt = None
+        if self._model_provenance:
+            ckpt = self._model_provenance.get("checkpoint")
+        return {"per_n": per_n, "model_checkpoint": ckpt}
+
     def _persist_evaluation_to_registry(self) -> None:
         """Persist a rich EvaluationRecord to ModelRegistryDB after a run.
 
@@ -3946,6 +4275,29 @@ class ValidationRunner(ABC):
         mean_de_gaps: list[float] = []
         mean_abs_per_site: list[float] = []
         pass_rates_5pct: list[float] = []
+        # Per-h raw arrays (per N) for downstream paired significance tests
+        per_h_de_gaps: dict[str, list[float]] = {}
+        per_h_abs_errors: dict[str, list[float]] = {}
+        per_h_h_values: dict[str, list[float]] = {}
+        # CI accumulators (from the best-pass-dual N entry)
+        best_pass_dual_ci: list[float] = []
+        best_mean_de_gap_ci: list[float] = []
+
+        def _extract_per_h(val: dict, n: int) -> None:
+            """Pull per-h arrays + CIs out of a per-N result dict."""
+            pts = val.get("per_point")
+            if isinstance(pts, list) and pts:
+                dg = [p.get("de_gap") for p in pts if isinstance(p.get("de_gap"), (int, float))]
+                ae = [
+                    p.get("abs_error") for p in pts if isinstance(p.get("abs_error"), (int, float))
+                ]
+                hv = [p.get("h") for p in pts if isinstance(p.get("h"), (int, float))]
+                if dg:
+                    per_h_de_gaps[str(n)] = [float(x) for x in dg]
+                if ae:
+                    per_h_abs_errors[str(n)] = [float(x) for x in ae]
+                if hv:
+                    per_h_h_values[str(n)] = [float(x) for x in hv]
 
         for r in self._section_results:
             if not r.success or not r.data:
@@ -3970,6 +4322,21 @@ class ValidationRunner(ABC):
                     p5 = val.get("pass_rate_5pct")
                     if isinstance(p5, (int, float)):
                         pass_rates_5pct.append(p5)
+                    if isinstance(n, int) and n > 0:
+                        _extract_per_h(val, n)
+                        # Capture CIs from this N entry (last one wins; all comparable)
+                        pd_ci = [
+                            val.get("pass_rate_dual_ci_lower"),
+                            val.get("pass_rate_dual_ci_upper"),
+                        ]
+                        if all(isinstance(x, (int, float)) for x in pd_ci):
+                            best_pass_dual_ci[:] = [float(pd_ci[0]), float(pd_ci[1])]
+                        dg_ci = [
+                            val.get("mean_de_gap_ci_lower"),
+                            val.get("mean_de_gap_ci_upper"),
+                        ]
+                        if all(isinstance(x, (int, float)) for x in dg_ci):
+                            best_mean_de_gap_ci[:] = [float(dg_ci[0]), float(dg_ci[1])]
 
             # Also check 'mpnn_results' dict (run_large_n_extrapolation pattern)
             mpnn_res = data.get("mpnn_results", {})
@@ -3989,6 +4356,20 @@ class ValidationRunner(ABC):
                     p5 = val.get("pass_rate_5pct")
                     if isinstance(p5, (int, float)):
                         pass_rates_5pct.append(p5)
+                    if isinstance(n, int) and n > 0:
+                        _extract_per_h(val, n)
+                        pd_ci = [
+                            val.get("pass_rate_dual_ci_lower"),
+                            val.get("pass_rate_dual_ci_upper"),
+                        ]
+                        if all(isinstance(x, (int, float)) for x in pd_ci):
+                            best_pass_dual_ci[:] = [float(pd_ci[0]), float(pd_ci[1])]
+                        dg_ci = [
+                            val.get("mean_de_gap_ci_lower"),
+                            val.get("mean_de_gap_ci_upper"),
+                        ]
+                        if all(isinstance(x, (int, float)) for x in dg_ci):
+                            best_mean_de_gap_ci[:] = [float(dg_ci[0]), float(dg_ci[1])]
 
         # Also try target_n from args (fallback)
         if not target_n_values:
@@ -4011,6 +4392,11 @@ class ValidationRunner(ABC):
             if mean_abs_per_site
             else 0.0,
             notes=f"{self.runner_id} N={sorted(set(target_n_values)) or '?'}",
+            pass_rate_dual_ci=best_pass_dual_ci,
+            mean_de_gap_ci=best_mean_de_gap_ci,
+            per_h_de_gaps=per_h_de_gaps,
+            per_h_abs_errors=per_h_abs_errors,
+            per_h_h_values=per_h_h_values,
         )
 
         db = ModelRegistryDB()
