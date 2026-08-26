@@ -17,11 +17,11 @@ Untitled*.ipynb
 # NOTE: notebooks/*.ipynb are tracked (demo notebooks for open-source)
 
 # ── Data artifacts (regenerable) ─────────────────────────────
-*.npz
-*.pt
-*.pth
-*.h5
-*.hdf5
+.npz
+.pt
+.pth
+.h5
+.hdf5
 data/VQEzy/
 data/colab_job.json
 
@@ -146,8 +146,8 @@ workloads*/
 # ── Notebook test script (dev only) ─────────────────────────
 notebooks/test_notebooks.py
 
-results/extrapolation_evals/*
-results/model_comparison/*
+# results/extrapolation_evals/*
+# results/model_comparison/*
 
 backup_data_*
 *.tar.gzbackup_data_20260821.tar.gz

@@ -1,6 +1,6 @@
 # Cross-Topology Unified Report
 
-**Generated**: 2026-08-24 02:32 UTC
+**Generated**: 2026-08-26 15:40 UTC
 **Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)
 **Model**: TFIM bond-resolved, HVA p=1
 
@@ -12,13 +12,13 @@
 <!-- AUTO-GENERATED-BEGIN:scorecard -->
 ## 1. Scorecard
 
-| Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier |
-|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| chain_1d | 20 | 100% | ⚠️ 67% | 772 | ⚠️ 72% | N=200 ❌0% | 2.50 |
-| heavy_hex | 40 | 100% | ❌ 0% | 853 | ✅ 83% | N=60 ❌0% | 0.96 |
-| ladder | 6 | 73% | ⚠️ 36% | 624 | ⚠️ 41% | N=40 ❌0% | 1.85 |
-| square | 8 | 85% | ⚠️ 33% | 507 | ⚠️ 71% | N=30 ❌0% | 1.84 |
-| triangular | 4 | 100% | ❌ 25% | 407 | ⚠️ 57% | N=24 ❌0% | 0.50 |
+| Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier | h≤h_c |
+|----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| chain_1d | 20 | 100% | ✅ 71% | 772 | ⚠️ 72% | — | 2.50 | — |
+| heavy_hex | 40 | 100% | ❌ 10% | 1194 | ✅ 87% | — | 0.96 | ✓ |
+| ladder | 6 | 73% | ⚠️ 45% | 624 | ⚠️ 41% | — | 1.85 | — |
+| square | 8 | 85% | ⚠️ 33% | 507 | ⚠️ 71% | — | 1.84 | — |
+| triangular | 4 | 100% | ❌ 25% | 407 | ⚠️ 57% | — | 0.50 | ✓ |
 <!-- AUTO-GENERATED-END:scorecard -->
 
 <!-- AUTO-GENERATED-BEGIN:scaling -->
@@ -27,7 +27,7 @@
 | Topology | N=4 | N=6 | N=8 | N=10 | N=12 | N=14 | N=16 | N=20 | N=26 | N=30 | N=40 |
 |----------|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
 | chain_1d | **100%** ✅ | **99%** ✅ | **96%** ✅ | **85%** ✅ | **91%** ✅ | **80%** ✅ | 73% ⚠️ | 78% ⚠️ | 67% ⚠️ | 29% ❌ | 42% ❌ |
-| heavy_hex | **94%** ✅ | **100%** ✅ | 55% ⚠️ | **90%** ✅ | **87%** ✅ | 36% ❌ | 73% ⚠️ | 50% ⚠️ | 0% | 52% ⚠️ | **83%** ✅ |
+| heavy_hex | **94%** ✅ | **100%** ✅ | 55% ⚠️ | **91%** ✅ | **88%** ✅ | 36% ❌ | 72% ⚠️ | 26% ❌ | 0% | 52% ⚠️ | **83%** ✅ |
 | ladder | 73% ⚠️ | 72% ⚠️ | 53% ⚠️ | 37% ❌ | 48% ❌ | 27% ❌ | 25% ❌ | 23% ❌ | 12% ❌ | 20% ❌ | 0% |
 | square | **85%** ✅ | **85%** ✅ | **81%** ✅ | 63% ⚠️ | 47% ❌ | 54% ⚠️ | 15% ❌ | 0% | — | — | — |
 | triangular | 72% ⚠️ | 60% ⚠️ | 9% ❌ | 17% ❌ | 7% ❌ | — | — | — | — | — | — |
@@ -57,7 +57,7 @@ Configs where single-criterion inflates by >10pp vs dual:
 | ladder | 8 | 79% | 53% | +26% |
 | ladder | 26 | 38% | 12% | +25% |
 | chain_1d | 60 | 45% | 23% | +23% |
-| ... | | | | *(12 more)* |
+| ... | | | | *(13 more)* |
 <!-- AUTO-GENERATED-END:masking -->
 
 <!-- AUTO-GENERATED-BEGIN:extrapolation -->
@@ -65,41 +65,7 @@ Configs where single-criterion inflates by >10pp vs dual:
 
 MPNN predictions at N >> training data. Only dual criterion reported.
 
-| Topology | N | h-range | Pts | pass_dual | |ΔE|/N | ΔE/gap (mean) |
-|----------|---|---------|-----|-----------|--------|---------------|
-| chain_1d | 16 | [2.5, 5.0] | 10 | 2/10 ❌ | 3.19e-02 | 0.1050 |
-| chain_1d | 20 | [2.5, 5.0] | 7 | 6/7 ✅ | 1.81e-02 | 0.0678 |
-| chain_1d | 30 | [2.5, 5.5] | 28 | 8/28 ❌ | 7.10e-03 | 0.0351 |
-| chain_1d | 40 | [2.5, 5.5] | 24 | 10/24 ⚠️ | 5.90e-03 | 0.0405 |
-| chain_1d | 60 | [2.5, 5.5] | 22 | 5/22 ❌ | 7.45e-03 | 0.0725 |
-| chain_1d | 80 | [2.5, 5.0] | 8 | 0/8 ❌ | 8.85e-03 | 0.1658 |
-| chain_1d | 100 | [2.5, 5.5] | 19 | 2/19 ❌ | 7.98e-03 | 0.1369 |
-| chain_1d | 150 | [4.0, 5.0] | 3 | 0/3 ❌ | 3.58e-02 | 0.7841 |
-| chain_1d | 200 | [4.0, 5.0] | 3 | 0/3 ❌ | 3.59e-02 | 1.0472 |
-| heavy_hex | 10 | [2.5, 5.0] | 14 | 11/14 ✅ | 6.28e-03 | 0.0106 |
-| heavy_hex | 14 | [2.5, 5.0] | 14 | 11/14 ✅ | 7.96e-03 | 0.0201 |
-| heavy_hex | 16 | [2.5, 5.0] | 6 | 0/6 ❌ | 3.74e-02 | 0.1059 |
-| heavy_hex | 20 | [2.0, 5.0] | 60 | 28/60 ⚠️ | 1.06e-02 | 0.2071 |
-| heavy_hex | 21 | [2.5, 5.0] | 14 | 0/14 ❌ | 4.44e-02 | 0.3410 |
-| heavy_hex | 22 | [2.5, 5.0] | 10 | 6/10 ⚠️ | 1.80e-02 | 0.2006 |
-| heavy_hex | 24 | [2.5, 5.0] | 14 | 9/14 ⚠️ | 8.22e-03 | 0.0897 |
-| heavy_hex | 26 | [2.5, 5.0] | 14 | 9/14 ⚠️ | 1.37e-02 | 0.1525 |
-| heavy_hex | 30 | [2.0, 5.0] | 45 | 30/45 ⚠️ | 1.08e-02 | 0.3664 |
-| heavy_hex | 32 | [2.5, 5.0] | 10 | 6/10 ⚠️ | 2.02e-02 | 0.3840 |
-| heavy_hex | 40 | [2.5, 5.0] | 33 | 13/33 ⚠️ | 1.45e-02 | 0.2009 |
-| heavy_hex | 50 | [2.5, 5.0] | 6 | 0/6 ❌ | 1.23e-01 | 2.5883 |
-| heavy_hex | 60 | [2.5, 5.0] | 6 | 0/6 ❌ | 6.97e-02 | 1.9004 |
-| ladder | 16 | [2.5, 5.0] | 6 | 0/6 ❌ | 1.40e-02 | 0.0784 |
-| ladder | 20 | [2.5, 5.5] | 24 | 6/24 ❌ | 7.24e-03 | 0.2592 |
-| ladder | 26 | [2.5, 5.0] | 14 | 2/14 ❌ | 8.95e-03 | 0.5173 |
-| ladder | 30 | [2.5, 5.5] | 14 | 3/14 ❌ | 7.44e-03 | 0.5130 |
-| ladder | 40 | [2.5, 5.0] | 6 | 0/6 ❌ | 9.88e-03 | 1.5579 |
-| square | 16 | [2.5, 5.0] | 26 | 4/26 ❌ | 1.65e-02 | 0.0813 |
-| square | 20 | [2.5, 5.0] | 26 | 1/26 ❌ | 1.75e-02 | 0.7914 |
-| square | 30 | [2.5, 5.0] | 13 | 0/13 ❌ | 2.97e-02 | 2.4057 |
-| triangular | 12 | [2.5, 5.0] | 10 | 0/10 ❌ | 7.33e-02 | 1.7850 |
-| triangular | 16 | [2.5, 5.0] | 10 | 0/10 ❌ | 1.63e-01 | 28.7030 |
-| triangular | 24 | [2.5, 5.0] | 10 | 0/10 ❌ | 2.56e-01 | 23.4736 |
+*No extrapolation data available yet.*
 <!-- AUTO-GENERATED-END:extrapolation -->
 
 <!-- AUTO-GENERATED-BEGIN:data_quality -->
@@ -108,7 +74,7 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 | Topology | NPZ files | Total pts | Verified | Approx | Unverified | Quality |
 |----------|-----------|-----------|----------|--------|------------|---------|
 | chain_1d | 13 | 772 | 560 (72%) | 144 | 68 | ⚠️ |
-| heavy_hex | 15 | 853 | 709 (83%) | 82 | 62 | ✅ |
+| heavy_hex | 23 | 1194 | 1050 (87%) | 82 | 62 | ✅ |
 | ladder | 11 | 624 | 261 (41%) | 259 | 104 | ⚠️ |
 | square | 8 | 507 | 364 (71%) | 96 | 47 | ⚠️ |
 | triangular | 6 | 407 | 235 (57%) | 96 | 76 | ⚠️ |
@@ -133,8 +99,13 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 
 | Priority | Topology | Action |
 |:---:|----------|--------|
-| 1 | heavy_hex | 🔴 Re-train UnifiedMPNN (current pass_dual=0%) |
+| 1 | heavy_hex | 🔴 Re-train UnifiedMPNN (current pass_dual=10%) |
 | 1 | triangular | 🔴 Re-train UnifiedMPNN (current pass_dual=25%) |
+| 3 | chain_1d | ℹ️ Run large-N extrapolation to validate scaling |
+| 3 | heavy_hex | ℹ️ Run large-N extrapolation to validate scaling |
+| 3 | ladder | ℹ️ Run large-N extrapolation to validate scaling |
+| 3 | square | ℹ️ Run large-N extrapolation to validate scaling |
+| 3 | triangular | ℹ️ Run large-N extrapolation to validate scaling |
 | 4 | square | 🟢 Expand to N=12: good candidate (pass_dual=85%) |
 | 4 | triangular | 🟢 Expand to N=8: good candidate (pass_dual=100%) |
 <!-- AUTO-GENERATED-END:actions -->

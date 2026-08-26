@@ -240,7 +240,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         parser.add_argument(
             "--refine-all",
             action="store_true",
-            default=False,
+            default=True,
             help="Refine ALL failing points per iteration (no cap). "
             "Maximizes training data quality at the cost of compute time.",
         )

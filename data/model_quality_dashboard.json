@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-25T13:22:24.420457+00:00",
+  "generated_at": "2026-08-25T22:29:46.614829+00:00",
   "n_configs": 61,
   "configs": [
     {
@@ -35,136 +35,10 @@
       "theta_smoothness": 1.5806166042060998,
       "training_utility": "useful",
       "training_utility_reason": "106/124 good points (85% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.9285714285714286,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.01838458490775417,
-          "n_points": 14,
-          "file": "run_20260729_113230.json"
-        },
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 0.8,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.022322205083262624,
-          "n_points": 5,
-          "file": "run_20260729_160007.json"
-        },
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 0.75,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02424697193420429,
-          "n_points": 4,
-          "file": "run_20260729_160853.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.018532041660904698,
-          "n_points": 5,
-          "file": "run_20260807_014303.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.75,
-          "pass_rate_10pct": 0.85,
-          "mean_de_gap": 0.06067252834783118,
-          "n_points": 20,
-          "file": "run_20260810_232813.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.014211134502922409,
-          "n_points": 14,
-          "file": "run_20260811_122848.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.015268073316471314,
-          "n_points": 14,
-          "file": "run_20260811_213040.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.4,
-          "pass_rate_10pct": 0.6,
-          "mean_de_gap": 0.2564267451028316,
-          "n_points": 5,
-          "file": "run_20260812_113636.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.48,
-          "pass_rate_10pct": 0.64,
-          "mean_de_gap": 0.1519639599445675,
-          "n_points": 25,
-          "file": "run_20260812_114041.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.64,
-          "pass_rate_10pct": 0.76,
-          "mean_de_gap": 0.10097037316916756,
-          "n_points": 25,
-          "file": "run_20260812_120550.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.32,
-          "pass_rate_10pct": 0.6,
-          "mean_de_gap": 0.17875619514431984,
-          "n_points": 25,
-          "file": "run_20260812_122457.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.32,
-          "pass_rate_10pct": 0.6,
-          "mean_de_gap": 0.17875619514431984,
-          "n_points": 25,
-          "file": "run_20260812_144553.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6,
-          "pass_rate_10pct": 0.72,
-          "mean_de_gap": 0.11031582459097447,
-          "n_points": 25,
-          "file": "run_20260812_154609.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.03141911638960344,
-          "n_points": 6,
-          "file": "run_20260819_032336.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.7857142857142857,
-          "pass_rate_10pct": 0.9285714285714286,
-          "mean_de_gap": 0.033973577393681266,
-          "n_points": 14,
-          "file": "run_20260820_120629.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.014211134502922409
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N10_p1.npz",
-      "mtime": "2026-08-24T00:50:52.077586+00:00",
+      "mtime": "2026-08-25T22:01:40.716726+00:00",
       "h_frontier_original": 1.8840910501838535,
       "h_frontier_corrected": true
     },
@@ -201,32 +75,10 @@
       "theta_smoothness": 1.4480934217105024,
       "training_utility": "useful",
       "training_utility_reason": "62/69 good points (91% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.8571428571428571,
-          "pass_rate_10pct": 0.9285714285714286,
-          "mean_de_gap": 0.0267337262296445,
-          "n_points": 14,
-          "file": "run_20260731_000535.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.8333333333333334,
-          "mean_de_gap": 0.03877552940932557,
-          "n_points": 6,
-          "file": "run_20260819_032336.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 12,
-        "pass_rate_10pct": 0.9285714285714286,
-        "pass_rate_5pct": 0.8571428571428571,
-        "mean_de_gap": 0.0267337262296445
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N12_p1.npz",
-      "mtime": "2026-08-24T00:50:52.078402+00:00",
+      "mtime": "2026-08-25T22:01:40.727781+00:00",
       "h_frontier_original": 1.9377208730871553,
       "h_frontier_corrected": true
     },
@@ -266,7 +118,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "chain_1d_N14_p1.npz",
-      "mtime": "2026-08-24T00:50:34.389693+00:00"
+      "mtime": "2026-08-25T22:01:40.732930+00:00"
     },
     {
       "topology": "chain_1d",
@@ -301,48 +153,10 @@
       "theta_smoothness": 1.9560361044877834,
       "training_utility": "useful",
       "training_utility_reason": "148/173 good points (86% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.027876421416677205,
-          "n_points": 12,
-          "file": "run_20260728_232744.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.75,
-          "mean_de_gap": 0.6207041680023409,
-          "n_points": 12,
-          "file": "run_20260728_233356.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.5833333333333334,
-          "pass_rate_10pct": 0.75,
-          "mean_de_gap": 0.1451311423474573,
-          "n_points": 12,
-          "file": "run_20260729_103807.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.9166666666666666,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.027995502041005694,
-          "n_points": 12,
-          "file": "run_20260729_115341.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.8333333333333334,
-        "mean_de_gap": 0.027876421416677205
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N15_p1.npz",
-      "mtime": "2026-08-20T17:47:14.183763+00:00",
+      "mtime": "2026-08-25T22:01:40.739113+00:00",
       "h_frontier_original": 2.0691176470588237,
       "h_frontier_corrected": true
     },
@@ -379,24 +193,10 @@
       "theta_smoothness": 0.29454366862773895,
       "training_utility": "useful",
       "training_utility_reason": "19/26 good points (73% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.7142857142857143,
-          "pass_rate_10pct": 0.7857142857142857,
-          "mean_de_gap": 0.05844403731264807,
-          "n_points": 14,
-          "file": "run_20260820_120629.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.7857142857142857,
-        "pass_rate_5pct": 0.7142857142857143,
-        "mean_de_gap": 0.05844403731264807
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N16_p1.npz",
-      "mtime": "2026-08-24T00:50:52.079440+00:00"
+      "mtime": "2026-08-25T22:01:40.750048+00:00"
     },
     {
       "topology": "chain_1d",
@@ -431,48 +231,10 @@
       "theta_smoothness": 2.6962783568380235,
       "training_utility": "useful",
       "training_utility_reason": "69/88 good points (78% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6428571428571429,
-          "pass_rate_10pct": 0.9285714285714286,
-          "mean_de_gap": 0.0463379663789217,
-          "n_points": 14,
-          "file": "run_20260728_214817.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.044879821986317826,
-          "n_points": 12,
-          "file": "run_20260729_115341.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 0.4360679435043653,
-          "n_points": 14,
-          "file": "run_20260810_234238.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6428571428571429,
-          "pass_rate_10pct": 0.7857142857142857,
-          "mean_de_gap": 0.07542100497077456,
-          "n_points": 14,
-          "file": "run_20260820_120629.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.8333333333333334,
-        "mean_de_gap": 0.044879821986317826
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N20_p1.npz",
-      "mtime": "2026-08-24T00:50:52.081557+00:00",
+      "mtime": "2026-08-25T22:01:40.755317+00:00",
       "h_frontier_original": 2.331666666666667,
       "h_frontier_corrected": true
     },
@@ -512,7 +274,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "chain_1d_N26_p1.npz",
-      "mtime": "2026-08-19T15:14:54.305998+00:00"
+      "mtime": "2026-08-25T22:01:40.765579+00:00"
     },
     {
       "topology": "chain_1d",
@@ -547,24 +309,10 @@
       "theta_smoothness": 0.292712003285427,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 29% < 30% threshold. 8/28 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.5714285714285714,
-          "pass_rate_10pct": 0.7142857142857143,
-          "mean_de_gap": 0.11569594615746544,
-          "n_points": 14,
-          "file": "run_20260820_120629.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.7142857142857143,
-        "pass_rate_5pct": 0.5714285714285714,
-        "mean_de_gap": 0.11569594615746544
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N30_p1.npz",
-      "mtime": "2026-08-20T16:30:40.904701+00:00",
+      "mtime": "2026-08-25T22:01:40.769855+00:00",
       "h_frontier_original": 2.9703514753302174,
       "h_frontier_corrected": true
     },
@@ -604,7 +352,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "chain_1d_N40_p1.npz",
-      "mtime": "2026-08-20T16:30:40.914055+00:00",
+      "mtime": "2026-08-25T22:01:40.778269+00:00",
       "h_frontier_original": 3.105,
       "h_frontier_corrected": true
     },
@@ -644,7 +392,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "chain_1d_N4_p1.npz",
-      "mtime": "2026-08-24T00:50:34.405288+00:00"
+      "mtime": "2026-08-25T22:01:40.787473+00:00"
     },
     {
       "topology": "chain_1d",
@@ -682,7 +430,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "chain_1d_N60_p1.npz",
-      "mtime": "2026-08-19T17:47:20.179532+00:00",
+      "mtime": "2026-08-25T22:01:40.791720+00:00",
       "h_frontier_original": 3.905152884162137,
       "h_frontier_corrected": true
     },
@@ -719,24 +467,10 @@
       "theta_smoothness": 1.5709756556707393,
       "training_utility": "useful",
       "training_utility_reason": "89/90 good points (99% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.016690160337780813,
-          "n_points": 6,
-          "file": "run_20260819_032336.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.016690160337780813
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N6_p1.npz",
-      "mtime": "2026-08-24T00:50:52.083558+00:00",
+      "mtime": "2026-08-25T22:01:40.796264+00:00",
       "h_frontier_original": 1.5570707411755582,
       "h_frontier_corrected": true
     },
@@ -773,32 +507,10 @@
       "theta_smoothness": 1.6369607538928732,
       "training_utility": "useful",
       "training_utility_reason": "107/111 good points (96% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.008518145878458266,
-          "n_points": 14,
-          "file": "run_20260730_225029.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.024051766455867808,
-          "n_points": 6,
-          "file": "run_20260819_032336.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 8,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.008518145878458266
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "chain_1d_N8_p1.npz",
-      "mtime": "2026-08-24T00:50:52.085525+00:00",
+      "mtime": "2026-08-25T22:01:40.805541+00:00",
       "h_frontier_original": 1.7186728642405902,
       "h_frontier_corrected": true
     },
@@ -835,104 +547,10 @@
       "theta_smoothness": 1.6159975744055872,
       "training_utility": "useful",
       "training_utility_reason": "149/164 good points (91% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.9285714285714286,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.016511004934703588,
-          "n_points": 14,
-          "file": "run_20260811_123926.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.9285714285714286,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.01650583974390734,
-          "n_points": 14,
-          "file": "run_20260811_213849.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.72,
-          "pass_rate_10pct": 0.84,
-          "mean_de_gap": 0.05952068353579136,
-          "n_points": 25,
-          "file": "run_20260812_125237.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.36,
-          "mean_de_gap": 0.29779578054406536,
-          "n_points": 25,
-          "file": "run_20260812_125702.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8,
-          "pass_rate_10pct": 0.84,
-          "mean_de_gap": 0.06541388868068733,
-          "n_points": 25,
-          "file": "run_20260812_131000.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8,
-          "pass_rate_10pct": 0.84,
-          "mean_de_gap": 0.06541388868068733,
-          "n_points": 25,
-          "file": "run_20260812_144652.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8,
-          "pass_rate_10pct": 0.92,
-          "mean_de_gap": 0.034342933032430134,
-          "n_points": 25,
-          "file": "run_20260812_172844.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.64,
-          "pass_rate_10pct": 0.8,
-          "mean_de_gap": 0.06801870211612707,
-          "n_points": 25,
-          "file": "run_20260812_190604.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.3333333333333333,
-          "mean_de_gap": 0.17388365082984195,
-          "n_points": 6,
-          "file": "run_20260819_032407.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.35714285714285715,
-          "mean_de_gap": 0.10673490396287179,
-          "n_points": 14,
-          "file": "run_20260820_113151.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 15913.644412807462,
-          "n_points": 35,
-          "file": "run_20260823_200216.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.9285714285714286,
-        "mean_de_gap": 0.01650583974390734
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N10_p1.npz",
-      "mtime": "2026-08-24T23:07:31.615988+00:00",
+      "mtime": "2026-08-25T22:01:40.816506+00:00",
       "h_frontier_original": 1.633158835918298,
       "h_frontier_corrected": true
     },
@@ -969,24 +587,10 @@
       "theta_smoothness": 3.268325052218157,
       "training_utility": "useful",
       "training_utility_reason": "28/47 good points (60% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3.748132992582744,
-          "n_points": 15,
-          "file": "run_20260824_180134.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.0,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 3.748132992582744
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N10_p2.npz",
-      "mtime": "2026-08-25T02:28:16.363473+00:00",
+      "mtime": "2026-08-25T22:01:40.829425+00:00",
       "h_frontier_original": 1.3848919749520927,
       "h_frontier_corrected": true
     },
@@ -1023,56 +627,10 @@
       "theta_smoothness": 1.73484391197682,
       "training_utility": "useful",
       "training_utility_reason": "68/77 good points (88% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 0.6391447313621413,
-          "n_points": 6,
-          "file": "run_20260819_032407.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 263616.8583702021,
-          "n_points": 35,
-          "file": "run_20260823_185743.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 2.2314845697703607,
-          "n_points": 20,
-          "file": "run_20260823_194927.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 258336.30636949735,
-          "n_points": 35,
-          "file": "run_20260823_200216.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 262224.3495264096,
-          "n_points": 35,
-          "file": "run_20260823_224316.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.0,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 0.6391447313621413
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N12_p1.npz",
-      "mtime": "2026-08-25T02:58:42.774290+00:00",
+      "mtime": "2026-08-25T22:01:40.835183+00:00",
       "h_frontier_original": 1.7578916883753832,
       "h_frontier_corrected": true
     },
@@ -1112,7 +670,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N12_p2.npz",
-      "mtime": "2026-08-25T02:58:36.137292+00:00",
+      "mtime": "2026-08-25T22:01:40.845278+00:00",
       "h_frontier_original": 1.5,
       "h_frontier_corrected": true
     },
@@ -1149,40 +707,10 @@
       "theta_smoothness": 1.570807445056209,
       "training_utility": "useful",
       "training_utility_reason": "21/59 good points (36% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3759992.3301522797,
-          "n_points": 35,
-          "file": "run_20260823_185805.json"
-        },
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3759992.3301522797,
-          "n_points": 35,
-          "file": "run_20260823_195030.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 2962386.5108958576,
-          "n_points": 35,
-          "file": "run_20260823_200216.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.0,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 2962386.5108958576
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N14_p1.npz",
-      "mtime": "2026-08-24T01:45:26.728652+00:00"
+      "mtime": "2026-08-25T22:01:40.849873+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1220,7 +748,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N14_p2.npz",
-      "mtime": "2026-08-25T03:29:51.255911+00:00",
+      "mtime": "2026-08-25T22:01:40.854671+00:00",
       "h_frontier_original": 1.759683953332508,
       "h_frontier_corrected": true
     },
@@ -1257,72 +785,10 @@
       "theta_smoothness": 3.187962885495619,
       "training_utility": "useful",
       "training_utility_reason": "122/169 good points (72% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8571428571428571,
-          "pass_rate_10pct": 0.9285714285714286,
-          "mean_de_gap": 0.030767767855087117,
-          "n_points": 14,
-          "file": "run_20260810_235844.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.21428571428571427,
-          "mean_de_gap": 0.1173096885004028,
-          "n_points": 14,
-          "file": "run_20260820_113151.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 49309898.092577085,
-          "n_points": 35,
-          "file": "run_20260823_185919.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 49309898.092577085,
-          "n_points": 35,
-          "file": "run_20260823_195210.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 39592339.33153322,
-          "n_points": 35,
-          "file": "run_20260823_200216.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 49309898.092577085,
-          "n_points": 35,
-          "file": "run_20260823_205401.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3.2352132521075303,
-          "n_points": 35,
-          "file": "run_20260823_210105.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.9285714285714286,
-        "pass_rate_5pct": 0.8571428571428571,
-        "mean_de_gap": 0.030767767855087117
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N16_p1.npz",
-      "mtime": "2026-08-24T22:35:11.613688+00:00"
+      "mtime": "2026-08-25T22:01:40.861575+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1360,7 +826,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N16_p2.npz",
-      "mtime": "2026-08-25T05:44:28.925510+00:00",
+      "mtime": "2026-08-25T22:01:40.877897+00:00",
       "h_frontier_original": 1.7048117129390123,
       "h_frontier_corrected": true
     },
@@ -1397,40 +863,10 @@
       "theta_smoothness": 6.159097137651825,
       "training_utility": "useful",
       "training_utility_reason": "36/71 good points (51% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 18,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 512153214.0373618,
-          "n_points": 35,
-          "file": "run_20260823_190443.json"
-        },
-        {
-          "train_n": 18,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 512187156.21349794,
-          "n_points": 35,
-          "file": "run_20260823_195426.json"
-        },
-        {
-          "train_n": 18,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 512157947.87252307,
-          "n_points": 35,
-          "file": "run_20260823_201659.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 18,
-        "pass_rate_10pct": 0.0,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 512153214.0373618
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N18_p1.npz",
-      "mtime": "2026-08-24T02:45:52.534713+00:00"
+      "mtime": "2026-08-25T22:01:40.882175+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1465,168 +901,10 @@
       "theta_smoothness": 4.034312516688079,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 26% < 30% threshold. 19/72 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 0.16241800722002986,
-          "n_points": 14,
-          "file": "run_20260820_113151.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.8666666666666667,
-          "mean_de_gap": 0.09778344975209968,
-          "n_points": 15,
-          "file": "run_20260821_211033.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 0.5563895614947919,
-          "n_points": 15,
-          "file": "run_20260821_211841.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_161419.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_162054.json"
-        },
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_162756.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_163350.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 8.443488381694074,
-          "n_points": 8,
-          "file": "run_20260823_163732.json"
-        },
-        {
-          "train_n": 18,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_164037.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 8.31363389514453,
-          "n_points": 7,
-          "file": "run_20260823_164608.json"
-        },
-        {
-          "train_n": 20,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_164713.json"
-        },
-        {
-          "train_n": 12,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_165434.json"
-        },
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 18.221288141924198,
-          "n_points": 35,
-          "file": "run_20260823_170105.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 11.322393090738238,
-          "n_points": 22,
-          "file": "run_20260823_170702.json"
-        },
-        {
-          "train_n": 4,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 14.371751347654008,
-          "n_points": 29,
-          "file": "run_20260823_170715.json"
-        },
-        {
-          "train_n": 18,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 10.450156145529265,
-          "n_points": 19,
-          "file": "run_20260823_171212.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 9.374244515407339,
-          "n_points": 14,
-          "file": "run_20260823_190745.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.6666666666666666,
-          "mean_de_gap": 0.09214418024928996,
-          "n_points": 15,
-          "file": "run_20260824_011236.json"
-        },
-        {
-          "train_n": 18,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 79.42333435352671,
-          "n_points": 35,
-          "file": "run_20260824_021100.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.8666666666666667,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 0.09778344975209968
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N20_p1.npz",
-      "mtime": "2026-08-24T03:28:33.014784+00:00"
+      "mtime": "2026-08-25T22:01:40.887339+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1664,7 +942,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N20_p2.npz",
-      "mtime": "2026-08-25T13:12:36.431969+00:00",
+      "mtime": "2026-08-25T22:01:40.896744+00:00",
       "h_frontier_original": 2.3803873102261144,
       "h_frontier_corrected": true
     },
@@ -1704,7 +982,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N21_p1.npz",
-      "mtime": "2026-08-24T00:50:34.512648+00:00"
+      "mtime": "2026-08-25T22:01:40.901342+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1742,7 +1020,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N22_p1.npz",
-      "mtime": "2026-08-23T18:25:59.235985+00:00",
+      "mtime": "2026-08-25T22:01:40.906576+00:00",
       "h_frontier_original": 2.5857628130954393,
       "h_frontier_corrected": true
     },
@@ -1782,7 +1060,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N24_p1.npz",
-      "mtime": "2026-08-23T19:34:12.585284+00:00",
+      "mtime": "2026-08-25T22:01:40.910873+00:00",
       "h_frontier_original": 2.728317319434174,
       "h_frontier_corrected": true
     },
@@ -1822,7 +1100,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N26_p1.npz",
-      "mtime": "2026-08-24T00:50:52.096350+00:00"
+      "mtime": "2026-08-25T22:01:40.914713+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1860,7 +1138,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N30_p1.npz",
-      "mtime": "2026-08-24T00:50:52.097475+00:00",
+      "mtime": "2026-08-25T22:01:40.918955+00:00",
       "h_frontier_original": 2.8475364394935143,
       "h_frontier_corrected": true
     },
@@ -1900,7 +1178,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N40_p1.npz",
-      "mtime": "2026-08-19T17:47:20.193852+00:00",
+      "mtime": "2026-08-25T22:01:40.928147+00:00",
       "h_frontier_original": 2.8983522707730005,
       "h_frontier_corrected": true
     },
@@ -1937,24 +1215,10 @@
       "theta_smoothness": 0.07797724651210247,
       "training_utility": "useful",
       "training_utility_reason": "79/84 good points (94% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.6666666666666666,
-          "mean_de_gap": 0.09144996208929236,
-          "n_points": 6,
-          "file": "run_20260819_032407.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.6666666666666666,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 0.09144996208929236
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N4_p1.npz",
-      "mtime": "2026-08-24T21:38:01.064482+00:00"
+      "mtime": "2026-08-25T22:01:40.933554+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1992,7 +1256,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N4_p2.npz",
-      "mtime": "2026-08-25T02:27:42.819729+00:00",
+      "mtime": "2026-08-25T22:01:40.943156+00:00",
       "h_frontier_original": 0.4160693227984854,
       "h_frontier_corrected": true
     },
@@ -2029,32 +1293,10 @@
       "theta_smoothness": 0.05128857548516508,
       "training_utility": "useful",
       "training_utility_reason": "42/42 good points (100% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 6,
-          "pass_rate_5pct": 0.75,
-          "pass_rate_10pct": 0.9166666666666666,
-          "mean_de_gap": 0.03260689818189572,
-          "n_points": 12,
-          "file": "run_20260810_124150.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 0.18596492013984242,
-          "n_points": 6,
-          "file": "run_20260819_032407.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 6,
-        "pass_rate_10pct": 0.9166666666666666,
-        "pass_rate_5pct": 0.75,
-        "mean_de_gap": 0.03260689818189572
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "heavy_hex_N6_p1.npz",
-      "mtime": "2026-08-24T21:20:25.825735+00:00"
+      "mtime": "2026-08-25T22:01:40.949263+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -2092,7 +1334,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N6_p2.npz",
-      "mtime": "2026-08-25T02:27:53.057548+00:00",
+      "mtime": "2026-08-25T22:01:40.959270+00:00",
       "h_frontier_original": 1.1001850640786583,
       "h_frontier_corrected": true
     },
@@ -2132,7 +1374,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N8_p1.npz",
-      "mtime": "2026-08-24T00:50:34.530501+00:00",
+      "mtime": "2026-08-25T22:01:40.963951+00:00",
       "h_frontier_original": 1.6893813071263437,
       "h_frontier_corrected": true
     },
@@ -2172,7 +1414,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "heavy_hex_N8_p2.npz",
-      "mtime": "2026-08-25T02:28:04.558128+00:00",
+      "mtime": "2026-08-25T22:01:40.968938+00:00",
       "h_frontier_original": 1.291557618582344,
       "h_frontier_corrected": true
     },
@@ -2209,80 +1451,10 @@
       "theta_smoothness": 0.7855278949713804,
       "training_utility": "useful",
       "training_utility_reason": "58/156 good points (37% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.5,
-          "pass_rate_10pct": 0.75,
-          "mean_de_gap": 0.06875765735133625,
-          "n_points": 12,
-          "file": "run_20260729_111238.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.10011249283848299,
-          "n_points": 14,
-          "file": "run_20260729_151748.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.10013207812565628,
-          "n_points": 14,
-          "file": "run_20260729_153533.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.2857142857142857,
-          "pass_rate_10pct": 0.5714285714285714,
-          "mean_de_gap": 0.1007036016667119,
-          "n_points": 14,
-          "file": "run_20260730_231305.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02870172853112605,
-          "n_points": 10,
-          "file": "run_20260730_233833.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.11309522138153572,
-          "n_points": 14,
-          "file": "run_20260811_125348.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.11308032296800866,
-          "n_points": 14,
-          "file": "run_20260811_212015.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 0.8333333333333334,
-          "mean_de_gap": 0.0401485093091033,
-          "n_points": 6,
-          "file": "run_20260819_033609.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.02870172853112605
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N10_p1.npz",
-      "mtime": "2026-08-24T00:50:52.102614+00:00"
+      "mtime": "2026-08-25T22:01:40.975404+00:00"
     },
     {
       "topology": "ladder",
@@ -2320,7 +1492,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "ladder_N12_p1.npz",
-      "mtime": "2026-08-24T00:50:52.105460+00:00"
+      "mtime": "2026-08-25T22:01:40.987574+00:00"
     },
     {
       "topology": "ladder",
@@ -2355,56 +1527,10 @@
       "theta_smoothness": 0.7873198126019083,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 27% < 30% threshold. 9/33 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 1.5657149488172757,
-          "n_points": 8,
-          "file": "run_20260729_112141.json"
-        },
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.2857142857142857,
-          "pass_rate_10pct": 0.5,
-          "mean_de_gap": 0.1800743495320277,
-          "n_points": 14,
-          "file": "run_20260729_143458.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.04644289930089758,
-          "n_points": 10,
-          "file": "run_20260730_234920.json"
-        },
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.7,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.04204251276030483,
-          "n_points": 10,
-          "file": "run_20260731_110958.json"
-        },
-        {
-          "train_n": 14,
-          "pass_rate_5pct": 0.2222222222222222,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.062452036507741386,
-          "n_points": 18,
-          "file": "run_20260809_141521.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 14,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.7,
-        "mean_de_gap": 0.04204251276030483
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N14_p1.npz",
-      "mtime": "2026-08-24T00:50:52.106970+00:00"
+      "mtime": "2026-08-25T22:01:40.993174+00:00"
     },
     {
       "topology": "ladder",
@@ -2439,48 +1565,10 @@
       "theta_smoothness": 0.790701172200741,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 25% < 30% threshold. 25/101 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 1.9498908464205134,
-          "n_points": 8,
-          "file": "run_20260729_112141.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.5,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.05541339433901617,
-          "n_points": 10,
-          "file": "run_20260730_234920.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.2857142857142857,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.09718816605334153,
-          "n_points": 14,
-          "file": "run_20260807_123206.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.4666666666666667,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.052969037384721245,
-          "n_points": 15,
-          "file": "run_20260809_144617.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 16,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.4666666666666667,
-        "mean_de_gap": 0.052969037384721245
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N16_p1.npz",
-      "mtime": "2026-08-24T00:50:52.110558+00:00"
+      "mtime": "2026-08-25T22:01:40.999557+00:00"
     },
     {
       "topology": "ladder",
@@ -2515,88 +1603,10 @@
       "theta_smoothness": 0.1685851669328582,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 23% < 30% threshold. 8/35 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 2.7211787290377383,
-          "n_points": 8,
-          "file": "run_20260729_112141.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.08333333333333333,
-          "pass_rate_10pct": 0.3333333333333333,
-          "mean_de_gap": 0.3261448209149613,
-          "n_points": 12,
-          "file": "run_20260729_144010.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.08333333333333333,
-          "pass_rate_10pct": 0.3333333333333333,
-          "mean_de_gap": 0.38083078213899374,
-          "n_points": 12,
-          "file": "run_20260729_153145.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 4.269148648146287,
-          "n_points": 12,
-          "file": "run_20260729_153550.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.2,
-          "pass_rate_10pct": 0.8,
-          "mean_de_gap": 0.07340153748910608,
-          "n_points": 10,
-          "file": "run_20260730_234920.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.6,
-          "mean_de_gap": 0.09969312824373822,
-          "n_points": 10,
-          "file": "run_20260731_111916.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.2,
-          "pass_rate_10pct": 0.8,
-          "mean_de_gap": 0.07312470482662649,
-          "n_points": 10,
-          "file": "run_20260731_112645.json"
-        },
-        {
-          "train_n": 16,
-          "pass_rate_5pct": 0.14285714285714285,
-          "pass_rate_10pct": 0.5,
-          "mean_de_gap": 0.12920617784586055,
-          "n_points": 14,
-          "file": "run_20260807_123206.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3.4640656307964783,
-          "n_points": 14,
-          "file": "run_20260817_220647.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.8,
-        "pass_rate_5pct": 0.2,
-        "mean_de_gap": 0.07312470482662649
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N20_p1.npz",
-      "mtime": "2026-08-24T00:50:52.112099+00:00"
+      "mtime": "2026-08-25T22:01:41.010134+00:00"
     },
     {
       "topology": "ladder",
@@ -2634,7 +1644,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "ladder_N26_p1.npz",
-      "mtime": "2026-08-24T00:50:52.115353+00:00"
+      "mtime": "2026-08-25T22:01:41.020806+00:00"
     },
     {
       "topology": "ladder",
@@ -2672,7 +1682,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "ladder_N30_p1.npz",
-      "mtime": "2026-08-24T00:50:52.116246+00:00"
+      "mtime": "2026-08-25T22:01:41.024849+00:00"
     },
     {
       "topology": "ladder",
@@ -2710,7 +1720,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "ladder_N40_p1.npz",
-      "mtime": "2026-08-24T00:50:34.547660+00:00"
+      "mtime": "2026-08-25T22:01:41.028808+00:00"
     },
     {
       "topology": "ladder",
@@ -2745,24 +1755,10 @@
       "theta_smoothness": 0.14018619885081252,
       "training_utility": "useful",
       "training_utility_reason": "33/45 good points (73% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.013664381562784494,
-          "n_points": 6,
-          "file": "run_20260819_033609.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.013664381562784494
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N4_p1.npz",
-      "mtime": "2026-08-24T00:50:52.118681+00:00"
+      "mtime": "2026-08-25T22:01:41.033541+00:00"
     },
     {
       "topology": "ladder",
@@ -2797,40 +1793,10 @@
       "theta_smoothness": 0.6222991932477853,
       "training_utility": "useful",
       "training_utility_reason": "50/69 good points (72% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 6,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02928661589651531,
-          "n_points": 12,
-          "file": "run_20260729_110627.json"
-        },
-        {
-          "train_n": 6,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.018900811062840913,
-          "n_points": 12,
-          "file": "run_20260731_000348.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.01785004812934191,
-          "n_points": 6,
-          "file": "run_20260819_033609.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.8333333333333334,
-        "mean_de_gap": 0.01785004812934191
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N6_p1.npz",
-      "mtime": "2026-08-24T00:50:52.122393+00:00"
+      "mtime": "2026-08-25T22:01:41.039125+00:00"
     },
     {
       "topology": "ladder",
@@ -2865,48 +1831,10 @@
       "theta_smoothness": 0.7857594183564245,
       "training_utility": "useful",
       "training_utility_reason": "52/98 good points (53% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.9166666666666666,
-          "mean_de_gap": 0.046554911538039784,
-          "n_points": 12,
-          "file": "run_20260729_110909.json"
-        },
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 0.5714285714285714,
-          "pass_rate_10pct": 0.7857142857142857,
-          "mean_de_gap": 0.06490422088794177,
-          "n_points": 14,
-          "file": "run_20260729_125823.json"
-        },
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02508148753884155,
-          "n_points": 12,
-          "file": "run_20260731_001036.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.028084973600650386,
-          "n_points": 6,
-          "file": "run_20260819_033609.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 8,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.02508148753884155
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "ladder_N8_p1.npz",
-      "mtime": "2026-08-24T00:50:52.124148+00:00"
+      "mtime": "2026-08-25T22:01:41.048658+00:00"
     },
     {
       "topology": "square",
@@ -2941,112 +1869,10 @@
       "theta_smoothness": 1.5708458566662984,
       "training_utility": "useful",
       "training_utility_reason": "59/94 good points (63% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8,
-          "pass_rate_10pct": 0.92,
-          "mean_de_gap": 0.033457071080430195,
-          "n_points": 25,
-          "file": "run_20260809_160953.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.65,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.04999630673381213,
-          "n_points": 20,
-          "file": "run_20260810_232254.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.45,
-          "pass_rate_10pct": 0.7,
-          "mean_de_gap": 0.08636040552783075,
-          "n_points": 20,
-          "file": "run_20260811_114413.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.11854367620464902,
-          "n_points": 14,
-          "file": "run_20260811_130516.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.6428571428571429,
-          "mean_de_gap": 0.1154752202934224,
-          "n_points": 14,
-          "file": "run_20260811_214646.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.28,
-          "pass_rate_10pct": 0.52,
-          "mean_de_gap": 0.21197558162798927,
-          "n_points": 25,
-          "file": "run_20260812_131426.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.08,
-          "pass_rate_10pct": 0.4,
-          "mean_de_gap": 0.27092946354634573,
-          "n_points": 25,
-          "file": "run_20260812_132514.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.24,
-          "pass_rate_10pct": 0.48,
-          "mean_de_gap": 0.2278122292449725,
-          "n_points": 25,
-          "file": "run_20260812_133356.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.24,
-          "pass_rate_10pct": 0.48,
-          "mean_de_gap": 0.2278122292449725,
-          "n_points": 25,
-          "file": "run_20260812_144744.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.36,
-          "mean_de_gap": 0.2839840635797985,
-          "n_points": 25,
-          "file": "run_20260812_175126.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.36,
-          "mean_de_gap": 0.28223049393926564,
-          "n_points": 25,
-          "file": "run_20260812_214242.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.8333333333333334,
-          "mean_de_gap": 0.06800975571353203,
-          "n_points": 6,
-          "file": "run_20260819_030221.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.65,
-        "mean_de_gap": 0.04999630673381213
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "square_N10_p1.npz",
-      "mtime": "2026-08-24T00:50:52.125558+00:00"
+      "mtime": "2026-08-25T22:01:41.059529+00:00"
     },
     {
       "topology": "square",
@@ -3081,24 +1907,10 @@
       "theta_smoothness": 1.869588944755073,
       "training_utility": "useful",
       "training_utility_reason": "34/72 good points (47% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.25,
-          "pass_rate_10pct": 0.55,
-          "mean_de_gap": 0.13622756386799145,
-          "n_points": 20,
-          "file": "run_20260811_114413.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.55,
-        "pass_rate_5pct": 0.25,
-        "mean_de_gap": 0.13622756386799145
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "square_N12_p1.npz",
-      "mtime": "2026-08-24T00:50:52.126837+00:00"
+      "mtime": "2026-08-25T22:01:41.070222+00:00"
     },
     {
       "topology": "square",
@@ -3136,7 +1948,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "square_N14_p1.npz",
-      "mtime": "2026-08-24T00:50:52.127829+00:00"
+      "mtime": "2026-08-25T22:01:41.080428+00:00"
     },
     {
       "topology": "square",
@@ -3174,7 +1986,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "square_N16_p1.npz",
-      "mtime": "2026-08-24T00:50:52.128734+00:00"
+      "mtime": "2026-08-25T22:01:41.085073+00:00"
     },
     {
       "topology": "square",
@@ -3209,32 +2021,10 @@
       "theta_smoothness": 0.211747578848955,
       "training_utility": "not_useful",
       "training_utility_reason": "0% dual pass (gap masking: 12% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 10.831920753529337,
-          "n_points": 14,
-          "file": "run_20260817_184140.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 5.6195027275000715,
-          "n_points": 14,
-          "file": "run_20260817_193319.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.0,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 5.6195027275000715
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "square_N20_p1.npz",
-      "mtime": "2026-08-24T00:50:34.572597+00:00"
+      "mtime": "2026-08-25T22:01:41.093664+00:00"
     },
     {
       "topology": "square",
@@ -3269,24 +2059,10 @@
       "theta_smoothness": 0.16881465856091038,
       "training_utility": "useful",
       "training_utility_reason": "35/41 good points (85% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.0133152635511727,
-          "n_points": 6,
-          "file": "run_20260819_030221.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.0133152635511727
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "square_N4_p1.npz",
-      "mtime": "2026-08-24T00:50:52.131217+00:00"
+      "mtime": "2026-08-25T22:01:41.099444+00:00"
     },
     {
       "topology": "square",
@@ -3321,24 +2097,10 @@
       "theta_smoothness": 0.786936890164883,
       "training_utility": "useful",
       "training_utility_reason": "103/121 good points (85% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.8333333333333334,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02900001976161254,
-          "n_points": 6,
-          "file": "run_20260819_030221.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.8333333333333334,
-        "mean_de_gap": 0.02900001976161254
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "square_N6_p1.npz",
-      "mtime": "2026-08-24T00:50:52.134236+00:00"
+      "mtime": "2026-08-25T22:01:41.105029+00:00"
     },
     {
       "topology": "square",
@@ -3373,32 +2135,10 @@
       "theta_smoothness": 1.57086538196421,
       "training_utility": "useful",
       "training_utility_reason": "96/119 good points (81% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 8,
-          "pass_rate_5pct": 0.92,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.019832739296895857,
-          "n_points": 25,
-          "file": "run_20260809_154839.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.8333333333333334,
-          "mean_de_gap": 0.048306860562551145,
-          "n_points": 6,
-          "file": "run_20260819_030221.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 8,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 0.92,
-        "mean_de_gap": 0.019832739296895857
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "square_N8_p1.npz",
-      "mtime": "2026-08-24T00:50:52.136682+00:00"
+      "mtime": "2026-08-25T22:01:41.114897+00:00"
     },
     {
       "topology": "triangular",
@@ -3433,56 +2173,10 @@
       "theta_smoothness": 1.5727899012121092,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 17% < 30% threshold. 9/54 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 6,
-          "pass_rate_5pct": 0.42857142857142855,
-          "pass_rate_10pct": 0.7142857142857143,
-          "mean_de_gap": 0.0867302922389067,
-          "n_points": 14,
-          "file": "run_20260806_224842.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6,
-          "pass_rate_10pct": 0.7333333333333333,
-          "mean_de_gap": 0.08796182415352098,
-          "n_points": 15,
-          "file": "run_20260811_015607.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6,
-          "pass_rate_10pct": 0.7333333333333333,
-          "mean_de_gap": 0.09043237453436091,
-          "n_points": 15,
-          "file": "run_20260811_104028.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3.3904731452138384,
-          "n_points": 14,
-          "file": "run_20260811_131230.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.0,
-          "pass_rate_10pct": 0.0,
-          "mean_de_gap": 3.3962645280740245,
-          "n_points": 14,
-          "file": "run_20260811_215333.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.7333333333333333,
-        "pass_rate_5pct": 0.6,
-        "mean_de_gap": 0.08796182415352098
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "triangular_N10_p1.npz",
-      "mtime": "2026-08-24T00:50:52.139197+00:00",
+      "mtime": "2026-08-25T22:01:41.124996+00:00",
       "h_frontier_original": 4.475,
       "h_frontier_corrected": true
     },
@@ -3522,7 +2216,7 @@
       "cross_n_transfers": [],
       "cross_n_best_source": null,
       "file": "triangular_N12_p1.npz",
-      "mtime": "2026-08-18T22:45:54.283613+00:00"
+      "mtime": "2026-08-25T22:01:41.129471+00:00"
     },
     {
       "topology": "triangular",
@@ -3557,24 +2251,10 @@
       "theta_smoothness": 0.037784009370920524,
       "training_utility": "useful",
       "training_utility_reason": "37/37 good points (100% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.8333333333333334,
-          "mean_de_gap": 0.05210824113102772,
-          "n_points": 6,
-          "file": "run_20260819_031139.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.8333333333333334,
-        "pass_rate_5pct": 0.6666666666666666,
-        "mean_de_gap": 0.05210824113102772
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "triangular_N3_p1.npz",
-      "mtime": "2026-08-18T13:47:21.216829+00:00"
+      "mtime": "2026-08-25T22:01:41.134011+00:00"
     },
     {
       "topology": "triangular",
@@ -3609,24 +2289,10 @@
       "theta_smoothness": 0.044041811672910575,
       "training_utility": "useful",
       "training_utility_reason": "26/36 good points (72% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.3333333333333333,
-          "pass_rate_10pct": 0.5,
-          "mean_de_gap": 0.10109642361184125,
-          "n_points": 6,
-          "file": "run_20260819_031139.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.5,
-        "pass_rate_5pct": 0.3333333333333333,
-        "mean_de_gap": 0.10109642361184125
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "triangular_N4_p1.npz",
-      "mtime": "2026-08-24T00:50:52.142659+00:00"
+      "mtime": "2026-08-25T22:01:41.139154+00:00"
     },
     {
       "topology": "triangular",
@@ -3661,88 +2327,10 @@
       "theta_smoothness": 0.053444087505340576,
       "training_utility": "useful",
       "training_utility_reason": "87/145 good points (60% dual pass).",
-      "cross_n_transfers": [
-        {
-          "train_n": 6,
-          "pass_rate_5pct": 0.625,
-          "pass_rate_10pct": 0.75,
-          "mean_de_gap": 0.07805847262463793,
-          "n_points": 16,
-          "file": "run_20260806_224812.json"
-        },
-        {
-          "train_n": 6,
-          "pass_rate_5pct": 1.0,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.018718783833841564,
-          "n_points": 6,
-          "file": "run_20260807_014450.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.28,
-          "pass_rate_10pct": 0.64,
-          "mean_de_gap": 0.1002428574420917,
-          "n_points": 25,
-          "file": "run_20260812_133811.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.32,
-          "pass_rate_10pct": 0.64,
-          "mean_de_gap": 0.10089808092427986,
-          "n_points": 25,
-          "file": "run_20260812_134555.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.28,
-          "pass_rate_10pct": 0.64,
-          "mean_de_gap": 0.10067876224633597,
-          "n_points": 25,
-          "file": "run_20260812_135301.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.28,
-          "pass_rate_10pct": 0.64,
-          "mean_de_gap": 0.10067876224633597,
-          "n_points": 25,
-          "file": "run_20260812_144803.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.88,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02577785479250056,
-          "n_points": 25,
-          "file": "run_20260812_175551.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.88,
-          "pass_rate_10pct": 1.0,
-          "mean_de_gap": 0.02519374049486559,
-          "n_points": 25,
-          "file": "run_20260812_215029.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6666666666666666,
-          "pass_rate_10pct": 0.8333333333333334,
-          "mean_de_gap": 0.11361003790861408,
-          "n_points": 6,
-          "file": "run_20260819_031139.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 6,
-        "pass_rate_10pct": 1.0,
-        "pass_rate_5pct": 1.0,
-        "mean_de_gap": 0.018718783833841564
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "triangular_N6_p1.npz",
-      "mtime": "2026-08-24T00:50:52.144103+00:00"
+      "mtime": "2026-08-25T22:01:41.145211+00:00"
     },
     {
       "topology": "triangular",
@@ -3777,32 +2365,10 @@
       "theta_smoothness": 0.006482084437565067,
       "training_utility": "insufficient_signal",
       "training_utility_reason": "Dual pass rate 9% < 30% threshold. 7/77 points are good. High noise/signal ratio \u2014 train at your own risk.",
-      "cross_n_transfers": [
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6,
-          "pass_rate_10pct": 0.7333333333333333,
-          "mean_de_gap": 0.08368765788132328,
-          "n_points": 15,
-          "file": "run_20260811_015607.json"
-        },
-        {
-          "train_n": 10,
-          "pass_rate_5pct": 0.6,
-          "pass_rate_10pct": 0.7333333333333333,
-          "mean_de_gap": 0.08552157529675374,
-          "n_points": 15,
-          "file": "run_20260811_104028.json"
-        }
-      ],
-      "cross_n_best_source": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.7333333333333333,
-        "pass_rate_5pct": 0.6,
-        "mean_de_gap": 0.08368765788132328
-      },
+      "cross_n_transfers": [],
+      "cross_n_best_source": null,
       "file": "triangular_N8_p1.npz",
-      "mtime": "2026-08-24T00:50:52.144920+00:00"
+      "mtime": "2026-08-25T22:01:41.156618+00:00"
     }
   ],
   "topology_summary": {
@@ -3891,12 +2457,7 @@
       "best_pass_rate_5pct": 0.8760330578512396,
       "best_pass_rate_dual": 0.8536585365853658,
       "best_n": 6,
-      "cross_n_best_source_for_largest": {
-        "train_n": 10,
-        "pass_rate_10pct": 0.0,
-        "pass_rate_5pct": 0.0,
-        "mean_de_gap": 5.6195027275000715
-      }
+      "cross_n_best_source_for_largest": null
     },
     "triangular": {
       "n_values": [
@@ -4362,7 +2923,7 @@
     "best_pass_rate": 0.06140350877192983
   },
   "mt_vs_st_comparison": {
-    "generated_at": "2026-08-25 13:22 UTC",
+    "generated_at": "2026-08-25 22:29 UTC",
     "global": {
       "mt_wins": 7,
       "st_wins": 1,
@@ -4658,7 +3219,7 @@
     ]
   },
   "gt_npz_coherence": {
-    "n_files_checked": 97,
+    "n_files_checked": 61,
     "n_files_with_issues": 0,
     "n_points_mismatched": 0,
     "max_delta": 0.0,
