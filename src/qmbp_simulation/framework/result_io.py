@@ -2032,11 +2032,11 @@ def persist_predictions_to_training_npz(
             method_labels.append(str(method))
 
             # Use is_point_failure with strict thresholds to determine quality:
-            # NOT failure at strict threshold → high quality
+            # NOT failure at strict threshold → high quality (energy criterion
+            # only; fidelity is a diagnostic metric, not a gate).
             passes_strict = not is_point_failure(
                 de_gap=de_gap,
                 abs_error=abs_err,
-                fidelity=pt.get("fidelity"),
             )
 
             if passes_strict and method in _VQE_METHODS:

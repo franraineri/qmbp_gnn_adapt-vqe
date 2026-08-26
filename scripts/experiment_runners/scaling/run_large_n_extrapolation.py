@@ -862,11 +862,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         gt_entry = next(
                             g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
                         )
+                        fid_info = self.estimate_fidelity(
+                            circuit, res.x, topo, n_target, float(h),
+                            model=self._args.model_name,
+                            gap=gt_entry["gap"], e_pred=float(res.fun),
+                        )
                         new_result = self.build_per_h_result(
                             h,
                             res.fun,
                             gt_entry["e_exact"],
                             gt_entry["gap"],
+                            fidelity_info=fid_info,
                             n_params=circuit.num_parameters,
                             n_qubits=n_target,
                             method="auto_refined",
@@ -989,11 +995,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     gt_entry = next(
                         pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                     )
+                    fid_info = self.estimate_fidelity(
+                        circuit, res.x, topo, n_target, float(h),
+                        model=self._args.model_name,
+                        gap=gt_entry["gap"], e_pred=float(e_refined),
+                    )
                     new_result = self.build_per_h_result(
                         h,
                         e_refined,
                         gt_entry["e_exact"],
                         gt_entry["gap"],
+                        fidelity_info=fid_info,
                         n_params=circuit.num_parameters,
                         n_qubits=n_target,
                         method="vqe_refined",
@@ -1169,11 +1181,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
                             gt = next(
                                 g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
                             )
+                            fid_info = self.estimate_fidelity(
+                                circuit, res.x, topo, n_target, float(h),
+                                model=model_name,
+                                gap=gt["gap"], e_pred=float(res.fun),
+                            )
                             new_result = self.build_per_h_result(
                                 h,
                                 res.fun,
                                 gt["e_exact"],
                                 gt["gap"],
+                                fidelity_info=fid_info,
                                 n_params=circuit.num_parameters,
                                 n_qubits=n_target,
                                 method="al_refined",
@@ -1309,6 +1327,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 # Multi-restart random VQE
                 best_energy = float("inf")
                 best_nfev = 0
+                best_theta = None
                 rng = np.random.default_rng(42)
 
                 for restart in range(n_restarts):
@@ -1323,6 +1342,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         if res.fun < best_energy:
                             best_energy = res.fun
                             best_nfev = res.nfev
+                            best_theta = res.x
                     except Exception:
                         continue
 
@@ -1334,11 +1354,20 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                 )
 
+                fid_info = None
+                if best_theta is not None:
+                    fid_info = self.estimate_fidelity(
+                        circuit, best_theta, topo, n_target, float(h),
+                        model=self._args.model_name,
+                        gap=gt_entry["gap"], e_pred=float(best_energy),
+                    )
+
                 result = self.build_per_h_result(
                     h,
                     best_energy,
                     gt_entry["e_exact"],
                     gt_entry["gap"],
+                    fidelity_info=fid_info,
                     n_params=n_params,
                     n_qubits=n_target,
                     method="random_vqe",

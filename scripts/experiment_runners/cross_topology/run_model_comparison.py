@@ -92,6 +92,7 @@ from qmbp_simulation.analysis.metrics import (
 )
 from qmbp_simulation.circuits import HVACircuitBuilder
 from qmbp_simulation.execution.backends import select_backend
+from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 from qmbp_simulation.framework.result_io import (
     build_result_envelope,
     persist_predictions_to_training_npz,
@@ -375,13 +376,33 @@ def evaluate_checkpoint(
             de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
             abs_error = abs(e_pred - e_exact)
 
+            # State fidelity: exact (N≤16, statevector overlap) or rigorous
+            # variance-based lower bound (Eckart) for larger N. Reuses the
+            # shared single-source-of-truth estimator.
+            from qmbp_simulation.analysis.fidelity import (
+                estimate_fidelity_from_primitives,
+            )
+
+            exact_state = None
+            if n_target <= STATEVECTOR_MAX_N:
+                try:
+                    from qmbp_simulation.solvers.classical import ClassicalSolver
+
+                    gt_obj_fid = ClassicalSolver().solve(H, lat_h)
+                    exact_state = gt_obj_fid.ground_state
+                except (MemoryError, ValueError, AttributeError):
+                    exact_state = None
+            fid_info = estimate_fidelity_from_primitives(
+                circuit, theta_pred, H, gap, n_target, exact_state=exact_state
+            )
+
             # Per-point classification (same as run_large_n_extrapolation)
             cls = classify_point_failure(
                 de_gap=de_gap, abs_error=abs_error, gap=gap,
                 h=float(h), h_critical=1.0, n_params=n_params,
             )
 
-            per_h.append({
+            point = {
                 "h": float(h),
                 "e_pred": float(e_pred),
                 "e_exact": float(e_exact),
@@ -393,7 +414,14 @@ def evaluate_checkpoint(
                 "category": cls.category,
                 "action": cls.action,
                 "theta": theta_pred.tolist(),
-            })
+            }
+            if fid_info.get("fidelity") is not None:
+                point["fidelity"] = float(fid_info["fidelity"])
+                point["fidelity_method"] = fid_info["method"]
+                point["fidelity_is_bound"] = bool(fid_info["is_lower_bound"])
+                if fid_info.get("energy_variance") is not None:
+                    point["energy_variance"] = float(fid_info["energy_variance"])
+            per_h.append(point)
 
         # Compute summary (same as run_large_n_extrapolation)
         summary = compute_deploy_summary(per_h)

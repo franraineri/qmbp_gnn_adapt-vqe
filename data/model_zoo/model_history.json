@@ -33146,5 +33146,128 @@
       "old_version": 2,
       "new_version": 2
     }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:13.742415+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "test_rollback_n10_p1.pt",
+      "old_pass_rate": 1.0,
+      "new_pass_rate": 0.9,
+      "old_n_training_points": 14,
+      "new_n_training_points": 50
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:13.838961+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 33,
+      "new_version": 34
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:13.898347+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "test_rollback_n10_p1_v2.pt",
+      "old_pass_rate": 1.0,
+      "new_pass_rate": 0.2,
+      "old_n_training_points": 14,
+      "new_n_training_points": 50
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:13.974941+00:00",
+    "event_type": "registered",
+    "model_id": "test_rollback_n10_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 50,
+      "n_values": [
+        10
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:14.118374+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "test_rollback_n10_p1.pt",
+      "old_pass_rate": 1.0,
+      "new_pass_rate": 0.8,
+      "old_n_training_points": 14,
+      "new_n_training_points": 50
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:14.210085+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 34,
+      "new_version": 35
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:14.268059+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "test_rollback_n10_p1_v2.pt",
+      "old_pass_rate": 1.0,
+      "new_pass_rate": 0.7,
+      "old_n_training_points": 14,
+      "new_n_training_points": 50
+    }
+  },
+  {
+    "timestamp": "2026-08-26T22:50:14.344745+00:00",
+    "event_type": "retrained",
+    "model_id": "test_rollback_n10_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 50,
+      "new_training_points": 50,
+      "old_n_values": [
+        10
+      ],
+      "new_n_values": [
+        10
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
   }
 ]

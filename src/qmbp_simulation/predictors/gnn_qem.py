@@ -467,6 +467,13 @@ def train_gnn_qem(
         optimizer, patience=config.patience // 2, factor=0.5
     )
 
+    # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
+    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+
+    device = resolve_device()
+    model = model.to(device)
+    logger.info("[gnn_qem] train device: %s", describe_device(device))
+
     best_val_loss = float("inf")
     best_epoch = 0
     best_state = None
@@ -479,6 +486,7 @@ def train_gnn_qem(
         epoch_loss = 0.0
         n_batches = 0
         for batch in train_loader:
+            batch = batch.to(device)
             optimizer.zero_grad()
             delta_e_pred, confidence = model(batch)
 
@@ -511,6 +519,7 @@ def train_gnn_qem(
             val_loss = 0.0
             n_val_batches = 0
             for batch in val_loader:
+                batch = batch.to(device)
                 delta_e_pred, _ = model(batch)
                 val_loss += nn.functional.mse_loss(delta_e_pred, batch.y).item()
                 n_val_batches += 1
@@ -547,6 +556,7 @@ def train_gnn_qem(
     n_val_batches = 0
     with torch.no_grad():
         for batch in val_loader:
+            batch = batch.to(device)
             delta_e_pred, _ = model(batch)
             val_mae += torch.mean(torch.abs(delta_e_pred - batch.y)).item()
             n_val_batches += 1
@@ -573,6 +583,11 @@ def train_gnn_qem(
         f"[gnn_qem] Training complete: best_epoch={best_epoch}, "
         f"val_MAE={val_mae:.6f}, improvement={mean_improvement:.1f}%"
     )
+
+    # Return model to CPU (device-agnostic checkpoints + CPU inference).
+    model = model.to("cpu")
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
 
     return QEMTrainResult(
         best_epoch=best_epoch,
@@ -1416,6 +1431,13 @@ def train_gnn_qem_v2(
         optimizer, T_max=config.epochs, eta_min=config.lr * 0.01
     )
 
+    # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
+    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+
+    device = resolve_device()
+    model = model.to(device)
+    logger.info("[gnn_qem_v2] train device: %s", describe_device(device))
+
     best_val_loss = float("inf")
     best_epoch = 0
     best_state = None
@@ -1427,6 +1449,7 @@ def train_gnn_qem_v2(
         epoch_loss = 0.0
         n_batches = 0
         for batch in train_loader:
+            batch = batch.to(device)
             optimizer.zero_grad()
             delta_e_pred, confidence = model(batch)
 
@@ -1459,6 +1482,7 @@ def train_gnn_qem_v2(
             val_loss = 0.0
             n_val = 0
             for batch in val_loader:
+                batch = batch.to(device)
                 delta_e_pred, _ = model(batch)
                 val_loss += nn.functional.mse_loss(delta_e_pred, batch.y).item()
                 n_val += 1
@@ -1491,6 +1515,7 @@ def train_gnn_qem_v2(
     n_val = 0
     with torch.no_grad():
         for batch in val_loader:
+            batch = batch.to(device)
             delta_e_pred, _ = model(batch)
             val_mae += torch.mean(torch.abs(delta_e_pred - batch.y)).item()
             n_val += 1
@@ -1514,6 +1539,11 @@ def train_gnn_qem_v2(
         f"[gnn_qem_v2] Done: best_epoch={best_epoch}, "
         f"val_MAE={val_mae:.6f}, improvement={mean_improvement:.1f}%"
     )
+
+    # Return model to CPU (device-agnostic checkpoints + CPU inference).
+    model = model.to("cpu")
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
 
     return QEMTrainResult(
         best_epoch=best_epoch,

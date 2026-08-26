@@ -846,6 +846,14 @@ def train_mpnn(
     _loader_generator = torch.Generator().manual_seed(seed)
 
     loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True, generator=_loader_generator)
+
+    # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
+    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+
+    device = resolve_device()
+    model = model.to(device)
+    logger.info("  train_mpnn device: %s", describe_device(device))
+
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=patience, factor=0.5, min_lr=1e-6
@@ -866,6 +874,7 @@ def train_mpnn(
     for epoch in range(n_epochs):
         epoch_loss = 0.0
         for batch in loader:
+            batch = batch.to(device)
             optimizer.zero_grad()
             pred = model(batch)
             target = batch.y.view(pred.shape)
@@ -912,6 +921,7 @@ def train_mpnn(
             model.eval()
             with torch.no_grad():
                 for batch in loader:
+                    batch = batch.to(device)
                     pred = model(batch)
                     target = batch.y.view(pred.shape)
                     p = model._dim_zz if hasattr(model, "_dim_zz") else model.output_dim // 2
@@ -931,6 +941,7 @@ def train_mpnn(
             model.eval()
             with torch.no_grad():
                 for batch in loader:
+                    batch = batch.to(device)
                     pred = model(batch)
                     energy_errors = energy_val_fn(pred, batch)
                     mean_de = float(np.mean(energy_errors))
@@ -963,6 +974,12 @@ def train_mpnn(
                     stopped_early = True
                     stop_reason = "divergence_detected"
                     break
+
+    # Return model to CPU so downstream inference (CPU graphs) and checkpoint
+    # saving stay device-agnostic; free GPU memory for the next job.
+    model = model.to("cpu")
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
 
     result = {
         "mse_history": mse_history,
@@ -1404,6 +1421,13 @@ def train_bond_resolved_mpnn(
         train_data = dataset
         val_data = []
 
+    # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
+    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+
+    device = resolve_device()
+    model = model.to(device)
+    logger.info("  train_bond_resolved_mpnn device: %s", describe_device(device))
+
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, patience=patience, factor=0.5, min_lr=1e-6
@@ -1421,6 +1445,7 @@ def train_bond_resolved_mpnn(
         total_x_loss = 0.0
 
         for data in train_data:
+            data = data.to(device)
             optimizer.zero_grad()
             pred = model(data).squeeze(0)  # [n_edges + n_nodes]
             target = data.y
@@ -1449,6 +1474,7 @@ def train_bond_resolved_mpnn(
             v_loss = 0.0
             with torch.no_grad():
                 for data in val_data:
+                    data = data.to(device)
                     pred = model(data).squeeze(0)
                     target = data.y
                     n_e = data.n_edges_unique
@@ -1472,12 +1498,18 @@ def train_bond_resolved_mpnn(
         v_loss = 0.0
         with torch.no_grad():
             for data in val_data:
+                data = data.to(device)
                 pred = model(data).squeeze(0)
                 target = data.y
                 n_e = data.n_edges_unique
                 v_loss += (F.mse_loss(pred[:n_e], target[:n_e]) +
                            F.mse_loss(pred[n_e:], target[n_e:])).item()
         final_val_mse = v_loss / len(val_data)
+
+    # Return model to CPU (device-agnostic checkpoints + CPU inference).
+    model = model.to("cpu")
+    if device.type == "cuda":
+        torch.cuda.empty_cache()
 
     final_mse = mse_history[-1] if mse_history else float("inf")
     gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None

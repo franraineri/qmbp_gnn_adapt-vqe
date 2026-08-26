@@ -146,25 +146,25 @@ AUGMENTATION_MAX_VARIANTS_PER_POINT: int = 1
 def is_point_failure(
     de_gap: float,
     abs_error: float | None = None,
-    fidelity: float | None = None,
     *,
     de_gap_threshold: float = DE_GAP_THRESHOLD,
     max_abs_error: float = MAX_ABS_ERROR,
-    min_fidelity: float = MIN_FIDELITY,
 ) -> bool:
-    """Determine if a single evaluation point is a failure using dual criteria.
+    """Determine if a single evaluation point is a failure using the dual
+    energy criterion.
 
     A point fails if ANY of these conditions hold:
     1. ΔE/gap >= threshold (relative error too large)
     2. |ΔE| > max_abs_error (absolute error too large, prevents gap masking)
-    3. Fidelity < min_fidelity (state overlap too low, when available)
+
+    Fidelity is intentionally NOT a pass/fail criterion. It is recorded as a
+    diagnostic metric only (see compute_deploy_summary / evaluation_report),
+    because at large N it is a lower bound and would misclassify good points.
 
     Handles edge cases:
-    - NaN/Inf in any metric → automatic failure (corrupted data)
-    - Fidelity not calculable (N > 22, MPS backend) → skipped gracefully
+    - NaN/Inf in de_gap or abs_error → automatic failure (corrupted data)
     - abs_error not available → only ΔE/gap is checked
     - Negative de_gap → flagged as failure (indicates variational violation)
-    - Fidelity > 1.0 → flagged as failure (indicates computation bug)
 
     Parameters
     ----------
@@ -173,15 +173,10 @@ def is_point_failure(
     abs_error : float | None
         Absolute error |E_pred - E_exact|. If None, only ΔE/gap is checked.
         Not available when E_exact comes from approximate methods (DMRG).
-    fidelity : float | None
-        State fidelity |⟨ψ_pred|ψ_exact⟩|². None when N > 22 (statevector
-        not available) or when using MPS backend.
     de_gap_threshold : float
         Threshold for ΔE/gap criterion (default: 0.05).
     max_abs_error : float
         Cap on absolute error (default: 0.10).
-    min_fidelity : float
-        Minimum acceptable fidelity (default: 0.97).
 
     Returns
     -------
@@ -208,21 +203,6 @@ def is_point_failure(
         if abs_error > max_abs_error:
             return True
 
-    # Criterion 3: fidelity (skip if not calculable — N>22, MPS, etc.)
-    if fidelity is not None:
-        if not np.isfinite(fidelity):
-            return True
-        if fidelity > 1.0 + 1e-6:
-            # Fidelity > 1 indicates a computation bug
-            logger.warning(
-                "is_point_failure: fidelity=%.6f > 1.0 (possible bug in "
-                "compute_fidelity or state normalization)",
-                fidelity,
-            )
-            return True
-        if fidelity < min_fidelity:
-            return True
-
     return False
 
 
@@ -231,9 +211,9 @@ def identify_failures(
     *,
     de_gap_threshold: float = DE_GAP_THRESHOLD,
     max_abs_error: float = MAX_ABS_ERROR,
-    min_fidelity: float = MIN_FIDELITY,
 ) -> list[int]:
-    """Identify failing point indices from per-h results using dual criteria.
+    """Identify failing point indices from per-h results using the dual
+    energy criterion (ΔE/gap and |ΔE|). Fidelity is not a criterion.
 
     Handles common data issues:
     - Missing keys gracefully (only checks what's available)
@@ -244,7 +224,7 @@ def identify_failures(
     ----------
     per_h_results : list[dict]
         Each entry must have ``"de_gap"`` (float).
-        Optional: ``"abs_error"`` (float), ``"fidelity"`` (float | None).
+        Optional: ``"abs_error"`` (float).
 
     Returns
     -------
@@ -261,10 +241,8 @@ def identify_failures(
         if is_point_failure(
             de_gap=de_gap,
             abs_error=r.get("abs_error"),
-            fidelity=r.get("fidelity"),
             de_gap_threshold=de_gap_threshold,
             max_abs_error=max_abs_error,
-            min_fidelity=min_fidelity,
         ):
             failures.append(i)
     return failures
@@ -316,7 +294,6 @@ def classify_point_failure(
     de_gap: float,
     abs_error: float | None = None,
     gap: float | None = None,
-    fidelity: float | None = None,
     *,
     h: float | None = None,
     h_critical: float | None = None,
@@ -341,8 +318,6 @@ def classify_point_failure(
         Absolute error |ΔE|.
     gap : float | None
         Spectral gap at this h-point.
-    fidelity : float | None
-        State fidelity (None if unavailable).
     h : float | None
         Field value (for critical region detection).
     h_critical : float | None
@@ -503,7 +478,6 @@ def classify_points_batch(
             de_gap=r.get("de_gap", float("nan")),
             abs_error=r.get("abs_error"),
             gap=r.get("gap"),
-            fidelity=r.get("fidelity"),
             h=r.get("h"),
             h_critical=h_critical,
             n_params=n_params,

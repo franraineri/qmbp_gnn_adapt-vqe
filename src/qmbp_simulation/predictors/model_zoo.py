@@ -66,13 +66,43 @@ def _smart_load_checkpoint(path: str):
 
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
-_ZOO_DIR = _PROJECT_ROOT / "data" / "model_zoo"
+
+
+def _resolve_zoo_dir() -> Path:
+    """Resolve the model-zoo root directory, portable local ↔ server.
+
+    On Kubeflow (or any server with ephemeral pod storage), set the
+    ``QMBP_MODEL_ZOO_DIR`` environment variable to a path on a mounted
+    PersistentVolumeClaim (PVC) or object-store gateway so trained
+    checkpoints survive pod restarts. Locally, leave it unset to use the
+    in-repo ``data/model_zoo`` directory.
+
+    Returns
+    -------
+    Path
+        The resolved zoo root. The directory is created on demand by the
+        save paths, so a fresh PVC works without manual setup.
+    """
+    import os
+
+    env_dir = os.environ.get("QMBP_MODEL_ZOO_DIR")
+    if env_dir:
+        return Path(env_dir).expanduser().resolve()
+    return _PROJECT_ROOT / "data" / "model_zoo"
+
+
+_ZOO_DIR = _resolve_zoo_dir()
 _MANIFEST_PATH = _ZOO_DIR / "manifest.json"
 _CHECKPOINTS_DIR = _ZOO_DIR / "checkpoints"
 # Fallback location for checkpoints that are version-controlled in git.
 # On a fresh clone, a "best" checkpoint may live only in archived/ (tracked),
 # not in checkpoints/ (regenerable). Loaders resolve through both directories.
+# Kept in the repo tree even when QMBP_MODEL_ZOO_DIR overrides the zoo root,
+# so the git-tracked baseline checkpoints remain findable as a last resort.
 _ARCHIVED_DIR = _ZOO_DIR / "archived"
+_REPO_ZOO_DIR = _PROJECT_ROOT / "data" / "model_zoo"
+_REPO_ARCHIVED_DIR = _REPO_ZOO_DIR / "archived"
+_REPO_MANIFEST_PATH = _REPO_ZOO_DIR / "manifest.json"
 
 
 def _resolve_checkpoint_path(checkpoint_file: str) -> Path | None:
@@ -100,6 +130,13 @@ def _resolve_checkpoint_path(checkpoint_file: str) -> Path | None:
     fallback = _ARCHIVED_DIR / checkpoint_file
     if fallback.exists():
         return fallback
+    # Last resort: git-tracked baseline archive in the repo tree. Relevant when
+    # QMBP_MODEL_ZOO_DIR points at a fresh/empty PVC that lacks the baseline
+    # checkpoints shipped with the repository.
+    if _REPO_ARCHIVED_DIR != _ARCHIVED_DIR:
+        repo_fallback = _REPO_ARCHIVED_DIR / checkpoint_file
+        if repo_fallback.exists():
+            return repo_fallback
     return None
 
 
@@ -205,10 +242,19 @@ class ZooEntry:
 
 
 def _load_manifest() -> list[ZooEntry]:
-    """Load the model zoo manifest from disk."""
-    if not _MANIFEST_PATH.exists():
-        return []
-    with open(_MANIFEST_PATH) as f:
+    """Load the model zoo manifest from disk.
+
+    When ``QMBP_MODEL_ZOO_DIR`` points at a persistent volume that has no
+    manifest yet (fresh PVC), fall back to the git-tracked repo manifest so
+    the baseline models are still discoverable on first run.
+    """
+    manifest_path = _MANIFEST_PATH
+    if not manifest_path.exists():
+        if _REPO_MANIFEST_PATH != _MANIFEST_PATH and _REPO_MANIFEST_PATH.exists():
+            manifest_path = _REPO_MANIFEST_PATH
+        else:
+            return []
+    with open(manifest_path) as f:
         raw = json.load(f)
     # Get valid field names to filter out stale/unknown keys
     _valid_fields = {f.name for f in fields(ZooEntry)}

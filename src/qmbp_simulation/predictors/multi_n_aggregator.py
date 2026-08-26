@@ -498,7 +498,6 @@ class MultiNAggregator:
                     if not is_point_failure(
                         de_gap=p["de_gap"],
                         abs_error=p.get("abs_error"),
-                        fidelity=p.get("fidelity"),
                         de_gap_threshold=max_de_gap,
                     ):
                         filtered.append(p)

@@ -3580,13 +3580,13 @@ class ValidationRunner(ABC):
             Model name used to build the Hamiltonian (e.g. "tfim",
             "tfim_bond_resolved"). Must match the circuit's Hamiltonian.
         """
-        import numpy as np
-
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 
         if n_qubits > STATEVECTOR_MAX_N:
             return None
         try:
+            from qmbp_simulation.analysis.fidelity import compute_exact_fidelity
+
             lat = self.make_lattice(topology, n_qubits, J=1.0, h=h)
             # Prefer the explicit model arg (works for every runner). Fall back
             # to _get_spec() only when the caller relies on runner-configured
@@ -3605,10 +3605,8 @@ class ValidationRunner(ABC):
             gt = self.solver.solve(H, lat)
             if gt.ground_state is None:
                 return None
-            fid = float(self.compute_fidelity(circuit, theta, gt.ground_state))
-            if not np.isfinite(fid):
-                return None
-            return fid
+            # Delegate the statevector overlap to the shared implementation.
+            return compute_exact_fidelity(circuit, theta, gt.ground_state)
         except (MemoryError, ValueError, AttributeError, KeyError) as exc:
             logger.debug(
                 "safe_compute_fidelity failed for %s N=%d h=%.2f model=%s: %s",
@@ -3668,9 +3666,10 @@ class ValidationRunner(ABC):
             (Var(H)). Returns None if the variance is not computable (NaN) or
             the gap is non-positive.
         """
-        import numpy as np
-
         try:
+            from qmbp_simulation.analysis.fidelity import (
+                compute_variance_fidelity_bound,
+            )
             from qmbp_simulation.models.model_registry import get_model_spec
 
             # Resolve gap if not provided (uses 2-level GT cache).
@@ -3683,33 +3682,8 @@ class ValidationRunner(ABC):
             lat = self.make_lattice(topology, n_qubits, J=1.0, h=h)
             H = spec.build_hamiltonian(lat, **spec.hamiltonian_kwargs)
 
-            # Var(H) = ⟨H²⟩ − ⟨H⟩². We need a backend whose
-            # compute_energy_variance works for N > STATEVECTOR_MAX_N. The
-            # default NoiselessBackend returns NaN there, and select_backend
-            # only switches to MPS above EXACT_DIAG_QUBIT_LIMIT (22), leaving a
-            # gap for 17–22. Use a deterministic MPS backend directly so the
-            # variance is always computable via save_expectation_value.
-            from qmbp_simulation.execution import MPSBackend
-
-            backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True)
-            var_h = backend.compute_energy_variance(circuit, H, np.asarray(theta))
-            if var_h is None or not np.isfinite(var_h):
-                return None
-
-            # Eckart lower bound. Var/gap² can exceed 1 (loose/invalid regime);
-            # clip to [0, 1]. A returned 0.0 means "inconclusive", not "F=0".
-            fid_lb = float(np.clip(1.0 - var_h / (gap * gap), 0.0, 1.0))
-
-            # Validity note: the bound assumes E_pred < E₁ = E₀ + gap.
-            # We record it but do not discard — a violated condition just makes
-            # the bound loose, not wrong (still a valid ≤ inequality in practice
-            # for near-ground states).
-            return {
-                "fidelity": fid_lb,
-                "method": "variance_bound",
-                "is_lower_bound": True,
-                "energy_variance": float(var_h),
-            }
+            # Delegate to the shared Eckart bound (single source of truth).
+            return compute_variance_fidelity_bound(circuit, theta, H, gap)
         except (MemoryError, ValueError, AttributeError, KeyError) as exc:
             logger.debug(
                 "compute_fidelity_bound failed for %s N=%d h=%.2f model=%s: %s",

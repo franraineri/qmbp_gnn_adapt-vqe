@@ -46,6 +46,95 @@ def set_global_seed(seed: int) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Compute device selection (GPU/CPU) — portable local ↔ Kubeflow/server
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def resolve_device(prefer: str | None = None):
+    """Resolve the torch compute device, portable across local and server.
+
+    Resolution order (first match wins):
+    1. Explicit ``prefer`` argument (e.g. "cuda", "cpu", "cuda:1").
+    2. ``QMBP_DEVICE`` environment variable (same accepted values).
+    3. Auto: "cuda" if a CUDA GPU is available, else "cpu".
+
+    On Kubeflow / multi-GPU servers the scheduler sets ``CUDA_VISIBLE_DEVICES``
+    for the pod, so plain "cuda" (== "cuda:0") maps to the assigned GPU. On a
+    local machine without CUDA (e.g. macOS), this transparently returns "cpu",
+    so the same code runs unchanged in both environments.
+
+    A requested CUDA device that is not actually available falls back to CPU
+    with a logged warning rather than crashing.
+
+    Parameters
+    ----------
+    prefer : str | None
+        Optional explicit device string. Overrides env var and auto-detection.
+
+    Returns
+    -------
+    torch.device
+        The resolved device. Callers should ``model.to(device)`` and move each
+        batch/graph with ``data.to(device)``.
+    """
+    import logging
+    import os
+
+    _logger = logging.getLogger(__name__)
+
+    try:
+        import torch
+    except ImportError:
+        # No torch → callers that need a device shouldn't be here, but be safe.
+        raise RuntimeError("resolve_device requires PyTorch to be installed.") from None
+
+    requested = prefer or os.environ.get("QMBP_DEVICE")
+
+    if requested:
+        requested = requested.strip().lower()
+        if requested.startswith("cuda"):
+            if torch.cuda.is_available():
+                return torch.device(requested)
+            _logger.warning(
+                "resolve_device: '%s' requested but CUDA is not available. "
+                "Falling back to CPU.",
+                requested,
+            )
+            return torch.device("cpu")
+        # Any explicit non-cuda value (cpu, mps, etc.) is honored as-is.
+        return torch.device(requested)
+
+    # Auto-detection.
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    return torch.device("cpu")
+
+
+def describe_device(device=None) -> str:
+    """Human-readable one-line description of the compute device.
+
+    Useful for logging at the start of a training run so the run log records
+    whether it ran on GPU or CPU (and which GPU).
+    """
+    try:
+        import torch
+    except ImportError:
+        return "cpu (torch unavailable)"
+
+    dev = device if device is not None else resolve_device()
+    dev = torch.device(dev)
+    if dev.type == "cuda":
+        idx = dev.index if dev.index is not None else torch.cuda.current_device()
+        try:
+            name = torch.cuda.get_device_name(idx)
+        except Exception:  # noqa: BLE001
+            name = "unknown CUDA device"
+        n = torch.cuda.device_count()
+        return f"cuda:{idx} ({name}) [{n} GPU(s) visible]"
+    return str(dev)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # JSON Serialization
 # ─────────────────────────────────────────────────────────────────────────────
 

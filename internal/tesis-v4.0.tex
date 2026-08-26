@@ -319,6 +319,7 @@ La convergencia se declara cuando la energía varía menos que una tolerancia $\
 El costo computacional del DMRG escala como $O(N \chi^3 d^2)$ por sweep, donde el factor $\chi^3$ proviene de las operaciones matriciales durante la SVD y la contracción tensorial. Para el TFIM 1D con $d = 2$, $\chi = 64$ y $N = 100$, un cálculo completo requiere $\sim$30 segundos en una CPU moderna ---varios órdenes de magnitud más eficiente que la diagonalización exacta ($O(2^N)$)---.
 
 \subsection{Simulación de circuitos mediante MPS}
+\label{subsec:mps_sim}
 
 Los simuladores MPS representan el estado cuántico producido por un circuito como un MPS de dimensión de enlace acotada $\chi_{\max}$. Cada compuerta del circuito se aplica como un MPO local sobre el MPS, seguido de truncamiento SVD para mantener $\chi \leq \chi_{\max}$. El procedimiento es:
 
@@ -330,7 +331,7 @@ Los simuladores MPS representan el estado cuántico producido por un circuito co
 
 Para circuitos HVA de profundidad moderada ($p \leq 4$) en topología 1D, el entrelazamiento generado es bajo y $\chi = 64$ produce resultados indistinguibles de la simulación exacta por vector de estado ($|\Delta E| < 10^{-14}$, validado experimentalmente en este trabajo a $N = 22$). Esto permite escalar la evaluación del circuito hasta $N = 250$ con costo $O(N \chi^3 p)$, habilitando la validación del pipeline a escalas inaccesibles para simuladores de vector de estado.
 
-En este trabajo se emplea el backend Aer MPS de Qiskit en modo determinista (sin shots), que calcula valores esperados mediante contracción del MPS sin ruido de muestreo. La precisión es función exclusivamente de $\chi_{\max}$: con $\chi = 64$, los resultados son indistinguibles de la simulación por vector de estado (diferencia $< 10^{-14}$) para HVA con $p \leq 4$ en cadenas 1D, como se valida en §4.3.
+En este trabajo se emplea el backend Aer MPS de Qiskit en modo determinista (sin shots), que calcula valores esperados mediante contracción del MPS sin ruido de muestreo. La precisión es función exclusivamente de $\chi_{\max}$: con $\chi = 64$, los resultados son indistinguibles de la simulación por vector de estado (diferencia $< 10^{-14}$) para HVA con $p \leq 4$ en cadenas 1D, como se valida en la Sección~\ref{sec:fase2}.
 
 \subsection{Limitaciones en sistemas 2D y frustrados}
 
@@ -524,6 +525,7 @@ El pipeline GNN-HVA se organiza en tres fases secuenciales, cada una produciendo
 \textbf{Criterio de éxito:} Dataset completo con $\geq 27$ puntos, energías verificadas (error $< 10^{-12}$ para diag. exacta, $< 10^{-8}$ para DMRG).
 
 \section{Fase 2: Optimización VQE con warm-start}
+\label{sec:fase2}
 
 \textbf{Objetivo:} Obtener los parámetros óptimos $\theta^*(h)$ del HVA para cada punto del barrido, generando el dataset de entrenamiento para la MPNN.
 
@@ -569,7 +571,7 @@ El pipeline GNN-HVA se organiza en tres fases secuenciales, cada una produciendo
     \item Dividir en entrenamiento (80\%) y validación (20\%).
     \item Entrenar minimizando MSE entre $\theta_{\text{pred}}$ y $\theta^*$.
     \item Validación física: evaluar la energía $E(\theta_{\text{pred}})$ y verificar $\Delta E/\text{gap} < 5\%$.
-    \item Análisis de gradientes de pesos \citep{hernandes2025}: detectar picos en $\|\partial W / \partial h\|$ como indicador de transición de fase. Este análisis de gradientes constituye un subproducto del entrenamiento que permite detectar transiciones de fase sin costo cuántico adicional (véase §5.6).
+    \item Análisis de gradientes de pesos \citep{hernandes2025}: detectar picos en $\|\partial W / \partial h\|$ como indicador de transición de fase. Este análisis de gradientes constituye un subproducto del entrenamiento que permite detectar transiciones de fase sin costo cuántico adicional (véase Sección~\ref{sec:phase_detection}).
 \end{enumerate}
 
 \textbf{Criterio de éxito:} MSE $< 5 \times 10^{-3}$; $\Delta E/\text{gap} < 5\%$ en el régimen válido; detección de pico de gradiente en $h \approx 1.0$--$1.2$.
@@ -718,9 +720,9 @@ Triangular & 28\% & 39\% & 53\% & 61\% \\
 
 El primer resultado es que la topología domina sobre la profundidad del circuito. Para topologías 2D (escalera, cuadrada, triangular), incrementar $p$ de 1 a 4 mejora el PassRate en +28--33 puntos porcentuales, mientras que cadena 1D y heavy-hex alcanzan 100\% desde $p=3$ (Tabla~\ref{tab:cross_topo_depth}). La conectividad del grafo ---no la profundidad del ansatz--- es el factor limitante: incluso a $p=4$, escalera y cuadrada saturan en 86\% y triangular en 61\%.
 
-Esto genera una jerarquía de topologías invariante a $p$: cadena 1D $\approx$ heavy-hex $\gg$ escalera $\approx$ cuadrada $\gg$ triangular. La causa se analiza en §6.1.
+Esto genera una jerarquía de topologías invariante a $p$: cadena 1D $\approx$ heavy-hex $\gg$ escalera $\approx$ cuadrada $\gg$ triangular. La causa se analiza en la Sección~\ref{sec:interpretacion}.
 
-Consistente con esta jerarquía, el PassRate crece monotónicamente con la profundidad en todas las topologías cuando se evalúa en el régimen operativo válido ($h \geq 1.3$). El salto cualitativo entre $p = 2$ y $p = 3$ se analiza en la Sección~6.1.
+Consistente con esta jerarquía, el PassRate crece monotónicamente con la profundidad en todas las topologías cuando se evalúa en el régimen operativo válido ($h \geq 1.3$). El salto cualitativo entre $p = 2$ y $p = 3$ se analiza en la Sección~\ref{sec:interpretacion}.
 
 Un resultado negativo relevante es que la transferencia cross-topology falla. La MPNN entrenada sobre datos de una topología \emph{no generaliza} a topologías distintas. Un modelo entrenado con datos de cadena 1D produce $\Delta E/\text{gap} \gg 5\%$ al evaluarse sobre escalera o triangular ($N = 10$, 3 semillas), indicando que cada topología induce parámetros $\theta^*$ cualitativamente distintos para un mismo $h$.
 
@@ -938,6 +940,7 @@ Kitaev chain & $\times$ & \checkmark & \checkmark & $\times$ & \checkmark & No v
 El resultado delimita la extensibilidad del framework: satisface los criterios para Hamiltonianos cuyos términos nuevos se mapean a compuertas de un qubit (rotaciones $R_X$, $R_Z$), sin incrementar el presupuesto de compuertas de dos qubits \citep{wiersema2020}. Modelos que requieren interacciones de dos cuerpos adicionales (XX, YY) quedan fuera del régimen viable con profundidades moderadas ($p \leq 4$).
 
 \section{Detección de fases en el espacio de parámetros}
+\label{sec:phase_detection}
 
 Una ventaja adicional del pipeline es que los parámetros optimizados $\theta^*(h)$ ---producidos en la Fase 2 como datos de entrenamiento para la MPNN--- codifican información sobre la transición de fase del sistema. Si la MPNN aprende una representación interna que refleja el cambio cualitativo entre fases, la transición puede detectarse sin mediciones cuánticas adicionales, sin evaluaciones de circuito adicionales. Esta posibilidad se fundamenta en los resultados de \citet{hernandes2025}, quienes demostraron que las redes neuronales entrenadas sobre estados fundamentales codifican internamente las fronteras de fase en su espacio de pesos. Se evalúan dos indicadores complementarios para verificar esta hipótesis en nuestro pipeline.
 
@@ -1012,6 +1015,7 @@ El análisis de la campaña experimental muestra que la tasa de resultados útil
 \chapter{Discusión}
 
 \section{Interpretación: ¿Por qué satisface los criterios?}
+\label{sec:interpretacion}
 
 La eficacia del pipeline GNN-HVA se fundamenta en la convergencia de cinco propiedades teóricas y empíricas que simplifican considerablemente el problema de aprendizaje:
 

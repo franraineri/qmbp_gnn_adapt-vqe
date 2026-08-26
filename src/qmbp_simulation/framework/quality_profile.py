@@ -124,14 +124,18 @@ class QualityProfile:
     mean_abs_error: float | None = None
     mean_abs_error_per_site: float | None = None
 
-    # ── Fidelity ──
+    # ── Fidelity (essential metric — exact for N≤16, lower bound above) ──
     mean_fidelity: float | None = None
+    min_fidelity: float | None = None
+    fidelity_is_lower_bound: bool = False
+    n_fidelity_bound: int = 0
+    mean_energy_variance: float | None = None
 
     # ── Composite ──
     quality_score: float = 0.0
     grade: str = "F"
 
-    # ── Binary (internal control flow only) ──
+    # ── Binary (internal control flow only — NOT a headline metric) ──
     pass_rate_5pct: float = 0.0
     pass_rate_dual: float = 0.0
 
@@ -156,6 +160,10 @@ class QualityProfile:
             "mean_abs_error": json_serialize(self.mean_abs_error),
             "mean_abs_error_per_site": json_serialize(self.mean_abs_error_per_site),
             "mean_fidelity": json_serialize(self.mean_fidelity),
+            "min_fidelity": json_serialize(self.min_fidelity),
+            "fidelity_is_lower_bound": self.fidelity_is_lower_bound,
+            "n_fidelity_bound": self.n_fidelity_bound,
+            "mean_energy_variance": json_serialize(self.mean_energy_variance),
             "quality_score": json_serialize(self.quality_score),
             "grade": self.grade,
             "pass_rate_5pct": json_serialize(self.pass_rate_5pct),
@@ -181,6 +189,10 @@ class QualityProfile:
             mean_abs_error=d.get("mean_abs_error"),
             mean_abs_error_per_site=d.get("mean_abs_error_per_site"),
             mean_fidelity=d.get("mean_fidelity"),
+            min_fidelity=d.get("min_fidelity"),
+            fidelity_is_lower_bound=d.get("fidelity_is_lower_bound", False),
+            n_fidelity_bound=d.get("n_fidelity_bound", 0),
+            mean_energy_variance=d.get("mean_energy_variance"),
             quality_score=d.get("quality_score", 0.0),
             grade=d.get("grade", "F"),
             pass_rate_5pct=d.get("pass_rate_5pct", 0.0),
@@ -300,6 +312,10 @@ def compute_quality_profile(
         mean_abs_error=summary.get("mean_abs_error"),
         mean_abs_error_per_site=mean_abs_error_per_site,
         mean_fidelity=summary.get("mean_fidelity"),
+        min_fidelity=summary.get("min_fidelity"),
+        fidelity_is_lower_bound=summary.get("fidelity_is_lower_bound", False),
+        n_fidelity_bound=summary.get("n_fidelity_bound", 0),
+        mean_energy_variance=summary.get("mean_energy_variance"),
         quality_score=score,
         grade=grade,
         pass_rate_5pct=summary.get("pass_rate_5pct", 0.0),
@@ -318,26 +334,45 @@ def compute_quality_profile(
 def format_quality_summary(profile: QualityProfile) -> str:
     """Multi-line formatted summary for logging.
 
+    Essential physics metrics (energy error, fidelity, energy variance) are the
+    headline. Pass rates and the letter grade are demoted to a trailing
+    reference line — they are triage aids, not the primary result.
+
     Example output:
-        Quality: B (score=0.72)
         ΔE/gap: 0.034 ± 0.018 | P90=0.065 | max=0.112
-        |ΔE|/N: 8.9e-03 | Fidelity: 0.9812
+        |ΔE|/N: 8.9e-03
+        Fidelity: mean=0.9812 min=0.9701 (exact)
+        Var(H): 0.0021
         Distribution: [P25=0.018 | P50=0.031 | P75=0.048 | P90=0.065]
+        (ref) grade=B score=0.72 | pass@dual=0.83
     """
     lines = []
-    lines.append(f"Quality: {profile.grade} (score={profile.quality_score:.2f})")
+
+    # ── Essential metric 1: relative energy error ──
     lines.append(
         f"ΔE/gap: {profile.mean_de_gap:.4f} ± {profile.std_de_gap:.4f} | "
         f"P90={profile.p90_de_gap:.4f} | max={profile.max_de_gap:.4f}"
     )
 
-    extras = []
+    # ── Essential metric 2: absolute energy error ──
     if profile.mean_abs_error_per_site is not None:
-        extras.append(f"|ΔE|/N={profile.mean_abs_error_per_site:.2e}")
+        lines.append(f"|ΔE|/N: {profile.mean_abs_error_per_site:.2e}")
+
+    # ── Essential metric 3: state fidelity (own line, with provenance) ──
     if profile.mean_fidelity is not None:
-        extras.append(f"Fidelity={profile.mean_fidelity:.4f}")
-    if extras:
-        lines.append(" | ".join(extras))
+        rel = "≥" if profile.fidelity_is_lower_bound else "="
+        fid_line = f"Fidelity: mean{rel}{profile.mean_fidelity:.4f}"
+        if profile.min_fidelity is not None:
+            fid_line += f" min{rel}{profile.min_fidelity:.4f}"
+        if profile.fidelity_is_lower_bound:
+            fid_line += f" (variance lower bound, {profile.n_fidelity_bound} pts)"
+        else:
+            fid_line += " (exact)"
+        lines.append(fid_line)
+
+    # ── Essential metric 4: energy variance (eigenstate quality) ──
+    if profile.mean_energy_variance is not None:
+        lines.append(f"Var(H): {profile.mean_energy_variance:.4f}")
 
     dist = profile.de_gap_distribution
     if dist:

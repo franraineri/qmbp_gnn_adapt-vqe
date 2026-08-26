@@ -533,6 +533,18 @@ def train_unified_mpnn(
         train_dataset = dataset
         val_dataset = []
 
+    # ── Compute device (GPU if available, else CPU) ─────────────────────────
+    # Portable local ↔ server: resolve_device() honors QMBP_DEVICE and falls
+    # back to CPU when CUDA is absent (e.g. macOS dev machine). The model and
+    # every graph are moved to this device so training uses the GPU when
+    # present. Datasets are small (list of graphs), so we move each graph
+    # on-the-fly in the loop rather than pre-staging all of them on the GPU.
+    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+
+    device = resolve_device()
+    model = model.to(device)
+    logger.info("  Training device: %s", describe_device(device))
+
     # ── Optimizer: layer-wise LR or uniform ────────────────────────────────
     if _layerwise_lr is not None:
         early_lr = lr * _layerwise_lr.get("early_conv", 1.0)
@@ -617,6 +629,7 @@ def train_unified_mpnn(
                 n_skipped += 1
                 continue
 
+            data = data.to(device)
             pred = model(data).squeeze(0)
             target = data.y
             n_e = data.n_edges_unique
@@ -727,6 +740,7 @@ def train_unified_mpnn(
             val_loss = 0.0
             with torch.no_grad():
                 for data in val_dataset:
+                    data = data.to(device)
                     pred = model(data).squeeze(0)
                     target = data.y
                     n_e = data.n_edges_unique
@@ -805,7 +819,7 @@ def train_unified_mpnn(
                 energy_errors = []
                 with torch.no_grad():
                     for idx_e in eval_indices:
-                        data_e = train_dataset[idx_e]
+                        data_e = train_dataset[idx_e].to(device)
                         pred_e = model(data_e).squeeze(0)
                         target_e = data_e.y
                         # Energy error proxy: use L1 difference weighted by
@@ -825,7 +839,7 @@ def train_unified_mpnn(
                         # Compute gradient from a representative sample
                         optimizer.zero_grad()
                         sample_idx = eval_indices[0]
-                        data_s = train_dataset[sample_idx]
+                        data_s = train_dataset[sample_idx].to(device)
                         pred_s = model(data_s).squeeze(0)
                         target_s = data_s.y
                         # Physics loss: penalize predictions far from target
@@ -857,6 +871,7 @@ def train_unified_mpnn(
         val_loss = 0.0
         with torch.no_grad():
             for data in val_dataset:
+                data = data.to(device)
                 pred = model(data).squeeze(0)
                 target = data.y
                 n_e = data.n_edges_unique
@@ -873,6 +888,15 @@ def train_unified_mpnn(
                 )
                 val_loss += loss_v.item()
         final_val_mse = val_loss / len(val_dataset)
+
+    # Return the model to CPU so downstream inference (which builds graphs on
+    # CPU) and checkpoint saving stay device-agnostic and portable. Frees GPU
+    # memory for the next training job on shared/Kubeflow nodes.
+    model = model.to("cpu")
+    if device.type == "cuda":
+        import torch as _torch
+
+        _torch.cuda.empty_cache()
 
     final_mse = mse_history[-1] if mse_history else float("inf")
     gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None

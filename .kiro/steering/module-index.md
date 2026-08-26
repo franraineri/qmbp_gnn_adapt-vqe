@@ -40,7 +40,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +20
 
 
-### qsim/analysis/ (26)
+### qsim/analysis/ (27)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +66
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
@@ -56,12 +56,13 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
   extension_ranker           ANAL  C:ExtensionScore,ExtensionPriorityRanker
   failures_tests             TEST  C:FailureDiagnostic | F:diagnose_gap_masking,diagnose_contaminated_training,diagnose_generalization_failure+4
+  fidelity                         F:compute_exact_fidelity,compute_variance_fidelity_bound,estimate_fidelity_from_primitives
   flow_multishot             PRED  C:MultiShotResult,FlowMultiShotPredictor
   flow_warmstart             OPT   C:FlowWarmstartManager
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+48
+  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+50
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   observables                      F:half_chain_entropy,magnetization_z,magnetization_x+6
@@ -77,11 +78,12 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   hva                        MODEL C:HVACircuitBuilder | F:do_checks
   trotter                    CIRC  F:build_trotter_step,build_trotter_step_from_topology
 
-### qsim/execution/hardware/ (10)
+### qsim/execution/hardware/ (11)
   ↳ HardwareBackend HardwareConfig HardwareRunResult SPSAConfig MAPOMATIC_AVAILABLE LayoutOptimizationResult build_filtered_coupling_map compute_layout_fidelity_cost +8
 
   backend                    EXEC  C:HardwareBackend
   config                     CFG   C:HardwareConfig,SPSAConfig,HardwareRunResult
+  haiqu_backend              CIRC  C:HaiquConfig,HaiquBackend
   layout_optimizer           OPT   C:LayoutOptimizationResult | F:build_filtered_coupling_map,find_vf2_layouts,compute_layout_fidelity_cost+2
   observables                      F:build_per_site_observables,map_observables_to_layout,extract_array_result
   persistence                IO    F:save_run,save_partial_before_error,save_sweep_summary
@@ -153,11 +155,11 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
 ### qsim/predictors/ (9)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +64
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +65
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,load_best_model_for+20
+  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,load_best_model_for+21
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
