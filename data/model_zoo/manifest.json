@@ -765,5 +765,355 @@
     "training_quality_score": -1.0,
     "pass_rate_by_n": {},
     "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-27T03:30:17.771946+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "fad6058fdc8dced681f9a60de1877b37ba8b98b12333f27b3ef07ce49bb85e7a",
+    "runner_tag": "AC",
+    "date_tag": "270826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "h_range": [
+      0.85,
+      3.0
+    ],
+    "pass_rate": 0.2,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-27T10:10:58.291748+00:00",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "sha256": "03158766646a0cf19318c8b3d8106eb07997b769e6c4bb75e8fbfa6bd7c7948f",
+    "runner_tag": "XX",
+    "date_tag": "270826",
+    "training_quality_score": 0.92,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-27T13:41:04.293478+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "73444728fff69de58aa4d00d3a15086da08d14e3db4b7fff87e558f4c22e0024",
+    "runner_tag": "AC",
+    "date_tag": "270826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "h_range": [
+      0.85,
+      3.0
+    ],
+    "pass_rate": 0.6666666666666666,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-27T18:45:51.096858+00:00",
+    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "sha256": "1255ab76ac1b4799a9009a111291a0d509f02b29bc344973f61ad957710fcf94",
+    "runner_tag": "XX",
+    "date_tag": "270826",
+    "training_quality_score": 0.92,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T00:22:49.242535+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points",
+    "sha256": "baa028b409cb2e52c6e0f4b021ade0e23658a0085007df2ccc7f1b0b6bc62d7c",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_energyw.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T00:52:41.881522+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "9d8668acd2b5e6ef6c0f69fbba82f9478600bc70d45f4508867dc844d473847e",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T01:45:07.765045+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "6c22ece8eae85ef42b3761dcffd680e5258c94789444122d7bf47ca4ef4d9839",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_physics05.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T02:37:00.597773+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "c7d7ed0a62f95bb9643bac387f3b0de2039f3785f7437bcffb71f795b6529f98",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_full_stack.pt",
+    "h_range": [
+      3.5,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T03:24:29.745325+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "8296210852b9a7c3a16eb0280a2555ea57dea4de3f2ecd352c54cd7ec0b3d9e5",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
+    "h_range": [
+      0.5,
+      2.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T05:37:43.098088+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "96df9d487efebf548ff1e26acdd5012b7687b007a8a187928c78a990cdee955d",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
+    "h_range": [
+      3.5,
+      4.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 1103,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T11:35:54.729914+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
+    "sha256": "f095a10c4abe469f306ec2161080985ec42eeacff1206eb87f4a8ff7e91bf9ac",
+    "runner_tag": "AC",
+    "date_tag": "280826",
+    "training_quality_score": 0.834,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "multi_topology",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__MT_p1_res_film_base.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 3234,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T18:14:44.122421+00:00",
+    "notes": "Multi-topology model (residual+film): chain_1d+heavy_hex+ladder+square+triangular. p=1. MSE=2.38e-01, val=2.42e-01. 3234 graphs from 5 topologies.",
+    "sha256": "379c453b5ba1f76d57b2d5c6613110c3b9ba754daa335845be64c616a3303469",
+    "runner_tag": "XX",
+    "date_tag": "280826",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "results/experiments/exp_multi_topology_training/tfim_bond_resolved/run_20260828_181443.json"
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 4,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_bond_resolved_chain_1d_n4_p2_20260828T184413.pt",
+    "h_range": [
+      0.5,
+      2.3
+    ],
+    "pass_rate": 1.0,
+    "pass_rate_source": "",
+    "n_training_points": 9,
+    "seeds": [
+      42
+    ],
+    "created": "20260828T184413",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=100%)",
+    "sha256": "b4d73cb40afd7f00bb77eeef6e5dfe7926af5f029e0cc1b7071e05b84a510050",
+    "runner_tag": "XX",
+    "date_tag": "280826",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": ""
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 2,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "h_range": [
+      0.5,
+      2.3
+    ],
+    "pass_rate": 1.0,
+    "pass_rate_source": "",
+    "n_training_points": 72,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-28T18:46:15.768562+00:00",
+    "notes": "Bootstrap from AcceleratedVQE N=4",
+    "sha256": "41beff0b406f6068f9eb43c6daa23d2c2dea8232d75a8edbe970e8802618432f",
+    "runner_tag": "XX",
+    "date_tag": "280826",
+    "training_quality_score": 0.836,
+    "pass_rate_by_n": {},
+    "run_json": ""
   }
 ]

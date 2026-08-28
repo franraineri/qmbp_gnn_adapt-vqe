@@ -1390,22 +1390,24 @@ def backfill_ground_truth_for_npz(
     if max_points is not None:
         missing_h = missing_h[:max_points]
 
-    # Compute ground truth for missing points
+    # Compute ground truth for missing points via the centralized
+    # get_or_compute (get→solve→put + stale-floor invalidation in one place).
     try:
-        from qmbp_simulation import make_lattice
-        from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.solvers import ClassicalSolver
 
-        spec = get_model_spec(model)
         solver = ClassicalSolver()
         n_computed = 0
 
         for h in missing_h:
             try:
-                lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
-                H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
-                gt = solver.solve(H, lattice)
-                gt_cache.put_from_result(topology, n_qubits, model, h, gt)
+                gt_cache.get_or_compute(
+                    topology,
+                    n_qubits,
+                    model,
+                    h,
+                    flush=False,  # batch flush after the loop
+                    solver=solver,
+                )
                 n_computed += 1
             except Exception as e:
                 logger.debug("backfill_ground_truth_for_npz: failed for h=%.4f: %s", h, e)

@@ -1444,28 +1444,34 @@ class AcceleratedCrossNRunner(ValidationRunner):
         h_min_valid = 0
 
         # ── Compute ground truth (all from cache ideally) ─────────────────
+        # Route through get_or_compute so this loop shares the SAME stale-floor
+        # gap invalidation (N>18 gap≈2π/N) as exact_ground_state — previously a
+        # raw gt_cache.get() here could serve a stale gap and skew ΔE/gap for
+        # large N. Hits/misses are inferred from cache membership pre-call.
         gt_hits, gt_misses = 0, 0
         e_exact_arr = np.zeros(len(self._h_values))
         gap_arr = np.zeros(len(self._h_values))
         for i, h in enumerate(self._h_values):
-            cached_gt = gt_cache.get(topo, n_target, "tfim_bond_resolved", float(h))
-            if cached_gt:
-                e_exact_arr[i] = cached_gt["energy"]
-                gap_arr[i] = cached_gt["gap"]
+            _was_cached = gt_cache.get(topo, n_target, "tfim_bond_resolved", float(h)) is not None
+            t_gt = time.perf_counter()
+            e_i, gap_i = gt_cache.get_or_compute(
+                topo,
+                n_target,
+                "tfim_bond_resolved",
+                float(h),
+                flush=False,  # batch flush after the loop
+                solver=solver,
+            )
+            e_exact_arr[i] = e_i
+            gap_arr[i] = gap_i
+            if _was_cached:
                 gt_hits += 1
             else:
-                lat_h = self.make_lattice(topo, n_target, J=1.0, h=float(h))
-                H = spec.build_hamiltonian(lat_h, **spec.hamiltonian_kwargs)
-                t_gt = time.perf_counter()
-                gt_obj = solver.solve(H, lat_h)
-                e_exact_arr[i] = gt_obj.ground_energy
-                gap_arr[i] = gt_obj.gap
-                gt_cache.put_from_result(topo, n_target, "tfim_bond_resolved", float(h), gt_obj)
                 gt_misses += 1
                 logger.info(
                     f"  GT [{gt_hits + gt_misses}/{len(self._h_values)}] "
-                    f"h={float(h):.3f} E={gt_obj.ground_energy:.6f} "
-                    f"gap={gt_obj.gap:.4f} ({time.perf_counter() - t_gt:.1f}s)"
+                    f"h={float(h):.3f} E={e_i:.6f} "
+                    f"gap={gap_i:.4f} ({time.perf_counter() - t_gt:.1f}s)"
                 )
         logger.info(f"  Ground truth: {gt_hits} cache hits, {gt_misses} computed")
         if gt_misses > 0:

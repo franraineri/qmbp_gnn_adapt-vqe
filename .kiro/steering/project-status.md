@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-08-28 20:34
+**Last updated**: 2026-08-28 20:35
 **Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
 **Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -9,24 +9,21 @@
 
 ## Coverage Matrix (latest quality per config)
 
-| Model | chain_1d | heavy_hex | kagome | ladder | square | triangular |
-|---|---|---|---|---|---|---|
-| heisenberg | C (N=10) | F (N=10) | — | C (N=10) | F (N=10) | C (N=10) |
-| heisenberg_transverse | C (N=10) | F (N=10) | — | C (N=10) | F (N=10) | F (N=10) |
-| kitaev | C (N=10) | — | — | — | — | — |
-| tfim | A (N=20) | A (N=20) | — | A (N=16) | F (N=10) | F (N=10) |
-| tfim_bond_resolved | A (N=10) | — | — | A (N=10) | D (N=16) | A (N=6) |
-| tfim_frustrated | A (N=10) | — | — | — | — | — |
-| tfim_longitudinal | A (N=20) | A (N=20) | C (N=10) | C (N=10) | A (N=6) | C (N=10) |
-| xy | C (N=10) | — | — | — | — | — |
+| Model | chain_1d |
+|---|---|
+| tfim | A (N=6) |
+| tfim_bond_resolved | A (N=6) |
 
-## ⚠️ Regressions Detected
+## Suggested Next Experiments
 
-- **tfim_bond_resolved|chain_1d|10|1**: 50% (prev 100%, Δ=-50%)
-- **tfim|heavy_hex|10|2**: 25% (prev 75%, Δ=-50%)
-- **tfim|chain_1d|10|3**: 50% (prev 80%, Δ=-30%)
-- **tfim|ladder|10|3**: 25% (prev 50%, Δ=-25%)
-- **tfim|triangular|10|3**: 25% (prev 50%, Δ=-25%)
+- NO DATA: tfim chain_1d N=10 — never tested
+- NO DATA: tfim chain_1d N=16 — never tested
+- NO DATA: tfim chain_1d N=20 — never tested
+- NO DATA: tfim heavy_hex N=10 — never tested
+- NO DATA: tfim heavy_hex N=16 — never tested
+- NO DATA: tfim heavy_hex N=20 — never tested
+- NO DATA: tfim_longitudinal chain_1d N=10 — never tested
+- NO DATA: tfim_longitudinal chain_1d N=16 — never tested
 
 ## Large-N Extrapolation (Zero-Shot MPNN)
 
@@ -58,7 +55,7 @@
 | heavy_hex | 32 | 10 | 0.384 | 2.02e-02 | F |
 | heavy_hex | 40 | 33 | 0.201 | 1.45e-02 | F |
 | heavy_hex | 50 | 6 | 0.286 | 1.84e-02 | F |
-| heavy_hex | 60 | 6 | 0.547 | 3.25e-02 | F |
+| heavy_hex | 60 | 6 | 0.498 | 2.92e-02 | F |
 | ladder | 16 | 6 | 0.078 | 1.40e-02 | D |
 | ladder | 20 | 24 | 0.259 | 7.24e-03 | F |
 | ladder | 26 | 14 | 0.517 | 8.95e-03 | F |
@@ -93,10 +90,13 @@
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 36% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 85% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 60% | — | — | — |
+| heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 20% | — | — | — |
+| heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 67% | — | — | — |
 | ladder | 1 | unified_tfim_br_ladder_multiN_4+6+8... | baseline | 45% | N=4-24 | N4=83% | N10=47% |
 | ladder | 1 | unified_tfim_br_ladder_fromMT_4+6+8... | baseline | 0% | — | — | — |
 | ladder | 1 | unified_tfim_br_ladder_multiN_4+6+8... | baseline | 0% | — | — | — |
 | multi_topology | 1 | unified_tfim_br_MT_residual+film_p1.pt | residual+film | 6% | N=3-31 | N4=50% | N3=17% |
+| multi_topology | 1 | unifMPNN__MT_p1_res_film_base.pt | residual+film | 0% | — | — | — |
 | square | 1 | unified_tfim_br_square_multiN_4+6+8... | baseline | 33% | N=4-21 | N4=83% | N10=33% |
 | square | 1 | unified_tfim_br_square_multiN_4+6+8... | baseline | 33% | N=4-21 | N4=100% | N6=83% |
 | triangular | 1 | unified_tfim_br_triangular_multiN_3... | baseline | 25% | N=3-16 | N6=50% | N4=33% |

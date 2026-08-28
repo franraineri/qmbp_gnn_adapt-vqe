@@ -543,7 +543,6 @@ class AcceleratedVQE:
         Avoids redundant DMRG/ED computations when the same (topology, N, h)
         was already solved in a previous run.
         """
-        from qmbp_simulation import make_lattice
         from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
 
         gt_cache = GroundTruthCache()
@@ -552,20 +551,23 @@ class AcceleratedVQE:
         e_exact, gaps = [], []
         n_hits, n_misses = 0, 0
         for h in h_values:
-            # Check disk cache first
-            cached = gt_cache.get(self._topology, self._N, model_name, float(h))
-            if cached is not None:
-                e_exact.append(cached["energy"])
-                gaps.append(cached["gap"])
+            # get_or_compute centralizes the get→solve→put pattern AND applies
+            # the stale-floor gap invalidation (N>18 gap≈2π/N) that a raw get()
+            # would miss. Reuse self.solver to avoid rebuilding it per point.
+            _was_cached = gt_cache.get(self._topology, self._N, model_name, float(h)) is not None
+            e_i, gap_i = gt_cache.get_or_compute(
+                self._topology,
+                self._N,
+                model_name,
+                float(h),
+                flush=False,  # batch flush after the loop
+                solver=self.solver,
+            )
+            e_exact.append(e_i)
+            gaps.append(gap_i)
+            if _was_cached:
                 n_hits += 1
             else:
-                lat = make_lattice(self._topology, self._N, J=1.0, h=float(h))
-                H = self.spec.build_hamiltonian(lat, **self.spec.hamiltonian_kwargs)
-                gt = self.solver.solve(H, lat)
-                e_exact.append(gt.ground_energy)
-                gaps.append(gt.gap)
-                # Persist for cross-session reuse
-                gt_cache.put_from_result(self._topology, self._N, model_name, float(h), gt)
                 n_misses += 1
 
         if n_hits > 0:

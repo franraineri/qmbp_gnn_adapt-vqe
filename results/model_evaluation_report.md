@@ -117,7 +117,7 @@
 | 12 | IN | 8 | 3.0902e-01 | — | — | 0.0571 | C |
 | 12 | IN | 8 | 1.2309e-02 | — | — | 0.0319 | B |
 | 12 | IN | 8 | 6.4605e-02 | — | — | 0.3563 | F |
-| 12 | IN | 8 | 5.4536e-03 | — | — | 1.0070 | F |
+| 12 | IN | 8 | 5.4597e-03 | — | — | 1.0070 | F |
 | 14 | IN | 5 | 5.9632e-04 | — | — | 0.0167 | B |
 | 14 | IN | 8 | 1.7882e-01 | — | — | 24.6514 | F |
 | 14 | IN | 8 | 6.9374e-02 | — | — | 0.1866 | D |
@@ -246,7 +246,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 6.9620e+02 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -419,7 +419,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 2.1194e+00 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -463,7 +463,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 3.2228e+00 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -533,7 +533,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 7.0268e-02 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -577,7 +577,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 2.0074e-01 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -621,7 +621,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 6.0977e-02 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -665,7 +665,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 5.1851e-02 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -694,7 +694,7 @@
 |---|--------|-----|-------|------|--------|--------|-------|
 | 4 | IN | 8 | 9.5941e-01 | — | — | 0.0204 | A |
 | 6 | IN | 8 | 4.9899e-02 | — | — | 0.0086 | A |
-| 8 | IN | 8 | 8.3857e-01 | — | — | 478.3574 | F |
+| 8 | IN | 8 | 8.3856e-01 | — | — | 478.3574 | F |
 | 10 | IN | 8 | 4.2392e-02 | — | — | 0.0286 | B |
 | 12 | IN | 8 | 2.6340e-01 | — | — | 0.0571 | C |
 | 14 | IN | 8 | 3.8595e-03 | — | — | 24.6514 | F |
@@ -709,7 +709,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 5.5682e-02 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -753,7 +753,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 3.9903e-01 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -797,7 +797,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 4.9105e-01 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
@@ -841,7 +841,7 @@
 | 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
 | 40 | IN | 6 | 4.8565e-01 | — | — | 0.0390 | C |
 | 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
-| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+| 60 | EXT | 6 | — | — | 2.92e-02 | 0.4976 | F |
 
 > **Metric Warnings:**
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4

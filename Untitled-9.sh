@@ -70,8 +70,8 @@ python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topolog
 python scripts/experiment_runners/scaling/run_quench_dynamics_study.py --section 4 --n-qubits 18 --topology heavy_hex --dqpt-h-pre 0.5 --dqpt-h-post 2.0 --dqpt-dt 0.05 --dqpt-steps 80
 
 
-for N in 10 14 18 20; do
-    python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology heavy_hex --p-layers 2 --train-n $N --target-n $N --multi-n-train --h-min 0.85 --h-max 3.0 --h-points 23 --iterative-improve --max-iteration 2 --n-restarts 2
+for N in 4 8 10 14 18 20; do
+    python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 2 --train-n $N --target-n $N --multi-n-train --h-min 0.5 --h-max 2.3 --h-points 18 --iterative-improve --max-iteration 2 --n-restarts 2
 done
 qmbp_gnn_adapt-vqe/scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py
 
@@ -192,7 +192,7 @@ done
  -c "from qmbp_simulation.analysis.metrics import post_experiment_sync; post_experiment_sync(verbose=True)"
  scripts/analysis/generate_best_results_scoreboard.py
  scripts/maintenance/query_model_registry.py list --topology heavy_hex
-cat results/best_results_scoreboard.md
+cat results/best_results_scoreboard_newone.md
 ########################################################################
 
 

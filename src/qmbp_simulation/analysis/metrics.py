@@ -107,7 +107,7 @@ ADAPTIVE_VQE_AGGRESSIVE_PRIORITY: float = 0.2
 ADAPTIVE_VQE_AGGRESSIVE_RHOBEG: float = 0.3
 """Initial step size for aggressive tier (larger — explore landscape)."""
 
-ADAPTIVE_VQE_MINIMAL_MAXITER: int = 100
+ADAPTIVE_VQE_MINIMAL_MAXITER: int = 500
 """Maximum iterations for minimal tier (near-hopeless points)."""
 
 ADAPTIVE_VQE_MINIMAL_RHOBEG: float = 0.5
@@ -661,12 +661,16 @@ def compute_adaptive_vqe_config(
         - tier: str — "cheap", "standard", or "aggressive"
         - reason: str — human-readable explanation
     """
+    # Hard floor on restarts for every tier (even cheap/minimal points get
+    # at least MIN_N_RESTARTS — a single restart is never enough).
+    from qmbp_simulation.models.constants import MIN_N_RESTARTS
+
     # Tier 1: Easy wins (ΔE/gap barely above threshold, large gap)
     # These points are almost passing — minimal effort needed.
     if priority >= ADAPTIVE_VQE_CHEAP_PRIORITY and de_gap < ADAPTIVE_VQE_CHEAP_DE_GAP:
         return {
             "maxiter": min(base_maxiter, ADAPTIVE_VQE_CHEAP_MAXITER),
-            "n_restarts": 1,
+            "n_restarts": MIN_N_RESTARTS,
             "rhobeg": ADAPTIVE_VQE_CHEAP_RHOBEG,
             "tier": "cheap",
             "reason": f"Easy win: ΔE/gap={de_gap:.3f}, priority={priority:.2f}",
@@ -677,7 +681,7 @@ def compute_adaptive_vqe_config(
         scale = 0.5 + 0.5 * priority  # 0.75-1.0× base
         return {
             "maxiter": int(base_maxiter * scale),
-            "n_restarts": min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts),
+            "n_restarts": max(min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts), MIN_N_RESTARTS),
             "rhobeg": ADAPTIVE_VQE_STANDARD_RHOBEG,
             "tier": "standard",
             "reason": f"Standard: ΔE/gap={de_gap:.3f}, priority={priority:.2f}",
@@ -688,7 +692,7 @@ def compute_adaptive_vqe_config(
     if priority >= ADAPTIVE_VQE_AGGRESSIVE_PRIORITY:
         return {
             "maxiter": base_maxiter,
-            "n_restarts": base_restarts,
+            "n_restarts": max(base_restarts, MIN_N_RESTARTS),
             "rhobeg": ADAPTIVE_VQE_AGGRESSIVE_RHOBEG,
             "tier": "aggressive",
             "reason": f"Aggressive: ΔE/gap={de_gap:.3f}, needs full budget",
@@ -698,7 +702,7 @@ def compute_adaptive_vqe_config(
     # Give minimal budget just in case, but don't waste compute
     return {
         "maxiter": min(base_maxiter, ADAPTIVE_VQE_MINIMAL_MAXITER),
-        "n_restarts": 1,
+        "n_restarts": MIN_N_RESTARTS,
         "rhobeg": ADAPTIVE_VQE_MINIMAL_RHOBEG,
         "tier": "minimal",
         "reason": f"Minimal budget: ΔE/gap={de_gap:.3f}, priority={priority:.2f} (near hopeless)",
@@ -4365,9 +4369,17 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
     # ── Scoreboard cross-check ─────────────────────────────────────────────
     scoreboard_issues: list[dict] = []
     try:
-        # Per-p scoreboard: p=1 is the canonical view for consistency checks.
-        _scoreboard_path = _ROOT / "results" / "best_results_scoreboard_p1.json"
-        if _scoreboard_path.exists():
+        # Per-p scoreboards: iterate every best_results_scoreboard_p*.json so
+        # both p=1 and p=2 (and future p) are cross-checked, not just p=1.
+        import re as _re
+
+        _results_dir = _ROOT / "results"
+        _scoreboard_paths = sorted(_results_dir.glob("best_results_scoreboard_p*.json"))
+        for _scoreboard_path in _scoreboard_paths:
+            # Parse the p from the filename for issue attribution.
+            _p_match = _re.search(r"_p(\d+)\.json$", _scoreboard_path.name)
+            _p = int(_p_match.group(1)) if _p_match else None
+
             scoreboard = _json.loads(_scoreboard_path.read_text())
             best_by_topo = scoreboard.get("best_by_topology", {})
 
@@ -4386,17 +4398,22 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                             scoreboard_issues.append(
                                 {
                                     "topology": topo,
+                                    "p_layers": _p,
                                     "n_qubits": n,
-                                    "issue": f"Scoreboard best (grade={grade}, ΔE/gap={de_gap:.4f}) "
-                                    f"uses checkpoint '{ckpt}' not found in zoo or on disk",
+                                    "issue": f"Scoreboard best (p={_p}, grade={grade}, "
+                                    f"ΔE/gap={de_gap:.4f}) uses checkpoint '{ckpt}' "
+                                    f"not found in zoo or on disk",
                                     "severity": "warning",
                                 }
                             )
 
-            if scoreboard_issues and verbose:
-                print(f"\n  Scoreboard cross-check: {len(scoreboard_issues)} issue(s)")
-                for si in scoreboard_issues:
-                    print(f"    ⚠️ {si['topology']} N={si['n_qubits']}: {si['issue']}")
+        if scoreboard_issues and verbose:
+            print(f"\n  Scoreboard cross-check: {len(scoreboard_issues)} issue(s)")
+            for si in scoreboard_issues:
+                print(
+                    f"    ⚠️ {si['topology']} p={si.get('p_layers')} "
+                    f"N={si['n_qubits']}: {si['issue']}"
+                )
     except Exception as e:
         logger.debug("validate_data_consistency: scoreboard cross-check failed: %s", e)
 

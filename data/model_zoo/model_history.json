@@ -33271,6 +33271,1084 @@
     }
   },
   {
+    "timestamp": "2026-08-27T03:30:17.995781+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-27T03:30:18.603314+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-27T03:30:19.170750+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.369116+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.2,
+      "old_n_training_points": 1102,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.518903+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.648661+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.652814+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 302
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.655699+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.655717+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-27T10:10:58.782371+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "production"
+    }
+  },
+  {
+    "timestamp": "2026-08-27T13:41:04.503644+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-27T13:41:05.076422+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-27T13:41:05.692506+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.155381+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+      "old_pass_rate": 0.0,
+      "new_pass_rate": 0.6666666666666666,
+      "old_n_training_points": 1102,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.300295+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.411585+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.414387+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 302
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.416390+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "clean",
+      "source": "auto_diagnosis"
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.416409+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "primary_mode": "healthy",
+      "confidence": 1.0,
+      "secondary_modes": []
+    }
+  },
+  {
+    "timestamp": "2026-08-27T18:45:51.535550+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "tag": "production"
+    }
+  },
+  {
+    "timestamp": "2026-08-28T00:22:49.311116+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T00:22:49.478083+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T00:22:49.678244+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T00:52:41.984056+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_energyw.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T00:52:42.139813+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T00:52:42.314205+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T01:45:07.830317+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T01:45:08.000045+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T01:45:08.192138+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T02:37:00.693701+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_physics05.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T02:37:00.914317+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_physics05.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T02:37:01.115793+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_physics05.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T03:24:29.809928+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_full_stack.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T03:24:29.962154+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_full_stack.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T03:24:30.148744+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_full_stack.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T05:37:43.175314+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T05:37:43.367147+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T05:37:43.586828+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T11:35:54.798386+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
+      "old_pass_rate": 0.1,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1103
+    }
+  },
+  {
+    "timestamp": "2026-08-28T11:35:55.050551+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1103,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T11:35:55.234625+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1103,
+      "new_training_points": 1103,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:14:44.629198+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "new_model_id": "unifMPNN__MT_p1_res_film_base.pt",
+      "old_pass_rate": 0.06140350877192983,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 2519,
+      "new_n_training_points": 3234
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:14:44.961230+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__MT_p1_res_film_base.pt",
+    "topology": "multi_topology",
+    "details": {
+      "training_points": 3234,
+      "n_values": [],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:14:45.064678+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__MT_p1_res_film_base.pt",
+    "topology": "multi_topology",
+    "details": {
+      "old_training_points": 3234,
+      "new_training_points": 3234,
+      "old_n_values": [],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:44:13.960373+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n4_p2_20260828T184413.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 9,
+      "n_values": [
+        4
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:46:15.892959+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 72,
+      "n_values": [
+        4
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:46:15.984709+00:00",
+    "event_type": "retrained",
+    "model_id": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 72,
+      "new_training_points": 72,
+      "old_n_values": [
+        4
+      ],
+      "new_n_values": [
+        4
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-28T18:46:16.097419+00:00",
+    "event_type": "tag_added",
+    "model_id": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "tag": "validated"
+    }
+  },
+  {
     "timestamp": "2026-08-28T17:53:57.251854+00:00",
     "event_type": "needs_retrain_flagged",
     "model_id": "test_model_p1.pt",
