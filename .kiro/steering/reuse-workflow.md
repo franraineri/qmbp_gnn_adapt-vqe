@@ -1,5 +1,28 @@
 inclusion: always
 
+# Coventions:
+
+HARDRULE (2026-08-27): find/grep PROHIBIDOS por completo. "no more grep or find command! no more at all".
+
+Esto incluye: grep, rg, ag, ack, find, ls -R, git grep, la tool grep_search y la tool file_search.
+NO HAY EXCEPCIONES. Para buscar código, símbolos, archivos o referencias usá SOLO graphify
+(graphify query + tools MCP: explore, callers, callees, source, inspect, community).
+Si conocés el path exacto, leelo directo con las tools de lectura de archivos.
+Si el grafo está desactualizado o no existe, actualizalo/construilo — nunca caigas en grep/find.
+
+
+Avoid "BR N" as describe block names on specs. Just descriptive functionality names, about 7-10 words.
+
+JSDoc should not lead with "BR2" as the primary identifier.
+If traceability is needed, a discreet // Ref: MERLIN-4429 BR2 at the end is more appropriate than leading the JSDoc with it.
+The purpose is clear without requiring knowledge of the requirements doc, so do not use more than X to Y words of comments.
+
+the separator comments add visual noise without value.
+Do not use  // ─── or any characters-separator for commenting
+
+comments should be short and summarysed. JUST when needed
+
+
 # Reuse-First Workflow (MANDATORY)
 
 ## Context-Efficient Code Reading (MANDATORY)
@@ -10,12 +33,13 @@ inclusion: always
    - `read_code path="archivo.py"` → firmas si archivo es grande
    - `read_code path="archivo.py" selector="mi_funcion"` → solo esa función
    - `read_code path="archivo.py" selector="Clase.metodo"` → método específico
-3. **Usar `grep_search`** — Localizar antes de leer
-   - `grep_search query="def nombre_funcion"` → encuentra ubicación exacta
-4. **Usar `read_file` con rangos** — Solo si necesitás líneas específicas
+3. **Localizar con graphify** — `graphify query "def nombre_funcion"` o las tools MCP
+   (explore/source/inspect/callers/callees). NUNCA grep_search ni file_search.
+4. **Usar `read_file` con rangos** — Solo si necesitás líneas específicas de un path conocido
    - `read_file path="archivo.py" start_line=X end_line=Y`
 
 **Anti-patterns:**
+- ❌ Usar grep/find/rg/grep_search/file_search (PROHIBIDO)
 - ❌ Leer archivo completo de 500+ líneas innecesariamente
 - ❌ Usar `read_file` sin rangos
 - ❌ No consultar module-index

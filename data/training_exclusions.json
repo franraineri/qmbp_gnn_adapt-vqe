@@ -157,12 +157,24 @@
       "source_dir": "large_n_extrapolation"
     },
     {
+      "file": "chain_1d_N12_p1.npz",
+      "topology": "chain_1d",
+      "n_qubits": 12,
+      "reason": "0% dual pass (gap masking: 50% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
+      "method": "auto",
+      "detected_at": "2026-08-28T23:33:58.559281+00:00",
+      "pass_rate_dual": 0.0,
+      "mean_abs_error": 0.1698677573455072,
+      "failure_mode": "gap_masking",
+      "source_dir": "large_n_extrapolation"
+    },
+    {
       "file": "heavy_hex_N12_p1.npz",
       "topology": "heavy_hex",
       "n_qubits": 12,
       "reason": "0% dual pass (gap masking: 12% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
       "method": "auto",
-      "detected_at": "2026-08-26T21:10:38.287407+00:00",
+      "detected_at": "2026-08-28T23:33:58.567461+00:00",
       "pass_rate_dual": 0.0,
       "mean_abs_error": 0.6078457572333751,
       "failure_mode": "gap_masking",
@@ -174,7 +186,7 @@
       "n_qubits": 21,
       "reason": "0% dual pass rate \u2014 no learnable signal. Possible causes: p=1 insufficient expressivity, h outside valid regime, or VQE trapped in local minimum for all points.",
       "method": "auto",
-      "detected_at": "2026-08-26T21:10:38.292537+00:00",
+      "detected_at": "2026-08-28T23:33:58.572570+00:00",
       "pass_rate_dual": 0.0,
       "mean_abs_error": 0.9320887719068318,
       "failure_mode": "intrinsic_vqe_error",
@@ -186,7 +198,7 @@
       "n_qubits": 16,
       "reason": "0% dual pass (gap masking: 67% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
       "method": "auto",
-      "detected_at": "2026-08-26T21:10:38.300731+00:00",
+      "detected_at": "2026-08-28T23:33:58.578733+00:00",
       "pass_rate_dual": 0.0,
       "mean_abs_error": 0.22389126474707174,
       "failure_mode": "gap_masking",
@@ -198,14 +210,14 @@
       "n_qubits": 12,
       "reason": "0% dual pass (gap masking: 20% of points appear to pass but fail |\u0394E|<0.1 criterion). Including this data teaches the MPNN incorrect \u03b8 mappings.",
       "method": "auto",
-      "detected_at": "2026-08-26T21:10:38.308378+00:00",
+      "detected_at": "2026-08-28T23:33:58.583727+00:00",
       "pass_rate_dual": 0.0,
       "mean_abs_error": 0.8794048518298105,
       "failure_mode": "gap_masking",
       "source_dir": "large_n_extrapolation"
     }
   ],
-  "updated_at": "2026-08-26T21:10:38.308903+00:00",
+  "updated_at": "2026-08-28T23:33:58.584418+00:00",
   "version": 1,
   "point_exclusions": {
     "chain_1d_N10_p1.npz": [

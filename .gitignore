@@ -151,3 +151,8 @@ notebooks/test_notebooks.py
 
 backup_data_*
 *.tar.gzbackup_data_20260821.tar.gz
+
+*graphify-out*
+
+
+

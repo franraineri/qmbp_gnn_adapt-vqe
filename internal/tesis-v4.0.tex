@@ -659,6 +659,8 @@ Este capítulo presenta la evaluación completa del pipeline GNN-HVA mediante si
 
 \section{Validación del pipeline base}
 
+Antes de evaluar la capacidad predictiva de la MPNN, se verifica que las Fases 1 y 2 producen datos de entrenamiento de calidad suficiente (fidelidad VQE $\geq 0.93$) para alimentar el predictor.
+
 \subsection{Resultados para $N = 6$ y $N = 10$ (cadena 1D, $p = 2$)}
 
 La validación inicial se realiza en puntos de test cercanos al punto crítico ($h_c = 1.0$), donde el gap espectral es pequeño y la clasificación es difícil. Esto constituye un test exigente del pipeline:
@@ -739,6 +741,11 @@ Para distinguir entre las causas de fallo, se analiza el $\Delta E$ absoluto. Pa
 
 Finalmente, el $\Delta E$ absoluto mejora con $p$ en todas las topologías. Aunque $\Delta E/\text{gap}$ no satisface el umbral del 5\% para topologías 2D, el error energético absoluto sí decrece sistemáticamente al aumentar $p$. La mediana de $\Delta E$ se reduce 15--55$\times$ de $p=1$ a $p=4$. La discrepancia con $\Delta E/\text{gap}$ se explica por gaps menores en grafos de alta conectividad, que amplifican errores absolutos moderados. Para triangular, el error final (0.020) permanece un orden de magnitud superior al de cadena 1D (0.001), consistente con una limitación del ansatz \citep{tripathi2026}. Los datos completos se presentan en la Tabla~\ref{tab:delta_e_vs_p} (Apéndice~\ref{app:results}). La Tabla~\ref{tab:cross_topo_de} complementa la Tabla~\ref{tab:delta_e_vs_p}: la primera muestra el error en la mejor configuración fija, mientras que la segunda muestra la progresión del error al incrementar la profundidad del circuito.
 
+Como perspectiva global de toda la campaña, la Tabla~\ref{tab:auto_scoreboard} resume el mejor resultado alcanzado por cada topología en el punto de operación más exigente ($h \approx 2.5$), y la Tabla~\ref{tab:auto_coverage} despliega la matriz de cobertura completa (grade por topología y tamaño del sistema). Ambas se generan automáticamente desde las fuentes de verdad del proyecto.
+
+\input{tables/auto_scoreboard}
+\input{tables/auto_coverage}
+
 \section{Validación de escalamiento}
 
 Se valida la escalabilidad del pipeline en dos dimensiones: (a) tamaño del sistema ($N = 6$--$20$ con $p = 3$--$4$, y $N = 6$--$200$ con $p = 1$), y (b) generalización a tamaños no vistos (zero-shot cross-N).
@@ -746,7 +753,7 @@ Se valida la escalabilidad del pipeline en dos dimensiones: (a) tamaño del sist
 \subsection{Escalamiento con $N$ y $p$}
 \label{subsec:scaling_np}
 
-\textbf{Resultado principal:} Con rango de $h$ restringido al régimen válido ($h \geq 1.3$), el pipeline alcanza \textbf{100\% de tasa de aprobación} ($\Delta E/\text{gap} < 5\%$ en todos los puntos test) para $N = 10$, $16$ y $20$:
+\textbf{Resultado principal:} Con rango de $h$ restringido al régimen válido ($h \geq 1.3$), el pipeline alcanza \textbf{100\% de tasa de aprobación} ($\Delta E/\text{gap} < 5\%$ en todos los puntos test) para $N = 10$, $16$ y $20$ (Tabla~\ref{tab:scaling}):
 
 \begin{table}[h]
 \centering
@@ -795,7 +802,9 @@ Para $p \geq 3$, la frontera es cuasi-constante: $h_{\min}(p{=}3) \approx 1.6 \p
 
 La capacidad de la MPNN para generalizar se evalúa en dos escenarios: (a) interpolación intra-N (mismos $N$ del entrenamiento, valores de $h$ no vistos) y (b) generalización cross-N (tamaños de sistema no vistos).
 
-\textbf{Intra-N (interpolación):} Entrenando con datos de un solo $N$ y evaluando en valores de $h$ no vistos, la MPNN logra 100\% PassRate para $N = 30$--$60$ con solo 16--39 puntos de entrenamiento ($p = 1$, cadena 1D, backend MPS $\chi = 64$). El error per-site $|\Delta E|/N$ decrece de 0.0023 ($N = 30$) a 0.0009 ($N = 60$), lo cual es consistente con eficiencia de datos y escalado extensivo en modo intra-N.
+\textbf{Intra-N (interpolación):} Entrenando con datos de un solo $N$ y evaluando en valores de $h$ no vistos, la MPNN logra 100\% PassRate para $N = 30$--$60$ con solo 16--39 puntos de entrenamiento ($p = 1$, cadena 1D, backend MPS $\chi = 64$). El error per-site $|\Delta E|/N$ decrece de 0.0023 ($N = 30$) a 0.0009 ($N = 60$), lo cual es consistente con eficiencia de datos y escalado extensivo en modo intra-N. La Tabla~\ref{tab:auto_heavy_hex_intra_n} detalla estas métricas por tamaño para la topología focal heavy-hex.
+
+\input{tables/auto_heavy_hex_intra_n}
 
 \textbf{Cross-N con MPNN y parametrización uniforme (fallo):} Entrenando con datos de $N = 10, 20, 40$ y evaluando en $N = 60$ (zero-shot, $p = 1$, cadena 1D), la predicción con parametrización uniforme \textbf{falla} ($\Delta E/\text{gap} = 688\%$ media). La causa es que con 2 parámetros globales compartidos, $\theta^*(h)$ depende implícitamente de $N$ y el \texttt{global\_mean\_pool} produce embeddings incompatibles entre tamaños distintos.
 
@@ -845,6 +854,10 @@ Para verificar que la calidad de predicción se mantiene al crecer $N$, se eval�
 
 El error per-site $|\Delta E|/N$ permanece esencialmente constante ($\approx 9 \times 10^{-3}$) independientemente de $N$, consistente con escalado extensivo. Los puntos que no pasan el criterio del 5\% son aquellos cuyo valor de $h$ se encuentra cerca de la frontera $h_{\min}(N)$ ---no representan una degradación del predictor---, sino un reflejo de que la frontera se desplaza con $N$ para $p = 1$ (Ec.~\ref{eq:frontier_p1}).
 
+El mismo comportamiento se observa para la topología focal heavy-hex: la Tabla~\ref{tab:auto_heavy_hex_large_n} recoge la predicción a large-N sobre casos no observados, generada automáticamente desde los reportes de evaluación.
+
+\input{tables/auto_heavy_hex_large_n}
+
 \subsection{Bond-resolved HVA: necesidad de la GNN en alta dimensionalidad}
 \label{subsec:bond_resolved}
 
@@ -868,7 +881,7 @@ A diferencia de la predicción zero-shot de la MPNN (subsección anterior, donde
 \section{Extensibilidad a Hamiltonianos de Ising}
 \label{sec:extensibilidad}
 
-Se valida la capacidad del framework para operar con variantes del Hamiltoniano de Ising más allá del TFIM estándar.
+Se evalúa hasta dónde la MPNN puede seguir prediciendo ángulos útiles cuando el Hamiltoniano se modifica. La pregunta es: ¿basta con reentrenar la GNN con los nuevos datos VQE, o el HVA deja de ser expresivo?
 
 \subsection{TFIM con campo longitudinal}
 
@@ -912,13 +925,13 @@ El modelo frustrado alcanza fidelidad $\geq 0.99$ en simulación a $N = 6$, $p =
 
 \subsection{Heisenberg: límite de expresividad del ansatz evaluado}
 
-Se evalúa de forma sistemática el modelo Heisenberg como caso negativo para documentar la frontera del HVA. Se ejecutaron \textbf{46 ejecuciones} independientes que agrupan dos variantes del modelo: Heisenberg estándar XXZ (26 ejecuciones, 5 topologías $\times$ $p = 1$--$4$) y Heisenberg transversal $H = J(XX + YY + 0.5 \cdot ZZ) - h \cdot X$ (20 ejecuciones, 5 topologías $\times$ $p = 1$--$4$), todas a $N = 10$. El resultado es concluyente: ninguna configuración alcanza PassRate $> 10\%$ (0/39 en todas), y la fidelidad VQE permanece por debajo del umbral de utilidad ($F = 0.93$) en todos los casos ---la variante transversal alcanza como máximo $F = 0.54$ y la estándar $F = 0.56$---.
+Se evalúa de forma sistemática el modelo Heisenberg como caso negativo para documentar la frontera del HVA. Se ejecutaron \textbf{46 ejecuciones} independientes que agrupan dos variantes del modelo: Heisenberg estándar XXZ (26 ejecuciones, 5 topologías $\times$ $p = 1$--$4$) y Heisenberg transversal $H = J(XX + YY + 0.5 \cdot ZZ) - h \cdot X$ (20 ejecuciones, 5 topologías $\times$ $p = 1$--$4$), todas a $N = 10$. Dentro de las configuraciones evaluadas, ninguna supera el umbral de utilidad para generar datos de entrenamiento válidos ($F \geq 0.93$). La variante estándar XXZ colapsa por completo (fidelidad media $\leq 0.11$ en todas las topologías y profundidades, con PassRate $= 0\%$). La variante transversal, menos exigente, alcanza como máximo fidelidad media $\bar{F} = 0.56$ (heavy-hex, $p = 4$) y un PassRate residual del 18\% en esa única configuración, insuficiente para el pipeline. En ambas variantes el estado variacional no aproxima el estado fundamental en ningún punto del barrido $h \in [1, 5]$.
 
 Hallazgos principales:
 \begin{enumerate}
     \item El fallo es \textbf{independiente} de profundidad ($p = 1$--$4$), topología (5 evaluadas), semilla y número de reinicios, confirmando un límite de expresividad del ansatz dentro de las configuraciones evaluadas ($p = 1$--$4$, $N = 10$) ---no de optimización---.
-    \item La variante transversal ($H = J(XX + YY + 0.5 \cdot ZZ) - h \cdot X$) muestra mejores fidelidades (0.54 vs 0.11) pero sigue siendo insuficiente para generar datos de entrenamiento válidos para la MPNN (umbral: fidelidad $\geq 0.93$).
-    \item Incrementar de $p = 3$ a $p = 4$ mejora la fidelidad marginalmente (+0.14 en heavy-hex) pero duplica el costo computacional sin beneficio funcional.
+    \item La variante transversal muestra mejores fidelidades que la estándar ($\bar{F} = 0.56$ frente a $\leq 0.11$) pero sigue siendo insuficiente para generar datos de entrenamiento válidos para la MPNN (umbral: fidelidad $\geq 0.93$).
+    \item Incrementar la profundidad ($p = 1 \to 4$) no recupera la expresividad: el fallo es estructural (desajuste entre el ansatz $R_{ZZ} + R_X$ y los términos $XX + YY$ del Hamiltoniano), no limitado por profundidad.
     \item La MPNN alcanza MSE bajas en algunas ejecuciones Heisenberg porque el paisaje VQE \emph{es suave} ---simplemente converge a estados incorrectos---. MSE bajo $\neq$ buena predicción cuando los datos de entrenamiento son erróneos.
 \end{enumerate}
 
@@ -926,9 +939,13 @@ Este resultado es consistente con \citet{wiersema2020}, quienes demuestran que H
 
 \subsection{Cadena de Kitaev: incompatibilidad con el framework}
 
-El Hamiltoniano de la cadena de Kitaev, tras transformación de Jordan-Wigner, contiene términos $XX + YY$ (hopping) y $XY - YX$ (pairing) que requieren compuertas $R_{XX}$ y $R_{YY}$ por bond. La evaluación revela tres barreras simultáneas: (1) el presupuesto CX se duplica respecto al TFIM (20 CZ a $N=6$ vs. 10); (2) el estado inicial $|+\rangle^{\otimes N}$ tiene overlap exponencialmente pequeño con el ground state de Kitaev; (3) la fidelidad máxima alcanzada es 16\% incluso con 15 reinicios a $N = 4$.
+Este modelo documenta el límite duro del enfoque: un Hamiltoniano cuyos términos no se mapean a la estructura del HVA impide que el VQE converja y, por tanto, que la MPNN tenga datos válidos para entrenar.
+
+El Hamiltoniano de la cadena de Kitaev, tras transformación de Jordan-Wigner, contiene términos $XX + YY$ (hopping) y $XY - YX$ (pairing) que requieren compuertas $R_{XX}$ y $R_{YY}$ por bond. Dentro de las configuraciones evaluadas, la evaluación revela tres barreras simultáneas: (1) el presupuesto CX se duplica respecto al TFIM (20 CZ a $N=6$ vs. 10); (2) el estado inicial $|+\rangle^{\otimes N}$ tiene solapamiento exponencialmente pequeño con el estado fundamental de Kitaev; (3) la fidelidad máxima alcanzada es 16\% incluso con 15 reinicios a $N = 4$.
 
 \subsection{Resumen de viabilidad por modelo}
+
+La Tabla~\ref{tab:candidates} sintetiza qué modelos admiten la predicción de ángulos con el HVA de profundidad moderada y cuáles quedan fuera del dominio de aplicabilidad.
 
 \begin{table}[h]
 \centering
@@ -972,7 +989,7 @@ $|\partial\theta/\partial h|$ & 1.25 & 0.25 \\
 \end{tabular}
 \end{table}
 
-El resultado del PCA muestra que el espacio de parámetros HVA es efectivamente unidimensional: PC1 explica el 99.96\% de la varianza total. A $N = 100$ con un grid de $h$ que cubre la región crítica, el pico de varianza de la proyección sobre PC1 converge a $h = 1.033 \pm 0.047$, consistente con $h_c = 1.0$ \citep{dutta2015}. El método es cualitativo: no puede extraer el exponente crítico $\nu$ (véase Sección~\ref{sec:limitaciones}).
+Ambos indicadores coinciden en localizar la transición cerca de $h_c$ (Tabla~\ref{tab:unsupervised_detection}). El resultado del PCA muestra que el espacio de parámetros HVA es efectivamente unidimensional: PC1 explica el 99.96\% de la varianza total. A $N = 100$ con un grid de $h$ que cubre la región crítica, el pico de varianza de la proyección sobre PC1 converge a $h = 1.033 \pm 0.047$, consistente con $h_c = 1.0$ \citep{dutta2015}. El método es cualitativo: no puede extraer el exponente crítico $\nu$ (véase Sección~\ref{sec:limitaciones}).
 
 \citet{yin2025} han propuesto independientemente un enfoque más sofisticado para la misma tarea: un autoencoder variacional (VAE) con mecanismo de atención. El método de Yin et al.\ es más poderoso que nuestro PCA ---captura relaciones no lineales---, pero también más complejo. Nuestro análisis PCA, siendo lineal y de costo computacional negligible, ofrece un diagnóstico de primer orden suficiente para confirmar cualitativamente la presencia de la transición.
 
@@ -1007,7 +1024,11 @@ La MPNN muestra alta eficiencia de datos: logra $\Delta E/\text{gap} < 5\%$ con 
 
 \subsection{Resumen de la campaña experimental}
 
-El análisis de la campaña experimental muestra que la tasa de resultados útiles (confirmados + rechazados con resultado negativo válido) es del 84\% (41/49), indicando la consistencia del procedimiento experimental. Los 8 experimentos rechazados producen conocimiento accionable: delimitan la aplicabilidad del framework (cross-topology transfer falla con $\Delta E/\text{gap} = 625\%$--$719\%$ para transferencia bidireccional triangular $\leftrightarrow$ heavy-hex, Heisenberg falla, escalamiento de exponente crítico falla, DyPP redundante).
+Vista en conjunto, la campaña delimita el dominio donde la predicción GNN de ángulos del HVA es viable. El análisis muestra que la tasa de resultados útiles (confirmados + rechazados con resultado negativo válido) es del 84\% (41/49), indicando la consistencia del procedimiento experimental. Los 8 experimentos rechazados producen conocimiento accionable: delimitan la aplicabilidad del framework (cross-topology transfer falla con $\Delta E/\text{gap} = 625\%$--$719\%$ para transferencia bidireccional triangular $\leftrightarrow$ heavy-hex, Heisenberg falla, escalamiento de exponente crítico falla, DyPP redundante).
+
+El desglose de ejecuciones por modelo se resume en la Tabla~\ref{tab:auto_campaign}, generada automáticamente desde el índice de resultados.
+
+\input{tables/auto_campaign}
 
 \begin{figure}[h]
 \centering

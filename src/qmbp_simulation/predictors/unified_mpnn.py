@@ -534,16 +534,10 @@ def train_unified_mpnn(
         val_dataset = []
 
     # ── Compute device (GPU if available, else CPU) ─────────────────────────
-    # Portable local ↔ server: resolve_device() honors QMBP_DEVICE and falls
-    # back to CPU when CUDA is absent (e.g. macOS dev machine). The model and
-    # every graph are moved to this device so training uses the GPU when
-    # present. Datasets are small (list of graphs), so we move each graph
-    # on-the-fly in the loop rather than pre-staging all of them on the GPU.
-    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+    # Portable local ↔ server; each graph is moved on-the-fly in the loops.
+    from qmbp_simulation.utils.helpers import finalize_model_device, prepare_model_device
 
-    device = resolve_device()
-    model = model.to(device)
-    logger.info("  Training device: %s", describe_device(device))
+    model, device = prepare_model_device(model, log_prefix="train_unified_mpnn")
 
     # ── Optimizer: layer-wise LR or uniform ────────────────────────────────
     if _layerwise_lr is not None:
@@ -889,14 +883,8 @@ def train_unified_mpnn(
                 val_loss += loss_v.item()
         final_val_mse = val_loss / len(val_dataset)
 
-    # Return the model to CPU so downstream inference (which builds graphs on
-    # CPU) and checkpoint saving stay device-agnostic and portable. Frees GPU
-    # memory for the next training job on shared/Kubeflow nodes.
-    model = model.to("cpu")
-    if device.type == "cuda":
-        import torch as _torch
-
-        _torch.cuda.empty_cache()
+    # Device-agnostic checkpoints + CPU inference; frees GPU for the next job.
+    model = finalize_model_device(model, device)
 
     final_mse = mse_history[-1] if mse_history else float("inf")
     gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None
@@ -1603,7 +1591,7 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     if eval_mode:
         model.eval()
 
-    logger.info(
+    logger.debug(
         "Loaded UnifiedMPNN: hidden=%d, layers=%d, type_emb=%d, gate_readout=%s",
         model.hidden_dim,
         model.n_layers,

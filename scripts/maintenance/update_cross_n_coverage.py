@@ -454,6 +454,7 @@ def generate_topology_table(topo: str, configs: list[dict]) -> str:
     ] + rows
     return "\n".join(lines)
 
+
 def generate_h_frontier_table(configs: list[dict]) -> str:
     """Cross-topology h_frontier table."""
     # Collect all topologies and N values
@@ -682,8 +683,6 @@ def generate_document(
                 + (["", f"*(and {len(tier_warnings) - 5} more)*"] if len(tier_warnings) > 5 else [])
                 + [""]
             )
-
-    
 
     for topo in topologies:
         lines.append(f"<!-- AUTO-GENERATED-BEGIN:topo_{topo} -->")
@@ -982,7 +981,9 @@ def generate_large_n_extrapolation_section() -> str:
                             "n": n_val,
                             "mpnn_de_gap": m.get("mean_de_gap", -1),
                             "mpnn_per_site": m.get("mean_abs_error_per_site", -1),
-                            "mpnn_abs_err": m.get("mean_abs_error", m.get("mean_abs_error_per_site", 0) * n_val),
+                            "mpnn_abs_err": m.get(
+                                "mean_abs_error", m.get("mean_abs_error_per_site", 0) * n_val
+                            ),
                             "mpnn_pass_dual": m.get("pass_rate_dual", 0),
                             "vqe_de_gap": v.get("mean_de_gap", -1),
                             "vqe_pass_dual": v.get("pass_rate_dual", 0),
@@ -1434,6 +1435,7 @@ def _collect_extrapolation_data() -> dict[str, list[dict]]:
                     "h_min": float(h_values.min()),
                     "h_max": float(h_values.max()),
                     "mean_de_gap": float(de_gaps.mean()),
+                    "mean_abs_err": float(abs_errs.mean()),
                     "mean_per_site": float(abs_errs.mean()) / max(n_qubits, 1),
                     "pass_dual": int(dual_mask.sum()),
                     "pass_5pct": int((de_gaps < 0.05).sum()),

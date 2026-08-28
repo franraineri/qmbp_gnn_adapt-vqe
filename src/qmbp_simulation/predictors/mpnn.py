@@ -343,13 +343,11 @@ def predict_theta(
         if isinstance(lattice.J, np.ndarray):
             raise ValueError(
                 "predict_theta: rescale_h_by_j=True requires scalar J, "
-                f"but lattice.J is per-bond array."
+                "but lattice.J is per-bond array."
             )
         j_scalar = float(lattice.J)
         if j_scalar <= 0:
-            raise ValueError(
-                f"predict_theta: rescale_h_by_j=True requires J>0, got J={j_scalar}."
-            )
+            raise ValueError(f"predict_theta: rescale_h_by_j=True requires J>0, got J={j_scalar}.")
 
     # Validate extra_node_features shape
     if extra_node_features is not None:
@@ -392,9 +390,10 @@ def predict_theta(
             if not np.all(np.isfinite(theta_pred)):
                 n_bad = int(np.sum(~np.isfinite(theta_pred)))
                 logger.warning(
-                    "predict_theta: %d/%d NaN/Inf values at h=%.4f. "
-                    "Replacing with zeros.",
-                    n_bad, len(theta_pred), h,
+                    "predict_theta: %d/%d NaN/Inf values at h=%.4f. Replacing with zeros.",
+                    n_bad,
+                    len(theta_pred),
+                    h,
                 )
                 theta_pred = np.where(np.isfinite(theta_pred), theta_pred, 0.0)
 
@@ -495,17 +494,13 @@ def build_graph_dataset(
         if isinstance(lattice.J, np.ndarray):
             raise ValueError(
                 "rescale_h_by_j=True requires scalar J coupling, "
-                f"but lattice.J is an array (per-bond). Use extra_node_features "
-                f"with h/J ratios for non-uniform couplings."
+                "but lattice.J is an array (per-bond). Use extra_node_features "
+                "with h/J ratios for non-uniform couplings."
             )
         _j_scalar = float(lattice.J)
         if _j_scalar <= 0:
-            raise ValueError(
-                f"rescale_h_by_j=True requires positive J, got J={_j_scalar}."
-            )
-        logger.info(
-            "  h/J rescaling enabled: h_feature = h / J (J=%.4f)", _j_scalar
-        )
+            raise ValueError(f"rescale_h_by_j=True requires positive J, got J={_j_scalar}.")
+        logger.info("  h/J rescaling enabled: h_feature = h / J (J=%.4f)", _j_scalar)
 
     logger.debug(
         "build_graph_dataset: n_qubits=%d, n_h_points=%d, theta_shape=%s, "
@@ -790,9 +785,11 @@ def train_mpnn(
             dropout_rate=dropout_rate,
         )
         logger.info(
-            "  Auto-created MPNNPredictor: hidden=%d, layers=%d, output=%d, "
-            "norm=%s, params=%d",
-            hidden_dim, n_layers, output_dim, norm_type,
+            "  Auto-created MPNNPredictor: hidden=%d, layers=%d, output=%d, norm=%s, params=%d",
+            hidden_dim,
+            n_layers,
+            output_dim,
+            norm_type,
             sum(p.numel() for p in model.parameters()),
         )
 
@@ -848,11 +845,9 @@ def train_mpnn(
     loader = DataLoader(dataset, batch_size=len(dataset), shuffle=True, generator=_loader_generator)
 
     # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
-    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+    from qmbp_simulation.utils.helpers import finalize_model_device, prepare_model_device
 
-    device = resolve_device()
-    model = model.to(device)
-    logger.info("  train_mpnn device: %s", describe_device(device))
+    model, device = prepare_model_device(model, log_prefix="train_mpnn")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -975,11 +970,8 @@ def train_mpnn(
                     stop_reason = "divergence_detected"
                     break
 
-    # Return model to CPU so downstream inference (CPU graphs) and checkpoint
-    # saving stay device-agnostic; free GPU memory for the next job.
-    model = model.to("cpu")
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
+    # Device-agnostic checkpoints + CPU inference; frees GPU for the next job.
+    model = finalize_model_device(model, device)
 
     result = {
         "mse_history": mse_history,
@@ -1422,11 +1414,9 @@ def train_bond_resolved_mpnn(
         val_data = []
 
     # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
-    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+    from qmbp_simulation.utils.helpers import finalize_model_device, prepare_model_device
 
-    device = resolve_device()
-    model = model.to(device)
-    logger.info("  train_bond_resolved_mpnn device: %s", describe_device(device))
+    model, device = prepare_model_device(model, log_prefix="train_bond_resolved_mpnn")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -1478,8 +1468,9 @@ def train_bond_resolved_mpnn(
                     pred = model(data).squeeze(0)
                     target = data.y
                     n_e = data.n_edges_unique
-                    v_loss += (F.mse_loss(pred[:n_e], target[:n_e]) +
-                               F.mse_loss(pred[n_e:], target[n_e:])).item()
+                    v_loss += (
+                        F.mse_loss(pred[:n_e], target[:n_e]) + F.mse_loss(pred[n_e:], target[n_e:])
+                    ).item()
             val_mse_history.append(v_loss / len(val_data))
             model.train()
 
@@ -1502,14 +1493,13 @@ def train_bond_resolved_mpnn(
                 pred = model(data).squeeze(0)
                 target = data.y
                 n_e = data.n_edges_unique
-                v_loss += (F.mse_loss(pred[:n_e], target[:n_e]) +
-                           F.mse_loss(pred[n_e:], target[n_e:])).item()
+                v_loss += (
+                    F.mse_loss(pred[:n_e], target[:n_e]) + F.mse_loss(pred[n_e:], target[n_e:])
+                ).item()
         final_val_mse = v_loss / len(val_data)
 
-    # Return model to CPU (device-agnostic checkpoints + CPU inference).
-    model = model.to("cpu")
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
+    # Device-agnostic checkpoints + CPU inference; frees GPU for the next job.
+    model = finalize_model_device(model, device)
 
     final_mse = mse_history[-1] if mse_history else float("inf")
     gen_gap = (final_val_mse - final_mse) if final_val_mse is not None else None

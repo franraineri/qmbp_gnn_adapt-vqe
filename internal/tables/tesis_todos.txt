@@ -1,0 +1,340 @@
+TODOs de la tesis — generado automáticamente
+Generado: 2026-08-27 22:01 UTC
+Fuente: scripts/general_project_maintenance/generate_thesis_tables.py
+Total TODOs: 1 | Inconsistencias: 328
+========================================================================
+
+## TODO-CAMPANA  (1)
+  [auto_campaign.tex:2] ResultIndex reporta 75 runs Heisenberg (35 XXZ + 40 transv.), la tesis dice 46. Revisar.
+
+========================================================================
+## INCONSISTENCIAS / ERRORES DETECTADOS  (328)
+
+  1. Conteo Heisenberg en ResultIndex = 75 (35 XXZ + 40 transversal), no 46 como en la tesis. Verificar campaña o texto.
+  2. [tesis-v4.0.tex:43] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  3. [tesis-v4.0.tex:50] %TODO-METRICA speedup/aceleración 'speedup' (eliminar hasta tener definición reproducible de coste).
+  4. [tesis-v4.0.tex:77] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  5. [tesis-v4.0.tex:78] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  6. [tesis-v4.0.tex:79] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  7. [tesis-v4.0.tex:159] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  8. [tesis-v4.0.tex:234] %TODO-TONO tono a moderar 'garantiza' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  9. [tesis-v4.0.tex:252] %TODO-TONO tono a moderar 'demuestran' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  10. [tesis-v4.0.tex:252] %TODO-TONO tono a moderar 'garantizando' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  11. [tesis-v4.0.tex:254] decimal con punto '0.3' (usar coma decimal en tablas/texto, steering §7).
+  12. [tesis-v4.0.tex:254] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  13. [tesis-v4.0.tex:254] %TODO-TONO tono a moderar 'óptima' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  14. [tesis-v4.0.tex:304] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  15. [tesis-v4.0.tex:327] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  16. [tesis-v4.0.tex:351] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  17. [tesis-v4.0.tex:355] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  18. [tesis-v4.0.tex:391] decimal con punto '1.6' (usar coma decimal en tablas/texto, steering §7).
+  19. [tesis-v4.0.tex:399] %TODO-TONO tono a moderar 'garantizan' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  20. [tesis-v4.0.tex:427] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  21. [tesis-v4.0.tex:431] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  22. [tesis-v4.0.tex:443] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  23. [tesis-v4.0.tex:470] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  24. [tesis-v4.0.tex:471] %TODO-METRICA speedup/aceleración 'Speedup' (eliminar hasta tener definición reproducible de coste).
+  25. [tesis-v4.0.tex:472] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  26. [tesis-v4.0.tex:479] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  27. [tesis-v4.0.tex:480] decimal con punto '0.95' (usar coma decimal en tablas/texto, steering §7).
+  28. [tesis-v4.0.tex:480] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  29. [tesis-v4.0.tex:501] decimal con punto '0.90' (usar coma decimal en tablas/texto, steering §7).
+  30. [tesis-v4.0.tex:502] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  31. [tesis-v4.0.tex:521] decimal con punto '0.1' (usar coma decimal en tablas/texto, steering §7).
+  32. [tesis-v4.0.tex:521] decimal con punto '0.05' (usar coma decimal en tablas/texto, steering §7).
+  33. [tesis-v4.0.tex:521] decimal con punto '0.8' (usar coma decimal en tablas/texto, steering §7).
+  34. [tesis-v4.0.tex:521] decimal con punto '1.4' (usar coma decimal en tablas/texto, steering §7).
+  35. [tesis-v4.0.tex:525] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  36. [tesis-v4.0.tex:530] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  37. [tesis-v4.0.tex:538] %TODO-REPRO statevector con N=40>22 (inviable en memoria; ¿era backend MPS? indicar χ y tolerancia).
+  38. [tesis-v4.0.tex:540] %TODO-TONO tono a moderar 'robusto' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  39. [tesis-v4.0.tex:540] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  40. [tesis-v4.0.tex:542] decimal con punto '0.1' (usar coma decimal en tablas/texto, steering §7).
+  41. [tesis-v4.0.tex:547] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  42. [tesis-v4.0.tex:547] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  43. [tesis-v4.0.tex:551] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  44. [tesis-v4.0.tex:554] decimal con punto '0.95' (usar coma decimal en tablas/texto, steering §7).
+  45. [tesis-v4.0.tex:554] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  46. [tesis-v4.0.tex:554] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  47. [tesis-v4.0.tex:565] decimal con punto '0.1' (usar coma decimal en tablas/texto, steering §7).
+  48. [tesis-v4.0.tex:577] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  49. [tesis-v4.0.tex:577] decimal con punto '1.2' (usar coma decimal en tablas/texto, steering §7).
+  50. [tesis-v4.0.tex:581] %TODO-TONO tono a moderar 'óptimo' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  51. [tesis-v4.0.tex:583] decimal con punto '0.95' (usar coma decimal en tablas/texto, steering §7).
+  52. [tesis-v4.0.tex:613] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  53. [tesis-v4.0.tex:614] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  54. [tesis-v4.0.tex:620] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  55. [tesis-v4.0.tex:620] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  56. [tesis-v4.0.tex:625] decimal con punto '3.11' (usar coma decimal en tablas/texto, steering §7).
+  57. [tesis-v4.0.tex:662] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  58. [tesis-v4.0.tex:666] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  59. [tesis-v4.0.tex:667] decimal con punto '0.015' (usar coma decimal en tablas/texto, steering §7).
+  60. [tesis-v4.0.tex:667] decimal con punto '0.028' (usar coma decimal en tablas/texto, steering §7).
+  61. [tesis-v4.0.tex:667] decimal con punto '1.25' (usar coma decimal en tablas/texto, steering §7).
+  62. [tesis-v4.0.tex:667] decimal con punto '0.46' (usar coma decimal en tablas/texto, steering §7).
+  63. [tesis-v4.0.tex:667] decimal con punto '3.77' (usar coma decimal en tablas/texto, steering §7).
+  64. [tesis-v4.0.tex:681] decimal con punto '2.75' (usar coma decimal en tablas/texto, steering §7).
+  65. [tesis-v4.0.tex:681] decimal con punto '4.10' (usar coma decimal en tablas/texto, steering §7).
+  66. [tesis-v4.0.tex:682] decimal con punto '3.25' (usar coma decimal en tablas/texto, steering §7).
+  67. [tesis-v4.0.tex:682] decimal con punto '2.90' (usar coma decimal en tablas/texto, steering §7).
+  68. [tesis-v4.0.tex:682] decimal con punto '0.40' (usar coma decimal en tablas/texto, steering §7).
+  69. [tesis-v4.0.tex:683] decimal con punto '4.25' (usar coma decimal en tablas/texto, steering §7).
+  70. [tesis-v4.0.tex:683] decimal con punto '3.30' (usar coma decimal en tablas/texto, steering §7).
+  71. [tesis-v4.0.tex:684] decimal con punto '3.25' (usar coma decimal en tablas/texto, steering §7).
+  72. [tesis-v4.0.tex:684] decimal con punto '0.56' (usar coma decimal en tablas/texto, steering §7).
+  73. [tesis-v4.0.tex:684] decimal con punto '0.03' (usar coma decimal en tablas/texto, steering §7).
+  74. [tesis-v4.0.tex:692] decimal con punto '2.75' (usar coma decimal en tablas/texto, steering §7).
+  75. [tesis-v4.0.tex:692] decimal con punto '4.25' (usar coma decimal en tablas/texto, steering §7).
+  76. [tesis-v4.0.tex:692] decimal con punto '1.25' (usar coma decimal en tablas/texto, steering §7).
+  77. [tesis-v4.0.tex:692] decimal con punto '1.50' (usar coma decimal en tablas/texto, steering §7).
+  78. [tesis-v4.0.tex:692] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  79. [tesis-v4.0.tex:692] decimal con punto '1.2' (usar coma decimal en tablas/texto, steering §7).
+  80. [tesis-v4.0.tex:696] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  81. [tesis-v4.0.tex:696] decimal con punto '5.0' (usar coma decimal en tablas/texto, steering §7).
+  82. [tesis-v4.0.tex:696] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  83. [tesis-v4.0.tex:696] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  84. [tesis-v4.0.tex:700] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  85. [tesis-v4.0.tex:700] decimal con punto '3.0' (usar coma decimal en tablas/texto, steering §7).
+  86. [tesis-v4.0.tex:704] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  87. [tesis-v4.0.tex:706] decimal con punto '0.997' (usar coma decimal en tablas/texto, steering §7).
+  88. [tesis-v4.0.tex:707] decimal con punto '0.995' (usar coma decimal en tablas/texto, steering §7).
+  89. [tesis-v4.0.tex:708] decimal con punto '0.945' (usar coma decimal en tablas/texto, steering §7).
+  90. [tesis-v4.0.tex:709] decimal con punto '0.953' (usar coma decimal en tablas/texto, steering §7).
+  91. [tesis-v4.0.tex:710] decimal con punto '0.966' (usar coma decimal en tablas/texto, steering §7).
+  92. [tesis-v4.0.tex:717] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  93. [tesis-v4.0.tex:732] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  94. [tesis-v4.0.tex:736] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  95. [tesis-v4.0.tex:736] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  96. [tesis-v4.0.tex:740] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  97. [tesis-v4.0.tex:740] decimal con punto '0.003' (usar coma decimal en tablas/texto, steering §7).
+  98. [tesis-v4.0.tex:740] decimal con punto '0.010' (usar coma decimal en tablas/texto, steering §7).
+  99. [tesis-v4.0.tex:740] decimal con punto '0.984' (usar coma decimal en tablas/texto, steering §7).
+  100. [tesis-v4.0.tex:740] decimal con punto '0.07' (usar coma decimal en tablas/texto, steering §7).
+  101. [tesis-v4.0.tex:740] decimal con punto '0.09' (usar coma decimal en tablas/texto, steering §7).
+  102. [tesis-v4.0.tex:740] decimal con punto '0.48' (usar coma decimal en tablas/texto, steering §7).
+  103. [tesis-v4.0.tex:740] decimal con punto '0.80' (usar coma decimal en tablas/texto, steering §7).
+  104. [tesis-v4.0.tex:742] decimal con punto '0.020' (usar coma decimal en tablas/texto, steering §7).
+  105. [tesis-v4.0.tex:742] decimal con punto '0.001' (usar coma decimal en tablas/texto, steering §7).
+  106. [tesis-v4.0.tex:744] decimal con punto '2.5' (usar coma decimal en tablas/texto, steering §7).
+  107. [tesis-v4.0.tex:756] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  108. [tesis-v4.0.tex:760] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  109. [tesis-v4.0.tex:760] decimal con punto '3.0' (usar coma decimal en tablas/texto, steering §7).
+  110. [tesis-v4.0.tex:760] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  111. [tesis-v4.0.tex:766] decimal con punto '0.006' (usar coma decimal en tablas/texto, steering §7).
+  112. [tesis-v4.0.tex:766] decimal con punto '0.999' (usar coma decimal en tablas/texto, steering §7).
+  113. [tesis-v4.0.tex:767] decimal con punto '0.003' (usar coma decimal en tablas/texto, steering §7).
+  114. [tesis-v4.0.tex:767] decimal con punto '0.999' (usar coma decimal en tablas/texto, steering §7).
+  115. [tesis-v4.0.tex:768] decimal con punto '0.006' (usar coma decimal en tablas/texto, steering §7).
+  116. [tesis-v4.0.tex:768] decimal con punto '0.998' (usar coma decimal en tablas/texto, steering §7).
+  117. [tesis-v4.0.tex:769] decimal con punto '0.005' (usar coma decimal en tablas/texto, steering §7).
+  118. [tesis-v4.0.tex:769] decimal con punto '0.995' (usar coma decimal en tablas/texto, steering §7).
+  119. [tesis-v4.0.tex:774] decimal con punto '0.003' (usar coma decimal en tablas/texto, steering §7).
+  120. [tesis-v4.0.tex:774] decimal con punto '0.006' (usar coma decimal en tablas/texto, steering §7).
+  121. [tesis-v4.0.tex:774] decimal con punto '0.995' (usar coma decimal en tablas/texto, steering §7).
+  122. [tesis-v4.0.tex:776] decimal con punto '2.70' (usar coma decimal en tablas/texto, steering §7).
+  123. [tesis-v4.0.tex:776] decimal con punto '0.019' (usar coma decimal en tablas/texto, steering §7).
+  124. [tesis-v4.0.tex:776] decimal con punto '0.05' (usar coma decimal en tablas/texto, steering §7).
+  125. [tesis-v4.0.tex:776] decimal con punto '0.07' (usar coma decimal en tablas/texto, steering §7).
+  126. [tesis-v4.0.tex:776] decimal con punto '0.0023' (usar coma decimal en tablas/texto, steering §7).
+  127. [tesis-v4.0.tex:776] decimal con punto '0.0009' (usar coma decimal en tablas/texto, steering §7).
+  128. [tesis-v4.0.tex:776] decimal con punto '0.005' (usar coma decimal en tablas/texto, steering §7).
+  129. [tesis-v4.0.tex:776] decimal con punto '0.38' (usar coma decimal en tablas/texto, steering §7).
+  130. [tesis-v4.0.tex:784] decimal con punto '2.36' (usar coma decimal en tablas/texto, steering §7).
+  131. [tesis-v4.0.tex:784] decimal con punto '0.0073' (usar coma decimal en tablas/texto, steering §7).
+  132. [tesis-v4.0.tex:784] decimal con punto '0.91' (usar coma decimal en tablas/texto, steering §7).
+  133. [tesis-v4.0.tex:788] decimal con punto '1.57' (usar coma decimal en tablas/texto, steering §7).
+  134. [tesis-v4.0.tex:788] decimal con punto '0.0050' (usar coma decimal en tablas/texto, steering §7).
+  135. [tesis-v4.0.tex:788] decimal con punto '0.95' (usar coma decimal en tablas/texto, steering §7).
+  136. [tesis-v4.0.tex:791] decimal con punto '1.6' (usar coma decimal en tablas/texto, steering §7).
+  137. [tesis-v4.0.tex:791] decimal con punto '0.1' (usar coma decimal en tablas/texto, steering §7).
+  138. [tesis-v4.0.tex:791] decimal con punto '1.4' (usar coma decimal en tablas/texto, steering §7).
+  139. [tesis-v4.0.tex:791] decimal con punto '0.1' (usar coma decimal en tablas/texto, steering §7).
+  140. [tesis-v4.0.tex:791] decimal con punto '1.7' (usar coma decimal en tablas/texto, steering §7).
+  141. [tesis-v4.0.tex:791] decimal con punto '1.9' (usar coma decimal en tablas/texto, steering §7).
+  142. [tesis-v4.0.tex:791] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  143. [tesis-v4.0.tex:795] decimal con punto '0.85' (usar coma decimal en tablas/texto, steering §7).
+  144. [tesis-v4.0.tex:796] decimal con punto '0.005' (usar coma decimal en tablas/texto, steering §7).
+  145. [tesis-v4.0.tex:796] decimal con punto '0.007' (usar coma decimal en tablas/texto, steering §7).
+  146. [tesis-v4.0.tex:805] decimal con punto '0.0023' (usar coma decimal en tablas/texto, steering §7).
+  147. [tesis-v4.0.tex:805] decimal con punto '0.0009' (usar coma decimal en tablas/texto, steering §7).
+  148. [tesis-v4.0.tex:811] %TODO-TONO tono a moderar 'óptimo' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  149. [tesis-v4.0.tex:815] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  150. [tesis-v4.0.tex:819] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  151. [tesis-v4.0.tex:847] decimal con punto '3.5' (usar coma decimal en tablas/texto, steering §7).
+  152. [tesis-v4.0.tex:847] decimal con punto '5.0' (usar coma decimal en tablas/texto, steering §7).
+  153. [tesis-v4.0.tex:847] decimal con punto '1.17' (usar coma decimal en tablas/texto, steering §7).
+  154. [tesis-v4.0.tex:847] decimal con punto '8.1' (usar coma decimal en tablas/texto, steering §7).
+  155. [tesis-v4.0.tex:848] decimal con punto '3.5' (usar coma decimal en tablas/texto, steering §7).
+  156. [tesis-v4.0.tex:848] decimal con punto '5.0' (usar coma decimal en tablas/texto, steering §7).
+  157. [tesis-v4.0.tex:848] decimal con punto '2.63' (usar coma decimal en tablas/texto, steering §7).
+  158. [tesis-v4.0.tex:848] decimal con punto '9.1' (usar coma decimal en tablas/texto, steering §7).
+  159. [tesis-v4.0.tex:849] decimal con punto '2.5' (usar coma decimal en tablas/texto, steering §7).
+  160. [tesis-v4.0.tex:849] decimal con punto '5.5' (usar coma decimal en tablas/texto, steering §7).
+  161. [tesis-v4.0.tex:849] decimal con punto '4.82' (usar coma decimal en tablas/texto, steering §7).
+  162. [tesis-v4.0.tex:849] decimal con punto '9.4' (usar coma decimal en tablas/texto, steering §7).
+  163. [tesis-v4.0.tex:850] decimal con punto '2.5' (usar coma decimal en tablas/texto, steering §7).
+  164. [tesis-v4.0.tex:850] decimal con punto '5.5' (usar coma decimal en tablas/texto, steering §7).
+  165. [tesis-v4.0.tex:850] decimal con punto '6.17' (usar coma decimal en tablas/texto, steering §7).
+  166. [tesis-v4.0.tex:850] decimal con punto '8.6' (usar coma decimal en tablas/texto, steering §7).
+  167. [tesis-v4.0.tex:870] decimal con punto '0.71' (usar coma decimal en tablas/texto, steering §7).
+  168. [tesis-v4.0.tex:874] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  169. [tesis-v4.0.tex:898] decimal con punto '0.0' (usar coma decimal en tablas/texto, steering §7).
+  170. [tesis-v4.0.tex:898] decimal con punto '0.990' (usar coma decimal en tablas/texto, steering §7).
+  171. [tesis-v4.0.tex:898] decimal con punto '0.991' (usar coma decimal en tablas/texto, steering §7).
+  172. [tesis-v4.0.tex:898] decimal con punto '0.001' (usar coma decimal en tablas/texto, steering §7).
+  173. [tesis-v4.0.tex:899] decimal con punto '0.1' (usar coma decimal en tablas/texto, steering §7).
+  174. [tesis-v4.0.tex:899] decimal con punto '0.889' (usar coma decimal en tablas/texto, steering §7).
+  175. [tesis-v4.0.tex:899] decimal con punto '0.984' (usar coma decimal en tablas/texto, steering §7).
+  176. [tesis-v4.0.tex:899] decimal con punto '0.095' (usar coma decimal en tablas/texto, steering §7).
+  177. [tesis-v4.0.tex:900] decimal con punto '0.2' (usar coma decimal en tablas/texto, steering §7).
+  178. [tesis-v4.0.tex:900] decimal con punto '0.778' (usar coma decimal en tablas/texto, steering §7).
+  179. [tesis-v4.0.tex:900] decimal con punto '0.985' (usar coma decimal en tablas/texto, steering §7).
+  180. [tesis-v4.0.tex:900] decimal con punto '0.207' (usar coma decimal en tablas/texto, steering §7).
+  181. [tesis-v4.0.tex:901] decimal con punto '0.3' (usar coma decimal en tablas/texto, steering §7).
+  182. [tesis-v4.0.tex:901] decimal con punto '0.688' (usar coma decimal en tablas/texto, steering §7).
+  183. [tesis-v4.0.tex:901] decimal con punto '0.985' (usar coma decimal en tablas/texto, steering §7).
+  184. [tesis-v4.0.tex:901] decimal con punto '0.297' (usar coma decimal en tablas/texto, steering §7).
+  185. [tesis-v4.0.tex:902] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  186. [tesis-v4.0.tex:902] decimal con punto '0.556' (usar coma decimal en tablas/texto, steering §7).
+  187. [tesis-v4.0.tex:902] decimal con punto '0.987' (usar coma decimal en tablas/texto, steering §7).
+  188. [tesis-v4.0.tex:902] decimal con punto '0.431' (usar coma decimal en tablas/texto, steering §7).
+  189. [tesis-v4.0.tex:907] decimal con punto '0.98' (usar coma decimal en tablas/texto, steering §7).
+  190. [tesis-v4.0.tex:907] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  191. [tesis-v4.0.tex:909] decimal con punto '0.3' (usar coma decimal en tablas/texto, steering §7).
+  192. [tesis-v4.0.tex:909] decimal con punto '0.995' (usar coma decimal en tablas/texto, steering §7).
+  193. [tesis-v4.0.tex:909] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  194. [tesis-v4.0.tex:917] decimal con punto '0.75' (usar coma decimal en tablas/texto, steering §7).
+  195. [tesis-v4.0.tex:918] %TODO-TONO tono a moderar 'óptimo' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  196. [tesis-v4.0.tex:924] decimal con punto '0.99' (usar coma decimal en tablas/texto, steering §7).
+  197. [tesis-v4.0.tex:924] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  198. [tesis-v4.0.tex:928] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  199. [tesis-v4.0.tex:928] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  200. [tesis-v4.0.tex:928] decimal con punto '0.11' (usar coma decimal en tablas/texto, steering §7).
+  201. [tesis-v4.0.tex:928] decimal con punto '0.56' (usar coma decimal en tablas/texto, steering §7).
+  202. [tesis-v4.0.tex:928] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  203. [tesis-v4.0.tex:933] decimal con punto '0.56' (usar coma decimal en tablas/texto, steering §7).
+  204. [tesis-v4.0.tex:933] decimal con punto '0.11' (usar coma decimal en tablas/texto, steering §7).
+  205. [tesis-v4.0.tex:933] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  206. [tesis-v4.0.tex:938] %TODO-TONO tono a moderar 'demuestran' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  207. [tesis-v4.0.tex:973] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  208. [tesis-v4.0.tex:973] decimal con punto '1.2' (usar coma decimal en tablas/texto, steering §7).
+  209. [tesis-v4.0.tex:975] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  210. [tesis-v4.0.tex:983] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  211. [tesis-v4.0.tex:985] decimal con punto '0.99' (usar coma decimal en tablas/texto, steering §7).
+  212. [tesis-v4.0.tex:985] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  213. [tesis-v4.0.tex:986] decimal con punto '1.25' (usar coma decimal en tablas/texto, steering §7).
+  214. [tesis-v4.0.tex:986] decimal con punto '0.25' (usar coma decimal en tablas/texto, steering §7).
+  215. [tesis-v4.0.tex:987] decimal con punto '1.25' (usar coma decimal en tablas/texto, steering §7).
+  216. [tesis-v4.0.tex:987] decimal con punto '0.25' (usar coma decimal en tablas/texto, steering §7).
+  217. [tesis-v4.0.tex:992] decimal con punto '99.96' (usar coma decimal en tablas/texto, steering §7).
+  218. [tesis-v4.0.tex:992] decimal con punto '1.033' (usar coma decimal en tablas/texto, steering §7).
+  219. [tesis-v4.0.tex:992] decimal con punto '0.047' (usar coma decimal en tablas/texto, steering §7).
+  220. [tesis-v4.0.tex:992] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  221. [tesis-v4.0.tex:1006] decimal con punto '0.90' (usar coma decimal en tablas/texto, steering §7).
+  222. [tesis-v4.0.tex:1007] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  223. [tesis-v4.0.tex:1007] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  224. [tesis-v4.0.tex:1011] decimal con punto '0.46' (usar coma decimal en tablas/texto, steering §7).
+  225. [tesis-v4.0.tex:1011] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  226. [tesis-v4.0.tex:1015] decimal con punto '0.85' (usar coma decimal en tablas/texto, steering §7).
+  227. [tesis-v4.0.tex:1016] decimal con punto '0.46' (usar coma decimal en tablas/texto, steering §7).
+  228. [tesis-v4.0.tex:1016] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  229. [tesis-v4.0.tex:1023] decimal con punto '2.94' (usar coma decimal en tablas/texto, steering §7).
+  230. [tesis-v4.0.tex:1023] decimal con punto '3.37' (usar coma decimal en tablas/texto, steering §7).
+  231. [tesis-v4.0.tex:1023] %TODO-TONO tono a moderar 'robustez' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  232. [tesis-v4.0.tex:1035] decimal con punto '0.80' (usar coma decimal en tablas/texto, steering §7).
+  233. [tesis-v4.0.tex:1052] decimal con punto '0.01' (usar coma decimal en tablas/texto, steering §7).
+  234. [tesis-v4.0.tex:1052] decimal con punto '0.05' (usar coma decimal en tablas/texto, steering §7).
+  235. [tesis-v4.0.tex:1054] decimal con punto '0.05' (usar coma decimal en tablas/texto, steering §7).
+  236. [tesis-v4.0.tex:1054] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  237. [tesis-v4.0.tex:1054] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  238. [tesis-v4.0.tex:1056] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  239. [tesis-v4.0.tex:1056] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  240. [tesis-v4.0.tex:1070] decimal con punto '0.85' (usar coma decimal en tablas/texto, steering §7).
+  241. [tesis-v4.0.tex:1083] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  242. [tesis-v4.0.tex:1089] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  243. [tesis-v4.0.tex:1101] decimal con punto '2.7' (usar coma decimal en tablas/texto, steering §7).
+  244. [tesis-v4.0.tex:1116] decimal con punto '0.95' (usar coma decimal en tablas/texto, steering §7).
+  245. [tesis-v4.0.tex:1117] decimal con punto '0.99' (usar coma decimal en tablas/texto, steering §7).
+  246. [tesis-v4.0.tex:1123] %TODO-TONO tono a moderar 'óptimos' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  247. [tesis-v4.0.tex:1130] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  248. [tesis-v4.0.tex:1139] decimal con punto '0.97' (usar coma decimal en tablas/texto, steering §7).
+  249. [tesis-v4.0.tex:1141] decimal con punto '3.5' (usar coma decimal en tablas/texto, steering §7).
+  250. [tesis-v4.0.tex:1143] decimal con punto '1.09' (usar coma decimal en tablas/texto, steering §7).
+  251. [tesis-v4.0.tex:1143] decimal con punto '1.12' (usar coma decimal en tablas/texto, steering §7).
+  252. [tesis-v4.0.tex:1143] decimal con punto '1.67' (usar coma decimal en tablas/texto, steering §7).
+  253. [tesis-v4.0.tex:1143] decimal con punto '1.68' (usar coma decimal en tablas/texto, steering §7).
+  254. [tesis-v4.0.tex:1143] decimal con punto '2.20' (usar coma decimal en tablas/texto, steering §7).
+  255. [tesis-v4.0.tex:1143] %TODO-TONO tono a moderar 'óptima' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  256. [tesis-v4.0.tex:1147] decimal con punto '5.0' (usar coma decimal en tablas/texto, steering §7).
+  257. [tesis-v4.0.tex:1149] decimal con punto '1.0' (usar coma decimal en tablas/texto, steering §7).
+  258. [tesis-v4.0.tex:1149] decimal con punto '0.7' (usar coma decimal en tablas/texto, steering §7).
+  259. [tesis-v4.0.tex:1149] decimal con punto '1.2' (usar coma decimal en tablas/texto, steering §7).
+  260. [tesis-v4.0.tex:1153] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  261. [tesis-v4.0.tex:1155] %TODO-TONO tono a moderar 'óptima' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  262. [tesis-v4.0.tex:1160] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  263. [tesis-v4.0.tex:1177] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  264. [tesis-v4.0.tex:1198] %TODO-TONO tono a moderar 'óptimas' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  265. [tesis-v4.0.tex:1202] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  266. [tesis-v4.0.tex:1204] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  267. [tesis-v4.0.tex:1206] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  268. [tesis-v4.0.tex:1215] %TODO-REPRO 'exacto' aplicado a DMRG/MPS (usar 'convergido dentro de la tolerancia'; mostrar convergencia en χ).
+  269. [tesis-v4.0.tex:1216] decimal con punto '0.95' (usar coma decimal en tablas/texto, steering §7).
+  270. [tesis-v4.0.tex:1216] decimal con punto '0.93' (usar coma decimal en tablas/texto, steering §7).
+  271. [tesis-v4.0.tex:1219] decimal con punto '0.5' (usar coma decimal en tablas/texto, steering §7).
+  272. [tesis-v4.0.tex:1219] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  273. [tesis-v4.0.tex:1229] %TODO-TONO tono a moderar 'robustez' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  274. [tesis-v4.0.tex:1399] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  275. [tesis-v4.0.tex:1405] decimal con punto '0.003' (usar coma decimal en tablas/texto, steering §7).
+  276. [tesis-v4.0.tex:1405] decimal con punto '0.015' (usar coma decimal en tablas/texto, steering §7).
+  277. [tesis-v4.0.tex:1405] decimal con punto '0.999' (usar coma decimal en tablas/texto, steering §7).
+  278. [tesis-v4.0.tex:1405] decimal con punto '0.995' (usar coma decimal en tablas/texto, steering §7).
+  279. [tesis-v4.0.tex:1406] decimal con punto '0.010' (usar coma decimal en tablas/texto, steering §7).
+  280. [tesis-v4.0.tex:1406] decimal con punto '0.044' (usar coma decimal en tablas/texto, steering §7).
+  281. [tesis-v4.0.tex:1406] decimal con punto '0.997' (usar coma decimal en tablas/texto, steering §7).
+  282. [tesis-v4.0.tex:1406] decimal con punto '0.984' (usar coma decimal en tablas/texto, steering §7).
+  283. [tesis-v4.0.tex:1407] decimal con punto '0.080' (usar coma decimal en tablas/texto, steering §7).
+  284. [tesis-v4.0.tex:1407] decimal con punto '0.476' (usar coma decimal en tablas/texto, steering §7).
+  285. [tesis-v4.0.tex:1407] decimal con punto '0.799' (usar coma decimal en tablas/texto, steering §7).
+  286. [tesis-v4.0.tex:1407] decimal con punto '0.498' (usar coma decimal en tablas/texto, steering §7).
+  287. [tesis-v4.0.tex:1408] decimal con punto '0.089' (usar coma decimal en tablas/texto, steering §7).
+  288. [tesis-v4.0.tex:1408] decimal con punto '0.240' (usar coma decimal en tablas/texto, steering §7).
+  289. [tesis-v4.0.tex:1408] decimal con punto '0.776' (usar coma decimal en tablas/texto, steering §7).
+  290. [tesis-v4.0.tex:1408] decimal con punto '0.499' (usar coma decimal en tablas/texto, steering §7).
+  291. [tesis-v4.0.tex:1409] decimal con punto '0.065' (usar coma decimal en tablas/texto, steering §7).
+  292. [tesis-v4.0.tex:1409] decimal con punto '0.344' (usar coma decimal en tablas/texto, steering §7).
+  293. [tesis-v4.0.tex:1409] decimal con punto '0.968' (usar coma decimal en tablas/texto, steering §7).
+  294. [tesis-v4.0.tex:1409] decimal con punto '0.800' (usar coma decimal en tablas/texto, steering §7).
+  295. [tesis-v4.0.tex:1416] decimal con punto '1.3' (usar coma decimal en tablas/texto, steering §7).
+  296. [tesis-v4.0.tex:1422] decimal con punto '0.055' (usar coma decimal en tablas/texto, steering §7).
+  297. [tesis-v4.0.tex:1422] decimal con punto '0.009' (usar coma decimal en tablas/texto, steering §7).
+  298. [tesis-v4.0.tex:1422] decimal con punto '0.002' (usar coma decimal en tablas/texto, steering §7).
+  299. [tesis-v4.0.tex:1422] decimal con punto '0.001' (usar coma decimal en tablas/texto, steering §7).
+  300. [tesis-v4.0.tex:1423] decimal con punto '0.030' (usar coma decimal en tablas/texto, steering §7).
+  301. [tesis-v4.0.tex:1423] decimal con punto '0.008' (usar coma decimal en tablas/texto, steering §7).
+  302. [tesis-v4.0.tex:1423] decimal con punto '0.006' (usar coma decimal en tablas/texto, steering §7).
+  303. [tesis-v4.0.tex:1423] decimal con punto '0.002' (usar coma decimal en tablas/texto, steering §7).
+  304. [tesis-v4.0.tex:1424] decimal con punto '0.229' (usar coma decimal en tablas/texto, steering §7).
+  305. [tesis-v4.0.tex:1424] decimal con punto '0.027' (usar coma decimal en tablas/texto, steering §7).
+  306. [tesis-v4.0.tex:1424] decimal con punto '0.008' (usar coma decimal en tablas/texto, steering §7).
+  307. [tesis-v4.0.tex:1424] decimal con punto '0.007' (usar coma decimal en tablas/texto, steering §7).
+  308. [tesis-v4.0.tex:1425] decimal con punto '0.157' (usar coma decimal en tablas/texto, steering §7).
+  309. [tesis-v4.0.tex:1425] decimal con punto '0.025' (usar coma decimal en tablas/texto, steering §7).
+  310. [tesis-v4.0.tex:1425] decimal con punto '0.007' (usar coma decimal en tablas/texto, steering §7).
+  311. [tesis-v4.0.tex:1425] decimal con punto '0.005' (usar coma decimal en tablas/texto, steering §7).
+  312. [tesis-v4.0.tex:1426] decimal con punto '0.516' (usar coma decimal en tablas/texto, steering §7).
+  313. [tesis-v4.0.tex:1426] decimal con punto '0.290' (usar coma decimal en tablas/texto, steering §7).
+  314. [tesis-v4.0.tex:1426] decimal con punto '0.095' (usar coma decimal en tablas/texto, steering §7).
+  315. [tesis-v4.0.tex:1426] decimal con punto '0.020' (usar coma decimal en tablas/texto, steering §7).
+  316. [tesis-v4.0.tex:1431] %TODO-TONO tono a moderar 'robusta' (usar muestra/sugiere; añadir comparación cuantitativa o 'dentro de las configuraciones evaluadas').
+  317. [tesis-v4.0.tex:1435] decimal con punto '0.3' (usar coma decimal en tablas/texto, steering §7).
+  318. [tesis-v4.0.tex:1439] %TODO-METRICA PassRate sin |ΔE| acompañante (reportar la métrica primaria |ΔE|, steering §5).
+  319. [tesis-v4.0.tex:1441] decimal con punto '0.995' (usar coma decimal en tablas/texto, steering §7).
+  320. [tesis-v4.0.tex:1442] decimal con punto '0.997' (usar coma decimal en tablas/texto, steering §7).
+  321. [tesis-v4.0.tex:1443] decimal con punto '0.937' (usar coma decimal en tablas/texto, steering §7).
+  322. [tesis-v4.0.tex:1444] decimal con punto '0.927' (usar coma decimal en tablas/texto, steering §7).
+  323. [tesis-v4.0.tex:1445] decimal con punto '0.805' (usar coma decimal en tablas/texto, steering §7).
+  324. [tesis-v4.0.tex:744] \ref{tab:auto_scoreboard} sin \label correspondiente (saldrá como ??).
+  325. [tesis-v4.0.tex:744] \ref{tab:auto_coverage} sin \label correspondiente (saldrá como ??).
+  326. [tesis-v4.0.tex:805] \ref{tab:auto_heavy_hex_intra_n} sin \label correspondiente (saldrá como ??).
+  327. [tesis-v4.0.tex:857] \ref{tab:auto_heavy_hex_large_n} sin \label correspondiente (saldrá como ??).
+  328. [tesis-v4.0.tex:1029] \ref{tab:auto_campaign} sin \label correspondiente (saldrá como ??).

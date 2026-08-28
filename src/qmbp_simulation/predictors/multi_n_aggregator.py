@@ -56,6 +56,8 @@ class MultiNAggregator:
         results_dir: Path | None = None,
         max_n: int | None = None,
         p_layers: int = 1,
+        h_min: float | None = None,
+        h_max: float | None = None,
     ) -> None:
         self.topology = topology
         self.model = model
@@ -63,6 +65,12 @@ class MultiNAggregator:
         self._results_dir = results_dir or _RESULTS_DIR
         self._data_by_n: dict[int, list[dict[str, Any]]] = {}
         self.max_n = max_n  # If set, exclude N > max_n from training data
+        # Optional h-range filter: if set, only points with h in [h_min, h_max]
+        # are included in the training dataset. Uses a small tolerance so that
+        # boundary points at the requested bounds are retained despite the
+        # 2-decimal h-grid convention.
+        self.h_min = h_min
+        self.h_max = h_max
 
         if p_layers < 1:
             raise ValueError(f"p_layers must be >= 1, got {p_layers}")
@@ -473,8 +481,31 @@ class MultiNAggregator:
         )
         from qmbp_simulation.models.constants import AUGMENTATION_NOISE_SIGMA
 
+        # h-range filter tolerance: half of the 0.05 grid step, so points at
+        # the exact requested bounds (e.g. h=0.50, h=1.50) are always kept.
+        _H_TOL = 0.005
+
         dataset = []
         for n, points in sorted(self._data_by_n.items()):
+            # ── Optional h-range pre-filter ───────────────────────────────
+            # Restrict training data to h in [h_min, h_max] when requested.
+            # Applied before the quality filter so logging reflects in-range
+            # counts.
+            if self.h_min is not None or self.h_max is not None:
+                lo = -np.inf if self.h_min is None else self.h_min - _H_TOL
+                hi = np.inf if self.h_max is None else self.h_max + _H_TOL
+                n_before = len(points)
+                points = [p for p in points if lo <= float(p["h"]) <= hi]
+                if not points:
+                    logger.info(
+                        "  N=%d: 0 points in h-range [%s, %s] (of %d) — skipping",
+                        n,
+                        self.h_min if self.h_min is not None else "-inf",
+                        self.h_max if self.h_max is not None else "+inf",
+                        n_before,
+                    )
+                    continue
+
             # Tier-aware quality filter
             filtered = []
             for p in points:
@@ -711,11 +742,15 @@ class MultiTopologyAggregator:
         max_n: int | None = None,
         min_verified_points: int = 10,
         p_layers: int = 1,
+        h_min: float | None = None,
+        h_max: float | None = None,
     ) -> None:
         self.model = model
         self.max_n = max_n
         self.min_verified_points = min_verified_points
         self.p_layers = p_layers
+        self.h_min = h_min
+        self.h_max = h_max
         self._topologies = topologies
         self._aggregators: dict[str, MultiNAggregator] = {}
         self._summary: dict[str, dict] = {}
@@ -755,6 +790,8 @@ class MultiTopologyAggregator:
                 model=self.model,
                 max_n=self.max_n,
                 p_layers=self.p_layers,
+                h_min=self.h_min,
+                h_max=self.h_max,
             )
             topo_summary = agg.scan()
 

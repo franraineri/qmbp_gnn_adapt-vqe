@@ -634,7 +634,7 @@ class ValidationRunner(ABC):
         exit_code = 1 if n_fail > 0 or interrupted else 0
 
         saved_path = None
-        if False:
+        if True:
             try:
                 # Check if we're in a state where _build_envelope would spinlock.
                 # Indicator: torch is imported AND has live tensors → use minimal save.
@@ -761,7 +761,9 @@ class ValidationRunner(ABC):
             )
 
             validate_gt_npz_coherence(fix=True)
-            post_experiment_sync(verbose=False)
+            # Regenerate the scoreboard for the p this experiment ran with, so
+            # p=1 and p=2 land in separate scoreboard files (never mixed).
+            post_experiment_sync(verbose=False, p_layers=self._resolve_p_layers())
 
         # Print summary to console
         if not interrupted and saved_path:
@@ -779,25 +781,30 @@ class ValidationRunner(ABC):
         try:
             import subprocess
 
+            _p_arg = self._resolve_p_layers()
+            _sync_call = (
+                f"post_experiment_sync(verbose=False, p_layers={_p_arg}); "
+                if _p_arg is not None
+                else "post_experiment_sync(verbose=False); "
+            )
+            _detached_code = (
+                "from qmbp_simulation.analysis.metrics import post_experiment_sync; "
+                + _sync_call
+                + "from qmbp_simulation.predictors.model_zoo import "
+                "heal_manifest, compute_retrain_queue, _load_manifest, "
+                "_CHECKPOINTS_DIR; "
+                "heal_manifest(dry_run=False); "
+                "queue = compute_retrain_queue(); "
+                "print(f'Retrain queue: {len(queue)} models') if queue else None; "
+                # Auto-evaluate unevaluated models (quick pass_rate from val split)
+                "entries = _load_manifest(); "
+                "unevaluated = [e for e in entries if e.pass_rate == 0.0 "
+                "and e.n_training_points > 50 "
+                "and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()]; "
+                "[print(f'  Unevaluated: {e.checkpoint_file}') for e in unevaluated[:2]]"
+            )
             subprocess.Popen(
-                [
-                    sys.executable,
-                    "-c",
-                    "from qmbp_simulation.analysis.metrics import post_experiment_sync; "
-                    "post_experiment_sync(verbose=False); "
-                    "from qmbp_simulation.predictors.model_zoo import "
-                    "heal_manifest, compute_retrain_queue, _load_manifest, "
-                    "_CHECKPOINTS_DIR; "
-                    "heal_manifest(dry_run=False); "
-                    "queue = compute_retrain_queue(); "
-                    "print(f'Retrain queue: {len(queue)} models') if queue else None; "
-                    # Auto-evaluate unevaluated models (quick pass_rate from val split)
-                    "entries = _load_manifest(); "
-                    "unevaluated = [e for e in entries if e.pass_rate == 0.0 "
-                    "and e.n_training_points > 50 "
-                    "and (_CHECKPOINTS_DIR / e.checkpoint_file).exists()]; "
-                    "[print(f'  Unevaluated: {e.checkpoint_file}') for e in unevaluated[:2]]",
-                ],
+                [sys.executable, "-c", _detached_code],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
@@ -3157,6 +3164,60 @@ class ValidationRunner(ABC):
         _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
         _ckpt = checkpoint_path or getattr(args, "checkpoint", None)
 
+        # ── Explicit checkpoint override: load THIS model, never search/train ──
+        # When the user passes --checkpoint (a file path OR a manifest
+        # checkpoint_file name), honor it exactly: no zoo "best" selection,
+        # no auto-training. This is the "use only this model" contract.
+        if _ckpt:
+            from qmbp_simulation.predictors.model_zoo import (
+                _smart_load_checkpoint,
+                resolve_checkpoint_fuzzy,
+            )
+
+            # Resolve --checkpoint as: exact path → exact zoo name → fuzzy
+            # tag/fragment match (e.g. a --model-name suffix like "h_0p5_1p5").
+            # topology/p hints disambiguate fuzzy candidates.
+            ckpt_path = resolve_checkpoint_fuzzy(str(_ckpt), topology=_topo, p_layers=_p)
+            if ckpt_path is None:
+                candidates = resolve_checkpoint_fuzzy(
+                    str(_ckpt), topology=_topo, p_layers=_p, return_all=True
+                )
+                # If the exact/glob query found nothing, widen the suggestion
+                # net to bare-substring candidates for a helpful error.
+                if not candidates:
+                    candidates = resolve_checkpoint_fuzzy(str(_ckpt), return_all=True)
+                names = [p.name for p, _ in (candidates or [])[:5]]
+                hint = f" Closest checkpoints on disk: {names}" if names else ""
+                raise FileNotFoundError(
+                    f"--checkpoint '{_ckpt}' not found as a file path, exact zoo "
+                    f"name, or fuzzy match.{hint}"
+                )
+
+            is_fuzzy = ckpt_path.name != str(_ckpt) and not str(_ckpt).endswith(ckpt_path.name)
+            mpnn = _smart_load_checkpoint(str(ckpt_path))
+            mpnn.eval()
+            self._model_provenance = {
+                "checkpoint": str(ckpt_path),
+                "source": "explicit_checkpoint",
+                "match_kind": "fuzzy" if is_fuzzy else "exact",
+                "requested": str(_ckpt),
+                "topology": _topo,
+                "p_layers": _p,
+            }
+            if is_fuzzy:
+                logger.info(
+                    "    Fuzzy-matched --checkpoint '%s' → %s (no zoo best-search, no retrain)",
+                    _ckpt,
+                    ckpt_path.name,
+                )
+            else:
+                logger.info(
+                    "    Using EXPLICIT checkpoint (no zoo search, no retrain): %s",
+                    ckpt_path.name,
+                )
+            self._log_model_architecture(mpnn, ckpt_path.name)
+            return mpnn
+
         # ── Try loading from zoo (unified selection: per-topo + MT) ────────
         try:
             from qmbp_simulation.predictors.model_zoo import load_best_model_for
@@ -3672,9 +3733,11 @@ class ValidationRunner(ABC):
             )
             from qmbp_simulation.models.model_registry import get_model_spec
 
-            # Resolve gap if not provided (uses 2-level GT cache).
+            # Resolve gap (and E₀) if not provided (uses 2-level GT cache).
+            # E₀ is needed for the Temple/Eckart validity check below.
+            e0, resolved_gap = self.exact_ground_state(topology, n_qubits, h, model=model)
             if gap is None:
-                _, gap = self.exact_ground_state(topology, n_qubits, h, model=model)
+                gap = resolved_gap
             if gap is None or gap <= 1e-9:
                 return None
 
@@ -3683,7 +3746,9 @@ class ValidationRunner(ABC):
             H = spec.build_hamiltonian(lat, **spec.hamiltonian_kwargs)
 
             # Delegate to the shared Eckart bound (single source of truth).
-            return compute_variance_fidelity_bound(circuit, theta, H, gap)
+            # Pass e_pred + E₀ so the bound can reject states closer to E₁ than
+            # to E₀ (where the inequality no longer certifies ground fidelity).
+            return compute_variance_fidelity_bound(circuit, theta, H, gap, e_pred=e_pred, e0=e0)
         except (MemoryError, ValueError, AttributeError, KeyError) as exc:
             logger.debug(
                 "compute_fidelity_bound failed for %s N=%d h=%.2f model=%s: %s",
@@ -3793,35 +3858,61 @@ class ValidationRunner(ABC):
         }
         if fidelity_info is not None:
             fid_val = fidelity_info.get("fidelity")
+            # Record the fidelity value only when it is informative. A saturated
+            # Eckart bound arrives here as fidelity=None; we skip the fidelity
+            # key (→ "N/A") but still keep Var(H) and method for diagnostics.
             if fid_val is not None:
                 result["fidelity"] = float(fid_val)
-                result["fidelity_method"] = fidelity_info.get("method", "exact")
-                result["fidelity_is_bound"] = bool(fidelity_info.get("is_lower_bound", False))
-                ev = fidelity_info.get("energy_variance")
-                if ev is not None:
-                    result["energy_variance"] = float(ev)
+            result["fidelity_method"] = fidelity_info.get("method", "exact")
+            result["fidelity_is_bound"] = bool(fidelity_info.get("is_lower_bound", False))
+            ev = fidelity_info.get("energy_variance")
+            if ev is not None:
+                result["energy_variance"] = float(ev)
         elif fidelity is not None:
             result["fidelity"] = float(fidelity)
         result.update(extra)
+
+        # ── Infidelity decomposition (Var(H) vs gap) — DEFAULT for every runner ──
+        # Whenever energy_variance is available (from fidelity_info or extra),
+        # attribute the infidelity to its dominant physical factor so h_c points
+        # report "dirty_state" (attackable) vs "small_gap" (physics ceiling)
+        # side by side with the gap. Pure classification — no recomputation, no
+        # pass/fail gating.
+        _ev = result.get("energy_variance")
+        if _ev is not None and result.get("infidelity_dominant_factor") is None:
+            from qmbp_simulation.analysis.fidelity import classify_infidelity_factor
+
+            decomp = classify_infidelity_factor(_ev, result["gap"])
+            result["infidelity_dominant_factor"] = decomp["infidelity_dominant_factor"]
+            if decomp["variance_over_gap2"] is not None:
+                result["variance_over_gap2"] = decomp["variance_over_gap2"]
         return result
 
     # ── Cross-Integration Helpers (quality tier + refinement priority) ───────
 
     @staticmethod
+    @staticmethod
     def compute_point_refinement_priority(
         de_gap: float,
         abs_error: float,
         gap: float,
-        h: float,
+        n_params: int,
         *,
-        e_vqe: float | None = None,
-        e_exact: float | None = None,
-    ) -> tuple[float, str]:
+        e_prev: float | None = None,
+        e_pred: float | None = None,
+        n_prev_attempts: int = 0,
+        max_stale_attempts: int = 2,
+    ) -> tuple[float, bool, str]:
         """Compute refinement priority for a single point.
-
 
         Cross-integration: Exposes compute_refinement_priority from metrics.py
         as a runner helper for use in iterative improvement loops.
+
+        Returns
+        -------
+        tuple[float, bool, str]
+            (priority, should_skip, reason) — see
+            ``qmbp_simulation.analysis.metrics.compute_refinement_priority``.
         """
         from qmbp_simulation.analysis.metrics import compute_refinement_priority
 
@@ -3829,9 +3920,11 @@ class ValidationRunner(ABC):
             de_gap=de_gap,
             abs_error=abs_error,
             gap=gap,
-            h=h,
-            e_vqe=e_vqe,
-            e_exact=e_exact,
+            n_params=n_params,
+            e_prev=e_prev,
+            e_pred=e_pred,
+            n_prev_attempts=n_prev_attempts,
+            max_stale_attempts=max_stale_attempts,
         )
 
     @staticmethod
@@ -3983,7 +4076,9 @@ class ValidationRunner(ABC):
         FailureDiagnostic
             Structured diagnosis with primary_mode, confidence, explanation.
         """
-        from qmbp_simulation.analysis.failures_tests import classify_topology_failure_mode
+        from qmbp_simulation.analysis.failures_tests import (
+            classify_topology_failure_mode_from_dashboard,
+        )
 
         # Resolve dashboard_configs if not provided
         if dashboard_configs is None:
@@ -4015,7 +4110,7 @@ class ValidationRunner(ABC):
                         "e_exact": np.array([r.get("e_exact", 0) for r in pts]),
                     }
 
-        diag = classify_topology_failure_mode(
+        diag = classify_topology_failure_mode_from_dashboard(
             topology,
             dashboard_configs or [],
             extrapolation_data=extrapolation_data,
@@ -4394,6 +4489,11 @@ class ValidationRunner(ABC):
         Uses fine_tune_unified_mpnn (lightweight, 500 epochs) rather than
         full retrain. The updated model is registered to zoo only if improved.
         """
+        # Respect --from-zoo: skip all auto-retraining when the user requested
+        # zoo-only mode (predict/refine without ever training a new model).
+        if getattr(self._args, "from_zoo", False):
+            return
+
         zoo_entry = getattr(self, "_zoo_entry", None)
         if zoo_entry is None:
             return
@@ -5016,6 +5116,23 @@ class ValidationRunner(ABC):
             return topo_arg[0] if topo_arg else "chain_1d"
         return topo_arg or "chain_1d"
 
+    def _resolve_p_layers(self) -> int | None:
+        """Resolve the primary p_layers this runner ran with.
+
+        Handles the common shapes of self._args.p_layers: an int, a list
+        (multiple p — the first is the primary), or absent. Returns None when
+        the runner has no p_layers arg (so post-run sync regenerates all p).
+        """
+        p_arg = getattr(self._args, "p_layers", None)
+        if p_arg is None:
+            return None
+        if isinstance(p_arg, list):
+            return int(p_arg[0]) if p_arg else None
+        try:
+            return int(p_arg)
+        except (TypeError, ValueError):
+            return None
+
     def evaluate_noiseless_at_h(
         self,
         h: float,
@@ -5244,39 +5361,38 @@ class ValidationRunner(ABC):
         if model_kwargs:
             cache_key = (*cache_key, tuple(sorted(model_kwargs.items())))
 
-        # Level 1: in-memory cache (per-run, instant)
+        # Level 1: in-memory cache (per-run, instant). Not provided by the
+        # disk cache, so it stays here as the runner's fast path.
         if cache_key in self._gt_cache:
             return self._gt_cache[cache_key]
 
-        # Level 2: disk-persistent cache (cross-session, avoids DMRG recompute)
-        # Only use for standard models without custom kwargs (key format mismatch)
+        # Levels 2+3 (disk lookup, stale-floor invalidation, solve, persist,
+        # gap≤0 warning) are delegated to GroundTruthCache.get_or_compute so the
+        # get→solve→put logic lives in exactly one place. model_kwargs runs use
+        # a fresh solver path below (the disk cache key format doesn't carry
+        # custom params, so they must never touch the shared cache).
         if not model_kwargs:
             try:
-                import numpy as np
-
                 from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
 
                 disk_cache = getattr(self, "_disk_gt_cache", None)
                 if disk_cache is None:
                     disk_cache = GroundTruthCache()
                     self._disk_gt_cache = disk_cache
-                cached = disk_cache.get(topology, n_qubits, model, h)
-                if cached is not None:
-                    # Invalidate stale floor gaps: if N > 18 and gap ≈ 2π/N,
-                    # this was computed before the analytical gap fix and must
-                    # be recomputed. The analytical estimate is always > 2π/N
-                    # in the paramagnetic regime.
-                    cached_gap = float(cached["gap"])
-                    gap_floor = 2 * np.pi / n_qubits if n_qubits > 0 else 0
-                    is_stale_floor = n_qubits > 18 and abs(cached_gap - gap_floor) < 1e-4
-                    if not is_stale_floor:
-                        result = (float(cached["energy"]), cached_gap)
-                        self._gt_cache[cache_key] = result
-                        return result
-                    # else: fall through to recompute with analytical gap
+                result = disk_cache.get_or_compute(
+                    topology,
+                    n_qubits,
+                    model,
+                    h,
+                    flush=True,  # ValidationRunner uses os._exit(); persist now
+                    solver=getattr(self, "solver", None),
+                )
+                self._gt_cache[cache_key] = result
+                return result
             except (ImportError, OSError):
-                pass  # Disk cache unavailable — proceed to compute
+                pass  # Disk cache unavailable — fall through to direct compute
 
+        # ── Custom model_kwargs: compute directly (never shares the cache) ──
         from qmbp_simulation import make_lattice
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.solvers import ClassicalSolver
@@ -5286,12 +5402,10 @@ class ValidationRunner(ABC):
             spec = spec.with_params(**model_kwargs)
         lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
         H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
-        # Reuse self.solver if setup_physics() was called, else create fresh
         solver = getattr(self, "solver", None) or ClassicalSolver()
         gt = solver.solve(H, lattice)
         result = (float(gt.ground_energy), float(gt.gap))
 
-        # ── Gap validation: warn if gap ≤ 0 (invalid for ΔE/gap metric) ──
         if gt.gap <= 0:
             logger.warning(
                 "exact_ground_state: gap=%.2e ≤ 0 for %s N=%d h=%.4f. "
@@ -5304,18 +5418,6 @@ class ValidationRunner(ABC):
             )
 
         self._gt_cache[cache_key] = result
-
-        # Persist to disk cache for cross-session reuse.
-        # Flush immediately because ValidationRunner uses os._exit()
-        if not model_kwargs:
-            try:
-                disk_cache = getattr(self, "_disk_gt_cache", None)
-                if disk_cache is not None:
-                    disk_cache.put_from_result(topology, n_qubits, model, h, gt)
-                    disk_cache.flush()
-            except (OSError, AttributeError):
-                pass  # Non-fatal: disk cache write failed
-
         return result
 
     def exact_ground_state_with_observables(

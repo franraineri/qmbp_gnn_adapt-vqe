@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,9 +46,9 @@ class CrossNAnalysis:
     mean_abs_error: float = 0.0
     time_s: float = 0.0
     # h-region breakdown
-    h_easy_pass_rate: float = 0.0   # h > 2.5
+    h_easy_pass_rate: float = 0.0  # h > 2.5
     h_medium_pass_rate: float = 0.0  # 2.0 < h <= 2.5
-    h_hard_pass_rate: float = 0.0    # h <= 2.0
+    h_hard_pass_rate: float = 0.0  # h <= 2.0
 
 
 @dataclass
@@ -121,16 +120,13 @@ def analyze_cross_n_result(data: dict) -> list[CrossNAnalysis]:
                 mean_abs_error=result.get("mean_abs_error", 0.0),
                 time_s=result.get("elapsed_s", 0.0),
                 h_easy_pass_rate=(
-                    np.mean([1.0 if r["de_gap"] < 0.05 else 0.0 for r in easy])
-                    if easy else 0.0
+                    np.mean([1.0 if r["de_gap"] < 0.05 else 0.0 for r in easy]) if easy else 0.0
                 ),
                 h_medium_pass_rate=(
-                    np.mean([1.0 if r["de_gap"] < 0.05 else 0.0 for r in medium])
-                    if medium else 0.0
+                    np.mean([1.0 if r["de_gap"] < 0.05 else 0.0 for r in medium]) if medium else 0.0
                 ),
                 h_hard_pass_rate=(
-                    np.mean([1.0 if r["de_gap"] < 0.05 else 0.0 for r in hard])
-                    if hard else 0.0
+                    np.mean([1.0 if r["de_gap"] < 0.05 else 0.0 for r in hard]) if hard else 0.0
                 ),
             )
             analyses.append(analysis)
@@ -159,15 +155,17 @@ def format_report(report: AcceleratedReport) -> str:
 
     for topo in sorted(by_topo.keys()):
         analyses = sorted(by_topo[topo], key=lambda x: (x.p_layers, x.target_n))
-        lines.extend([
-            "",
-            f"{'─' * 60}",
-            f"  [{topo.upper()}] ({len(analyses)} configs)",
-            f"{'─' * 60}",
-            "",
-            f"  {'Config':<28} {'@5%':<7} {'@10%':<7} {'mean ΔE/gap':<12} {'h>2.5':<7} {'2.0<h<2.5':<10}",
-            "  " + "-" * 75,
-        ])
+        lines.extend(
+            [
+                "",
+                f"{'─' * 60}",
+                f"  [{topo.upper()}] ({len(analyses)} configs)",
+                f"{'─' * 60}",
+                "",
+                f"  {'Config':<28} {'@5%':<7} {'@10%':<7} {'mean ΔE/gap':<12} {'h>2.5':<7} {'2.0<h<2.5':<10}",
+                "  " + "-" * 75,
+            ]
+        )
 
         for a in analyses:
             config = f"N={a.train_n}→{a.target_n} p={a.p_layers}"
@@ -179,11 +177,13 @@ def format_report(report: AcceleratedReport) -> str:
 
         # Per-topology key findings
         best = max(analyses, key=lambda a: (a.pass_rate_10pct, -a.mean_de_gap))
-        lines.extend([
-            "",
-            f"  Best: N={best.train_n}→{best.target_n} "
-            f"(@10%={best.pass_rate_10pct:.0%}, mean={best.mean_de_gap:.4f})",
-        ])
+        lines.extend(
+            [
+                "",
+                f"  Best: N={best.train_n}→{best.target_n} "
+                f"(@10%={best.pass_rate_10pct:.0%}, mean={best.mean_de_gap:.4f})",
+            ]
+        )
 
         # N-scaling trend for this topology
         n_targets = sorted(set(a.target_n for a in analyses))
@@ -239,8 +239,10 @@ def analyze_from_dashboard() -> str:
 
     # ── Section A: Training Data Overview (from dashboard) ────────────────
     lines.extend(["", "  ┌── A. Training Data (dashboard, N≤20) ──────────────────────────┐", ""])
-    lines.append(f"  {'Topology':<12} {'N values':<20} {'pts':>4} {'dual%':>6} {'5pct%':>6} "
-                 f"{'gap_mask':>8} {'h_front':>8} {'quality':>8}")
+    lines.append(
+        f"  {'Topology':<12} {'N values':<20} {'pts':>4} {'dual%':>6} {'5pct%':>6} "
+        f"{'gap_mask':>8} {'h_front':>8} {'quality':>8}"
+    )
     lines.append("  " + "─" * 68)
 
     for topo in sorted(topo_sum.keys()):
@@ -293,9 +295,13 @@ def analyze_from_dashboard() -> str:
 
     # ── Section C: Large-N Extrapolation (from NPZ raw) ───────────────────
     if large_n_dir.exists() and list(large_n_dir.glob("*.npz")):
-        lines.extend(["", "  ┌── C. Large-N Extrapolation (per-h from NPZ) ────────────────────┐", ""])
-        lines.append(f"  {'Topo':<12} {'N':>4} {'h-range':<12} {'pts':>3} "
-                     f"{'pass':>5} {'g.mask':>6} {'fail':>4} {'|ΔE|/N':>9} {'scaling':>10}")
+        lines.extend(
+            ["", "  ┌── C. Large-N Extrapolation (per-h from NPZ) ────────────────────┐", ""]
+        )
+        lines.append(
+            f"  {'Topo':<12} {'N':>4} {'h-range':<12} {'pts':>3} "
+            f"{'pass':>5} {'g.mask':>6} {'fail':>4} {'|ΔE|/N':>9} {'scaling':>10}"
+        )
         lines.append("  " + "─" * 68)
 
         topo_scaling = defaultdict(list)
@@ -352,7 +358,9 @@ def analyze_from_dashboard() -> str:
 
     # ── Section D: Audit Issues (from dashboard) ──────────────────────────
     if audit:
-        lines.extend(["", "  ┌── D. Audit Issues ──────────────────────────────────────────────┐", ""])
+        lines.extend(
+            ["", "  ┌── D. Audit Issues ──────────────────────────────────────────────┐", ""]
+        )
         n_issues = audit.get("n_issues", 0)
         lines.append(f"  Total issues: {n_issues}")
         if audit.get("h_frontier_anomalies"):
@@ -367,13 +375,15 @@ def analyze_from_dashboard() -> str:
     speedups = _scan_speedup_data()
 
     if speedups:
-        lines.extend(["", "  ┌── E. QPU Speedup (MPNN vs VQE random-init) ────────────────────┐", ""])
+        lines.extend(
+            ["", "  ┌── E. QPU Speedup (MPNN vs VQE random-init) ────────────────────┐", ""]
+        )
         for (topo, n), spd in sorted(speedups.items()):
             lines.append(f"    {topo:<12} N={n:>3}: {spd:>8,.0f}×")
 
     # ── Section F: Failure Mode Diagnostics (Tests A-F) ───────────────────
-    from qmbp_simulation.analysis.metrics import (
-        classify_topology_failure_mode, diagnose_gap_masking,
+    from qmbp_simulation.analysis.failures_tests import (
+        classify_topology_failure_mode_from_dashboard,
     )
 
     lines.extend(["", "  ┌── F. Failure Mode Diagnostics (Tests A-F) ──────────────────────┐", ""])
@@ -407,8 +417,9 @@ def analyze_from_dashboard() -> str:
                     continue
 
         # Run unified classifier
-        diag = classify_topology_failure_mode(
-            topo, topo_configs,
+        diag = classify_topology_failure_mode_from_dashboard(
+            topo,
+            topo_configs,
             extrapolation_data=extrap_per_n if extrap_per_n else None,
         )
 
@@ -422,8 +433,7 @@ def analyze_from_dashboard() -> str:
         }.get(diag.primary_mode, "❓")
 
         lines.append(
-            f"  {mode_icon} {topo:<12} [{diag.primary_mode}] "
-            f"(confidence={diag.confidence:.0%})"
+            f"  {mode_icon} {topo:<12} [{diag.primary_mode}] (confidence={diag.confidence:.0%})"
         )
         lines.append(f"    {diag.explanation}")
 
@@ -432,9 +442,13 @@ def analyze_from_dashboard() -> str:
             if diag.violation_rate is not None:
                 lines.append(f"    Variational violations: {diag.violation_rate:.0%}")
             if diag.slope_b is not None and diag.fit_r_squared is not None:
-                lines.append(f"    |ΔE|/N trend: slope={diag.slope_b:.2e}, R²={diag.fit_r_squared:.2f}")
+                lines.append(
+                    f"    |ΔE|/N trend: slope={diag.slope_b:.2e}, R²={diag.fit_r_squared:.2f}"
+                )
             if diag.cross_n_per_site_ratios:
-                ratios_str = ", ".join(f"{k}={v:.1f}×" for k, v in diag.cross_n_per_site_ratios.items())
+                ratios_str = ", ".join(
+                    f"{k}={v:.1f}×" for k, v in diag.cross_n_per_site_ratios.items()
+                )
                 lines.append(f"    Cross-N per-site ratios: {ratios_str}")
             # Tests G-I
             if diag.per_site_verified is not None:
@@ -443,13 +457,19 @@ def analyze_from_dashboard() -> str:
                     f"approx={diag.per_site_approximate:.2e}/site, "
                     f"ratio={diag.verified_vs_approx_ratio:.2f}"
                 )
-            if diag.verified_high_error_fraction is not None and diag.verified_high_error_fraction > 0:
+            if (
+                diag.verified_high_error_fraction is not None
+                and diag.verified_high_error_fraction > 0
+            ):
                 lines.append(
                     f"    Verified with high error: {diag.verified_high_error_fraction:.0%} "
                     f"(best N={diag.best_n}, per-site={diag.best_n_per_site:.2e})"
                 )
             # Tests J-L
-            if diag.training_gap_masked_fraction is not None and diag.training_gap_masked_fraction > 0.05:
+            if (
+                diag.training_gap_masked_fraction is not None
+                and diag.training_gap_masked_fraction > 0.05
+            ):
                 lines.append(
                     f"    Training contamination: {diag.training_gap_masked_fraction:.0%} "
                     f"points gap-masked, θ_smoothness={diag.max_theta_smoothness:.2f}, "
@@ -472,7 +492,8 @@ def main():
     parser = argparse.ArgumentParser(description="Accelerated Cross-N Analyzer")
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument(
-        "--deep", action="store_true",
+        "--deep",
+        action="store_true",
         help="Run unified deep analysis from dashboard (thesis-ready)",
     )
     args = parser.parse_args()
@@ -509,7 +530,7 @@ def main():
 
     if not report.analyses:
         print("No accelerated cross-N results found.")
-        print(f"Run: .venv/bin/python scripts/.../run_accelerated_cross_n.py")
+        print("Run: .venv/bin/python scripts/.../run_accelerated_cross_n.py")
         return
 
     # Print report
@@ -547,11 +568,11 @@ class LargeNResult:
 def scan_large_n_extrapolation_results() -> list[LargeNResult]:
     """Scan for large-N extrapolation results from run_large_n_extrapolation.py."""
     results = []
-    
+
     # Check both results directory and NPZ data directory
     large_n_dir = ROOT / "data" / "large_n_extrapolation"
     exp_dir = RESULTS_DIR / "exp_large_n_extrap"
-    
+
     # 1. Scan NPZ files for cached predictions
     if large_n_dir.exists():
         for npz_file in sorted(large_n_dir.glob("*.npz")):
@@ -566,43 +587,45 @@ def scan_large_n_extrapolation_results() -> list[LargeNResult]:
                 topo = "_".join(parts[:n_idx])
                 n_val = int(parts[n_idx][1:])
                 p_val = int(parts[p_idx][1:])
-                
+
                 # Compute metrics
                 h_vals = data["h_values"]
                 e_pred = data.get("e_pred", data.get("e_vqe"))
                 e_exact = data["e_exact"]
                 gaps = data.get("gaps", np.ones(len(h_vals)))
-                
+
                 abs_err = np.abs(e_pred - e_exact)
                 de_gaps = abs_err / np.maximum(gaps, 1e-10)
-                
+
                 # Dual criterion pass rate
                 n_pass = int(np.sum((de_gaps < 0.05) & (abs_err < 0.10)))
-                
-                results.append(LargeNResult(
-                    topology=topo,
-                    target_n=n_val,
-                    p_layers=p_val,
-                    n_points=len(h_vals),
-                    pass_rate_dual=n_pass / max(len(h_vals), 1),
-                    mean_de_gap=float(de_gaps.mean()),
-                    mean_abs_error_per_site=float(abs_err.mean() / max(n_val, 1)),
-                    method="npz_cache",
-                ))
+
+                results.append(
+                    LargeNResult(
+                        topology=topo,
+                        target_n=n_val,
+                        p_layers=p_val,
+                        n_points=len(h_vals),
+                        pass_rate_dual=n_pass / max(len(h_vals), 1),
+                        mean_de_gap=float(de_gaps.mean()),
+                        mean_abs_error_per_site=float(abs_err.mean() / max(n_val, 1)),
+                        method="npz_cache",
+                    )
+                )
             except Exception as e:
                 logger.debug(f"Error reading {npz_file}: {e}")
-    
+
     # 2. Scan experiment results for JSON reports
     if exp_dir.exists():
         for f in sorted(exp_dir.glob("run_*.json")):
             try:
                 with open(f) as fp:
                     data = json.load(fp)
-                
+
                 config = data.get("config", {})
                 topo = config.get("topology", "chain_1d")
                 p = config.get("p_layers", 1)
-                
+
                 # Extract mpnn_results
                 results_sec = data.get("results", {})
                 for sec_key, section in results_sec.items():
@@ -610,30 +633,32 @@ def scan_large_n_extrapolation_results() -> list[LargeNResult]:
                         continue
                     sec_data = section.get("data", {})
                     mpnn_res = sec_data.get("mpnn_results", {})
-                    
+
                     for n_str, res in mpnn_res.items():
                         if not isinstance(res, dict):
                             continue
-                        results.append(LargeNResult(
-                            topology=topo,
-                            target_n=res.get("n_qubits", int(n_str)),
-                            p_layers=p,
-                            n_points=res.get("n_points", 0),
-                            pass_rate_dual=res.get("pass_rate_dual", 0.0),
-                            mean_de_gap=res.get("mean_de_gap", 0.0),
-                            mean_abs_error_per_site=res.get("mean_abs_error_per_site", 0.0),
-                            method="json_result",
-                        ))
+                        results.append(
+                            LargeNResult(
+                                topology=topo,
+                                target_n=res.get("n_qubits", int(n_str)),
+                                p_layers=p,
+                                n_points=res.get("n_points", 0),
+                                pass_rate_dual=res.get("pass_rate_dual", 0.0),
+                                mean_de_gap=res.get("mean_de_gap", 0.0),
+                                mean_abs_error_per_site=res.get("mean_abs_error_per_site", 0.0),
+                                method="json_result",
+                            )
+                        )
             except (json.JSONDecodeError, OSError, KeyError):
                 continue
-    
+
     # Deduplicate by (topology, target_n, p_layers), keeping best pass_rate_dual
     dedup = {}
     for r in results:
         key = (r.topology, r.target_n, r.p_layers)
         if key not in dedup or r.pass_rate_dual > dedup[key].pass_rate_dual:
             dedup[key] = r
-    
+
     return sorted(dedup.values(), key=lambda x: (x.topology, x.target_n))
 
 
@@ -641,7 +666,7 @@ def format_large_n_report(results: list[LargeNResult]) -> str:
     """Format large-N extrapolation results as text."""
     if not results:
         return ""
-    
+
     lines = [
         "",
         "═" * 60,
@@ -651,19 +676,20 @@ def format_large_n_report(results: list[LargeNResult]) -> str:
         f"  {'Topology':<12} {'N':<6} {'p':<3} {'pts':<5} {'dual%':<8} {'ΔE/gap':<10} {'|ΔE|/N':<10}",
         "  " + "-" * 58,
     ]
-    
+
     for r in results:
         lines.append(
             f"  {r.topology:<12} {r.target_n:<6} {r.p_layers:<3} {r.n_points:<5} "
             f"{r.pass_rate_dual:.0%}     {r.mean_de_gap:<10.4f} {r.mean_abs_error_per_site:<10.2e}"
         )
-    
+
     # Summary by topology
     from collections import defaultdict
+
     by_topo = defaultdict(list)
     for r in results:
         by_topo[r.topology].append(r)
-    
+
     lines.extend(["", "  Key findings:"])
     for topo, topo_results in sorted(by_topo.items()):
         n_max = max((r.target_n for r in topo_results if r.pass_rate_dual > 0.5), default=None)
@@ -676,7 +702,7 @@ def format_large_n_report(results: list[LargeNResult]) -> str:
                     f"    {topo}: best N={best.target_n} "
                     f"(dual={best.pass_rate_dual:.0%}, ΔE/gap={best.mean_de_gap:.4f})"
                 )
-    
+
     lines.append("═" * 60)
     return "\n".join(lines)
 
@@ -721,11 +747,10 @@ def analyze_large_n_scaling(results: list[LargeNResult]) -> str:
         return ""
 
     from qmbp_simulation.analysis.failures_tests import (
-        diagnose_gap_masking,
-        diagnose_generalization_failure,
-        diagnose_h_range_mismatch,
-        VARIATION_EXTENSIVE_MAX,
         VARIATION_DEGRADING_MAX,
+        VARIATION_EXTENSIVE_MAX,
+        diagnose_gap_masking,
+        diagnose_h_range_mismatch,
     )
 
     large_n_dir = ROOT / "data" / "large_n_extrapolation"
@@ -797,14 +822,16 @@ def analyze_large_n_scaling(results: list[LargeNResult]) -> str:
                     gm = diagnose_gap_masking(h_vals, de_gaps_arr, abs_err, n_val)
 
                     if gm["n_masked"] > 0 or gm["n_real_fail"] > 0:
-                        topo_failures.append({
-                            "n": n_val,
-                            "total": len(h_vals),
-                            "pass": gm["n_pass"],
-                            "gap_masked": gm["n_masked"],
-                            "real_fail": gm["n_real_fail"],
-                            "is_gap_masking": gm["is_gap_masking"],
-                        })
+                        topo_failures.append(
+                            {
+                                "n": n_val,
+                                "total": len(h_vals),
+                                "pass": gm["n_pass"],
+                                "gap_masked": gm["n_masked"],
+                                "real_fail": gm["n_real_fail"],
+                                "is_gap_masking": gm["is_gap_masking"],
+                            }
+                        )
                 except Exception:
                     continue
 
@@ -835,7 +862,9 @@ def analyze_large_n_scaling(results: list[LargeNResult]) -> str:
             if len(extrap_per_n) >= 2:
                 hm = diagnose_h_range_mismatch(extrap_per_n)
                 if hm["has_mismatch"]:
-                    lines.append(f"  ⚠️ {topo}: h-range mismatch (overlap={hm['overlap_fraction']:.0%})")
+                    lines.append(
+                        f"  ⚠️ {topo}: h-range mismatch (overlap={hm['overlap_fraction']:.0%})"
+                    )
                     for pair in hm["mismatch_pairs"]:
                         lines.append(f"      {pair}")
                     lines.append("")
@@ -895,8 +924,7 @@ def _cross_validate_with_dashboard(report: AcceleratedReport) -> None:
         if dashboard_n_max is not None and fresh_val is not None:
             if dashboard_n_max != fresh_val:
                 mismatches.append(
-                    f"  {topo}: dashboard n_max_viable={dashboard_n_max} "
-                    f"vs analyzer={fresh_val}"
+                    f"  {topo}: dashboard n_max_viable={dashboard_n_max} vs analyzer={fresh_val}"
                 )
 
     # Check cross_n_best_source consistency
@@ -935,7 +963,6 @@ def _cross_validate_with_dashboard(report: AcceleratedReport) -> None:
         print("  ⚠️ Discrepancies found (dashboard may need regeneration):")
         for m in mismatches:
             print(m)
-
 
 
 if __name__ == "__main__":

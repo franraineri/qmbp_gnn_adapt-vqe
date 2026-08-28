@@ -137,7 +137,6 @@ def check_training_data(topo_filter: str | None = None) -> dict:
                 n_pts,
                 pass_dual,
                 pass_5pct,
-                mean_abs_error=float(abs_err.mean()) if len(abs_err) > 0 else None,
             )
 
             entry = {"file": npz_file.name, "topo": topo, "n_pts": n_pts, "n_good": n_good}

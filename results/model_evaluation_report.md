@@ -1,8 +1,8 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-08-26 21:10 UTC
-**Elapsed**: 7.6s
-**Models evaluated**: 19
+**Generated**: 2026-08-28 23:34 UTC
+**Elapsed**: 8.3s
+**Models evaluated**: 25
 
 ---
 
@@ -93,27 +93,27 @@
 | N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
 |---|--------|-----|-------|------|--------|--------|-------|
 | 3 | IN | 8 | 2.6348e-02 | — | — | 0.0012 | A |
-| 4 | IN | 6 | 1.1482e-03 | — | — | 0.0050 | A |
+| 4 | IN | 8 | 1.9541e-01 | — | — | 0.1444 | D |
 | 4 | IN | 8 | 4.9060e-01 | — | — | 0.0204 | A |
 | 4 | IN | 8 | 5.6863e-03 | — | — | 0.0593 | C |
 | 4 | IN | 8 | 5.2425e-03 | — | — | 0.0340 | B |
 | 4 | IN | 8 | 1.5231e-02 | — | — | 0.1682 | D |
-| 6 | IN | 8 | 4.7953e-02 | — | — | 0.0153 | A |
+| 6 | IN | 8 | 3.9571e-02 | — | — | 0.4339 | F |
 | 6 | IN | 8 | 1.7775e-01 | — | — | 0.0086 | A |
 | 6 | IN | 8 | 3.4038e-02 | — | — | 0.0196 | A |
 | 6 | IN | 8 | 4.8388e-02 | — | — | 0.0599 | C |
 | 6 | IN | 8 | 5.8968e-03 | — | — | 0.0304 | B |
-| 8 | IN | 8 | 4.1364e-02 | — | — | 0.0198 | A |
+| 8 | IN | 8 | 5.0137e-02 | — | — | 9.2085 | F |
 | 8 | IN | 8 | 3.2350e-01 | — | — | 478.3574 | F |
 | 8 | IN | 8 | 4.2081e-02 | — | — | 0.0666 | C |
 | 8 | IN | 8 | 9.9763e-02 | — | — | 0.0180 | A |
 | 8 | IN | 8 | 6.2856e-03 | — | — | 3.0954 | F |
-| 10 | IN | 8 | 3.3738e-02 | — | — | 0.0145 | A |
+| 10 | IN | 8 | 1.2319e-02 | — | — | 39.1835 | F |
 | 10 | IN | 8 | 1.9627e-01 | — | — | 0.0286 | B |
 | 10 | IN | 8 | 2.8675e-02 | — | — | 0.0333 | B |
 | 10 | IN | 8 | 7.5771e-02 | — | — | 0.0194 | A |
 | 10 | IN | 8 | 7.6892e-02 | — | — | 0.7619 | F |
-| 12 | IN | 8 | 2.8633e-02 | — | — | 0.0218 | A |
+| 12 | IN | 8 | 2.1682e-02 | — | — | 0.4153 | F |
 | 12 | IN | 8 | 3.0902e-01 | — | — | 0.0571 | C |
 | 12 | IN | 8 | 1.2309e-02 | — | — | 0.0319 | B |
 | 12 | IN | 8 | 6.4605e-02 | — | — | 0.3563 | F |
@@ -123,12 +123,12 @@
 | 14 | IN | 8 | 6.9374e-02 | — | — | 0.1866 | D |
 | 14 | IN | 8 | 6.7382e-02 | — | — | 0.0537 | C |
 | 15 | IN | 8 | 1.2712e-01 | — | — | 0.0153 | A |
-| 16 | IN | 8 | 1.6839e-03 | — | — | 0.0197 | A |
+| 16 | IN | 8 | 1.2521e-02 | — | — | 49.0765 | F |
 | 16 | IN | 8 | 5.4352e-01 | — | — | 0.0512 | C |
 | 16 | IN | 8 | 2.8107e-02 | — | — | 0.0357 | B |
 | 16 | IN | 8 | 2.9272e-03 | — | — | 0.0597 | C |
 | 18 | IN | 8 | 1.1483e+00 | — | — | 20.4816 | F |
-| 20 | IN | 8 | 4.0382e-02 | — | — | 0.0333 | B |
+| 20 | IN | 8 | 3.2148e-02 | — | — | 0.7112 | F |
 | 20 | IN | 8 | 1.1257e+00 | — | — | 5.3181 | F |
 | 20 | IN | 8 | 4.6148e-03 | — | — | 0.2928 | F |
 | 20 | IN | 8 | 8.9337e-03 | — | — | 13.6147 | F |
@@ -155,32 +155,35 @@
 > **Metric Warnings:**
 > - ⚠️ Outlier: max ΔE/gap=0.007 is 6× the mean — median may be more representative N=3
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0149 (possible stale e_exact or gap) N=3
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=4
+> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0897 (possible stale e_exact or gap) N=4
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0617 (possible stale e_exact or gap) N=4
 > - ⚠️ Outlier: max ΔE/gap=1.087 is 6× the mean — median may be more representative N=4
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.7688 (possible stale e_exact or gap) N=4
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0385 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0548 (possible stale e_exact or gap) N=6
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1160 (possible stale e_exact or gap) N=6
 > - ⚠️ Outlier: max ΔE/gap=0.360 is 6× the mean — median may be more representative N=6
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0580 (possible stale e_exact or gap) N=6
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1024 (possible stale e_exact or gap) N=6
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0779 (possible stale e_exact or gap) N=8
+> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
 > - ⚠️ Outlier: max ΔE/gap=3825.547 is 8× the mean — median may be more representative N=8
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3824.1708 (possible stale e_exact or gap) N=8
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0857 (possible stale e_exact or gap) N=8
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0714 (possible stale e_exact or gap) N=8
 > - ⚠️ Outlier: max ΔE/gap=23.500 is 8× the mean — median may be more representative N=8
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 21.1681 (possible stale e_exact or gap) N=8
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0540 (possible stale e_exact or gap) N=10
+> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0924 (possible stale e_exact or gap) N=10
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1866 (possible stale e_exact or gap) N=10
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1110 (possible stale e_exact or gap) N=10
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.3036 (possible stale e_exact or gap) N=10
-> - ⚠️ Outlier: max ΔE/gap=0.120 is 6× the mean — median may be more representative N=12
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0597 (possible stale e_exact or gap) N=12
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.1038 (possible stale e_exact or gap) N=12
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=12
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1990 (possible stale e_exact or gap) N=12
 > - ⚠️ Outlier: max ΔE/gap=2.587 is 7× the mean — median may be more representative N=12
@@ -192,13 +195,15 @@
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1447 (possible stale e_exact or gap) N=14
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1378 (possible stale e_exact or gap) N=14
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1506 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0631 (possible stale e_exact or gap) N=16
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1400 (possible stale e_exact or gap) N=16
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.4327 (possible stale e_exact or gap) N=16
 > - ⚠️ Outlier: max ΔE/gap=139.153 is 7× the mean — median may be more representative N=18
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 137.3449 (possible stale e_exact or gap) N=18
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1099 (possible stale e_exact or gap) N=20
+> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 14.0321 (possible stale e_exact or gap) N=20
 > - ⚠️ Outlier: max ΔE/gap=1.481 is 5× the mean — median may be more representative N=20
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.0156 (possible stale e_exact or gap) N=20
@@ -268,15 +273,15 @@
 
 | N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
 |---|--------|-----|-------|------|--------|--------|-------|
-| 4 | IN | 6 | 4.2892e-04 | — | — | 0.0050 | A |
-| 6 | IN | 8 | 4.7533e-02 | — | — | 0.0153 | A |
-| 8 | IN | 8 | 4.1203e-02 | — | — | 0.0198 | A |
-| 10 | IN | 8 | 3.3033e-02 | — | — | 0.0145 | A |
-| 12 | IN | 8 | 2.7171e-02 | — | — | 0.0218 | A |
+| 4 | IN | 8 | 2.0312e-01 | — | — | 0.1444 | D |
+| 6 | IN | 8 | 3.9338e-02 | — | — | 0.4339 | F |
+| 8 | IN | 8 | 5.0125e-02 | — | — | 9.2085 | F |
+| 10 | IN | 8 | 1.1206e-02 | — | — | 39.1835 | F |
+| 12 | IN | 8 | 1.9979e-02 | — | — | 0.4153 | F |
 | 14 | IN | 5 | 0.0000e+00 | — | — | 0.0167 | B |
 | 15 | IN | 8 | 1.2750e-01 | — | — | 0.0153 | A |
-| 16 | IN | 8 | 1.0541e-03 | — | — | 0.0197 | A |
-| 20 | IN | 8 | 3.9527e-02 | — | — | 0.0333 | B |
+| 16 | IN | 8 | 1.1291e-02 | — | — | 49.0765 | F |
+| 20 | IN | 8 | 3.1025e-02 | — | — | 0.7112 | F |
 | 26 | IN | 6 | 7.4895e-04 | — | — | 0.0154 | B |
 | 30 | IN | 8 | 1.5753e-03 | — | — | 0.0331 | B |
 | 40 | IN | 8 | 2.1457e-03 | — | — | 0.0424 | B |
@@ -287,16 +292,21 @@
 | 200 | EXT | 3 | — | — | 3.59e-02 | 1.0472 | F |
 
 > **Metric Warnings:**
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=4
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0385 (possible stale e_exact or gap) N=6
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0779 (possible stale e_exact or gap) N=8
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0540 (possible stale e_exact or gap) N=10
-> - ⚠️ Outlier: max ΔE/gap=0.120 is 6× the mean — median may be more representative N=12
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0597 (possible stale e_exact or gap) N=12
+> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
+> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
+> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.1038 (possible stale e_exact or gap) N=12
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1055 (possible stale e_exact or gap) N=14
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1506 (possible stale e_exact or gap) N=16
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1099 (possible stale e_exact or gap) N=20
+> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1208 (possible stale e_exact or gap) N=26
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.3921 (possible stale e_exact or gap) N=30
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
@@ -306,15 +316,15 @@
 
 | N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
 |---|--------|-----|-------|------|--------|--------|-------|
-| 4 | IN | 6 | 5.4325e-04 | — | — | 0.0050 | A |
-| 6 | IN | 8 | 4.7338e-02 | — | — | 0.0153 | A |
-| 8 | IN | 8 | 4.3363e-02 | — | — | 0.0198 | A |
-| 10 | IN | 8 | 5.0710e-02 | — | — | 0.0145 | A |
-| 12 | IN | 8 | 6.0847e-02 | — | — | 0.0218 | A |
+| 4 | IN | 8 | 2.0390e-01 | — | — | 0.1444 | D |
+| 6 | IN | 8 | 4.0025e-02 | — | — | 0.4339 | F |
+| 8 | IN | 8 | 5.3616e-02 | — | — | 9.2085 | F |
+| 10 | IN | 8 | 2.6620e-02 | — | — | 39.1835 | F |
+| 12 | IN | 8 | 5.8651e-02 | — | — | 0.4153 | F |
 | 14 | IN | 5 | 6.9282e-02 | — | — | 0.0167 | B |
 | 15 | IN | 8 | 2.0189e-01 | — | — | 0.0153 | A |
-| 16 | IN | 8 | 8.4249e-02 | — | — | 0.0197 | A |
-| 20 | IN | 8 | 1.2937e-01 | — | — | 0.0333 | B |
+| 16 | IN | 8 | 6.5399e-02 | — | — | 49.0765 | F |
+| 20 | IN | 8 | 1.1158e-01 | — | — | 0.7112 | F |
 | 26 | IN | 6 | 3.2276e-02 | — | — | 0.0154 | B |
 | 30 | IN | 8 | 5.7665e-02 | — | — | 0.0331 | B |
 | 40 | IN | 8 | 2.7299e-01 | — | — | 0.0424 | B |
@@ -325,16 +335,21 @@
 | 200 | EXT | 3 | — | — | 3.59e-02 | 1.0472 | F |
 
 > **Metric Warnings:**
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=4
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0385 (possible stale e_exact or gap) N=6
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0779 (possible stale e_exact or gap) N=8
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0540 (possible stale e_exact or gap) N=10
-> - ⚠️ Outlier: max ΔE/gap=0.120 is 6× the mean — median may be more representative N=12
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0597 (possible stale e_exact or gap) N=12
+> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
+> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
+> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.1038 (possible stale e_exact or gap) N=12
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1055 (possible stale e_exact or gap) N=14
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1506 (possible stale e_exact or gap) N=16
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1099 (possible stale e_exact or gap) N=20
+> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1208 (possible stale e_exact or gap) N=26
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.3921 (possible stale e_exact or gap) N=30
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
@@ -344,15 +359,15 @@
 
 | N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
 |---|--------|-----|-------|------|--------|--------|-------|
-| 4 | IN | 6 | 5.4325e-04 | — | — | 0.0050 | A |
-| 6 | IN | 8 | 4.7338e-02 | — | — | 0.0153 | A |
-| 8 | IN | 8 | 4.3363e-02 | — | — | 0.0198 | A |
-| 10 | IN | 8 | 5.0710e-02 | — | — | 0.0145 | A |
-| 12 | IN | 8 | 6.0847e-02 | — | — | 0.0218 | A |
+| 4 | IN | 8 | 2.0390e-01 | — | — | 0.1444 | D |
+| 6 | IN | 8 | 4.0025e-02 | — | — | 0.4339 | F |
+| 8 | IN | 8 | 5.3616e-02 | — | — | 9.2085 | F |
+| 10 | IN | 8 | 2.6620e-02 | — | — | 39.1835 | F |
+| 12 | IN | 8 | 5.8651e-02 | — | — | 0.4153 | F |
 | 14 | IN | 5 | 6.9282e-02 | — | — | 0.0167 | B |
 | 15 | IN | 8 | 2.0189e-01 | — | — | 0.0153 | A |
-| 16 | IN | 8 | 8.4249e-02 | — | — | 0.0197 | A |
-| 20 | IN | 8 | 1.2937e-01 | — | — | 0.0333 | B |
+| 16 | IN | 8 | 6.5399e-02 | — | — | 49.0765 | F |
+| 20 | IN | 8 | 1.1158e-01 | — | — | 0.7112 | F |
 | 26 | IN | 6 | 3.2276e-02 | — | — | 0.0154 | B |
 | 30 | IN | 8 | 5.7665e-02 | — | — | 0.0331 | B |
 | 40 | IN | 8 | 2.7299e-01 | — | — | 0.0424 | B |
@@ -363,16 +378,21 @@
 | 200 | EXT | 3 | — | — | 3.59e-02 | 1.0472 | F |
 
 > **Metric Warnings:**
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=4
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0385 (possible stale e_exact or gap) N=6
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0779 (possible stale e_exact or gap) N=8
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0540 (possible stale e_exact or gap) N=10
-> - ⚠️ Outlier: max ΔE/gap=0.120 is 6× the mean — median may be more representative N=12
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0597 (possible stale e_exact or gap) N=12
+> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
+> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
+> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.1038 (possible stale e_exact or gap) N=12
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1055 (possible stale e_exact or gap) N=14
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1506 (possible stale e_exact or gap) N=16
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1099 (possible stale e_exact or gap) N=20
+> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1208 (possible stale e_exact or gap) N=26
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.3921 (possible stale e_exact or gap) N=30
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
@@ -844,6 +864,244 @@
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.9199 (possible stale e_exact or gap) N=30
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0448 (possible stale e_exact or gap) N=40
 
+## chain_1d — `unifMPNN__chain_1d_p1_h_0p5_1p5.pt`
+
+| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
+|---|--------|-----|-------|------|--------|--------|-------|
+| 4 | IN | 8 | 2.1148e-01 | — | — | 0.1444 | D |
+| 6 | IN | 8 | 4.2540e-02 | — | — | 0.4339 | F |
+| 8 | IN | 8 | 5.0934e-02 | — | — | 9.2085 | F |
+| 10 | IN | 8 | 1.1774e-02 | — | — | 39.1835 | F |
+| 12 | IN | 8 | 2.1800e-02 | — | — | 0.4153 | F |
+| 14 | IN | 5 | 6.6724e-03 | — | — | 0.0167 | B |
+| 15 | IN | 8 | 1.3606e-01 | — | — | 0.0153 | A |
+| 16 | IN | 8 | 1.1363e-02 | — | — | 49.0765 | F |
+| 20 | IN | 8 | 3.3934e-02 | — | — | 0.7112 | F |
+| 26 | IN | 6 | 7.4185e-03 | — | — | 0.0154 | B |
+| 30 | IN | 8 | 7.5837e-03 | — | — | 0.0331 | B |
+| 40 | IN | 8 | 8.2430e-03 | — | — | 0.0424 | B |
+| 60 | IN | 8 | 8.3018e-03 | — | — | 0.0594 | C |
+| 80 | EXT | 8 | — | — | 8.85e-03 | 0.1658 | D |
+| 100 | EXT | 19 | — | — | 7.98e-03 | 0.1369 | D |
+| 150 | EXT | 3 | — | — | 3.58e-02 | 0.7841 | F |
+| 200 | EXT | 3 | — | — | 3.59e-02 | 1.0472 | F |
+
+> **Metric Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
+> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
+> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.1038 (possible stale e_exact or gap) N=12
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1055 (possible stale e_exact or gap) N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
+> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1208 (possible stale e_exact or gap) N=26
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.3921 (possible stale e_exact or gap) N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.8478 (possible stale e_exact or gap) N=60
+
+## chain_1d — `unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt`
+
+| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
+|---|--------|-----|-------|------|--------|--------|-------|
+| 4 | IN | 8 | 2.3961e-01 | — | — | 0.1444 | D |
+| 6 | IN | 8 | 6.5744e-02 | — | — | 0.4339 | F |
+| 8 | IN | 8 | 5.9434e-02 | — | — | 9.2085 | F |
+| 10 | IN | 8 | 3.5540e-02 | — | — | 39.1835 | F |
+| 12 | IN | 8 | 4.9843e-02 | — | — | 0.4153 | F |
+| 14 | IN | 5 | 6.4259e-02 | — | — | 0.0167 | B |
+| 15 | IN | 8 | 1.8320e-01 | — | — | 0.0153 | A |
+| 16 | IN | 8 | 4.6039e-02 | — | — | 49.0765 | F |
+| 20 | IN | 8 | 9.2891e-02 | — | — | 0.7112 | F |
+| 26 | IN | 6 | 1.1017e-01 | — | — | 0.0154 | B |
+| 30 | IN | 8 | 8.8713e-02 | — | — | 0.0331 | B |
+| 40 | IN | 8 | 1.0657e-01 | — | — | 0.0424 | B |
+| 60 | IN | 8 | 1.2237e-01 | — | — | 0.0594 | C |
+| 80 | EXT | 8 | — | — | 8.85e-03 | 0.1658 | D |
+| 100 | EXT | 19 | — | — | 7.98e-03 | 0.1369 | D |
+| 150 | EXT | 3 | — | — | 3.58e-02 | 0.7841 | F |
+| 200 | EXT | 3 | — | — | 3.59e-02 | 1.0472 | F |
+
+> **Metric Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
+> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
+> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.1038 (possible stale e_exact or gap) N=12
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1055 (possible stale e_exact or gap) N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
+> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1208 (possible stale e_exact or gap) N=26
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.3921 (possible stale e_exact or gap) N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.8478 (possible stale e_exact or gap) N=60
+
+## heavy_hex — `unified_tfim_br_heavy_hex_fromMT_4+6+8+10+12+14+18+20+21+26+30+40_p1.pt`
+
+| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
+|---|--------|-----|-------|------|--------|--------|-------|
+| 4 | IN | 8 | 2.4768e+00 | — | — | 0.0204 | A |
+| 6 | IN | 8 | 1.2076e+00 | — | — | 0.0086 | A |
+| 8 | IN | 8 | 3.9972e+00 | — | — | 478.3574 | F |
+| 10 | IN | 8 | 4.6485e+00 | — | — | 0.0286 | B |
+| 12 | IN | 8 | 2.8572e+00 | — | — | 0.0571 | C |
+| 14 | IN | 8 | 4.8697e+00 | — | — | 24.6514 | F |
+| 16 | IN | 8 | 4.9867e+00 | — | — | 0.0512 | C |
+| 18 | IN | 8 | 4.6711e+00 | — | — | 20.4816 | F |
+| 20 | IN | 8 | 7.6569e+00 | — | — | 5.3181 | F |
+| 21 | IN | 8 | 4.7187e+00 | — | — | 0.0030 | A |
+| 22 | IN | 8 | 7.7837e+00 | — | — | 0.0145 | A |
+| 24 | IN | 8 | 4.5681e+00 | — | — | 0.0207 | A |
+| 26 | IN | 5 | 1.2388e+01 | — | — | 0.0247 | B |
+| 30 | IN | 8 | 7.4704e+00 | — | — | 0.7698 | F |
+| 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
+| 40 | IN | 6 | 1.2393e+01 | — | — | 0.0390 | C |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
+| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+
+> **Metric Warnings:**
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0548 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=3825.547 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3824.1708 (possible stale e_exact or gap) N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0924 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=12
+> - ⚠️ Outlier: max ΔE/gap=170.795 is 7× the mean — median may be more representative N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 169.3679 (possible stale e_exact or gap) N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0631 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=139.153 is 7× the mean — median may be more representative N=18
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 137.3449 (possible stale e_exact or gap) N=18
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 14.0321 (possible stale e_exact or gap) N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0158 (possible stale e_exact or gap) N=21
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0236 (possible stale e_exact or gap) N=22
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0332 (possible stale e_exact or gap) N=24
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1205 (possible stale e_exact or gap) N=26
+> - ⚠️ Outlier: max ΔE/gap=4.958 is 6× the mean — median may be more representative N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.9199 (possible stale e_exact or gap) N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0448 (possible stale e_exact or gap) N=40
+
+## heavy_hex — `unified_multiN_heavyhex_p1.pt`
+
+| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
+|---|--------|-----|-------|------|--------|--------|-------|
+| 4 | IN | 8 | 5.5722e-01 | — | — | 0.0204 | A |
+| 6 | IN | 8 | 1.3359e-01 | — | — | 0.0086 | A |
+| 8 | IN | 8 | 4.7228e-01 | — | — | 478.3574 | F |
+| 10 | IN | 8 | 3.3005e-01 | — | — | 0.0286 | B |
+| 12 | IN | 8 | 4.9396e-01 | — | — | 0.0571 | C |
+| 14 | IN | 8 | 6.3222e-01 | — | — | 24.6514 | F |
+| 16 | IN | 8 | 9.0727e-01 | — | — | 0.0512 | C |
+| 18 | IN | 8 | 1.4130e+00 | — | — | 20.4816 | F |
+| 20 | IN | 8 | 1.4472e+00 | — | — | 5.3181 | F |
+| 21 | IN | 8 | 8.6490e-01 | — | — | 0.0030 | A |
+| 22 | IN | 8 | 9.5031e-01 | — | — | 0.0145 | A |
+| 24 | IN | 8 | 1.4335e+00 | — | — | 0.0207 | A |
+| 26 | IN | 5 | 1.6953e+00 | — | — | 0.0247 | B |
+| 30 | IN | 8 | 3.2713e+00 | — | — | 0.7698 | F |
+| 32 | EXT | 10 | — | — | 2.02e-02 | 0.3840 | F |
+| 40 | IN | 6 | 1.8466e+01 | — | — | 0.0390 | C |
+| 50 | EXT | 6 | — | — | 1.84e-02 | 0.2856 | F |
+| 60 | EXT | 6 | — | — | 3.25e-02 | 0.5467 | F |
+
+> **Metric Warnings:**
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0480 (possible stale e_exact or gap) N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0548 (possible stale e_exact or gap) N=6
+> - ⚠️ Outlier: max ΔE/gap=3825.547 is 8× the mean — median may be more representative N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3824.1708 (possible stale e_exact or gap) N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0924 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0346 (possible stale e_exact or gap) N=12
+> - ⚠️ Outlier: max ΔE/gap=170.795 is 7× the mean — median may be more representative N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 169.3679 (possible stale e_exact or gap) N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0631 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=139.153 is 7× the mean — median may be more representative N=18
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 137.3449 (possible stale e_exact or gap) N=18
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 14.0321 (possible stale e_exact or gap) N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0158 (possible stale e_exact or gap) N=21
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0236 (possible stale e_exact or gap) N=22
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0332 (possible stale e_exact or gap) N=24
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1205 (possible stale e_exact or gap) N=26
+> - ⚠️ Outlier: max ΔE/gap=4.958 is 6× the mean — median may be more representative N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.9199 (possible stale e_exact or gap) N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0448 (possible stale e_exact or gap) N=40
+
+## ladder — `unified_tfim_br_ladder_fromMT_4+6+8+10+12+14+20+26+30_p1.pt`
+
+| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
+|---|--------|-----|-------|------|--------|--------|-------|
+| 4 | IN | 8 | 5.7197e-02 | — | — | 0.0593 | C |
+| 6 | IN | 8 | 7.0391e-02 | — | — | 0.0196 | A |
+| 8 | IN | 8 | 1.1768e-01 | — | — | 0.0666 | C |
+| 10 | IN | 8 | 4.7882e-02 | — | — | 0.0333 | B |
+| 12 | IN | 8 | 1.6533e-02 | — | — | 0.0319 | B |
+| 14 | IN | 8 | 9.2352e-02 | — | — | 0.1866 | D |
+| 16 | IN | 8 | 3.1760e-02 | — | — | 0.0357 | B |
+| 20 | IN | 8 | 7.2421e-03 | — | — | 0.2928 | F |
+| 26 | IN | 8 | 4.9908e-03 | — | — | 0.6368 | F |
+| 30 | IN | 8 | 4.6824e-03 | — | — | 0.4806 | F |
+| 40 | IN | 2 | 7.8832e-03 | — | — | 0.0465 | D |
+
+> **Metric Warnings:**
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0897 (possible stale e_exact or gap) N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1160 (possible stale e_exact or gap) N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0857 (possible stale e_exact or gap) N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1866 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1990 (possible stale e_exact or gap) N=12
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1447 (possible stale e_exact or gap) N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1400 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=1.481 is 5× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.0156 (possible stale e_exact or gap) N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.9788 (possible stale e_exact or gap) N=26
+> - ⚠️ Outlier: max ΔE/gap=3.509 is 7× the mean — median may be more representative N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.7743 (possible stale e_exact or gap) N=30
+> - ⚠️ Only 2 points — means have low statistical confidence N=40
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1298 (possible stale e_exact or gap) N=40
+
+## ladder — `unified_tfim_br_ladder_multiN_4+6+8+10+12+14+20+26+30_p1_v4.pt`
+
+| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
+|---|--------|-----|-------|------|--------|--------|-------|
+| 4 | IN | 8 | 8.4447e-03 | — | — | 0.0593 | C |
+| 6 | IN | 8 | 3.1543e-02 | — | — | 0.0196 | A |
+| 8 | IN | 8 | 4.3556e-02 | — | — | 0.0666 | C |
+| 10 | IN | 8 | 3.6837e-02 | — | — | 0.0333 | B |
+| 12 | IN | 8 | 2.9067e-02 | — | — | 0.0319 | B |
+| 14 | IN | 8 | 1.3050e-01 | — | — | 0.1866 | D |
+| 16 | IN | 8 | 7.0342e-02 | — | — | 0.0357 | B |
+| 20 | IN | 8 | 7.4781e-02 | — | — | 0.2928 | F |
+| 26 | IN | 8 | 1.1893e-01 | — | — | 0.6368 | F |
+| 30 | IN | 8 | 1.3722e-01 | — | — | 0.4806 | F |
+| 40 | IN | 2 | 1.9940e-01 | — | — | 0.0465 | D |
+
+> **Metric Warnings:**
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0897 (possible stale e_exact or gap) N=4
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1160 (possible stale e_exact or gap) N=6
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.0857 (possible stale e_exact or gap) N=8
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1866 (possible stale e_exact or gap) N=10
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1990 (possible stale e_exact or gap) N=12
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1447 (possible stale e_exact or gap) N=14
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1400 (possible stale e_exact or gap) N=16
+> - ⚠️ Outlier: max ΔE/gap=1.481 is 5× the mean — median may be more representative N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.0156 (possible stale e_exact or gap) N=20
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1.9788 (possible stale e_exact or gap) N=26
+> - ⚠️ Outlier: max ΔE/gap=3.509 is 7× the mean — median may be more representative N=30
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.7743 (possible stale e_exact or gap) N=30
+> - ⚠️ Only 2 points — means have low statistical confidence N=40
+> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1298 (possible stale e_exact or gap) N=40
+
 ---
 
 ## Summary Ranking
@@ -851,10 +1109,14 @@
 | Topology | Checkpoint | In-dist θ MSE | Out-dist |ΔE|/N | Grade |
 |----------|-----------|:---:|:---:|:---:|
 | ladder | unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26 | 1.7927e-02 | — | B (good) |
-| multi_topology | unified_tfim_br_MT_residual+film_p1.pt | 1.2656e-01 | 2.12e-02 | F (failing) |
-| chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 2.4984e-02 | 2.21e-02 | F (failing) |
-| chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.2300e-01 | 2.21e-02 | F (failing) |
-| chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.2300e-01 | 2.21e-02 | F (failing) |
+| ladder | unified_tfim_br_ladder_fromMT_4+6+8+10+12+14+20+26 | 4.1691e-02 | — | C (acceptable) |
+| ladder | unified_tfim_br_ladder_multiN_4+6+8+10+12+14+20+26 | 8.0056e-02 | — | F (failing) |
+| multi_topology | unified_tfim_br_MT_residual+film_p1.pt | 1.2975e-01 | 2.12e-02 | F (failing) |
+| chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 3.8533e-02 | 2.21e-02 | F (failing) |
+| chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.3402e-01 | 2.21e-02 | F (failing) |
+| chain_1d | unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20 | 1.3402e-01 | 2.21e-02 | F (failing) |
+| chain_1d | unifMPNN__chain_1d_p1_h_0p5_1p5.pt | 4.2931e-02 | 2.21e-02 | F (failing) |
+| chain_1d | unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt | 9.7260e-02 | 2.21e-02 | F (failing) |
 | heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 3.6151e+02 | 2.37e-02 | F (failing) |
 | heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+4 | 1.4488e+00 | 2.37e-02 | F (failing) |
 | heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p | 1.3037e+00 | 2.37e-02 | F (failing) |
@@ -866,6 +1128,8 @@
 | heavy_hex | unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18 | 3.5758e-01 | 2.37e-02 | F (failing) |
 | heavy_hex | unifMPNN__heavy_hex_p1_res_mse.pt | 3.6329e-01 | 2.37e-02 | F (failing) |
 | heavy_hex | unifMPNN__heavy_hex_p1_res_film_mse.pt | 3.6336e-01 | 2.37e-02 | F (failing) |
+| heavy_hex | unified_tfim_br_heavy_hex_fromMT_4+6+8+10+12+14+18 | 5.7796e+00 | 2.37e-02 | F (failing) |
+| heavy_hex | unified_multiN_heavyhex_p1.pt | 2.2045e+00 | 2.37e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt | 4.5781e-02 | 2.97e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4 | 7.8955e-02 | 2.97e-02 | F (failing) |
 | triangular | unified_tfim_br_triangular_multiN_3+4+6_p1.pt | 9.5203e-02 | 2.09e-01 | F (failing) |
@@ -874,7 +1138,7 @@
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-08-26 21:10 UTC
+**Generated**: 2026-08-28 23:34 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

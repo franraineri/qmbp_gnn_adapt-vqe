@@ -96,8 +96,7 @@ def resolve_device(prefer: str | None = None):
             if torch.cuda.is_available():
                 return torch.device(requested)
             _logger.warning(
-                "resolve_device: '%s' requested but CUDA is not available. "
-                "Falling back to CPU.",
+                "resolve_device: '%s' requested but CUDA is not available. Falling back to CPU.",
                 requested,
             )
             return torch.device("cpu")
@@ -132,6 +131,65 @@ def describe_device(device=None) -> str:
         n = torch.cuda.device_count()
         return f"cuda:{idx} ({name}) [{n} GPU(s) visible]"
     return str(dev)
+
+
+def prepare_model_device(model, *, log_prefix: str = ""):
+    """Resolve the compute device, move ``model`` onto it, and log the choice.
+
+    Standardizes the training-loop preamble shared by every train_* function:
+    resolve device → ``model.to(device)`` → log a one-line device description.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Model to move onto the resolved device (modified/returned).
+    log_prefix : str
+        Optional prefix for the log line (e.g. "train_mpnn"), to identify the
+        caller in the run log.
+
+    Returns
+    -------
+    tuple[torch.nn.Module, torch.device]
+        The model (now on ``device``) and the resolved device.
+    """
+    import logging
+
+    device = resolve_device()
+    model = model.to(device)
+    label = f"{log_prefix} device" if log_prefix else "device"
+    logging.getLogger(__name__).info("  %s: %s", label, describe_device(device))
+    return model, device
+
+
+def finalize_model_device(model, device):
+    """Move ``model`` back to CPU and free GPU memory after training.
+
+    Standardizes the training-loop epilogue: returning the model to CPU keeps
+    checkpoints device-agnostic and downstream inference (which builds graphs
+    on CPU) working, and ``empty_cache()`` releases GPU memory for the next
+    job on shared/Kubeflow nodes.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Trained model to move to CPU (modified/returned).
+    device : torch.device
+        The device training ran on (from ``prepare_model_device``).
+
+    Returns
+    -------
+    torch.nn.Module
+        The model, now on CPU.
+    """
+    model = model.to("cpu")
+    try:
+        import torch
+
+        if torch.device(device).type == "cuda":
+            torch.cuda.empty_cache()
+    except ImportError:
+        pass
+    return model
 
 
 # ─────────────────────────────────────────────────────────────────────────────

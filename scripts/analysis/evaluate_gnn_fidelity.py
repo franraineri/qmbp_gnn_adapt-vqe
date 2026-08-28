@@ -7,8 +7,9 @@ viability: if F > F_min, the QPU experiment will produce valid results.
 
 Methods:
 A) Direct fidelity (N ≤ 22): exact statevector overlap via NoiselessBackend
-B) Energy lower bound (N > 22): F ≥ 1 - (E_pred - E_exact) / gap
-   from existing large_n_extrapolation NPZ data
+B) Energy-gap lower bound (N > 22): F ≥ 1 - (E_pred - E₀) / gap (first-order,
+   variational-principle bound; weaker than and not comparable to the Eckart
+   variance bound F ≥ 1 - Var(H)/gap²). From large_n_extrapolation NPZ data.
 
 Usage:
     # Direct fidelity for N=10-20 at h=3.0 (hardware operating point)
@@ -47,7 +48,7 @@ class FidelityResult:
     n_qubits: int
     h: float
     fidelity: float
-    method: str  # "direct_statevector" or "energy_bound"
+    method: str  # "direct_statevector" or "energy_gap_bound"
     e_pred: float | None = None
     e_exact: float | None = None
     gap: float | None = None
@@ -141,8 +142,16 @@ def evaluate_direct_fidelity(
 
     psi_exact /= np.linalg.norm(psi_exact)
 
-    # Compute fidelity
-    fidelity = float(np.abs(np.vdot(psi_exact, psi_gnn)) ** 2)
+    # Compute fidelity via the canonical helper: it routes both states through
+    # Qiskit's Statevector/state_fidelity, keeping a single qubit-ordering
+    # convention and avoiding a raw np.vdot overlap that is exposed to endianness
+    # mismatches between the circuit and the solver eigenvector.
+    from qmbp_simulation.analysis.fidelity import compute_exact_fidelity
+
+    fidelity = compute_exact_fidelity(circuit, theta_pred, psi_exact)
+    if fidelity is None:
+        logger.warning(f"  Exact fidelity failed for {topology} N={n_qubits} h={h}")
+        return None
 
     # Also compute energy of GNN state
     H_mat = H_op.to_matrix(sparse=True) if n_qubits > 14 else np.asarray(H_op.to_matrix())
@@ -183,11 +192,24 @@ def evaluate_energy_bound(
     n_qubits: int,
     p_layers: int = 1,
 ) -> list[FidelityResult]:
-    """Compute fidelity lower bound from extrapolation NPZ data.
+    """First-order (energy-gap) fidelity lower bound from extrapolation NPZ.
 
-    F ≥ 1 - (E_pred - E_exact) / gap
+    F ≥ 1 − (E_pred − E₀) / gap
 
-    Uses existing evaluated data — zero compute cost.
+    This is the variational-principle bound: writing |ψ⟩ = Σ c_k|E_k⟩, the
+    excess energy is E_pred − E₀ = Σ|c_k|²(E_k − E₀) ≥ (1 − F)·gap, hence
+    F = |c₀|² ≥ 1 − (E_pred − E₀)/gap. It is a RIGOROUS but WEAKER bound than
+    the Eckart / variance bound (F ≥ 1 − Var(H)/gap²) used by the canonical
+    ``compute_variance_fidelity_bound``; the two use different information
+    (mean energy gap here vs. energy variance there) and are NOT directly
+    comparable. Method tag ``"energy_gap_bound"`` marks this provenance.
+
+    Validity: like Eckart, this only bounds GROUND-state fidelity while the
+    state lies below the midpoint between E₀ and E₁ (E_pred < E₀ + gap/2).
+    Points that fail this are skipped (the bound would not certify ground
+    fidelity there).
+
+    Uses existing evaluated NPZ data — zero compute cost (no circuit rebuild).
     """
     npz_path = (
         _project_root / "data" / "large_n_extrapolation" / f"{topology}_N{n_qubits}_p{p_layers}.npz"
@@ -221,6 +243,10 @@ def evaluate_energy_bound(
         de = e_vqe[i] - e_exact[i]
         if de < 0:
             de = 0  # Variational principle: E_pred >= E_exact (numerical noise)
+        # Validity: skip points where the state sits past the E₀↔E₁ midpoint —
+        # there the bound no longer certifies ground-state fidelity.
+        if de >= 0.5 * gaps[i]:
+            continue
         f_bound = 1.0 - de / gaps[i]
         f_bound = max(0.0, min(1.0, f_bound))  # Clamp to [0, 1]
         de_gap = abs(e_vqe[i] - e_exact[i]) / gaps[i]
@@ -230,7 +256,7 @@ def evaluate_energy_bound(
                 n_qubits=n_qubits,
                 h=float(h_values[i]),
                 fidelity=f_bound,
-                method="energy_bound",
+                method="energy_gap_bound",
                 e_pred=float(e_vqe[i]),
                 e_exact=float(e_exact[i]),
                 gap=float(gaps[i]),

@@ -1,0 +1,20 @@
+% ==== AUTO-GENERADA — no editar a mano (regenerar con generate_thesis_tables.py) ====
+\begin{table}[htbp]
+\centering
+\caption{Aprendizaje intra-$N$ (interpolación) en heavy-hex: la GNN reproduce $\theta^*(h)$ en valores de $h$ no vistos, para cada $N$ de entrenamiento.}
+\label{tab:auto_heavy_hex_intra_n}
+\begin{tabular}{rlrrrrr}
+\toprule
+$N$ & Rango de $h$ & Ptos. & $|\Delta E|$ & $|\Delta E|/N$ & gap & $\Delta E/\mathrm{gap}$ \\
+\midrule
+8 & [2,50, 5,00] & 24 & 0,1869 & 0,02336 & 5,4972 & 0,0304 \\
+10 & [2,50, 5,00] & 34 & 0,0663 & 0,00663 & 5,5512 & 0,0122 \\
+14 & [2,50, 5,00] & 26 & 6,2986 & 0,44990 & 5,7882 & 1,2196 \\
+16 & [2,50, 5,00] & 24 & 0,1933 & 0,01208 & 5,3328 & 0,0403 \\
+18 & [2,50, 5,00] & 20 & 1,0462 & 0,05812 & 5,5364 & 0,2222 \\
+20 & [2,00, 5,00] & 76 & 0,2594 & 0,01297 & 3,4396 & 0,1926 \\
+\bottomrule
+\end{tabular}
+\\[2pt]
+\footnotesize Métricas promediadas sobre los puntos $h$ del reporte de evaluación, ordenadas por la métrica primaria $|\Delta E|$ (error energético absoluto respecto al estado de referencia; energías en unidades de $J = 1$). $|\Delta E|/N$: error por sitio (comparable entre tamaños). $\Delta E/\mathrm{gap}$ se incluye como referencia normalizada, no como criterio de calidad. La dispersión entre puntos $h$ no se agrega aquí (véase el barrido completo por $h$).
+\end{table}

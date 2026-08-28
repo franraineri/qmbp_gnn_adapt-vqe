@@ -17,7 +17,6 @@ inclusion: manual
   ```
 - [ ] Check Kingston queue depth (< 50 jobs ideal, execute UTC 2-6 AM)
 - [ ] Confirm calibration: `compute_mean_2q_error(backend)` < 1%
-- [ ] Run smoke test: `python tests/smoke_test.py`
 - [ ] Run MPNN evaluation suite (confirms θ_pred quality before wasting QPU):
   ```bash
   python scripts/experiment_runners/run_hardware_rehearsal_v3.py \

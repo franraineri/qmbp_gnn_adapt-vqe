@@ -183,20 +183,7 @@ python scripts/experiment_runners/cross_topology/run_finetune_from_mt.py --topol
 ### Corre despues de que TODOS los modelos de arriba esten entrenados.
 ########################################################################
 
-for CKPT in \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_baseline_mse.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_mse.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_mse.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_plain_energyw.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_energyw.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_energyw.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_physics05.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_full_stack.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_full_stack_iter.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_deploy.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_ft_from_MT.pt \
-    data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_ft_energyw_from_MT.pt \
+for CKPT in data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_baseline_mse.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_mse.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_mse.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_plain_energyw.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_energyw.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_energyw.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_physics05.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_full_stack.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_full_stack_iter.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_res_film_deploy.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_ft_from_MT.pt data/model_zoo/checkpoints/unifMPNN__heavy_hex_p1_ft_energyw_from_MT.pt \
 ; do
     python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology heavy_hex --p-layers 1 --target-n 20 30 40 50 --checkpoint "$CKPT" --refine-failing --vqe-maxiter 200 --skip-random-baseline --h-points 6 --force-recompute
 done
@@ -207,3 +194,55 @@ done
  scripts/maintenance/query_model_registry.py list --topology heavy_hex
 cat results/best_results_scoreboard.md
 ########################################################################
+
+
+   .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n 20 --multi-n-train --n-anchors 10 --n-restarts 3 --h-min 0.5 --h-max 2.0 --h-points 15 --iterative-improve --max-iterations 3 --refine-all
+
+
+for N in 6 8 10 12 16 20; do
+    python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n $N --multi-n-train --n-anchors 10 --n-restarts 3 --h-min 0.5 --h-max 2.0 --h-points 15 --iterative-improve --max-iterations 3 --refine-all
+done
+
+
+for N in 6 8 10 12 16 20; do
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n $N --multi-n-train --n-anchors 10 --n-restarts 3 --h-min 0.5 --h-max 2.0 --h-points 15 --iterative-improve --max-iterations 3 --refine-all
+done
+
+python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n 4 6 10 12 16 20 --multi-n-train --n-anchors 10 --n-restarts 3 --h-min 0.5 --h-max 2.0 --h-points 15 --iterative-improve --max-iterations 3 --refine-all
+
+
+
+for N in 4 6 8 10 12 16 20; do
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n $N --n-anchors 10 --n-restarts 3 --h-min 0.5 --h-max 2.0 --h-points 15 --iterative-improve --max-iterations 3 --refine-all
+done
+
+
+for N in 4 6 8 10 12 16 20; do
+    .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n $N --n-anchors 10 --n-restarts 2 --h-min 0.5 --h-max 1.5 --h-points 10 --iterative-improve --max-iterations 3 --refine-all --from-zoo
+done
+
+### para entrenar un modelo en un rango de h
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 1.5 --model-name h_0p5_1p5 --force-retrain
+
+
+###mpara usar el modelo en un rango de h :
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n 4 8 10 12 16 20  --checkpoint h_0p5_1p5 --h-min 0.5 --h-max 2.0 --iterative-improve --max-iterations 3 --refine-all
+
+
+
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --target-n 4 8 10 12 16 20 --from-zoo --checkpoint h_0p5_1p5 --h-min 0.5 --h-max 1.5 --active-rounds 0  --iterative-improve --max-iterations 3 --refine-all
+
+
+
+
+###este anda pero no se que hace
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 1.5 --model-name h_0p5_1p5 --force-retrain
+
+
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py  --topology chain_1d --p-layers 1  --target-n 4 8 10 12 16 20  --checkpoint h_0p5_1p5  --h-min 0.5 --h-max 1.5 --h-points 15  --iterative-improve --max-iterations 3 --refine-all  --skip-retrain
+
+
+
+for N in 4 8 10 12 16 20; do
+  .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py    --topology chain_1d --p-layers 1    --target-n $N    --checkpoint h_0p5_1p5    --h-min 0.5 --h-max 2.0 --h-points 23    --iterative-improve --max-iterations 3 --refine-all    --skip-retrain
+done

@@ -396,14 +396,7 @@ class GNNWarmstartDemoRunner(ValidationRunner):
         return trace
 
     def _evaluate(self, circuit, H, theta: np.ndarray) -> float:
-        """Noiseless energy evaluation for convergence measurement.
-
-        We measure convergence speed noiseless because:
-        - On QPU, each L-BFGS-B iteration = 1 function eval = shots QPU cost
-        - The iteration count is what determines QPU cost savings
-        - Shot noise doesn't change which starting point converges faster,
-          it just adds stochastic overhead equally to both strategies
-        """
+        """Noiseless energy evaluation for convergence measurement."""
         return float(self.noiseless.evaluate(circuit, H, theta))
 
     @staticmethod

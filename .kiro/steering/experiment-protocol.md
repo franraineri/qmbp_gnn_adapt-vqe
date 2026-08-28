@@ -209,7 +209,6 @@ When results are thesis-relevant:
 - Supports `--all` for comparing all results
 - Produces structured JSON output + terminal summary
 
-### `tests/smoke_test.py`
 - Imports all public submodules of `qmbp_simulation`
 - Runs minimal pipeline (N=4, p=1, 3 h-points)
 - Verifies ΔE/gap < 5%
@@ -224,9 +223,6 @@ When results are thesis-relevant:
 
 | Change | Re-run |
 |--------|--------|
-| Modified `src/qmbp_simulation/optimizers/` | `make test` + `tests/smoke_test.py` |
-| Modified `src/qmbp_simulation/predictors/` | `make test` + `tests/smoke_test.py` |
-| Modified `src/qmbp_simulation/execution/` | `make test` + `tests/smoke_test.py` |
 | Modified `src/qmbp_simulation/analysis/` | `make test` |
 | Modified `src/qmbp_simulation/framework/` | `make test` + run one experiment to verify |
 

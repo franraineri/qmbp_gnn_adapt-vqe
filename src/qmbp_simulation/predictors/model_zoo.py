@@ -145,6 +145,120 @@ def _checkpoint_available(checkpoint_file: str) -> bool:
     return _resolve_checkpoint_path(checkpoint_file) is not None
 
 
+def resolve_checkpoint_fuzzy(
+    query: str,
+    *,
+    topology: str | None = None,
+    p_layers: int | None = None,
+    return_all: bool = False,
+) -> Path | list[tuple[Path, str]] | None:
+    """Resolve a checkpoint from a partial name / tag to an on-disk path.
+
+    Resolution order (first hit wins unless ``return_all``):
+      1. Exact file path (``query`` is a path that exists).
+      2. Exact checkpoint filename in the zoo (``_resolve_checkpoint_path``).
+      3. Exact filename with ``.pt`` appended.
+      4. Fuzzy: substring/glob match against all ``*.pt`` in the checkpoints and
+         archived dirs. Supports shell globs (``*``, ``?``) in ``query``; if the
+         query has no glob chars it is treated as a substring (``*query*``).
+
+    Fuzzy candidates are ranked to pick the most likely intended model:
+      - Prefer names matching ``topology`` and ``_p{p_layers}`` when provided.
+      - Prefer canonical ``checkpoints/`` over ``archived/``.
+      - Prefer the highest version suffix (``_v3`` > ``_v2`` > base) so the most
+        recent retrain of the same tag wins.
+      - Break ties by shortest name (closest to the bare tag) then most recent mtime.
+
+    Parameters
+    ----------
+    query : str
+        A file path, a full checkpoint filename, or a partial tag/fragment
+        (e.g. a ``--model-name`` suffix like ``"h_0p5_1p5"``).
+    topology, p_layers : optional
+        Hints used to disambiguate fuzzy matches.
+    return_all : bool
+        If True, return a ranked list of ``(path, reason)`` candidates instead
+        of a single path (useful for suggestions/errors).
+
+    Returns
+    -------
+    Path | list[tuple[Path, str]] | None
+        The resolved path (or ranked candidate list if ``return_all``), or None.
+    """
+    import fnmatch as _fnmatch
+    import re as _re
+
+    # 1–3: exact resolutions (skip when caller only wants the ranked list)
+    if not return_all:
+        p = Path(query)
+        if p.exists():
+            return p
+        exact = _resolve_checkpoint_path(query)
+        if exact is not None:
+            return exact
+        if not query.endswith(".pt"):
+            exact_pt = _resolve_checkpoint_path(f"{query}.pt")
+            if exact_pt is not None:
+                return exact_pt
+
+    # 4: fuzzy match across checkpoint dirs
+    search_dirs = [(_CHECKPOINTS_DIR, 0), (_ARCHIVED_DIR, 1)]
+    if _REPO_ARCHIVED_DIR != _ARCHIVED_DIR:
+        search_dirs.append((_REPO_ARCHIVED_DIR, 2))
+
+    has_glob = any(ch in query for ch in "*?[")
+    pattern = query if has_glob else f"*{query}*"
+    if not pattern.endswith(".pt") and not pattern.endswith("*"):
+        pattern = f"{pattern}*"
+
+    def _version_rank(name: str) -> int:
+        # unifMPNN__..._v3.pt -> 3 ; base (no _vN) -> 0
+        m = _re.search(r"_v(\d+)\.pt$", name)
+        return int(m.group(1)) if m else 0
+
+    seen: set[str] = set()
+    candidates: list[tuple[tuple, Path, str]] = []
+    for d, dir_penalty in search_dirs:
+        if not d.exists():
+            continue
+        for f in sorted(d.glob("*.pt")):
+            if f.name in seen:
+                continue
+            if not _fnmatch.fnmatch(f.name, pattern):
+                continue
+            seen.add(f.name)
+            topo_ok = topology is None or topology in f.name
+            p_ok = p_layers is None or f"_p{p_layers}" in f.name
+            # Sort key (all ascending): non-matches sink, then dir, then newest
+            # version first (negative), then shortest name, then newest mtime.
+            try:
+                mtime = f.stat().st_mtime
+            except OSError:
+                mtime = 0.0
+            key = (
+                0 if topo_ok else 1,
+                0 if p_ok else 1,
+                dir_penalty,
+                -_version_rank(f.name),
+                len(f.name),
+                -mtime,
+            )
+            reason = (
+                f"fuzzy match '{pattern}'"
+                + ("" if topo_ok else " [topology mismatch]")
+                + ("" if p_ok else " [p_layers mismatch]")
+            )
+            candidates.append((key, f, reason))
+
+    candidates.sort(key=lambda c: c[0])
+
+    if return_all:
+        return [(f, reason) for _, f, reason in candidates]
+    if candidates:
+        return candidates[0][1]
+    return None
+
+
 # If a multi-N model has training_quality_score below this, it's likely
 # trained on insufficient or contaminated data.
 MULTI_N_MIN_QUALITY_SCORE: float = 0.50
@@ -780,7 +894,7 @@ def load_best_model_for(
         )
     loaded_model = _smart_load_checkpoint(str(ckpt_path))
 
-    logger.info(
+    logger.debug(
         "load_best_model_for(%s): %s model selected (score=%.3f, pass=%.0f%%, pts=%d, ckpt=%s)",
         topology,
         source,

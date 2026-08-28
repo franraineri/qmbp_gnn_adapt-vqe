@@ -187,7 +187,9 @@ def load_energy_curves(
                 if n_gt in results:
                     # Merge GT data into existing NPZ curve (adds low-h points)
                     existing_h = set(round(hv, 2) for hv in results[n_gt]["h"])
-                    new_points = [(h, e, g) for h, e, g in data_list if round(h, 2) not in existing_h]
+                    new_points = [
+                        (h, e, g) for h, e, g in data_list if round(h, 2) not in existing_h
+                    ]
                     if new_points:
                         h_new = np.array([p[0] for p in new_points])
                         e_new = np.array([p[1] for p in new_points])
@@ -317,10 +319,9 @@ def get_h_critical(
                 val = h_c_by_n.get(str(n_qubits))
                 return float(val) if val is not None else None
             else:
-                # Return h_c(inf) from FSS
-                fss = cached.get("finite_size_scaling")
-                if fss and "h_c_inf" in fss:
-                    return float(fss["h_c_inf"])
+                hc = _h_c_inf_from_fss(cached.get("finite_size_scaling"))
+                if hc is not None:
+                    return hc
                 # Fallback: largest reliable N
                 h_c_rel = cached.get("h_c_reliable", {})
                 if h_c_rel:
@@ -340,9 +341,9 @@ def get_h_critical(
             val = h_c_by_n.get(str(n_qubits))
             return float(val) if val is not None else None
 
-        fss = result.get("finite_size_scaling")
-        if fss and "h_c_inf" in fss:
-            return float(fss["h_c_inf"])
+        hc = _h_c_inf_from_fss(result.get("finite_size_scaling"))
+        if hc is not None:
+            return hc
         h_c_rel = result.get("h_c_reliable", {})
         if h_c_rel:
             largest_n = max(h_c_rel.keys(), key=lambda x: int(x))
@@ -350,6 +351,25 @@ def get_h_critical(
     except Exception:
         pass
 
+    return None
+
+
+def _h_c_inf_from_fss(fss: dict | None) -> float | None:
+    """Extract the best h_c(inf) estimate from a finite_size_scaling result.
+
+    Prefers the robust median (h_c_inf_robust) when the curve_fit was flagged
+    unreliable (flat h_c across N or undefined covariance), otherwise uses the
+    fitted h_c_inf. Returns None if the FSS dict has no usable estimate.
+    """
+    if not fss:
+        return None
+    # If the fit was explicitly marked unreliable, prefer the robust median.
+    if fss.get("fit_reliable") is False and fss.get("h_c_inf_robust") is not None:
+        return float(fss["h_c_inf_robust"])
+    if "h_c_inf" in fss and fss["h_c_inf"] is not None:
+        return float(fss["h_c_inf"])
+    if fss.get("h_c_inf_robust") is not None:
+        return float(fss["h_c_inf_robust"])
     return None
 
 
@@ -540,39 +560,89 @@ def finite_size_scaling(h_c_by_n: dict[int, float]) -> dict:
     def scaling_law(N, h_inf, a, nu):
         return h_inf + a / N**nu
 
+    # Guard: the 3-parameter law h_inf + a/N^nu needs at least 3 distinct
+    # N-values with variation in h_c to be identifiable. If h_c is flat
+    # (e.g., h_c converges fast — good physics), curve_fit cannot estimate
+    # the covariance and emits OptimizeWarning. We detect this and downgrade
+    # the fit to a robust median estimate rather than reporting garbage errors.
+    import warnings
+
+    from scipy.optimize import OptimizeWarning
+
+    h_c_spread = float(h_c_values.max() - h_c_values.min())
+
     try:
-        popt, pcov = curve_fit(
-            scaling_law,
-            N_values,
-            h_c_values,
-            p0=[1.0, 1.0, 1.0],  # Initial guess (TFIM: h_c=1, nu=1)
-            bounds=([0.0, -10, 0.1], [5.0, 10, 3.0]),
-            maxfev=10000,
-        )
+        with warnings.catch_warnings():
+            # OptimizeWarning ("Covariance could not be estimated") is expected
+            # for flat/degenerate data — handle it explicitly below instead of
+            # letting it print scary noise during valid runs.
+            warnings.simplefilter("ignore", OptimizeWarning)
+            popt, pcov = curve_fit(
+                scaling_law,
+                N_values,
+                h_c_values,
+                p0=[1.0, 1.0, 1.0],  # Initial guess (TFIM: h_c=1, nu=1)
+                bounds=([0.0, -10, 0.1], [5.0, 10, 3.0]),
+                maxfev=10000,
+            )
         h_inf, a, nu = popt
         perr = np.sqrt(np.diag(pcov))
+
+        # Detect degenerate fit: non-finite covariance means the parameters
+        # were not identifiable (flat data or too few effective points).
+        cov_undefined = not np.all(np.isfinite(perr))
 
         # R^2
         residuals = h_c_values - scaling_law(N_values, *popt)
         ss_res = np.sum(residuals**2)
         ss_tot = np.sum((h_c_values - np.mean(h_c_values)) ** 2)
-        r_squared = 1 - ss_res / ss_tot if ss_tot > 0 else 0
+        r_squared = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
 
-        return {
+        # A fit is reliable only if covariance is defined AND h_c actually
+        # varies with N. Otherwise the median is a more honest estimate.
+        fit_reliable = bool(cov_undefined is False and h_c_spread > 1e-3)
+
+        result = {
             "h_c_inf": float(h_inf),
-            "h_c_inf_err": float(perr[0]),
+            "h_c_inf_err": float(perr[0]) if np.isfinite(perr[0]) else None,
             "a": float(a),
             "nu": float(nu),
-            "nu_err": float(perr[2]),
+            "nu_err": float(perr[2]) if np.isfinite(perr[2]) else None,
             "r_squared": float(r_squared),
+            "fit_reliable": fit_reliable,
+            "cov_undefined": bool(cov_undefined),
+            "h_c_spread": h_c_spread,
             "N_values": N_values.tolist(),
             "h_c_values": h_c_values.tolist(),
             "fit_residuals": residuals.tolist(),
             "n_outliers_removed": n_outliers,
         }
+
+        # When the fit is unreliable, provide a robust fallback so downstream
+        # code (get_h_critical) has a sensible h_c(inf) instead of a spurious
+        # extrapolation to the parameter bound.
+        if not fit_reliable:
+            robust_hc = float(np.median(h_c_values))
+            result["h_c_inf_robust"] = robust_hc
+            result["fit_note"] = (
+                "Fit unreliable (covariance undefined or h_c ~ flat across N). "
+                "h_c converges fast with N — use h_c_inf_robust (median) instead."
+            )
+            logger.debug(
+                "FSS fit unreliable (spread=%.4f, cov_undefined=%s). Robust h_c=%.4f",
+                h_c_spread,
+                cov_undefined,
+                robust_hc,
+            )
+
+        return result
     except Exception as e:
+        # Fall back to a robust median estimate rather than a hard error, so
+        # downstream consumers still get a usable h_c(inf).
         return {
             "error": str(e),
+            "h_c_inf_robust": float(np.median(h_c_values)),
+            "fit_reliable": False,
             "N_values": N_values.tolist(),
             "h_c_values": h_c_values.tolist(),
         }
@@ -642,7 +712,8 @@ def run_qpt_analysis(
 
         # Find critical field (exclude edge artifacts)
         h_c, peak_mag = find_critical_field(
-            h_d2, d2E,
+            h_d2,
+            d2E,
             h_min_search=effective_range[0] + 0.1,
             h_max_search=effective_range[1] - 0.1,
         )
@@ -664,10 +735,7 @@ def run_qpt_analysis(
             insufficient_below = (h_c - h_data_min) < 0.3
             insufficient_above = (h_data_max - h_c) < 0.3
 
-            is_edge_artifact = (
-                near_lower or near_upper
-                or insufficient_below or insufficient_above
-            )
+            is_edge_artifact = near_lower or near_upper or insufficient_below or insufficient_above
 
             h_c_by_n[n] = h_c
             per_n_results[n] = {
@@ -681,9 +749,7 @@ def run_qpt_analysis(
 
     # Finite-size scaling (exclude edge artifacts for reliable fit)
     h_c_clean = {
-        n: h_c_by_n[n]
-        for n in h_c_by_n
-        if not per_n_results.get(n, {}).get("edge_artifact", False)
+        n: h_c_by_n[n] for n in h_c_by_n if not per_n_results.get(n, {}).get("edge_artifact", False)
     }
     fss = finite_size_scaling(h_c_clean) if len(h_c_clean) >= 3 else None
 
@@ -712,31 +778,43 @@ def main():
         "validates that the pipeline captures h_c correctly"
     )
     parser.add_argument(
-        "--topology", type=str, default="chain_1d",
+        "--topology",
+        type=str,
+        default="chain_1d",
         help="Lattice topology (default: chain_1d)",
     )
     parser.add_argument(
-        "--p-layers", type=int, default=1,
+        "--p-layers",
+        type=int,
+        default=1,
         help="HVA circuit depth (default: 1)",
     )
     parser.add_argument(
-        "--use-predicted", action="store_true",
+        "--use-predicted",
+        action="store_true",
         help="Use MPNN-predicted energies instead of exact GT",
     )
     parser.add_argument(
-        "--compare", action="store_true",
+        "--compare",
+        action="store_true",
         help="Run both exact and predicted, show comparison",
     )
     parser.add_argument(
-        "--h-range", type=float, nargs=2, default=None,
+        "--h-range",
+        type=float,
+        nargs=2,
+        default=None,
         help="Restrict h range for analysis (e.g., 0.5 3.0)",
     )
     parser.add_argument(
-        "--save", action="store_true",
+        "--save",
+        action="store_true",
         help="Save results to JSON",
     )
     parser.add_argument(
-        "-v", "--verbose", action="store_true",
+        "-v",
+        "--verbose",
+        action="store_true",
         help="Verbose output",
     )
     args = parser.parse_args()
@@ -750,9 +828,9 @@ def main():
 
     if args.compare:
         # Run both exact and predicted
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"QPT Detection: {args.topology} — COMPARISON (GT vs MPNN)")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         result_exact = run_qpt_analysis(args.topology, args.p_layers, False, h_range)
         result_pred = run_qpt_analysis(args.topology, args.p_layers, True, h_range)
@@ -766,10 +844,12 @@ def main():
         common_n = sorted(set(hc_exact.keys()) & set(hc_pred.keys()))
 
         if common_n:
-            print(f"\n{'─'*60}")
+            print(f"\n{'─' * 60}")
             print("COMPARISON: h_c(exact) vs h_c(predicted)")
-            print(f"{'─'*60}")
-            print(f"{'N':>4} | {'h_c(exact)':>10} | {'h_c(pred)':>10} | {'Δh_c':>8} | {'|Δ|/h_c':>8}")
+            print(f"{'─' * 60}")
+            print(
+                f"{'N':>4} | {'h_c(exact)':>10} | {'h_c(pred)':>10} | {'Δh_c':>8} | {'|Δ|/h_c':>8}"
+            )
             print("-" * 55)
             for n_str in common_n:
                 hc_e = hc_exact[n_str]
@@ -778,14 +858,15 @@ def main():
                 rel = abs(delta) / hc_e if hc_e > 0 else float("inf")
                 print(f"{n_str:>4} | {hc_e:>10.4f} | {hc_p:>10.4f} | {delta:>+8.4f} | {rel:>8.2%}")
 
-            mean_rel_error = np.mean([
-                abs(hc_pred[n] - hc_exact[n]) / hc_exact[n]
-                for n in common_n if hc_exact[n] > 0
-            ])
+            mean_rel_error = np.mean(
+                [abs(hc_pred[n] - hc_exact[n]) / hc_exact[n] for n in common_n if hc_exact[n] > 0]
+            )
             print(f"\n  Mean |Δh_c|/h_c = {mean_rel_error:.2%}")
             captures_qpt = mean_rel_error < 0.05
-            print(f"  MPNN captures QPT: {'YES' if captures_qpt else 'NO'} "
-                  f"(threshold: <5% relative error)")
+            print(
+                f"  MPNN captures QPT: {'YES' if captures_qpt else 'NO'} "
+                f"(threshold: <5% relative error)"
+            )
 
         if args.save:
             output = {
@@ -804,9 +885,9 @@ def main():
         result = run_qpt_analysis(args.topology, args.p_layers, args.use_predicted, h_range)
         source = "MPNN-predicted" if args.use_predicted else "exact (GT)"
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"QPT Detection: {args.topology} (source: {source})")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         _print_analysis(result, source)
 
@@ -840,7 +921,7 @@ def _print_analysis(result: dict, label: str) -> None:
 
     fss = result.get("finite_size_scaling")
     if fss:
-        print(f"\n  ── Finite-Size Scaling ──")
+        print("\n  ── Finite-Size Scaling ──")
         if "error" in fss:
             print(f"  Fit failed: {fss['error']}")
         else:
@@ -850,8 +931,10 @@ def _print_analysis(result: dict, label: str) -> None:
             # For TFIM chain_1d, exact h_c = 1.0
             if result.get("topology") == "chain_1d":
                 error_from_exact = abs(fss["h_c_inf"] - 1.0)
-                print(f"  Error from exact (h_c=1.0): {error_from_exact:.4f} "
-                      f"({error_from_exact*100:.1f}%)")
+                print(
+                    f"  Error from exact (h_c=1.0): {error_from_exact:.4f} "
+                    f"({error_from_exact * 100:.1f}%)"
+                )
 
 
 def _save_results(output: dict, topology: str, suffix: str) -> None:

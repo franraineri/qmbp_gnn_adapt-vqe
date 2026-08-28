@@ -923,6 +923,98 @@ def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
     return result
 
 
+def analyze_energy_error_scaling(abs_error_by_n: dict[int, float]) -> dict:
+    """Characterize how the energy error |ΔE| scales with system size N.
+
+    For a fixed-depth variational ansatz, the physically meaningful statement
+    is EXTENSIVITY: the per-site error |ΔE|/N stays bounded, i.e. |ΔE| grows at
+    most ~linearly with N. We quantify this with a log-log power-law fit
+    |ΔE| ≈ A·N^α (the standard tool for scaling studies), which is far more
+    robust and informative than a raw max/min ratio of two points:
+
+    - ``alpha`` (scaling exponent) with ``r_squared`` (fit quality).
+      α ≈ 1 → extensive (error per site constant, ideal).
+      α < 0.8 → sub-extensive (error per site shrinks — unusually good).
+      α > 1.2 → super-extensive (error accelerates — extrapolation risk).
+    - ``per_site_error_by_n`` and ``per_site_cv`` (coefficient of variation of
+      |ΔE|/N): a direct, fit-free extensivity check — low CV ⇒ flat per-site
+      error ⇒ extensive.
+    - ``err_ratio`` (max/min |ΔE|): kept for continuity with prior logs.
+
+    Requires ≥3 sizes for the power-law fit. With exactly 2 sizes it falls back
+    to the ratio + per-site CV only (``method="ratio_fallback"``) and flags the
+    result as preliminary.
+
+    Parameters
+    ----------
+    abs_error_by_n : dict[int, float]
+        Mean |ΔE| per system size N. Non-positive or missing entries dropped.
+
+    Returns
+    -------
+    dict
+        ``method`` : "power_law" | "ratio_fallback" | "insufficient_data"
+        ``n_values`` : list[int]
+        ``alpha`` / ``r_squared`` / ``coefficient`` : float | None (power-law)
+        ``err_ratio`` : float | None  (max/min |ΔE|)
+        ``per_site_error_by_n`` : dict[str, float]
+        ``per_site_cv`` : float | None  (std/mean of |ΔE|/N)
+        ``verdict`` : "extensive" | "sub_extensive" | "super_extensive" |
+                      "preliminary" | "unknown"
+        ``is_extensive`` : bool  (verdict == "extensive" or "sub_extensive")
+    """
+    import numpy as np
+
+    clean = {int(n): float(e) for n, e in abs_error_by_n.items() if e is not None and e > 0}
+    ns = sorted(clean)
+    result: dict = {
+        "method": "insufficient_data",
+        "n_values": ns,
+        "alpha": None,
+        "r_squared": None,
+        "coefficient": None,
+        "err_ratio": None,
+        "per_site_error_by_n": {str(n): clean[n] / n for n in ns},
+        "per_site_cv": None,
+        "verdict": "unknown",
+        "is_extensive": False,
+    }
+    if len(ns) < 2:
+        return result
+
+    errs = np.array([clean[n] for n in ns])
+    result["err_ratio"] = float(errs.max() / max(errs.min(), 1e-12))
+
+    per_site = np.array([clean[n] / n for n in ns])
+    ps_mean = float(per_site.mean())
+    result["per_site_cv"] = float(per_site.std() / ps_mean) if ps_mean > 1e-12 else None
+
+    if len(ns) >= 3:
+        from experiments.helpers.scaling_utils import fit_power_law
+
+        fit = fit_power_law(ns, list(errs), min_points=3)
+        result["alpha"] = fit["exponent"]
+        result["coefficient"] = fit["coefficient"]
+        result["r_squared"] = fit["r_squared"]
+        result["method"] = "power_law"
+        alpha = fit["exponent"]
+        if alpha is None:
+            result["verdict"] = "unknown"
+        elif alpha < 0.8:
+            result["verdict"] = "sub_extensive"
+        elif alpha <= 1.2:
+            result["verdict"] = "extensive"
+        else:
+            result["verdict"] = "super_extensive"
+    else:
+        # Two sizes: no reliable exponent. Use per-site flatness as a proxy.
+        result["method"] = "ratio_fallback"
+        result["verdict"] = "preliminary"
+
+    result["is_extensive"] = result["verdict"] in ("extensive", "sub_extensive")
+    return result
+
+
 def wilson_ci(n_success: int, n_total: int, *, z: float = 1.96) -> tuple[float, float]:
     """Wilson score confidence interval for a binomial proportion (pass rate).
 
@@ -1079,9 +1171,6 @@ def compute_deploy_summary(
         summary["n_fidelity_bound"] = int(n_bound)
         summary["n_fidelity_exact"] = int(n_fid - n_bound)
         summary["fidelity_is_lower_bound"] = bool(n_bound > 0)
-        # Mean energy variance (only present on bound points).
-        evs = [r["energy_variance"] for r in per_h_results if r.get("energy_variance") is not None]
-        summary["mean_energy_variance"] = float(np.mean(evs)) if evs else None
     else:
         summary["mean_fidelity"] = None
         summary["min_fidelity"] = None
@@ -1090,7 +1179,26 @@ def compute_deploy_summary(
         summary["n_fidelity_bound"] = 0
         summary["n_fidelity_exact"] = 0
         summary["fidelity_is_lower_bound"] = False
-        summary["mean_energy_variance"] = None
+
+    # ── Infidelity decomposition (Var(H) vs gap) — DEFAULT aggregate ────────
+    # Attribute infidelity to its dominant factor across the sweep so h_c
+    # regions surface "dirty_state" (attackable) vs "small_gap" (physics
+    # ceiling). Diagnostic only — never gates pass/fail.
+    evs = [r["energy_variance"] for r in per_h_results if r.get("energy_variance") is not None]
+    summary["mean_energy_variance"] = float(np.mean(evs)) if evs else None
+    vogs = [
+        r["variance_over_gap2"] for r in per_h_results if r.get("variance_over_gap2") is not None
+    ]
+    summary["mean_variance_over_gap2"] = float(np.mean(vogs)) if vogs else None
+    summary["n_dirty_state"] = sum(
+        1 for r in per_h_results if r.get("infidelity_dominant_factor") == "dirty_state"
+    )
+    summary["n_small_gap"] = sum(
+        1 for r in per_h_results if r.get("infidelity_dominant_factor") == "small_gap"
+    )
+    summary["n_clean"] = sum(
+        1 for r in per_h_results if r.get("infidelity_dominant_factor") == "clean"
+    )
 
     # Standard deviation (useful for confidence intervals and thesis tables)
     summary["std_de_gap"] = float(np.std(de_gaps))
@@ -3481,7 +3589,7 @@ def check_p2_regression_vs_p1(
     }
 
 
-def post_experiment_sync(*, verbose: bool = False) -> dict:
+def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) -> dict:
     """Consolidated post-experiment synchronization of all data stores.
 
     Runs all maintenance tasks in the correct dependency order to ensure
@@ -3501,6 +3609,11 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
     ----------
     verbose : bool
         If True, print progress and issue details.
+    p_layers : int | None
+        The HVA depth the calling experiment ran with. When set, the best
+        results scoreboard is regenerated with ``--p-layers {p_layers}`` so
+        that filtering/grouping matches the experiment's p (never mixing
+        p=1 and p=2). None = regenerate for all p (standalone/manual runs).
 
     Returns
     -------
@@ -3566,16 +3679,31 @@ def post_experiment_sync(*, verbose: bool = False) -> dict:
     try:
         scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
         if scoreboard_script.exists():
+            _sb_cmd = [sys.executable, str(scoreboard_script)]
+            if p_layers is not None:
+                _sb_cmd += ["--p-layers", str(p_layers)]
             proc = subprocess.run(
-                [sys.executable, str(scoreboard_script)],
+                _sb_cmd,
                 capture_output=True,
                 text=True,
-                timeout=30,
+                timeout=120,  # scan of all eval reports + cold-import warmup
                 cwd=str(_ROOT),
             )
+            # exit 1 with p filter + no data is a benign "nothing to generate
+            # for this p yet" (e.g. first p=2 run before any p=2 eval exists),
+            # not a real failure.
+            _no_data = p_layers is not None and "No evaluation reports found" in (proc.stdout or "")
             if proc.returncode == 0:
                 results["steps_completed"].append("best_results_scoreboard")
-                _log("  ✅ Best results scoreboard updated")
+                _log(
+                    "  ✅ Best results scoreboard updated"
+                    + (f" (p={p_layers})" if p_layers is not None else "")
+                )
+            elif _no_data:
+                results["steps_completed"].append(
+                    f"best_results_scoreboard (no p={p_layers} data yet)"
+                )
+                _log(f"  ⏭️ No eval reports for p={p_layers} yet — scoreboard skipped")
             else:
                 results["steps_failed"].append(f"best_results_scoreboard: exit={proc.returncode}")
                 _log(f"  ❌ Exit code {proc.returncode}")
@@ -4237,7 +4365,8 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
     # ── Scoreboard cross-check ─────────────────────────────────────────────
     scoreboard_issues: list[dict] = []
     try:
-        _scoreboard_path = _ROOT / "results" / "best_results_scoreboard.json"
+        # Per-p scoreboard: p=1 is the canonical view for consistency checks.
+        _scoreboard_path = _ROOT / "results" / "best_results_scoreboard_p1.json"
         if _scoreboard_path.exists():
             scoreboard = _json.loads(_scoreboard_path.read_text())
             best_by_topo = scoreboard.get("best_by_topology", {})
@@ -5067,7 +5196,7 @@ def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
 
     _ROOT = _P(__file__).resolve().parents[3]
     _CHECKPOINTS_DIR = _ROOT / "data" / "model_zoo" / "checkpoints"
-    _SCOREBOARD_PATH = _ROOT / "results" / "best_results_scoreboard.json"
+    _SCOREBOARD_PATH = _ROOT / "results" / "best_results_scoreboard_p1.json"
 
     result = {
         "n_recovered": 0,
@@ -5262,7 +5391,7 @@ def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
                     [sys.executable, str(scoreboard_script), "--json"],
                     capture_output=True,
                     text=True,
-                    timeout=30,
+                    timeout=120,  # full scan + cold-import warmup
                     cwd=str(_ROOT),
                 )
                 result["scoreboard_regenerated"] = True

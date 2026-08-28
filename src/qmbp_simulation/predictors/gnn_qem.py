@@ -468,11 +468,9 @@ def train_gnn_qem(
     )
 
     # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
-    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+    from qmbp_simulation.utils.helpers import finalize_model_device, prepare_model_device
 
-    device = resolve_device()
-    model = model.to(device)
-    logger.info("[gnn_qem] train device: %s", describe_device(device))
+    model, device = prepare_model_device(model, log_prefix="gnn_qem")
 
     best_val_loss = float("inf")
     best_epoch = 0
@@ -584,10 +582,8 @@ def train_gnn_qem(
         f"val_MAE={val_mae:.6f}, improvement={mean_improvement:.1f}%"
     )
 
-    # Return model to CPU (device-agnostic checkpoints + CPU inference).
-    model = model.to("cpu")
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
+    # Device-agnostic checkpoints + CPU inference; frees GPU for the next job.
+    model = finalize_model_device(model, device)
 
     return QEMTrainResult(
         best_epoch=best_epoch,
@@ -1022,9 +1018,9 @@ class GNNQEMConfigV2:
     - Calibration augmentation for drift robustness
     """
 
-    node_feature_dim: int = 6       # T1, T2, readout, gate_err_max, n_cx_local, degree
-    edge_feature_dim: int = 1       # per-edge 2Q gate error
-    context_dim: int = 7            # h, n_2q, CES_2q, CES_readout, E_noisy/N, gap, sign_bias
+    node_feature_dim: int = 6  # T1, T2, readout, gate_err_max, n_cx_local, degree
+    edge_feature_dim: int = 1  # per-edge 2Q gate error
+    context_dim: int = 7  # h, n_2q, CES_2q, CES_readout, E_noisy/N, gap, sign_bias
     hidden_dim: int = 128
     n_heads: int = 4
     n_layers: int = 4
@@ -1077,7 +1073,8 @@ class GNNQEMCorrectorV2(nn.Module):
 
     def __init__(self, config: GNNQEMConfigV2 | None = None) -> None:
         super().__init__()
-        from torch_geometric.nn import GATv2Conv, global_add_pool as _gap
+        from torch_geometric.nn import GATv2Conv
+        from torch_geometric.nn import global_add_pool as _gap
 
         if config is None:
             config = GNNQEMConfigV2()
@@ -1226,9 +1223,7 @@ class GNNQEMCorrectorV2(nn.Module):
             # Edge attr for virtual edges: use 0 (no gate error on virtual connections)
             if edge_attr is not None:
                 n_virtual_edges = len(new_src)
-                virtual_edge_attr = torch.zeros(
-                    n_virtual_edges, edge_attr.size(1), device=device
-                )
+                virtual_edge_attr = torch.zeros(n_virtual_edges, edge_attr.size(1), device=device)
                 edge_attr = torch.cat([edge_attr, virtual_edge_attr], dim=0)
 
         return x, edge_index, edge_attr, batch
@@ -1236,9 +1231,7 @@ class GNNQEMCorrectorV2(nn.Module):
     def _get_virtual_node_indices(self, batch: torch.Tensor, batch_size: int) -> torch.Tensor:
         """Get indices of virtual nodes (last batch_size nodes)."""
         total_nodes = batch.size(0)
-        return torch.arange(
-            total_nodes - batch_size, total_nodes, device=batch.device
-        )
+        return torch.arange(total_nodes - batch_size, total_nodes, device=batch.device)
 
 
 def build_qem_graph_v2(
@@ -1279,9 +1272,19 @@ def build_qem_graph_v2(
         return padded
 
     # ── Node features [6 dims] ───────────────────────────────────────
-    t1_norm = _pad(sample.qubit_t1, 100.0) / 100.0 if sample.qubit_t1 else np.ones(n, dtype=np.float32)
-    t2_norm = _pad(sample.qubit_t2, 80.0) / 100.0 if sample.qubit_t2 else np.full(n, 0.8, dtype=np.float32)
-    readout = _pad(sample.readout_errors, 0.01) if sample.readout_errors else np.full(n, 0.01, dtype=np.float32)
+    t1_norm = (
+        _pad(sample.qubit_t1, 100.0) / 100.0 if sample.qubit_t1 else np.ones(n, dtype=np.float32)
+    )
+    t2_norm = (
+        _pad(sample.qubit_t2, 80.0) / 100.0
+        if sample.qubit_t2
+        else np.full(n, 0.8, dtype=np.float32)
+    )
+    readout = (
+        _pad(sample.readout_errors, 0.01)
+        if sample.readout_errors
+        else np.full(n, 0.01, dtype=np.float32)
+    )
 
     # Gate error max per qubit (from 2Q edges — same as V1)
     if sample.gate_errors_2q and sample.edge_index.size > 0:
@@ -1358,15 +1361,17 @@ def build_qem_graph_v2(
     sign_bias = -1.0  # TFIM: noise always raises energy
 
     context = torch.tensor(
-        [[
-            sample.h_value,
-            sample.n_2q_gates / 50.0,
-            ces_2q,
-            ces_readout,
-            sample.noisy_energy / max(n, 1),
-            gap_norm,
-            sign_bias,
-        ]],
+        [
+            [
+                sample.h_value,
+                sample.n_2q_gates / 50.0,
+                ces_2q,
+                ces_readout,
+                sample.noisy_energy / max(n, 1),
+                gap_norm,
+                sign_bias,
+            ]
+        ],
         dtype=torch.float32,
     )
 
@@ -1432,11 +1437,9 @@ def train_gnn_qem_v2(
     )
 
     # ── Compute device (GPU if available, else CPU) — portable local ↔ server ──
-    from qmbp_simulation.utils.helpers import describe_device, resolve_device
+    from qmbp_simulation.utils.helpers import finalize_model_device, prepare_model_device
 
-    device = resolve_device()
-    model = model.to(device)
-    logger.info("[gnn_qem_v2] train device: %s", describe_device(device))
+    model, device = prepare_model_device(model, log_prefix="gnn_qem_v2")
 
     best_val_loss = float("inf")
     best_epoch = 0
@@ -1528,7 +1531,8 @@ def train_gnn_qem_v2(
             if valid_mask.any():
                 improvement = (
                     (error_before[valid_mask] - error_after[valid_mask])
-                    / error_before[valid_mask] * 100
+                    / error_before[valid_mask]
+                    * 100
                 )
                 improvements.append(improvement.mean().item())
 
@@ -1540,10 +1544,8 @@ def train_gnn_qem_v2(
         f"val_MAE={val_mae:.6f}, improvement={mean_improvement:.1f}%"
     )
 
-    # Return model to CPU (device-agnostic checkpoints + CPU inference).
-    model = model.to("cpu")
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
+    # Device-agnostic checkpoints + CPU inference; frees GPU for the next job.
+    model = finalize_model_device(model, device)
 
     return QEMTrainResult(
         best_epoch=best_epoch,
@@ -1581,9 +1583,7 @@ def correct_energy_v2(
     else:
         corrected = sample.noisy_energy
         applied = False
-        logger.debug(
-            f"[gnn_qem_v2] Confidence {conf:.3f} < {confidence_threshold}, skipping"
-        )
+        logger.debug(f"[gnn_qem_v2] Confidence {conf:.3f} < {confidence_threshold}, skipping")
 
     return QEMCorrectionResult(
         corrected_energy=corrected,
@@ -1728,12 +1728,15 @@ def generate_qem_training_data_v2(
     mpnn_cache: dict[tuple[str, int], object] = {}
     if theta_source == "zoo":
         from qmbp_simulation.predictors.model_zoo import load_pretrained
+
         for topo in topologies:
             for n_qubits in n_qubits_list:
                 try:
                     mpnn = load_pretrained(
-                        model=model_name, topology=topo,
-                        n_qubits=n_qubits, p_layers=p_layers,
+                        model=model_name,
+                        topology=topo,
+                        n_qubits=n_qubits,
+                        p_layers=p_layers,
                     )
                     mpnn_cache[(topo, n_qubits)] = mpnn
                 except Exception:
@@ -1766,14 +1769,17 @@ def generate_qem_training_data_v2(
                     if mpnn is not None:
                         try:
                             from qmbp_simulation.predictors.mpnn import build_graph_dataset
+
                             graphs = build_graph_dataset(
-                                lattice, np.array([h]),
+                                lattice,
+                                np.array([h]),
                                 theta_opt=np.zeros((1, n_params)),
                                 e_exact=np.array([0.0]),
                                 fidelity_threshold=0.0,
                             )
                             if graphs:
                                 import torch as _torch
+
                                 with _torch.no_grad():
                                     theta = mpnn(graphs[0]).numpy().flatten()[:n_params]
                         except Exception:
@@ -1786,7 +1792,11 @@ def generate_qem_training_data_v2(
 
                 # ── Layout selection + transpilation ──────────────────
                 layout_sel = select_layouts_low_ces(
-                    bound, fake_backend, candidates, n_select=1, optimization_level=2,
+                    bound,
+                    fake_backend,
+                    candidates,
+                    n_select=1,
+                    optimization_level=2,
                 )
                 if not layout_sel.transpiled_circuits:
                     continue
@@ -1808,11 +1818,14 @@ def generate_qem_training_data_v2(
                     gap = cached.get("gap", 0.0)
                 else:
                     from qmbp_simulation.solvers.classical import ClassicalSolver
+
                     solver = ClassicalSolver()
                     gt = solver.solve(H, lattice)
                     e_exact = gt.ground_energy
                     gap = gt.gap
-                    gt_cache.put(topo, n_qubits, model_name, h, energy=e_exact, gap=gap, method="exact_diag")
+                    gt_cache.put(
+                        topo, n_qubits, model_name, h, energy=e_exact, gap=gap, method="exact_diag"
+                    )
 
                 # ── Extract per-qubit features ────────────────────────
                 layout_qubits = layout_sel.layouts[0]
@@ -1823,7 +1836,10 @@ def generate_qem_training_data_v2(
                 # Gate count per qubit from transpiled circuit
                 cx_per_qubit = [0.0] * n_qubits
                 for inst in transpiled.data:
-                    if inst.operation.num_qubits == 2 and inst.operation.name not in ("barrier", "delay"):
+                    if inst.operation.num_qubits == 2 and inst.operation.name not in (
+                        "barrier",
+                        "delay",
+                    ):
                         for q in inst.qubits:
                             idx = transpiled.find_bit(q).index
                             if idx < n_qubits:
@@ -1852,33 +1868,36 @@ def generate_qem_training_data_v2(
 
                 edge_idx = (
                     np.array([local_edges_src, local_edges_dst], dtype=int)
-                    if local_edges_src else np.zeros((2, 0), dtype=int)
+                    if local_edges_src
+                    else np.zeros((2, 0), dtype=int)
                 )
 
                 # CES decomposition
                 ces_2q = ces  # CES is dominated by 2Q gates
                 ces_readout = 1.0 - np.prod([1.0 - r for r in ro_list])
 
-                samples.append(QEMSampleV2(
-                    noisy_energy=e_noisy,
-                    exact_energy=e_exact,
-                    h_value=h,
-                    n_2q_gates=n_2q,
-                    ces=ces,
-                    topology=topo,
-                    n_qubits=n_qubits,
-                    qubit_t1=t1_list,
-                    qubit_t2=t2_list,
-                    readout_errors=ro_list,
-                    gate_errors_2q=gate_errs,
-                    edge_index=edge_idx,
-                    # V2 fields:
-                    gap=gap,
-                    n_cx_per_qubit=cx_per_qubit,
-                    qubit_degree=degrees,
-                    ces_2q=ces_2q,
-                    ces_readout=ces_readout,
-                ))
+                samples.append(
+                    QEMSampleV2(
+                        noisy_energy=e_noisy,
+                        exact_energy=e_exact,
+                        h_value=h,
+                        n_2q_gates=n_2q,
+                        ces=ces,
+                        topology=topo,
+                        n_qubits=n_qubits,
+                        qubit_t1=t1_list,
+                        qubit_t2=t2_list,
+                        readout_errors=ro_list,
+                        gate_errors_2q=gate_errs,
+                        edge_index=edge_idx,
+                        # V2 fields:
+                        gap=gap,
+                        n_cx_per_qubit=cx_per_qubit,
+                        qubit_degree=degrees,
+                        ces_2q=ces_2q,
+                        ces_readout=ces_readout,
+                    )
+                )
 
                 logger.debug(
                     f"[gen_v2] {topo} N={n_qubits} h={h:.2f} → "
@@ -1942,7 +1961,7 @@ def load_qem_samples_v2(path: Path | str) -> list[QEMSampleV2]:
     samples = []
     for d in data:
         d.pop("_version", None)  # Remove version marker if present
-        d["edge_index"] = np.array(d.get("edge_index", [[],[]]), dtype=int)
+        d["edge_index"] = np.array(d.get("edge_index", [[], []]), dtype=int)
 
         # Ensure V2 fields have defaults if loading V1 data
         d.setdefault("gap", 0.0)
@@ -1953,6 +1972,7 @@ def load_qem_samples_v2(path: Path | str) -> list[QEMSampleV2]:
 
         # Filter only known fields for QEMSampleV2
         import dataclasses
+
         v2_fields = {f.name for f in dataclasses.fields(QEMSampleV2)}
         filtered = {k: v for k, v in d.items() if k in v2_fields}
         samples.append(QEMSampleV2(**filtered))

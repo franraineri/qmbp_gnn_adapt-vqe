@@ -97,12 +97,14 @@ def compute_adaptive_restarts(
     >>> compute_adaptive_restarts(1.0, prev_de_gap=None)  # first point
     5
     """
+    from qmbp_simulation.models.constants import MIN_N_RESTARTS
+
     if config is None:
         config = AdaptiveRestartConfig()
 
     # First point in sweep (no neighbor info): use critical restarts
     if prev_de_gap is None:
-        return config.critical_restarts
+        return max(config.critical_restarts, MIN_N_RESTARTS)
 
     n_restarts = config.base_restarts
 
@@ -118,7 +120,9 @@ def compute_adaptive_restarts(
         if dist_to_critical < config.critical_radius:
             n_restarts = max(n_restarts, config.critical_restarts)
 
-    return min(n_restarts, config.max_restarts)
+    # Hard floor: even trivial points get at least MIN_N_RESTARTS.
+    n_restarts = max(n_restarts, MIN_N_RESTARTS)
+    return min(n_restarts, max(config.max_restarts, MIN_N_RESTARTS))
 
 
 def compute_restarts_for_sweep(
@@ -144,6 +148,8 @@ def compute_restarts_for_sweep(
     list[int]
         Restart count per h-point.
     """
+    from qmbp_simulation.models.constants import MIN_N_RESTARTS
+
     if config is None:
         config = AdaptiveRestartConfig()
 
@@ -155,7 +161,9 @@ def compute_restarts_for_sweep(
             dist = abs(h - config.h_critical)
             if dist < config.critical_radius:
                 n = config.critical_restarts
-        restarts.append(min(n, config.max_restarts))
+        # Hard floor MIN_N_RESTARTS applies even to trivial points.
+        n = max(n, MIN_N_RESTARTS)
+        restarts.append(min(n, max(config.max_restarts, MIN_N_RESTARTS)))
     return restarts
 
 

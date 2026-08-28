@@ -161,10 +161,31 @@ class EvalCache:
         p_layers: int = 0,
         J: float = 1.0,
     ) -> str:
-        """Create a deterministic cache key from evaluation parameters."""
+        """Create a deterministic cache key from evaluation parameters.
+
+        When ``p_layers >= 1``, the θ vector length must be divisible by
+        ``p_layers`` (every HVA layer contributes the same parameter block).
+        A mismatch means the θ belongs to a different ansatz depth than the
+        one being declared — caching it under this key would silently mix
+        p=1 and p=2 evaluations. We surface that as a warning (non-fatal so
+        legacy callers with p_layers=0 keep working) to catch the bug early.
+        """
         # h rounded to 2 decimals (our grid never uses finer resolution).
         # theta_hash ensures unique key even at same h.
-        theta_bytes = np.asarray(theta, dtype=np.float64).tobytes()
+        theta_arr = np.asarray(theta, dtype=np.float64)
+        n_params = theta_arr.size
+        if p_layers >= 1 and n_params > 0 and n_params % p_layers != 0:
+            logger.warning(
+                "EvalCache.make_key: p/n_params mismatch — len(theta)=%d is not "
+                "divisible by p_layers=%d (%s N=%d, model=%s). Possible ansatz "
+                "depth mismatch: θ may belong to a different p.",
+                n_params,
+                p_layers,
+                topology,
+                n_qubits,
+                model,
+            )
+        theta_bytes = theta_arr.tobytes()
         theta_hash = hashlib.sha256(theta_bytes).hexdigest()[:32]
         return f"{model}|{topology}|{n_qubits}|{p_layers}|J{J:.4f}|{h:.2f}|{theta_hash}"
 
@@ -380,7 +401,9 @@ class CachedBackend:
         object.__setattr__(self, "_model", model)
         object.__setattr__(self, "_p_layers", p_layers)
         object.__setattr__(self, "_J", J)
-        object.__setattr__(self, "_cache", cache if cache is not None else EvalCache(p_layers=p_layers))
+        object.__setattr__(
+            self, "_cache", cache if cache is not None else EvalCache(p_layers=p_layers)
+        )
         object.__setattr__(self, "_h_resolver", h_resolver)
         object.__setattr__(self, "_h_current", 0.0)
 

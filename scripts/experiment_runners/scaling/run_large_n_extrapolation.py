@@ -863,9 +863,14 @@ class LargeNExtrapolationRunner(ValidationRunner):
                             g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
                         )
                         fid_info = self.estimate_fidelity(
-                            circuit, res.x, topo, n_target, float(h),
+                            circuit,
+                            res.x,
+                            topo,
+                            n_target,
+                            float(h),
                             model=self._args.model_name,
-                            gap=gt_entry["gap"], e_pred=float(res.fun),
+                            gap=gt_entry["gap"],
+                            e_pred=float(res.fun),
                         )
                         new_result = self.build_per_h_result(
                             h,
@@ -996,9 +1001,14 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
                     )
                     fid_info = self.estimate_fidelity(
-                        circuit, res.x, topo, n_target, float(h),
+                        circuit,
+                        res.x,
+                        topo,
+                        n_target,
+                        float(h),
                         model=self._args.model_name,
-                        gap=gt_entry["gap"], e_pred=float(e_refined),
+                        gap=gt_entry["gap"],
+                        e_pred=float(e_refined),
                     )
                     new_result = self.build_per_h_result(
                         h,
@@ -1182,9 +1192,14 @@ class LargeNExtrapolationRunner(ValidationRunner):
                                 g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
                             )
                             fid_info = self.estimate_fidelity(
-                                circuit, res.x, topo, n_target, float(h),
+                                circuit,
+                                res.x,
+                                topo,
+                                n_target,
+                                float(h),
                                 model=model_name,
-                                gap=gt["gap"], e_pred=float(res.fun),
+                                gap=gt["gap"],
+                                e_pred=float(res.fun),
                             )
                             new_result = self.build_per_h_result(
                                 h,
@@ -1357,9 +1372,14 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 fid_info = None
                 if best_theta is not None:
                     fid_info = self.estimate_fidelity(
-                        circuit, best_theta, topo, n_target, float(h),
+                        circuit,
+                        best_theta,
+                        topo,
+                        n_target,
+                        float(h),
                         model=self._args.model_name,
-                        gap=gt_entry["gap"], e_pred=float(best_energy),
+                        gap=gt_entry["gap"],
+                        e_pred=float(best_energy),
                     )
 
                 result = self.build_per_h_result(
@@ -1498,22 +1518,30 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     f"single={pass_5pct:.0%} vs dual={pass_dual:.0%}"
                 )
 
-        # Extensive scaling check: |ΔE| should be approximately constant
-        per_site_errors = [self._mpnn_results[n].get("mean_abs_error") for n in self._args.target_n]
-        # Filter None values (n_qubits missing in result dicts)
-        per_site_errors = [e for e in per_site_errors if e is not None and e > 0]
-        if len(per_site_errors) >= 2:
-            err_ratio = max(per_site_errors) / max(min(per_site_errors), 1e-10)
-            if err_ratio < 3.0:
-                logger.info(
-                    f"  ✅ Extensive scaling confirmed: |ΔE| varies by {err_ratio:.1f}× "
-                    f"across N={self._args.target_n}"
-                )
-            else:
-                logger.warning(
-                    f"  ⚠️ Per-site error varies by {err_ratio:.1f}× — "
-                    f"extensive scaling may not hold"
-                )
+        # ── Extensivity of the energy error: power-law fit |ΔE| ~ A·N^α ────
+        # A fixed-depth ansatz is "extensive" when the per-site error |ΔE|/N
+        # stays bounded (α ≈ 1). This replaces the old max/min ratio (fragile,
+        # 2-point, arbitrary 3× threshold) with a log-log scaling law + R².
+        from qmbp_simulation.analysis.metrics import analyze_energy_error_scaling
+
+        abs_error_by_n = {
+            n: self._mpnn_results[n].get("mean_abs_error") for n in self._args.target_n
+        }
+        scaling = analyze_energy_error_scaling(abs_error_by_n)
+        comparison["error_scaling"] = scaling
+        if scaling["method"] == "power_law":
+            icon = "✅" if scaling["is_extensive"] else "⚠️"
+            logger.info(
+                f"  {icon} Error scaling |ΔE|~N^α: α={scaling['alpha']:.2f} "
+                f"(R²={scaling['r_squared']:.3f}) → {scaling['verdict']} "
+                f"[per-site CV={scaling['per_site_cv']:.2f}] N={self._args.target_n}"
+            )
+        elif scaling["method"] == "ratio_fallback":
+            logger.info(
+                f"  ℹ️ Error scaling (preliminary, 2 sizes): |ΔE| ratio="
+                f"{scaling['err_ratio']:.1f}×, per-site CV={scaling['per_site_cv']:.2f} "
+                f"— add a 3rd N for a power-law exponent"
+            )
 
         # ── Uncertainty calibration: θ_std vs ΔE/gap correlation ──────────
         from qmbp_simulation.analysis.metrics import compute_uncertainty_correlation

@@ -32,6 +32,7 @@ Usage:
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import time
@@ -64,7 +65,12 @@ DEFAULT_H_MAX = 4.5
 DEFAULT_H_POINTS = 15
 DEFAULT_N_ANCHORS = 14
 DEFAULT_MAXITER = 1000
-DEFAULT_N_RESTARTS = 4
+DEFAULT_N_RESTARTS = 6
+# Hard floor on VQE restarts. Canonical source is models.constants.MIN_N_RESTARTS,
+# re-exported here for local use. Enforced on --n-restarts (setup) AND inside the
+# adaptive allocation (sweep_strategies), so even easy points get ≥ this many.
+from qmbp_simulation.models.constants import MIN_N_RESTARTS  # noqa: E402
+
 DEFAULT_MAX_REFINE_PER_ITER = 50
 
 FINE_TUNE_EPOCHS = 500
@@ -143,6 +149,20 @@ class AcceleratedCrossNRunner(ValidationRunner):
             help="Number of h-grid points (default: %(default)s)",
         )
         parser.add_argument(
+            "--train-h-min",
+            type=float,
+            default=None,
+            help="If set, restrict TRAINING data to h >= this value "
+            "(filters MultiNAggregator dataset; independent of the eval sweep --h-min).",
+        )
+        parser.add_argument(
+            "--train-h-max",
+            type=float,
+            default=None,
+            help="If set, restrict TRAINING data to h <= this value "
+            "(filters MultiNAggregator dataset; independent of the eval sweep --h-max).",
+        )
+        parser.add_argument(
             "--n-anchors",
             type=int,
             default=DEFAULT_N_ANCHORS,
@@ -194,6 +214,16 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "exists in the zoo. Default: reuse best existing model.",
         )
         parser.add_argument(
+            "--skip-retrain",
+            action="store_true",
+            default=False,
+            help="In --iterative-improve: never train/fine-tune a new MPNN. "
+            "Keep predicting with the loaded model (--checkpoint or zoo best) "
+            "and only refine failing points with VQE, persisting them to NPZ. "
+            "Unlike --from-zoo, this still allows the zoo model to be selected "
+            "automatically when no --checkpoint is given.",
+        )
+        parser.add_argument(
             "--model-name",
             type=str,
             default=None,
@@ -239,10 +269,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
         )
         parser.add_argument(
             "--refine-all",
-            action="store_true",
+            action=argparse.BooleanOptionalAction,
             default=True,
             help="Refine ALL failing points per iteration (no cap). "
-            "Maximizes training data quality at the cost of compute time.",
+            "Maximizes training data quality at the cost of compute time. "
+            "Use --no-refine-all to cap refinements via --max-refine-per-iter.",
         )
 
     def build_config(self) -> dict:
@@ -256,6 +287,15 @@ class AcceleratedCrossNRunner(ValidationRunner):
     def setup(self):
         """Initialize physics objects."""
         self.setup_physics()
+        # Enforce the hard minimum of VQE restarts for the whole run. Applied
+        # once here so every downstream use (main config, bootstrap, refine)
+        # inherits the floor.
+        if self._args.n_restarts < MIN_N_RESTARTS:
+            logger.info(
+                f"  n_restarts raised {self._args.n_restarts} → {MIN_N_RESTARTS} "
+                f"(hard floor MIN_N_RESTARTS)"
+            )
+            self._args.n_restarts = MIN_N_RESTARTS
         # Auto-detect h_min from valid regime if user didn't override
         # (h below the regime boundary is ansatz-limited for p=1)
         if self._args.h_min == DEFAULT_H_MIN:
@@ -295,6 +335,27 @@ class AcceleratedCrossNRunner(ValidationRunner):
     def run_preflight(self) -> bool:
         """Validate topology constraints before execution."""
         topo = self._args.topology
+
+        # Validate training h-range filter (if provided)
+        train_h_min = getattr(self._args, "train_h_min", None)
+        train_h_max = getattr(self._args, "train_h_max", None)
+        if train_h_min is not None and train_h_max is not None:
+            if train_h_min > train_h_max:
+                logger.error(
+                    f"--train-h-min ({train_h_min}) must be <= --train-h-max "
+                    f"({train_h_max}). No training data would be selected."
+                )
+                return False
+        if (train_h_min is not None or train_h_max is not None) and not (
+            getattr(self._args, "multi_n_train", False)
+            or getattr(self._args, "iterative_improve", False)
+        ):
+            logger.warning(
+                "--train-h-min/--train-h-max only affect the training dataset "
+                "(built by MultiNAggregator). They have no effect without "
+                "--multi-n-train or --iterative-improve."
+            )
+
         # Ladder requires even N
         if topo == "ladder":
             bad_n = []
@@ -311,7 +372,31 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 return False
         return True
 
-    def _check_existing_npz_utility(self, topology: str, n_qubits: int) -> None:
+    def _training_h_range(self) -> tuple[float, float]:
+        """Effective training h-range for zoo metadata.
+
+        Prefers the explicit --train-h-min/--train-h-max filter when set,
+        otherwise falls back to the evaluation sweep range. This ensures the
+        zoo's h_range (documented as the TRAINING range) is accurate for
+        range-restricted models.
+        """
+        train_h_min = getattr(self._args, "train_h_min", None)
+        train_h_max = getattr(self._args, "train_h_max", None)
+        h_min = train_h_min if train_h_min is not None else self._args.h_min
+        h_max = train_h_max if train_h_max is not None else self._args.h_max
+        return (float(h_min), float(h_max))
+
+    def _train_h_range_note(self) -> str:
+        """Traceability note fragment when a training h-range filter is active."""
+        train_h_min = getattr(self._args, "train_h_min", None)
+        train_h_max = getattr(self._args, "train_h_max", None)
+        if train_h_min is not None or train_h_max is not None:
+            lo = train_h_min if train_h_min is not None else "-inf"
+            hi = train_h_max if train_h_max is not None else "+inf"
+            return f", train_h_range=[{lo}, {hi}]"
+        return ""
+
+    def _check_existing_npz_utility(self, topology: str, n_qubits: int, p_layers: int = 1) -> None:
         """Check if existing NPZ data is useful for training. Logs warnings if not.
 
         Does NOT block execution — just informs the user that the existing NPZ
@@ -322,7 +407,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         try:
             from qmbp_simulation.analysis.metrics import classify_training_utility
 
-            npz_path = Path("data/multi_n_training") / f"{topology}_N{n_qubits}_p1.npz"
+            npz_path = Path("data/multi_n_training") / f"{topology}_N{n_qubits}_p{p_layers}.npz"
             if not npz_path.exists():
                 return  # No existing data — nothing to check
 
@@ -360,7 +445,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 n_pts,
                 pass_dual,
                 pass_simple,
-                mean_abs_error=float(abs_err.mean()) if len(abs_err) > 0 else None,
             )
 
             if category == "not_useful":
@@ -417,6 +501,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 )
             return sections
 
+        # An explicit --checkpoint means "use only this model": treat it like
+        # --from-zoo so no training section is added (predict-only).
+        _predict_only = self._args.from_zoo or bool(getattr(self._args, "checkpoint", None))
+
         if getattr(self._args, "multi_n_train", False) or getattr(
             self._args, "force_retrain", False
         ):
@@ -428,7 +516,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     hypothesis="Multi-N UnifiedMPNN trained with aggregated data from all N sizes",
                 )
             )
-        elif not self._args.from_zoo:
+        elif not _predict_only:
             sections.append(
                 Section(
                     id=2,
@@ -489,7 +577,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
         topo = self._args.topology
 
         # ── Training utility gating: warn if existing NPZ is not useful ──
-        self._check_existing_npz_utility(topo, N)
+        _p_check = (
+            self._args.p_layers[0] if isinstance(self._args.p_layers, list) else self._args.p_layers
+        )
+        self._check_existing_npz_utility(topo, N, p_layers=_p_check)
 
         backend = self.select_backend(N, for_vqe_loop=True)
 
@@ -617,7 +708,12 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # p_layers MUST be passed so only *_p{p}.npz data is used — never mix p=1 and p=2.
         max_n = self.N_MAX_VIABLE.get(topo, 20)
         agg = MultiNAggregator(
-            topology=topo, model="tfim_bond_resolved", max_n=max_n, p_layers=p
+            topology=topo,
+            model="tfim_bond_resolved",
+            max_n=max_n,
+            p_layers=p,
+            h_min=getattr(self._args, "train_h_min", None),
+            h_max=getattr(self._args, "train_h_max", None),
         )
         summary = agg.scan()
 
@@ -626,163 +722,170 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
         logger.info(f"  Found data for N={agg.available_n_values()}: {summary}")
 
-        # ── PRE-TRAINING VALIDATION ──────────────────────────────────────────
-        # Validate data quality BEFORE attempting to train
-        is_viable, validation_report = validate_training_dataset(
-            agg._data_by_n,
-            max_de_gap=0.10,
-            min_total_points=10,
-            min_n_values=2,
-        )
-        if not is_viable:
-            logger.error(
-                f"  ❌ TRAINING DATA NOT VIABLE:\n"
-                f"     {validation_report['recommendation']}\n"
-                f"     Errors: {validation_report['errors']}"
+        if True:
+            # ── PRE-TRAINING VALIDATION ──────────────────────────────────────────
+            # Validate data quality BEFORE attempting to train
+            is_viable, validation_report = validate_training_dataset(
+                agg._data_by_n,
+                max_de_gap=0.10,
+                min_total_points=10,
+                min_n_values=2,
             )
-            for warn in validation_report.get("warnings", [])[:5]:
-                logger.warning(f"     {warn}")
-            return {
-                "pass": False,
-                "error": "Training data validation failed",
-                "validation_report": validation_report,
-                "recommendation": validation_report["recommendation"],
-            }
-        logger.info(
-            f"  ✓ Data validation passed: {validation_report['total_good']}/{validation_report['total_raw']} "
-            f"good points across {validation_report['n_values_with_good_data']} N values"
-        )
-        if validation_report.get("warnings"):
-            for warn in validation_report["warnings"][:3]:
-                logger.warning(f"     {warn}")
-
-        # 2. Build combined dataset (filter by quality)
-        dataset = agg.build_combined_dataset(max_de_gap=0.10)
-        if len(dataset) < 5:
-            return {
-                "pass": False,
-                "error": f"Only {len(dataset)} points pass quality filter. Need ≥5.",
-                "summary": agg.summary(),
-            }
-
-        logger.info(f"  Combined dataset: {len(dataset)} graphs from N={agg.available_n_values()}")
-
-        # 3. Determine output dim from dataset (varies by graph size)
-        # UnifiedMPNN uses per-node prediction so output_dim is implicit
-        sample_g = dataset[0]
-        n_node_features = sample_g.x.shape[1] if hasattr(sample_g, "x") else 4
-
-        # 4. Train UnifiedMPNN
-        model = UnifiedMPNN(
-            node_features=n_node_features,
-            hidden_dim=256,
-            n_layers=3,
-            norm_type="none",  # MANDATORY for cross-N
-            dropout=0.1,
-            use_residual=getattr(self._args, "use_residual", False),
-            film_conditioning=getattr(self._args, "film", False),
-        )
-
-        logger.info("  Training UnifiedMPNN (multi-N, norm_type=none)...")
-        t0 = time.perf_counter()
-        train_result = train_unified_mpnn(
-            model,
-            dataset,
-            n_epochs=FULL_TRAIN_EPOCHS,
-            lr=1e-3,
-            patience=200,
-            seed=42,
-            loss_type=getattr(self._args, "loss_type", "theta_mse"),
-            physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
-        )
-        elapsed = time.perf_counter() - t0
-
-        final_mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0
-        logger.info(f"  Training done: MSE={final_mse:.2e}, time={elapsed:.1f}s")
-
-        # Persist training curve for post-hoc analysis
-        try:
-            from qmbp_simulation.utils.helpers import persist_training_curve
-
-            persist_training_curve(
-                train_result,
-                output_dir=Path("results/training_curves"),
-                prefix=f"{topo}_multiN_p{p}",
-            )
-        except Exception:
-            pass
-
-        # Store model for Section 3
-        self._models[p] = model
-
-        # 5. Export to zoo as multi-N model
-        from datetime import datetime
-
-        from qmbp_simulation.predictors.model_zoo import get_runner_tag, make_date_tag
-
-        n_values_str = "+".join(str(n) for n in agg.available_n_values())
-        if getattr(self._args, "model_name", None):
-            ckpt_file = f"unifMPNN__{topo}_p{p}_{self._args.model_name}.pt"
-        else:
-            ckpt_file = f"unified_tfim_br_{topo}_multiN_{n_values_str}_p{p}.pt"
-        entry = ZooEntry(
-            model="tfim_bond_resolved",
-            topology=topo,
-            n_qubits=0,  # 0 = multi-N
-            p_layers=p,
-            checkpoint_file=ckpt_file,
-            h_range=(self._args.h_min, self._args.h_max),
-            pass_rate=0.0,  # Updated after eval
-            n_training_points=len(dataset),
-            seeds=[42],
-            created=datetime.now(UTC).isoformat(),
-            notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points"
-            + (", arch=residual" if getattr(self._args, "use_residual", False) else ""),
-            runner_tag=get_runner_tag(self.runner_id),
-            date_tag=make_date_tag(),
-        )
-        register_checkpoint_with_training_metrics(
-            model,
-            entry,
-            training_result=train_result,
-            overwrite=True,
-            architecture_config={
-                "hidden_dim": 256,
-                "n_conv_layers": 3,
-                "norm_type": "none",
-                "dropout": 0.1,
-                "use_residual": getattr(self._args, "use_residual", False),
-                "film_conditioning": getattr(self._args, "film", False),
-            },
-        )
-        logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
-
-        # Auto-persist training curve
-        try:
-            from qmbp_simulation.utils.helpers import persist_training_curve
-
-            persist_training_curve(
-                train_result,
-                output_dir=Path("results/training_curves"),
-                prefix=f"{topo}_section_multiN_p{p}",
-            )
-        except Exception:
-            pass
-
-        # Enrich model registry with per-N point breakdown
-        try:
-            from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
-
-            db = ModelRegistryDB()
-            record = db.get_model(entry.checkpoint_file)
-            if record:
-                record.training.points_per_n = {
-                    str(k): v for k, v in agg.summary()["points_per_n"].items()
+            if not is_viable:
+                logger.error(
+                    f"  ❌ TRAINING DATA NOT VIABLE:\n"
+                    f"     {validation_report['recommendation']}\n"
+                    f"     Errors: {validation_report['errors']}"
+                )
+                for warn in validation_report.get("warnings", [])[:5]:
+                    logger.warning(f"     {warn}")
+                return {
+                    "pass": False,
+                    "error": "Training data validation failed",
+                    "validation_report": validation_report,
+                    "recommendation": validation_report["recommendation"],
                 }
-                record.training.n_values_used = agg.available_n_values()
-                db.register_model(record, overwrite=True)
-        except Exception as e:
-            logger.debug("Registry enrichment failed (non-critical): %s", e)
+            logger.info(
+                f"  ✓ Data validation passed: {validation_report['total_good']}/{validation_report['total_raw']} "
+                f"good points across {validation_report['n_values_with_good_data']} N values"
+            )
+            if validation_report.get("warnings"):
+                for warn in validation_report["warnings"][:3]:
+                    logger.warning(f"     {warn}")
+
+            # 2. Build combined dataset (filter by quality)
+            dataset = agg.build_combined_dataset(max_de_gap=0.10)
+            if len(dataset) < 5:
+                return {
+                    "pass": False,
+                    "error": f"Only {len(dataset)} points pass quality filter. Need ≥5.",
+                    "summary": agg.summary(),
+                }
+
+            logger.info(
+                f"  Combined dataset: {len(dataset)} graphs from N={agg.available_n_values()}"
+            )
+
+            # 3. Determine output dim from dataset (varies by graph size)
+            # UnifiedMPNN uses per-node prediction so output_dim is implicit
+            sample_g = dataset[0]
+            n_node_features = sample_g.x.shape[1] if hasattr(sample_g, "x") else 4
+
+            # 4. Train UnifiedMPNN
+            model = UnifiedMPNN(
+                node_features=n_node_features,
+                hidden_dim=256,
+                n_layers=3,
+                norm_type="none",  # MANDATORY for cross-N
+                dropout=0.1,
+                use_residual=getattr(self._args, "use_residual", False),
+                film_conditioning=getattr(self._args, "film", False),
+            )
+
+            logger.info("  Training UnifiedMPNN (multi-N, norm_type=none)...")
+            t0 = time.perf_counter()
+            train_result = train_unified_mpnn(
+                model,
+                dataset,
+                n_epochs=FULL_TRAIN_EPOCHS,
+                lr=1e-3,
+                patience=200,
+                seed=42,
+                loss_type=getattr(self._args, "loss_type", "theta_mse"),
+                physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
+            )
+            elapsed = time.perf_counter() - t0
+
+            final_mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0
+            logger.info(f"  Training done: MSE={final_mse:.2e}, time={elapsed:.1f}s")
+
+            # Persist training curve for post-hoc analysis
+            try:
+                from qmbp_simulation.utils.helpers import persist_training_curve
+
+                persist_training_curve(
+                    train_result,
+                    output_dir=Path("results/training_curves"),
+                    prefix=f"{topo}_multiN_p{p}",
+                )
+            except Exception:
+                pass
+
+            # Store model for Section 3
+            self._models[p] = model
+
+            # 5. Export to zoo as multi-N model
+            from datetime import datetime
+
+            from qmbp_simulation.predictors.model_zoo import get_runner_tag, make_date_tag
+
+            n_values_str = "+".join(str(n) for n in agg.available_n_values())
+            if getattr(self._args, "model_name", None):
+                ckpt_file = f"unifMPNN__{topo}_p{p}_{self._args.model_name}.pt"
+            else:
+                ckpt_file = f"unified_tfim_br_{topo}_multiN_{n_values_str}_p{p}.pt"
+            entry = ZooEntry(
+                model="tfim_bond_resolved",
+                topology=topo,
+                n_qubits=0,  # 0 = multi-N
+                p_layers=p,
+                checkpoint_file=ckpt_file,
+                # h_range documents the TRAINING h-range. When --train-h-min/max
+                # restrict the dataset, record that; otherwise fall back to the
+                # sweep range (which approximates the training coverage).
+                h_range=self._training_h_range(),
+                pass_rate=0.0,  # Updated after eval
+                n_training_points=len(dataset),
+                seeds=[42],
+                created=datetime.now(UTC).isoformat(),
+                notes=f"Multi-N training: N={agg.available_n_values()}, {len(dataset)} points"
+                + self._train_h_range_note()
+                + (", arch=residual" if getattr(self._args, "use_residual", False) else ""),
+                runner_tag=get_runner_tag(self.runner_id),
+                date_tag=make_date_tag(),
+            )
+            register_checkpoint_with_training_metrics(
+                model,
+                entry,
+                training_result=train_result,
+                overwrite=True,
+                architecture_config={
+                    "hidden_dim": 256,
+                    "n_conv_layers": 3,
+                    "norm_type": "none",
+                    "dropout": 0.1,
+                    "use_residual": getattr(self._args, "use_residual", False),
+                    "film_conditioning": getattr(self._args, "film", False),
+                },
+            )
+            logger.info(f"  Exported multi-N model: {entry.checkpoint_file}")
+
+            # Auto-persist training curve
+            try:
+                from qmbp_simulation.utils.helpers import persist_training_curve
+
+                persist_training_curve(
+                    train_result,
+                    output_dir=Path("results/training_curves"),
+                    prefix=f"{topo}_section_multiN_p{p}",
+                )
+            except Exception:
+                pass
+
+            # Enrich model registry with per-N point breakdown
+            try:
+                from qmbp_simulation.predictors.model_registry_db import ModelRegistryDB
+
+                db = ModelRegistryDB()
+                record = db.get_model(entry.checkpoint_file)
+                if record:
+                    record.training.points_per_n = {
+                        str(k): v for k, v in agg.summary()["points_per_n"].items()
+                    }
+                    record.training.n_values_used = agg.available_n_values()
+                    db.register_model(record, overwrite=True)
+            except Exception as e:
+                logger.debug("Registry enrichment failed (non-critical): %s", e)
 
         return {
             "pass": True,
@@ -819,19 +922,28 @@ class AcceleratedCrossNRunner(ValidationRunner):
             # Load model: from memory (section 2), from zoo (best for cross-N), or train new
             model = self._models.get(p)
             if model is None:
+                # Respect --from-zoo / --checkpoint: never train a new model.
+                _train_if_missing = not (
+                    self._args.from_zoo or bool(getattr(self._args, "checkpoint", None))
+                )
                 model = self.load_best_mpnn_for_cross_n(
                     n_target=self._args.target_n[0],
                     model="tfim_bond_resolved",
                     topology=topo,
                     p_layers=p,
                     checkpoint_path=self._args.checkpoint,
-                    train_if_missing=True,
+                    train_if_missing=_train_if_missing,
                     train_epochs=FULL_TRAIN_EPOCHS,
                 )
                 if model is None:
+                    _reason = (
+                        "No model in zoo for this config (--from-zoo set, training disabled)"
+                        if self._args.from_zoo
+                        else "No model and no training data available"
+                    )
                     all_results[f"p{p}"] = {
                         "pass": False,
-                        "error": "No model and no training data available",
+                        "error": _reason,
                     }
                     continue
 
@@ -1016,8 +1128,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             if is_point_failure(
                                 r["de_gap"],
                                 abs_error=r.get("abs_error"),
-                                fidelity=r.get("fidelity"),
-                                min_fidelity=0.90,
                             )
                         ]
                         if not refine_indices:
@@ -1382,29 +1492,62 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # ── Load best model (unified selection: per-topo + MT + single-N) ──
         model = None
         _meta = None
-        try:
-            from qmbp_simulation.predictors.model_zoo import load_best_model_for
 
-            model, _meta, _source = load_best_model_for(
-                topo,
-                model="tfim_bond_resolved",
-                p_layers=p,
-                n_target=n_target,
-                include_multi_topology=True,
+        # Explicit --checkpoint: honor it exactly (use only this model), matching
+        # the predict-only contract of section_cross_n_predict. Resolves as a
+        # path, exact zoo name, or fuzzy tag/fragment (e.g. "h_0p5_1p5").
+        # Without this, iterative-improve silently ignored --checkpoint and fell
+        # back to load_best_model_for's zoo "best" selection.
+        _ckpt = getattr(self._args, "checkpoint", None)
+        if _ckpt:
+            from qmbp_simulation.predictors.model_zoo import (
+                _smart_load_checkpoint,
+                resolve_checkpoint_fuzzy,
             )
+
+            ckpt_path = resolve_checkpoint_fuzzy(str(_ckpt), topology=topo, p_layers=p)
+            if ckpt_path is None:
+                candidates = resolve_checkpoint_fuzzy(str(_ckpt), return_all=True)
+                names = [pth.name for pth, _ in (candidates or [])[:5]]
+                hint = f" Closest checkpoints on disk: {names}" if names else ""
+                return {
+                    "pass": False,
+                    "error": (
+                        f"--checkpoint '{_ckpt}' not found as a file path, exact "
+                        f"zoo name, or fuzzy match.{hint}"
+                    ),
+                }
+            model = _smart_load_checkpoint(str(ckpt_path))
             model.eval()
-            # Auto-detect architecture from loaded model (issue #7)
             if getattr(model, "use_residual", False) and not use_residual:
                 use_residual = True
                 logger.info("  Auto-detected use_residual=True from loaded model")
-            logger.info(
-                f"  Loaded model [{_source}]: {_meta.checkpoint_file} "
-                f"(pass={_meta.pass_rate:.0%}, {_meta.n_training_points} pts)"
-            )
-        except FileNotFoundError:
-            pass
-        except Exception as e:
-            logger.debug(f"  Unified model loading failed: {e}")
+            logger.info(f"  Loaded EXPLICIT checkpoint: {ckpt_path.name}")
+
+        if model is None:
+            try:
+                from qmbp_simulation.predictors.model_zoo import load_best_model_for
+
+                model, _meta, _source = load_best_model_for(
+                    topo,
+                    model="tfim_bond_resolved",
+                    p_layers=p,
+                    n_target=n_target,
+                    include_multi_topology=True,
+                )
+                model.eval()
+                # Auto-detect architecture from loaded model (issue #7)
+                if getattr(model, "use_residual", False) and not use_residual:
+                    use_residual = True
+                    logger.info("  Auto-detected use_residual=True from loaded model")
+                logger.info(
+                    f"  Loaded model [{_source}]: {_meta.checkpoint_file} "
+                    f"(pass={_meta.pass_rate:.0%}, {_meta.n_training_points} pts)"
+                )
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                logger.debug(f"  Unified model loading failed: {e}")
 
         if model is None:
             try:
@@ -1421,6 +1564,16 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     use_residual = True
                     logger.info("  Auto-detected use_residual=True from single-N model")
             except FileNotFoundError:
+                # --from-zoo: never bootstrap/train. Fail clean if no zoo model.
+                if getattr(self._args, "from_zoo", False):
+                    return {
+                        "pass": False,
+                        "error": (
+                            f"No model in zoo for {topo} p={p} (--from-zoo set, "
+                            "bootstrap/training disabled). Train a model first or "
+                            "drop --from-zoo."
+                        ),
+                    }
                 # Bootstrap: no model exists → run AcceleratedVQE to generate
                 # initial training data, then train a UnifiedMPNN from it.
                 logger.info("  No model in zoo — bootstrapping via AcceleratedVQE...")
@@ -1478,6 +1631,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     model="tfim_bond_resolved",
                     max_n=self.N_MAX_VIABLE.get(topo, 20),
                     p_layers=p,
+                    h_min=getattr(self._args, "train_h_min", None),
+                    h_max=getattr(self._args, "train_h_max", None),
                 )
                 agg.scan()
                 dataset = agg.build_combined_dataset(max_de_gap=0.15)
@@ -1514,12 +1669,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         if getattr(self._args, "model_name", None)
                         else f"unified_tfim_br_{topo}_multiN_{n_target}_p{p}.pt"
                     ),
-                    h_range=(self._args.h_min, self._args.h_max),
+                    h_range=self._training_h_range(),
                     pass_rate=boot_result.pass_rate,
                     n_training_points=len(dataset),
                     seeds=[42],
                     created=datetime.now(UTC).isoformat(),
                     notes=f"Bootstrap from AcceleratedVQE N={n_target}"
+                    + self._train_h_range_note()
                     + (", arch=residual" if use_residual else ""),
                 )
                 register_checkpoint_with_training_metrics(
@@ -1789,7 +1945,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 break
 
             # ── 2c: Identify failures + ansatz-limit filter ───────────────
-            # Uses dual criteria: ΔE/gap OR |ΔE| OR fidelity (from metrics)
+            # Uses the dual energy criterion: ΔE/gap OR |ΔE| (from metrics).
+            # Fidelity is NOT a pass/fail criterion (diagnostic only).
             from qmbp_simulation.analysis.metrics import (
                 compute_refinement_priority,
                 is_point_failure,
@@ -1802,7 +1959,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 is_fail = is_point_failure(
                     de_gap=de_gaps[i],
                     abs_error=abs_err_i,
-                    fidelity=None,  # Not available in iterative loop
                 )
                 if is_fail:
                     if h_min_valid > 0 and float(h) < h_min_valid:
@@ -2032,9 +2188,20 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         abs_err_new = abs(e_refined - e_exact_arr[idx])
                         # Only log as improvement if ΔE/gap actually changed visibly
                         if abs(de_gaps[idx] - de_gap_new) > 1e-4:
+                            # Compute state fidelity when feasible (N ≤ statevector limit).
+                            # safe_compute_fidelity returns None for large N or on error.
+                            fid = self.safe_compute_fidelity(
+                                circuit_target,
+                                res_x,
+                                topo,
+                                n_target,
+                                h,
+                                model="tfim_bond_resolved",
+                            )
+                            fid_str = f" F={fid:.4f}" if fid is not None else ""
                             logger.info(
                                 f"    h={h:.2f}: ΔE/gap {de_gaps[idx]:.4f} → {de_gap_new:.4f} "
-                                f"|ΔE| {abs_err_old:.3f} → {abs_err_new:.3f} ✓"
+                                f"|ΔE| {abs_err_old:.3f} → {abs_err_new:.3f}{fid_str} ✓"
                             )
                         refined_h.append(h)
                         refined_theta.append(res_x.copy())
@@ -2101,6 +2268,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 topology=topo,
                 model="tfim_bond_resolved",
                 max_n=self.N_MAX_VIABLE.get(topo, 20),
+                h_min=getattr(self._args, "train_h_min", None),
+                h_max=getattr(self._args, "train_h_max", None),
                 p_layers=p,
             )
             agg.scan()
@@ -2120,6 +2289,16 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 prev_pass_rate=prev_pass_rate,
                 dataset_size=len(dataset),
             )
+
+            # --from-zoo / --skip-retrain: never retrain the MPNN. Keep refining
+            # VQE points and persisting them to NPZ, but use only the loaded
+            # model for prediction.
+            if getattr(self._args, "from_zoo", False):
+                do_retrain = False
+                retrain_reason = "from_zoo (retraining disabled)"
+            elif getattr(self._args, "skip_retrain", False):
+                do_retrain = False
+                retrain_reason = "skip_retrain (retraining disabled)"
 
             # Log diagnostic info if contamination or other issues detected
             if diagnostics.get("failure_mode") in ("contaminated_training", "gap_masking"):
@@ -2214,12 +2393,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             if getattr(self._args, "model_name", None)
                             else f"unified_tfim_br_{topo}_multiN_{n_str}_p{p}.pt"
                         ),
-                        h_range=(self._args.h_min, self._args.h_max),
+                        h_range=self._training_h_range(),
                         pass_rate=pass_rate,
                         n_training_points=len(dataset),
                         seeds=[42],
                         created=datetime.now(UTC).isoformat(),
                         notes=f"Iterative improve iter {iteration}: N={n_vals}"
+                        + self._train_h_range_note()
                         + (", arch=residual" if use_residual else ""),
                     )
                     register_checkpoint_with_training_metrics(

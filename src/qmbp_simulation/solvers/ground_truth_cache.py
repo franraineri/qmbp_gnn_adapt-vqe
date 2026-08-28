@@ -206,6 +206,90 @@ class GroundTruthCache:
             corr_zz=gt.corr_zz if hasattr(gt, "corr_zz") else None,
         )
 
+    def get_or_compute(
+        self,
+        topology: str,
+        n_qubits: int,
+        model: str,
+        h: float,
+        *,
+        flush: bool = True,
+        model_kwargs: dict[str, Any] | None = None,
+        solver: Any | None = None,
+    ) -> tuple[float, float]:
+        """Return (ground_energy, gap), computing + caching on a miss.
+
+        Convenience wrapper around the get → solve → put pattern used across
+        the codebase (runner_base.exact_ground_state, the scoreboard, the
+        accelerated pipeline). Centralizing it here avoids duplicating the
+        solver invocation and the stale-floor-gap invalidation in every caller.
+
+        Produces results identical to
+        ``ValidationRunner.exact_ground_state(topology, n, h, model=model)``:
+        both use ``ClassicalSolver`` on the same Hamiltonian.
+
+        Parameters
+        ----------
+        topology, n_qubits, model, h
+            Ground-truth coordinates (same key space as ``get``/``put``).
+        flush : bool
+            If True (default), persist to disk immediately after computing a
+            fresh value. If False, defer the write (caller flushes later).
+        model_kwargs : dict | None
+            Optional model parameter overrides forwarded to the model spec.
+        solver : ClassicalSolver | None
+            Optional solver to reuse (e.g. a runner's ``self.solver``). When
+            None, a fresh ``ClassicalSolver`` is created. Reusing avoids
+            repeated solver construction in hot loops.
+
+        Returns
+        -------
+        tuple[float, float]
+            (ground_energy, spectral_gap).
+        """
+        cached = self.get(topology, n_qubits, model, h)
+        if cached is not None:
+            cached_gap = float(cached["gap"])
+            # Invalidate stale floor gaps: for N > 18 a gap ≈ 2π/N was written
+            # before the analytical-gap fix and must be recomputed (mirrors
+            # runner_base.exact_ground_state).
+            gap_floor = 2 * np.pi / n_qubits if n_qubits > 0 else 0.0
+            is_stale_floor = n_qubits > 18 and abs(cached_gap - gap_floor) < 1e-4
+            if not is_stale_floor:
+                return (float(cached["energy"]), cached_gap)
+
+        # ── Miss (or stale) → compute via ClassicalSolver ────────────────
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.models.model_registry import get_model_spec
+        from qmbp_simulation.solvers import ClassicalSolver
+
+        spec = get_model_spec(model)
+        if model_kwargs:
+            spec = spec.with_params(**model_kwargs)
+        lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
+        H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+        gt = (solver or ClassicalSolver()).solve(H, lattice)
+
+        # Gap validation: warn if gap ≤ 0 (makes ΔE/gap undefined). Mirrors
+        # the same guard in runner_base.exact_ground_state.
+        if gt.gap <= 0:
+            logger.warning(
+                "get_or_compute: gap=%.2e ≤ 0 for %s N=%d %s h=%.4f — ΔE/gap "
+                "undefined (degenerate GS or DMRG excited state converged to GS).",
+                gt.gap,
+                topology,
+                n_qubits,
+                model,
+                h,
+            )
+
+        # Persist (put() batches every 10 writes; flush forces immediate write).
+        self.put_from_result(topology, n_qubits, model, h, gt)
+        if flush:
+            self.flush()
+
+        return (float(gt.ground_energy), float(gt.gap))
+
     def flush(self) -> None:
         """Force save to disk."""
         self._save()

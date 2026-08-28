@@ -33,6 +33,22 @@ MIN_FIDELITY: float = 0.97
 Fidelity check is skipped when N > 22 (statevector unavailable)."""
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Infidelity Decomposition (Var(H) vs gap) — diagnostic, not pass/fail
+# ═══════════════════════════════════════════════════════════════════════════════
+
+DIRTY_STATE_VARIANCE_THRESHOLD: float = 0.05
+"""Var(H) above this flags a 'dirty state' — |ψ⟩ is far from an eigenstate,
+so the infidelity is dominated by preparation/optimization error (ATTACKABLE
+via more restarts, warm-start, or a variance-based objective).
+Var(H) = ⟨H²⟩ − ⟨H⟩² is exactly zero for an eigenstate."""
+
+SMALL_GAP_THRESHOLD: float = 0.5
+"""Spectral gap below this flags 'small gap' — near a critical point the gap
+Δ → 0 amplifies the Eckart term Var(H)/Δ² even for a clean state. When the
+dominant factor is small_gap with low Var(H), the infidelity is a PHYSICS
+ceiling (criticality), not an optimization failure."""
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Data Quality Audit Thresholds
 # ═══════════════════════════════════════════════════════════════════════════════
 

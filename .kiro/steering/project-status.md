@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-08-26 18:11
+**Last updated**: 2026-08-28 20:34
 **Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
 **Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -32,8 +32,10 @@
 
 | Topology | N | Pts | ΔE/gap | |ΔE|/N | Grade |
 |----------|---|-----|--------|--------|-------|
-| chain_1d | 16 | 10 | 0.105 | 3.19e-02 | F |
-| chain_1d | 20 | 7 | 0.068 | 1.81e-02 | D |
+| chain_1d | 10 | 41 | 74.091 | 6.94e-02 | F |
+| chain_1d | 12 | 2 | 0.050 | 1.42e-02 | D |
+| chain_1d | 16 | 10 | 0.058 | 2.09e-02 | C |
+| chain_1d | 20 | 36 | 2.103 | 5.93e-02 | F |
 | chain_1d | 30 | 28 | 0.035 | 7.10e-03 | B |
 | chain_1d | 40 | 24 | 0.041 | 5.90e-03 | B |
 | chain_1d | 60 | 22 | 0.072 | 7.45e-03 | C |
@@ -76,18 +78,24 @@
 | chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 71% | — | — | — |
 | chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 45% | N=6-31 | N6=100% | N31=17% |
 | chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 36% | N=6-31 | N6=100% | N31=17% |
+| chain_1d | 1 | unifMPNN__chain_1d_p1_h_0p5_1p5.pt | baseline | 0% | — | — | — |
+| chain_1d | 1 | unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt | baseline | 0% | — | — | — |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 10% | N=4-29 | N4=0% | all 0% |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | N=4-29 | N4=0% | all 0% |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_fromMT_4+... | baseline | 44% | — | — | — |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 75% | — | — | — |
 | heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_mse.pt | residual | 0% | — | — | — |
 | heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_film_mse.pt | residual+film | 0% | — | — | — |
+| heavy_hex | 1 | unified_tfim_br_heavy_hex_fromMT_4+... | baseline | 0% | — | — | — |
+| heavy_hex | 1 | unified_multiN_heavyhex_p1.pt | baseline | 0% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 32% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 36% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 85% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 60% | — | — | — |
 | ladder | 1 | unified_tfim_br_ladder_multiN_4+6+8... | baseline | 45% | N=4-24 | N4=83% | N10=47% |
+| ladder | 1 | unified_tfim_br_ladder_fromMT_4+6+8... | baseline | 0% | — | — | — |
+| ladder | 1 | unified_tfim_br_ladder_multiN_4+6+8... | baseline | 0% | — | — | — |
 | multi_topology | 1 | unified_tfim_br_MT_residual+film_p1.pt | residual+film | 6% | N=3-31 | N4=50% | N3=17% |
 | square | 1 | unified_tfim_br_square_multiN_4+6+8... | baseline | 33% | N=4-21 | N4=83% | N10=33% |
 | square | 1 | unified_tfim_br_square_multiN_4+6+8... | baseline | 33% | N=4-21 | N4=100% | N6=83% |

@@ -337,6 +337,7 @@ def generate_evaluation_report(
         [
             f"**Date**: {datetime.now(UTC).strftime('%Y-%m-%d %H:%M UTC')}",
             f"**Model**: {checkpoint_display}",
+            f"**p_layers**: {p_layers}",
             f"**Multi-topology**: {'YES' if is_multi_topology else 'no'}",
             f"**h-range**: [{h_range[0]}, {h_range[1]}] ({n_h_points} pts)",
             f"**Target N**: {target_n}",
@@ -430,12 +431,37 @@ def generate_evaluation_report(
                 )
             lines.append("")
 
+        # ── Infidelity decomposition (Var(H) vs gap) ──────────────────────
+        # Attribute infidelity to dominant factor: dirty_state (attackable)
+        # vs small_gap (physics ceiling near criticality). Diagnostic only.
+        n_dirty = summary_stats.get("n_dirty_state")
+        n_small_gap = summary_stats.get("n_small_gap")
+        if n_dirty is None:
+            n_dirty = sum(
+                1 for pt in per_point if pt.get("infidelity_dominant_factor") == "dirty_state"
+            )
+        if n_small_gap is None:
+            n_small_gap = sum(
+                1 for pt in per_point if pt.get("infidelity_dominant_factor") == "small_gap"
+            )
+        if n_dirty or n_small_gap:
+            mvog = summary_stats.get("mean_variance_over_gap2")
+            mvog_str = f", mean Var(H)/gap²={mvog:.4f}" if mvog is not None else ""
+            lines.append(
+                f"**Infidelity decomposition:** {n_dirty} dirty-state "
+                f"(attackable via optimization), {n_small_gap} small-gap "
+                f"(physics ceiling near h_c){mvog_str}."
+            )
+            lines.append("")
+
         # Per-h table
         lines.append(
-            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Category | Action | Note |"
+            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | "
+            "Factor | Category | Action | Note |"
         )
         lines.append(
-            "|---|--------|---------|------|--------|-----|----------|----------|--------|------|"
+            "|---|--------|---------|------|--------|-----|----------|--------|"
+            "--------|----------|--------|------|"
         )
 
         for p in per_point:
@@ -455,6 +481,12 @@ def generate_evaluation_report(
                 fid_cell = f"≥{fid:.4f}"
             else:
                 fid_cell = f"{fid:.4f}"
+
+            # Var(H) and dominant infidelity factor (diagnostic).
+            ev = p.get("energy_variance")
+            var_cell = f"{ev:.4f}" if ev is not None else "N/A"
+            factor = p.get("infidelity_dominant_factor")
+            factor_cell = factor if factor else "—"
 
             # Per-point classification
             cls = classify_point_failure(
@@ -476,7 +508,8 @@ def generate_evaluation_report(
             lines.append(
                 f"| {h:.3f} | {e_pred:.4f} | {e_exact:.4f} | "
                 f"{abs_err:.4f} | {gap:.4f} | "
-                f"{de_gap:.4f} | {fid_cell} | {cat_display} | {cls.action} | {note} |"
+                f"{de_gap:.4f} | {fid_cell} | {var_cell} | {factor_cell} | "
+                f"{cat_display} | {cls.action} | {note} |"
             )
 
         lines.append("")
@@ -561,12 +594,28 @@ def evaluate_theta_prediction(
     theta_opt = data["theta_opt"]
     e_exact = data["e_exact"]
 
-    # Parse N from filename: {topo}_N{n}_p{p}.npz
-    try:
-        n_str = npz_path.stem.split("_N")[1].split("_")[0]
-        n_qubits = int(n_str)
-    except (IndexError, ValueError):
+    # Parse N and p from filename: {topo}_N{n}_p{p}.npz
+    import re as _re
+
+    n_match = _re.search(r"_N(\d+)", npz_path.stem)
+    if n_match is None:
         return {"error": f"Cannot parse N from {npz_path.name}", "n_points_evaluated": 0}
+    n_qubits = int(n_match.group(1))
+
+    # Guard against p-mismatch: the NPZ p (from filename) must match the p used
+    # to build the graph. Mixing p=1 data with a p=2 graph is silently wrong.
+    p_match = _re.search(r"_p(\d+)", npz_path.stem)
+    if p_match is not None:
+        npz_p = int(p_match.group(1))
+        if npz_p != p_layers:
+            return {
+                "error": (
+                    f"p mismatch: NPZ '{npz_path.name}' is p={npz_p} but "
+                    f"evaluate_theta_prediction was called with p_layers={p_layers}. "
+                    f"Never mix p across data and graph construction."
+                ),
+                "n_points_evaluated": 0,
+            }
 
     # Uniformly sample h-points
     n_available = len(h_values)

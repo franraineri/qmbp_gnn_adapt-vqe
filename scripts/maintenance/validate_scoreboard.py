@@ -11,8 +11,8 @@ sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT))
 
 from scripts.analysis.generate_best_results_scoreboard import (
-    scan_all_reports,
     TARGET_H,
+    scan_all_reports,
 )
 
 
@@ -108,7 +108,7 @@ def _validate_against_scoreboard_json(
     by_topo_n: dict[str, dict[int, list]],
 ) -> list[str]:
     issues: list[str] = []
-    json_path = ROOT / "results" / "best_results_scoreboard.json"
+    json_path = ROOT / "results" / "best_results_scoreboard_p1.json"
     if not json_path.exists():
         return issues
 
