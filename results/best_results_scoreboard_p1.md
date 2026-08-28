@@ -1,6 +1,6 @@
 # Best Results Scoreboard — p=1
 
-**Updated**: 2026-08-28 23:33 UTC
+**Updated**: 2026-08-28 23:35 UTC
 **p_layers**: 1
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
 **Reports scanned**: 313
