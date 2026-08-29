@@ -222,7 +222,7 @@ for N in 4 6 8 10 12 16 20; do
 done
 
 ### para entrenar un modelo en un rango de h
-.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 1.5 --model-name h_0p5_1p5 --force-retrain
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 1.5 --model-name h_0p5_1p5_v3 --force-retrain
 
 
 ###mpara usar el modelo en un rango de h :
@@ -242,7 +242,11 @@ done
 .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py  --topology chain_1d --p-layers 1  --target-n 4 8 10 12 16 20  --checkpoint h_0p5_1p5  --h-min 0.5 --h-max 1.5 --h-points 15  --iterative-improve --max-iterations 3 --refine-all  --skip-retrain
 
 
+.venv/bin/python scripts/general_project_maintenance/repair_ground_truth_cache.py --extra /tmp/gt_recovery/gt_head.json --extra /tmp/gt_recovery/gt_6dec.json
+
+
+.venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 2.0 --model-name h_0p5_1p5_v3 --force-retrain
 
 for N in 4 8 10 12 16 20; do
-  .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py    --topology chain_1d --p-layers 1    --target-n $N    --checkpoint h_0p5_1p5    --h-min 0.5 --h-max 2.0 --h-points 23    --iterative-improve --max-iterations 3 --refine-all    --skip-retrain
+  .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py    --topology chain_1d --p-layers 2    --target-n $N    --checkpoint h_0p5_1p5_v3    --h-min 0.5 --h-max 2.0 --h-points 23    --iterative-improve --max-iterations 3 --refine-all    --skip-retrain
 done

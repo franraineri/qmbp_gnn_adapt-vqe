@@ -1,6 +1,6 @@
 # Cross-Topology Unified Report
 
-**Generated**: 2026-08-28 23:51 UTC
+**Generated**: 2026-08-29 00:08 UTC
 **Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)
 **Model**: TFIM bond-resolved, HVA p=1
 
@@ -14,8 +14,8 @@
 
 | Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier | h≤h_c |
 |----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| chain_1d | 15 | 86% | ✅ 71% | 1009 | ⚠️ 79% | N=200 ❌0% | 1.28 | ✓ |
-| heavy_hex | 40 | 100% | ❌ 10% | 1194 | ✅ 87% | N=60 ❌17% | 0.96 | ✓ |
+| chain_1d | 15 | 100% | ✅ 71% | 1050 | ⚠️ 79% | N=200 ❌0% | 1.28 | ✓ |
+| heavy_hex | 40 | 100% | ❌ 10% | 1224 | ✅ 88% | N=60 ❌17% | 0.96 | ✓ |
 | ladder | 6 | 73% | ⚠️ 45% | 624 | ⚠️ 41% | N=40 ❌0% | 1.85 | — |
 | square | 8 | 85% | ⚠️ 33% | 507 | ⚠️ 71% | N=30 ❌0% | 1.84 | — |
 | triangular | 4 | 100% | ❌ 25% | 407 | ⚠️ 57% | N=24 ❌0% | 0.50 | ✓ |
@@ -26,8 +26,8 @@
 
 | Topology | N=4 | N=6 | N=8 | N=10 | N=12 | N=14 | N=16 | N=20 | N=26 | N=30 | N=40 |
 |----------|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| chain_1d | 49% ❌ | **84%** ✅ | 75% ⚠️ | 66% ⚠️ | 58% ⚠️ | **80%** ✅ | 39% ❌ | 64% ⚠️ | 67% ⚠️ | 29% ❌ | 42% ❌ |
-| heavy_hex | **94%** ✅ | **100%** ✅ | 55% ⚠️ | **91%** ✅ | **88%** ✅ | 36% ❌ | 72% ⚠️ | 26% ❌ | 0% | 52% ⚠️ | **83%** ✅ |
+| chain_1d | 49% ❌ | **84%** ✅ | 75% ⚠️ | 66% ⚠️ | 58% ⚠️ | 14% ❌ | 39% ❌ | 64% ⚠️ | 67% ⚠️ | 29% ❌ | 42% ❌ |
+| heavy_hex | **94%** ✅ | **100%** ✅ | 55% ⚠️ | **90%** ✅ | **88%** ✅ | 36% ❌ | 72% ⚠️ | 26% ❌ | 0% | 52% ⚠️ | **83%** ✅ |
 | ladder | 73% ⚠️ | 72% ⚠️ | 53% ⚠️ | 37% ❌ | 48% ❌ | 27% ❌ | 25% ❌ | 23% ❌ | 12% ❌ | 20% ❌ | 0% |
 | square | **85%** ✅ | **85%** ✅ | **81%** ✅ | 63% ⚠️ | 47% ❌ | 54% ⚠️ | 15% ❌ | 0% | — | — | — |
 | triangular | 72% ⚠️ | 60% ⚠️ | 9% ❌ | 17% ❌ | 7% ❌ | — | — | — | — | — | — |
@@ -57,7 +57,7 @@ Configs where single-criterion inflates by >10pp vs dual:
 | ladder | 26 | 38% | 12% | +25% |
 | chain_1d | 60 | 45% | 23% | +23% |
 | ladder | 14 | 48% | 27% | +21% |
-| ... | | | | *(12 more)* |
+| ... | | | | *(11 more)* |
 <!-- AUTO-GENERATED-END:masking -->
 
 <!-- AUTO-GENERATED-BEGIN:extrapolation -->
@@ -89,11 +89,11 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 | heavy_hex | 22 | [2.5, 5.0] | 31 | 6/31 ❌ | 0.560 | 0.2026 |
 | heavy_hex | 24 | [2.5, 5.0] | 47 | 11/47 ❌ | 0.803 | 0.2864 |
 | heavy_hex | 26 | [2.5, 5.0] | 27 | 11/27 ⚠️ | 0.689 | 0.2507 |
-| heavy_hex | 30 | [2.0, 5.0] | 51 | 33/51 ⚠️ | 0.339 | 0.3371 |
+| heavy_hex | 30 | [2.0, 5.0] | 51 | 33/51 ⚠️ | 0.338 | 0.3369 |
 | heavy_hex | 32 | [2.5, 5.0] | 10 | 6/10 ⚠️ | 0.648 | 0.3840 |
 | heavy_hex | 40 | [2.5, 5.0] | 33 | 13/33 ⚠️ | 0.581 | 0.2009 |
 | heavy_hex | 50 | [2.5, 5.0] | 6 | 2/6 ⚠️ | 0.919 | 0.2856 |
-| heavy_hex | 60 | [2.5, 5.0] | 6 | 1/6 ❌ | 1.949 | 0.5467 |
+| heavy_hex | 60 | [2.5, 5.0] | 6 | 1/6 ❌ | 1.753 | 0.4976 |
 | ladder | 16 | [2.5, 5.0] | 6 | 0/6 ❌ | 0.224 | 0.0784 |
 | ladder | 20 | [2.5, 5.5] | 24 | 6/24 ❌ | 0.145 | 0.2592 |
 | ladder | 26 | [2.5, 5.0] | 14 | 2/14 ❌ | 0.233 | 0.5173 |
@@ -112,8 +112,8 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 
 | Topology | NPZ files | Total pts | Verified | Approx | Unverified | Quality |
 |----------|-----------|-----------|----------|--------|------------|---------|
-| chain_1d | 13 | 1009 | 798 (79%) | 144 | 67 | ⚠️ |
-| heavy_hex | 23 | 1194 | 1050 (87%) | 82 | 62 | ✅ |
+| chain_1d | 14 | 1050 | 839 (79%) | 144 | 67 | ⚠️ |
+| heavy_hex | 23 | 1224 | 1080 (88%) | 82 | 62 | ✅ |
 | ladder | 11 | 624 | 261 (41%) | 259 | 104 | ⚠️ |
 | square | 8 | 507 | 364 (71%) | 96 | 47 | ⚠️ |
 | triangular | 6 | 407 | 235 (57%) | 96 | 76 | ⚠️ |
@@ -124,7 +124,7 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 
 | Topology | Mode | Evidence | Implication |
 |----------|------|----------|-------------|
-| chain_1d | 🟡 partial | best_dual=86%, 6 masked | Partially working; focus on viable h-range |
+| chain_1d | ✅ healthy | best_dual=100% | Pipeline works correctly |
 | heavy_hex | ✅ healthy | best_dual=100% | Pipeline works correctly |
 | ladder | 🔵 gap_masking | 10 configs, severity=32% | Model works; |ΔE|>0.10 from N×ε (expected) |
 | square | 🟡 partial | best_dual=85%, 5 masked | Partially working; focus on viable h-range |
@@ -140,7 +140,7 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 |:---:|----------|--------|
 | 1 | heavy_hex | 🔴 Re-train UnifiedMPNN (current pass_dual=10%) |
 | 1 | triangular | 🔴 Re-train UnifiedMPNN (current pass_dual=25%) |
-| 4 | chain_1d | 🟢 Expand to N=19: good candidate (pass_dual=86%) |
+| 4 | chain_1d | 🟢 Expand to N=19: good candidate (pass_dual=100%) |
 | 4 | square | 🟢 Expand to N=12: good candidate (pass_dual=85%) |
 | 4 | triangular | 🟢 Expand to N=8: good candidate (pass_dual=100%) |
 <!-- AUTO-GENERATED-END:actions -->

@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-08-28 20:51
+**Last updated**: 2026-08-28 21:08
 **Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
 **Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -9,21 +9,24 @@
 
 ## Coverage Matrix (latest quality per config)
 
-| Model | chain_1d |
-|---|---|
-| tfim | A (N=6) |
-| tfim_bond_resolved | A (N=6) |
+| Model | chain_1d | heavy_hex | kagome | ladder | square | triangular |
+|---|---|---|---|---|---|---|
+| heisenberg | C (N=10) | F (N=10) | — | C (N=10) | F (N=10) | C (N=10) |
+| heisenberg_transverse | C (N=10) | F (N=10) | — | C (N=10) | F (N=10) | F (N=10) |
+| kitaev | C (N=10) | — | — | — | — | — |
+| tfim | A (N=20) | A (N=20) | — | A (N=16) | F (N=10) | F (N=10) |
+| tfim_bond_resolved | A (N=10) | — | — | A (N=10) | D (N=16) | A (N=6) |
+| tfim_frustrated | A (N=10) | — | — | — | — | — |
+| tfim_longitudinal | A (N=20) | A (N=20) | C (N=10) | C (N=10) | A (N=6) | C (N=10) |
+| xy | C (N=10) | — | — | — | — | — |
 
-## Suggested Next Experiments
+## ⚠️ Regressions Detected
 
-- NO DATA: tfim chain_1d N=10 — never tested
-- NO DATA: tfim chain_1d N=16 — never tested
-- NO DATA: tfim chain_1d N=20 — never tested
-- NO DATA: tfim heavy_hex N=10 — never tested
-- NO DATA: tfim heavy_hex N=16 — never tested
-- NO DATA: tfim heavy_hex N=20 — never tested
-- NO DATA: tfim_longitudinal chain_1d N=10 — never tested
-- NO DATA: tfim_longitudinal chain_1d N=16 — never tested
+- **tfim_bond_resolved|chain_1d|10|1**: 50% (prev 100%, Δ=-50%)
+- **tfim|heavy_hex|10|2**: 25% (prev 75%, Δ=-50%)
+- **tfim|chain_1d|10|3**: 50% (prev 80%, Δ=-30%)
+- **tfim|ladder|10|3**: 25% (prev 50%, Δ=-25%)
+- **tfim|triangular|10|3**: 25% (prev 50%, Δ=-25%)
 
 ## Large-N Extrapolation (Zero-Shot MPNN)
 
@@ -77,6 +80,7 @@
 | chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 36% | N=6-31 | N6=100% | N31=17% |
 | chain_1d | 1 | unifMPNN__chain_1d_p1_h_0p5_1p5.pt | baseline | 0% | — | — | — |
 | chain_1d | 1 | unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt | baseline | 0% | — | — | — |
+| chain_1d | 2 | unified_tfim_br_chain_1d_multiN_4_p... | baseline | 100% | — | — | — |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 10% | N=4-29 | N4=0% | all 0% |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | N=4-29 | N4=0% | all 0% |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_fromMT_4+... | baseline | 44% | — | — | — |
@@ -85,6 +89,15 @@
 | heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_film_mse.pt | residual+film | 0% | — | — | — |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_fromMT_4+... | baseline | 0% | — | — | — |
 | heavy_hex | 1 | unified_multiN_heavyhex_p1.pt | baseline | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_mse_v2.pt | residual | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_film_mse... | residual+film | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_plain_energy... | baseline | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_energyw.pt | residual | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_film_ene... | residual+film | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_physics0... | residual | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_full_stack.pt | residual | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_film_ene... | residual+film | 0% | — | — | — |
+| heavy_hex | 1 | unifMPNN__heavy_hex_p1_res_film_dep... | residual+film | 0% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 32% | — | — | — |
 | heavy_hex | 2 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 36% | — | — | — |
