@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-28T23:33:46.942958+00:00",
+  "generated_at": "2026-08-28T23:50:31.664948+00:00",
   "n_configs": 61,
   "configs": [
     {
@@ -173,32 +173,32 @@
       "n_params": 23,
       "n_edges": 11,
       "model": "tfim_bond_resolved",
-      "n_points": 102,
+      "n_points": 109,
       "h_range": [
         0.5,
         5.5
       ],
       "h_frontier": 1.9332565625057903,
-      "pass_rate_5pct": 0.6176470588235294,
-      "pass_rate_10pct": 0.7156862745098039,
-      "pass_rate_dual_criterion": 0.6176470588235294,
-      "mean_de_gap": 68.27041366023252,
-      "mean_abs_error": 0.19532884090347097,
+      "pass_rate_5pct": 0.5779816513761468,
+      "pass_rate_10pct": 0.6697247706422018,
+      "pass_rate_dual_criterion": 0.5779816513761468,
+      "mean_de_gap": 79.37239901366037,
+      "mean_abs_error": 0.2614621424122307,
       "best_de_gap": 0.0005110373559374249,
       "worst_de_gap": 6218.496721034319,
-      "n_below_frontier": 39,
+      "n_below_frontier": 46,
       "n_nan_theta": 0,
       "zoo_model_available": true,
       "zoo_pass_rate": 0.7058823529411765,
       "zoo_integrity_ok": true,
-      "zoo_vs_npz_divergence": 0.08823529411764708,
-      "eval_cache_density": 40,
+      "zoo_vs_npz_divergence": 0.12790070156502975,
+      "eval_cache_density": 63,
       "confidence_level": "high",
       "model_stale": false,
       "needs_retrain": false,
       "theta_smoothness": 1.4480934217105024,
       "training_utility": "useful",
-      "training_utility_reason": "63/102 good points (62% dual pass).",
+      "training_utility_reason": "63/109 good points (58% dual pass).",
       "cross_n_transfers": [
         {
           "train_n": 12,
@@ -224,7 +224,7 @@
         "mean_de_gap": 0.0267337262296445
       },
       "file": "chain_1d_N12_p1.npz",
-      "mtime": "2026-08-28T23:18:34.638476+00:00"
+      "mtime": "2026-08-28T23:50:27.193963+00:00"
     },
     {
       "topology": "chain_1d",
@@ -3967,9 +3967,9 @@
       {
         "topology": "chain_1d",
         "n_qubits": 12,
-        "bad_ratio": 0.37254901960784315,
+        "bad_ratio": 0.41284403669724773,
         "zoo_pass_rate": 0.7058823529411765,
-        "message": "chain_1d N=12: NPZ bad_ratio=37% > 20% but zoo claims pass=71%. Zoo may be trained on different/cleaner data or manifest is stale."
+        "message": "chain_1d N=12: NPZ bad_ratio=41% > 20% but zoo claims pass=71%. Zoo may be trained on different/cleaner data or manifest is stale."
       },
       {
         "topology": "chain_1d",
@@ -4454,7 +4454,7 @@
     "best_pass_rate": 0.06140350877192983
   },
   "mt_vs_st_comparison": {
-    "generated_at": "2026-08-28 23:33 UTC",
+    "generated_at": "2026-08-28 23:50 UTC",
     "global": {
       "mt_wins": 7,
       "st_wins": 1,

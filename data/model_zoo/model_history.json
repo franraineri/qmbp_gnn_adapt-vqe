@@ -34669,5 +34669,109 @@
       "old_version": 3,
       "new_version": 3
     }
+  },
+  {
+    "timestamp": "2026-08-28T23:52:23.305179+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.0,
+      "new_verified_ratio": 0.16666666666666666,
+      "improvement": 0.16666666666666666
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:52:23.338182+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.0,
+      "new_verified_ratio": 0.16666666666666666,
+      "improvement": 0.16666666666666666
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:52:23.376446+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.0,
+      "new_verified_ratio": 0.16666666666666666,
+      "improvement": 0.16666666666666666
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:52:23.408619+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.0,
+      "new_verified_ratio": 0.16666666666666666,
+      "improvement": 0.16666666666666666
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:53:21.329613+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.16666666666666666,
+      "new_verified_ratio": 0.2857142857142857,
+      "improvement": 0.11904761904761904
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:53:21.362019+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.16666666666666666,
+      "new_verified_ratio": 0.2857142857142857,
+      "improvement": 0.11904761904761904
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:53:21.403030+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.16666666666666666,
+      "new_verified_ratio": 0.2857142857142857,
+      "improvement": 0.11904761904761904
+    }
+  },
+  {
+    "timestamp": "2026-08-28T23:53:21.436347+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 14,
+      "old_verified_ratio": 0.16666666666666666,
+      "new_verified_ratio": 0.2857142857142857,
+      "improvement": 0.11904761904761904
+    }
   }
 ]
