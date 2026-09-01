@@ -385,6 +385,65 @@ class HVACircuitBuilder:
 
         return qc, theta
 
+    def create_bond_resolved_frustrated(
+        self,
+        n_qubits: int,
+        p_layers: int,
+        lattice: LatticeConfig,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Bond-resolved HVA for the frustrated (J1-J2) TFIM.
+
+        Assigns an independent parameter to each nearest-neighbor bond, each
+        next-nearest-neighbor bond, and each site, mirroring the frustrated
+        Hamiltonian structure so the ansatz can represent the NNN correlations
+        that the NN-only bond-resolved circuit cannot.
+
+        Parameter ordering per layer:
+            [theta_nn_0..theta_nn_{Enn-1},
+             theta_nnn_0..theta_nnn_{Ennn-1},
+             theta_x_0..theta_x_{N-1}]
+
+        Total parameters: (n_nn + n_nnn + n_qubits) * p_layers.
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits (must match lattice.n_qubits).
+        p_layers : int
+            Number of HVA layers.
+        lattice : LatticeConfig
+            Lattice specification with edge list (defines NN bonds; NNN bonds
+            are derived from topology).
+
+        Returns
+        -------
+        (qc, theta)
+            qc : QuantumCircuit with (n_nn + n_nnn + n_qubits) * p_layers params.
+            theta : ParameterVector of matching length.
+        """
+        do_checks(p_layers, n_qubits, lattice)
+
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        nn_edges = lattice.edges
+        nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
+        n_nn = len(nn_edges)
+        n_nnn = len(nnn_edges)
+        params_per_layer = n_nn + n_nnn + n_qubits
+
+        qc, theta = _init_circuit(n_qubits, params_per_layer * p_layers)
+
+        for layer in range(p_layers):
+            offset = layer * params_per_layer
+            for k, (i, j) in enumerate(nn_edges):
+                qc.rzz(2 * theta[offset + k], i, j)
+            for k, (i, j) in enumerate(nnn_edges):
+                qc.rzz(2 * theta[offset + n_nn + k], i, j)
+            for i in range(n_qubits):
+                qc.rx(2 * theta[offset + n_nn + n_nnn + i], i)
+
+        return qc, theta
+
     def create_tfim_longitudinal(
         self,
         n_qubits: int,

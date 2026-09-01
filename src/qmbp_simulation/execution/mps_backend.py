@@ -623,12 +623,21 @@ class MPSBackend(ExecutionBackend):
         # Clip numerical noise
         if variance < 0:
             if variance < -1e-6:
+                # A significantly negative variance is NOT floating-point noise:
+                # it means ⟨H²⟩ was underestimated relative to ⟨H⟩² because the
+                # MPS truncation (χ) cannot represent this state. Return NaN so
+                # the Eckart bound reports N/A instead of a spurious F≈1 (which
+                # clamping to 0 would produce). Only sub-noise negatives are
+                # treated as a genuine eigenstate (Var→0).
                 logger.warning(
-                    "[%s] compute_energy_variance (MPS N=%d): negative variance %.2e",
+                    "[%s] compute_energy_variance (MPS N=%d): negative variance %.2e "
+                    "— likely χ=%d truncation error; returning NaN (bound → N/A).",
                     self.name,
                     n_qubits,
                     variance,
+                    self._chi_max,
                 )
+                return float("nan")
             variance = 0.0
 
         return float(variance)

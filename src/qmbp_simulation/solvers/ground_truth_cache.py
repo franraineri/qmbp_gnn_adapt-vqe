@@ -251,10 +251,18 @@ class GroundTruthCache:
         if cached is not None:
             cached_gap = float(cached["gap"])
             # Invalidate stale floor gaps: for N > 18 a gap ≈ 2π/N was written
-            # before the analytical-gap fix and must be recomputed (mirrors
-            # runner_base.exact_ground_state).
+            # before the analytical-gap fix and must be recomputed.
+            #
+            # But a gap == 2π/N produced deliberately by the analytical TFIM
+            # estimator (ordered phase, where 2(h−Jz) < floor) is the best value
+            # available — recomputing is deterministic and yields the identical
+            # floor, so re-solving each run only burns CPU (minutes at large N).
+            # Only invalidate floors from legacy/unknown provenance.
             gap_floor = 2 * np.pi / n_qubits if n_qubits > 0 else 0.0
-            is_stale_floor = n_qubits > 18 and abs(cached_gap - gap_floor) < 1e-4
+            at_floor = n_qubits > 18 and abs(cached_gap - gap_floor) < 1e-4
+            method = str(cached.get("method") or "").lower()
+            trusted_floor = method in ("analytical_tfim", "eigsh_fallback")
+            is_stale_floor = at_floor and not trusted_floor
             if not is_stale_floor:
                 return (float(cached["energy"]), cached_gap)
 

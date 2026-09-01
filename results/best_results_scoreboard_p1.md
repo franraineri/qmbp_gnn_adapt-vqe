@@ -1,9 +1,9 @@
 # Best Results Scoreboard — p=1
 
-**Updated**: 2026-08-29 00:08 UTC
+**Updated**: 2026-09-01 00:06 UTC
 **p_layers**: 1
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
-**Reports scanned**: 313
+**Reports scanned**: 341
 **Criterion**: Best ΔE/gap achieved at h≈2.5 per (topology × N)
 
 > This report shows the **best single-point result ever achieved** at h≈2.5 for each (topology, N) combination at **p=1**, in the **extrapolation regime** (N values tested with MPNN zero-shot prediction).
@@ -147,7 +147,6 @@
 | Issue | Detail |
 |---|---|
 | ⚠️ | chain_1d p=1 N=20: scoreboard grade=B but zoo pass_rate_by_n[20]=0% — possible stale zoo data |
-| ⚠️ | chain_1d p=1 N=80: scoreboard |ΔE|@h=2.5 = 1.609 >> registry mean ΔE/gap = 0.144 — h=2.5 is anomalously hard for this config |
 | ⚠️ | heavy_hex p=1 N=4: scoreboard grade=A but zoo pass_rate_by_n[4]=0% — possible stale zoo data |
 | ⚠️ | heavy_hex p=1 N=20: scoreboard grade=B but zoo pass_rate_by_n[20]=0% — possible stale zoo data |
 | ⚠️ | ladder p=1 N=20: scoreboard |ΔE|@h=2.5 = 0.465 >> registry mean ΔE/gap = 0.172 — h=2.5 is anomalously hard for this config |

@@ -266,11 +266,13 @@ class AcceleratedVQE:
         config: AcceleratedConfig | None = None,
         *,
         eval_cache: bool = True,
+        p_layers: int = 1,
     ):
         self.lattice = lattice
         self.circuit = circuit
         self.spec = spec
         self.config = config or AcceleratedConfig()
+        self._p_layers = p_layers
 
         # ── Input validation ─────────────────────────────────────────────
         if circuit.num_qubits != lattice.n_qubits:
@@ -294,7 +296,7 @@ class AcceleratedVQE:
                 topology=lattice.topology,
                 n_qubits=lattice.n_qubits,
                 model=spec.name if hasattr(spec, "name") else "tfim",
-                p_layers=circuit.num_parameters // 2,  # Approximate
+                p_layers=p_layers,
                 J=float(lattice.J) if np.isscalar(lattice.J) else 1.0,
             )
         else:
@@ -310,6 +312,8 @@ class AcceleratedVQE:
         self._N = lattice.n_qubits
         self._topology = lattice.topology
         self._model = None  # MPNN model (trained or loaded from zoo)
+        nn_only_per_layer = len(lattice.edges) + lattice.n_qubits
+        self._include_nnn = self._n_params > nn_only_per_layer * p_layers
 
     def run(
         self,
@@ -363,8 +367,6 @@ class AcceleratedVQE:
                 len(h_values),
             )
 
-        # Validate p_layers matches circuit
-        expected_params_per_layer = self._n_params // p_layers if p_layers > 0 else self._n_params
         if self._n_params % p_layers != 0 and p_layers > 1:
             logger.warning(
                 "  ⚠️ circuit.num_parameters=%d is not divisible by p_layers=%d. "
@@ -1187,6 +1189,7 @@ class AcceleratedVQE:
                 p_layers=p_layers,
                 theta_opt=theta_anchor[i],
                 include_circuit_nodes=True,
+                include_nnn=self._include_nnn,
             )
             dataset.append(g)
 
@@ -1249,6 +1252,7 @@ class AcceleratedVQE:
                 h_value=float(h),
                 p_layers=p_layers,
                 include_circuit_nodes=True,
+                include_nnn=self._include_nnn,
             )
             with torch.no_grad():
                 pred = self._model(g).numpy().flatten()

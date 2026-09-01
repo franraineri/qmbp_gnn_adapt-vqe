@@ -306,11 +306,10 @@ def generate_evaluation_report(
             or checkpoint == "unified_tfim_br_MT"
         )
 
-    # Save to subdirectory: {output_dir}/{topology}_p{p}/eval_{topology}[_MT]_{ts}.md
     subdir = output_dir / f"{topology}_p{p_layers}"
     subdir.mkdir(parents=True, exist_ok=True)
     mt_tag = "_MT" if is_multi_topology else ""
-    report_path = subdir / f"eval_{topology}{mt_tag}_{ts}.md"
+    report_path = subdir / f"evaluation_{topology}{mt_tag}_p{p_layers}_{ts}.md"
 
     # Resolve checkpoint display
     checkpoint_display = checkpoint

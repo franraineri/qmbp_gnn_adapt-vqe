@@ -51,7 +51,10 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from qmbp_simulation.framework.result_io import persist_predictions_to_training_npz
+from qmbp_simulation.framework.result_io import (
+    EXTRAPOLATION_DATA_ROOT,
+    persist_predictions_to_training_npz,
+)
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
@@ -81,8 +84,7 @@ DEFAULT_H_POINTS = 6
 DEFAULT_VQE_MAXITER = 50
 DEFAULT_VQE_RESTARTS = 2
 
-# NPZ storage for large-N extrapolation (separate from training data)
-EXTRAPOLATION_DATA_DIR = Path("data/large_n_extrapolation")
+EXTRAPOLATION_DATA_DIR = EXTRAPOLATION_DATA_ROOT
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -90,13 +92,16 @@ EXTRAPOLATION_DATA_DIR = Path("data/large_n_extrapolation")
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def load_extrapolation_npz(topology: str, n_qubits: int, p_layers: int) -> dict[float, dict] | None:
+def load_extrapolation_npz(
+    topology: str, n_qubits: int, p_layers: int, data_dir: Path | None = None
+) -> dict[float, dict] | None:
     """Load existing extrapolation data from NPZ cache.
 
     Returns dict mapping h → {theta, e_pred, e_exact, gap, de_gap, method}.
     Returns None if no cache exists.
     """
-    npz_path = EXTRAPOLATION_DATA_DIR / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+    base_dir = data_dir if data_dir is not None else EXTRAPOLATION_DATA_DIR
+    npz_path = base_dir / f"{topology}_N{n_qubits}_p{p_layers}.npz"
     if not npz_path.exists():
         return None
 
@@ -140,7 +145,9 @@ def load_extrapolation_npz(topology: str, n_qubits: int, p_layers: int) -> dict[
         return None
 
 
-def compute_extrapolation_summary(per_h_results: list[dict]) -> dict:
+def compute_extrapolation_summary(
+    per_h_results: list[dict], *, fidelity_threshold: float | None = None
+) -> dict:
     """Compute summary statistics for extrapolation results.
 
     Thin wrapper over compute_deploy_summary() that ensures n_qubits is
@@ -162,7 +169,7 @@ def compute_extrapolation_summary(per_h_results: list[dict]) -> dict:
             "mean_abs_error": None,
         }
 
-    return compute_deploy_summary(per_h_results)
+    return compute_deploy_summary(per_h_results, fidelity_threshold=fidelity_threshold)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -313,22 +320,55 @@ class LargeNExtrapolationRunner(ValidationRunner):
         )
         return config
 
+    def _summary(self, per_h_results: list[dict]) -> dict:
+        return compute_extrapolation_summary(
+            per_h_results, fidelity_threshold=self._fidelity_threshold
+        )
+
     def setup(self):
         """Initialize physics objects and h-grid."""
+        from qmbp_simulation.framework.result_io import (
+            EVAL_REPORT_ROOT,
+            FRUSTRATED_NAMESPACE,
+            build_data_dir,
+        )
+
         self.setup_physics()
-        # Round to 2 decimals for cache key stability (matches GroundTruthCache)
+        self._args.model_name = self.resolve_model_name(self._args.model_name)
+        self._model_kwargs = self.model_kwargs()
+        if self._model_kwargs:
+            logger.info(
+                f"  Frustrated mode: model={self._args.model_name} "
+                f"J2={self._model_kwargs['J2']}"
+            )
+        self._fidelity_threshold = self.resolve_fidelity_threshold(self._args.model_name)
+        self._extrap_data_dir = build_data_dir(EXTRAPOLATION_DATA_ROOT, self.is_frustrated())
+        _runner_kind = self.experiment_id.lower()
+        if self.is_frustrated():
+            _runner_kind = f"{FRUSTRATED_NAMESPACE}/{_runner_kind}"
+        self._eval_report_dir = EVAL_REPORT_ROOT / _runner_kind / self._args.model_name
         self._h_values = [
             round(h, 2)
             for h in np.linspace(self._args.h_min, self._args.h_max, self._args.h_points)
         ]
-        # Ensure extrapolation data directory exists
-        EXTRAPOLATION_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-        # Summary line only (minimal console output)
+        self._extrap_data_dir.mkdir(parents=True, exist_ok=True)
         logger.info(
             f"  Config: {self._args.topology} N={self._args.target_n} p={self._args.p_layers} "
             f"h=[{self._args.h_min}, {self._args.h_max}] ({self._args.h_points} pts)"
         )
+
+    def _model_spec(self):
+        """Model spec with the frustrated coupling applied (--j2 → with_params).
+
+        Central factory so every section builds Hamiltonians with the same J2,
+        without repeating with_params at each call site.
+        """
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        spec = get_model_spec(self._args.model_name)
+        if self._model_kwargs:
+            spec = spec.with_params(**self._model_kwargs)
+        return spec
 
     def run_preflight(self) -> bool:
         """Verify targets are within DMRG limits and check extrapolation viability."""
@@ -402,6 +442,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
         )
         return sections
 
+    def _gt_lookup(self, n_target: int, h: float) -> dict | None:
+        """Return the GT entry for (n_target, h), or None if it was skipped.
+
+        Section 1 may skip points whose DMRG failed, so downstream sections must
+        tolerate missing GT instead of raising StopIteration.
+        """
+        for pt in self._gt_data.get(n_target, []):
+            if abs(pt["h"] - float(h)) < 1e-8:
+                return pt
+        return None
+
     # ═══════════════════════════════════════════════════════════════════════════
     # Section 1: Ground Truth (DMRG)
     # ═══════════════════════════════════════════════════════════════════════════
@@ -414,23 +465,37 @@ class LargeNExtrapolationRunner(ValidationRunner):
         - Level 2: disk-persistent GroundTruthCache (cross-session)
         """
         gt_data: dict[int, list[dict]] = {}
+        # Assign early so dependent sections never hit AttributeError even if
+        # every point below fails — they will just see empty/partial GT.
+        self._gt_data = gt_data
         t_section = time.perf_counter()
+        n_failed_total = 0
 
         # Process N values sequentially (efficient memory use for large N)
         for n_target in self._args.target_n:
             logger.info(f"  GT N={n_target}: computing {len(self._h_values)} points...")
             gt_data[n_target] = []
-            n_cached, n_computed = 0, 0
+            n_cached, n_computed, n_failed = 0, 0, 0
 
             for h in self._h_values:
                 t0 = time.perf_counter()
-                # Uses 2-level cache automatically
-                e_exact, gap = self.exact_ground_state(
-                    self._args.topology,
-                    n_target,
-                    float(h),
-                    model=self._args.model_name,
-                )
+                # Per-point isolation: a DMRG failure at one (N,h) must not abort
+                # the whole section. Skip the point and continue.
+                try:
+                    e_exact, gap = self.exact_ground_state(
+                        self._args.topology,
+                        n_target,
+                        float(h),
+                        model=self._args.model_name,
+                        model_kwargs=self._model_kwargs or None,
+                    )
+                except Exception as exc:
+                    n_failed += 1
+                    logger.warning(
+                        "  GT skip N=%d h=%.2f: %s: %s",
+                        n_target, float(h), type(exc).__name__, str(exc)[:100],
+                    )
+                    continue
                 elapsed = time.perf_counter() - t0
 
                 gt_data[n_target].append(
@@ -448,9 +513,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 else:
                     n_computed += 1
 
-            logger.info(f"    N={n_target}: {n_cached} cached, {n_computed} computed")
-
-        self._gt_data = gt_data
+            n_failed_total += n_failed
+            logger.info(
+                f"    N={n_target}: {n_cached} cached, {n_computed} computed, {n_failed} failed"
+            )
         total_time = time.perf_counter() - t_section
 
         # Summary table
@@ -460,6 +526,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             "n_values": self._args.target_n,
             "n_h_points": self._args.h_points,
             "total_gt_time_s": total_time,
+            "n_gt_failed": n_failed_total,
             "gt_data": {str(k): v for k, v in gt_data.items()},  # JSON-safe keys
         }
 
@@ -476,14 +543,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
-        from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import (
             build_unified_bond_resolved_graph,
         )
 
         topo = self._args.topology
         p = self._args.p_layers
-        spec = get_model_spec(self._args.model_name)
+        spec = self._model_spec()
         hva = HVACircuitBuilder()
         use_cache = not self._args.no_eval_cache
         force_recompute = self._args.force_recompute
@@ -523,7 +589,9 @@ class LargeNExtrapolationRunner(ValidationRunner):
             # Load existing NPZ cache (unless force_recompute)
             existing_data = None
             if not force_recompute:
-                existing_data = load_extrapolation_npz(topo, n_target, p)
+                existing_data = load_extrapolation_npz(
+                    topo, n_target, p, data_dir=self._extrap_data_dir
+                )
                 if existing_data:
                     logger.info(f"    Loaded {len(existing_data)} cached predictions")
 
@@ -578,12 +646,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         if existing_data and h_key in existing_data and not force_recompute:
                             cached = existing_data[h_key]
                             # Only use cache if we have energy (theta might not be stored)
-                            if cached.get("e_pred") is not None:
-                                gt_entry = next(
-                                    pt
-                                    for pt in self._gt_data[n_target]
-                                    if abs(pt["h"] - float(h)) < 1e-8
-                                )
+                            gt_entry = self._gt_lookup(n_target, h)
+                            if cached.get("e_pred") is not None and gt_entry is not None:
                                 cached_theta = cached.get("theta")
 
                                 # Recompute fidelity for cached points when a
@@ -618,6 +682,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
                                 per_h_results.append(result)
                                 n_cached += 1
                                 continue
+
+                        # Skip points whose GT was not computed (DMRG failed).
+                        if self._gt_lookup(n_target, h) is None:
+                            logger.debug(
+                                "    MPNN skip N=%d h=%.2f: no ground truth", n_target, float(h)
+                            )
+                            continue
 
                         # Fresh prediction
                         t0 = time.perf_counter()
@@ -669,10 +740,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         e_pred = eval_backend.evaluate(circuit, H, theta_pred)
                         elapsed = time.perf_counter() - t0
 
-                        # Get GT
-                        gt_entry = next(
-                            pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
-                        )
+                        # Get GT (guaranteed present: skipped above if missing)
+                        gt_entry = self._gt_lookup(n_target, h)
 
                         # State fidelity at any N: exact statevector for
                         # N ≤ STATEVECTOR_MAX_N, rigorous variance-based lower
@@ -715,7 +784,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 self._persist_extrapolation_npz(topo, n_target, p, per_h_results)
 
             # Compute summary
-            summary = compute_extrapolation_summary(per_h_results)
+            summary = self._summary(per_h_results)
             mpnn_results[n_target] = {
                 "n_qubits": n_target,
                 "n_params": n_params,
@@ -802,11 +871,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
         from scipy.optimize import minimize as _minimize
 
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.models.model_registry import get_model_spec
 
         topo = self._args.topology
         p = self._args.p_layers
-        spec = get_model_spec(self._args.model_name)
+        spec = self._model_spec()
         hva = HVACircuitBuilder()
         maxiter = self._args.vqe_maxiter
         n_auto_refined = 0
@@ -858,10 +926,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         method="L-BFGS-B",
                         options={"maxiter": maxiter},
                     )
-                    if res.fun < pt["e_pred"]:
-                        gt_entry = next(
-                            g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
-                        )
+                    gt_entry = self._gt_lookup(n_target, h)
+                    if res.fun < pt["e_pred"] and gt_entry is not None:
                         fid_info = self.estimate_fidelity(
                             circuit,
                             res.x,
@@ -890,7 +956,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     continue
 
             if n_auto_refined > 0:
-                mpnn_results[n_target].update(compute_extrapolation_summary(per_point))
+                mpnn_results[n_target].update(self._summary(per_point))
                 mpnn_results[n_target]["per_point"] = per_point
                 self._persist_extrapolation_npz(topo, n_target, p, per_point)
 
@@ -911,11 +977,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
             is_point_failure,
         )
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.models.model_registry import get_model_spec
 
         topo = self._args.topology
         p = self._args.p_layers
-        spec = get_model_spec(self._args.model_name)
+        spec = self._model_spec()
         hva = HVACircuitBuilder()
         maxiter = self._args.vqe_maxiter
         max_refine = self._args.max_refine
@@ -996,10 +1061,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     continue
 
                 # Only update if improved
-                if e_refined < result["e_pred"]:
-                    gt_entry = next(
-                        pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
-                    )
+                gt_entry = self._gt_lookup(n_target, h)
+                if e_refined < result["e_pred"] and gt_entry is not None:
                     fid_info = self.estimate_fidelity(
                         circuit,
                         res.x,
@@ -1027,7 +1090,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
             if n_refined > 0:
                 # Recompute summary and persist
-                mpnn_results[n_target].update(compute_extrapolation_summary(per_point))
+                mpnn_results[n_target].update(self._summary(per_point))
                 mpnn_results[n_target]["per_point"] = per_point
                 self._persist_extrapolation_npz(topo, n_target, p, per_point)
                 logger.info(
@@ -1041,13 +1104,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
         """Persist extrapolation predictions to NPZ with anti-regression and quality tiers.
 
         Delegates to the shared persist_predictions_to_training_npz() from result_io,
-        targeting EXTRAPOLATION_DATA_DIR instead of training data.
+        targeting the (possibly /frustrated/) extrapolation data dir.
         """
         persist_predictions_to_training_npz(
             per_h_results_by_n={n_qubits: per_h_results},
             topology=topology,
             p_layers=p_layers,
-            training_data_dir=EXTRAPOLATION_DATA_DIR,
+            training_data_dir=self._extrap_data_dir,
             # Use no threshold filter — persist everything, let upsert_theta_npz
             # anti-regression handle quality (extrapolation data is valuable even
             # at higher error for tracking scaling behavior)
@@ -1074,14 +1137,13 @@ class LargeNExtrapolationRunner(ValidationRunner):
             select_next_point,
         )
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
 
         n_rounds = self._args.active_learning_rounds
         topo = self._args.topology
         p = self._args.p_layers
         model_name = self._args.model_name
-        spec = get_model_spec(model_name)
+        spec = self._model_spec()
         hva = HVACircuitBuilder()
         maxiter = self._args.vqe_maxiter
 
@@ -1187,10 +1249,8 @@ class LargeNExtrapolationRunner(ValidationRunner):
                             method="L-BFGS-B",
                             options={"maxiter": maxiter},
                         )
-                        if res.fun < pt["e_pred"]:
-                            gt = next(
-                                g for g in self._gt_data[n_target] if abs(g["h"] - float(h)) < 1e-8
-                            )
+                        gt = self._gt_lookup(n_target, h)
+                        if res.fun < pt["e_pred"] and gt is not None:
                             fid_info = self.estimate_fidelity(
                                 circuit,
                                 res.x,
@@ -1219,9 +1279,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                         continue
 
                 if n_improved > 0:
-                    from qmbp_simulation.analysis.metrics import compute_deploy_summary
-
-                    mpnn_results[n_target].update(compute_deploy_summary(per_point))
+                    mpnn_results[n_target].update(self._summary(per_point))
                     mpnn_results[n_target]["per_point"] = per_point
                     self._persist_extrapolation_npz(topo, n_target, p, per_point)
 
@@ -1255,18 +1313,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
         from scipy.optimize import minimize as _minimize
 
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.models.model_registry import get_model_spec
 
         topo = self._args.topology
         p = self._args.p_layers
-        spec = get_model_spec(self._args.model_name)
+        spec = self._model_spec()
         hva = HVACircuitBuilder()
         maxiter = self._args.vqe_maxiter
         n_restarts = self._args.vqe_restarts
         force_recompute = self._args.force_recompute
 
         # NPZ directory for baseline results (separate from MPNN extrapolation)
-        baseline_dir = EXTRAPOLATION_DATA_DIR / "_baselines"
+        baseline_dir = self._extrap_data_dir / "_baselines"
         baseline_dir.mkdir(parents=True, exist_ok=True)
 
         random_results: dict[int, list[dict]] = {}
@@ -1312,12 +1369,17 @@ class LargeNExtrapolationRunner(ValidationRunner):
             for h in self._h_values:
                 h_key = round(float(h), 2)
 
+                # Skip points whose GT was not computed (DMRG failed).
+                gt_entry = self._gt_lookup(n_target, h)
+                if gt_entry is None:
+                    logger.debug(
+                        "    Random-VQE skip N=%d h=%.2f: no ground truth", n_target, float(h)
+                    )
+                    continue
+
                 # Check cache first
                 if cached_baseline and h_key in cached_baseline and not force_recompute:
                     cached = cached_baseline[h_key]
-                    gt_entry = next(
-                        pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
-                    )
                     result = self.build_per_h_result(
                         h,
                         cached["e_vqe"],
@@ -1364,10 +1426,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 elapsed = time.perf_counter() - t0
                 total_evals += best_nfev * n_restarts
 
-                # Get GT
-                gt_entry = next(
-                    pt for pt in self._gt_data[n_target] if abs(pt["h"] - float(h)) < 1e-8
-                )
+                # GT already fetched at loop top (skipped if missing)
 
                 fid_info = None
                 if best_theta is not None:
@@ -1425,7 +1484,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     f"({n_computed_pts} computed, {n_cached_pts} cached)"
                 )
 
-            summary = compute_extrapolation_summary(per_h_results)
+            summary = self._summary(per_h_results)
             random_results[n_target] = {
                 "n_qubits": n_target,
                 "n_params": n_params,
@@ -1656,7 +1715,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             p_layers=self._args.p_layers,
             target_n=self._args.target_n,
             comparison=comparison,
-            output_dir="results/extrapolation_evals",
+            output_dir=str(self._eval_report_dir),
         )
 
     def _print_summary_table(self, comparison: dict) -> None:

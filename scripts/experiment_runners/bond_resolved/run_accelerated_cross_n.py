@@ -41,7 +41,7 @@ from pathlib import Path
 
 import numpy as np
 
-from qmbp_simulation.framework.result_io import upsert_theta_npz
+from qmbp_simulation.framework.result_io import FRUSTRATED_NAMESPACE, upsert_theta_npz
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
@@ -233,11 +233,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
         parser.add_argument(
             "--loss-type",
             type=str,
-            default="theta_mse",
-            choices=["theta_mse", "energy_weighted"],
-            help="MPNN training loss. 'theta_mse' (default): standard MSE on θ. "
-            "'energy_weighted': weights MSE by 1/(1+de_gap) so points with "
-            "low energy error contribute more.",
+            default="sign_invariant",
+            choices=["sign_invariant", "theta_mse", "energy_weighted"],
+            help="MPNN training loss. 'sign_invariant' (default): Z₂-symmetric "
+            "min(MSE(θ,target), MSE(θ,-target)) per ZZ/X block, preserving the "
+            "TFIM HVA sign symmetry. 'theta_mse': plain MSE on θ (legacy). "
+            "'energy_weighted': sign-invariant MSE weighted by 1/(1+de_gap) so "
+            "points with low energy error contribute more.",
         )
         parser.add_argument(
             "--physics-loss-weight",
@@ -246,6 +248,16 @@ class AcceleratedCrossNRunner(ValidationRunner):
             help="Weight λ for physics-informed energy loss term (default 0.0 = "
             "disabled). Recommended 0.01-0.1. Adds λ·mean(|E(θ_pred)-E_exact|/N) "
             "after physics_loss_start_epoch.",
+        )
+        parser.add_argument(
+            "--orbit-feature",
+            action="store_true",
+            default=False,
+            help="Add an automorphism-orbit feature per node/bond to the graph. "
+            "Sites/bonds equivalent under a lattice symmetry share an orbit id, "
+            "giving the MPNN an equivariance hint so it treats the problem as "
+            "lower-dimensional. Default off (keeps 5 node features; existing "
+            "checkpoints stay loadable). Requires retraining when enabled.",
         )
         parser.add_argument(
             "--no-eval-cache",
@@ -287,6 +299,15 @@ class AcceleratedCrossNRunner(ValidationRunner):
     def setup(self):
         """Initialize physics objects."""
         self.setup_physics()
+        self._physics_model = self.resolve_model_name("tfim_bond_resolved")
+        self._model_kwargs = self.model_kwargs()
+        self._is_frustrated = self.is_frustrated()
+        self._training_data_dir = self.training_data_dir()
+        if self._is_frustrated:
+            logger.info(
+                f"  Frustrated mode: model={self._physics_model} "
+                f"J2={self._model_kwargs['J2']} | data namespace=/{FRUSTRATED_NAMESPACE}/"
+            )
         # Enforce the hard minimum of VQE restarts for the whole run. Applied
         # once here so every downstream use (main config, bootstrap, refine)
         # inherits the floor.
@@ -331,6 +352,26 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # or downgrade to COBYLA on noisy backends automatically.
         if self._args.force_method is None:
             self._args.force_method = "L-BFGS-B"
+
+    def _build_circuit(self, n_qubits: int, p_layers: int, lattice):
+        """Build the bond-resolved circuit, frustrated (NN+NNN) when --j2 != 0."""
+        if self._is_frustrated:
+            return self.hva.create_bond_resolved_frustrated(n_qubits, p_layers, lattice)
+        return self.hva.create_bond_resolved(n_qubits, p_layers, lattice)
+
+    def _build_graph(self, lattice, h_value: float, p_layers: int, **kwargs):
+        """Build the unified graph, including NNN edges when frustrated."""
+        from qmbp_simulation.predictors.unified_graph import (
+            build_unified_bond_resolved_graph,
+        )
+
+        return build_unified_bond_resolved_graph(
+            lattice,
+            h_value=h_value,
+            p_layers=p_layers,
+            include_nnn=self._is_frustrated,
+            **kwargs,
+        )
 
     def run_preflight(self) -> bool:
         """Validate topology constraints before execution."""
@@ -407,7 +448,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         try:
             from qmbp_simulation.analysis.metrics import classify_training_utility
 
-            npz_path = Path("data/multi_n_training") / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+            npz_path = self._training_data_dir / f"{topology}_N{n_qubits}_p{p_layers}.npz"
             if not npz_path.exists():
                 return  # No existing data — nothing to check
 
@@ -548,7 +589,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
         configs = [
             {
-                "model": "tfim_bond_resolved",
+                "model": self._physics_model,
                 "topology": self._args.topology,
                 "n_qubits": n,
                 "p_layers": self._args.p_layers[0],
@@ -565,13 +606,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
     def section_train(self) -> dict:
         """Train AcceleratedVQE at N_train for each p value."""
-        from pathlib import Path
-
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.pipeline.accelerated import AcceleratedConfig, AcceleratedVQE
 
-        spec = get_model_spec("tfim_bond_resolved")
+        spec = get_model_spec(self._physics_model).with_params(**self._model_kwargs)
         hva = HVACircuitBuilder()
         N = self._args.train_n
         topo = self._args.topology
@@ -588,7 +627,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         for p in self._args.p_layers:
             logger.info(f"  Training: N={N}, p={p}, topology={topo}")
             lattice = self.make_lattice(topo, N, J=1.0, h=2.0)
-            circuit, _ = hva.create_bond_resolved(N, p, lattice)
+            circuit, _ = self._build_circuit(N, p, lattice)
             logger.info(f"    Circuit params: {circuit.num_parameters}")
 
             config = AcceleratedConfig(
@@ -602,7 +641,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             )
 
             t0 = time.perf_counter()
-            accel = AcceleratedVQE(lattice, circuit, spec, backend, config=config)
+            accel = AcceleratedVQE(lattice, circuit, spec, backend, config=config, p_layers=p)
             result = accel.run(self._h_values, seed=42, p_layers=p)
             elapsed = time.perf_counter() - t0
 
@@ -610,7 +649,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             self._train_results[p] = result
 
             # Persist θ_opt for multi-N reuse (atomic write with anti-regression)
-            training_data_dir = Path("data/multi_n_training")
+            training_data_dir = self._training_data_dir
             training_data_dir.mkdir(parents=True, exist_ok=True)
             npz_path = training_data_dir / f"{topo}_N{N}_p{p}.npz"
 
@@ -682,7 +721,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         if not force_retrain:
             try:
                 model, meta = load_pretrained(
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     topology=topo,
                     n_qubits=0,  # 0 = multi-N
                     p_layers=p,
@@ -709,11 +748,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
         max_n = self.N_MAX_VIABLE.get(topo, 20)
         agg = MultiNAggregator(
             topology=topo,
-            model="tfim_bond_resolved",
+            model=self._physics_model,
+            results_dir=self._training_data_dir,
             max_n=max_n,
             p_layers=p,
             h_min=getattr(self._args, "train_h_min", None),
             h_max=getattr(self._args, "train_h_max", None),
+            include_orbit_feature=getattr(self._args, "orbit_feature", False),
         )
         summary = agg.scan()
 
@@ -791,7 +832,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 lr=1e-3,
                 patience=200,
                 seed=42,
-                loss_type=getattr(self._args, "loss_type", "theta_mse"),
+                loss_type=getattr(self._args, "loss_type", "sign_invariant"),
                 physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
             )
             elapsed = time.perf_counter() - t0
@@ -825,7 +866,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             else:
                 ckpt_file = f"unified_tfim_br_{topo}_multiN_{n_values_str}_p{p}.pt"
             entry = ZooEntry(
-                model="tfim_bond_resolved",
+                model=self._physics_model,
                 topology=topo,
                 n_qubits=0,  # 0 = multi-N
                 p_layers=p,
@@ -912,7 +953,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.models.model_registry import get_model_spec
         from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
 
-        spec = get_model_spec("tfim_bond_resolved")
+        spec = get_model_spec(self._physics_model).with_params(**self._model_kwargs)
         hva = HVACircuitBuilder()
         topo = self._args.topology
 
@@ -928,7 +969,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 )
                 model = self.load_best_mpnn_for_cross_n(
                     n_target=self._args.target_n[0],
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     topology=topo,
                     p_layers=p,
                     checkpoint_path=self._args.checkpoint,
@@ -952,7 +993,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             for n_target in self._args.target_n:
                 logger.info(f"  Cross-N: N_train={self._args.train_n} → N_target={n_target}, p={p}")
                 lattice_target = self.make_lattice(topo, n_target, J=1.0, h=2.0)
-                circuit_target, _ = hva.create_bond_resolved(n_target, p, lattice_target)
+                circuit_target, _ = self._build_circuit(n_target, p, lattice_target)
                 n_params_target = circuit_target.num_parameters
 
                 # Use CachedBackend for transparent eval caching
@@ -960,7 +1001,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 eval_backend = self.get_cached_backend(
                     topology=topo,
                     n_qubits=n_target,
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     p_layers=p,
                     enabled=use_eval_cache,
                 )
@@ -979,11 +1020,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 try:
                     for h in self._h_values:
-                        # Build unified graph for N_target
-                        g = build_unified_bond_resolved_graph(
+                        g = self._build_graph(
                             lattice_target,
-                            h_value=float(h),
-                            p_layers=p,
+                            float(h),
+                            p,
                             include_circuit_nodes=True,
                         )
                         with torch.no_grad():
@@ -1017,7 +1057,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                         # Ground truth via parent's cached exact_ground_state
                         e_exact, gap = self.exact_ground_state(
-                            topo, n_target, float(h), model="tfim_bond_resolved"
+                            topo,
+                            n_target,
+                            float(h),
+                            model=self._physics_model,
+                            model_kwargs=self._model_kwargs or None,
                         )
 
                         de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
@@ -1031,7 +1075,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                             topo,
                             n_target,
                             float(h),
-                            model="tfim_bond_resolved",
+                            model=self._physics_model,
                             gap=gap,
                             e_pred=e_pred,
                         )
@@ -1097,7 +1141,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                 options={"maxiter": al_maxiter, "rhobeg": 0.5},
                             )
                             e_ex_cold, gap_cold = self.exact_ground_state(
-                                topo, n_target, h_cold, model="tfim_bond_resolved"
+                                topo,
+                                n_target,
+                                h_cold,
+                                model=self._physics_model,
+                                model_kwargs=self._model_kwargs or None,
                             )
                             de_gap_cold = abs(res_cold.fun - e_ex_cold) / max(gap_cold, 1e-10)
                             cold_start_samples.append(
@@ -1146,10 +1194,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                 lat_ref = self.make_lattice(topo, n_target, J=1.0, h=h_val)
                                 H_ref = spec.build_hamiltonian(lat_ref, **spec.hamiltonian_kwargs)
 
-                                g_ref = build_unified_bond_resolved_graph(
+                                g_ref = self._build_graph(
                                     lattice_target,
-                                    h_value=h_val,
-                                    p_layers=p,
+                                    h_val,
+                                    p,
                                     include_circuit_nodes=True,
                                 )
                                 with torch.no_grad():
@@ -1174,7 +1222,11 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                 )
 
                                 e_exact_ref, gap_ref = self.exact_ground_state(
-                                    topo, n_target, h_val, model="tfim_bond_resolved"
+                                    topo,
+                                    n_target,
+                                    h_val,
+                                    model=self._physics_model,
+                                    model_kwargs=self._model_kwargs or None,
                                 )
                                 de_gap_new = abs(res.fun - e_exact_ref) / max(gap_ref, 1e-10)
 
@@ -1185,7 +1237,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                     topo,
                                     n_target,
                                     h_val,
-                                    model="tfim_bond_resolved",
+                                    model=self._physics_model,
                                     gap=gap_ref,
                                     e_pred=float(res.fun),
                                 )
@@ -1320,7 +1372,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             h_values=self._h_values,
             n_qubits=n_target,
             topology=topo,
-            model="tfim_bond_resolved",
+            model=self._physics_model,
             max_iterations=max_iters,
         )
 
@@ -1331,7 +1383,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
             predictor = QualityPredictor()
             report = predictor.predict(
-                model="tfim_bond_resolved",
+                model=self._physics_model,
                 topology=topo,
                 n_qubits=n_target,
                 p_layers=p,
@@ -1387,7 +1439,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         p = self._args.p_layers[0]
         max_iterations = self._args.max_iterations
         improvement_threshold = self._args.improvement_threshold
-        spec = get_model_spec("tfim_bond_resolved")
+        spec = get_model_spec(self._physics_model).with_params(**self._model_kwargs)
         hva = HVACircuitBuilder()
 
         # Architecture flag: CLI --use-residual or auto-detected from loaded model
@@ -1422,14 +1474,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
             logger.info(f"  Backend: NoiselessBackend for N={n_target} ≤ {STATEVECTOR_MAX_N}")
 
         lattice_target = self.make_lattice(topo, n_target, J=1.0, h=2.0)
-        circuit_target, _ = hva.create_bond_resolved(n_target, p, lattice_target)
+        circuit_target, _ = self._build_circuit(n_target, p, lattice_target)
         n_params = circuit_target.num_parameters
         logger.info(
             f"  Circuit: N={n_target}, p={p}, n_params={n_params}, eval_backend={eval_backend.name}"
         )
 
         # NPZ path for this config
-        npz_dir = Path("data/multi_n_training")
+        npz_dir = self._training_data_dir
         npz_dir.mkdir(parents=True, exist_ok=True)
         npz_path = npz_dir / f"{topo}_N{n_target}_p{p}.npz"
 
@@ -1452,16 +1504,30 @@ class AcceleratedCrossNRunner(ValidationRunner):
         e_exact_arr = np.zeros(len(self._h_values))
         gap_arr = np.zeros(len(self._h_values))
         for i, h in enumerate(self._h_values):
-            _was_cached = gt_cache.get(topo, n_target, "tfim_bond_resolved", float(h)) is not None
             t_gt = time.perf_counter()
-            e_i, gap_i = gt_cache.get_or_compute(
-                topo,
-                n_target,
-                "tfim_bond_resolved",
-                float(h),
-                flush=False,  # batch flush after the loop
-                solver=solver,
-            )
+            if self._is_frustrated:
+                _was_cached = self._gt_in_memory_cached(
+                    topo, n_target, float(h), self._model_kwargs
+                )
+                e_i, gap_i = self.exact_ground_state(
+                    topo,
+                    n_target,
+                    float(h),
+                    model=self._physics_model,
+                    model_kwargs=self._model_kwargs,
+                )
+            else:
+                _was_cached = (
+                    gt_cache.get(topo, n_target, self._physics_model, float(h)) is not None
+                )
+                e_i, gap_i = gt_cache.get_or_compute(
+                    topo,
+                    n_target,
+                    self._physics_model,
+                    float(h),
+                    flush=False,
+                    solver=solver,
+                )
             e_exact_arr[i] = e_i
             gap_arr[i] = gap_i
             if _was_cached:
@@ -1487,7 +1553,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 npz_path,
                 topology=topo,
                 n_qubits=n_target,
-                model="tfim_bond_resolved",
+                model=self._physics_model,
             )
             if n_refreshed > 0:
                 # Reload prev_theta_by_h since energies haven't changed
@@ -1536,7 +1602,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 model, _meta, _source = load_best_model_for(
                     topo,
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     p_layers=p,
                     n_target=n_target,
                     include_multi_topology=True,
@@ -1558,7 +1624,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         if model is None:
             try:
                 model, _meta = load_pretrained(
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     topology=topo,
                     n_qubits=self._args.train_n,
                     p_layers=p,
@@ -1598,10 +1664,15 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     bidirectional_anchors=getattr(self._args, "bidirectional_anchors", False),
                 )
                 boot_lattice = self.make_lattice(topo, n_target, J=1.0, h=2.0)
-                boot_circuit, _ = hva.create_bond_resolved(n_target, p, boot_lattice)
+                boot_circuit, _ = self._build_circuit(n_target, p, boot_lattice)
                 t_boot = time.perf_counter()
                 accel = AcceleratedVQE(
-                    boot_lattice, boot_circuit, spec, eval_backend, config=boot_config
+                    boot_lattice,
+                    boot_circuit,
+                    spec,
+                    eval_backend,
+                    config=boot_config,
+                    p_layers=p,
                 )
                 boot_result = accel.run(self._h_values, seed=42, p_layers=p)
                 logger.info(
@@ -1634,7 +1705,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # Train initial UnifiedMPNN from bootstrap data (p-scoped: only *_p{p}.npz)
                 agg = MultiNAggregator(
                     topology=topo,
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
+                    results_dir=self._training_data_dir,
                     max_n=self.N_MAX_VIABLE.get(topo, 20),
                     p_layers=p,
                     h_min=getattr(self._args, "train_h_min", None),
@@ -1666,7 +1738,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 from datetime import datetime
 
                 entry = ZooEntry(
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     topology=topo,
                     n_qubits=0,
                     p_layers=p,
@@ -1717,7 +1789,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     e
                     for e in _load_manifest()
                     if e.topology == topo
-                    and e.model == "tfim_bond_resolved"
+                    and e.model == self._physics_model
                     and e.p_layers == p
                     and e.n_qubits == 0
                 ]
@@ -1740,10 +1812,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
             predictions = []
             n_pred_invalid = 0
             for h in self._h_values:
-                g = build_unified_bond_resolved_graph(
+                g = self._build_graph(
                     lattice_target,
-                    h_value=float(h),
-                    p_layers=p,
+                    float(h),
+                    p,
                     include_circuit_nodes=True,
                 )
                 with torch.no_grad():
@@ -1782,7 +1854,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     n_target,
                     float(h),
                     predictions[i],
-                    model="tfim_bond_resolved",
+                    model=self._physics_model,
                     p_layers=p,
                 )
                 cached_e = eval_cache.get(key)
@@ -2118,7 +2190,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         n_target,
                         h,
                         theta,
-                        model="tfim_bond_resolved",
+                        model=self._physics_model,
                         p_layers=p,
                     )
                     _cached = eval_cache.get(_key)
@@ -2202,7 +2274,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                 topo,
                                 n_target,
                                 h,
-                                model="tfim_bond_resolved",
+                                model=self._physics_model,
                             )
                             fid_str = f" F={fid:.4f}" if fid is not None else ""
                             logger.info(
@@ -2272,7 +2344,8 @@ class AcceleratedCrossNRunner(ValidationRunner):
             # p-scoped aggregation: only *_p{p}.npz data (no cross-p mixing)
             agg = MultiNAggregator(
                 topology=topo,
-                model="tfim_bond_resolved",
+                model=self._physics_model,
+                results_dir=self._training_data_dir,
                 max_n=self.N_MAX_VIABLE.get(topo, 20),
                 h_min=getattr(self._args, "train_h_min", None),
                 h_max=getattr(self._args, "train_h_max", None),
@@ -2288,7 +2361,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
             do_retrain, retrain_reason, diagnostics = should_retrain_with_diagnostics(
                 topology=topo,
-                model_name="tfim_bond_resolved",
+                model_name=self._physics_model,
                 p_layers=p,
                 n_new_points=len(refined_h),
                 current_pass_rate=pass_rate,
@@ -2361,7 +2434,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         lr=1e-3,
                         patience=200,
                         seed=42,
-                        loss_type=getattr(self._args, "loss_type", "theta_mse"),
+                        loss_type=getattr(self._args, "loss_type", "sign_invariant"),
                         physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
                     )
 
@@ -2390,7 +2463,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     n_vals = agg.available_n_values()
                     n_str = "+".join(str(n) for n in n_vals)
                     entry = ZooEntry(
-                        model="tfim_bond_resolved",
+                        model=self._physics_model,
                         topology=topo,
                         n_qubits=0,
                         p_layers=p,
@@ -2483,7 +2556,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
 
                 _agg_report = MultiNAggregator(
-                    topology=topo, model="tfim_bond_resolved", p_layers=p
+                    topology=topo,
+                    model=self._physics_model,
+                    results_dir=self._training_data_dir,
+                    p_layers=p,
                 )
                 _agg_report.scan()
                 training_sizes = _agg_report.available_n_values()

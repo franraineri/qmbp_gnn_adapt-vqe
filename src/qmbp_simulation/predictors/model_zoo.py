@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC
 from pathlib import Path
@@ -89,6 +90,16 @@ def _resolve_zoo_dir() -> Path:
     if env_dir:
         return Path(env_dir).expanduser().resolve()
     return _PROJECT_ROOT / "data" / "model_zoo"
+
+
+# Fixed critical h-window for the empirical ranking of HVA angle predictors.
+# The 1D TFIM critical point sits at h_c = 1; this brackets it symmetrically.
+CRITICAL_H_WINDOW: tuple[float, float] = (0.80, 1.80)
+
+
+def _critical_window_key(window: tuple[float, float] = CRITICAL_H_WINDOW) -> str:
+    """Canonical dict key for a critical h-window, 2-decimal per h-precision convention."""
+    return f"h{window[0]:.2f}-{window[1]:.2f}"
 
 
 _ZOO_DIR = _resolve_zoo_dir()
@@ -320,6 +331,11 @@ class ZooEntry:
     training_quality_score: float = -1.0  # [0,1] composite quality, -1 = not computed
     pass_rate_by_n: dict = field(default_factory=dict)  # {str(n): float} per-N pass rates
     run_json: str = ""  # Path to training run JSON envelope (traceability/reproducibility)
+    # Empirical ranking in the critical h-window [0.8, 1.8] (see CRITICAL_H_WINDOW).
+    # Keyed by window string "h{lo:.2f}-{hi:.2f}"; value carries mean/best |ΔE| and
+    # fidelity aggregated over h in the window, plus per-N breakdown. Populated from
+    # the per-h eval reports by backfill_critical_ranking_from_evals().
+    critical_ranking: dict = field(default_factory=dict)
 
     def matches(
         self,
@@ -794,9 +810,25 @@ def load_best_model_for(
                     h_frontier_val = min(frontiers)  # Lowest h where model starts working
 
             if h_regime == "critical":
-                # Near phase transition: h ∈ [0.5, 2.0], h_c ≈ 1.0 for TFIM
-                # Best: model trained in this regime AND has low h_frontier
-                if h_frontier_val is not None and h_frontier_val <= 1.5:
+                # Near phase transition, h_c ≈ 1.0 for TFIM.
+                # Prefer EMPIRICAL evidence from the critical h-window ranking
+                # (measured |ΔE| + fidelity in [0.8, 1.8]) over the h_range
+                # heuristic. This is the strongest signal because it reflects
+                # actual predicted-state quality near h_c, not training coverage.
+                crit = entry.critical_ranking.get(_critical_window_key()) if entry.critical_ranking else None
+                if crit is not None and crit.get("abs_error_mean") is not None:
+                    ae = float(crit["abs_error_mean"])
+                    # |ΔE| term: 1/(1+ae) maps ae=0→1.0, ae=0.1→0.91, ae=1→0.5.
+                    ae_score = 1.0 / (1.0 + ae)
+                    # Fidelity term: strong weight (fidelity is the key metric).
+                    # Missing fidelity → neutral 0.5 so |ΔE| still drives the score.
+                    fid = crit.get("fidelity_mean")
+                    fid_score = float(fid) if fid is not None else 0.5
+                    # Empirical bonus in ~[-0.05, +0.30]: fidelity-weighted quality.
+                    empirical = 0.10 * ae_score + 0.25 * fid_score
+                    bonus += empirical - 0.05  # center so mediocre data ≈ 0
+                # Fallback: no empirical critical data → h_range/h_frontier heuristic.
+                elif h_frontier_val is not None and h_frontier_val <= 1.5:
                     bonus += 0.20  # Model proven to work near h_c
                 elif h_frontier_val is not None and h_frontier_val <= 2.5:
                     bonus += 0.10  # Partial critical coverage
@@ -2167,6 +2199,26 @@ def _validate_zoo_entry(entry: ZooEntry) -> None:
                 entry.n_qubits,
             )
 
+    # Hard violation: malformed critical_ranking entries
+    for win_key, rec in entry.critical_ranking.items():
+        if not isinstance(rec, dict):
+            raise ValueError(
+                f"Pre-registration validation failed: critical_ranking['{win_key}'] "
+                f"must be a dict, got {type(rec).__name__}."
+            )
+        ae = rec.get("abs_error_mean")
+        if ae is not None and (not isinstance(ae, int | float) or ae < 0):
+            raise ValueError(
+                f"Pre-registration validation failed: critical_ranking['{win_key}']"
+                f"['abs_error_mean']={ae} must be a non-negative number."
+            )
+        fid = rec.get("fidelity_mean")
+        if fid is not None and not (0.0 <= float(fid) <= 1.0):
+            raise ValueError(
+                f"Pre-registration validation failed: critical_ranking['{win_key}']"
+                f"['fidelity_mean']={fid} out of valid range [0.0, 1.0]."
+            )
+
     # Warning: perfect pass_rate with very few points
     if entry.pass_rate == 1.0 and 0 < entry.n_training_points < 20:
         logger.warning(
@@ -2906,6 +2958,149 @@ def update_zoo_pass_rate_by_n(
     return updated
 
 
+def update_zoo_critical_ranking(
+    checkpoint_file: str,
+    record: dict,
+    *,
+    window: tuple[float, float] = CRITICAL_H_WINDOW,
+    only_if_better: bool = False,
+) -> bool:
+    """Upsert the empirical critical-window ranking record for a zoo entry.
+
+    Stores aggregated |ΔE| and fidelity over the fixed critical h-window
+    (see CRITICAL_H_WINDOW) on ``entry.critical_ranking[window_key]``. This is
+    the empirical signal ``load_best_model_for(h_regime="critical")`` consumes.
+
+    Parameters
+    ----------
+    checkpoint_file : str
+        Checkpoint filename in the zoo manifest.
+    record : dict
+        Aggregated metrics. Recognized keys: ``abs_error_mean`` (float),
+        ``abs_error_best`` (float), ``fidelity_mean`` (float | None),
+        ``fidelity_min`` (float | None), ``n_points`` (int), ``per_n`` (dict),
+        ``grade`` (str), ``source_report`` (str). ``updated`` is set automatically.
+    window : tuple[float, float]
+        The h-window this record summarizes (default CRITICAL_H_WINDOW).
+    only_if_better : bool
+        If True, overwrite the existing record only when the new
+        ``abs_error_mean`` is lower (fidelity breaks ties, higher wins).
+
+    Returns
+    -------
+    bool
+        True if the manifest was updated.
+    """
+    from datetime import datetime
+
+    win_key = _critical_window_key(window)
+    entries = _load_manifest()
+
+    for entry in entries:
+        if entry.checkpoint_file != checkpoint_file:
+            continue
+
+        existing = entry.critical_ranking.get(win_key)
+        if only_if_better and existing is not None:
+            new_ae = record.get("abs_error_mean")
+            old_ae = existing.get("abs_error_mean")
+            if new_ae is not None and old_ae is not None:
+                if new_ae > old_ae + 1e-9:
+                    return False  # existing is better
+                if abs(new_ae - old_ae) <= 1e-9:
+                    # tie on |ΔE| → prefer higher fidelity
+                    new_f = record.get("fidelity_mean") or -1.0
+                    old_f = existing.get("fidelity_mean") or -1.0
+                    if new_f <= old_f:
+                        return False
+
+        rec = dict(record)
+        rec["updated"] = datetime.now(UTC).isoformat()
+        entry.critical_ranking[win_key] = rec
+        _save_manifest(entries)
+        logger.info(
+            "update_zoo_critical_ranking: %s [%s] |ΔE|_mean=%s fidelity_mean=%s",
+            checkpoint_file[:40],
+            win_key,
+            rec.get("abs_error_mean"),
+            rec.get("fidelity_mean"),
+        )
+        return True
+
+    logger.warning("update_zoo_critical_ranking: checkpoint '%s' not found", checkpoint_file)
+    return False
+
+
+def get_critical_metrics_at_h(
+    checkpoint_file: str | None = None,
+    *,
+    h: float = 1.0,
+    p_layers: int = 1,
+    n_values: list[int] | None = None,
+    window: tuple[float, float] = CRITICAL_H_WINDOW,
+) -> dict:
+    """Report per-N |ΔE| and fidelity at h≈``h`` from the critical ranking.
+
+    Reads the ``at_h1`` sub-records stored by ``backfill_critical_ranking_from_evals``
+    (currently pinned to h≈1.0, the TFIM critical point). Answers "for each model,
+    what is its |ΔE| and fidelity at N∈{10,20,30} at h=1.0?".
+
+    Parameters
+    ----------
+    checkpoint_file : str | None
+        If given, restrict to this checkpoint. None = every entry that has a
+        critical-window record for the given ``p_layers``.
+    h : float
+        Target h. Currently only h≈1.0 is stored (``at_h1``); other values
+        return empty until the ranking stores more h anchors.
+    p_layers : int
+        HVA depth filter.
+    n_values : list[int] | None
+        Restrict to these N (default: all present, but typically [10, 20, 30]).
+    window : tuple[float, float]
+        Critical window key selector.
+
+    Returns
+    -------
+    dict
+        { checkpoint: { n: {"abs_error": float, "fidelity": float | None,
+                            "h": float} } }
+        for every checkpoint/N with an at-h≈1.0 record.
+    """
+    if abs(h - 1.0) > 1e-9:
+        logger.info(
+            "get_critical_metrics_at_h: only h≈1.0 is stored (at_h1); requested h=%.2f "
+            "→ returning what is available.", h,
+        )
+    win_key = _critical_window_key(window)
+    out: dict[str, dict] = {}
+    for entry in _load_manifest():
+        if entry.p_layers != p_layers:
+            continue
+        if checkpoint_file is not None and entry.checkpoint_file != checkpoint_file:
+            continue
+        crit = entry.critical_ranking.get(win_key) if entry.critical_ranking else None
+        if not crit:
+            continue
+        per_n = crit.get("per_n", {})
+        n_out: dict[int, dict] = {}
+        for n_str, rec in per_n.items():
+            n = int(n_str)
+            if n_values is not None and n not in n_values:
+                continue
+            at = rec.get("at_h1")
+            if at is None:
+                continue
+            n_out[n] = {
+                "abs_error": at.get("abs_error"),
+                "fidelity": at.get("fidelity"),
+                "h": at.get("h"),
+            }
+        if n_out:
+            out[entry.checkpoint_file] = n_out
+    return out
+
+
 def backfill_pass_rate_by_n_from_comparisons() -> int:
     """Populate pass_rate_by_n for zoo entries using model_comparison JSONs.
 
@@ -2958,6 +3153,519 @@ def backfill_pass_rate_by_n_from_comparisons() -> int:
         logger.info("backfill_pass_rate_by_n: updated %d entries", n_updated)
 
     return n_updated
+
+
+def _parse_eval_report_per_h(report_path: Path) -> dict:
+    """Parse an eval-report markdown into per-N, per-h rows.
+
+    The eval reports (results/extrapolation_evals/{topo}_p{p}/eval_*.md) are the
+    only source with per-h resolution of |ΔE| and Fidelity. Returns:
+        {"checkpoint": str, "topology": str, "p_layers": int, "date": str,
+         "per_n": {n: [ {"h", "abs_error", "de_gap", "gap", "fidelity"|None}, ... ]}}
+    Column parsing mirrors generate_best_results_scoreboard.parse_eval_report
+    (robust to the literal '|' in the |ΔE| header and the optional Fidelity col).
+    """
+    text = report_path.read_text(encoding="utf-8", errors="replace")
+    lines = text.split("\n")
+
+    checkpoint = "unknown"
+    date_str = ""
+    p_layers = 1
+    topology = ""
+    parent = report_path.parent.name  # "{topo}_p{p}"
+    m = re.match(r"(.+)_p(\d+)$", parent)
+    if m:
+        topology, p_layers = m.group(1), int(m.group(2))
+
+    for line in lines[:20]:
+        if line.startswith("**Model**:"):
+            checkpoint = line.split(":", 1)[1].strip()
+        elif line.startswith("**Date**:"):
+            date_str = line.split(":", 1)[1].strip()
+        elif line.startswith("**p_layers**:"):
+            try:
+                p_layers = int(line.split(":", 1)[1].strip())
+            except ValueError:
+                pass
+
+    def _split_cells(row: str) -> list[str]:
+        safe = row.replace("|ΔE|/N", "ABSERR_PER_SITE").replace("|ΔE|", "ABSERR")
+        return [c.strip() for c in safe.split("|")[1:-1]]
+
+    def _norm(col: str) -> str:
+        c = col.strip().lower()
+        if c in ("abserr", "abs_error"):
+            return "abs_error"
+        if c in ("δe/gap", "de/gap", "de_gap"):
+            return "de_gap"
+        return c
+
+    per_n: dict[int, list[dict]] = {}
+    current_n: int | None = None
+    in_table = False
+    col_idx: dict[str, int] = {}
+
+    for line in lines:
+        n_match = re.match(r"^## N\s*=\s*(\d+)", line)
+        if n_match:
+            current_n = int(n_match.group(1))
+            in_table = False
+            col_idx = {}
+            continue
+        if current_n is not None and "| h |" in line and "E_pred" in line:
+            col_idx = {_norm(c): i for i, c in enumerate(_split_cells(line))}
+            in_table = True
+            continue
+        if in_table and line.startswith("|---"):
+            continue
+        if in_table and current_n is not None and line.startswith("|"):
+            parts = _split_cells(line)
+            if len(parts) < 6 or not col_idx:
+                continue
+
+            def _get(name: str, _parts: list[str] = parts) -> str | None:
+                i = col_idx.get(name)
+                return _parts[i] if i is not None and i < len(_parts) else None
+
+            try:
+                h_val = float(_get("h"))
+                abs_error = float(_get("abs_error"))
+                gap = float(_get("gap"))
+                de_gap = float(_get("de_gap"))
+            except (ValueError, TypeError):
+                continue
+            if abs_error < 0 or gap < 0 or de_gap < 0 or abs_error > 1e6:
+                continue
+
+            fidelity: float | None = None
+            fid_raw = _get("fidelity")
+            if fid_raw and fid_raw.upper() != "N/A":
+                try:
+                    fidelity = float(fid_raw.lstrip("≥").strip())
+                except ValueError:
+                    fidelity = None
+
+            per_n.setdefault(current_n, []).append(
+                {"h": round(h_val, 2), "abs_error": abs_error, "de_gap": de_gap,
+                 "gap": gap, "fidelity": fidelity}
+            )
+
+    return {"checkpoint": checkpoint, "topology": topology, "p_layers": p_layers,
+            "date": date_str, "per_n": per_n}
+
+
+def _compute_fidelity_for_chain_1d(checkpoint_file: str, n: int, h: float,
+                                   p_layers: int) -> float | None:
+    """Compute exact GS fidelity for a chain_1d point when the report lacks it.
+
+    Only invoked for N ≤ 16 (cheap statevector). Loads the checkpoint, predicts
+    the bond-resolved θ, and returns |⟨E₀|ψ(θ)⟩|². Returns None on any failure
+    (missing checkpoint, prediction error) so backfill degrades gracefully.
+    """
+    if n > 16:
+        return None
+    ckpt = _resolve_checkpoint_path(checkpoint_file)
+    if ckpt is None:
+        return None
+    try:
+        import numpy as np
+        import torch
+
+        from qmbp_simulation.analysis.fidelity import estimate_fidelity_from_primitives
+        from qmbp_simulation.circuits.hva import HVACircuitBuilder
+        from qmbp_simulation.execution.eval_cache import EvalCache
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder, make_lattice
+        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+
+        # Prediction is cheap; do it first so the cache key (which hashes theta)
+        # can be built before the expensive exact diagonalization.
+        model = _smart_load_checkpoint(str(ckpt))
+        model.eval()
+        lat = make_lattice("chain_1d", n, J=1.0, h=h, periodic=False)
+        graph = build_unified_bond_resolved_graph(
+            lat, h_value=h, p_layers=p_layers, include_circuit_nodes=True
+        )
+        with torch.no_grad():
+            theta = np.clip(model(graph).numpy().flatten(), -np.pi, np.pi)
+
+        # Reuse a previously computed fidelity for this exact (model, N, h, theta).
+        cache = EvalCache()
+        cached = cache.get_fidelity(
+            "chain_1d", n, h, theta, model="tfim_bond_resolved", p_layers=p_layers
+        )
+        if cached is not None:
+            return cached
+
+        # Cache miss → compute exactly, then persist. Use ClassicalSolver for
+        # the ground-state vector (it uses sparse eigsh for N≥13, avoiding the
+        # dense 2^N × 2^N matrix that would OOM at N=16), reusing the 2-level
+        # GT cache. Only the exact ground_state vector path is used here.
+        from qmbp_simulation.solvers.classical import ClassicalSolver
+
+        hb = HamiltonianBuilder()
+        H = hb.build(lat)
+        qc, _ = HVACircuitBuilder().create_bond_resolved(n, p_layers, lat)
+        gt = ClassicalSolver().solve(H, lat, method="exact")
+        if gt.ground_state is None:
+            return None
+        res = estimate_fidelity_from_primitives(
+            qc, theta, H, gt.gap, n, exact_state=gt.ground_state
+        )
+        fidelity = res.get("fidelity")
+        if fidelity is not None:
+            cache.put_fidelity(
+                "chain_1d", n, h, theta, float(fidelity),
+                model="tfim_bond_resolved", p_layers=p_layers,
+            )
+            cache.flush()
+        return fidelity
+    except Exception as exc:  # noqa: BLE001 — best-effort, never block backfill
+        logger.debug("_compute_fidelity_for_chain_1d(%s N=%d h=%.2f) failed: %s",
+                     checkpoint_file[:30], n, h, exc)
+        return None
+
+
+def _compute_fidelity_bound_for_chain_1d(checkpoint_file: str, n: int, h: float,
+                                         p_layers: int) -> float | None:
+    """Rigorous variance lower bound on GS fidelity for large-N chain_1d points.
+
+    Uses the Eckart / Weinstein–Temple inequality F ≥ 1 − Var(H)/gap² via
+    ``compute_variance_fidelity_bound`` (MPS variance, no dense statevector),
+    so it is feasible where the exact path is not. The result is a CERTIFIED
+    LOWER BOUND, cached in the shared EvalCache under a bound-namespaced key so
+    it is never confused with an exact fidelity. Returns None on any failure
+    (missing checkpoint, non-positive gap, uncomputable variance).
+    """
+    ckpt = _resolve_checkpoint_path(checkpoint_file)
+    if ckpt is None:
+        return None
+    try:
+        import numpy as np
+        import torch
+
+        from qmbp_simulation.analysis.fidelity import compute_variance_fidelity_bound
+        from qmbp_simulation.circuits.hva import HVACircuitBuilder
+        from qmbp_simulation.execution.eval_cache import EvalCache
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder, make_lattice
+        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+        from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
+
+        model = _smart_load_checkpoint(str(ckpt))
+        model.eval()
+        lat = make_lattice("chain_1d", n, J=1.0, h=h, periodic=False)
+        graph = build_unified_bond_resolved_graph(
+            lat, h_value=h, p_layers=p_layers, include_circuit_nodes=True
+        )
+        with torch.no_grad():
+            theta = np.clip(model(graph).numpy().flatten(), -np.pi, np.pi)
+
+        # Bound-namespaced cache key (BFID| distinguishes it from exact FID|).
+        cache = EvalCache()
+        theta_hash = __import__("hashlib").sha256(
+            np.asarray(theta, dtype=np.float64).tobytes()
+        ).hexdigest()[:32]
+        bkey = f"BFID|tfim_bond_resolved|chain_1d|{n}|{p_layers}|{h:.2f}|{theta_hash}"
+        cached = cache.get(bkey)
+        if cached is not None:
+            return cached
+
+        # Gap from the 2-level GT cache (no dense diagonalization at large N).
+        gt_cache = GroundTruthCache()
+        gt = gt_cache.get("chain_1d", n, "tfim_bond_resolved", h)
+        gap = gt.get("gap") if gt else None
+        if gap is None:
+            return None
+
+        hb = HamiltonianBuilder()
+        H = hb.build(lat)
+        qc, _ = HVACircuitBuilder().create_bond_resolved(n, p_layers, lat)
+        res = compute_variance_fidelity_bound(qc, theta, H, float(gap))
+        if res is None or res.get("fidelity") is None:
+            return None
+        fb = float(res["fidelity"])
+        cache.put(bkey, fb)
+        cache.flush()
+        return fb
+    except Exception as exc:  # noqa: BLE001 — best-effort, never block backfill
+        logger.debug("_compute_fidelity_bound_for_chain_1d(%s N=%d h=%.2f) failed: %s",
+                     checkpoint_file[:30], n, h, exc)
+        return None
+
+
+def backfill_critical_ranking_from_evals(
+    *,
+    window: tuple[float, float] = CRITICAL_H_WINDOW,
+    compute_missing_fidelity: bool = True,
+) -> int:
+    """Populate ZooEntry.critical_ranking from per-h eval reports (fixed h-window).
+
+    Scans results/extrapolation_evals/*/eval_*.md, keeps rows with h in the
+    window, and for each checkpoint present in the manifest aggregates:
+      - abs_error_mean / abs_error_best over all in-window points,
+      - fidelity_mean / fidelity_min over available fidelities,
+      - per-N breakdown, grade (from mean |ΔE|), source_report, n_points.
+    For chain_1d points lacking fidelity, computes the exact fidelity when
+    N ≤ 16 (cheap statevector), controlled by ``compute_missing_fidelity``.
+
+    Also cross-checks against run_*.json / compare_*.json presence for the same
+    checkpoint (does not overwrite empirical per-h data; used only to flag
+    entries seen in raw runs — stored under record['seen_in_raw_runs']).
+
+    Returns the number of zoo entries updated.
+    """
+    lo, hi = window
+    eval_root = _PROJECT_ROOT / "results" / "extrapolation_evals"
+    if not eval_root.exists():
+        return 0
+
+    manifest_ckpts = {e.checkpoint_file for e in _load_manifest()}
+
+    def _resolve_manifest_name(name: str) -> str | None:
+        """Map an eval-report checkpoint name to a manifest filename.
+
+        Eval reports store the checkpoint WITHOUT the .pt extension (and may
+        strip a leading path); the manifest stores the bare filename WITH .pt.
+        """
+        bare = name.rsplit("/", 1)[-1]
+        for cand in (bare, f"{bare}.pt"):
+            if cand in manifest_ckpts:
+                return cand
+        return None
+
+    # ── Gather per-h rows per (checkpoint, p) within the window ──────────
+    # agg[(ckpt, p)] = {"per_n": {n: {"abs_errors": [...], "fidelities": [...],
+    #                                 "h_vals": [...]}}, "report": str, "topology": str}
+    agg: dict[tuple[str, int], dict] = {}
+    for report in sorted(eval_root.glob("*/eval_*.md")):
+        parsed = _parse_eval_report_per_h(report)
+        ckpt = _resolve_manifest_name(parsed["checkpoint"])
+        if ckpt is None:
+            continue
+        key = (ckpt, parsed["p_layers"])
+        slot = agg.setdefault(
+            key, {"per_n": {}, "report": report.name, "topology": parsed["topology"]}
+        )
+        for n, rows in parsed["per_n"].items():
+            in_win = [r for r in rows if lo - 1e-9 <= r["h"] <= hi + 1e-9]
+            if not in_win:
+                continue
+            nslot = slot["per_n"].setdefault(
+                n, {"abs_errors": [], "fidelities": [], "h_vals": [], "points": []}
+            )
+            for r in in_win:
+                nslot["abs_errors"].append(r["abs_error"])
+                nslot["h_vals"].append(r["h"])
+                fid = r["fidelity"]
+                if fid is None and compute_missing_fidelity and parsed["topology"] == "chain_1d":
+                    fid = _compute_fidelity_for_chain_1d(ckpt, n, r["h"], parsed["p_layers"])
+                if fid is not None:
+                    nslot["fidelities"].append(fid)
+                # Per-point record (keeps h so we can query specific h like 1.0).
+                nslot["points"].append({"h": r["h"], "abs_error": r["abs_error"], "fidelity": fid})
+        # keep the most recent report name (reports are sorted ascending)
+        slot["report"] = report.name
+
+    if not agg:
+        return 0
+
+    # ── Cross-check: which checkpoints also appear in raw run JSONs ──────
+    seen_raw: set[str] = set()
+    for sub in ("model_comparison",):
+        d = _PROJECT_ROOT / "results" / sub
+        if not d.exists():
+            continue
+        for f in d.glob("compare_*.json"):
+            try:
+                data = json.loads(f.read_text())
+                for r in data.get("results", []):
+                    if r.get("checkpoint"):
+                        seen_raw.add(r["checkpoint"])
+            except Exception:
+                continue
+
+    # ── Build records and upsert ────────────────────────────────────────
+    def _grade(ae: float) -> str:
+        if ae < 0.05:
+            return "A"
+        if ae < 0.10:
+            return "B"
+        if ae < 0.30:
+            return "C"
+        if ae < 1.00:
+            return "D"
+        return "F"
+
+    n_updated = 0
+    for (ckpt, p), slot in agg.items():
+        all_ae: list[float] = []
+        all_fid: list[float] = []
+        per_n_out: dict[str, dict] = {}
+        for n, nslot in slot["per_n"].items():
+            aes = nslot["abs_errors"]
+            fids = nslot["fidelities"]
+            if not aes:
+                continue
+            all_ae.extend(aes)
+            all_fid.extend(fids)
+            # Point closest to h=1.0 (within ±0.15) → per-N metrics AT h_c.
+            at_h1 = None
+            near = [pt for pt in nslot["points"] if abs(pt["h"] - 1.0) <= 0.15]
+            if near:
+                best = min(near, key=lambda pt: abs(pt["h"] - 1.0))
+                at_h1 = {"h": best["h"], "abs_error": best["abs_error"],
+                         "fidelity": best["fidelity"]}
+            per_n_out[str(n)] = {
+                "abs_error_mean": float(sum(aes) / len(aes)),
+                "abs_error_best": float(min(aes)),
+                "fidelity_mean": (float(sum(fids) / len(fids)) if fids else None),
+                "fidelity_min": (float(min(fids)) if fids else None),
+                "n_points": len(aes),
+                "at_h1": at_h1,  # metrics at h≈1.0 (critical point), or None
+            }
+        if not all_ae:
+            continue
+        ae_mean = float(sum(all_ae) / len(all_ae))
+        record = {
+            "abs_error_mean": ae_mean,
+            "abs_error_best": float(min(all_ae)),
+            "fidelity_mean": (float(sum(all_fid) / len(all_fid)) if all_fid else None),
+            "fidelity_min": (float(min(all_fid)) if all_fid else None),
+            "n_points": len(all_ae),
+            "per_n": per_n_out,
+            "grade": _grade(ae_mean),
+            "source_report": slot["report"],
+            "seen_in_raw_runs": ckpt in seen_raw,
+        }
+        if update_zoo_critical_ranking(ckpt, record, window=window):
+            n_updated += 1
+
+    logger.info(
+        "backfill_critical_ranking: window=%s, updated %d entries",
+        _critical_window_key(window), n_updated,
+    )
+    return n_updated
+
+
+def backfill_missing_fidelities(
+    *,
+    window: tuple[float, float] | None = None,
+    max_n: int = 16,
+    only_chain_1d: bool = True,
+    use_variance_bound: bool = False,
+) -> dict:
+    """Fill in ground-state fidelities that were never computed.
+
+    Scans the per-h eval reports for points that (a) belong to a checkpoint in
+    the zoo manifest and (b) lack a Fidelity value in the report. For each:
+
+    - N ≤ ``max_n`` (= STATEVECTOR_MAX_N): computes the EXACT fidelity
+      |⟨E₀|ψ(θ)⟩|² and stores it in the shared EvalCache (reused across runs).
+    - N > ``max_n`` and ``use_variance_bound=True``: computes the rigorous
+      Eckart / Weinstein–Temple LOWER BOUND F ≥ 1 − Var(H)/gap² via
+      ``compute_variance_fidelity_bound`` (no dense statevector; MPS variance),
+      and caches it. This is a certified bound, not the exact value — flagged
+      as such by the cache key namespace and reported separately in the stats.
+
+    Each computed value is persisted immediately so subsequent runs / backfills
+    reuse it instead of recomputing.
+
+    Parameters
+    ----------
+    window : tuple[float, float] | None
+        If given, only fill points with h in this window. None = all h.
+    max_n : int
+        Upper N for exact statevector fidelity (default 16 = STATEVECTOR_MAX_N).
+    only_chain_1d : bool
+        Restrict to chain_1d (the topology with an exact standalone builder).
+    use_variance_bound : bool
+        If True, also fill N > max_n points with the variance lower bound.
+        Default False (only exact fidelities are filled).
+
+    Returns
+    -------
+    dict
+        {"computed": int, "cached_hits": int, "bounds_computed": int,
+         "skipped_large_n": int, "points_scanned": int}
+    """
+    eval_root = _PROJECT_ROOT / "results" / "extrapolation_evals"
+    if not eval_root.exists():
+        return {"computed": 0, "cached_hits": 0, "bounds_computed": 0,
+                "skipped_large_n": 0, "points_scanned": 0}
+
+    manifest_ckpts = {e.checkpoint_file for e in _load_manifest()}
+
+    def _resolve_manifest_name(name: str) -> str | None:
+        bare = name.rsplit("/", 1)[-1]
+        for cand in (bare, f"{bare}.pt"):
+            if cand in manifest_ckpts:
+                return cand
+        return None
+
+    lo, hi = (window if window is not None else (-1e9, 1e9))
+    stats = {"computed": 0, "cached_hits": 0, "bounds_computed": 0,
+             "skipped_large_n": 0, "points_scanned": 0}
+    # Deduplicate (ckpt, N, h) so we compute each unique point at most once.
+    seen: set[tuple[str, int, float]] = set()
+
+    glob_pat = "chain_1d_p*/eval_*.md" if only_chain_1d else "*/eval_*.md"
+    for report in sorted(eval_root.glob(glob_pat)):
+        parsed = _parse_eval_report_per_h(report)
+        if only_chain_1d and parsed["topology"] != "chain_1d":
+            continue
+        ckpt = _resolve_manifest_name(parsed["checkpoint"])
+        if ckpt is None:
+            continue
+        p_layers = parsed["p_layers"]
+        for n, rows in parsed["per_n"].items():
+            for row in rows:
+                h = row["h"]
+                if not (lo - 1e-9 <= h <= hi + 1e-9):
+                    continue
+                if row["fidelity"] is not None:
+                    continue  # already have it in the report
+                stats["points_scanned"] += 1
+                key = (ckpt, n, round(h, 2))
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                from qmbp_simulation.execution.eval_cache import EvalCache
+
+                if n > max_n:
+                    if not use_variance_bound:
+                        stats["skipped_large_n"] += 1
+                        continue
+                    # Large N: rigorous variance lower bound (no dense statevector).
+                    n_fid_before = sum(1 for k in EvalCache()._data if k.startswith("FID|"))
+                    fb = _compute_fidelity_bound_for_chain_1d(ckpt, n, h, p_layers)
+                    if fb is None:
+                        stats["skipped_large_n"] += 1
+                        continue
+                    n_fid_after = sum(1 for k in EvalCache()._data if k.startswith("FID|"))
+                    if n_fid_after > n_fid_before:
+                        stats["bounds_computed"] += 1
+                    else:
+                        stats["cached_hits"] += 1
+                    continue
+
+                # N ≤ max_n: exact fidelity. _compute_fidelity_for_chain_1d
+                # checks the cache first (hit → no recompute) and persists new
+                # values. Fresh-compute vs hit is detected via the FID entry count.
+                n_fid_before = sum(1 for k in EvalCache()._data if k.startswith("FID|"))
+                fid = _compute_fidelity_for_chain_1d(ckpt, n, h, p_layers)
+                if fid is None:
+                    continue
+                n_fid_after = sum(1 for k in EvalCache()._data if k.startswith("FID|"))
+                if n_fid_after > n_fid_before:
+                    stats["computed"] += 1
+                else:
+                    stats["cached_hits"] += 1
+
+    logger.info(
+        "backfill_missing_fidelities: computed=%d cached_hits=%d skipped_large_n=%d scanned=%d",
+        stats["computed"], stats["cached_hits"], stats["skipped_large_n"], stats["points_scanned"],
+    )
+    return stats
 
 
 def compute_retrain_queue() -> list[dict]:

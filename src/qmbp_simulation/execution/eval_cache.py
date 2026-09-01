@@ -53,6 +53,13 @@ _DEFAULT_CACHE_PATH = _PROJECT_ROOT / "data" / "eval_cache.json"
 _MAX_ENTRIES = 50_000
 
 
+def _is_valid_p_layers(p_layers: int | None) -> bool:
+    """Whether p_layers is a plausible HVA depth (1..MAX_P_LAYERS)."""
+    from qmbp_simulation.models.constants import MAX_P_LAYERS
+
+    return isinstance(p_layers, int) and 1 <= p_layers <= MAX_P_LAYERS
+
+
 class EvalCache:
     """Persistent cache for circuit energy evaluations.
 
@@ -79,11 +86,20 @@ class EvalCache:
     ) -> None:
         if path is not None:
             self._path = path
-        elif p_layers and p_layers > 1:
-            # Partition cache by p_layers for scalability
+        elif p_layers is not None and p_layers > 1 and _is_valid_p_layers(p_layers):
             self._path = _PROJECT_ROOT / "data" / f"eval_cache_p{p_layers}.json"
         else:
-            # Default: backward compatible single file (covers p=1 and legacy)
+            if p_layers is not None and p_layers > 1 and not _is_valid_p_layers(p_layers):
+                from qmbp_simulation.models.constants import MAX_P_LAYERS
+
+                logger.warning(
+                    "EvalCache: implausible p_layers=%d (expected 1..%d). Using the "
+                    "default cache to avoid phantom eval_cache_p%d.json. This usually "
+                    "means a caller passed n_params instead of the HVA depth.",
+                    p_layers,
+                    MAX_P_LAYERS,
+                    p_layers,
+                )
             self._path = _DEFAULT_CACHE_PATH
         self._enabled = enabled
         self._max_entries = max_entries
@@ -174,7 +190,20 @@ class EvalCache:
         # theta_hash ensures unique key even at same h.
         theta_arr = np.asarray(theta, dtype=np.float64)
         n_params = theta_arr.size
-        if p_layers >= 1 and n_params > 0 and n_params % p_layers != 0:
+        if p_layers >= 1 and not _is_valid_p_layers(p_layers):
+            from qmbp_simulation.models.constants import MAX_P_LAYERS
+
+            logger.warning(
+                "EvalCache.make_key: implausible p_layers=%d (expected 1..%d) for "
+                "%s N=%d model=%s. A caller likely passed n_params instead of the "
+                "HVA depth.",
+                p_layers,
+                MAX_P_LAYERS,
+                topology,
+                n_qubits,
+                model,
+            )
+        elif p_layers >= 1 and n_params > 0 and n_params % p_layers != 0:
             logger.warning(
                 "EvalCache.make_key: p/n_params mismatch — len(theta)=%d is not "
                 "divisible by p_layers=%d (%s N=%d, model=%s). Possible ansatz "
@@ -253,6 +282,37 @@ class EvalCache:
         """Cache a ground truth energy computation."""
         key = f"GT|{model}|{topology}|{n_qubits}|{h:.2f}"
         self.put(key, energy)
+
+    def _fidelity_key(
+        self, topology: str, n_qubits: int, h: float, theta: np.ndarray,
+        *, model: str, p_layers: int,
+    ) -> str:
+        """Cache key for a ground-state fidelity. State-dependent, so it hashes
+        theta (same convention as make_key), prefixed FID| to namespace it apart
+        from energies. Reused across runs to avoid recomputing statevector/MPS
+        fidelity for a (model, N, h, theta) already evaluated.
+        """
+        theta_hash = hashlib.sha256(np.asarray(theta, dtype=np.float64).tobytes()).hexdigest()[:32]
+        return f"FID|{model}|{topology}|{n_qubits}|{p_layers}|{h:.2f}|{theta_hash}"
+
+    def get_fidelity(
+        self, topology: str, n_qubits: int, h: float, theta: np.ndarray,
+        *, model: str = "tfim", p_layers: int = 0,
+    ) -> float | None:
+        """Look up a cached ground-state fidelity. Returns None on miss."""
+        key = self._fidelity_key(topology, n_qubits, h, theta, model=model, p_layers=p_layers)
+        return self.get(key)
+
+    def put_fidelity(
+        self, topology: str, n_qubits: int, h: float, theta: np.ndarray, fidelity: float,
+        *, model: str = "tfim", p_layers: int = 0,
+    ) -> None:
+        """Cache a ground-state fidelity (validated to [0, 1])."""
+        if not np.isfinite(fidelity) or not (0.0 <= float(fidelity) <= 1.0):
+            logger.debug("EvalCache: rejecting out-of-range fidelity %s", fidelity)
+            return
+        key = self._fidelity_key(topology, n_qubits, h, theta, model=model, p_layers=p_layers)
+        self.put(key, float(fidelity))
 
     def flush(self) -> None:
         """Force save to disk."""

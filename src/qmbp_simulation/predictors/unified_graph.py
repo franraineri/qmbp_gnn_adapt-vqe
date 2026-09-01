@@ -89,6 +89,109 @@ def _compute_bipartite_coloring(lattice: LatticeConfig) -> np.ndarray:
     return coloring
 
 
+def compute_bond_and_site_orbits(lattice: LatticeConfig) -> tuple[np.ndarray, np.ndarray]:
+    """Compute automorphism orbits for sites and bonds of the lattice.
+
+    Two sites (or bonds) are in the same orbit when a graph automorphism maps
+    one to the other. In a symmetric ground state (paramagnetic TFIM regime),
+    sites/bonds in the same orbit carry equivalent optimal HVA parameters, so
+    the orbit id is a physically meaningful equivariance hint for the MPNN.
+
+    The orbit ids are normalized to [0, 1] by (orbit_index + 0.5) / n_orbits,
+    matching the scale convention used for the other node features. This is a
+    STRUCTURAL feature (independent of h, J, θ) so it is deterministic per
+    lattice topology and size.
+
+    Falls back gracefully: if automorphisms cannot be computed, every site and
+    bond gets its own orbit (i.e. no equivalence asserted), which is a safe,
+    information-neutral default.
+
+    Parameters
+    ----------
+    lattice : LatticeConfig
+        Lattice with edges defined.
+
+    Returns
+    -------
+    (site_orbit_norm, bond_orbit_norm)
+        site_orbit_norm : np.ndarray shape (N,) — normalized site orbit id.
+        bond_orbit_norm : np.ndarray shape (n_edges,) — normalized bond orbit
+        id, indexed to match ``sorted(lattice.edges)`` (the same ordering used
+        by build_unified_bond_resolved_graph for ZZ gate nodes and edge_list).
+    """
+    import networkx as nx
+
+    N = lattice.n_qubits
+    edges_sorted = [tuple(sorted(e)) for e in sorted(lattice.edges)]
+    n_edges = len(edges_sorted)
+
+    def _fallback() -> tuple[np.ndarray, np.ndarray]:
+        # Every element its own orbit: no equivalence asserted (neutral).
+        site = (np.arange(N) + 0.5) / max(N, 1)
+        bond = (np.arange(n_edges) + 0.5) / max(n_edges, 1)
+        return site.astype(float), bond.astype(float)
+
+    if N == 0 or n_edges == 0:
+        return _fallback()
+
+    try:
+        G = nx.Graph()
+        G.add_nodes_from(range(N))
+        G.add_edges_from(edges_sorted)
+
+        # Automorphism generators via VF2 self-isomorphisms. For the small
+        # lattices used here (N ≲ 60) this is cheap. We derive orbits by
+        # union-find over the images of a bounded set of automorphisms.
+        matcher = nx.algorithms.isomorphism.GraphMatcher(G, G)
+
+        parent = list(range(N))
+
+        def _find(a: int) -> int:
+            while parent[a] != a:
+                parent[a] = parent[parent[a]]
+                a = parent[a]
+            return a
+
+        def _union(a: int, b: int) -> None:
+            ra, rb = _find(a), _find(b)
+            if ra != rb:
+                parent[max(ra, rb)] = min(ra, rb)
+
+        # Cap the number of automorphisms examined to keep this bounded even
+        # for highly symmetric graphs (the orbit partition converges quickly).
+        _MAX_AUTOS = 2000
+        count = 0
+        for mapping in matcher.isomorphisms_iter():
+            for src, dst in mapping.items():
+                _union(src, dst)
+            count += 1
+            if count >= _MAX_AUTOS:
+                break
+
+        # Site orbits: canonical order by smallest member for determinism.
+        site_root = np.array([_find(i) for i in range(N)])
+        unique_site_roots = sorted(set(site_root.tolist()))
+        site_orbit_of_root = {r: k for k, r in enumerate(unique_site_roots)}
+        n_site_orbits = len(unique_site_roots)
+        site_orbit = np.array([site_orbit_of_root[site_root[i]] for i in range(N)])
+
+        # Bond orbits: a bond (i,j) maps to (site_root[i], site_root[j]) as an
+        # unordered pair; bonds whose endpoint-orbit pair matches are in the
+        # same orbit. This is the induced action of Aut(G) on edges.
+        bond_key = [tuple(sorted((int(site_root[i]), int(site_root[j])))) for i, j in edges_sorted]
+        unique_bond_keys = sorted(set(bond_key))
+        bond_orbit_of_key = {k: idx for idx, k in enumerate(unique_bond_keys)}
+        n_bond_orbits = len(unique_bond_keys)
+        bond_orbit = np.array([bond_orbit_of_key[k] for k in bond_key])
+
+        site_norm = (site_orbit + 0.5) / max(n_site_orbits, 1)
+        bond_norm = (bond_orbit + 0.5) / max(n_bond_orbits, 1)
+        return site_norm.astype(float), bond_norm.astype(float)
+    except Exception as exc:  # noqa: BLE001 — structural hint is best-effort
+        logger.debug("compute_bond_and_site_orbits failed (%s); using neutral fallback", exc)
+        return _fallback()
+
+
 def build_unified_bond_resolved_graph(
     lattice: LatticeConfig,
     h_value: float,
@@ -98,8 +201,16 @@ def build_unified_bond_resolved_graph(
     n_feature: bool = True,
     bipartite_coloring: bool = True,
     virtual_global_node: bool = True,
+    include_nnn: bool = False,
+    include_orbit_feature: bool = False,
 ) -> Data:
     """Build a unified Hamiltonian+Circuit graph for bond-resolved prediction.
+
+    When ``include_nnn=True``, next-nearest-neighbor bonds are appended to the
+    parametrized edge set (after the NN bonds), matching the frustrated
+    bond-resolved ansatz. Each NNN bond gets its own ZZ gate node and θ_zz,
+    so the MPNN's per-gate readout emits θ for NN and NNN bonds in circuit
+    order [nn..., nnn..., x...].
 
     When ``include_circuit_nodes=False``, produces the same graph as
     ``build_bond_resolved_graph`` (backward compatible, 3 features per node).
@@ -134,8 +245,14 @@ def build_unified_bond_resolved_graph(
     edge_index_np, coord = builder.build_graph_data(lattice)
 
     N = lattice.n_qubits
-    n_edges = len(lattice.edges)
-    edges_unique = np.array(sorted(lattice.edges))
+    nn_edges = list(lattice.edges)
+    if include_nnn:
+        nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
+        param_edges = nn_edges + nnn_edges
+    else:
+        param_edges = nn_edges
+    n_edges = len(param_edges)
+    edges_unique = np.array(param_edges)
 
     # ── Compute bipartite coloring (once, reused for all node types) ──
     if bipartite_coloring:
@@ -229,7 +346,7 @@ def build_unified_bond_resolved_graph(
         layer_norm = (layer + 0.5) / p_layers  # center in [0, 1]
         for bond_idx in range(n_edges):
             bond_norm = (bond_idx + 0.5) / n_edges
-            qi, qj = lattice.edges[bond_idx]
+            qi, qj = param_edges[bond_idx]
             edge_color = (coloring[qi] + coloring[qj]) / 2.0
             zz_feat_list.append([layer_norm, bond_norm, n_scale, 1.0, edge_color])
     zz_features = np.array(zz_feat_list) if zz_feat_list else np.empty((0, 5))
@@ -273,7 +390,7 @@ def build_unified_bond_resolved_graph(
     # 2. Gate-qubit edges: ZZ gate ↔ both qubits it acts on
     zz_base_idx = N  # ZZ gate nodes start after qubit nodes
     for layer in range(p_layers):
-        for bond_idx, (qi, qj) in enumerate(lattice.edges):
+        for bond_idx, (qi, qj) in enumerate(param_edges):
             gate_node = zz_base_idx + layer * n_edges + bond_idx
             # Bidirectional: gate ↔ qubit_i, gate ↔ qubit_j
             edge_src.extend([gate_node, qi, gate_node, qj])
@@ -292,7 +409,7 @@ def build_unified_bond_resolved_graph(
     #    Within each layer: after all ZZ gates execute, RX gates follow.
     #    Connect each ZZ gate to the RX gates on its qubits (data flow).
     for layer in range(p_layers):
-        for bond_idx, (qi, qj) in enumerate(lattice.edges):
+        for bond_idx, (qi, qj) in enumerate(param_edges):
             zz_node = zz_base_idx + layer * n_edges + bond_idx
             rx_node_i = rx_base_idx + layer * N + qi
             rx_node_j = rx_base_idx + layer * N + qj
@@ -306,7 +423,7 @@ def build_unified_bond_resolved_graph(
         for qubit_idx in range(N):
             rx_node = rx_base_idx + layer * N + qubit_idx
             # Connect to ZZ gates in next layer that touch this qubit
-            for bond_idx, (qi, qj) in enumerate(lattice.edges):
+            for bond_idx, (qi, qj) in enumerate(param_edges):
                 if qubit_idx == qi or qubit_idx == qj:
                     zz_next = zz_base_idx + (layer + 1) * n_edges + bond_idx
                     edge_src.append(rx_node)
@@ -364,6 +481,36 @@ def build_unified_bond_resolved_graph(
     n_global = 1 if virtual_global_node else 0
     total_nodes = N + n_zz_gates + n_rx_gates + n_global
 
+    # ── Optional: automorphism-orbit feature (opt-in, additive) ──────
+    # Appends ONE column encoding the symmetry orbit of each node's underlying
+    # site/bond. Sites/bonds in the same orbit are equivalent under a lattice
+    # automorphism → in a symmetric ground state they share optimal θ. Giving
+    # the MPNN this hint lets it treat the problem as lower-dimensional without
+    # any architecture change. Default OFF so UNIFIED_NODE_FEATURES stays 5 and
+    # existing checkpoints remain loadable. Not applied with NNN bonds (the
+    # orbit helper covers NN lattice edges only).
+    if include_orbit_feature and not include_nnn:
+        site_orbit, bond_orbit = compute_bond_and_site_orbits(lattice)
+        orbit_col = np.empty(x.shape[0], dtype=np.float32)
+        # Qubit nodes → site orbit
+        orbit_col[:N] = site_orbit
+        # ZZ gate nodes → bond orbit (repeated per layer, bonds in edges order)
+        zz_start = N
+        for layer in range(p_layers):
+            base = zz_start + layer * n_edges
+            orbit_col[base : base + n_edges] = bond_orbit
+        # RX gate nodes → site orbit (repeated per layer, sites in index order)
+        rx_start = N + n_zz_gates
+        for layer in range(p_layers):
+            base = rx_start + layer * N
+            orbit_col[base : base + N] = site_orbit
+        # Global node (if present) → neutral 0.5
+        if virtual_global_node:
+            orbit_col[-1] = 0.5
+        x = torch.cat([x, torch.tensor(orbit_col, dtype=torch.float32).unsqueeze(1)], dim=1)
+    elif include_orbit_feature and include_nnn:
+        logger.debug("include_orbit_feature ignored: NNN bonds not supported by orbit helper.")
+
     # ── Assemble Data object ─────────────────────────────────────────
     data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, edge_list=edge_list)
     data.node_type = node_type
@@ -371,6 +518,7 @@ def build_unified_bond_resolved_graph(
     data.n_nodes = total_nodes
     data.n_edges_unique = n_edges
     data.has_global_node = virtual_global_node
+    data.node_feature_dim = int(x.shape[1])
 
     if theta_opt is not None:
         data.y = torch.tensor(theta_opt, dtype=torch.float32)

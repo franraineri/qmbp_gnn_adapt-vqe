@@ -23,7 +23,7 @@ P_LAYERS="${P_LAYERS:-1}"
 TARGET_N="${TARGET_N:-10}"      # N<=16 => fidelity exacta (statevector)
 H_MIN="${H_MIN:-0.5}"
 H_MAX="${H_MAX:-2.0}"
-H_POINTS="${H_POINTS:-20}"
+H_POINTS="${H_POINTS:-3}"
 
 # ── Paso 1: armar la lista top-N con la funcionalidad del zoo ────────────────
 # _sort_score() es el ranking canónico (training_quality_score, fallback pass_rate).
@@ -75,11 +75,11 @@ while IFS= read -r ckpt; do
   echo "[$i/$TOPN] $ckpt_arg"
   echo "───────────────────────────────────────────────────────────────"
   "$PY" scripts/experiment_runners/scaling/run_large_n_extrapolation.py \
-    --topology "$TOPOLOGY" --p-layers "$P_LAYERS" --target-n 10 20 \
+    --topology "$TOPOLOGY" --p-layers 2 --target-n 30 \
     --h-min "$H_MIN" --h-max "$H_MAX" --h-points "$H_POINTS" \
     --skip-random-baseline --force-recompute \
     --checkpoint "$ckpt_arg" \
-    --refine-failing --vqe-maxiter 300
+    # --refine-failing --vqe-maxiter 300
     2>&1 | grep -E "Model:|N=$TARGET_N: ΔE/gap|Grade|Fuzzy-matched|Evaluation report" || true
   echo
 done <<< "$MODELS"

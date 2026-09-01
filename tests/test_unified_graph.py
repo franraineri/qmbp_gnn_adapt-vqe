@@ -46,8 +46,8 @@ class TestUnifiedGraphBuilder:
         assert torch.equal(unified.edge_list, orig.edge_list)
         assert torch.allclose(unified.y, orig.y)
         assert (unified.node_type == 0).all()
-        # Unified has 4 features (with type column), original has 3
-        assert unified.x.shape[1] == 4
+        # Unified has 5 features (h, coord, N/100, type, coloring), original has 3
+        assert unified.x.shape[1] == 5
         assert orig.x.shape[1] == 3
         # First 3 features must match
         assert torch.allclose(unified.x[:, :3], orig.x, atol=1e-6)
@@ -68,9 +68,11 @@ class TestUnifiedGraphBuilder:
             lattice, h_value=1.0, p_layers=p, include_circuit_nodes=True,
         )
 
-        expected_nodes = N + n_edges * p + N * p
+        # +1 for the virtual global node
+        n_global = 1 if getattr(graph, "has_global_node", False) else 0
+        expected_nodes = N + n_edges * p + N * p + n_global
         assert graph.x.shape[0] == expected_nodes
-        assert graph.x.shape[1] == 4
+        assert graph.x.shape[1] == 5
         assert (graph.node_type == NODE_TYPE_QUBIT).sum() == N
         assert (graph.node_type == NODE_TYPE_ZZ_GATE).sum() == n_edges * p
         assert (graph.node_type == NODE_TYPE_RX_GATE).sum() == N * p
@@ -88,8 +90,9 @@ class TestUnifiedGraphBuilder:
             lattice, h_value=1.0, p_layers=p, include_circuit_nodes=True,
         )
 
-        # p=2: N + 2*n_edges + 2*N = 6 + 10 + 12 = 28
-        expected_nodes = N + n_edges * p + N * p
+        # p=2: N + 2*n_edges + 2*N (+1 virtual global node)
+        n_global = 1 if getattr(graph, "has_global_node", False) else 0
+        expected_nodes = N + n_edges * p + N * p + n_global
         assert graph.x.shape[0] == expected_nodes
         assert (graph.node_type == NODE_TYPE_ZZ_GATE).sum() == n_edges * p
         assert (graph.node_type == NODE_TYPE_RX_GATE).sum() == N * p
@@ -127,8 +130,11 @@ class TestUnifiedGraphBuilder:
         graph = build_unified_bond_resolved_graph(
             lattice, h_value=2.0, p_layers=2, include_circuit_nodes=True,
         )
-        # Gate nodes (type 1 and 2): first two features are normalized indices
-        gate_mask = graph.node_type != NODE_TYPE_QUBIT
+        # Gate nodes (type 1 and 2): first two features are normalized indices.
+        # Exclude the virtual global node (type 3), whose features are raw h/coord.
+        gate_mask = (graph.node_type == NODE_TYPE_ZZ_GATE) | (
+            graph.node_type == NODE_TYPE_RX_GATE
+        )
         gate_features = graph.x[gate_mask]
         # feat1 (layer_norm) and feat2 (bond/qubit norm) should be in (0, 1)
         assert gate_features[:, 0].min() > 0
@@ -152,7 +158,7 @@ class TestBondResolvedMPNNUnified:
             include_circuit_nodes=True,
         )
 
-        model = BondResolvedMPNN(node_features=4, hidden_dim=64, n_layers=2)
+        model = BondResolvedMPNN(node_features=5, hidden_dim=64, n_layers=2)
         model.eval()
         with torch.no_grad():
             pred = model(graph)
@@ -183,7 +189,7 @@ class TestBondResolvedMPNNUnified:
         n_edges = 5
 
         # Same model, same weights — compare predictions with/without circuit nodes
-        model = BondResolvedMPNN(node_features=4, hidden_dim=64, n_layers=2)
+        model = BondResolvedMPNN(node_features=5, hidden_dim=64, n_layers=2)
         model.eval()
 
         graph_ham = build_unified_bond_resolved_graph(
@@ -213,7 +219,7 @@ class TestBondResolvedMPNNUnified:
             lattice, h_value=1.0, p_layers=1, include_circuit_nodes=True,
         )
 
-        model = BondResolvedMPNN(node_features=4, hidden_dim=64, n_layers=2)
+        model = BondResolvedMPNN(node_features=5, hidden_dim=64, n_layers=2)
         model.eval()
         with torch.no_grad():
             pred = model(graph)
@@ -297,7 +303,7 @@ class TestValidation:
         # Corrupt edge_list to point beyond qubit nodes
         graph.edge_list = torch.tensor([[0, 99]], dtype=torch.long)
 
-        model = BondResolvedMPNN(node_features=4, hidden_dim=64, n_layers=2)
+        model = BondResolvedMPNN(node_features=5, hidden_dim=64, n_layers=2)
         model.eval()
         with pytest.raises(RuntimeError, match="edge_list contains index"):
             with torch.no_grad():
@@ -319,9 +325,12 @@ class TestGraphMetrics:
         assert metrics["n_zz_gates"] == 9
         assert metrics["n_rx_gates"] == 10
         assert metrics["n_gate_nodes"] == 19
-        assert metrics["total_nodes"] == 29
+        # 10 qubit + 19 gate + 1 virtual global node = 30
+        n_global = 1 if getattr(graph, "has_global_node", False) else 0
+        expected_total = 29 + n_global
+        assert metrics["total_nodes"] == expected_total
         assert metrics["include_circuit_nodes"] is True
-        np.testing.assert_allclose(metrics["node_expansion_ratio"], 29 / 10)
+        np.testing.assert_allclose(metrics["node_expansion_ratio"], expected_total / 10)
 
     def test_metrics_hamiltonian_only(self):
         """Metrics for Hamiltonian-only graph show no expansion."""

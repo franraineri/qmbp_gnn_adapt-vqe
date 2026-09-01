@@ -22,32 +22,66 @@
     "date_tag": "120826",
     "training_quality_score": 0.77,
     "pass_rate_by_n": {},
-    "run_json": ""
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 10,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_bond_resolved_heavy_hex_n10_p1_20260812T003836.pt",
-    "h_range": [
-      2.0,
-      3.5
-    ],
-    "pass_rate": 1.0,
-    "pass_rate_source": "",
-    "n_training_points": 14,
-    "seeds": [
-      42
-    ],
-    "created": "20260812T003836",
-    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=100%)",
-    "sha256": "0ed91c94874c19c7192e93841e8f41d028eaed56fe73039563544c91608ecd19",
-    "runner_tag": "XX",
-    "date_tag": "120826",
-    "training_quality_score": 0.858,
-    "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 18.2472825,
+        "abs_error_best": 7.3599,
+        "fidelity_mean": 0.005803846153846154,
+        "fidelity_min": 0.0008,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 10.897969230769231,
+            "abs_error_best": 7.3599,
+            "fidelity_mean": 0.008992307692307692,
+            "fidelity_min": 0.0049,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 8.3849,
+              "fidelity": 0.0123
+            }
+          },
+          "10": {
+            "abs_error_mean": 15.0373,
+            "abs_error_best": 10.2131,
+            "fidelity_mean": 0.0026153846153846158,
+            "fidelity_min": 0.0008,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 11.4767,
+              "fidelity": 0.0044
+            }
+          },
+          "20": {
+            "abs_error_mean": 27.089746153846153,
+            "abs_error_best": 20.4987,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 22.0358,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 40.5661,
+            "abs_error_best": 40.5661,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023957.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:29.727558+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -82,7 +116,8 @@
       "21": 0.0,
       "20": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -117,7 +152,8 @@
       "16": 0.0,
       "10": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -153,7 +189,8 @@
       "16": 0.0,
       "20": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -196,7 +233,66 @@
       "11": 0.0,
       "13": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 6.8326674999999994,
+        "abs_error_best": 1.8185,
+        "fidelity_mean": 0.4805730769230769,
+        "fidelity_min": 0.3035,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 3.0214692307692306,
+            "abs_error_best": 1.8185,
+            "fidelity_mean": 0.5859461538461539,
+            "fidelity_min": 0.5086,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 2.1062,
+              "fidelity": 0.6415
+            }
+          },
+          "10": {
+            "abs_error_mean": 5.374538461538462,
+            "abs_error_best": 3.3854,
+            "fidelity_mean": 0.37520000000000003,
+            "fidelity_min": 0.3035,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 3.8187,
+              "fidelity": 0.4252
+            }
+          },
+          "20": {
+            "abs_error_mean": 11.37376923076923,
+            "abs_error_best": 7.4522,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 8.2028,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 16.2996,
+            "abs_error_best": 16.2996,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_MT_20260829_024147.md",
+        "seen_in_raw_runs": true,
+        "updated": "2026-09-01T00:09:30.020006+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -230,7 +326,8 @@
       "24": 0.0,
       "29": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -242,20 +339,85 @@
       2.0,
       5.0
     ],
-    "pass_rate": 0.7058823529411765,
-    "pass_rate_source": "training_data_eval",
+    "pass_rate": 0.3333333333333333,
+    "pass_rate_source": "comparison_eval",
     "n_training_points": 674,
     "seeds": [
       42
     ],
     "created": "2026-08-20T15:04:30.392802+00:00",
-    "notes": "Multi-N training: N=[6, 8, 10, 12, 15, 16, 20, 26, 60], 674 points | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 10/15 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17",
+    "notes": "Multi-N training: N=[6, 8, 10, 12, 15, 16, 20, 26, 60], 674 points | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 10/15 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17 | auto-deflated from 71%",
     "sha256": "23bd0b21e51ccfcf8172794cdfca82ec7578c1947b4e4b1618c2c3cd3648429b",
     "runner_tag": "AC",
     "date_tag": "200826",
     "training_quality_score": 0.797,
-    "pass_rate_by_n": {},
-    "run_json": ""
+    "pass_rate_by_n": {
+      "8": 0.3333333333333333,
+      "10": 0.3333333333333333,
+      "12": 0.3333333333333333,
+      "16": 0.3333333333333333,
+      "20": 0.3333333333333333
+    },
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 3.9514674999999997,
+        "abs_error_best": 0.9912,
+        "fidelity_mean": 0.6520769230769231,
+        "fidelity_min": 0.463,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 1.6352153846153845,
+            "abs_error_best": 0.9912,
+            "fidelity_mean": 0.7455615384615384,
+            "fidelity_min": 0.7049,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.1111,
+              "fidelity": 0.7697
+            }
+          },
+          "10": {
+            "abs_error_mean": 3.082007692307692,
+            "abs_error_best": 2.0177,
+            "fidelity_mean": 0.5585923076923077,
+            "fidelity_min": 0.463,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 2.1756,
+              "fidelity": 0.5694
+            }
+          },
+          "20": {
+            "abs_error_mean": 6.7103153846153845,
+            "abs_error_best": 4.656,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 4.8558,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 9.5007,
+            "abs_error_best": 9.5007,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023717.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:29.163028+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -288,7 +450,66 @@
       "10": 0.5,
       "12": 0.5
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 7.125392499999999,
+        "abs_error_best": 0.9156,
+        "fidelity_mean": 0.4196730769230769,
+        "fidelity_min": 0.0625,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 1.468646153846154,
+            "abs_error_best": 0.9156,
+            "fidelity_mean": 0.7486692307692308,
+            "fidelity_min": 0.7077,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.0104,
+              "fidelity": 0.7532
+            }
+          },
+          "10": {
+            "abs_error_mean": 10.637553846153846,
+            "abs_error_best": 8.8044,
+            "fidelity_mean": 0.09067692307692309,
+            "fidelity_min": 0.0625,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 9.0419,
+              "fidelity": 0.0882
+            }
+          },
+          "20": {
+            "abs_error_mean": 8.639369230769232,
+            "abs_error_best": 7.5607,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 7.6877,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 15.3233,
+            "abs_error_best": 15.3233,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023808.md",
+        "seen_in_raw_runs": true,
+        "updated": "2026-09-01T00:09:29.441737+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -323,7 +544,66 @@
       "8": 1.0,
       "12": 0.5
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 7.125392499999999,
+        "abs_error_best": 0.9156,
+        "fidelity_mean": 0.4196730769230769,
+        "fidelity_min": 0.0625,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 1.468646153846154,
+            "abs_error_best": 0.9156,
+            "fidelity_mean": 0.7486692307692308,
+            "fidelity_min": 0.7077,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.0104,
+              "fidelity": 0.7532
+            }
+          },
+          "10": {
+            "abs_error_mean": 10.637553846153846,
+            "abs_error_best": 8.8044,
+            "fidelity_mean": 0.09067692307692309,
+            "fidelity_min": 0.0625,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 9.0419,
+              "fidelity": 0.0882
+            }
+          },
+          "20": {
+            "abs_error_mean": 8.639369230769232,
+            "abs_error_best": 7.5607,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 7.6877,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 15.3233,
+            "abs_error_best": 15.3233,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023859.md",
+        "seen_in_raw_runs": true,
+        "updated": "2026-09-01T00:09:29.610460+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -356,7 +636,58 @@
       "24": 0.0,
       "29": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 11.910557142857144,
+        "abs_error_best": 0.2004,
+        "fidelity_mean": 0.3373928571428571,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 6.4277,
+            "abs_error_best": 0.2004,
+            "fidelity_mean": 0.3373928571428571,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 14.25495,
+            "abs_error_best": 14.0698,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 15.049021428571427,
+            "abs_error_best": 13.3399,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_150816.md",
+        "seen_in_raw_runs": true,
+        "updated": "2026-09-01T00:09:30.364545+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -381,7 +712,8 @@
     "date_tag": "",
     "training_quality_score": 0.835,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -414,7 +746,8 @@
       "18": 0.0,
       "21": 0.0
     },
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -439,7 +772,8 @@
     "date_tag": "240826",
     "training_quality_score": 0.835,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -464,7 +798,8 @@
     "date_tag": "240826",
     "training_quality_score": 0.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -489,7 +824,8 @@
     "date_tag": "240826",
     "training_quality_score": 0.928,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -514,7 +850,8 @@
     "date_tag": "240826",
     "training_quality_score": 0.916,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -539,7 +876,8 @@
     "date_tag": "250826",
     "training_quality_score": 0.927,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -564,7 +902,8 @@
     "date_tag": "250826",
     "training_quality_score": 0.932,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -589,7 +928,58 @@
     "date_tag": "260826",
     "training_quality_score": 0.835,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151143.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.461184+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -614,7 +1004,58 @@
     "date_tag": "260826",
     "training_quality_score": 0.835,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151234.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.504136+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -639,7 +1080,66 @@
     "date_tag": "280826",
     "training_quality_score": 0.8,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 5.1340875,
+        "abs_error_best": 1.2341,
+        "fidelity_mean": 0.57095,
+        "fidelity_min": 0.404,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 2.147507692307692,
+            "abs_error_best": 1.2341,
+            "fidelity_mean": 0.6757384615384615,
+            "fidelity_min": 0.6113,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 1.4398,
+              "fidelity": 0.7221
+            }
+          },
+          "10": {
+            "abs_error_mean": 4.011923076923077,
+            "abs_error_best": 2.4732,
+            "fidelity_mean": 0.46616153846153846,
+            "fidelity_min": 0.404,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 2.7823,
+              "fidelity": 0.5079
+            }
+          },
+          "20": {
+            "abs_error_mean": 8.6847,
+            "abs_error_best": 5.6427,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 6.1572,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 12.3898,
+            "abs_error_best": 12.3898,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023121.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:28.549544+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -664,7 +1164,66 @@
     "date_tag": "280826",
     "training_quality_score": 0.799,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 7.42072,
+        "abs_error_best": 0.8018,
+        "fidelity_mean": 0.5933961538461539,
+        "fidelity_min": 0.1785,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 0.9676153846153847,
+            "abs_error_best": 0.8018,
+            "fidelity_mean": 0.8104,
+            "fidelity_min": 0.6739,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 0.8019,
+              "fidelity": 0.7839
+            }
+          },
+          "10": {
+            "abs_error_mean": 5.1867846153846155,
+            "abs_error_best": 3.5658,
+            "fidelity_mean": 0.37639230769230775,
+            "fidelity_min": 0.1785,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 5.0679,
+              "fidelity": 0.3079
+            }
+          },
+          "20": {
+            "abs_error_mean": 15.502515384615386,
+            "abs_error_best": 11.634,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 11.634,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 15.2889,
+            "abs_error_best": 15.2889,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_20260829_023609.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:28.951199+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -689,7 +1248,58 @@
     "date_tag": "",
     "training_quality_score": -1.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_150926.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.247037+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -714,7 +1324,58 @@
     "date_tag": "",
     "training_quality_score": -1.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151041.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.211312+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -739,7 +1400,8 @@
     "date_tag": "",
     "training_quality_score": -1.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -764,7 +1426,8 @@
     "date_tag": "",
     "training_quality_score": -1.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -789,7 +1452,58 @@
     "date_tag": "270826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151333.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.565602+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -814,7 +1528,8 @@
     "date_tag": "270826",
     "training_quality_score": 0.92,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -839,7 +1554,58 @@
     "date_tag": "270826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.804685714285714,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.3879642857142857,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.884435714285714,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.3879642857142857,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151429.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.610672+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -864,7 +1630,8 @@
     "date_tag": "270826",
     "training_quality_score": 0.92,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -889,7 +1656,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.621509523809525,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.4405357142857143,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.334907142857142,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.4405357142857143,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151524.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.675525+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -914,7 +1732,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.621509523809525,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.4405357142857143,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.334907142857142,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.4405357142857143,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151636.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.716097+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -939,7 +1808,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.621509523809525,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.4405357142857143,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.334907142857142,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.4405357142857143,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151741.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.957206+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -964,7 +1884,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.621509523809525,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.4405357142857143,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 5.334907142857142,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.4405357142857143,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_151841.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:31.035907+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -989,7 +1960,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 10.44042142857143,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.49110714285714285,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 4.791642857142857,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.49110714285714285,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 12.306650000000001,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 14.222971428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_152017.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:31.229776+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -1014,7 +2036,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 9.515638095238094,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.49110714285714285,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 4.791642857142857,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.49110714285714285,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 10.35835,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 13.396921428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_152110.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:31.279341+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -1039,7 +2112,58 @@
     "date_tag": "280826",
     "training_quality_score": 0.834,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 9.515638095238094,
+        "abs_error_best": 0.1666,
+        "fidelity_mean": 0.49110714285714285,
+        "fidelity_min": 0.0401,
+        "n_points": 42,
+        "per_n": {
+          "16": {
+            "abs_error_mean": 4.791642857142857,
+            "abs_error_best": 0.1666,
+            "fidelity_mean": 0.49110714285714285,
+            "fidelity_min": 0.0401,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 8.8144,
+              "fidelity": 0.0401
+            }
+          },
+          "20": {
+            "abs_error_mean": 10.35835,
+            "abs_error_best": 0.4628,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 14.7546,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 13.396921428571428,
+            "abs_error_best": 1.7752,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 14,
+            "at_h1": {
+              "h": 1.0,
+              "abs_error": 13.3399,
+              "fidelity": null
+            }
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_heavy_hex_20260831_152206.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:31.329945+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -1064,7 +2188,66 @@
     "date_tag": "280826",
     "training_quality_score": 0.0,
     "pass_rate_by_n": {},
-    "run_json": "results/experiments/exp_multi_topology_training/tfim_bond_resolved/run_20260828_181443.json"
+    "run_json": "results/experiments/exp_multi_topology_training/tfim_bond_resolved/run_20260828_181443.json",
+    "critical_ranking": {
+      "h0.80-1.80": {
+        "abs_error_mean": 15.4407775,
+        "abs_error_best": 8.02,
+        "fidelity_mean": 0.0014,
+        "fidelity_min": 0.0,
+        "n_points": 40,
+        "per_n": {
+          "6": {
+            "abs_error_mean": 8.665646153846154,
+            "abs_error_best": 8.02,
+            "fidelity_mean": 0.0026461538461538463,
+            "fidelity_min": 0.0001,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 8.4031,
+              "fidelity": 0.0051
+            }
+          },
+          "10": {
+            "abs_error_mean": 12.755423076923078,
+            "abs_error_best": 11.5248,
+            "fidelity_mean": 0.00015384615384615385,
+            "fidelity_min": 0.0,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 12.7207,
+              "fidelity": 0.0005
+            }
+          },
+          "20": {
+            "abs_error_mean": 23.39816153846154,
+            "abs_error_best": 17.8122,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 13,
+            "at_h1": {
+              "h": 0.97,
+              "abs_error": 18.2268,
+              "fidelity": null
+            }
+          },
+          "30": {
+            "abs_error_mean": 34.9811,
+            "abs_error_best": 34.9811,
+            "fidelity_mean": null,
+            "fidelity_min": null,
+            "n_points": 1,
+            "at_h1": null
+          }
+        },
+        "grade": "F",
+        "source_report": "eval_chain_1d_MT_20260829_024911.md",
+        "seen_in_raw_runs": false,
+        "updated": "2026-09-01T00:09:30.164353+00:00"
+      }
+    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -1089,7 +2272,8 @@
     "date_tag": "280826",
     "training_quality_score": 0.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
@@ -1114,6 +2298,117 @@
     "date_tag": "280826",
     "training_quality_score": 0.836,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_v1.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 953,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-31T20:57:15.819395+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 953 points",
+    "sha256": "686c48045e9ca895132b1ef6fc1a04a88cfdd1c75afd585f8d832302bbd3c100",
+    "runner_tag": "AC",
+    "date_tag": "310826",
+    "training_quality_score": 0.793,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "chain_1d",
+    "n_qubits": 8,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T205934.pt",
+    "h_range": [
+      2.0,
+      4.0
+    ],
+    "pass_rate": 0.8333333333333334,
+    "pass_rate_source": "",
+    "n_training_points": 6,
+    "seeds": [
+      42
+    ],
+    "created": "20260831T205934",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=83%)",
+    "sha256": "322cf6f5019926f64c012dd4ecfebac3a3e8844240bf55977ca0bf3b61f12cff",
+    "runner_tag": "XX",
+    "date_tag": "310826",
+    "training_quality_score": 0.911,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "chain_1d",
+    "n_qubits": 8,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T210050.pt",
+    "h_range": [
+      2.0,
+      4.0
+    ],
+    "pass_rate": 0.8333333333333334,
+    "pass_rate_source": "",
+    "n_training_points": 6,
+    "seeds": [
+      42
+    ],
+    "created": "20260831T210050",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=83%)",
+    "sha256": "3e4aa8dca8cc26632fea47393f5a45c0c3a784795c7e2d5f44ec0fd6976f9d8b",
+    "runner_tag": "XX",
+    "date_tag": "310826",
+    "training_quality_score": 0.911,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 953,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-31T21:20:12.440516+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 953 points",
+    "sha256": "478afd8cea1548826c9db0f60fd8b0696e3c5957a56dcedc49ea4f6b0f4a4912",
+    "runner_tag": "AC",
+    "date_tag": "310826",
+    "training_quality_score": 0.793,
+    "pass_rate_by_n": {
+      "8": 0.3333333333333333,
+      "10": 0.3333333333333333,
+      "12": 0.3333333333333333,
+      "16": 0.3333333333333333,
+      "20": 0.3333333333333333
+    },
+    "run_json": "",
+    "critical_ranking": {}
   }
 ]

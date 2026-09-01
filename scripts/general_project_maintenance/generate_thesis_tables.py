@@ -600,7 +600,9 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
     labels: dict[str, int] = {}  # label -> primera linea
     refs: dict[str, int] = {}  # ref -> primera linea
     inputs: set[str] = set()  # basenames incluidos via \input
+    float_appear: dict[str, int] = {}  # label fig/tab -> linea del \begin{float} que lo contiene
     in_verbatim = False
+    cur_float_line = 0  # linea del \begin{figure/table} abierto
 
     for i, line in enumerate(lines, start=1):
         # Ignorar comentarios completos y bloques verbatim/lstlisting
@@ -616,8 +618,15 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
         if not code.strip():
             continue
 
+        if re.search(r"\\begin\{(figure|table)\*?\}", code):
+            cur_float_line = i
         for m in re.finditer(r"\\label\{([^}]+)\}", code):
             labels.setdefault(m.group(1), i)
+            # Aparición visual del float = línea de su \begin (o la del label si va suelto)
+            if m.group(1).startswith(("fig:", "tab:")):
+                float_appear.setdefault(m.group(1), cur_float_line or i)
+        if re.search(r"\\end\{(figure|table)\*?\}", code):
+            cur_float_line = 0
         for m in re.finditer(r"\\(?:ref|eqref|autoref)\{([^}]+)\}", code):
             refs.setdefault(m.group(1), i)
         for m in re.finditer(r"\\input\{([^}]+)\}", code):
@@ -629,6 +638,16 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
                 f"[{rel}:{i}] decimal con punto '{m.group(0)}' "
                 "(usar coma decimal en tablas/texto, steering §7)."
             )
+
+        # (2b) Guiones Unicode em/en-dash: prohibidos; usar '---' (em) o '--' (rango) de LaTeX.
+        for ch, name, repl_hint in (("\u2014", "em-dash", "---"), ("\u2013", "en-dash", "--")):
+            col = line.find(ch)
+            if col != -1:
+                n_occ = line.count(ch)
+                collector.add_inconsistency(
+                    f"[{rel}:{i}] símbolo Unicode '{ch}' ({name}) x{n_occ} en col {col + 1} "
+                    f"(prohibido; reemplazar por '{repl_hint}' de LaTeX)."
+                )
 
         # (5) Tono comercial (steering §6): moderar, añadir matiz cuantitativo.
         for m in TONE_WORDS_RE.finditer(code):
@@ -692,6 +711,302 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
                 "no se referencia con \\ref."
             )
 
+    # (21) Figuras/tablas que aparecen antes de mencionarse.
+    for lab, appear_ln in sorted(float_appear.items(), key=lambda kv: kv[1]):
+        ref_ln = refs.get(lab)
+        if ref_ln is None:
+            continue  # ya cubierto por 'nunca referenciada'
+        if ref_ln > appear_ln:
+            kind = "figura" if lab.startswith("fig:") else "tabla"
+            collector.add_inconsistency(
+                f"[{rel}:{appear_ln}] {kind} \\label{{{lab}}} aparece (L{appear_ln}) "
+                f"antes de su primera mención \\ref (L{ref_ln})."
+            )
+
+    # (20) y (22): cruces semánticos ligeros sobre el texto completo.
+    full_text = tex_path.read_text(encoding="utf-8")
+    _check_cross_section_figures(full_text, rel, collector)
+    _check_hypotheses_coverage(full_text, rel, collector)
+
+
+def _split_chapters(text: str) -> dict[str, str]:
+    """Devuelve {titulo_capitulo: cuerpo} partiendo por \\chapter{...}."""
+    parts = re.split(r"\\chapter\{([^}]+)\}", text)
+    out: dict[str, str] = {}
+    # parts = [pre, title1, body1, title2, body2, ...]
+    for k in range(1, len(parts) - 1, 2):
+        out[parts[k].strip()] = parts[k + 1]
+    return out
+
+
+def _check_cross_section_figures(text: str, rel: str, collector: TodoCollector) -> None:
+    """(20) Cruce de cifras del mismo concepto entre secciones clave.
+
+    Heurística ligera: para conceptos con una etiqueta reconocible (topología +
+    métrica de PassRate, y el rango de speedup), recoge todos los porcentajes y
+    señala si un mismo concepto aparece con cifras distintas en capítulos
+    distintos (posible contradicción). Es una señal, no una verdad: requiere
+    revisión humana.
+    """
+    chapters = _split_chapters(text)
+    # 1) Rango de speedup: solo rangos explícitos "N--M$\times$" o "N--M veces"
+    #    (evita capturar números sueltos con \times que no son aceleraciones).
+    speedup_by_chap: dict[str, set[str]] = {}
+    range_re = re.compile(r"(\d+)\s*--\s*(\d+)\s*\$?\\times")
+    for title, body in chapters.items():
+        ranges = {f"{a}-{b}" for a, b in range_re.findall(body)}
+        if ranges:
+            speedup_by_chap[title] = ranges
+    all_ranges = {s for v in speedup_by_chap.values() for s in v}
+    if len(all_ranges) > 1:
+        detail = "; ".join(f"{c}: {sorted(v)}" for c, v in speedup_by_chap.items())
+        collector.add_inconsistency(
+            f"[{rel}] %TODO-CIFRA rangos de aceleración distintos entre capítulos ({detail}); "
+            "unificar la cifra (o eliminarla, steering §5)."
+        )
+
+    # 2) PassRate por topología: "cadena 1D ... 95\%" en resumen vs resultados vs conclusiones.
+    key_chaps = {t: b for t, b in chapters.items()
+                 if any(k in t.lower() for k in ("resumen", "resultado", "discus", "conclus"))}
+    topo_pat = re.compile(r"(cadena 1D|heavy-hex|escalera|cuadrada|triangular)[^.]{0,60}?(\d{2,3})\\%",
+                          re.IGNORECASE)
+    concept: dict[str, dict[str, set[str]]] = {}
+    for title, body in key_chaps.items():
+        for m in topo_pat.finditer(body):
+            topo = m.group(1).lower()
+            concept.setdefault(topo, {}).setdefault(m.group(2), set()).add(title)
+    for topo, vals in concept.items():
+        if len(vals) > 1:
+            detail = "; ".join(f"{pct}\\% en {sorted(ch)}" for pct, ch in vals.items())
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-CIFRA '{topo}' aparece con porcentajes distintos entre "
+                f"secciones ({detail}); verificar coherencia resumen/resultados/conclusiones."
+            )
+
+
+def _check_hypotheses_coverage(text: str, rel: str, collector: TodoCollector) -> None:
+    """(22, señal) Cobertura estructural hipótesis -> conclusiones.
+
+    Detecta las hipótesis Hn definidas en el capítulo de objetivos/hipótesis y
+    verifica que cada una se mencione en Conclusiones. NO evalúa si la conclusión
+    responde de fondo (eso requiere lectura semántica); solo marca huérfanas.
+    """
+    chapters = _split_chapters(text)
+    obj_body = next((b for t, b in chapters.items()
+                     if "hipótesis" in t.lower() or "objetivo" in t.lower()), "")
+    concl_body = next((b for t, b in chapters.items() if "conclus" in t.lower()), "")
+    if not obj_body or not concl_body:
+        return
+    hyps = sorted(set(re.findall(r"\bH(\d+)\b", obj_body)), key=int)
+    if not hyps:
+        return
+    missing = [f"H{h}" for h in hyps if not re.search(rf"\bH{h}\b", concl_body)]
+    if missing:
+        collector.add_inconsistency(
+            f"[{rel}] %TODO-HIPOTESIS hipótesis sin mención explícita en Conclusiones: "
+            f"{', '.join(missing)} (verificar que las conclusiones respondan a cada una)."
+        )
+    else:
+        # Señal informativa: todas cubiertas estructuralmente (falta juicio de fondo).
+        collector.add_inconsistency(
+            f"[{rel}] INFO: las {len(hyps)} hipótesis (H1--H{hyps[-1]}) se mencionan en "
+            "Conclusiones; revisar manualmente que cada respuesta sea concluyente (§22)."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Auto-fix: decimales con punto -> coma (con exclusiones seguras)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Contextos donde un punto decimal NO debe tocarse (valores literales/técnicos).
+_H_C_RE = re.compile(r"h_?c?\s*[=≈]\s*$")           # h_c = 1.0
+_EXPONENT_RE = re.compile(r"\^\{?-?\d*$|times\s*10\^?$|e[-+]?$")  # 10^{-14}, 1e-3
+_VERSION_RE = re.compile(r"[vV]?\d$|Qiskit|Python|arXiv|v\d")
+
+
+def fix_decimals(tex_path: Path, collector: TodoCollector) -> int:
+    """Convierte 'N.M' -> 'N,M' en el .tex, excluyendo contextos técnicos.
+
+    Reglas de exclusión (no se tocan):
+      - Dentro de \\texttt{...}, \\url{...}, \\ref/\\cite/\\label, o comentarios.
+      - Exponentes (10^{-14}, 1e-3), versiones (Qiskit 2.x), arXiv, URLs.
+      - h_c = 1.0 y valores de campo crítico (contexto físico canónico).
+      - Números con 3+ partes (1.2.3, IPs, versiones).
+
+    Escribe un backup .bak y registra cada cambio en el TODO log. Devuelve el
+    número de sustituciones aplicadas.
+    """
+    original = tex_path.read_text(encoding="utf-8")
+    lines = original.split("\n")
+    rel = tex_path.name
+    n_fixed = 0
+    out_lines: list[str] = []
+
+    # Comandos cuyo argumento no debe tocarse
+    protect_cmd = re.compile(r"\\(?:texttt|url|href|ref|eqref|autoref|cite[tp]?|label|input|includegraphics)\{[^}]*\}")
+    # Número decimal candidato: entero.decimales, no seguido/precedido de otro punto o dígito extra
+    dec_re = re.compile(r"(?<![\w.])(\d+)\.(\d+)(?![\w.])")
+
+    def make_repl(code: str, idx: int, spans: list[tuple[int, int]]):
+        """Crea el reemplazador para una línea concreta (bind explícito)."""
+        line_has_url = "arXiv" in code or "http" in code or "github" in code.lower()
+
+        def repl(mm: re.Match) -> str:
+            nonlocal n_fixed
+            start = mm.start()
+            before = code[max(0, start - 12):start]
+            after = code[mm.end():mm.end() + 6]
+            whole = mm.group(0)
+            if any(a <= start < b for a, b in spans):          # dentro de comando protegido
+                return whole
+            if _H_C_RE.search(before) or "h_c" in before or "h_{c}" in before:
+                return whole
+            if "^" in before[-3:] or "10^" in before or "times 10" in before:
+                return whole
+            if re.search(r"[eE]$", before) and re.search(r"^\d", after):  # 1e-3
+                return whole
+            if _VERSION_RE.search(before) or line_has_url:
+                return whole
+            fixed = mm.group(1) + "," + mm.group(2)
+            n_fixed += 1
+            collector.add_inconsistency(
+                f"[{rel}:{idx}] FIX aplicado: '{whole}' -> '{fixed}' (decimal a coma)."
+            )
+            return fixed
+
+        return repl
+
+    # Rangos math inline $...$ (los decimales dentro no se tocan: evita
+    # espaciado espurio de la coma y la inconsistencia con siunitx).
+    math_re = re.compile(r"(?<!\\)\$[^$]*\$")
+
+    for idx, line in enumerate(lines, start=1):
+        m = re.search(r"(?<!\\)%", line)
+        comment_pos = m.start() if m else None
+        code = line if comment_pos is None else line[:comment_pos]
+        tail = "" if comment_pos is None else line[comment_pos:]
+        spans = [mm.span() for mm in protect_cmd.finditer(code)]
+        spans += [mm.span() for mm in math_re.finditer(code)]
+        new_code = dec_re.sub(make_repl(code, idx, spans), code)
+        out_lines.append(new_code + tail)
+
+    if n_fixed == 0:
+        return 0
+
+    # Backup no destructivo: no pisar un .bak previo (preserva el original).
+    backup = tex_path.with_suffix(tex_path.suffix + ".bak")
+    if backup.exists():
+        from datetime import datetime
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup = tex_path.with_suffix(tex_path.suffix + f".{stamp}.bak")
+    backup.write_text(original, encoding="utf-8")
+    tex_path.write_text("\n".join(out_lines), encoding="utf-8")
+    print(f"  🔧 fix-decimals: {n_fixed} sustituciones (backup en {backup.name})")
+    return n_fixed
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Compilación LaTeX + señales visuales (18/19)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_STUB_STY = r"""\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{estilo_unir-1}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage[spanish]{babel}
+\usepackage[draft]{graphicx}\usepackage{amsmath,amssymb}\usepackage{natbib}
+\usepackage{hyperref}\usepackage{geometry}\usepackage{booktabs}\usepackage{multirow}\usepackage{siunitx}
+\newcommand{\subject}[1]{\gdef\@subject{#1}}\newcommand{\profesor}[1]{\gdef\@profesor{#1}}
+\providecommand{\@subject}{}\providecommand{\@profesor}{}
+\renewcommand{\maketitle}{\begin{titlepage}\centering{\huge\@title\par}\end{titlepage}}
+"""
+
+
+def compile_tex(tex_path: Path, out_dir: Path, collector: TodoCollector,
+                overfull_pt: float = 20.0) -> None:
+    """(18) Compila el .tex con pdflatex y (19) reporta señales visuales.
+
+    Usa un stub de ``estilo_unir-1.sty`` (el .sty real vive fuera del repo), copia
+    las tablas ``auto_*`` y compila 2 pasadas en un tempdir. Vuelca al TODO log:
+      - errores fatales y referencias/citas indefinidas (18),
+      - overfull hboxes por encima del umbral y figuras no encontradas (19),
+    como señales para revisión visual. Requiere pdflatex en el PATH.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    if shutil.which("pdflatex") is None:
+        collector.add_inconsistency(
+            "[compile] pdflatex no está en el PATH; no se pudo compilar (18/19)."
+        )
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        (tmp_path / "tables").mkdir(exist_ok=True)
+        shutil.copy(tex_path, tmp_path / tex_path.name)
+        for auto in out_dir.glob("auto_*.tex"):
+            shutil.copy(auto, tmp_path / "tables" / auto.name)
+        (tmp_path / "estilo_unir-1.sty").write_text(_STUB_STY, encoding="utf-8")
+        # Copiar carpetas de figuras si existen junto al .tex (para señales reales).
+        for figdir in ("tesis-figures", "thesis_plots"):
+            src = tex_path.parent / figdir
+            if src.is_dir():
+                shutil.copytree(src, tmp_path / figdir, dirs_exist_ok=True)
+
+        log = ""
+        try:
+            for _ in range(2):
+                proc = subprocess.run(
+                    ["pdflatex", "-interaction=nonstopmode", tex_path.name],
+                    cwd=tmp_path, capture_output=True, timeout=180,
+                )
+                log = proc.stdout.decode("utf-8", "replace") + proc.stderr.decode("utf-8", "replace")
+        except subprocess.TimeoutExpired:
+            collector.add_inconsistency(
+                "[compile] pdflatex superó el timeout (180s); posible espera de entrada "
+                "por un error no recuperable. Revisar el .tex manualmente (18)."
+            )
+            print("  📄 compile: TIMEOUT (pdflatex colgado)")
+            return
+        except (OSError, ValueError) as e:
+            collector.add_inconsistency(f"[compile] fallo al ejecutar pdflatex: {e}")
+            return
+
+        rel = tex_path.name
+        # Errores fatales
+        fatals = re.findall(r"^! (.+)$", log, re.MULTILINE)
+        for f in fatals[:10]:
+            collector.add_inconsistency(f"[compile] error LaTeX: {f.strip()[:120]}")
+        # Referencias/citas indefinidas
+        for m in re.findall(r"(?:Reference|Citation) `([^']+)' (?:on page \S+ )?undefined", log):
+            collector.add_inconsistency(f"[compile] referencia/cita indefinida: {m} (18).")
+        undef_generic = len(re.findall(r"There were undefined references", log))
+        if undef_generic and not fatals:
+            collector.add_inconsistency(
+                "[compile] el log reporta referencias indefinidas; correr otra pasada (18)."
+            )
+        # (19) Señales visuales: overfull hboxes grandes
+        overs = re.findall(r"Overfull \\hbox \((\d+(?:\.\d+)?)pt too wide\)[^\n]*at lines (\d+)",
+                           log)
+        big = [(float(pt), ln) for pt, ln in overs if float(pt) >= overfull_pt]
+        for pt, ln in big[:15]:
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] SEÑAL-VISUAL overfull hbox {pt:.0f}pt (texto se sale del "
+                "margen; revisar visualmente esa página, §19)."
+            )
+        # (19) Figuras no encontradas (afectan el render)
+        missing_figs = sorted(set(re.findall(r"File `([^']+)' not found", log)))
+        for fig in missing_figs[:15]:
+            collector.add_inconsistency(
+                f"[compile] SEÑAL-VISUAL figura no encontrada: {fig} "
+                "(no renderiza; verificar ruta, §19)."
+            )
+        pdf_ok = (tmp_path / tex_path.with_suffix(".pdf").name).exists()
+        n_over = len(big)
+        print(f"  📄 compile: {'PDF OK' if pdf_ok else 'SIN PDF'} | "
+              f"{len(fatals)} errores | {n_over} overfull>{overfull_pt:.0f}pt | "
+              f"{len(missing_figs)} figuras faltantes")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Orquestación
@@ -739,6 +1054,23 @@ def main() -> int:
         help="Chequear consistencia de un .tex (refs/labels, decimales, "
         "tablas auto no conectadas) y volcar hallazgos a tesis_todos.txt",
     )
+    parser.add_argument(
+        "--fix-decimals",
+        type=Path,
+        default=None,
+        help="Convertir decimales con punto a coma en el .tex indicado "
+        "(excluye h_c, exponentes, versiones, URLs, arXiv, comandos). "
+        "Crea backup .bak y registra cada cambio en tesis_todos.txt.",
+    )
+    parser.add_argument(
+        "--compile",
+        dest="compile_tex",
+        type=Path,
+        default=None,
+        help="Compilar el .tex con pdflatex (stub .sty) y volcar errores, "
+        "citas/refs indefinidas y señales visuales (overfull, figuras faltantes) "
+        "a tesis_todos.txt (18/19).",
+    )
     args = parser.parse_args()
 
     out_dir: Path = args.out_dir
@@ -784,10 +1116,18 @@ def main() -> int:
         written.append(str(out_path.relative_to(ROOT)))
         print(f"  ✅ {out_path.relative_to(ROOT)}")
 
+    # Auto-fix de decimales (opcional; se aplica antes del chequeo)
+    if args.fix_decimals is not None:
+        fix_decimals(args.fix_decimals, collector)
+
     # Chequeo del documento LaTeX (opcional)
     if args.check_tex is not None:
         check_tex(args.check_tex, out_dir, collector)
         print(f"  🔍 Chequeo LaTeX: {args.check_tex}")
+
+    # Compilación + señales visuales (opcional, 18/19)
+    if args.compile_tex is not None:
+        compile_tex(args.compile_tex, out_dir, collector)
 
     # Volcar tesis_todos.txt
     todos_path = out_dir / "tesis_todos.txt"

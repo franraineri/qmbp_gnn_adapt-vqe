@@ -66,6 +66,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_UNKNOWN_MODEL_TAG = "model"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Data models
@@ -237,6 +239,8 @@ class ValidationRunner(ABC):
         self._gt_cache: dict[tuple, tuple[float, float]] = {}
         # Model provenance tracking (auto-populated by load_best_mpnn_for_cross_n)
         self._model_provenance: dict[str, Any] = {}
+        # Auto-validation report (populated post-sections in run())
+        self._auto_validation: dict[str, Any] | None = None
         # Artifact collector (register during execution, persist at end)
         from qmbp_simulation.framework.artifact_store import ArtifactCollector
 
@@ -627,6 +631,17 @@ class ValidationRunner(ABC):
         if not interrupted:
             self._log_data_quality_feedback()
 
+        # ── Step 3b2: Automatic result validation (VQE/GT physics checks) ─
+        # General funcionality for ALL ValidationRunners (previously only in
+        # run_noiseless_pipeline). Guarded by --validate-vqe/--strict-validation
+        # and capped at VALIDATOR_MAX_N. Result attached to the envelope below.
+        if not interrupted:
+            try:
+                self._auto_validation = self._run_auto_validation()
+            except Exception as e:
+                logger.debug("Auto-validation skipped: %s", e)
+                self._auto_validation = None
+
         import os
 
         total_elapsed = time.time() - t_total
@@ -683,6 +698,13 @@ class ValidationRunner(ABC):
                         "all_passed": n_fail == 0,
                         "metric_version": "dual_v1",
                     }
+                    # Physics verdict + auto-validation (general funcionality).
+                    _verdict = self._compute_run_verdict(summary)
+                    if _verdict:
+                        summary["verdict"] = _verdict["verdict"]
+                        summary["verdict_criteria"] = _verdict["criteria"]
+                        if _verdict.get("physics_summary"):
+                            summary["physics_summary"] = _verdict["physics_summary"]
                     envelope = {
                         "schema_version": "2.0",
                         "timestamp": generate_timestamp(),
@@ -692,6 +714,9 @@ class ValidationRunner(ABC):
                         "elapsed_s": round(total_elapsed, 2),
                         "model_provenance": _deep_serialize(self._model_provenance)
                         if self._model_provenance
+                        else None,
+                        "auto_validation": _deep_serialize(self._auto_validation)
+                        if self._auto_validation
                         else None,
                         "analysis": {
                             "experiment_id": self.experiment_id,
@@ -707,7 +732,7 @@ class ValidationRunner(ABC):
                     # ResultIndex internally and uses json_serialize again)
                     from qmbp_simulation.framework.result_io import _DEFAULT_RESULTS_ROOT
 
-                    exp_dir = _DEFAULT_RESULTS_ROOT / f"exp_{self.experiment_id.lower()}"
+                    exp_dir = _DEFAULT_RESULTS_ROOT / f"exp_{self._result_experiment_id().lower()}"
                     exp_dir.mkdir(parents=True, exist_ok=True)
                     saved_path = exp_dir / f"run_{generate_timestamp()}.json"
                     with open(saved_path, "w") as _f:
@@ -720,7 +745,9 @@ class ValidationRunner(ABC):
                         envelope["interrupted"] = True
                         envelope["completed_sections"] = len(self._section_results)
                         envelope["interrupted_section"] = _current_section_id
-                    saved_path = save_experiment_result(envelope, experiment_id=self.experiment_id)
+                    saved_path = save_experiment_result(
+                        envelope, experiment_id=self._result_experiment_id()
+                    )
             except (Exception, TimeoutError):
                 # Emergency minimal save
                 try:
@@ -728,7 +755,11 @@ class ValidationRunner(ABC):
 
                     from qmbp_simulation.framework.result_io import generate_timestamp
 
-                    edir = Path("results") / "experiments" / f"exp_{self.experiment_id}"
+                    edir = (
+                        Path("results")
+                        / "experiments"
+                        / f"exp_{self._result_experiment_id().lower()}"
+                    )
                     edir.mkdir(parents=True, exist_ok=True)
                     saved_path = edir / f"run_{generate_timestamp()}.json"
                     saved_path.write_text(
@@ -1084,6 +1115,169 @@ class ValidationRunner(ABC):
             return selected
         return sections
 
+    def _collect_per_h_points(self) -> list[dict]:
+        """Scan section results for per-h point dicts (e_pred/e_exact/gap).
+
+        Generic across runners: any section whose data contains a list of
+        per-point dicts with the energy fields is harvested. Used by the
+        automatic validation hook. Returns a flat list (may be empty).
+        """
+        points: list[dict] = []
+
+        def _looks_like_point(d: object) -> bool:
+            return (
+                isinstance(d, dict)
+                and ("e_pred" in d or "e_vqe" in d or "energy_vqe" in d)
+                and ("e_exact" in d or "energy_exact" in d)
+                and ("gap" in d)
+            )
+
+        for r in self._section_results:
+            if not r.success or not isinstance(r.data, dict):
+                continue
+            # Common containers: "per_point", "results", "per_h", or nested by N.
+            for val in r.data.values():
+                if isinstance(val, list):
+                    points.extend(p for p in val if _looks_like_point(p))
+                elif isinstance(val, dict):
+                    for sub in val.values():
+                        if isinstance(sub, list):
+                            points.extend(p for p in sub if _looks_like_point(p))
+        return points
+
+    def _run_auto_validation(self) -> dict[str, Any] | None:
+        """Automatic physics validation of the run's results (all runners).
+
+        Formerly only wired into run_noiseless_pipeline; now general. Runs the
+        cheap algebraic checks (variational principle + energy sign/finiteness)
+        over every per-h point harvested from the sections. Honors
+        ``--validate-vqe`` (default on) and ``--strict-validation``, and is
+        skipped for N > VALIDATOR_MAX_N (large-N runs).
+
+        Returns a JSON-safe dict summarizing the checks, or None when disabled
+        or no validatable data was found.
+        """
+        if not getattr(self._args, "validate_vqe", True):
+            return None
+
+        from qmbp_simulation.models.constants import VALIDATOR_MAX_N
+
+        # Resolve N from config/args (best-effort). Skip the (cheap) checks only
+        # when clearly above the cap.
+        n_qubits = None
+        for attr in ("n_qubits", "target_n"):
+            v = getattr(self._args, attr, None)
+            if isinstance(v, int):
+                n_qubits = v
+                break
+            if isinstance(v, (list, tuple)) and v:
+                n_qubits = max(x for x in v if isinstance(x, int))
+                break
+        if n_qubits is not None and n_qubits > VALIDATOR_MAX_N:
+            return {
+                "ran": False,
+                "reason": f"N={n_qubits} > VALIDATOR_MAX_N={VALIDATOR_MAX_N}",
+            }
+
+        points = self._collect_per_h_points()
+        if not points:
+            return None
+
+        import math as _math
+
+        n_var_violations = 0
+        n_sign_mismatch = 0
+        n_non_finite = 0
+        worst_excess = 0.0
+        for p in points:
+            e_pred = p.get("e_pred", p.get("e_vqe", p.get("energy_vqe")))
+            e_exact = p.get("e_exact", p.get("energy_exact"))
+            gap = p.get("gap")
+            if e_pred is None or e_exact is None:
+                continue
+            if not (_math.isfinite(e_pred) and _math.isfinite(e_exact)):
+                n_non_finite += 1
+                continue
+            if e_pred < e_exact - 1e-6:
+                n_var_violations += 1
+                worst_excess = max(worst_excess, e_exact - e_pred)
+            if e_pred > 0 and e_exact < -1.0:
+                n_sign_mismatch += 1
+
+        n_issues = n_var_violations + n_sign_mismatch + n_non_finite
+        report = {
+            "ran": True,
+            "n_points": len(points),
+            "n_variational_violations": n_var_violations,
+            "n_sign_mismatch": n_sign_mismatch,
+            "n_non_finite": n_non_finite,
+            "worst_variational_excess": float(worst_excess),
+            "passed": n_issues == 0,
+        }
+        if n_issues > 0:
+            msg = (
+                f"Auto-validation: {n_var_violations} variational, "
+                f"{n_sign_mismatch} sign, {n_non_finite} non-finite "
+                f"over {len(points)} points"
+            )
+            if getattr(self._args, "strict_validation", False):
+                logger.error("  ❌ %s (strict)", msg)
+            else:
+                logger.warning("  ⚠️ %s", msg)
+        return report
+
+    def _compute_run_verdict(self, summary: dict) -> dict | None:
+        """Compute the canonical experiment verdict for this run.
+
+        Enriches the (section-level) summary with a physics summary
+        (mean_de_gap, pass_rate) harvested from per-h points so that
+        criteria.compute_verdict can apply the experiment's real threshold and
+        REJECTION_IS_FINDING semantics. Returns None on any failure (best-effort;
+        never blocks the save).
+        """
+        try:
+            from qmbp_simulation.framework.criteria import compute_verdict
+
+            physics_summary = None
+            points = self._collect_per_h_points()
+            if points:
+                from qmbp_simulation.analysis.metrics import compute_deploy_summary
+
+                norm = []
+                for p in points:
+                    dg = p.get("de_gap")
+                    if dg is None:
+                        continue
+                    norm.append({"de_gap": dg, "abs_error": p.get("abs_error")})
+                if norm:
+                    ds = compute_deploy_summary(norm)
+                    physics_summary = {
+                        "mean_de_gap": ds.get("mean_de_gap"),
+                        "pass_rate": ds.get("pass_rate_dual"),
+                        "n_points": ds.get("n_points"),
+                    }
+
+            # compute_verdict reads mean_de_gap / pass_rate. Prefer the physics
+            # summary; fall back to the section-level summary otherwise.
+            verdict_input = dict(summary)
+            if physics_summary:
+                verdict_input.update(
+                    {
+                        k: v
+                        for k, v in physics_summary.items()
+                        if v is not None and k in ("mean_de_gap", "pass_rate")
+                    }
+                )
+            verdict, criteria_desc = compute_verdict(self.experiment_id, verdict_input)
+            return {
+                "verdict": verdict,
+                "criteria": criteria_desc,
+                "physics_summary": physics_summary,
+            }
+        except Exception as e:
+            logger.debug("compute_run_verdict failed: %s", e)
+            return None
+
     def _build_envelope(self, total_elapsed: float) -> dict[str, Any]:
         """Build the standardized result envelope.
 
@@ -1129,6 +1323,14 @@ class ValidationRunner(ABC):
                     failed_sections.append(entry)
             summary["failed_sections"] = failed_sections
 
+        # Physics verdict (canonical experiment criteria) — general funcionality.
+        _verdict = self._compute_run_verdict(summary)
+        if _verdict:
+            summary["verdict"] = _verdict["verdict"]
+            summary["verdict_criteria"] = _verdict["criteria"]
+            if _verdict.get("physics_summary"):
+                summary["physics_summary"] = _verdict["physics_summary"]
+
         # Per-section results
         results = {}
         for r in self._section_results:
@@ -1171,6 +1373,10 @@ class ValidationRunner(ABC):
         # Add model provenance for traceability (which MPNN was used)
         if self._model_provenance:
             envelope["model_provenance"] = self._model_provenance
+
+        # Add auto-validation report (physics checks run post-sections)
+        if self._auto_validation:
+            envelope["auto_validation"] = self._auto_validation
 
         # Add simulation diagnostics block (documents backend + numerical method)
         try:
@@ -1458,6 +1664,27 @@ class ValidationRunner(ABC):
             help="Load a config preset by name (e.g. 'noiseless/tfim_heavy_hex_n20_p4'). "
             "CLI args override preset values. See configs/presets/ for available presets.",
         )
+        # Physics model selection (available to every runner). --model overrides
+        # the runner's default physics model; --j2 activates the frustrated
+        # NNN coupling. Both are consumed via self.model_name / self.model_kwargs.
+        _base_flags = {opt for action in parser._actions for opt in action.option_strings}
+        if "--model" not in _base_flags:
+            parser.add_argument(
+                "--model",
+                type=str,
+                default=None,
+                help="Physics model name (e.g. tfim, tfim_bond_resolved, "
+                "tfim_frustrated). Default: the runner's built-in model.",
+            )
+        if "--j2" not in _base_flags:
+            parser.add_argument(
+                "--j2",
+                type=float,
+                default=0.0,
+                help="Next-nearest-neighbor coupling J2 for frustrated models "
+                "(J2>0 antiferromagnetic = frustrating). Requires a model that "
+                "supports it (e.g. tfim_frustrated). Default: 0.0 (unfrustrated).",
+            )
         # Allow subclasses to add custom args
         cls._add_custom_args(parser)
 
@@ -1487,6 +1714,118 @@ class ValidationRunner(ABC):
                 cls._add_standard_physics_args(parser)
                 parser.add_argument("--g-value", type=float, default=0.3)
         """
+
+    def resolve_model_name(self, default: str) -> str:
+        """Resolve the physics model, honoring the base --model flag.
+
+        Runners pass their built-in default; the shared --model flag overrides
+        it when set. This lets every runner accept --model tfim_frustrated
+        without redefining the flag.
+
+        Parameters
+        ----------
+        default : str
+            The runner's built-in physics model (e.g. "tfim_bond_resolved").
+
+        Returns
+        -------
+        str
+            The --model value if provided, else the runner default.
+        """
+        override = getattr(self._args, "model", None)
+        return override if override else default
+
+    def model_kwargs(self) -> dict:
+        """Assemble Hamiltonian kwargs from shared physics flags.
+
+        Maps the --j2 flag to the frustrated NNN coupling. Returns an empty dict
+        when unfrustrated (J2=0) so callers can pass it verbatim to
+        spec.with_params(**kwargs) and exact_ground_state(model_kwargs=kwargs).
+
+        Returns
+        -------
+        dict
+            {"J2": <value>} when --j2 != 0, else {}.
+        """
+        j2 = getattr(self._args, "j2", 0.0) or 0.0
+        return {"J2": float(j2)} if abs(j2) > 1e-15 else {}
+
+    def is_frustrated(self) -> bool:
+        """Whether the run activates a frustrating coupling (--j2 != 0)."""
+        return bool(self.model_kwargs())
+
+    def training_data_dir(self) -> Path:
+        """Training-data directory, namespaced to /frustrated/ when frustrated."""
+        from qmbp_simulation.framework.result_io import (
+            TRAINING_DATA_ROOT,
+            build_data_dir,
+        )
+
+        return build_data_dir(TRAINING_DATA_ROOT, self.is_frustrated())
+
+    def _result_experiment_id(self) -> str:
+        """Effective experiment_id for the JSON result envelope path.
+
+        Builds the canonical layout ``<runner_kind>/<model>/<topology>_p<N>`` so
+        every runner organizes output identically:
+
+            results/experiments/exp_<runner_kind>/<model>/<topology>_p<N>/run_...json
+
+        When the frustrated coupling is active (--j2 != 0) the runner_kind is
+        prefixed with 'frustrated/' so those runs never mix with the validated
+        unfrustrated ones. Falls back to the bare experiment_id when topology
+        context is unavailable (keeps older runners working). The class-level
+        experiment_id stays unchanged for verdict/criteria/digest lookups.
+
+        Returns
+        -------
+        str
+            e.g. "accel_cross_n/tfim_bond_resolved/chain_1d_p1", optionally
+            prefixed with "frustrated/".
+        """
+        from qmbp_simulation.framework.result_io import (
+            FRUSTRATED_NAMESPACE,
+            build_result_subpath,
+        )
+
+        runner_kind = self.experiment_id
+        if self.is_frustrated():
+            runner_kind = f"{FRUSTRATED_NAMESPACE}/{runner_kind}"
+
+        model, topology, p_layers = self._result_context()
+        if topology is None:
+            return runner_kind
+        return build_result_subpath(runner_kind, model, topology, p_layers)
+
+    def _result_context(self) -> tuple[str, str | list[str] | None, int | None]:
+        """Resolve (model, topology, p_layers) for the structured result path.
+
+        Reads self._args with tolerant fallbacks so runners with different flag
+        conventions all produce a consistent layout.
+
+        Returns
+        -------
+        tuple
+            (model, topology, p_layers). topology may be None when unknown,
+            which signals _result_experiment_id to keep the legacy layout.
+        """
+        args = getattr(self, "_args", None)
+
+        model = getattr(self, "_physics_model", None)
+        if not model:
+            model = getattr(args, "model", None) if args is not None else None
+        if not model:
+            model = getattr(args, "model_name", None) if args is not None else None
+        if not model:
+            model = _UNKNOWN_MODEL_TAG
+
+        topology = getattr(args, "topology", None) if args is not None else None
+
+        p_layers = getattr(args, "p_layers", None) if args is not None else None
+        if isinstance(p_layers, (list, tuple)):
+            p_layers = p_layers[0] if p_layers else None
+
+        return model, topology, p_layers
 
     @classmethod
     def _add_standard_physics_args(
@@ -3222,14 +3561,28 @@ class ValidationRunner(ABC):
         try:
             from qmbp_simulation.predictors.model_zoo import load_best_model_for
 
-            # Infer h_regime from runner args context
+            # Infer h_regime from the sweep's [h_min, h_max] range. Decide by
+            # OVERLAP with the critical window (from the model_zoo, single source
+            # of truth), not just h_min — a sweep like [1.6, 2.4] straddles h_c
+            # and must still select a critical-capable model. If the range
+            # overlaps the critical window at all, "critical" wins (it is the
+            # harder regime and the one the empirical critical_ranking targets).
             _h_min = getattr(args, "h_min", None)
             _h_max = getattr(args, "h_max", None)
             _h_regime = None
-            if _h_min is not None and _h_min <= 1.5:
-                _h_regime = "critical"
-            elif _h_min is not None and _h_min >= 2.0:
-                _h_regime = "paramagnetic"
+            if _h_min is not None:
+                _hi = _h_max if _h_max is not None else _h_min
+                try:
+                    from qmbp_simulation.predictors.model_zoo import CRITICAL_H_WINDOW
+
+                    _c_lo, _c_hi = CRITICAL_H_WINDOW
+                except Exception:  # noqa: BLE001 - fall back to fixed window
+                    _c_lo, _c_hi = 0.80, 1.80
+                _overlaps_critical = _h_min <= _c_hi and _hi >= _c_lo
+                if _overlaps_critical:
+                    _h_regime = "critical"
+                elif _h_min >= 2.0:
+                    _h_regime = "paramagnetic"
 
             mpnn, entry, source = load_best_model_for(
                 _topo,
@@ -3666,8 +4019,17 @@ class ValidationRunner(ABC):
             gt = self.solver.solve(H, lat)
             if gt.ground_state is None:
                 return None
-            # Delegate the statevector overlap to the shared implementation.
-            return compute_exact_fidelity(circuit, theta, gt.ground_state)
+            # Delegate the statevector overlap to the shared implementation,
+            # passing a cache context so the result is persisted in the shared
+            # EvalCache and reused across runs (keyed by model, N, h, θ-hash).
+            p_layers = getattr(self, "_p_layers", None) or getattr(self, "p_layers", 0) or 0
+            return compute_exact_fidelity(
+                circuit, theta, gt.ground_state,
+                cache_ctx={
+                    "topology": topology, "n_qubits": n_qubits, "h": h,
+                    "model": model, "p_layers": int(p_layers),
+                },
+            )
         except (MemoryError, ValueError, AttributeError, KeyError) as exc:
             logger.debug(
                 "safe_compute_fidelity failed for %s N=%d h=%.2f model=%s: %s",
@@ -3821,6 +4183,31 @@ class ValidationRunner(ABC):
             "energy_variance": None,
         }
 
+    def resolve_fidelity_threshold(self, model: str | None = None) -> float | None:
+        _model = model or getattr(getattr(self, "_args", None), "model", None)
+        if _model is None:
+            return None
+        try:
+            _get_spec = getattr(self, "get_model_spec", None)
+            if _get_spec is None:
+                from qmbp_simulation.models.model_registry import get_model_spec as _get_spec
+            return float(_get_spec(_model).fidelity_threshold)
+        except Exception as exc:
+            logger.debug("resolve_fidelity_threshold failed for %s: %s", _model, exc)
+            return None
+
+    def deploy_summary(
+        self,
+        per_h_results: list[dict],
+        *,
+        model: str | None = None,
+        **kwargs,
+    ) -> dict:
+        from qmbp_simulation.analysis.metrics import compute_deploy_summary
+
+        kwargs.setdefault("fidelity_threshold", self.resolve_fidelity_threshold(model))
+        return compute_deploy_summary(per_h_results, **kwargs)
+
     @staticmethod
     def build_per_h_result(
         h: float,
@@ -3856,6 +4243,36 @@ class ValidationRunner(ABC):
             "e_exact": float(e_exact),
             "gap": float(gap),
         }
+
+        # ── Lightweight physical sanity checks (diagnostic, never gates pass/fail) ──
+        # Flags physically impossible values that signal a corrupt Hamiltonian,
+        # a stale/degenerate gap, or a qubit-ordering (endianness) bug — problems
+        # that abs(e_pred - e_exact) would otherwise mask. Collected as a list of
+        # tags under "sanity_flags" so downstream reports can surface them.
+        _VAR_TOL = 1e-6
+        sanity: list[str] = []
+        if e_pred < e_exact - _VAR_TOL:
+            # Variational principle: the ground state is the minimum, so no
+            # variational state can have energy below it. A meaningful excess
+            # here means the reference E_exact or the circuit energy is wrong.
+            sanity.append("variational_violation")
+            result["variational_excess"] = float(e_exact - e_pred)
+        import math as _math
+
+        if not (
+            _math.isfinite(e_pred) and _math.isfinite(e_exact) and _math.isfinite(gap)
+        ):
+            sanity.append("non_finite_energy")
+        if gap <= 0.0:
+            sanity.append("non_positive_gap")
+        if e_pred > 0 and e_exact < -1.0:
+            # TFIM/Heisenberg ground energies are negative and O(-N); a positive
+            # predicted energy against a strongly negative exact one is a sign
+            # mismatch (classic endianness/Hamiltonian-construction bug).
+            sanity.append("energy_sign_mismatch")
+        if sanity:
+            result["sanity_flags"] = sanity
+
         if fidelity_info is not None:
             fid_val = fidelity_info.get("fidelity")
             # Record the fidelity value only when it is informative. A saturated
@@ -3871,6 +4288,11 @@ class ValidationRunner(ABC):
         elif fidelity is not None:
             result["fidelity"] = float(fidelity)
         result.update(extra)
+
+        # Fidelity must lie in [0, 1]; anything outside is a computation bug.
+        _fid = result.get("fidelity")
+        if _fid is not None and not (0.0 <= _fid <= 1.0 + 1e-9):
+            result.setdefault("sanity_flags", []).append("fidelity_out_of_range")
 
         # ── Infidelity decomposition (Var(H) vs gap) — DEFAULT for every runner ──
         # Whenever energy_variance is available (from fidelity_info or extra),
@@ -5324,6 +5746,34 @@ class ValidationRunner(ABC):
             )
         return results
 
+    @staticmethod
+    def _gt_cache_key(
+        model: str,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        model_kwargs: dict | None = None,
+    ) -> tuple:
+        """Canonical in-memory ground-truth cache key (h rounded to 2 decimals)."""
+        key = (model, topology, n_qubits, round(h, 2))
+        if model_kwargs:
+            key = (*key, tuple(sorted(model_kwargs.items())))
+        return key
+
+    def _gt_in_memory_cached(
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        model_kwargs: dict | None = None,
+        *,
+        model: str | None = None,
+    ) -> bool:
+        """Whether an in-memory ground-truth entry exists for these params."""
+        resolved_model = model or getattr(self, "_physics_model", "tfim")
+        key = self._gt_cache_key(resolved_model, topology, n_qubits, h, model_kwargs)
+        return key in self._gt_cache
+
     def exact_ground_state(
         self,
         topology: str,
@@ -5356,10 +5806,7 @@ class ValidationRunner(ABC):
         tuple[float, float]
             (ground_energy, spectral_gap)
         """
-        # Cache key: round h to 2 decimals for cache key stability (matches generate_h_grid)
-        cache_key = (model, topology, n_qubits, round(h, 2))
-        if model_kwargs:
-            cache_key = (*cache_key, tuple(sorted(model_kwargs.items())))
+        cache_key = self._gt_cache_key(model, topology, n_qubits, h, model_kwargs)
 
         # Level 1: in-memory cache (per-run, instant). Not provided by the
         # disk cache, so it stays here as the runner's fast path.

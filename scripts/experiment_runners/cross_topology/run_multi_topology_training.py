@@ -83,9 +83,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--film", action="store_true", help="Enable FiLM conditioning by h (P4)")
     parser.add_argument(
         "--loss-type",
-        choices=["theta_mse", "energy_weighted"],
-        default="theta_mse",
-        help="Loss function (default: theta_mse)",
+        choices=["sign_invariant", "theta_mse", "energy_weighted"],
+        default="sign_invariant",
+        help="Loss function (default: sign_invariant, Z₂-symmetric)",
     )
     parser.add_argument(
         "--curriculum",

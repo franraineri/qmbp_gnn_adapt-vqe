@@ -56,13 +56,13 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
   extension_ranker           ANAL  C:ExtensionScore,ExtensionPriorityRanker
   failures_tests             TEST  C:FailureDiagnostic | F:diagnose_gap_masking,diagnose_contaminated_training,diagnose_generalization_failure+4
-  fidelity                         F:compute_exact_fidelity,compute_variance_fidelity_bound,estimate_fidelity_from_primitives
+  fidelity                         F:compute_exact_fidelity,energy_gap_fidelity_bound,compute_variance_fidelity_bound+3
   flow_multishot             PRED  C:MultiShotResult,FlowMultiShotPredictor
   flow_warmstart             OPT   C:FlowWarmstartManager
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+50
+  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+52
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   observables                      F:half_chain_entropy,magnetization_z,magnetization_x+6
@@ -105,7 +105,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/framework/ (18)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
-  __main__                   CLI  
+  __main__                   CLI   
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -119,7 +119,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   presets                    CFG   F:load_preset,list_presets,preset_to_args
   quality_profile                  C:QualityProfile | F:compute_quality_profile,format_quality_summary,format_per_h_status+2
   result_index               CACHE C:ResultIndex
-  result_io                  IO    F:build_experiment_id,generate_timestamp,build_result_envelope+18
+  result_io                  IO    F:build_data_dir,build_experiment_id,build_result_subpath+20
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -127,7 +127,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG  
+  constants                  CFG   
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -159,12 +159,12 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:prune_test_entries,list_multi_topology_entries,load_best_model_for+21
+  model_zoo                  CFG   C:ZooEntry | F:resolve_checkpoint_fuzzy,prune_test_entries,list_multi_topology_entries+26
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
   training_intelligence      VAL   C:RetrainTrigger,HRangeValidation,TrainingConfig | F:check_retrain_triggers,validate_h_range_alignment,prepare_training_config+1
-  unified_graph              PRED  F:build_unified_bond_resolved_graph,build_unified_dataset,validate_unified_graph+1
+  unified_graph              PRED  F:compute_bond_and_site_orbits,build_unified_bond_resolved_graph,build_unified_dataset+2
   unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+4
 
 ### qsim/solvers/ (4)
@@ -205,7 +205,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL  
+  gnn_qem_analyzer           VAL   
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (1)
@@ -308,7 +308,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  _sanity_check_envelope     IO  
+  _sanity_check_envelope     IO    
   benchmark_configs          BENCH C:BenchmarkConfig
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
   run_gnn_warmstart_demo     VAL   C:GNNWarmstartDemoRunner
@@ -373,7 +373,8 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   evaluate_zoo_models              F:parse_args,evaluate_model,format_markdown_report+1
   extract_delta_e_fidelity   CORE  C:PointMetrics,RunSummary | F:extract_from_run,scan_all_runs,scan_cross_n+2
   extract_theta_trajectories PIPE  F:extract_trajectory,scan_results,scan_scaling_results+2
-  generate_best_results_scoreboard DIAG  C:PerHResult,EvalEntry,BestResult | F:parse_eval_report,scan_all_reports,compute_best_per_topology_n+5
+  fidelity_decomposition_diagnostic DIAG  C:HPointDiagnostic | F:run_diagnostic,format_markdown,parse_args+1
+  generate_best_results_scoreboard DIAG  C:PerHResult,EvalEntry,BestResult | F:scoreboard_md_path,scoreboard_json_path,parse_eval_report+8
   hardware_viability_assessment       F:assess_amortized_efficiency,assess_gnn_fidelity,assess_quench_directions+6
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   pipeline_summary           PIPE  F:parse_args,load_latest_ablation,load_model_comparisons+7
@@ -428,6 +429,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   quick_health_check         PRED  F:parse_args,check_model_zoo,check_training_data+5
   reevaluate_zoo_models            F:evaluate_npz_quality,main
   run_full_validation        VAL   F:step_1_regenerate_dashboard,step_2_quality_tier_analysis,step_3_training_readiness+7
+  show_critical_models       PRED  F:main
   update_cross_n_coverage    PIPE  F:load_dashboard,compute_quality_tier_breakdown,generate_quality_tier_table+18
   update_project_status            F:main
   upgrade_npz_quality_tiers        F:compute_quality_tier_for_npz,upgrade_single_npz,main

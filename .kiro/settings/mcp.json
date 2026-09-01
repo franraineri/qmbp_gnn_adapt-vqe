@@ -40,7 +40,7 @@
         "-y",
         "token-pilot"
       ],
-      "disabled": false,
+      "disabled": true,
       "autoApprove": []
     },
     "token-optimizer": {

@@ -250,15 +250,19 @@ class ExecutionBackend(ABC):
 
         variance = e2_mean - e_mean**2
 
-        # Clip to ≥ 0 (numerical noise can produce tiny negatives)
+        # Sub-noise negatives → clamp to 0 (genuine eigenstate). A beyond-noise
+        # negative on the exact statevector path signals a real numerical problem
+        # (e.g. a malformed H²); return NaN so the fidelity bound reports N/A
+        # rather than a spurious Var=0 → F≈1.
         if variance < 0:
             if variance < -1e-8:
                 logger.warning(
                     "[%s] compute_energy_variance: negative variance %.2e "
-                    "(possible numerical issue).",
+                    "(numerical issue) — returning NaN.",
                     self.name,
                     variance,
                 )
+                return float("nan")
             variance = 0.0
 
         # Warning for unexpectedly large variance (possible poor VQE convergence)

@@ -43,6 +43,82 @@ from qmbp_simulation.predictors.unified_graph import (
 logger = logging.getLogger(__name__)
 
 
+_PHYSICS_EVAL_CACHE: dict[tuple, tuple] = {}
+
+
+def _get_physics_eval_context(topology: str, n_qubits: int, model: str, h: float, p_layers: int):
+    """Build (and cache) the (circuit, hamiltonian, backend, gap) needed to
+    evaluate E(θ) for a bond-resolved HVA config.
+
+    Returns None when the config is unsuitable for a cheap statevector energy
+    evaluation (e.g. N too large for exact simulation) so the caller can skip
+    the physics term gracefully. Cached per (topology, N, model, p, h:.2f) to
+    avoid rebuilding the circuit/Hamiltonian every epoch.
+    """
+    from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+    if n_qubits > STATEVECTOR_MAX_N:
+        return None
+
+    key = (topology, int(n_qubits), model, int(p_layers), round(float(h), 2))
+    if key in _PHYSICS_EVAL_CACHE:
+        return _PHYSICS_EVAL_CACHE[key]
+
+    try:
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.circuits.hva import HVACircuitBuilder
+        from qmbp_simulation.execution.backends import NoiselessBackend
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        lattice = make_lattice(topology, n_qubits, J=1.0, h=float(h))
+        H = HamiltonianBuilder().build(lattice)
+        circuit, _theta = HVACircuitBuilder().create_bond_resolved(n_qubits, p_layers, lattice)
+        backend = NoiselessBackend()
+        ctx = (circuit, H, backend)
+    except Exception as exc:  # noqa: BLE001 — physics term is best-effort
+        logger.debug("Physics eval context build failed for %s: %s", key, exc)
+        ctx = None
+
+    _PHYSICS_EVAL_CACHE[key] = ctx
+    return ctx
+
+
+def _physics_energy_error(graph, theta_pred_np: np.ndarray) -> float | None:
+    """Compute |E(θ_pred) − E_exact| / max(gap, |E_exact|, 1) for one graph.
+
+    Returns None when the graph lacks the metadata to rebuild the circuit,
+    when N is too large for statevector evaluation, or on any evaluation
+    error — so physics loss degrades gracefully to a no-op for that sample.
+    """
+    if not hasattr(graph, "phys_topology") or not hasattr(graph, "e_exact"):
+        return None
+    ctx = _get_physics_eval_context(
+        graph.phys_topology,
+        int(graph.phys_n_qubits),
+        getattr(graph, "phys_model", "tfim_bond_resolved"),
+        float(graph.phys_h),
+        int(getattr(graph, "phys_p_layers", 1)),
+    )
+    if ctx is None:
+        return None
+    circuit, H, backend = ctx
+    theta = np.asarray(theta_pred_np, dtype=np.float64)
+    if theta.shape[0] != circuit.num_parameters or not np.all(np.isfinite(theta)):
+        return None
+    try:
+        e_pred = backend.evaluate(circuit, H, theta)
+    except Exception as exc:  # noqa: BLE001 — best-effort
+        logger.debug("Physics energy eval failed: %s", exc)
+        return None
+    e_exact = float(graph.e_exact.item())
+    de_gap_attr = float(graph.de_gap.item()) if hasattr(graph, "de_gap") else None
+    # Prefer normalizing by the spectral gap (recovers de_gap units) when the
+    # cached |E_vqe−E_exact|/gap and e_exact let us back out gap; else fall
+    # back to a scale-robust denominator.
+    denom = max(abs(e_exact), 1.0)
+    return abs(e_pred - e_exact) / denom
+
+
 class UnifiedMPNN(nn.Module):
     """Type-aware MPNN for Qracle-style unified Hamiltonian+Circuit graphs.
 
@@ -417,7 +493,8 @@ def train_unified_mpnn(
     physics_loss_weight: float = 0.0,
     physics_loss_start_epoch: int = 500,
     physics_loss_eval_every: int = 100,
-    loss_type: str = "theta_mse",
+    loss_type: str = "sign_invariant",
+    canonicalize_targets: bool = True,
 ) -> dict:
     """Train the UnifiedMPNN with per-edge/per-node MSE loss.
 
@@ -477,9 +554,16 @@ def train_unified_mpnn(
         runs forward pass on a subset of training points — cheap if using cached backend.
     loss_type : str
         Loss function type:
-        - ``"theta_mse"`` (default): standard MSE(θ_pred, θ_target), weighted by
-          sample_weight (quality tier). The baseline approach.
-        - ``"energy_weighted"``: MSE(θ_pred, θ_target) weighted by
+        - ``"sign_invariant"`` (default): Z₂-symmetric loss
+          min(MSE(θ_pred, θ_target), MSE(θ_pred, -θ_target)) computed
+          independently for the ZZ and X blocks. The TFIM HVA has an exact
+          Z₂ energy symmetry (θ_zz, θ_x) ↔ (-θ_zz, -θ_x); plain MSE would
+          penalize the sign-flipped equivalent target as if it were wrong.
+          This term lets the model settle on either branch, whichever is
+          closer to its current prediction, so the symmetry is preserved.
+        - ``"theta_mse"``: plain MSE(θ_pred, θ_target), weighted by
+          sample_weight (quality tier). The legacy baseline (no Z₂ symmetry).
+        - ``"energy_weighted"``: sign-invariant MSE weighted by
           1/(1 + de_gap), where de_gap = |E_vqe - E_exact|/gap. Points with
           low energy error (good θ) contribute more to the loss. Requires
           graphs to have ``de_gap`` attribute (set by MultiNAggregator).
@@ -491,7 +575,20 @@ def train_unified_mpnn(
     import torch.nn.functional as F
 
     # ── Input validation ────────────────────────────────────────────────────
-    _VALID_LOSS_TYPES = ("theta_mse", "energy_weighted")
+    _VALID_LOSS_TYPES = ("sign_invariant", "theta_mse", "energy_weighted")
+
+    # Z₂-symmetric block loss: for sign_invariant/energy_weighted modes the TFIM
+    # HVA symmetry (θ → -θ) means the sign-flipped target is physically
+    # equivalent, so we take the smaller of MSE(pred, target) and
+    # MSE(pred, -target). For theta_mse we keep plain MSE.
+    def _block_loss(pred_block: torch.Tensor, target_block: torch.Tensor) -> torch.Tensor:
+        if pred_block.numel() == 0:
+            return pred_block.new_zeros(())
+        mse_pos = F.mse_loss(pred_block, target_block)
+        if loss_type == "theta_mse":
+            return mse_pos
+        mse_neg = F.mse_loss(pred_block, -target_block)
+        return torch.minimum(mse_pos, mse_neg)
     if loss_type not in _VALID_LOSS_TYPES:
         raise ValueError(f"loss_type must be one of {_VALID_LOSS_TYPES}, got '{loss_type}'.")
     if not isinstance(model, UnifiedMPNN):
@@ -514,6 +611,32 @@ def train_unified_mpnn(
         )
     if mse_floor < 0:
         raise ValueError(f"mse_floor must be ≥ 0, got {mse_floor}.")
+
+    # ── Data-level Z₂ canonicalization (default on) ──────────────────────────
+    # Map every target θ to the canonical Z₂ representative so that VQE seeds
+    # that happened to land on the sign-flipped branch (θ → -θ, same energy for
+    # the TFIM HVA) present a consistent target. MultiNAggregator already
+    # canonicalizes per-sweep; this guard makes training robust to datasets
+    # built by any other path (JSON scan, external callers). No-op if targets
+    # are already canonical.
+    if canonicalize_targets:
+        from qmbp_simulation.utils.helpers import canonicalize_theta
+
+        n_flipped = 0
+        for data in dataset:
+            if not hasattr(data, "y") or data.y is None or len(data.y) == 0:
+                continue
+            y_np = data.y.detach().cpu().numpy().astype(np.float64)
+            y_canon = canonicalize_theta(y_np)
+            if not np.allclose(y_canon, y_np, atol=1e-6):
+                n_flipped += 1
+            data.y = torch.tensor(y_canon, dtype=torch.float32)
+        if n_flipped > 0:
+            logger.info(
+                "  Z₂ canonicalization: normalized sign convention on %d/%d targets",
+                n_flipped,
+                len(dataset),
+            )
 
     torch.manual_seed(seed)
 
@@ -660,8 +783,8 @@ def train_unified_mpnn(
                 target_grouped = target
 
             n_zz_total = n_e * p_inferred
-            loss_zz = F.mse_loss(pred[:n_zz_total], target_grouped[:n_zz_total])
-            loss_x = F.mse_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
+            loss_zz = _block_loss(pred[:n_zz_total], target_grouped[:n_zz_total])
+            loss_x = _block_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
             loss = loss_zz + loss_x
 
             # ── Weighted loss: scale by sample_weight (quality tier) ──────
@@ -746,7 +869,7 @@ def train_unified_mpnn(
                     else:
                         tg = target
                     n_zz_v = n_e * p_v
-                    loss_v = F.mse_loss(pred[:n_zz_v], tg[:n_zz_v]) + F.mse_loss(
+                    loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(
                         pred[n_zz_v:], tg[n_zz_v:]
                     )
                     val_loss += loss_v.item()
@@ -805,49 +928,72 @@ def train_unified_mpnn(
             and (epoch - physics_loss_start_epoch) % physics_loss_eval_every == 0
         ):
             try:
-                # Select random subset for energy evaluation
+                # Select a random subset and measure REAL energy error
+                # |E(θ_pred) − E_exact| by rebuilding the HVA circuit +
+                # Hamiltonian from graph metadata and evaluating on a
+                # statevector backend. Samples whose config is too large for
+                # exact eval (or lack metadata) return None and are skipped.
                 n_eval = min(5, len(train_dataset))
                 eval_indices = rng.choice(len(train_dataset), size=n_eval, replace=False)
 
                 model.eval()
-                energy_errors = []
+                energy_errors: list[float] = []
+                worst_idx = None
+                worst_err = -1.0
                 with torch.no_grad():
                     for idx_e in eval_indices:
                         data_e = train_dataset[idx_e].to(device)
                         pred_e = model(data_e).squeeze(0)
-                        target_e = data_e.y
-                        # Energy error proxy: use L1 difference weighted by
-                        # distance from target (simpler than full circuit eval,
-                        # captures same signal for gradient direction)
-                        diff = torch.abs(pred_e - target_e)
-                        # Penalize large deviations more (L2-like but on abs)
-                        energy_proxy = torch.mean(diff**2).item()
-                        energy_errors.append(energy_proxy)
+                        e_err = _physics_energy_error(
+                            train_dataset[idx_e], pred_e.detach().cpu().numpy()
+                        )
+                        if e_err is None:
+                            continue
+                        energy_errors.append(e_err)
+                        if e_err > worst_err:
+                            worst_err = e_err
+                            worst_idx = idx_e
 
-                # Apply as additional gradient step
+                # Apply a physics-driven correction step on the worst sample:
+                # the circuit energy is not autograd-differentiable here, so we
+                # take a θ-MSE step toward the (Z₂-canonical) target SCALED by
+                # the measured energy error. Unlike the previous version, the
+                # step magnitude is now governed by the true |ΔE|, not θ L2.
                 model.train()
-                if energy_errors:
+                if energy_errors and worst_idx is not None:
                     mean_energy_err = float(np.mean(energy_errors))
-                    # Only apply if energy error is significant relative to MSE
-                    if mean_energy_err > avg_loss * 0.1:
-                        # Compute gradient from a representative sample
+                    if worst_err > 0:
                         optimizer.zero_grad()
-                        sample_idx = eval_indices[0]
-                        data_s = train_dataset[sample_idx].to(device)
+                        data_s = train_dataset[worst_idx].to(device)
                         pred_s = model(data_s).squeeze(0)
                         target_s = data_s.y
-                        # Physics loss: penalize predictions far from target
-                        # weighted by physics_loss_weight
-                        physics_loss = physics_loss_weight * torch.mean((pred_s - target_s) ** 2)
-                        physics_loss.backward()
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-                        optimizer.step()
+                        n_e_s = data_s.n_edges_unique
+                        N_s = data_s.n_qubit_nodes
+                        p_s = len(target_s) // (n_e_s + N_s) if (n_e_s + N_s) > 0 else 1
+                        if p_s > 1:
+                            tl = target_s.reshape(p_s, n_e_s + N_s)
+                            tg_s = torch.cat(
+                                [tl[:, :n_e_s].reshape(-1), tl[:, n_e_s:].reshape(-1)]
+                            )
+                        else:
+                            tg_s = target_s
+                        n_zz_s = n_e_s * p_s
+                        base = _block_loss(pred_s[:n_zz_s], tg_s[:n_zz_s]) + _block_loss(
+                            pred_s[n_zz_s:], tg_s[n_zz_s:]
+                        )
+                        physics_loss = physics_loss_weight * worst_err * base
+                        if torch.isfinite(physics_loss):
+                            physics_loss.backward()
+                            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                            optimizer.step()
 
                     if (epoch + 1) % 250 == 0:
                         logger.info(
-                            "  [Physics] epoch %d: energy_proxy=%.2e (λ=%.3f)",
+                            "  [Physics] epoch %d: mean|ΔE|=%.2e over %d/%d samples (λ=%.3f)",
                             epoch + 1,
                             mean_energy_err,
+                            len(energy_errors),
+                            n_eval,
                             physics_loss_weight,
                         )
             except Exception as _phys_err:
@@ -877,7 +1023,7 @@ def train_unified_mpnn(
                 else:
                     tg = target
                 n_zz_v = n_e * p_v
-                loss_v = F.mse_loss(pred[:n_zz_v], tg[:n_zz_v]) + F.mse_loss(
+                loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(
                     pred[n_zz_v:], tg[n_zz_v:]
                 )
                 val_loss += loss_v.item()
@@ -951,7 +1097,7 @@ def fine_tune_unified_mpnn(
     mse_floor: float = 1e-5,
     freeze_early_layers: bool = True,
     layerwise_decay: float = 0.1,
-    loss_type: str = "theta_mse",
+    loss_type: str = "sign_invariant",
 ) -> dict:
     """Fine-tune an existing UnifiedMPNN on an updated dataset.
 

@@ -210,7 +210,30 @@ desarrollo del trabajo → resultados → discusión → conclusiones y trabajo 
   ejecución / experimento) y reportar todos los porcentajes con casos absolutos:
   `95% (37/39)`.
 
-## 14. Forma de trabajar (proceso obligatorio)
+## 14. Orden canónico de revisión (prioridad)
+
+Al revisar la memoria, seguir este orden (credibilidad → estructura → editorial):
+
+**A. Credibilidad de los resultados (primero):**
+1. Referencias rotas `??` (`\ref` sin `\label`).
+2. Contradicciones entre cifras (contra las fuentes de verdad).
+3. Descripción del backend: nunca "statevector a $N > 22$"; MPS con $\chi$/tolerancia.
+4. Numeración de requisitos (si existe la sección).
+5. Revisión completa de la bibliografía (§9).
+
+**B. Reorganización (después):**
+6. Objetivos e hipótesis como capítulo independiente.
+7. Requisitos: integrarlos entre objetivos y desarrollo, no en capítulo suelto.
+8. Separar resultados y discusión.
+9. Eliminar repeticiones (una ubicación canónica por idea).
+
+**C. Consistencia editorial (al final):**
+10. Traducir/unificar anglicismos (§3).
+11. Unificar términos, símbolos y métricas (§5, §11).
+12. Corregir títulos y mayúsculas (§10).
+13. Revisión ortográfica y gramatical (§4).
+
+## 15. Forma de trabajar (proceso obligatorio)
 
 1. **Verificar antes de escribir.** Contrastar cada cifra con la fuente de
    verdad correspondiente y su fecha de corte.

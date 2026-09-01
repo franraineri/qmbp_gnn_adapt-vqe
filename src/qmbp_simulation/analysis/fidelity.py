@@ -39,8 +39,41 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def compute_exact_fidelity(circuit, theta: np.ndarray, exact_state: np.ndarray) -> float | None:
-    """Exact fidelity |⟨exact|ψ(θ)⟩|² via statevector. None on error."""
+def compute_exact_fidelity(
+    circuit,
+    theta: np.ndarray,
+    exact_state: np.ndarray,
+    *,
+    cache_ctx: dict | None = None,
+) -> float | None:
+    """Exact fidelity |⟨exact|ψ(θ)⟩|² via statevector. None on error.
+
+    Persistent caching (opt-in). When ``cache_ctx`` is provided it must carry
+    ``topology``, ``n_qubits`` and ``h`` (optionally ``model``, ``p_layers``),
+    and the result is looked up / stored in the shared ``EvalCache`` keyed by
+    (topology, N, h, model, p_layers, θ-hash). This lets any caller — runners
+    via ``ValidationRunner.safe_compute_fidelity`` and offline backfillers —
+    reuse a fidelity already computed for the same (model, N, h, θ) instead of
+    re-diagonalizing. Without ``cache_ctx`` the behavior is unchanged (no cache).
+    """
+    cache = None
+    if cache_ctx is not None and all(k in cache_ctx for k in ("topology", "n_qubits", "h")):
+        try:
+            from qmbp_simulation.execution.eval_cache import EvalCache
+
+            cache = EvalCache()
+            hit = cache.get_fidelity(
+                cache_ctx["topology"], int(cache_ctx["n_qubits"]), float(cache_ctx["h"]),
+                np.asarray(theta),
+                model=cache_ctx.get("model", "tfim"),
+                p_layers=int(cache_ctx.get("p_layers", 0)),
+            )
+            if hit is not None:
+                return hit
+        except Exception as exc:  # noqa: BLE001 - cache is best-effort
+            logger.debug("compute_exact_fidelity: cache lookup skipped: %s", exc)
+            cache = None
+
     try:
         from qiskit.quantum_info import Statevector, state_fidelity
 
@@ -48,10 +81,48 @@ def compute_exact_fidelity(circuit, theta: np.ndarray, exact_state: np.ndarray) 
         fid = float(state_fidelity(Statevector(bound), Statevector(exact_state)))
         if not np.isfinite(fid):
             return None
-        return float(np.clip(fid, 0.0, 1.0))
+        fid = float(np.clip(fid, 0.0, 1.0))
     except (MemoryError, ValueError, AttributeError) as exc:
         logger.debug("compute_exact_fidelity failed: %s", exc)
         return None
+
+    if cache is not None:
+        try:
+            cache.put_fidelity(
+                cache_ctx["topology"], int(cache_ctx["n_qubits"]), float(cache_ctx["h"]),
+                np.asarray(theta), fid,
+                model=cache_ctx.get("model", "tfim"),
+                p_layers=int(cache_ctx.get("p_layers", 0)),
+            )
+            cache.flush()
+        except Exception as exc:  # noqa: BLE001 - never fail on cache write
+            logger.debug("compute_exact_fidelity: cache store skipped: %s", exc)
+
+    return fid
+
+
+def energy_gap_fidelity_bound(
+    e_pred: float,
+    e_exact: float,
+    gap: float,
+) -> dict | None:
+    de = float(e_pred) - float(e_exact)
+    if de < 0:
+        de = 0.0
+    if not (np.isfinite(de) and np.isfinite(gap)) or gap <= 1e-10:
+        return None
+    if de >= 0.5 * gap:
+        return {
+            "fidelity": None,
+            "method": "energy_gap_bound_invalid",
+            "de_gap": de / gap,
+        }
+    f_bound = float(np.clip(1.0 - de / gap, 0.0, 1.0))
+    return {
+        "fidelity": f_bound,
+        "method": "energy_gap_bound",
+        "de_gap": de / gap,
+    }
 
 
 def compute_variance_fidelity_bound(
@@ -242,6 +313,9 @@ def estimate_fidelity_from_primitives(
     *,
     exact_state: np.ndarray | None = None,
     chi_max: int = 64,
+    cache_ctx: dict | None = None,
+    e_pred: float | None = None,
+    e0: float | None = None,
 ) -> dict:
     """Best-available fidelity from already-built primitives, at any N.
 
@@ -267,6 +341,15 @@ def estimate_fidelity_from_primitives(
         small N, falls through to the variance bound.
     chi_max : int
         MPS bond dimension for the variance computation.
+    cache_ctx : dict | None
+        Optional cache context ({topology, n_qubits, h, model, p_layers}) passed
+        through to ``compute_exact_fidelity`` so the exact-path result is stored
+        in / reused from the shared EvalCache. No effect on the bound path.
+    e_pred, e0 : float | None
+        Variational energy ⟨H⟩ and exact ground energy E₀. When both are given,
+        the variance-bound path enforces the Temple/Eckart validity condition
+        (E_pred < (E₀+E₁)/2); otherwise the check is skipped. No effect on the
+        exact path.
 
     Returns
     -------
@@ -279,7 +362,7 @@ def estimate_fidelity_from_primitives(
     from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 
     if n_qubits <= STATEVECTOR_MAX_N and exact_state is not None:
-        fid = compute_exact_fidelity(circuit, theta, exact_state)
+        fid = compute_exact_fidelity(circuit, theta, exact_state, cache_ctx=cache_ctx)
         if fid is not None:
             return {
                 "fidelity": fid,
@@ -288,7 +371,9 @@ def estimate_fidelity_from_primitives(
                 "energy_variance": None,
             }
 
-    bound = compute_variance_fidelity_bound(circuit, theta, hamiltonian, gap, chi_max=chi_max)
+    bound = compute_variance_fidelity_bound(
+        circuit, theta, hamiltonian, gap, chi_max=chi_max, e_pred=e_pred, e0=e0
+    )
     if bound is not None:
         return bound
     return {

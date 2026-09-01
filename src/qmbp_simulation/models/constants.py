@@ -76,6 +76,18 @@ Above this, statevector-based methods (fidelity, entropy) are infeasible.
 Use DMRG energy + skip fidelity for N > 22.
 """
 
+VALIDATOR_MAX_N: int = 22
+"""Maximum N for the automatic result validators in ValidationRunner.run().
+
+VQEValidator and GroundTruthValidator are cheap (algebraic energy bounds,
+no extra solve) so they are safe at any N. This cap exists to bound the
+overall auto-validation cost — above it, the automatic post-run validation
+hook is skipped so large-N runs don't pay for checks that add little value
+at scale. Aligned with EXACT_DIAG_QUBIT_LIMIT (exact reference regime).
+Note: fidelity-dependent ThetaValidator levels (L4+) are separately bounded
+by STATEVECTOR_MAX_N regardless of this value.
+"""
+
 MAX_LBFGSB_ITERS: int = 1000
 
 MPS_DEFAULT_CHI_MAX: int = 64

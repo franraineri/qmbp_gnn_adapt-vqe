@@ -34,6 +34,14 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_RESULTS_ROOT = Path("results/experiments")
 _DEFAULT_PIPELINE_ROOT = Path("results/pipeline")
+TRAINING_DATA_ROOT = Path("data/multi_n_training")
+EXTRAPOLATION_DATA_ROOT = Path("data/large_n_extrapolation")
+EVAL_REPORT_ROOT = Path("results/extrapolation_evals")
+FRUSTRATED_NAMESPACE = "frustrated"
+
+
+def build_data_dir(root: Path, frustrated: bool = False) -> Path:
+    return root / FRUSTRATED_NAMESPACE if frustrated else root
 
 
 def build_experiment_id(
@@ -55,6 +63,51 @@ def build_experiment_id(
             topo_str = topology
         parts.append(topo_str)
     return "/".join(parts)
+
+
+def build_result_subpath(
+    runner_kind: str,
+    model: str,
+    topology: str | list[str] | None = None,
+    p_layers: int | None = None,
+) -> str:
+    """Build the canonical result sub-path shared by JSON and eval reports.
+
+    Produces ``<runner_kind>/<model>/<topology>_p<N>`` so every ValidationRunner
+    organizes its output identically. Extends build_experiment_id by appending
+    the ``_p<N>`` layer suffix to the topology leaf.
+
+    Parameters
+    ----------
+    runner_kind : str
+        The kind of experiment (typically the runner's experiment_id, e.g.
+        "accel_cross_n"). May itself contain slashes (e.g. "frustrated/...").
+    model : str
+        Physics model name (e.g. "tfim_bond_resolved", "tfim_frustrated").
+    topology : str | list[str] | None
+        Lattice topology. A single-element list collapses to that topology;
+        a multi-element list collapses to "multi".
+    p_layers : int | None
+        HVA depth. When provided, appended as "_p<N>" to the topology leaf.
+
+    Returns
+    -------
+    str
+        Path like "accel_cross_n/tfim_bond_resolved/chain_1d_p1".
+    """
+    parts = [runner_kind, model]
+    if topology is not None:
+        if isinstance(topology, list):
+            topo_str = topology[0] if len(topology) == 1 else "multi"
+        else:
+            topo_str = topology
+        if p_layers is not None:
+            topo_str = f"{topo_str}_p{p_layers}"
+        parts.append(topo_str)
+    elif p_layers is not None:
+        # No topology but a p is known — keep the p leaf so paths stay distinct.
+        parts.append(f"p{p_layers}")
+    return "/".join(str(p) for p in parts)
 
 
 def generate_timestamp() -> str:
@@ -1940,6 +1993,8 @@ def persist_predictions_to_training_npz(
 
     from qmbp_simulation.analysis.constants import (
         DE_GAP_THRESHOLD as _DE_GAP,
+    )
+    from qmbp_simulation.analysis.constants import (
         MAX_ABS_ERROR as _MAX_ABS,
     )
     from qmbp_simulation.analysis.metrics import is_point_failure

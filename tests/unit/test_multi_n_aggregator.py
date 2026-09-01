@@ -27,11 +27,21 @@ def npz_data_dir(tmp_path):
 
 @pytest.fixture
 def mock_project_root(tmp_path):
-    """Patch _PROJECT_ROOT to use temp directory."""
+    """Patch _PROJECT_ROOT to use temp directory.
+
+    Also isolates the real training-exclusion registry
+    (data/training_exclusions.json) so that entries for real NPZ files
+    (e.g. chain_1d_N12_p1.npz) do not leak into tests that create files
+    with matching names under tmp_path.
+    """
     import qmbp_simulation.predictors.multi_n_aggregator as mod
+
     original = mod._PROJECT_ROOT
     mod._PROJECT_ROOT = tmp_path
-    yield tmp_path
+    with patch(
+        "qmbp_simulation.analysis.metrics.get_excluded_files", return_value=set()
+    ):
+        yield tmp_path
     mod._PROJECT_ROOT = original
 
 

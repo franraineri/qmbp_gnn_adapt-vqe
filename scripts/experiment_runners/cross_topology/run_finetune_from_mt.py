@@ -66,9 +66,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--p-layers", type=int, default=1)
     parser.add_argument(
         "--loss-type",
-        choices=["theta_mse", "energy_weighted"],
-        default="theta_mse",
-        help="Loss function type (default: theta_mse)",
+        choices=["sign_invariant", "theta_mse", "energy_weighted"],
+        default="sign_invariant",
+        help="Loss function type (default: sign_invariant, Z₂-symmetric)",
     )
     parser.add_argument(
         "--model-name",

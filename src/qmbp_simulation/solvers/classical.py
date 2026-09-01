@@ -590,17 +590,54 @@ class ClassicalSolver:
         # In TeNPy spin-1/2: "up" is Sz=+0.5 eigenstate
         psi = MPS.from_lat_product_state(lat, [["up"]] * n)
 
-        # DMRG parameters
-        _chi = chi_max if chi_max is not None else min(256, max(64, 2 ** (n // 3)))
-        dmrg_params = {
-            "mixer": True,
-            "max_E_err": 1e-12,
-            "trunc_params": {"chi_max": _chi, "svd_min": 1e-14},
-            "max_sweeps": 80,
-        }
+        # DMRG parameters. Graph topologies (heavy_hex/ladder/kagome) linearize a
+        # 2D graph onto a 1D MPS, so long-range MPO bonds demand a larger chi at
+        # big N. Start higher and escalate on truncation failures.
+        if chi_max is not None:
+            _chi = chi_max
+        else:
+            _chi = min(1024, max(128, 2 ** (n // 2)))
 
-        eng = tenpy_dmrg.TwoSiteDMRGEngine(psi, model, dmrg_params)
-        e0, _ = eng.run()
+        def _build_params(chi: int) -> dict:
+            return {
+                "mixer": True,
+                "max_E_err": 1e-12,
+                # svd_min relaxed vs the strict 1e-14 to avoid TenpyInconsistencyError
+                # from unreachable truncation targets; trunc_cut bounds discarded weight.
+                "trunc_params": {"chi_max": chi, "svd_min": 1e-12, "trunc_cut": 1e-10},
+                "max_sweeps": 100,
+            }
+
+        # Escalate chi on TenpyInconsistencyError (max_trunc_err exceeded).
+        chi_ladder = [_chi]
+        while chi_ladder[-1] < 2048:
+            chi_ladder.append(min(2048, chi_ladder[-1] * 2))
+
+        e0 = None
+        last_exc: Exception | None = None
+        for attempt, chi in enumerate(chi_ladder):
+            try:
+                psi_try = MPS.from_lat_product_state(lat, [["up"]] * n)
+                eng = tenpy_dmrg.TwoSiteDMRGEngine(psi_try, model, _build_params(chi))
+                e0, _ = eng.run()
+                psi = psi_try
+                if attempt > 0:
+                    logger.info(
+                        "DMRG graph converged for %s N=%d at chi=%d (attempt %d)",
+                        lattice.topology, n, chi, attempt + 1,
+                    )
+                break
+            except Exception as exc:  # TenpyInconsistencyError + numerical failures
+                last_exc = exc
+                logger.warning(
+                    "DMRG graph attempt %d (chi=%d) failed for %s N=%d h=%.4f: %s",
+                    attempt + 1, chi, lattice.topology, n, h_val, str(exc)[:120],
+                )
+        if e0 is None:
+            raise RuntimeError(
+                f"DMRG graph failed for {lattice.topology} N={n} h={h_val:.4f} "
+                f"after {len(chi_ladder)} chi escalations (max chi={chi_ladder[-1]})."
+            ) from last_exc
 
         # Gap estimation
         from qmbp_simulation.models.constants import EXACT_GAP_QUBIT_LIMIT
@@ -912,21 +949,68 @@ class ClassicalSolver:
         # ── Analytical gap fallback for 1D TFIM ──────────────────────
         if gap == 0.0:
             if lattice.topology == "chain_1d":
-                # Finite-size correction for 1D TFIM (open BC):
-                # Exact gap in thermodynamic limit: Δ_∞ = 2|J - h|
-                # Finite-size correction: Δ(N) ≈ Δ_∞ + π²·J/(N²·max(h,J))
-                # This is more accurate than bare 2|J-h| near h_c where Δ_∞→0
-                delta_inf = 2 * abs(j_val - h_val)
-                finite_size_correction = np.pi**2 * j_val / (n**2 * max(h_val, j_val))
-                gap = max(delta_inf + finite_size_correction, 2 * np.pi / n)
-                gap_method = "analytical_1d"
-                warnings.warn(
-                    f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
-                    f"Using analytical gap={gap:.4f} "
-                    f"(Δ_∞={delta_inf:.4f} + FS correction={finite_size_correction:.4f}).",
-                    RuntimeWarning,
-                    stacklevel=2,
-                )
+                # Prefer the exact gap via sparse eigsh(k=2) when tractable and
+                # safe (n ≤ EXACT_GAP_QUBIT_LIMIT). Near h_c the two lowest levels
+                # form a near-degenerate doublet the DMRG excitation misses, so the
+                # analytical fallback (esp. the 2π/N floor) can be off by ~2x.
+                # Only above the limit do we resort to the analytical estimate.
+                # Ref: EXACT_GAP_QUBIT_LIMIT caps this at N≤18 (ARPACK segfaults on
+                # macOS ARM64 for dim>500k), matching the non-chain branch below.
+                from qmbp_simulation.models.constants import EXACT_GAP_QUBIT_LIMIT
+
+                gap_from_eigsh = False
+                if n <= EXACT_GAP_QUBIT_LIMIT:
+                    try:
+                        from scipy.sparse.linalg import eigsh as _eigsh
+
+                        H_sparse = hamiltonian.to_matrix(sparse=True)
+                        evals_k2 = np.sort(
+                            _eigsh(H_sparse, k=2, which="SA", return_eigenvectors=False)
+                        )
+                        gap = float(evals_k2[1] - evals_k2[0])
+                        gap_method = "eigsh_exact"
+                        gap_from_eigsh = True
+                        logger.info(
+                            "chain_1d gap via eigsh(k=2): N=%d h=%.4f gap=%.6f "
+                            "(analytical floor would be %.6f)",
+                            n,
+                            h_val,
+                            gap,
+                            2 * np.pi / n,
+                        )
+                        if gap < 1e-12:
+                            logger.warning(
+                                "eigsh gap: near-degenerate gap=%.2e for chain_1d "
+                                "N=%d at h=%.4f. ΔE/gap metrics unreliable.",
+                                gap,
+                                n,
+                                h_val,
+                            )
+                    except Exception as exc:
+                        logger.warning(
+                            "eigsh(k=2) failed for chain_1d N=%d at h=%.4f: %s. "
+                            "Falling back to analytical gap.",
+                            n,
+                            h_val,
+                            exc,
+                        )
+
+                if not gap_from_eigsh:
+                    # Finite-size correction for 1D TFIM (open BC):
+                    # Exact gap in thermodynamic limit: Δ_∞ = 2|J - h|
+                    # Finite-size correction: Δ(N) ≈ Δ_∞ + π²·J/(N²·max(h,J))
+                    # This is more accurate than bare 2|J-h| near h_c where Δ_∞→0
+                    delta_inf = 2 * abs(j_val - h_val)
+                    finite_size_correction = np.pi**2 * j_val / (n**2 * max(h_val, j_val))
+                    gap = max(delta_inf + finite_size_correction, 2 * np.pi / n)
+                    gap_method = "analytical_1d"
+                    warnings.warn(
+                        f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}). "
+                        f"Using analytical gap={gap:.4f} "
+                        f"(Δ_∞={delta_inf:.4f} + FS correction={finite_size_correction:.4f}).",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
             else:
                 # For non-chain topologies: use sparse eigsh(k=2) for exact gap
                 # if system size is tractable, otherwise fall back to floor.

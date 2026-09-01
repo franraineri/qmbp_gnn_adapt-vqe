@@ -15,7 +15,8 @@ VENV := source .venv/bin/activate
 .PHONY: help lint format test smoke-test benchmark check check-full \
         hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
         clean typecheck coverage health figures \
-        maintain maintain-full maintain-fix maintain-all-fix maintain-ci dead-code lint-docs
+        maintain maintain-full maintain-fix maintain-all-fix maintain-ci dead-code lint-docs \
+        sync-all sync-all-deep diagnose-all
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -120,6 +121,36 @@ quality-check:  ## Run VQE quality predictor for common configs
 check-all: lint test-full smoke-test  ## Run lint + ALL tests (including slow) + smoke test
 	@echo "✅ Complete validation passed (including slow tests)"
 
+
+# ── Data Sync & Diagnosis ────────────────────────────────────
+
+sync-all:  ## Full project data/metrics sync (all stores: GT, dashboard, scoreboard, zoo, critical ranking, fidelities) — auto-corrects when possible
+	@echo "═══ 1/3  Auto-fix stale e_exact in NPZ from GT cache (creates .bak backups) ═══"
+	$(PYTHON) -c "from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence as v; r=v(fix=True); print('GT↔NPZ fix:', r['summary'])" || true
+	@echo "\n═══ 2/3  post_experiment_sync (GT → dashboard → scoreboard → zoo pass_rate/by_n/critical_ranking → coverage → ResultIndex) ═══"
+	$(PYTHON) -c "from qmbp_simulation.analysis.metrics import post_experiment_sync; post_experiment_sync(verbose=True)" || true
+	@echo "\n═══ 3/3  Fill missing exact fidelities (N<=16, cached — not covered by post_experiment_sync) ═══"
+	$(PYTHON) -c "from qmbp_simulation.predictors.model_zoo import backfill_missing_fidelities as b; print('fidelity backfill:', b())" || true
+	@echo "\n✅ Full sync complete (auto-fix + metric consolidation + fidelity fill)"
+
+sync-all-deep:  ## Deep sync: re-evaluate ENERGY (MPS |dE|) of every zoo model, then full sync (slow)
+	@echo "═══ 0/5  Deep zoo re-evaluation with energy (MPS |dE|, updates pass_rate) ═══"
+	@echo "    (this is the slow step — evaluates every multi-N model's energy, no 120s cap)"
+	$(PYTHON) scripts/analysis/evaluate_zoo_models.py --update-zoo --energy-eval
+	@echo "\n═══ 1-4/5  Full consolidation (post_experiment_sync + backfills) ═══"
+	$(MAKE) sync-all
+	@echo "\n✅ Deep sync complete (fresh energy eval + full consolidation)"
+
+diagnose-all:  ## Full project diagnosis (data stores + consistency + GT/NPZ coherence + critical-ranking drift)
+	@echo "═══ 1/4  Data stores inventory (GT, NPZ, zoo, dashboard) ═══"
+	$(PYTHON) scripts/maintenance/inspect_data_stores.py --validate-dashboard || true
+	@echo "\n═══ 2/4  Cross-store consistency (zoo ↔ comparison ↔ dashboard ↔ registry) ═══"
+	$(PYTHON) scripts/maintenance/query_model_registry.py consistency || true
+	@echo "\n═══ 3/4  GT ↔ NPZ coherence (stale e_exact detection) ═══"
+	$(PYTHON) -c "from qmbp_simulation.analysis.metrics import validate_gt_npz_coherence; print(validate_gt_npz_coherence()['summary'])" || true
+	@echo "\n═══ 4/4  Critical-ranking drift (pass_rate vs empirical grade near h_c) ═══"
+	$(PYTHON) -c "from qmbp_simulation.analysis.metrics import validate_data_consistency as v; issues=v().get('critical_ranking_issues',[]); print(f'{len(issues)} drift issue(s)'); [print(' DRIFT:', i['checkpoint'][:45], '->', i['issue'][:80]) for i in issues]" || true
+	@echo "\n✅ Full diagnosis complete"
 
 # ── Maintenance Checks ───────────────────────────────────────
 

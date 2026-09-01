@@ -58,10 +58,12 @@ class MultiNAggregator:
         p_layers: int = 1,
         h_min: float | None = None,
         h_max: float | None = None,
+        include_orbit_feature: bool = False,
     ) -> None:
         self.topology = topology
         self.model = model
         self.p_layers = p_layers
+        self.include_orbit_feature = include_orbit_feature
         self._results_dir = results_dir or _RESULTS_DIR
         self._data_by_n: dict[int, list[dict[str, Any]]] = {}
         self.max_n = max_n  # If set, exclude N > max_n from training data
@@ -375,6 +377,30 @@ class MultiNAggregator:
 
         return points
 
+    @staticmethod
+    def _infer_include_nnn(lattice, points: list[dict]) -> bool:
+        """Detect frustrated (NN+NNN) data by matching theta length to bond counts.
+
+        NN-only bond-resolved θ has (n_nn + N) params per layer; the frustrated
+        variant has (n_nn + n_nnn + N). Returns True when the sampled θ length
+        matches the NN+NNN expectation for some p_layers.
+        """
+        if not points:
+            return False
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        N = lattice.n_qubits
+        n_nn = len(lattice.edges)
+        n_nnn = len(HamiltonianBuilder._generate_nnn_edges(lattice))
+        theta_len = len(np.asarray(points[0]["theta"], dtype=np.float64))
+        nn_per_layer = n_nn + N
+        frust_per_layer = n_nn + n_nnn + N
+        if frust_per_layer > 0 and theta_len % frust_per_layer == 0:
+            if nn_per_layer > 0 and theta_len % nn_per_layer == 0:
+                return frust_per_layer != nn_per_layer and theta_len // frust_per_layer >= 1
+            return True
+        return False
+
     def build_combined_dataset(
         self,
         max_de_gap: float = 0.10,
@@ -543,6 +569,7 @@ class MultiNAggregator:
                 continue
 
             lattice = make_lattice(self.topology, n, J=1.0, h=2.0)
+            include_nnn = self._infer_include_nnn(lattice, filtered)
 
             # Count tiers for logging
             n_verified = sum(1 for p in filtered if p.get("quality_tier") == "verified")
@@ -566,6 +593,8 @@ class MultiNAggregator:
                     h_value=pt["h"],
                     p_layers=self.p_layers,
                     include_circuit_nodes=True,
+                    include_nnn=include_nnn,
+                    include_orbit_feature=self.include_orbit_feature,
                 )
                 # Ensure theta is float before torch conversion (safety against object arrays)
                 theta_arr = np.asarray(pt["theta"], dtype=np.float64)
@@ -585,6 +614,16 @@ class MultiNAggregator:
                 g.de_gap = torch.tensor([pt["de_gap"]], dtype=torch.float32)
                 if "abs_error" in pt and pt["abs_error"] is not None:
                     g.abs_error = torch.tensor([pt["abs_error"]], dtype=torch.float32)
+
+                # Attach physics metadata so training can rebuild the HVA
+                # circuit + Hamiltonian for a real E(θ_pred) evaluation
+                # (physics-informed loss). Plain scalars — cheap, ignored by
+                # PyG batching, read only by the physics-loss path.
+                g.phys_topology = self.topology
+                g.phys_model = self.model
+                g.phys_h = float(pt["h"])
+                g.phys_n_qubits = int(n)
+                g.phys_p_layers = int(self.p_layers)
 
                 dataset.append(g)
 
@@ -618,6 +657,8 @@ class MultiNAggregator:
                                     h_value=pt["h"],
                                     p_layers=self.p_layers,
                                     include_circuit_nodes=True,
+                                    include_nnn=include_nnn,
+                                    include_orbit_feature=self.include_orbit_feature,
                                 )
                                 g_aug.y = torch.tensor(
                                     var_theta.astype(np.float32), dtype=torch.float32
@@ -625,6 +666,15 @@ class MultiNAggregator:
                                 g_aug.sample_weight = torch.tensor(
                                     [QUALITY_TIER_WEIGHT_AUGMENTED], dtype=torch.float32
                                 )
+                                g_aug.e_exact = torch.tensor(
+                                    [pt["e_exact"]], dtype=torch.float32
+                                )
+                                g_aug.de_gap = torch.tensor([pt["de_gap"]], dtype=torch.float32)
+                                g_aug.phys_topology = self.topology
+                                g_aug.phys_model = self.model
+                                g_aug.phys_h = float(pt["h"])
+                                g_aug.phys_n_qubits = int(n)
+                                g_aug.phys_p_layers = int(self.p_layers)
                                 dataset.append(g_aug)
                                 n_augmented += 1
                     except Exception as e:

@@ -100,9 +100,12 @@ def evaluate_direct_fidelity(
         logger.warning(f"  No model for {topology}: {e}")
         return None
 
-    # Predict θ
+    # Predict θ. include_circuit_nodes=True is required for UnifiedMPNN — the
+    # graph must carry the per-node circuit structure or the prediction is wrong.
     lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
-    graph = build_unified_bond_resolved_graph(lattice, h_value=h, p_layers=p_layers)
+    graph = build_unified_bond_resolved_graph(
+        lattice, h_value=h, p_layers=p_layers, include_circuit_nodes=True
+    )
     with torch.no_grad():
         theta_pred = model(graph).cpu().numpy().flatten()
 
@@ -119,44 +122,48 @@ def evaluate_direct_fidelity(
     backend = NoiselessBackend()
     psi_gnn = backend.get_statevector(circuit, theta_pred)
 
-    # Get exact ground state
-    builder = HamiltonianBuilder()
-    H_op = builder.build(lattice)
-    if n_qubits <= 14:
-        from scipy.linalg import eigh
+    # Ground truth E₀ + gap via the pipeline solver (2-level GT cache): reuses
+    # cached values when available and persists new ones, instead of a fresh
+    # eigsh on every call. We still need the GS *vector* for exact fidelity, so
+    # request it from the solver (which returns ground_state for N ≤ its exact
+    # limit).
+    from qmbp_simulation.models.model_registry import get_model_spec
+    from qmbp_simulation.solvers.classical import ClassicalSolver
 
-        H_dense = np.asarray(H_op.to_matrix())
-        eigenvalues, eigenvectors = eigh(H_dense)
-        psi_exact = eigenvectors[:, 0]
-        e_exact = eigenvalues[0]
-        gap = eigenvalues[1] - eigenvalues[0]
-    else:
-        from scipy.sparse.linalg import eigsh
+    spec = get_model_spec("tfim_bond_resolved")
+    H_op = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+    solver = ClassicalSolver()
+    gt = solver.solve(H_op, lattice)
+    e_exact = float(gt.ground_energy)
+    gap = float(gt.gap)
 
-        H_sparse = H_op.to_matrix(sparse=True)
-        eigenvalues, eigenvectors = eigsh(H_sparse, k=2, which="SA")
-        idx = np.argsort(eigenvalues)
-        psi_exact = eigenvectors[:, idx[0]]
-        e_exact = eigenvalues[idx[0]]
-        gap = eigenvalues[idx[1]] - eigenvalues[idx[0]]
-
-    psi_exact /= np.linalg.norm(psi_exact)
-
-    # Compute fidelity via the canonical helper: it routes both states through
-    # Qiskit's Statevector/state_fidelity, keeping a single qubit-ordering
-    # convention and avoiding a raw np.vdot overlap that is exposed to endianness
-    # mismatches between the circuit and the solver eigenvector.
-    from qmbp_simulation.analysis.fidelity import compute_exact_fidelity
-
-    fidelity = compute_exact_fidelity(circuit, theta_pred, psi_exact)
-    if fidelity is None:
-        logger.warning(f"  Exact fidelity failed for {topology} N={n_qubits} h={h}")
-        return None
-
-    # Also compute energy of GNN state
-    H_mat = H_op.to_matrix(sparse=True) if n_qubits > 14 else np.asarray(H_op.to_matrix())
+    # Energy of the GNN state ⟨ψ|H|ψ⟩ (sparse to stay feasible at larger N).
+    H_mat = H_op.to_matrix(sparse=True)
     e_pred = float(np.real(psi_gnn.conj() @ (H_mat @ psi_gnn)))
     de_gap = abs(e_pred - e_exact) / max(gap, 1e-10)
+
+    # Fidelity via the canonical estimator: exact statevector overlap when the
+    # GS vector is available (routed through Qiskit Statevector/state_fidelity —
+    # no endianness risk), else the guarded Eckart variance bound.
+    from qmbp_simulation.analysis.fidelity import estimate_fidelity_from_primitives
+
+    fid_info = estimate_fidelity_from_primitives(
+        circuit,
+        theta_pred,
+        H_op,
+        gap,
+        n_qubits,
+        exact_state=gt.ground_state,
+        e_pred=e_pred,
+        e0=e_exact,
+    )
+    fidelity = fid_info.get("fidelity")
+    method = "direct_statevector" if fid_info.get("method") == "exact" else fid_info.get("method")
+    if fidelity is None:
+        logger.warning(
+            f"  Fidelity unavailable for {topology} N={n_qubits} h={h} "
+            f"(method={fid_info.get('method')})"
+        )
 
     # Persist GT to cache (free data)
     try:
@@ -167,8 +174,8 @@ def evaluate_direct_fidelity(
                 n_qubits=n_qubits,
                 model="tfim_bond_resolved",
                 h=h,
-                energy=float(e_exact),
-                gap=float(gap),
+                energy=e_exact,
+                gap=gap,
                 method="fidelity_eval",
             )
             gt_cache.flush()
@@ -178,11 +185,11 @@ def evaluate_direct_fidelity(
     return FidelityResult(
         n_qubits=n_qubits,
         h=h,
-        fidelity=fidelity,
-        method="direct_statevector",
+        fidelity=fidelity if fidelity is not None else float("nan"),
+        method=method,
         e_pred=e_pred,
-        e_exact=float(e_exact),
-        gap=float(gap),
+        e_exact=e_exact,
+        gap=gap,
         de_gap=de_gap,
     )
 
@@ -236,31 +243,23 @@ def evaluate_energy_bound(
     e_exact = np.asarray(data["e_exact"], dtype=float)
     gaps = np.asarray(data["gaps"], dtype=float)
 
+    from qmbp_simulation.analysis.fidelity import energy_gap_fidelity_bound
+
     results = []
     for i in range(len(h_values)):
-        if not (np.isfinite(e_vqe[i]) and np.isfinite(e_exact[i]) and gaps[i] > 1e-10):
+        bound = energy_gap_fidelity_bound(e_vqe[i], e_exact[i], gaps[i])
+        if bound is None or bound["fidelity"] is None:
             continue
-        de = e_vqe[i] - e_exact[i]
-        if de < 0:
-            de = 0  # Variational principle: E_pred >= E_exact (numerical noise)
-        # Validity: skip points where the state sits past the E₀↔E₁ midpoint —
-        # there the bound no longer certifies ground-state fidelity.
-        if de >= 0.5 * gaps[i]:
-            continue
-        f_bound = 1.0 - de / gaps[i]
-        f_bound = max(0.0, min(1.0, f_bound))  # Clamp to [0, 1]
-        de_gap = abs(e_vqe[i] - e_exact[i]) / gaps[i]
-
         results.append(
             FidelityResult(
                 n_qubits=n_qubits,
                 h=float(h_values[i]),
-                fidelity=f_bound,
-                method="energy_gap_bound",
+                fidelity=bound["fidelity"],
+                method=bound["method"],
                 e_pred=float(e_vqe[i]),
                 e_exact=float(e_exact[i]),
                 gap=float(gaps[i]),
-                de_gap=de_gap,
+                de_gap=bound["de_gap"],
             )
         )
 
@@ -328,11 +327,13 @@ def run_fidelity_evaluation(
                         f"  N={n}, h={h:.1f}: F={result.fidelity:.4f}, ΔE/gap={result.de_gap:.4f}"
                     )
 
-    # Hardware viability check
     if report.results:
+        from qmbp_simulation.analysis.metrics import assess_hardware_viability
+
         f_min = report.f_min_reference if report.f_min_reference is not None else 0.50
-        all_above = all(r.fidelity > f_min for r in report.results)
-        report.hardware_viable = all_above
+        fids = [r.fidelity for r in report.results]
+        verdict = assess_hardware_viability({"min_fidelity": min(fids), "mean_fidelity": float(np.mean(fids))}, f_min)
+        report.hardware_viable = verdict["hardware_viable"]
 
     return report
 

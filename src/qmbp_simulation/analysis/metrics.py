@@ -149,6 +149,9 @@ def is_point_failure(
     *,
     de_gap_threshold: float = DE_GAP_THRESHOLD,
     max_abs_error: float = MAX_ABS_ERROR,
+    fidelity: float | None = None,
+    min_fidelity: float | None = None,
+    fidelity_is_bound: bool = False,
 ) -> bool:
     """Determine if a single evaluation point is a failure using the dual
     energy criterion.
@@ -157,9 +160,13 @@ def is_point_failure(
     1. ΔE/gap >= threshold (relative error too large)
     2. |ΔE| > max_abs_error (absolute error too large, prevents gap masking)
 
-    Fidelity is intentionally NOT a pass/fail criterion. It is recorded as a
-    diagnostic metric only (see compute_deploy_summary / evaluation_report),
-    because at large N it is a lower bound and would misclassify good points.
+    Fidelity is OFF by default as a pass/fail criterion (recorded as a
+    diagnostic only), because at large N it is a lower bound and would
+    misclassify good points. It can be OPTIONALLY enabled by passing both
+    ``fidelity`` and ``min_fidelity``: a point then also fails if
+    ``fidelity < min_fidelity``. A ``fidelity_is_bound=True`` value (Eckart
+    lower bound at large N) is NEVER used to fail a point, since a low bound is
+    inconclusive — only an exact fidelity below the threshold gates.
 
     Handles edge cases:
     - NaN/Inf in de_gap or abs_error → automatic failure (corrupted data)
@@ -201,6 +208,13 @@ def is_point_failure(
         if not np.isfinite(abs_error):
             return True
         if abs_error > max_abs_error:
+            return True
+
+    # Criterion 3 (OPT-IN): fidelity floor. Only when a threshold is supplied
+    # and the fidelity is an EXACT value (never gate on a lower bound, which is
+    # inconclusive when low). Off by default → identical to the dual criterion.
+    if min_fidelity is not None and fidelity is not None and not fidelity_is_bound:
+        if np.isfinite(fidelity) and fidelity < min_fidelity:
             return True
 
     return False
@@ -1092,10 +1106,32 @@ def bootstrap_ci_mean(
     return (lo, hi)
 
 
+def assess_hardware_viability(
+    summary: dict[str, Any],
+    fidelity_threshold: float,
+) -> dict[str, Any]:
+    min_fid = summary.get("min_fidelity")
+    mean_fid = summary.get("mean_fidelity")
+    if min_fid is None:
+        return {
+            "hardware_viable": False,
+            "f_min_threshold": float(fidelity_threshold),
+            "reason": "no_fidelity_data",
+        }
+    return {
+        "hardware_viable": bool(min_fid > fidelity_threshold),
+        "f_min_threshold": float(fidelity_threshold),
+        "min_fidelity": float(min_fid),
+        "mean_fidelity": float(mean_fid) if mean_fid is not None else None,
+        "fidelity_is_lower_bound": bool(summary.get("fidelity_is_lower_bound", False)),
+    }
+
+
 def compute_deploy_summary(
     per_h_results: list[dict],
     *,
     thresholds: tuple[float, ...] = (0.05, 0.10),
+    fidelity_threshold: float | None = None,
 ) -> dict[str, Any]:
     """Compute pass rates and summary statistics from per-h deployment results.
 
@@ -1247,6 +1283,9 @@ def compute_deploy_summary(
     dg_lo, dg_hi = bootstrap_ci_mean(de_gaps)
     summary["mean_de_gap_ci_lower"] = dg_lo
     summary["mean_de_gap_ci_upper"] = dg_hi
+
+    if fidelity_threshold is not None:
+        summary.update(assess_hardware_viability(summary, fidelity_threshold))
 
     return summary
 
@@ -2934,8 +2973,10 @@ def validate_gt_npz_coherence(
     n_files_with_issues = 0
     n_points_checked = 0
     n_points_mismatched = 0
+    n_gap_points_mismatched = 0
     n_points_not_in_gt = 0
     n_points_fixed = 0
+    n_gap_points_fixed = 0
     max_delta_global = 0.0
     issues: list[dict] = []
 
@@ -2979,10 +3020,14 @@ def validate_gt_npz_coherence(
             except ValueError:
                 continue
 
+            gaps_npz = data["gaps"] if "gaps" in data else None
+
             n_files_checked += 1
             file_mismatches = 0
             file_max_delta = 0.0
             corrections: dict[int, float] = {}  # idx → new e_exact
+            gap_corrections: dict[int, float] = {}  # idx → new gap
+            file_gap_mismatches = 0
 
             config_key = (topo, n_val, "tfim_bond_resolved")
             h_lookup = gt_h_index.get(config_key, {})
@@ -3015,9 +3060,22 @@ def validate_gt_npz_coherence(
                     max_delta_global = max(max_delta_global, delta)
                     corrections[i] = float(gt_e)
 
-            if file_mismatches > 0:
+                # Gap coherence: the gap is a property of the Hamiltonian, so a
+                # stale NPZ gap silently corrupts ΔE/gap (the primary metric).
+                # Check it against the GT cache with the same tolerance.
+                gt_gap = gt_entry.get("gap")
+                if gaps_npz is not None and gt_gap is not None:
+                    gap_delta = abs(float(gaps_npz[i]) - float(gt_gap))
+                    if gap_delta > tolerance:
+                        file_gap_mismatches += 1
+                        gap_corrections[i] = float(gt_gap)
+                        file_max_delta = max(file_max_delta, gap_delta)
+                        max_delta_global = max(max_delta_global, gap_delta)
+
+            if file_mismatches > 0 or file_gap_mismatches > 0:
                 n_files_with_issues += 1
                 n_points_mismatched += file_mismatches
+                n_gap_points_mismatched += file_gap_mismatches
 
                 # Compute impact on metrics
                 affected_pass_rate_delta = 0.0
@@ -3045,13 +3103,14 @@ def validate_gt_npz_coherence(
                         "topology": topo,
                         "n_qubits": n_val,
                         "n_mismatched": file_mismatches,
+                        "n_gap_mismatched": file_gap_mismatches,
                         "n_total": len(h_vals),
                         "max_delta": file_max_delta,
                         "pass_rate_impact": affected_pass_rate_delta,
                     }
                 )
 
-                if fix and corrections:
+                if fix and (corrections or gap_corrections):
                     # Backup original
                     bak_path = npz_file.with_suffix(".npz.bak")
                     if not bak_path.exists():
@@ -3064,7 +3123,14 @@ def validate_gt_npz_coherence(
                         new_e_exact[idx] = val
                     arrays["e_exact"] = new_e_exact
 
-                    # Also recompute de_gaps if present
+                    # Correct stale gaps from GT cache too.
+                    if gap_corrections and "gaps" in arrays:
+                        new_gaps = arrays["gaps"].copy()
+                        for idx, val in gap_corrections.items():
+                            new_gaps[idx] = val
+                        arrays["gaps"] = new_gaps
+
+                    # Recompute de_gaps using the corrected e_exact AND gaps.
                     e_key = (
                         "e_vqe"
                         if "e_vqe" in arrays
@@ -3078,10 +3144,13 @@ def validate_gt_npz_coherence(
 
                     np.savez(str(npz_file), **arrays)
                     n_points_fixed += len(corrections)
+                    n_gap_points_fixed += len(gap_corrections)
                     logger.info(
-                        "validate_gt_npz_coherence: fixed %s (%d points, max_delta=%.2e)",
+                        "validate_gt_npz_coherence: fixed %s (%d e_exact, %d gap, "
+                        "max_delta=%.2e)",
                         npz_file.name,
                         len(corrections),
+                        len(gap_corrections),
                         file_max_delta,
                     )
 
@@ -3092,12 +3161,17 @@ def validate_gt_npz_coherence(
             f"({n_points_checked} points checked, {n_points_not_in_gt} not in GT)."
         )
     else:
-        fix_status = (
-            f" ({n_points_fixed} points fixed)" if fix else " (run with fix=True to correct)"
+        if fix:
+            fix_status = f" ({n_points_fixed} e_exact, {n_gap_points_fixed} gap fixed)"
+        else:
+            fix_status = " (run with fix=True to correct)"
+        gap_str = (
+            f", {n_gap_points_mismatched} stale gap" if n_gap_points_mismatched else ""
         )
         summary = (
-            f"⚠️ {n_files_with_issues}/{n_files_checked} files have stale e_exact "
-            f"({n_points_mismatched} points, max_delta={max_delta_global:.2e}){fix_status}"
+            f"⚠️ {n_files_with_issues}/{n_files_checked} files stale: "
+            f"{n_points_mismatched} e_exact{gap_str} "
+            f"(max_delta={max_delta_global:.2e}){fix_status}"
         )
         if not fix:
             logger.warning("GT↔NPZ coherence: %s", summary)
@@ -3107,8 +3181,10 @@ def validate_gt_npz_coherence(
         "n_files_with_issues": n_files_with_issues,
         "n_points_checked": n_points_checked,
         "n_points_mismatched": n_points_mismatched,
+        "n_gap_points_mismatched": n_gap_points_mismatched,
         "n_points_not_in_gt": n_points_not_in_gt,
         "n_points_fixed": n_points_fixed,
+        "n_gap_points_fixed": n_gap_points_fixed,
         "max_delta": max_delta_global,
         "issues": issues,
         "summary": summary,
@@ -3836,12 +3912,22 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
     try:
         from qmbp_simulation.predictors.model_zoo import (
             _load_manifest,
+            backfill_critical_ranking_from_evals,
             backfill_pass_rate_by_n_from_comparisons,
             update_zoo_pass_rate,
         )
 
         # Backfill pass_rate_by_n from comparison history
         n_backfilled = backfill_pass_rate_by_n_from_comparisons()
+
+        # Backfill the empirical critical h-window ranking ([0.8, 1.8]) from the
+        # per-h eval reports. Keeps load_best_model_for(h_regime="critical")
+        # synced with the newest experiments. Best-effort — never blocks sync.
+        try:
+            n_crit = backfill_critical_ranking_from_evals()
+            _log(f"  ✅ Critical-window ranking: {n_crit} entries updated")
+        except Exception as _crit_exc:  # noqa: BLE001
+            _log(f"  ⚠️ Critical-window ranking backfill skipped: {_crit_exc}")
 
         # Auto-correct inflated zoo entries (zoo > comparison by >25%)
         entries = _load_manifest()
@@ -3942,6 +4028,30 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
     except Exception as e:
         results["steps_failed"].append(f"tier3_validations: {e}")
         _log(f"  ❌ Tier 3 failed: {e}")
+
+    # ── Data consistency cross-check (zoo↔comparison↔dashboard↔registry) ──
+    # Runs automatically now (was manual): detects pass_rate drift across the
+    # independent data sources so incoherence surfaces every run, not only when
+    # someone remembers to run it. Non-blocking.
+    try:
+        consistency = validate_data_consistency(verbose=verbose)
+        n_disc = consistency.get("n_issues", 0)
+        results["data_consistency"] = {
+            "is_consistent": consistency.get("is_consistent", True),
+            "n_checks": consistency.get("n_checks", 0),
+            "n_issues": n_disc,
+        }
+        results["steps_completed"].append("data_consistency")
+        if n_disc > 0:
+            _log(
+                f"  ⚠️ Data consistency: {n_disc} discrepancies across "
+                f"{consistency.get('n_checks', 0)} checks (zoo↔comparison↔dashboard↔registry)"
+            )
+        else:
+            _log("  ✅ Data consistency: all sources coherent")
+    except Exception as e:
+        results["steps_failed"].append(f"data_consistency: {e}")
+        _log(f"  ❌ Data consistency failed: {e}")
 
     # ── DQPT trajectory inventory (lightweight scan for status report) ───
     try:
@@ -4417,6 +4527,41 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
     except Exception as e:
         logger.debug("validate_data_consistency: scoreboard cross-check failed: %s", e)
 
+    # ── Critical-ranking cross-check (empirical h-window vs metadata) ───────
+    # The critical_ranking stores measured |ΔE|/fidelity in the critical window.
+    # Flag entries whose empirical grade contradicts the nominal pass_rate — a
+    # strong drift signal (e.g. pass_rate high but critical-window grade F).
+    critical_ranking_issues: list[dict] = []
+    try:
+        from qmbp_simulation.predictors.model_zoo import _critical_window_key, _load_manifest
+
+        _win = _critical_window_key()
+        for entry in _load_manifest():
+            crit = entry.critical_ranking.get(_win) if entry.critical_ranking else None
+            if not crit:
+                continue
+            grade = crit.get("grade")
+            # pass_rate ≥ 0.7 but the critical window is graded F/D → contradictory.
+            if entry.pass_rate >= 0.70 and grade in ("F", "D"):
+                critical_ranking_issues.append(
+                    {
+                        "checkpoint": entry.checkpoint_file,
+                        "p_layers": entry.p_layers,
+                        "issue": (
+                            f"pass_rate={entry.pass_rate:.0%} but critical-window "
+                            f"[{_win}] grade={grade} (|ΔE|_mean="
+                            f"{crit.get('abs_error_mean')}). Metadata likely stale "
+                            f"for the critical regime."
+                        ),
+                    }
+                )
+        if critical_ranking_issues and verbose:
+            print(f"\n  Critical-ranking cross-check: {len(critical_ranking_issues)} issue(s)")
+            for ci in critical_ranking_issues:
+                print(f"    ⚠️ {ci['checkpoint'][:40]} p={ci['p_layers']}: {ci['issue']}")
+    except Exception as e:
+        logger.debug("validate_data_consistency: critical-ranking cross-check failed: %s", e)
+
     return {
         "is_consistent": is_consistent,
         "n_checks": n_checks,
@@ -4426,6 +4571,7 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
         "registry_vs_curves": registry_vs_curves,
         "cross_n_selection_issues": cross_n_selection_issues,
         "scoreboard_issues": scoreboard_issues,
+        "critical_ranking_issues": critical_ranking_issues,
         "tier3": tier3_report,
     }
 
