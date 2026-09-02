@@ -247,6 +247,13 @@ done
 
 .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 2.0 --model-name h_0p5_1p5_v3 --force-retrain
 
-for N in 4 8 10 12 16 20; do
-  .venv/bin/python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py    --topology chain_1d --p-layers 2    --target-n $N    --checkpoint h_0p5_1p5_v3    --h-min 0.5 --h-max 2.0 --h-points 23    --iterative-improve --max-iterations 3 --refine-all    --skip-retrain
+for N in 4 6 8 10 12 16 20; do
+  python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py    --topology chain_1d --p-layers 2    --target-n $N    --checkpoint h_0p5_1p5    --h-min 0.5 --h-max 1.5 --h-points 12    --iterative-improve --max-iterations 3 --refine-all    --skip-retrain
+done
+
+
+python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py --topology chain_1d --p-layers 1 --multi-n-train --train-h-min 0.5 --train-h-max 2.0 --model-name h_0p5_1p5_v3 --force-retrain
+
+for N in 10 12 16 20; do
+  python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py    --topology chain_1d --p-layers 2    --target-n $N    --checkpoint h_0p5_1p5_v3    --h-min 0.5 --h-max 2.0 --h-points 18    --iterative-improve --max-iterations 3 --refine-all    --skip-retrain
 done

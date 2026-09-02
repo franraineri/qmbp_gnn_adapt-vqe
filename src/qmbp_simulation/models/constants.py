@@ -150,7 +150,7 @@ VQE_RESTART_IMPROVEMENT_TOL: float = 1e-10
 """Minimum energy improvement to count a restart as 'useful'.
 Energy changes smaller than this are treated as stagnation."""
 
-MIN_N_RESTARTS: int = 3
+MIN_N_RESTARTS: int = 1
 """Hard floor on VQE restarts per point for any run. Applied to both the
 user-supplied --n-restarts and the adaptive per-point allocation
 (compute_adaptive_restarts / compute_restarts_for_sweep), so even 'easy'

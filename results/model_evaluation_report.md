@@ -1,8 +1,8 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-09-01 00:07 UTC
-**Elapsed**: 41.7s
-**Models evaluated**: 40
+**Generated**: 2026-08-29 18:13 UTC
+**Elapsed**: 75.6s
+**Models evaluated**: 39
 
 ---
 
@@ -108,7 +108,7 @@
 | 8 | IN | 8 | 4.2081e-02 | — | — | 0.0666 | C |
 | 8 | IN | 8 | 9.9763e-02 | — | — | 0.0180 | A |
 | 8 | IN | 8 | 6.2856e-03 | — | — | 3.0954 | F |
-| 10 | IN | 8 | 1.2319e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 1.2319e-02 | — | — | 39.1834 | F |
 | 10 | IN | 8 | 1.9627e-01 | — | — | 0.0286 | B |
 | 10 | IN | 8 | 2.8675e-02 | — | — | 0.0333 | B |
 | 10 | IN | 8 | 7.5771e-02 | — | — | 0.0194 | A |
@@ -117,7 +117,7 @@
 | 12 | IN | 8 | 3.0902e-01 | — | — | 0.0571 | C |
 | 12 | IN | 8 | 1.2309e-02 | — | — | 0.0319 | B |
 | 12 | IN | 8 | 6.4605e-02 | — | — | 0.3563 | F |
-| 12 | IN | 8 | 5.4536e-03 | — | — | 1.0070 | F |
+| 12 | IN | 8 | 5.4597e-03 | — | — | 1.0070 | F |
 | 14 | IN | 8 | 2.1407e-02 | — | — | 3806.6317 | F |
 | 14 | IN | 8 | 1.7882e-01 | — | — | 24.6514 | F |
 | 14 | IN | 8 | 6.9374e-02 | — | — | 0.1866 | D |
@@ -276,7 +276,7 @@
 | 4 | IN | 8 | 2.0312e-01 | — | — | 0.1444 | D |
 | 6 | IN | 8 | 3.9338e-02 | — | — | 0.4339 | F |
 | 8 | IN | 8 | 5.0125e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 1.1206e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 1.1206e-02 | — | — | 39.1834 | F |
 | 12 | IN | 8 | 2.4774e-02 | — | — | 154.7274 | F |
 | 14 | IN | 8 | 2.0176e-02 | — | — | 3806.6317 | F |
 | 15 | IN | 8 | 1.2750e-01 | — | — | 0.0154 | A |
@@ -321,7 +321,7 @@
 | 4 | IN | 8 | 2.0390e-01 | — | — | 0.1444 | D |
 | 6 | IN | 8 | 4.0025e-02 | — | — | 0.4339 | F |
 | 8 | IN | 8 | 5.3616e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 2.6620e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 2.6620e-02 | — | — | 39.1834 | F |
 | 12 | IN | 8 | 7.4206e-02 | — | — | 154.7274 | F |
 | 14 | IN | 8 | 8.2610e-02 | — | — | 3806.6317 | F |
 | 15 | IN | 8 | 2.0189e-01 | — | — | 0.0154 | A |
@@ -366,7 +366,7 @@
 | 4 | IN | 8 | 2.0390e-01 | — | — | 0.1444 | D |
 | 6 | IN | 8 | 4.0025e-02 | — | — | 0.4339 | F |
 | 8 | IN | 8 | 5.3616e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 2.6620e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 2.6620e-02 | — | — | 39.1834 | F |
 | 12 | IN | 8 | 7.4206e-02 | — | — | 154.7274 | F |
 | 14 | IN | 8 | 8.2610e-02 | — | — | 3806.6317 | F |
 | 15 | IN | 8 | 2.0189e-01 | — | — | 0.0154 | A |
@@ -694,7 +694,7 @@
 |---|--------|-----|-------|------|--------|--------|-------|
 | 4 | IN | 8 | 9.5941e-01 | — | — | 0.0205 | A |
 | 6 | IN | 8 | 4.9899e-02 | — | — | 0.0086 | A |
-| 8 | IN | 8 | 8.3857e-01 | — | — | 478.3574 | F |
+| 8 | IN | 8 | 8.3856e-01 | — | — | 478.3574 | F |
 | 10 | IN | 8 | 4.2392e-02 | — | — | 0.0286 | B |
 | 12 | IN | 8 | 2.6340e-01 | — | — | 0.0571 | C |
 | 14 | IN | 8 | 3.8595e-03 | — | — | 24.6514 | F |
@@ -867,7 +867,7 @@
 | 4 | IN | 8 | 2.1148e-01 | — | — | 0.1444 | D |
 | 6 | IN | 8 | 4.2540e-02 | — | — | 0.4339 | F |
 | 8 | IN | 8 | 5.0934e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 1.1774e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 1.1774e-02 | — | — | 39.1834 | F |
 | 12 | IN | 8 | 2.4962e-02 | — | — | 154.7274 | F |
 | 14 | IN | 8 | 1.5538e-02 | — | — | 3806.6317 | F |
 | 15 | IN | 8 | 1.3606e-01 | — | — | 0.0154 | A |
@@ -912,7 +912,7 @@
 | 4 | IN | 8 | 2.3961e-01 | — | — | 0.1444 | D |
 | 6 | IN | 8 | 6.5744e-02 | — | — | 0.4339 | F |
 | 8 | IN | 8 | 5.9434e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 3.5540e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 3.5540e-02 | — | — | 39.1834 | F |
 | 12 | IN | 8 | 4.6056e-02 | — | — | 154.7274 | F |
 | 14 | IN | 8 | 2.2666e-02 | — | — | 3806.6317 | F |
 | 15 | IN | 8 | 1.8320e-01 | — | — | 0.0154 | A |
@@ -1072,7 +1072,7 @@
 
 | N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
 |---|--------|-----|-------|------|--------|--------|-------|
-| 4 | IN | 8 | 8.4447e-03 | — | — | 0.0593 | C |
+| 4 | IN | 8 | 8.4446e-03 | — | — | 0.0593 | C |
 | 6 | IN | 8 | 3.1543e-02 | — | — | 0.0196 | A |
 | 8 | IN | 8 | 4.3556e-02 | — | — | 0.0666 | C |
 | 10 | IN | 8 | 3.6837e-02 | — | — | 0.0333 | B |
@@ -1583,7 +1583,7 @@
 | 4 | IN | 8 | 6.9455e-03 | — | — | 0.0593 | C |
 | 4 | IN | 8 | 8.2979e-03 | — | — | 0.0340 | B |
 | 4 | IN | 8 | 6.5389e-03 | — | — | 0.1682 | D |
-| 6 | IN | 8 | 3.8472e-02 | — | — | 0.4339 | F |
+| 6 | IN | 8 | 3.8473e-02 | — | — | 0.4339 | F |
 | 6 | IN | 8 | 1.4145e-01 | — | — | 0.0086 | A |
 | 6 | IN | 8 | 3.5911e-02 | — | — | 0.0196 | A |
 | 6 | IN | 8 | 4.9769e-02 | — | — | 0.0599 | C |
@@ -1593,7 +1593,7 @@
 | 8 | IN | 8 | 4.2420e-02 | — | — | 0.0666 | C |
 | 8 | IN | 8 | 9.8171e-02 | — | — | 0.0180 | A |
 | 8 | IN | 8 | 1.8812e-02 | — | — | 3.0954 | F |
-| 10 | IN | 8 | 1.8884e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 1.8884e-02 | — | — | 39.1834 | F |
 | 10 | IN | 8 | 1.7675e-01 | — | — | 0.0286 | B |
 | 10 | IN | 8 | 2.8990e-02 | — | — | 0.0333 | B |
 | 10 | IN | 8 | 7.4338e-02 | — | — | 0.0194 | A |
@@ -1602,7 +1602,7 @@
 | 12 | IN | 8 | 2.8193e-01 | — | — | 0.0571 | C |
 | 12 | IN | 8 | 1.1957e-02 | — | — | 0.0319 | B |
 | 12 | IN | 8 | 6.2793e-02 | — | — | 0.3563 | F |
-| 12 | IN | 8 | 2.6449e-02 | — | — | 1.0070 | F |
+| 12 | IN | 8 | 2.6329e-02 | — | — | 1.0070 | F |
 | 14 | IN | 8 | 3.3819e-02 | — | — | 3806.6317 | F |
 | 14 | IN | 8 | 1.5492e-01 | — | — | 24.6514 | F |
 | 14 | IN | 8 | 6.6818e-02 | — | — | 0.1866 | D |
@@ -1611,11 +1611,11 @@
 | 16 | IN | 8 | 2.5591e-02 | — | — | 49.0765 | F |
 | 16 | IN | 8 | 6.2021e-01 | — | — | 0.0452 | B |
 | 16 | IN | 8 | 2.9890e-02 | — | — | 0.0357 | B |
-| 16 | IN | 8 | 2.6852e-03 | — | — | 0.0597 | C |
+| 16 | IN | 8 | 2.6851e-03 | — | — | 0.0597 | C |
 | 18 | IN | 8 | 1.0950e+00 | — | — | 20.4816 | F |
 | 20 | IN | 8 | 4.5600e-02 | — | — | 0.7112 | F |
 | 20 | IN | 8 | 1.0443e+00 | — | — | 5.3181 | F |
-| 20 | IN | 8 | 7.0702e-03 | — | — | 0.2928 | F |
+| 20 | IN | 8 | 7.0701e-03 | — | — | 0.2928 | F |
 | 20 | IN | 8 | 1.6336e-02 | — | — | 13.6147 | F |
 | 21 | IN | 8 | 3.9486e-01 | — | — | 0.0030 | A |
 | 22 | IN | 8 | 1.5928e-01 | — | — | 0.0145 | A |
@@ -1718,7 +1718,7 @@
 | 4 | IN | 8 | 2.1002e-01 | — | — | 0.1444 | D |
 | 6 | IN | 8 | 6.9065e-02 | — | — | 0.4339 | F |
 | 8 | IN | 8 | 7.2095e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 6.0121e-02 | — | — | 39.1835 | F |
+| 10 | IN | 8 | 6.0121e-02 | — | — | 39.1834 | F |
 | 12 | IN | 8 | 7.7790e-02 | — | — | 154.7274 | F |
 | 14 | IN | 8 | 3.9187e-02 | — | — | 3806.6317 | F |
 | 15 | IN | 8 | 2.0048e-01 | — | — | 0.0154 | A |
@@ -1756,68 +1756,23 @@
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
 > - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.8478 (possible stale e_exact or gap) N=60
 
-## chain_1d — `unifMPNN__chain_1d_p1_signinv_v1.pt`
+## chain_1d — `unifMPNN__chain_1d_p1_h_0p5_1p5_v3.pt`
 
 | N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
 |---|--------|-----|-------|------|--------|--------|-------|
-| 4 | IN | 8 | 2.0988e-01 | — | — | 0.1444 | D |
-| 6 | IN | 8 | 3.7858e-02 | — | — | 0.4339 | F |
-| 8 | IN | 8 | 4.9476e-02 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 9.6425e-03 | — | — | 39.1835 | F |
-| 12 | IN | 8 | 2.2296e-02 | — | — | 154.7274 | F |
-| 14 | IN | 8 | 1.7213e-02 | — | — | 3806.6317 | F |
-| 15 | IN | 8 | 1.2806e-01 | — | — | 0.0154 | A |
-| 16 | IN | 8 | 9.7775e-03 | — | — | 49.0765 | F |
-| 20 | IN | 8 | 3.0382e-02 | — | — | 0.7112 | F |
-| 26 | IN | 6 | 1.0441e-03 | — | — | 0.0154 | B |
-| 30 | IN | 8 | 1.8203e-03 | — | — | 0.0331 | B |
-| 40 | IN | 8 | 1.7649e-03 | — | — | 0.0424 | B |
-| 60 | IN | 8 | 1.9945e-03 | — | — | 0.0594 | C |
-| 80 | EXT | 8 | — | — | 8.85e-03 | 0.1658 | D |
-| 100 | EXT | 19 | — | — | 7.98e-03 | 0.1369 | D |
-| 150 | EXT | 3 | — | — | 3.58e-02 | 0.7841 | F |
-| 200 | EXT | 3 | — | — | 3.59e-02 | 1.0472 | F |
-
-> **Metric Warnings:**
-> - ⚠️ Outlier: max ΔE/gap=0.814 is 6× the mean — median may be more representative N=4
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5898 (possible stale e_exact or gap) N=4
-> - ⚠️ Outlier: max ΔE/gap=3.353 is 8× the mean — median may be more representative N=6
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 2.8794 (possible stale e_exact or gap) N=6
-> - ⚠️ Outlier: max ΔE/gap=72.951 is 8× the mean — median may be more representative N=8
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 71.8524 (possible stale e_exact or gap) N=8
-> - ⚠️ Outlier: max ΔE/gap=312.317 is 8× the mean — median may be more representative N=10
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 310.7901 (possible stale e_exact or gap) N=10
-> - ⚠️ Outlier: max ΔE/gap=1235.945 is 8× the mean — median may be more representative N=12
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 1233.9820 (possible stale e_exact or gap) N=12
-> - ⚠️ Outlier: max ΔE/gap=30381.980 is 8× the mean — median may be more representative N=14
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 30379.1988 (possible stale e_exact or gap) N=14
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1271 (possible stale e_exact or gap) N=15
-> - ⚠️ Outlier: max ΔE/gap=390.746 is 8× the mean — median may be more representative N=16
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 388.7826 (possible stale e_exact or gap) N=16
-> - ⚠️ Outlier: max ΔE/gap=5.153 is 7× the mean — median may be more representative N=20
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 3.2738 (possible stale e_exact or gap) N=20
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.1208 (possible stale e_exact or gap) N=26
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.3921 (possible stale e_exact or gap) N=30
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.5344 (possible stale e_exact or gap) N=40
-> - ⚠️ Metric inconsistency: max |reconstructed - stored| ΔE/gap = 0.8478 (possible stale e_exact or gap) N=60
-
-## chain_1d — `unifMPNN__chain_1d_p1_signinv_v2.pt`
-
-| N | Source | Pts | θ MSE | |ΔE| | |ΔE|/N | ΔE/gap | Grade |
-|---|--------|-----|-------|------|--------|--------|-------|
-| 4 | IN | 8 | 3.2511e-01 | — | — | 0.1444 | D |
-| 6 | IN | 8 | 3.3433e-01 | — | — | 0.4339 | F |
-| 8 | IN | 8 | 3.4593e-01 | — | — | 9.2092 | F |
-| 10 | IN | 8 | 3.2584e-01 | — | — | 39.1835 | F |
-| 12 | IN | 8 | 3.5024e-01 | — | — | 154.7274 | F |
-| 14 | IN | 8 | 3.5582e-01 | — | — | 3806.6317 | F |
-| 15 | IN | 8 | 3.7564e-01 | — | — | 0.0154 | A |
-| 16 | IN | 8 | 3.2295e-01 | — | — | 49.0765 | F |
-| 20 | IN | 8 | 3.2806e-01 | — | — | 0.7112 | F |
-| 26 | IN | 6 | 2.7871e-01 | — | — | 0.0154 | B |
-| 30 | IN | 8 | 2.8129e-01 | — | — | 0.0331 | B |
-| 40 | IN | 8 | 2.9320e-01 | — | — | 0.0424 | B |
-| 60 | IN | 8 | 3.0347e-01 | — | — | 0.0594 | C |
+| 4 | IN | 8 | 3.8665e-01 | — | — | 0.1444 | D |
+| 6 | IN | 8 | 6.1737e-02 | — | — | 0.4339 | F |
+| 8 | IN | 8 | 4.5665e-02 | — | — | 9.2092 | F |
+| 10 | IN | 8 | 5.5750e-03 | — | — | 39.1834 | F |
+| 12 | IN | 8 | 4.7172e-02 | — | — | 154.7274 | F |
+| 14 | IN | 8 | 8.4263e-02 | — | — | 3806.6317 | F |
+| 15 | IN | 8 | 1.2544e-01 | — | — | 0.0153 | A |
+| 16 | IN | 8 | 4.4333e-02 | — | — | 49.0765 | F |
+| 20 | IN | 8 | 6.5845e-02 | — | — | 0.7112 | F |
+| 26 | IN | 6 | 2.6124e-03 | — | — | 0.0154 | B |
+| 30 | IN | 8 | 4.1534e-03 | — | — | 0.0331 | B |
+| 40 | IN | 8 | 5.4888e-03 | — | — | 0.0424 | B |
+| 60 | IN | 8 | 4.4920e-03 | — | — | 0.0594 | C |
 | 80 | EXT | 8 | — | — | 8.85e-03 | 0.1658 | D |
 | 100 | EXT | 19 | — | — | 7.98e-03 | 0.1369 | D |
 | 150 | EXT | 3 | — | — | 3.58e-02 | 0.7841 | F |
@@ -1887,8 +1842,7 @@
 | chain_1d | unifMPNN__chain_1d_p1_h_0p5_1p5.pt | 4.3857e-02 | 2.21e-02 | F (failing) |
 | chain_1d | unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt | 9.3769e-02 | 2.21e-02 | F (failing) |
 | chain_1d | unified_tfim_br_chain_1d_multiN_4_p2.pt | 1.6230e-01 | 2.21e-02 | F (failing) |
-| chain_1d | unifMPNN__chain_1d_p1_signinv_v1.pt | 4.0093e-02 | 2.21e-02 | F (failing) |
-| chain_1d | unifMPNN__chain_1d_p1_signinv_v2.pt | 3.2466e-01 | 2.21e-02 | F (failing) |
+| chain_1d | unifMPNN__chain_1d_p1_h_0p5_1p5_v3.pt | 6.7956e-02 | 2.21e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt | 4.5781e-02 | 2.97e-02 | F (failing) |
 | square | unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4 | 7.8955e-02 | 2.97e-02 | F (failing) |
 | triangular | unified_tfim_br_triangular_multiN_3+4+6_p1.pt | 9.5203e-02 | 2.09e-01 | F (failing) |
@@ -1897,7 +1851,7 @@
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-09-01 00:07 UTC
+**Generated**: 2026-08-29 18:13 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

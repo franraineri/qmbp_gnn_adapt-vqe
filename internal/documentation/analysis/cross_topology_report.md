@@ -1,6 +1,6 @@
 # Cross-Topology Unified Report
 
-**Generated**: 2026-09-01 00:08 UTC
+**Generated**: 2026-08-29 18:13 UTC
 **Criterion**: `pass_rate_dual` (ΔE/gap < 5% AND |ΔE| < 0.10)
 **Model**: TFIM bond-resolved, HVA p=1
 
@@ -14,7 +14,7 @@
 
 | Topology | N_max (dual≥70%) | Best pass_dual | Zoo model | Training pts | Data quality | Extrapolation | h_frontier | h≤h_c |
 |----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| chain_1d | 15 | 100% | ⚠️ 33% | 1050 | ⚠️ 79% | N=200 ❌0% | 1.28 | ✓ |
+| chain_1d | 15 | 100% | ✅ 71% | 1164 | ✅ 81% | N=200 ❌0% | 1.28 | ✓ |
 | heavy_hex | 40 | 100% | ❌ 10% | 1224 | ✅ 88% | N=60 ❌17% | 0.96 | ✓ |
 | ladder | 6 | 73% | ⚠️ 45% | 624 | ⚠️ 41% | N=40 ❌0% | 1.85 | — |
 | square | 8 | 85% | ⚠️ 33% | 507 | ⚠️ 71% | N=30 ❌0% | 1.84 | — |
@@ -116,7 +116,7 @@ MPNN predictions at N >> training data. Only dual criterion reported.
 
 | Topology | NPZ files | Total pts | Verified | Approx | Unverified | Quality |
 |----------|-----------|-----------|----------|--------|------------|---------|
-| chain_1d | 14 | 1050 | 838 (79%) | 145 | 67 | ⚠️ |
+| chain_1d | 17 | 1164 | 953 (81%) | 144 | 67 | ✅ |
 | heavy_hex | 23 | 1224 | 1080 (88%) | 82 | 62 | ✅ |
 | ladder | 11 | 624 | 261 (41%) | 259 | 104 | ⚠️ |
 | square | 8 | 507 | 364 (71%) | 96 | 47 | ⚠️ |

@@ -1,6 +1,6 @@
 # Best Results Scoreboard — p=1
 
-**Updated**: 2026-09-01 00:06 UTC
+**Updated**: 2026-08-29 03:01 UTC
 **p_layers**: 1
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
 **Reports scanned**: 341
@@ -107,7 +107,7 @@
 | 4 | 0.0704 | N/A | B | ST | unified_tfim_br_square_multiN_4+6+8+1... | 2026-08-19 | `eval_square_20260819_092102.md` ([json](results/model_comparison/compare_square_20260819_092102.json)) |
 | 6 | 0.1166 | N/A | C | ST | unified_tfim_br_square_multiN_4+6+8+1... | 2026-08-19 | `eval_square_20260819_092102.md` ([json](results/model_comparison/compare_square_20260819_092102.json)) |
 | 8 | 0.1708 | N/A | C | ST | unified_tfim_br_square_multiN_4+6+8+1... | 2026-08-19 | `eval_square_20260819_050014.md` ([json](results/model_comparison/compare_square_20260819_050014.json)) |
-| 10 | 0.2487 | N/A | C | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_square_MT_20260819_153202.md` ([json](results/experiments/exp_model_comparison/tfim_bond_resolved/square/run_20260819_152900.json)) |
+| 10 | 0.2487 | N/A | C | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_square_MT_20260819_153202.md` |
 | 12 | 0.3840 | N/A | D | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_square_MT_20260819_050014.md` ([json](results/model_comparison/compare_square_20260819_050014.json)) |
 | 14 | 0.4655 | N/A | D | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_square_MT_20260819_092417.md` ([json](results/model_comparison/compare_square_20260819_092417.json)) |
 | 16 | 0.5203 | N/A | D | ST | unified_tfim_br_square_multiN_4+6+8+1... | 2026-08-17 | `eval_square_20260817_164925.md` |
@@ -126,11 +126,11 @@
 | 3 | 0.0990 | N/A | B | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_092425.md` ([json](results/model_comparison/compare_triangular_20260819_092425.json)) |
 | 4 | 0.1691 | N/A | C | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_050021.md` ([json](results/model_comparison/compare_triangular_20260819_050021.json)) |
 | 6 | 0.3334 | N/A | D | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_050021.md` ([json](results/model_comparison/compare_triangular_20260819_050021.json)) |
-| 8 | 1.0689 | N/A | F | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_092529.md` ([json](results/model_comparison/compare_chain_1d_20260819_092053.json)) |
+| 8 | 1.0689 | N/A | F | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_092529.md` ([json](results/model_comparison/compare_triangular_20260819_092530.json)) |
 | 10 | 1.1853 | N/A | F | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_145755.md` |
-| 11 | 1.8466 | N/A | F | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_092529.md` ([json](results/model_comparison/compare_chain_1d_20260819_092053.json)) |
-| 12 | 2.4575 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-19 | `eval_triangular_20260819_092529.md` ([json](results/model_comparison/compare_chain_1d_20260819_092053.json)) |
-| 13 | 3.0778 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-19 | `eval_triangular_20260819_092529.md` ([json](results/model_comparison/compare_chain_1d_20260819_092053.json)) |
+| 11 | 1.8466 | N/A | F | MT | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 | `eval_triangular_MT_20260819_092529.md` ([json](results/model_comparison/compare_triangular_20260819_092530.json)) |
+| 12 | 2.4575 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-19 | `eval_triangular_20260819_092529.md` ([json](results/model_comparison/compare_triangular_20260819_092530.json)) |
+| 13 | 3.0778 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-19 | `eval_triangular_20260819_092529.md` ([json](results/model_comparison/compare_triangular_20260819_092530.json)) |
 | 14 | 3.7469 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-21 | `eval_triangular_20260821_043600.md` |
 | 16 | 5.2136 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-19 | `eval_triangular_20260819_160246.md` |
 | 24 | 17.5899 | N/A | F | ST | unified_tfim_br_triangular_multiN_3+4... | 2026-08-18 | `eval_triangular_20260818_130854.md` |
