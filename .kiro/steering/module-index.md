@@ -155,7 +155,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
 ### qsim/predictors/ (9)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +65
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +67
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
@@ -164,7 +164,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
   training_intelligence      VAL   C:RetrainTrigger,HRangeValidation,TrainingConfig | F:check_retrain_triggers,validate_h_range_alignment,prepare_training_config+1
-  unified_graph              PRED  F:compute_bond_and_site_orbits,build_unified_bond_resolved_graph,build_unified_dataset+2
+  unified_graph              PRED  F:compute_bond_and_site_orbits,build_graph_for_model,build_unified_bond_resolved_graph+3
   unified_mpnn               PRED  C:UnifiedMPNN | F:train_unified_mpnn,fine_tune_unified_mpnn,should_retrain+4
 
 ### qsim/solvers/ (4)
@@ -309,9 +309,12 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
   _sanity_check_envelope     IO    
+  analyze_haiqu_hva          CIRC  F:analyze_file,print_report,main
   benchmark_configs          BENCH C:BenchmarkConfig
+  recover_haiqu_hva_deployment CIRC  F:main
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
   run_gnn_warmstart_demo     VAL   C:GNNWarmstartDemoRunner
+  run_haiqu_hva_deployment   PRED  F:build_parser,load_model,predict_theta_bond_resolved+1
   run_hardware_mitigation_flow       F:log_step,run_command,check_credentials+10
   run_hardware_rehearsal_v2        C:HardwareRehearsalV2
   run_hardware_rehearsal_v3  PRED  C:HardwareRehearsalV3

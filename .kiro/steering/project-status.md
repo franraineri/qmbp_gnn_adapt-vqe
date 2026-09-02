@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-08-31 21:09
+**Last updated**: 2026-08-31 22:42
 **Total runs**: 525 | Pass: 149 | Fail: 376 | Rate: 28%
 **Total compute**: 347.3 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
@@ -47,13 +47,13 @@
 | chain_1d | 100 | 19 | 0.137 | 7.98e-03 | D |
 | chain_1d | 150 | 3 | 0.784 | 3.58e-02 | F |
 | chain_1d | 200 | 3 | 1.047 | 3.59e-02 | F |
-| heavy_hex | 8 | 61 | 0.124 | 2.68e-02 | F |
-| heavy_hex | 10 | 79 | 0.163 | 1.68e-02 | F |
+| heavy_hex | 8 | 61 | 0.123 | 2.66e-02 | F |
+| heavy_hex | 10 | 79 | 0.152 | 1.57e-02 | F |
 | heavy_hex | 12 | 25 | 0.125 | 5.07e-02 | F |
 | heavy_hex | 14 | 54 | 1.999 | 5.82e-01 | F |
 | heavy_hex | 16 | 74 | 2.519 | 1.56e-01 | F |
 | heavy_hex | 18 | 43 | 0.232 | 6.28e-02 | F |
-| heavy_hex | 20 | 134 | 3.733 | 8.38e-02 | F |
+| heavy_hex | 20 | 134 | 3.671 | 8.28e-02 | F |
 | heavy_hex | 21 | 14 | 0.341 | 4.44e-02 | F |
 | heavy_hex | 22 | 31 | 0.203 | 2.54e-02 | F |
 | heavy_hex | 24 | 47 | 0.286 | 3.35e-02 | F |
@@ -79,13 +79,14 @@
 
 | Topology | p | Checkpoint | Arch | Pass% | N-range | Best N | Worst N |
 |----------|---|-----------|------|-------|---------|--------|---------|
-| chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 33% | N=8-20 | N8=33% | N8=33% |
+| chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 33% | N=8-20 | N8=15% | N10=5% |
 | chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 45% | N=6-31 | N6=100% | N31=17% |
 | chain_1d | 1 | unified_tfim_br_chain_1d_multiN_6+8... | baseline | 36% | N=6-31 | N6=100% | N31=17% |
 | chain_1d | 1 | unifMPNN__chain_1d_p1_h_0p5_1p5.pt | baseline | 0% | — | — | — |
 | chain_1d | 1 | unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt | baseline | 0% | — | — | — |
 | chain_1d | 1 | unifMPNN__chain_1d_p1_signinv_v1.pt | baseline | 0% | — | — | — |
-| chain_1d | 1 | unifMPNN__chain_1d_p1_signinv_v2.pt | baseline | 0% | N=8-20 | N8=33% | N8=33% |
+| chain_1d | 1 | unifMPNN__chain_1d_p1_signinv_v2.pt | baseline | 0% | N=8-20 | N8=25% | N16=5% |
+| chain_1d | 1 | unifMPNN__chain_1d_p1_signinv_orbit... | baseline | 0% | — | — | — |
 | chain_1d | 2 | unified_tfim_br_chain_1d_multiN_4_p... | baseline | 100% | — | — | — |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 10% | N=4-29 | N4=0% | all 0% |
 | heavy_hex | 1 | unified_tfim_br_heavy_hex_multiN_4+... | baseline | 0% | N=4-29 | N4=0% | all 0% |

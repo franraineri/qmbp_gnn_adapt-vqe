@@ -341,10 +341,10 @@ class GNNWarmstartDemoRunner(ValidationRunner):
     def _predict_theta(self, lattice, h: float, p_layers: int, n_params: int) -> np.ndarray:
         import torch
 
-        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+        from qmbp_simulation.predictors.unified_graph import build_graph_for_model
 
         try:
-            g = build_unified_bond_resolved_graph(lattice, h_value=h, p_layers=p_layers)
+            g = build_graph_for_model(self._mpnn, lattice, h_value=h, p_layers=p_layers)
             self._mpnn.eval()
             with torch.no_grad():
                 theta = self._mpnn(g).cpu().numpy().flatten()

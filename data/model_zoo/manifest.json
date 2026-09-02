@@ -79,7 +79,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023957.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:29.727558+00:00"
+        "updated": "2026-09-01T01:42:44.432022+00:00"
       }
     }
   },
@@ -100,7 +100,7 @@
       42
     ],
     "created": "2026-08-19T06:02:07.029803+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14], 485 points | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 2/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14], 485 points | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 2/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
     "sha256": "308c08c473344073a818383c628a0d4b1216a060e8d246078537f9f9fdc37099",
     "runner_tag": "AC",
     "date_tag": "190826",
@@ -136,7 +136,7 @@
       42
     ],
     "created": "2026-08-19T06:11:37.946810+00:00",
-    "notes": "Multi-N training: N=[3, 4, 6], 231 points | eval@20260819 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260824 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8",
+    "notes": "Multi-N training: N=[3, 4, 6], 231 points | eval@20260819 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260820 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260824 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260902 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260902 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8 | eval@20260902 N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8",
     "sha256": "adc2d75b98f0efbf46c3bd0d7933b0b3cfebcb5fe9582f4fc4ebfa3df57d2e6f",
     "runner_tag": "AC",
     "date_tag": "190826",
@@ -172,7 +172,7 @@
       42
     ],
     "created": "2026-08-19T06:36:03.910048+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 16, 20, 26, 40], 481 points | comparison@ladder N=[4, 6, 8, 10] | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | extrap@N=[20] | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 16, 20, 26, 40], 481 points | comparison@ladder N=[4, 6, 8, 10] | eval@20260819 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 2/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | extrap@N=[20] | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260820 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 4/11 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
     "sha256": "2a037edbd8fd855d9cd7cb7777dd987176c8eed553d268f35ef58f3648f8ac10",
     "runner_tag": "AC",
     "date_tag": "190826",
@@ -194,108 +194,6 @@
   },
   {
     "model": "tfim_bond_resolved",
-    "topology": "multi_topology",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_MT_residual+film_p1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.06140350877192983,
-    "pass_rate_source": "comparison_eval",
-    "n_training_points": 2519,
-    "seeds": [],
-    "created": "",
-    "notes": "Re-registered from _recovery. Trained 401 epochs (overfitting_detected), MSE=1.70e-01, val_MSE=2.07e-01. | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47 | auto-deflated from 53% | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47 | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 100, 150, 200] 25/47 | auto-deflated from 53% | eval@20260820 N=[3, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 15, 16, 16, 16, 16, 20, 20, 20, 24, 26, 26, 26, 30, 30, 30, 40, 40, 60, 80, 100, 150, 200] 25/48 | auto-deflated from 52% | eval@20260824 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 60, 80, 100, 150, 200] 30/59 | auto-deflated from 51%",
-    "sha256": "cf3e12eeab5fbf45f8107cb6908cb11d0f78c4a325033a2ced4b4110487d6ca0",
-    "runner_tag": "XX",
-    "date_tag": "200826",
-    "training_quality_score": 0.0,
-    "pass_rate_by_n": {
-      "10": 0.0,
-      "16": 0.0,
-      "20": 0.0,
-      "30": 0.0,
-      "21": 0.0,
-      "31": 0.0,
-      "6": 0.5,
-      "8": 0.0,
-      "12": 0.0,
-      "4": 0.5,
-      "24": 0.0,
-      "29": 0.0,
-      "26": 0.0,
-      "18": 0.0,
-      "22": 0.0,
-      "14": 0.0,
-      "3": 0.16666666666666666,
-      "11": 0.0,
-      "13": 0.0
-    },
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 6.8326674999999994,
-        "abs_error_best": 1.8185,
-        "fidelity_mean": 0.4805730769230769,
-        "fidelity_min": 0.3035,
-        "n_points": 40,
-        "per_n": {
-          "6": {
-            "abs_error_mean": 3.0214692307692306,
-            "abs_error_best": 1.8185,
-            "fidelity_mean": 0.5859461538461539,
-            "fidelity_min": 0.5086,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 2.1062,
-              "fidelity": 0.6415
-            }
-          },
-          "10": {
-            "abs_error_mean": 5.374538461538462,
-            "abs_error_best": 3.3854,
-            "fidelity_mean": 0.37520000000000003,
-            "fidelity_min": 0.3035,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 3.8187,
-              "fidelity": 0.4252
-            }
-          },
-          "20": {
-            "abs_error_mean": 11.37376923076923,
-            "abs_error_best": 7.4522,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 8.2028,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 16.2996,
-            "abs_error_best": 16.2996,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 1,
-            "at_h1": null
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_chain_1d_MT_20260829_024147.md",
-        "seen_in_raw_runs": true,
-        "updated": "2026-09-01T00:09:30.020006+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
     "topology": "heavy_hex",
     "n_qubits": 0,
     "p_layers": 1,
@@ -304,14 +202,14 @@
       3.0,
       5.0
     ],
-    "pass_rate": 0.1,
+    "pass_rate": 0.5,
     "pass_rate_source": "training_data_eval",
     "n_training_points": 596,
     "seeds": [
       42
     ],
     "created": "2026-08-20T14:29:59.887081+00:00",
-    "notes": "Multi-N training: N=[4, 6, 10, 12, 16, 20, 40], 596 points | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | auto-deflated from 83% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | auto-deflated from 83% | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18 | auto-deflated from 44% | extrap@N=[14]",
+    "notes": "Multi-N training: N=[4, 6, 10, 12, 16, 20, 40], 596 points | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | eval@20260820 N=[4, 6, 10, 12, 16, 20, 26, 30, 40] 6/9 | auto-deflated from 67% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[16, 20, 30, 40] | auto-deflated from 33% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | auto-deflated from 83% | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | extrap@N=[20, 30] | auto-deflated from 85% | extrap@N=[30, 40] | auto-deflated from 83% | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18 | auto-deflated from 44% | extrap@N=[14] | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
     "sha256": "ac75010db266c185eeed4f37177dd076e0052a45cdae95c50a5ad3921cfb0da3",
     "runner_tag": "AC",
     "date_tag": "200826",
@@ -331,556 +229,6 @@
   },
   {
     "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
-    "h_range": [
-      2.0,
-      5.0
-    ],
-    "pass_rate": 0.3333333333333333,
-    "pass_rate_source": "comparison_eval",
-    "n_training_points": 674,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-20T15:04:30.392802+00:00",
-    "notes": "Multi-N training: N=[6, 8, 10, 12, 15, 16, 20, 26, 60], 674 points | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 100, 150, 200] 10/14 | eval@20260820 N=[6, 8, 10, 12, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 10/15 | eval@20260824 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17 | auto-deflated from 71%",
-    "sha256": "23bd0b21e51ccfcf8172794cdfca82ec7578c1947b4e4b1618c2c3cd3648429b",
-    "runner_tag": "AC",
-    "date_tag": "200826",
-    "training_quality_score": 0.797,
-    "pass_rate_by_n": {
-      "8": 0.3333333333333333,
-      "10": 0.3333333333333333,
-      "12": 0.3333333333333333,
-      "16": 0.3333333333333333,
-      "20": 0.3333333333333333
-    },
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 3.9514674999999997,
-        "abs_error_best": 0.9912,
-        "fidelity_mean": 0.6520769230769231,
-        "fidelity_min": 0.463,
-        "n_points": 40,
-        "per_n": {
-          "6": {
-            "abs_error_mean": 1.6352153846153845,
-            "abs_error_best": 0.9912,
-            "fidelity_mean": 0.7455615384615384,
-            "fidelity_min": 0.7049,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 1.1111,
-              "fidelity": 0.7697
-            }
-          },
-          "10": {
-            "abs_error_mean": 3.082007692307692,
-            "abs_error_best": 2.0177,
-            "fidelity_mean": 0.5585923076923077,
-            "fidelity_min": 0.463,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 2.1756,
-              "fidelity": 0.5694
-            }
-          },
-          "20": {
-            "abs_error_mean": 6.7103153846153845,
-            "abs_error_best": 4.656,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 4.8558,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 9.5007,
-            "abs_error_best": 9.5007,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 1,
-            "at_h1": null
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_chain_1d_20260829_023717.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:29.163028+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1_v4.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.4523809523809524,
-    "pass_rate_source": "comparison_eval",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-19 09:20 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=6, grade A, \u0394E/gap=0.0224) | eval@20260824 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17 | auto-deflated from 71%",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": 0.797,
-    "pass_rate_by_n": {
-      "16": 0.0,
-      "21": 0.0,
-      "31": 0.16666666666666666,
-      "6": 1.0,
-      "8": 1.0,
-      "10": 0.5,
-      "12": 0.5
-    },
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 7.125392499999999,
-        "abs_error_best": 0.9156,
-        "fidelity_mean": 0.4196730769230769,
-        "fidelity_min": 0.0625,
-        "n_points": 40,
-        "per_n": {
-          "6": {
-            "abs_error_mean": 1.468646153846154,
-            "abs_error_best": 0.9156,
-            "fidelity_mean": 0.7486692307692308,
-            "fidelity_min": 0.7077,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 1.0104,
-              "fidelity": 0.7532
-            }
-          },
-          "10": {
-            "abs_error_mean": 10.637553846153846,
-            "abs_error_best": 8.8044,
-            "fidelity_mean": 0.09067692307692309,
-            "fidelity_min": 0.0625,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 9.0419,
-              "fidelity": 0.0882
-            }
-          },
-          "20": {
-            "abs_error_mean": 8.639369230769232,
-            "abs_error_best": 7.5607,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 7.6877,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 15.3233,
-            "abs_error_best": 15.3233,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 1,
-            "at_h1": null
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_chain_1d_20260829_023808.md",
-        "seen_in_raw_runs": true,
-        "updated": "2026-09-01T00:09:29.441737+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.35555555555555557,
-    "pass_rate_source": "comparison_eval",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-19 15:12 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=10, grade B, \u0394E/gap=0.0313) | eval@20260824 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60, 80, 100, 150, 200] 12/17 | auto-deflated from 71%",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": 0.797,
-    "pass_rate_by_n": {
-      "20": 0.0,
-      "30": 0.0,
-      "10": 0.5333333333333333,
-      "16": 0.0,
-      "6": 1.0,
-      "21": 0.0,
-      "31": 0.16666666666666666,
-      "8": 1.0,
-      "12": 0.5
-    },
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 7.125392499999999,
-        "abs_error_best": 0.9156,
-        "fidelity_mean": 0.4196730769230769,
-        "fidelity_min": 0.0625,
-        "n_points": 40,
-        "per_n": {
-          "6": {
-            "abs_error_mean": 1.468646153846154,
-            "abs_error_best": 0.9156,
-            "fidelity_mean": 0.7486692307692308,
-            "fidelity_min": 0.7077,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 1.0104,
-              "fidelity": 0.7532
-            }
-          },
-          "10": {
-            "abs_error_mean": 10.637553846153846,
-            "abs_error_best": 8.8044,
-            "fidelity_mean": 0.09067692307692309,
-            "fidelity_min": 0.0625,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 9.0419,
-              "fidelity": 0.0882
-            }
-          },
-          "20": {
-            "abs_error_mean": 8.639369230769232,
-            "abs_error_best": 7.5607,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 7.6877,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 15.3233,
-            "abs_error_best": 15.3233,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 1,
-            "at_h1": null
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_chain_1d_20260829_023859.md",
-        "seen_in_raw_runs": true,
-        "updated": "2026-09-01T00:09:29.610460+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1_v1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "comparison_eval",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-19 09:13 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=4, grade B, \u0394E/gap=0.0443) | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18 | auto-deflated from 44%",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": 0.835,
-    "pass_rate_by_n": {
-      "4": 0.0,
-      "6": 0.0,
-      "10": 0.0,
-      "12": 0.0,
-      "20": 0.0,
-      "24": 0.0,
-      "29": 0.0
-    },
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 11.910557142857144,
-        "abs_error_best": 0.2004,
-        "fidelity_mean": 0.3373928571428571,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 6.4277,
-            "abs_error_best": 0.2004,
-            "fidelity_mean": 0.3373928571428571,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 14.25495,
-            "abs_error_best": 14.0698,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 15.049021428571427,
-            "abs_error_best": 13.3399,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_150816.md",
-        "seen_in_raw_runs": true,
-        "updated": "2026-09-01T00:09:30.364545+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.4444444444444444,
-    "pass_rate_source": "training_data_eval",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-20 14:13 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=10, grade A, \u0394E/gap=0.0150) | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": 0.835,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "square",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.3333333333333333,
-    "pass_rate_source": "training_data_eval",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-19 09:21 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for square N=4, grade A, \u0394E/gap=0.0232) | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": -1.0,
-    "pass_rate_by_n": {
-      "4": 1.0,
-      "6": 0.8333333333333334,
-      "8": 0.8333333333333334,
-      "10": 0.0,
-      "14": 0.0,
-      "18": 0.0,
-      "21": 0.0
-    },
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.75,
-    "pass_rate_source": "training_data_eval",
-    "n_training_points": 892,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-24T04:10:20.486378+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 18, 20, 22, 24, 30, 32, 40], 892 points | extrap@N=[8, 10, 20, 30, 40] | eval@20260824 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 8/18 | extrap@N=[10]",
-    "sha256": "6f0154efa8a501d3462aa1677de9993a0473525e02decc229ef46a6e83b65948",
-    "runner_tag": "AC",
-    "date_tag": "240826",
-    "training_quality_score": 0.835,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 2,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
-    "h_range": [
-      1.85,
-      4.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1102,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-24T21:01:16.457036+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1102 points",
-    "sha256": "64f24139609596dee8f90828c54eba1c0ee95caedb1334ee63274b4a6df66eab",
-    "runner_tag": "AC",
-    "date_tag": "240826",
-    "training_quality_score": 0.0,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 2,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
-    "h_range": [
-      0.25,
-      2.0
-    ],
-    "pass_rate": 0.32,
-    "pass_rate_source": "",
-    "n_training_points": 1102,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-24T22:35:04.248325+00:00",
-    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
-    "sha256": "1d72b71b8e359aeb81019d7f3d0d5e5bb233ed89c874ed4e66f3ed886401e116",
-    "runner_tag": "XX",
-    "date_tag": "240826",
-    "training_quality_score": 0.928,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 2,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
-    "h_range": [
-      0.25,
-      2.0
-    ],
-    "pass_rate": 0.36,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-24T23:07:22.531993+00:00",
-    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
-    "sha256": "5aef31423a422129aa9b281852fa8c9fb1843c7ee853a9e88f7896e816dafa13",
-    "runner_tag": "XX",
-    "date_tag": "240826",
-    "training_quality_score": 0.916,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 2,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
-    "h_range": [
-      1.5,
-      4.0
-    ],
-    "pass_rate": 0.85,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-25T03:49:36.023913+00:00",
-    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
-    "sha256": "a193cbd54adf116cfa98ae2fa3b9fb9f1255ae7b3ca6ad724385ff782014a11d",
-    "runner_tag": "XX",
-    "date_tag": "250826",
-    "training_quality_score": 0.927,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
     "topology": "heavy_hex",
     "n_qubits": 0,
     "p_layers": 2,
@@ -889,14 +237,14 @@
       1.5,
       4.0
     ],
-    "pass_rate": 0.6,
-    "pass_rate_source": "",
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
     "n_training_points": 1103,
     "seeds": [
       42
     ],
     "created": "2026-08-25T05:44:28.116795+00:00",
-    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
+    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40] | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
     "sha256": "6e1640ba8047ab49feff1480789fa03f5349e88d1a46676dfca441b1e73034a7",
     "runner_tag": "XX",
     "date_tag": "250826",
@@ -904,158 +252,6 @@
     "pass_rate_by_n": {},
     "run_json": "",
     "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_mse.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1002,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-26T03:53:45.406622+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 30, 40], 1002 points, arch=residual",
-    "sha256": "f8ff48fb15d83056f9232ab91eb7ab8e3b873d7be426b204f62e65ff326af481",
-    "runner_tag": "AC",
-    "date_tag": "260826",
-    "training_quality_score": 0.835,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.804685714285714,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.3879642857142857,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.884435714285714,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.3879642857142857,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151143.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.461184+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_mse.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1002,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-26T08:55:03.015945+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 30, 40], 1002 points, arch=residual",
-    "sha256": "e85f7dd9ddc70d812b091448c9da56cbf4b9e8237117caf59a75e79534c1fa22",
-    "runner_tag": "AC",
-    "date_tag": "260826",
-    "training_quality_score": 0.835,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.804685714285714,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.3879642857142857,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.884435714285714,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.3879642857142857,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151234.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.504136+00:00"
-      }
-    }
   },
   {
     "model": "tfim_bond_resolved",
@@ -1067,14 +263,14 @@
       0.5,
       1.5
     ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
     "n_training_points": 422,
     "seeds": [
       42
     ],
     "created": "2026-08-28T21:02:38.314180+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60], 422 points, train_h_range=[0.5, 1.5]",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60], 422 points, train_h_range=[0.5, 1.5] | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
     "sha256": "c7a460119c27f7bf5ddb6491763c2fb69df43e7db51805ffcd57f634c316b2d2",
     "runner_tag": "AC",
     "date_tag": "280826",
@@ -1137,1031 +333,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_20260829_023121.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:28.549544+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "chain_1d",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt",
-    "h_range": [
-      0.5,
-      1.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 418,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T21:17:11.343195+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 60], 418 points, train_h_range=[0.5, 1.5]",
-    "sha256": "d15f9ad1e1ab2328105852327936c74a62384b8157f95dfdd7b911ebda15657e",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.799,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 7.42072,
-        "abs_error_best": 0.8018,
-        "fidelity_mean": 0.5933961538461539,
-        "fidelity_min": 0.1785,
-        "n_points": 40,
-        "per_n": {
-          "6": {
-            "abs_error_mean": 0.9676153846153847,
-            "abs_error_best": 0.8018,
-            "fidelity_mean": 0.8104,
-            "fidelity_min": 0.6739,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 0.8019,
-              "fidelity": 0.7839
-            }
-          },
-          "10": {
-            "abs_error_mean": 5.1867846153846155,
-            "abs_error_best": 3.5658,
-            "fidelity_mean": 0.37639230769230775,
-            "fidelity_min": 0.1785,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 5.0679,
-              "fidelity": 0.3079
-            }
-          },
-          "20": {
-            "abs_error_mean": 15.502515384615386,
-            "abs_error_best": 11.634,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 13,
-            "at_h1": {
-              "h": 0.97,
-              "abs_error": 11.634,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 15.2889,
-            "abs_error_best": 15.2889,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 1,
-            "at_h1": null
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_chain_1d_20260829_023609.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:28.951199+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+8+10+12+14+18+20+21+26+30+40_p1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-23 03:11 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=14, grade B, \u0394E/gap=0.0324)",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": -1.0,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.804685714285714,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.3879642857142857,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.884435714285714,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.3879642857142857,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_150926.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.247037+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_multiN_heavyhex_p1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-23 18:02 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=24, grade C, \u0394E/gap=0.0884)",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": -1.0,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.804685714285714,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.3879642857142857,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.884435714285714,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.3879642857142857,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151041.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.211312+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "ladder",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_ladder_fromMT_4+6+8+10+12+14+20+26+30_p1.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-21 03:08 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for ladder N=6, grade B, \u0394E/gap=0.0376)",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": -1.0,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "ladder",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unified_tfim_br_ladder_multiN_4+6+8+10+12+14+20+26+30_p1_v4.pt",
-    "h_range": [
-      0.5,
-      5.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 0,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-21 19:43 UTC",
-    "notes": "Auto-registered from scoreboard (best-ever for ladder N=10, grade C, \u0394E/gap=0.1005)",
-    "sha256": "",
-    "runner_tag": "XX",
-    "date_tag": "",
-    "training_quality_score": -1.0,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-27T03:30:17.771946+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "fad6058fdc8dced681f9a60de1877b37ba8b98b12333f27b3ef07ce49bb85e7a",
-    "runner_tag": "AC",
-    "date_tag": "270826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.804685714285714,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.3879642857142857,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.884435714285714,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.3879642857142857,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151333.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.565602+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 2,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
-    "h_range": [
-      0.85,
-      3.0
-    ],
-    "pass_rate": 0.2,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-27T10:10:58.291748+00:00",
-    "notes": "Iterative improve iter 1: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
-    "sha256": "03158766646a0cf19318c8b3d8106eb07997b769e6c4bb75e8fbfa6bd7c7948f",
-    "runner_tag": "XX",
-    "date_tag": "270826",
-    "training_quality_score": 0.92,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-27T13:41:04.293478+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "73444728fff69de58aa4d00d3a15086da08d14e3db4b7fff87e558f4c22e0024",
-    "runner_tag": "AC",
-    "date_tag": "270826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.804685714285714,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.3879642857142857,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.884435714285714,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.3879642857142857,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151429.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.610672+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 2,
-    "checkpoint_file": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
-    "h_range": [
-      0.85,
-      3.0
-    ],
-    "pass_rate": 0.6666666666666666,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-27T18:45:51.096858+00:00",
-    "notes": "Iterative improve iter 2: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40]",
-    "sha256": "1255ab76ac1b4799a9009a111291a0d509f02b29bc344973f61ad957710fcf94",
-    "runner_tag": "XX",
-    "date_tag": "270826",
-    "training_quality_score": 0.92,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {}
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T00:22:49.242535+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points",
-    "sha256": "baa028b409cb2e52c6e0f4b021ade0e23658a0085007df2ccc7f1b0b6bc62d7c",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.621509523809525,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.4405357142857143,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.334907142857142,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.4405357142857143,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151524.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.675525+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_energyw.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T00:52:41.881522+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "9d8668acd2b5e6ef6c0f69fbba82f9478600bc70d45f4508867dc844d473847e",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.621509523809525,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.4405357142857143,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.334907142857142,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.4405357142857143,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151636.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.716097+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T01:45:07.765045+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "6c22ece8eae85ef42b3761dcffd680e5258c94789444122d7bf47ca4ef4d9839",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.621509523809525,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.4405357142857143,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.334907142857142,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.4405357142857143,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151741.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.957206+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_physics05.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T02:37:00.597773+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "c7d7ed0a62f95bb9643bac387f3b0de2039f3785f7437bcffb71f795b6529f98",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.621509523809525,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.4405357142857143,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 5.334907142857142,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.4405357142857143,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_151841.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:31.035907+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_full_stack.pt",
-    "h_range": [
-      3.5,
-      4.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T03:24:29.745325+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "8296210852b9a7c3a16eb0280a2555ea57dea4de3f2ecd352c54cd7ec0b3d9e5",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 10.44042142857143,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.49110714285714285,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 4.791642857142857,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.49110714285714285,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 12.306650000000001,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 14.222971428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_152017.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:31.229776+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
-    "h_range": [
-      0.5,
-      2.5
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T05:37:43.098088+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "96df9d487efebf548ff1e26acdd5012b7687b007a8a187928c78a990cdee955d",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 9.515638095238094,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.49110714285714285,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 4.791642857142857,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.49110714285714285,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 10.35835,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 13.396921428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_152110.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:31.279341+00:00"
-      }
-    }
-  },
-  {
-    "model": "tfim_bond_resolved",
-    "topology": "heavy_hex",
-    "n_qubits": 0,
-    "p_layers": 1,
-    "checkpoint_file": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
-    "h_range": [
-      3.5,
-      4.0
-    ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 1103,
-    "seeds": [
-      42
-    ],
-    "created": "2026-08-28T11:35:54.729914+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 16, 18, 20, 22, 24, 30, 32, 40], 1103 points, arch=residual",
-    "sha256": "f095a10c4abe469f306ec2161080985ec42eeacff1206eb87f4a8ff7e91bf9ac",
-    "runner_tag": "AC",
-    "date_tag": "280826",
-    "training_quality_score": 0.834,
-    "pass_rate_by_n": {},
-    "run_json": "",
-    "critical_ranking": {
-      "h0.80-1.80": {
-        "abs_error_mean": 9.515638095238094,
-        "abs_error_best": 0.1666,
-        "fidelity_mean": 0.49110714285714285,
-        "fidelity_min": 0.0401,
-        "n_points": 42,
-        "per_n": {
-          "16": {
-            "abs_error_mean": 4.791642857142857,
-            "abs_error_best": 0.1666,
-            "fidelity_mean": 0.49110714285714285,
-            "fidelity_min": 0.0401,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 8.8144,
-              "fidelity": 0.0401
-            }
-          },
-          "20": {
-            "abs_error_mean": 10.35835,
-            "abs_error_best": 0.4628,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 14.7546,
-              "fidelity": null
-            }
-          },
-          "30": {
-            "abs_error_mean": 13.396921428571428,
-            "abs_error_best": 1.7752,
-            "fidelity_mean": null,
-            "fidelity_min": null,
-            "n_points": 14,
-            "at_h1": {
-              "h": 1.0,
-              "abs_error": 13.3399,
-              "fidelity": null
-            }
-          }
-        },
-        "grade": "F",
-        "source_report": "eval_heavy_hex_20260831_152206.md",
-        "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:31.329945+00:00"
+        "updated": "2026-09-01T01:42:44.384642+00:00"
       }
     }
   },
@@ -2175,14 +347,14 @@
       0.5,
       5.0
     ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
+    "pass_rate": 0.38333333333333336,
+    "pass_rate_source": "training_data_eval",
     "n_training_points": 3234,
     "seeds": [
       42
     ],
     "created": "2026-08-28T18:14:44.122421+00:00",
-    "notes": "Multi-topology model (residual+film): chain_1d+heavy_hex+ladder+square+triangular. p=1. MSE=2.38e-01, val=2.42e-01. 3234 graphs from 5 topologies.",
+    "notes": "Multi-topology model (residual+film): chain_1d+heavy_hex+ladder+square+triangular. p=1. MSE=2.38e-01, val=2.42e-01. 3234 graphs from 5 topologies. | eval@20260902 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60 | eval@20260902 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60 | eval@20260902 N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60",
     "sha256": "379c453b5ba1f76d57b2d5c6613110c3b9ba754daa335845be64c616a3303469",
     "runner_tag": "XX",
     "date_tag": "280826",
@@ -2245,7 +417,7 @@
         "grade": "F",
         "source_report": "eval_chain_1d_MT_20260829_024911.md",
         "seen_in_raw_runs": false,
-        "updated": "2026-09-01T00:09:30.164353+00:00"
+        "updated": "2026-09-01T01:42:44.462481+00:00"
       }
     }
   },
@@ -2285,44 +457,376 @@
       0.5,
       2.3
     ],
-    "pass_rate": 1.0,
-    "pass_rate_source": "",
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
     "n_training_points": 72,
     "seeds": [
       42
     ],
     "created": "2026-08-28T18:46:15.768562+00:00",
-    "notes": "Bootstrap from AcceleratedVQE N=4",
+    "notes": "Bootstrap from AcceleratedVQE N=4 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
     "sha256": "41beff0b406f6068f9eb43c6daa23d2c2dea8232d75a8edbe970e8802618432f",
     "runner_tag": "XX",
     "date_tag": "280826",
     "training_quality_score": 0.836,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_frustrated",
+    "topology": "chain_1d",
+    "n_qubits": 8,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T210050.pt",
+    "h_range": [
+      2.0,
+      4.0
+    ],
+    "pass_rate": 0.8333333333333334,
+    "pass_rate_source": "",
+    "n_training_points": 6,
+    "seeds": [
+      42
+    ],
+    "created": "20260831T210050",
+    "notes": "Auto-exported by AcceleratedVQE (pass_rate_dual=83%)",
+    "sha256": "3e4aa8dca8cc26632fea47393f5a45c0c3a784795c7e2d5f44ec0fd6976f9d8b",
+    "runner_tag": "XX",
+    "date_tag": "310826",
+    "training_quality_score": 0.911,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
   },
   {
     "model": "tfim_bond_resolved",
     "topology": "chain_1d",
     "n_qubits": 0,
     "p_layers": 1,
-    "checkpoint_file": "unifMPNN__chain_1d_p1_h_0p5_1p5_v3.pt",
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_v2.pt",
     "h_range": [
-      0.5,
-      2.0
+      2.0,
+      4.5
     ],
-    "pass_rate": 0.0,
-    "pass_rate_source": "",
-    "n_training_points": 363,
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 953,
     "seeds": [
       42
     ],
-    "created": "2026-08-29T01:23:13.582991+00:00",
-    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 363 points, train_h_range=[0.5, 2.0]",
-    "sha256": "13a13dece775e9497f6624f68aef2940ef3997d2113e050efb34239e71628e0b",
+    "created": "2026-08-31T21:20:12.440516+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 953 points | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "478afd8cea1548826c9db0f60fd8b0696e3c5957a56dcedc49ea4f6b0f4a4912",
     "runner_tag": "AC",
-    "date_tag": "290826",
+    "date_tag": "310826",
     "training_quality_score": 0.793,
+    "pass_rate_by_n": {
+      "8": 0.23333333333333334,
+      "10": 0.16666666666666666,
+      "12": 0.1,
+      "16": 0.03333333333333333,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 958,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-02T06:03:17.400016+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 958 points | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "df04897efbb5eb21cad09194d1c96afac19aa1cef102b7736da587f6b7519477",
+    "runner_tag": "AC",
+    "date_tag": "020926",
+    "training_quality_score": 0.782,
+    "pass_rate_by_n": {
+      "8": 0.2,
+      "10": 0.1,
+      "12": 0.03333333333333333,
+      "16": 0.0,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "h_range": [
+      2.0,
+      4.5
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 958,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-02T06:42:29.881226+00:00",
+    "notes": "Multi-N training: N=[4, 6, 8, 10, 14, 15, 16, 20, 26, 30, 40, 60], 958 points | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "e4042c2b7a1a9fa9c231a084920bc186cb94a9d8198470bdbddaaf28e32162ea",
+    "runner_tag": "AC",
+    "date_tag": "020926",
+    "training_quality_score": 0.782,
+    "pass_rate_by_n": {
+      "8": 0.3333333333333333,
+      "10": 0.03333333333333333,
+      "12": 0.0,
+      "16": 0.0,
+      "20": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-21 03:47 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=4, grade B, \u0394E/gap=0.0158) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "20": 0.0,
+      "30": 0.0,
+      "10": 0.5333333333333333,
+      "16": 0.0,
+      "6": 1.0,
+      "21": 0.0,
+      "31": 0.16666666666666666,
+      "8": 1.0,
+      "12": 0.5
+    },
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "chain_1d",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.2222222222222222,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:20 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for chain_1d N=6, grade B, \u0394E/gap=0.0224) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "16": 0.0,
+      "21": 0.0,
+      "31": 0.16666666666666666,
+      "6": 1.0,
+      "8": 1.0,
+      "10": 0.5,
+      "12": 0.5
+    },
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-20 14:13 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=10, grade A, \u0394E/gap=0.0150) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
     "pass_rate_by_n": {},
-    "run_json": ""
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_heavy_hex_fromMT_4+6+8+10+12+14+18+20+21+26+30+40_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-23 03:11 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=14, grade B, \u0394E/gap=0.0324) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "heavy_hex",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_multiN_heavyhex_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.5,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-23 18:02 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for heavy_hex N=24, grade C, \u0394E/gap=0.0884) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_ladder_fromMT_4+6+8+10+12+14+20+26+30_p1.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.45454545454545453,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-21 03:08 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for ladder N=6, grade B, \u0394E/gap=0.0376) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "ladder",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_ladder_multiN_4+6+8+10+12+14+20+26+30_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.45454545454545453,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-21 19:43 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for ladder N=10, grade C, \u0394E/gap=0.1005) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
+  },
+  {
+    "model": "tfim_bond_resolved",
+    "topology": "square",
+    "n_qubits": 0,
+    "p_layers": 1,
+    "checkpoint_file": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1_v4.pt",
+    "h_range": [
+      0.5,
+      5.0
+    ],
+    "pass_rate": 0.3333333333333333,
+    "pass_rate_source": "training_data_eval",
+    "n_training_points": 0,
+    "seeds": [
+      42
+    ],
+    "created": "2026-08-19 09:21 UTC",
+    "notes": "Auto-registered from scoreboard (best-ever for square N=4, grade B, \u0394E/gap=0.0232) | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9 | eval@20260902 N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9",
+    "sha256": "",
+    "runner_tag": "XX",
+    "date_tag": "",
+    "training_quality_score": -1.0,
+    "pass_rate_by_n": {
+      "4": 1.0,
+      "6": 0.8333333333333334,
+      "8": 0.8333333333333334,
+      "10": 0.0,
+      "14": 0.0,
+      "18": 0.0,
+      "21": 0.0
+    },
+    "run_json": "",
+    "critical_ranking": {}
   }
 ]

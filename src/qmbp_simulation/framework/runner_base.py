@@ -1716,37 +1716,12 @@ class ValidationRunner(ABC):
         """
 
     def resolve_model_name(self, default: str) -> str:
-        """Resolve the physics model, honoring the base --model flag.
-
-        Runners pass their built-in default; the shared --model flag overrides
-        it when set. This lets every runner accept --model tfim_frustrated
-        without redefining the flag.
-
-        Parameters
-        ----------
-        default : str
-            The runner's built-in physics model (e.g. "tfim_bond_resolved").
-
-        Returns
-        -------
-        str
-            The --model value if provided, else the runner default.
-        """
+        """Resolve the physics model, honoring the base --model flag."""
         override = getattr(self._args, "model", None)
         return override if override else default
 
     def model_kwargs(self) -> dict:
-        """Assemble Hamiltonian kwargs from shared physics flags.
-
-        Maps the --j2 flag to the frustrated NNN coupling. Returns an empty dict
-        when unfrustrated (J2=0) so callers can pass it verbatim to
-        spec.with_params(**kwargs) and exact_ground_state(model_kwargs=kwargs).
-
-        Returns
-        -------
-        dict
-            {"J2": <value>} when --j2 != 0, else {}.
-        """
+        """Assemble Hamiltonian kwargs from shared physics flags."""
         j2 = getattr(self._args, "j2", 0.0) or 0.0
         return {"J2": float(j2)} if abs(j2) > 1e-15 else {}
 
@@ -1762,6 +1737,14 @@ class ValidationRunner(ABC):
         )
 
         return build_data_dir(TRAINING_DATA_ROOT, self.is_frustrated())
+
+    def persist_theta_npz(self, npz_path, h_new, theta_new, e_vqe_new, e_exact_new, **kwargs):
+        """Upsert training θ into an NPZ, tagging it with the runner's model/J2."""
+        from qmbp_simulation.framework.result_io import upsert_theta_npz
+
+        kwargs.setdefault("model", getattr(self, "_physics_model", None))
+        kwargs.setdefault("j2", self.model_kwargs().get("J2"))
+        return upsert_theta_npz(npz_path, h_new, theta_new, e_vqe_new, e_exact_new, **kwargs)
 
     def _result_experiment_id(self) -> str:
         """Effective experiment_id for the JSON result envelope path.
@@ -2150,6 +2133,7 @@ class ValidationRunner(ABC):
         model: str = "tfim",
         p_layers: int = 1,
         enabled: bool = True,
+        ckpt_id: str = "",
     ):
         """Return a CachedBackend wrapping the appropriate backend for N.
 
@@ -2186,6 +2170,7 @@ class ValidationRunner(ABC):
             model=model,
             p_layers=p_layers,
             cache=cache,
+            ckpt_id=ckpt_id,
         )
 
     def get_empirical_h_frontier(
@@ -2800,8 +2785,27 @@ class ValidationRunner(ABC):
 
     # ── VQE checkpoint helpers (typed contract) ────────────────────────────
 
+    @staticmethod
+    def vqe_checkpoint_key(
+        topology: str, *, n_qubits: int | None = None, model: str | None = None
+    ) -> str:
+        """Build the VQE checkpoint key. Include N and model when given so runs
+        at the same topology but different size/model never collide.
+        """
+        key = f"vqe_{topology}"
+        if n_qubits is not None:
+            key += f"_N{n_qubits}"
+        if model is not None:
+            key += f"_{model}"
+        return key
+
     def load_vqe_checkpoint(
-        self, topology: str, n_params: int | None = None
+        self,
+        topology: str,
+        n_params: int | None = None,
+        *,
+        n_qubits: int | None = None,
+        model: str | None = None,
     ) -> tuple[list[dict], np.ndarray] | None:
         """Load VQE sweep checkpoint with parameter validation.
 
@@ -2812,17 +2816,21 @@ class ValidationRunner(ABC):
         Parameters
         ----------
         topology : str
-            Topology name used as checkpoint key suffix (loads "vqe_{topology}").
+            Topology name used as checkpoint key suffix.
         n_params : int | None
             Expected number of circuit parameters. If provided, validates
             the checkpoint theta matches. Stale checkpoints are discarded.
+        n_qubits, model : int | str | None
+            When provided, disambiguate the key so same-topology runs at a
+            different size or model do not read each other's checkpoint.
 
         Returns
         -------
         tuple[list[dict], np.ndarray] | None
             (results_so_far, current_theta) if checkpoint found and valid, else None.
         """
-        cp = self.load_checkpoint(f"vqe_{topology}")
+        ckpt_key = self.vqe_checkpoint_key(topology, n_qubits=n_qubits, model=model)
+        cp = self.load_checkpoint(ckpt_key)
         if cp is None:
             return None
 
@@ -2835,7 +2843,7 @@ class ValidationRunner(ABC):
                 topology,
                 missing,
             )
-            self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+            self.cleanup_checkpoints(pattern=ckpt_key)
             return None
 
         try:
@@ -2851,7 +2859,7 @@ class ValidationRunner(ABC):
                     len(theta),
                     n_params,
                 )
-                self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+                self.cleanup_checkpoints(pattern=ckpt_key)
                 return None
 
             # Validate theta_opt in results if any exist
@@ -2865,7 +2873,7 @@ class ValidationRunner(ABC):
                         len(first_theta),
                         n_params,
                     )
-                    self.cleanup_checkpoints(pattern=f"vqe_{topology}")
+                    self.cleanup_checkpoints(pattern=ckpt_key)
                     return None
 
             n_total = len(getattr(self, "_h_values", [])) or "?"
@@ -2878,6 +2886,59 @@ class ValidationRunner(ABC):
             return None
 
     # ── Model zoo helpers (MPNN persistence via registry) ────────────────────
+
+    def build_graph_for_model(self, model, lattice, h_value: float, p_layers: int, **kwargs):
+        """Build a unified graph whose feature dim MATCHES ``model`` (adaptive).
+
+        Single adaptive entry point for ANY runner that predicts θ with a
+        UnifiedMPNN. Reads model.node_features and enables the orbit feature
+        iff the model was trained with it, so a model trained with extra
+        structural features never receives a mismatched graph (and vice-versa).
+        Also honors this runner's frustrated (NNN) setting automatically.
+
+        Prefer this over calling build_unified_bond_resolved_graph directly in
+        prediction/eval paths — it removes the need to remember which feature
+        set a checkpoint was trained on.
+        """
+        from qmbp_simulation.predictors.unified_graph import build_graph_for_model as _bgfm
+
+        if self._is_frustrated_runner():
+            kwargs.setdefault("include_nnn", True)
+        return _bgfm(model, lattice, h_value=h_value, p_layers=p_layers, **kwargs)
+
+    def _is_frustrated_runner(self) -> bool:
+        """Best-effort detection of a frustrated (J2!=0 / NNN) runner.
+
+        Subclasses may set self._is_frustrated; otherwise infer from args.
+        """
+        if getattr(self, "_is_frustrated", None) is not None:
+            return bool(self._is_frustrated)
+        j2 = getattr(self._args, "j2", 0.0) if hasattr(self, "_args") else 0.0
+        return bool(j2)
+
+    def predict_theta(self, model, lattice, h_value: float, p_layers: int, *, clip: bool = True):
+        """Predict θ for one (lattice, h) with a UnifiedMPNN, adaptively.
+
+        Builds the graph via build_graph_for_model (feature-dim matched to the
+        model), runs a no-grad forward pass, and optionally clips to [-π, π].
+        Returns a 1-D numpy array. Central helper so every runner predicts θ
+        the same way without duplicating graph-build + forward logic.
+        """
+        import numpy as _np
+        import torch as _torch
+
+        graph = self.build_graph_for_model(model, lattice, h_value, p_layers)
+        was_training = model.training
+        model.eval()
+        try:
+            with _torch.no_grad():
+                theta = model(graph).cpu().numpy().flatten()
+        finally:
+            if was_training:
+                model.train()
+        if clip:
+            theta = _np.clip(theta, -_np.pi, _np.pi)
+        return theta
 
     def load_mpnn_from_zoo(
         self,
@@ -3079,6 +3140,7 @@ class ValidationRunner(ABC):
         pass_rate_dual: float,
         *,
         notes: str | None = None,
+        checkpoint_file: str | None = None,
     ) -> bool:
         """Update zoo manifest pass_rate after evaluation produces results.
 
@@ -3101,10 +3163,15 @@ class ValidationRunner(ABC):
         bool
             True if manifest was updated, False otherwise.
         """
-        zoo_entry = getattr(self, "_zoo_entry", None)
-        if zoo_entry is None:
-            logger.debug("auto_update_zoo_pass_rate: no _zoo_entry set, skipping")
-            return False
+        target_ckpt = checkpoint_file
+        if target_ckpt is None:
+            zoo_entry = getattr(self, "_zoo_entry", None)
+            if zoo_entry is None:
+                logger.debug(
+                    "auto_update_zoo_pass_rate: no checkpoint_file or _zoo_entry, skipping"
+                )
+                return False
+            target_ckpt = zoo_entry.checkpoint_file
 
         if not (0.0 <= pass_rate_dual <= 1.0):
             logger.warning(
@@ -3116,11 +3183,10 @@ class ValidationRunner(ABC):
         try:
             from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
 
-            checkpoint_file = zoo_entry.checkpoint_file
             eval_notes = notes or f"Auto-eval by {self.runner_id}"
 
             updated = update_zoo_pass_rate(
-                checkpoint_file,
+                target_ckpt,
                 pass_rate_dual,
                 only_if_better=True,
                 add_notes=eval_notes,
@@ -3128,7 +3194,7 @@ class ValidationRunner(ABC):
             if updated:
                 logger.info(
                     "    📊 Zoo pass_rate updated: %s → %.0f%%",
-                    checkpoint_file[:40],
+                    target_ckpt[:40],
                     pass_rate_dual * 100,
                 )
             return updated
@@ -3358,7 +3424,7 @@ class ValidationRunner(ABC):
 
             from qmbp_simulation.models.hamiltonian import make_lattice
             from qmbp_simulation.predictors.unified_graph import (
-                build_unified_bond_resolved_graph,
+                build_graph_for_model,
             )
 
             topology = self._args.topology if hasattr(self._args, "topology") else "chain_1d"
@@ -3368,7 +3434,8 @@ class ValidationRunner(ABC):
             uncertainties_list = []
             for h in h_candidates:
                 lattice = make_lattice(topology, n_qubits, J=1.0, h=float(h))
-                graph = build_unified_bond_resolved_graph(
+                graph = build_graph_for_model(
+                    model,
                     lattice=lattice,
                     h_value=float(h),
                     p_layers=p_layers,
@@ -4024,10 +4091,15 @@ class ValidationRunner(ABC):
             # EvalCache and reused across runs (keyed by model, N, h, θ-hash).
             p_layers = getattr(self, "_p_layers", None) or getattr(self, "p_layers", 0) or 0
             return compute_exact_fidelity(
-                circuit, theta, gt.ground_state,
+                circuit,
+                theta,
+                gt.ground_state,
                 cache_ctx={
-                    "topology": topology, "n_qubits": n_qubits, "h": h,
-                    "model": model, "p_layers": int(p_layers),
+                    "topology": topology,
+                    "n_qubits": n_qubits,
+                    "h": h,
+                    "model": model,
+                    "p_layers": int(p_layers),
                 },
             )
         except (MemoryError, ValueError, AttributeError, KeyError) as exc:
@@ -4217,6 +4289,8 @@ class ValidationRunner(ABC):
         *,
         fidelity: float | None = None,
         fidelity_info: dict | None = None,
+        checkpoint_file: str | None = None,
+        gap_method: str | None = None,
         **extra,
     ) -> dict:
         """Build standardized per-h result dict for compute_deploy_summary.
@@ -4259,9 +4333,7 @@ class ValidationRunner(ABC):
             result["variational_excess"] = float(e_exact - e_pred)
         import math as _math
 
-        if not (
-            _math.isfinite(e_pred) and _math.isfinite(e_exact) and _math.isfinite(gap)
-        ):
+        if not (_math.isfinite(e_pred) and _math.isfinite(e_exact) and _math.isfinite(gap)):
             sanity.append("non_finite_energy")
         if gap <= 0.0:
             sanity.append("non_positive_gap")
@@ -4287,6 +4359,10 @@ class ValidationRunner(ABC):
                 result["energy_variance"] = float(ev)
         elif fidelity is not None:
             result["fidelity"] = float(fidelity)
+        if checkpoint_file is not None:
+            result["checkpoint_file"] = str(checkpoint_file)
+        if gap_method is not None:
+            result["gap_method"] = str(gap_method)
         result.update(extra)
 
         # Fidelity must lie in [0, 1]; anything outside is a computation bug.

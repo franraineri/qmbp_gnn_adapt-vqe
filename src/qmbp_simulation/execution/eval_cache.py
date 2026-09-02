@@ -176,6 +176,7 @@ class EvalCache:
         model: str = "tfim",
         p_layers: int = 0,
         J: float = 1.0,
+        ckpt_id: str = "",
     ) -> str:
         """Create a deterministic cache key from evaluation parameters.
 
@@ -216,7 +217,8 @@ class EvalCache:
             )
         theta_bytes = theta_arr.tobytes()
         theta_hash = hashlib.sha256(theta_bytes).hexdigest()[:32]
-        return f"{model}|{topology}|{n_qubits}|{p_layers}|J{J:.4f}|{h:.2f}|{theta_hash}"
+        ckpt_tag = f"|{ckpt_id}" if ckpt_id else ""
+        return f"{model}|{topology}|{n_qubits}|{p_layers}|J{J:.4f}|{h:.2f}|{theta_hash}{ckpt_tag}"
 
     def get(self, key: str) -> float | None:
         """Look up cached energy. Returns None on miss."""
@@ -284,8 +286,15 @@ class EvalCache:
         self.put(key, energy)
 
     def _fidelity_key(
-        self, topology: str, n_qubits: int, h: float, theta: np.ndarray,
-        *, model: str, p_layers: int,
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        theta: np.ndarray,
+        *,
+        model: str,
+        p_layers: int,
+        J: float = 1.0,
     ) -> str:
         """Cache key for a ground-state fidelity. State-dependent, so it hashes
         theta (same convention as make_key), prefixed FID| to namespace it apart
@@ -293,25 +302,41 @@ class EvalCache:
         fidelity for a (model, N, h, theta) already evaluated.
         """
         theta_hash = hashlib.sha256(np.asarray(theta, dtype=np.float64).tobytes()).hexdigest()[:32]
-        return f"FID|{model}|{topology}|{n_qubits}|{p_layers}|{h:.2f}|{theta_hash}"
+        j_tag = f"|J{J:.4f}" if abs(J - 1.0) > 1e-9 else ""
+        return f"FID|{model}|{topology}|{n_qubits}|{p_layers}|{h:.2f}|{theta_hash}{j_tag}"
 
     def get_fidelity(
-        self, topology: str, n_qubits: int, h: float, theta: np.ndarray,
-        *, model: str = "tfim", p_layers: int = 0,
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        theta: np.ndarray,
+        *,
+        model: str = "tfim",
+        p_layers: int = 0,
+        J: float = 1.0,
     ) -> float | None:
         """Look up a cached ground-state fidelity. Returns None on miss."""
-        key = self._fidelity_key(topology, n_qubits, h, theta, model=model, p_layers=p_layers)
+        key = self._fidelity_key(topology, n_qubits, h, theta, model=model, p_layers=p_layers, J=J)
         return self.get(key)
 
     def put_fidelity(
-        self, topology: str, n_qubits: int, h: float, theta: np.ndarray, fidelity: float,
-        *, model: str = "tfim", p_layers: int = 0,
+        self,
+        topology: str,
+        n_qubits: int,
+        h: float,
+        theta: np.ndarray,
+        fidelity: float,
+        *,
+        model: str = "tfim",
+        p_layers: int = 0,
+        J: float = 1.0,
     ) -> None:
         """Cache a ground-state fidelity (validated to [0, 1])."""
         if not np.isfinite(fidelity) or not (0.0 <= float(fidelity) <= 1.0):
             logger.debug("EvalCache: rejecting out-of-range fidelity %s", fidelity)
             return
-        key = self._fidelity_key(topology, n_qubits, h, theta, model=model, p_layers=p_layers)
+        key = self._fidelity_key(topology, n_qubits, h, theta, model=model, p_layers=p_layers, J=J)
         self.put(key, float(fidelity))
 
     def flush(self) -> None:
@@ -432,6 +457,7 @@ class CachedBackend:
         J: float = 1.0,
         cache: EvalCache | None = None,
         h_resolver: Any = None,
+        ckpt_id: str = "",
     ) -> None:
         # Safety: refuse to cache stochastic backends (noisy/hardware)
         # These produce different results each call due to shot noise.
@@ -452,6 +478,7 @@ class CachedBackend:
             object.__setattr__(self, "_cache", EvalCache(enabled=False))
             object.__setattr__(self, "_h_resolver", None)
             object.__setattr__(self, "_h_current", 0.0)
+            object.__setattr__(self, "_ckpt_id", ckpt_id)
             return
 
         # Set all instance attributes BEFORE __getattr__ could be triggered
@@ -466,6 +493,7 @@ class CachedBackend:
         )
         object.__setattr__(self, "_h_resolver", h_resolver)
         object.__setattr__(self, "_h_current", 0.0)
+        object.__setattr__(self, "_ckpt_id", ckpt_id)
 
     @property
     def name(self) -> str:
@@ -496,6 +524,7 @@ class CachedBackend:
             model=self._model,
             p_layers=self._p_layers,
             J=self._J,
+            ckpt_id=self._ckpt_id,
         )
 
         cached = self._cache.get(key)

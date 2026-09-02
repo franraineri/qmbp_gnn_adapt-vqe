@@ -7,12 +7,10 @@ Tests the full roundtrip for:
 - atomic_savez (crash-safe write)
 - Manifest heal (detect missing checkpoints)
 """
+
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
-import pytest
 
 from qmbp_simulation.framework.result_io import upsert_theta_npz
 from qmbp_simulation.utils.helpers import atomic_savez
@@ -74,21 +72,21 @@ class TestNPZUpsertRoundtrip:
         npz = tmp_path / "test.npz"
         h = np.array([1.5])
         theta = np.array([[0.1, 0.2]])
-        e_vqe = np.array([-4.5])
+        e_vqe = np.array([-4.4])
         e_exact = np.array([-4.6])
         gaps = np.array([0.4])
 
         upsert_theta_npz(npz, h, theta, e_vqe, e_exact, gaps)
 
-        # Overwrite with better energy
+        # Overwrite with a better (lower) but still variationally valid energy
         theta_better = np.array([[0.11, 0.21]])
-        e_better = np.array([-4.8])  # Better
+        e_better = np.array([-4.55])  # Better, still >= e_exact
         n_upd, n_add = upsert_theta_npz(npz, h, theta_better, e_better, e_exact, gaps)
         assert n_upd == 1
 
         data = np.load(npz, allow_pickle=True)
         e_key = "e_vqe" if "e_vqe" in data else "e_pred"
-        assert data[e_key][0] < -4.7
+        assert data[e_key][0] < -4.5
 
 
 class TestGroundTruthCache:

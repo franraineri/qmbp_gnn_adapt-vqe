@@ -154,7 +154,6 @@ def _gen_global_pipeline_performance(data: dict) -> TableSpec:
         "Pass Rate",
         "Median ΔE/gap",
         "Mean ΔE/gap",
-        "Best ΔE/gap",
         "Mean θ-smooth",
         "Mean Gen.Gap",
         "Mean Time (s)",
@@ -176,7 +175,6 @@ def _gen_global_pipeline_performance(data: dict) -> TableSpec:
                 f"{n_pass / len(results):.0%}",
                 f"{np.median(de_vals):.4f}",
                 f"{np.mean(de_vals):.4f}",
-                f"{min(de_vals):.4f}",
                 f"{np.mean(smoothness):.3f}" if smoothness else "—",
                 f"{np.mean(gen_gaps):.2e}" if gen_gaps else "—",
                 f"{np.mean(times):.0f}" if times else "—",
@@ -194,7 +192,6 @@ def _gen_global_pipeline_performance(data: dict) -> TableSpec:
             f"{n_pass_total / len(valid):.0%}",
             f"{np.median(all_de):.4f}",
             f"{np.mean(all_de):.4f}",
-            f"{min(all_de):.4f}",
             "—",
             "—",
             "—",
@@ -204,8 +201,7 @@ def _gen_global_pipeline_performance(data: dict) -> TableSpec:
     return TableSpec(
         table_id="T1",
         title="Global Pipeline Performance Summary",
-        caption="Aggregated pipeline performance across all topologies and system sizes. "
-        "Pass criterion: ΔE/gap < 5%.",
+        caption="Aggregated pipeline performance across all topologies and system sizes.",
         columns=columns,
         rows=rows,
         notes=f"Total runs: {len(valid)}. Topologies: {len(set(r.topology for r in valid))}.",
@@ -342,8 +338,7 @@ def _gen_scaling_law_validation(data: dict) -> TableSpec:
     return TableSpec(
         table_id="T3",
         title="Scaling Law Validation",
-        caption="Pipeline performance across system sizes N=6 to N=80. "
-        "Scaling law: $h_{min} = 1.0 + 0.020 \\cdot N^{1.31} + 0.50$.",
+        caption="Pipeline performance across system sizes N=6 to N=80.",
         columns=columns,
         rows=rows,
         notes="Pass criterion: ΔE/gap < 5%. MPS backend used for N≥40.",
@@ -354,7 +349,7 @@ def _gen_scaling_law_validation(data: dict) -> TableSpec:
 def _gen_gnn_qem_summary(data: dict) -> TableSpec:
     """T4: GNN-QEM Results Summary."""
     gnn = data["gnn_qem"]
-    columns = ["Experiment", "Mode", "Metric", "Value", "N Points", "Verdict"]
+    columns = ["Experiment", "Mode", "Metric", "Value", "Verdict"]
     rows = []
 
     # In-distribution evaluation
@@ -366,7 +361,6 @@ def _gen_gnn_qem_summary(data: dict) -> TableSpec:
                 "Correction",
                 "Error Reduction",
                 f"{eval_data.get('mean_error_reduction_pct', 0):.1f}%",
-                str(eval_data.get("n_test_points", 0)),
                 "✅" if eval_data.get("mean_error_reduction_pct", 0) > 90 else "⚠️",
             ]
         )
@@ -380,7 +374,6 @@ def _gen_gnn_qem_summary(data: dict) -> TableSpec:
                 "Zero-Shot Transfer",
                 "Improvement Rate",
                 f"{cross.get('improvement_rate', 0) * 100:.0f}%",
-                str(cross.get("n_test_points", 0)),
                 "✅" if cross.get("improvement_rate", 0) >= 1.0 else "⚠️",
             ]
         )
@@ -394,7 +387,6 @@ def _gen_gnn_qem_summary(data: dict) -> TableSpec:
                 "Predictive",
                 "GNN vs MLP Accuracy",
                 f"GNN={ablation.get('gnn_accuracy', 0) * 100:.0f}% / MLP={ablation.get('mlp_accuracy', 0) * 100:.0f}%",
-                str(ablation.get("n_points", 0)),
                 "✅",
             ]
         )
@@ -408,7 +400,6 @@ def _gen_gnn_qem_summary(data: dict) -> TableSpec:
                 "Correction",
                 "Regression Rate",
                 f"{post_zne.get('n_regressed', 0)}/{post_zne.get('n_total', 0)}",
-                str(post_zne.get("n_total", 0)),
                 "❌ (Expected)",
             ]
         )
@@ -422,7 +413,6 @@ def _gen_gnn_qem_summary(data: dict) -> TableSpec:
                 "Predictive (no E_noisy)",
                 "Spearman ρ",
                 f"{vqe_real.get('spearman_rho', 0):.3f}",
-                str(vqe_real.get("n_points", 0)),
                 "✅" if vqe_real.get("spearman_rho", 0) > 0.9 else "⚠️",
             ]
         )
@@ -509,7 +499,6 @@ def _gen_cross_topology_transfer(data: dict) -> TableSpec:
         "Target",
         "Mean ΔE/gap",
         "Pass Rate",
-        "N Points",
         "Verdict",
     ]
     rows = []
@@ -524,13 +513,12 @@ def _gen_cross_topology_transfer(data: dict) -> TableSpec:
                 target,
                 f"{r.mean_de_gap:.4f}",
                 f"{r.n_pass}/{r.n_total}",
-                str(r.n_total),
                 r.verdict,
             ]
         )
 
     if not rows:
-        rows.append(["No cross-topology results found", "—", "—", "—", "—", "—", "—"])
+        rows.append(["No cross-topology results found", "—", "—", "—", "—", "—"])
 
     return TableSpec(
         table_id="T6",

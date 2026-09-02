@@ -34904,5 +34904,3820 @@
       "old_version": 3,
       "new_version": 3
     }
+  },
+  {
+    "timestamp": "2026-08-31T20:59:34.917214+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T205934.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 6,
+      "n_values": [
+        8
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:00:50.312975+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T205934.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T210050.pt",
+      "old_pass_rate": 0.8333333333333334,
+      "new_pass_rate": 0.8333333333333334,
+      "old_n_training_points": 6,
+      "new_n_training_points": 6
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:00:50.409951+00:00",
+    "event_type": "registered",
+    "model_id": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T210050.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 6,
+      "n_values": [
+        8
+      ],
+      "runner_tag": "XX",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:20:12.663679+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+      "old_pass_rate": 0.7058823529411765,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 674,
+      "new_n_training_points": 953
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:20:12.965431+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 953,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:20:13.178240+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 953,
+      "new_training_points": 953,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:20:13.182300+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 1032
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:20:13.226803+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "intrinsic_vqe_error"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-08-31T21:20:13.551628+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 953,
+      "new_training_points": 953,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-31T23:06:32.087821+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.7142857142857143,
+      "new_pass_rate": 0.3333333333333333,
+      "delta": -0.380952380952381,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-08-31T23:06:32.142167+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 71%"
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.225040+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unified_tfim_bond_resolved_chain_1d_n10_p1_20260812T003023.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.260436+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+20_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.298813+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+30+40+60+100+150+200_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.334131+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.374691+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_rollback_n10_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.409967+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_multiN_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.444856+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_model_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.483616+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_model_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.519225+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.558813+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "test_rollback_n10_p1_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.595116+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.634139+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.671247+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T00:56:14.715031+00:00",
+    "event_type": "needs_retrain_flagged",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "reason": "npz_quality_tier_improved",
+      "n_qubits": 10,
+      "old_verified_ratio": 0.625,
+      "new_verified_ratio": 0.8571428571428571,
+      "improvement": 0.2321428571428571
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:12.434966+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+      "old_pass_rate": 0.3333333333333333,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 674,
+      "new_n_training_points": 953
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:12.512478+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 953,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:12.569496+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 953,
+      "new_training_points": 953,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:12.571564+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 1032
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:12.583489+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "intrinsic_vqe_error"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:12.641985+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 953,
+      "new_training_points": 953,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:44.721732+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.7142857142857143,
+      "new_pass_rate": 0.04,
+      "delta": -0.6742857142857143,
+      "target_n": []
+    }
+  },
+  {
+    "timestamp": "2026-09-01T01:42:44.759280+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.04,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 33%"
+    }
+  },
+  {
+    "timestamp": "2026-09-01T15:23:12.768998+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+      "old_pass_rate": 0.04,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 674,
+      "new_n_training_points": 958
+    }
+  },
+  {
+    "timestamp": "2026-09-01T15:23:12.902841+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 958,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-09-01T15:23:12.959793+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 958,
+      "new_training_points": 958,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-09-01T15:23:12.962261+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 1053
+    }
+  },
+  {
+    "timestamp": "2026-09-01T15:23:12.973780+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "intrinsic_vqe_error"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-01T15:23:13.030677+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 958,
+      "new_training_points": 958,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:03:17.433117+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+      "old_pass_rate": 0.04,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 674,
+      "new_n_training_points": 958
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:03:17.506293+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 958,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:03:17.561502+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 958,
+      "new_training_points": 958,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:03:17.563231+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 1053
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:03:17.571480+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "intrinsic_vqe_error"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:03:17.623664+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 958,
+      "new_training_points": 958,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:42:29.906260+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+      "old_pass_rate": 0.04,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 674,
+      "new_n_training_points": 958
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:42:29.982694+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 958,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:42:30.039366+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 958,
+      "new_training_points": 958,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:42:30.041767+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 1053
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:42:30.056536+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "intrinsic_vqe_error"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T06:42:30.114748+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 958,
+      "new_training_points": 958,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-09-02T16:54:49.107786+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "new_model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+      "old_pass_rate": 0.04,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 674,
+      "new_n_training_points": 995
+    }
+  },
+  {
+    "timestamp": "2026-09-02T16:54:49.181609+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_points": 995,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-09-02T16:54:49.244795+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 995,
+      "new_training_points": 995,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [],
+      "old_pass_rate": 0.0,
+      "old_version": 1,
+      "new_version": 2
+    }
+  },
+  {
+    "timestamp": "2026-09-02T16:54:49.247122+00:00",
+    "event_type": "dashboard_synced",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "training_utility": "useful",
+      "n_points": 1122
+    }
+  },
+  {
+    "timestamp": "2026-09-02T16:54:49.258273+00:00",
+    "event_type": "failure_diagnosed",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "primary_mode": "mixed",
+      "confidence": 0.7,
+      "secondary_modes": [
+        "gap_masking",
+        "intrinsic_vqe_error"
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T16:54:49.312253+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "old_training_points": 995,
+      "new_training_points": 995,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        60
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 3,
+      "new_version": 3
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.139120+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 1.8280696570435897,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.208339+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.261806+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.45454545454545453,
+      "delta": -0.29545454545454547,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.313347+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.45454545454545453,
+      "pass_rate_5pct": 0.45454545454545453,
+      "mean_de_gap": 0.17178082508411674,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.372922+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "prev_best_pass_rate": 0.5319148936170213,
+      "new_pass_rate": 0.38333333333333336,
+      "delta": -0.1485815602836879,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        18,
+        20,
+        20,
+        20,
+        20,
+        21,
+        22,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        32,
+        40,
+        40,
+        40,
+        50,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.443643+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.38333333333333336,
+      "pass_rate_5pct": 0.38333333333333336,
+      "mean_de_gap": 72.92127652713735,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        18,
+        20,
+        20,
+        20,
+        20,
+        21,
+        22,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        32,
+        40,
+        40,
+        40,
+        50,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.490980+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.8500000000000001,
+      "new_pass_rate": 0.5,
+      "delta": -0.3500000000000001,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.542820+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.589715+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.7142857142857143,
+      "new_pass_rate": 0.2222222222222222,
+      "delta": -0.4920634920634921,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.632813+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.706158+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.2222222222222222,
+      "delta": -0.5277777777777778,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.757245+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.831912+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.5,
+      "delta": -0.16666666666666663,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:36.968192+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.042150+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.5,
+      "delta": -0.25,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.096998+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.164751+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.237489+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.295148+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.373262+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.442580+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.520173+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_mse.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.588062+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_mse.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.742750+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.818083+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:37.963580+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.035879+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.124354+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.188726+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.262002+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.332453+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.411873+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.485184+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_physics05.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.563176+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_full_stack.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.630383+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.722789+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.790216+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__MT_p1_res_film_base.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.38333333333333336,
+      "pass_rate_5pct": 0.38333333333333336,
+      "mean_de_gap": 72.92127652713735,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        18,
+        20,
+        20,
+        20,
+        20,
+        21,
+        22,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        32,
+        40,
+        40,
+        40,
+        50,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.866861+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:38.946419+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:39.027608+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:39.094298+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:39.170847+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:43:39.236210+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T18:45:55.951057+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.046104+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5_v2.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.098067+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v1.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.144860+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_orbit_v2.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.188035+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v1.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.236881+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_full_stack.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.282854+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_plain_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.333011+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.379462+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_deploy.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.434669+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.481413+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_energyw_critical.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.528545+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_mse.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.577142+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_film_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.623602+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_mse.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.672001+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_mse_v2.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.720094+00:00",
+    "event_type": "archived",
+    "model_id": "unifMPNN__heavy_hex_p1_res_physics05.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.773088+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_MT_residual+film_p1.pt",
+    "topology": "multi_topology",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.826030+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+26+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.884820+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.938825+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:24.990756+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.041388+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.163105+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v2.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.213072+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v3.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.269482+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v4.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.319507+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v6.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.375550+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v7.pt",
+    "topology": "heavy_hex",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T18:56:25.425296+00:00",
+    "event_type": "archived",
+    "model_id": "unified_tfim_frustrated_chain_1d_n8_p1_20260831T205934.pt",
+    "topology": "chain_1d",
+    "details": {}
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.519674+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 1.8280696570435897,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.565541+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.614648+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.45454545454545453,
+      "delta": -0.29545454545454547,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.653287+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.45454545454545453,
+      "pass_rate_5pct": 0.45454545454545453,
+      "mean_de_gap": 0.17178082508411674,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.700194+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.8500000000000001,
+      "new_pass_rate": 0.5,
+      "delta": -0.3500000000000001,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.737469+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.805261+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.859830+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.923713+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__MT_p1_res_film_base.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.38333333333333336,
+      "pass_rate_5pct": 0.38333333333333336,
+      "mean_de_gap": 72.92127652713735,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        18,
+        20,
+        20,
+        20,
+        20,
+        21,
+        22,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        32,
+        40,
+        40,
+        40,
+        50,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:58.977479+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.044921+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.099901+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.167233+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.208836+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.2222222222222222,
+      "delta": -0.5277777777777778,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.250929+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 212.45313699238878,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.303726+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.5,
+      "delta": -0.16666666666666663,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T19:41:59.357246+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:01.791438+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_square_multiN_4+6+8+10+12+14_p1.pt",
+    "topology": "square",
+    "details": {
+      "pass_rate_dual": 0.3333333333333333,
+      "pass_rate_5pct": 0.3333333333333333,
+      "mean_de_gap": 1.8280696570435897,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        30
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 30] 3/9"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:02.126543+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_triangular_multiN_3+4+6_p1.pt",
+    "topology": "triangular",
+    "details": {
+      "pass_rate_dual": 0.25,
+      "pass_rate_5pct": 0.25,
+      "mean_de_gap": 7.155080519831615,
+      "target_n": [
+        3,
+        4,
+        6,
+        8,
+        10,
+        12,
+        16,
+        24
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 6, 8, 10, 12, 16, 24] 2/8"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:02.296280+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.45454545454545453,
+      "delta": -0.29545454545454547,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:02.426316+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_ladder_multiN_4+6+8+10+12+16+20+26+40_p1.pt",
+    "topology": "ladder",
+    "details": {
+      "pass_rate_dual": 0.45454545454545453,
+      "pass_rate_5pct": 0.45454545454545453,
+      "mean_de_gap": 0.17178082508411674,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        20,
+        26,
+        30,
+        40
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 20, 26, 30, 40] 5/11"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:02.515017+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.8500000000000001,
+      "new_pass_rate": 0.5,
+      "delta": -0.3500000000000001,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:02.734798+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:02.935159+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+14+16+18+20+22+24+30+32+40_p2_v5.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:03.091615+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_h_0p5_1p5.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 214.99373535852922,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:03.255465+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__MT_p1_res_film_base.pt",
+    "topology": "multi_topology",
+    "details": {
+      "pass_rate_dual": 0.38333333333333336,
+      "pass_rate_5pct": 0.38333333333333336,
+      "mean_de_gap": 73.68345603697949,
+      "target_n": [
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        6,
+        6,
+        6,
+        6,
+        6,
+        8,
+        8,
+        8,
+        8,
+        8,
+        10,
+        10,
+        10,
+        10,
+        10,
+        12,
+        12,
+        12,
+        12,
+        12,
+        14,
+        14,
+        14,
+        14,
+        15,
+        16,
+        16,
+        16,
+        16,
+        18,
+        20,
+        20,
+        20,
+        20,
+        21,
+        22,
+        24,
+        26,
+        26,
+        26,
+        30,
+        30,
+        30,
+        32,
+        40,
+        40,
+        40,
+        50,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[3, 4, 4, 4, 4, 4, 6, 6, 6, 6, 6, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 12, 12, 12, 12, 12, 14, 14, 14, 14, 15, 16, 16, 16, 16, 18, 20, 20, 20, 20, 21, 22, 24, 26, 26, 26, 30, 30, 30, 32, 40, 40, 40, 50, 50, 60, 80, 100, 150, 200] 23/60"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:03.478661+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_4_p2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 214.99373535852922,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:03.630973+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_v2.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 214.99373535852922,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:03.873281+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 214.99373535852922,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:04.041176+00:00",
+    "event_type": "evaluated",
+    "model_id": "unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 214.99373535852922,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:04.146314+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "prev_best_pass_rate": 0.75,
+      "new_pass_rate": 0.2222222222222222,
+      "delta": -0.5277777777777778,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:04.290151+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_chain_1d_multiN_6+8+10+12+15+16+20+60_p1.pt",
+    "topology": "chain_1d",
+    "details": {
+      "pass_rate_dual": 0.2222222222222222,
+      "pass_rate_5pct": 0.2222222222222222,
+      "mean_de_gap": 214.99373535852922,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        15,
+        16,
+        20,
+        26,
+        30,
+        40,
+        50,
+        60,
+        80,
+        100,
+        150,
+        200
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 15, 16, 20, 26, 30, 40, 50, 60, 80, 100, 150, 200] 4/18"
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:04.400774+00:00",
+    "event_type": "regression_detected",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "prev_best_pass_rate": 0.6666666666666666,
+      "new_pass_rate": 0.5,
+      "delta": -0.16666666666666663,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ]
+    }
+  },
+  {
+    "timestamp": "2026-09-02T20:23:04.601005+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_fromMT_4+6+10+12+16+20_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.5,
+      "pass_rate_5pct": 0.5,
+      "mean_de_gap": 29.469360858740906,
+      "target_n": [
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        21,
+        22,
+        24,
+        26,
+        30,
+        32,
+        40,
+        50,
+        60
+      ],
+      "notes": "evaluate_zoo_models N=[4, 6, 8, 10, 12, 14, 16, 18, 20, 21, 22, 24, 26, 30, 32, 40, 50, 60] 9/18"
+    }
   }
 ]

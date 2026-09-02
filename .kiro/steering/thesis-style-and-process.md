@@ -78,8 +78,15 @@ Orden de prioridad al reportar y discutir resultados:
 3. **Expresividad del ansatz** — explicación. Si $|\Delta E|$ crece, atribuirlo a
    la capacidad finita del HVA a profundidad acotada (no al predictor), con la
    evidencia correspondiente.
-4. **$|\Delta E|/N$ (error por sitio)** — para comparar entre tamaños (escalado
-   extensivo).
+
+No usar $|\Delta E|/N$ (error por sitio): se retiró por no aportar información
+adicional respecto a $|\Delta E|$.
+
+**Sin énfasis en la profundidad acotada.** Se entiende que $p$ debe ser acotada
+($p \leq 4$), pero no es el eje del trabajo: evitar fórmulas de "capas requeridas"
+($p \propto N$, $p \approx N/2$, $p = N-1$) y no atribuirlas como cotas teóricas
+citadas. Mencionar la profundidad como un parámetro fijo del experimento, no como
+un resultado central.
 
 Reglas derivadas:
 - **PassRate es una métrica secundaria/derivada**, no el resultado principal. No
@@ -107,6 +114,13 @@ Reglas derivadas:
   "reduce la QPU de días a minutos" sin un cálculo concreto de tiempos.
 - Reducir adjetivos sin comparación cuantitativa: notable, excelente, potente,
   radicalmente, robusto, óptimo, madurez del procedimiento.
+
+Automatización: el script marca estos términos (`%TODO-TONO`) y auto-corrige las
+frases fijas seguras (`--fix-tone`: "el pipeline funciona", "coste cuántico cero",
+"ampliamente validado", "límite fundamental", "resultado exhaustivo", "madurez del
+procedimiento"). El resto ("demuestra"/"garantiza", adjetivos, añadir "dentro de
+las configuraciones evaluadas") requiere **criterio humano**: a veces sí hay
+demostración o comparación cuantitativa que justifica el término.
 
 ## 7. Tablas y figuras
 
@@ -140,7 +154,12 @@ Reglas derivadas:
   cómo se evita que un mismo $h$ caiga en entrenamiento y validación entre
   semillas. Un conjunto de test independiente, no solo 80/20.
 - Relacionar cada figura y tabla con el script y el archivo de datos que la
-  generan.
+  generan; guardar una configuración reproducible por experimento principal.
+
+Automatización: el script (`--check-tex`) marca "statevector con $N > 22$" y
+"exacto"+DMRG/MPS (`%TODO-REPRO`). El resto ---versiones de librerías, hardware
+clásico, qué controla cada semilla, separación de $h$ train/val, conjunto de test
+independiente--- se **escribe a mano** (no detectable mecánicamente).
 
 ## 9. Bibliografía
 
@@ -152,6 +171,13 @@ Reglas derivadas:
   mezclar versiones "vN" solo en algunas entradas; revisar capitalización inglesa.
 - Toda cita con `\bibitem` y todo `\bibitem` citado. Cada referencia debe
   respaldar con precisión la afirmación que acompaña.
+
+Automatización: el script (`--check-tex`) detecta arXiv duplicados, mismo
+primer-autor+año sin sufijo a/b, versiones "vN" inconsistentes, y citas/bibitems
+sin pareja. **Requiere verificación humana** (no automatizable sin acceso a arXiv):
+que autor/título/año coincidan con el registro real, y que la afirmación citada
+aparezca efectivamente en el artículo bajo las mismas condiciones (p. ej. la
+frontera de ventaja cuántica en $N \approx 20$, o el resultado de $N/2$ capas).
 
 ## 10. Títulos y mayúsculas
 
@@ -169,7 +195,15 @@ Reglas derivadas:
 - Unificar nombres de topologías y modelos (una sola grafía por cada uno; nombres
   en español salvo identificadores internos de código).
 - Elegir un término principal y reservar el técnico para variables/tablas
-  (p. ej. "tasa de aprobación" en texto, `PassRate` en columnas).
+  (p. ej. "tasa de aprobación" en texto, columna abreviada en tablas).
+- Todo porcentaje de aprobación lleva su caso absoluto: `95\% (37/39)`.
+- Rangos numéricos con `--` (en-dash de LaTeX), nunca guion simple.
+
+Automatización: el script (`--check-tex`) detecta siglas usadas sin definir en el
+primer uso, variantes de grafía conviviendo (heavy-hex, coste/costo, gap/brecha
+espectral, cadena 1D...), tasas de aprobación sin caso absoluto, y rangos con
+guion simple. La elección del término canónico es criterio humano.
+
 - Desambiguar métricas homónimas:
   - Fidelidad: del estado VQE / del estado predicho / media de entrenamiento.
   - Error: absoluto $\Delta E$ / por sitio $\Delta E/N$ / normalizado por gap /

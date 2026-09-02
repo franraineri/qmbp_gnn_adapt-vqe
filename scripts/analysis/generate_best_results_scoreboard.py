@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import re
+import statistics
 import sys
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
@@ -100,6 +101,7 @@ class BestResult:
     p_layers: int
     best_de_gap: float
     best_abs_error: float
+    mean_abs_error: float  # mean |ΔE| over all points of the winning report
     gap_at_best: float
     h_used: float
     grade: str
@@ -477,6 +479,9 @@ def compute_best_per_topology_n(
         # Find entry with lowest |ΔE| (abs_error) — primary ranking criterion
         best_entry = min(group, key=lambda e: e.result.abs_error)
         r = best_entry.result
+        # Mean |ΔE| across every deduped candidate of this (topology, p, N) —
+        # reported instead of the single best point in the tables.
+        mean_abs_error = float(statistics.mean(e.result.abs_error for e in group))
 
         # Grade based on |ΔE| (absolute energy error).
         # Thresholds are N-independent — what matters is the raw energy accuracy.
@@ -527,6 +532,7 @@ def compute_best_per_topology_n(
             p_layers=p_layers,
             best_de_gap=r.de_gap,
             best_abs_error=r.abs_error,
+            mean_abs_error=mean_abs_error,
             gap_at_best=r.gap,
             h_used=r.h,
             grade=grade,
@@ -563,23 +569,16 @@ def _format_best_table(n_results: dict[int, BestResult]) -> list[str]:
         lines.append(f"**h used**: varies ({min(h_values_used):.3f} – {max(h_values_used):.3f})")
     lines.append("")
 
-    # ΔE/gap and gap columns temporarily hidden. Rollback: restore the
-    # header/separator below and add `{r.best_de_gap:.4f} | {r.gap_at_best:.4f}`
-    # to the row f-string.
-    #   "| N | |ΔE| | ΔE/gap | gap | Fidelity | Grade | Model | Checkpoint | Date | Source |"
-    #   "|--:|-----:|-------:|----:|:--------:|:-----:|:-----:|-----------|------|--------|"
-    lines.append("| N | |ΔE| | Fidelity | Grade | Model | Checkpoint | Date | Source |")
-    lines.append("|--:|-----:|:--------:|:-----:|:-----:|-----------|------|--------|")
+    # |ΔE| column reports the MEAN over the config's points. ΔE/gap and gap
+    # columns remain hidden (rollback: add `{r.best_de_gap:.4f} | {r.gap_at_best:.4f}`).
+    lines.append("| N | mean |ΔE| | Fidelity | Grade | Checkpoint | Date |")
+    lines.append("|--:|--------:|:--------:|:-----:|-----------|------|")
 
     for n in sorted(n_results.keys()):
         r = n_results[n]
         ckpt_short = r.checkpoint
         if len(ckpt_short) > 40:
             ckpt_short = ckpt_short[:37] + "..."
-
-        source_link = f"`{Path(r.report_file).name}`"
-        if r.run_json:
-            source_link += f" ([json]({r.run_json}))"
 
         if r.fidelity is None:
             fid_cell = "N/A"
@@ -588,13 +587,10 @@ def _format_best_table(n_results: dict[int, BestResult]) -> list[str]:
         else:
             fid_cell = f"{r.fidelity:.4f}"
 
-        # Rollback: reinsert `{r.best_de_gap:.4f} | {r.gap_at_best:.4f} | `
-        # after best_abs_error to bring back the ΔE/gap and gap columns.
         lines.append(
-            f"| {n} | {r.best_abs_error:.4f} | "
-            f"{fid_cell} | {r.grade} | {r.model_type} | "
-            f"{ckpt_short} | {r.date[:10] if r.date else '—'} | "
-            f"{source_link} |"
+            f"| {n} | {r.mean_abs_error:.4f} | "
+            f"{fid_cell} | {r.grade} | "
+            f"{ckpt_short} | {r.date[:10] if r.date else '—'} |"
         )
 
     return lines
@@ -648,10 +644,9 @@ def format_markdown(
     lines.append("## Summary: Best Grade per Topology")
     lines.append("")
     lines.append(
-        "| Topology | Max N evaluated | Best grade | "
-        "Best |ΔE| (any N) | Best model type | N trained up to |"
+        "| Topology | Max N evaluated | Best grade | Mean |ΔE| (any N) | N trained up to |"
     )
-    lines.append("|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|")
 
     for topo in sorted(best_for_p.keys()):
         n_results = best_for_p[topo]
@@ -664,8 +659,7 @@ def format_markdown(
 
         lines.append(
             f"| {topo} | {max_n} | {best_grade_entry.grade} | "
-            f"{best_grade_entry.best_abs_error:.4f} | "
-            f"{best_grade_entry.model_type} | {max_n_trained} |"
+            f"{best_grade_entry.mean_abs_error:.4f} | {max_n_trained} |"
         )
 
     lines.extend(["", "---", ""])

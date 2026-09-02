@@ -22,8 +22,7 @@ Usage:
     .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py
 
     # Custom topology and sizes
-    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
-        --topology chain_1d --target-n 30 50 80 --h-min 2.5 --h-max 5.0
+    .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py --topology chain_1d --target-n 30 50 80 --h-min 2.5 --h-max 5.0 --skip-random-baseline
 
     # Quick smoke test (fewer points)
     .venv/bin/python scripts/experiment_runners/scaling/run_large_n_extrapolation.py \\
@@ -338,8 +337,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
         self._model_kwargs = self.model_kwargs()
         if self._model_kwargs:
             logger.info(
-                f"  Frustrated mode: model={self._args.model_name} "
-                f"J2={self._model_kwargs['J2']}"
+                f"  Frustrated mode: model={self._args.model_name} J2={self._model_kwargs['J2']}"
             )
         self._fidelity_threshold = self.resolve_fidelity_threshold(self._args.model_name)
         self._extrap_data_dir = build_data_dir(EXTRAPOLATION_DATA_ROOT, self.is_frustrated())
@@ -493,7 +491,10 @@ class LargeNExtrapolationRunner(ValidationRunner):
                     n_failed += 1
                     logger.warning(
                         "  GT skip N=%d h=%.2f: %s: %s",
-                        n_target, float(h), type(exc).__name__, str(exc)[:100],
+                        n_target,
+                        float(h),
+                        type(exc).__name__,
+                        str(exc)[:100],
                     )
                     continue
                 elapsed = time.perf_counter() - t0
@@ -544,7 +545,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
         from qmbp_simulation.predictors.unified_graph import (
-            build_unified_bond_resolved_graph,
+            build_graph_for_model,
         )
 
         topo = self._args.topology
@@ -586,9 +587,11 @@ class LargeNExtrapolationRunner(ValidationRunner):
         for n_target in self._args.target_n:
             logger.info(f"  MPNN N={n_target}: predicting {len(self._h_values)} points...")
 
-            # Load existing NPZ cache (unless force_recompute)
+            # Load existing NPZ cache (unless force_recompute or explicit --checkpoint).
+            # An explicit checkpoint must never read the shared per-(topo,N,p) NPZ,
+            # otherwise every checkpoint returns the first model's cached e_pred.
             existing_data = None
-            if not force_recompute:
+            if not force_recompute and not self._args.checkpoint:
                 existing_data = load_extrapolation_npz(
                     topo, n_target, p, data_dir=self._extrap_data_dir
                 )
@@ -606,11 +609,11 @@ class LargeNExtrapolationRunner(ValidationRunner):
             # to detect obvious mismatches (wrong model loaded for different topology/p).
             if n_target == self._args.target_n[0]:  # Only on first N (lightweight)
                 try:
-                    g_probe = build_unified_bond_resolved_graph(
+                    g_probe = build_graph_for_model(
+                        model,
                         lat_ref,
                         h_value=2.0,
                         p_layers=p,
-                        include_circuit_nodes=True,
                     )
                     with torch.no_grad():
                         probe_out = model(g_probe).numpy().flatten()
@@ -627,13 +630,19 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 except Exception as e:
                     logger.debug(f"  Model probe skipped: {e}")
 
-            # CachedBackend for transparent eval caching
+            # CachedBackend for transparent eval caching. Disable when
+            # force_recompute so the flag truly recomputes energies, and key the
+            # cache by checkpoint so distinct models never share cached energies.
+            import os as _os
+
+            _ckpt_id = _os.path.basename(str(self._actual_checkpoint or ""))
             with self.get_cached_backend(
                 topology=topo,
                 n_qubits=n_target,
                 model=self._args.model_name,
                 p_layers=p,
-                enabled=use_cache,
+                enabled=use_cache and not force_recompute,
+                ckpt_id=_ckpt_id,
             ) as eval_backend:
                 per_h_results = []
                 n_cached, n_predicted = 0, 0
@@ -692,11 +701,11 @@ class LargeNExtrapolationRunner(ValidationRunner):
 
                         # Fresh prediction
                         t0 = time.perf_counter()
-                        g = build_unified_bond_resolved_graph(
+                        g = build_graph_for_model(
+                            model,
                             lat_ref,
                             h_value=float(h),
                             p_layers=p,
-                            include_circuit_nodes=True,
                         )
                         with torch.no_grad():
                             theta_pred = model(g).numpy().flatten()
@@ -1137,7 +1146,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
             select_next_point,
         )
         from qmbp_simulation.circuits import HVACircuitBuilder
-        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+        from qmbp_simulation.predictors.unified_graph import build_graph_for_model
 
         n_rounds = self._args.active_learning_rounds
         topo = self._args.topology
@@ -1178,7 +1187,7 @@ class LargeNExtrapolationRunner(ValidationRunner):
                 uncertainties = []
                 for h in h_candidates:
                     lat = self.make_lattice(topo, n_target, J=1.0, h=float(h))
-                    g = build_unified_bond_resolved_graph(lat, float(h), p)
+                    g = build_graph_for_model(mpnn_model, lat, float(h), p)
                     if hasattr(mpnn_model, "predict_with_uncertainty"):
                         _, theta_std = mpnn_model.predict_with_uncertainty(g)
                         uncertainties.append(theta_std)

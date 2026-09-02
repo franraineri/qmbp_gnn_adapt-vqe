@@ -82,9 +82,9 @@ def evaluate_direct_fidelity(
 
     from qmbp_simulation.circuits import HVACircuitBuilder
     from qmbp_simulation.execution import NoiselessBackend
-    from qmbp_simulation.models.hamiltonian import HamiltonianBuilder, make_lattice
+    from qmbp_simulation.models.hamiltonian import make_lattice
     from qmbp_simulation.predictors.model_zoo import load_best_model_for
-    from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+    from qmbp_simulation.predictors.unified_graph import build_graph_for_model
     from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
 
     # Load MPNN model
@@ -103,9 +103,7 @@ def evaluate_direct_fidelity(
     # Predict θ. include_circuit_nodes=True is required for UnifiedMPNN — the
     # graph must carry the per-node circuit structure or the prediction is wrong.
     lattice = make_lattice(topology, n_qubits, J=1.0, h=h)
-    graph = build_unified_bond_resolved_graph(
-        lattice, h_value=h, p_layers=p_layers, include_circuit_nodes=True
-    )
+    graph = build_graph_for_model(model, lattice, h_value=h, p_layers=p_layers)
     with torch.no_grad():
         theta_pred = model(graph).cpu().numpy().flatten()
 
@@ -332,7 +330,9 @@ def run_fidelity_evaluation(
 
         f_min = report.f_min_reference if report.f_min_reference is not None else 0.50
         fids = [r.fidelity for r in report.results]
-        verdict = assess_hardware_viability({"min_fidelity": min(fids), "mean_fidelity": float(np.mean(fids))}, f_min)
+        verdict = assess_hardware_viability(
+            {"min_fidelity": min(fids), "mean_fidelity": float(np.mean(fids))}, f_min
+        )
         report.hardware_viable = verdict["hardware_viable"]
 
     return report

@@ -119,6 +119,91 @@ def _physics_energy_error(graph, theta_pred_np: np.ndarray) -> float | None:
     return abs(e_pred - e_exact) / denom
 
 
+_EXACT_STATE_CACHE: dict[tuple, np.ndarray | None] = {}
+
+# Fidelity via statevector needs the full 2^N ground-state vector. We cap this
+# below the solver's hard ceiling (STATEVECTOR_MAX_N) at 16 qubits: 2^16 = 64k
+# amplitudes is cheap to diagonalize and overlap every few epochs, while N>16
+# grows the cost fast. The fidelity term is a no-op above this cap.
+_FIDELITY_MAX_N = 16
+
+
+def _get_exact_state(topology: str, n_qubits: int, model: str, h: float):
+    """Return (and cache) the exact ground-state vector |ψ_exact⟩ for a config.
+
+    Cached per (topology, N, model, h:.2f). Returns None when N exceeds the
+    fidelity cap or on any solver error, so the fidelity term degrades to a
+    no-op. The state is p-independent (a property of the Hamiltonian), so the
+    key does not include p_layers.
+    """
+    if n_qubits > _FIDELITY_MAX_N:
+        return None
+    key = (topology, int(n_qubits), model, round(float(h), 2))
+    if key in _EXACT_STATE_CACHE:
+        return _EXACT_STATE_CACHE[key]
+    try:
+        from qmbp_simulation import make_lattice
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+        from qmbp_simulation.solvers.classical import ClassicalSolver
+
+        lattice = make_lattice(topology, n_qubits, J=1.0, h=float(h))
+        H = HamiltonianBuilder().build(lattice)
+        psi = ClassicalSolver().ground_state_vector(H, n_qubits=n_qubits)
+    except Exception as exc:  # noqa: BLE001 — fidelity term is best-effort
+        logger.debug("Exact-state build failed for %s: %s", key, exc)
+        psi = None
+    _EXACT_STATE_CACHE[key] = psi
+    return psi
+
+
+def _fidelity_error(graph, theta_pred_np: np.ndarray) -> float | None:
+    """Compute 1 − F(|ψ_HVA(θ_pred)⟩, |ψ_exact⟩) for one graph.
+
+    Trains the MPNN to output θ whose HVA state is FAITHFUL to the exact
+    ground state (not merely low-energy or θ-close). Returns None when the
+    graph lacks metadata, when N > _FIDELITY_MAX_N (statevector too large), or
+    on any evaluation error — so the fidelity term is a graceful no-op there.
+    Reuses the cached circuit (via _get_physics_eval_context), the cached exact
+    state (via _get_exact_state), and compute_exact_fidelity (with EvalCache).
+    """
+    if not hasattr(graph, "phys_topology"):
+        return None
+    n_qubits = int(graph.phys_n_qubits)
+    if n_qubits > _FIDELITY_MAX_N:
+        return None
+    topology = graph.phys_topology
+    model = getattr(graph, "phys_model", "tfim_bond_resolved")
+    h = float(graph.phys_h)
+    p_layers = int(getattr(graph, "phys_p_layers", 1))
+
+    ctx = _get_physics_eval_context(topology, n_qubits, model, h, p_layers)
+    psi_exact = _get_exact_state(topology, n_qubits, model, h)
+    if ctx is None or psi_exact is None:
+        return None
+    circuit, _H, _backend = ctx
+    theta = np.asarray(theta_pred_np, dtype=np.float64)
+    if theta.shape[0] != circuit.num_parameters or not np.all(np.isfinite(theta)):
+        return None
+
+    from qmbp_simulation.analysis.fidelity import compute_exact_fidelity
+
+    fid = compute_exact_fidelity(
+        circuit,
+        theta,
+        psi_exact,
+        cache_ctx={
+            "topology": topology,
+            "n_qubits": n_qubits,
+            "h": h,
+            "model": model,
+            "p_layers": p_layers,
+        },
+    )
+    if fid is None:
+        return None
+    return float(1.0 - fid)
+
+
 class UnifiedMPNN(nn.Module):
     """Type-aware MPNN for Qracle-style unified Hamiltonian+Circuit graphs.
 
@@ -318,6 +403,29 @@ class UnifiedMPNN(nn.Module):
         x = data.x
         edge_index = data.edge_index
 
+        # ── Feature-dim safety net (adaptive to graph/model mismatch) ──
+        # A model trained with the orbit feature expects node_features = 6; a
+        # graph built without it has 5 (and vice-versa). Rather than crash on a
+        # size mismatch deep inside message passing, reconcile here: trim the
+        # trailing extra column, or pad with a neutral 0.5 (the orbit feature's
+        # neutral value). This makes every prediction/eval path adaptive even
+        # if a caller forgets to match the graph to the model.
+        _expected = self.node_features
+        _got = x.shape[1]
+        if _got != _expected:
+            if _got > _expected:
+                x = x[:, :_expected]
+            else:
+                pad = x.new_full((x.shape[0], _expected - _got), 0.5)
+                x = torch.cat([x, pad], dim=1)
+            logger.warning(
+                "UnifiedMPNN.forward: graph has %d node features but model expects "
+                "%d — reconciled (%s). Prefer build_graph_for_model() to avoid this.",
+                _got,
+                _expected,
+                "trimmed" if _got > _expected else "padded with 0.5",
+            )
+
         # Input validation
         if not hasattr(data, "node_type") or data.node_type is None:
             raise RuntimeError(
@@ -493,6 +601,7 @@ def train_unified_mpnn(
     physics_loss_weight: float = 0.0,
     physics_loss_start_epoch: int = 500,
     physics_loss_eval_every: int = 100,
+    fidelity_loss_weight: float = 0.1,
     loss_type: str = "sign_invariant",
     canonicalize_targets: bool = True,
 ) -> dict:
@@ -552,6 +661,14 @@ def train_unified_mpnn(
     physics_loss_eval_every : int
         How often to evaluate energy loss (default 100 epochs). Each evaluation
         runs forward pass on a subset of training points — cheap if using cached backend.
+    fidelity_loss_weight : float
+        Weight λ_F for the fidelity loss term (default 0.1 = ON). When > 0,
+        periodically builds the HVA state |ψ(θ_pred)⟩ and adds a correction
+        scaled by the true infidelity 1 − F(|ψ(θ_pred)⟩, |ψ_exact⟩). This
+        trains the model to produce states FAITHFUL to the exact ground state,
+        not merely θ-close or low-energy. Shares the physics_loss scheduling
+        (start_epoch / eval_every). Only acts for N ≤ 16 (statevector); a
+        graceful no-op for larger N. Reuses compute_exact_fidelity + EvalCache.
     loss_type : str
         Loss function type:
         - ``"sign_invariant"`` (default): Z₂-symmetric loss
@@ -589,6 +706,7 @@ def train_unified_mpnn(
             return mse_pos
         mse_neg = F.mse_loss(pred_block, -target_block)
         return torch.minimum(mse_pos, mse_neg)
+
     if loss_type not in _VALID_LOSS_TYPES:
         raise ValueError(f"loss_type must be one of {_VALID_LOSS_TYPES}, got '{loss_type}'.")
     if not isinstance(model, UnifiedMPNN):
@@ -611,6 +729,8 @@ def train_unified_mpnn(
         )
     if mse_floor < 0:
         raise ValueError(f"mse_floor must be ≥ 0, got {mse_floor}.")
+    if fidelity_loss_weight < 0:
+        raise ValueError(f"fidelity_loss_weight must be ≥ 0, got {fidelity_loss_weight}.")
 
     # ── Data-level Z₂ canonicalization (default on) ──────────────────────────
     # Map every target θ to the canonical Z₂ representative so that VQE seeds
@@ -918,86 +1038,108 @@ def train_unified_mpnn(
             stop_reason = "mse_floor_reached"
             break
 
-        # ── Physics-Informed Loss: periodic energy validation ────────────
-        # Evaluates E(θ_pred) on a subset of training points and adds the
-        # energy error as a gradient signal. Only fires every eval_every epochs
-        # after start_epoch (allows initial MSE convergence first).
+        # ── Physics-Informed Loss: periodic energy + fidelity validation ─
+        # Evaluates E(θ_pred) and/or the state fidelity F(|ψ(θ_pred)⟩,|ψ_exact⟩)
+        # on a subset of training points and adds the physics error as a
+        # gradient signal. Fires every eval_every epochs after start_epoch
+        # (allows initial MSE convergence first). Enabled when EITHER the
+        # energy weight or the fidelity weight is positive.
         if (
-            physics_loss_weight > 0
+            (physics_loss_weight > 0 or fidelity_loss_weight > 0)
             and epoch >= physics_loss_start_epoch
             and (epoch - physics_loss_start_epoch) % physics_loss_eval_every == 0
         ):
             try:
-                # Select a random subset and measure REAL energy error
-                # |E(θ_pred) − E_exact| by rebuilding the HVA circuit +
-                # Hamiltonian from graph metadata and evaluating on a
-                # statevector backend. Samples whose config is too large for
-                # exact eval (or lack metadata) return None and are skipped.
+                # Select a random subset. For each sample measure the REAL
+                # energy error |E(θ_pred)−E_exact|/scale and/or the infidelity
+                # 1−F(|ψ(θ_pred)⟩,|ψ_exact⟩) by rebuilding the HVA circuit from
+                # graph metadata. Samples too large for statevector eval (N>16
+                # for fidelity) or lacking metadata return None and are skipped.
                 n_eval = min(5, len(train_dataset))
                 eval_indices = rng.choice(len(train_dataset), size=n_eval, replace=False)
 
                 model.eval()
                 energy_errors: list[float] = []
+                fidelity_errors: list[float] = []
                 worst_idx = None
-                worst_err = -1.0
+                worst_combined = -1.0
                 with torch.no_grad():
                     for idx_e in eval_indices:
                         data_e = train_dataset[idx_e].to(device)
                         pred_e = model(data_e).squeeze(0)
-                        e_err = _physics_energy_error(
-                            train_dataset[idx_e], pred_e.detach().cpu().numpy()
+                        theta_e = pred_e.detach().cpu().numpy()
+
+                        e_err = (
+                            _physics_energy_error(train_dataset[idx_e], theta_e)
+                            if physics_loss_weight > 0
+                            else None
                         )
-                        if e_err is None:
-                            continue
-                        energy_errors.append(e_err)
-                        if e_err > worst_err:
-                            worst_err = e_err
+                        f_err = (
+                            _fidelity_error(train_dataset[idx_e], theta_e)
+                            if fidelity_loss_weight > 0
+                            else None
+                        )
+                        if e_err is not None:
+                            energy_errors.append(e_err)
+                        if f_err is not None:
+                            fidelity_errors.append(f_err)
+
+                        # Combined per-sample physics error used to pick the
+                        # worst sample for the correction step.
+                        combined = 0.0
+                        if e_err is not None:
+                            combined += physics_loss_weight * e_err
+                        if f_err is not None:
+                            combined += fidelity_loss_weight * f_err
+                        if (e_err is not None or f_err is not None) and combined > worst_combined:
+                            worst_combined = combined
                             worst_idx = idx_e
 
                 # Apply a physics-driven correction step on the worst sample:
-                # the circuit energy is not autograd-differentiable here, so we
-                # take a θ-MSE step toward the (Z₂-canonical) target SCALED by
-                # the measured energy error. Unlike the previous version, the
-                # step magnitude is now governed by the true |ΔE|, not θ L2.
+                # neither circuit energy nor fidelity is autograd-differentiable
+                # here, so we take a θ-MSE step toward the (Z₂-canonical) target
+                # SCALED by the combined physics error. The step magnitude is
+                # thus governed by the true |ΔE| and/or infidelity, not θ L2.
                 model.train()
-                if energy_errors and worst_idx is not None:
-                    mean_energy_err = float(np.mean(energy_errors))
-                    if worst_err > 0:
-                        optimizer.zero_grad()
-                        data_s = train_dataset[worst_idx].to(device)
-                        pred_s = model(data_s).squeeze(0)
-                        target_s = data_s.y
-                        n_e_s = data_s.n_edges_unique
-                        N_s = data_s.n_qubit_nodes
-                        p_s = len(target_s) // (n_e_s + N_s) if (n_e_s + N_s) > 0 else 1
-                        if p_s > 1:
-                            tl = target_s.reshape(p_s, n_e_s + N_s)
-                            tg_s = torch.cat(
-                                [tl[:, :n_e_s].reshape(-1), tl[:, n_e_s:].reshape(-1)]
-                            )
-                        else:
-                            tg_s = target_s
-                        n_zz_s = n_e_s * p_s
-                        base = _block_loss(pred_s[:n_zz_s], tg_s[:n_zz_s]) + _block_loss(
-                            pred_s[n_zz_s:], tg_s[n_zz_s:]
-                        )
-                        physics_loss = physics_loss_weight * worst_err * base
-                        if torch.isfinite(physics_loss):
-                            physics_loss.backward()
-                            torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
-                            optimizer.step()
+                if worst_idx is not None and worst_combined > 0:
+                    optimizer.zero_grad()
+                    data_s = train_dataset[worst_idx].to(device)
+                    pred_s = model(data_s).squeeze(0)
+                    target_s = data_s.y
+                    n_e_s = data_s.n_edges_unique
+                    N_s = data_s.n_qubit_nodes
+                    p_s = len(target_s) // (n_e_s + N_s) if (n_e_s + N_s) > 0 else 1
+                    if p_s > 1:
+                        tl = target_s.reshape(p_s, n_e_s + N_s)
+                        tg_s = torch.cat([tl[:, :n_e_s].reshape(-1), tl[:, n_e_s:].reshape(-1)])
+                    else:
+                        tg_s = target_s
+                    n_zz_s = n_e_s * p_s
+                    base = _block_loss(pred_s[:n_zz_s], tg_s[:n_zz_s]) + _block_loss(
+                        pred_s[n_zz_s:], tg_s[n_zz_s:]
+                    )
+                    physics_loss = worst_combined * base
+                    if torch.isfinite(physics_loss):
+                        physics_loss.backward()
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
+                        optimizer.step()
 
-                    if (epoch + 1) % 250 == 0:
-                        logger.info(
-                            "  [Physics] epoch %d: mean|ΔE|=%.2e over %d/%d samples (λ=%.3f)",
-                            epoch + 1,
-                            mean_energy_err,
-                            len(energy_errors),
-                            n_eval,
-                            physics_loss_weight,
-                        )
+                if (epoch + 1) % 250 == 0 and (energy_errors or fidelity_errors):
+                    mean_e = float(np.mean(energy_errors)) if energy_errors else float("nan")
+                    mean_f = float(np.mean(fidelity_errors)) if fidelity_errors else float("nan")
+                    logger.info(
+                        "  [Physics] epoch %d: mean|ΔE|=%.2e (λ_E=%.3f) | "
+                        "mean(1-F)=%.2e over %d/%d (λ_F=%.3f)",
+                        epoch + 1,
+                        mean_e,
+                        physics_loss_weight,
+                        mean_f,
+                        len(fidelity_errors),
+                        n_eval,
+                        fidelity_loss_weight,
+                    )
             except Exception as _phys_err:
-                logger.debug("Physics loss eval failed at epoch %d: %s", epoch, _phys_err)
+                logger.debug("Physics/fidelity loss eval failed at epoch %d: %s", epoch, _phys_err)
 
         # Early stopping on LR exhaustion
         if optimizer.param_groups[0]["lr"] <= 1e-6 and epoch > 500:
@@ -1079,6 +1221,8 @@ def train_unified_mpnn(
         "stop_reason": stop_reason,
         "weight_distribution": non_zero,
         "loss_type": loss_type,
+        "physics_loss_weight": float(physics_loss_weight),
+        "fidelity_loss_weight": float(fidelity_loss_weight),
     }
 
 
@@ -1098,6 +1242,7 @@ def fine_tune_unified_mpnn(
     freeze_early_layers: bool = True,
     layerwise_decay: float = 0.1,
     loss_type: str = "sign_invariant",
+    fidelity_loss_weight: float = 0.1,
 ) -> dict:
     """Fine-tune an existing UnifiedMPNN on an updated dataset.
 
@@ -1199,6 +1344,7 @@ def fine_tune_unified_mpnn(
         mse_floor=mse_floor,
         _layerwise_lr=_lw_lr,
         loss_type=loss_type,
+        fidelity_loss_weight=fidelity_loss_weight,
     )
 
     # Enrich result with fine-tuning diagnostics

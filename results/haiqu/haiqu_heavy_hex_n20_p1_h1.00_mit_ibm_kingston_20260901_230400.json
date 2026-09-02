@@ -1,0 +1,221 @@
+{
+  "schema": "haiqu_collected_data_v1",
+  "timestamp_utc": "2026-09-01T23:04:00.960701+00:00",
+  "backend_name": "haiqu_ibm_kingston",
+  "config": {
+    "device_id": "ibm_kingston",
+    "shots": 16384,
+    "use_mitigation": true,
+    "use_compression": false,
+    "compression_level": "balanced",
+    "fine_tuning": "low",
+    "noise_profile": null,
+    "approximation_level": null,
+    "error_mitigation_options": null,
+    "default_hardware_mitigation": true,
+    "experiment_name": "HVA heavy_hex N20 p1 h1.00",
+    "run_max_retries": 2,
+    "vqe_optimizer": "nft",
+    "vqe_maxfev": 200,
+    "vqe_maxiter": 100,
+    "max_compression_time_s": 1200
+  },
+  "noise_profile": "ibm_heron_r2",
+  "n_records": 1,
+  "records": [
+    {
+      "operation": "dry_run_cost_estimate_variational",
+      "timestamp_utc": "2026-09-01T23:04:00.960027+00:00",
+      "device_id": "ibm_kingston",
+      "estimated_qpu_cost": {
+        "native": {
+          "amount": 2760.0221511680033,
+          "unit": "s"
+        },
+        "converted": {
+          "amount": 4416.04,
+          "unit": "USD"
+        },
+        "haiqu": {
+          "native": {
+            "amount": 2760.0221511680033,
+            "unit": "s"
+          },
+          "converted": {
+            "amount": 4416.04,
+            "unit": "USD"
+          }
+        },
+        "standard": {
+          "native": {
+            "amount": 2968.0221511680033,
+            "unit": "s"
+          },
+          "converted": {
+            "amount": 4748.84,
+            "unit": "USD"
+          }
+        },
+        "savings_pct": 7.0,
+        "warning": null,
+        "note": null
+      },
+      "optimizer": "nft",
+      "maxfev": 200,
+      "maxiter": 100,
+      "shots": 16384,
+      "circuit_submitted": {
+        "n_qubits": 20,
+        "num_parameters": 39,
+        "depth": 15,
+        "depth_2q": 13,
+        "gate_counts": {
+          "h": 20,
+          "rx": 20,
+          "rzz": 19
+        },
+        "n_2q_gates": 19,
+        "pre_transpilation": false
+      },
+      "job_metadata": {
+        "id": "jb-60b84a85-2102-4241-a6e0-0874f82d0afa",
+        "status": "JobStatus.DONE",
+        "name": "variational-optim-job-circuit-41",
+        "device_id": "ibm_kingston",
+        "creation_date": "2026-09-01T23:03:50.293947",
+        "logs": "Initializing variational optimization...\nApplying Dynamical Decoupling and Twirled Readout for error mitigation.\n\nDry run requested. Estimating QPU cost...\n\nEstimated QPU cost (Haiqu): $4416.04\n\nEstimated QPU cost (standard): $4748.84\n\nEstimated saving vs standard: 7.0%\n\nWARNING: Estimated QPU cost ($4416.04) exceeds $100\n",
+        "estimated_qpu_cost": {
+          "native": {
+            "amount": 2760.0221511680033,
+            "unit": "s"
+          },
+          "converted": {
+            "amount": 4416.04,
+            "unit": "USD"
+          },
+          "haiqu": {
+            "native": {
+              "amount": 2760.0221511680033,
+              "unit": "s"
+            },
+            "converted": {
+              "amount": 4416.04,
+              "unit": "USD"
+            }
+          },
+          "standard": {
+            "native": {
+              "amount": 2968.0221511680033,
+              "unit": "s"
+            },
+            "converted": {
+              "amount": 4748.84,
+              "unit": "USD"
+            }
+          },
+          "savings_pct": 7.0,
+          "warning": null,
+          "note": null
+        },
+        "info": {
+          "estimated_qpu_cost": {
+            "native": {
+              "amount": 2760.0221511680033,
+              "unit": "s"
+            },
+            "converted": {
+              "amount": 4416.04,
+              "unit": "USD"
+            },
+            "haiqu": {
+              "native": {
+                "amount": 2760.0221511680033,
+                "unit": "s"
+              },
+              "converted": {
+                "amount": 4416.04,
+                "unit": "USD"
+              }
+            },
+            "standard": {
+              "native": {
+                "amount": 2968.0221511680033,
+                "unit": "s"
+              },
+              "converted": {
+                "amount": 4748.84,
+                "unit": "USD"
+              }
+            },
+            "savings_pct": 7.0,
+            "warning": null,
+            "note": null
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "n_points": 0
+  },
+  "context": {
+    "model_checkpoint": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "n_qubits": 20,
+    "p_layers": 1,
+    "J": 1.0,
+    "h": 1.0,
+    "e_exact": -25.369532401940063,
+    "gap": 0.3141592653589793,
+    "theta_predicted": [
+      0.3909217417240143,
+      0.2595295011997223,
+      0.2664092779159546,
+      0.22687828540802002,
+      0.22788146138191223,
+      0.21052826941013336,
+      0.21328523755073547,
+      0.19758948683738708,
+      0.1998225450515747,
+      0.19004248082637787,
+      0.18958449363708496,
+      0.22106893360614777,
+      0.2911207675933838,
+      0.33544236421585083,
+      0.3180477023124695,
+      0.30986252427101135,
+      0.29618656635284424,
+      0.28336477279663086,
+      0.2748153805732727,
+      0.006712235510349274,
+      -0.014379998669028282,
+      0.6729283928871155,
+      -0.008990379050374031,
+      0.765716016292572,
+      -0.008241318166255951,
+      0.7887173891067505,
+      -0.0043219905346632,
+      0.7939236164093018,
+      -0.00038826465606689453,
+      0.7893983721733093,
+      0.005256367847323418,
+      0.6658002734184265,
+      0.2657456398010254,
+      0.6630889177322388,
+      0.7125692963600159,
+      0.7273815870285034,
+      0.7317432761192322,
+      0.736679196357727,
+      0.746243417263031
+    ],
+    "circuit_type": "bond_resolved",
+    "vqe_refined": false,
+    "vqe_optimizer": null,
+    "vqe_maxfev": null,
+    "vqe_maxiter": null,
+    "mitigation": true,
+    "compression": false,
+    "shots": 16384,
+    "device": "ibm_kingston"
+  }
+}

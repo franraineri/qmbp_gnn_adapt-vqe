@@ -1,0 +1,344 @@
+# Model Evaluation: chain_1d
+
+**Date**: 2026-09-02 15:34 UTC
+**Model**: data/model_zoo/checkpoints/unifMPNN__chain_1d_p1_signinv_fid_dot3_v1.pt
+**p_layers**: 1
+**Multi-topology**: no
+**h-range**: [1.0, 3.0] (30 pts)
+**Target N**: [8, 10, 12, 16, 20, 30, 40]
+
+---
+
+## N = 8 (15 params)
+
+**ΔE/gap: 0.1587 ± 0.2598 | P90=0.4169 | max=1.1967
+|ΔE|/N: 1.88e-02
+Fidelity: mean=0.9666 min=0.8327 (exact)
+Distribution: [P25=0.034 | P50=0.041 | P75=0.134 | P90=0.417]
+Regions: critical=0.4753 | ordered=0.0308**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=1.197 is 8× the mean — median may be more representative N=8
+
+**Fidelity: mean F=0.9666, min F=0.8327** (exact statevector overlap)
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -9.3963 | -9.8380 | 0.4417 | 0.3691 | 1.1967 | 0.8327 | N/A | — | severe_error(1.00) | increase_p |  |
+| 1.070 | -9.8903 | -10.2670 | 0.3766 | 0.4749 | 0.7931 | 0.8706 | N/A | — | severe_error(0.78) | increase_p |  |
+| 1.140 | -10.3886 | -10.7137 | 0.3251 | 0.5880 | 0.5530 | 0.8984 | N/A | — | severe_error(0.53) | increase_p |  |
+| 1.210 | -10.8910 | -11.1749 | 0.2839 | 0.7065 | 0.4018 | 0.9188 | N/A | — | moderate_error(0.37) | refine_vqe |  |
+| 1.280 | -11.3987 | -11.6479 | 0.2492 | 0.8291 | 0.3005 | 0.9342 | N/A | — | moderate_error(0.26) | refine_vqe |  |
+| 1.340 | -11.8404 | -12.0612 | 0.2208 | 0.9367 | 0.2357 | 0.9449 | N/A | — | moderate_error(0.20) | refine_vqe |  |
+| 1.410 | -12.3594 | -12.5512 | 0.1918 | 1.0645 | 0.1802 | 0.9547 | N/A | — | moderate_error(0.14) | refine_vqe |  |
+| 1.480 | -12.8791 | -13.0482 | 0.1691 | 1.1942 | 0.1416 | 0.9622 | N/A | — | moderate_error(0.10) | refine_vqe |  |
+| 1.550 | -13.4016 | -13.5514 | 0.1497 | 1.3254 | 0.1130 | 0.9681 | N/A | — | moderate_error(0.07) | refine_vqe |  |
+| 1.620 | -13.9277 | -14.0597 | 0.1320 | 1.4579 | 0.0906 | 0.9732 | N/A | — | near_pass(0.04) | refine_vqe |  |
+| 1.690 | -14.4508 | -14.5726 | 0.1217 | 1.5913 | 0.0765 | 0.9765 | N/A | — | near_pass(0.03) | refine_vqe |  |
+| 1.760 | -14.9748 | -15.0894 | 0.1146 | 1.7255 | 0.0664 | 0.9790 | N/A | — | near_pass(0.02) | refine_vqe |  |
+| 1.830 | -15.5017 | -15.6096 | 0.1079 | 1.8604 | 0.0580 | 0.9812 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 1.900 | -16.0322 | -16.1329 | 0.1007 | 1.9959 | 0.0504 | 0.9833 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 1.970 | -16.5665 | -16.6589 | 0.0924 | 2.1319 | 0.0434 | 0.9853 | N/A | — | pass(0.87) | none |  |
+| 2.030 | -17.0243 | -17.1118 | 0.0875 | 2.2487 | 0.0389 | 0.9866 | N/A | — | pass(0.78) | none |  |
+| 2.100 | -17.5565 | -17.6421 | 0.0856 | 2.3854 | 0.0359 | 0.9874 | N/A | — | pass(0.72) | none |  |
+| 2.170 | -18.0871 | -18.1743 | 0.0873 | 2.5223 | 0.0346 | 0.9878 | N/A | — | pass(0.69) | none |  |
+| 2.240 | -18.6190 | -18.7084 | 0.0895 | 2.6596 | 0.0336 | 0.9880 | N/A | — | pass(0.67) | none |  |
+| 2.310 | -19.1486 | -19.2441 | 0.0955 | 2.7970 | 0.0341 | 0.9878 | N/A | — | pass(0.68) | none |  |
+| 2.380 | -19.6763 | -19.7812 | 0.1050 | 2.9347 | 0.0358 | 0.9873 | N/A | — | gap_masked(0.35) | refine_vqe |  |
+| 2.450 | -20.2053 | -20.3197 | 0.1144 | 3.0726 | 0.0372 | 0.9868 | N/A | — | gap_masked(0.38) | refine_vqe |  |
+| 2.520 | -20.7451 | -20.8594 | 0.1144 | 3.2106 | 0.0356 | 0.9873 | N/A | — | gap_masked(0.38) | refine_vqe |  |
+| 2.590 | -21.2905 | -21.4003 | 0.1098 | 3.3488 | 0.0328 | 0.9882 | N/A | — | gap_masked(0.37) | refine_vqe |  |
+| 2.660 | -21.8357 | -21.9421 | 0.1064 | 3.4871 | 0.0305 | 0.9889 | N/A | — | gap_masked(0.35) | refine_vqe |  |
+| 2.720 | -22.3056 | -22.4073 | 0.1017 | 3.6057 | 0.0282 | 0.9897 | N/A | — | gap_masked(0.34) | refine_vqe |  |
+| 2.790 | -22.8572 | -22.9509 | 0.0937 | 3.7442 | 0.0250 | 0.9907 | N/A | — | pass(0.50) | none |  |
+| 2.860 | -23.4089 | -23.4953 | 0.0864 | 3.8828 | 0.0222 | 0.9917 | N/A | — | pass(0.44) | none |  |
+| 2.930 | -23.9615 | -24.0404 | 0.0790 | 4.0215 | 0.0196 | 0.9926 | N/A | — | pass(0.39) | none |  |
+| 3.000 | -24.5150 | -24.5863 | 0.0712 | 4.1602 | 0.0171 | 0.9934 | N/A | — | pass(0.34) | none |  |
+
+## N = 10 (19 params)
+
+**ΔE/gap: 0.2410 ± 0.4364 | P90=0.6158 | max=2.0576
+|ΔE|/N: 1.95e-02
+Fidelity: mean=0.9568 min=0.7727 (exact)
+Distribution: [P25=0.043 | P50=0.054 | P75=0.183 | P90=0.616]
+Regions: critical=0.7475 | ordered=0.0393**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=2.058 is 9× the mean — median may be more representative N=10
+
+**Fidelity: mean F=0.9568, min F=0.7727** (exact statevector overlap)
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -11.7664 | -12.3815 | 0.6151 | 0.2989 | 2.0576 | 0.7727 | N/A | — | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.070 | -12.3876 | -12.9082 | 0.5205 | 0.4035 | 1.2900 | 0.8266 | N/A | — | severe_error(1.00) | increase_p |  |
+| 1.140 | -13.0156 | -13.4593 | 0.4437 | 0.5169 | 0.8584 | 0.8659 | N/A | — | severe_error(0.85) | increase_p |  |
+| 1.210 | -13.6552 | -14.0299 | 0.3747 | 0.6364 | 0.5889 | 0.8955 | N/A | — | severe_error(0.57) | increase_p |  |
+| 1.280 | -14.2965 | -14.6165 | 0.3199 | 0.7603 | 0.4208 | 0.9172 | N/A | — | moderate_error(0.39) | refine_vqe |  |
+| 1.340 | -14.8477 | -15.1297 | 0.2820 | 0.8692 | 0.3244 | 0.9313 | N/A | — | moderate_error(0.29) | refine_vqe |  |
+| 1.410 | -15.4922 | -15.7387 | 0.2465 | 0.9984 | 0.2469 | 0.9436 | N/A | — | moderate_error(0.21) | refine_vqe |  |
+| 1.480 | -16.1389 | -16.3571 | 0.2181 | 1.1295 | 0.1931 | 0.9529 | N/A | — | moderate_error(0.15) | refine_vqe |  |
+| 1.550 | -16.7887 | -16.9834 | 0.1947 | 1.2620 | 0.1542 | 0.9600 | N/A | — | moderate_error(0.11) | refine_vqe |  |
+| 1.620 | -17.4429 | -17.6165 | 0.1736 | 1.3957 | 0.1244 | 0.9659 | N/A | — | moderate_error(0.08) | refine_vqe |  |
+| 1.690 | -18.0999 | -18.2556 | 0.1556 | 1.5303 | 0.1017 | 0.9707 | N/A | — | moderate_error(0.05) | refine_vqe |  |
+| 1.760 | -18.7563 | -18.8997 | 0.1434 | 1.6656 | 0.0861 | 0.9742 | N/A | — | near_pass(0.04) | refine_vqe |  |
+| 1.830 | -19.4144 | -19.5484 | 0.1340 | 1.8014 | 0.0744 | 0.9769 | N/A | — | near_pass(0.03) | refine_vqe |  |
+| 1.900 | -20.0759 | -20.2010 | 0.1251 | 1.9378 | 0.0646 | 0.9793 | N/A | — | near_pass(0.02) | refine_vqe |  |
+| 1.970 | -20.7392 | -20.8571 | 0.1180 | 2.0746 | 0.0569 | 0.9813 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.030 | -21.3114 | -21.4220 | 0.1106 | 2.1921 | 0.0505 | 0.9830 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 2.100 | -21.9781 | -22.0837 | 0.1056 | 2.3295 | 0.0453 | 0.9844 | N/A | — | gap_masked(0.35) | refine_vqe |  |
+| 2.170 | -22.6428 | -22.7480 | 0.1052 | 2.4671 | 0.0427 | 0.9851 | N/A | — | gap_masked(0.35) | refine_vqe |  |
+| 2.240 | -23.3048 | -23.4146 | 0.1098 | 2.6049 | 0.0421 | 0.9852 | N/A | — | gap_masked(0.37) | refine_vqe |  |
+| 2.310 | -23.9663 | -24.0832 | 0.1169 | 2.7430 | 0.0426 | 0.9850 | N/A | — | gap_masked(0.39) | refine_vqe |  |
+| 2.380 | -24.6270 | -24.7538 | 0.1267 | 2.8812 | 0.0440 | 0.9845 | N/A | — | gap_masked(0.42) | refine_vqe |  |
+| 2.450 | -25.2859 | -25.4260 | 0.1401 | 3.0195 | 0.0464 | 0.9837 | N/A | — | gap_masked(0.47) | refine_vqe |  |
+| 2.520 | -25.9537 | -26.0999 | 0.1462 | 3.1580 | 0.0463 | 0.9837 | N/A | — | gap_masked(0.49) | refine_vqe |  |
+| 2.590 | -26.6324 | -26.7752 | 0.1428 | 3.2966 | 0.0433 | 0.9846 | N/A | — | gap_masked(0.48) | refine_vqe |  |
+| 2.660 | -27.3159 | -27.4518 | 0.1359 | 3.4353 | 0.0396 | 0.9858 | N/A | — | gap_masked(0.45) | refine_vqe |  |
+| 2.720 | -27.9023 | -28.0328 | 0.1305 | 3.5542 | 0.0367 | 0.9867 | N/A | — | gap_masked(0.43) | refine_vqe |  |
+| 2.790 | -28.5907 | -28.7116 | 0.1209 | 3.6931 | 0.0327 | 0.9880 | N/A | — | gap_masked(0.40) | refine_vqe |  |
+| 2.860 | -29.2808 | -29.3915 | 0.1107 | 3.8320 | 0.0289 | 0.9893 | N/A | — | gap_masked(0.37) | refine_vqe |  |
+| 2.930 | -29.9710 | -30.0724 | 0.1014 | 3.9710 | 0.0255 | 0.9904 | N/A | — | gap_masked(0.34) | refine_vqe |  |
+| 3.000 | -30.6625 | -30.7541 | 0.0916 | 4.1101 | 0.0223 | 0.9915 | N/A | — | pass(0.45) | none |  |
+
+## N = 12 (23 params)
+
+**ΔE/gap: 0.3427 ± 0.6668 | P90=0.8802 | max=3.1798
+|ΔE|/N: 2.02e-02
+Fidelity: mean=0.9475 min=0.7143 (exact)
+Distribution: [P25=0.049 | P50=0.063 | P75=0.234 | P90=0.880]
+Regions: critical=1.0987 | ordered=0.0466**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=3.180 is 9× the mean — median may be more representative N=12
+
+**Fidelity: mean F=0.9475, min F=0.7143** (exact statevector overlap)
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -14.1273 | -14.9260 | 0.7987 | 0.2512 | 3.1798 | 0.7143 | N/A | — | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.070 | -14.8705 | -15.5498 | 0.6793 | 0.3552 | 1.9124 | 0.7827 | N/A | — | severe_error(1.00) | increase_p |  |
+| 1.140 | -15.6244 | -16.2050 | 0.5805 | 0.4693 | 1.2371 | 0.8329 | N/A | — | severe_error(1.00) | increase_p |  |
+| 1.210 | -16.3890 | -16.8850 | 0.4960 | 0.5901 | 0.8406 | 0.8699 | N/A | — | severe_error(0.83) | increase_p |  |
+| 1.280 | -17.1623 | -17.5850 | 0.4228 | 0.7154 | 0.5909 | 0.8976 | N/A | — | severe_error(0.57) | increase_p |  |
+| 1.340 | -17.8278 | -18.1982 | 0.3703 | 0.8255 | 0.4486 | 0.9157 | N/A | — | moderate_error(0.42) | refine_vqe |  |
+| 1.410 | -18.6090 | -18.9262 | 0.3172 | 0.9561 | 0.3317 | 0.9320 | N/A | — | moderate_error(0.30) | refine_vqe |  |
+| 1.480 | -19.3950 | -19.6659 | 0.2709 | 1.0885 | 0.2489 | 0.9446 | N/A | — | moderate_error(0.21) | refine_vqe |  |
+| 1.550 | -20.1821 | -20.4154 | 0.2334 | 1.2222 | 0.1909 | 0.9542 | N/A | — | moderate_error(0.15) | refine_vqe |  |
+| 1.620 | -20.9671 | -21.1733 | 0.2062 | 1.3569 | 0.1520 | 0.9611 | N/A | — | moderate_error(0.11) | refine_vqe |  |
+| 1.690 | -21.7554 | -21.9386 | 0.1832 | 1.4924 | 0.1227 | 0.9668 | N/A | — | moderate_error(0.08) | refine_vqe |  |
+| 1.760 | -22.5451 | -22.7101 | 0.1649 | 1.6285 | 0.1013 | 0.9711 | N/A | — | moderate_error(0.05) | refine_vqe |  |
+| 1.830 | -23.3370 | -23.4871 | 0.1501 | 1.7651 | 0.0850 | 0.9746 | N/A | — | near_pass(0.04) | refine_vqe |  |
+| 1.900 | -24.1280 | -24.2691 | 0.1411 | 1.9022 | 0.0742 | 0.9768 | N/A | — | near_pass(0.03) | refine_vqe |  |
+| 1.970 | -24.9201 | -25.0553 | 0.1352 | 2.0396 | 0.0663 | 0.9786 | N/A | — | near_pass(0.02) | refine_vqe |  |
+| 2.030 | -25.6034 | -25.7323 | 0.1290 | 2.1576 | 0.0598 | 0.9802 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.100 | -26.4028 | -26.5254 | 0.1227 | 2.2955 | 0.0534 | 0.9818 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 2.170 | -27.2008 | -27.3216 | 0.1209 | 2.4336 | 0.0497 | 0.9827 | N/A | — | gap_masked(0.40) | refine_vqe |  |
+| 2.240 | -27.9953 | -28.1207 | 0.1254 | 2.5719 | 0.0488 | 0.9829 | N/A | — | gap_masked(0.42) | refine_vqe |  |
+| 2.310 | -28.7895 | -28.9223 | 0.1329 | 2.7103 | 0.0490 | 0.9827 | N/A | — | gap_masked(0.44) | refine_vqe |  |
+| 2.380 | -29.5835 | -29.7263 | 0.1427 | 2.8489 | 0.0501 | 0.9823 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 2.450 | -30.3749 | -30.5323 | 0.1575 | 2.9876 | 0.0527 | 0.9815 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 2.520 | -31.1690 | -31.3403 | 0.1714 | 3.1264 | 0.0548 | 0.9808 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.590 | -31.9783 | -32.1501 | 0.1718 | 3.2653 | 0.0526 | 0.9814 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 2.660 | -32.7965 | -32.9615 | 0.1650 | 3.4043 | 0.0485 | 0.9827 | N/A | — | gap_masked(0.55) | refine_vqe |  |
+| 2.720 | -33.5011 | -33.6582 | 0.1571 | 3.5234 | 0.0446 | 0.9839 | N/A | — | gap_masked(0.52) | refine_vqe |  |
+| 2.790 | -34.3247 | -34.4723 | 0.1476 | 3.6626 | 0.0403 | 0.9853 | N/A | — | gap_masked(0.49) | refine_vqe |  |
+| 2.860 | -35.1526 | -35.2877 | 0.1351 | 3.8017 | 0.0355 | 0.9869 | N/A | — | gap_masked(0.45) | refine_vqe |  |
+| 2.930 | -35.9810 | -36.1043 | 0.1233 | 3.9409 | 0.0313 | 0.9883 | N/A | — | gap_masked(0.41) | refine_vqe |  |
+| 3.000 | -36.8100 | -36.9220 | 0.1120 | 4.0802 | 0.0274 | 0.9896 | N/A | — | gap_masked(0.37) | refine_vqe |  |
+
+## N = 16 (31 params)
+
+**ΔE/gap: 0.6938 ± 1.5028 | P90=1.7457 | max=7.3197
+|ΔE|/N: 2.38e-02
+Fidelity: mean=0.9251 min=0.5818 (exact)
+Distribution: [P25=0.059 | P50=0.076 | P75=0.438 | P90=1.746]
+Regions: critical=2.3368 | ordered=0.0572**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=7.320 is 11× the mean — median may be more representative N=16
+
+**Fidelity: mean F=0.9251, min F=0.5818** (exact statevector overlap)
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -18.6232 | -20.0164 | 1.3931 | 0.1903 | 7.3197 | 0.5818 | N/A | — | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.070 | -19.6377 | -20.8335 | 1.1958 | 0.2943 | 4.0639 | 0.6782 | N/A | — | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.140 | -20.6708 | -21.6966 | 1.0257 | 0.4103 | 2.4998 | 0.7505 | N/A | — | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.210 | -21.7082 | -22.5953 | 0.8871 | 0.5338 | 1.6619 | 0.8038 | N/A | — | severe_error(1.00) | increase_p |  |
+| 1.280 | -22.7504 | -23.5222 | 0.7718 | 0.6618 | 1.1662 | 0.8434 | N/A | — | severe_error(1.00) | increase_p |  |
+| 1.340 | -23.6535 | -24.3351 | 0.6816 | 0.7740 | 0.8806 | 0.8703 | N/A | — | severe_error(0.87) | increase_p |  |
+| 1.410 | -24.7251 | -25.3013 | 0.5761 | 0.9068 | 0.6353 | 0.8966 | N/A | — | severe_error(0.62) | increase_p |  |
+| 1.480 | -25.7974 | -26.2836 | 0.4862 | 1.0412 | 0.4670 | 0.9170 | N/A | — | moderate_error(0.44) | refine_vqe |  |
+| 1.550 | -26.8678 | -27.2795 | 0.4117 | 1.1766 | 0.3499 | 0.9326 | N/A | — | moderate_error(0.32) | refine_vqe |  |
+| 1.620 | -27.9433 | -28.2870 | 0.3437 | 1.3128 | 0.2618 | 0.9453 | N/A | — | moderate_error(0.22) | refine_vqe |  |
+| 1.690 | -29.0179 | -29.3045 | 0.2866 | 1.4496 | 0.1977 | 0.9553 | N/A | — | moderate_error(0.16) | refine_vqe |  |
+| 1.760 | -30.0862 | -30.3308 | 0.2446 | 1.5869 | 0.1541 | 0.9626 | N/A | — | moderate_error(0.11) | refine_vqe |  |
+| 1.830 | -31.1544 | -31.3646 | 0.2102 | 1.7246 | 0.1219 | 0.9683 | N/A | — | moderate_error(0.08) | refine_vqe |  |
+| 1.900 | -32.2246 | -32.4052 | 0.1806 | 1.8625 | 0.0970 | 0.9728 | N/A | — | near_pass(0.05) | refine_vqe |  |
+| 1.970 | -33.2899 | -33.4517 | 0.1618 | 2.0008 | 0.0809 | 0.9757 | N/A | — | near_pass(0.03) | refine_vqe |  |
+| 2.030 | -34.2003 | -34.3529 | 0.1526 | 2.1194 | 0.0720 | 0.9773 | N/A | — | near_pass(0.02) | refine_vqe |  |
+| 2.100 | -35.2610 | -35.4088 | 0.1478 | 2.2580 | 0.0655 | 0.9784 | N/A | — | near_pass(0.02) | refine_vqe |  |
+| 2.170 | -36.3250 | -36.4689 | 0.1440 | 2.3967 | 0.0601 | 0.9795 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.240 | -37.3888 | -37.5330 | 0.1442 | 2.5356 | 0.0569 | 0.9801 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.310 | -38.4496 | -38.6006 | 0.1510 | 2.6746 | 0.0565 | 0.9800 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.380 | -39.5120 | -39.6713 | 0.1593 | 2.8136 | 0.0566 | 0.9799 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.450 | -40.5716 | -40.7449 | 0.1733 | 2.9528 | 0.0587 | 0.9792 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.520 | -41.6285 | -41.8212 | 0.1928 | 3.0920 | 0.0623 | 0.9780 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.590 | -42.6909 | -42.9000 | 0.2090 | 3.2313 | 0.0647 | 0.9772 | N/A | — | near_pass(0.02) | refine_vqe |  |
+| 2.660 | -43.7690 | -43.9809 | 0.2119 | 3.3706 | 0.0629 | 0.9777 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.720 | -44.7009 | -44.9091 | 0.2082 | 3.4901 | 0.0597 | 0.9786 | N/A | — | near_pass(0.01) | refine_vqe |  |
+| 2.790 | -45.7987 | -45.9937 | 0.1950 | 3.6295 | 0.0537 | 0.9805 | N/A | — | near_pass(0.00) | refine_vqe |  |
+| 2.860 | -46.8985 | -47.0801 | 0.1816 | 3.7689 | 0.0482 | 0.9823 | N/A | — | gap_masked(0.61) | refine_vqe |  |
+| 2.930 | -48.0022 | -48.1681 | 0.1659 | 3.9084 | 0.0425 | 0.9842 | N/A | — | gap_masked(0.55) | refine_vqe |  |
+| 3.000 | -49.1071 | -49.2577 | 0.1506 | 4.0480 | 0.0372 | 0.9860 | N/A | — | gap_masked(0.50) | refine_vqe |  |
+
+## N = 20 (39 params)
+
+**ΔE/gap: 1.1678 ± 2.1665 | P90=4.0309 | max=8.1178
+|ΔE|/N: 3.21e-02
+Fidelity: mean≥0.7532 min≥0.2750 (variance lower bound, 30 pts)
+Var(H): 4.1508
+Distribution: [P25=0.064 | P50=0.105 | P75=0.880 | P90=4.031]
+Regions: critical=3.9631 | ordered=0.0651**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=8.118 is 7× the mean — median may be more representative N=20
+
+**Fidelity: mean F≥0.7532, min F≥0.2750** (variance lower bound — N>16, exact statevector infeasible)
+> 30/30 points use the Eckart bound F ≥ 1 − Var(H)/gap², mean Var(H)=4.1508.
+
+**Infidelity decomposition:** 30 dirty-state (attackable via optimization), 0 small-gap (physics ceiling near h_c), mean Var(H)/gap²=14.9202.
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -22.5575 | -25.1078 | 2.5503 | 0.3142 | 8.1178 | N/A | 11.0934 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.070 | -23.8894 | -26.1175 | 2.2281 | 0.3142 | 7.0923 | N/A | 10.6429 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.140 | -25.2525 | -27.1882 | 1.9357 | 0.3142 | 6.1614 | N/A | 10.0647 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.210 | -26.6346 | -28.3055 | 1.6709 | 0.4404 | 3.7941 | N/A | 9.3930 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.280 | -28.0169 | -29.4594 | 1.4425 | 0.5793 | 2.4901 | N/A | 8.7124 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.340 | -29.2043 | -30.4721 | 1.2678 | 0.6984 | 1.8153 | N/A | 8.1126 | dirty_state | severe_error(1.00) | increase_p |  |
+| 1.410 | -30.5947 | -31.6763 | 1.0816 | 0.8375 | 1.2915 | N/A | 7.3632 | dirty_state | severe_error(1.00) | increase_p |  |
+| 1.480 | -31.9813 | -32.9012 | 0.9200 | 0.9767 | 0.9419 | N/A | 6.6175 | dirty_state | severe_error(0.94) | increase_p |  |
+| 1.550 | -33.3671 | -34.1435 | 0.7764 | 1.1159 | 0.6958 | N/A | 5.8587 | dirty_state | severe_error(0.68) | increase_p |  |
+| 1.620 | -34.7530 | -35.4006 | 0.6477 | 1.2552 | 0.5160 | N/A | 5.0883 | dirty_state | severe_error(0.49) | increase_p |  |
+| 1.690 | -36.1380 | -36.6705 | 0.5325 | 1.3946 | 0.3818 | N/A | 4.3255 | dirty_state | moderate_error(0.35) | refine_vqe |  |
+| 1.760 | -37.5199 | -37.9515 | 0.4316 | 1.5340 | 0.2813 | N/A | 3.5949 | dirty_state | moderate_error(0.24) | refine_vqe |  |
+| 1.830 | -38.8939 | -39.2422 | 0.3483 | 1.6735 | 0.2081 | N/A | 2.9495 | dirty_state | moderate_error(0.17) | refine_vqe |  |
+| 1.900 | -40.2612 | -40.5413 | 0.2801 | 1.8130 | 0.1545 | ≥0.2750 | 2.3831 | dirty_state | moderate_error(0.11) | refine_vqe |  |
+| 1.970 | -41.6213 | -41.8481 | 0.2268 | 1.9525 | 0.1161 | ≥0.4995 | 1.9080 | dirty_state | moderate_error(0.07) | refine_vqe |  |
+| 2.030 | -42.7805 | -42.9735 | 0.1930 | 2.0722 | 0.0931 | ≥0.6317 | 1.5815 | dirty_state | near_pass(0.05) | refine_vqe |  |
+| 2.100 | -44.1214 | -44.2921 | 0.1707 | 2.2117 | 0.0772 | ≥0.7259 | 1.3410 | dirty_state | near_pass(0.03) | refine_vqe |  |
+| 2.170 | -45.4530 | -45.6162 | 0.1632 | 2.3514 | 0.0694 | ≥0.7742 | 1.2486 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.240 | -46.7862 | -46.9453 | 0.1591 | 2.4910 | 0.0639 | ≥0.8044 | 1.2134 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.310 | -48.1195 | -48.2788 | 0.1592 | 2.6307 | 0.0605 | ≥0.8224 | 1.2288 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.380 | -49.4511 | -49.6163 | 0.1652 | 2.7704 | 0.0596 | ≥0.8287 | 1.3148 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.450 | -50.7830 | -50.9575 | 0.1746 | 2.9101 | 0.0600 | ≥0.8291 | 1.4472 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.520 | -52.1119 | -52.3021 | 0.1903 | 3.0498 | 0.0624 | ≥0.8224 | 1.6522 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.590 | -53.4373 | -53.6498 | 0.2125 | 3.1895 | 0.0666 | ≥0.8096 | 1.9367 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.660 | -54.7698 | -55.0003 | 0.2305 | 3.3293 | 0.0692 | ≥0.8022 | 2.1929 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.720 | -55.9243 | -56.1599 | 0.2356 | 3.4491 | 0.0683 | ≥0.8059 | 2.3094 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.790 | -57.2795 | -57.5151 | 0.2356 | 3.5888 | 0.0656 | ≥0.8149 | 2.3838 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.860 | -58.6494 | -58.8725 | 0.2231 | 3.7286 | 0.0598 | ≥0.8332 | 2.3192 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.930 | -60.0260 | -60.2320 | 0.2060 | 3.8684 | 0.0532 | ≥0.8534 | 2.1938 | dirty_state | near_pass(0.00) | refine_vqe |  |
+| 3.000 | -61.4051 | -61.5934 | 0.1884 | 4.0082 | 0.0470 | ≥0.8722 | 2.0533 | dirty_state | gap_masked(0.63) | refine_vqe |  |
+
+## N = 30 (59 params)
+
+**ΔE/gap: 3.0655 ± 5.3716 | P90=8.6248 | max=24.3767
+|ΔE|/N: 5.81e-02
+Fidelity: mean≥0.7153 min≥0.0430 (variance lower bound, 30 pts)
+Var(H): 11.3658
+Distribution: [P25=0.063 | P50=0.368 | P75=3.602 | P90=8.625]
+Regions: critical=10.1382 | ordered=0.0976**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=24.377 is 8× the mean — median may be more representative N=30
+
+**Fidelity: mean F≥0.7153, min F≥0.0430** (variance lower bound — N>16, exact statevector infeasible)
+> 30/30 points use the Eckart bound F ≥ 1 − Var(H)/gap², mean Var(H)=11.3658.
+
+**Infidelity decomposition:** 30 dirty-state (attackable via optimization), 0 small-gap (physics ceiling near h_c), mean Var(H)/gap²=36.9226.
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -36.0626 | -37.8381 | 1.7755 | 0.2094 | 8.4773 | N/A | 4.7978 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.070 | -37.8682 | -39.3276 | 1.4594 | 0.2094 | 6.9682 | N/A | 4.4287 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.140 | -33.8574 | -40.9173 | 7.0600 | 0.2896 | 24.3767 | N/A | 34.8804 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.210 | -36.2258 | -42.5812 | 6.3553 | 0.4291 | 14.8122 | N/A | 33.8844 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.280 | -38.6443 | -44.3024 | 5.6581 | 0.5686 | 9.9515 | N/A | 32.4315 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.340 | -40.7488 | -45.8145 | 5.0657 | 0.6882 | 7.3610 | N/A | 30.8258 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.410 | -43.2298 | -47.6140 | 4.3842 | 0.8278 | 5.2963 | N/A | 28.5338 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.480 | -45.7091 | -49.4454 | 3.7363 | 0.9674 | 3.8622 | N/A | 25.9282 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.550 | -48.1781 | -51.3036 | 3.1256 | 1.1071 | 2.8233 | N/A | 23.0743 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.620 | -50.5999 | -53.1847 | 2.5849 | 1.2468 | 2.0733 | N/A | 20.2466 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.690 | -52.9730 | -55.0855 | 2.1125 | 1.3865 | 1.5236 | N/A | 17.5040 | dirty_state | severe_error(1.00) | increase_p |  |
+| 1.760 | -55.2738 | -57.0033 | 1.7295 | 1.5262 | 1.1332 | N/A | 15.0972 | dirty_state | severe_error(1.00) | increase_p |  |
+| 1.830 | -57.5569 | -58.9359 | 1.3790 | 1.6660 | 0.8278 | N/A | 12.5966 | dirty_state | severe_error(0.82) | increase_p |  |
+| 1.900 | -59.8150 | -60.8817 | 1.0667 | 1.8058 | 0.5907 | N/A | 10.1087 | dirty_state | severe_error(0.57) | increase_p |  |
+| 1.970 | -62.0154 | -62.8390 | 0.8236 | 1.9456 | 0.4233 | N/A | 8.0289 | dirty_state | moderate_error(0.39) | refine_vqe |  |
+| 2.030 | -63.8795 | -64.5250 | 0.6454 | 2.0654 | 0.3125 | N/A | 6.3948 | dirty_state | moderate_error(0.28) | refine_vqe |  |
+| 2.100 | -66.0334 | -66.5005 | 0.4671 | 2.2052 | 0.2118 | ≥0.0430 | 4.6538 | dirty_state | moderate_error(0.17) | refine_vqe |  |
+| 2.170 | -68.1498 | -68.4845 | 0.3347 | 2.3451 | 0.1427 | ≥0.4025 | 3.2856 | dirty_state | moderate_error(0.10) | refine_vqe |  |
+| 2.240 | -70.2163 | -70.4760 | 0.2598 | 2.4849 | 0.1045 | ≥0.6022 | 2.4563 | dirty_state | moderate_error(0.06) | refine_vqe |  |
+| 2.310 | -72.2466 | -72.4743 | 0.2278 | 2.6247 | 0.0868 | ≥0.6955 | 2.0979 | dirty_state | near_pass(0.04) | refine_vqe |  |
+| 2.380 | -74.2780 | -74.4789 | 0.2009 | 2.7646 | 0.0727 | ≥0.7620 | 1.8191 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.450 | -76.3060 | -76.4890 | 0.1830 | 2.9045 | 0.0630 | ≥0.8062 | 1.6349 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.520 | -78.3280 | -78.5044 | 0.1764 | 3.0444 | 0.0579 | ≥0.8310 | 1.5667 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.590 | -80.3483 | -80.5244 | 0.1761 | 3.1842 | 0.0553 | ≥0.8444 | 1.5778 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.660 | -82.3656 | -82.5488 | 0.1832 | 3.3241 | 0.0551 | ≥0.8482 | 1.6771 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.720 | -84.0938 | -84.2871 | 0.1933 | 3.4440 | 0.0561 | ≥0.8468 | 1.8176 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.790 | -86.1064 | -86.3186 | 0.2122 | 3.5839 | 0.0592 | ≥0.8389 | 2.0698 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.860 | -88.1225 | -88.3535 | 0.2311 | 3.7238 | 0.0620 | ≥0.8314 | 2.3379 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.930 | -90.1489 | -90.3916 | 0.2427 | 3.8637 | 0.0628 | ≥0.8300 | 2.5379 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 3.000 | -92.1840 | -92.4327 | 0.2487 | 4.0037 | 0.0621 | ≥0.8327 | 2.6810 | dirty_state | near_pass(0.01) | refine_vqe |  |
+
+## N = 40 (79 params)
+
+**ΔE/gap: 6.9411 ± 12.0956 | P90=18.0458 | max=55.3074
+|ΔE|/N: 1.01e-01
+Fidelity: mean≥0.6588 min≥0.0602 (variance lower bound, 30 pts)
+Var(H): 25.0538
+Distribution: [P25=0.117 | P50=1.016 | P75=9.007 | P90=18.046]
+Regions: critical=22.5864 | ordered=0.2217**
+
+> **Metric Reliability Warnings:**
+> - ⚠️ Outlier: max ΔE/gap=55.307 is 8× the mean — median may be more representative N=40
+
+**Fidelity: mean F≥0.6588, min F≥0.0602** (variance lower bound — N>16, exact statevector infeasible)
+> 30/30 points use the Eckart bound F ≥ 1 − Var(H)/gap², mean Var(H)=25.0538.
+
+**Infidelity decomposition:** 30 dirty-state (attackable via optimization), 0 small-gap (physics ceiling near h_c), mean Var(H)/gap²=79.7388.
+
+| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |
+|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|
+| 1.000 | -48.1354 | -50.5694 | 2.4341 | 0.1571 | 15.4958 | N/A | 6.4895 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.070 | -50.5425 | -52.5378 | 1.9953 | 0.1571 | 12.7028 | N/A | 6.0037 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.140 | -38.8611 | -54.6465 | 15.7853 | 0.2854 | 55.3074 | N/A | 68.7656 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.210 | -42.3954 | -56.8569 | 14.4615 | 0.4251 | 34.0192 | N/A | 68.6441 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.280 | -46.0294 | -59.1454 | 13.1160 | 0.5648 | 23.2216 | N/A | 67.5536 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.340 | -49.1964 | -61.1569 | 11.9605 | 0.6846 | 17.4707 | N/A | 65.8839 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.410 | -52.9481 | -63.5517 | 10.6036 | 0.8244 | 12.8626 | N/A | 62.9562 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.480 | -56.7227 | -65.9896 | 9.2668 | 0.9642 | 9.6112 | N/A | 59.1422 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.550 | -60.5204 | -68.4638 | 7.9434 | 1.1040 | 7.1952 | N/A | 54.3951 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.620 | -64.2933 | -70.9689 | 6.6756 | 1.2438 | 5.3671 | N/A | 48.8606 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.690 | -68.0073 | -73.5005 | 5.4931 | 1.3837 | 3.9700 | N/A | 42.7872 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.760 | -71.6322 | -76.0550 | 4.4229 | 1.5235 | 2.9031 | N/A | 36.6109 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.830 | -75.1387 | -78.6297 | 3.4910 | 1.6634 | 2.0988 | N/A | 30.6621 | dirty_state | ansatz_limited(1.00) | restrict_h_range |  |
+| 1.900 | -78.4566 | -81.2220 | 2.7655 | 1.8032 | 1.5336 | N/A | 25.6243 | dirty_state | severe_error(1.00) | increase_p |  |
+| 1.970 | -81.6000 | -83.8300 | 2.2299 | 1.9431 | 1.1476 | N/A | 21.5445 | dirty_state | severe_error(1.00) | increase_p |  |
+| 2.030 | -84.2521 | -86.0764 | 1.8243 | 2.0630 | 0.8843 | N/A | 18.1176 | dirty_state | severe_error(0.88) | increase_p |  |
+| 2.100 | -87.3107 | -88.7089 | 1.3983 | 2.2029 | 0.6347 | N/A | 14.2343 | dirty_state | severe_error(0.62) | increase_p |  |
+| 2.170 | -90.3046 | -91.3528 | 1.0482 | 2.3428 | 0.4474 | N/A | 10.8723 | dirty_state | moderate_error(0.42) | refine_vqe |  |
+| 2.240 | -93.2507 | -94.0067 | 0.7561 | 2.4828 | 0.3045 | N/A | 7.9326 | dirty_state | moderate_error(0.27) | refine_vqe |  |
+| 2.310 | -96.0560 | -96.6699 | 0.6139 | 2.6227 | 0.2341 | ≥0.0602 | 6.4646 | dirty_state | moderate_error(0.19) | refine_vqe |  |
+| 2.380 | -98.8346 | -99.3414 | 0.5068 | 2.7626 | 0.1835 | ≥0.2924 | 5.4004 | dirty_state | moderate_error(0.14) | refine_vqe |  |
+| 2.450 | -101.6106 | -102.0206 | 0.4100 | 2.9025 | 0.1413 | ≥0.4734 | 4.4363 | dirty_state | moderate_error(0.10) | refine_vqe |  |
+| 2.520 | -104.3767 | -104.7066 | 0.3299 | 3.0424 | 0.1084 | ≥0.6104 | 3.6067 | dirty_state | moderate_error(0.06) | refine_vqe |  |
+| 2.590 | -107.1297 | -107.3990 | 0.2693 | 3.1824 | 0.0846 | ≥0.7084 | 2.9535 | dirty_state | near_pass(0.04) | refine_vqe |  |
+| 2.660 | -109.8722 | -110.0972 | 0.2250 | 3.3223 | 0.0677 | ≥0.7776 | 2.4546 | dirty_state | near_pass(0.02) | refine_vqe |  |
+| 2.720 | -112.2171 | -112.4143 | 0.1971 | 3.4423 | 0.0573 | ≥0.8203 | 2.1293 | dirty_state | near_pass(0.01) | refine_vqe |  |
+| 2.790 | -114.9477 | -115.1221 | 0.1744 | 3.5822 | 0.0487 | ≥0.8554 | 1.8554 | dirty_state | gap_masked(0.58) | refine_vqe |  |
+| 2.860 | -117.6718 | -117.8346 | 0.1627 | 3.7222 | 0.0437 | ≥0.8768 | 1.7069 | dirty_state | gap_masked(0.54) | refine_vqe |  |
+| 2.930 | -120.3892 | -120.5513 | 0.1621 | 3.8621 | 0.0420 | ≥0.8862 | 1.6968 | dirty_state | gap_masked(0.54) | refine_vqe |  |
+| 3.000 | -123.0996 | -123.2720 | 0.1724 | 4.0021 | 0.0431 | ≥0.8859 | 1.8279 | dirty_state | gap_masked(0.57) | refine_vqe |  |

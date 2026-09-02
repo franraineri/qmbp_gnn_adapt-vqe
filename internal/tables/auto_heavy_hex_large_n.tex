@@ -1,23 +1,23 @@
 % ==== AUTO-GENERADA — no editar a mano (regenerar con generate_thesis_tables.py) ====
 \begin{table}[htbp]
 \centering
-\caption{Extrapolación cross-$N$ (sobre casos no observados) en heavy-hex: la UnifiedMPNN entrenada con $N$ chicos predice ángulos para $N$ grandes.}
+\caption[Predicción a $N$ grande (heavy-hex)]{Predicción entre tamaños (sobre casos no observados) en heavy-hex: la UnifiedMPNN entrenada con $N$ pequeños predice ángulos para $N$ grandes.}
 \label{tab:auto_heavy_hex_large_n}
-\begin{tabular}{rlrrrrr}
+\begin{tabular}{rrrr}
 \toprule
-$N$ & Rango de $h$ & Ptos. & $|\Delta E|$ & $|\Delta E|/N$ & gap & $\Delta E/\mathrm{gap}$ \\
+$N$ & $|\Delta E|$ & gap & $\Delta E/\mathrm{gap}$ \\
 \midrule
-21 & [2,50, 5,00] & 14 & 0,9321 & 0,04439 & 3,8294 & 0,3409 \\
-22 & [2,50, 5,00] & 10 & 0,3951 & 0,01796 & 3,6875 & 0,2006 \\
-24 & [2,50, 5,00] & 27 & 0,5936 & 0,02474 & 3,6714 & 0,2179 \\
-26 & [2,50, 5,00] & 27 & 0,6895 & 0,02652 & 3,6579 & 0,2507 \\
-30 & [2,00, 5,00] & 50 & 0,3279 & 0,01093 & 3,5108 & 0,3398 \\
-32 & [2,50, 5,00] & 10 & 0,6479 & 0,02025 & 3,6277 & 0,3840 \\
-40 & [2,50, 5,00] & 33 & 0,5806 & 0,01451 & 3,6387 & 0,2009 \\
-50 & [2,50, 5,00] & 6 & 0,9189 & 0,01838 & 3,5811 & 0,2856 \\
-60 & [2,50, 5,00] & 6 & 1,9493 & 0,03249 & 3,5675 & 0,5467 \\
+21 & 0,9321 & 3,8294 & 0,3409 \\
+22 & 0,3951 & 3,6875 & 0,2006 \\
+24 & 0,5936 & 3,6714 & 0,2179 \\
+26 & 0,6895 & 3,6579 & 0,2507 \\
+30 & 4,9896 & 2,5488 & 15,7854 \\
+32 & 0,6479 & 3,6277 & 0,3840 \\
+40 & 0,5806 & 3,6387 & 0,2009 \\
+50 & 0,9189 & 3,5811 & 0,2856 \\
+60 & 1,9493 & 3,5675 & 0,5467 \\
 \bottomrule
 \end{tabular}
 \\[2pt]
-\footnotesize Métricas promediadas sobre los puntos $h$ del reporte de evaluación, ordenadas por la métrica primaria $|\Delta E|$ (error energético absoluto respecto al estado de referencia; energías en unidades de $J = 1$). $|\Delta E|/N$: error por sitio (comparable entre tamaños). $\Delta E/\mathrm{gap}$ se incluye como referencia normalizada, no como criterio de calidad. La dispersión entre puntos $h$ no se agrega aquí (véase el barrido completo por $h$).
+\footnotesize Valores promediados sobre los puntos $h$ ($h \in [1,00, 5,00]$) del reporte de evaluación. Unidades de $J = 1$.
 \end{table}

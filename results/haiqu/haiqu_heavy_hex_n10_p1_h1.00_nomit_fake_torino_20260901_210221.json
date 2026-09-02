@@ -1,0 +1,616 @@
+{
+  "schema": "haiqu_collected_data_v1",
+  "timestamp_utc": "2026-09-01T21:02:39.093276+00:00",
+  "backend_name": "haiqu_fake_torino",
+  "config": {
+    "device_id": "fake_torino",
+    "shots": 16384,
+    "use_mitigation": false,
+    "use_compression": true,
+    "compression_level": "balanced",
+    "fine_tuning": "low",
+    "noise_profile": null,
+    "approximation_level": null,
+    "error_mitigation_options": null,
+    "experiment_name": "HVA heavy_hex N10 p1 h1.00",
+    "max_compression_time_s": 1200
+  },
+  "noise_profile": "ibm_heron_r2",
+  "n_records": 4,
+  "records": [
+    {
+      "operation": "dry_run_cost_estimate",
+      "timestamp_utc": "2026-09-01T21:02:21.555141+00:00",
+      "device_id": "fake_torino",
+      "estimated_qpu_cost": {
+        "native": {
+          "unit": "s",
+          "amount": 10.297906176000001
+        },
+        "converted": {
+          "unit": "USD",
+          "amount": 0.0
+        }
+      },
+      "shots": 16384,
+      "n_observables": 19,
+      "circuit_submitted": {
+        "n_qubits": 10,
+        "num_parameters": 19,
+        "depth": 9,
+        "depth_2q": 7,
+        "gate_counts": {
+          "h": 10,
+          "rx": 10,
+          "rzz": 9
+        },
+        "n_2q_gates": 9,
+        "pre_transpilation": false
+      },
+      "job_metadata": {
+        "id": "jb-d8d7d299-e761-41b6-8856-2a8581ccd07d",
+        "status": "JobStatus.DONE",
+        "name": "circuit-41",
+        "device_id": "fake_torino",
+        "creation_date": "2026-09-01T20:58:46.332498",
+        "time": 0.0,
+        "logs": "Initializing the job...\nThe pipeline is ready, the backend `fake_torino` initialized.\nPreparing tasks...\nTranspiled circuit created with id circ-26a4aff2-2dd0-4c05-a7f6-ca87b896ae64.\n\nDry run requested. Skipping backend execution.\nDone.",
+        "estimated_qpu_cost": {
+          "native": {
+            "unit": "s",
+            "amount": 10.297906176000001
+          },
+          "converted": {
+            "unit": "USD",
+            "amount": 0.0
+          }
+        },
+        "info": {}
+      }
+    },
+    {
+      "operation": "state_compression",
+      "timestamp_utc": "2026-09-01T21:02:27.819090+00:00",
+      "device_id": "fake_torino",
+      "compression_level": "balanced",
+      "fine_tuning": "low",
+      "noise_profile": "ibm_heron_r2",
+      "approximation_level": null,
+      "quality": 1.0,
+      "cnot_reduction": null,
+      "circuit_before": {
+        "n_qubits": 10,
+        "num_parameters": 0,
+        "depth": 9,
+        "depth_2q": 7,
+        "gate_counts": {
+          "h": 10,
+          "rx": 10,
+          "rzz": 9
+        },
+        "n_2q_gates": 9,
+        "pre_transpilation": false
+      },
+      "circuit_after": {
+        "n_qubits": 10,
+        "num_parameters": null,
+        "note": "stats unavailable for CircuitModel"
+      },
+      "wall_clock_s": 6.259528875001706,
+      "job_metadata": {
+        "id": "jb-dd8a6257-935d-482b-a2a7-c90eba16977f",
+        "status": "JobStatus.DONE",
+        "name": "State Compression of `circuit-50`",
+        "device_id": "Haiqu OS",
+        "creation_date": "2026-09-01T21:02:22.205097",
+        "time": 1.700162,
+        "quality": 1.0,
+        "logs": "Job retrieved from database with parameters:\n{\n  \"approximation_level\": null,\n  \"compression_level\": \"balanced\",\n  \"fine_tuning\": \"low\",\n  \"max_time\": 1200,\n  \"noise_profile\": \"ibm_heron_r2\"\n}\nProcessing the input circuit...\nProcessing completed.\nProceeding with auto-selected approximation level.\nCompression with approximation level 1 failed to reduce number of CNOTs.\nTotal time: 1.6s",
+        "info": {
+          "compression_quality": 1,
+          "success": false,
+          "compression_status": "Unsuccessful compression",
+          "compression_time": 1.5576519059250131,
+          "compression_percent": 0,
+          "approximation_level": 1
+        }
+      }
+    },
+    {
+      "operation": "run",
+      "timestamp_utc": "2026-09-01T21:02:39.092632+00:00",
+      "device_id": "fake_torino",
+      "energy": -10.9622802734375,
+      "uncertainty": [
+        [
+          0.007232691102346541,
+          0.007405375574003835,
+          0.007565158733947231,
+          0.0075676108550618805,
+          0.007587002041468393,
+          0.0072794896997730426,
+          0.007156438918706362,
+          0.007262244885154327,
+          0.007320563514388036,
+          0.0045088491245528104,
+          0.006541981985194822,
+          0.0044612430922480245,
+          0.005034747225851878,
+          0.0037405436091662836,
+          0.005452413454464409,
+          0.003777034685107827,
+          0.004034689249427557,
+          0.003509353421167709,
+          0.0037265199462892186
+        ]
+      ],
+      "qpu_cost": {
+        "native": {
+          "amount": 0.0,
+          "unit": "s"
+        },
+        "converted": {
+          "amount": 0.0,
+          "unit": "USD"
+        }
+      },
+      "shots": 16384,
+      "use_mitigation": false,
+      "error_mitigation_options": null,
+      "use_compression": true,
+      "compression_quality": 1.0,
+      "n_observables": 19,
+      "hamiltonian_coeffs": [
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0
+      ],
+      "pauli_terms": [
+        "IIIIIIIIZZ",
+        "IIIIIIIZZI",
+        "IIIIIIZZII",
+        "IIIIIZZIII",
+        "IIIIZZIIII",
+        "IIIZZIIIII",
+        "IIZIIIIIZI",
+        "IZIIIIZIII",
+        "ZIIIZIIIII",
+        "IIIIIIIIIX",
+        "IIIIIIIIXI",
+        "IIIIIIIXII",
+        "IIIIIIXIII",
+        "IIIIIXIIII",
+        "IIIIXIIIII",
+        "IIIXIIIIII",
+        "IIXIIIIIII",
+        "IXIIIIIIII",
+        "XIIIIIIIII"
+      ],
+      "expectation_values": [
+        0.3780517578125,
+        0.318603515625,
+        0.2496337890625,
+        0.2484130859375,
+        0.238525390625,
+        0.363037109375,
+        0.401123046875,
+        0.36865234375,
+        0.3492431640625,
+        0.816650390625,
+        0.546630859375,
+        0.8209228515625,
+        0.7646484375,
+        0.8779296875,
+        0.7161865234375,
+        0.8753662109375,
+        0.8563232421875,
+        0.8934326171875,
+        0.87890625
+      ],
+      "term_contributions": [
+        -0.3780517578125,
+        -0.318603515625,
+        -0.2496337890625,
+        -0.2484130859375,
+        -0.238525390625,
+        -0.363037109375,
+        -0.401123046875,
+        -0.36865234375,
+        -0.3492431640625,
+        -0.816650390625,
+        -0.546630859375,
+        -0.8209228515625,
+        -0.7646484375,
+        -0.8779296875,
+        -0.7161865234375,
+        -0.8753662109375,
+        -0.8563232421875,
+        -0.8934326171875,
+        -0.87890625
+      ],
+      "circuit_submitted": {
+        "n_qubits": 10,
+        "num_parameters": null,
+        "note": "stats unavailable for CircuitModel"
+      },
+      "wall_clock_s": 11.271059791964944,
+      "job_metadata": {
+        "id": "jb-6615d1f9-5552-484c-b36c-ef7451c527a4",
+        "status": "JobStatus.DONE",
+        "name": "Compressed circuit-50",
+        "device_id": "fake_torino",
+        "creation_date": "2026-09-01T21:02:28.497665",
+        "time": 5.090158,
+        "logs": "Initializing the job...\nThe pipeline is ready, the backend `fake_torino` initialized.\nPreparing tasks...\nTranspiled circuit created with id circ-e2a8ea46-d89e-47d9-8739-a4754896dc62.\n\nRunning...\nRan circuits for jb-6615d1f9-5552-484c-b36c-ef7451c527a4 in 5.014 s.\nRestructuring the results...\nDone.",
+        "estimated_qpu_cost": {
+          "native": {
+            "unit": "s",
+            "amount": 10.301051904000001
+          },
+          "converted": {
+            "unit": "USD",
+            "amount": 0.0
+          }
+        },
+        "info": {
+          "qpu_cost": {
+            "native": {
+              "amount": 0.0,
+              "unit": "s"
+            },
+            "converted": {
+              "amount": 0.0,
+              "unit": "USD"
+            }
+          },
+          "uncertainty": [
+            [
+              0.007232691102346541,
+              0.007405375574003835,
+              0.007565158733947231,
+              0.0075676108550618805,
+              0.007587002041468393,
+              0.0072794896997730426,
+              0.007156438918706362,
+              0.007262244885154327,
+              0.007320563514388036,
+              0.0045088491245528104,
+              0.006541981985194822,
+              0.0044612430922480245,
+              0.005034747225851878,
+              0.0037405436091662836,
+              0.005452413454464409,
+              0.003777034685107827,
+              0.004034689249427557,
+              0.003509353421167709,
+              0.0037265199462892186
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "operation": "evaluate_full",
+      "timestamp_utc": "2026-09-01T21:02:39.092912+00:00",
+      "device_id": "fake_torino",
+      "h": 1.0,
+      "theta_pred": [
+        0.28387969732284546,
+        0.21024179458618164,
+        0.15934905409812927,
+        0.14453460276126862,
+        0.15146520733833313,
+        0.2212430089712143,
+        0.2639395296573639,
+        0.20410530269145966,
+        0.2074015736579895,
+        0.4722222685813904,
+        0.0015925131738185883,
+        0.6714314818382263,
+        0.014863649383187294,
+        0.7574162483215332,
+        0.017878711223602295,
+        0.6958932280540466,
+        0.5518891215324402,
+        0.7082449793815613,
+        0.671109139919281
+      ],
+      "energy": -10.9622802734375,
+      "e_exact": -12.47217478207831,
+      "gap": 0.2201304286897603,
+      "abs_delta_e": 1.5098945086408104,
+      "de_gap": 6.859090393035906,
+      "fidelity": null,
+      "uncertainty": [
+        [
+          0.007232691102346541,
+          0.007405375574003835,
+          0.007565158733947231,
+          0.0075676108550618805,
+          0.007587002041468393,
+          0.0072794896997730426,
+          0.007156438918706362,
+          0.007262244885154327,
+          0.007320563514388036,
+          0.0045088491245528104,
+          0.006541981985194822,
+          0.0044612430922480245,
+          0.005034747225851878,
+          0.0037405436091662836,
+          0.005452413454464409,
+          0.003777034685107827,
+          0.004034689249427557,
+          0.003509353421167709,
+          0.0037265199462892186
+        ]
+      ],
+      "qpu_cost": {
+        "native": {
+          "amount": 0.0,
+          "unit": "s"
+        },
+        "converted": {
+          "amount": 0.0,
+          "unit": "USD"
+        }
+      },
+      "pass_5pct": false,
+      "run_record": {
+        "operation": "run",
+        "timestamp_utc": "2026-09-01T21:02:39.092632+00:00",
+        "device_id": "fake_torino",
+        "energy": -10.9622802734375,
+        "uncertainty": [
+          [
+            0.007232691102346541,
+            0.007405375574003835,
+            0.007565158733947231,
+            0.0075676108550618805,
+            0.007587002041468393,
+            0.0072794896997730426,
+            0.007156438918706362,
+            0.007262244885154327,
+            0.007320563514388036,
+            0.0045088491245528104,
+            0.006541981985194822,
+            0.0044612430922480245,
+            0.005034747225851878,
+            0.0037405436091662836,
+            0.005452413454464409,
+            0.003777034685107827,
+            0.004034689249427557,
+            0.003509353421167709,
+            0.0037265199462892186
+          ]
+        ],
+        "qpu_cost": {
+          "native": {
+            "amount": 0.0,
+            "unit": "s"
+          },
+          "converted": {
+            "amount": 0.0,
+            "unit": "USD"
+          }
+        },
+        "shots": 16384,
+        "use_mitigation": false,
+        "error_mitigation_options": null,
+        "use_compression": true,
+        "compression_quality": 1.0,
+        "n_observables": 19,
+        "hamiltonian_coeffs": [
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0,
+          -1.0
+        ],
+        "pauli_terms": [
+          "IIIIIIIIZZ",
+          "IIIIIIIZZI",
+          "IIIIIIZZII",
+          "IIIIIZZIII",
+          "IIIIZZIIII",
+          "IIIZZIIIII",
+          "IIZIIIIIZI",
+          "IZIIIIZIII",
+          "ZIIIZIIIII",
+          "IIIIIIIIIX",
+          "IIIIIIIIXI",
+          "IIIIIIIXII",
+          "IIIIIIXIII",
+          "IIIIIXIIII",
+          "IIIIXIIIII",
+          "IIIXIIIIII",
+          "IIXIIIIIII",
+          "IXIIIIIIII",
+          "XIIIIIIIII"
+        ],
+        "expectation_values": [
+          0.3780517578125,
+          0.318603515625,
+          0.2496337890625,
+          0.2484130859375,
+          0.238525390625,
+          0.363037109375,
+          0.401123046875,
+          0.36865234375,
+          0.3492431640625,
+          0.816650390625,
+          0.546630859375,
+          0.8209228515625,
+          0.7646484375,
+          0.8779296875,
+          0.7161865234375,
+          0.8753662109375,
+          0.8563232421875,
+          0.8934326171875,
+          0.87890625
+        ],
+        "term_contributions": [
+          -0.3780517578125,
+          -0.318603515625,
+          -0.2496337890625,
+          -0.2484130859375,
+          -0.238525390625,
+          -0.363037109375,
+          -0.401123046875,
+          -0.36865234375,
+          -0.3492431640625,
+          -0.816650390625,
+          -0.546630859375,
+          -0.8209228515625,
+          -0.7646484375,
+          -0.8779296875,
+          -0.7161865234375,
+          -0.8753662109375,
+          -0.8563232421875,
+          -0.8934326171875,
+          -0.87890625
+        ],
+        "circuit_submitted": {
+          "n_qubits": 10,
+          "num_parameters": null,
+          "note": "stats unavailable for CircuitModel"
+        },
+        "wall_clock_s": 11.271059791964944,
+        "job_metadata": {
+          "id": "jb-6615d1f9-5552-484c-b36c-ef7451c527a4",
+          "status": "JobStatus.DONE",
+          "name": "Compressed circuit-50",
+          "device_id": "fake_torino",
+          "creation_date": "2026-09-01T21:02:28.497665",
+          "time": 5.090158,
+          "logs": "Initializing the job...\nThe pipeline is ready, the backend `fake_torino` initialized.\nPreparing tasks...\nTranspiled circuit created with id circ-e2a8ea46-d89e-47d9-8739-a4754896dc62.\n\nRunning...\nRan circuits for jb-6615d1f9-5552-484c-b36c-ef7451c527a4 in 5.014 s.\nRestructuring the results...\nDone.",
+          "estimated_qpu_cost": {
+            "native": {
+              "unit": "s",
+              "amount": 10.301051904000001
+            },
+            "converted": {
+              "unit": "USD",
+              "amount": 0.0
+            }
+          },
+          "info": {
+            "qpu_cost": {
+              "native": {
+                "amount": 0.0,
+                "unit": "s"
+              },
+              "converted": {
+                "amount": 0.0,
+                "unit": "USD"
+              }
+            },
+            "uncertainty": [
+              [
+                0.007232691102346541,
+                0.007405375574003835,
+                0.007565158733947231,
+                0.0075676108550618805,
+                0.007587002041468393,
+                0.0072794896997730426,
+                0.007156438918706362,
+                0.007262244885154327,
+                0.007320563514388036,
+                0.0045088491245528104,
+                0.006541981985194822,
+                0.0044612430922480245,
+                0.005034747225851878,
+                0.0037405436091662836,
+                0.005452413454464409,
+                0.003777034685107827,
+                0.004034689249427557,
+                0.003509353421167709,
+                0.0037265199462892186
+              ]
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "summary": {
+    "n_points": 1,
+    "n_pass_5pct": 0,
+    "pass_rate_5pct": 0.0,
+    "mean_de_gap": 6.859090393035906,
+    "max_de_gap": 6.859090393035906,
+    "mean_abs_delta_e": 1.5098945086408104,
+    "mean_fidelity": null,
+    "min_fidelity": null,
+    "mean_uncertainty": 0.0058507342693852726
+  },
+  "context": {
+    "model_checkpoint": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "J": 1.0,
+    "h": 1.0,
+    "e_exact": -12.47217478207831,
+    "gap": 0.2201304286897603,
+    "theta_predicted": [
+      0.28387969732284546,
+      0.21024179458618164,
+      0.15934905409812927,
+      0.14453460276126862,
+      0.15146520733833313,
+      0.2212430089712143,
+      0.2639395296573639,
+      0.20410530269145966,
+      0.2074015736579895,
+      0.4722222685813904,
+      0.0015925131738185883,
+      0.6714314818382263,
+      0.014863649383187294,
+      0.7574162483215332,
+      0.017878711223602295,
+      0.6958932280540466,
+      0.5518891215324402,
+      0.7082449793815613,
+      0.671109139919281
+    ],
+    "circuit_type": "bond_resolved",
+    "vqe_refined": false,
+    "vqe_maxiter": null,
+    "vqe_restarts": null,
+    "vqe_method": null,
+    "mitigation": false,
+    "compression": true,
+    "shots": 16384,
+    "device": "fake_torino"
+  }
+}

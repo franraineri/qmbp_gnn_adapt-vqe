@@ -695,7 +695,9 @@ def compute_adaptive_vqe_config(
         scale = 0.5 + 0.5 * priority  # 0.75-1.0× base
         return {
             "maxiter": int(base_maxiter * scale),
-            "n_restarts": max(min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts), MIN_N_RESTARTS),
+            "n_restarts": max(
+                min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts), MIN_N_RESTARTS
+            ),
             "rhobeg": ADAPTIVE_VQE_STANDARD_RHOBEG,
             "tier": "standard",
             "reason": f"Standard: ΔE/gap={de_gap:.3f}, priority={priority:.2f}",
@@ -1283,6 +1285,14 @@ def compute_deploy_summary(
     dg_lo, dg_hi = bootstrap_ci_mean(de_gaps)
     summary["mean_de_gap_ci_lower"] = dg_lo
     summary["mean_de_gap_ci_upper"] = dg_hi
+
+    ckpts = {r.get("checkpoint_file") for r in per_h_results if r.get("checkpoint_file")}
+    if len(ckpts) == 1:
+        summary["checkpoint_file"] = ckpts.pop()
+
+    n_floor_gap = sum(1 for r in per_h_results if r.get("gap_method") == "analytical_tfim")
+    if n_floor_gap:
+        summary["n_floor_gap"] = n_floor_gap
 
     if fidelity_threshold is not None:
         summary.update(assess_hardware_viability(summary, fidelity_threshold))
@@ -3146,8 +3156,7 @@ def validate_gt_npz_coherence(
                     n_points_fixed += len(corrections)
                     n_gap_points_fixed += len(gap_corrections)
                     logger.info(
-                        "validate_gt_npz_coherence: fixed %s (%d e_exact, %d gap, "
-                        "max_delta=%.2e)",
+                        "validate_gt_npz_coherence: fixed %s (%d e_exact, %d gap, max_delta=%.2e)",
                         npz_file.name,
                         len(corrections),
                         len(gap_corrections),
@@ -3165,9 +3174,7 @@ def validate_gt_npz_coherence(
             fix_status = f" ({n_points_fixed} e_exact, {n_gap_points_fixed} gap fixed)"
         else:
             fix_status = " (run with fix=True to correct)"
-        gap_str = (
-            f", {n_gap_points_mismatched} stale gap" if n_gap_points_mismatched else ""
-        )
+        gap_str = f", {n_gap_points_mismatched} stale gap" if n_gap_points_mismatched else ""
         summary = (
             f"⚠️ {n_files_with_issues}/{n_files_checked} files stale: "
             f"{n_points_mismatched} e_exact{gap_str} "
@@ -3742,273 +3749,146 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
         results["steps_failed"].append(f"gt_npz_coherence: {e}")
         _log(f"  ❌ Failed: {e}")
 
-    # ── Step 2: Regenerate dashboard ─────────────────────────────────────
-    _log("Step 2/6: Regenerating model quality dashboard...")
-    try:
-        # Force regeneration by importing and calling directly
-        dashboard = generate_model_quality_dashboard()
-        results["dashboard_regenerated"] = True
-        results["steps_completed"].append("dashboard")
-        _log(f"  ✅ Dashboard: {dashboard.get('n_configs', 0)} configs")
-    except Exception as e:
-        results["steps_failed"].append(f"dashboard: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 2b: Best Results Scoreboard ────────────────────────────────
-    _log("Step 2b/9: Regenerating best results scoreboard...")
-    try:
-        scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
-        if scoreboard_script.exists():
-            _sb_cmd = [sys.executable, str(scoreboard_script)]
-            if p_layers is not None:
-                _sb_cmd += ["--p-layers", str(p_layers)]
-            proc = subprocess.run(
-                _sb_cmd,
-                capture_output=True,
-                text=True,
-                timeout=120,  # scan of all eval reports + cold-import warmup
-                cwd=str(_ROOT),
-            )
-            # exit 1 with p filter + no data is a benign "nothing to generate
-            # for this p yet" (e.g. first p=2 run before any p=2 eval exists),
-            # not a real failure.
-            _no_data = p_layers is not None and "No evaluation reports found" in (proc.stdout or "")
-            if proc.returncode == 0:
-                results["steps_completed"].append("best_results_scoreboard")
-                _log(
-                    "  ✅ Best results scoreboard updated"
-                    + (f" (p={p_layers})" if p_layers is not None else "")
-                )
-            elif _no_data:
-                results["steps_completed"].append(
-                    f"best_results_scoreboard (no p={p_layers} data yet)"
-                )
-                _log(f"  ⏭️ No eval reports for p={p_layers} yet — scoreboard skipped")
-            else:
-                results["steps_failed"].append(f"best_results_scoreboard: exit={proc.returncode}")
-                _log(f"  ❌ Exit code {proc.returncode}")
-        else:
-            results["steps_completed"].append("best_results_scoreboard (skipped)")
-    except subprocess.TimeoutExpired:
-        results["steps_failed"].append("best_results_scoreboard: timeout")
-        _log("  ⏰ Timed out")
-    except Exception as e:
-        results["steps_failed"].append(f"best_results_scoreboard: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 2c: Auto-fix scoreboard issues ─────────────────────────────
-    _log("Step 2c/9: Auto-fixing scoreboard issues...")
-    try:
-        fix_result = auto_fix_scoreboard_issues(verbose=verbose)
-        n_fixes = (
-            fix_result["n_recovered"]
-            + fix_result["n_registered"]
-            + fix_result["n_backfilled"]
-            + fix_result["n_exclusions_removed"]
-            + fix_result["n_exclusions_added"]
-        )
-        results["scoreboard_fixes"] = fix_result
-        results["steps_completed"].append("scoreboard_auto_fix")
-        if n_fixes > 0:
-            _log(
-                f"  ✅ Auto-fixed: {fix_result['n_recovered']} recovered, "
-                f"{fix_result['n_registered']} registered, "
-                f"{fix_result['n_backfilled']} backfilled, "
-                f"{fix_result['n_exclusions_removed']} exclusions removed"
-            )
-        else:
-            _log("  ✅ No scoreboard issues to fix")
-    except Exception as e:
-        results["steps_failed"].append(f"scoreboard_auto_fix: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 3: Eval report regeneration ─────────────────────────────────
-    _log("Step 3/6: Regenerating evaluation report...")
-    try:
-        eval_script = _ROOT / "scripts" / "analysis" / "evaluate_zoo_models.py"
-        if not eval_script.exists():
-            eval_script = _ROOT / "scripts" / "maintenance" / "evaluate_zoo_models.py"
-        if eval_script.exists():
-            proc = subprocess.run(
-                [sys.executable, str(eval_script)],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                cwd=str(_ROOT),
-            )
-            if proc.returncode == 0:
-                results["eval_report_updated"] = True
-                results["steps_completed"].append("eval_report")
-                _log("  ✅ Evaluation report updated")
-            else:
-                results["steps_failed"].append(f"eval_report: exit={proc.returncode}")
-                _log(f"  ❌ Exit code {proc.returncode}")
-        else:
-            results["steps_completed"].append("eval_report (skipped, script not found)")
-            _log("  ⏭️ evaluate_zoo_models.py not found, skipped")
-    except subprocess.TimeoutExpired:
-        results["steps_failed"].append("eval_report: timeout (120s)")
-        _log("  ⏰ Timed out (120s limit)")
-    except Exception as e:
-        results["steps_failed"].append(f"eval_report: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 4: Cross-N coverage doc update ──────────────────────────────
-    _log("Step 4/6: Updating cross-N coverage documentation...")
-    try:
-        coverage_script = _ROOT / "scripts" / "maintenance" / "update_cross_n_coverage.py"
-        if coverage_script.exists():
-            proc = subprocess.run(
-                [sys.executable, str(coverage_script)],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=str(_ROOT),
-            )
-            if proc.returncode == 0:
-                results["coverage_updated"] = True
-                results["steps_completed"].append("coverage_doc")
-                _log("  ✅ Coverage documentation updated")
-            else:
-                results["steps_failed"].append(f"coverage_doc: exit={proc.returncode}")
-                _log(f"  ❌ Exit code {proc.returncode}")
-        else:
-            results["steps_completed"].append("coverage_doc (skipped)")
-            _log("  ⏭️ update_cross_n_coverage.py not found")
-    except subprocess.TimeoutExpired:
-        results["steps_failed"].append("coverage_doc: timeout")
-        _log("  ⏰ Timed out")
-    except Exception as e:
-        results["steps_failed"].append(f"coverage_doc: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 5: ResultIndex + project-status.md ──────────────────────────
-    _log("Step 5/6: Rebuilding ResultIndex + project-status.md...")
-    try:
-        from qmbp_simulation.framework.result_index import ResultIndex
-
-        idx = ResultIndex()
-        idx.rebuild()
-        idx.refresh_status()
-        results["status_updated"] = True
-        results["steps_completed"].append("result_index")
-        _log("  ✅ ResultIndex rebuilt + project-status.md refreshed")
-    except Exception as e:
-        results["steps_failed"].append(f"result_index: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 6: Auto-detect exclusions ───────────────────────────────────
-    _log("Step 6/7: Auto-detecting training exclusions...")
-    try:
-        auto_detect_exclusions()
-        results["steps_completed"].append("exclusions")
-        _log("  ✅ Exclusion registry updated")
-    except Exception as e:
-        results["steps_failed"].append(f"exclusions: {e}")
-        _log(f"  ❌ Failed: {e}")
-
-    # ── Step 7: Auto-correct zoo inflation + backfill pass_rate_by_n ─────
-    _log("Step 7/7: Zoo pass_rate coherence + backfill...")
-    try:
-        from qmbp_simulation.predictors.model_zoo import (
-            _load_manifest,
-            backfill_critical_ranking_from_evals,
-            backfill_pass_rate_by_n_from_comparisons,
-            update_zoo_pass_rate,
-        )
-
-        # Backfill pass_rate_by_n from comparison history
-        n_backfilled = backfill_pass_rate_by_n_from_comparisons()
-
-        # Backfill the empirical critical h-window ranking ([0.8, 1.8]) from the
-        # per-h eval reports. Keeps load_best_model_for(h_regime="critical")
-        # synced with the newest experiments. Best-effort — never blocks sync.
+    if True:
+        # ── Step 2: Regenerate dashboard ─────────────────────────────────────
+        _log("Step 2/6: Regenerating model quality dashboard...")
         try:
-            n_crit = backfill_critical_ranking_from_evals()
-            _log(f"  ✅ Critical-window ranking: {n_crit} entries updated")
-        except Exception as _crit_exc:  # noqa: BLE001
-            _log(f"  ⚠️ Critical-window ranking backfill skipped: {_crit_exc}")
+            # Force regeneration by importing and calling directly
+            dashboard = generate_model_quality_dashboard()
+            results["dashboard_regenerated"] = True
+            results["steps_completed"].append("dashboard")
+            _log(f"  ✅ Dashboard: {dashboard.get('n_configs', 0)} configs")
+        except Exception as e:
+            results["steps_failed"].append(f"dashboard: {e}")
+            _log(f"  ❌ Failed: {e}")
 
-        # Auto-correct inflated zoo entries (zoo > comparison by >25%)
-        entries = _load_manifest()
-        n_deflated = 0
-        for entry in entries:
-            if not entry.pass_rate_by_n or entry.pass_rate == 0:
-                continue
-            rates = [float(v) for v in entry.pass_rate_by_n.values()]
-            comp_avg = sum(rates) / len(rates)
-            if entry.pass_rate > comp_avg + 0.25:
-                update_zoo_pass_rate(
-                    entry.checkpoint_file,
-                    comp_avg,
-                    only_if_better=False,
-                    pass_rate_source="comparison_eval",
-                    add_notes=f"auto-deflated from {entry.pass_rate:.0%}",
+        # ── Step 2b: Best Results Scoreboard ────────────────────────────────
+        _log("Step 2b/9: Regenerating best results scoreboard...")
+        try:
+            scoreboard_script = (
+                _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
+            )
+            if scoreboard_script.exists():
+                _sb_cmd = [sys.executable, str(scoreboard_script)]
+                if p_layers is not None:
+                    _sb_cmd += ["--p-layers", str(p_layers)]
+                proc = subprocess.run(
+                    _sb_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,  # scan of all eval reports + cold-import warmup
+                    cwd=str(_ROOT),
                 )
-                n_deflated += 1
+                # exit 1 with p filter + no data is a benign "nothing to generate
+                # for this p yet" (e.g. first p=2 run before any p=2 eval exists),
+                # not a real failure.
+                _no_data = p_layers is not None and "No evaluation reports found" in (
+                    proc.stdout or ""
+                )
+                if proc.returncode == 0:
+                    results["steps_completed"].append("best_results_scoreboard")
+                    _log(
+                        "  ✅ Best results scoreboard updated"
+                        + (f" (p={p_layers})" if p_layers is not None else "")
+                    )
+                elif _no_data:
+                    results["steps_completed"].append(
+                        f"best_results_scoreboard (no p={p_layers} data yet)"
+                    )
+                    _log(f"  ⏭️ No eval reports for p={p_layers} yet — scoreboard skipped")
+                else:
+                    results["steps_failed"].append(
+                        f"best_results_scoreboard: exit={proc.returncode}"
+                    )
+                    _log(f"  ❌ Exit code {proc.returncode}")
+            else:
+                results["steps_completed"].append("best_results_scoreboard (skipped)")
+        except subprocess.TimeoutExpired:
+            results["steps_failed"].append("best_results_scoreboard: timeout")
+            _log("  ⏰ Timed out")
+        except Exception as e:
+            results["steps_failed"].append(f"best_results_scoreboard: {e}")
+            _log(f"  ❌ Failed: {e}")
 
-        results["steps_completed"].append("zoo_coherence")
-        _log(f"  ✅ Backfilled {n_backfilled} models, deflated {n_deflated} inflated entries")
-    except Exception as e:
-        results["steps_failed"].append(f"zoo_coherence: {e}")
-        _log(f"  ❌ Failed: {e}")
+        # ── Step 2c: Auto-fix scoreboard issues ─────────────────────────────
+        _log("Step 2c/9: Auto-fixing scoreboard issues...")
+        try:
+            fix_result = auto_fix_scoreboard_issues(verbose=verbose)
+            n_fixes = (
+                fix_result["n_recovered"]
+                + fix_result["n_registered"]
+                + fix_result["n_backfilled"]
+                + fix_result["n_exclusions_removed"]
+                + fix_result["n_exclusions_added"]
+            )
+            results["scoreboard_fixes"] = fix_result
+            results["steps_completed"].append("scoreboard_auto_fix")
+            if n_fixes > 0:
+                _log(
+                    f"  ✅ Auto-fixed: {fix_result['n_recovered']} recovered, "
+                    f"{fix_result['n_registered']} registered, "
+                    f"{fix_result['n_backfilled']} backfilled, "
+                    f"{fix_result['n_exclusions_removed']} exclusions removed"
+                )
+            else:
+                _log("  ✅ No scoreboard issues to fix")
+        except Exception as e:
+            results["steps_failed"].append(f"scoreboard_auto_fix: {e}")
+            _log(f"  ❌ Failed: {e}")
 
-    # ── Step 7b: Auto-archive orphan checkpoints ─────────────────────────
-    try:
-        from qmbp_simulation.predictors.model_zoo import _CHECKPOINTS_DIR, _load_manifest
+            # ── Step 7b: Auto-archive orphan checkpoints ─────────────────────────
+        try:
+            from qmbp_simulation.predictors.model_zoo import _CHECKPOINTS_DIR, _load_manifest
 
-        manifest_files = {e.checkpoint_file for e in _load_manifest()}
-        if _CHECKPOINTS_DIR.exists():
-            disk_files = {f.name for f in _CHECKPOINTS_DIR.glob("*.pt")}
-            orphans = disk_files - manifest_files
-            if orphans:
-                archive_dir = _CHECKPOINTS_DIR / "_archive"
-                archive_dir.mkdir(parents=True, exist_ok=True)
-                import shutil
+            manifest_files = {e.checkpoint_file for e in _load_manifest()}
+            if _CHECKPOINTS_DIR.exists():
+                disk_files = {f.name for f in _CHECKPOINTS_DIR.glob("*.pt")}
+                orphans = disk_files - manifest_files
+                if orphans:
+                    archive_dir = _CHECKPOINTS_DIR / "_archive"
+                    archive_dir.mkdir(parents=True, exist_ok=True)
+                    import shutil
 
-                for orphan_name in orphans:
-                    src = _CHECKPOINTS_DIR / orphan_name
-                    dst = archive_dir / orphan_name
-                    if src.exists() and not dst.exists():
-                        shutil.move(str(src), str(dst))
-                _log(f"  📦 Auto-archived {len(orphans)} orphan checkpoint(s)")
-    except Exception:
-        pass  # Non-critical
+                    for orphan_name in orphans:
+                        src = _CHECKPOINTS_DIR / orphan_name
+                        dst = archive_dir / orphan_name
+                        if src.exists() and not dst.exists():
+                            shutil.move(str(src), str(dst))
+                    _log(f"  📦 Auto-archived {len(orphans)} orphan checkpoint(s)")
+        except Exception:
+            pass  # Non-critical
 
-    # ── Step 8: Retrain trigger detection ────────────────────────────────
-    _log("Step 8/9: Checking retrain triggers...")
-    try:
-        from qmbp_simulation.predictors.training_intelligence import check_retrain_triggers
+        # ── Step 8: Retrain trigger detection ────────────────────────────────
+        _log("Step 8/9: Checking retrain triggers...")
+        try:
+            from qmbp_simulation.predictors.training_intelligence import check_retrain_triggers
 
-        triggers = check_retrain_triggers()
-        results["retrain_triggers"] = [
-            {"topology": t.topology, "priority": t.priority, "reason": t.reason} for t in triggers
-        ]
-        results["steps_completed"].append("retrain_triggers")
-        if triggers:
-            _log(f"  ⚠️ {len(triggers)} retrain triggers detected:")
-            for t in triggers[:3]:
-                _log(f"    P{t.priority} {t.topology}: {t.reason[:60]}")
-        else:
-            _log("  ✅ No retrain triggers (all models up-to-date)")
-    except Exception as e:
-        results["steps_failed"].append(f"retrain_triggers: {e}")
-        _log(f"  ❌ Failed: {e}")
+            triggers = check_retrain_triggers()
+            results["retrain_triggers"] = [
+                {"topology": t.topology, "priority": t.priority, "reason": t.reason}
+                for t in triggers
+            ]
+            results["steps_completed"].append("retrain_triggers")
+            if triggers:
+                _log(f"  ⚠️ {len(triggers)} retrain triggers detected:")
+                for t in triggers[:3]:
+                    _log(f"    P{t.priority} {t.topology}: {t.reason[:60]}")
+            else:
+                _log("  ✅ No retrain triggers (all models up-to-date)")
+        except Exception as e:
+            results["steps_failed"].append(f"retrain_triggers: {e}")
+            _log(f"  ❌ Failed: {e}")
 
-    # ── Step 9: Auto-retrain loop — DISABLED ───────────────────────────
-    # Disabled until architecture improvements (per-N loss weighting,
-    # curriculum, jk_cat readout) resolve the fundamental N-scaling issue.
-    # The current MPNN cannot generalize to N≥16 regardless of training data.
-    # Re-enable when a new architecture variant shows >30% pass at N=16.
-    _log("Step 9/9: Auto-retrain loop (DISABLED — architecture bottleneck)")
-    results["retrain_loop"] = None
-    results["steps_completed"].append("retrain_loop (disabled)")
-    if results.get("retrain_triggers"):
-        _log(f"  ⏸️ {len(results['retrain_triggers'])} triggers detected but loop disabled")
-
-    # ── Summary ──────────────────────────────────────────────────────────
-    n_ok = len(results["steps_completed"])
-    n_fail = len(results["steps_failed"])
+        # ── Step 9: Auto-retrain loop — DISABLED ───────────────────────────
+        # Disabled until architecture improvements (per-N loss weighting,
+        # curriculum, jk_cat readout) resolve the fundamental N-scaling issue.
+        # The current MPNN cannot generalize to N≥16 regardless of training data.
+        # Re-enable when a new architecture variant shows >30% pass at N=16.
+        _log("Step 9/9: Auto-retrain loop (DISABLED — architecture bottleneck)")
+        results["retrain_loop"] = None
+        results["steps_completed"].append("retrain_loop (disabled)")
+        if results.get("retrain_triggers"):
+            _log(f"  ⏸️ {len(results['retrain_triggers'])} triggers detected but loop disabled")
 
     # ── Tier 3 cross-validations (lightweight, non-blocking) ─────────────
     try:
@@ -4074,6 +3954,141 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
                 )
     except Exception:
         pass  # Non-critical
+
+        # ── Step 4: Cross-N coverage doc update ──────────────────────────────
+        _log("Step 4/6: Updating cross-N coverage documentation...")
+        try:
+            coverage_script = _ROOT / "scripts" / "maintenance" / "update_cross_n_coverage.py"
+            if coverage_script.exists():
+                proc = subprocess.run(
+                    [sys.executable, str(coverage_script)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    cwd=str(_ROOT),
+                )
+                if proc.returncode == 0:
+                    results["coverage_updated"] = True
+                    results["steps_completed"].append("coverage_doc")
+                    _log("  ✅ Coverage documentation updated")
+                else:
+                    results["steps_failed"].append(f"coverage_doc: exit={proc.returncode}")
+                    _log(f"  ❌ Exit code {proc.returncode}")
+            else:
+                results["steps_completed"].append("coverage_doc (skipped)")
+                _log("  ⏭️ update_cross_n_coverage.py not found")
+        except subprocess.TimeoutExpired:
+            results["steps_failed"].append("coverage_doc: timeout")
+            _log("  ⏰ Timed out")
+        except Exception as e:
+            results["steps_failed"].append(f"coverage_doc: {e}")
+            _log(f"  ❌ Failed: {e}")
+
+        # ── Step 5: ResultIndex + project-status.md ──────────────────────────
+        _log("Step 5/6: Rebuilding ResultIndex + project-status.md...")
+        try:
+            from qmbp_simulation.framework.result_index import ResultIndex
+
+            idx = ResultIndex()
+            idx.rebuild()
+            idx.refresh_status()
+            results["status_updated"] = True
+            results["steps_completed"].append("result_index")
+            _log("  ✅ ResultIndex rebuilt + project-status.md refreshed")
+        except Exception as e:
+            results["steps_failed"].append(f"result_index: {e}")
+            _log(f"  ❌ Failed: {e}")
+
+        # ── Step 6: Auto-detect exclusions ───────────────────────────────────
+        _log("Step 6/7: Auto-detecting training exclusions...")
+        try:
+            auto_detect_exclusions()
+            results["steps_completed"].append("exclusions")
+            _log("  ✅ Exclusion registry updated")
+        except Exception as e:
+            results["steps_failed"].append(f"exclusions: {e}")
+            _log(f"  ❌ Failed: {e}")
+
+        # ── Step 7: Auto-correct zoo inflation + backfill pass_rate_by_n ─────
+        _log("Step 7/7: Zoo pass_rate coherence + backfill...")
+        try:
+            from qmbp_simulation.predictors.model_zoo import (
+                _load_manifest,
+                backfill_critical_ranking_from_evals,
+                backfill_pass_rate_by_n_from_comparisons,
+                update_zoo_pass_rate,
+            )
+
+            # Backfill pass_rate_by_n from comparison history
+            n_backfilled = backfill_pass_rate_by_n_from_comparisons()
+
+            # Backfill the empirical critical h-window ranking ([0.8, 1.8]) from the
+            # per-h eval reports. Keeps load_best_model_for(h_regime="critical")
+            # synced with the newest experiments. Best-effort — never blocks sync.
+            try:
+                n_crit = backfill_critical_ranking_from_evals()
+                _log(f"  ✅ Critical-window ranking: {n_crit} entries updated")
+            except Exception as _crit_exc:  # noqa: BLE001
+                _log(f"  ⚠️ Critical-window ranking backfill skipped: {_crit_exc}")
+
+            # Auto-correct inflated zoo entries (zoo > comparison by >25%)
+            entries = _load_manifest()
+            n_deflated = 0
+            for entry in entries:
+                if not entry.pass_rate_by_n or entry.pass_rate == 0:
+                    continue
+                rates = [float(v) for v in entry.pass_rate_by_n.values()]
+                comp_avg = sum(rates) / len(rates)
+                if entry.pass_rate > comp_avg + 0.25:
+                    update_zoo_pass_rate(
+                        entry.checkpoint_file,
+                        comp_avg,
+                        only_if_better=False,
+                        pass_rate_source="comparison_eval",
+                        add_notes=f"auto-deflated from {entry.pass_rate:.0%}",
+                    )
+                    n_deflated += 1
+
+            results["steps_completed"].append("zoo_coherence")
+            _log(f"  ✅ Backfilled {n_backfilled} models, deflated {n_deflated} inflated entries")
+        except Exception as e:
+            results["steps_failed"].append(f"zoo_coherence: {e}")
+            _log(f"  ❌ Failed: {e}")
+
+    # ── Step 3: Eval report regeneration ─────────────────────────────────
+    _log("Step 3/6: Regenerating evaluation report...")
+    try:
+        eval_script = _ROOT / "scripts" / "analysis" / "evaluate_zoo_models.py"
+        if not eval_script.exists():
+            eval_script = _ROOT / "scripts" / "maintenance" / "evaluate_zoo_models.py"
+        if eval_script.exists():
+            proc = subprocess.run(
+                [sys.executable, str(eval_script)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(_ROOT),
+            )
+            if proc.returncode == 0:
+                results["eval_report_updated"] = True
+                results["steps_completed"].append("eval_report")
+                _log("  ✅ Evaluation report updated")
+            else:
+                results["steps_failed"].append(f"eval_report: exit={proc.returncode}")
+                _log(f"  ❌ Exit code {proc.returncode}")
+        else:
+            results["steps_completed"].append("eval_report (skipped, script not found)")
+            _log("  ⏭️ evaluate_zoo_models.py not found, skipped")
+    except subprocess.TimeoutExpired:
+        results["steps_failed"].append("eval_report: timeout (120s)")
+        _log("  ⏰ Timed out (120s limit)")
+    except Exception as e:
+        results["steps_failed"].append(f"eval_report: {e}")
+        _log(f"  ❌ Failed: {e}")
+
+    # ── Summary ──────────────────────────────────────────────────────────
+    n_ok = len(results["steps_completed"])
+    n_fail = len(results["steps_failed"])
 
     if verbose:
         print(f"\n  [sync] Done: {n_ok} completed, {n_fail} failed")

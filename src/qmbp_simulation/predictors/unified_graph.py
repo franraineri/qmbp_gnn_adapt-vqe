@@ -192,6 +192,20 @@ def compute_bond_and_site_orbits(lattice: LatticeConfig) -> tuple[np.ndarray, np
         return _fallback()
 
 
+def build_graph_for_model(
+    model,
+    lattice: LatticeConfig,
+    h_value: float,
+    p_layers: int = 1,
+    **kwargs,
+) -> Data:
+    """Build a unified graph whose feature dimension MATCHES ``model``."""
+    expected = int(getattr(model, "node_features", UNIFIED_NODE_FEATURES))
+    kwargs.setdefault("include_circuit_nodes", True)
+    kwargs.setdefault("include_orbit_feature", expected > UNIFIED_NODE_FEATURES)
+    return build_unified_bond_resolved_graph(lattice, h_value=h_value, p_layers=p_layers, **kwargs)
+
+
 def build_unified_bond_resolved_graph(
     lattice: LatticeConfig,
     h_value: float,

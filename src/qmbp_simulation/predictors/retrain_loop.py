@@ -151,7 +151,7 @@ def evaluate_model_quick(
         from qmbp_simulation.execution.backends import NoiselessBackend
         from qmbp_simulation.models.hamiltonian import HamiltonianBuilder, make_lattice
         from qmbp_simulation.predictors.unified_graph import (
-            build_unified_bond_resolved_graph,
+            build_graph_for_model,
         )
         from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
     except ImportError as e:
@@ -197,11 +197,11 @@ def evaluate_model_quick(
             # Predict theta based on model type
             with torch.no_grad():
                 if is_unified:
-                    g = build_unified_bond_resolved_graph(
+                    g = build_graph_for_model(
+                        model,
                         lattice_h,
                         h_value=float(h),
                         p_layers=p_layers,
-                        include_circuit_nodes=True,
                     )
                     batch = Batch.from_data_list([g])
                     theta = model(batch).numpy().flatten()

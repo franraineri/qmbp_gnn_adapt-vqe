@@ -202,6 +202,7 @@ class MultiNAggregator:
                     # Load quality tier (backward compat: default "unverified")
                     tier_arr = data["quality_tier"].tolist() if "quality_tier" in data else None
                     method_arr = data["method"].tolist() if "method" in data else None
+                    npz_j2 = float(data["J2"]) if "J2" in data else None
 
                     points = []
                     for i in range(len(h_values)):
@@ -216,6 +217,7 @@ class MultiNAggregator:
                             "source": "npz",
                             "quality_tier": tier_arr[i] if tier_arr else "unverified",
                             "method": str(method_arr[i]) if method_arr else "unknown",
+                            "j2": npz_j2,
                         }
                         if abs_errors is not None:
                             pt["abs_error"] = float(abs_errors[i])
@@ -271,6 +273,7 @@ class MultiNAggregator:
                         else None
                     )
 
+                    npz_j2 = float(data["J2"]) if "J2" in data else None
                     points = []
                     for i in range(len(h_values)):
                         theta_i = np.asarray(theta_opt[i], dtype=np.float64)
@@ -286,6 +289,7 @@ class MultiNAggregator:
                                 "n_qubits": n,
                                 "source": "large_n_extrapolation",
                                 "quality_tier": "approximate",
+                                "j2": npz_j2,
                             }
                         )
 
@@ -379,14 +383,22 @@ class MultiNAggregator:
 
     @staticmethod
     def _infer_include_nnn(lattice, points: list[dict]) -> bool:
-        """Detect frustrated (NN+NNN) data by matching theta length to bond counts.
+        """Detect frustrated (NN+NNN) data.
 
-        NN-only bond-resolved θ has (n_nn + N) params per layer; the frustrated
-        variant has (n_nn + n_nnn + N). Returns True when the sampled θ length
-        matches the NN+NNN expectation for some p_layers.
+        Prefers the explicit J2 field persisted in the NPZ payload: when present
+        and nonzero it definitively marks frustrated data. Falls back to matching
+        theta length to bond counts for legacy NPZs without the field — NN-only
+        bond-resolved θ has (n_nn + N) params per layer; the frustrated variant
+        has (n_nn + n_nnn + N). Returns True when the sampled θ length matches the
+        NN+NNN expectation for some p_layers.
         """
         if not points:
             return False
+
+        explicit_j2 = points[0].get("j2")
+        if explicit_j2 is not None:
+            return abs(float(explicit_j2)) > 1e-15
+
         from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
 
         N = lattice.n_qubits
@@ -666,9 +678,7 @@ class MultiNAggregator:
                                 g_aug.sample_weight = torch.tensor(
                                     [QUALITY_TIER_WEIGHT_AUGMENTED], dtype=torch.float32
                                 )
-                                g_aug.e_exact = torch.tensor(
-                                    [pt["e_exact"]], dtype=torch.float32
-                                )
+                                g_aug.e_exact = torch.tensor([pt["e_exact"]], dtype=torch.float32)
                                 g_aug.de_gap = torch.tensor([pt["de_gap"]], dtype=torch.float32)
                                 g_aug.phys_topology = self.topology
                                 g_aug.phys_model = self.model

@@ -77,8 +77,10 @@ from qmbp_simulation.predictors.unified_graph import (
     NODE_TYPE_RX_GATE,
     NODE_TYPE_ZZ_GATE,
     UNIFIED_NODE_FEATURES,
+    build_graph_for_model,
     build_unified_bond_resolved_graph,
     build_unified_dataset,
+    compute_bond_and_site_orbits,
     compute_graph_metrics,
     validate_unified_graph,
 )
@@ -105,6 +107,8 @@ __all__ = [
     "train_bond_resolved_mpnn",
     # Phase 3c: Unified Hamiltonian+Circuit graph (Qracle-style)
     "build_unified_bond_resolved_graph",
+    "build_graph_for_model",
+    "compute_bond_and_site_orbits",
     "build_unified_dataset",
     "validate_unified_graph",
     "compute_graph_metrics",

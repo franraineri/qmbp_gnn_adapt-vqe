@@ -1,22 +1,13 @@
 TODOs de la tesis — generado automáticamente
-Generado: 2026-08-31 13:57 UTC
+Generado: 2026-09-02 20:22 UTC
 Fuente: scripts/general_project_maintenance/generate_thesis_tables.py
-Total TODOs: 1 | Inconsistencias: 10
+Total TODOs: 1 | Inconsistencias: 1
 ========================================================================
 
 ## TODO-CAMPANA  (1)
   [auto_campaign.tex:2] ResultIndex reporta 75 runs Heisenberg (35 XXZ + 40 transv.), la tesis dice 46. Revisar.
 
 ========================================================================
-## INCONSISTENCIAS / ERRORES DETECTADOS  (10)
+## INCONSISTENCIAS / ERRORES DETECTADOS  (1)
 
   1. Conteo Heisenberg en ResultIndex = 75 (35 XXZ + 40 transversal), no 46 como en la tesis. Verificar campaña o texto.
-  2. [tesis-v4.0.tex:6] SEÑAL-VISUAL overfull hbox 629pt (texto se sale del margen; revisar visualmente esa página, §19).
-  3. [tesis-v4.0.tex:1097] SEÑAL-VISUAL overfull hbox 24pt (texto se sale del margen; revisar visualmente esa página, §19).
-  4. [tesis-v4.0.tex:1362] SEÑAL-VISUAL overfull hbox 35pt (texto se sale del margen; revisar visualmente esa página, §19).
-  5. [compile] SEÑAL-VISUAL figura no encontrada: tesis-figures/fig_failure_mode_treemap.pdf (no renderiza; verificar ruta, §19).
-  6. [compile] SEÑAL-VISUAL figura no encontrada: tesis-figures/fig_pipeline_overview.pdf (no renderiza; verificar ruta, §19).
-  7. [compile] SEÑAL-VISUAL figura no encontrada: tesis-figures/fig_scaling_law_comprehensive.pdf (no renderiza; verificar ruta, §19).
-  8. [compile] SEÑAL-VISUAL figura no encontrada: thesis_plots/gap_widens_mpnn_vs_random.png (no renderiza; verificar ruta, §19).
-  9. [compile] SEÑAL-VISUAL figura no encontrada: thesis_plots/heatmap_pass_rate.png (no renderiza; verificar ruta, §19).
-  10. [compile] SEÑAL-VISUAL figura no encontrada: thesis_plots/warmstart_vs_random_v2.png (no renderiza; verificar ruta, §19).

@@ -41,7 +41,7 @@ from pathlib import Path
 
 import numpy as np
 
-from qmbp_simulation.framework.result_io import FRUSTRATED_NAMESPACE, upsert_theta_npz
+from qmbp_simulation.framework.result_io import FRUSTRATED_NAMESPACE
 from qmbp_simulation.framework.runner_base import (
     Section,
     ValidationRunner,
@@ -250,6 +250,15 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "after physics_loss_start_epoch.",
         )
         parser.add_argument(
+            "--fidelity-loss-weight",
+            type=float,
+            default=0.1,
+            help="Weight λ_F for the fidelity loss term (default 0.1 = ON). "
+            "Trains the MPNN to produce HVA states faithful to the exact ground "
+            "state via 1−F(|ψ(θ_pred)⟩,|ψ_exact⟩). Only acts for N≤16 "
+            "(statevector); graceful no-op above. Set 0 to disable.",
+        )
+        parser.add_argument(
             "--orbit-feature",
             action="store_true",
             default=False,
@@ -360,11 +369,25 @@ class AcceleratedCrossNRunner(ValidationRunner):
         return self.hva.create_bond_resolved(n_qubits, p_layers, lattice)
 
     def _build_graph(self, lattice, h_value: float, p_layers: int, **kwargs):
-        """Build the unified graph, including NNN edges when frustrated."""
+        """Build the unified graph, including NNN edges when frustrated.
+
+        The orbit feature (--orbit-feature) must be consistent between training
+        (via MultiNAggregator) and prediction (this helper): a model trained
+        with 6 node features cannot consume a 5-feature graph. We default the
+        flag from self._args.orbit_feature so all prediction graphs match the
+        trained model; explicit callers may still override via kwargs.
+        """
         from qmbp_simulation.predictors.unified_graph import (
             build_unified_bond_resolved_graph,
         )
 
+        # Prefer the value auto-derived from the loaded model (set in
+        # section_cross_n_predict); fall back to the CLI flag before a model is
+        # loaded. Explicit kwargs still win.
+        _orbit_default = getattr(
+            self, "_orbit_feature_effective", getattr(self._args, "orbit_feature", False)
+        )
+        kwargs.setdefault("include_orbit_feature", _orbit_default)
         return build_unified_bond_resolved_graph(
             lattice,
             h_value=h_value,
@@ -662,7 +685,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 for m in result.method
             ]
 
-            n_upd, n_add = upsert_theta_npz(
+            n_upd, n_add = self.persist_theta_npz(
                 npz_path,
                 h_new=self._h_values[: len(result.theta_opt)],
                 theta_new=result.theta_opt,
@@ -834,6 +857,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 seed=42,
                 loss_type=getattr(self._args, "loss_type", "sign_invariant"),
                 physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
+                fidelity_loss_weight=getattr(self._args, "fidelity_loss_weight", 0.1),
             )
             elapsed = time.perf_counter() - t0
 
@@ -951,7 +975,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
         from qmbp_simulation.circuits import HVACircuitBuilder
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
         from qmbp_simulation.models.model_registry import get_model_spec
-        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
 
         spec = get_model_spec(self._physics_model).with_params(**self._model_kwargs)
         hva = HVACircuitBuilder()
@@ -990,6 +1013,22 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
             model.eval()
 
+            # Auto-match graph feature dim to the loaded model. A model trained
+            # with the orbit feature has node_features = UNIFIED_NODE_FEATURES+1;
+            # prediction graphs MUST carry the same extra column or the forward
+            # pass fails with a size mismatch. Deriving this from the model (not
+            # the CLI flag) makes predict-only / zoo-loaded runs self-correct.
+            from qmbp_simulation.predictors.unified_graph import UNIFIED_NODE_FEATURES
+
+            _model_feat = getattr(model, "node_features", UNIFIED_NODE_FEATURES)
+            self._orbit_feature_effective = _model_feat > UNIFIED_NODE_FEATURES
+            if self._orbit_feature_effective != getattr(self._args, "orbit_feature", False):
+                logger.info(
+                    "  Orbit feature auto-set to %s from loaded model (node_features=%d)",
+                    self._orbit_feature_effective,
+                    _model_feat,
+                )
+
             for n_target in self._args.target_n:
                 logger.info(f"  Cross-N: N_train={self._args.train_n} → N_target={n_target}, p={p}")
                 lattice_target = self.make_lattice(topo, n_target, J=1.0, h=2.0)
@@ -998,12 +1037,19 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 # Use CachedBackend for transparent eval caching
                 use_eval_cache = not getattr(self._args, "no_eval_cache", False)
+                import os as _os
+
+                _prov = getattr(self, "_model_provenance", None) or {}
+                _ckpt_id = _os.path.basename(
+                    str(_prov.get("checkpoint") or self._args.checkpoint or "")
+                )
                 eval_backend = self.get_cached_backend(
                     topology=topo,
                     n_qubits=n_target,
                     model=self._physics_model,
                     p_layers=p,
                     enabled=use_eval_cache,
+                    ckpt_id=_ckpt_id,
                 )
                 # Log which backend was selected (debug N>22 slowness)
                 _inner = getattr(eval_backend, "_backend", eval_backend)
@@ -1425,9 +1471,6 @@ class AcceleratedCrossNRunner(ValidationRunner):
             register_checkpoint_with_training_metrics,
         )
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
-        from qmbp_simulation.predictors.unified_graph import (
-            build_unified_bond_resolved_graph,
-        )
         from qmbp_simulation.predictors.unified_mpnn import (
             UnifiedMPNN,
             train_unified_mpnn,
@@ -1687,7 +1730,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     else "approximate"
                     for m in boot_result.method
                 ]
-                upsert_theta_npz(
+                self.persist_theta_npz(
                     npz_path,
                     h_new=self._h_values[: len(boot_result.theta_opt)],
                     theta_new=boot_result.theta_opt,
@@ -1923,7 +1966,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         continue  # existing is already as good or better
 
                 # Persist immediately to NPZ (atomic write handles concurrency)
-                n_upd, n_add = upsert_theta_npz(
+                n_upd, n_add = self.persist_theta_npz(
                     npz_path,
                     h_new=np.array([float(h)]),
                     theta_new=np.array([predictions[i]]),
@@ -1961,7 +2004,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 if abs(energies[i] - e_prev) > 0.01:
                     continue  # Significant disagreement → don't promote
                 # Promote via upsert (tier upgrade path: "approximate"→"verified")
-                upsert_theta_npz(
+                self.persist_theta_npz(
                     npz_path,
                     h_new=np.array([float(h)]),
                     theta_new=np.array([theta_prev]),
@@ -1984,7 +2027,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 for i, h in enumerate(self._h_values):
                     h_key = round(float(h), 2)
                     if h_key not in prev_theta_by_h and de_gaps[i] < 0.05:
-                        upsert_theta_npz(
+                        self.persist_theta_npz(
                             npz_path,
                             h_new=np.array([float(h)]),
                             theta_new=np.array([predictions[i]]),
@@ -2293,7 +2336,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         # ── Immediate persist: NPZ upsert per-point ───────
                         # Ensures no refined θ is lost on interrupt.
                         gap_i = float(gap_arr[idx])
-                        upsert_theta_npz(
+                        self.persist_theta_npz(
                             npz_path,
                             np.array([h]),
                             np.array([res_x]),
@@ -2436,6 +2479,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         seed=42,
                         loss_type=getattr(self._args, "loss_type", "sign_invariant"),
                         physics_loss_weight=getattr(self._args, "physics_loss_weight", 0.0),
+                        fidelity_loss_weight=getattr(self._args, "fidelity_loss_weight", 0.1),
                     )
 
                 mse = train_result.get("final_mse", 0) if isinstance(train_result, dict) else 0

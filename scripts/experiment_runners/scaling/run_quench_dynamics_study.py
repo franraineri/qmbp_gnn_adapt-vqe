@@ -1122,7 +1122,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         try:
             from qmbp_simulation.predictors.model_zoo import load_best_model_for
             from qmbp_simulation.predictors.unified_graph import (
-                build_unified_bond_resolved_graph,
+                build_graph_for_model,
             )
 
             result = load_best_model_for(
@@ -1138,7 +1138,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             import torch
 
             lattice = self.make_lattice(topology, n_qubits, J=1.0, h=h)
-            graph = build_unified_bond_resolved_graph(lattice, h_value=h, p_layers=p_layers)
+            graph = build_graph_for_model(model, lattice, h_value=h, p_layers=p_layers)
 
             model.eval()
             with torch.no_grad():

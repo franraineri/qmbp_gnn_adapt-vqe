@@ -581,7 +581,7 @@ def evaluate_theta_prediction(
 
     from qmbp_simulation import make_lattice
     from qmbp_simulation.predictors.unified_graph import (
-        build_unified_bond_resolved_graph,
+        build_graph_for_model,
     )
 
     npz_path = Path(npz_path)
@@ -635,12 +635,12 @@ def evaluate_theta_prediction(
         theta_true = np.asarray(theta_true, dtype=np.float64)
         n_params = len(theta_true)
 
-        # MPNN forward pass
-        g = build_unified_bond_resolved_graph(
+        # MPNN forward pass — graph feature dim auto-matches the model
+        g = build_graph_for_model(
+            model,
             lat_ref,
             h_value=h,
             p_layers=p_layers,
-            include_circuit_nodes=True,
         )
         with torch.no_grad():
             theta_pred = model(g).numpy().flatten()

@@ -1,0 +1,115 @@
+{
+  "schema": "haiqu_collected_data_v1",
+  "timestamp_utc": "2026-09-01T20:53:21.595114+00:00",
+  "backend_name": "haiqu_ibm_kingston",
+  "config": {
+    "device_id": "ibm_kingston",
+    "shots": 16384,
+    "use_mitigation": true,
+    "use_compression": false,
+    "compression_level": "balanced",
+    "fine_tuning": "low",
+    "noise_profile": null,
+    "approximation_level": null,
+    "error_mitigation_options": null,
+    "experiment_name": "HVA heavy_hex N10 p1 h1.00",
+    "max_compression_time_s": 1200
+  },
+  "noise_profile": "ibm_heron_r2",
+  "n_records": 1,
+  "records": [
+    {
+      "operation": "dry_run_cost_estimate",
+      "timestamp_utc": "2026-09-01T20:53:21.592822+00:00",
+      "device_id": "ibm_kingston",
+      "estimated_qpu_cost": {
+        "native": {
+          "unit": "s",
+          "amount": 14.479168511999994
+        },
+        "converted": {
+          "unit": "USD",
+          "amount": 23.17
+        }
+      },
+      "shots": 16384,
+      "n_observables": 19,
+      "circuit_submitted": {
+        "n_qubits": 10,
+        "num_parameters": 19,
+        "depth": 9,
+        "depth_2q": 7,
+        "gate_counts": {
+          "h": 10,
+          "rx": 10,
+          "rzz": 9
+        },
+        "n_2q_gates": 9,
+        "pre_transpilation": false
+      },
+      "job_metadata": {
+        "id": "jb-d0e30c4e-3e1d-4d19-8ff1-828c52ef4ebe",
+        "status": "JobStatus.DONE",
+        "name": "circuit-41",
+        "device_id": "ibm_kingston",
+        "creation_date": "2026-09-01T20:49:56.978704",
+        "time": 0.0,
+        "logs": "Initializing the job...\nThe pipeline is ready, the backend `ibm_kingston` initialized.\nPreparing tasks...\nTranspiled circuit created with id circ-f8bc2e7c-f2b2-46b5-92b1-64923475ae24.\n\nDry run requested. Skipping backend execution.\nDone.",
+        "estimated_qpu_cost": {
+          "native": {
+            "unit": "s",
+            "amount": 14.479168511999994
+          },
+          "converted": {
+            "unit": "USD",
+            "amount": 23.17
+          }
+        },
+        "info": {}
+      }
+    }
+  ],
+  "summary": {
+    "n_points": 0
+  },
+  "context": {
+    "model_checkpoint": "unified_tfim_br_heavy_hex_multiN_4+6+8+10+12+14+18+20+22+24+30+32+40_p1.pt",
+    "topology": "heavy_hex",
+    "n_qubits": 10,
+    "p_layers": 1,
+    "J": 1.0,
+    "h": 1.0,
+    "e_exact": -12.47217478207831,
+    "gap": 0.2201304286897603,
+    "theta_predicted": [
+      0.28387969732284546,
+      0.21024179458618164,
+      0.15934905409812927,
+      0.14453460276126862,
+      0.15146520733833313,
+      0.2212430089712143,
+      0.2639395296573639,
+      0.20410530269145966,
+      0.2074015736579895,
+      0.4722222685813904,
+      0.0015925131738185883,
+      0.6714314818382263,
+      0.014863649383187294,
+      0.7574162483215332,
+      0.017878711223602295,
+      0.6958932280540466,
+      0.5518891215324402,
+      0.7082449793815613,
+      0.671109139919281
+    ],
+    "circuit_type": "bond_resolved",
+    "vqe_refined": false,
+    "vqe_maxiter": null,
+    "vqe_restarts": null,
+    "vqe_method": null,
+    "mitigation": true,
+    "compression": false,
+    "shots": 16384,
+    "device": "ibm_kingston"
+  }
+}

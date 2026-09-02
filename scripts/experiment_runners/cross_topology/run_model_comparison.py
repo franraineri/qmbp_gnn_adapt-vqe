@@ -66,14 +66,14 @@ Usage:
             data/model_zoo/checkpoints/unified_tfim_br_triangular_multiN_3+4+6+8+10+12+14_p1.pt \
         --h-min 2.5 --h-max 5.0 --h-points 6 -v
 """
+
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -92,16 +92,15 @@ from qmbp_simulation.analysis.metrics import (
 )
 from qmbp_simulation.circuits import HVACircuitBuilder
 from qmbp_simulation.execution.backends import select_backend
-from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 from qmbp_simulation.framework.result_io import (
     build_result_envelope,
     persist_predictions_to_training_npz,
     save_experiment_result,
-    upsert_theta_npz,
 )
+from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 from qmbp_simulation.models.hamiltonian import make_lattice
 from qmbp_simulation.models.model_registry import get_model_spec
-from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+from qmbp_simulation.predictors.unified_graph import build_graph_for_model
 from qmbp_simulation.predictors.unified_mpnn import load_unified_checkpoint
 from qmbp_simulation.solvers.ground_truth_cache import GroundTruthCache
 
@@ -116,33 +115,51 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--topology", required=True, help="Evaluation topology")
-    parser.add_argument("--target-n", type=int, nargs="+", required=True,
-                        help="Target N values for evaluation")
-    parser.add_argument("--checkpoints", nargs="+", default=None,
-                        help="Explicit checkpoint paths to compare")
-    parser.add_argument("--auto-detect", action="store_true",
-                        help="Auto-detect: per-topo zoo model + all multi-topo models")
+    parser.add_argument(
+        "--target-n", type=int, nargs="+", required=True, help="Target N values for evaluation"
+    )
+    parser.add_argument(
+        "--checkpoints", nargs="+", default=None, help="Explicit checkpoint paths to compare"
+    )
+    parser.add_argument(
+        "--auto-detect",
+        action="store_true",
+        help="Auto-detect: per-topo zoo model + all multi-topo models",
+    )
     parser.add_argument("--p-layers", type=int, default=1)
     parser.add_argument("--h-min", type=float, default=2.5)
     parser.add_argument("--h-max", type=float, default=5.0)
     parser.add_argument("--h-points", type=int, default=6)
-    parser.add_argument("--smart-h-grid", action="store_true",
-                        help="Use adaptive h-grid based on empirical h_frontier from dashboard "
-                             "(concentrates test points near the pass/fail boundary)")
+    parser.add_argument(
+        "--smart-h-grid",
+        action="store_true",
+        help="Use adaptive h-grid based on empirical h_frontier from dashboard "
+        "(concentrates test points near the pass/fail boundary)",
+    )
     parser.add_argument("--model-name", type=str, default="tfim_bond_resolved")
-    parser.add_argument("--promote-best", action="store_true",
-                        help="Update zoo pass_rate for the best model")
-    parser.add_argument("--include-versions", action="store_true",
-                        help="Include _best/ and _versions/ checkpoints for historical comparison")
-    parser.add_argument("--save-report", action="store_true", default=True,
-                        help="Generate per-model markdown evaluation reports")
+    parser.add_argument(
+        "--promote-best", action="store_true", help="Update zoo pass_rate for the best model"
+    )
+    parser.add_argument(
+        "--include-versions",
+        action="store_true",
+        help="Include _best/ and _versions/ checkpoints for historical comparison",
+    )
+    parser.add_argument(
+        "--save-report",
+        action="store_true",
+        default=True,
+        help="Generate per-model markdown evaluation reports",
+    )
     parser.add_argument("--no-report", dest="save_report", action="store_false")
     parser.add_argument("-v", "--verbose", action="store_true")
     return parser.parse_args()
 
 
 def discover_checkpoints(
-    topology: str, p_layers: int, explicit: list[str] | None,
+    topology: str,
+    p_layers: int,
+    explicit: list[str] | None,
     include_versions: bool = False,
 ) -> list[dict]:
     """Discover checkpoints to compare.
@@ -188,7 +205,7 @@ def discover_checkpoints(
                     f_lower = f.stem.lower()
                     # Score: count matching characters from start
                     common = 0
-                    for a, b in zip(nf_lower, f_lower):
+                    for a, b in zip(nf_lower, f_lower, strict=False):
                         if a == b:
                             common += 1
                         else:
@@ -211,11 +228,13 @@ def discover_checkpoints(
                         f"\n  ⚠️ Checkpoint not found: {Path(nf).name}"
                         f"\n     Auto-resolved to: {best_match.name}"
                     )
-                    candidates.append({
-                        "path": best_match,
-                        "label": best_match.stem[:45],
-                        "source": "explicit (auto-resolved)",
-                    })
+                    candidates.append(
+                        {
+                            "path": best_match,
+                            "label": best_match.stem[:45],
+                            "source": "explicit (auto-resolved)",
+                        }
+                    )
                 else:
                     print(f"\n  ❌ Checkpoint not found and no suitable match: {Path(nf).name}")
                     print(f"     Available *{topology}*p{p_layers}* checkpoints:")
@@ -237,47 +256,50 @@ def discover_checkpoints(
 
     # Auto-detect from zoo manifest
     from qmbp_simulation.predictors.model_zoo import _load_manifest
+
     entries = _load_manifest()
 
     # Per-topology multi-N model
     per_topo = [
-        e for e in entries
-        if e.topology == topology and e.n_qubits == 0 and e.p_layers == p_layers
+        e for e in entries if e.topology == topology and e.n_qubits == 0 and e.p_layers == p_layers
     ]
     for e in per_topo:
         cp = ZOO_CHECKPOINTS / e.checkpoint_file
         if cp.exists():
-            candidates.append({
-                "path": cp,
-                "label": f"per-topo ({e.checkpoint_file[:40]})",
-                "source": "zoo_per_topology",
-                "zoo_entry": e,
-            })
+            candidates.append(
+                {
+                    "path": cp,
+                    "label": f"per-topo ({e.checkpoint_file[:40]})",
+                    "source": "zoo_per_topology",
+                    "zoo_entry": e,
+                }
+            )
 
     # Multi-topology models
-    multi_topo = [
-        e for e in entries
-        if e.topology == "multi_topology" and e.p_layers == p_layers
-    ]
+    multi_topo = [e for e in entries if e.topology == "multi_topology" and e.p_layers == p_layers]
     for e in multi_topo:
         cp = ZOO_CHECKPOINTS / e.checkpoint_file
         if cp.exists():
-            candidates.append({
-                "path": cp,
-                "label": f"multi-topo ({e.checkpoint_file[:40]})",
-                "source": "zoo_multi_topology",
-                "zoo_entry": e,
-            })
+            candidates.append(
+                {
+                    "path": cp,
+                    "label": f"multi-topo ({e.checkpoint_file[:40]})",
+                    "source": "zoo_multi_topology",
+                    "zoo_entry": e,
+                }
+            )
 
     # Orphan multi-topo on disk (not in manifest)
     manifest_files = {e.checkpoint_file for e in entries}
     for f in sorted(ZOO_CHECKPOINTS.glob("*multitopo*")):
         if f.name not in manifest_files:
-            candidates.append({
-                "path": f,
-                "label": f"orphan ({f.stem[:40]})",
-                "source": "disk_orphan",
-            })
+            candidates.append(
+                {
+                    "path": f,
+                    "label": f"orphan ({f.stem[:40]})",
+                    "source": "disk_orphan",
+                }
+            )
 
     # ── Historical versions from _best/ and _versions/ ──────────────────
     if include_versions:
@@ -288,21 +310,25 @@ def discover_checkpoints(
         if best_dir.exists():
             pattern = f"*{topology}*p{p_layers}*.pt"
             for f in sorted(best_dir.glob(pattern))[-3:]:  # Last 3 best
-                candidates.append({
-                    "path": f,
-                    "label": f"_best/{f.stem[-40:]}",
-                    "source": "historical_best",
-                })
+                candidates.append(
+                    {
+                        "path": f,
+                        "label": f"_best/{f.stem[-40:]}",
+                        "source": "historical_best",
+                    }
+                )
 
         # _versions/: numbered versions (v1, v2, v3...)
         if versions_dir.exists():
             pattern = f"*{topology}*p{p_layers}*_v*.pt"
             for f in sorted(versions_dir.glob(pattern))[-3:]:  # Last 3 versions
-                candidates.append({
-                    "path": f,
-                    "label": f"_v/{f.stem[-40:]}",
-                    "source": "historical_version",
-                })
+                candidates.append(
+                    {
+                        "path": f,
+                        "label": f"_v/{f.stem[-40:]}",
+                        "source": "historical_version",
+                    }
+                )
 
     return candidates
 
@@ -333,11 +359,8 @@ def evaluate_checkpoint(
 
         per_h = []
         for h in h_values:
-            # Predict θ
-            g = build_unified_bond_resolved_graph(
-                lat_ref, h_value=float(h), p_layers=p_layers,
-                include_circuit_nodes=True,
-            )
+            # Predict θ — graph feature dim auto-matches the loaded model
+            g = build_graph_for_model(model, lat_ref, h_value=float(h), p_layers=p_layers)
             with torch.no_grad():
                 theta_pred = model(g).numpy().flatten()
             theta_pred = np.clip(theta_pred.astype(np.float64), -np.pi, np.pi)
@@ -367,6 +390,7 @@ def evaluate_checkpoint(
                     e_exact, gap = cached["energy"], cached["gap"]
                 else:
                     from qmbp_simulation.solvers.classical import ClassicalSolver
+
                     solver = ClassicalSolver()
                     gt_obj = solver.solve(H, lat_h)
                     e_exact, gap = gt_obj.ground_energy, gt_obj.gap
@@ -398,8 +422,12 @@ def evaluate_checkpoint(
 
             # Per-point classification (same as run_large_n_extrapolation)
             cls = classify_point_failure(
-                de_gap=de_gap, abs_error=abs_error, gap=gap,
-                h=float(h), h_critical=1.0, n_params=n_params,
+                de_gap=de_gap,
+                abs_error=abs_error,
+                gap=gap,
+                h=float(h),
+                h_critical=1.0,
+                n_params=n_params,
             )
 
             point = {
@@ -430,13 +458,16 @@ def evaluate_checkpoint(
 
         # Uncertainty calibration (requires θ_std > 0)
         from qmbp_simulation.analysis.metrics import compute_uncertainty_correlation
+
         uc_report = compute_uncertainty_correlation(per_h)
 
         results_by_n[n_target] = {
             **summary,
             "n_params": n_params,
             "metric_warnings": warnings,
-            "uncertainty_calibration": uc_report if uc_report["n_points_with_uncertainty"] >= 3 else None,
+            "uncertainty_calibration": uc_report
+            if uc_report["n_points_with_uncertainty"] >= 3
+            else None,
             "per_point": per_h,
         }
 
@@ -550,7 +581,8 @@ def main() -> int:
 
     # Discover checkpoints
     candidates = discover_checkpoints(
-        args.topology, args.p_layers,
+        args.topology,
+        args.p_layers,
         args.checkpoints if not args.auto_detect else None,
         include_versions=args.include_versions,
     )
@@ -590,7 +622,9 @@ def main() -> int:
 
     # Evaluate each
     print(f"\n{'─' * 75}")
-    print(f"  {'Model':<42} | {'N':>3} | {'ΔE/gap':>8} | {'|ΔE|/N':>10} | {'Pass%':>6} | {'Grade':>5}")
+    print(
+        f"  {'Model':<42} | {'N':>3} | {'ΔE/gap':>8} | {'|ΔE|/N':>10} | {'Pass%':>6} | {'Grade':>5}"
+    )
     print(f"{'─' * 75}")
 
     all_results = []
@@ -598,8 +632,14 @@ def main() -> int:
         t0 = time.perf_counter()
         try:
             result = evaluate_checkpoint(
-                candidate["path"], args.topology, args.target_n,
-                h_values, args.p_layers, args.model_name, gt_cache, gt_memory,
+                candidate["path"],
+                args.topology,
+                args.target_n,
+                h_values,
+                args.p_layers,
+                args.model_name,
+                gt_cache,
+                gt_memory,
             )
             elapsed = time.perf_counter() - t0
 
@@ -625,22 +665,26 @@ def main() -> int:
                 arch_parts.append("film")
             arch_label = "+".join(arch_parts) if arch_parts else "baseline"
 
-            all_results.append({
-                "label": candidate["label"],
-                "source": candidate["source"],
-                "checkpoint": str(candidate["path"].name),
-                "arch": arch_label,
-                "elapsed_s": round(elapsed, 1),
-                **result,
-            })
+            all_results.append(
+                {
+                    "label": candidate["label"],
+                    "source": candidate["source"],
+                    "checkpoint": str(candidate["path"].name),
+                    "arch": arch_label,
+                    "elapsed_s": round(elapsed, 1),
+                    **result,
+                }
+            )
         except Exception as e:
             print(f"  {candidate['label']:<42} | ERROR: {e}")
-            all_results.append({
-                "label": candidate["label"],
-                "source": candidate["source"],
-                "checkpoint": str(candidate["path"].name),
-                "error": str(e),
-            })
+            all_results.append(
+                {
+                    "label": candidate["label"],
+                    "source": candidate["source"],
+                    "checkpoint": str(candidate["path"].name),
+                    "error": str(e),
+                }
+            )
 
     # Flush GT cache (persist any new computations)
     gt_cache.flush()
@@ -662,15 +706,20 @@ def main() -> int:
     best = None
     if scoreable:
         best = max(scoreable, key=avg_pass_rate)
-        print(f"\n  🏆 BEST: {best['label']} (arch={best['arch']}, avg_pass={avg_pass_rate(best):.0%})")
+        print(
+            f"\n  🏆 BEST: {best['label']} (arch={best['arch']}, avg_pass={avg_pass_rate(best):.0%})"
+        )
 
         # Promote if requested
         if args.promote_best:
             from qmbp_simulation.predictors.model_zoo import update_zoo_pass_rate
+
             ckpt_file = best["checkpoint"]
             rate = float(avg_pass_rate(best))
             updated = update_zoo_pass_rate(
-                ckpt_file, rate, only_if_better=True,
+                ckpt_file,
+                rate,
+                only_if_better=True,
                 _skip_db_sync=True,  # We write a richer record below
                 add_notes=f"comparison@{args.topology} N={args.target_n}",
             )
@@ -683,6 +732,7 @@ def main() -> int:
                     EvaluationRecord,
                     ModelRegistryDB,
                 )
+
                 # Aggregate per-N metrics from the best model
                 best_results_by_n = best.get("results_by_n", {})
                 all_de_gaps = [m["mean_de_gap"] for m in best_results_by_n.values()]
@@ -690,14 +740,18 @@ def main() -> int:
                     m.get("mean_abs_error_per_site", 0) for m in best_results_by_n.values()
                 ]
                 eval_record = EvaluationRecord(
-                    evaluated_at=datetime.now(timezone.utc).isoformat(),
+                    evaluated_at=datetime.now(UTC).isoformat(),
                     target_n_values=args.target_n,
-                    pass_rate_5pct=float(np.mean([
-                        m.get("pass_rate_5pct", 0) for m in best_results_by_n.values()
-                    ])) if best_results_by_n else 0.0,
+                    pass_rate_5pct=float(
+                        np.mean([m.get("pass_rate_5pct", 0) for m in best_results_by_n.values()])
+                    )
+                    if best_results_by_n
+                    else 0.0,
                     pass_rate_dual=rate,
                     mean_de_gap=float(np.mean(all_de_gaps)) if all_de_gaps else 0.0,
-                    mean_abs_error_per_site=float(np.mean(all_abs_per_site)) if all_abs_per_site else 0.0,
+                    mean_abs_error_per_site=float(np.mean(all_abs_per_site))
+                    if all_abs_per_site
+                    else 0.0,
                     notes=f"model_comparison winner @{args.topology} N={args.target_n}",
                 )
                 db = ModelRegistryDB()
@@ -715,7 +769,11 @@ def main() -> int:
                     mpnn_results[n_target] = {
                         "per_point": metrics["per_point"],
                         "n_params": metrics["n_params"],
-                        **{k: v for k, v in metrics.items() if k not in ("per_point", "metric_warnings")},
+                        **{
+                            k: v
+                            for k, v in metrics.items()
+                            if k not in ("per_point", "metric_warnings")
+                        },
                     }
 
                 generate_evaluation_report(

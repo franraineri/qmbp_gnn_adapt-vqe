@@ -753,6 +753,9 @@ def upsert_theta_npz(
     gaps_new: np.ndarray | None = None,
     method_new: list[str] | None = None,
     quality_tier_new: list[str] | None = None,
+    model: str | None = None,
+    j2: float | None = None,
+    source_ckpt_new: list[str] | None = None,
 ) -> tuple[int, int]:
     """Atomically update NPZ keeping best θ per h-point (lower energy wins).
 
@@ -785,6 +788,14 @@ def upsert_theta_npz(
         - "approximate": MPNN prediction passing dual criterion but not VQE-refined
         - "unverified": unknown quality (legacy data, fallback)
         Defaults to "unverified" if not provided.
+    model : str | None
+        Physics model identifier (e.g., "tfim_bond_resolved", "tfim_frustrated").
+        Persisted as a scalar NPZ field so the regime is self-identifiable without
+        relying on subfolder location or theta_len inference. Preserved on upsert
+        when not provided.
+    j2 : float | None
+        Next-nearest-neighbor coupling for frustrated models. Persisted as a scalar
+        NPZ field. Preserved on upsert when not provided.
 
     Returns
     -------
@@ -830,6 +841,8 @@ def upsert_theta_npz(
             quality_tier_new = [
                 quality_tier_new[i] for i in range(len(valid_mask)) if valid_mask[i]
             ]
+        if source_ckpt_new is not None:
+            source_ckpt_new = [source_ckpt_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
 
     if len(h_new) == 0:
         return 0, 0
@@ -899,6 +912,9 @@ def upsert_theta_npz(
                 if "quality_tier" in existing
                 else ["unverified"] * len(h_all)
             )
+            source_all = (
+                existing["source_ckpt"].tolist() if "source_ckpt" in existing else [""] * len(h_all)
+            )
 
             # Validate existing data integrity
             n_existing_before = len(h_all)
@@ -921,31 +937,37 @@ def upsert_theta_npz(
                 gaps_all = [gaps_all[j] for j in valid_existing]
                 method_all = [method_all[j] for j in valid_existing]
                 tier_all = [tier_all[j] for j in valid_existing]
+                source_all = [source_all[j] for j in valid_existing]
         except Exception as e:
             logger.warning(f"upsert_theta_npz: failed to load existing NPZ ({e}), starting fresh")
-            h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all, tier_all = (
-                [],
-                [],
-                [],
-                [],
-                [],
-                [],
-                [],
-            )
+            (
+                h_all,
+                theta_all,
+                e_vqe_all,
+                e_exact_all,
+                gaps_all,
+                method_all,
+                tier_all,
+                source_all,
+            ) = ([], [], [], [], [], [], [], [])
     else:
-        h_all, theta_all, e_vqe_all, e_exact_all, gaps_all, method_all, tier_all = (
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-        )
+        (
+            h_all,
+            theta_all,
+            e_vqe_all,
+            e_exact_all,
+            gaps_all,
+            method_all,
+            tier_all,
+            source_all,
+        ) = ([], [], [], [], [], [], [], [])
 
     # ── Merge: anti-regression (lower energy wins) ────────────────────
     # Build O(1) lookup index for h-matching (avoids O(n²) linear scan)
     h_index: dict[int, int] = {round(hj * 1_000_000): j for j, hj in enumerate(h_all)}
+
+    _TIER_RANK = {"verified": 2, "approximate": 1, "unverified": 0}
+    _VARIATIONAL_TOL = 1e-6
 
     n_updated, n_added = 0, 0
     for i, h in enumerate(h_new):
@@ -957,39 +979,57 @@ def upsert_theta_npz(
             if quality_tier_new is not None and i < len(quality_tier_new)
             else "unverified"
         )
+        source_i = (
+            source_ckpt_new[i] if source_ckpt_new is not None and i < len(source_ckpt_new) else ""
+        )
+        e_new_i = float(e_vqe_new[i])
+        e_exact_i = float(e_exact_new[i])
 
-        # Find existing entry for this h via O(1) index lookup
+        # Reject variational violations: an energy below the true ground state
+        # (beyond numerical tolerance) is unphysical and must never win the
+        # anti-regression comparison — a miscalibrated MPNN can predict such a
+        # value and would otherwise overwrite a sound θ.
+        if e_new_i < e_exact_i - _VARIATIONAL_TOL:
+            logger.warning(
+                "upsert_theta_npz: rejecting variational violation at h=%.2f "
+                "(e_pred=%.6f < e_exact=%.6f, source=%s)",
+                h_val,
+                e_new_i,
+                e_exact_i,
+                source_i or "unknown",
+            )
+            continue
+
         h_key_int = round(h_val * 1_000_000)
         match_idx = h_index.get(h_key_int)
         if match_idx is not None:
-            # Only update if new energy is strictly lower (anti-regression)
-            if float(e_vqe_new[i]) < float(e_vqe_all[match_idx]):
+            rank_new = _TIER_RANK.get(str(tier_i), 0)
+            rank_old = _TIER_RANK.get(str(tier_all[match_idx]), 0)
+            # Precedence: higher tier always wins; within the same tier, lower
+            # energy wins. A verified (VQE) point is never overwritten by an
+            # approximate (MPNN) one even if the MPNN reports a lower energy.
+            higher_tier = rank_new > rank_old
+            same_tier_better = rank_new == rank_old and e_new_i < float(e_vqe_all[match_idx])
+            if higher_tier or same_tier_better:
                 theta_all[match_idx] = theta_new[i]
-                e_vqe_all[match_idx] = float(e_vqe_new[i])
-                e_exact_all[match_idx] = float(e_exact_new[i])  # Always refresh e_exact
+                e_vqe_all[match_idx] = e_new_i
+                e_exact_all[match_idx] = e_exact_i
                 method_all[match_idx] = str(method_i)
                 tier_all[match_idx] = str(tier_i)
-                if gap_i > 0:
-                    gaps_all[match_idx] = gap_i
-                n_updated += 1
-            elif tier_i == "verified" and tier_all[match_idx] != "verified":
-                # Upgrade tier even if energy is same (VQE-verified is more reliable)
-                tier_all[match_idx] = "verified"
-                method_all[match_idx] = str(method_i)
-                e_exact_all[match_idx] = float(e_exact_new[i])  # Refresh e_exact on tier upgrade
+                source_all[match_idx] = str(source_i)
                 if gap_i > 0:
                     gaps_all[match_idx] = gap_i
                 n_updated += 1
         else:
-            # New h-point: append
             h_index[h_key_int] = len(h_all)
             h_all.append(h_val)
             theta_all.append(theta_new[i])
-            e_vqe_all.append(float(e_vqe_new[i]))
-            e_exact_all.append(float(e_exact_new[i]))
+            e_vqe_all.append(e_new_i)
+            e_exact_all.append(e_exact_i)
             gaps_all.append(gap_i)
             method_all.append(str(method_i))
             tier_all.append(str(tier_i))
+            source_all.append(str(source_i))
             n_added += 1
 
     # ── Compute ΔE/gap from stored energies ───────────────────────────
@@ -997,6 +1037,26 @@ def upsert_theta_npz(
     for j in range(len(h_all)):
         gap_j = gaps_all[j] if gaps_all[j] > 1e-10 else 1e-10
         de_gaps_all.append(abs(e_vqe_all[j] - e_exact_all[j]) / gap_j)
+
+    model_out = model
+    j2_out = j2
+    if (model_out is None or j2_out is None) and npz_path.exists():
+        try:
+            _meta = np.load(npz_path, allow_pickle=True)
+            if model_out is None and "model" in _meta:
+                stored = str(_meta["model"])
+                model_out = stored if stored and stored != "None" else None
+            if j2_out is None and "J2" in _meta:
+                stored_j2 = float(_meta["J2"])
+                j2_out = stored_j2 if np.isfinite(stored_j2) else None
+        except Exception:
+            pass
+
+    scalar_fields: dict[str, np.ndarray] = {}
+    if model_out is not None:
+        scalar_fields["model"] = np.array(str(model_out))
+    if j2_out is not None:
+        scalar_fields["J2"] = np.array(float(j2_out))
 
     # ── Atomic write: tmp → rename ────────────────────────────────────
     npz_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1024,7 +1084,9 @@ def upsert_theta_npz(
             de_gaps=np.array(de_gaps_all),
             method=np.array(method_all),
             quality_tier=np.array(tier_all),
+            source_ckpt=np.array(source_all),
             last_updated=np.array(datetime.now().isoformat()),
+            **scalar_fields,
         )
         tmp_path.rename(npz_path)
     except Exception:
@@ -2000,9 +2062,15 @@ def persist_predictions_to_training_npz(
     from qmbp_simulation.analysis.metrics import is_point_failure
 
     # Methods considered VQE-converged (eligible for "verified" tier)
-    _VQE_METHODS = frozenset((
-        "vqe_refined", "random_vqe", "al_refined", "auto_refined", "refined",
-    ))
+    _VQE_METHODS = frozenset(
+        (
+            "vqe_refined",
+            "random_vqe",
+            "al_refined",
+            "auto_refined",
+            "refined",
+        )
+    )
 
     if de_gap_threshold is None:
         de_gap_threshold = _DE_GAP * 2.0  # 10% — permissive filter
@@ -2038,8 +2106,10 @@ def persist_predictions_to_training_npz(
                 continue
 
             # Also skip if energies are non-finite
-            if not (np.isfinite(pt.get("e_pred", float("nan")))
-                    and np.isfinite(pt.get("e_exact", float("nan")))):
+            if not (
+                np.isfinite(pt.get("e_pred", float("nan")))
+                and np.isfinite(pt.get("e_exact", float("nan")))
+            ):
                 continue
 
             # Use permissive threshold for initial filter (let anti-regression
@@ -2066,9 +2136,7 @@ def persist_predictions_to_training_npz(
 
         # Stack into 2D array if uniform, else object array (ragged)
         try:
-            if len(theta_list) > 0 and all(
-                len(t) == len(theta_list[0]) for t in theta_list
-            ):
+            if len(theta_list) > 0 and all(len(t) == len(theta_list[0]) for t in theta_list):
                 theta_arr = np.stack(theta_list).astype(np.float64)
             else:
                 theta_arr = np.array(theta_list, dtype=object)
@@ -2132,8 +2200,7 @@ def persist_predictions_to_training_npz(
                 )
         except Exception as e:
             logger.warning(
-                f"persist_predictions_to_training_npz: failed for "
-                f"{topology}_N{n_target}: {e}"
+                f"persist_predictions_to_training_npz: failed for {topology}_N{n_target}: {e}"
             )
             per_n[n_target] = (0, 0)
             continue
@@ -2148,9 +2215,7 @@ def persist_predictions_to_training_npz(
                     from qmbp_simulation.utils.helpers import atomic_savez
 
                     existing = (
-                        dict(np.load(npz_path, allow_pickle=True))
-                        if npz_path.exists()
-                        else {}
+                        dict(np.load(npz_path, allow_pickle=True)) if npz_path.exists() else {}
                     )
                     existing["theta_std"] = theta_std_arr
                     atomic_savez(npz_path, **existing)
