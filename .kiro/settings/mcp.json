@@ -23,7 +23,7 @@
         "get-library-docs"
       ]
     },
-    "context-mode": {
+    " context-mode": {
       "command": "context-mode",
       "disabled": false,
       "autoApprove": [

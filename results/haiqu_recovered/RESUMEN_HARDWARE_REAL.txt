@@ -1,0 +1,243 @@
+================================================================================
+RESULTADOS EN HARDWARE CUANTICO REAL - PIPELINE GNN-HVA
+================================================================================
+
+Alcance         : SOLO ejecuciones en QPU real (dispositivos ibm_*).
+                  Se excluyen por diseno las corridas en simulador (fake_torino)
+                  y las estimaciones de costo (dry-run).
+Recuperado desde: dashboard de Haiqu, sin reenviar trabajos (sin gasto de QPU).
+Fecha de corte  : 2026-09-03 (recover completo).
+Modelo          : TFIM, topologia heavy_hex, p = 1, h = 1.00, J = 1.
+Predictor       : UnifiedMPNN cross-N (angulos del HVA predichos por la GNN).
+Dispositivo     : ibm_pittsburgh (16384 shots, mitigacion activada).
+
+Criterio operativo de clasificacion de fase: dE/gap < 5%.
+Nota: en hardware real las tres ejecuciones NO satisfacen ese criterio; el
+error energetico absoluto |dE| es la metrica primaria reportada.
+
+--------------------------------------------------------------------------------
+CONFIGURACION DE EJECUCION EN HAIQU (comun a las tres ejecuciones)
+--------------------------------------------------------------------------------
+
+Verificado desde la metadata real de cada job en el dashboard de Haiqu (no
+supuesto). Las credenciales IBM (token/instance) se omiten por seguridad.
+
+  Dispositivo (device_id)   : ibm_pittsburgh  (QPU real, backend DEVICE_RUN)
+  Shots por circuito        : 16384
+  Mitigacion de error       : activada  (use_mitigation = True)
+  Empaquetado (use_packing) : desactivado (False)
+  Compresion de estado      : no aplicada  (use_compression = False; el circuito
+                              p=1 es poco profundo y no la requiere)
+
+  Error Shield de Haiqu (error_mitigation_options), preset usado:
+    noise_tailoring (Pauli twirling) : ON   <- lo que habilita la ganancia de
+                                              mitigacion en hardware
+    advanced_mitigation              : ON
+    dynamical_decoupling             : OFF
+    readout_mitigation               : OFF  (se mantiene apagada: la matriz de
+                                              confusion 2^N x 2^N satura al worker
+                                              de la nube a N grande)
+
+Modo de evaluacion: observable. La energia se estima como
+<H> = sum_k coef_k * <P_k> midiendo los terminos de Pauli del Hamiltoniano
+(19 terminos para N=10, 39 para N=20).
+
+--------------------------------------------------------------------------------
+INVENTARIO DE EJECUCIONES REALES RECUPERADAS
+--------------------------------------------------------------------------------
+
+  Experimento                    | Tipo         | N  | Estado  | Job
+  -------------------------------|--------------|----|---------|--------------------
+  HVA heavy_hex N10 p1 h1.00     | single-shot  | 10 | Done    | jb-4ccab22f
+  HVA heavy_hex N10 p1 h1.00     | VQE iterativo| 10 | Cortado*| jb-89b55001
+  HVA heavy_hex N20 p1 h1.00     | single-shot  | 20 | Done    | jb-87d6c383
+  GNN-HVA hardware deployment    | (ninguna)    | -  | -       | solo simulador/dry-run
+
+  * El VQE fue cortado antes de finalizar (IBM corto el servicio del dispositivo
+    en ese momento) tras 58 iteraciones; los datos parciales de convergencia
+    quedaron disponibles y se recuperaron.
+
+
+================================================================================
+EXPERIMENTO 1 - HVA heavy_hex N=10, p=1, h=1.00  (despliegue directo)
+================================================================================
+
+Tipo         : single-shot (deploy directo del theta predicho por la GNN, sin
+               refinamiento variacional).
+Job          : jb-4ccab22f-89b5-4f5c-924c-d4b073b1211b
+Dispositivo  : ibm_pittsburgh
+Shots        : 16384
+Observables  : 19 terminos de Pauli
+Enviado      : 2026-09-02 00:03:25
+Finalizado   : 2026-09-02 00:35:19
+
+Resultado fisico (energia corregida por mitigacion):
+  Energia medida (<H>)   : -11.5248
+  Energia exacta (E0)    : -12.4722
+  Gap espectral          :   0.2201
+  |dE| (error absoluto)  :   0.9474      
+
+Coste QPU estimado : 14.48 s  (~23.18 USD)
+
+Lectura: el deploy directo de los angulos predichos reproduce la energia con un
+error absoluto de ~0.95 (en unidades de J=1). El cociente dE/gap es alto porque
+el gap de heavy_hex es pequeno (0.22), lo que amplifica un error absoluto
+moderado. No satisface el criterio del 5%.
+
+
+================================================================================
+EXPERIMENTO 2 - HVA heavy_hex N=10, p=1, h=1.00  (refinamiento VQE iterativo)
+================================================================================
+
+Tipo         : VQE variacional iterativo server-side
+               (haiqu.variational_optimization: todo el bucle corre en la nube
+               de Haiqu como un unico job, no round-trip por evaluacion).
+Job          : jb-89b55001-3bdb-4d75-8973-5ee4e1b155c7
+Nombre       : VQE-HVA-heavy_hex-N10-p1-h1.00-nft-warm
+Dispositivo  : ibm_pittsburgh
+Shots        : 16384
+Enviado      : 2026-09-01 23:59:47
+Finalizado   : 2026-09-02 14:42:39
+
+Configuracion del optimizador VQE:
+  Optimizador             : NFT (Nakanishi-Fujii-Todo)
+                            Confirmado por el nombre del job (...-nft-warm) y por
+                            el default del backend. NFT es descenso por coordenada
+                            que explota que la energia es sinusoidal en cada
+                            parametro (evalua ~3 valores por coordenada y salta al
+                            minimo analitico de esa coordenada).
+  Inicializacion          : warm-start desde el theta predicho por la GNN
+                            (el sufijo "-warm" del nombre lo indica).
+  Presupuesto configurado : maxfev = 200 evaluaciones de circuito,
+                            maxiter = 100 barridos de parametros.
+  Restarts configurados   : 2 (ademas del warm-start): total previsto = 1 corrida
+                            warm-started + 2 con theta aleatorio, quedandose con el
+                            menor min_loss. NOTA: el nombre del job recuperado es
+                            el del run warm-started; el corte de IBM ocurrio antes
+                            de poder confirmar la ejecucion de los restarts, por lo
+                            que estos figuran como CONFIGURADOS, no verificados.
+  Mitigacion / compresion : identicas a la config comun (Error Shield ON con
+                            twirling+advanced; compresion OFF).
+
+IMPORTANTE - EJECUCION CORTADA ANTES DE FINALIZAR:
+  El bucle NO llego a terminar por convergencia ni por agotar su presupuesto de
+  iteraciones. Fue cortado antes de finalizar porque IBM corto el servicio del
+  dispositivo en ese mismo momento. El corte se observa de forma nitida en la
+  trayectoria del loss entre las iteraciones 31 y 32 (ver abajo). Todos los datos
+  previos al corte son validos y se conservaron; el resultado debe leerse como un
+  snapshot parcial, no como el optimo final del refinamiento.
+
+Resultado fisico (mejor energia mitigada alcanzada, previa al corte):
+  min_loss (<H>_min)     : -11.4869   (iteracion 31, antes del corte)
+  Energia exacta (E0)    : -12.4722
+  Gap espectral          :   0.2201
+  |dE| (error absoluto contra el calculo exacto)  :   0.9853      
+
+
+Detalle del bucle VQE (58 iteraciones registradas antes del corte):
+  Iteraciones completadas   : 58  (indices 0..57)
+  theta refinado (parametros): 19 valores
+
+  Tramo 1 - descenso valido (iteraciones 0..31):
+    Loss inicial (it 00)    : -11.483802   (warm-start de la GNN)
+    Loss minimo (it 31)     : -11.486899   <- MEJOR punto de toda la corrida
+    Mejora sobre warm-start : -0.003098    (descenso pequeno: el theta de la GNN
+                              ya estaba muy cerca del optimo alcanzable)
+    Comportamiento          : decrecimiento suave y practicamente monotono
+    Delta tipico por paso   : ~1e-6 a ~5e-4
+
+  Corte de IBM (transicion iteracion 31 -> 32):
+    Loss it 31              : -11.486899
+    Loss it 32              : -11.427064   <- salto abrupto de +0.059835
+    Interpretacion          : el corte de servicio interrumpio el estado bueno;
+                              el optimizador reanuda desde una energia peor.
+
+  Tramo 2 - post-corte (iteraciones 32..57):
+    Loss it 32 (reinicio)   : -11.427064
+    Loss it 57 (ultimo)     : -11.428710
+    Comportamiento          : re-descenso lento desde el punto degradado, sin
+                              recuperar el minimo del tramo 1 antes de terminar.
+
+  Estadisticas globales de la trayectoria (0..57):
+    min_loss  : -11.486899  (it 31)
+    max_loss  : -11.427064  (it 32, inmediatamente tras el corte)
+    media     : -11.459769
+    ultimo    : -11.428710  (it 57)
+    monotono decreciente global: NO (por el salto del corte en it 31->32)
+
+Metricas por punto de referencia:
+  En el min_loss (it 31)  : |dE| = 0.9853,
+  En el ultimo pto (it 57): |dE| = 1.0435, 
+  En el warm-start (it 00): |dE| = 0.9884, 
+
+Coste QPU estimado : no disponible (la ejecucion fue cortada).
+
+Trayectoria completa del loss (iteracion : <H>):
+  it00: -11.483802    it15: -11.485726    it30: -11.486899    it45: -11.428244
+  it01: -11.483808    it16: -11.486026    it31: -11.486899    it46: -11.428245
+  it02: -11.483898    it17: -11.486118    it32: -11.427064    it47: -11.428399
+  it03: -11.483902    it18: -11.486296    it33: -11.427067    it48: -11.428400
+  it04: -11.483903    it19: -11.486299    it34: -11.427749    it49: -11.428453
+  it05: -11.483965    it20: -11.486299    it35: -11.427822    it50: -11.428485
+  it06: -11.483982    it21: -11.486306    it36: -11.427822    it51: -11.428497
+  it07: -11.483982    it22: -11.486355    it37: -11.427851    it52: -11.428497
+  it08: -11.484029    it23: -11.486500    it38: -11.427924    it53: -11.428516
+  it09: -11.484104    it24: -11.486510    it39: -11.427961    it54: -11.428521
+  it10: -11.484653    it25: -11.486511    it40: -11.427970    it55: -11.428555
+  it11: -11.485142    it26: -11.486512    it41: -11.428033    it56: -11.428705
+  it12: -11.485424    it27: -11.486526    it42: -11.428033    it57: -11.428710
+  it13: -11.485434    it28: -11.486584    it43: -11.428114
+  it14: -11.485714    it29: -11.486661    it44: -11.428192
+
+Lectura: antes del corte de IBM, el refinamiento variacional descendio de forma
+suave hasta min_loss = -11.4869 (iteracion 31), mejorando apenas 0.0031 respecto
+al warm-start de la GNN. Ese min_loss NO mejora al deploy directo del
+Experimento 1 (-11.5248); de hecho el single-shot quedo levemente mas cerca de
+la energia exacta. Esto sugiere que, en hardware y a esta profundidad, el theta
+predicho por la GNN ya se encuentra cerca del optimo alcanzable, y la ganancia
+del refinamiento es marginal. Como IBM corto el servicio antes de que el bucle
+finalizara, no puede descartarse que iteraciones adicionales aportaran mejora;
+con los datos disponibles hasta el punto de corte, la mejora observada es
+marginal. El bucle satisface la cota variacional (min_loss >= E0), por lo que el
+numero es consistente.
+
+
+================================================================================
+EXPERIMENTO 3 - HVA heavy_hex N=20, p=1, h=1.00  (despliegue directo)
+================================================================================
+
+Tipo         : single-shot (deploy directo del theta predicho por la GNN).
+Job          : jb-87d6c383-a6c6-4947-bb7b-cd54cb1cb26a
+Dispositivo  : ibm_pittsburgh
+Shots        : 16384
+Observables  : 39 terminos de Pauli
+Enviado      : 2026-09-02 00:03:33
+Finalizado   : 2026-09-02 00:48:47
+
+Resultado fisico (energia corregida por mitigacion):
+  Energia medida (<H>)   : -22.8241
+  Energia exacta (E0)    : -25.3695
+  |dE| (error absoluto)  :   2.5454      <- metrica primaria
+
+Coste QPU estimado : 18.75 s  (~30.01 USD)
+
+Lectura: al duplicar el tamano del sistema (N=20), el error absoluto crece a
+~2.55 (frente a ~0.95 en N=10). Es consistente con una mayor profundidad
+efectiva del circuito y mayor acumulacion de ruido en hardware. No satisface el
+criterio del 5%.
+
+
+
+================================================================================
+NOTAS DE ALCANCE Y REPRODUCIBILIDAD
+================================================================================
+
+- La fidelidad |<psi(theta)|psi_exact>|^2 NO esta disponible: los trabajos RUN de
+  hardware devuelven valores de expectacion por observable, no el vector de
+  estado, por lo que la fidelidad no es recuperable desde el dashboard.
+
+- La energia reportada en los single-shot es la energia mitigada reconstruida
+  como <H> = sum_k coef_k * <P_k> a partir de los 19/39 valores de expectacion
+  devueltos por la QPU, con el Hamiltoniano reconstruido para la misma
+  (topologia, N, h). Se valido que el numero de terminos de Pauli coincide con
+  el numero de valores devueltos.

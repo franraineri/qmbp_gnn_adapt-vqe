@@ -106,7 +106,7 @@ def print_report(rows: list[dict]) -> None:
         print(f"{topo} N={n} h={h} | device={dev} (real QPU) | {len(groups[key])} execution(s)")
         for r in groups[key]:
             verdict = "PASS" if r["pass_5pct"] else "FAIL"
-            partial = " (PARTIAL/Running)" if r.get("partial") else ""
+            partial = f" (PARTIAL, status={r.get('status')})" if r.get("partial") else ""
             elabel = "min_loss (VQE)" if r["kind"] == "VQE" else "E(corrected)"
             print(
                 f"  [{r['kind']}]{partial}  {elabel}={_fmt(r['energy'])}  "

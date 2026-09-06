@@ -5,19 +5,19 @@
 \label{tab:auto_heavy_hex_large_n}
 \begin{tabular}{rrrr}
 \toprule
-$N$ & $|\Delta E|$ & gap & $\Delta E/\mathrm{gap}$ \\
+$N$ & $|\Delta E|$ & gap & $\Delta E/\mathrm{gap}$ (\%) \\
 \midrule
-21 & 0,9321 & 3,8294 & 0,3409 \\
-22 & 0,3951 & 3,6875 & 0,2006 \\
-24 & 0,5936 & 3,6714 & 0,2179 \\
-26 & 0,6895 & 3,6579 & 0,2507 \\
-30 & 4,9896 & 2,5488 & 15,7854 \\
-32 & 0,6479 & 3,6277 & 0,3840 \\
-40 & 0,5806 & 3,6387 & 0,2009 \\
-50 & 0,9189 & 3,5811 & 0,2856 \\
-60 & 1,9493 & 3,5675 & 0,5467 \\
+21 & 0,5194 & 6,1950 & 8,38 \\
+22 & 0,0093 & 6,1859 & 0,15 \\
+24 & 0,0160 & 5,6703 & 0,29 \\
+26 & 0,0396 & 3,6580 & 2,15 \\
+30 & 0,0204 & 5,6357 & 0,37 \\
+32 & 1,0073 & 3,6279 & 88,70 \\
+40 & 0,0215 & 5,6013 & 0,40 \\
+50 & 0,9189 & 3,5811 & 28,56 \\
+60 & 1,9493 & 3,5675 & 54,67 \\
 \bottomrule
 \end{tabular}
 \\[2pt]
-\footnotesize Valores promediados sobre los puntos $h$ ($h \in [1,00, 5,00]$) del reporte de evaluación. Unidades de $J = 1$.
+\footnotesize Evaluado sobre la grilla de $h$ canónica del régimen de extrapolación, $h \in \{2,5; 3,0; 3,5; 4,0; 4,5; 5,0\}$, restringida al régimen válido ($h \geq h_{\min}$) de cada $N$; por eso los $N$ mayores contribuyen con menos puntos. $|\Delta E|$ y gap son medias sobre esos puntos, en unidades de $J = 1$. La columna $\Delta E/\mathrm{gap}$ es la media de los cocientes \emph{por punto} (no el cociente de las dos columnas anteriores): cerca de la frontera algún punto tiene el gap estrecho y su cociente individual es grande, de modo que la media de cocientes puede superar al cociente de las medias. La métrica primaria es $|\Delta E|$; $\Delta E/\mathrm{gap}$ es el criterio de clasificación normalizado.
 \end{table}
