@@ -351,6 +351,28 @@ class ZooEntry:
     # fidelity aggregated over h in the window, plus per-N breakdown. Populated from
     # the per-h eval reports by backfill_critical_ranking_from_evals().
     critical_ranking: dict = field(default_factory=dict)
+    # Raw physical metrics per system size — the PRIMARY selection signal.
+    # Median over all evaluated h-points at each N, from the per-h eval reports
+    # (backfill_physical_metrics_from_evals). Keyed by str(n). |ΔE| is the
+    # absolute energy error (steering §5 primary metric); fidelity is the exact
+    # state fidelity (or its variance lower bound at large N). These supersede
+    # pass_rate for model selection: a model with low pass_rate can still be the
+    # best warm-start if its |ΔE| is small and fidelity high.
+    abs_error_by_n: dict = field(default_factory=dict)   # {str(n): median |ΔE|}
+    fidelity_by_n: dict = field(default_factory=dict)    # {str(n): median fidelity}
+    de_gap_by_n: dict = field(default_factory=dict)      # {str(n): median ΔE/gap (informative)}
+    # Warm-start quality per system size — measures the ADVANTAGE of initializing
+    # VQE from this model's θ vs a random cold start, at equal budget. Populated
+    # from probe_warmstart_advantage.py (backfill_warmstart_from_probe). Keyed by
+    # str(n); each value: {"advantage_ratio", "speedup", "zeroshot_fidelity",
+    # "n_points"}. Distinct from abs_error_by_n/fidelity_by_n (which measure the
+    # predicted state's absolute quality): this is the RELATIVE gain over cold
+    # start, the signal that separates a genuine warm-start (chain_1d, ratio≫1)
+    # from a useless one (heavy_hex p=1, ratio<1). Used by objective="warmstart".
+    #   advantage_ratio  = median over h of (ΔE/gap)_cold / (ΔE/gap)_warm  (>1 = MPNN wins)
+    #   speedup          = k̄_cold / k̄_warm  (iterations; >1 = MPNN converges faster)
+    #   zeroshot_fidelity= median fidelity of the predicted θ BEFORE optimization
+    warmstart_by_n: dict = field(default_factory=dict)
 
     def matches(
         self,
@@ -494,7 +516,11 @@ def _get_extrapolation_performance(topology: str, entry: ZooEntry) -> float | No
     # For MT models, we check the topology they'll be USED on (not "multi_topology")
     check_topo = topology
 
-    files = list(extrap_dir.glob(f"{check_topo}_N*.npz"))
+    # Walk per-model subdirs + legacy root: the default extrapolation corpus now
+    # lives under tfim_bond_resolved/ after the per-model split.
+    from qmbp_simulation.framework.result_io import iter_all_training_npzs
+
+    files = iter_all_training_npzs(extrap_dir, pattern=f"{check_topo}_N*.npz")
     if not files:
         return None
 
@@ -514,6 +540,300 @@ def _get_extrapolation_performance(topology: str, entry: ZooEntry) -> float | No
     return float(_np.mean(pass_rates))
 
 
+def _physical_signal(entry: ZooEntry, n_target: int | None) -> float | None:
+    """Map an entry's raw physical metrics (|ΔE|, fidelity per N) to a [0,1] score.
+
+    PRIMARY selection signal. Combines the two raw metrics the user asked the
+    zoo to prioritize:
+      - |ΔE| (absolute energy error, steering §5 primary metric): mapped by
+        1/(1+|ΔE|) — monotonic decreasing, |ΔE|=0→1.0, 0.1→0.91, 1.0→0.5.
+      - fidelity: used directly in [0,1]; missing → neutral 0.5 so |ΔE| still
+        drives the score.
+    The two are averaged (equal weight): score = 0.5·(1/(1+|ΔE|)) + 0.5·fidelity.
+
+    Aggregation by N (per user decision):
+      - If ``n_target`` is given and that exact N was evaluated → use it.
+      - Else if nearby N were evaluated → distance-weighted average (sharp
+        decay), same scheme as the pass_rate interpolation.
+      - Else (no n_target, or no nearby N) → median over all evaluated N.
+
+    Returns None when the entry has no physical metrics at all (so the caller
+    falls back to the pass_rate-based tiers).
+    """
+    ae_by_n = entry.abs_error_by_n or {}
+    if not ae_by_n:
+        return None
+    fid_by_n = entry.fidelity_by_n or {}
+
+    def _point_score(n_key: str) -> float | None:
+        ae = ae_by_n.get(n_key)
+        if ae is None:
+            return None
+        ae_score = 1.0 / (1.0 + float(ae))
+        fid = fid_by_n.get(n_key)
+        fid_score = float(fid) if fid is not None else 0.5
+        return 0.5 * ae_score + 0.5 * fid_score
+
+    n_values = [int(k) for k in ae_by_n if str(k).isdigit()]
+    if not n_values:
+        return None
+
+    # Exact-N match.
+    if n_target is not None and str(n_target) in ae_by_n:
+        s = _point_score(str(n_target))
+        if s is not None:
+            return s
+
+    # Nearby-N distance-weighted average (only within 100% of target).
+    if n_target is not None:
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for n_val in n_values:
+            s = _point_score(str(n_val))
+            if s is None:
+                continue
+            distance = abs(n_val - n_target) / max(n_target, 1)
+            if distance < 1.0:
+                w = 1.0 / (1.0 + 5.0 * distance)  # sharp decay
+                weighted_sum += w * s
+                weight_total += w
+        if weight_total > 0:
+            return weighted_sum / weight_total
+
+    # Fallback: median over all evaluated N.
+    scores = [s for s in (_point_score(str(n)) for n in n_values) if s is not None]
+    if not scores:
+        return None
+    scores.sort()
+    mid = len(scores) // 2
+    if len(scores) % 2:
+        return scores[mid]
+    return 0.5 * (scores[mid - 1] + scores[mid])
+
+
+def _warmstart_signal(entry: ZooEntry, n_target: int | None) -> float | None:
+    """Map an entry's warm-start metrics to a [0,1] score (advantage over cold).
+
+    Combines the two things that make a warm-start valuable:
+      - advantage_ratio (ΔE_cold/ΔE_warm): mapped by ratio/(1+ratio) so ratio=1
+        (no advantage) → 0.5, ratio=10 → 0.91, ratio→∞ → 1.0, ratio<1 (worse
+        than cold) → <0.5. Establishes that the warm-start beats a cold start.
+      - zeroshot_fidelity: the predicted state's quality BEFORE optimization —
+        the true tie-breaker between models that converge to the same optimum.
+        When several models share the same advantage_ratio (common in benign
+        landscapes where any decent init reaches the global optimum), the one
+        that STARTS closer (higher zero-shot fidelity) is the better warm-start.
+    Score = 0.55·(r/(1+r)) + 0.45·zeroshot_fidelity  (fidelity missing → 0.5).
+    The advantage term still dominates when it is decisive (ratio<1 caps the
+    score below ~0.5), but zero-shot fidelity now carries enough weight to break
+    ratio ties in favor of the model with the best starting point.
+
+    Aggregation by N mirrors _physical_signal (exact → nearby-weighted → median).
+    Returns None when the entry has no warm-start metrics.
+    """
+    ws = entry.warmstart_by_n or {}
+    if not ws:
+        return None
+
+    def _point_score(n_key: str) -> float | None:
+        rec = ws.get(n_key)
+        if not rec:
+            return None
+        r = rec.get("advantage_ratio")
+        if r is None or r < 0:
+            return None
+        r_score = r / (1.0 + r)  # ratio=1→0.5, ratio≫1→1, ratio<1→<0.5
+        zf = rec.get("zeroshot_fidelity")
+        fid_score = float(zf) if zf is not None else 0.5
+        return 0.55 * r_score + 0.45 * fid_score
+
+    n_values = [int(k) for k in ws if str(k).isdigit()]
+    if not n_values:
+        return None
+
+    if n_target is not None and str(n_target) in ws:
+        s = _point_score(str(n_target))
+        if s is not None:
+            return s
+
+    if n_target is not None:
+        weighted_sum = 0.0
+        weight_total = 0.0
+        for n_val in n_values:
+            s = _point_score(str(n_val))
+            if s is None:
+                continue
+            distance = abs(n_val - n_target) / max(n_target, 1)
+            if distance < 1.0:
+                w = 1.0 / (1.0 + 5.0 * distance)
+                weighted_sum += w * s
+                weight_total += w
+        if weight_total > 0:
+            return weighted_sum / weight_total
+
+    scores = [s for s in (_point_score(str(n)) for n in n_values) if s is not None]
+    if not scores:
+        return None
+    scores.sort()
+    mid = len(scores) // 2
+    return scores[mid] if len(scores) % 2 else 0.5 * (scores[mid - 1] + scores[mid])
+
+
+def _critical_signal(entry: ZooEntry) -> float | None:
+    """Map the empirical critical-window ranking to a [0,1] score.
+
+    Uses critical_ranking[CRITICAL_H_WINDOW]: |ΔE| via 1/(1+|ΔE|) and fidelity.
+    Score = 0.5·(1/(1+|ΔE|)) + 0.5·fidelity (fidelity missing → 0.5). Returns
+    None when no critical-window record exists.
+    """
+    crit = entry.critical_ranking.get(_critical_window_key()) if entry.critical_ranking else None
+    if not crit or crit.get("abs_error_mean") is None:
+        return None
+    ae = float(crit["abs_error_mean"])
+    ae_score = 1.0 / (1.0 + ae)
+    fid = crit.get("fidelity_mean")
+    fid_score = float(fid) if fid is not None else 0.5
+    return 0.5 * ae_score + 0.5 * fid_score
+
+
+def _coverage_signal(entry: ZooEntry, n_target: int | None) -> float:
+    """Score how well the entry's EVALUATED N-range covers ``n_target`` [0,1].
+
+    For extrapolation, a model is only trustworthy at N it was actually measured
+    near. Uses the union of N present in physical / warmstart metrics.
+    1.0 if n_target was evaluated exactly (or within ±10%), decaying with the
+    relative distance to the nearest evaluated N. 0.5 neutral when n_target is
+    None or no per-N metrics exist.
+    """
+    if n_target is None:
+        return 0.5
+    n_keys = set(entry.abs_error_by_n or {}) | set(entry.warmstart_by_n or {})
+    n_values = [int(k) for k in n_keys if str(k).isdigit()]
+    if not n_values:
+        return 0.5
+    nearest = min(n_values, key=lambda n: abs(n - n_target))
+    rel = abs(nearest - n_target) / max(n_target, 1)
+    if rel <= 0.10:
+        return 1.0
+    return max(0.0, 1.0 - rel)
+
+
+# Quality-signal weight profiles per objective. These weight ONLY the quality
+# signals — physical (|ΔE|+fidelity), warmstart (advantage over cold), critical
+# (near-h_c |ΔE|+fidelity). Weights need not sum to 1; the quality score is a
+# weighted mean over the quality signals that are PRESENT (missing ones drop out
+# and the rest renormalize). ``coverage`` is NOT a quality signal — it is a
+# separate confidence FACTOR applied multiplicatively (see compute_purpose_score),
+# so a model can never rank first on coverage alone without any measured quality.
+_OBJECTIVE_WEIGHTS: dict[str, dict[str, float]] = {
+    # Hardware deploy: the predicted state itself must be right → fidelity/|ΔE|.
+    "deploy": {"physical": 0.80, "critical": 0.20},
+    # Warm-start a VQE: what matters is the ADVANTAGE over a cold start; the
+    # zero-shot need not be perfect since VQE refines afterward.
+    "warmstart": {"warmstart": 0.80, "physical": 0.20},
+    # Near the phase transition: the empirical critical-window quality dominates.
+    "critical": {"critical": 0.75, "physical": 0.25},
+    # Extrapolate to large N: |ΔE| quality is the signal; coverage (below) gates it.
+    "extrapolation": {"physical": 0.80, "warmstart": 0.20},
+    # Custom / fallback: balanced over quality signals.
+    "custom": {"physical": 0.55, "warmstart": 0.25, "critical": 0.20},
+}
+
+# How strongly ``coverage`` (evaluated-N proximity to n_target) discounts the
+# quality score, per objective. coverage ∈ [0,1]; the applied factor is
+# (1 - w_cov) + w_cov·coverage, so w_cov=0 ignores coverage and w_cov=1 makes
+# the score scale linearly with coverage. Extrapolation cares most (a model not
+# measured near the target N is untrustworthy there); deploy/critical care at h_c.
+_OBJECTIVE_COVERAGE_WEIGHT: dict[str, float] = {
+    "deploy": 0.25,
+    "warmstart": 0.15,
+    "critical": 0.15,
+    "extrapolation": 0.60,
+    "custom": 0.20,
+}
+
+
+def compute_purpose_score(entry: ZooEntry, objective: str, n_target: int | None) -> dict:
+    """Score an entry for a specific objective using purpose-specific weights.
+
+    Two-part score, so no single non-quality signal can dominate:
+
+    1. Quality score = weighted mean of the QUALITY signals present (physical,
+       warmstart, critical) using the objective's profile (_OBJECTIVE_WEIGHTS).
+       Missing signals drop out and the rest renormalize. If the objective's
+       PRIMARY quality signal is absent, the model is scored but flagged (its
+       quality rests on a secondary signal only).
+    2. Coverage factor = (1 - w_cov) + w_cov·coverage, applied multiplicatively.
+       coverage measures whether the model was actually evaluated near n_target;
+       it discounts — never inflates — the quality score.
+
+    A model with NO quality signal at all gets score 0.0 (caller falls back to
+    the generic ranking), regardless of its coverage.
+
+    Returns
+    -------
+    dict
+        {"score", "quality_score", "coverage", "coverage_factor",
+         "signals": {name: value|None}, "weights_used": {...}, "objective"}
+    """
+    weights = _OBJECTIVE_WEIGHTS.get(objective, _OBJECTIVE_WEIGHTS["custom"])
+    signals = {
+        "physical": _physical_signal(entry, n_target),
+        "warmstart": _warmstart_signal(entry, n_target),
+        "critical": _critical_signal(entry),
+    }
+    coverage = _coverage_signal(entry, n_target)
+
+    num = 0.0
+    den = 0.0
+    used: dict[str, float] = {}
+    total_weight = sum(weights.values())
+    for name, w in weights.items():
+        val = signals.get(name)
+        if val is None:
+            continue
+        num += w * val
+        den += w
+        used[name] = w
+
+    if den == 0:
+        # No quality evidence for this objective → not a valid pick.
+        return {
+            "score": 0.0,
+            "quality_score": 0.0,
+            "coverage": coverage,
+            "coverage_factor": 1.0,
+            "completeness": 0.0,
+            "signals": {**signals, "coverage": coverage},
+            "weights_used": {},
+            "objective": objective,
+        }
+
+    # Weighted mean over the quality signals that are present.
+    quality_raw = num / den
+    # Completeness: fraction of the objective's TOTAL signal weight that is
+    # actually backed by data. A model with only a low-weight secondary signal
+    # (den ≪ total_weight) must NOT rank as if it had the primary one — the
+    # renormalized mean would otherwise hide the missing primary signal. We
+    # discount by how much of the intended evidence is present.
+    completeness = den / total_weight if total_weight > 0 else 0.0
+    quality_score = quality_raw * completeness
+
+    w_cov = _OBJECTIVE_COVERAGE_WEIGHT.get(objective, 0.20)
+    coverage_factor = (1.0 - w_cov) + w_cov * coverage
+    score = quality_score * coverage_factor
+    return {
+        "score": score,
+        "quality_score": quality_score,
+        "coverage": coverage,
+        "coverage_factor": coverage_factor,
+        "completeness": completeness,
+        "signals": {**signals, "coverage": coverage},
+        "weights_used": used,
+        "objective": objective,
+    }
+
+
 def load_best_model_for(
     topology: str,
     *,
@@ -522,6 +842,7 @@ def load_best_model_for(
     n_target: int | None = None,
     h_regime: str | None = None,
     include_multi_topology: bool = True,
+    objective: str | None = None,
 ) -> tuple:
     """Load the best available model for a topology using ALL available signals.
 
@@ -530,16 +851,21 @@ def load_best_model_for(
     those regimes over models with high global pass_rate.
 
     Integrates information from 3 sources to make the best selection:
-    1. Zoo manifest: checkpoint existence, pass_rate, pass_rate_by_n, h_range
+    1. Zoo manifest: raw physical metrics (abs_error_by_n, fidelity_by_n —
+       the PRIMARY signal), pass_rate/pass_rate_by_n (secondary), h_range
     2. ModelRegistryDB: training_metrics (MSE, convergence), architecture
     3. Dashboard: per-topology quality tiers, staleness, h_frontier
 
-    The final score for each candidate is:
-        score = (0.40 * pass_rate_signal
-               + 0.30 * data_quality_signal
-               + 0.20 * convergence_signal
-               + 0.10 * freshness_signal)
+    Selection prioritizes RAW PHYSICAL METRICS (|ΔE| absolute error + state
+    fidelity, per N) over the binary pass_rate. When an entry has physical
+    metrics (from backfill_physical_metrics_from_evals), the score is:
+        score = (0.60 * physical_signal      # |ΔE| + fidelity (primary)
+               + 0.15 * extrapolation_or_data
+               + 0.10 * pass_rate_signal     # secondary
+               + 0.10 * data_signal
+               + 0.05 * freshness_signal)
         × source_multiplier (1.0 per-topo, 0.95 MT, 0.85 single-N)
+    Entries without physical metrics fall back to the legacy pass_rate tiers.
 
     Parameters
     ----------
@@ -564,6 +890,14 @@ def load_best_model_for(
         - None (default) — no h-regime bias
     include_multi_topology : bool
         If True, also considers multi_topology models as candidates.
+    objective : str | None
+        When set (deploy | warmstart | critical | extrapolation | custom),
+        candidates are re-ranked by the OBJECTIVE-SPECIFIC purpose score
+        (compute_purpose_score) instead of the generic multi-signal score:
+        deploy weights fidelity/|ΔE|, warmstart weights advantage-over-cold,
+        critical weights the near-h_c ranking, extrapolation weights
+        evaluated-N coverage. Falls back to the generic ranking when no
+        candidate has any purpose signal. None = generic ranking (default).
 
     Returns
     -------
@@ -714,9 +1048,30 @@ def load_best_model_for(
         if extrap_data is not None:
             extrap_signal = extrap_data
 
+        # ── Signal 6: raw physical metrics (|ΔE| + fidelity per N) ───────
+        # PRIMARY selection signal (steering §5). Uses the per-N median |ΔE|
+        # (absolute error) and fidelity backfilled from the eval reports. When
+        # a target N is given, aggregates at that N (exact if available, else a
+        # distance-weighted average of nearby N); otherwise averages over all
+        # evaluated N. Returns None when the entry has no physical metrics.
+        physical_signal = _physical_signal(entry, n_target)
+        has_physical = physical_signal is not None
+
         # ── Weighted combination (adaptive) ──────────────────────────────
+        # Physical metrics (|ΔE|, fidelity) are the PRIMARY signal when present.
+        # pass_rate is kept only as a weak secondary signal.
+        if has_physical:
+            # Tier 0: raw physical metrics dominate. Extrapolation (if present)
+            # and pass_rate are secondary corroboration.
+            raw_score = (
+                0.60 * physical_signal
+                + 0.15 * (extrap_signal if extrap_signal > 0 else 0.5 * data_signal)
+                + 0.10 * pass_rate_signal
+                + 0.10 * data_signal
+                + 0.05 * freshness_signal
+            )
         # Tier 1: Real extrapolation data available → trust deployment results
-        if extrap_signal > 0:
+        elif extrap_signal > 0:
             raw_score = (
                 0.15 * pass_rate_signal
                 + 0.15 * data_signal
@@ -913,7 +1268,28 @@ def load_best_model_for(
     if not candidates:
         raise FileNotFoundError(f"No model found for ({model}, {topology}, p={p_layers}). Train one first.")
 
-    candidates.sort(key=lambda x: x[0], reverse=True)
+    # ── Purpose-driven re-ranking ─────────────────────────────────────────
+    # When an objective is given, rank by the objective-specific purpose score
+    # (fidelity for deploy, warm-start advantage for warmstart, etc.) instead of
+    # the generic multi-signal score. Falls back to the generic ranking when NO
+    # candidate has any purpose signal for this objective (fresh zoo / no evals).
+    if objective is not None:
+        source_mult = {"per_topology": 1.0, "multi_topology": 0.95, "single_n": 0.85}
+        purpose_ranked = [
+            (
+                compute_purpose_score(e, objective, n_target)["score"] * source_mult.get(src, 1.0),
+                e,
+                src,
+            )
+            for _, e, src in candidates
+        ]
+        if any(s > 0 for s, _, _ in purpose_ranked):
+            purpose_ranked.sort(key=lambda x: x[0], reverse=True)
+            candidates = purpose_ranked
+        else:
+            candidates.sort(key=lambda x: x[0], reverse=True)
+    else:
+        candidates.sort(key=lambda x: x[0], reverse=True)
     best_score, best_entry, source = candidates[0]
 
     ckpt_path = _resolve_checkpoint_path(best_entry.checkpoint_file)
@@ -932,11 +1308,14 @@ def load_best_model_for(
         )
     loaded_model = _smart_load_checkpoint(str(ckpt_path))
 
+    _phys = _physical_signal(best_entry, n_target)
     logger.debug(
-        "load_best_model_for(%s): %s model selected (score=%.3f, pass=%.0f%%, pts=%d, ckpt=%s)",
+        "load_best_model_for(%s): %s model selected (score=%.3f, physical=%s, "
+        "pass=%.0f%%, pts=%d, ckpt=%s)",
         topology,
         source,
         best_score,
+        f"{_phys:.3f}" if _phys is not None else "n/a",
         best_entry.pass_rate * 100,
         best_entry.n_training_points,
         best_entry.checkpoint_file[:40],
@@ -1118,7 +1497,7 @@ def select_model_for_objective(
     # ── Parameter validation (fail loud, not silent) ─────────────────────
     if topology not in SUPPORTED_TOPOLOGIES and topology != "multi_topology":
         raise ValueError(f"Unknown topology {topology!r}. Valid: {SUPPORTED_TOPOLOGIES}")
-    _valid_obj = ("deploy", "critical", "extrapolation", "custom")
+    _valid_obj = ("deploy", "warmstart", "critical", "extrapolation", "custom")
     if objective not in _valid_obj:
         raise ValueError(f"objective must be one of {_valid_obj}, got {objective!r}")
     if h_regime not in _VALID_H_REGIMES:
@@ -1132,6 +1511,10 @@ def select_model_for_objective(
 
     if objective == "deploy":
         resolved_h_regime = h_regime or "paramagnetic"
+    elif objective == "warmstart":
+        # Warm-start: no h-regime bias by default (the advantage metric already
+        # captures where the model helps); honor an explicit h_regime if given.
+        resolved_h_regime = h_regime
     elif objective == "critical":
         resolved_h_regime = "critical"
     elif objective == "extrapolation":
@@ -1151,6 +1534,7 @@ def select_model_for_objective(
             n_target=resolved_n_target,
             h_regime=resolved_h_regime,
             include_multi_topology=include_multi_topology,
+            objective=objective,
         )
     except FileNotFoundError as e:
         return {
@@ -1593,19 +1977,31 @@ def compute_training_quality_score(
     float
         Score in [0, 1]. Returns 0.0 if no data found.
     """
-    from pathlib import Path
-
     import numpy as np
 
-    npz_dir = Path("data/multi_n_training")
-    if not npz_dir.exists():
+    from qmbp_simulation.framework.result_io import (
+        TRAINING_DATA_ROOT,
+        training_npz_read_dirs,
+    )
+
+    # Read from the per-model subdir + legacy root fallback (default model).
+    read_dirs = training_npz_read_dirs(TRAINING_DATA_ROOT, model=model)
+    if not any(d.exists() for d in read_dirs):
         return 0.0
 
     if n_qubits == 0:
-        files = sorted(npz_dir.glob(f"{topology}_N*_p{p_layers}.npz"))
+        files = []
+        seen: set[str] = set()
+        for d in read_dirs:
+            if not d.exists():
+                continue
+            for f in sorted(d.glob(f"{topology}_N*_p{p_layers}.npz")):
+                if f.name not in seen:
+                    seen.add(f.name)
+                    files.append(f)
     else:
-        files = [npz_dir / f"{topology}_N{n_qubits}_p{p_layers}.npz"]
-        files = [f for f in files if f.exists()]
+        fname = f"{topology}_N{n_qubits}_p{p_layers}.npz"
+        files = [d / fname for d in read_dirs if (d / fname).exists()][:1]
 
     if not files:
         return 0.0
@@ -3385,7 +3781,9 @@ def backfill_critical_ranking_from_evals(
     # agg[(ckpt, p)] = {"per_n": {n: {"abs_errors": [...], "fidelities": [...],
     #                                 "h_vals": [...]}}, "report": str, "topology": str}
     agg: dict[tuple[str, int], dict] = {}
-    for report in sorted(eval_root.glob("*/eval_*.md")):
+    # glob "eval*.md" (not "eval_*.md") to capture BOTH naming schemes:
+    # legacy "eval_...md" and generate_evaluation_report's "evaluation_...md".
+    for report in sorted(eval_root.glob("*/eval*.md")):
         parsed = _parse_eval_report_per_h(report)
         ckpt = _resolve_manifest_name(parsed["checkpoint"])
         if ckpt is None:
@@ -3491,6 +3889,260 @@ def backfill_critical_ranking_from_evals(
     return n_updated
 
 
+def update_zoo_physical_metrics(
+    checkpoint_file: str,
+    abs_error_by_n: dict[str, float],
+    fidelity_by_n: dict[str, float],
+    de_gap_by_n: dict[str, float],
+) -> bool:
+    """Upsert the raw physical metrics (|ΔE|, fidelity, ΔE/gap per N) for an entry.
+
+    These are the PRIMARY selection signal (steering §5): |ΔE| absolute error
+    and state fidelity, aggregated per system size. Supersede pass_rate for
+    model selection. Merges per-N keys (new N-values added, existing overwritten).
+
+    Returns True if the manifest was updated.
+    """
+    entries = _load_manifest()
+    for entry in entries:
+        if entry.checkpoint_file != checkpoint_file:
+            continue
+        entry.abs_error_by_n.update({str(k): float(v) for k, v in abs_error_by_n.items()})
+        entry.fidelity_by_n.update({str(k): float(v) for k, v in fidelity_by_n.items()})
+        entry.de_gap_by_n.update({str(k): float(v) for k, v in de_gap_by_n.items()})
+        _save_manifest(entries)
+        logger.info(
+            "update_zoo_physical_metrics: %s |ΔE|_by_n=%s fidelity_by_n=%s",
+            checkpoint_file[:40],
+            {k: round(v, 4) for k, v in entry.abs_error_by_n.items()},
+            {k: round(v, 3) for k, v in entry.fidelity_by_n.items()},
+        )
+        return True
+    logger.warning("update_zoo_physical_metrics: checkpoint '%s' not found", checkpoint_file)
+    return False
+
+
+def update_zoo_warmstart_metrics(
+    checkpoint_file: str,
+    warmstart_by_n: dict[str, dict],
+) -> bool:
+    """Upsert warm-start advantage metrics (per N) for a zoo entry.
+
+    Each per-N record measures the model's warm-start value vs a random cold
+    start at equal budget (see ZooEntry.warmstart_by_n). Recognized keys per N:
+    ``advantage_ratio`` (float), ``speedup`` (float), ``zeroshot_fidelity``
+    (float | None), ``n_points`` (int). Merges per-N keys (new N added, existing
+    overwritten).
+
+    Returns True if the manifest was updated.
+    """
+    entries = _load_manifest()
+    for entry in entries:
+        if entry.checkpoint_file != checkpoint_file:
+            continue
+        for n, rec in warmstart_by_n.items():
+            entry.warmstart_by_n[str(n)] = dict(rec)
+        _save_manifest(entries)
+        logger.info(
+            "update_zoo_warmstart_metrics: %s → %d N values (%s)",
+            checkpoint_file[:40],
+            len(entry.warmstart_by_n),
+            {k: round(v.get("advantage_ratio", 0), 2) for k, v in entry.warmstart_by_n.items()},
+        )
+        return True
+    logger.warning("update_zoo_warmstart_metrics: checkpoint '%s' not found", checkpoint_file)
+    return False
+
+
+def backfill_warmstart_from_probe(probe_json: str | Path) -> int:
+    """Populate ZooEntry.warmstart_by_n from a probe_warmstart_advantage JSON.
+
+    Reads the record written by ``scripts/analysis/probe_warmstart_advantage.py``
+    (``config.mpnn_checkpoint`` + ``results_by_n[].rows[].{cold,warm_mpnn}``) and
+    aggregates, per system size N over the probed h-points:
+      - advantage_ratio  = median of (ΔE/gap)_cold / (ΔE/gap)_warm  (>1 = MPNN wins)
+      - speedup          = median of k̄_cold / k̄_warm  (iterations; >1 = faster)
+      - zeroshot_fidelity= median of warm_mpnn.fidelity_init (θ pre-optimization)
+
+    Only points where both cold and warm have finite, positive ΔE/gap contribute
+    to the ratio (avoids div-by-zero and degenerate cases). Writes to the zoo
+    entry matching the probe's checkpoint via update_zoo_warmstart_metrics.
+
+    Returns the number of zoo entries updated (0 or 1 per probe file).
+    """
+    import numpy as np
+
+    path = Path(probe_json)
+    if not path.exists():
+        logger.warning("backfill_warmstart_from_probe: %s not found", path)
+        return 0
+    data = json.loads(path.read_text())
+
+    # Checkpoint name: strip the " (fuente=...)" annotation the probe appends.
+    raw_ckpt = data.get("config", {}).get("mpnn_checkpoint", "")
+    ckpt_bare = raw_ckpt.split(" (")[0].strip()
+    if not ckpt_bare:
+        logger.warning("backfill_warmstart_from_probe: no checkpoint in %s", path.name)
+        return 0
+    # Resolve to the manifest filename (with/without .pt).
+    manifest_ckpts = {e.checkpoint_file for e in _load_manifest()}
+    ckpt = next(
+        (c for c in (ckpt_bare, f"{ckpt_bare}.pt") if c in manifest_ckpts),
+        None,
+    )
+    if ckpt is None:
+        logger.warning(
+            "backfill_warmstart_from_probe: checkpoint '%s' not in manifest", ckpt_bare
+        )
+        return 0
+
+    warmstart_by_n: dict[str, dict] = {}
+    for block in data.get("results_by_n", []):
+        n = block.get("n_qubits")
+        rows = block.get("rows", [])
+        ratios: list[float] = []
+        speedups: list[float] = []
+        zs_fids: list[float] = []
+        for row in rows:
+            cold = row.get("cold")
+            warm = row.get("warm_mpnn")
+            if not cold or not warm:
+                continue
+            de_c = cold.get("de_gap_final")
+            de_w = warm.get("de_gap_final")
+            if de_c is not None and de_w is not None and de_w > 1e-12 and de_c >= 0:
+                ratios.append(de_c / de_w)
+            k_c = cold.get("n_iters")
+            k_w = warm.get("n_iters")
+            if k_c and k_w and k_w > 0:
+                speedups.append(k_c / k_w)
+            zf = warm.get("fidelity_init")
+            if zf is not None and np.isfinite(zf):
+                zs_fids.append(float(zf))
+        if not ratios:
+            continue
+        warmstart_by_n[str(n)] = {
+            "advantage_ratio": float(np.median(ratios)),
+            "speedup": float(np.median(speedups)) if speedups else None,
+            "zeroshot_fidelity": float(np.median(zs_fids)) if zs_fids else None,
+            "n_points": len(ratios),
+        }
+
+    if not warmstart_by_n:
+        return 0
+    return 1 if update_zoo_warmstart_metrics(ckpt, warmstart_by_n) else 0
+
+
+def backfill_warmstart_from_probes(
+    *,
+    probe_root: str | Path | None = None,
+    glob_pattern: str = "exp_warmstart_probe*/warmstart_probe.json",
+) -> int:
+    """Scan all warm-start probe JSONs and backfill warmstart_by_n for each.
+
+    Discovers every ``warmstart_probe.json`` written by
+    ``scripts/analysis/probe_warmstart_advantage.py`` under
+    ``results/experiments/`` and applies ``backfill_warmstart_from_probe`` to
+    each, so the zoo's warm-start metrics stay fresh automatically. When several
+    probes target the same checkpoint, the LAST one (most recent by path sort)
+    wins per N via the upsert. Best-effort per file — one bad JSON never blocks
+    the rest.
+
+    Returns the number of zoo entries updated (deduplicated by checkpoint).
+    """
+    root = Path(probe_root) if probe_root else (_PROJECT_ROOT / "results" / "experiments")
+    if not root.exists():
+        return 0
+    updated_ckpts: set[str] = set()
+    for probe_json in sorted(root.glob(glob_pattern)):
+        try:
+            # backfill_warmstart_from_probe returns 1 when it updated an entry;
+            # track which checkpoint so the count is deduplicated across probes.
+            data = json.loads(probe_json.read_text())
+            raw = data.get("config", {}).get("mpnn_checkpoint", "")
+            bare = raw.split(" (")[0].strip()
+            if backfill_warmstart_from_probe(probe_json):
+                updated_ckpts.add(bare)
+        except Exception as exc:  # noqa: BLE001 — best-effort per file
+            logger.debug("backfill_warmstart_from_probes: skip %s (%s)", probe_json.name, exc)
+    logger.info("backfill_warmstart_from_probes: %d checkpoints updated", len(updated_ckpts))
+    return len(updated_ckpts)
+
+
+def backfill_physical_metrics_from_evals(*, compute_missing_fidelity: bool = True) -> int:
+    """Populate ZooEntry.abs_error_by_n / fidelity_by_n / de_gap_by_n from evals.
+
+    Scans results/extrapolation_evals/*/eval_*.md (the only source with per-h
+    resolution of |ΔE|, ΔE/gap and Fidelity) and, for each checkpoint present in
+    the manifest, aggregates the MEDIAN of each raw metric per system size N over
+    ALL evaluated h-points (not just the critical window — this is the general
+    selection signal). |ΔE| is the absolute energy error (primary metric).
+
+    For chain_1d points lacking fidelity, computes the exact fidelity at N ≤ 16
+    (cheap statevector), controlled by ``compute_missing_fidelity``.
+
+    Returns the number of zoo entries updated.
+    """
+    import numpy as np
+
+    eval_root = _PROJECT_ROOT / "results" / "extrapolation_evals"
+    if not eval_root.exists():
+        return 0
+
+    manifest_ckpts = {e.checkpoint_file for e in _load_manifest()}
+
+    def _resolve_manifest_name(name: str) -> str | None:
+        bare = name.rsplit("/", 1)[-1]
+        for cand in (bare, f"{bare}.pt"):
+            if cand in manifest_ckpts:
+                return cand
+        return None
+
+    # agg[ckpt] = {n: {"abs_errors": [...], "de_gaps": [...], "fidelities": [...]}}
+    agg: dict[str, dict[int, dict]] = {}
+    # glob "eval*.md" (not "eval_*.md") to capture BOTH "eval_...md" (legacy) and
+    # "evaluation_...md" (generate_evaluation_report's output).
+    for report in sorted(eval_root.glob("*/eval*.md")):
+        parsed = _parse_eval_report_per_h(report)
+        ckpt = _resolve_manifest_name(parsed["checkpoint"])
+        if ckpt is None:
+            continue
+        slot = agg.setdefault(ckpt, {})
+        for n, rows in parsed["per_n"].items():
+            nslot = slot.setdefault(n, {"abs_errors": [], "de_gaps": [], "fidelities": []})
+            for r in rows:
+                nslot["abs_errors"].append(r["abs_error"])
+                nslot["de_gaps"].append(r["de_gap"])
+                fid = r["fidelity"]
+                if fid is None and compute_missing_fidelity and parsed["topology"] == "chain_1d":
+                    fid = _compute_fidelity_for_chain_1d(ckpt, n, r["h"], parsed["p_layers"])
+                if fid is not None:
+                    nslot["fidelities"].append(fid)
+
+    if not agg:
+        return 0
+
+    n_updated = 0
+    for ckpt, per_n in agg.items():
+        abs_error_by_n: dict[str, float] = {}
+        fidelity_by_n: dict[str, float] = {}
+        de_gap_by_n: dict[str, float] = {}
+        for n, nslot in per_n.items():
+            if nslot["abs_errors"]:
+                abs_error_by_n[str(n)] = float(np.median(nslot["abs_errors"]))
+            if nslot["de_gaps"]:
+                de_gap_by_n[str(n)] = float(np.median(nslot["de_gaps"]))
+            if nslot["fidelities"]:
+                fidelity_by_n[str(n)] = float(np.median(nslot["fidelities"]))
+        if not abs_error_by_n:
+            continue
+        if update_zoo_physical_metrics(ckpt, abs_error_by_n, fidelity_by_n, de_gap_by_n):
+            n_updated += 1
+
+    logger.info("backfill_physical_metrics: updated %d entries", n_updated)
+    return n_updated
+
+
 def backfill_missing_fidelities(
     *,
     window: tuple[float, float] | None = None,
@@ -3550,7 +4202,8 @@ def backfill_missing_fidelities(
     # Deduplicate (ckpt, N, h) so we compute each unique point at most once.
     seen: set[tuple[str, int, float]] = set()
 
-    glob_pat = "chain_1d_p*/eval_*.md" if only_chain_1d else "*/eval_*.md"
+    # "eval*.md" captures both "eval_...md" and "evaluation_...md".
+    glob_pat = "chain_1d_p*/eval*.md" if only_chain_1d else "*/eval*.md"
     for report in sorted(eval_root.glob(glob_pat)):
         parsed = _parse_eval_report_per_h(report)
         if only_chain_1d and parsed["topology"] != "chain_1d":
@@ -3915,17 +4568,30 @@ def get_training_data_quality(
     """
     import numpy as np
 
-    npz_dir = _PROJECT_ROOT / "data" / "multi_n_training"
+    from qmbp_simulation.framework.result_io import (
+        TRAINING_DATA_ROOT,
+        training_npz_read_dirs,
+    )
+
+    # Per-model subdir + legacy root fallback (default model).
+    read_dirs = training_npz_read_dirs(TRAINING_DATA_ROOT, model=model)
 
     # Construct expected NPZ filename
     if n_qubits == 0:
         # Multi-N model — aggregate from all matching NPZ files
         pattern = f"{topology}_N*_p{p_layers}.npz"
-        npz_files = list(npz_dir.glob(pattern))
+        npz_files = []
+        _seen: set[str] = set()
+        for d in read_dirs:
+            if not d.exists():
+                continue
+            for f in sorted(d.glob(pattern)):
+                if f.name not in _seen:
+                    _seen.add(f.name)
+                    npz_files.append(f)
     else:
         npz_filename = f"{topology}_N{n_qubits}_p{p_layers}.npz"
-        npz_path = npz_dir / npz_filename
-        npz_files = [npz_path] if npz_path.exists() else []
+        npz_files = [d / npz_filename for d in read_dirs if (d / npz_filename).exists()][:1]
 
     if not npz_files:
         return {

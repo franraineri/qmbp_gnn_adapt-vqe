@@ -335,6 +335,19 @@ def main() -> int:
 
     print()
     print(f"  Generated {len(generated)} report(s)")
+
+    # Refresh the zoo's physical metrics (|ΔE|, fidelity, ΔE/gap per N) from the
+    # reports we just (re)wrote, so the purpose-based selection stays current
+    # even when this script runs standalone (outside post_experiment_sync).
+    if generated:
+        try:
+            from qmbp_simulation.predictors.model_zoo import backfill_physical_metrics_from_evals
+
+            n_phys = backfill_physical_metrics_from_evals(compute_missing_fidelity=False)
+            print(f"  Zoo physical metrics refreshed: {n_phys} entries")
+        except Exception as exc:  # noqa: BLE001 — best-effort, never block report gen
+            print(f"  ⚠️ Zoo physical-metrics backfill skipped: {exc}")
+
     return 0
 
 

@@ -16,7 +16,8 @@ VENV := source .venv/bin/activate
         hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
         clean typecheck coverage health figures \
         maintain maintain-full maintain-fix maintain-all-fix maintain-ci dead-code lint-docs \
-        sync-all sync-all-deep diagnose-all
+        sync-all sync-all-deep diagnose-all \
+        thesis-pdf thesis-overleaf thesis-verify thesis-verify-numbers thesis-verify-pdf
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -225,6 +226,18 @@ thesis-pdf:  ## Compile the thesis PDF (delegates to internal/tesis/Makefile: ta
 	$(PYTHON) scripts/general_project_maintenance/build_thesis_figures.py || true
 	@echo "\n═══ 2/2  make all en internal/tesis/ (tablas + chequeo + PDF) ═══"
 	@$(MAKE) -C internal/tesis all
+
+thesis-overleaf:  ## Regenera tablas y (re)crea el ZIP para subir a Overleaf (delegates to internal/tesis)
+	@$(MAKE) -C internal/tesis overleaf
+
+thesis-verify:  ## Compila y audita el log de la tesis (refs/citas indefinidas, ??, labels dup, errores) + verifica cifras
+	@$(MAKE) -C internal/tesis verify
+
+thesis-verify-numbers:  ## Verifica credibilidad numérica de la tesis (cocientes, totales, símbolos, recursos) sin compilar
+	@$(MAKE) -C internal/tesis verify-numbers
+
+thesis-verify-pdf:  ## Verifica cifras del PDF renderizado de la tesis (casos absolutos, matriz de confusión)
+	@$(MAKE) -C internal/tesis verify-pdf
 
 figures-thesis:  ## Generate thesis-quality figures (PDF, 300dpi, no titles)
 	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/

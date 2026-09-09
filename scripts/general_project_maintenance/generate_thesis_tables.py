@@ -17,6 +17,34 @@ espíritu que ``results/best_results_scoreboard.md``:
   auto_heavy_hex_intra_n  Tabla por-h intra-N de heavy_hex (interpolación)
   auto_heavy_hex_large_n  Tabla por-h large-N de heavy_hex (extrapolación zero-shot)
 
+────────────────────────────────────────────────────────────────────────────────
+División de responsabilidades con los otros dos verificadores (evitar duplicación)
+────────────────────────────────────────────────────────────────────────────────
+Existen tres verificadores complementarios; cada uno es la ÚNICA fuente de verdad
+de su dimensión. No re-implementar una regla que ya vive en otro:
+
+  1. ESTE script (``--check-tex``)  →  ESTILO + CONSISTENCIA INTERNA del .tex y las
+     tablas auto: LaTeX (math/entornos/llaves/refs), aritmética de las tablas AUTO
+     y su prosa (cociente, suma Total, escala de calificación), plantilla (§4:
+     keywords, índice de acrónimos, fuente en captions), bibliografía completa (§9),
+     anglicismos/tono/guiones, y los cruces contra las fuentes vivas del proyecto
+     (noiseless_v2, scoreboard JSON, dashboard). Es el linter rico del documento.
+
+  2. ``verify_thesis_numbers.py``  →  CREDIBILIDAD NUMÉRICA de valores EMBEBIDOS a
+     mano en el .tex que este generador no produce (cocientes fila-a-fila de tablas
+     manuales como critical_sweep, sumas escritas 'a+b=c', semántica A/R del 4414×,
+     colisiones de símbolo, recursos \\includegraphics/\\input, CZ=2·E·p, escala
+     A–E). Autocontenido (stdlib). Se solapa a propósito en unas pocas reglas
+     (CZ, escala, A/R) porque opera sin importar el proyecto; si se unifican, la
+     copia canónica de esas reglas es la de ESTE script (tiene el contexto de datos).
+
+  3. ``verify_thesis_pdf.py``  →  el ARTEFACTO RENDERIZADO (pdftotext): casos
+     absolutos p%(n/m) y matriz de confusión tal como los lee el tribunal.
+
+Regla práctica: una cifra que este generador PRODUCE se valida aquí; una cifra
+EMBEBIDA a mano se valida en verify_thesis_numbers; una cifra IMPRESA en el PDF se
+valida en verify_thesis_pdf.
+
 Reglas (steering thesis-style-and-process):
   - Fidelidad al dato: nunca inventa números; donde falta un dato deja un
     marcador ``%TODO-<TOPICO>`` en el lugar exacto del .tex.
@@ -2719,7 +2747,14 @@ def _check_regime_consistency(text: str, rel: str, collector: TodoCollector) -> 
     """
     canonical = _load_canonical_tfim_matrix(collector)
     if not canonical:
-        return  # sin fuente, no se puede validar
+        # No silenciar: dejar constancia de que el cruce tabla<->fuente NO se hizo,
+        # para que un operador no confunda "sin hallazgos" con "chequeo omitido".
+        collector.add_inconsistency(
+            "INFO: chequeo tabla<->fuente canónica OMITIDO: no se pudo leer la matriz "
+            "TFIM de noiseless_v2_analysis.md (Secc.1). Las tasas cross_topo/"
+            "cross_topo_depth NO se validaron contra la fuente de verdad."
+        )
+        return
 
     # Helpers compartidos a nivel de módulo (parseo de tabla por label, % y topo).
     _rows_of = lambda label: _table_rows_by_label(text, label)  # noqa: E731
@@ -3185,6 +3220,15 @@ def _check_text_table_agreement(text: str, rel: str, collector: TodoCollector) -
                 ref_rate[topo] = pct
                 break
     if not ref_rate:
+        # Distinguir "tabla ausente" (legítimo, no se avisa) de "tabla presente
+        # pero sin tasas parseables" (sospechoso: el parseo falló y el chequeo
+        # texto<->tabla quedó inactivo sin que nadie lo note).
+        if _table_rows_by_label(text, "tab:cross_topo"):
+            collector.add_inconsistency(
+                "INFO: chequeo texto<->tabla (cross_topo) OMITIDO: la tabla existe "
+                "pero no se pudo extraer ninguna tasa por topología; el acuerdo "
+                "prosa<->celda NO se validó. Revisar el formato de la tabla."
+            )
         return
 
     # Nombres de topología tal como aparecen en prosa (para localizarlos).
@@ -3562,13 +3606,23 @@ def _check_acronym_index(text: str, rel: str, collector: TodoCollector) -> None:
     # --- Entradas del índice: \item[XXX] dentro del bloque del índice.
     idx_start = text.find("Índice de acrónimos")
     if idx_start < 0:
-        return
+        return  # sin índice de acrónimos: legítimo, no se avisa
     idx_end = text.find("\\end{description}", idx_start)
     if idx_end < 0:
+        # El título existe pero no cierra el entorno: el índice está malformado y
+        # el chequeo de cobertura NO puede correr. Avisar (no silenciar).
+        collector.add_inconsistency(
+            f"[{rel}] INFO: chequeo del índice de acrónimos OMITIDO: hay 'Índice de "
+            "acrónimos' pero no se encontró su \\end{description}; cobertura NO validada."
+        )
         return
     index_block = text[idx_start:idx_end]
     index_keys = set(re.findall(r"\\item\[([^\]]+)\]", index_block))
     if not index_keys:
+        collector.add_inconsistency(
+            f"[{rel}] INFO: chequeo del índice de acrónimos OMITIDO: el bloque existe "
+            "pero no contiene entradas \\item[...]; cobertura NO validada."
+        )
         return
 
     # --- Siglas del cuerpo (desde \mainmatter hasta la bibliografía).
@@ -3752,6 +3806,36 @@ def _check_speedup_error_ratio(text: str, rel: str, collector: TodoCollector) ->
                 "y no se combinan en un rango (steering §16, error #14). El rango "
                 "legítimo de A arranca en ~5×."
             )
+
+    # (2b) Valor ÚNICO grande etiquetado como aceleración/A (error #12): el factor
+    #     de aceleración A medido llega a ~100× (79 dim por enlace); un valor >=500×
+    #     es la razón de error R(N) (p. ej. 4414×), NO A. Se marca cuando 'A' o
+    #     'aceleración'/'speedup' aparece pegado (<=35 chars) a un factor >=500×.
+    #     Conservador: NO marca si en la misma cláusula (<=25 chars) hay 'R' o
+    #     'razón de error' (etiquetado correcto), ni el rango legítimo de A (parte 2).
+    for m in re.finditer(
+        r"(aceleraci[oó]n|factor\s+A\b|\bA\s*\\?[≈=]|speedup)[^.]{0,35}?"
+        r"(\d{3,5})(?:[.,]\d+)?\s*\$?\\?times|"
+        r"(\d{3,5})(?:[.,]\d+)?\s*\$?\\?times[^.]{0,35}?"
+        r"(aceleraci[oó]n|factor\s+A\b|speedup)",
+        prose,
+        re.IGNORECASE,
+    ):
+        val_s = m.group(2) or m.group(3)
+        if val_s is None:
+            continue
+        val = int(val_s)
+        if val < 500:
+            continue  # dentro del rango plausible de A
+        # ¿la cláusula aclara que es R (razón de error)? entonces es correcto.
+        ctx = prose[max(0, m.start() - 25): m.end() + 25]
+        if re.search(r"raz[oó]n\s+de\s+error|\bR\b\s*\\?[≈=(]|\$R", ctx):
+            continue
+        collector.add_inconsistency(
+            f"[{rel}] %TODO-CIFRA valor '{val}×' etiquetado como aceleración/A: el "
+            f"factor A medido llega a ~100× (79 dim por enlace); {val}× es la razón "
+            "de error R(N), no A (steering §16, errores #12/#14). Etiquetar como R."
+        )
 
     # (3) Rango antiguo prohibido "29×–500×" (objetivo general viejo, §16).
     if re.search(r"29\s*(?:--|–|-|a)\s*500\s*\$?\\?times", prose):

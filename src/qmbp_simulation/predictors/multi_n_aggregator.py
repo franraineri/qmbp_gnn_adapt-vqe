@@ -97,10 +97,32 @@ class MultiNAggregator:
         excluded_files = self._load_exclusion_registry()
         skip_files = not_useful_files | excluded_files
 
-        # Source 1: NPZ files in data/multi_n_training/ (primary, high quality)
-        npz_dir = _PROJECT_ROOT / "data" / "multi_n_training"
-        if npz_dir.exists():
-            for npz_file in sorted(npz_dir.glob(f"{self.topology}_N*_p{self.p_layers}.npz")):
+        # Source 1: NPZ files in data/multi_n_training/ (primary, high quality).
+        # Read the per-model subdir AND (for the default model) the legacy root
+        # via the central helper, so both migrated and un-migrated files are
+        # found. A filename present in BOTH (mid-migration) is de-duplicated,
+        # preferring the per-model subdir (canonical write location).
+        from qmbp_simulation.framework.result_io import (
+            TRAINING_DATA_ROOT,
+            training_npz_read_globs,
+        )
+
+        _train_root = _PROJECT_ROOT / TRAINING_DATA_ROOT
+        _seen_names: set[str] = set()
+        _train_files: list[Path] = []
+        for _dir, _pattern in training_npz_read_globs(
+            self.topology, self.p_layers, model=self.model, root=_train_root
+        ):
+            if not _dir.exists():
+                continue
+            for _f in sorted(_dir.glob(_pattern)):
+                if _f.name in _seen_names:
+                    continue  # already found in a higher-priority (subdir) read dir
+                _seen_names.add(_f.name)
+                _train_files.append(_f)
+
+        if True:
+            for npz_file in _train_files:
                 # Skip NPZ files excluded from training
                 # Check both dir-qualified path and bare filename (legacy compat)
                 qualified = f"multi_n_training/{npz_file.name}"
@@ -234,9 +256,27 @@ class MultiNAggregator:
         # These are MPNN predictions that passed dual criterion but haven't been
         # VQE-verified. They're included with relaxed threshold to enable the
         # iterative improvement cycle: predict(N=30) → train → predict(N=40) → ...
-        extrap_dir = _PROJECT_ROOT / "data" / "large_n_extrapolation"
-        if extrap_dir.exists():
-            for npz_file in sorted(extrap_dir.glob(f"{self.topology}_N*_p{self.p_layers}.npz")):
+        from qmbp_simulation.framework.result_io import (
+            EXTRAPOLATION_DATA_ROOT,
+            training_npz_read_globs as _npz_read_globs,
+        )
+
+        _extrap_root = _PROJECT_ROOT / EXTRAPOLATION_DATA_ROOT
+        _seen_extrap: set[str] = set()
+        _extrap_files: list[Path] = []
+        for _dir, _pattern in _npz_read_globs(
+            self.topology, self.p_layers, model=self.model, root=_extrap_root
+        ):
+            if not _dir.exists():
+                continue
+            for _f in sorted(_dir.glob(_pattern)):
+                if _f.name in _seen_extrap:
+                    continue
+                _seen_extrap.add(_f.name)
+                _extrap_files.append(_f)
+
+        if True:
+            for npz_file in _extrap_files:
                 # Check both dir-qualified path and bare filename (legacy compat)
                 qualified = f"large_n_extrapolation/{npz_file.name}"
                 if qualified in skip_files or npz_file.name in skip_files:

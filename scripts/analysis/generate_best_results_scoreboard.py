@@ -327,7 +327,8 @@ def scan_all_reports(
             if not topo_dir.is_dir() or topo_dir.name.startswith("_"):
                 continue
 
-            for report_file in sorted(topo_dir.glob("eval_*.md")):
+            # "eval*.md" captures both "eval_...md" and "evaluation_...md".
+            for report_file in sorted(topo_dir.glob("eval*.md")):
                 n_files += 1
                 try:
                     entries = parse_eval_report(report_file, target_h=target_h)

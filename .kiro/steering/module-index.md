@@ -104,7 +104,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/framework/ (18)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
-  __main__                   CLI  
+  __main__                   CLI   
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -118,7 +118,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   presets                    CFG   F:load_preset,list_presets,preset_to_args
   quality_profile                  C:QualityProfile | F:compute_quality_profile,format_quality_summary,format_per_h_status+2
   result_index               CACHE C:ResultIndex
-  result_io                  IO    F:build_data_dir,build_experiment_id,build_result_subpath+20
+  result_io                  IO    F:build_data_dir,training_npz_read_dirs,training_npz_path+25
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -126,7 +126,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG  
+  constants                  CFG   
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -156,7 +156,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:resolve_checkpoint_fuzzy,prune_test_entries,list_multi_topology_entries+26
+  model_zoo                  CFG   C:ZooEntry | F:resolve_checkpoint_fuzzy,prune_test_entries,list_multi_topology_entries+32
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
@@ -201,7 +201,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL  
+  gnn_qem_analyzer           VAL   
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (1)
@@ -300,7 +300,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  _sanity_check_envelope     IO  
+  _sanity_check_envelope     IO    
   analyze_haiqu_hva          CIRC  F:analyze_file,print_report,main
   benchmark_configs          BENCH C:BenchmarkConfig
   rebuild_circuit_input      CIRC  F:fetch_gnn_theta,hamiltonian_to_json,build_input_json+1

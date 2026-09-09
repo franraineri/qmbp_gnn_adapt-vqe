@@ -39,9 +39,183 @@ EXTRAPOLATION_DATA_ROOT = Path("data/large_n_extrapolation")
 EVAL_REPORT_ROOT = Path("results/extrapolation_evals")
 FRUSTRATED_NAMESPACE = "frustrated"
 
+# Default physics model. From now on EVERY model — including this one — writes
+# its training data under a per-model subdirectory ({root}/{model}/), so two
+# Hamiltonians never share an NPZ. The pre-existing corpus of default-model
+# files still lives at the data-root; READS fall back to the root so that
+# legacy data keeps working until migrated. WRITES always go to the subdir.
+DEFAULT_MODEL_NAMESPACE = "tfim_bond_resolved"
 
-def build_data_dir(root: Path, frustrated: bool = False) -> Path:
+
+def _model_for_layout(model: str | None) -> str:
+    """Normalize the model name used for directory namespacing."""
+    return model or DEFAULT_MODEL_NAMESPACE
+
+
+def build_data_dir(
+    root: Path,
+    frustrated: bool = False,
+    *,
+    model: str | None = None,
+) -> Path:
+    """Resolve the WRITE data directory for a run, namespaced by model + frustration.
+
+    Every model (including the default ``tfim_bond_resolved``) is namespaced
+    under ``{root}/{model}/`` so training data for different Hamiltonians never
+    lands in the same NPZ. ``frustrated`` (--j2 != 0) adds ``frustrated/`` on
+    top, preserving the existing J2 separation.
+
+    This is the WRITE path. For reads that must still see the pre-migration
+    corpus at the root, use ``training_npz_read_dirs`` / ``training_npz_path``
+    with ``for_write=False``.
+
+    Examples
+    --------
+    build_data_dir(ROOT)                              -> ROOT/tfim_bond_resolved
+    build_data_dir(ROOT, model="tfim_frustrated")     -> ROOT/tfim_frustrated
+    build_data_dir(ROOT, model="xy", frustrated=True) -> ROOT/xy/frustrated
+    """
+    d = root / _model_for_layout(model)
+    if frustrated:
+        d = d / FRUSTRATED_NAMESPACE
+    return d
+
+
+def _legacy_root_dir(root: Path, frustrated: bool) -> Path:
+    """The pre-migration (root-level) directory for the default model."""
     return root / FRUSTRATED_NAMESPACE if frustrated else root
+
+
+def training_npz_read_dirs(
+    root: Path,
+    *,
+    model: str | None = None,
+    frustrated: bool = False,
+) -> list[Path]:
+    """Ordered list of directories to search when READING training NPZs.
+
+    Returns the per-model subdir first, then — only for the default model —
+    the legacy root as a fallback so the un-migrated corpus keeps loading.
+    Non-default models never fall back to the root (their data would not be
+    there, and the root belongs to the default model).
+    """
+    dirs = [build_data_dir(root, frustrated=frustrated, model=model)]
+    if _model_for_layout(model) == DEFAULT_MODEL_NAMESPACE:
+        legacy = _legacy_root_dir(root, frustrated)
+        if legacy not in dirs:
+            dirs.append(legacy)
+    return dirs
+
+
+def training_npz_path(
+    topology: str,
+    n_qubits: int,
+    p_layers: int,
+    *,
+    model: str | None = None,
+    frustrated: bool = False,
+    root: Path = TRAINING_DATA_ROOT,
+    for_write: bool = True,
+) -> Path:
+    """Canonical path for a training NPZ, namespaced by model + frustration.
+
+    Single source of truth for the ``{root}/{model}/[frustrated/]{topology}_N{n}_p{p}.npz``
+    layout. All writers MUST derive paths through this helper.
+
+    - ``for_write=True`` (default): returns the per-model subdir path (the new
+      canonical write location).
+    - ``for_write=False``: returns the first EXISTING path across the read
+      search dirs (subdir, then legacy root for the default model); falls back
+      to the subdir path if none exist yet.
+    """
+    fname = f"{topology}_N{n_qubits}_p{p_layers}.npz"
+    if for_write:
+        return build_data_dir(root, frustrated=frustrated, model=model) / fname
+    for d in training_npz_read_dirs(root, model=model, frustrated=frustrated):
+        candidate = d / fname
+        if candidate.exists():
+            return candidate
+    return build_data_dir(root, frustrated=frustrated, model=model) / fname
+
+
+def training_npz_glob(
+    topology: str,
+    p_layers: int,
+    *,
+    model: str | None = None,
+    frustrated: bool = False,
+    root: Path = TRAINING_DATA_ROOT,
+) -> tuple[Path, str]:
+    """(search_dir, glob_pattern) for the model's WRITE dir.
+
+    Kept for callers that only need the canonical write dir. For reads that
+    must include the legacy root fallback, use ``training_npz_read_globs``.
+    """
+    d = build_data_dir(root, frustrated=frustrated, model=model)
+    return d, f"{topology}_N*_p{p_layers}.npz"
+
+
+def training_npz_read_globs(
+    topology: str,
+    p_layers: int,
+    *,
+    model: str | None = None,
+    frustrated: bool = False,
+    root: Path = TRAINING_DATA_ROOT,
+) -> list[tuple[Path, str]]:
+    """List of (search_dir, glob_pattern) to READ a model's NPZs.
+
+    Includes the per-model subdir and (for the default model) the legacy root,
+    so scanning finds both migrated and un-migrated files. A file present in
+    BOTH the subdir and the root (mid-migration) is de-duplicated by the caller
+    on filename.
+    """
+    pattern = f"{topology}_N*_p{p_layers}.npz"
+    return [
+        (d, pattern)
+        for d in training_npz_read_dirs(root, model=model, frustrated=frustrated)
+    ]
+
+
+def iter_all_training_npzs(
+    root: Path,
+    *,
+    pattern: str = "*.npz",
+    include_legacy_root: bool = True,
+) -> list[Path]:
+    """All training NPZs under a data root, across per-model subdirs + legacy root.
+
+    Model-agnostic scanner for maintenance/coherence tools that must see the
+    WHOLE corpus regardless of which model owns it. Walks each per-model
+    subdirectory (``{root}/{model}/``) plus, optionally, the legacy root
+    (``{root}/*.npz``) for un-migrated default-model files. De-duplicated by
+    filename (a subdir file wins over a same-named root file mid-migration).
+
+    Directories whose name starts with ``_`` (``_quarantine``, ``_archive``,
+    ``_extrap_hold``, ``_baselines``) are skipped — they hold non-training NPZs.
+    """
+    root = Path(root)
+    if not root.exists():
+        return []
+
+    seen: set[str] = set()
+    out: list[Path] = []
+
+    # Per-model subdirectories first (they take precedence on filename clash).
+    for sub in sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith("_")):
+        for f in sorted(sub.glob(pattern)):
+            if f.name not in seen:
+                seen.add(f.name)
+                out.append(f)
+
+    # Legacy root fallback (un-migrated default-model corpus).
+    if include_legacy_root:
+        for f in sorted(root.glob(pattern)):
+            if f.name not in seen:
+                seen.add(f.name)
+                out.append(f)
+
+    return out
 
 
 def build_experiment_id(

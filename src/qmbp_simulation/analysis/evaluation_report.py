@@ -418,6 +418,24 @@ def generate_evaluation_report(
                 lines.append(f"> {n_bound}/{len(per_point)} points use the Eckart bound F ≥ 1 − Var(H)/gap²{mev_str}.")
             lines.append("")
 
+        # ── Warm-start summary (advantage over cold start + zero-shot) ────
+        # Surfaced when the section provides warm-start metrics for this N
+        # (advantage_ratio = ΔE_cold/ΔE_warm; zeroshot_fidelity = fidelity of
+        # the predicted θ before optimization). These are the metrics the zoo
+        # ranks on for objective="warmstart".
+        ws = summary_stats.get("warmstart") if isinstance(summary_stats, dict) else None
+        if isinstance(ws, dict) and ws.get("advantage_ratio") is not None:
+            adv = ws["advantage_ratio"]
+            zsf = ws.get("zeroshot_fidelity")
+            spd = ws.get("speedup")
+            parts = [f"advantage×{adv:.1f} vs cold start"]
+            if zsf is not None:
+                parts.append(f"zero-shot F={zsf:.4f}")
+            if spd is not None:
+                parts.append(f"speedup×{spd:.2f} (iters)")
+            lines.append(f"**Warm-start: {', '.join(parts)}**")
+            lines.append("")
+
         # ── Infidelity decomposition (Var(H) vs gap) ──────────────────────
         # Attribute infidelity to dominant factor: dirty_state (attackable)
         # vs small_gap (physics ceiling near criticality). Diagnostic only.

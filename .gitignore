@@ -143,6 +143,19 @@ temporal.txt
 test_output.log
 workloads*/
 
+# ── Data store temporaries, locks & backups (never track — noise for agents) ─
+*.lock
+*.bak
+data/*.tmp.*
+data/*.corrupt*.json
+data/*.corrupt*.bak
+data/*_backup.json
+data/*_backup/
+data/*_prev.json
+data/multi_n_training/*.npz.bak
+# EXCEPTION: model_quality_dashboard_prev.json is functional (regression detection)
+!data/model_quality_dashboard_prev.json
+
 # ── Notebook test script (dev only) ─────────────────────────
 notebooks/test_notebooks.py
 
@@ -150,7 +163,7 @@ notebooks/test_notebooks.py
 # results/model_comparison/*
 
 backup_data_*
-*.tar.gzbackup_data_20260821.tar.gz
+*.tar.gz
 
 *graphify-out*
 
@@ -172,3 +185,5 @@ internal/**/*.fdb_latexmk
 internal/**/*.synctex.gz
 # Shim local de icomma (el paquete real vive en Overleaf); no versionar.
 internal/tesis/icomma.sty
+# Paquete ZIP para Overleaf: artefacto generado por `make overleaf`, no versionar.
+internal/tesis/tesis-v4.0-overleaf.zip

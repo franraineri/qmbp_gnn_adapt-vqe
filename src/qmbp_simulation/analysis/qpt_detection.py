@@ -72,13 +72,15 @@ def load_energy_curves(
 
     pattern = f"{topology}_N*_p{p_layers}.npz"
 
+    from qmbp_simulation.framework.result_io import iter_all_training_npzs
+
     for search_dir, source_label in [
         (training_dir, "multi_n_training"),
         (extrap_dir, "large_n_extrapolation"),
     ]:
         if not search_dir.exists():
             continue
-        for npz_file in sorted(search_dir.glob(pattern)):
+        for npz_file in iter_all_training_npzs(search_dir, pattern=pattern):
             if "_baselines" in str(npz_file):
                 continue
             # Extract N from filename

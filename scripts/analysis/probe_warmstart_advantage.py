@@ -46,14 +46,42 @@ TOPOLOGY = "heavy_hex"  # default; se puede sobreescribir con --topology
 P_LAYERS = 1
 J = 1.0
 ANSATZ_MODEL = "tfim_bond_resolved"
-# Subconjunto de h de prueba (dentro del régimen válido, en el rango con NPZ verified).
-H_PROBE = [2.2, 2.8, 3.4, 4.0]  # default; se puede sobreescribir con --h-probe
+# Subconjunto de h de prueba (dentro del régimen válido). Fallback genérico;
+# el default REAL se elige por topología (ver _H_PROBE_BY_TOPOLOGY) cuando no se
+# pasa --h-probe, para no medir fuera del régimen interesante de cada red.
+H_PROBE = [2.2, 2.8, 3.4, 4.0]  # fallback; sobreescribible con --h-probe
+# Grilla de h por defecto por topología. La transición del TFIM cae en h_c≈1
+# para chain_1d (grilla que atraviesa la transición hacia el paramagneto);
+# las redes quasi-2D/2D tienen h_c efectivo más alto → grilla en el paramagneto
+# donde el HVA p=1 es expresivo. Se usa solo si --h-probe no se especifica.
+_H_PROBE_BY_TOPOLOGY: dict[str, list[float]] = {
+    "chain_1d": [1.3, 1.6, 2.0, 2.5, 3.0],
+    "heavy_hex": [2.0, 2.5, 3.0, 3.5, 4.0],
+    "ladder": [2.0, 2.5, 3.0, 3.5, 4.0],
+    "square": [2.5, 3.0, 3.5, 4.0, 4.5],
+    "triangular": [2.5, 3.0, 3.5, 4.0, 4.5],
+}
 VQE_MAXITER = 150
 VQE_RESTARTS = 2
 SEED = 42
 
 
-def _load_mpnn():
+def _load_mpnn(checkpoint: str | None = None):
+    """Carga el modelo del zoo. Si se pasa ``checkpoint``, fija ese específico
+    (fuzzy-resuelto); si no, usa el mejor por defecto del zoo para la topología.
+    """
+    if checkpoint:
+        from qmbp_simulation.predictors.model_zoo import (
+            _smart_load_checkpoint,
+            resolve_checkpoint_fuzzy,
+        )
+
+        path = resolve_checkpoint_fuzzy(checkpoint, topology=TOPOLOGY, p_layers=P_LAYERS)
+        if path is None:
+            raise FileNotFoundError(f"No se pudo resolver el checkpoint {checkpoint!r}")
+        model = _smart_load_checkpoint(str(path))
+        return model, f"{path.name} (fijado)"
+
     from qmbp_simulation.predictors.model_zoo import load_best_model_for
 
     model, entry, source = load_best_model_for(TOPOLOGY, p_layers=P_LAYERS)
@@ -231,28 +259,40 @@ def _summarize(results: list[dict]) -> None:
 
 
 def main() -> int:
+    global TOPOLOGY, H_PROBE
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--n-values", type=int, nargs="+", default=[6, 16])
-    parser.add_argument("--topology", type=str, default=TOPOLOGY)
+    parser.add_argument("--topology", type=str, default="heavy_hex")
     parser.add_argument("--h-probe", type=float, nargs="+", default=None,
                         help="Grilla de h de prueba (default por topología).")
     parser.add_argument("--out-dir", type=Path, default=None)
+    parser.add_argument("--checkpoint", type=str, default=None,
+                        help="Fijar un checkpoint específico (fuzzy). Default: mejor del zoo.")
+    parser.add_argument("--write-zoo", action="store_true",
+                        help="Al terminar, poblar warmstart_by_n del checkpoint en el zoo "
+                             "(backfill_warmstart_from_probe sobre el JSON generado).")
     args = parser.parse_args()
 
     # Sobreescribir globales que consumen las funciones auxiliares.
-    global TOPOLOGY, H_PROBE
     TOPOLOGY = args.topology
     if args.h_probe:
         H_PROBE = list(args.h_probe)
+    else:
+        # Default por topología (régimen válido de cada red); fallback genérico.
+        H_PROBE = list(_H_PROBE_BY_TOPOLOGY.get(TOPOLOGY, H_PROBE))
     out_dir = args.out_dir or (
         ROOT / "results" / "experiments" / f"exp_warmstart_probe_{TOPOLOGY}"
     )
+    # Resolver a absoluto para que relative_to(ROOT) nunca falle con --out-dir relativo.
+    if not out_dir.is_absolute():
+        out_dir = (ROOT / out_dir).resolve()
 
     backend = NoiselessBackend()
     solver = ClassicalSolver()
     builder = HamiltonianBuilder()
     spec = get_model_spec(ANSATZ_MODEL)
-    model, model_desc = _load_mpnn()
+    model, model_desc = _load_mpnn(args.checkpoint)
     print(f"MPNN: {model_desc}", file=sys.stderr)
     print(f"Ansatz: {ANSATZ_MODEL} | {TOPOLOGY} p={P_LAYERS} | h={H_PROBE} | "
           f"VQE maxiter={VQE_MAXITER}", file=sys.stderr)
@@ -265,7 +305,24 @@ def main() -> int:
         # Persistencia incremental: escribe el JSON tras cada N (robusto a cortes).
         _save(out_dir, model_desc, results, args.n_values)
     _summarize(results)
-    print(f"\nRecord completo → {out_dir.relative_to(ROOT)}", file=sys.stderr)
+    try:
+        shown = out_dir.relative_to(ROOT)
+    except ValueError:
+        shown = out_dir  # out-dir outside the repo → show the absolute path
+    print(f"\nRecord completo → {shown}", file=sys.stderr)
+
+    # Optionally push the warm-start metrics straight to the zoo (closes the loop).
+    if args.write_zoo:
+        try:
+            from qmbp_simulation.predictors.model_zoo import backfill_warmstart_from_probe
+
+            probe_json = out_dir / "warmstart_probe.json"
+            n = backfill_warmstart_from_probe(probe_json)
+            print(f"Zoo warm-start actualizado: {n} entry (desde {probe_json.name})",
+                  file=sys.stderr)
+        except Exception as exc:  # noqa: BLE001 — best-effort, never fail the run
+            print(f"⚠️ --write-zoo falló (no crítico): {exc}", file=sys.stderr)
+
     return 0
 
 

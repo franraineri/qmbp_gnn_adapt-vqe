@@ -451,8 +451,10 @@ def prepare_training_config(
     use_extrapolation = False
     extrap_weight = 0.0
     if include_extrapolation and extrap_dir.exists():
+        from qmbp_simulation.framework.result_io import iter_all_training_npzs
+
         for topo in topologies:
-            for npz_file in extrap_dir.glob(f"{topo}_N*_p1.npz"):
+            for npz_file in iter_all_training_npzs(extrap_dir, pattern=f"{topo}_N*_p1.npz"):
                 try:
                     stem = npz_file.stem
                     n_str = stem.split("_N")[1].split("_")[0]
@@ -691,8 +693,21 @@ def _check_gt_coherence_for_topology(topology: str) -> str:
             raw = json.load(f)
         gt = raw.get("entries", raw)
 
+        from qmbp_simulation.framework.result_io import (
+            DEFAULT_MODEL_NAMESPACE,
+            iter_all_training_npzs,
+        )
+
+        def _model_of(f) -> str:
+            parent = f.parent
+            if parent == npz_dir:
+                return DEFAULT_MODEL_NAMESPACE
+            rel = parent.relative_to(npz_dir)
+            return rel.parts[0] if rel.parts else DEFAULT_MODEL_NAMESPACE
+
         n_stale = 0
-        for npz_file in npz_dir.glob(f"{topology}_N*_p1.npz"):
+        for npz_file in iter_all_training_npzs(npz_dir, pattern=f"{topology}_N*_p1.npz"):
+            file_model = _model_of(npz_file)
             data = np.load(str(npz_file), allow_pickle=True)
             if "e_exact" not in data or "h_values" not in data:
                 continue
@@ -706,7 +721,7 @@ def _check_gt_coherence_for_topology(topology: str) -> str:
             n_val = int(parts[n_idx][1:])
 
             for i, h in enumerate(h_vals):
-                key = f"{topology}|{n_val}|tfim_bond_resolved|{float(h):.2f}"
+                key = f"{topology}|{n_val}|{file_model}|{float(h):.2f}"
                 if key in gt:
                     gt_e = gt[key].get("energy", gt[key].get("e_exact"))
                     if gt_e is not None and abs(float(e_exact_npz[i]) - float(gt_e)) > 1e-6:

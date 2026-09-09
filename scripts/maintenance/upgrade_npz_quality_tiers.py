@@ -219,11 +219,13 @@ def main() -> int:
         print("MODE: Dry run")
     print("=" * 70)
 
-    # Collect all NPZ files
+    # Collect all NPZ files. Use rglob (recursive) so model-namespaced subdirs
+    # (data/multi_n_training/{model}/...) and the frustrated/ sub-namespace are
+    # included alongside the default-model files at the root.
     npz_files = []
     for d in NPZ_DIRS:
         if d.exists():
-            npz_files.extend(sorted(d.glob("*.npz")))
+            npz_files.extend(sorted(d.rglob("*.npz")))
 
     if args.file:
         npz_files = [f for f in npz_files if f.name == args.file]

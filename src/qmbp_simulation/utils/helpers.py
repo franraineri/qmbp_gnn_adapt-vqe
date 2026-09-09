@@ -1101,6 +1101,7 @@ def load_theta_from_npz(
     p_layers: int = 1,
     h_values: np.ndarray | None = None,
     source: str = "multi_n_training",
+    model: str | None = None,
 ) -> dict[float, np.ndarray] | None:
     """Load θ_opt from an existing NPZ file for warm-start or analysis.
 
@@ -1127,6 +1128,12 @@ def load_theta_from_npz(
     source : str
         Subdirectory under `data/`. Default "multi_n_training".
         Other option: "large_n_extrapolation".
+    model : str | None
+        Physics model. The default model (tfim_bond_resolved) lives at the
+        source root; any other model is namespaced under `{source}/{model}/`
+        so its data never collides with the default corpus. Mirrors
+        result_io.build_data_dir (kept inline here because utils.helpers is a
+        leaf module that cannot import framework.result_io).
 
     Returns
     -------
@@ -1135,9 +1142,20 @@ def load_theta_from_npz(
         have NaN/Inf values.
     """
     project_root = Path(__file__).resolve().parents[3]
-    npz_path = project_root / "data" / source / f"{topology}_N{n_qubits}_p{p_layers}.npz"
+    data_root = project_root / "data" / source
+    fname = f"{topology}_N{n_qubits}_p{p_layers}.npz"
+    # Every model is namespaced under a subdir (matches build_data_dir). READS
+    # try the per-model subdir first, then fall back to the legacy root for the
+    # default model so the un-migrated corpus keeps loading. Kept inline because
+    # utils.helpers is a leaf module that cannot import framework.result_io.
+    _DEFAULT_MODEL = "tfim_bond_resolved"
+    _eff_model = model or _DEFAULT_MODEL
+    read_dirs = [data_root / _eff_model]
+    if _eff_model == _DEFAULT_MODEL:
+        read_dirs.append(data_root)  # legacy fallback (un-migrated corpus)
+    npz_path = next((d / fname for d in read_dirs if (d / fname).exists()), None)
 
-    if not npz_path.exists():
+    if npz_path is None:
         return None
 
     try:

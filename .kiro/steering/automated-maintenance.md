@@ -121,3 +121,54 @@ inclusion: always
 | **Post-experiment full sync** | `from qmbp_simulation.analysis.metrics import post_experiment_sync` |
 | **Auto-fix scoreboard issues** | `from qmbp_simulation.analysis.metrics import auto_fix_scoreboard_issues` |
 | **MT vs ST query** | `from qmbp_simulation.analysis.metrics import query_mt_vs_st_comparison` |
+
+## Selección de modelos del zoo — SIEMPRE por propósito
+
+El zoo prioriza **métricas físicas crudas** (|ΔE| absoluto, fidelidad) y **warm-start
+advantage** sobre el `pass_rate` binario (que quedó secundario). Pedí modelos por
+PROPÓSITO para obtener el óptimo al caso de uso.
+
+```python
+from qmbp_simulation.predictors.model_zoo import select_model_for_objective
+
+# Forma canónica: pedir por objetivo (deploy | warmstart | critical | extrapolation | custom)
+res = select_model_for_objective("chain_1d", objective="warmstart", n_target=10, p_layers=1)
+model, entry = res["model"], res["entry"]
+# res también trae: source, confidence, reliable, warnings
+
+# Alternativa de bajo nivel (mismo ranking por propósito):
+from qmbp_simulation.predictors.model_zoo import load_best_model_for
+model, entry, source = load_best_model_for("chain_1d", p_layers=1, objective="deploy", n_target=16)
+```
+
+| Objetivo | Prioriza | Úsalo para |
+|----------|----------|------------|
+| `deploy` | fidelidad + \|ΔE\| | desplegar el estado predicho en hardware |
+| `warmstart` | ventaja sobre cold-start | inicializar un VQE que luego refina |
+| `critical` | calidad cerca de h_c (critical_ranking) | física de la transición (QPT/DQPT) |
+| `extrapolation` | \|ΔE\| + cobertura de N medido | predecir a N grande |
+
+Reglas del scoring (`compute_purpose_score`): `coverage` es factor multiplicativo de
+confianza (nunca infla); `completeness` penaliza al modelo que no tiene la señal
+PRIMARIA del objetivo. Un modelo sin ninguna señal de calidad → score 0 (fallback al
+ranking genérico por pass_rate).
+
+### Poblar las métricas del zoo (correr tras evaluaciones)
+
+```bash
+# Métricas físicas |ΔE|/fidelidad por-N desde los eval reports (results/extrapolation_evals/)
+.venv/bin/python -c "from qmbp_simulation.predictors.model_zoo import backfill_physical_metrics_from_evals; print(backfill_physical_metrics_from_evals())"
+
+# Warm-start advantage por-N desde un JSON de probe_warmstart_advantage.py
+.venv/bin/python -c "from qmbp_simulation.predictors.model_zoo import backfill_warmstart_from_probe; print(backfill_warmstart_from_probe('results/experiments/exp_warmstart_probe_chain_1d/warmstart_probe.json'))"
+```
+
+| Necesidad | Import |
+|-----------|--------|
+| **Pedir modelo por propósito** | `from qmbp_simulation.predictors.model_zoo import select_model_for_objective` |
+| **Score de un modelo para un objetivo** | `from qmbp_simulation.predictors.model_zoo import compute_purpose_score` |
+| **Backfill métricas físicas** | `from qmbp_simulation.predictors.model_zoo import backfill_physical_metrics_from_evals` |
+| **Backfill warm-start desde probe** | `from qmbp_simulation.predictors.model_zoo import backfill_warmstart_from_probe` |
+| **Upsert físico directo** | `from qmbp_simulation.predictors.model_zoo import update_zoo_physical_metrics` |
+| **Upsert warm-start directo** | `from qmbp_simulation.predictors.model_zoo import update_zoo_warmstart_metrics` |
+| **Medir warm-start (probe)** | `scripts/analysis/probe_warmstart_advantage.py --topology T --checkpoint CK --n-values 6 10 16 20` |

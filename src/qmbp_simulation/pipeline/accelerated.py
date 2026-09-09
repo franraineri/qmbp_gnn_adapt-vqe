@@ -596,12 +596,18 @@ class AcceleratedVQE:
             from pathlib import Path as _Path
 
             from qmbp_simulation.analysis.metrics import compute_h_frontier_from_npz
+            from qmbp_simulation.framework.result_io import (
+                TRAINING_DATA_ROOT,
+                training_npz_path,
+            )
 
-            npz_path = (
-                _Path(__file__).resolve().parents[3]
-                / "data"
-                / "multi_n_training"
-                / f"{self._topology}_N{self._N}_p{p_layers}.npz"
+            _model = self.spec.name if hasattr(self.spec, "name") else None
+            npz_path = training_npz_path(
+                self._topology,
+                self._N,
+                p_layers,
+                model=_model,
+                root=_Path(__file__).resolve().parents[3] / TRAINING_DATA_ROOT,
             )
             if npz_path.exists():
                 result = compute_h_frontier_from_npz(npz_path)
@@ -778,16 +784,25 @@ class AcceleratedVQE:
         """
         from qmbp_simulation.utils.helpers import load_theta_from_npz
 
-        # Load p=1 NPZ for this (topology, N)
-        npz_data = load_theta_from_npz(self._topology, self._N, p_layers=1)
+        # Load p=1 NPZ for this (topology, N, model)
+        _model = self.spec.name if hasattr(self.spec, "name") else None
+        npz_data = load_theta_from_npz(self._topology, self._N, p_layers=1, model=_model)
         if not npz_data:
             return None
 
-        # Load the full NPZ to get de_gaps
+        # Load the full NPZ to get de_gaps (p=1 warm-start source for this model)
         from pathlib import Path as _P
 
+        from qmbp_simulation.framework.result_io import (
+            TRAINING_DATA_ROOT,
+            training_npz_path,
+        )
+
         _ROOT = _P(__file__).resolve().parents[3]
-        npz_path = _ROOT / "data" / "multi_n_training" / f"{self._topology}_N{self._N}_p1.npz"
+        _model = self.spec.name if hasattr(self.spec, "name") else None
+        npz_path = training_npz_path(
+            self._topology, self._N, 1, model=_model, root=_ROOT / TRAINING_DATA_ROOT
+        )
         if not npz_path.exists():
             return None
 

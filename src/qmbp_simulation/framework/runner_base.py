@@ -1683,13 +1683,23 @@ class ValidationRunner(ABC):
         return bool(self.model_kwargs())
 
     def training_data_dir(self) -> Path:
-        """Training-data directory, namespaced to /frustrated/ when frustrated."""
+        """Training-data directory, namespaced by model and /frustrated/.
+
+        The default model (tfim_bond_resolved) stays at the root for backward
+        compatibility; any other registered model (e.g. tfim_frustrated) is
+        namespaced under {root}/{model}/ so its NPZs never collide with the
+        default corpus. Frustration (--j2 != 0) still adds /frustrated/ on top.
+        """
         from qmbp_simulation.framework.result_io import (
             TRAINING_DATA_ROOT,
             build_data_dir,
         )
 
-        return build_data_dir(TRAINING_DATA_ROOT, self.is_frustrated())
+        return build_data_dir(
+            TRAINING_DATA_ROOT,
+            self.is_frustrated(),
+            model=getattr(self, "_physics_model", None),
+        )
 
     def persist_theta_npz(self, npz_path, h_new, theta_new, e_vqe_new, e_exact_new, **kwargs):
         """Upsert training θ into an NPZ, tagging it with the runner's model/J2."""
@@ -3136,6 +3146,113 @@ class ValidationRunner(ABC):
             return updated
         except Exception as e:
             logger.debug("auto_update_zoo_pass_rate failed (non-fatal): %s", e)
+            return False
+
+    # ── Zoo physical-metrics auto-update (|ΔE|, fidelity per N) ───────────
+
+    def _extract_physical_metrics_by_n(self) -> dict[int, dict]:
+        """Extract per-N raw physical metrics from completed section results.
+
+        Scans section data for per-N entries carrying the raw metrics the zoo
+        now ranks on: ``mean_abs_error`` / ``abs_error_mean`` (|ΔE|),
+        ``mean_fidelity`` / ``fidelity_mean``, and ``mean_de_gap`` / ``de_gap``.
+        Recognizes the standard shapes runners produce: a per-N dict keyed by
+        int N (or "N=.." / str(N)), and ``results_by_n`` blocks.
+
+        Returns
+        -------
+        dict[int, dict]
+            {n: {"abs_error"?: float, "fidelity"?: float, "de_gap"?: float}}
+            Only N with at least an |ΔE| value are returned.
+        """
+        out: dict[int, dict] = {}
+
+        def _coerce_n(key) -> int | None:
+            if isinstance(key, int):
+                return key
+            if isinstance(key, str):
+                s = key.strip().lstrip("Nn").lstrip("= ")
+                if s.isdigit():
+                    return int(s)
+            return None
+
+        def _harvest(n: int, d: dict) -> None:
+            if not isinstance(d, dict):
+                return
+            ae = d.get("mean_abs_error", d.get("abs_error_mean", d.get("abs_error")))
+            fid = d.get("mean_fidelity", d.get("fidelity_mean", d.get("fidelity")))
+            dg = d.get("mean_de_gap", d.get("de_gap_mean", d.get("de_gap")))
+            rec: dict = {}
+            if isinstance(ae, (int, float)) and ae >= 0:
+                rec["abs_error"] = float(ae)
+            if isinstance(fid, (int, float)) and 0 <= fid <= 1:
+                rec["fidelity"] = float(fid)
+            if isinstance(dg, (int, float)) and dg >= 0:
+                rec["de_gap"] = float(dg)
+            if "abs_error" in rec:  # |ΔE| is the required primary metric
+                out.setdefault(n, {}).update(rec)
+
+        for r in self._section_results:
+            if not r.success or not r.data:
+                continue
+            data = r.data
+            # Shape A: per-N dict directly under the section data / summary.
+            for container in (data, data.get("results_by_n"), data.get("per_n")):
+                if isinstance(container, dict):
+                    for k, v in container.items():
+                        n = _coerce_n(k)
+                        if n is not None and isinstance(v, dict):
+                            _harvest(n, v)
+            # Shape B: flat section carrying a single n_qubits + metrics.
+            n_single = data.get("n_qubits")
+            if isinstance(n_single, int):
+                _harvest(n_single, data)
+                summ = data.get("summary")
+                if isinstance(summ, dict):
+                    _harvest(n_single, summ)
+        return out
+
+    def auto_update_zoo_physical_metrics(self, *, checkpoint_file: str | None = None) -> bool:
+        """Push per-N |ΔE|/fidelity/ΔE/gap from section results to the zoo.
+
+        Sibling of ``auto_update_zoo_pass_rate`` for the raw physical metrics
+        that are now the PRIMARY selection signal. Uses ``self._zoo_entry`` to
+        identify the manifest entry unless ``checkpoint_file`` is given. Silent
+        no-op when there is no loaded zoo model or no per-N metrics.
+
+        Returns True if the manifest was updated.
+        """
+        target_ckpt = checkpoint_file
+        if target_ckpt is None:
+            zoo_entry = getattr(self, "_zoo_entry", None)
+            if zoo_entry is None:
+                return False
+            target_ckpt = zoo_entry.checkpoint_file
+
+        by_n = self._extract_physical_metrics_by_n()
+        if not by_n:
+            return False
+
+        abs_error_by_n = {str(n): m["abs_error"] for n, m in by_n.items() if "abs_error" in m}
+        fidelity_by_n = {str(n): m["fidelity"] for n, m in by_n.items() if "fidelity" in m}
+        de_gap_by_n = {str(n): m["de_gap"] for n, m in by_n.items() if "de_gap" in m}
+        if not abs_error_by_n:
+            return False
+        try:
+            from qmbp_simulation.predictors.model_zoo import update_zoo_physical_metrics
+
+            updated = update_zoo_physical_metrics(
+                target_ckpt, abs_error_by_n, fidelity_by_n, de_gap_by_n
+            )
+            if updated:
+                logger.info(
+                    "    📊 Zoo physical metrics updated: %s (N=%s)",
+                    target_ckpt[:40],
+                    sorted(int(k) for k in abs_error_by_n),
+                )
+            return updated
+        except Exception as e:  # noqa: BLE001 — non-fatal
+            logger.debug("auto_update_zoo_physical_metrics failed (non-fatal): %s", e)
             return False
 
     # ── Fine-tuning helper (integrates should_retrain + fine_tune_unified_mpnn) ──
@@ -5023,6 +5140,15 @@ class ValidationRunner(ABC):
                     best_pr,
                     notes=f"auto-extract from run ({len(self._section_results)} sections)",
                 )
+        except Exception:
+            pass  # Non-critical — never block result saving
+
+        # ── Part 0a: Auto-update zoo PHYSICAL metrics (|ΔE|, fidelity per N) ─
+        # These raw metrics are the primary selection signal (supersede
+        # pass_rate). Extract per-N |ΔE|/fidelity/ΔE-gap from section results
+        # and push them to the loaded model's zoo entry, mirroring pass_rate.
+        try:
+            self.auto_update_zoo_physical_metrics()
         except Exception:
             pass  # Non-critical — never block result saving
 

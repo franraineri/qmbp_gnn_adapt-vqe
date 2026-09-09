@@ -1619,8 +1619,17 @@ def detect_training_zoo_incoherence(configs: list[dict], npz_dir: Path | None = 
         if zoo_pr is None or zoo_pr < ZOO_PASS_FOR_INCOHERENCE_FLAG:
             continue
 
-        npz_file = _Path(npz_dir) / c.get("file", "")
-        if not npz_file.exists():
+        # Resolve the file across the per-model subdir + legacy root, since the
+        # default corpus now lives under tfim_bond_resolved/.
+        from qmbp_simulation.framework.result_io import DEFAULT_MODEL_NAMESPACE
+
+        fname = c.get("file", "")
+        npz_file = None
+        for cand in (_Path(npz_dir) / DEFAULT_MODEL_NAMESPACE / fname, _Path(npz_dir) / fname):
+            if cand.exists():
+                npz_file = cand
+                break
+        if npz_file is None:
             continue
 
         data = np.load(str(npz_file), allow_pickle=True)
@@ -2223,9 +2232,26 @@ def generate_model_quality_dashboard(
     if not npz_dir.exists():
         return {"configs": [], "topology_summary": {}, "generated_at": "", "n_configs": 0}
 
+    # ── Collect the default-model NPZs from the per-model subdir AND the
+    # legacy root (fallback for un-migrated data), de-duplicated by filename.
+    # The dashboard currently reports the default model (tfim_bond_resolved);
+    # its data now lives under tfim_bond_resolved/ after the per-model split.
+    from qmbp_simulation.framework.result_io import DEFAULT_MODEL_NAMESPACE
+
+    _dash_read_dirs = [npz_dir / DEFAULT_MODEL_NAMESPACE, npz_dir]
+    _seen_dash: set[str] = set()
+    npz_files_all = []
+    for _d in _dash_read_dirs:
+        if not _d.exists():
+            continue
+        for _f in sorted(_d.glob("*.npz")):
+            if _f.name in _seen_dash:
+                continue
+            _seen_dash.add(_f.name)
+            npz_files_all.append(_f)
+    npz_files_all = sorted(npz_files_all, key=lambda p: p.name)
+
     # ── Freshness check: skip regeneration if NPZ data hasn't changed ────
-    # Compare max NPZ mtime + cross-N results mtime against dashboard mtime.
-    npz_files_all = sorted(npz_dir.glob("*.npz"))
     if not npz_files_all:
         return {"configs": [], "topology_summary": {}, "generated_at": "", "n_configs": 0}
 
@@ -2977,8 +3003,25 @@ def validate_gt_npz_coherence(
             "summary": "No NPZ directories found.",
         }
 
+    # Walk per-model subdirs + legacy root so migrated data is seen. The model
+    # each file belongs to is derived from its subdir (legacy-root files are the
+    # default model), so the GT key uses the CORRECT model per file.
+    from qmbp_simulation.framework.result_io import (
+        DEFAULT_MODEL_NAMESPACE,
+        iter_all_training_npzs,
+    )
+
+    def _model_of(npz_file: _P, data_root: _P) -> str:
+        parent = npz_file.parent
+        if parent == data_root:
+            return DEFAULT_MODEL_NAMESPACE  # legacy root = default model
+        # {root}/{model}/[frustrated/]file.npz → model is the first level below root
+        rel = parent.relative_to(data_root)
+        return rel.parts[0] if rel.parts else DEFAULT_MODEL_NAMESPACE
+
     for search_dir in npz_dirs_to_check:
-        for npz_file in sorted(search_dir.glob("*.npz")):
+        for npz_file in iter_all_training_npzs(search_dir):
+            file_model = _model_of(npz_file, search_dir)
             data = np.load(str(npz_file), allow_pickle=True)
             if "e_exact" not in data or "h_values" not in data:
                 continue
@@ -3006,12 +3049,12 @@ def validate_gt_npz_coherence(
             gap_corrections: dict[int, float] = {}  # idx → new gap
             file_gap_mismatches = 0
 
-            config_key = (topo, n_val, "tfim_bond_resolved")
+            config_key = (topo, n_val, file_model)
             h_lookup = gt_h_index.get(config_key, {})
 
             for i, h in enumerate(h_vals):
-                # Primary: exact 6-decimal key
-                key = f"{topo}|{n_val}|tfim_bond_resolved|{float(h):.2f}"
+                # Primary: exact 2-decimal key
+                key = f"{topo}|{n_val}|{file_model}|{float(h):.2f}"
                 gt_entry = gt.get(key)
 
                 # Fallback: fuzzy h-match (nearest within 1e-4)
@@ -3243,11 +3286,13 @@ def validate_npz_integrity(
         except ImportError:
             check_theta_dims = False
 
+    from qmbp_simulation.framework.result_io import iter_all_training_npzs
+
     for npz_dir in dirs_to_scan:
         if not npz_dir.exists():
             continue
 
-        for npz_file in sorted(npz_dir.glob(pattern)):
+        for npz_file in iter_all_training_npzs(npz_dir, pattern=pattern):
             if "_quarantine" in str(npz_file) or "_extrap_hold" in str(npz_file):
                 continue
 
@@ -3439,11 +3484,25 @@ def validate_p2_vs_p1_energy_monotonicity(
             "by_topology": {},
         }
 
-    # Discover topology+N combos that have BOTH p=1 and p=2 data
-    p1_files: dict[tuple[str, int], _P] = {}
-    p2_files: dict[tuple[str, int], _P] = {}
+    # Discover topology+N combos that have BOTH p=1 and p=2 data. Walk per-model
+    # subdirs + legacy root; key by (model, topo, N) so a p=1/p=2 pair is only
+    # compared within the same physics model (never cross-model).
+    from qmbp_simulation.framework.result_io import (
+        DEFAULT_MODEL_NAMESPACE,
+        iter_all_training_npzs,
+    )
 
-    for f in npz_dir.glob("*_N*_p1.npz"):
+    def _model_of(f: _P) -> str:
+        parent = f.parent
+        if parent == npz_dir:
+            return DEFAULT_MODEL_NAMESPACE
+        rel = parent.relative_to(npz_dir)
+        return rel.parts[0] if rel.parts else DEFAULT_MODEL_NAMESPACE
+
+    p1_files: dict[tuple[str, str, int], _P] = {}
+    p2_files: dict[tuple[str, str, int], _P] = {}
+
+    for f in iter_all_training_npzs(npz_dir, pattern="*_N*_p1.npz"):
         if "_quarantine" in str(f) or "_extrap_hold" in str(f):
             continue
         parts = f.stem.rsplit("_p", 1)
@@ -3452,9 +3511,9 @@ def validate_p2_vs_p1_energy_monotonicity(
         n = int(topo_n.rsplit("_N", 1)[1])
         if topology and topo != topology:
             continue
-        p1_files[(topo, n)] = f
+        p1_files[(_model_of(f), topo, n)] = f
 
-    for f in npz_dir.glob("*_N*_p2.npz"):
+    for f in iter_all_training_npzs(npz_dir, pattern="*_N*_p2.npz"):
         if "_quarantine" in str(f) or "_extrap_hold" in str(f):
             continue
         parts = f.stem.rsplit("_p", 1)
@@ -3463,7 +3522,7 @@ def validate_p2_vs_p1_energy_monotonicity(
         n = int(topo_n.rsplit("_N", 1)[1])
         if topology and topo != topology:
             continue
-        p2_files[(topo, n)] = f
+        p2_files[(_model_of(f), topo, n)] = f
 
     # Find common keys
     common_keys = set(p1_files.keys()) & set(p2_files.keys())
@@ -3481,9 +3540,9 @@ def validate_p2_vs_p1_energy_monotonicity(
     by_topo: dict[str, dict] = {}
     n_common_total = 0
 
-    for topo, n in sorted(common_keys):
-        data_p1 = np.load(str(p1_files[(topo, n)]), allow_pickle=True)
-        data_p2 = np.load(str(p2_files[(topo, n)]), allow_pickle=True)
+    for model, topo, n in sorted(common_keys):
+        data_p1 = np.load(str(p1_files[(model, topo, n)]), allow_pickle=True)
+        data_p2 = np.load(str(p2_files[(model, topo, n)]), allow_pickle=True)
 
         h_p1 = np.asarray(data_p1["h_values"], dtype=np.float64)
         e_p1 = np.asarray(data_p1["e_vqe"], dtype=np.float64)
@@ -3958,6 +4017,8 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
                 _load_manifest,
                 backfill_critical_ranking_from_evals,
                 backfill_pass_rate_by_n_from_comparisons,
+                backfill_physical_metrics_from_evals,
+                backfill_warmstart_from_probes,
                 update_zoo_pass_rate,
             )
 
@@ -3972,6 +4033,27 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
                 _log(f"  ✅ Critical-window ranking: {n_crit} entries updated")
             except Exception as _crit_exc:  # noqa: BLE001
                 _log(f"  ⚠️ Critical-window ranking backfill skipped: {_crit_exc}")
+
+            # Backfill raw physical metrics (|ΔE|, fidelity, ΔE/gap per N) from the
+            # per-h eval reports — the PRIMARY selection signal for the zoo
+            # (supersedes pass_rate). Keeps select_model_for_objective / the purpose
+            # scoring synced. Best-effort. compute_missing_fidelity=False here to
+            # stay cheap (no exact-diag) inside the fire-and-forget sync; a manual
+            # backfill can recompute chain_1d fidelities when needed.
+            try:
+                n_phys = backfill_physical_metrics_from_evals(compute_missing_fidelity=False)
+                _log(f"  ✅ Physical metrics (|ΔE|/fidelity): {n_phys} entries updated")
+            except Exception as _phys_exc:  # noqa: BLE001
+                _log(f"  ⚠️ Physical-metrics backfill skipped: {_phys_exc}")
+
+            # Backfill warm-start advantage metrics from any probe JSONs under
+            # results/experiments/exp_warmstart_probe*/. Keeps objective="warmstart"
+            # selection synced with the latest probe_warmstart_advantage runs.
+            try:
+                n_ws = backfill_warmstart_from_probes()
+                _log(f"  ✅ Warm-start metrics: {n_ws} entries updated")
+            except Exception as _ws_exc:  # noqa: BLE001
+                _log(f"  ⚠️ Warm-start backfill skipped: {_ws_exc}")
 
             # Auto-correct inflated zoo entries (zoo > comparison by >25%)
             entries = _load_manifest()
@@ -5532,7 +5614,9 @@ def auto_detect_exclusions(
 
         source_dir = dir_rel.split("/")[-1]
 
-        for npz_path in sorted(npz_dir.glob("*.npz")):
+        from qmbp_simulation.framework.result_io import iter_all_training_npzs
+
+        for npz_path in iter_all_training_npzs(npz_dir):
             if npz_path.name in already_excluded:
                 continue
 
