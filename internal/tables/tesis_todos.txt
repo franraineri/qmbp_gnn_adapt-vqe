@@ -1,5 +1,5 @@
 TODOs de la tesis — generado automáticamente
-Generado: 2026-09-09 04:09 UTC
+Generado: 2026-09-09 04:25 UTC
 Fuente: scripts/general_project_maintenance/generate_thesis_tables.py
 Total TODOs: 0 | Inconsistencias: 7
 ========================================================================

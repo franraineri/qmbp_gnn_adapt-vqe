@@ -581,7 +581,7 @@ Se definen los criterios cuantitativos que determinan el éxito o fracaso de cad
 
 \chapter{Desarrollo del trabajo}
 
-Se denota por $p$ la profundidad del circuito HVA (número de capas), que determina $2p$ parámetros variacionales en la parametrización uniforme.
+Se demake -C internal/tesis allor $p$ la profundidad del circuito HVA (número de capas), que determina $2p$ parámetros variacionales en la parametrización uniforme.
 
 Este capítulo describe la metodología completa del pipeline híbrido, incluyendo la arquitectura del software, los algoritmos de cada fase, las estrategias de validación y los criterios de éxito. Se detalla la implementación concreta que permite reproducir todos los resultados presentados en el Capítulo~5.
 
@@ -734,15 +734,16 @@ El pipeline de parada temprana combina estas dos reglas (alertar si $\theta_{\te
 \section{Entorno computacional}
 
 \begin{itemize}
-    \item \textbf{Lenguaje:} Python 3.11+.
-    \item \textbf{Computación cuántica:} Qiskit 2.x (Primitives V2, \texttt{SparsePauliOp}, pass managers).
+    \item \textbf{Lenguaje:} Python 3.11+ (los resultados de esta memoria se generaron con Python 3.12.13).
+    \item \textbf{Computación cuántica:} Qiskit 2.2.3 (Primitives V2, \texttt{SparsePauliOp}, pass managers) y Qiskit Aer 0.17.2 para la simulación MPS.
     \item \textbf{Hardware cuántico:} IBM Quantum Platform (procesadores Torino/Heron, 133+ qubits); módulo implementado para trabajo futuro (Capítulo~7).
-    \item \textbf{Redes tensoriales:} TeNPy \citep{hauschild2018} para DMRG.
-    \item \textbf{Aprendizaje automático:} PyTorch + PyTorch Geometric \citep{fey2019}.
-    \item \textbf{Optimización:} SciPy (L-BFGS-B, COBYLA).
+    \item \textbf{Redes tensoriales:} TeNPy 1.1.0 \citep{hauschild2018} para DMRG.
+    \item \textbf{Aprendizaje automático:} PyTorch 2.11.0 + PyTorch Geometric 2.7.0 \citep{fey2019}.
+    \item \textbf{Optimización y cálculo numérico:} SciPy 1.17.1 (L-BFGS-B, COBYLA) y NumPy 2.2.6.
+    \item \textbf{Hardware clásico:} las simulaciones se ejecutaron en un equipo con procesador Apple M2 (arquitectura ARM64) y 24\,GB de memoria, bajo macOS; ningún experimento requirió GPU.
     \item \textbf{Control de calidad:} 72 tests unitarios, linter (ruff), CI/CD (GitHub Actions), hooks pre-commit.
     \item \textbf{Arquitectura modular:} Paquete instalable \texttt{qmbp\_simulation} con 12 módulos independientes bajo DAG estricto de dependencias.
-    \item \textbf{Reproducibilidad:} Cada experimento principal se ejecuta mediante un script dedicado (\texttt{scripts/experiment\_runners/}) con configuración YAML que fija todos los hiperparámetros, semillas aleatorias y versiones de dependencias. Los resultados se almacenan en formato JSON con metadatos completos (timestamp, configuración, versión del código).
+    \item \textbf{Reproducibilidad:} Cada experimento principal se ejecuta mediante un script dedicado (\texttt{scripts/experiment\_runners/}) con configuración YAML que fija todos los hiperparámetros, semillas aleatorias y versiones de dependencias. Los resultados se almacenan en formato JSON con metadatos completos (timestamp, configuración, versión del código). Una única semilla entera controla de forma conjunta todas las fuentes de aleatoriedad del pipeline (la inicialización de los parámetros del VQE y sus perturbaciones de reinicio, la inicialización de los pesos de la MPNN y la partición entrenamiento/validación), de modo que fijarla hace el resultado íntegramente determinista y reproducible.
 \end{itemize}
 
 
@@ -762,7 +763,7 @@ La profundidad $p$ se define como el número de capas del HVA (Ec.~\ref{eq:hva})
 \begin{itemize}
     \item \textbf{Configuración:} una combinación única de (modelo, topología, $N$, $p$). Ejemplo: TFIM, cadena 1D, $N = 10$, $p = 3$.
     \item \textbf{Semilla:} una realización aleatoria (42, 43, 44) de una configuración. Cada configuración se ejecuta con $\geq 3$ semillas.
-    \item \textbf{Ejecución del pipeline:} una corrida completa de las Fases 1--3 para una (configuración, semilla). La campaña total comprende 1286 ejecuciones, cuyo desglose por modelo se detalla en la Tabla~\ref{tab:auto_campaign}. Un subconjunto de 233 de ellas, las que conservan la traza de diagnóstico completa, se somete además a un meta-análisis de causas de fallo (Sección~\ref{sec:resumen_campana}).
+    \item \textbf{Ejecución del pipeline:} una corrida completa de las Fases 1--3 para una (configuración, semilla). La campaña total comprende 1299 ejecuciones, cuyo desglose por modelo se detalla en la Tabla~\ref{tab:auto_campaign}. Un subconjunto de 233 de ellas, las que conservan la traza de diagnóstico completa, se somete además a un meta-análisis de causas de fallo (Sección~\ref{sec:resumen_campana}).
     \item \textbf{Experimento formal:} una prueba de hipótesis con veredicto (confirmado / negativo válido / fallido), que agrupa varias ejecuciones.
 \end{itemize}
 \noindent Todos los porcentajes de aprobación se reportan con el número absoluto de casos entre paréntesis, e.g., ``95\% (37/39)''.
@@ -1161,7 +1162,7 @@ Los tres indicadores localizan la transición en el entorno de $h_c$ (Tabla~\ref
 
 \section{Pruebas sistemáticas de funcionamiento}
 
-Se realiza un meta-análisis sobre un subconjunto de 233 ejecuciones del pipeline (simulación ideal, múltiples topologías y tamaños) que disponen de la traza de diagnóstico completa, aplicando clasificación automatizada de causas de fallo a posteriori. Este subconjunto es una fracción de las 1286 ejecuciones de la campaña completa (Tabla~\ref{tab:auto_campaign}). De las 233, 184 alcanzaron la fase de despliegue (Fase 3) con un veredicto de aprobación evaluable; de esas, 69 no resultaron aprobadas y se clasificaron por causa raíz.
+Se realiza un meta-análisis sobre un subconjunto de 233 ejecuciones del pipeline (simulación ideal, múltiples topologías y tamaños) que disponen de la traza de diagnóstico completa, aplicando clasificación automatizada de causas de fallo a posteriori. Este subconjunto es una fracción de las 1299 ejecuciones de la campaña completa (Tabla~\ref{tab:auto_campaign}). De las 233, 184 alcanzaron la fase de despliegue (Fase 3) con un veredicto de aprobación evaluable; de esas, 69 no resultaron aprobadas y se clasificaron por causa raíz.
 
 \subsection{Análisis de causa raíz}
 
@@ -1255,6 +1256,7 @@ La Tabla~\ref{tab:comparison_literature} resume esta comparación frente a los m
 \centering
 \caption[Comparativa con métodos de la literatura]{Comparativa del pipeline propuesto con métodos de la literatura para inicialización de parámetros VQE en sistemas de espines. Fuente: fila GNN-HVA, elaboración propia; resto, referencias citadas.}
 \label{tab:comparison_literature}
+\small
 \begin{tabular}{@{}p{2.4cm}p{1.9cm}p{1.9cm}p{1.9cm}p{2.3cm}c@{}}
 \toprule
 \textbf{Método} & \textbf{Arquitectura} & \textbf{Sistema} & \textbf{$N$ máx} & \textbf{Aceleración $A$} & \textbf{Multi-topo} \\
@@ -1471,18 +1473,17 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 
 \bibitem[Ma et al.(2025)]{ma2025} Ma, Y. et al. (2025). \emph{Variational quantum eigensolver with zero-noise extrapolation on a superconducting processor}. arXiv preprint arXiv:2504.06554.
 
-% TODO-DATOS: confirmar que la afirmación "los estados TFIM 1D a N<=20 son
-% clásicamente reproducibles" que sustenta la cita está en arXiv:2602.04676 bajo
-% esas condiciones. El título/autor de la entrada se corrigieron contra el arXiv
-% real (antes figuraba "Martin et al., Tensor network methods vs. quantum
-% computing", que no corresponde a este identificador).
+% VERIFICADO (arXiv 2602.04676): autores Martin & Ayral confirmados; el abstract
+% usa redes tensoriales 2D diferenciables para pre-optimizar circuitos que preparan
+% el estado fundamental del TFIM y delimita el régimen de simulabilidad clásica,
+% consistente con la afirmación que sustenta la cita en §6.3.4.
 \bibitem[Martin y Ayral(2026)]{martin2026} Martin, B. A., \& Ayral, T. (2026). \emph{Pre-optimization of quantum circuits, barren plateaus and classical simulability: tensor networks to unlock the variational quantum eigensolver}. arXiv preprint arXiv:2602.04676.
 
 \bibitem[McClean et al.(2018)]{mcclean2018} McClean, J. R., Boixo, S., Smelyanskiy, V. N., Babbush, R., \& Neven, H. (2018). \emph{Barren plateaus in quantum neural network training landscapes}. Nature Communications, 9(1), 4812.
 
 \bibitem[Mele et al.(2022)]{mele2022} Mele, A. A., Mbeng, G. B., Santoro, G. E., Collura, M., \& Torta, P. (2022). \emph{Avoiding barren plateaus via transferability of smooth solutions in a Hamiltonian variational ansatz}. Physical Review A, 106, L060401.
 
-\bibitem[Mele et al.(2026)]{mele2026} Mele, A. A., Angrisani, A., Ghosh, S., Khatri, S., Eisert, J., Stilck Fran\c{c}a, D., \& Quek, Y. (2026). \emph{Noise-induced shallow circuits and the absence of barren plateaus}. Nature Physics. \url{https://doi.org/10.1038/s41567-026-03245-z}
+\bibitem[Mele et al.(2026)]{mele2026} Mele, A. A., Angrisani, A., Ghosh, S., Khatri, S., Eisert, J., Stilck Fran\c{c}a, D., \& Quek, Y. (2026). \emph{Noise-induced shallow circuits and the absence of barren plateaus}. Nature Physics. \url{https://doi.org/10.1038/s41567-026-03245-z}. arXiv:2403.13927.
 
 \bibitem[Meng et al.(2025)]{meng2025} Meng, F. et al. (2025). \emph{Output prediction of quantum circuits based on graph neural networks}. arXiv preprint arXiv:2504.00464.
 
@@ -1521,7 +1522,7 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 
 \bibitem[Tilly et al.(2022)]{tilly2022} Tilly, J. et al. (2022). \emph{The variational quantum eigensolver: A review of methods and best practices}. Physics Reports, 986, 1--128.
 
-\bibitem[Tripathi et al.(2026)]{tripathi2026} Tripathi, A. P., Mathur, N., \& Tripathi, V. (2026). \emph{Ansatz expressivity and optimization in variational quantum simulations of transverse-field Ising model across system sizes}. arXiv preprint arXiv:2604.20961.
+\bibitem[Tripathi et al.(2026)]{tripathi2026} Tripathi, A. P., Mathur, N., \& Tripathi, V. (2026). \emph{Ans\"atz expressivity and optimization in variational quantum simulations of transverse-field Ising model across system sizes}. arXiv preprint arXiv:2604.20961.
 
 \bibitem[Troyer \& Wiese(2005)]{troyer2005} Troyer, M., \& Wiese, U. J. (2005). \emph{Computational complexity and fundamental limitations to fermionic quantum Monte Carlo simulations}. Physical Review Letters, 94(17), 170201.
 
@@ -1539,7 +1540,7 @@ En síntesis, la aportación de este trabajo establece un marco metodológico re
 
 \bibitem[Zhang et al.(2025b)]{zhang2025vqezy} Zhang, C. et al. (2025b). \emph{VQEzy: An open-source dataset for parameter initialization in variational quantum eigensolvers}. arXiv preprint arXiv:2509.17322.
 
-\bibitem[Zou et al.(2026)]{zou2026} Zou, H., Rahm, M., Kockum, A. F., \& Olsson, S. (2026). \emph{Generative flow-based warm start of the variational quantum eigensolver}. npj Quantum Information, 12, 5.
+\bibitem[Zou et al.(2026)]{zou2026} Zou, H., Rahm, M., Kockum, A. F., \& Olsson, S. (2026). \emph{Generative flow-based warm start of the variational quantum eigensolver}. npj Quantum Information, 12, 5. \url{https://doi.org/10.1038/s41534-025-01159-x}. arXiv:2507.01726.
 
 \end{thebibliography}
 

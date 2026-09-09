@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-07T14:26:50.651829+00:00",
+  "generated_at": "2026-09-09T14:18:41.020132+00:00",
   "n_configs": 66,
   "configs": [
     {
@@ -1062,8 +1062,8 @@
       "pass_rate_5pct": 0.9146341463414634,
       "pass_rate_10pct": 0.975609756097561,
       "pass_rate_dual_criterion": 0.8902439024390244,
-      "mean_de_gap": 0.01861097507834111,
-      "mean_abs_error": 0.047766969277979174,
+      "mean_de_gap": 0.01862999194454796,
+      "mean_abs_error": 0.04782086531443784,
       "best_de_gap": 0.00011394402038416268,
       "worst_de_gap": 0.1755470639922572,
       "n_below_frontier": 9,
@@ -1072,8 +1072,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.41463414634146345,
-      "eval_cache_density": 0,
-      "confidence_level": "medium",
+      "eval_cache_density": 10,
+      "confidence_level": "high",
       "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 1.6159975744055872,
@@ -1176,7 +1176,7 @@
         "mean_de_gap": 0.01650583974390734
       },
       "file": "heavy_hex_N10_p1.npz",
-      "mtime": "2026-08-31T23:31:43.174866+00:00",
+      "mtime": "2026-09-09T04:14:01.040800+00:00",
       "h_frontier_original": 1.6684267721690567,
       "h_frontier_corrected": true
     },
@@ -1206,8 +1206,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.16129032258064513,
-      "eval_cache_density": 0,
-      "confidence_level": "medium",
+      "eval_cache_density": 10,
+      "confidence_level": "high",
       "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 3.8333590492329335,
@@ -1484,8 +1484,8 @@
       "pass_rate_5pct": 0.7751479289940828,
       "pass_rate_10pct": 0.8402366863905325,
       "pass_rate_dual_criterion": 0.7218934911242604,
-      "mean_de_gap": 3290758.409085894,
-      "mean_abs_error": 0.2560026149675976,
+      "mean_de_gap": 3290758.409113295,
+      "mean_abs_error": 0.2561111194562908,
       "best_de_gap": 0.0008300950174304698,
       "worst_de_gap": 502168533.25445664,
       "n_below_frontier": 37,
@@ -1494,8 +1494,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.2751479289940828,
-      "eval_cache_density": 0,
-      "confidence_level": "medium",
+      "eval_cache_density": 20,
+      "confidence_level": "high",
       "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 3.187962885495619,
@@ -1566,7 +1566,7 @@
         "mean_de_gap": 0.030767767855087117
       },
       "file": "heavy_hex_N16_p1.npz",
-      "mtime": "2026-08-31T16:04:26.246186+00:00"
+      "mtime": "2026-09-09T14:18:39.688112+00:00"
     },
     {
       "topology": "heavy_hex",
@@ -1594,8 +1594,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.4,
-      "eval_cache_density": 0,
-      "confidence_level": "low",
+      "eval_cache_density": 20,
+      "confidence_level": "medium",
       "model_stale": true,
       "needs_retrain": false,
       "theta_smoothness": 6.283185307179586,
@@ -1702,8 +1702,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.19444444444444442,
-      "eval_cache_density": 0,
-      "confidence_level": "medium",
+      "eval_cache_density": 10,
+      "confidence_level": "high",
       "model_stale": false,
       "needs_retrain": false,
       "theta_smoothness": 4.034312516688079,
@@ -1898,8 +1898,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.04999999999999999,
-      "eval_cache_density": 0,
-      "confidence_level": "low",
+      "eval_cache_density": 10,
+      "confidence_level": "medium",
       "model_stale": false,
       "needs_retrain": false,
       "theta_smoothness": 3.439685546013053,
@@ -2094,8 +2094,8 @@
       "zoo_pass_rate": 0.5,
       "zoo_integrity_ok": true,
       "zoo_vs_npz_divergence": 0.01851851851851849,
-      "eval_cache_density": 0,
-      "confidence_level": "low",
+      "eval_cache_density": 10,
+      "confidence_level": "medium",
       "model_stale": false,
       "needs_retrain": false,
       "theta_smoothness": 2.7224436823209794,
@@ -4493,7 +4493,7 @@
     "best_pass_rate": 0.38333333333333336
   },
   "mt_vs_st_comparison": {
-    "generated_at": "2026-09-07 14:26 UTC",
+    "generated_at": "2026-09-09 14:18 UTC",
     "global": {
       "mt_wins": 7,
       "st_wins": 1,
@@ -4789,7 +4789,7 @@
     ]
   },
   "gt_npz_coherence": {
-    "n_files_checked": 111,
+    "n_files_checked": 112,
     "n_files_with_issues": 0,
     "n_points_mismatched": 0,
     "max_delta": 0.0,

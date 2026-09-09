@@ -38989,5 +38989,87 @@
       "old_version": 7,
       "new_version": 8
     }
+  },
+  {
+    "timestamp": "2026-09-09T04:13:35.218979+00:00",
+    "event_type": "auto_versioned",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "new_model_id": "unifMPNN__heavy_hex_p1_signinv_fid_v1.pt",
+      "old_pass_rate": 0.5,
+      "new_pass_rate": 0.0,
+      "old_n_training_points": 596,
+      "new_n_training_points": 1121
+    }
+  },
+  {
+    "timestamp": "2026-09-09T04:13:35.308690+00:00",
+    "event_type": "registered",
+    "model_id": "unifMPNN__heavy_hex_p1_signinv_fid_v1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "training_points": 1121,
+      "n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "runner_tag": "AC",
+      "version": 1
+    }
+  },
+  {
+    "timestamp": "2026-09-09T04:13:35.420833+00:00",
+    "event_type": "retrained",
+    "model_id": "unifMPNN__heavy_hex_p1_signinv_fid_v1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "old_training_points": 1121,
+      "new_training_points": 1121,
+      "old_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "new_n_values": [
+        4,
+        6,
+        8,
+        10,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        30,
+        32,
+        40
+      ],
+      "old_pass_rate": 0.0,
+      "old_version": 2,
+      "new_version": 2
+    }
   }
 ]

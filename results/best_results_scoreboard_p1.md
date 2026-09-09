@@ -1,9 +1,9 @@
 # Best Results Scoreboard — p=1
 
-**Updated**: 2026-09-09 03:32 UTC
+**Updated**: 2026-09-09 14:19 UTC
 **p_layers**: 1
 **Reference h-value**: 2.50 (hardest region near h_critical; actual h used noted per entry)
-**Reports scanned**: 341
+**Reports scanned**: 347
 **Criterion**: Best ΔE/gap achieved at h≈2.5 per (topology × N)
 
 > This report shows the **best single-point result ever achieved** at h≈2.5 for each (topology, N) combination at **p=1**, in the **extrapolation regime** (N values tested with MPNN zero-shot prediction).
@@ -18,7 +18,7 @@
 
 | Topology | Max N evaluated | Best grade | Mean |ΔE| (any N) | N trained up to |
 |---|---|---|---|---|
-| chain_1d | 80 | B | 0.1882 | 80 |
+| chain_1d | 100 | B | 0.1882 | 100 |
 | heavy_hex | 60 | A | 0.1242 | 60 |
 | ladder | 40 | B | 0.2451 | 40 |
 | square | 30 | B | 0.1588 | 30 |
@@ -28,25 +28,27 @@
 
 ## chain_1d
 
-**h used**: varies (2.420 – 2.500)
+**h used**: varies (2.380 – 2.570)
 
 | N | mean |ΔE| | Fidelity | Grade | Checkpoint | Date |
 |--:|--------:|:--------:|:-----:|-----------|------|
 | 4 | 0.1882 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-21 |
 | 6 | 0.2556 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
-| 8 | 0.3724 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
-| 10 | 0.2782 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
-| 12 | 0.4283 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
+| 8 | 0.1633 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
+| 10 | 0.1966 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
+| 12 | 0.2326 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
 | 14 | 1.0839 | N/A | D | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-21 |
-| 16 | 0.6622 | 0.9664 | D | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-28 |
-| 20 | 0.4397 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
+| 16 | 0.4032 | N/A | C | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 20 | 0.3360 | N/A | B | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
 | 21 | 0.4115 | N/A | D | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
 | 26 | 0.6689 | N/A | D | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 |
-| 30 | 0.4355 | N/A | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
+| 30 | 0.2957 | N/A | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
 | 31 | 0.8269 | N/A | D | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 |
-| 40 | 0.3327 | N/A | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
-| 60 | 0.5058 | N/A | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
+| 40 | 0.3407 | N/A | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
+| 50 | 0.8221 | N/A | D | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 60 | 0.6128 | N/A | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-17 |
 | 80 | 1.6095 | N/A | F | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-20 |
+| 100 | 1.7103 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
 
 
 ## heavy_hex
@@ -165,12 +167,20 @@
 
 Best-ever single-point result for **chain_1d** at h≈1.0 (±0.15), the critical region where the gap is smallest and the ansatz is most stressed. Same ranking as the main scoreboard (lowest |ΔE| per N).
 
-**h used**: 1.130
+**h used**: varies (1.000 – 1.140)
 
 | N | mean |ΔE| | Fidelity | Grade | Checkpoint | Date |
 |--:|--------:|:--------:|:-----:|-----------|------|
-| 10 | 1.8609 | 0.8785 | D | unified_tfim_bond_resolved_chain_1d_n... | 2026-08-28 |
-| 20 | 5.4470 | N/A | D | unifMPNN__chain_1d_p1_h_0p5_1p5 | 2026-08-28 |
+| 4 | 2.5507 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 8 | 0.6292 | N/A | C | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 10 | 1.5282 | 0.8785 | D | unified_tfim_bond_resolved_chain_1d_n... | 2026-08-28 |
+| 12 | 1.0474 | N/A | D | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 16 | 1.5313 | N/A | D | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 20 | 4.3542 | N/A | D | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 30 | 1.4844 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 40 | 2.0301 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 50 | 2.6004 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 60 | 3.1535 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
 
 
 ---
@@ -179,12 +189,17 @@ Best-ever single-point result for **chain_1d** at h≈1.0 (±0.15), the critical
 
 Best-ever single-point result for **chain_1d** at h≈1.5 (±0.15), the critical region where the gap is smallest and the ansatz is most stressed. Same ranking as the main scoreboard (lowest |ΔE| per N).
 
-**h used**: varies (1.500 – 1.610)
+**h used**: varies (1.500 – 1.620)
 
 | N | mean |ΔE| | Fidelity | Grade | Checkpoint | Date |
 |--:|--------:|:--------:|:-----:|-----------|------|
-| 10 | 1.2886 | 0.9733 | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-28 |
-| 16 | 0.8654 | N/A | D | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
-| 20 | 4.2847 | N/A | D | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
+| 8 | 0.3369 | N/A | C | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 10 | 0.9907 | 0.9733 | C | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-28 |
+| 12 | 0.5387 | N/A | C | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 16 | 0.8008 | N/A | D | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 20 | 3.1578 | N/A | D | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
 | 26 | 1.2528 | N/A | F | unified_tfim_br_chain_1d_multiN_6+8+1... | 2026-08-19 |
-| 30 | 1.7332 | N/A | F | unified_tfim_br_multitopo_chain_1d+he... | 2026-08-19 |
+| 30 | 1.8726 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 40 | 2.7777 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 50 | 3.5657 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
+| 60 | 4.3266 | N/A | F | unifMPNN__chain_1d_p1_signinv_fid_v1.pt | 2026-09-09 |
