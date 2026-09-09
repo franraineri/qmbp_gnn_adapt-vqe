@@ -1,0 +1,43 @@
+# Graphify ignore patterns — keep the index focused on source code.
+# Without this, graphify tries to walk .venv (tens of thousands of files)
+# and never finishes indexing.
+
+# Virtual environments / dependencies
+.venv/
+venv/
+env/
+site-packages/
+node_modules/
+
+# Python caches / build artifacts
+__pycache__/
+*.pyc
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+
+# Data, caches, results (not source code)
+data/
+results/
+graphify-out/
+
+# Deprecated / archived code
+_deprecated/
+
+# Notebooks (not parsed as source symbols)
+*.ipynb
+notebooks/
+
+# VCS / tooling internals
+.git/
+.kiro/
+.token-pilot/
+
+# LaTeX / thesis artifacts
+internal/tesis-figures/
+*.tex
+*.aux
+*.log

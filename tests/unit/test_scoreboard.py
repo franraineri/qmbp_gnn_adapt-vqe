@@ -55,12 +55,10 @@ def _report_new_format(
         lines.append(f"## N = {n} (38 params)")
         lines.append("")
         lines.append(
-            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | "
-            "Factor | Category | Action | Note |"
+            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |"
         )
         lines.append(
-            "|---|--------|---------|------|--------|-----|----------|--------|"
-            "--------|----------|--------|------|"
+            "|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|"
         )
         for h, e_pred, e_exact, gap, fid in rows:
             abs_err = abs(e_pred - e_exact)
@@ -91,12 +89,8 @@ def _report_old_format(*, p_layers: int, checkpoint: str, rows_by_n: dict[int, l
     for n, rows in rows_by_n.items():
         lines.append(f"## N = {n} (38 params)")
         lines.append("")
-        lines.append(
-            "| h | E_pred | E_exact | |ΔE| | |ΔE|/N | gap | ΔE/gap | Category | Action | Note |"
-        )
-        lines.append(
-            "|---|--------|---------|------|-------|-----|--------|----------|--------|------|"
-        )
+        lines.append("| h | E_pred | E_exact | |ΔE| | |ΔE|/N | gap | ΔE/gap | Category | Action | Note |")
+        lines.append("|---|--------|---------|------|-------|-----|--------|----------|--------|------|")
         for h, e_pred, e_exact, gap in rows:
             abs_err = abs(e_pred - e_exact)
             de_gap = abs_err / gap
@@ -174,9 +168,7 @@ class TestParseEvalReport:
 
     def test_p_layers_from_directory_name(self, scoreboard_env):
         # No **p_layers** header line → fall back to dir name _p2
-        report = _report_old_format(
-            p_layers=2, checkpoint="c.pt", rows_by_n={10: [(2.5, -10.0, -10.02, 0.5)]}
-        )
+        report = _report_old_format(p_layers=2, checkpoint="c.pt", rows_by_n={10: [(2.5, -10.0, -10.02, 0.5)]})
         # Strip the header p_layers line to force dir-name inference
         report = "\n".join(l for l in report.splitlines() if not l.startswith("**p_layers**"))
         d = scoreboard_env["eval_dir"] / "chain_1d_p2"
@@ -528,6 +520,7 @@ def _best(topo, p, n, abs_error, grade, checkpoint):
         p_layers=p,
         best_de_gap=abs_error,
         best_abs_error=abs_error,
+        mean_abs_error=abs_error,
         gap_at_best=1.0,
         h_used=2.5,
         grade=grade,

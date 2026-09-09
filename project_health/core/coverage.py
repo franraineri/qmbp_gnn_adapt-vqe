@@ -165,9 +165,7 @@ def _actions_from_gaps(gaps: list[CoverageGap]) -> list[ActionItem]:
             ActionItem(
                 priority=Priority.LOW,
                 title=f"{len(regime_gaps)} result(s) tested outside valid regime",
-                detail=(
-                    "These are expected to fail — not actionable unless they passed unexpectedly."
-                ),
+                detail=("These are expected to fail — not actionable unless they passed unexpectedly."),
                 category="coverage",
             )
         )
@@ -321,8 +319,7 @@ def _actions_from_distribution(dist: Any) -> list[ActionItem]:
             ActionItem(
                 priority=Priority.MEDIUM,
                 title=(
-                    f"p=1 under-represented: only {p1_count}/{total_p} "
-                    f"({p1_count / total_p:.0%}) of noiseless runs"
+                    f"p=1 under-represented: only {p1_count}/{total_p} ({p1_count / total_p:.0%}) of noiseless runs"
                 ),
                 detail=(
                     "p=1 is the recommended hardware strategy. "
@@ -371,10 +368,7 @@ def _actions_from_energy_decomposition(ed: Any) -> list[ActionItem]:
         actions.append(
             ActionItem(
                 priority=Priority.LOW,
-                title=(
-                    f"MPNN dominates error: {ed.mpnn_error_fraction:.0%} "
-                    f"of total ΔE comes from MPNN prediction"
-                ),
+                title=(f"MPNN dominates error: {ed.mpnn_error_fraction:.0%} of total ΔE comes from MPNN prediction"),
                 detail=(
                     f"Mean circuit error: {ed.mean_circuit_error:.4f}, "
                     f"Mean MPNN error: {ed.mean_mpnn_error:.4f}. "
@@ -388,10 +382,7 @@ def _actions_from_energy_decomposition(ed: Any) -> list[ActionItem]:
         actions.append(
             ActionItem(
                 priority=Priority.MEDIUM,
-                title=(
-                    f"Circuit expressibility bottleneck: "
-                    f"{ed.circuit_error_fraction:.0%} of error from VQE ceiling"
-                ),
+                title=(f"Circuit expressibility bottleneck: {ed.circuit_error_fraction:.0%} of error from VQE ceiling"),
                 detail=(
                     "VQE is not reaching ground state well enough. "
                     "Consider more restarts or checking for convergence issues."
@@ -493,8 +484,7 @@ def _actions_from_quality_prediction() -> list[ActionItem]:
 
         if novel:
             detail_parts = [
-                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} ({c['pass_probability']:.0%})"
-                for c in novel[:5]
+                f"{c['topology']} N={c['n_qubits']} p={c['p_layers']} ({c['pass_probability']:.0%})" for c in novel[:5]
             ]
             actions.append(
                 ActionItem(
@@ -1023,7 +1013,8 @@ def _gap_low_dashboard_pass_rate() -> list[CoverageGap]:
                     detail=detail,
                     recommendation=(
                         f"Run iterative improvement: --topology {topology} "
-                        f"--target-n {n_qubits} --iterative-improve "
+                        f"--target-n {n_qubits} --p-layers {p_layers} "
+                        f"--iterative-improve "
                         f"--h-min {h_range[0]:.1f} --h-max {h_range[1]:.1f}"
                     ),
                     priority=Priority.HIGH if pass_rate < 0.30 else Priority.MEDIUM,
@@ -1052,9 +1043,10 @@ def _gap_low_quality_training_data() -> list[CoverageGap]:
                     gap_type=GapType.LOW_PASS_RATE,
                     topology=item["topology"],
                     n_qubits=0,
-                    p_layers=1,
+                    p_layers=item.get("p_layers", 1),
                     detail=(
-                        f"{item['topology']} (priority {item['priority']}): "
+                        f"{item['topology']} p={item.get('p_layers', 1)} "
+                        f"(priority {item['priority']}): "
                         f"{item['reason']}. Current pass_rate={item['current_pass_rate']:.0%}"
                     ),
                     recommendation=item["command"],
@@ -1097,9 +1089,7 @@ def _gap_zoo_coherence() -> list[CoverageGap]:
                         f"Zoo integrity: {zoo_report['n_missing']} missing, "
                         f"{zoo_report['n_corrupted']} corrupted checkpoints"
                     ),
-                    recommendation=(
-                        "Run: .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix"
-                    ),
+                    recommendation=("Run: .venv/bin/python scripts/maintenance/audit_and_fix_model_zoo.py --fix"),
                     priority=Priority.HIGH,
                 )
             )
@@ -1140,11 +1130,7 @@ def _gap_zoo_coherence() -> list[CoverageGap]:
                 if total_pts == 0:
                     continue
                 weighted_dual = (
-                    sum(
-                        c.get("pass_rate_dual_criterion", 0) * c.get("n_points", 0)
-                        for c in topo_configs
-                    )
-                    / total_pts
+                    sum(c.get("pass_rate_dual_criterion", 0) * c.get("n_points", 0) for c in topo_configs) / total_pts
                 )
 
                 divergence = abs(entry.pass_rate - weighted_dual)
@@ -1159,9 +1145,7 @@ def _gap_zoo_coherence() -> list[CoverageGap]:
                                 f"{entry.topology}: zoo_pass_rate={entry.pass_rate:.0%} "
                                 f"vs npz_weighted={weighted_dual:.0%} (Δ={divergence:.0%})"
                             ),
-                            recommendation=(
-                                "Run: .venv/bin/python scripts/maintenance/check_zoo_coherence.py --fix"
-                            ),
+                            recommendation=("Run: .venv/bin/python scripts/maintenance/check_zoo_coherence.py --fix"),
                             priority=Priority.MEDIUM,
                         )
                     )

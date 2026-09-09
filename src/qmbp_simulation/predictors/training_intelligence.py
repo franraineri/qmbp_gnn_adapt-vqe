@@ -122,9 +122,7 @@ def check_retrain_triggers(
         # Data growth detection
         data_growth = 0.0
         if entry.n_training_points > 0:
-            data_growth = (
-                total_points_available - entry.n_training_points
-            ) / entry.n_training_points
+            data_growth = (total_points_available - entry.n_training_points) / entry.n_training_points
         elif total_points_available >= min_points_for_retrain:
             data_growth = 1.0  # Model has 0 pts registered → definitely retrain
 
@@ -139,10 +137,7 @@ def check_retrain_triggers(
                 n = int(n_str)
                 if float(pr) == 0 and n in n_values_available:
                     # Check if we have useful data for this N
-                    has_useful = any(
-                        c["n_qubits"] == n and c.get("training_utility") == "useful"
-                        for c in topo_configs
-                    )
+                    has_useful = any(c["n_qubits"] == n and c.get("training_utility") == "useful" for c in topo_configs)
                     if has_useful:
                         n_with_zero_pass.append(n)
 
@@ -152,9 +147,7 @@ def check_retrain_triggers(
 
         if data_growth >= data_growth_threshold:
             priority = min(priority, 3)
-            reasons.append(
-                f"data grew {data_growth:.0%} ({entry.n_training_points}→{total_points_available}pts)"
-            )
+            reasons.append(f"data grew {data_growth:.0%} ({entry.n_training_points}→{total_points_available}pts)")
 
         if n_with_zero_pass:
             priority = min(priority, 2)
@@ -166,16 +159,14 @@ def check_retrain_triggers(
 
         if useful_points >= min_points_for_retrain and entry.pass_rate < 0.20:
             priority = min(priority, 2)
-            reasons.append(
-                f"pass_rate={entry.pass_rate:.0%} with {useful_points} useful pts available"
-            )
+            reasons.append(f"pass_rate={entry.pass_rate:.0%} with {useful_points} useful pts available")
 
         # QPT h_c accuracy trigger: if model fails near the critical point,
         # it cannot track the phase transition — a fundamental quality issue.
         # Uses get_h_critical() to find the topology-specific h_c, then checks
         # if pass_rate near h_c is significantly worse than far from h_c.
         try:
-            from scripts.analysis.qpt_detection import get_h_critical
+            from qmbp_simulation.analysis.qpt_detection import get_h_critical
 
             h_c = get_h_critical(topo)
             if h_c is not None:
@@ -320,13 +311,10 @@ def validate_h_range_alignment(
         )
     if gap_regions:
         for lo, hi in gap_regions:
-            recommendations.append(
-                f"Gap: no training data in h=[{lo:.2f}, {hi:.2f}]. Run VQE to fill this region."
-            )
+            recommendations.append(f"Gap: no training data in h=[{lo:.2f}, {hi:.2f}]. Run VQE to fill this region.")
     if all_h_min > eval_h_min + 0.5:
         recommendations.append(
-            f"Training starts at h={all_h_min:.2f} but evaluation uses h≥{eval_h_min}. "
-            f"Add data at lower h values."
+            f"Training starts at h={all_h_min:.2f} but evaluation uses h≥{eval_h_min}. Add data at lower h values."
         )
 
     return HRangeValidation(
@@ -587,8 +575,7 @@ def validate_training_readiness(
         useful_pts = sum(c.get("n_points", 0) for c in useful)
         if useful_pts < min_useful_points:
             issues.append(
-                f"[{topo}] Only {useful_pts} useful points (need {min_useful_points}+). "
-                f"Run more VQE experiments."
+                f"[{topo}] Only {useful_pts} useful points (need {min_useful_points}+). Run more VQE experiments."
             )
 
         # Check h-range coverage
@@ -609,8 +596,7 @@ def validate_training_readiness(
         not_useful = [c for c in topo_configs if c.get("training_utility") == "not_useful"]
         if len(not_useful) > len(useful):
             issues.append(
-                f"[{topo}] More bad configs ({len(not_useful)}) than good ({len(useful)}). "
-                f"Data quality too low."
+                f"[{topo}] More bad configs ({len(not_useful)}) than good ({len(useful)}). Data quality too low."
             )
 
     is_ready = len(issues) == 0

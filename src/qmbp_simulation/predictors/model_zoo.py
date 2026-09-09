@@ -19,11 +19,28 @@ Usage:
     from qmbp_simulation.predictors import predict_theta
     predictions = predict_theta(model, lattice, h_values)
 
-Registry is stored as a JSON manifest at ``data/model_zoo/manifest.json``.
+The manifest is stored as JSON at ``data/model_zoo/manifest.json``.
 Checkpoints are ``.pt`` files in ``data/model_zoo/checkpoints/``.
 
 Security: All checkpoints are hash-verified on load (SHA256). Tampered or
 corrupted files are rejected before any deserialization occurs.
+
+Relationship to ``model_registry_db.py``
+-----------------------------------------
+These two modules are complementary and MUST NOT be merged:
+
+- ``model_zoo`` (this module) is the ARTIFACT layer. It owns ``manifest.json``
+  (source of truth for which ``.pt`` checkpoints exist + their SHA256) and
+  handles checkpoint load/save/verify. Use it to LOAD a model for prediction.
+- ``model_registry_db`` is the PROVENANCE/METADATA layer. It owns
+  ``model_registry.json`` + ``model_history.json`` (training data, per-N
+  breakdowns, evaluation scores, lifecycle/regression history). Use it to
+  QUERY what a model was trained on, its history, or the best model for a
+  deployment target.
+
+The registry reads the zoo manifest read-only for integrity cross-checks; the
+zoo never touches the registry. Rule of thumb: "give me the weights" → zoo;
+"tell me about the model" → registry.
 """
 
 from __future__ import annotations
@@ -318,9 +335,7 @@ class ZooEntry:
     checkpoint_file: str
     h_range: tuple[float, float] = (1.0, 3.5)
     pass_rate: float = 0.0
-    pass_rate_source: str = (
-        ""  # "training_data_eval" | "extrapolation_eval" | "cross_n_deployment" | ""
-    )
+    pass_rate_source: str = ""  # "training_data_eval" | "extrapolation_eval" | "cross_n_deployment" | ""
     n_training_points: int = 0
     seeds: list[int] = field(default_factory=list)
     created: str = ""
@@ -432,9 +447,7 @@ def prune_test_entries(*, dry_run: bool = True) -> list[str]:
     entries = _load_manifest()
     test_patterns = ("test_", "kiro_test_")
     to_prune = [
-        e.checkpoint_file
-        for e in entries
-        if any(e.checkpoint_file.lower().startswith(p) for p in test_patterns)
+        e.checkpoint_file for e in entries if any(e.checkpoint_file.lower().startswith(p) for p in test_patterns)
     ]
     if not dry_run and to_prune:
         clean = [e for e in entries if e.checkpoint_file not in to_prune]
@@ -628,9 +641,7 @@ def load_best_model_for(
             db_rec = db_records.get(entry.checkpoint_file)
             if db_rec and db_rec.evaluations:
                 latest_eval = db_rec.evaluations[-1]
-                n_values_evaluated = (
-                    len(latest_eval.target_n_values) if latest_eval.target_n_values else 0
-                )
+                n_values_evaluated = len(latest_eval.target_n_values) if latest_eval.target_n_values else 0
                 if n_values_evaluated >= 4:
                     pass_confidence = min(1.0, pass_confidence + 0.1)  # Bonus for broad eval
                 elif n_values_evaluated <= 1:
@@ -652,18 +663,18 @@ def load_best_model_for(
         # Enrich from dashboard if available
         topo_configs = dashboard_configs.get(entry.topology, [])
         if topo_configs:
-            useful_ratio = sum(
-                1 for c in topo_configs if c.get("training_utility") == "useful"
-            ) / max(len(topo_configs), 1)
+            useful_ratio = sum(1 for c in topo_configs if c.get("training_utility") == "useful") / max(
+                len(topo_configs), 1
+            )
             data_signal = data_signal * 0.7 + useful_ratio * 0.3
 
         # For MT models: check target topology's dashboard (not "multi_topology")
         if entry.topology == "multi_topology":
             target_configs = dashboard_configs.get(topology, [])
             if target_configs:
-                useful_ratio_target = sum(
-                    1 for c in target_configs if c.get("training_utility") == "useful"
-                ) / max(len(target_configs), 1)
+                useful_ratio_target = sum(1 for c in target_configs if c.get("training_utility") == "useful") / max(
+                    len(target_configs), 1
+                )
                 data_signal = data_signal * 0.6 + useful_ratio_target * 0.4
 
         # ── Signal 3: convergence (from ModelRegistryDB training_metrics) ──
@@ -790,9 +801,7 @@ def load_best_model_for(
 
             # Penalty: model only trained at small N, target is large
             if n_target >= 20 and entry.n_training_points > 0:
-                n_in_name = (
-                    re.findall(r"\d+", entry.checkpoint_file) if entry.checkpoint_file else []
-                )
+                n_in_name = re.findall(r"\d+", entry.checkpoint_file) if entry.checkpoint_file else []
                 train_n_values = [int(x) for x in n_in_name if 3 <= int(x) <= 200]
                 if train_n_values and max(train_n_values) < n_target * 0.4:
                     bonus -= 0.10  # Penalty: trained only at small N, extrapolating too far
@@ -902,9 +911,7 @@ def load_best_model_for(
             candidates.append((score, e, "single_n"))
 
     if not candidates:
-        raise FileNotFoundError(
-            f"No model found for ({model}, {topology}, p={p_layers}). Train one first."
-        )
+        raise FileNotFoundError(f"No model found for ({model}, {topology}, p={p_layers}). Train one first.")
 
     candidates.sort(key=lambda x: x[0], reverse=True)
     best_score, best_entry, source = candidates[0]
@@ -914,8 +921,7 @@ def load_best_model_for(
         # Should not happen (candidates were filtered by availability), but guard
         # against a race where the file is removed between filtering and load.
         raise FileNotFoundError(
-            f"Checkpoint {best_entry.checkpoint_file!r} vanished from "
-            f"checkpoints/ and archived/ before load."
+            f"Checkpoint {best_entry.checkpoint_file!r} vanished from checkpoints/ and archived/ before load."
         )
     if ckpt_path.parent == _ARCHIVED_DIR:
         logger.warning(
@@ -984,20 +990,13 @@ def explain_model_selection(
             [
                 e
                 for e in entries
-                if e.topology == topology
-                and e.model == model
-                and e.p_layers == p_layers
-                and e.n_qubits == 0
+                if e.topology == topology and e.model == model and e.p_layers == p_layers and e.n_qubits == 0
             ],
             "per_topology",
             1.0,
         ),
         (
-            [
-                e
-                for e in entries
-                if e.topology == "multi_topology" and e.model == model and e.p_layers == p_layers
-            ],
+            [e for e in entries if e.topology == "multi_topology" and e.model == model and e.p_layers == p_layers],
             "multi_topology",
             0.95,
         ),
@@ -1005,10 +1004,7 @@ def explain_model_selection(
             [
                 e
                 for e in entries
-                if e.topology == topology
-                and e.model == model
-                and e.p_layers == p_layers
-                and e.n_qubits > 0
+                if e.topology == topology and e.model == model and e.p_layers == p_layers and e.n_qubits > 0
             ],
             "single_n",
             0.85,
@@ -1141,8 +1137,7 @@ def select_model_for_objective(
     elif objective == "extrapolation":
         if n_target is None:
             raise ValueError(
-                "objective='extrapolation' requires n_target (the large-N "
-                "system size you want to predict for)."
+                "objective='extrapolation' requires n_target (the large-N system size you want to predict for)."
             )
         resolved_h_regime = h_regime or "paramagnetic"
     # objective == "custom" uses params as-is
@@ -1192,10 +1187,7 @@ def select_model_for_objective(
     if confidence == 0.0 and entry.pass_rate > 0:
         confidence = entry.pass_rate * 0.7  # discount: global, not target-specific
         confidence_basis = "global_pass_rate_discounted"
-        warnings.append(
-            "Confidence derived from GLOBAL pass_rate (not target-specific). "
-            "Treat as a rough lower bound."
-        )
+        warnings.append("Confidence derived from GLOBAL pass_rate (not target-specific). Treat as a rough lower bound.")
 
     # ── Regime reachability check ────────────────────────────────────────
     if resolved_h_regime == "critical":
@@ -1270,9 +1262,7 @@ def _confidence_from_registry(checkpoint_file: str, n_target: int | None) -> flo
             if dgs:
                 if aes and len(aes) == len(dgs):
                     n_pass = sum(
-                        1
-                        for d, a in zip(dgs, aes, strict=False)
-                        if d < DE_GAP_THRESHOLD and a < MAX_ABS_ERROR
+                        1 for d, a in zip(dgs, aes, strict=False) if d < DE_GAP_THRESHOLD and a < MAX_ABS_ERROR
                     )
                 else:
                     n_pass = sum(1 for d in dgs if d < DE_GAP_THRESHOLD)
@@ -1314,14 +1304,10 @@ def heal_manifest(*, dry_run: bool = True) -> dict:
     manifest_files = {e.checkpoint_file for e in entries}
 
     # 1. Missing checkpoints
-    missing = [
-        e.checkpoint_file for e in entries if not (_CHECKPOINTS_DIR / e.checkpoint_file).exists()
-    ]
+    missing = [e.checkpoint_file for e in entries if not (_CHECKPOINTS_DIR / e.checkpoint_file).exists()]
 
     # 2. Orphan files
-    orphans = [
-        f.name for f in sorted(_CHECKPOINTS_DIR.glob("*.pt")) if f.name not in manifest_files
-    ]
+    orphans = [f.name for f in sorted(_CHECKPOINTS_DIR.glob("*.pt")) if f.name not in manifest_files]
 
     # 3. Duplicates (keep last occurrence)
     seen = {}
@@ -1351,8 +1337,7 @@ def heal_manifest(*, dry_run: bool = True) -> dict:
         result["healed"] = True
         n_removed = len(entries) - len(clean)
         logger.info(
-            "heal_manifest: removed %d entries (%d missing, %d duplicates). "
-            "%d orphan .pt files on disk.",
+            "heal_manifest: removed %d entries (%d missing, %d duplicates). %d orphan .pt files on disk.",
             n_removed,
             len(missing),
             len(duplicates),
@@ -1530,9 +1515,7 @@ def compute_model_readiness(
         penalties.append("needs_retrain=True (training data changed)")
 
     # ── Weighted composite ───────────────────────────────────────────────
-    readiness_score = (
-        0.40 * data_quality + 0.25 * convergence_health + 0.20 * pass_rate_adj + 0.15 * freshness
-    )
+    readiness_score = 0.40 * data_quality + 0.25 * convergence_health + 0.20 * pass_rate_adj + 0.15 * freshness
 
     # ── Proximity bonus (single-N models closer to target get a bump) ────
     if n_target > 0 and entry.n_qubits > 0:
@@ -1643,15 +1626,10 @@ def compute_training_quality_score(
             n_verified = sum(1 for t in tiers if t == "verified")
 
             # Dual pass rate (ΔE/gap < 5% AND |ΔE| < 0.10)
-            de_gaps = (
-                np.asarray(d["de_gaps"], dtype=np.float64) if "de_gaps" in d else np.zeros(n_pts)
-            )
+            de_gaps = np.asarray(d["de_gaps"], dtype=np.float64) if "de_gaps" in d else np.zeros(n_pts)
             e_key = "e_vqe" if "e_vqe" in d else ("energies" if "energies" in d else None)
             if e_key is not None:
-                abs_err = np.abs(
-                    np.asarray(d[e_key], dtype=np.float64)
-                    - np.asarray(d["e_exact"], dtype=np.float64)
-                )
+                abs_err = np.abs(np.asarray(d[e_key], dtype=np.float64) - np.asarray(d["e_exact"], dtype=np.float64))
                 n_pass = int(((de_gaps < 0.05) & (abs_err < 0.10)).sum())
             else:
                 n_pass = int((de_gaps < 0.05).sum())
@@ -1795,9 +1773,7 @@ def auto_retrain_stale_models(
             )
             continue
 
-        logger.info(
-            f"  Retraining: {topo} p={p} (score {c['stored_score']:.3f} → {c['current_score']:.3f})"
-        )
+        logger.info(f"  Retraining: {topo} p={p} (score {c['stored_score']:.3f} → {c['current_score']:.3f})")
 
         try:
             from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
@@ -1900,11 +1876,7 @@ def list_pretrained(
         Matching entries sorted by pass_rate (descending).
     """
     entries = _load_manifest()
-    filtered = [
-        e
-        for e in entries
-        if e.matches(model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers)
-    ]
+    filtered = [e for e in entries if e.matches(model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers)]
     return sorted(filtered, key=lambda e: (_sort_score(e), e.n_training_points), reverse=True)
 
 
@@ -1964,9 +1936,7 @@ def load_pretrained(
         return mpnn, meta
 
     # Search the zoo registry — exact match first
-    candidates = list_pretrained(
-        model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers
-    )
+    candidates = list_pretrained(model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers)
 
     # Fuzzy cross-N fallback: same model/topology/p but different N
     if not candidates and allow_cross_n:
@@ -2075,10 +2045,7 @@ def _get_contaminated_model_ids(
                         min_confidence,
                     )
             # Also check for severe contamination in secondary modes
-            elif (
-                "contaminated_training" in diag.secondary_modes
-                and diag.confidence >= min_confidence
-            ):
+            elif "contaminated_training" in diag.secondary_modes and diag.confidence >= min_confidence:
                 contaminated.add(record.model_id)
 
         return contaminated
@@ -2176,15 +2143,12 @@ def _validate_zoo_entry(entry: ZooEntry) -> None:
 
     # Hard violation: n_qubits negative
     if entry.n_qubits < 0:
-        raise ValueError(
-            f"Pre-registration validation failed: n_qubits={entry.n_qubits} is negative."
-        )
+        raise ValueError(f"Pre-registration validation failed: n_qubits={entry.n_qubits} is negative.")
 
     # Hard violation: pass_rate out of range
     if not (0.0 <= entry.pass_rate <= 1.0):
         raise ValueError(
-            f"Pre-registration validation failed: pass_rate={entry.pass_rate} "
-            f"out of valid range [0.0, 1.0]."
+            f"Pre-registration validation failed: pass_rate={entry.pass_rate} out of valid range [0.0, 1.0]."
         )
 
     # Warning: unified architecture with single-N naming but n_qubits looks like single
@@ -2360,8 +2324,7 @@ def register_checkpoint(
                 candidates_dir.mkdir(parents=True, exist_ok=True)
                 candidate_path = candidates_dir / entry.checkpoint_file
                 logger.warning(
-                    "Regression guard BLOCKED registration: %s. "
-                    "Saved to _candidates/ for manual review.",
+                    "Regression guard BLOCKED registration: %s. Saved to _candidates/ for manual review.",
                     guard_reason,
                 )
                 # Save checkpoint to candidates
@@ -2386,9 +2349,7 @@ def register_checkpoint(
 
     # ── Quality gate: require_improvement ────────────────────────────────
     if require_improvement and overwrite:
-        existing_entries = [
-            e for e in _load_manifest() if e.checkpoint_file == entry.checkpoint_file
-        ]
+        existing_entries = [e for e in _load_manifest() if e.checkpoint_file == entry.checkpoint_file]
         if existing_entries:
             existing = existing_entries[0]
             # Block if existing is evaluated AND has more training data
@@ -2496,8 +2457,7 @@ def register_checkpoint(
         # Warn if new model has lower pass_rate (informational only, never blocks)
         if new_pass_rate > 0 and new_pass_rate < old_pass_rate - 0.01:
             logger.warning(
-                "  ⚠️ New model %s has lower pass_rate (%.0f%%) than existing %s (%.0f%%). "
-                "Both versions preserved.",
+                "  ⚠️ New model %s has lower pass_rate (%.0f%%) than existing %s (%.0f%%). Both versions preserved.",
                 entry.checkpoint_file,
                 new_pass_rate * 100,
                 existing_entry.checkpoint_file,
@@ -3069,8 +3029,8 @@ def get_critical_metrics_at_h(
     """
     if abs(h - 1.0) > 1e-9:
         logger.info(
-            "get_critical_metrics_at_h: only h≈1.0 is stored (at_h1); requested h=%.2f "
-            "→ returning what is available.", h,
+            "get_critical_metrics_at_h: only h≈1.0 is stored (at_h1); requested h=%.2f → returning what is available.",
+            h,
         )
     win_key = _critical_window_key(window)
     out: dict[str, dict] = {}
@@ -3246,16 +3206,13 @@ def _parse_eval_report_per_h(report_path: Path) -> dict:
                     fidelity = None
 
             per_n.setdefault(current_n, []).append(
-                {"h": round(h_val, 2), "abs_error": abs_error, "de_gap": de_gap,
-                 "gap": gap, "fidelity": fidelity}
+                {"h": round(h_val, 2), "abs_error": abs_error, "de_gap": de_gap, "gap": gap, "fidelity": fidelity}
             )
 
-    return {"checkpoint": checkpoint, "topology": topology, "p_layers": p_layers,
-            "date": date_str, "per_n": per_n}
+    return {"checkpoint": checkpoint, "topology": topology, "p_layers": p_layers, "date": date_str, "per_n": per_n}
 
 
-def _compute_fidelity_for_chain_1d(checkpoint_file: str, n: int, h: float,
-                                   p_layers: int) -> float | None:
+def _compute_fidelity_for_chain_1d(checkpoint_file: str, n: int, h: float, p_layers: int) -> float | None:
     """Compute exact GS fidelity for a chain_1d point when the report lacks it.
 
     Only invoked for N ≤ 16 (cheap statevector). Loads the checkpoint, predicts
@@ -3282,17 +3239,13 @@ def _compute_fidelity_for_chain_1d(checkpoint_file: str, n: int, h: float,
         model = _smart_load_checkpoint(str(ckpt))
         model.eval()
         lat = make_lattice("chain_1d", n, J=1.0, h=h, periodic=False)
-        graph = build_unified_bond_resolved_graph(
-            lat, h_value=h, p_layers=p_layers, include_circuit_nodes=True
-        )
+        graph = build_unified_bond_resolved_graph(lat, h_value=h, p_layers=p_layers, include_circuit_nodes=True)
         with torch.no_grad():
             theta = np.clip(model(graph).numpy().flatten(), -np.pi, np.pi)
 
         # Reuse a previously computed fidelity for this exact (model, N, h, theta).
         cache = EvalCache()
-        cached = cache.get_fidelity(
-            "chain_1d", n, h, theta, model="tfim_bond_resolved", p_layers=p_layers
-        )
+        cached = cache.get_fidelity("chain_1d", n, h, theta, model="tfim_bond_resolved", p_layers=p_layers)
         if cached is not None:
             return cached
 
@@ -3308,25 +3261,26 @@ def _compute_fidelity_for_chain_1d(checkpoint_file: str, n: int, h: float,
         gt = ClassicalSolver().solve(H, lat, method="exact")
         if gt.ground_state is None:
             return None
-        res = estimate_fidelity_from_primitives(
-            qc, theta, H, gt.gap, n, exact_state=gt.ground_state
-        )
+        res = estimate_fidelity_from_primitives(qc, theta, H, gt.gap, n, exact_state=gt.ground_state)
         fidelity = res.get("fidelity")
         if fidelity is not None:
             cache.put_fidelity(
-                "chain_1d", n, h, theta, float(fidelity),
-                model="tfim_bond_resolved", p_layers=p_layers,
+                "chain_1d",
+                n,
+                h,
+                theta,
+                float(fidelity),
+                model="tfim_bond_resolved",
+                p_layers=p_layers,
             )
             cache.flush()
         return fidelity
     except Exception as exc:  # noqa: BLE001 — best-effort, never block backfill
-        logger.debug("_compute_fidelity_for_chain_1d(%s N=%d h=%.2f) failed: %s",
-                     checkpoint_file[:30], n, h, exc)
+        logger.debug("_compute_fidelity_for_chain_1d(%s N=%d h=%.2f) failed: %s", checkpoint_file[:30], n, h, exc)
         return None
 
 
-def _compute_fidelity_bound_for_chain_1d(checkpoint_file: str, n: int, h: float,
-                                         p_layers: int) -> float | None:
+def _compute_fidelity_bound_for_chain_1d(checkpoint_file: str, n: int, h: float, p_layers: int) -> float | None:
     """Rigorous variance lower bound on GS fidelity for large-N chain_1d points.
 
     Uses the Eckart / Weinstein–Temple inequality F ≥ 1 − Var(H)/gap² via
@@ -3353,17 +3307,13 @@ def _compute_fidelity_bound_for_chain_1d(checkpoint_file: str, n: int, h: float,
         model = _smart_load_checkpoint(str(ckpt))
         model.eval()
         lat = make_lattice("chain_1d", n, J=1.0, h=h, periodic=False)
-        graph = build_unified_bond_resolved_graph(
-            lat, h_value=h, p_layers=p_layers, include_circuit_nodes=True
-        )
+        graph = build_unified_bond_resolved_graph(lat, h_value=h, p_layers=p_layers, include_circuit_nodes=True)
         with torch.no_grad():
             theta = np.clip(model(graph).numpy().flatten(), -np.pi, np.pi)
 
         # Bound-namespaced cache key (BFID| distinguishes it from exact FID|).
         cache = EvalCache()
-        theta_hash = __import__("hashlib").sha256(
-            np.asarray(theta, dtype=np.float64).tobytes()
-        ).hexdigest()[:32]
+        theta_hash = __import__("hashlib").sha256(np.asarray(theta, dtype=np.float64).tobytes()).hexdigest()[:32]
         bkey = f"BFID|tfim_bond_resolved|chain_1d|{n}|{p_layers}|{h:.2f}|{theta_hash}"
         cached = cache.get(bkey)
         if cached is not None:
@@ -3387,8 +3337,7 @@ def _compute_fidelity_bound_for_chain_1d(checkpoint_file: str, n: int, h: float,
         cache.flush()
         return fb
     except Exception as exc:  # noqa: BLE001 — best-effort, never block backfill
-        logger.debug("_compute_fidelity_bound_for_chain_1d(%s N=%d h=%.2f) failed: %s",
-                     checkpoint_file[:30], n, h, exc)
+        logger.debug("_compute_fidelity_bound_for_chain_1d(%s N=%d h=%.2f) failed: %s", checkpoint_file[:30], n, h, exc)
         return None
 
 
@@ -3442,16 +3391,12 @@ def backfill_critical_ranking_from_evals(
         if ckpt is None:
             continue
         key = (ckpt, parsed["p_layers"])
-        slot = agg.setdefault(
-            key, {"per_n": {}, "report": report.name, "topology": parsed["topology"]}
-        )
+        slot = agg.setdefault(key, {"per_n": {}, "report": report.name, "topology": parsed["topology"]})
         for n, rows in parsed["per_n"].items():
             in_win = [r for r in rows if lo - 1e-9 <= r["h"] <= hi + 1e-9]
             if not in_win:
                 continue
-            nslot = slot["per_n"].setdefault(
-                n, {"abs_errors": [], "fidelities": [], "h_vals": [], "points": []}
-            )
+            nslot = slot["per_n"].setdefault(n, {"abs_errors": [], "fidelities": [], "h_vals": [], "points": []})
             for r in in_win:
                 nslot["abs_errors"].append(r["abs_error"])
                 nslot["h_vals"].append(r["h"])
@@ -3512,8 +3457,7 @@ def backfill_critical_ranking_from_evals(
             near = [pt for pt in nslot["points"] if abs(pt["h"] - 1.0) <= 0.15]
             if near:
                 best = min(near, key=lambda pt: abs(pt["h"] - 1.0))
-                at_h1 = {"h": best["h"], "abs_error": best["abs_error"],
-                         "fidelity": best["fidelity"]}
+                at_h1 = {"h": best["h"], "abs_error": best["abs_error"], "fidelity": best["fidelity"]}
             per_n_out[str(n)] = {
                 "abs_error_mean": float(sum(aes) / len(aes)),
                 "abs_error_best": float(min(aes)),
@@ -3541,7 +3485,8 @@ def backfill_critical_ranking_from_evals(
 
     logger.info(
         "backfill_critical_ranking: window=%s, updated %d entries",
-        _critical_window_key(window), n_updated,
+        _critical_window_key(window),
+        n_updated,
     )
     return n_updated
 
@@ -3589,8 +3534,7 @@ def backfill_missing_fidelities(
     """
     eval_root = _PROJECT_ROOT / "results" / "extrapolation_evals"
     if not eval_root.exists():
-        return {"computed": 0, "cached_hits": 0, "bounds_computed": 0,
-                "skipped_large_n": 0, "points_scanned": 0}
+        return {"computed": 0, "cached_hits": 0, "bounds_computed": 0, "skipped_large_n": 0, "points_scanned": 0}
 
     manifest_ckpts = {e.checkpoint_file for e in _load_manifest()}
 
@@ -3601,9 +3545,8 @@ def backfill_missing_fidelities(
                 return cand
         return None
 
-    lo, hi = (window if window is not None else (-1e9, 1e9))
-    stats = {"computed": 0, "cached_hits": 0, "bounds_computed": 0,
-             "skipped_large_n": 0, "points_scanned": 0}
+    lo, hi = window if window is not None else (-1e9, 1e9)
+    stats = {"computed": 0, "cached_hits": 0, "bounds_computed": 0, "skipped_large_n": 0, "points_scanned": 0}
     # Deduplicate (ckpt, N, h) so we compute each unique point at most once.
     seen: set[tuple[str, int, float]] = set()
 
@@ -3663,7 +3606,10 @@ def backfill_missing_fidelities(
 
     logger.info(
         "backfill_missing_fidelities: computed=%d cached_hits=%d skipped_large_n=%d scanned=%d",
-        stats["computed"], stats["cached_hits"], stats["skipped_large_n"], stats["points_scanned"],
+        stats["computed"],
+        stats["cached_hits"],
+        stats["skipped_large_n"],
+        stats["points_scanned"],
     )
     return stats
 
@@ -3739,17 +3685,13 @@ def compute_retrain_queue() -> list[dict]:
         # Priority 1: contaminated (lots of not_useful data)
         if len(not_useful_configs) >= 2:
             reason = (
-                f"contaminated: {len(not_useful_configs)} configs are 'not_useful' "
-                f"(gap masking teaches wrong mappings)"
+                f"contaminated: {len(not_useful_configs)} configs are 'not_useful' (gap masking teaches wrong mappings)"
             )
             priority = 1
 
         # Priority 2: stale (much more data available)
         elif any_needs_retrain and total_useful_pts > entry.n_training_points * 1.3:
-            reason = (
-                f"stale: {total_useful_pts} useful pts available "
-                f"(model trained on {entry.n_training_points})"
-            )
+            reason = f"stale: {total_useful_pts} useful pts available (model trained on {entry.n_training_points})"
             priority = 2
 
         # Priority 3: expanded (more N values available)
@@ -3765,11 +3707,15 @@ def compute_retrain_queue() -> list[dict]:
         if reason is None:
             continue
 
-        # Build CLI command
-        n_str = " ".join(str(n) for n in n_values_available)
+        # Build CLI command with VALID runner flags. Multi-N retrain aggregates
+        # all available N for this (topology, p); --n-qubits/--retrain are not
+        # real flags (were --target-n/--force-retrain). p_layers must be passed
+        # so p=1 and p=2 models are never cross-contaminated.
+        target_n = " ".join(str(n) for n in n_values_available) or str(entry.n_qubits or "")
         command = (
             f"python scripts/experiment_runners/bond_resolved/run_accelerated_cross_n.py "
-            f"--topology {topo} --n-qubits {n_str} --p-layers {p} --retrain"
+            f"--topology {topo} --p-layers {p} --target-n {target_n} "
+            f"--multi-n-train --force-retrain"
         )
 
         queue.append(
@@ -3904,10 +3850,7 @@ def restore_from_best(
         (
             e
             for e in entries
-            if e.model == model
-            and e.topology == topology
-            and e.p_layers == p_layers
-            and e.n_qubits == 0
+            if e.model == model and e.topology == topology and e.p_layers == p_layers and e.n_qubits == 0
         ),
         None,
     )
@@ -3924,10 +3867,7 @@ def restore_from_best(
     current_entry.notes = f"Restored from _best/ ({best_backup.name})"
     _save_manifest(entries)
 
-    logger.info(
-        f"Restored {topology} from _best/{best_backup.name} "
-        f"(pass_rate={pass_rate:.0%}) → {target_path.name}"
-    )
+    logger.info(f"Restored {topology} from _best/{best_backup.name} (pass_rate={pass_rate:.0%}) → {target_path.name}")
     return True
 
 
@@ -4030,9 +3970,7 @@ def get_training_data_quality(
     if total_pts > 0:
         verified_ratio = total_verified / total_pts
         # Weighted quality score: verified=1.0, approx=0.7, unverified=0.5
-        quality_score = (
-            total_verified * 1.0 + total_approx * 0.7 + total_unverified * 0.5
-        ) / total_pts
+        quality_score = (total_verified * 1.0 + total_approx * 0.7 + total_unverified * 0.5) / total_pts
     else:
         verified_ratio = 0.0
         quality_score = 0.0

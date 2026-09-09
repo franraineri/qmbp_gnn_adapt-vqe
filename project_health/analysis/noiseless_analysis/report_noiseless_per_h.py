@@ -5,10 +5,10 @@ Reuses the loading and per-point extraction logic from analyze_noiseless_per_h.p
 but outputs a structured markdown file suitable for documentation/thesis.
 
 Usage:
-    .venv/bin/python scripts/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ \
+    .venv/bin/python project_health/analysis/noiseless_analysis/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ \
         --h 1.0 1.5 2.0 3.0 4.0 5.0 -o noiseless_v2_report.md
 
-    .venv/bin/python scripts/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ --all
+    .venv/bin/python project_health/analysis/noiseless_analysis/report_noiseless_per_h.py results/experiments/exp_noiseless_tfim_v2/ --all
 """
 
 import argparse
@@ -138,8 +138,7 @@ def _per_h_table(data: dict, h_targets: list[float] | None) -> list[str]:
         lbl = "✓" if p.get("correct_label") else "✗"
         warn = " ⚠️" if de > 0.05 else ""
         lines.append(
-            f"| {h:.2f} | {de:.4e} | {f:.4f} | {s:.4f} "
-            f"| {ep:.4f} | {ee:.4f} | {mx:.4e} | {zz:.4e} | {lbl}{warn} |"
+            f"| {h:.2f} | {de:.4e} | {f:.4f} | {s:.4f} | {ep:.4f} | {ee:.4f} | {mx:.4e} | {zz:.4e} | {lbl}{warn} |"
         )
 
     return lines

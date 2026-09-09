@@ -158,3 +158,17 @@ backup_data_*
 
 *.jpeg
 *.jpg
+
+# ── LaTeX auxiliares (compilación de figuras/tesis) ─────────
+internal/tesis-figures/_build_*
+internal/**/*.aux
+internal/**/*.log
+internal/**/*.out
+internal/**/*.toc
+internal/**/*.lof
+internal/**/*.lot
+internal/**/*.fls
+internal/**/*.fdb_latexmk
+internal/**/*.synctex.gz
+# Shim local de icomma (el paquete real vive en Overleaf); no versionar.
+internal/tesis/icomma.sty

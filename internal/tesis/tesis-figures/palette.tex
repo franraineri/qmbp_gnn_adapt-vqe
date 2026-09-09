@@ -1,0 +1,71 @@
+% Paleta de colores estandarizada de la tesis GNN-HVA.
+% Fuente de verdad unica: toda figura (TikZ, pgfplots) y toda tabla que use
+% color debe importar este archivo con \input{tesis-figures/palette} y usar
+% los nombres semanticos, nunca HEX sueltos.
+%
+% Requiere \usepackage{xcolor} en el preambulo del documento.
+%
+% Las cuatro etapas del pipeline forman una progresion neutro -> destacado:
+%   1. Definicion del problema   gris          #8A8D91
+%   2. Datos de referencia       amarillo suave #F2C94C
+%   3. Optimizacion VQE          naranja        #E8833A
+%   4. Prediccion y evaluacion   violeta        #7B54B8
+%
+% Auxiliares para resultados (buen/mal resultado), accesibles en escala de grises.
+
+% Etapas del pipeline
+\definecolor{stageProblem}{HTML}{8A8D91}  % gris    -- etapa 1
+\definecolor{stageData}{HTML}{F2C94C}     % amarillo -- etapa 2
+\definecolor{stageVQE}{HTML}{E8833A}      % naranja -- etapa 3
+\definecolor{stagePred}{HTML}{7B54B8}     % violeta -- etapa 4
+
+% Auxiliares de resultado
+\definecolor{resultGood}{HTML}{2E86AB}    % azul    -- configuracion que aprueba
+\definecolor{resultBad}{HTML}{C0392B}     % rojo    -- configuracion que falla
+
+% Tintes claros para rellenos de fondo (borde en el color pleno, relleno tenue)
+\definecolor{stageProblemBg}{HTML}{E8E9EA}
+\definecolor{stageDataBg}{HTML}{FBEFC7}
+\definecolor{stageVQEBg}{HTML}{F9DDC7}
+\definecolor{stagePredBg}{HTML}{E4DAF2}
+
+% ─────────────────────────────────────────────────────────────
+% Ampliaciones para consistencia en el resto de figuras/tablas.
+% Usar SIEMPRE estos nombres semanticos; no introducir HEX sueltos.
+% ─────────────────────────────────────────────────────────────
+
+% Escala de calificacion por |Delta E| (A mejor -> F peor). Degradado verde->rojo
+% perceptualmente ordenado, coherente con resultGood/resultBad. Para tablas de
+% calificacion (A/B/C/D/F) y mapas de calor de tasa de aprobacion.
+\definecolor{gradeA}{HTML}{2E86AB}  % azul     -- A (< 0,05): excelente
+\definecolor{gradeB}{HTML}{4CAF50}  % verde    -- B (< 0,10): bueno
+\definecolor{gradeC}{HTML}{F2C94C}  % amarillo -- C (< 0,30): aceptable
+\definecolor{gradeD}{HTML}{E8833A}  % naranja  -- D (< 1,00): marginal
+\definecolor{gradeF}{HTML}{C0392B}  % rojo     -- F (>= 1,00): falla
+
+% Colores por topologia (cinco categorias distinguibles, seguras en escala de
+% grises). Uso: curvas/series por topologia en un mismo grafico.
+\definecolor{topoChain}{HTML}{1B6CA8}      % cadena 1D  -- azul
+\definecolor{topoHeavyHex}{HTML}{2E9E5B}   % heavy-hex  -- verde
+\definecolor{topoLadder}{HTML}{E8833A}     % escalera   -- naranja
+\definecolor{topoSquare}{HTML}{7B54B8}     % cuadrada   -- violeta
+\definecolor{topoTriangular}{HTML}{C0392B} % triangular -- rojo
+
+% Regimen fisico del TFIM respecto al punto critico h_c. Para sombrear regiones
+% en figuras de barrido en h (fase ordenada / critico / paramagnetica).
+\definecolor{phaseOrdered}{HTML}{6A5ACD}     % fase ordenada (h < h_c)
+\definecolor{phaseCritical}{HTML}{C0392B}    % punto critico (h ~ h_c)
+\definecolor{phaseParamag}{HTML}{2E86AB}     % fase paramagnetica (h > h_c)
+\definecolor{phaseOrderedBg}{HTML}{E6E3F7}   % tinte de fondo -- ordenada
+\definecolor{phaseCriticalBg}{HTML}{F6DAD6}  % tinte de fondo -- critico
+\definecolor{phaseParamagBg}{HTML}{DCE9F1}   % tinte de fondo -- paramagnetica
+
+% Neutros de apoyo (ejes, malla, texto secundario, umbrales).
+\definecolor{axisGray}{HTML}{4A4A4A}      % ejes y texto principal
+\definecolor{gridGray}{HTML}{CFCFCF}      % lineas de malla/rejilla
+\definecolor{mutedGray}{HTML}{8A8D91}     % anotaciones secundarias (= stageProblem)
+\definecolor{thresholdLine}{HTML}{C0392B} % linea de umbral (p. ej. 5\%)
+
+% Comparacion de metodos (figuras MPNN vs VQE aleatorio).
+\definecolor{methodMPNN}{HTML}{2E9E5B}    % prediccion MPNN (buen metodo) -- verde
+\definecolor{methodRandom}{HTML}{C0392B}  % VQE con inicializacion aleatoria -- rojo

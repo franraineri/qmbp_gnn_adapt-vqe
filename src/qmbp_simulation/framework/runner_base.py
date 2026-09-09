@@ -570,8 +570,7 @@ class ValidationRunner(ABC):
                 # Skip sections already completed in the resumed run
                 if section.id in _resumed_sections:
                     logger.info(
-                        f"  ⏭️  Skipping Section {section.id} ({section.name}) — "
-                        f"already completed in resumed run."
+                        f"  ⏭️  Skipping Section {section.id} ({section.name}) — already completed in resumed run."
                     )
                     continue
 
@@ -590,17 +589,12 @@ class ValidationRunner(ABC):
 
                 # Stop-on-failure: abort remaining sections
                 if not result.success and self._args.stop_on_failure:
-                    logger.warning(
-                        f"  Stopping early (--stop-on-failure). Section {section.id} failed."
-                    )
+                    logger.warning(f"  Stopping early (--stop-on-failure). Section {section.id} failed.")
                     break
 
         except KeyboardInterrupt:
             interrupted = True
-            msg = (
-                f"\n  ⚠️  INTERRUPTED (Ctrl+C) during section {_current_section_id}. "
-                f"Saving partial results..."
-            )
+            msg = f"\n  ⚠️  INTERRUPTED (Ctrl+C) during section {_current_section_id}. Saving partial results..."
             logger.warning(msg)
             self.slog.log(
                 "interrupted",
@@ -712,12 +706,8 @@ class ValidationRunner(ABC):
                         "results": results,
                         "summary": summary,
                         "elapsed_s": round(total_elapsed, 2),
-                        "model_provenance": _deep_serialize(self._model_provenance)
-                        if self._model_provenance
-                        else None,
-                        "auto_validation": _deep_serialize(self._auto_validation)
-                        if self._auto_validation
-                        else None,
+                        "model_provenance": _deep_serialize(self._model_provenance) if self._model_provenance else None,
+                        "auto_validation": _deep_serialize(self._auto_validation) if self._auto_validation else None,
                         "analysis": {
                             "experiment_id": self.experiment_id,
                             "summary": summary,
@@ -745,9 +735,7 @@ class ValidationRunner(ABC):
                         envelope["interrupted"] = True
                         envelope["completed_sections"] = len(self._section_results)
                         envelope["interrupted_section"] = _current_section_id
-                    saved_path = save_experiment_result(
-                        envelope, experiment_id=self._result_experiment_id()
-                    )
+                    saved_path = save_experiment_result(envelope, experiment_id=self._result_experiment_id())
             except (Exception, TimeoutError):
                 # Emergency minimal save
                 try:
@@ -755,11 +743,7 @@ class ValidationRunner(ABC):
 
                     from qmbp_simulation.framework.result_io import generate_timestamp
 
-                    edir = (
-                        Path("results")
-                        / "experiments"
-                        / f"exp_{self._result_experiment_id().lower()}"
-                    )
+                    edir = Path("results") / "experiments" / f"exp_{self._result_experiment_id().lower()}"
                     edir.mkdir(parents=True, exist_ok=True)
                     saved_path = edir / f"run_{generate_timestamp()}.json"
                     saved_path.write_text(
@@ -800,9 +784,7 @@ class ValidationRunner(ABC):
         if not interrupted and saved_path:
             self._print_summary(total_elapsed, saved_path)
         elif interrupted:
-            logger.info(
-                f"\n  Partial results: {len(self._section_results)}/{len(selected)} sections."
-            )
+            logger.info(f"\n  Partial results: {len(self._section_results)}/{len(selected)} sections.")
 
         # Flush stdout/stderr before exit
         sys.stdout.flush()
@@ -849,18 +831,10 @@ class ValidationRunner(ABC):
             import subprocess
 
             _idx_script = (
-                self._get_project_root()
-                / "scripts"
-                / "general_project_maintenance"
-                / "generate_module_index.py"
+                self._get_project_root() / "scripts" / "general_project_maintenance" / "generate_module_index.py"
             )
             if not _idx_script.exists():
-                _idx_script = (
-                    self._get_project_root()
-                    / "scripts"
-                    / "maintenance"
-                    / "generate_module_index.py"
-                )
+                _idx_script = self._get_project_root() / "scripts" / "maintenance" / "generate_module_index.py"
             if _idx_script.exists():
                 subprocess.Popen(
                     [sys.executable, str(_idx_script)],
@@ -923,10 +897,7 @@ class ValidationRunner(ABC):
 
             # Validate return type
             if data is None:
-                logger.warning(
-                    f"  Section {section.id} returned None instead of dict. "
-                    f"Treating as empty result."
-                )
+                logger.warning(f"  Section {section.id} returned None instead of dict. Treating as empty result.")
                 data = {}
             elif not isinstance(data, dict):
                 logger.warning(
@@ -1050,10 +1021,7 @@ class ValidationRunner(ABC):
             resumed_ids.add(section_id)
 
         if resumed_ids:
-            logger.info(
-                f"  📂 Resumed from {path.name}: "
-                f"sections {sorted(resumed_ids)} loaded, will be skipped."
-            )
+            logger.info(f"  📂 Resumed from {path.name}: sections {sorted(resumed_ids)} loaded, will be skipped.")
             # Allow subclass to restore internal state from resumed data
             self.restore_section_state(data, resumed_ids)
             self.slog.log(
@@ -1065,15 +1033,12 @@ class ValidationRunner(ABC):
             )
         else:
             logger.warning(
-                f"  Resume file {path.name} has no successfully completed sections. "
-                f"Running all sections from scratch."
+                f"  Resume file {path.name} has no successfully completed sections. Running all sections from scratch."
             )
 
         return resumed_ids
 
-    def restore_section_state(
-        self, resumed_data: dict[str, Any], resumed_sections: set[int]
-    ) -> None:
+    def restore_section_state(self, resumed_data: dict[str, Any], resumed_sections: set[int]) -> None:
         """Hook for subclasses to restore internal state from a resumed run.
 
         Override this to reload section-specific data (e.g., VQE theta_opt,
@@ -1108,9 +1073,7 @@ class ValidationRunner(ABC):
             selected = [s for s in sections if s.id in requested]
             if not selected:
                 available = [s.id for s in sections]
-                logger.error(
-                    f"No sections match --section {self._args.section}. Available: {available}"
-                )
+                logger.error(f"No sections match --section {self._args.section}. Available: {available}")
                 sys.exit(1)
             return selected
         return sections
@@ -1262,11 +1225,7 @@ class ValidationRunner(ABC):
             verdict_input = dict(summary)
             if physics_summary:
                 verdict_input.update(
-                    {
-                        k: v
-                        for k, v in physics_summary.items()
-                        if v is not None and k in ("mean_de_gap", "pass_rate")
-                    }
+                    {k: v for k, v in physics_summary.items() if v is not None and k in ("mean_de_gap", "pass_rate")}
                 )
             verdict, criteria_desc = compute_verdict(self.experiment_id, verdict_input)
             return {
@@ -1401,9 +1360,7 @@ class ValidationRunner(ABC):
                 n_qubits = system.get("n_qubits", 0)
                 topology = system.get("topologies", system.get("topology", "unknown"))
                 if n_qubits > 0:
-                    envelope["simulation_diagnostics"] = build_simulation_diagnostics(
-                        backend, n_qubits, topology
-                    )
+                    envelope["simulation_diagnostics"] = build_simulation_diagnostics(backend, n_qubits, topology)
                     # Flag when E_exact reference is approximate (DMRG TFIChain on non-1D)
                     topo_str = topology[0] if isinstance(topology, list) else topology
                     _NON_1D_TOPOS = ("heavy_hex", "ladder", "square", "triangular")
@@ -1455,10 +1412,7 @@ class ValidationRunner(ABC):
                 )
                 self.slog.log("all_sections_failed", data={"n_total": n_total})
             elif pass_rate < 0.5 and n_total >= 3:
-                logger.warning(
-                    f"⚠️  Low pass rate ({pass_rate * 100:.0f}%%) — "
-                    f"only {n_pass}/{n_total} sections passed."
-                )
+                logger.warning(f"⚠️  Low pass rate ({pass_rate * 100:.0f}%%) — only {n_pass}/{n_total} sections passed.")
 
         return envelope
 
@@ -1653,8 +1607,7 @@ class ValidationRunner(ABC):
             "--force-bidirectional",
             action="store_true",
             default=False,
-            help="Force the bidirectional pass even for N>=16 "
-            "(overrides the automatic skip for large systems).",
+            help="Force the bidirectional pass even for N>=16 (overrides the automatic skip for large systems).",
         )
         # Config preset (loads YAML, CLI overrides preset values)
         parser.add_argument(
@@ -1863,34 +1816,46 @@ class ValidationRunner(ABC):
         if seeds is None:
             seeds = [42, 43, 44]
 
-        parser.add_argument(
+        # Añadir cada flag solo si el parser base no lo registró ya. La clase base
+        # (_parse_args) añade --model (y --j2) de forma condicional antes de llamar
+        # a _add_custom_args; sin este guard, volver a añadir --model aquí lanza
+        # argparse.ArgumentError ("conflicting option string: --model") y rompe
+        # cualquier invocación del runner. El guard hace este método idempotente
+        # frente a lo que la base ya haya definido.
+        _present = {opt for action in parser._actions for opt in action.option_strings}
+
+        def _add(flag: str, *args, **kwargs) -> None:
+            if flag not in _present:
+                parser.add_argument(flag, *args, **kwargs)
+
+        _add(
             "--n-qubits",
             type=int,
             default=n_qubits,
             help="System size (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--p-layers",
             type=int,
             default=p_layers,
             choices=[1, 2, 3, 4, 5, 6, 7, 8],
             help="HVA circuit depth (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--topology",
             type=str,
             nargs="+",
             default=[topology],
             help="Lattice topology(ies) (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--model",
             type=str,
             default=model,
             help="Model from registry: tfim, tfim_longitudinal, tfim_frustrated, "
             "heisenberg, xy, tfim_bond_resolved (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--model-params",
             type=str,
             default=None,
@@ -1898,44 +1863,44 @@ class ValidationRunner(ABC):
             "E.g. --model-params g=0.3 for tfim_longitudinal, "
             "or --model-params J2=0.5 for tfim_frustrated",
         )
-        parser.add_argument(
+        _add(
             "--h-min",
             type=float,
             default=h_min,
             help="Minimum h value (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--h-max",
             type=float,
             default=h_max,
             help="Maximum h value (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--h-points",
             type=int,
             default=h_points,
             help="Number of h-points in sweep (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--seeds",
             type=int,
             nargs="+",
             default=seeds,
             help="Random seeds (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--maxiter",
             type=int,
             default=maxiter,
             help="VQE optimizer maxiter per restart (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--n-restarts",
             type=int,
             default=n_restarts,
             help="VQE restarts per h-point (default: %(default)s)",
         )
-        parser.add_argument(
+        _add(
             "--output",
             type=str,
             default=None,
@@ -2109,9 +2074,7 @@ class ValidationRunner(ABC):
         """
         from qmbp_simulation.execution import NoiselessBackend
 
-        return (
-            getattr(self, "noiseless", None) or getattr(self, "backend", None) or NoiselessBackend()
-        )
+        return getattr(self, "noiseless", None) or getattr(self, "backend", None) or NoiselessBackend()
 
     def select_backend(self, n_qubits: int, *, for_vqe_loop: bool = False):
         """Select the optimal noiseless backend for a given system size.
@@ -2216,12 +2179,7 @@ class ValidationRunner(ABC):
         _p_raw = p_layers or getattr(args, "p_layers", 1)
         _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
 
-        npz_path = (
-            _Path(__file__).resolve().parents[2]
-            / "data"
-            / "multi_n_training"
-            / f"{_topo}_N{_n}_p{_p}.npz"
-        )
+        npz_path = _Path(__file__).resolve().parents[2] / "data" / "multi_n_training" / f"{_topo}_N{_n}_p{_p}.npz"
         if not npz_path.exists():
             return None
 
@@ -2299,12 +2257,7 @@ class ValidationRunner(ABC):
 
         _p_raw = getattr(args, "p_layers", 1)
         _p = _p_raw[0] if isinstance(_p_raw, list) else _p_raw
-        npz_path = (
-            _Path(__file__).resolve().parents[2]
-            / "data"
-            / "multi_n_training"
-            / f"{_topo}_N{_n}_p{_p}.npz"
-        )
+        npz_path = _Path(__file__).resolve().parents[2] / "data" / "multi_n_training" / f"{_topo}_N{_n}_p{_p}.npz"
         npz_points = 0
         if npz_path.exists():
             d = _np.load(str(npz_path), allow_pickle=True)
@@ -2381,13 +2334,9 @@ class ValidationRunner(ABC):
 
         logger.info("  ┌─ Budget Estimation ────────────────────────")
         logger.info(f"  │ Config: {_topo} N={_n} p={_p}, {budget['n_points']} h-points")
+        logger.info(f"  │ GT cache: {budget['gt_hits']}/{budget['n_points']} hits → {budget['gt_misses']} DMRG needed")
         logger.info(
-            f"  │ GT cache: {budget['gt_hits']}/{budget['n_points']} hits "
-            f"→ {budget['gt_misses']} DMRG needed"
-        )
-        logger.info(
-            f"  │ Eval cache: {budget['eval_cache_entries']} entries "
-            f"(hit_rate={budget['eval_cache_hit_rate']:.0%})"
+            f"  │ Eval cache: {budget['eval_cache_entries']} entries (hit_rate={budget['eval_cache_hit_rate']:.0%})"
         )
         logger.info(f"  │ NPZ training data: {budget['npz_existing_points']} existing points")
         if budget.get("h_frontier"):
@@ -2478,16 +2427,14 @@ class ValidationRunner(ABC):
                 pair = pair.strip()
                 if "=" not in pair:
                     raise ValueError(
-                        f"Invalid --model-params format: '{pair}'. "
-                        f"Expected key=value (e.g. 'g=0.3,J2=0.5')."
+                        f"Invalid --model-params format: '{pair}'. Expected key=value (e.g. 'g=0.3,J2=0.5')."
                     )
                 key, val = pair.split("=", 1)
                 try:
                     self._model_params[key.strip()] = float(val.strip())
                 except ValueError:
                     raise ValueError(
-                        f"Invalid --model-params value for '{key.strip()}': "
-                        f"'{val.strip()}' is not a valid number."
+                        f"Invalid --model-params value for '{key.strip()}': '{val.strip()}' is not a valid number."
                     )
             logger.info("  Model params override: %s", self._model_params)
         return self._model_params
@@ -2579,7 +2526,7 @@ class ValidationRunner(ABC):
         if frontier_dense:
             h_frontier = self.get_empirical_h_frontier()
             if h_frontier is not None:
-                from qmbp_simulation.pipeline.dataset_io import generate_frontier_dense_h_grid
+                from qmbp_simulation.utils.h_grid import generate_frontier_dense_h_grid
 
                 grid = generate_frontier_dense_h_grid(
                     h_min=_h_min,
@@ -2598,7 +2545,7 @@ class ValidationRunner(ABC):
             else:
                 logger.info("  h-grid: no empirical frontier found, falling back to nonuniform")
 
-        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+        from qmbp_simulation.utils.h_grid import generate_nonuniform_h_grid
 
         _model = model if model is not None else self._args.model
         h_crit = self.H_CRITICAL_ESTIMATES.get(_model, (_h_min + _h_max) / 2)
@@ -2733,11 +2680,7 @@ class ValidationRunner(ABC):
                         sorted(saved_topo)
                         if isinstance(saved_topo, list)
                         else [saved_topo]
-                        != (
-                            sorted(current_topo)
-                            if isinstance(current_topo, list)
-                            else [current_topo]
-                        )
+                        != (sorted(current_topo) if isinstance(current_topo, list) else [current_topo])
                     ):
                         mismatches.append(f"topology: saved={saved_topo}, current={current_topo}")
 
@@ -2786,9 +2729,7 @@ class ValidationRunner(ABC):
     # ── VQE checkpoint helpers (typed contract) ────────────────────────────
 
     @staticmethod
-    def vqe_checkpoint_key(
-        topology: str, *, n_qubits: int | None = None, model: str | None = None
-    ) -> str:
+    def vqe_checkpoint_key(topology: str, *, n_qubits: int | None = None, model: str | None = None) -> str:
         """Build the VQE checkpoint key. Include N and model when given so runs
         at the same topology but different size/model never collide.
         """
@@ -2867,8 +2808,7 @@ class ValidationRunner(ABC):
                 first_theta = results[0].get("theta_opt")
                 if first_theta is not None and len(first_theta) != n_params:
                     logger.warning(
-                        "    ⚠️  Stale checkpoint for %s: results theta_opt has %d params, "
-                        "expected %d. Discarding.",
+                        "    ⚠️  Stale checkpoint for %s: results theta_opt has %d params, expected %d. Discarding.",
                         topology,
                         len(first_theta),
                         n_params,
@@ -2877,9 +2817,7 @@ class ValidationRunner(ABC):
                     return None
 
             n_total = len(getattr(self, "_h_values", [])) or "?"
-            logger.info(
-                "    Resuming VQE: %d/%s points already computed", cp["n_completed"], n_total
-            )
+            logger.info("    Resuming VQE: %d/%s points already computed", cp["n_completed"], n_total)
             return results, theta
         except (KeyError, TypeError) as e:
             logger.warning("    ⚠️  Checkpoint data invalid for %s: %s", topology, e)
@@ -3167,9 +3105,7 @@ class ValidationRunner(ABC):
         if target_ckpt is None:
             zoo_entry = getattr(self, "_zoo_entry", None)
             if zoo_entry is None:
-                logger.debug(
-                    "auto_update_zoo_pass_rate: no checkpoint_file or _zoo_entry, skipping"
-                )
+                logger.debug("auto_update_zoo_pass_rate: no checkpoint_file or _zoo_entry, skipping")
                 return False
             target_ckpt = zoo_entry.checkpoint_file
 
@@ -3454,9 +3390,7 @@ class ValidationRunner(ABC):
             # ── Check stopping criterion ──
             if should_stop(uncertainties, threshold=0.01):
                 stopped_early = True
-                logger.info(
-                    "  AL round %d: uncertainty below threshold — stopping early.", round_idx + 1
-                )
+                logger.info("  AL round %d: uncertainty below threshold — stopping early.", round_idx + 1)
                 break
 
             # ── Select points to refine ──
@@ -3466,9 +3400,7 @@ class ValidationRunner(ABC):
                 if not available_uncertainties:
                     break
                 # Filter to points above threshold
-                above_thr = [
-                    (i, u) for i, u in available_uncertainties if u > de_gap_threshold * 0.1
-                ]
+                above_thr = [(i, u) for i, u in available_uncertainties if u > de_gap_threshold * 0.1]
                 if not above_thr:
                     break
                 # Use acquisition function
@@ -3477,9 +3409,7 @@ class ValidationRunner(ABC):
                 best_sub_idx = select_next_point(sub_h, sub_uncert, acquisition=acquisition)[0]
                 actual_idx = above_thr[best_sub_idx][0]
                 selected_indices.append(actual_idx)
-                available_uncertainties = [
-                    (i, u) for i, u in available_uncertainties if i != actual_idx
-                ]
+                available_uncertainties = [(i, u) for i, u in available_uncertainties if i != actual_idx]
 
             if not selected_indices:
                 logger.info("  AL round %d: no points above threshold — stopping.", round_idx + 1)
@@ -3585,9 +3515,7 @@ class ValidationRunner(ABC):
             # topology/p hints disambiguate fuzzy candidates.
             ckpt_path = resolve_checkpoint_fuzzy(str(_ckpt), topology=_topo, p_layers=_p)
             if ckpt_path is None:
-                candidates = resolve_checkpoint_fuzzy(
-                    str(_ckpt), topology=_topo, p_layers=_p, return_all=True
-                )
+                candidates = resolve_checkpoint_fuzzy(str(_ckpt), topology=_topo, p_layers=_p, return_all=True)
                 # If the exact/glob query found nothing, widen the suggestion
                 # net to bare-substring candidates for a helpful error.
                 if not candidates:
@@ -3595,8 +3523,7 @@ class ValidationRunner(ABC):
                 names = [p.name for p, _ in (candidates or [])[:5]]
                 hint = f" Closest checkpoints on disk: {names}" if names else ""
                 raise FileNotFoundError(
-                    f"--checkpoint '{_ckpt}' not found as a file path, exact zoo "
-                    f"name, or fuzzy match.{hint}"
+                    f"--checkpoint '{_ckpt}' not found as a file path, exact zoo name, or fuzzy match.{hint}"
                 )
 
             is_fuzzy = ckpt_path.name != str(_ckpt) and not str(_ckpt).endswith(ckpt_path.name)
@@ -3712,8 +3639,7 @@ class ValidationRunner(ABC):
         summary = agg.scan()
         if not summary:
             logger.warning(
-                "    No training data available (no NPZ files for %s/%s). "
-                "Cannot train. Run VQE at small N first.",
+                "    No training data available (no NPZ files for %s/%s). Cannot train. Run VQE at small N first.",
                 _model,
                 _topo,
             )
@@ -3733,10 +3659,7 @@ class ValidationRunner(ABC):
             _hard_failure_modes = {"contaminated_training", "gap_masking"}
             _excluded_n_values: set[int] = set()
             for entry in _excl_registry.get("excluded", []):
-                if (
-                    entry.get("topology") == _topo
-                    and entry.get("failure_mode") in _hard_failure_modes
-                ):
+                if entry.get("topology") == _topo and entry.get("failure_mode") in _hard_failure_modes:
                     n_val = entry.get("n_qubits", 0)
                     if n_val > 0:
                         _excluded_n_values.add(n_val)
@@ -4475,9 +4398,7 @@ class ValidationRunner(ABC):
                 has_quality_tier = False
 
             verified_ratio = n_verified / max(n_total, 1)
-            quality_score = (n_verified * 1.0 + n_approx * 0.7 + n_unverified * 0.5) / max(
-                n_total, 1
-            )
+            quality_score = (n_verified * 1.0 + n_approx * 0.7 + n_unverified * 0.5) / max(n_total, 1)
 
             return {
                 "n_verified": n_verified,
@@ -4586,9 +4507,7 @@ class ValidationRunner(ABC):
 
                 with open(dashboard_path) as f:
                     dashboard = json.load(f)
-                dashboard_configs = [
-                    c for c in dashboard.get("configs", []) if c.get("topology") == topology
-                ]
+                dashboard_configs = [c for c in dashboard.get("configs", []) if c.get("topology") == topology]
             else:
                 dashboard_configs = []
 
@@ -4671,10 +4590,7 @@ class ValidationRunner(ABC):
                 min_n_values=min_n_values,
             )
             if not is_viable:
-                logger.warning(
-                    f"{prefix} ⚠️ Training data quality: "
-                    f"{val_report.get('recommendation', 'low quality')}"
-                )
+                logger.warning(f"{prefix} ⚠️ Training data quality: {val_report.get('recommendation', 'low quality')}")
                 for warn in val_report.get("warnings", [])[:2]:
                     logger.warning(f"{prefix}   {warn}")
             return is_viable
@@ -4771,9 +4687,7 @@ class ValidationRunner(ABC):
             pts = val.get("per_point")
             if isinstance(pts, list) and pts:
                 dgs = [p.get("de_gap") for p in pts if isinstance(p.get("de_gap"), (int, float))]
-                aes = [
-                    p.get("abs_error") for p in pts if isinstance(p.get("abs_error"), (int, float))
-                ]
+                aes = [p.get("abs_error") for p in pts if isinstance(p.get("abs_error"), (int, float))]
                 hvs = [p.get("h") for p in pts if isinstance(p.get("h"), (int, float))]
                 if dgs:
                     entry["de_gaps"] = [float(x) for x in dgs]
@@ -4855,9 +4769,7 @@ class ValidationRunner(ABC):
             pts = val.get("per_point")
             if isinstance(pts, list) and pts:
                 dg = [p.get("de_gap") for p in pts if isinstance(p.get("de_gap"), (int, float))]
-                ae = [
-                    p.get("abs_error") for p in pts if isinstance(p.get("abs_error"), (int, float))
-                ]
+                ae = [p.get("abs_error") for p in pts if isinstance(p.get("abs_error"), (int, float))]
                 hv = [p.get("h") for p in pts if isinstance(p.get("h"), (int, float))]
                 if dg:
                     per_h_de_gaps[str(n)] = [float(x) for x in dg]
@@ -4955,9 +4867,7 @@ class ValidationRunner(ABC):
             pass_rate_5pct=float(_np.mean(pass_rates_5pct)) if pass_rates_5pct else 0.0,
             pass_rate_dual=best_pass_dual,
             mean_de_gap=float(_np.mean(mean_de_gaps)) if mean_de_gaps else 0.0,
-            mean_abs_error_per_site=float(_np.mean(mean_abs_per_site))
-            if mean_abs_per_site
-            else 0.0,
+            mean_abs_error_per_site=float(_np.mean(mean_abs_per_site)) if mean_abs_per_site else 0.0,
             notes=f"{self.runner_id} N={sorted(set(target_n_values)) or '?'}",
             pass_rate_dual_ci=best_pass_dual_ci,
             mean_de_gap_ci=best_mean_de_gap_ci,
@@ -5007,9 +4917,7 @@ class ValidationRunner(ABC):
                     per_point = val.get("per_point", [])
                     if isinstance(per_point, list):
                         n_refined += sum(
-                            1
-                            for p in per_point
-                            if p.get("method") in ("vqe_refined", "al_refined", "auto_refined")
+                            1 for p in per_point if p.get("method") in ("vqe_refined", "al_refined", "auto_refined")
                         )
 
         if n_refined < 5:
@@ -5025,10 +4933,7 @@ class ValidationRunner(ABC):
         if topology is None:
             return
 
-        logger.info(
-            f"\n  🔄 Auto-retrain triggered: {n_refined} refined points detected. "
-            f"Fine-tuning zoo model..."
-        )
+        logger.info(f"\n  🔄 Auto-retrain triggered: {n_refined} refined points detected. Fine-tuning zoo model...")
 
         try:
             # Reload model (may have been freed from memory)
@@ -5059,9 +4964,7 @@ class ValidationRunner(ABC):
                 return
 
             # Fine-tune (lightweight: 500 epochs, high patience)
-            train_result = fine_tune_unified_mpnn(
-                model, dataset, n_epochs=500, lr=3e-4, patience=100, seed=42
-            )
+            train_result = fine_tune_unified_mpnn(model, dataset, n_epochs=500, lr=3e-4, patience=100, seed=42)
 
             final_mse = train_result.get("final_mse", float("inf"))
             logger.info(
@@ -5178,7 +5081,7 @@ class ValidationRunner(ABC):
                 # Check if GT cache has entries for this topology
                 disk_cache = getattr(self, "_disk_gt_cache", None)
                 if disk_cache is not None and len(disk_cache) > 0:
-                    from scripts.analysis.qpt_detection import run_qpt_analysis
+                    from qmbp_simulation.analysis.qpt_detection import run_qpt_analysis
 
                     qpt_result = run_qpt_analysis(topology, p_layers=1, use_predicted=False)
                     if "error" not in qpt_result and qpt_result.get("n_values_reliable"):
@@ -5188,10 +5091,7 @@ class ValidationRunner(ABC):
                         from qmbp_simulation.utils.helpers import json_serialize
 
                         qpt_path = (
-                            self._get_project_root()
-                            / "results"
-                            / "analysis"
-                            / f"qpt_detection_{topology}_exact.json"
+                            self._get_project_root() / "results" / "analysis" / f"qpt_detection_{topology}_exact.json"
                         )
                         qpt_path.parent.mkdir(parents=True, exist_ok=True)
                         with open(qpt_path, "w") as f:
@@ -5242,8 +5142,7 @@ class ValidationRunner(ABC):
 
             if diag.primary_mode != "healthy":
                 logger.info(
-                    f"\n  🔬 Failure Diagnosis [{topology}]: "
-                    f"{diag.primary_mode} (confidence={diag.confidence:.0%})"
+                    f"\n  🔬 Failure Diagnosis [{topology}]: {diag.primary_mode} (confidence={diag.confidence:.0%})"
                 )
                 if diag.explanation:
                     logger.info(f"     {diag.explanation[:120]}")
@@ -5393,9 +5292,7 @@ class ValidationRunner(ABC):
                     n_max_viable = info.get("n_max_viable")
                     # Use best_pass_rate_5pct as proxy when no dedicated
                     # dual field exists in topology_summary (computed from NPZ)
-                    pass_rate_dual = info.get(
-                        "best_pass_rate_dual", info.get("best_pass_rate_5pct", 0)
-                    )
+                    pass_rate_dual = info.get("best_pass_rate_dual", info.get("best_pass_rate_5pct", 0))
 
                 # Get h_frontier from configs
                 configs = dashboard.get("configs", [])
@@ -5991,9 +5888,7 @@ class ValidationRunner(ABC):
                 solver = getattr(self, "solver", None) or ClassicalSolver()
                 gt = solver.solve(H, lattice)
                 mag_x = float(gt.mag_x) if hasattr(gt, "mag_x") and gt.mag_x is not None else None
-                corr_zz = (
-                    float(gt.corr_zz) if hasattr(gt, "corr_zz") and gt.corr_zz is not None else None
-                )
+                corr_zz = float(gt.corr_zz) if hasattr(gt, "corr_zz") and gt.corr_zz is not None else None
 
                 # Update GT cache with observables (enriches existing entry)
                 if disk_cache is not None and (mag_x is not None or corr_zz is not None):
@@ -6165,11 +6060,7 @@ class ValidationRunner(ABC):
             # Cap total function evaluations (same formula as VQEOptimizer._run_minimize)
             maxfun = maxiter * min(n_params + 5, 50)
             for restart in range(n_restarts):
-                x0 = (
-                    prev_theta + rng.normal(0, sigma, n_params)
-                    if restart > 0
-                    else prev_theta.copy()
-                )
+                x0 = prev_theta + rng.normal(0, sigma, n_params) if restart > 0 else prev_theta.copy()
                 x0 = np.clip(x0, -np.pi, np.pi)
                 res = minimize(
                     lambda params, _H=H, _c=circuit: backend.evaluate(_c, _H, params),
@@ -6402,9 +6293,7 @@ class ValidationRunner(ABC):
                     "theta_opt": vqe_result.theta_opt.tolist(),
                     "converged": vqe_result.n_iterations > 0,
                     "n_iterations": vqe_result.n_iterations,
-                    "n_restarts_used": (
-                        vqe_result.trajectory.n_restarts_used if vqe_result.trajectory else 0
-                    ),
+                    "n_restarts_used": (vqe_result.trajectory.n_restarts_used if vqe_result.trajectory else 0),
                     "elapsed_s": elapsed,
                 }
             )
@@ -6891,10 +6780,7 @@ class ValidationRunner(ABC):
 
         from qmbp_simulation.models.constants import DE_GAP_THRESHOLD
 
-        de_gaps = [
-            abs(vqe_energies[i] - exact_energies[i]) / max(gaps[i], 1e-10)
-            for i in range(len(vqe_energies))
-        ]
+        de_gaps = [abs(vqe_energies[i] - exact_energies[i]) / max(gaps[i], 1e-10) for i in range(len(vqe_energies))]
         n_pass = sum(1 for d in de_gaps if d < DE_GAP_THRESHOLD)
         return {
             "de_gaps": de_gaps,
@@ -6975,8 +6861,7 @@ class ValidationRunner(ABC):
         from qmbp_simulation.analysis.metrics import compute_variational_violations
 
         per_point = [
-            {"e_vqe": e_vqe, "e_exact": e_exact}
-            for e_vqe, e_exact in zip(vqe_energies, exact_energies, strict=False)
+            {"e_vqe": e_vqe, "e_exact": e_exact} for e_vqe, e_exact in zip(vqe_energies, exact_energies, strict=False)
         ]
         result = compute_variational_violations(per_point, tolerance=tolerance)
         return result["n_violations"]
@@ -7162,9 +7047,7 @@ class ValidationRunner(ABC):
         )
         h_arr = np.array(sorted(theta_map.keys(), reverse=True))
         theta_arr = np.array([theta_map[h] for h in h_arr])
-        e_arr = np.array(
-            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
-        )
+        e_arr = np.array([self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr])
         n_params = theta_arr.shape[1]
 
         # ── Step 2: Train MPNN ───────────────────────────────────────────────
@@ -7313,9 +7196,7 @@ class ValidationRunner(ABC):
                 "mpnn_wins_vs_random": f"{mpnn_wins_vs_random}/{len(per_h)}",
                 "mpnn_wins_vs_prev_h": f"{mpnn_wins_vs_prev}/{len(per_h)}",
                 "mean_init_de_gap": mean_init_de_gap,
-                "mean_final_de_gap_mpnn": float(
-                    np.mean([r["mpnn"]["final_de_gap"] for r in per_h])
-                ),
+                "mean_final_de_gap_mpnn": float(np.mean([r["mpnn"]["final_de_gap"] for r in per_h])),
             },
             "mpnn_train_mse": train_result["final_mse"],
             "n_train_points": len(dataset),
@@ -7421,9 +7302,7 @@ class ValidationRunner(ABC):
         )
         h_arr = np.array(sorted(theta_map.keys(), reverse=True))
         theta_arr = np.array([theta_map[h] for h in h_arr])
-        e_arr = np.array(
-            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
-        )
+        e_arr = np.array([self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr])
         n_params = theta_arr.shape[1]
         n_total = len(h_arr)
         builder = HamiltonianBuilder()
@@ -7630,9 +7509,7 @@ class ValidationRunner(ABC):
         )
         h_arr = np.array(sorted(theta_map.keys(), reverse=True))
         theta_arr = np.array([theta_map[h] for h in h_arr])
-        e_arr = np.array(
-            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
-        )
+        e_arr = np.array([self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr])
         n_params = theta_arr.shape[1]
 
         # ── Train MPNN ───────────────────────────────────────────────────────
@@ -7862,9 +7739,7 @@ class ValidationRunner(ABC):
         )
         h_arr = np.array(sorted(theta_map.keys(), reverse=True))
         theta_arr = np.array([theta_map[h] for h in h_arr])
-        e_arr = np.array(
-            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
-        )
+        e_arr = np.array([self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr])
         n_params = theta_arr.shape[1]
         h_min_train = float(np.min(h_arr))
         h_max_train = float(np.max(h_arr))
@@ -7966,14 +7841,10 @@ class ValidationRunner(ABC):
         interp_de = [r["de_gap"] for r in interp_results] if interp_results else [float("nan")]
         extrap_de = [r["de_gap"] for r in extrap_results] if extrap_results else []
         interp_pass_rate = (
-            sum(r["pass"] for r in interp_results) / len(interp_results)
-            if interp_results
-            else float("nan")
+            sum(r["pass"] for r in interp_results) / len(interp_results) if interp_results else float("nan")
         )
         extrap_pass_rate = (
-            sum(r["pass"] for r in extrap_results) / len(extrap_results)
-            if extrap_results
-            else float("nan")
+            sum(r["pass"] for r in extrap_results) / len(extrap_results) if extrap_results else float("nan")
         )
 
         # Degradation: ratio of mean extrap error to mean interp error
@@ -8248,9 +8119,7 @@ class ValidationRunner(ABC):
         )
         h_arr = np.array(sorted(theta_map.keys(), reverse=True))
         theta_arr = np.array([theta_map[h] for h in h_arr])
-        e_arr = np.array(
-            [self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr]
-        )
+        e_arr = np.array([self.exact_ground_state(topology, n_qubits, float(h), model=model)[0] for h in h_arr])
         n_params = theta_arr.shape[1]
 
         lattice_ref = make_lattice(topology, n_qubits, J=1.0, h=float(h_arr[0]))
@@ -8318,9 +8187,7 @@ class ValidationRunner(ABC):
             de_gaps_k: list[float] = []
             for h_t, e_exact, gap, H_t, circuit_t, edge_index_np, coord in test_setups:
                 h_feat = np.full(n_qubits, float(h_t))
-                x = torch.tensor(
-                    np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32
-                )
+                x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
                 edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
                 graph = Data(x=x, edge_index=edge_index_t)
                 graph.batch = torch.zeros(n_qubits, dtype=torch.long)
@@ -8459,9 +8326,7 @@ class ValidationRunner(ABC):
             )
             h_a = np.array(sorted(tmap.keys(), reverse=True))
             th_a = np.array([tmap[h] for h in h_a])
-            e_a = np.array(
-                [self.exact_ground_state(topo, n_qubits, float(h), model=model)[0] for h in h_a]
-            )
+            e_a = np.array([self.exact_ground_state(topo, n_qubits, float(h), model=model)[0] for h in h_a])
             lattice_r = make_lattice(topo, n_qubits, J=1.0, h=float(h_a[0]))
             ds = build_graph_dataset(
                 lattice_r,
@@ -8476,9 +8341,7 @@ class ValidationRunner(ABC):
                 output_dim=n_p,
                 hidden_dim=mpnn_hidden_dim,
             )
-            train_mpnn(
-                pred, ds, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience, seed=seed
-            )
+            train_mpnn(pred, ds, n_epochs=mpnn_epochs, lr=mpnn_lr, patience=mpnn_patience, seed=seed)
             pred.eval()
             return pred, h_a, th_a, n_p
 
@@ -8489,14 +8352,10 @@ class ValidationRunner(ABC):
                 e_exact, gap = self.exact_ground_state(topo, n_qubits, h_t, model=model)
                 lattice_t = make_lattice(topo, n_qubits, J=1.0, h=h_t)
                 H_t = spec.build_hamiltonian(lattice_t, **spec.hamiltonian_kwargs)
-                circuit_t, _ = spec.create_circuit(
-                    n_qubits, p_layers, lattice_t, **spec.circuit_kwargs
-                )
+                circuit_t, _ = spec.create_circuit(n_qubits, p_layers, lattice_t, **spec.circuit_kwargs)
                 edge_index_np, coord = builder.build_graph_data(lattice_t)
                 h_feat = np.full(n_qubits, float(h_t))
-                x = torch.tensor(
-                    np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32
-                )
+                x = torch.tensor(np.stack([h_feat, coord.astype(float)], axis=1), dtype=torch.float32)
                 edge_index_t = torch.tensor(edge_index_np, dtype=torch.long)
                 graph = Data(x=x, edge_index=edge_index_t)
                 graph.batch = torch.zeros(n_qubits, dtype=torch.long)
@@ -8670,9 +8529,7 @@ class ValidationRunner(ABC):
         fold_h = [f["h_held_out"] for f in per_seed[0]["per_fold"]] if per_seed else []
         per_fold_stats: list[dict] = []
         for fi, h in enumerate(fold_h):
-            fold_de_gaps = [
-                s["per_fold"][fi]["de_gap"] for s in per_seed if fi < len(s["per_fold"])
-            ]
+            fold_de_gaps = [s["per_fold"][fi]["de_gap"] for s in per_seed if fi < len(s["per_fold"])]
             per_fold_stats.append(
                 {
                     "h": h,
@@ -8797,9 +8654,7 @@ class ValidationRunner(ABC):
             e_exact, gap = self.exact_ground_state(topology, n_qubits, float(h), model=model)
             lattice_h = make_lattice(topology, n_qubits, J=1.0, h=float(h))
             H_h = spec_obj.build_hamiltonian(lattice_h, **spec_obj.hamiltonian_kwargs)
-            circuit_h, _ = spec_obj.create_circuit(
-                n_qubits, p_layers, lattice_h, **spec_obj.circuit_kwargs
-            )
+            circuit_h, _ = spec_obj.create_circuit(n_qubits, p_layers, lattice_h, **spec_obj.circuit_kwargs)
 
             def _energy(theta: np.ndarray) -> float:
                 return float(backend.evaluate(circuit_h, H_h, theta))
@@ -8818,9 +8673,7 @@ class ValidationRunner(ABC):
                     th_m[i] -= eps
                     curv_i = abs(_energy(th_p) - 2 * e_opt + _energy(th_m)) / (eps**2)
                 except Exception as exc_curv:
-                    logger.warning(
-                        f"  h={h:.3f}, param {i}: curvature eval failed ({exc_curv}), using nan"
-                    )
+                    logger.warning(f"  h={h:.3f}, param {i}: curvature eval failed ({exc_curv}), using nan")
                     curv_i = float("nan")
                 curvatures.append(curv_i)
             kappa = float(np.nanmean(curvatures))
@@ -8850,8 +8703,7 @@ class ValidationRunner(ABC):
                 }
             )
             logger.info(
-                f"  h={h:.3f}: κ={kappa:.2f}, "
-                + ", ".join(f"σ={s}→{noise_sensitivity[s]:.4f}" for s in noise_levels)
+                f"  h={h:.3f}: κ={kappa:.2f}, " + ", ".join(f"σ={s}→{noise_sensitivity[s]:.4f}" for s in noise_levels)
             )
 
         # ── Pearson r(κ, ΔE_noise) per noise level ───────────────────────
@@ -9195,9 +9047,7 @@ class VariantPipelineRunner(ABC):
             )
 
             if all_variants:
-                logger.info(
-                    f"Preflight: validating {len(all_variants)} variants (N={actual_n_qubits})..."
-                )
+                logger.info(f"Preflight: validating {len(all_variants)} variants (N={actual_n_qubits})...")
                 try:
                     specs = specs_from_pipeline_variants(all_variants)
                     checker = PreflightChecker(specs)
@@ -9434,8 +9284,7 @@ class HardwareValidationRunner(ValidationRunner):
             from qmbp_simulation.execution.hardware import HardwareBackend
         except ImportError as e:
             raise RuntimeError(
-                f"Hardware backend dependencies not installed: {e}. "
-                f"Install qiskit-ibm-runtime and qiskit-ibm-catalog."
+                f"Hardware backend dependencies not installed: {e}. Install qiskit-ibm-runtime and qiskit-ibm-catalog."
             ) from e
 
         hw_config = self.build_hardware_config()
@@ -9449,9 +9298,7 @@ class HardwareValidationRunner(ValidationRunner):
                     f"Check IBM_KEY and IBM_INSTANCE_CRN environment variables."
                 ) from e
             else:
-                raise RuntimeError(
-                    f"Failed to initialize HardwareBackend in fake_backend mode: {e}."
-                ) from e
+                raise RuntimeError(f"Failed to initialize HardwareBackend in fake_backend mode: {e}.") from e
 
         # Share the runner's StructuredLogger with the backend
         if hasattr(self.hw_backend, "_logger"):

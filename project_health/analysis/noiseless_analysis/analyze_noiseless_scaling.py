@@ -11,19 +11,19 @@ Uses per-h-point data from Section 4 (Deploy) of each run.
 
 Usage:
     # Full analysis (all successful runs with deploy data)
-    .venv/bin/python scripts/analyze_noiseless_scaling.py
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_scaling.py
 
     # Filter by model
-    .venv/bin/python scripts/analyze_noiseless_scaling.py --model tfim
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_scaling.py --model tfim
 
     # Only scaling axis (N-dependence)
-    .venv/bin/python scripts/analyze_noiseless_scaling.py --axis n-scaling
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_scaling.py --axis n-scaling
 
     # JSON output for further processing
-    .venv/bin/python scripts/analyze_noiseless_scaling.py --json results/scaling_analysis.json
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_scaling.py --json results/scaling_analysis.json
 
     # Verbose (per-h tables)
-    .venv/bin/python scripts/analyze_noiseless_scaling.py -v
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_scaling.py -v
 """
 
 from __future__ import annotations
@@ -132,9 +132,7 @@ def find_all_runs(model_filter: str | None = None) -> list[Path]:
             if n_sec < 4:
                 continue
             # Only include noiseless runs
-            if "noiseless" not in eid.lower() and not any(
-                d in entry.get("_file", "") for d in NOISELESS_DIRS
-            ):
+            if "noiseless" not in eid.lower() and not any(d in entry.get("_file", "") for d in NOISELESS_DIRS):
                 continue
             fpath = base / entry["_file"]
             if fpath.exists():
@@ -325,9 +323,7 @@ def axis_h_dependence(runs: list[RunSummary], verbose: bool = False) -> dict:
         hb_str = f"{h_boundary:.3f}" if h_boundary else "—"
         ma_str = f"{mean_above:.4f}" if mean_above is not None else "—"
         mb_str = f"{mean_below:.4f}" if mean_below is not None else "—"
-        print(
-            f"  {label:<40s} | {hb_str:>10s} | {ma_str:>13s} | {mb_str:>13s} | {len(points_sorted):>5d}"
-        )
+        print(f"  {label:<40s} | {hb_str:>10s} | {ma_str:>13s} | {mb_str:>13s} | {len(points_sorted):>5d}")
 
         results_data.append(
             {
@@ -396,9 +392,7 @@ def axis_p_dependence(runs: list[RunSummary], verbose: bool = False) -> dict:
             ts = f"{r.theta_smoothness:.2f}" if r.theta_smoothness is not None else "—"
             mse = f"{r.mpnn_mse:.1e}" if r.mpnn_mse is not None else "—"
             spd = f"{r.deploy_speedup:.0f}×" if r.deploy_speedup is not None else "—"
-            print(
-                f"  {p:>3d} | {dpr:>8s} | {deg:>8s} | {fid:>6s} | {ts:>9s} | {mse:>9s} | {spd:>8s}"
-            )
+            print(f"  {p:>3d} | {dpr:>8s} | {deg:>8s} | {fid:>6s} | {ts:>9s} | {mse:>9s} | {spd:>8s}")
 
             p_data.append(
                 {
@@ -467,9 +461,7 @@ def axis_n_scaling(runs: list[RunSummary], verbose: bool = False) -> dict:
             fid = f"{r.deploy_mean_fidelity:.4f}" if r.deploy_mean_fidelity is not None else "—"
             spd = f"{r.deploy_speedup:.0f}×" if r.deploy_speedup is not None else "—"
             time_str = f"{r.elapsed_s / 3600:.1f}h" if r.elapsed_s > 3600 else f"{r.elapsed_s:.0f}s"
-            print(
-                f"  {n:>4d} | {dpr:>8s} | {deg:>8s} | {maxd:>8s} | {fid:>6s} | {spd:>8s} | {time_str:>8s}"
-            )
+            print(f"  {n:>4d} | {dpr:>8s} | {deg:>8s} | {maxd:>8s} | {fid:>6s} | {spd:>8s} | {time_str:>8s}")
 
             n_data.append(
                 {
@@ -807,12 +799,7 @@ def fit_speedup_models(n_scaling_data: list[dict], verbose: bool = False) -> lis
             "R2": best["R2"],
             "AICc": best["AICc"] if np.isfinite(best["AICc"]) else None,
             "all_fits": [
-                {
-                    k: (v if k != "AICc" or np.isfinite(v) else None)
-                    for k, v in f.items()
-                    if k != "rss"
-                }
-                for f in fits
+                {k: (v if k != "AICc" or np.isfinite(v) else None) for k, v in f.items() if k != "rss"} for f in fits
             ],
         }
         results.append(entry)
@@ -824,10 +811,7 @@ def fit_speedup_models(n_scaling_data: list[dict], verbose: bool = False) -> lis
         if verbose:
             for f in fits:
                 marker = " ◀" if f["name"] == best["name"] else ""
-                print(
-                    f"      {f['name']:12s}: {f['formula']:40s} "
-                    f"R²={f['R2']:.4f}  AICc={f['AICc']:.1f}{marker}"
-                )
+                print(f"      {f['name']:12s}: {f['formula']:40s} R²={f['R2']:.4f}  AICc={f['AICc']:.1f}{marker}")
 
     # Summary
     if results:

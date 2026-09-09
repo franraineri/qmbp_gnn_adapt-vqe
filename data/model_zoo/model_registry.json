@@ -4732,8 +4732,8 @@
       "mean_de_gap": 0.0,
       "zoo_model_available": false,
       "zoo_integrity_ok": true,
-      "needs_retrain": true,
-      "model_stale": true,
+      "needs_retrain": false,
+      "model_stale": false,
       "n_points": 0,
       "h_frontier": 0.0,
       "last_synced": "",
@@ -4749,8 +4749,12 @@
         "diagnosed_at": ""
       }
     },
-    "version": 37,
+    "version": 41,
     "version_history": [
+      "test_rollback_n10_p1.pt",
+      "test_rollback_n10_p1.pt",
+      "test_rollback_n10_p1.pt",
+      "test_rollback_n10_p1.pt",
       "test_rollback_n10_p1.pt",
       "test_rollback_n10_p1.pt",
       "test_rollback_n10_p1.pt",
@@ -10599,8 +10603,8 @@
       "mean_de_gap": 0.0,
       "zoo_model_available": false,
       "zoo_integrity_ok": true,
-      "needs_retrain": true,
-      "model_stale": true,
+      "needs_retrain": false,
+      "model_stale": false,
       "n_points": 0,
       "h_frontier": 0.0,
       "last_synced": "",
@@ -10616,8 +10620,12 @@
         "diagnosed_at": ""
       }
     },
-    "version": 4,
+    "version": 8,
     "version_history": [
+      "test_rollback_n10_p1_v2.pt",
+      "test_rollback_n10_p1_v2.pt",
+      "test_rollback_n10_p1_v2.pt",
+      "test_rollback_n10_p1_v2.pt",
       "test_rollback_n10_p1_v2.pt",
       "test_rollback_n10_p1_v2.pt",
       "test_rollback_n10_p1_v2.pt"
@@ -16539,5 +16547,98 @@
       "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt",
       "unifMPNN__chain_1d_p1_signinv_fid_dot5_v1.pt"
     ]
+  },
+  {
+    "model_id": "tfim_longitudinal_heavy_hex_n6_p3.pt",
+    "model_name": "tfim_longitudinal",
+    "architecture": "UnifiedMPNN",
+    "topology": "heavy_hex",
+    "p_layers": 3,
+    "checkpoint_path": "data/model_zoo/checkpoints/tfim_longitudinal_heavy_hex_n6_p3.pt",
+    "created": "2026-09-09T02:51:18.483430+00:00",
+    "runner_tag": "NP",
+    "date_tag": "090926",
+    "training": {
+      "n_values_used": [
+        6
+      ],
+      "total_training_points": 40,
+      "points_per_n": {},
+      "h_range": [
+        1.0,
+        5.0
+      ],
+      "max_de_gap_filter": 0.1,
+      "seeds": [
+        42
+      ],
+      "data_source": "single_n",
+      "training_data_hash": "",
+      "validation_split_seed": 42,
+      "training_metrics": {
+        "final_loss": 0.0,
+        "final_mse": 0.0,
+        "final_val_mse": null,
+        "generalization_gap": null,
+        "epochs": 0,
+        "best_epoch": 0,
+        "training_time_seconds": 0.0,
+        "learning_rate": 0.001,
+        "batch_size": 32,
+        "early_stopped": false,
+        "stop_reason": "unknown",
+        "convergence_status": "unknown",
+        "loss_history": [],
+        "weight_distribution": {}
+      },
+      "architecture_config": {
+        "hidden_dim": 64,
+        "n_conv_layers": 3,
+        "n_heads": 1,
+        "dropout": 0.0,
+        "activation": "relu",
+        "include_circuit_nodes": true
+      },
+      "optimizer_config": {
+        "optimizer_name": "AdamW",
+        "learning_rate": 0.001,
+        "weight_decay": 0.0001,
+        "scheduler": "ReduceLROnPlateau",
+        "scheduler_patience": 300,
+        "scheduler_factor": 0.5,
+        "layerwise_lr": {}
+      }
+    },
+    "evaluations": [],
+    "status": "active",
+    "superseded_by": "",
+    "notes": "mse=2.49e-02",
+    "tags": [],
+    "dashboard_quality": {
+      "training_utility": "",
+      "training_utility_reason": "",
+      "pass_rate_dual_criterion": 0.0,
+      "mean_de_gap": 0.0,
+      "zoo_model_available": false,
+      "zoo_integrity_ok": true,
+      "needs_retrain": false,
+      "model_stale": false,
+      "n_points": 0,
+      "h_frontier": 0.0,
+      "last_synced": "",
+      "failure_diagnostic": {
+        "primary_mode": "",
+        "confidence": 0.0,
+        "secondary_modes": [],
+        "explanation": "",
+        "per_site_verified": null,
+        "gap_masked_fraction": null,
+        "contamination_severity": null,
+        "h_range_overlap": null,
+        "diagnosed_at": ""
+      }
+    },
+    "version": 1,
+    "version_history": []
   }
 ]

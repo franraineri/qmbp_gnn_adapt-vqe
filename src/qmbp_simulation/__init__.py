@@ -57,7 +57,6 @@ from qmbp_simulation.predictors import (
 
 # --- pipeline ---
 from qmbp_simulation.pipeline import (
-    PipelineRunner,
     load_phase12_dataset,
     save_phase12_dataset,
 )
@@ -105,7 +104,6 @@ __all__ = [
     # pipeline
     "save_phase12_dataset",
     "load_phase12_dataset",
-    "PipelineRunner",
     # framework
     "BaseExperiment",
     "ExperimentConfig",

@@ -131,6 +131,38 @@ class EvalCache:
     def _save(self) -> None:
         if not self._enabled or not self._dirty:
             return
+
+        # Concurrency-safe merge-on-write: under a cross-process lock, re-read
+        # the current on-disk entries and merge this instance's evaluations in
+        # before the atomic write. Two parallel processes then ACCUMULATE their
+        # cached evaluations instead of one clobbering the other (the previous
+        # rename-only path lost the loser's entries and could concatenate docs).
+        # Same (topo,N,p,h,theta_hash) key ⇒ same energy; on the rare conflict
+        # keep the LOWER energy (variational).
+        def _lower_energy_wins(existing: float, incoming: float) -> float:
+            try:
+                return incoming if float(incoming) < float(existing) else existing
+            except (TypeError, ValueError):
+                return incoming
+
+        try:
+            from qmbp_simulation.utils.helpers import merge_write_json_dict
+
+            merge_write_json_dict(
+                self._path,
+                self._data,
+                entries_key="entries",
+                version="2.0",
+                resolve=_lower_energy_wins,
+            )
+            self._dirty = False
+            return
+        except OSError as e:
+            logger.warning("EvalCache: merge-on-write save failed: %s", e)
+        except Exception as e:
+            logger.warning("EvalCache: merge-on-write unavailable (%s); falling back", e)
+
+        # ── Fallback: legacy atomic rename (only if the helper failed) ──────
         self._path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "version": "2.0",
@@ -266,9 +298,7 @@ class EvalCache:
         if (self._hits + self._misses) % 50 == 0:
             self._save()
 
-    def get_ground_truth(
-        self, topology: str, n_qubits: int, h: float, model: str = "tfim"
-    ) -> float | None:
+    def get_ground_truth(self, topology: str, n_qubits: int, h: float, model: str = "tfim") -> float | None:
         """Look up cached ground truth energy (from ClassicalSolver)."""
         key = f"GT|{model}|{topology}|{n_qubits}|{h:.2f}"
         return self.get(key)
@@ -385,9 +415,7 @@ class EvalCache:
         except Exception:
             pass
 
-    def validate_entry(
-        self, key: str, backend: Any, circuit: Any, hamiltonian: Any, theta: np.ndarray
-    ) -> bool:
+    def validate_entry(self, key: str, backend: Any, circuit: Any, hamiltonian: Any, theta: np.ndarray) -> bool:
         """Spot-check a cached entry against a fresh computation.
 
         Useful for detecting cache corruption or stale entries after code changes.
@@ -402,8 +430,7 @@ class EvalCache:
         matches = abs(cached - fresh) < tolerance
         if not matches:
             logger.warning(
-                "EvalCache MISMATCH: key=%s, cached=%.10f, fresh=%.10f, diff=%.2e. "
-                "Removing stale entry.",
+                "EvalCache MISMATCH: key=%s, cached=%.10f, fresh=%.10f, diff=%.2e. Removing stale entry.",
                 key[:40],
                 cached,
                 fresh,
@@ -488,9 +515,7 @@ class CachedBackend:
         object.__setattr__(self, "_model", model)
         object.__setattr__(self, "_p_layers", p_layers)
         object.__setattr__(self, "_J", J)
-        object.__setattr__(
-            self, "_cache", cache if cache is not None else EvalCache(p_layers=p_layers)
-        )
+        object.__setattr__(self, "_cache", cache if cache is not None else EvalCache(p_layers=p_layers))
         object.__setattr__(self, "_h_resolver", h_resolver)
         object.__setattr__(self, "_h_current", 0.0)
         object.__setattr__(self, "_ckpt_id", ckpt_id)

@@ -1,0 +1,130 @@
+% Panel de las cinco topologias evaluadas (figura TikZ).
+% Requiere en el preambulo: \usepackage{tikz}, \usepackage{xcolor},
+% \usetikzlibrary{positioning, calc}, y \input{tesis-figures/palette}.
+%
+% Cinco topologias a N = 10 (salvo triangular, dibujada con su celda representativa):
+% cadena 1D, escalera, cuadrada, triangular y heavy-hex. Bajo cada una se indica
+% el numero de coordinacion maximo z y la cintura (longitud del ciclo mas corto),
+% que es el factor que ordena la jerarquia observada (Seccion 5.2, 6.3.1).
+%
+% Colores: nodos en gris (stageProblem, "definicion del problema"/entrada);
+% enlaces en negro. Coherente con la paleta del pipeline.
+\begin{tikzpicture}[
+    font=\footnotesize,
+    qubit/.style={circle, draw=black, fill=stageProblem, line width=0.8pt,
+                  minimum size=4.2mm, inner sep=0pt},
+    qubithi/.style={circle, draw=black, fill=stageVQE, line width=1.1pt,
+                    minimum size=4.2mm, inner sep=0pt},
+    bond/.style={line width=1.1pt, black!80},
+    toplbl/.style={font=\scriptsize, align=center, text=black},
+    topsub/.style={font=\scriptsize, align=center, text=black!65},
+    x=6.2mm, y=6.2mm,
+]
+
+% Orden por numero de coordinacion z creciente (2 -> 6). Fila superior (3):
+% cadena 1D (z=2), heavy-hex (z=3), escalera (z=3). Fila inferior (2):
+% cuadrada (z=4), triangular (z=6). Heavy-hex precede a escalera (mismo z=3)
+% porque su cintura 12 la agrupa con la cadena (Seccion 5.2, 6.3.1).
+
+% ===== FILA SUPERIOR (z creciente: 2, 3, 3) =====
+
+% ---- 1. Cadena 1D (z=2, sin ciclos) ----
+\begin{scope}[shift={(0,0)}]
+    \foreach \i in {0,...,4} {
+        \node[qubit] (c\i) at (\i,0) {};
+    }
+    \foreach \i [evaluate=\i as \j using int(\i+1)] in {0,...,3} {
+        \draw[bond] (c\i) -- (c\j);
+    }
+    \node[toplbl] at (2,-1.4) {Cadena 1D};
+    \node[topsub] at (2,-2.0) {$z = 2$, sin ciclos};
+\end{scope}
+
+% ---- 2. Heavy-hex (z=3, cintura 12) ----
+% Fragmento representativo: hexagono con vertices de grado 2 y un nodo puente (grado 3).
+\begin{scope}[shift={(6.4,0)}]
+    \node[qubit] (h0) at (0.5,1) {};
+    \node[qubit] (h1) at (1.5,1) {};
+    \node[qubit] (h2) at (2,0) {};
+    \node[qubit] (h3) at (1.5,-1) {};
+    \node[qubit] (h4) at (0.5,-1) {};
+    \node[qubit] (h5) at (0,0) {};
+    \node[qubit] (h6) at (3,0) {};  % nodo puente (grado 3)
+    \node[qubit] (h7) at (4,0) {};
+    \draw[bond] (h0) -- (h1) -- (h2) -- (h3) -- (h4) -- (h5) -- (h0);
+    \draw[bond] (h2) -- (h6) -- (h7);
+    \node[toplbl] at (2,-2.0) {Heavy-hex};
+    \node[topsub] at (2,-2.6) {$z = 3$, cintura 12};
+\end{scope}
+
+% ---- 3. Escalera (z=3, cintura 4) ----
+\begin{scope}[shift={(13.2,0)}]
+    \foreach \i in {0,1,2} {
+        \node[qubit] (l\i) at (\i,0.5) {};
+        \node[qubit] (u\i) at (\i,-0.5) {};
+    }
+    \foreach \i [evaluate=\i as \j using int(\i+1)] in {0,1} {
+        \draw[bond] (l\i) -- (l\j);
+        \draw[bond] (u\i) -- (u\j);
+    }
+    \foreach \i in {0,1,2} { \draw[bond] (l\i) -- (u\i); }
+    \node[toplbl] at (1,-1.9) {Escalera};
+    \node[topsub] at (1,-2.5) {$z = 3$, cintura 4};
+\end{scope}
+
+% ===== FILA INFERIOR (z creciente: 4, 6) =====
+
+% ---- 4. Cuadrada (z=4, cintura 4) ----
+\begin{scope}[shift={(3.0,-5.2)}]
+    % Rejilla 3x3: el nodo central (s11) tiene 4 vecinos -> z = 4 visible.
+    \foreach \r in {0,1,2} {
+        \foreach \col in {0,1,2} {
+            \node[qubit] (s\r\col) at (\col,{1-\r}) {};
+        }
+    }
+    % Enlaces horizontales y verticales.
+    \foreach \r in {0,1,2} {
+        \foreach \col [evaluate=\col as \d using int(\col+1)] in {0,1} {
+            \draw[bond] (s\r\col) -- (s\r\d);
+        }
+    }
+    \foreach \col in {0,1,2} {
+        \draw[bond] (s0\col) -- (s1\col);
+        \draw[bond] (s1\col) -- (s2\col);
+    }
+    \node[toplbl] at (1,-2.4) {Cuadrada};
+    \node[topsub] at (1,-3.0) {$z = 4$, cintura 4};
+\end{scope}
+
+% ---- 5. Triangular (z=6, cintura 3) ----
+% Tres filas desplazadas: el nodo central (m1) queda rodeado por 6 vecinos
+% (2 arriba, 2 abajo, 2 laterales) -> z = 6 visible.
+\begin{scope}[shift={(10.4,-5.2)}]
+    % Fila superior (2 nodos)
+    \node[qubit] (u0) at (0.5,1) {};
+    \node[qubit] (u1) at (1.5,1) {};
+    % Fila central (3 nodos)
+    \node[qubit] (m0) at (0,0) {};
+    \node[qubit] (m1) at (1,0) {};
+    \node[qubit] (m2) at (2,0) {};
+    % Fila inferior (2 nodos)
+    \node[qubit] (d0) at (0.5,-1) {};
+    \node[qubit] (d1) at (1.5,-1) {};
+    % Enlaces horizontales de cada fila
+    \draw[bond] (u0) -- (u1);
+    \draw[bond] (m0) -- (m1) -- (m2);
+    \draw[bond] (d0) -- (d1);
+    % Enlaces diagonales (estructura triangular)
+    \draw[bond] (u0) -- (m0); \draw[bond] (u0) -- (m1);
+    \draw[bond] (u1) -- (m1); \draw[bond] (u1) -- (m2);
+    \draw[bond] (m0) -- (d0); \draw[bond] (m1) -- (d0);
+    \draw[bond] (m1) -- (d1); \draw[bond] (m2) -- (d1);
+    \node[toplbl] at (1,-2.4) {Triangular};
+    \node[topsub] at (1,-3.0) {$z = 6$, cintura 3};
+\end{scope}
+
+% Nota de agrupamiento por cintura (jerarquia observada).
+\node[topsub, align=center, text width=8.5cm] at (7.0,-9.3)
+    {Topologias ordenadas por numero de coordinacion $z$ creciente.};
+
+\end{tikzpicture}

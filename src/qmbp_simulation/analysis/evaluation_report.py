@@ -112,17 +112,12 @@ def validate_metrics(
     # Check 1: Variational principle violations
     n_violations = sum(1 for p in per_h_results if p.get("e_pred", 0) < p.get("e_exact", 0) - 1e-8)
     if n_violations > 0:
-        warnings.append(
-            f"⚠️ {n_violations}/{n} points violate variational principle "
-            f"(E_pred < E_exact) {n_label}"
-        )
+        warnings.append(f"⚠️ {n_violations}/{n} points violate variational principle (E_pred < E_exact) {n_label}")
 
     # Check 2: Gap validity
     n_zero_gap = sum(1 for p in per_h_results if p.get("gap", 0) <= 1e-10)
     if n_zero_gap > 0:
-        warnings.append(
-            f"⚠️ {n_zero_gap}/{n} points have gap≈0 (ΔE/gap unreliable at criticality) {n_label}"
-        )
+        warnings.append(f"⚠️ {n_zero_gap}/{n} points have gap≈0 (ΔE/gap unreliable at criticality) {n_label}")
 
     # Check 3: Outlier detection
     de_gaps = [p.get("de_gap", 0) for p in per_h_results]
@@ -193,12 +188,8 @@ def generate_comparison_table(
 
     lines.append("### MPNN vs Random VQE Comparison")
     lines.append("")
-    lines.append(
-        "| N | MPNN |ΔE| | VQE |ΔE| | MPNN ΔE/gap | VQE ΔE/gap | Speedup (evals) | MPNN win rate |"
-    )
-    lines.append(
-        "|---|---------|---------|-------------|------------|-----------------|---------------|"
-    )
+    lines.append("| N | MPNN |ΔE| | VQE |ΔE| | MPNN ΔE/gap | VQE ΔE/gap | Speedup (evals) | MPNN win rate |")
+    lines.append("|---|---------|---------|-------------|------------|-----------------|---------------|")
 
     speedups = []
     for n_target in n_values:
@@ -424,10 +415,7 @@ def generate_evaluation_report(
             if n_bound:
                 mev = summary_stats.get("mean_energy_variance")
                 mev_str = f", mean Var(H)={mev:.4f}" if mev is not None else ""
-                lines.append(
-                    f"> {n_bound}/{len(per_point)} points use the Eckart bound "
-                    f"F ≥ 1 − Var(H)/gap²{mev_str}."
-                )
+                lines.append(f"> {n_bound}/{len(per_point)} points use the Eckart bound F ≥ 1 − Var(H)/gap²{mev_str}.")
             lines.append("")
 
         # ── Infidelity decomposition (Var(H) vs gap) ──────────────────────
@@ -436,13 +424,9 @@ def generate_evaluation_report(
         n_dirty = summary_stats.get("n_dirty_state")
         n_small_gap = summary_stats.get("n_small_gap")
         if n_dirty is None:
-            n_dirty = sum(
-                1 for pt in per_point if pt.get("infidelity_dominant_factor") == "dirty_state"
-            )
+            n_dirty = sum(1 for pt in per_point if pt.get("infidelity_dominant_factor") == "dirty_state")
         if n_small_gap is None:
-            n_small_gap = sum(
-                1 for pt in per_point if pt.get("infidelity_dominant_factor") == "small_gap"
-            )
+            n_small_gap = sum(1 for pt in per_point if pt.get("infidelity_dominant_factor") == "small_gap")
         if n_dirty or n_small_gap:
             mvog = summary_stats.get("mean_variance_over_gap2")
             mvog_str = f", mean Var(H)/gap²={mvog:.4f}" if mvog is not None else ""
@@ -455,12 +439,10 @@ def generate_evaluation_report(
 
         # Per-h table
         lines.append(
-            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | "
-            "Factor | Category | Action | Note |"
+            "| h | E_pred | E_exact | |ΔE| | gap | ΔE/gap | Fidelity | Var(H) | Factor | Category | Action | Note |"
         )
         lines.append(
-            "|---|--------|---------|------|--------|-----|----------|--------|"
-            "--------|----------|--------|------|"
+            "|---|--------|---------|------|--------|-----|----------|--------|--------|----------|--------|------|"
         )
 
         for p in per_point:
@@ -539,6 +521,7 @@ def evaluate_theta_prediction(
     model_name: str = "tfim_bond_resolved",
     max_points: int = 8,
     include_energy: bool = False,
+    include_fidelity: bool = False,
 ) -> dict:
     """Evaluate MPNN θ prediction quality against NPZ ground truth.
 
@@ -562,6 +545,11 @@ def evaluate_theta_prediction(
         Maximum h-points to evaluate (uniformly sampled). Default 8.
     include_energy : bool
         If True, also evaluate E(θ_pred) via backend (slower but more accurate).
+    include_fidelity : bool
+        If True and N ≤ STATEVECTOR_MAX_N, also compute the EXACT state fidelity
+        F(|ψ(θ_pred)⟩, |ψ_exact⟩) per h via statevector overlap. Closes the loop
+        for models trained with the fidelity loss: report the same metric the
+        term optimized. No-op (fidelity stays None) for N above the exact limit.
 
     Returns
     -------
@@ -574,6 +562,9 @@ def evaluate_theta_prediction(
             "theta_mse_per_h": list[float],
             "de_gap_mean": float | None,
             "abs_error_mean": float | None,
+            "fidelity_mean": float | None,
+            "fidelity_min": float | None,
+            "fidelity_per_h": list[float] | None,
             "metric_warnings": list[str],
         }
     """
@@ -626,6 +617,12 @@ def evaluate_theta_prediction(
     mse_list = []
     energy_errors = []
     de_gap_list = []
+    fidelity_list: list[float] = []
+
+    # Exact fidelity is only computable within the statevector regime.
+    from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
+
+    _fid_enabled = include_fidelity and n_qubits <= STATEVECTOR_MAX_N
 
     for idx in indices:
         h = float(h_values[idx])
@@ -683,6 +680,38 @@ def evaluate_theta_prediction(
             if energy_errors:
                 energy_errors[-1] = abs_err_pred / n_qubits
 
+        # Optional: exact state fidelity F(|ψ(θ_pred)⟩, |ψ_exact⟩) for N≤16.
+        # Reuses compute_exact_fidelity (with EvalCache) + the solver ground
+        # state — the same primitives the fidelity loss trained against.
+        if _fid_enabled:
+            try:
+                from qmbp_simulation.analysis.fidelity import compute_exact_fidelity
+                from qmbp_simulation.circuits import HVACircuitBuilder
+                from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+                from qmbp_simulation.solvers.classical import ClassicalSolver
+
+                lat_fid = make_lattice(topology, n_qubits, J=1.0, h=h)
+                H_fid = HamiltonianBuilder().build(lat_fid)
+                psi_exact = ClassicalSolver().ground_state_vector(H_fid, n_qubits=n_qubits)
+                circ_fid, _ = HVACircuitBuilder().create_bond_resolved(n_qubits, p_layers, lat_ref)
+                if len(theta_pred) == circ_fid.num_parameters and psi_exact is not None:
+                    fid = compute_exact_fidelity(
+                        circ_fid,
+                        theta_pred,
+                        psi_exact,
+                        cache_ctx={
+                            "topology": topology,
+                            "n_qubits": n_qubits,
+                            "h": h,
+                            "model": model_name,
+                            "p_layers": p_layers,
+                        },
+                    )
+                    if fid is not None:
+                        fidelity_list.append(float(fid))
+            except Exception as _fid_exc:  # noqa: BLE001 — fidelity is best-effort
+                logger.debug("evaluate_theta_prediction fidelity failed at h=%.2f: %s", h, _fid_exc)
+
     if not mse_list:
         return {"n_qubits": n_qubits, "n_points_evaluated": 0, "error": "no valid points"}
 
@@ -694,6 +723,9 @@ def evaluate_theta_prediction(
         "theta_mse_per_h": mse_list,
         "de_gap_mean": float(np.mean(de_gap_list)) if de_gap_list else None,
         "abs_error_mean": (float(np.mean(energy_errors)) * n_qubits if energy_errors else None),
+        "fidelity_mean": float(np.mean(fidelity_list)) if fidelity_list else None,
+        "fidelity_min": float(np.min(fidelity_list)) if fidelity_list else None,
+        "fidelity_per_h": fidelity_list if fidelity_list else None,
     }
 
     # Validate with shared validator
@@ -829,11 +861,7 @@ def generate_mt_vs_st_table(
                     continue
                 label = r.get("label", "?")[:42]
                 source = r.get("source", "")
-                is_mt = (
-                    "multi" in source.lower()
-                    or "orphan" in source.lower()
-                    or "multitopo" in label.lower()
-                )
+                is_mt = "multi" in source.lower() or "orphan" in source.lower() or "multitopo" in label.lower()
                 arch = r.get("arch", "baseline")
 
                 for n_str, metrics in r.get("results_by_n", {}).items():
@@ -900,12 +928,8 @@ def generate_mt_vs_st_table(
                 continue
 
             # Best MT and ST by quality_score (higher is better, continuous)
-            best_mt = (
-                max(mt_entries, key=lambda x: x.get("quality_score", 0.0)) if mt_entries else None
-            )
-            best_st = (
-                max(st_entries, key=lambda x: x.get("quality_score", 0.0)) if st_entries else None
-            )
+            best_mt = max(mt_entries, key=lambda x: x.get("quality_score", 0.0)) if mt_entries else None
+            best_st = max(st_entries, key=lambda x: x.get("quality_score", 0.0)) if st_entries else None
 
             mt_qs = best_mt.get("quality_score", 0.0) if best_mt else 0.0
             st_qs = best_st.get("quality_score", 0.0) if best_st else 0.0
@@ -957,18 +981,12 @@ def generate_mt_vs_st_table(
         per_topology[topo] = {
             "mt_avg_quality_score": mt_avg,
             "st_avg_quality_score": st_avg,
-            "mt_avg_pass_rate": float(
-                np.mean([s["mt_pass_rate"] for s in per_scenario if s["topology"] == topo])
-            ),
-            "st_avg_pass_rate": float(
-                np.mean([s["st_pass_rate"] for s in per_scenario if s["topology"] == topo])
-            ),
+            "mt_avg_pass_rate": float(np.mean([s["mt_pass_rate"] for s in per_scenario if s["topology"] == topo])),
+            "st_avg_pass_rate": float(np.mean([s["st_pass_rate"] for s in per_scenario if s["topology"] == topo])),
             "mt_wins": topo_mt_wins,
             "st_wins": topo_st_wins,
             "ties": topo_ties,
-            "winner": "MT"
-            if mt_avg > st_avg + 0.03
-            else ("ST" if st_avg > mt_avg + 0.03 else "tie"),
+            "winner": "MT" if mt_avg > st_avg + 0.03 else ("ST" if st_avg > mt_avg + 0.03 else "tie"),
             "delta": mt_avg - st_avg,
         }
 
@@ -1058,12 +1076,8 @@ def generate_mt_vs_st_table(
         "mt_win_rate": mt_wins / max(total, 1),
         "mt_avg_quality_score": mt_avg_global,
         "st_avg_quality_score": st_avg_global,
-        "mt_avg_pass_rate": float(np.mean([s["mt_pass_rate"] for s in per_scenario]))
-        if per_scenario
-        else 0.0,
-        "st_avg_pass_rate": float(np.mean([s["st_pass_rate"] for s in per_scenario]))
-        if per_scenario
-        else 0.0,
+        "mt_avg_pass_rate": float(np.mean([s["mt_pass_rate"] for s in per_scenario])) if per_scenario else 0.0,
+        "st_avg_pass_rate": float(np.mean([s["st_pass_rate"] for s in per_scenario])) if per_scenario else 0.0,
         "per_topology": per_topology,
         "per_scenario": per_scenario,
         "generated_at": ts,

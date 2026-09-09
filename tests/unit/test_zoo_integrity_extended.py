@@ -180,6 +180,29 @@ class TestComputeRetrainQueue:
         for r in contaminated:
             assert "contaminated" in r["reason"]
 
+    def test_command_uses_valid_runner_flags_with_p_layers(self):
+        """Retrain command must be executable: valid flags + --p-layers propagated.
+
+        Regression guard for a command that used non-existent flags
+        (--n-qubits, --retrain) which made copy-paste fail, and a missing
+        --p-layers which would retrain p=2 configs as p=1.
+        """
+        from qmbp_simulation.predictors.model_zoo import compute_retrain_queue
+
+        queue = compute_retrain_queue()
+        for r in queue:
+            cmd = r["command"]
+            # Invalid legacy flags must not appear
+            assert "--n-qubits" not in cmd, f"stale --n-qubits flag in: {cmd}"
+            assert not cmd.rstrip().endswith("--retrain"), f"stale --retrain flag in: {cmd}"
+            assert " --retrain " not in cmd, f"stale --retrain flag in: {cmd}"
+            # Valid flags must be present
+            assert "--topology" in cmd
+            assert "--target-n" in cmd
+            assert "--force-retrain" in cmd
+            # p_layers must be propagated and match the entry
+            assert f"--p-layers {r['p_layers']}" in cmd, f"command p-layers mismatch for {r['topology']}: {cmd}"
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # G. Auto-rollback (>30% regression)
@@ -240,8 +263,7 @@ class TestAutoRollback:
         # Rollback should have kept the original
         current_size = path2.stat().st_size
         assert current_size == good_size, (
-            "Checkpoint was overwritten despite >30% regression. "
-            "Auto-rollback should have prevented this."
+            "Checkpoint was overwritten despite >30% regression. Auto-rollback should have prevented this."
         )
 
     def test_mild_regression_still_overwrites(self, tmp_path, monkeypatch):

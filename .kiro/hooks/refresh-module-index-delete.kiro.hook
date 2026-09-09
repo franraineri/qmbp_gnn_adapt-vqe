@@ -1,5 +1,5 @@
 {
-  "enabled": true,
+  "enabled": false,
   "name": "Refresh Module Index on Delete",
   "description": "Regenerates .kiro/steering/module-index.md when Python source files are deleted from src/, ensuring the index never contains phantom entries for removed functions.",
   "version": "1",

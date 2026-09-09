@@ -264,6 +264,125 @@ def json_dump(obj: Any, path: Path, indent: int = 2) -> None:
         json.dump(obj, f, indent=indent, default=json_serialize)
 
 
+def merge_write_json_dict(
+    path: Path | str,
+    in_memory: dict,
+    *,
+    entries_key: str | None = "entries",
+    version: str = "2.0",
+    resolve=None,
+    compact: bool = True,
+) -> int:
+    """Concurrency-safe merge-on-write for a dict-valued JSON store.
+
+    Prevents the "two processes flush and clobber / concatenate each other"
+    class of corruption seen in the ground-truth and eval caches. Under a
+    cross-process exclusive lock (a dedicated ``<path>.lock`` file) it:
+
+      1. re-reads the CURRENT on-disk state (which may contain entries written
+         by another process since this one loaded),
+      2. merges the caller's ``in_memory`` dict into it (on key conflict,
+         ``resolve(existing, incoming)`` decides the winner; default: keep the
+         incoming value — last-writer-wins per key, but never drops keys only
+         one side has),
+      3. writes the union back atomically (temp file + ``os.replace``).
+
+    Because the merge reads the freshest disk state inside the lock, two
+    concurrent writers ACCUMULATE instead of overwriting. Callers should update
+    their in-memory dict from the returned merge if they keep running.
+
+    Parameters
+    ----------
+    path : Path | str
+        Destination JSON file.
+    in_memory : dict
+        The caller's current entries mapping to merge in.
+    entries_key : str | None
+        If set, the file is wrapped as ``{"version", "n_entries", entries_key: {...}}``
+        (the cache format). If None, the merged dict is written at the top level.
+    version : str
+        Value for the ``version`` field when ``entries_key`` is set.
+    resolve : callable | None
+        ``resolve(existing_value, incoming_value) -> chosen_value`` for key
+        conflicts. Default keeps ``incoming_value``.
+    compact : bool
+        Compact separators (no whitespace) when True.
+
+    Returns
+    -------
+    int
+        Number of keys in the merged result written to disk.
+    """
+    import os
+    import tempfile
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_suffix(path.suffix + ".lock")
+
+    def _read_disk_entries() -> dict:
+        if not path.exists():
+            return {}
+        try:
+            with open(path) as f:
+                raw = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return {}  # corrupt/partial on-disk state — treat as empty, memory wins
+        if isinstance(raw, dict) and entries_key and entries_key in raw:
+            return raw.get(entries_key) or {}
+        if isinstance(raw, dict):
+            return raw
+        return {}
+
+    # ── Acquire a cross-process exclusive lock on a dedicated lock file ──
+    lock_fh = open(lock_path, "w")
+    try:
+        try:
+            import fcntl
+
+            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_EX)
+        except (ImportError, OSError):
+            pass  # Windows / lock unavailable — best effort
+
+        disk = _read_disk_entries()
+        # Merge: start from disk, layer in_memory on top with conflict policy.
+        merged = dict(disk)
+        for k, v in in_memory.items():
+            if k in merged and resolve is not None:
+                merged[k] = resolve(merged[k], v)
+            else:
+                merged[k] = v
+
+        if entries_key:
+            payload: Any = {"version": version, "n_entries": len(merged), entries_key: merged}
+        else:
+            payload = merged
+
+        sep = (",", ":") if compact else (", ", ": ")
+        fd, tmp_str = tempfile.mkstemp(dir=str(path.parent), prefix=".mwjson_", suffix=".tmp")
+        tmp = Path(tmp_str)
+        try:
+            with open(fd, "w") as f:
+                json.dump(payload, f, separators=sep, default=json_serialize)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except Exception:
+            if tmp.exists():
+                tmp.unlink()
+            raise
+
+        return len(merged)
+    finally:
+        try:
+            import fcntl
+
+            fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)
+        except (ImportError, OSError):
+            pass
+        lock_fh.close()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Timing
 # ─────────────────────────────────────────────────────────────────────────────
@@ -920,8 +1039,7 @@ def tile_theta_for_higher_p(
 
     if p_target <= p_source:
         raise ValueError(
-            f"p_target ({p_target}) must be > p_source ({p_source}). "
-            f"Use theta directly if p_target == p_source."
+            f"p_target ({p_target}) must be > p_source ({p_source}). Use theta directly if p_target == p_source."
         )
 
     if theta_p_low.size == 0:
@@ -948,9 +1066,7 @@ def tile_theta_for_higher_p(
         extra_params = params_per_layer * remainder
         theta_tiled = np.concatenate([theta_tiled, theta_p_low[:extra_params]])
 
-    assert theta_tiled.size == n_params_target, (
-        f"Tiling bug: got {theta_tiled.size}, expected {n_params_target}"
-    )
+    assert theta_tiled.size == n_params_target, f"Tiling bug: got {theta_tiled.size}, expected {n_params_target}"
 
     # Add noise to break layer symmetry
     if noise_std > 0:
@@ -1113,3 +1229,73 @@ def compute_npz_fingerprint(npz_path: Path | str) -> str:
         return hasher.hexdigest()[:12]
     except Exception:
         return "error"
+
+
+def fit_power_law(
+    x: np.ndarray | list,
+    y: np.ndarray | list,
+    min_points: int = 3,
+) -> dict[str, float | None]:
+    """Fit y = a * x^b via log-log linear regression.
+
+    Pure numpy utility (no qiskit/torch deps). Lives here so both the package
+    (e.g. analysis.metrics scaling checks) and experiment runners can reuse it
+    without src/ importing from experiments/.
+
+    Parameters
+    ----------
+    x : array-like
+        Independent variable (e.g., N values). Must be positive.
+    y : array-like
+        Dependent variable (e.g., time values). Must be positive.
+    min_points : int
+        Minimum number of points required for fit.
+
+    Returns
+    -------
+    dict with keys:
+        - exponent: float | None — the power law exponent b
+        - coefficient: float | None — the prefactor a
+        - r_squared: float | None — R² of the log-log fit
+        - sufficient_data: bool — whether enough points were available
+    """
+    x_arr = np.asarray(x, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+
+    if len(x_arr) < min_points:
+        return {
+            "exponent": None,
+            "coefficient": None,
+            "r_squared": None,
+            "sufficient_data": False,
+        }
+
+    # Filter out non-positive values
+    mask = (x_arr > 0) & (y_arr > 0)
+    if mask.sum() < min_points:
+        return {
+            "exponent": None,
+            "coefficient": None,
+            "r_squared": None,
+            "sufficient_data": False,
+        }
+
+    log_x = np.log(x_arr[mask])
+    log_y = np.log(y_arr[mask])
+
+    coeffs = np.polyfit(log_x, log_y, 1)
+    exponent = float(coeffs[0])
+    coefficient = float(np.exp(coeffs[1]))
+
+    # R² computation
+    predicted = np.polyval(coeffs, log_x)
+    ss_res = np.sum((log_y - predicted) ** 2)
+    ss_tot = np.sum((log_y - np.mean(log_y)) ** 2)
+    r_squared = float(1 - ss_res / ss_tot) if ss_tot > 0 else None
+
+    return {
+        "exponent": exponent,
+        "coefficient": coefficient,
+        "r_squared": r_squared,
+        "sufficient_data": True,
+    }

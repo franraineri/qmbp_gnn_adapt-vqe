@@ -165,10 +165,7 @@ def validate_qesem_submission(
     for i, pub in enumerate(pubs):
         observables = pub[1] if len(pub) > 1 else None
         if observables is None or (isinstance(observables, list) and len(observables) == 0):
-            issues.append(
-                f"CRITICAL: PUB[{i}] has no observables. QESEM requires at least "
-                f"one observable per PUB."
-            )
+            issues.append(f"CRITICAL: PUB[{i}] has no observables. QESEM requires at least one observable per PUB.")
 
     # ── Check 4: Qubit count consistency across PUBs ──────────────────────
     if n_pubs > 1:
@@ -195,8 +192,7 @@ def validate_qesem_submission(
         precision = options["default_precision"]
         if precision <= 0:
             issues.append(
-                f"CRITICAL: default_precision={precision} is non-positive. "
-                f"Must be > 0 (typical range: 0.005 to 0.05)."
+                f"CRITICAL: default_precision={precision} is non-positive. Must be > 0 (typical range: 0.005 to 0.05)."
             )
         elif precision > 0.5:
             issues.append(
@@ -220,15 +216,13 @@ def validate_qesem_submission(
             noise_scales = pub[3]
             if not isinstance(noise_scales, dict):
                 issues.append(
-                    f"CRITICAL: PUB[{i}] noise_scale2precision must be a dict, "
-                    f"got {type(noise_scales).__name__}."
+                    f"CRITICAL: PUB[{i}] noise_scale2precision must be a dict, got {type(noise_scales).__name__}."
                 )
                 continue
             for scale, precision in noise_scales.items():
                 if not isinstance(scale, (int, float)):
                     issues.append(
-                        f"CRITICAL: PUB[{i}] noise scale key must be numeric, "
-                        f"got {type(scale).__name__}: {scale}"
+                        f"CRITICAL: PUB[{i}] noise scale key must be numeric, got {type(scale).__name__}: {scale}"
                     )
                 elif scale < 0:
                     issues.append(
@@ -241,9 +235,7 @@ def validate_qesem_submission(
                         f"numeric, got {type(precision).__name__}."
                     )
                 elif precision <= 0:
-                    issues.append(
-                        f"CRITICAL: PUB[{i}] precision={precision} for scale={scale} must be > 0."
-                    )
+                    issues.append(f"CRITICAL: PUB[{i}] precision={precision} for scale={scale} must be > 0.")
             if not noise_scales:
                 issues.append(
                     f"CRITICAL: PUB[{i}] noise_scale2precision is empty dict. "
@@ -624,8 +616,7 @@ def run_qesem_deployment(
     if is_qet_mode:
         if not isinstance(effective_noise_scales, dict) or not effective_noise_scales:
             raise ValueError(
-                f"noise_scale2precision must be a non-empty dict mapping "
-                f"scale→precision, got: {effective_noise_scales}"
+                f"noise_scale2precision must be a non-empty dict mapping scale→precision, got: {effective_noise_scales}"
             )
         for scale, precision in effective_noise_scales.items():
             if scale < 0:
@@ -657,13 +648,9 @@ def run_qesem_deployment(
                 "precision": config.qesem_precision,
                 "max_execution_time": config.qesem_max_execution_time,
                 "circuit_depth": circuit.depth(),
-                "circuit_2q_depth": circuit.depth(
-                    filter_function=lambda instr: len(instr.qubits) == 2
-                ),
+                "circuit_2q_depth": circuit.depth(filter_function=lambda instr: len(instr.qubits) == 2),
                 "is_qet_mode": is_qet_mode,
-                "qet_noise_scales": (
-                    sorted(effective_noise_scales.keys()) if effective_noise_scales else None
-                ),
+                "qet_noise_scales": (sorted(effective_noise_scales.keys()) if effective_noise_scales else None),
             },
         )
 
@@ -791,7 +778,7 @@ def run_qesem_deployment(
                 f"Job status at timeout: {job_status}. "
                 f"The job may still be running server-side.\n"
                 f"Recover with:\n"
-                f"  .venv/bin/python scripts/recover_qesem_jobs.py {job.job_id}"
+                f"  .venv/bin/python scripts/hardware/recover_qesem_jobs.py {job.job_id}"
             )
             logger.error(error_msg)
             if structured_logger:
@@ -860,7 +847,7 @@ def run_qesem_deployment(
                 f"  - QESEM function access not enabled for your plan\n"
                 f"  - Observable format incompatible with QESEM\n"
                 f"Recover with:\n"
-                f"  .venv/bin/python scripts/recover_qesem_jobs.py {job.job_id}"
+                f"  .venv/bin/python scripts/hardware/recover_qesem_jobs.py {job.job_id}"
             )
 
             logger.error(error_msg)
@@ -945,9 +932,7 @@ def run_qesem_deployment(
 
         # Energy (observable index 0)
         if len(noise_scale_results) > 0 and len(noise_scale_results[0]) >= 2:
-            energy_mitigated, energy_std = extrapolate_qet_wls(
-                noise_scale_results[0], extrapolation_order=1
-            )
+            energy_mitigated, energy_std = extrapolate_qet_wls(noise_scale_results[0], extrapolation_order=1)
         else:
             raise RuntimeError(
                 "QET mode: insufficient noise-scale data for energy observable. "
@@ -1002,8 +987,7 @@ def run_qesem_deployment(
             zz_values[i] = max(-1.0, min(1.0, zz_values[i]))
     if _n_clipped > 0:
         logger.info(
-            f"Clipped {_n_clipped} QESEM observables to [-1, 1] "
-            f"(unbiased estimator artifact, expected behavior)."
+            f"Clipped {_n_clipped} QESEM observables to [-1, 1] (unbiased estimator artifact, expected behavior)."
         )
 
     # Extract noisy (pre-mitigation) results if available.
@@ -1036,8 +1020,7 @@ def run_qesem_deployment(
                     _noisy_available = True
                 else:
                     logger.warning(
-                        f"noisy_results has {len(noisy_evs)} values, expected "
-                        f"{1 + n_x + n_zz}. Falling back to zeros."
+                        f"noisy_results has {len(noisy_evs)} values, expected {1 + n_x + n_zz}. Falling back to zeros."
                     )
             # Dict with "evs" key (possible future SDK format or recovered JSON)
             elif isinstance(noisy_results, dict) and "evs" in noisy_results:
@@ -1118,8 +1101,7 @@ def run_qesem_deployment(
             "received_scales": sorted(energy_scales.keys()),
             "n_total_scale_points": sum(len(d) for d in noise_scale_results),
             "energy_scale_values": {
-                f"scale_{s:.2f}": {"value": v, "std": std}
-                for s, (v, std) in sorted(energy_scales.items())
+                f"scale_{s:.2f}": {"value": v, "std": std} for s, (v, std) in sorted(energy_scales.items())
             },
             "has_complementary_pairs": any(
                 abs(s1 + s2 - 2.0) < 0.01 for s1 in energy_scales for s2 in energy_scales if s1 < s2
@@ -1223,9 +1205,7 @@ def run_qesem_sweep(
         One QESEMResult per h-point, in the same order as h_values.
     """
     n_pubs = len(h_values)
-    if not (
-        len(hamiltonians) == len(x_ops_list) == len(zz_ops_list) == len(params_per_h) == n_pubs
-    ):
+    if not (len(hamiltonians) == len(x_ops_list) == len(zz_ops_list) == len(params_per_h) == n_pubs):
         raise ValueError(
             f"All input lists must have same length. Got h_values={n_pubs}, "
             f"hamiltonians={len(hamiltonians)}, x_ops={len(x_ops_list)}, "
@@ -1296,8 +1276,7 @@ def run_qesem_sweep(
     print(f"  Observables per PUB: {n_obs_per_pub[0]}")
     print(f"  Precision target: ε = {config.qesem_precision}")
     print(
-        f"  Max QPU time per job: {config.qesem_max_execution_time}s "
-        f"({config.qesem_max_execution_time / 60:.1f} min)"
+        f"  Max QPU time per job: {config.qesem_max_execution_time}s ({config.qesem_max_execution_time / 60:.1f} min)"
     )
     print("  Note: QESEM does not support multi-PUB batches with different")
     print("        circuits. Each h-point submitted as a separate job.")
@@ -1310,15 +1289,12 @@ def run_qesem_sweep(
         "default_precision": config.qesem_precision,
         "max_execution_time": config.qesem_max_execution_time,
     }
-    preflight_issues = validate_qesem_submission(
-        pubs=pubs[:1], options=single_pub_options, config=config
-    )
+    preflight_issues = validate_qesem_submission(pubs=pubs[:1], options=single_pub_options, config=config)
     if preflight_issues:
         critical_issues = [i for i in preflight_issues if i.startswith("CRITICAL")]
         if critical_issues:
-            error_msg = (
-                f"QESEM sweep preflight FAILED ({len(critical_issues)} critical issues):\n"
-                + "\n".join(f"  • {issue}" for issue in preflight_issues)
+            error_msg = f"QESEM sweep preflight FAILED ({len(critical_issues)} critical issues):\n" + "\n".join(
+                f"  • {issue}" for issue in preflight_issues
             )
             logger.error(error_msg)
             raise RuntimeError(error_msg)
@@ -1397,7 +1373,7 @@ def run_qesem_sweep(
                     f"{t_elapsed:.1f}s (client timeout={client_timeout_s}s, "
                     f"status={job_status}).\n"
                     f"Recover with:\n"
-                    f"  .venv/bin/python scripts/recover_qesem_jobs.py {job.job_id}"
+                    f"  .venv/bin/python scripts/hardware/recover_qesem_jobs.py {job.job_id}"
                 )
                 logger.error(error_msg)
                 if structured_logger:
@@ -1450,7 +1426,7 @@ def run_qesem_sweep(
                     f"{t_elapsed:.1f}s (attempt {attempt}/{max_retries}, "
                     f"status={job_status}): {exc}\n"
                     f"Recover with:\n"
-                    f"  .venv/bin/python scripts/recover_qesem_jobs.py "
+                    f"  .venv/bin/python scripts/hardware/recover_qesem_jobs.py "
                     f"{job.job_id}"
                 )
                 logger.error(error_msg)
@@ -1480,10 +1456,7 @@ def run_qesem_sweep(
 
         expected_n_obs = 1 + n_x + n_zz
         if len(evs) != expected_n_obs:
-            logger.warning(
-                f"h={h:.3f}: expected {expected_n_obs} observables, "
-                f"got {len(evs)}. Padding/truncating."
-            )
+            logger.warning(f"h={h:.3f}: expected {expected_n_obs} observables, got {len(evs)}. Padding/truncating.")
 
         # Extract energy
         energy_mitigated = float(evs[0])

@@ -369,8 +369,7 @@ class AcceleratedVQE:
 
         if self._n_params % p_layers != 0 and p_layers > 1:
             logger.warning(
-                "  ⚠️ circuit.num_parameters=%d is not divisible by p_layers=%d. "
-                "This may indicate a p_layers mismatch.",
+                "  ⚠️ circuit.num_parameters=%d is not divisible by p_layers=%d. This may indicate a p_layers mismatch.",
                 self._n_params,
                 p_layers,
             )
@@ -426,9 +425,7 @@ class AcceleratedVQE:
 
         # Run full VQE at anchors (descending warm-start)
         t_anchor_start = time.perf_counter()
-        anchor_theta, anchor_energies = self._run_anchor_vqe(
-            h_values, anchor_idx, e_exact, gaps, seed, p_layers
-        )
+        anchor_theta, anchor_energies = self._run_anchor_vqe(h_values, anchor_idx, e_exact, gaps, seed, p_layers)
         t_anchor = time.perf_counter() - t_anchor_start
 
         # Store anchor data for ThetaValidator in _predict_theta
@@ -436,9 +433,7 @@ class AcceleratedVQE:
         self._anchor_h = h_values[anchor_idx]
 
         # Validate anchor quality (Table 3): abort if ALL anchors are bad
-        anchor_de_gaps = np.abs(anchor_energies - e_exact[anchor_idx]) / np.maximum(
-            gaps[anchor_idx], 1e-10
-        )
+        anchor_de_gaps = np.abs(anchor_energies - e_exact[anchor_idx]) / np.maximum(gaps[anchor_idx], 1e-10)
         if np.all(anchor_de_gaps > 0.50):
             warnings.append(
                 f"ALL {len(anchor_idx)} anchor VQE points have ΔE/gap > 50%. "
@@ -447,9 +442,7 @@ class AcceleratedVQE:
             )
             logger.error("  ❌ %s", warnings[-1])
         elif np.mean(anchor_de_gaps > 0.20) > 0.5:
-            warnings.append(
-                f">{50}% of anchor points have ΔE/gap > 20%. Predictions may be degraded."
-            )
+            warnings.append(f">{50}% of anchor points have ΔE/gap > 20%. Predictions may be degraded.")
             logger.warning("  ⚠️ %s", warnings[-1])
 
         # ── Step 4: Train MPNN (if no zoo model) ──────────────────────
@@ -653,11 +646,7 @@ class AcceleratedVQE:
             pass
 
         # Generic fallback: coordination-based estimate (no data available)
-        z_max = (
-            max(len([e for e in self.lattice.edges if q in e]) for q in range(self._N))
-            if self.lattice.edges
-            else 2
-        )
+        z_max = max(len([e for e in self.lattice.edges if q in e]) for q in range(self._N)) if self.lattice.edges else 2
         base = 1.3 + 0.4 * max(0, z_max - 2)
         return max(0.8, base - 0.3 * (p_layers - 1))
 
@@ -743,7 +732,7 @@ class AcceleratedVQE:
             h_critical = _H_CRIT.get(self.spec.name, 1.0)
 
         # Generate K anchor h-values using non-uniform grid logic
-        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+        from qmbp_simulation.utils.h_grid import generate_nonuniform_h_grid
 
         anchor_h = generate_nonuniform_h_grid(
             h_min=h_min,
@@ -805,9 +794,7 @@ class AcceleratedVQE:
         try:
             data = np.load(str(npz_path), allow_pickle=True)
             h_p1 = np.asarray(data["h_values"], dtype=np.float64)
-            de_gaps_p1 = (
-                np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else None
-            )
+            de_gaps_p1 = np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else None
             if de_gaps_p1 is None:
                 return None
         except Exception:
@@ -824,9 +811,7 @@ class AcceleratedVQE:
 
         return np.array(hard_indices) if hard_indices else None
 
-    def _run_anchor_vqe(
-        self, h_values, anchor_idx, e_exact, gaps, seed, p_layers
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def _run_anchor_vqe(self, h_values, anchor_idx, e_exact, gaps, seed, p_layers) -> tuple[np.ndarray, np.ndarray]:
         """Run full VQE at anchor points with descending warm-start.
 
         Uses AdaptiveRestartConfig (Finding F2) to allocate more restarts
@@ -887,9 +872,7 @@ class AcceleratedVQE:
                 tile_theta_for_higher_p,
             )
 
-            _p1_theta_map = load_p1_theta_for_warmstart(
-                self._topology, self._N, h_values[anchor_idx]
-            )
+            _p1_theta_map = load_p1_theta_for_warmstart(self._topology, self._N, h_values[anchor_idx])
             if _p1_theta_map:
                 _p1_h_sorted = np.array(sorted(_p1_theta_map.keys()))
                 logger.info(
@@ -935,9 +918,7 @@ class AcceleratedVQE:
                         logger.debug("  p1-tile failed at h=%.3f: %s", h, e)
 
             # Adaptive restarts: allocate based on neighbor difficulty + h_critical
-            n_restarts = compute_adaptive_restarts(
-                float(h), prev_de_gap=prev_de_gap, config=adaptive_cfg
-            )
+            n_restarts = compute_adaptive_restarts(float(h), prev_de_gap=prev_de_gap, config=adaptive_cfg)
 
             # ── A2: Adaptive maxiter — reduce if warm-start init is good ──
             effective_maxiter = cfg.maxiter
@@ -1031,9 +1012,7 @@ class AcceleratedVQE:
                 include_neighbors=True,
                 max_fraction=0.6,
             )
-            suspicious_indices, asc_report = select_suspicious_points(
-                desc_results, config=asc_config
-            )
+            suspicious_indices, asc_report = select_suspicious_points(desc_results, config=asc_config)
 
             if suspicious_indices and not asc_report.fell_back_to_full:
                 logger.info(
@@ -1044,9 +1023,7 @@ class AcceleratedVQE:
 
                 # Run ascending pass only for suspicious anchors
                 # Sort them ascending (h_min → h_max) for warm-start propagation
-                h_anchors_ascending = sorted(
-                    [(h_values[anchor_idx[i]], anchor_idx[i], i) for i in suspicious_indices]
-                )
+                h_anchors_ascending = sorted([(h_values[anchor_idx[i]], anchor_idx[i], i) for i in suspicious_indices])
 
                 # Seed ascending warm-start from the best neighbor above
                 prev_theta_asc = rng.uniform(-0.01, 0.01, self._n_params)
@@ -1064,18 +1041,14 @@ class AcceleratedVQE:
 
                 n_improved_asc = 0
                 for h, orig_idx, _ in h_anchors_ascending:
-                    n_restarts = compute_adaptive_restarts(
-                        float(h), prev_de_gap=None, config=adaptive_cfg
-                    )
+                    n_restarts = compute_adaptive_restarts(float(h), prev_de_gap=None, config=adaptive_cfg)
                     vqe_config = VQEConfig(
                         p_layers=p_layers,
                         n_restarts=n_restarts,
                         maxiter=cfg.maxiter,
                         method=cfg.force_method if cfg.force_method else "L-BFGS-B",
                     )
-                    optimizer = VQEOptimizer(
-                        config=vqe_config, backend=self.backend, seed=seed + 999
-                    )
+                    optimizer = VQEOptimizer(config=vqe_config, backend=self.backend, seed=seed + 999)
 
                     lat = make_lattice(self._topology, self._N, J=1.0, h=float(h))
                     H = self.spec.build_hamiltonian(lat, **self.spec.hamiltonian_kwargs)
@@ -1106,18 +1079,14 @@ class AcceleratedVQE:
                 prev_theta_asc = rng.uniform(-0.01, 0.01, self._n_params)
                 n_improved_asc = 0
                 for h, orig_idx in h_anchors_ascending:
-                    n_restarts = compute_adaptive_restarts(
-                        float(h), prev_de_gap=None, config=adaptive_cfg
-                    )
+                    n_restarts = compute_adaptive_restarts(float(h), prev_de_gap=None, config=adaptive_cfg)
                     vqe_config = VQEConfig(
                         p_layers=p_layers,
                         n_restarts=n_restarts,
                         maxiter=cfg.maxiter,
                         method=cfg.force_method if cfg.force_method else "L-BFGS-B",
                     )
-                    optimizer = VQEOptimizer(
-                        config=vqe_config, backend=self.backend, seed=seed + 999
-                    )
+                    optimizer = VQEOptimizer(config=vqe_config, backend=self.backend, seed=seed + 999)
                     lat = make_lattice(self._topology, self._N, J=1.0, h=float(h))
                     H = self.spec.build_hamiltonian(lat, **self.spec.hamiltonian_kwargs)
                     if hasattr(self.backend, "set_h"):
@@ -1224,7 +1193,7 @@ class AcceleratedVQE:
         """
         import torch
 
-        from qmbp_simulation.predictors.unified_graph import build_unified_bond_resolved_graph
+        from qmbp_simulation.predictors.unified_graph import build_graph_for_model
 
         if self._model is None:
             raise RuntimeError("No MPNN model available. Train or load from zoo first.")
@@ -1247,11 +1216,14 @@ class AcceleratedVQE:
 
         n_low_confidence = 0
         for h in h_target:
-            g = build_unified_bond_resolved_graph(
+            # Graph feature dim auto-matches the loaded model (orbit-aware):
+            # a model trained with the orbit feature (node_features>5) gets a
+            # graph with the orbit column, others get the base 5-feature graph.
+            g = build_graph_for_model(
+                self._model,
                 self.lattice,
                 h_value=float(h),
                 p_layers=p_layers,
-                include_circuit_nodes=True,
                 include_nnn=self._include_nnn,
             )
             with torch.no_grad():
@@ -1370,9 +1342,7 @@ class AcceleratedVQE:
 
             mpnn_de_gaps = np.where(mpnn_only_mask, de_gaps, 0)
             worst_indices = np.argsort(mpnn_de_gaps)[::-1][:3]
-            worst_indices = [
-                i for i in worst_indices if mpnn_only_mask[i] and de_gaps[i] > _DE_GAP_THR
-            ]
+            worst_indices = [i for i in worst_indices if mpnn_only_mask[i] and de_gaps[i] > _DE_GAP_THR]
 
             if not worst_indices:
                 break  # No uncertain points remaining
@@ -1388,9 +1358,7 @@ class AcceleratedVQE:
                 n_restarts=cfg.refine_restarts * 2,
                 maxiter=cfg.refine_maxiter,
             )
-            al_optimizer = VQEOptimizer(
-                config=ws_config_al, backend=self.backend, seed=seed + 600 + al_round
-            )
+            al_optimizer = VQEOptimizer(config=ws_config_al, backend=self.backend, seed=seed + 600 + al_round)
 
             for i in worst_indices:
                 h = h_target[i]
@@ -1422,9 +1390,7 @@ class AcceleratedVQE:
                 "topology": self._topology,
                 "n_qubits": self._N,
                 "n_params": self._n_params,
-                "mpnn_mse": self._train_metrics.get("final_mse", 0)
-                if hasattr(self, "_train_metrics")
-                else 0,
+                "mpnn_mse": self._train_metrics.get("final_mse", 0) if hasattr(self, "_train_metrics") else 0,
             },
         )
 
@@ -1454,9 +1420,7 @@ class AcceleratedVQE:
 
             model_name = self.spec.name if hasattr(self.spec, "name") else "tfim"
             timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
-            filename = (
-                f"unified_{model_name}_{self._topology}_n{self._N}_p{p_layers}_{timestamp}.pt"
-            )
+            filename = f"unified_{model_name}_{self._topology}_n{self._N}_p{p_layers}_{timestamp}.pt"
 
             entry = ZooEntry(
                 model=model_name,

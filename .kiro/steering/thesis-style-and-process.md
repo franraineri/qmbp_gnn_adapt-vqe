@@ -205,6 +205,20 @@ Toda figura (TikZ, pgfplots, o generada en Python) usa la paleta única definida
 `internal/tesis-figures/palette.tex`. No introducir HEX sueltos ni colores nuevos;
 importar el archivo y usar los nombres semánticos.
 
+Compilación de figuras y PDF: las figuras TikZ (`internal/tesis-figures/fig_*.tex`)
+se compilan a PDF individuales con `make tikz-figures` (script
+`scripts/general_project_maintenance/build_thesis_figures.py`, envoltorio
+standalone/article + pdflatex). `make thesis-pdf` actualiza figuras + tablas auto +
+`--check-tex` y compila la memoria si `estilo_unir-1.sty` está instalado (si no,
+avisa que el PDF final se genera en Overleaf). Los auxiliares LaTeX y los
+envoltorios `_build_*` están en `.gitignore`.
+
+Roles de color adicionales en `palette.tex` (usar siempre estos nombres): escala de
+calificación `gradeA..gradeF` (verde→rojo, para tablas A/B/C/D/F y mapas de calor);
+serie por topología `topoChain/topoHeavyHex/topoLadder/topoSquare/topoTriangular`;
+régimen físico `phaseOrdered/phaseCritical/phaseParamag` (+ sus `*Bg`); neutros
+`axisGray/gridGray/mutedGray/thresholdLine`; comparación `methodMPNN/methodRandom`.
+
 Las cuatro etapas del pipeline forman una progresión neutro → destacado:
 
 | Rol | Nombre LaTeX | HEX | Uso |

@@ -6,9 +6,9 @@ from run_*.json files. Provides the detailed per-point view that the
 standard noiseless_pipeline_analyzer summary lacks.
 
 Usage:
-    .venv/bin/python scripts/analyze_noiseless_per_h.py <result_json> [--h 1.0 2.0 3.0]
-    .venv/bin/python scripts/analyze_noiseless_per_h.py results/experiments/exp_noiseless_tfim_longitudinal_v2/
-    .venv/bin/python scripts/analyze_noiseless_per_h.py <result_json> --all
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_per_h.py <result_json> [--h 1.0 2.0 3.0]
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_per_h.py results/experiments/exp_noiseless_tfim_longitudinal_v2/
+    .venv/bin/python project_health/analysis/noiseless_analysis/analyze_noiseless_per_h.py <result_json> --all
 """
 
 import argparse
@@ -59,14 +59,8 @@ def analyze_run(data: dict, h_targets: list[float] | None = None) -> None:
     print(f"\n  Section 2 (VQE): {'✅ PASS' if s2.get('success') else '❌ FAIL'}")
     if topo_s2:
         print(f"    pass_rate: {topo_s2.get('n_pass_5pct')}/{topo_s2.get('n_points')}")
-        print(
-            f"    mean_F={topo_s2.get('mean_fidelity', 0):.5f}  "
-            f"min_F={topo_s2.get('min_fidelity', 0):.4f}"
-        )
-        print(
-            f"    mean_ΔE/gap={topo_s2.get('mean_de_gap', 0):.4e}  "
-            f"max_ΔE/gap={topo_s2.get('max_de_gap', 0):.4e}"
-        )
+        print(f"    mean_F={topo_s2.get('mean_fidelity', 0):.5f}  min_F={topo_s2.get('min_fidelity', 0):.4f}")
+        print(f"    mean_ΔE/gap={topo_s2.get('mean_de_gap', 0):.4e}  max_ΔE/gap={topo_s2.get('max_de_gap', 0):.4e}")
         print(
             f"    θ_smooth_max={topo_s2.get('theta_smoothness_max', 0):.4f}  "
             f"θ_smooth_mean={topo_s2.get('theta_smoothness_mean', 0):.4f}"
@@ -78,14 +72,8 @@ def analyze_run(data: dict, h_targets: list[float] | None = None) -> None:
     s3_data = s3.get("data", {})
     print(f"\n  Section 3 (MPNN): {'✅ PASS' if s3.get('success') else '❌ FAIL'}")
     if s3_data:
-        print(
-            f"    final_mse={s3_data.get('final_mse', '?'):.6e}  "
-            f"final_de_gap={s3_data.get('final_de_gap', '?'):.4e}"
-        )
-        print(
-            f"    n_params={s3_data.get('n_output_params')}  "
-            f"n_training={s3_data.get('n_training_points')}"
-        )
+        print(f"    final_mse={s3_data.get('final_mse', '?'):.6e}  final_de_gap={s3_data.get('final_de_gap', '?'):.4e}")
+        print(f"    n_params={s3_data.get('n_output_params')}  n_training={s3_data.get('n_training_points')}")
         per_h_mse = s3_data.get("per_h_mse", [])
         if per_h_mse:
             arr = np.array(per_h_mse)
@@ -103,17 +91,11 @@ def analyze_run(data: dict, h_targets: list[float] | None = None) -> None:
             f"pass_energy={s4_data.get('n_pass_energy')}  "
             f"correct_labels={s4_data.get('n_correct_label')}"
         )
-        print(
-            f"    mean_ΔE/gap={s4_data.get('mean_de_gap', 0):.4e}  "
-            f"max_ΔE/gap={s4_data.get('max_de_gap', 0):.4e}"
-        )
+        print(f"    mean_ΔE/gap={s4_data.get('mean_de_gap', 0):.4e}  max_ΔE/gap={s4_data.get('max_de_gap', 0):.4e}")
         print(f"    mean_F={s4_data.get('mean_fidelity', 0):.5f}")
         sf = s4_data.get("speedup_factor")
         if sf:
-            print(
-                f"    speedup_factor={sf:.1f}x  "
-                f"mpnn_wins_vs_random={s4_data.get('mpnn_wins_vs_random')}"
-            )
+            print(f"    speedup_factor={sf:.1f}x  mpnn_wins_vs_random={s4_data.get('mpnn_wins_vs_random')}")
 
     if not pp:
         print("    (No per-point data)")
@@ -161,10 +143,7 @@ def analyze_run(data: dict, h_targets: list[float] | None = None) -> None:
 
     print(f"\n  Statistics ({len(pp)} deploy points):")
     print(f"    Pass ΔE/gap<5%: {n_pass}/{len(pp)} ({100 * n_pass / len(pp):.0f}%)")
-    print(
-        f"    ΔE/gap: mean={np.mean(de_gaps):.4e} median={np.median(de_gaps):.4e} "
-        f"max={np.max(de_gaps):.4e}"
-    )
+    print(f"    ΔE/gap: mean={np.mean(de_gaps):.4e} median={np.median(de_gaps):.4e} max={np.max(de_gaps):.4e}")
     print(f"    Fidelity: mean={np.mean(fids):.5f} min={np.min(fids):.5f}")
     print(f"    Labels: {n_labels}/{len(pp)}")
 

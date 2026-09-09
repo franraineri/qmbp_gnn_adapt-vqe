@@ -22,77 +22,9 @@ from qiskit.quantum_info import SparsePauliOp
 logger = logging.getLogger(__name__)
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Power-Law Fitting
-# ═══════════════════════════════════════════════════════════════════════════════
-
-
-def fit_power_law(
-    x: np.ndarray | list,
-    y: np.ndarray | list,
-    min_points: int = 3,
-) -> dict[str, float | None]:
-    """Fit y = a * x^b via log-log linear regression.
-
-    Parameters
-    ----------
-    x : array-like
-        Independent variable (e.g., N values). Must be positive.
-    y : array-like
-        Dependent variable (e.g., time values). Must be positive.
-    min_points : int
-        Minimum number of points required for fit.
-
-    Returns
-    -------
-    dict with keys:
-        - exponent: float | None — the power law exponent b
-        - coefficient: float | None — the prefactor a
-        - r_squared: float | None — R² of the log-log fit
-        - sufficient_data: bool — whether enough points were available
-    """
-    x_arr = np.asarray(x, dtype=float)
-    y_arr = np.asarray(y, dtype=float)
-
-    if len(x_arr) < min_points:
-        return {
-            "exponent": None,
-            "coefficient": None,
-            "r_squared": None,
-            "sufficient_data": False,
-        }
-
-    # Filter out non-positive values
-    mask = (x_arr > 0) & (y_arr > 0)
-    if mask.sum() < min_points:
-        return {
-            "exponent": None,
-            "coefficient": None,
-            "r_squared": None,
-            "sufficient_data": False,
-        }
-
-    log_x = np.log(x_arr[mask])
-    log_y = np.log(y_arr[mask])
-
-    coeffs = np.polyfit(log_x, log_y, 1)
-    exponent = float(coeffs[0])
-    coefficient = float(np.exp(coeffs[1]))
-
-    # R² computation
-    predicted = np.polyval(coeffs, log_x)
-    ss_res = np.sum((log_y - predicted) ** 2)
-    ss_tot = np.sum((log_y - np.mean(log_y)) ** 2)
-    r_squared = float(1 - ss_res / ss_tot) if ss_tot > 0 else None
-
-    return {
-        "exponent": exponent,
-        "coefficient": coefficient,
-        "r_squared": r_squared,
-        "sufficient_data": True,
-    }
-
-
+# Power-law fitting now lives in the package (pure numpy util) so src/ can reuse
+# it without importing from experiments/. Re-exported here for runner compat.
+from qmbp_simulation.utils.helpers import fit_power_law  # noqa: F401
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Transpilation Metrics
@@ -140,16 +72,11 @@ def compute_transpilation_metrics(
 
     # Pre-transpile 2Q gate count
     two_q_gates = {"cx", "cz", "ecr", "rzz", "rxx", "ryy", "cp"}
-    cx_pre = sum(
-        1 for inst in circuit.data
-        if inst.operation.name.lower() in two_q_gates
-    )
+    cx_pre = sum(1 for inst in circuit.data if inst.operation.name.lower() in two_q_gates)
 
     # Transpile with timing
     t0 = time.perf_counter()
-    pm = generate_preset_pass_manager(
-        optimization_level=optimization_level, backend=backend
-    )
+    pm = generate_preset_pass_manager(optimization_level=optimization_level, backend=backend)
     transpiled = pm.run(circuit)
     transpile_time = time.perf_counter() - t0
 
@@ -286,10 +213,7 @@ def analyze_chi_convergence(
     chi64_data = per_chi.get(64)
     chi64_abs_error = chi64_data["abs_error"] if chi64_data else None
     chi64_de_gap = chi64_data["de_gap"] if chi64_data else None
-    chi64_sufficient = (
-        chi64_abs_error < convergence_threshold
-        if chi64_abs_error is not None else None
-    )
+    chi64_sufficient = chi64_abs_error < convergence_threshold if chi64_abs_error is not None else None
 
     return {
         "ref_energy": e_ref,

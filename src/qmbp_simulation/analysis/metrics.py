@@ -604,9 +604,7 @@ def compute_refinement_priority(
         proximity_score = 0.1  # Very far — likely ansatz-limited
 
     # ── Factor 5: Parameter count discount ───────────────────────────────
-    param_factor = 1.0 / (
-        1.0 + max(0, n_params - REFINEMENT_PARAM_BASELINE) / REFINEMENT_PARAM_SCALE
-    )
+    param_factor = 1.0 / (1.0 + max(0, n_params - REFINEMENT_PARAM_BASELINE) / REFINEMENT_PARAM_SCALE)
 
     # ── Factor 6: MPNN improvement boost ─────────────────────────────────
     mpnn_boost = REFINEMENT_MPNN_BOOST if mpnn_improved else 1.0
@@ -695,9 +693,7 @@ def compute_adaptive_vqe_config(
         scale = 0.5 + 0.5 * priority  # 0.75-1.0× base
         return {
             "maxiter": int(base_maxiter * scale),
-            "n_restarts": max(
-                min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts), MIN_N_RESTARTS
-            ),
+            "n_restarts": max(min(ADAPTIVE_VQE_STANDARD_MAX_RESTARTS, base_restarts), MIN_N_RESTARTS),
             "rhobeg": ADAPTIVE_VQE_STANDARD_RHOBEG,
             "tier": "standard",
             "reason": f"Standard: ΔE/gap={de_gap:.3f}, priority={priority:.2f}",
@@ -936,9 +932,7 @@ def compute_uncertainty_correlation(per_h_results: list[dict]) -> dict:
 
     result["low_uncertainty_mean_de_gap"] = float(np.mean(de_gaps[low_indices]))
     result["high_uncertainty_mean_de_gap"] = float(np.mean(de_gaps[high_indices]))
-    result["calibrated"] = (
-        result["high_uncertainty_mean_de_gap"] > result["low_uncertainty_mean_de_gap"]
-    )
+    result["calibrated"] = result["high_uncertainty_mean_de_gap"] > result["low_uncertainty_mean_de_gap"]
 
     return result
 
@@ -1010,7 +1004,7 @@ def analyze_energy_error_scaling(abs_error_by_n: dict[int, float]) -> dict:
     result["per_site_cv"] = float(per_site.std() / ps_mean) if ps_mean > 1e-12 else None
 
     if len(ns) >= 3:
-        from experiments.helpers.scaling_utils import fit_power_law
+        from qmbp_simulation.utils.helpers import fit_power_law
 
         fit = fit_power_law(ns, list(errs), min_points=3)
         result["alpha"] = fit["exponent"]
@@ -1228,19 +1222,11 @@ def compute_deploy_summary(
     # ceiling). Diagnostic only — never gates pass/fail.
     evs = [r["energy_variance"] for r in per_h_results if r.get("energy_variance") is not None]
     summary["mean_energy_variance"] = float(np.mean(evs)) if evs else None
-    vogs = [
-        r["variance_over_gap2"] for r in per_h_results if r.get("variance_over_gap2") is not None
-    ]
+    vogs = [r["variance_over_gap2"] for r in per_h_results if r.get("variance_over_gap2") is not None]
     summary["mean_variance_over_gap2"] = float(np.mean(vogs)) if vogs else None
-    summary["n_dirty_state"] = sum(
-        1 for r in per_h_results if r.get("infidelity_dominant_factor") == "dirty_state"
-    )
-    summary["n_small_gap"] = sum(
-        1 for r in per_h_results if r.get("infidelity_dominant_factor") == "small_gap"
-    )
-    summary["n_clean"] = sum(
-        1 for r in per_h_results if r.get("infidelity_dominant_factor") == "clean"
-    )
+    summary["n_dirty_state"] = sum(1 for r in per_h_results if r.get("infidelity_dominant_factor") == "dirty_state")
+    summary["n_small_gap"] = sum(1 for r in per_h_results if r.get("infidelity_dominant_factor") == "small_gap")
+    summary["n_clean"] = sum(1 for r in per_h_results if r.get("infidelity_dominant_factor") == "clean")
 
     # Standard deviation (useful for confidence intervals and thesis tables)
     summary["std_de_gap"] = float(np.std(de_gaps))
@@ -1474,11 +1460,7 @@ def compute_h_frontier_from_npz(
 
     if "de_gaps" in data:
         de_gaps = data["de_gaps"]
-        abs_err = (
-            np.abs(data["e_vqe"] - data["e_exact"])
-            if ("e_vqe" in data and "e_exact" in data)
-            else None
-        )
+        abs_err = np.abs(data["e_vqe"] - data["e_exact"]) if ("e_vqe" in data and "e_exact" in data) else None
     elif "e_vqe" in data and "e_exact" in data and "gaps" in data:
         abs_err = np.abs(data["e_vqe"] - data["e_exact"])
         gaps = np.maximum(data["gaps"], 1e-10)
@@ -1947,8 +1929,7 @@ def validate_training_dataset(
         # Warnings per N
         if n_raw > 0 and n_good == 0:
             report["warnings"].append(
-                f"N={n}: 0/{n_raw} points pass dual criterion. "
-                f"This N contributes nothing to training."
+                f"N={n}: 0/{n_raw} points pass dual criterion. This N contributes nothing to training."
             )
         elif n_raw > 0 and n_good / n_raw < 0.20:
             report["warnings"].append(
@@ -2150,9 +2131,7 @@ def _compute_topology_summary(configs: list) -> dict:
             "n_max_viable": n_max_viable,
             "n_configs": len(topo_configs),
             "best_pass_rate_5pct": best_config["pass_rate_5pct"],
-            "best_pass_rate_dual": max(
-                (c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0
-            ),
+            "best_pass_rate_dual": max((c.get("pass_rate_dual_criterion", 0) for c in topo_configs), default=0),
             "best_n": best_config["n_qubits"],
             "cross_n_best_source_for_largest": cross_n_best,
         }
@@ -2324,9 +2303,7 @@ def generate_model_quality_dashboard(
             de_gaps = abs_err / np.maximum(data["gaps"], 1e-10)
 
         pass_rate_5 = float((de_gaps < DE_GAP_THRESHOLD).mean()) if de_gaps is not None else 0.0
-        pass_rate_10 = (
-            float((de_gaps < 2 * DE_GAP_THRESHOLD).mean()) if de_gaps is not None else 0.0
-        )
+        pass_rate_10 = float((de_gaps < 2 * DE_GAP_THRESHOLD).mean()) if de_gaps is not None else 0.0
         mean_de_gap = float(de_gaps.mean()) if de_gaps is not None else 0.0
 
         mean_abs_err = frontier_result.get("mean_abs_error")
@@ -2415,9 +2392,7 @@ def generate_model_quality_dashboard(
             from qmbp_simulation.execution.eval_cache import EvalCache
 
             _ec = EvalCache()
-            eval_cache_density = _ec.count_entries_for_config(
-                topology, n_qubits, "tfim_bond_resolved", p_layers
-            )
+            eval_cache_density = _ec.count_entries_for_config(topology, n_qubits, "tfim_bond_resolved", p_layers)
         except (ImportError, Exception):
             pass
 
@@ -2472,9 +2447,7 @@ def generate_model_quality_dashboard(
                 "zoo_model_available": zoo_model_available,
                 "zoo_pass_rate": zoo_pass_rate,
                 "zoo_integrity_ok": zoo_integrity_ok,
-                "zoo_vs_npz_divergence": (
-                    abs(zoo_pass_rate - pass_rate_5) if zoo_pass_rate is not None else None
-                ),
+                "zoo_vs_npz_divergence": (abs(zoo_pass_rate - pass_rate_5) if zoo_pass_rate is not None else None),
                 "eval_cache_density": eval_cache_density,
                 "confidence_level": _compute_confidence_level(
                     n_points=n_points,
@@ -2488,9 +2461,7 @@ def generate_model_quality_dashboard(
                 "training_utility_reason": training_utility_reason,
                 # ── Cross-N transfer quality ─────────────────────────────
                 "cross_n_transfers": cross_n_data.get((topology, n_qubits, p_layers), []),
-                "cross_n_best_source": _best_cross_n_source(
-                    cross_n_data.get((topology, n_qubits, p_layers), [])
-                ),
+                "cross_n_best_source": _best_cross_n_source(cross_n_data.get((topology, n_qubits, p_layers), [])),
                 "file": npz_file.name,
                 "mtime": datetime.fromtimestamp(npz_file.stat().st_mtime, tz=UTC).isoformat(),
             }
@@ -2868,9 +2839,7 @@ def query_mt_vs_st_comparison(
             # Recompute per_topology from filtered scenarios
             from collections import defaultdict as _dd
 
-            _pt: dict = _dd(
-                lambda: {"mt_pass": [], "st_pass": [], "mt_wins": 0, "st_wins": 0, "ties": 0}
-            )
+            _pt: dict = _dd(lambda: {"mt_pass": [], "st_pass": [], "mt_wins": 0, "st_wins": 0, "ties": 0})
             for s in scenarios:
                 t = s.get("topology", "?")
                 _pt[t]["mt_pass"].append(s.get("mt_pass_rate", 0))
@@ -2891,9 +2860,7 @@ def query_mt_vs_st_comparison(
                     "mt_wins": info["mt_wins"],
                     "st_wins": info["st_wins"],
                     "ties": info["ties"],
-                    "winner": "MT"
-                    if mt_a > st_a + 0.01
-                    else ("ST" if st_a > mt_a + 0.01 else "tie"),
+                    "winner": "MT" if mt_a > st_a + 0.01 else ("ST" if st_a > mt_a + 0.01 else "tie"),
                     "delta": mt_a - st_a,
                 }
             result["per_topology"] = per_topo_filtered
@@ -3090,9 +3057,7 @@ def validate_gt_npz_coherence(
                 # Compute impact on metrics
                 affected_pass_rate_delta = 0.0
                 if "gaps" in data and corrections:
-                    e_key = (
-                        "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
-                    )
+                    e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
                     if e_key:
                         e_vqe = data[e_key]
                         gaps = data["gaps"]
@@ -3141,15 +3106,9 @@ def validate_gt_npz_coherence(
                         arrays["gaps"] = new_gaps
 
                     # Recompute de_gaps using the corrected e_exact AND gaps.
-                    e_key = (
-                        "e_vqe"
-                        if "e_vqe" in arrays
-                        else ("energies" if "energies" in arrays else None)
-                    )
+                    e_key = "e_vqe" if "e_vqe" in arrays else ("energies" if "energies" in arrays else None)
                     if e_key and "gaps" in arrays:
-                        new_de_gaps = np.abs(arrays[e_key] - new_e_exact) / np.maximum(
-                            arrays["gaps"], 1e-10
-                        )
+                        new_de_gaps = np.abs(arrays[e_key] - new_e_exact) / np.maximum(arrays["gaps"], 1e-10)
                         arrays["de_gaps"] = new_de_gaps
 
                     np.savez(str(npz_file), **arrays)
@@ -3376,9 +3335,7 @@ def validate_npz_integrity(
             if len(h_values) != len(e_vqe):
                 file_issues.append(f"Length mismatch: h={len(h_values)} vs e_vqe={len(e_vqe)}")
             if theta_opt.ndim == 2 and theta_opt.shape[0] != len(h_values):
-                file_issues.append(
-                    f"Length mismatch: h={len(h_values)} vs theta={theta_opt.shape[0]}"
-                )
+                file_issues.append(f"Length mismatch: h={len(h_values)} vs theta={theta_opt.shape[0]}")
 
             # ── Auto-fix: remove NaN rows ──
             if fix and nan_rows and "nan_theta" in file_fixable:
@@ -3632,9 +3589,7 @@ def check_p2_regression_vs_p1(
         from qmbp_simulation.predictors.model_zoo import _load_manifest
 
         manifest = _load_manifest()
-        p1_entries = [
-            e for e in manifest if e.topology == topology and e.p_layers == 1 and e.is_multi_n
-        ]
+        p1_entries = [e for e in manifest if e.topology == topology and e.p_layers == 1 and e.is_multi_n]
         if p1_entries:
             p1_pass_rate = max(e.pass_rate for e in p1_entries)
     except Exception:
@@ -3656,8 +3611,7 @@ def check_p2_regression_vs_p1(
     if delta >= -0.05:
         passed = True
         msg = (
-            f"✅ p=2 OK for {topology}: pass_rate={p2_pass_rate:.0%} "
-            f"(p=1 baseline={p1_pass_rate:.0%}, Δ={delta:+.0%})"
+            f"✅ p=2 OK for {topology}: pass_rate={p2_pass_rate:.0%} (p=1 baseline={p1_pass_rate:.0%}, Δ={delta:+.0%})"
         )
     else:
         passed = False
@@ -3765,9 +3719,7 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
         # ── Step 2b: Best Results Scoreboard ────────────────────────────────
         _log("Step 2b/9: Regenerating best results scoreboard...")
         try:
-            scoreboard_script = (
-                _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
-            )
+            scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
             if scoreboard_script.exists():
                 _sb_cmd = [sys.executable, str(scoreboard_script)]
                 if p_layers is not None:
@@ -3782,24 +3734,15 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
                 # exit 1 with p filter + no data is a benign "nothing to generate
                 # for this p yet" (e.g. first p=2 run before any p=2 eval exists),
                 # not a real failure.
-                _no_data = p_layers is not None and "No evaluation reports found" in (
-                    proc.stdout or ""
-                )
+                _no_data = p_layers is not None and "No evaluation reports found" in (proc.stdout or "")
                 if proc.returncode == 0:
                     results["steps_completed"].append("best_results_scoreboard")
-                    _log(
-                        "  ✅ Best results scoreboard updated"
-                        + (f" (p={p_layers})" if p_layers is not None else "")
-                    )
+                    _log("  ✅ Best results scoreboard updated" + (f" (p={p_layers})" if p_layers is not None else ""))
                 elif _no_data:
-                    results["steps_completed"].append(
-                        f"best_results_scoreboard (no p={p_layers} data yet)"
-                    )
+                    results["steps_completed"].append(f"best_results_scoreboard (no p={p_layers} data yet)")
                     _log(f"  ⏭️ No eval reports for p={p_layers} yet — scoreboard skipped")
                 else:
-                    results["steps_failed"].append(
-                        f"best_results_scoreboard: exit={proc.returncode}"
-                    )
+                    results["steps_failed"].append(f"best_results_scoreboard: exit={proc.returncode}")
                     _log(f"  ❌ Exit code {proc.returncode}")
             else:
                 results["steps_completed"].append("best_results_scoreboard (skipped)")
@@ -3865,8 +3808,7 @@ def post_experiment_sync(*, verbose: bool = False, p_layers: int | None = None) 
 
             triggers = check_retrain_triggers()
             results["retrain_triggers"] = [
-                {"topology": t.topology, "priority": t.priority, "reason": t.reason}
-                for t in triggers
+                {"topology": t.topology, "priority": t.priority, "reason": t.reason} for t in triggers
             ]
             results["steps_completed"].append("retrain_triggers")
             if triggers:
@@ -4247,9 +4189,7 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                 if curve_file is None:
                     for stem, path in curves_by_stem.items():
                         if topo in stem and (
-                            model_id[:25] in stem
-                            or stem[:25] in model_id
-                            or (topo in stem and "section" in stem)
+                            model_id[:25] in stem or stem[:25] in model_id or (topo in stem and "section" in stem)
                         ):
                             curve_file = path
                             break
@@ -4267,16 +4207,12 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                         mse_history = curve_data["mse_history"]
                         val_mse_history = curve_data.get("val_mse_history", np.array([]))
                         actual_final_mse = float(mse_history[-1])
-                        actual_val_mse = (
-                            float(val_mse_history[-1]) if len(val_mse_history) > 0 else None
-                        )
+                        actual_val_mse = float(val_mse_history[-1]) if len(val_mse_history) > 0 else None
                         n_checks += 1
 
                         # Compare MSE (use val_mse if available, more comparable)
                         compare_mse = reg_val_mse if reg_val_mse is not None else reg_mse
-                        actual_compare = (
-                            actual_val_mse if actual_val_mse is not None else actual_final_mse
-                        )
+                        actual_compare = actual_val_mse if actual_val_mse is not None else actual_final_mse
                         mse_delta = abs(compare_mse - actual_compare)
 
                         # Epoch count check
@@ -4442,10 +4378,7 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
                     "severity": "info",
                     "is_informational": True,
                     "model": f"{iss['topology']} N={iss['n_target']}",
-                    "explanation": (
-                        f"{iss['issue']} "
-                        f"(Expected: multi-N generalist vs single-N specialist trade-off.)"
-                    ),
+                    "explanation": (f"{iss['issue']} (Expected: multi-N generalist vs single-N specialist trade-off.)"),
                 }
             )
 
@@ -4535,10 +4468,7 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
         if scoreboard_issues and verbose:
             print(f"\n  Scoreboard cross-check: {len(scoreboard_issues)} issue(s)")
             for si in scoreboard_issues:
-                print(
-                    f"    ⚠️ {si['topology']} p={si.get('p_layers')} "
-                    f"N={si['n_qubits']}: {si['issue']}"
-                )
+                print(f"    ⚠️ {si['topology']} p={si.get('p_layers')} N={si['n_qubits']}: {si['issue']}")
     except Exception as e:
         logger.debug("validate_data_consistency: scoreboard cross-check failed: %s", e)
 
@@ -4986,9 +4916,7 @@ def compute_variational_violations(per_point: list[dict], tolerance: float = 1e-
             # Violation: predicted energy BELOW ground state (physically impossible)
             below = e_exact - e_pred  # positive if e_pred < e_exact
             if below > tolerance:
-                violations.append(
-                    {"h": p.get("h"), "e_pred": e_pred, "e_exact": e_exact, "excess": below}
-                )
+                violations.append({"h": p.get("h"), "e_pred": e_pred, "e_exact": e_exact, "excess": below})
 
     rate = len(violations) / max(n_valid, 1)
     return {
@@ -5005,10 +4933,7 @@ def compute_violations_multi_n(
     mpnn_results_by_n: dict[int, dict],
 ) -> dict[int, dict]:
     """Compute variational violations for multiple N values."""
-    return {
-        n: compute_variational_violations(results.get("per_point", []))
-        for n, results in mpnn_results_by_n.items()
-    }
+    return {n: compute_variational_violations(results.get("per_point", [])) for n, results in mpnn_results_by_n.items()}
 
 
 def compute_per_n_scaling_fit(
@@ -5156,9 +5081,7 @@ def compute_mpnn_diagnostics(
     # ── 3. Per-N scaling fit ──────────────────────────────────────────────
     n_values = sorted(mpnn_results_by_n.keys())
     if len(n_values) >= 3:
-        per_site_errors = [
-            mpnn_results_by_n[n].get("mean_abs_error_per_site", float("nan")) for n in n_values
-        ]
+        per_site_errors = [mpnn_results_by_n[n].get("mean_abs_error_per_site", float("nan")) for n in n_values]
         scaling_fit = compute_per_n_scaling_fit(n_values, per_site_errors)
         if scaling_fit:
             diagnostics["scaling_fit"] = scaling_fit
@@ -5182,9 +5105,7 @@ def compute_mpnn_diagnostics(
     diagnostics["checkpoint_used"] = checkpoint_path or "auto-selected from zoo"
 
     # ── 6. Summary health indicators ──────────────────────────────────────
-    theta_smooth_count = sum(
-        1 for v in diagnostics.get("theta_smoothness", {}).values() if v.get("smooth", False)
-    )
+    theta_smooth_count = sum(1 for v in diagnostics.get("theta_smoothness", {}).values() if v.get("smooth", False))
     theta_total = len(diagnostics.get("theta_smoothness", {}))
 
     scaling = diagnostics.get("scaling_fit", {})
@@ -5228,9 +5149,7 @@ def _resolve_exclusion_path() -> Path:
     """Resolve path to training_exclusions.json."""
     global _EXCLUSION_REGISTRY_PATH
     if _EXCLUSION_REGISTRY_PATH is None:
-        _EXCLUSION_REGISTRY_PATH = (
-            Path(__file__).resolve().parents[3] / "data" / "training_exclusions.json"
-        )
+        _EXCLUSION_REGISTRY_PATH = Path(__file__).resolve().parents[3] / "data" / "training_exclusions.json"
     return _EXCLUSION_REGISTRY_PATH
 
 
@@ -5527,9 +5446,7 @@ def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
             original_count = len(excluded)
 
             # Remove entries whose file is now "useful" in dashboard
-            new_excluded = [
-                entry for entry in excluded if entry.get("file", "") not in useful_files
-            ]
+            new_excluded = [entry for entry in excluded if entry.get("file", "") not in useful_files]
             n_removed = original_count - len(new_excluded)
 
             if n_removed > 0:
@@ -5561,9 +5478,7 @@ def auto_fix_scoreboard_issues(*, verbose: bool = False) -> dict:
             import subprocess
             import sys
 
-            scoreboard_script = (
-                _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
-            )
+            scoreboard_script = _ROOT / "scripts" / "analysis" / "generate_best_results_scoreboard.py"
             if scoreboard_script.exists():
                 subprocess.run(
                     [sys.executable, str(scoreboard_script), "--json"],
@@ -5635,9 +5550,7 @@ def auto_detect_exclusions(
                 if n_points == 0:
                     continue
 
-                abs_errors = np.abs(
-                    np.asarray(e_vqe, dtype=float) - np.asarray(e_exact, dtype=float)
-                )
+                abs_errors = np.abs(np.asarray(e_vqe, dtype=float) - np.asarray(e_exact, dtype=float))
                 mean_abs_err = float(abs_errors.mean())
 
                 # Compute pass rates
@@ -5798,10 +5711,7 @@ def validate_eval_vs_comparison_gap(*, verbose: bool = False) -> dict:
                         avg = float(np.mean(rates)) if rates else 0.0
                         if avg > best_pass:
                             best_pass = avg
-                            best_by_n = {
-                                int(n): v.get("pass_rate_dual", 0.0)
-                                for n, v in results_by_n.items()
-                            }
+                            best_by_n = {int(n): v.get("pass_rate_dual", 0.0) for n, v in results_by_n.items()}
                     if best_by_n:
                         comp_pass_rates[topo] = best_by_n
                 except Exception:
@@ -5867,8 +5777,7 @@ def validate_eval_vs_comparison_gap(*, verbose: bool = False) -> dict:
             if verbose and discrepancies and discrepancies[-1]["topology"] == topo:
                 d = discrepancies[-1]
                 logger.info(
-                    f"  Tier3 gap: {topo} N={n_val} eval={grade} comp={comp_rate:.0%} "
-                    f"→ {d['diagnosis'][:60]}..."
+                    f"  Tier3 gap: {topo} N={n_val} eval={grade} comp={comp_rate:.0%} → {d['diagnosis'][:60]}..."
                 )
 
     return {
@@ -5972,9 +5881,7 @@ def detect_undertrained_models(*, verbose: bool = False) -> dict:
                                 "epochs_trained": epochs,
                                 "tail_mean_loss": round(tail_mean, 6),
                                 "prev_segment_mean": round(prev_mean, 6),
-                                "improvement_pct": round(
-                                    100 * (prev_mean - tail_mean) / prev_mean, 1
-                                ),
+                                "improvement_pct": round(100 * (prev_mean - tail_mean) / prev_mean, 1),
                                 "early_stopped": early_stopped,
                             },
                             "recommendation": (
@@ -6050,13 +5957,11 @@ def detect_undertrained_models(*, verbose: bool = False) -> dict:
         )
     if overfitting:
         recommendations.append(
-            f"{len(overfitting)} models show overfitting. "
-            "Enable early stopping with patience=50 in training config."
+            f"{len(overfitting)} models show overfitting. Enable early stopping with patience=50 in training config."
         )
     if n_unknown > 0:
         recommendations.append(
-            f"{n_unknown} models have unknown convergence status. "
-            "Run audit_and_fix_model_zoo.py --fix to recompute."
+            f"{n_unknown} models have unknown convergence status. Run audit_and_fix_model_zoo.py --fix to recompute."
         )
 
     return {
@@ -6140,7 +6045,7 @@ def compute_smart_comparison_h_grid(
     # ── Generate grid ────────────────────────────────────────────────────
     if h_frontier is not None and h_min <= h_frontier <= h_max:
         try:
-            from qmbp_simulation.pipeline.dataset_io import generate_frontier_dense_h_grid
+            from qmbp_simulation.utils.h_grid import generate_frontier_dense_h_grid
 
             grid = generate_frontier_dense_h_grid(
                 h_min=h_min,
@@ -6180,7 +6085,7 @@ def compute_smart_comparison_h_grid(
 
     # No frontier data → nonuniform with TFIM h_c ≈ 1.0
     try:
-        from qmbp_simulation.pipeline.dataset_io import generate_nonuniform_h_grid
+        from qmbp_simulation.utils.h_grid import generate_nonuniform_h_grid
 
         h_critical = 1.0  # TFIM critical point
         grid = generate_nonuniform_h_grid(
@@ -6195,9 +6100,7 @@ def compute_smart_comparison_h_grid(
             "h_values": h_values,
             "h_frontier_used": None,
             "strategy": "nonuniform",
-            "description": (
-                f"Nonuniform grid around h_c=1.0 (no empirical frontier for {topology})"
-            ),
+            "description": (f"Nonuniform grid around h_c=1.0 (no empirical frontier for {topology})"),
         }
     except Exception:
         # Final fallback: uniform
@@ -6395,9 +6298,7 @@ def run_tier3_validations(*, verbose: bool = False) -> dict:
     retrain = compute_cascading_retrain_plan(verbose=verbose)
 
     # ── Summary ──────────────────────────────────────────────────────────
-    n_issues = (
-        eval_comp["n_discrepancies"] + convergence["n_undertrained"] + convergence["n_overfitting"]
-    )
+    n_issues = eval_comp["n_discrepancies"] + convergence["n_undertrained"] + convergence["n_overfitting"]
 
     parts = []
     if eval_comp["n_discrepancies"] > 0:

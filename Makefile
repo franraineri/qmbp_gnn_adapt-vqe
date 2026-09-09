@@ -217,10 +217,19 @@ cross-topology:  ## Analyze cross-topology transfer results
 figures:  ## Generate all analysis figures (PNG, default theme)
 	$(PYTHON) -m project_health.figures --source both
 
+tikz-figures:  ## Compile all thesis TikZ figures (internal/tesis/tesis-figures/fig_*.tex) to PDF
+	$(PYTHON) scripts/general_project_maintenance/build_thesis_figures.py
+
+thesis-pdf:  ## Compile the thesis PDF (delegates to internal/tesis/Makefile: tables + check + pdf)
+	@echo "═══ 1/2  Compilando figuras TikZ (internal/tesis/tesis-figures/fig_*.tex) ═══"
+	$(PYTHON) scripts/general_project_maintenance/build_thesis_figures.py || true
+	@echo "\n═══ 2/2  make all en internal/tesis/ (tablas + chequeo + PDF) ═══"
+	@$(MAKE) -C internal/tesis all
+
 figures-thesis:  ## Generate thesis-quality figures (PDF, 300dpi, no titles)
 	$(PYTHON) -m project_health.figures --source both --theme thesis --format pdf --dpi 300 --no-titles --output-dir documentation/thesis_figures/
 	$(PYTHON) -m project_health.analysis.thesis_figures --format pdf --dpi 300 --verbose
-	@cp -f documentation/thesis_figures/fig_*.pdf tesis-figures/ 2>/dev/null || true
+	@cp -f documentation/thesis_figures/fig_*.pdf internal/tesis/tesis-figures/ 2>/dev/null || true
 
 # ── Thesis Compilation ───────────────────────────────────────
 
@@ -230,24 +239,24 @@ validate-findings:  ## Validate all thesis findings against raw data
 # ── Hardware Deployment ──────────────────────────────────────
 
 hw-cost:  ## Estimate QPU cost. Use N=10 H=3 PROFILE=kingston SPSA=default AMPLIFIER=pea
-	$(PYTHON) scripts/hardware.py cost --n-qubits $(or $(N),10) --h-points $(or $(H),3) \
+	$(PYTHON) scripts/hardware/hardware.py cost --n-qubits $(or $(N),10) --h-points $(or $(H),3) \
 		--profile $(or $(PROFILE),kingston) --spsa $(or $(SPSA),default) \
 		--amplifier $(or $(AMPLIFIER),pea)
 
 hw-preflight:  ## Run preflight checks on FakeTorino. Use N=10
-	$(PYTHON) scripts/hardware.py preflight --n-qubits $(or $(N),10)
+	$(PYTHON) scripts/hardware/hardware.py preflight --n-qubits $(or $(N),10)
 
 hw-rehearsal:  ## Run full hardware rehearsal. Use ARGS for extra flags.
-	$(PYTHON) scripts/hardware.py rehearsal $(ARGS)
+	$(PYTHON) scripts/hardware/hardware.py rehearsal $(ARGS)
 
 hw-rehearsal-quick:  ## Rehearsal sections 8+9 only (cost + circuit audit, ~2s)
-	$(PYTHON) scripts/hardware.py rehearsal --section 8 9
+	$(PYTHON) scripts/hardware/hardware.py rehearsal --section 8 9
 
 hw-analyze:  ## Analyze latest rehearsal results (GO/NO-GO)
-	$(PYTHON) scripts/hardware.py analyze
+	$(PYTHON) scripts/hardware/hardware.py analyze
 
 hw-analyze-all:  ## Analyze all rehearsal runs with cross-comparison
-	$(PYTHON) scripts/hardware.py analyze --all
+	$(PYTHON) scripts/hardware/hardware.py analyze --all
 
 hw-deploy-dry:  ## Dry-run deployment (preflight + cost only, no QPU)
 	$(PYTHON) scripts/experiment_runners/hardware/run_ibm_deployment.py --dry-run

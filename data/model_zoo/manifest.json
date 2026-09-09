@@ -828,5 +828,31 @@
     },
     "run_json": "",
     "critical_ranking": {}
+  },
+  {
+    "model": "tfim_longitudinal",
+    "topology": "heavy_hex",
+    "n_qubits": 6,
+    "p_layers": 3,
+    "checkpoint_file": "tfim_longitudinal_heavy_hex_n6_p3.pt",
+    "h_range": [
+      1.0,
+      5.0
+    ],
+    "pass_rate": 0.0,
+    "pass_rate_source": "",
+    "n_training_points": 40,
+    "seeds": [
+      42
+    ],
+    "created": "2026-09-09T02:51:18.483430+00:00",
+    "notes": "mse=2.49e-02",
+    "sha256": "21467c7fb8e4c81e86ae704aa6299ee189d5dc863c48ddbc78c743a247ba9fcf",
+    "runner_tag": "NP",
+    "date_tag": "090926",
+    "training_quality_score": 0.0,
+    "pass_rate_by_n": {},
+    "run_json": "",
+    "critical_ranking": {}
   }
 ]

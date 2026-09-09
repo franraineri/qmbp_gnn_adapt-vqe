@@ -14,16 +14,19 @@ import torch
 
 from qmbp_simulation import make_lattice
 from qmbp_simulation.predictors import (
+    NODE_TYPE_QUBIT,
+    NODE_TYPE_RX_GATE,
+    NODE_TYPE_ZZ_GATE,
     BondResolvedMPNN,
     build_bond_resolved_graph,
+    build_graph_for_model,
     build_unified_bond_resolved_graph,
     build_unified_dataset,
     compute_graph_metrics,
     validate_unified_graph,
-    NODE_TYPE_QUBIT,
-    NODE_TYPE_ZZ_GATE,
-    NODE_TYPE_RX_GATE,
 )
+from qmbp_simulation.predictors.unified_graph import UNIFIED_NODE_FEATURES
+from qmbp_simulation.predictors.unified_mpnn import UnifiedMPNN
 
 
 class TestUnifiedGraphBuilder:
@@ -38,7 +41,10 @@ class TestUnifiedGraphBuilder:
         theta_opt = np.random.uniform(-0.5, 0.5, n_edges + N)
         orig = build_bond_resolved_graph(lattice, h_value=1.5, theta_opt=theta_opt)
         unified = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, theta_opt=theta_opt,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            theta_opt=theta_opt,
             include_circuit_nodes=False,
         )
 
@@ -52,12 +58,15 @@ class TestUnifiedGraphBuilder:
         # First 3 features must match
         assert torch.allclose(unified.x[:, :3], orig.x, atol=1e-6)
 
-    @pytest.mark.parametrize("topology,N,expected_edges", [
-        ("chain_1d", 10, 9),
-        ("chain_1d", 6, 5),
-        ("ladder", 10, 13),
-        ("square", 16, 24),
-    ])
+    @pytest.mark.parametrize(
+        "topology,N,expected_edges",
+        [
+            ("chain_1d", 10, 9),
+            ("chain_1d", 6, 5),
+            ("ladder", 10, 13),
+            ("square", 16, 24),
+        ],
+    )
     def test_node_counts(self, topology, N, expected_edges):
         """Unified graph has correct node counts for various topologies."""
         lattice = make_lattice(topology, N, h=1.0)
@@ -65,7 +74,10 @@ class TestUnifiedGraphBuilder:
         p = 1
 
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=p, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=p,
+            include_circuit_nodes=True,
         )
 
         # +1 for the virtual global node
@@ -87,7 +99,10 @@ class TestUnifiedGraphBuilder:
         p = 2
 
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=p, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=p,
+            include_circuit_nodes=True,
         )
 
         # p=2: N + 2*n_edges + 2*N (+1 virtual global node)
@@ -99,7 +114,10 @@ class TestUnifiedGraphBuilder:
 
         # p=2 graph should have MORE edges than p=1 (inter-layer connections)
         graph_p1 = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
         assert graph.edge_index.shape[1] > graph_p1.edge_index.shape[1]
 
@@ -107,7 +125,10 @@ class TestUnifiedGraphBuilder:
         """Qubit nodes must be indices 0..N-1 (layout invariant)."""
         lattice = make_lattice("chain_1d", 10, h=1.5)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=2, include_circuit_nodes=True,
+            lattice,
+            h_value=1.5,
+            p_layers=2,
+            include_circuit_nodes=True,
         )
         # First N nodes must all be qubit type
         assert (graph.node_type[:10] == NODE_TYPE_QUBIT).all()
@@ -118,7 +139,10 @@ class TestUnifiedGraphBuilder:
         """No edge index exceeds total node count."""
         lattice = make_lattice("triangular", 12, h=1.0)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=2, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=2,
+            include_circuit_nodes=True,
         )
         total_nodes = graph.x.shape[0]
         assert graph.edge_index.max().item() < total_nodes
@@ -128,13 +152,14 @@ class TestUnifiedGraphBuilder:
         """Gate node features are normalized to [0, 1] range."""
         lattice = make_lattice("chain_1d", 10, h=2.0)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=2.0, p_layers=2, include_circuit_nodes=True,
+            lattice,
+            h_value=2.0,
+            p_layers=2,
+            include_circuit_nodes=True,
         )
         # Gate nodes (type 1 and 2): first two features are normalized indices.
         # Exclude the virtual global node (type 3), whose features are raw h/coord.
-        gate_mask = (graph.node_type == NODE_TYPE_ZZ_GATE) | (
-            graph.node_type == NODE_TYPE_RX_GATE
-        )
+        gate_mask = (graph.node_type == NODE_TYPE_ZZ_GATE) | (graph.node_type == NODE_TYPE_RX_GATE)
         gate_features = graph.x[gate_mask]
         # feat1 (layer_norm) and feat2 (bond/qubit norm) should be in (0, 1)
         assert gate_features[:, 0].min() > 0
@@ -154,7 +179,10 @@ class TestBondResolvedMPNNUnified:
 
         theta_opt = np.random.uniform(-0.5, 0.5, n_edges + N)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, theta_opt=theta_opt,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            theta_opt=theta_opt,
             include_circuit_nodes=True,
         )
 
@@ -193,10 +221,16 @@ class TestBondResolvedMPNNUnified:
         model.eval()
 
         graph_ham = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, include_circuit_nodes=False,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            include_circuit_nodes=False,
         )
         graph_unified = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
 
         with torch.no_grad():
@@ -204,8 +238,9 @@ class TestBondResolvedMPNNUnified:
             pred_unified = model(graph_unified)
 
         # Predictions should DIFFER (gate nodes contribute to message passing)
-        assert not torch.allclose(pred_ham, pred_unified, atol=1e-6), \
+        assert not torch.allclose(pred_ham, pred_unified, atol=1e-6), (
             "Gate nodes should influence predictions (different embeddings)"
+        )
 
     @pytest.mark.parametrize("topology", ["chain_1d", "square", "ladder"])
     def test_forward_multiple_topologies(self, topology):
@@ -216,7 +251,10 @@ class TestBondResolvedMPNNUnified:
         n_edges = len(lattice.edges)
 
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
 
         model = BondResolvedMPNN(node_features=5, hidden_dim=64, n_layers=2)
@@ -236,7 +274,10 @@ class TestValidation:
         lattice = make_lattice("chain_1d", 6, h=1.0)
         theta = np.random.uniform(-0.5, 0.5, 5 + 6)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=1, theta_opt=theta,
+            lattice,
+            h_value=1.0,
+            p_layers=1,
+            theta_opt=theta,
             include_circuit_nodes=True,
         )
         issues = validate_unified_graph(graph)
@@ -246,7 +287,10 @@ class TestValidation:
         """Validation catches edge_list referencing non-qubit indices."""
         lattice = make_lattice("chain_1d", 6, h=1.0)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
         graph.edge_list = torch.tensor([[0, 20], [1, 25]], dtype=torch.long)
         issues = validate_unified_graph(graph)
@@ -257,7 +301,10 @@ class TestValidation:
         lattice = make_lattice("chain_1d", 6, h=1.0)
         theta = np.random.uniform(-0.5, 0.5, 5 + 6)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=1, theta_opt=theta,
+            lattice,
+            h_value=1.0,
+            p_layers=1,
+            theta_opt=theta,
             include_circuit_nodes=True,
         )
         # Corrupt target length
@@ -283,7 +330,10 @@ class TestValidation:
         bad_theta = np.zeros(5)
         with pytest.raises(ValueError, match="theta_opt shape"):
             build_unified_bond_resolved_graph(
-                lattice, h_value=1.5, p_layers=1, theta_opt=bad_theta,
+                lattice,
+                h_value=1.5,
+                p_layers=1,
+                theta_opt=bad_theta,
             )
 
     def test_dataset_builder_shape_mismatch(self):
@@ -298,7 +348,10 @@ class TestValidation:
         """RuntimeError raised if edge_list indices exceed qubit embedding size."""
         lattice = make_lattice("chain_1d", 6, h=1.0)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.0, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.0,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
         # Corrupt edge_list to point beyond qubit nodes
         graph.edge_list = torch.tensor([[0, 99]], dtype=torch.long)
@@ -317,7 +370,10 @@ class TestGraphMetrics:
         """Metrics are correct for unified graph."""
         lattice = make_lattice("chain_1d", 10, h=1.5)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
         metrics = compute_graph_metrics(graph)
 
@@ -336,7 +392,10 @@ class TestGraphMetrics:
         """Metrics for Hamiltonian-only graph show no expansion."""
         lattice = make_lattice("chain_1d", 10, h=1.5)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, include_circuit_nodes=False,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            include_circuit_nodes=False,
         )
         metrics = compute_graph_metrics(graph)
 
@@ -347,12 +406,89 @@ class TestGraphMetrics:
     def test_metrics_serializable(self):
         """Metrics dict is JSON-serializable (for result envelopes)."""
         import json
+
         from qmbp_simulation.utils.helpers import json_serialize
 
         lattice = make_lattice("chain_1d", 10, h=1.5)
         graph = build_unified_bond_resolved_graph(
-            lattice, h_value=1.5, p_layers=1, include_circuit_nodes=True,
+            lattice,
+            h_value=1.5,
+            p_layers=1,
+            include_circuit_nodes=True,
         )
         metrics = compute_graph_metrics(graph)
         # Should not raise
         json.dumps(metrics, default=json_serialize)
+
+
+class TestFeatureDimAdaptivity:
+    """Regression tests for graph/model feature-dim adaptivity (orbit feature).
+
+    Prevents the class of bug where a model trained with the orbit feature
+    (node_features = UNIFIED_NODE_FEATURES + 1) receives a graph built without
+    it (or vice-versa), causing a size mismatch in message passing. The system
+    must self-adapt via build_graph_for_model() and the forward() safety net.
+    """
+
+    def test_build_graph_for_model_matches_5feat_model(self):
+        """A 5-feature model gets a 5-feature graph (orbit off)."""
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        model = UnifiedMPNN(node_features=UNIFIED_NODE_FEATURES, hidden_dim=32, n_layers=2)
+        g = build_graph_for_model(model, lattice, h_value=2.5, p_layers=1)
+        assert g.x.shape[1] == UNIFIED_NODE_FEATURES
+        model.eval()
+        with torch.no_grad():
+            pred = model(g)
+        assert torch.all(torch.isfinite(pred))
+
+    def test_build_graph_for_model_matches_6feat_model(self):
+        """A 6-feature model (orbit) gets a 6-feature graph automatically."""
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        model = UnifiedMPNN(node_features=UNIFIED_NODE_FEATURES + 1, hidden_dim=32, n_layers=2)
+        g = build_graph_for_model(model, lattice, h_value=2.5, p_layers=1)
+        assert g.x.shape[1] == UNIFIED_NODE_FEATURES + 1
+        model.eval()
+        with torch.no_grad():
+            pred = model(g)
+        assert torch.all(torch.isfinite(pred))
+
+    def test_forward_safety_net_pads_short_graph(self):
+        """A 6-feature model fed a 5-feature graph reconciles (pads), no crash."""
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        model = UnifiedMPNN(node_features=UNIFIED_NODE_FEATURES + 1, hidden_dim=32, n_layers=2)
+        g5 = build_unified_bond_resolved_graph(lattice, h_value=2.5, p_layers=1, include_circuit_nodes=True)
+        assert g5.x.shape[1] == UNIFIED_NODE_FEATURES
+        model.eval()
+        with torch.no_grad():
+            pred = model(g5)  # must not raise despite dim mismatch
+        assert torch.all(torch.isfinite(pred))
+
+    def test_forward_safety_net_trims_long_graph(self):
+        """A 5-feature model fed a 6-feature graph reconciles (trims), no crash."""
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        model = UnifiedMPNN(node_features=UNIFIED_NODE_FEATURES, hidden_dim=32, n_layers=2)
+        g6 = build_unified_bond_resolved_graph(
+            lattice,
+            h_value=2.5,
+            p_layers=1,
+            include_circuit_nodes=True,
+            include_orbit_feature=True,
+        )
+        assert g6.x.shape[1] == UNIFIED_NODE_FEATURES + 1
+        model.eval()
+        with torch.no_grad():
+            pred = model(g6)  # must not raise despite dim mismatch
+        assert torch.all(torch.isfinite(pred))
+
+    def test_orbit_graph_has_extra_column(self):
+        """include_orbit_feature adds exactly one node-feature column."""
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        g_off = build_unified_bond_resolved_graph(lattice, h_value=2.5, p_layers=1, include_circuit_nodes=True)
+        g_on = build_unified_bond_resolved_graph(
+            lattice,
+            h_value=2.5,
+            p_layers=1,
+            include_circuit_nodes=True,
+            include_orbit_feature=True,
+        )
+        assert g_on.x.shape[1] == g_off.x.shape[1] + 1

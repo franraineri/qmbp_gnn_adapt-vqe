@@ -1,5 +1,19 @@
 {
   "mcpServers": {
+    "graphify": {
+      "command": "/Users/franco.raineri/.local/bin/koda",
+      "args": [
+        "graphify", "mcp",
+        "-d", "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe",
+        "-p", "qmbp_gnn_adapt-vqe"
+      ],
+      "disabled": false,
+      "autoApprove": [
+        "graphify_explore", "graphify_inspect", "graphify_source",
+        "graphify_callers", "graphify_callees", "graphify_impact",
+        "graphify_community", "graphify_hotspots", "graphify_status"
+      ]
+    },
     "qiskit-docs": {
       "command": "uvx",
       "args": [

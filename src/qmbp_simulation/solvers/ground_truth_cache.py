@@ -76,55 +76,41 @@ class GroundTruthCache:
                 self._data = {}
 
     def _save(self) -> None:
-        """Persist cache to disk in compact format with file-locking.
+        """Persist cache via concurrency-safe merge-on-write.
 
-        Uses fcntl.flock (LOCK_EX) to prevent concurrent runners from
-        corrupting the JSON file. Write-and-rename pattern ensures atomicity:
-        if the process crashes mid-write, the original file is preserved.
+        Delegates to utils.helpers.merge_write_json_dict, which — under a
+        cross-process lock — re-reads the current on-disk entries and MERGES
+        this instance's in-memory entries into them before the atomic write.
+        This prevents two concurrent runners from clobbering (or concatenating)
+        each other's ground truths: they accumulate instead. On a key conflict
+        the LOWER energy wins (more converged = better ground truth), matching
+        the project's canonical tie-breaker.
         """
         if not self._dirty:
             return
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "version": "2.0",
-            "n_entries": len(self._data),
-            "entries": self._data,
-        }
-        # Atomic write: write to temp file, then rename (atomic on POSIX)
-        import tempfile
 
-        tmp_path = None
-        try:
-            fd, tmp_path_str = tempfile.mkstemp(
-                dir=str(self._path.parent),
-                suffix=".tmp",
-                prefix=".gt_cache_",
-            )
-            tmp_path = Path(tmp_path_str)
-            with open(fd, "w") as f:
-                # Acquire exclusive lock (blocks until available)
-                try:
-                    import fcntl
+        def _lower_energy_wins(existing: dict, incoming: dict) -> dict:
+            try:
+                if float(incoming.get("energy")) < float(existing.get("energy")) - 1e-12:
+                    return incoming
+            except (TypeError, ValueError):
+                pass
+            return existing
 
-                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                except (ImportError, OSError):
-                    pass  # Windows or lock unavailable — proceed without lock
-                json.dump(payload, f, separators=(",", ":"))
-                f.flush()
-                import os
+        from qmbp_simulation.utils.helpers import merge_write_json_dict
 
-                os.fsync(f.fileno())
-            # Atomic rename (POSIX guarantees this is atomic)
-            tmp_path.replace(self._path)
-            self._dirty = False
-        except Exception:
-            # Cleanup temp file on failure
-            if tmp_path is not None and tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
-            raise
+        merged = merge_write_json_dict(
+            self._path,
+            self._data,
+            entries_key="entries",
+            version="2.0",
+            resolve=_lower_energy_wins,
+        )
+        # Adopt the merged view so subsequent gets see other writers' entries.
+        # Re-read is cheap and keeps this instance consistent with disk.
+        self._load()
+        logger.debug("GroundTruthCache: merge-on-write persisted %d entries", merged)
+        self._dirty = False
 
     def get(self, topology: str, n_qubits: int, model: str, h: float) -> dict[str, Any] | None:
         """Look up cached ground truth.

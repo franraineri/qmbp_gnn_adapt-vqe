@@ -750,20 +750,20 @@ Before committing QPU time, run the full 9-section rehearsal:
 
 ```bash
 # Full rehearsal (all 9 sections, ~60s on FakeTorino N=10)
-python scripts/hardware.py rehearsal --topology heavy_hex
+python scripts/hardware/hardware.py rehearsal --topology heavy_hex
 
 # With optional backend preflight (Section 0)
-python scripts/hardware.py rehearsal --run-preflight
+python scripts/hardware/hardware.py rehearsal --run-preflight
 
 # Quick check (cost + circuit audit only, ~2s)
-python scripts/hardware.py rehearsal --section 8 9
+python scripts/hardware/hardware.py rehearsal --section 8 9
 
 # Or via make:
 make hw-rehearsal
 make hw-rehearsal-quick
 
 # Analysis of results
-python scripts/hardware.py analyze --all
+python scripts/hardware/hardware.py analyze --all
 make hw-analyze
 ```
 
@@ -787,7 +787,7 @@ make hw-analyze
 All hardcoded defaults can be overridden for different configurations:
 
 ```bash
-python scripts/hardware.py rehearsal \
+python scripts/hardware/hardware.py rehearsal \
   --n-qubits 10 \
   --topology heavy_hex \
   --p-layers 1 \
@@ -958,13 +958,13 @@ CLOPS(N, D) = base_clops × (ref_N / N)^α × (ref_D / D)^β
 
 ```bash
 # Quick estimate
-python scripts/hardware.py cost -N 10 --h-points 3
+python scripts/hardware/hardware.py cost -N 10 --h-points 3
 
 # Compare backends
-python scripts/hardware.py cost -N 10 --profile nighthawk --spsa disabled
+python scripts/hardware/hardware.py cost -N 10 --profile nighthawk --spsa disabled
 
 # JSON output for scripting
-python scripts/hardware.py cost -N 10 --json
+python scripts/hardware/hardware.py cost -N 10 --json
 
 # Make target
 make hw-cost N=10 H=3 PROFILE=heron
@@ -975,7 +975,7 @@ make hw-cost N=10 H=3 PROFILE=heron
 All hardware operations are available through a single entry point:
 
 ```bash
-python scripts/hardware.py <command> [options]
+python scripts/hardware/hardware.py <command> [options]
 ```
 
 | Command | Purpose | Make target |

@@ -112,9 +112,7 @@ def append_to_manifest(entry: dict, manifest_path: Path | None = None) -> None:
             h_val = entry.get("h_value")
             seed = entry.get("seed", 42)
             already_exists = any(
-                e.get("config_id") == config_id
-                and e.get("h_value") == h_val
-                and e.get("seed", 42) == seed
+                e.get("config_id") == config_id and e.get("h_value") == h_val and e.get("seed", 42) == seed
                 for e in entries
             )
             if not already_exists:
@@ -590,9 +588,7 @@ def compute_derived_circuit_stats(stats: dict[str, Any], n_2q_logical: int) -> d
 
     # Transpilation depth blow-up factor
     depth_logical = stats.get("depth_logical", 0)
-    derived["transpiled_vs_logical_ratio"] = (
-        depth_transpiled / depth_logical if depth_logical > 0 else 0.0
-    )
+    derived["transpiled_vs_logical_ratio"] = depth_transpiled / depth_logical if depth_logical > 0 else 0.0
 
     return derived
 
@@ -889,11 +885,7 @@ def _execute_mitiq_zne(
     )
 
     # Extract raw (unmitigated) energy: first measured value at scale_factor=1.0
-    e_raw = (
-        zne_result.measured_values[0]
-        if zne_result.measured_values
-        else zne_result.extrapolated_value
-    )
+    e_raw = zne_result.measured_values[0] if zne_result.measured_values else zne_result.extrapolated_value
 
     return {
         "e_mitigated": zne_result.extrapolated_value,
@@ -1012,11 +1004,7 @@ def _execute_mitiq_ddd(
     )
 
     # Extract raw (unmitigated) energy: first measured value at scale_factor=1.0
-    e_raw = (
-        ddd_result.measured_values[0]
-        if ddd_result.measured_values
-        else ddd_result.extrapolated_value
-    )
+    e_raw = ddd_result.measured_values[0] if ddd_result.measured_values else ddd_result.extrapolated_value
 
     return {
         "e_mitigated": ddd_result.extrapolated_value,
@@ -1183,9 +1171,7 @@ def _execute_hardware_batched(
             h_val = jobs_spec[idx][3]
             print(f"    [{config.config_id}] h={h_val:.2f} FAILED: {e}", flush=True)
 
-    succeeded = sum(
-        1 for r in results if r.get("e_raw") is not None or r.get("e_mitigated") is not None
-    )
+    succeeded = sum(1 for r in results if r.get("e_raw") is not None or r.get("e_mitigated") is not None)
     print(f"  [BATCH] Done — {succeeded}/{len(jobs_spec)} succeeded")
     return results
 
@@ -1400,9 +1386,7 @@ def route_execution(
             case None:
                 result = _execute_raw(transpiled_circuit, H_mapped, backend, shots, mode=mode)
             case "gf":
-                result = _execute_gate_folding(
-                    config, transpiled_circuit, H_mapped, backend, shots, mode=mode
-                )
+                result = _execute_gate_folding(config, transpiled_circuit, H_mapped, backend, shots, mode=mode)
             case "pea":
                 result = _execute_pea(config, transpiled_circuit, H_mapped, backend, shots)
             case "mitiq_zne":
@@ -1483,10 +1467,7 @@ def _execute_qesem(
 
     available, err = check_qesem_available()
     if not available:
-        raise ImportError(
-            f"QESEM dependencies not installed: {err}. "
-            f"Install: pip install qiskit-ibm-catalog>=0.8.0"
-        )
+        raise ImportError(f"QESEM dependencies not installed: {err}. Install: pip install qiskit-ibm-catalog>=0.8.0")
 
     # Build a HardwareConfig for QESEM
     hw_config = HardwareConfig(
@@ -1752,9 +1733,7 @@ def resolve_configs(args: argparse.Namespace) -> list[str]:
 
     # Step 1: priority filter (intersection)
     if args.priority is not None:
-        levels = {
-            int(p.strip().replace("P", "").replace("p", "")) for p in args.priority.split(",")
-        }
+        levels = {int(p.strip().replace("P", "").replace("p", "")) for p in args.priority.split(",")}
         all_configs = [c for c in all_configs if BENCHMARK_CONFIGS[c].priority in levels]
 
     # Step 2: shortname prefix filter
@@ -2024,9 +2003,7 @@ def _get_backend(mode: str) -> Any:
             )
         from qiskit_ibm_runtime import QiskitRuntimeService
 
-        service = QiskitRuntimeService(
-            channel="ibm_quantum_platform", token=ibm_key, instance=instance_crn
-        )
+        service = QiskitRuntimeService(channel="ibm_quantum_platform", token=ibm_key, instance=instance_crn)
         # Use explicit backend if specified via --backend, else least_busy
         backend_name = os.environ.get("BENCHMARK_BACKEND")
         if backend_name:
@@ -2046,9 +2023,7 @@ _P_LAYERS = 1
 _TOPOLOGY = "heavy_hex"
 
 
-def _build_hva_circuit(
-    h_value: float, warm_start_params: np.ndarray | None = None
-) -> QuantumCircuit:
+def _build_hva_circuit(h_value: float, warm_start_params: np.ndarray | None = None) -> QuantumCircuit:
     """Build the HVA circuit for TFIM N=10, p=1, heavy_hex.
 
     Returns a parameterized circuit bound with the provided warm-start
@@ -2102,9 +2077,7 @@ def _build_hva_circuit(
         optimizer = VQEOptimizer(config=vqe_config, seed=42)
         backend = NoiselessBackend()
         H = HamiltonianBuilder().build(lattice)
-        result = optimizer.optimize(
-            H, circuit, np.random.default_rng(42).uniform(-0.01, 0.01, len(theta))
-        )
+        result = optimizer.optimize(H, circuit, np.random.default_rng(42).uniform(-0.01, 0.01, len(theta)))
         params = result.theta_opt
 
     bound_circuit = circuit.assign_parameters(params)
@@ -2364,9 +2337,7 @@ def run_single_config(
         n_2q_logical = sum(1 for inst in circuit.data if inst.operation.num_qubits == 2)
     elif prebuilt_circuit is not None:
         circuit = prebuilt_circuit
-        n_2q_logical = n_2q_logical_precomputed or sum(
-            1 for inst in circuit.data if inst.operation.num_qubits == 2
-        )
+        n_2q_logical = n_2q_logical_precomputed or sum(1 for inst in circuit.data if inst.operation.num_qubits == 2)
     else:
         circuit = _build_hva_circuit(h_value)
         n_2q_logical = sum(1 for inst in circuit.data if inst.operation.num_qubits == 2)
@@ -2425,15 +2396,12 @@ def run_single_config(
         if hasattr(transpiled, "layout") and transpiled.layout is not None:
             try:
                 _layout_qubits = [
-                    transpiled.layout.final_index_layout(filter_ancillas=False)[i]
-                    for i in range(transpiled.num_qubits)
+                    transpiled.layout.final_index_layout(filter_ancillas=False)[i] for i in range(transpiled.num_qubits)
                 ]
             except Exception:
                 pass
 
-        quality_check = validate_transpiled_circuit_quality(
-            transpiled, backend, _layout_qubits, _audit_logger
-        )
+        quality_check = validate_transpiled_circuit_quality(transpiled, backend, _layout_qubits, _audit_logger)
         pre_submission_audit["transpiled_quality"] = quality_check
 
         if quality_check.get("abort"):
@@ -2578,7 +2546,7 @@ def run_single_config(
     if mode == "hardware" and job is not None:
         hw_calibration = _collect_hardware_calibration(backend, job)
         # Save full raw QPU output for post-hoc analysis
-        from scripts.recover_job_result import save_raw_job_output
+        from scripts.hardware.recover_job_result import save_raw_job_output
 
         h_str = str(h_value).replace(".", "p")
         save_raw_job_output(
@@ -2658,9 +2626,7 @@ def run_single_config(
         },
     }
     if budget_tracking["actual"]["qpu_seconds"] and model_qpu_time_s > 0:
-        budget_tracking["ratio_actual_vs_model"] = (
-            budget_tracking["actual"]["qpu_seconds"] / model_qpu_time_s
-        )
+        budget_tracking["ratio_actual_vs_model"] = budget_tracking["actual"]["qpu_seconds"] / model_qpu_time_s
 
     envelope = _build_envelope(
         config=config,
@@ -2792,9 +2758,7 @@ def _compute_kappa_ordering(h_values: list[float]) -> dict[float, str]:
     try:
         from scripts.experiment_runners.hardware.run_ibm_deployment import compute_kappa_per_h
 
-        kappa_per_h = compute_kappa_per_h(
-            h_values, n_qubits=_N_QUBITS, topology=_TOPOLOGY, p_layers=_P_LAYERS
-        )
+        kappa_per_h = compute_kappa_per_h(h_values, n_qubits=_N_QUBITS, topology=_TOPOLOGY, p_layers=_P_LAYERS)
     except (ImportError, Exception) as e:
         logger.warning(f"Cannot compute κ for adaptive scheduling: {e}")
         return {h: "MEDIUM" for h in h_values}
@@ -2979,14 +2943,9 @@ def run_benchmark(
     # transpile them, then submit everything in ONE Batch session.
     if batch and mode == "hardware":
         # Warn about configs that won't be included in batch mode
-        batch_excluded = [
-            c for c in configs if BENCHMARK_CONFIGS[c].zne_method not in (None, "gf", "pea")
-        ]
+        batch_excluded = [c for c in configs if BENCHMARK_CONFIGS[c].zne_method not in (None, "gf", "pea")]
         if batch_excluded:
-            print(
-                f"  ⚠ Batch mode: {len(batch_excluded)} Mitiq configs excluded "
-                f"(not supported): {batch_excluded}"
-            )
+            print(f"  ⚠ Batch mode: {len(batch_excluded)} Mitiq configs excluded (not supported): {batch_excluded}")
         print("\n  [BATCH MODE] Collecting all jobs before submission...")
         jobs_spec = []  # list of (config, transpiled_circuit, H_mapped, h_value)
         job_metadata = []  # parallel list of (config_id, h_value) for result routing
@@ -3022,9 +2981,7 @@ def run_benchmark(
             except Exception:
                 pass
             if transpiled is None:
-                pm = generate_preset_pass_manager(
-                    optimization_level=2, backend=backend, seed_transpiler=seed
-                )
+                pm = generate_preset_pass_manager(optimization_level=2, backend=backend, seed_transpiler=seed)
                 transpiled = pm.run(circuit_hva)
 
             lattice_h = make_lattice(_TOPOLOGY, _N_QUBITS, J=1.0, h=h)
@@ -3041,11 +2998,7 @@ def run_benchmark(
                 seed_suffix = f"_seed{seed}" if seed != 42 else ""
                 existing_dir = RESULTS_BASE / mode / config_id
                 existing_dir.mkdir(parents=True, exist_ok=True)
-                pattern = (
-                    f"{h_str}_run_*{seed_suffix}.json"
-                    if seed != 42
-                    else f"{h_str}_run_????????_??????.json"
-                )
+                pattern = f"{h_str}_run_*{seed_suffix}.json" if seed != 42 else f"{h_str}_run_????????_??????.json"
                 existing = [f for f in existing_dir.glob(pattern)]
                 skip = False
                 for ef in existing:
@@ -3074,9 +3027,7 @@ def run_benchmark(
             config = BENCHMARK_CONFIGS[config_id]
             if exec_result.get("error"):
                 try:
-                    _save_error_result(
-                        config, h_val, mode, seed, RuntimeError(exec_result["error"])
-                    )
+                    _save_error_result(config, h_val, mode, seed, RuntimeError(exec_result["error"]))
                 except Exception:
                     pass
                 continue
@@ -3275,12 +3226,7 @@ def run_benchmark(
 
                 # Hardware fail-fast check: if C0_raw at first h-point is catastrophic,
                 # abort the entire benchmark (all subsequent points will be worse).
-                if (
-                    mode == "hardware"
-                    and not _hw_first_h_done
-                    and config_id == "C0_raw"
-                    and envelope
-                ):
+                if mode == "hardware" and not _hw_first_h_done and config_id == "C0_raw" and envelope:
                     _hw_first_h_done = True
                     de_gap = envelope.get("results", {}).get("delta_e_gap")
                     if de_gap is not None and de_gap > _HW_ABORT_THRESHOLD:
@@ -3311,10 +3257,7 @@ def run_benchmark(
                     )
 
     if adaptive and total_skipped_adaptive > 0:
-        logger.info(
-            f"Adaptive scheduling: skipped {total_skipped_adaptive} "
-            f"config×h executions based on κ risk levels"
-        )
+        logger.info(f"Adaptive scheduling: skipped {total_skipped_adaptive} config×h executions based on κ risk levels")
 
     # ── P2-C: Post-sweep stale calibration comparison (hardware, runs >1h) ──
     # Compares pre-sweep baseline with current calibration to flag runs
@@ -3331,10 +3274,7 @@ def run_benchmark(
 
                 post_benchmark_snap = take_calibration_snapshot(backend)
                 stale_drift = check_calibration_drift(_calibration_baseline, post_benchmark_snap)
-                print(
-                    f"\n  [TLS] Post-benchmark calibration comparison "
-                    f"(elapsed {wall_total_so_far / 60:.0f} min):"
-                )
+                print(f"\n  [TLS] Post-benchmark calibration comparison (elapsed {wall_total_so_far / 60:.0f} min):")
                 print(
                     f"        T1: {_calibration_baseline.mean_t1_us:.0f}μs → "
                     f"{post_benchmark_snap.mean_t1_us:.0f}μs "
@@ -3421,9 +3361,7 @@ def main() -> None:
     print(f"  Seed: {args.seed}")
     if args.batch and args.mode == "hardware":
         print("  Batch mode: ON (single Batch session for all jobs)")
-    print(
-        f"  Total executions: {len(config_ids)} × {len(h_values)} = {len(config_ids) * len(h_values)}"
-    )
+    print(f"  Total executions: {len(config_ids)} × {len(h_values)} = {len(config_ids) * len(h_values)}")
     print()
 
     run_benchmark(

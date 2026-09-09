@@ -353,9 +353,7 @@ def _fix_unreachable_code(unreachable_lines: list[str]) -> int:
             line_indent = len(line) - len(line.lstrip())
 
             # If we hit a def/class at same or lesser indent → block ended before this
-            if line_indent <= dead_indent and re.match(
-                r"\s*(def |class |@)", line
-            ):
+            if line_indent <= dead_indent and re.match(r"\s*(def |class |@)", line):
                 # Don't include this line in the removal
                 end_idx = i - 1
                 break
@@ -494,9 +492,7 @@ def check_vulture(*, fix: bool = False, verbose: bool = False) -> CheckResult:
     unused_funcs = [l for l in lines if "unused function" in l or "unused method" in l]
     unused_vars = [l for l in lines if "unused variable" in l]
     unused_classes = [l for l in lines if "unused class" in l]
-    other = [
-        l for l in lines if l not in unused_imports + unused_funcs + unused_vars + unused_classes
-    ]
+    other = [l for l in lines if l not in unused_imports + unused_funcs + unused_vars + unused_classes]
 
     summary_parts = []
     if unused_funcs:
@@ -592,7 +588,7 @@ def check_pydoclint(*, fix: bool = False, verbose: bool = False) -> CheckResult:
             "--skip-checking-short-docstrings=true",
             "--skip-checking-raises=true",
             "--quiet",
-            f"--generate-baseline=true",
+            "--generate-baseline=true",
             f"--baseline={baseline_file}",
             "src/qmbp_simulation",
         ]
@@ -660,10 +656,7 @@ def check_phantom(*, verbose: bool = False) -> CheckResult:
     """Run our custom phantom import checker."""
     t0 = time.time()
 
-    # Try the new version first, fallback to old
-    new_script = SCRIPT_DIR / "check_phantom_functions.py"
-    old_script = SCRIPT_DIR / "check_phantom_funcions.py"
-    script = new_script if new_script.exists() else old_script
+    script = SCRIPT_DIR / "check_phantom_functions.py"
 
     if not script.exists():
         return CheckResult(
@@ -851,6 +844,7 @@ def check_test_imports(*, fix: bool = False, verbose: bool = False) -> CheckResu
     t0 = time.time()
     try:
         from validate_test_imports import check_test_imports as _check
+
         result = _check(fix=fix, verbose=verbose)
         duration = time.time() - t0
         return CheckResult(
@@ -954,15 +948,7 @@ def print_report(report: FullReport, *, verbose: bool = False) -> None:
     n_skip = sum(1 for r in report.results if r.status == "skip")
     total = len(report.results)
 
-    grade = (
-        "A"
-        if report.score >= 90
-        else "B"
-        if report.score >= 75
-        else "C"
-        if report.score >= 50
-        else "D"
-    )
+    grade = "A" if report.score >= 90 else "B" if report.score >= 75 else "C" if report.score >= 50 else "D"
     status_str = "✅ ALL PASSED" if report.passed else "❌ ISSUES FOUND"
 
     print(f"  Score: {report.score}/100 (grade {grade}) — {status_str}")

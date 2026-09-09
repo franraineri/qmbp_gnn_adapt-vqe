@@ -36,6 +36,10 @@ from qmbp_simulation.analysis.landscape import (
     compute_hessian,
     landscape_fluctuation,
 )
+from qmbp_simulation.analysis.qpt_detection import (
+    get_h_critical,
+    run_qpt_analysis,
+)
 from qmbp_simulation.analysis.metrics import (
     classify_regime,
     compute_classification_confidence,
@@ -213,7 +217,9 @@ __all__ = [
     "find_h_min",
     "find_minimum_viable_threshold",
     "generate_comparison_table",
+    "get_h_critical",
     "landscape_fluctuation",
+    "run_qpt_analysis",
     "nlce_convergence_analysis",
     "print_circuit",
     "print_circuit_comparison",

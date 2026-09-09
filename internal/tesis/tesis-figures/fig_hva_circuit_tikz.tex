@@ -1,0 +1,68 @@
+% Circuito HVA para el TFIM (figura TikZ), N = 4 qubits, p = 2 capas.
+% Requiere en el preambulo: \usepackage{tikz}, \usepackage{xcolor},
+% \usetikzlibrary{positioning, calc, fit}, y \input{tesis-figures/palette}.
+%
+% Cada capa l aplica: (a) un bloque de rotaciones R_ZZ(theta_ZZ^{(l)}) sobre los
+% enlaces vecinos, implementado como CX . R_Z . CX (2 compuertas de dos qubits por
+% termino); seguido de (b) rotaciones R_X(theta_X^{(l)}) de un qubit sobre cada
+% qubit. El estado inicial es |+>^{otimes N}. El orden de aplicacion es de
+% izquierda a derecha (la capa 1 actua primero sobre |+>).
+%
+% Colores: cajas de rotacion en naranja (stageVQE, "optimizacion VQE").
+\begin{tikzpicture}[
+    font=\footnotesize,
+    wire/.style={line width=0.9pt, black!75},
+    gate/.style={rectangle, draw=black, fill=stageVQEBg, line width=0.8pt,
+                 minimum width=6mm, minimum height=6mm, inner sep=1pt},
+    zzgate/.style={rectangle, draw=black, fill=stageVQE!30, line width=0.8pt,
+                   minimum width=5mm, inner sep=2pt},
+    lbl/.style={font=\scriptsize, text=black},
+    x=1cm, y=1cm,
+]
+
+\def\Nq{4}       % numero de qubits
+\def\xend{11.0}  % fin de los cables
+
+% Cables (uno por qubit) y estado inicial |+>
+\foreach \q in {1,...,\Nq} {
+    \pgfmathsetmacro{\y}{-\q}
+    \draw[wire] (0,\y) -- (\xend,\y);
+    \node[lbl] at (-0.45,\y) {$|{+}\rangle$};
+}
+
+% ===== CAPA 1 =====
+% (a) R_ZZ sobre enlaces (1,2),(2,3),(3,4): CX . R_Z . CX (2 CZ por termino).
+% Separacion horizontal minima entre las R_ZZ escalonadas para que no se toquen.
+\foreach \a/\b/\x in {1/2/1.0, 2/3/2.1, 3/4/3.2} {
+    \pgfmathsetmacro{\ya}{-\a} \pgfmathsetmacro{\yb}{-\b}
+    \node[zzgate, minimum height={(\b-\a)*1cm+6mm}] (zzA\a) at (\x,{(\ya+\yb)/2}) {$R_{ZZ}$};
+}
+% (b) R_X en cada qubit
+\foreach \q in {1,...,\Nq} {
+    \pgfmathsetmacro{\y}{-\q}
+    \node[gate] at (4.3,\y) {$R_X$};
+}
+% Etiqueta de capa 1
+\node[lbl, align=center] at (2.4,-0.35) {Capa 1 ($\theta_{ZZ(1)},\,\theta_{X(1)}$)};
+
+% ===== Separacion sutil entre capas (linea punteada vertical) =====
+\draw[dashed, line width=0.5pt, black!35] (5.15,-0.7) -- (5.15,{-\Nq-0.3});
+
+% ===== CAPA 2 =====
+\foreach \a/\b/\x in {1/2/6.0, 2/3/7.1, 3/4/8.2} {
+    \pgfmathsetmacro{\ya}{-\a} \pgfmathsetmacro{\yb}{-\b}
+    \node[zzgate, minimum height={(\b-\a)*1cm+6mm}] (zzB\a) at (\x,{(\ya+\yb)/2}) {$R_{ZZ}$};
+}
+\foreach \q in {1,...,\Nq} {
+    \pgfmathsetmacro{\y}{-\q}
+    \node[gate] at (9.3,\y) {$R_X$};
+}
+\node[lbl, align=center] at (7.4,-0.35) {Capa 2 ($\theta_{ZZ(2)},\,\theta_{X(2)}$)};
+
+% Nota de conteo de compuertas (convenio unico: 2 CZ por termino R_ZZ)
+\node[lbl, align=left, text width=10.5cm] at (5.5,-5.5)
+    {Representacion de circuito HVA. Cada $R_{ZZ}$ se descompone como $\mathrm{CX}\cdot R_Z\cdot\mathrm{CX}$
+     (2 compuertas de dos qubits por termino). El orden de aplicacion es de izquierda a
+     derecha.};
+
+\end{tikzpicture}

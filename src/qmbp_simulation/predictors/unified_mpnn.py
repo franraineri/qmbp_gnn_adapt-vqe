@@ -45,6 +45,21 @@ logger = logging.getLogger(__name__)
 
 _PHYSICS_EVAL_CACHE: dict[tuple, tuple] = {}
 
+# Bound the module-level physics/fidelity caches. Each exact-state entry is a
+# 2^N complex vector (≈1 MB at N=16); an unbounded dict would accumulate one
+# per unique (topology, N, h) across a long multi-topology sweep. A small FIFO
+# cap keeps memory flat — the hot set within one training run is tiny.
+_PHYSICS_CACHE_MAX = 64
+
+
+def _cache_put_bounded(cache: dict, key, value) -> None:
+    """Insert into a module cache with FIFO eviction at _PHYSICS_CACHE_MAX."""
+    if key not in cache and len(cache) >= _PHYSICS_CACHE_MAX:
+        # Evict the oldest inserted key (dicts preserve insertion order).
+        oldest = next(iter(cache))
+        cache.pop(oldest, None)
+    cache[key] = value
+
 
 def _get_physics_eval_context(topology: str, n_qubits: int, model: str, h: float, p_layers: int):
     """Build (and cache) the (circuit, hamiltonian, backend, gap) needed to
@@ -79,7 +94,7 @@ def _get_physics_eval_context(topology: str, n_qubits: int, model: str, h: float
         logger.debug("Physics eval context build failed for %s: %s", key, exc)
         ctx = None
 
-    _PHYSICS_EVAL_CACHE[key] = ctx
+    _cache_put_bounded(_PHYSICS_EVAL_CACHE, key, ctx)
     return ctx
 
 
@@ -152,7 +167,7 @@ def _get_exact_state(topology: str, n_qubits: int, model: str, h: float):
     except Exception as exc:  # noqa: BLE001 — fidelity term is best-effort
         logger.debug("Exact-state build failed for %s: %s", key, exc)
         psi = None
-    _EXACT_STATE_CACHE[key] = psi
+    _cache_put_bounded(_EXACT_STATE_CACHE, key, psi)
     return psi
 
 
@@ -263,9 +278,7 @@ class UnifiedMPNN(nn.Module):
         if norm_type not in ("batch", "layer", "none"):
             raise ValueError(f"norm_type must be 'batch', 'layer', or 'none'. Got: {norm_type!r}")
         if readout_mode not in ("last", "jk_cat", "jk_max"):
-            raise ValueError(
-                f"readout_mode must be 'last', 'jk_cat', or 'jk_max'. Got: {readout_mode!r}"
-            )
+            raise ValueError(f"readout_mode must be 'last', 'jk_cat', or 'jk_max'. Got: {readout_mode!r}")
 
         self.node_features = node_features
         self.hidden_dim = hidden_dim
@@ -442,9 +455,7 @@ class UnifiedMPNN(nn.Module):
             else:
                 # Graph built without edge_attr — synthesize neutral features
                 # so GINEConv still runs (backward compat with old graphs).
-                edge_attr = torch.zeros(
-                    edge_index.shape[1], self.edge_dim, dtype=x.dtype, device=x.device
-                )
+                edge_attr = torch.zeros(edge_index.shape[1], self.edge_dim, dtype=x.dtype, device=x.device)
 
         # ── Prepend type embedding if enabled ────────────────────────
         if self.type_emb is not None:
@@ -711,13 +722,10 @@ def train_unified_mpnn(
         raise ValueError(f"loss_type must be one of {_VALID_LOSS_TYPES}, got '{loss_type}'.")
     if not isinstance(model, UnifiedMPNN):
         raise TypeError(
-            f"Expected UnifiedMPNN, got {type(model).__name__}. "
-            "Use train_bond_resolved_mpnn for BondResolvedMPNN."
+            f"Expected UnifiedMPNN, got {type(model).__name__}. Use train_bond_resolved_mpnn for BondResolvedMPNN."
         )
     if len(dataset) < 3:
-        raise ValueError(
-            f"Need ≥3 training points, got {len(dataset)}. Collect more VQE data before training."
-        )
+        raise ValueError(f"Need ≥3 training points, got {len(dataset)}. Collect more VQE data before training.")
     # Validate graph attributes on first sample (fast check, fail early)
     _required_attrs = ("x", "edge_index", "node_type", "n_edges_unique", "n_qubit_nodes", "y")
     _sample = dataset[0]
@@ -830,8 +838,7 @@ def train_unified_mpnn(
 
         optimizer = torch.optim.AdamW(param_groups, weight_decay=weight_decay)
         logger.debug(
-            "  Layer-wise optimizer: early_conv lr=%.2e, last_conv lr=%.2e, "
-            "heads lr=%.2e, type_emb lr=%.2e",
+            "  Layer-wise optimizer: early_conv lr=%.2e, last_conv lr=%.2e, heads lr=%.2e, type_emb lr=%.2e",
             early_lr,
             last_lr,
             head_lr,
@@ -840,15 +847,20 @@ def train_unified_mpnn(
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, patience=patience, factor=0.5, min_lr=1e-6
-    )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=patience, factor=0.5, min_lr=1e-6)
 
     mse_history: list[float] = []
     val_mse_history: list[float] = []
     zz_loss_history: list[float] = []
     x_loss_history: list[float] = []
     stop_reason = "completed"
+
+    # Fidelity tracking across the whole run: the last non-empty batch of
+    # measured (1 − F) drives final_train_fidelity (persisted in the result
+    # dict); n_fidelity_evals_total detects a silently-inert fidelity term
+    # (weight > 0 but no N≤16 sample was ever evaluable).
+    last_fidelity_errors: list[float] = []
+    n_fidelity_evals_total = 0
 
     model.train()
     print("total epochs to train: ", n_epochs)
@@ -932,11 +944,7 @@ def train_unified_mpnn(
             #   de_gap=0.05 → weight=0.95 (pass threshold, still high weight)
             #   de_gap=0.50 → weight=0.67 (mediocre, reduced contribution)
             #   de_gap=2.00 → weight=0.33 (poor, heavily downweighted)
-            if (
-                loss_type == "energy_weighted"
-                and hasattr(data, "de_gap")
-                and data.de_gap is not None
-            ):
+            if loss_type == "energy_weighted" and hasattr(data, "de_gap") and data.de_gap is not None:
                 de_gap_val = data.de_gap.item()
                 energy_w = 1.0 / (1.0 + de_gap_val)
                 loss = loss * energy_w
@@ -989,9 +997,7 @@ def train_unified_mpnn(
                     else:
                         tg = target
                     n_zz_v = n_e * p_v
-                    loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(
-                        pred[n_zz_v:], tg[n_zz_v:]
-                    )
+                    loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(pred[n_zz_v:], tg[n_zz_v:])
                     val_loss += loss_v.item()
             val_mse_history.append(val_loss / len(val_dataset))
             model.train()
@@ -1070,19 +1076,14 @@ def train_unified_mpnn(
                         theta_e = pred_e.detach().cpu().numpy()
 
                         e_err = (
-                            _physics_energy_error(train_dataset[idx_e], theta_e)
-                            if physics_loss_weight > 0
-                            else None
+                            _physics_energy_error(train_dataset[idx_e], theta_e) if physics_loss_weight > 0 else None
                         )
-                        f_err = (
-                            _fidelity_error(train_dataset[idx_e], theta_e)
-                            if fidelity_loss_weight > 0
-                            else None
-                        )
+                        f_err = _fidelity_error(train_dataset[idx_e], theta_e) if fidelity_loss_weight > 0 else None
                         if e_err is not None:
                             energy_errors.append(e_err)
                         if f_err is not None:
                             fidelity_errors.append(f_err)
+                            n_fidelity_evals_total += 1
 
                         # Combined per-sample physics error used to pick the
                         # worst sample for the correction step.
@@ -1094,6 +1095,11 @@ def train_unified_mpnn(
                         if (e_err is not None or f_err is not None) and combined > worst_combined:
                             worst_combined = combined
                             worst_idx = idx_e
+
+                # Remember the most recent non-empty batch of infidelities so
+                # the final value reflects the trained model (not epoch 0).
+                if fidelity_errors:
+                    last_fidelity_errors = list(fidelity_errors)
 
                 # Apply a physics-driven correction step on the worst sample:
                 # neither circuit energy nor fidelity is autograd-differentiable
@@ -1115,9 +1121,7 @@ def train_unified_mpnn(
                     else:
                         tg_s = target_s
                     n_zz_s = n_e_s * p_s
-                    base = _block_loss(pred_s[:n_zz_s], tg_s[:n_zz_s]) + _block_loss(
-                        pred_s[n_zz_s:], tg_s[n_zz_s:]
-                    )
+                    base = _block_loss(pred_s[:n_zz_s], tg_s[:n_zz_s]) + _block_loss(pred_s[n_zz_s:], tg_s[n_zz_s:])
                     physics_loss = worst_combined * base
                     if torch.isfinite(physics_loss):
                         physics_loss.backward()
@@ -1128,8 +1132,7 @@ def train_unified_mpnn(
                     mean_e = float(np.mean(energy_errors)) if energy_errors else float("nan")
                     mean_f = float(np.mean(fidelity_errors)) if fidelity_errors else float("nan")
                     logger.info(
-                        "  [Physics] epoch %d: mean|ΔE|=%.2e (λ_E=%.3f) | "
-                        "mean(1-F)=%.2e over %d/%d (λ_F=%.3f)",
+                        "  [Physics] epoch %d: mean|ΔE|=%.2e (λ_E=%.3f) | mean(1-F)=%.2e over %d/%d (λ_F=%.3f)",
                         epoch + 1,
                         mean_e,
                         physics_loss_weight,
@@ -1145,6 +1148,25 @@ def train_unified_mpnn(
         if optimizer.param_groups[0]["lr"] <= 1e-6 and epoch > 500:
             stop_reason = "lr_exhausted"
             break
+
+    # ── Fidelity term post-mortem ────────────────────────────────────────────
+    # final_train_fidelity summarizes the state faithfulness reached (mean F over
+    # the last measured batch). If the fidelity term was requested but never had
+    # an evaluable sample (all N > _FIDELITY_MAX_N, or missing phys_* metadata),
+    # it was a silent no-op — warn so the user does not believe the model was
+    # trained toward fidelity when it was not.
+    final_train_fidelity = None
+    if last_fidelity_errors:
+        final_train_fidelity = float(1.0 - float(np.mean(last_fidelity_errors)))
+    if fidelity_loss_weight > 0 and n_fidelity_evals_total == 0:
+        logger.warning(
+            "  ⚠️ Fidelity term requested (λ_F=%.3f) but NO N≤%d samples were "
+            "evaluable — the term was INERT (no fidelity gradient applied). "
+            "Fidelity loss only acts on statevector-sized systems; this dataset "
+            "has none.",
+            fidelity_loss_weight,
+            _FIDELITY_MAX_N,
+        )
 
     # Final val MSE
     final_val_mse = None
@@ -1165,9 +1187,7 @@ def train_unified_mpnn(
                 else:
                     tg = target
                 n_zz_v = n_e * p_v
-                loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(
-                    pred[n_zz_v:], tg[n_zz_v:]
-                )
+                loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(pred[n_zz_v:], tg[n_zz_v:])
                 val_loss += loss_v.item()
         final_val_mse = val_loss / len(val_dataset)
 
@@ -1223,6 +1243,8 @@ def train_unified_mpnn(
         "loss_type": loss_type,
         "physics_loss_weight": float(physics_loss_weight),
         "fidelity_loss_weight": float(fidelity_loss_weight),
+        "final_train_fidelity": final_train_fidelity,
+        "n_fidelity_evals_total": int(n_fidelity_evals_total),
     }
 
 
@@ -1361,15 +1383,13 @@ def fine_tune_unified_mpnn(
     if result.get("stop_reason") == "overfitting_detected":
         result["notes"] = "overfitting_stopped"
         logger.info(
-            "  Fine-tune: stopped early due to overfitting at epoch %d. "
-            "Val MSE was rising while train MSE decreased.",
+            "  Fine-tune: stopped early due to overfitting at epoch %d. Val MSE was rising while train MSE decreased.",
             result.get("n_epochs_run", 0),
         )
     elif result["improvement_ratio"] > 0.95:
         result["notes"] = "minimal_improvement"
         logger.info(
-            "  Fine-tune: minimal improvement (ratio=%.3f). "
-            "Model may already be near-optimal for this dataset.",
+            "  Fine-tune: minimal improvement (ratio=%.3f). Model may already be near-optimal for this dataset.",
             result["improvement_ratio"],
         )
     elif result.get("stop_reason") == "mse_floor_reached":
@@ -1980,10 +2000,7 @@ def transfer_model_to_higher_p(
     # Step 2: Build or validate dataset for p_target
     if dataset is None:
         if topology is None:
-            raise ValueError(
-                "Either 'dataset' or 'topology' must be provided "
-                "to build training data for p_target."
-            )
+            raise ValueError("Either 'dataset' or 'topology' must be provided to build training data for p_target.")
         from qmbp_simulation.predictors.multi_n_aggregator import MultiNAggregator
 
         agg = MultiNAggregator(topology=topology, p_layers=p_target)
