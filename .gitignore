@@ -48,6 +48,10 @@ data/model_zoo/checkpoints/_*/
 !notebooks/data/*.json
 !notebooks/data/*.pt
 !notebooks/*.ipynb
+# re-ignore caches/pdf inside notebooks (whitelisted above by notebooks/**)
+notebooks/**/__pycache__/
+notebooks/**/*.pyc
+notebooks/**/*.pdf
 
 # ── Whitelist: results we keep ───────────────────────────────
 !results/gnn_qem/
@@ -164,9 +168,9 @@ notebooks/test_notebooks.py
 
 backup_data_*
 *.tar.gz
-
+*.pdf
 *graphify-out*
-
+*.zip
 
 
 *.jpeg
@@ -183,6 +187,7 @@ internal/**/*.lot
 internal/**/*.fls
 internal/**/*.fdb_latexmk
 internal/**/*.synctex.gz
+internal/**/*.pdf
 # Shim local de icomma (el paquete real vive en Overleaf); no versionar.
 internal/tesis/icomma.sty
 # Paquete ZIP para Overleaf: artefacto generado por `make overleaf`, no versionar.

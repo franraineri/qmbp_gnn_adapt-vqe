@@ -444,6 +444,77 @@ class HVACircuitBuilder:
 
         return qc, theta
 
+    def create_bond_resolved_longitudinal(
+        self,
+        n_qubits: int,
+        p_layers: int,
+        lattice: LatticeConfig,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Bond-resolved HVA for the TFIM + longitudinal field.
+
+        Combines the bond-resolved parametrization (independent θ per bond/site)
+        with the extra RZ layer required by the longitudinal field g·Z. Mirrors
+        H = -J·ZZ - h·X - g·Z with per-bond and per-site freedom:
+
+        - θ_zz_k for each edge k ∈ {0, ..., E-1}   → RZZ(2·θ_zz_k)
+        - θ_x_i  for each qubit i ∈ {0, ..., N-1}  → RX(2·θ_x_i)
+        - θ_z_i  for each qubit i ∈ {0, ..., N-1}  → RZ(2·θ_z_i)
+
+        The RZ block is what ``create_bond_resolved`` (plain TFIM) lacks; it is
+        essential for g > 0 (see create_tfim_longitudinal / E4). Gate count is
+        the bond-resolved RZZ + RX budget plus one RZ per site — no extra 2-qubit
+        gates, so the ZNE budget is governed by the same CX count as plain
+        bond-resolved TFIM.
+
+        Parameter ordering per layer (matches the graph builder / MPNN heads):
+            [θ_zz_0..θ_zz_{E-1}, θ_x_0..θ_x_{N-1}, θ_z_0..θ_z_{N-1}]
+
+        Total parameters: (n_edges + 2·n_qubits) · p_layers.
+
+        Parameters
+        ----------
+        n_qubits : int
+            Number of qubits (must match ``lattice.n_qubits``).
+        p_layers : int
+            Number of HVA layers.
+        lattice : LatticeConfig
+            Lattice specification with edge list.
+
+        Returns
+        -------
+        (qc, theta)
+            qc : QuantumCircuit with (n_edges + 2·n_qubits) · p_layers parameters.
+            theta : ParameterVector of matching length.
+
+        Raises
+        ------
+        ValueError
+            If qubit mismatch or empty edges (via ``do_checks``).
+        """
+        do_checks(p_layers, n_qubits, lattice)
+
+        n_edges = len(lattice.edges)
+        params_per_layer = n_edges + 2 * n_qubits
+
+        qc, theta = _init_circuit(n_qubits, params_per_layer * p_layers)
+
+        for layer in range(p_layers):
+            offset = layer * params_per_layer
+
+            # RZZ(2·θ_zz_k) on each lattice edge k
+            for k, (i, j) in enumerate(lattice.edges):
+                qc.rzz(2 * theta[offset + k], i, j)
+
+            # RX(2·θ_x_i) on each qubit i
+            for i in range(n_qubits):
+                qc.rx(2 * theta[offset + n_edges + i], i)
+
+            # RZ(2·θ_z_i) on each qubit i (longitudinal field block)
+            for i in range(n_qubits):
+                qc.rz(2 * theta[offset + n_edges + n_qubits + i], i)
+
+        return qc, theta
+
     def create_tfim_longitudinal(
         self,
         n_qubits: int,

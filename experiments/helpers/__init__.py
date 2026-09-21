@@ -47,7 +47,9 @@ from experiments.helpers.parameter_freezing import (
 )
 from experiments.helpers.physics_loss import (
     PhysicsInformedLoss,
+    compute_ground_state_vectors,
     evaluate_energy_batch,
+    evaluate_infidelity_batch,
     select_eval_subset,
 )
 from experiments.helpers.scaling_utils import (

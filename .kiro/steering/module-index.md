@@ -104,7 +104,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/framework/ (18)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
-  __main__                   CLI   
+  __main__                   CLI  
   artifact_serializers       IO    C:ArtifactSerializer,QPYSerializer,QASM3Serializer+4 | F:get_serializer,register_serializer
   artifact_store             IO    C:ArtifactEntry,ManifestEntry,ArtifactCollector | F:load_manifest,load_artifact,find_artifacts_for_run+3
   base                             C:BaseExperiment
@@ -126,7 +126,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### qsim/models/ (5)
   ↳ DEFAULT_SEEDS DMRG_QUBIT_LIMIT EXACT_DIAG_QUBIT_LIMIT EXACT_GAP_QUBIT_LIMIT MAX_P_LAYERS MPS_DEFAULT_CHI_MAX STATEVECTOR_MAX_N SUPPORTED_VQE_METHODS +13
 
-  constants                  CFG   
+  constants                  CFG  
   data_models                PRED  C:LatticeConfig,GroundTruthResult,VQEConfig+3
   hamiltonian                MODEL C:HamiltonianBuilder | F:generate_chain_1d,generate_ladder,generate_square+5
   model_registry             MODEL F:register_model,get_model_spec,list_models
@@ -152,11 +152,11 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   vqezy_loader               IO    C:VQEzyInstance,VQEzyDataset | F:load_vqezy_tfi,load_vqezy_xyz,reconstruct_tfi_hamiltonian+1
 
 ### qsim/predictors/ (9)
-  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +67
+  ↳ MPNNPredictor build_graph_dataset load_mpnn_checkpoint save_mpnn_checkpoint train_mpnn BondResolvedMPNN build_bond_resolved_graph train_bond_resolved_mpnn +68
 
   gnn_qem                    PRED  C:GNNQEMConfig,GNNQEMCorrector,QEMSample+5 | F:build_qem_graph,build_qem_dataset,train_gnn_qem+14
   model_registry_db          PRED  C:TrainingMetrics,ModelArchitectureConfig,OptimizerConfig+8
-  model_zoo                  CFG   C:ZooEntry | F:resolve_checkpoint_fuzzy,prune_test_entries,list_multi_topology_entries+32
+  model_zoo                  CFG   C:ZooEntry | F:resolve_checkpoint_fuzzy,prune_test_entries,list_multi_topology_entries+33
   mpnn                       PRED  C:MPNNPredictor,BondResolvedMPNN | F:predict_theta,build_graph_dataset,train_mpnn+4
   multi_n_aggregator               C:MultiNAggregator,MultiTopologyAggregator
   retrain_loop               PRED  C:RetrainResult,RetrainLoopResult | F:evaluate_model_quick,regression_guardrail,run_retrain_loop+1
@@ -201,7 +201,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 ### ph/analysis/models/ (3)
 
   aqc_tensor_analyzer        CIRC  C:POCSummary,CrossTopologySummary,ComparisonSummary+1 | F:analyze,print_report,print_thesis_table+4
-  gnn_qem_analyzer           VAL   
+  gnn_qem_analyzer           VAL  
   mpnn_eval_analyzer         PRED  C:WarmstartResult,LOOCVResult,LandscapeResult+8 | F:parse_warmstart,parse_loo_cv,parse_landscape+12
 
 ### ph/analysis/scaling/ (1)
@@ -271,7 +271,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   graph_utils                CORE  F:build_experiment_dataset,predict_theta,predict_theta_batch+4
   hessian_restart                  F:hessian_guided_vqe,standard_multistart_vqe
   parameter_freezing         CIRC  F:analyze_parameter_activity,frozen_vqe
-  physics_loss               PRED  C:PhysicsInformedLoss | F:evaluate_energy_batch,select_eval_subset
+  physics_loss               PRED  C:PhysicsInformedLoss | F:evaluate_energy_batch,evaluate_infidelity_batch,compute_ground_state_vectors+1
   scaling_utils              CORE  F:compute_transpilation_metrics,evaluate_at_multiple_chi,analyze_chi_convergence
   sign_equivariant           PRED  C:SignInvariantLoss | F:canonicalize_sign,canonicalize_dataset,detect_sign_inconsistency
 
@@ -288,6 +288,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
 ### Standalone scripts
 
+  gen_longitudinal_bond_resolved_data OPT   F:solve_ground_truth,generate_for_n,main
   run_accelerated_cross_n    PRED  C:AcceleratedCrossNRunner
   run_bond_resolved_validation VAL   C:BondResolvedValidationRunner
   run_n16_square_dmrg2d      CIRC  C:N16SquareDMRG2DRunner
@@ -300,7 +301,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   run_gnn_qem_post_zne_validation VAL   F:run_vqe_sweep,main
   run_gnn_qem_training       IO    F:main
   run_gnn_qem_v2_training    PRED  F:parse_args,generate_or_load_data,augment_samples+6
-  _sanity_check_envelope     IO    
+  _sanity_check_envelope     IO  
   analyze_haiqu_hva          CIRC  F:analyze_file,print_report,main
   benchmark_configs          BENCH C:BenchmarkConfig
   rebuild_circuit_input      CIRC  F:fetch_gnn_theta,hamiltonian_to_json,build_input_json+1
@@ -349,6 +350,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   amortized_efficiency_paper PRED  F:panel_walltime_table,print_walltime_table,panel_amortization+9
   analyze_all_phase3         PRED  F:h_min_scaling_law,parse_args,load_phase3_result+8
   analyze_extrapolation_runs ANAL  F:parse_args,load_and_filter_runs,extract_metrics+2
+  analyze_representability   VIS   F:chi_needed,build_summary,main
   backfill_gt_timing         CACHE F:main
   benchmark_vqezy            VAL   F:parse_args,find_vqezy_dataset,main
   campaign_extractor         CORE  F:find_latest_result,extract_a1_qpu_scaling,extract_a5_mps_precision+3
@@ -356,6 +358,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   check_matrix_gaps                F:parse_args,main
   circuit_cost_check         CIRC  C:CircuitCostResult | F:compute_circuit_cost,print_cost_report,save_report+1
   compare_ablation_runs      ANAL  F:parse_args,load_runs,format_table+1
+  compare_hva_std_vs_longitudinal CIRC  C:PointResult | F:run_anchor_check,main
   compile_multiseed_report   ANAL  F:extract_metrics,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
   compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4
@@ -379,7 +382,10 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   quick_noisy_comparison     EXEC  F:run_comparison,main
   reanalyze_p2_filtered      ANAL  
   regenerate_eval_reports    ANAL  F:parse_args,load_npz_as_per_h_results,load_baseline_summary+3
+  report_hva_std_vs_longitudinal CIRC  F:build_report,main
+  representability_io        SOLVE C:Row | F:mem_estimate_mps,save_run,load_all_rows
   run_mpnn_vs_random_light   PRED  F:run_for_n,main
+  run_representability_mps   SOLVE F:dmrg_chi,exact_energy,run+1
   theta_derivative_analysis  ANAL  F:load_d1_gradients,compute_theta_derivative,compute_correlation+3
   theta_pca_phase_detection  ANAL  F:load_trajectories,analyze_trajectory,generate_figure+3
   validate_dqpt_results      VAL   C:DQPTTrajectory,ValidationCheck,DQPTValidationReport+1 | F:load_dqpt_trajectories,check_analytical_t_star,check_periodicity+10
@@ -436,4 +442,6 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
 
 ### Standalone scripts
 
+  _build_pipeline_anatomy_nb PRED  F:md,code,main
+  pipeline_anatomy_helpers   PRED  C:PipelineConfig | F:draw_lattice_graph,draw_mpnn_graph,save_line_plot+1
   viz_helpers                VIS   F:draw_circuit,draw_circuit_stats,draw_hva_structure+6

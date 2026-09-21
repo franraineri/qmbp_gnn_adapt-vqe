@@ -39,9 +39,7 @@ def register_model(spec: ModelSpec) -> None:
         If a model with the same name is already registered.
     """
     if spec.name in _REGISTRY:
-        raise ValueError(
-            f"Model '{spec.name}' is already registered. Use a different name or unregister first."
-        )
+        raise ValueError(f"Model '{spec.name}' is already registered. Use a different name or unregister first.")
     _REGISTRY[spec.name] = spec
     logger.debug("Registered model: %s (%s)", spec.name, spec.description)
 
@@ -278,6 +276,38 @@ def _register_builtins() -> None:
                 "high-dimensional parameter space (Fusco et al., 2026)."
             ),
             fidelity_threshold=0.93,
+            mpnn_hidden_dim=128,
+        )
+    )
+
+    # Bond-Resolved TFIM + Longitudinal: H = -J·ZZ - h·X - g·Z (local params + RZ)
+    def _create_bond_resolved_longitudinal(n_qubits, p_layers, lattice, **kwargs):
+        mod = importlib.import_module("qmbp_simulation.circuits")
+        hva = mod.HVACircuitBuilder()
+        return hva.create_bond_resolved_longitudinal(n_qubits, p_layers, lattice, **kwargs)
+
+    register_model(
+        ModelSpec(
+            name="tfim_bond_resolved_longitudinal",
+            params_per_layer=-1,  # Variable: n_edges + 2*n_qubits (topology-dependent)
+            build_hamiltonian=builder.build_tfim_longitudinal,
+            build_observables=builder.build_local_observables,
+            create_circuit=_create_bond_resolved_longitudinal,
+            initial_state="plus",
+            vqe_defaults={
+                "n_restarts": 5,
+                "restart_sigma": 0.05,
+                "maxiter": 1500,
+            },
+            hamiltonian_kwargs={"g": 0.0},
+            description=(
+                "Bond-Resolved TFIM + Longitudinal: H = -J·ZZ - h·X - g·Z with "
+                "per-bond θ_zz_k, per-site θ_x_i and per-site θ_z_i parameters. "
+                "Adds the RZ layer that plain bond-resolved TFIM lacks (needed for "
+                "g>0), while keeping the same 2-qubit gate budget. Enables warm-start "
+                "/ zero-shot studies on the longitudinal model comparable to TFIM."
+            ),
+            fidelity_threshold=0.90,
             mpnn_hidden_dim=128,
         )
     )

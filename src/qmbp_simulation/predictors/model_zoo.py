@@ -358,9 +358,9 @@ class ZooEntry:
     # state fidelity (or its variance lower bound at large N). These supersede
     # pass_rate for model selection: a model with low pass_rate can still be the
     # best warm-start if its |ΔE| is small and fidelity high.
-    abs_error_by_n: dict = field(default_factory=dict)   # {str(n): median |ΔE|}
-    fidelity_by_n: dict = field(default_factory=dict)    # {str(n): median fidelity}
-    de_gap_by_n: dict = field(default_factory=dict)      # {str(n): median ΔE/gap (informative)}
+    abs_error_by_n: dict = field(default_factory=dict)  # {str(n): median |ΔE|}
+    fidelity_by_n: dict = field(default_factory=dict)  # {str(n): median fidelity}
+    de_gap_by_n: dict = field(default_factory=dict)  # {str(n): median ΔE/gap (informative)}
     # Warm-start quality per system size — measures the ADVANTAGE of initializing
     # VQE from this model's θ vs a random cold start, at equal budget. Populated
     # from probe_warmstart_advantage.py (backfill_warmstart_from_probe). Keyed by
@@ -488,6 +488,44 @@ def list_multi_topology_entries(*, p_layers: int = 1) -> list[ZooEntry]:
     entries = _load_manifest()
     mt = [e for e in entries if e.is_multi_topology and e.p_layers == p_layers]
     return sorted(mt, key=lambda e: e.n_training_points, reverse=True)
+
+
+def _parse_training_ns(checkpoint_file: str) -> list[int]:
+    """Extract the joint-training N set from a multi-N checkpoint filename.
+
+    The convention is ``..._multiN_<N1>+<N2>+..._p<p>...`` (see the zoo
+    checkpoints). Returns the sorted list of N, or an empty list if the
+    filename is not a multi-N checkpoint.
+    """
+    m = re.search(r"multi[_]?[nN]_([\d+]+)", checkpoint_file)
+    if not m:
+        return []
+    return sorted({int(x) for x in m.group(1).split("+") if x.isdigit()})
+
+
+def training_n_by_topology(*, p_layers: int = 1) -> dict[str, list[int]]:
+    """Joint-training N set actually used per topology (from zoo checkpoints).
+
+    Reads the multi-N UnifiedMPNN checkpoints in the manifest and returns, per
+    topology, the set of system sizes used for joint training. When several
+    checkpoints exist for a topology, the most complete N set (largest) wins.
+    This is the single source of truth for the cross-N training coverage that
+    project-status.md reports (and that a thesis table would regenerate from),
+    so the numbers never drift from the real checkpoints.
+    """
+    coverage: dict[str, list[int]] = {}
+    for entry in _load_manifest():
+        if entry.p_layers != p_layers or not entry.is_multi_n:
+            continue
+        if entry.is_multi_topology:
+            continue
+        ns = _parse_training_ns(entry.checkpoint_file)
+        if not ns:
+            continue
+        prev = coverage.get(entry.topology)
+        if prev is None or len(ns) > len(prev):
+            coverage[entry.topology] = ns
+    return coverage
 
 
 def _get_extrapolation_performance(topology: str, entry: ZooEntry) -> float | None:
@@ -1310,8 +1348,7 @@ def load_best_model_for(
 
     _phys = _physical_signal(best_entry, n_target)
     logger.debug(
-        "load_best_model_for(%s): %s model selected (score=%.3f, physical=%s, "
-        "pass=%.0f%%, pts=%d, ckpt=%s)",
+        "load_best_model_for(%s): %s model selected (score=%.3f, physical=%s, pass=%.0f%%, pts=%d, ckpt=%s)",
         topology,
         source,
         best_score,
@@ -3991,9 +4028,7 @@ def backfill_warmstart_from_probe(probe_json: str | Path) -> int:
         None,
     )
     if ckpt is None:
-        logger.warning(
-            "backfill_warmstart_from_probe: checkpoint '%s' not in manifest", ckpt_bare
-        )
+        logger.warning("backfill_warmstart_from_probe: checkpoint '%s' not in manifest", ckpt_bare)
         return 0
 
     warmstart_by_n: dict[str, dict] = {}

@@ -291,3 +291,99 @@ Do NOT duplicate this content in other files — reference this document instead
 4. Consider 8192 shots to reduce cost (validated: no quality loss vs 16384 in simulation)
 
 **DO NOT use BFS for heavy_hex N=10 on Kingston** — it produces catastrophically bad layouts.
+
+## Dato faltante: escalera (ladder) TFIM p=2, N=10 (deploy % por puntos físicos)
+
+No existe en la fuente canónica `noiseless_v2_analysis.md` §1 (TFIM estándar): la Summary Table salta de ladder p=1 (54%) a p=3 (74%), sin fila p=2. El "0%" que figuraba en la tesis (Tabla cross_topo_depth) era un dato de Heisenberg §3 (donde todas las topologías dan 0%) cruzado por error a TFIM — artefacto, no fenómeno físico. El ResultIndex tiene runs de ladder TFIM p=2 pero solo con pass_rate por secciones-del-runner (0.25–0.5, n_points=None), no la tasa deploy sobre 39 puntos. Decisión: eliminar la tabla cross_topo_depth (plan A) en vez de rellenar el hueco. Si se necesita el valor, hay que correr/documentar el deploy% de ladder TFIM p=2 N=10.
+
+---
+
+## Haiqu Data Loading — State Preparation Investigation (2026-09-17)
+
+Investigation into Haiqu SDK data-loading methods as candidates for hardware state
+preparation (warm-start / fidelity benchmark) in the GNN-HVA pipeline. Each row notes
+its **source** so claims can be re-verified: `SDK` = introspected in installed
+`haiqu-sdk` v1.6.0 (`.venv`); `DOCS` = docs.haiqu.ai reference pages; `PAPER` =
+arXiv:2412.05202; `OURS` = this repo's code/validated data.
+
+### Availability (verified in environment)
+
+| Fact | Value | Source |
+|------|-------|--------|
+| SDK installed | `haiqu-sdk` v1.6.0 in `.venv` | SDK (`pip show`) |
+| `vector_loading` / `vector_loading_estimates` present | Yes | SDK (introspection) |
+| Data-loading family present | `vector_loading`, `mps_loading`, `block_vector_loading`, `distribution_loading`, `multivariate_distribution_loading`, `function_loading`, `fourier_loading`, `statevector_run` | SDK |
+| Aer `save_matrix_product_state` available | Yes | SDK |
+| TeNPy + quimb installed | Both yes | SDK |
+| `HAIQU_API_KEY` / `IBM_KEY` in env | UNSET (import/inspect OK; `.result()` needs the key — cloud job, credit cost) | SDK (env check) |
+| Haiqu MCP servers exist | `https://api.haiqu.ai/mcp` (tools), `https://docs.haiqu.ai/mcp` (docs). NOT configured in this workspace. | DOCS (MCP.md) |
+
+### Algorithmic basis (NOT SQD)
+
+| Fact | Detail | Source |
+|------|--------|--------|
+| Method is MPS / tensor-network shallow-circuit synthesis | NOT Sample-based Quantum Diagonalization. SQD lives in a separate `skqd` module (Hubbard/SIAM/config-recovery). | DOCS, SDK |
+| Base paper | "Entanglement scaling in MPS representation of smooth functions…" (Haiqu authors: Lukin, Luhanko, Maksymenko, Koch-Janusz + HSBC) | PAPER (arXiv:2412.05202) |
+| Pipeline | Target → MPS (tensor train) → shallow O(N)-gate circuit of 2-qubit "V-layers"; greedy iterative disentangling (truncate to χ=2, invert, contract, repeat) | PAPER §IV |
+| MPS construction | SVD (needs full 2^N vector) OR Tensor Cross Interpolation (TCI, sampling-based, callable input only) | PAPER §II.2 |
+| Validated scale in paper | up to 156 qubits on ibm_kingston (distributions) via TCI | PAPER §V |
+
+### Per-method limits (verified from DOCS reference pages)
+
+| Method | qubit range | key limit | Source |
+|--------|-------------|-----------|--------|
+| `vector_loading` | **1–20** | dense vector input, `len(data)` 1..2^20 | DOCS (reference/data/vector) |
+| `mps_loading` | no N cap stated | **max bond dimension 64**; input MPS standard or Vidal form; `shape` default `'plr'` (Qiskit); quimb uses `'lpr'` | DOCS (reference/data/mps_loading) |
+| `function_loading` | **1–1000** | input is a SymPy formula; MPS built via TCI (no dense vector) | DOCS (reference/data/function) |
+
+Note: the **20-qubit cap and the bond-64 cap appear in the DOCS reference pages, NOT in
+the installed SDK docstrings** (docstrings omit the numeric bounds). Signatures were
+verified in-SDK; numeric limits are DOCS-sourced.
+
+### Why N=20 (root cause)
+
+The 20-qubit cap on `vector_loading` is a **classical input-representation limit, NOT a
+limit of the MPS synthesis or the resulting circuit**. A dense vector forces materializing
+2^N amplitudes and running SVD → O(2^N) memory (paper: feasible only to ~30 qubits). TCI
+avoids this by sampling a callable, which is why `function_loading` reaches 1000 qubits and
+the paper reaches 156. `vector_loading` takes a dense array, so it cannot use TCI.
+[Sources: PAPER §II.2 memory statement; DOCS per-method qubit ranges.]
+
+### Technique limits & hard cases (PAPER-derived)
+
+| Regime | Difficulty | Reason | Source |
+|--------|-----------|--------|--------|
+| Smooth + localized (Gaussian) | Easy | Entanglement S_k = O(k/4^k), decays exponentially; 1–2 layers | PAPER Thm 1, Cor 2 |
+| Heavy-tailed smooth (Lévy, log-normal) | Medium | Large-scale (low-k) entanglement is non-universal, only polynomial decay → more qubits/layers before universal regime | PAPER §III.3, Fig 3 |
+| Non-smooth / discontinuous | Hard | Universal decay holds only up to order r+1 for r continuous derivatives | PAPER App A.4 |
+| High-frequency / oscillatory | Hard | Large g₁(f) → high entanglement per bond | PAPER Thm 1 (g₁) |
+| Generic / random vector | Intractable | Exponential bond dimension; no advantage over standard amplitude encoding | PAPER §II.2 |
+| Deep circuit on noisy QPU | Counterproductive | 1-layer beats 5-layer on FakeToronto — extra layers help ideal fidelity but noise destroys the gain | PAPER Fig 12, App D |
+
+Key knobs (all methods): `num_layers` (1–100), `truncation_cutoff` (entanglement cutoff),
+`fine_tuning_iterations` (≤500). `job.quality`/`job.fidelity` reports achieved fidelity.
+Always call `*_estimates` first (credit cost). [Source: SDK signatures + DOCS.]
+
+### Fit to this project (ground-state prep)
+
+| Decision | Evidence | Source |
+|----------|----------|--------|
+| `vector_loading` unusable for extrapolation N (60/100) | 20-qubit cap; our `ClassicalSolver.ground_state_vector` also caps statevector at N=22 | DOCS + OURS |
+| `mps_loading` is the correct large-N candidate | no N cap; we already produce MPS via TeNPy DMRG and Aer MPS (both installed) | DOCS + OURS |
+| Bond-dimension conflict to manage | Our `_solve_dmrg_graph` uses χ=min(1024,max(128,2^(N/2))) — far above Haiqu's 64. `MPSBackend` default χ=64 matches. To feed `mps_loading` at large N, re-run DMRG capped at χ≤64. | OURS (classical.py, mps_backend.py) + DOCS |
+| For TFIM 1D p≤2, χ=64 is empirically sufficient at ANY N | Actual DMRG χ=9–15 (area law); |MPS-SV|=1e-14. So the "critical-state high-bond" theoretical risk does NOT bite for our specific 1D TFIM. | OURS (validated-decisions: V7 3A/3B, MPS-scaling) |
+| Critical-region caveat still applies to general/2D cases | 1D-critical entanglement grows ~log(N); 2D/other models can exceed χ=64. Measure fidelity empirically before trusting. | PAPER (entanglement scaling) |
+| It is state-prep, not an ansatz θ | Returns an opaque Haiqu gate, not HVA parameters → benchmark/reference tool, not inside the VQE loop | DOCS + OURS |
+
+**Correction vs. earlier session claim**: an earlier statement suggested χ could "exceed
+64 near h_c" for our states. For **our 1D TFIM p≤2** that is empirically false (χ=9–15,
+area law). The high-bond risk is a general/2D-critical caveat, not something observed in
+our validated 1D TFIM runs.
+
+### Recommended validation path (before spending credits)
+
+1. Small N (≤10): DMRG χ=64 → `mps_loading` → `statevector_run` vs exact `ground_state_vector`; fix the `shape` convention (TeNPy/quimb/Aer differ: plr vs lpr).
+2. χ sweep vs fidelity at a mid N, especially near h_c.
+3. Large N (60/100) only if step 2 shows χ=64 keeps fidelity acceptable.
+
+All above gated by `HAIQU_API_KEY` (currently unset).

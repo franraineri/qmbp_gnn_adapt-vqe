@@ -3,17 +3,19 @@ inclusion: fileMatch
 fileMatchPattern: "tests/**,scripts/**,project_health/**,scripts/validation/**, src/qmbp_simulation/**"
 ---
 
-# Reuse Existing Infrastructure — MANDATORY
+# Reuse Existing Infrastructure
 
-## Rule 1: Testing (ALWAYS USE EXISTING TESTS)
+Reuse what already exists before creating anything new. The three rules below are mandatory.
+
+## Rule 1: Testing — use existing tests
 
 When asked to test or verify functionality:
 
-1. **FIRST**: Check if a test already exists in `tests/` (see mapping below).
-2. **If test exists**: Run it, extend it, or add a new test case to the existing file.
-3. **If no test exists**: Add a new test in the correct location per the module-to-test mapping.
-4. **NEVER** create temporary `_tmp_test_*.py` or `scripts/validation/_tmp_*.py` files.
-5. **NEVER** create standalone scripts just to "check if something works" — use pytest.
+1. Check if a test already exists in `tests/` (see mapping below).
+2. If a test exists, run it, extend it, or add a new case to that file.
+3. If none exists, add a new test in the correct location per the module-to-test mapping.
+4. Do not create temporary `_tmp_test_*.py` or `scripts/validation/_tmp_*.py` files.
+5. Do not create standalone scripts to "check if something works" — use pytest.
 
 ### Module-to-Test Mapping
 
@@ -45,15 +47,15 @@ pytest tests/ -k "test_specific_name"   # By name
 - Use `tmp_path` fixture for file I/O.
 - Use `np.testing.assert_allclose(actual, expected, atol=1e-6)` for numerics.
 
-## Rule 2: Analysis & Results Inspection (ALWAYS USE project_health/)
+## Rule 2: Analysis and results inspection — use project_health/
 
 When asked to analyze data, inspect results, or understand outputs:
 
-1. **FIRST**: Check `analysis-tooling.md` decision tree for the right command.
-2. **If a tool exists**: Use it (digest, analyzer, sanity_check, etc.).
-3. **If tool is close but insufficient**: Extend it with a new flag/option.
-4. **NEVER** create new `project_health/analyze_*.py` or `project_health/inspect_*.py` files.
-5. **NEVER** write inline Python to parse JSON results — use the scanner/digest.
+1. Check the `analysis-tooling.md` decision tree for the right command.
+2. If a tool exists, use it (digest, analyzer, sanity_check, etc.).
+3. If a tool is close but insufficient, extend it with a new flag/option.
+4. Do not create new `project_health/analyze_*.py` or `project_health/inspect_*.py` files.
+5. Do not write inline Python to parse JSON results — use the scanner/digest.
 
 ### Quick Decision Shortcuts
 
@@ -68,19 +70,18 @@ When asked to analyze data, inspect results, or understand outputs:
 | "Query index fast?" | `from qmbp_simulation.framework.result_index import ResultIndex` |
 | "Validate new feature" | Add test cases to existing test file, run `make test` |
 
-## Rule 3: New Runners (ALWAYS subclass ValidationRunner)
+## Rule 3: New runners — subclass ValidationRunner
 
-When creating a new experiment runner:
+When creating a new experiment runner, subclass `ValidationRunner` rather than writing a standalone `main()` script. Then:
 
-1. **MUST** subclass `ValidationRunner` — never write standalone scripts with `main()`.
-2. **MUST** call `self.setup_physics()` in `setup()` — never duplicate imports.
-3. **MUST** use `self.select_backend(N)` — never `if N <= 22: NoiselessBackend() else: MPSBackend(...)`.
-4. **MUST** use `self.save_checkpoint()` for long loops — never raw `json_dump` to custom paths.
-5. **MUST** use `self.log_memory_estimate(N)` before large computations.
-6. **MUST** return `{"pass": bool, ...}` from section functions.
-7. See `infrastructure.md` for the full template.
+1. Call `self.setup_physics()` in `setup()` instead of duplicating imports.
+2. Use `self.select_backend(N)` instead of `if N <= 22: NoiselessBackend() else: MPSBackend(...)`.
+3. Use `self.save_checkpoint()` for long loops instead of raw `json_dump` to custom paths.
+4. Call `self.log_memory_estimate(N)` before large computations.
+5. Return `{"pass": bool, ...}` from section functions.
+6. See `infrastructure.md` for the full template.
 
-## Anti-Patterns (NEVER DO)
+## Anti-patterns to avoid
 
 - ❌ `*_tmp_test_*.py` — use pytest in `tests/`
 - ❌ `project_health/analyze_<new_thing>.py` — extend closest existing analyzer

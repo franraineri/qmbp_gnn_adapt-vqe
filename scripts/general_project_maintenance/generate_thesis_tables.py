@@ -726,11 +726,17 @@ class TodoCollector:
     # topico -> lista de (archivo, linea_real, descripcion)
     todos: dict[str, list[tuple[str, int, str]]] = field(default_factory=lambda: defaultdict(list))
     inconsistencies: list[str] = field(default_factory=list)
+    # table_id -> manifest dict {label, n_points_per_row, h_grid, h_min_per_N, denominator, ...}
+    manifests: dict[str, dict] = field(default_factory=dict)
 
     @staticmethod
     def marker(topic: str, description: str) -> str:
         """Devuelve el comentario LaTeX a insertar en la tabla."""
         return f"%TODO-{topic}: {description}"
+
+    def register_manifest(self, table_id: str, meta: dict) -> None:
+        """Registra el sidecar de datos de una tabla auto (escrito en main())."""
+        self.manifests[table_id] = meta
 
     def scan_file(self, path: Path, rel_name: str) -> None:
         """Escanea un .tex ya escrito y registra TODOs con su línea real."""
@@ -1260,18 +1266,22 @@ def gen_scoreboard(scoreboard: dict, collector: TodoCollector) -> list[str]:
         )
 
     caption = (
-        "Resultado por topología en el punto de operación más exigente "
-        f"($h \\approx {_num(scoreboard.get('target_h', 2.5), 2)}$). "
-        "La columna \\emph{Calif.\\ mejor punto} califica el punto de menor "
-        "$|\\Delta E|$ de la configuración; \\emph{$|\\Delta E|$ medio} promedia "
-        "sobre todos los puntos evaluados y \\emph{Calif.\\ media} lo califica. Las "
-        "dos calificaciones difieren porque agregan de forma distinta. La columna "
-        "\\emph{$N$ máx.} es el mayor tamaño evaluado para esa topología en la "
-        "campaña (no el límite del método, que sigue las tres escalas de la "
-        "Tabla~\\ref{tab:comparison_literature}). Escala de calificación A--E por "
-        "$|\\Delta E|$: A ($<0{,}05$), B ($<0{,}10$), C ($<0{,}30$), D ($<1{,}00$), "
-        "E ($\\geq 1{,}00$); se usa E como peor nota para no confundirla con el "
-        "símbolo de fidelidad $F$. Fuente: elaboración propia."
+        "Perspectiva global de la campaña por topología. La columna "
+        "\\emph{Calif.\\ mejor punto} califica el punto de menor $|\\Delta E|$ "
+        "alcanzado por la topología en toda la campaña; \\emph{$|\\Delta E|$ medio} "
+        "promedia sobre todos los puntos evaluados de todos los $N$ y profundidades "
+        "de esa topología, incluidos los situados por debajo de la frontera "
+        "$h_{\\min}(N, p)$, y \\emph{Calif.\\ media} lo califica. Por eso esta tabla "
+        "mide cobertura de la campaña y su $|\\Delta E|$ medio es superior al de la "
+        "Tabla~\\ref{tab:cross_topo_de}, que se restringe a $N = 10$, a la mejor "
+        "profundidad y al régimen válido $h \\geq 1{,}3$ (rendimiento en el régimen "
+        "de operación). La columna \\emph{$N$ máx.} es el mayor tamaño con resultado "
+        "medido para esa topología en la campaña (no el límite del método, que sigue "
+        "las tres escalas de la Tabla~\\ref{tab:comparison_literature}). Escala de "
+        "calificación A--E por $|\\Delta E|$: A ($<0{,}05$), B ($<0{,}10$), "
+        "C ($<0{,}30$), D ($<1{,}00$), E ($\\geq 1{,}00$); se usa E como peor nota "
+        "para no confundirla con el símbolo de fidelidad $F$. Fuente: elaboración "
+        "propia."
     )
     return _wrap_table(
         caption,
@@ -1279,7 +1289,7 @@ def gen_scoreboard(scoreboard: dict, collector: TodoCollector) -> list[str]:
         "lcccc",
         header,
         rows,
-        short_caption="Resultado por topología",
+        short_caption="Perspectiva global de la campaña por topología",
     )
 
 
@@ -1387,16 +1397,17 @@ def gen_campaign(index: list[dict], collector: TodoCollector) -> list[str]:
     heis_note = f"Heisenberg: {n_heis} XXZ + {n_heis_t} transversal = {total_heis} ejecuciones. " if total_heis else ""
 
     caption = (
-        "Conteo de ejecuciones del pipeline por modelo en la campaña experimental "
-        "(fuente: ResultIndex, elaboración propia). Una \\emph{ejecución} es una "
-        "corrida completa de las Fases 1--3 para una (configuración, semilla)."
+        "Conteo de ejecuciones del pipeline por modelo en la campaña experimental. "
+        "Una \\emph{ejecución} es una "
+        "corrida completa de las Fases 1--3 para una (configuración, semilla). "
+        "Fuente: elaboración propia."
     )
     notes = (
         heis_note + "La columna \\emph{Tasa aprob.} agrega \\emph{todas} las ejecuciones del "
         "modelo, incluidas las de fuera del régimen operativo válido, las cinco "
         "topologías y las cuatro profundidades; por tanto \\emph{no} es comparable "
-        "con las tasas por configuración de las Tablas~\\ref{tab:cross_topo}, "
-        "\\ref{tab:cross_topo_depth} y \\ref{tab:scaling} (restringidas al régimen "
+        "con las tasas por configuración de las Tablas~\\ref{tab:cross_topo} "
+        "y \\ref{tab:scaling} (restringidas al régimen "
         "válido y a la mejor profundidad). Es un indicador de cobertura de la "
         "campaña, no del rendimiento del pipeline en su régimen de operación."
     )
@@ -1434,6 +1445,7 @@ def _per_h_table(
     # dos columnas anteriores (que da un valor distinto; ver pie).
     header = [
         "$N$",
+        "Pts",
         "$|\\Delta E|$",
         "gap",
         "$\\Delta E/\\mathrm{gap}$ (\\%)",
@@ -1442,6 +1454,12 @@ def _per_h_table(
     pre_lines: list[str] = []
     h_min_global = float("inf")
     h_max_global = float("-inf")
+    n_points_per_row: dict[int, int] = {}
+    # h_frontier REAL del dashboard (el umbral del régimen válido), no min(hs):
+    # min(hs) refleja solo el punto más bajo presente y no es monótono con N, lo
+    # que haría fallar el chequeo de monotonía h_min<->puntos con falsos positivos.
+    frontier = load_h_frontier(FOCUS_TOPOLOGY, p_layers=1)
+    h_min_per_N: dict[int, float] = {}
 
     missing_ns = [n for n in n_values if n not in per_n or not per_n[n]]
     if missing_ns:
@@ -1459,6 +1477,9 @@ def _per_h_table(
         hs = [r.h for r in results]
         h_min_global = min(h_min_global, min(hs))
         h_max_global = max(h_max_global, max(hs))
+        n_points_per_row[n] = len(results)
+        if n in frontier:
+            h_min_per_N[n] = round(frontier[n], 2)
         per_h_dicts = [{"de_gap": r.de_gap, "abs_error": r.abs_error} for r in results]
         summary = compute_deploy_summary(per_h_dicts)
         mean_gap = sum(r.gap for r in results) / len(results)
@@ -1478,6 +1499,7 @@ def _per_h_table(
         rows.append(
             [
                 str(n),
+                str(len(results)),
                 _num(mean_abs),
                 _num(mean_gap),
                 _num(mean_de_gap * 100.0, 2),
@@ -1487,6 +1509,22 @@ def _per_h_table(
     if not rows:
         return [collector.marker(topic_kind, f"Sin datos por-h de heavy_hex para {label}.")]
 
+    # Manifest sidecar: fuente de verdad estructurada de lo que la legend afirma.
+    # El checker _check_legend_vs_manifest lo cruza contra la prosa del pie.
+    collector.register_manifest(
+        label[len("tab:") :],
+        {
+            "label": label,
+            "h_grid": [round(g, 2) for g in H_GRID_EXTRAPOLATION],
+            "h_grid_regime": "extrapolation",
+            "n_points_per_row": n_points_per_row,
+            "h_min_per_N": h_min_per_N,
+            "denominator": "variable_per_N",
+            "de_gap_aggregation": "mean_of_ratios",
+            "restricted_to_valid_regime": True,
+        },
+    )
+
     # Rango de h unificado (el más abarcativo cubierto por el conjunto de filas).
     # El pie describe QUÉ contiene la tabla (no explica las métricas — eso va en
     # el texto / la sección de métricas del capítulo).
@@ -1494,19 +1532,24 @@ def _per_h_table(
     notes = (
         f"Evaluado sobre la grilla de $h$ canónica del régimen de extrapolación, "
         f"$h \\in {grilla_str}$, restringida al régimen válido ($h \\geq h_{{\\min}}$) "
-        "de cada $N$; por eso los $N$ mayores contribuyen con menos puntos. "
+        "de cada $N$; cada fila agrega los puntos de esa grilla disponibles para su "
+        "$N$ (algunos tamaños tienen menos puntos por cobertura de datos, no solo por "
+        "el recorte de $h_{\\min}$). "
+        "La columna \\emph{Pts} indica el número de puntos de $h$ agregados en esa fila. "
         "$|\\Delta E|$ y gap son medias sobre esos puntos, en unidades de $J = 1$. "
         "La columna $\\Delta E/\\mathrm{gap}$ es la media de los cocientes \\emph{por "
-        "punto} (no el cociente de las dos columnas anteriores): cerca de la frontera "
-        "algún punto tiene el gap estrecho y su cociente individual es grande, de modo "
-        "que la media de cocientes puede superar al cociente de las medias. La métrica "
+        "punto} (no el cociente de las dos columnas anteriores): según cómo se "
+        "correlacionen $|\\Delta E|$ y gap punto a punto, la media de cocientes puede "
+        "quedar por encima o por debajo del cociente de las medias (cerca de la "
+        "frontera un punto de gap estrecho la eleva; en filas de pocos puntos ambas "
+        "casi coinciden). La métrica "
         "primaria es $|\\Delta E|$; $\\Delta E/\\mathrm{gap}$ es el criterio de "
         "clasificación normalizado. Fuente: elaboración propia."
     )
     return _wrap_table(
         caption,
         label,
-        "rrrr",
+        "rrrrr",
         header,
         rows,
         notes=notes,
@@ -1800,6 +1843,10 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
             after = code[m.end() : m.end() + 14]
             before = code[max(0, m.start() - 16) : m.start()]
             if re.match(r"\s*(\\(?:text|line|column)width|\\height|cm|mm|pt|em|ex|in|\+)\b", after):
+                continue
+            # Ancho de figura en la macro \figinput{<ancho>}{fig_X}: es una fracción de
+            # \textwidth (dimensión LaTeX), no un decimal de prosa; el punto es correcto.
+            if before.rstrip().endswith("\\figinput{"):
                 continue
             if _VERSION_RE.search(before):
                 continue
@@ -2194,9 +2241,39 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
         _check_entropy_coefficient,  # §1.10: coeficiente de la entropía crítica
         _check_duplicate_factor_values,  # §1.1/§4.5: factor duplicado entre figuras
         _check_inline_arithmetic,  # §5: producto inline 'A×B×C=D' que no cuadra
+        _check_interpretation_placement,  # §12/§13: interpretación repetida / en Resultados
+        _check_criterion_absolute,  # §16 err.15: criterio ΔE/g<5% sin excepción
+        _check_orphan_figures,  # §7: figura definida y nunca referenciada
+        _check_anglicism_first_emph,  # §3: anglicismo sin cursiva en primer uso
+        _check_acronym_redefinition,  # §11: sigla definida más de una vez
+        _check_new_data_in_discussion,  # §12/§14: dato primario fuera de Resultados
+        _check_strong_claim_unanchored,  # §16 err.2: afirmación fuerte sin ancla
+        _check_ratio_column_unit,  # §16: columna ΔE/gap sin unidad en el pie
+        _check_citation_verb_tense,  # §4: misma cita con tiempos verbales distintos
+        _check_near_duplicate_section_titles,  # §10/§13: títulos de sección casi iguales
+        _check_improvement_range_mixed,  # §16 err.14: rango A×--B× que mezcla A y R(N)
+        _check_commented_ref_to_missing_label,  # fig: \ref comentada a label inexistente
+        _check_empty_references,  # entrega: \ref{}/\cite{} con argumento vacío
+        _check_duplicate_words,  # entrega: palabra duplicada consecutiva
+        _check_float_label_caption,  # entrega: figure/table sin \label o \caption
+        _check_odd_inline_math,  # entrega: '$' inline sin cerrar
+        _check_pending_todos,  # entrega: comentarios % TODO-* sin resolver
+        _check_placeholders,  # entrega: XXX/TBD/\todo/[completar]/lorem ipsum/????
+        _check_unbalanced_environments,  # entrega: \begin{X} sin \end{X}
+        _check_draft_markers,  # entrega: preliminar/borrador/provisional/PENDIENTE
     )
     for check in text_checks:
         _run_check_guarded(check, full_text, rel, collector)
+
+    # Chequeos que necesitan el DISCO (dir del .tex): archivo huérfano o \input
+    # colgante, para figuras y tablas. Van como cierres sobre tex_dir con el guard.
+    for fig_check in (
+        _check_orphan_figure_files,
+        _check_missing_figure_files,
+        _check_orphan_table_files,
+        _check_missing_table_files,
+    ):
+        _run_check_guarded(lambda t, r, c, _fc=fig_check: _fc(t, r, c, tex_dir), full_text, rel, collector)
 
     # Chequeos POR BLOQUE de sección: se itera el documento una vez y cada chequeo
     # de bloque recibe su sección con la prosa y las \ref locales. Necesitan out_dir
@@ -2206,6 +2283,15 @@ def check_tex(tex_path: Path, out_dir: Path, collector: TodoCollector) -> None:
         _make_block_table_consistency_check(out_dir),  # tabla auto ↔ prosa de su sección
     )
     _run_block_checks(full_text, rel, collector, block_checks)
+
+    # Leyenda ↔ manifest (Tier 2): la leyenda de cada tabla auto debe describir los
+    # datos de su sidecar <label>.meta.json (grilla de h, régimen válido, agregación).
+    try:
+        _check_legend_vs_manifest(out_dir, rel, collector)
+    except Exception as exc:  # noqa: BLE001
+        collector.add_inconsistency(
+            f"[{rel}] chequeo '_check_legend_vs_manifest' falló con {type(exc).__name__}: {exc}."
+        )
 
     # Chequeos que operan sobre la lista de líneas (posición exacta).
     line_checks = (
@@ -2539,6 +2625,999 @@ def _split_chapters(text: str) -> dict[str, str]:
     for k in range(1, len(parts) - 1, 2):
         out[parts[k].strip()] = parts[k + 1]
     return out
+
+
+# ── §12/§13: colocación de la interpretación (una ubicación canónica) ─────────
+
+# Frases que marcan una EXPLICACIÓN CAUSAL (el "porqué") de un RESULTADO PROPIO,
+# no la presentación de un dato ni la justificación por cita. Su presencia en el
+# capítulo de Resultados sin remisión es una señal de §12 (interpretación que
+# debería vivir en Discusión). Conservador: se exige que el marcador introduzca un
+# mecanismo físico ('el origen de este fallo', 'es el mismo mecanismo'), no una
+# cita de respaldo ('se fundamenta en \citet{...}') — esta última se excluye aparte.
+_CAUSAL_MARKERS = re.compile(
+    r"el origen de (?:este|ese|el) fallo (?:est[aá]|reside|radica)|"
+    r"es el mismo mecanismo que|"
+    r"el mecanismo (?:subyacente|que lo explica|f[ií]sico es)|"
+    r"se explica porque el (?:ansatz|circuito|estado|HVA)",
+    re.IGNORECASE,
+)
+
+# Conceptos cuyo DESARROLLO causal debe tener una única ubicación canónica (§13).
+# Cada entrada: firma = conjunto de términos que, co-ocurriendo en un mismo párrafo,
+# identifican el desarrollo del argumento (no una mención de paso); canonical =
+# subcadena del título de la sección/subsección donde debe vivir. Añadir conceptos
+# aquí extiende el chequeo sin tocar la lógica.
+_INTERPRETATION_CONCEPTS: dict[str, dict] = {
+    "mecanismo-cintura": {
+        "signature": ("cintura", "coordinaci"),  # cintura vs número de coordinación
+        # Un DESARROLLO real del argumento co-ocurre con >=2 de estos términos
+        # (el mecanismo físico), no solo la mención "cintura vs coordinación".
+        "extra_any": ("ciclos cortos", "arbóreo", "interfieren", "entropía", "grado 2", "cintura 12"),
+        "min_extra": 2,
+        "canonical": "frontera de expresividad",
+        # \label de la sección canónica: una sección que solo la mencione + \ref a
+        # este label es una REMISIÓN, no un desarrollo, y no debe contarse.
+        "canonical_label": "subsec:frontera_expresividad",
+        "desc": "el mecanismo cintura vs coordinación (por qué la topología ordena la jerarquía)",
+    },
+}
+
+
+def _check_interpretation_placement(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§12/§13) Colocación de la interpretación causal.
+
+    Dos señales, ambas deterministas y conservadoras (solo disparan ante el
+    desarrollo del argumento, no ante una mención con \\ref):
+
+    §13 — repetición sin ubicación canónica: para cada concepto de
+    ``_INTERPRETATION_CONCEPTS``, cuenta en cuántas SECCIONES distintas aparece su
+    desarrollo causal (firma de términos co-ocurrentes). Si aparece desarrollado en
+    más de una sección y alguna no es la canónica declarada, lo marca: debe quedar
+    en una sola ubicación y las demás remitir con \\ref.
+
+    §12 — interpretación en Resultados: marca los párrafos del capítulo de
+    Resultados que contienen un marcador causal fuerte (``_CAUSAL_MARKERS``) y NO
+    remiten con \\ref a otra sección (una interpretación anclada por \\ref es una
+    remisión legítima; una desarrollada in situ es interpretación mal ubicada).
+
+    Es extensible: añadir un concepto a ``_INTERPRETATION_CONCEPTS`` cubre casos
+    futuros sin cambiar esta función. Señal, no fix (requiere criterio humano).
+    """
+    body = re.split(r"\\begin\{thebibliography\}", text)[0]
+
+    # ── §13: desarrollo del mismo concepto en varias secciones ────────────────
+    # Un DESARROLLO es un PÁRRAFO que concentra la firma + densidad de términos del
+    # mecanismo (no términos dispersos por una sección larga: eso son menciones de
+    # paso legítimas). Se localiza la sección de cada párrafo-desarrollo para
+    # reportar dónde vive. Un párrafo que además remite a la canónica con
+    # \ref{canonical_label} es una remisión, no un desarrollo, y se excluye.
+    sec_parts = re.split(r"\\(?:sub)?section\{([^}]+)\}", body)
+    # Mapa acumulado (offset -> título de sección vigente) para ubicar cada párrafo.
+    section_spans: list[tuple[int, str]] = []
+    pos = len(sec_parts[0])
+    for k in range(1, len(sec_parts) - 1, 2):
+        title = sec_parts[k].strip()
+        section_spans.append((pos, title))
+        pos += len(sec_parts[k]) + len(sec_parts[k + 1]) + len("\\section{}")
+
+    def _section_of(offset: int) -> str:
+        cur = ""
+        for start, title in section_spans:
+            if start <= offset:
+                cur = title
+            else:
+                break
+        return cur
+
+    for cid, spec in _INTERPRETATION_CONCEPTS.items():
+        sig = spec["signature"]
+        extra = spec.get("extra_any", ())
+        min_extra = spec.get("min_extra", 1)
+        canon_label = spec.get("canonical_label", "")
+        canonical = spec["canonical"].lower()
+        developed_in: list[str] = []
+        off = 0
+        for para in re.split(r"\n\s*\n", body):
+            low = para.lower()
+            has_sig = all(term.lower() in low for term in sig)
+            n_extra = sum(1 for term in extra if term.lower() in low)
+            # Desarrollo = firma + densidad EN EL MISMO PÁRRAFO, y no es una remisión
+            # (un párrafo con \ref a la canónica que solo enuncia el hecho no cuenta).
+            is_remission = canon_label and f"\\ref{{{canon_label}}}" in para and n_extra < min_extra + 1
+            if has_sig and n_extra >= min_extra and not is_remission:
+                developed_in.append(_section_of(off))
+            off += len(para) + 2
+        developed_in = [t for t in dict.fromkeys(developed_in) if t]  # únicos, no vacíos
+        non_canon = [t for t in developed_in if canonical not in t.lower()]
+        if len(developed_in) >= 2 and non_canon:
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-COHERENCIA {spec['desc']} se desarrolla en "
+                f"{len(developed_in)} secciones ({'; '.join(developed_in[:4])}); debería vivir "
+                f"solo en la sección canónica ('{spec['canonical']}') y las demás remitir con "
+                f"\\ref{{{canon_label}}} (steering §13). Chequeo 'interpretacion-repetida' [{cid}]."
+            )
+
+    # ── §12: marcador causal fuerte dentro de Resultados sin \ref ─────────────
+    chapters = _split_chapters(text)
+    res_body = next((b for t, b in chapters.items() if "resultado" in t.lower()), "")
+    if not res_body:
+        return
+    res_offset = text.find(res_body)
+    # Recorrer párrafos (bloques separados por línea en blanco) del capítulo.
+    para_start = 0
+    for para in re.split(r"\n\s*\n", res_body):
+        # Marcador causal fuerte y SIN \ref: una interpretación anclada por \ref a
+        # otra sección es una remisión legítima; una desarrollada in situ, no.
+        m_causal = _CAUSAL_MARKERS.search(para)
+        if m_causal and "\\ref{" not in para:
+            ln = text[: res_offset + para_start].count("\n") + 1
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-COHERENCIA interpretación causal ('{m_causal.group(0)}') "
+                f"desarrollada en el capítulo de Resultados (~L{ln}) sin remitir con "
+                "\\ref: la interpretación va a Discusión; en Resultados, enunciar el "
+                "hecho y remitir (steering §12). Chequeo 'interpretacion-en-resultados'."
+            )
+        para_start += len(para) + 2  # +2 por el separador \n\n aproximado
+
+
+# ── (nuevo 1) §16 err.15: criterio ΔE/g<5% declarado sin su excepción ─────────
+
+
+def _check_criterion_absolute(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§16 err.15) El criterio ΔE/gap < 5% no debe enunciarse como universalmente
+    cumplido en el régimen válido: existe la excepción documentada de la frontera
+    móvil (a N=40, p=1, algunos puntos cerca de h_min(N) no pasan). Marca las frases
+    que afirman el criterio en TODO el régimen sin un matiz de excepción cercano
+    ('mayoría', 'salvo', 'excepto', 'los pocos', 'no aprueban'). Solo aplica a los
+    capítulos donde se AFIRMA cumplimiento (Resultados, Conclusiones); en Resumen,
+    Objetivos y Desarrollo, enunciar el criterio como meta o definición es legítimo."""
+    chapters = _split_chapters(text)
+    body = "\n\n".join(b for t, b in chapters.items() if "resultado" in t.lower() or "conclus" in t.lower())
+    if not body:
+        return
+    body = _strip_comments_local(body)
+    # Frase que liga el criterio al régimen válido de forma absoluta.
+    pat = re.compile(
+        r"\\Delta E\s*/?\s*(?:\\text\{gap\}|\\mathrm\{gap\}|gap)\s*<\s*5\s*\\?%"
+        r"[^.]{0,80}?(?:r[eé]gimen\s+(?:operativo\s+)?v[aá]lido|en\s+todos\s+los\s+puntos)",
+        re.IGNORECASE,
+    )
+    softeners = re.compile(
+        r"mayor[ií]a|salvo|excepto|los pocos|no aprueban|excepci[oó]n|"
+        r"cerca de la frontera|por debajo de|casi todos|la fracci[oó]n",
+        re.IGNORECASE,
+    )
+    for m in pat.finditer(body):
+        # Ventana: la frase y ~150 chars a cada lado (para captar el matiz contiguo).
+        lo = max(0, m.start() - 60)
+        hi = min(len(body), m.end() + 160)
+        window = body[lo:hi]
+        if not softeners.search(window):
+            ctx = re.sub(r"\s+", " ", body[max(0, m.start() - 20) : m.end() + 20]).strip()
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-COHERENCIA en Resultados/Conclusiones el criterio "
+                f"'ΔE/gap < 5% en el régimen válido' se afirma sin su excepción documentada "
+                f"(frontera móvil: a N=40, p=1, puntos cerca de h_min no pasan): '...{ctx}...'. "
+                "Añadir 'en la mayoría de los puntos' o el matiz (steering §16, error 15). "
+                "Chequeo 'criterio-sin-excepcion'."
+            )
+
+
+# ── (nuevo 2) §7: figura definida y nunca referenciada con \ref ───────────────
+
+
+def _check_orphan_figures(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§7) Toda figura con \\label{fig:...} debe citarse al menos una vez con
+    \\ref/\\autoref. Una figura huérfana (definida pero no mencionada) es un
+    descuido editorial que un tribunal nota. Complementa el chequeo de tablas
+    huérfanas ya existente."""
+    body = _strip_comments_local(text)
+    # Cubre figuras (fig:) y tablas (tab:): un flotante con \label nunca referenciado
+    # con \ref es un descuido editorial (§7). El nombre del chequeo se ajusta al tipo.
+    for prefix, kind, chk in (("fig", "figura", "figura-huerfana"), ("tab", "tabla", "tabla-huerfana")):
+        labels: dict[str, int] = {}
+        for m in re.finditer(rf"\\label\{{({prefix}:[^}}]+)\}}", body):
+            labels.setdefault(m.group(1), body.count("\n", 0, m.start()) + 1)
+        refs = set(re.findall(rf"\\(?:auto)?ref\{{({prefix}:[^}}]+)\}}", body))
+        for lab, ln in sorted(labels.items(), key=lambda kv: kv[1]):
+            if lab not in refs:
+                collector.add_inconsistency(
+                    f"[{rel}:{ln}] %TODO-COHERENCIA {kind} \\label{{{lab}}} definida pero nunca "
+                    f"referenciada con \\ref: todo flotante debe citarse en el texto (steering §7). "
+                    f"Chequeo '{chk}'."
+                )
+
+
+# ── (fig-fichero) archivo de figura en disco no usado / \input a fichero ausente ─
+#    Cazan los residuos que quedan al borrar una figura del .tex sin limpiar el
+#    disco (fig_*.tex huérfano) o al borrar el fichero dejando el \input colgante.
+
+
+def _fig_inputs_in_text(text: str) -> set[str]:
+    """Stems de figura incluidos en el .tex (sin comentarios). Reconoce las tres
+    formas de inclusión: ``\\input{tesis-figures/fig_X}`` (directa),
+    ``\\figinput{<ancho>}{fig_X}`` (macro conmutable local/rápido) y
+    ``\\includegraphics{tesis-figures/fig_X.pdf}`` (modo rápido de Overleaf)."""
+    body = _strip_comments_local(text)
+    used: set[str] = set()
+    used |= set(re.findall(r"\\input\{tesis-figures/(fig_[^}]+?)(?:\.tex)?\}", body))
+    used |= set(re.findall(r"\\figinput\{[^}]*\}\{(fig_[^}]+?)(?:\.tex)?\}", body))
+    used |= set(re.findall(r"\\includegraphics(?:\[[^\]]*\])?\{tesis-figures/(fig_[^}]+?)(?:\.pdf)?\}", body))
+    return used
+
+
+def _check_orphan_figure_files(text: str, rel: str, collector: TodoCollector, tex_dir: Path) -> None:
+    """Un fichero ``tesis-figures/fig_*.tex`` que existe en disco pero NINGÚN
+    ``\\input`` del .tex lo incluye. Es el residuo típico de borrar una figura del
+    documento sin quitar su fichero (queda además en el ZIP de Overleaf). Excluye
+    envoltorios de compilación ``_build_*`` y la paleta. Señal, no fix: reinsertar
+    la figura o borrar el fichero + su entrada en el Makefile."""
+    figs_dir = tex_dir / "tesis-figures"
+    if not figs_dir.is_dir():
+        return
+    used = _fig_inputs_in_text(text)
+    for path in sorted(figs_dir.glob("fig_*.tex")):
+        stem = path.stem
+        if stem.startswith("_build_") or stem not in used:
+            if stem.startswith("_build_"):
+                continue
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-COHERENCIA figura en disco '{path.name}' no se incluye con "
+                "ningún \\input del .tex (huérfana): reinsertarla o borrar el fichero y su "
+                "entrada en el Makefile (ZIP_FILES). Chequeo 'figura-archivo-huerfano'."
+            )
+
+
+def _check_missing_figure_files(text: str, rel: str, collector: TodoCollector, tex_dir: Path) -> None:
+    """Un ``\\input{tesis-figures/fig_X}`` del .tex cuyo fichero NO existe en disco
+    (el borrado inverso: se elimina el fichero y queda el \\input colgante, que hace
+    fallar la compilación). Señal dura: crear el fichero o quitar el \\input."""
+    figs_dir = tex_dir / "tesis-figures"
+    body = _strip_comments_local(text)
+    for m in re.finditer(r"\\input\{tesis-figures/(fig_[^}]+?)(?:\.tex)?\}", body):
+        stem = m.group(1)
+        if not (figs_dir / f"{stem}.tex").is_file():
+            ln = body.count("\n", 0, m.start()) + 1
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] %TODO-COHERENCIA \\input{{tesis-figures/{stem}}} apunta a un "
+                "fichero que no existe en disco: crear la figura o quitar el \\input "
+                "(compilación fallaría). Chequeo 'figura-input-inexistente'."
+            )
+
+
+# ── (entrega 1) comentarios % TODO-* sin resolver que llegan a la entrega ─────
+
+
+def _check_pending_todos(text: str, rel: str, collector: TodoCollector) -> None:
+    """Comentarios ``% TODO-...`` sin resolver en el .tex. Son huecos deliberados
+    (marcar, no inventar; steering §15), pero antes de ENTREGAR deben verse y
+    cerrarse. Aviso de entrega (INFO), no error de coherencia. Lista cada TODO con
+    su línea y su categoría (DATOS/PLANTILLA/TONO/REPRO...) para revisarlos."""
+    for i, line in enumerate(text.split("\n"), start=1):
+        m = re.search(r"%\s*(TODO-[A-ZÁÉÍÓÚ]+)\b(.*)$", line)
+        if m:
+            cat = m.group(1)
+            detail = re.sub(r"\s+", " ", m.group(2)).strip()[:80]
+            collector.add_inconsistency(
+                f"[{rel}:{i}] INFO entrega: {cat} sin resolver — '{detail}'. Cerrar o "
+                "confirmar antes de entregar (steering §15). Chequeo 'todo-pendiente'."
+            )
+
+
+# ── (entrega 2) marcadores de relleno que no deben llegar a la versión final ──
+
+# Marcadores inequívocos de texto sin completar. Se buscan como palabra/token, no
+# como subcadena, para no marcar usos legítimos.
+_PLACEHOLDER_PATTERNS = (
+    (r"\bXXX+\b", "XXX"),
+    (r"\bTBD\b", "TBD"),
+    (r"\\todo\{", "\\todo{}"),
+    (r"\[\s*completar\s*\]", "[completar]"),
+    (r"\[\s*pendiente\s*\]", "[pendiente]"),
+    (r"lorem ipsum", "lorem ipsum"),
+    (r"\?\?\?\?+", "????"),
+    (r"\bFIXME\b", "FIXME"),
+    (r"\\TODO\b", "\\TODO"),
+    (r"\\hl\{", "\\hl{} (resaltado de revisión)"),
+    (r"\\textcolor\{red\}", "\\textcolor{red} (marca de revisión)"),
+    (r"\{\\color\{red\}", "{\\color{red} (marca de revisión)"),
+)
+
+
+def _check_placeholders(text: str, rel: str, collector: TodoCollector) -> None:
+    """Marcadores de relleno (XXX, TBD, \\todo{}, [completar], lorem ipsum, ????,
+    FIXME) que delatan texto sin terminar. Ignora comentarios LaTeX (un TODO en un
+    comentario ya lo cubre 'todo-pendiente'). Señal dura para la entrega."""
+    body = _strip_comments_local(text)
+    for pat, name in _PLACEHOLDER_PATTERNS:
+        for m in re.finditer(pat, body, re.IGNORECASE):
+            ln = body.count("\n", 0, m.start()) + 1
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] %TODO-EDITORIAL marcador de relleno '{name}' en el cuerpo: "
+                "texto sin completar que no debe llegar a la entrega. "
+                "Chequeo 'placeholder-sin-rellenar'."
+            )
+
+
+# ── (entrega 3) balance de entornos \begin{X} ... \end{X} (rompe compilación) ─
+
+
+def _check_unbalanced_environments(text: str, rel: str, collector: TodoCollector) -> None:
+    """Todo ``\\begin{X}`` debe tener su ``\\end{X}``. Un desbalance rompe la
+    compilación en Overleaf y es un error catastrófico de última hora. Cuenta por
+    nombre de entorno (ignorando comentarios) y marca los que no cierran. General:
+    no depende de una lista fija de entornos."""
+    body = _strip_comments_local(text)
+    begins: dict[str, int] = {}
+    ends: dict[str, int] = {}
+    for env in re.findall(r"\\begin\{([^}]+)\}", body):
+        begins[env] = begins.get(env, 0) + 1
+    for env in re.findall(r"\\end\{([^}]+)\}", body):
+        ends[env] = ends.get(env, 0) + 1
+    for env in sorted(set(begins) | set(ends)):
+        nb, ne = begins.get(env, 0), ends.get(env, 0)
+        if nb != ne:
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-COHERENCIA entorno '{env}' desbalanceado: {nb} \\begin vs "
+                f"{ne} \\end. Un entorno sin cerrar rompe la compilación (steering §15). "
+                "Chequeo 'entorno-desbalanceado'."
+            )
+    # document debe aparecer exactamente una vez (0 rompe, >1 es error estructural).
+    if begins.get("document", 0) != 1:
+        collector.add_inconsistency(
+            f"[{rel}] %TODO-COHERENCIA \\begin{{document}} aparece {begins.get('document', 0)} "
+            "veces (debe ser exactamente 1). Chequeo 'entorno-desbalanceado'."
+        )
+    # '$$' (display math de TeX plano) es propenso a errores de espaciado; usar
+    # \[ ... \] o un entorno. Un número impar de '$$' además desbalancea.
+    n_dd = len(re.findall(r"(?<!\\)\$\$", body))
+    if n_dd:
+        collector.add_inconsistency(
+            f"[{rel}] %TODO-EDITORIAL {n_dd} uso(s) de '$$' (display math de TeX plano): usar "
+            "\\[ ... \\] o un entorno (equation/align). Chequeo 'entorno-desbalanceado'."
+        )
+
+
+# ── (entrega 4) marcadores de borrador que no deben aparecer en la versión final ─
+
+# Palabras que indican estado de borrador. 'pendiente' se maneja aparte con
+# exclusión de contexto (trabajo futuro/línea abierta es uso legítimo).
+_DRAFT_MARKERS = re.compile(
+    r"\bpreliminar(?:es)?\b|\bborrador\b|\bprovisional(?:es)?\b|\bPENDIENTE\b|"
+    r"\bWIP\b|\bplaceholder\b|\bpor\s+completar\b|\bpor\s+hacer\b",
+    re.IGNORECASE,
+)
+# Contexto donde 'pendiente' (minúscula) es contenido legítimo (trabajo futuro).
+_PENDING_OK = re.compile(
+    r"queda\s+pendiente|trabajo\s+futuro|l[ií]nea\s+(?:abierta|de\s+trabajo)|"
+    r"lo\s+que\s+queda|extensi[oó]n\s+natural",
+    re.IGNORECASE,
+)
+
+
+def _check_draft_markers(text: str, rel: str, collector: TodoCollector) -> None:
+    """Marcadores de borrador (preliminar, borrador, provisional, PENDIENTE, WIP,
+    'por completar/hacer') en el cuerpo: la tesis contiene solo resultados
+    definitivos (steering §16, error 4). No usa 'preliminar' para nada. Excluye
+    'PENDIENTE' cuando el contexto es trabajo futuro legítimo. Señal de entrega."""
+    body = _strip_comments_local(text)
+    body = re.split(r"\\begin\{thebibliography\}", body)[0]
+    for m in _DRAFT_MARKERS.finditer(body):
+        lo = max(0, m.start() - 60)
+        hi = min(len(body), m.end() + 60)
+        if _PENDING_OK.search(body[lo:hi]):
+            continue
+        ln = body.count("\n", 0, m.start()) + 1
+        collector.add_inconsistency(
+            f"[{rel}:{ln}] %TODO-EDITORIAL marcador de borrador '{m.group(0).strip()}': la "
+            "memoria contiene solo resultados definitivos, no marcarla como borrador "
+            "(steering §16, error 4). Chequeo 'marcador-borrador'."
+        )
+
+
+# ── (entrega 5) tabla \input a fichero ausente / tabla en disco no usada ──────
+
+
+def _check_missing_table_files(text: str, rel: str, collector: TodoCollector, tex_dir: Path) -> None:
+    """Un ``\\input{tables/X}`` cuyo fichero NO existe en disco: rompería la
+    compilación. Análogo a 'figura-input-inexistente' pero para tablas."""
+    tables_dir = tex_dir / "tables"
+    body = _strip_comments_local(text)
+    for m in re.finditer(r"\\input\{tables/([^}]+?)(?:\.tex)?\}", body):
+        stem = m.group(1)
+        if not (tables_dir / f"{stem}.tex").is_file():
+            ln = body.count("\n", 0, m.start()) + 1
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] %TODO-COHERENCIA \\input{{tables/{stem}}} apunta a un fichero "
+                "que no existe en disco: regenerar la tabla (make tables) o quitar el \\input "
+                "(compilación fallaría). Chequeo 'tabla-input-inexistente'."
+            )
+
+
+def _check_orphan_table_files(text: str, rel: str, collector: TodoCollector, tex_dir: Path) -> None:
+    """Un fichero ``tables/*.tex`` en disco que NINGÚN ``\\input`` del .tex incluye.
+    Residuo de una tabla borrada del documento. Solo señala ficheros embebidos que
+    no se regeneran solos; las tablas auto_* que se citan quedan cubiertas. Señal."""
+    tables_dir = tex_dir / "tables"
+    if not tables_dir.is_dir():
+        return
+    used = set(re.findall(r"\\input\{tables/([^}]+?)(?:\.tex)?\}", _strip_comments_local(text)))
+    for path in sorted(tables_dir.glob("*.tex")):
+        if path.stem not in used:
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-COHERENCIA tabla en disco '{path.name}' no se incluye con "
+                "ningún \\input del .tex (huérfana): reinsertarla o borrar el fichero. "
+                "Chequeo 'tabla-archivo-huerfano'."
+            )
+
+
+# ── (entrega 6) referencia/cita con argumento vacío ──────────────────────────
+
+
+def _check_empty_references(text: str, rel: str, collector: TodoCollector) -> None:
+    """``\\ref{}``, ``\\eqref{}``, ``\\autoref{}``, ``\\cite{}`` con argumento vacío:
+    residuo de un enlace a medio escribir; produce '??' o falla en el PDF final."""
+    body = _strip_comments_local(text)
+    for m in re.finditer(r"\\(ref|eqref|autoref|cite[pt]?)\{\s*\}", body):
+        ln = body.count("\n", 0, m.start()) + 1
+        collector.add_inconsistency(
+            f"[{rel}:{ln}] %TODO-COHERENCIA \\{m.group(1)}{{}} con argumento vacío: enlace sin "
+            "destino (producirá '??' o fallo en el PDF). Chequeo 'ref-vacia'."
+        )
+
+
+# ── (entrega 7) palabra duplicada consecutiva ('de de', 'la la') ──────────────
+
+# Palabras que pueden repetirse legítimamente en español (raras, pero posibles).
+_DUP_WORD_OK = frozenset({"que", "no", "si", "sí"})
+
+
+def _check_duplicate_words(text: str, rel: str, collector: TodoCollector) -> None:
+    """Palabra repetida consecutivamente ('el error error', 'de de'): errata típica
+    de edición. Solo palabras alfabéticas de >=3 letras con la misma capitalización;
+    ignora tablas (celdas con &), matemáticas y comentarios. Conservador."""
+    body = re.split(r"\\begin\{thebibliography\}", _strip_comments_local(text))[0]
+    for m in re.finditer(r"\b([A-Za-zÁÉÍÓÚáéíóúñ]{3,})\s+\1\b", body):
+        word = m.group(1)
+        if word.lower() in _DUP_WORD_OK:
+            continue
+        # Ignorar si la ocurrencia está dentro de una fila de tabla (contiene &) o
+        # en modo matemático (entre $...$) en la misma línea.
+        line_start = body.rfind("\n", 0, m.start()) + 1
+        line_end = body.find("\n", m.end())
+        line = body[line_start : line_end if line_end != -1 else len(body)]
+        if "&" in line or line.count("$") >= 2:
+            continue
+        ln = body.count("\n", 0, m.start()) + 1
+        collector.add_inconsistency(
+            f"[{rel}:{ln}] %TODO-EDITORIAL palabra duplicada '{word} {word}': errata de "
+            "edición, eliminar la repetición. Chequeo 'palabra-duplicada'."
+        )
+
+
+# ── (entrega 8) figure/table sin \label o sin \caption ────────────────────────
+
+
+def _check_float_label_caption(text: str, rel: str, collector: TodoCollector) -> None:
+    """Todo entorno ``figure``/``table`` debe tener ``\\caption`` (para el índice de
+    figuras/tablas) y ``\\label`` (para poder referenciarlo). Un flotante sin caption
+    o sin label es un descuido editorial. Cuenta por bloque \\begin..\\end."""
+    body = _strip_comments_local(text)
+    for env in ("figure", "table"):
+        for m in re.finditer(rf"\\begin\{{{env}\*?\}}(.*?)\\end\{{{env}\*?\}}", body, re.DOTALL):
+            block = m.group(1)
+            ln = body.count("\n", 0, m.start()) + 1
+            if "\\caption" not in block:
+                collector.add_inconsistency(
+                    f"[{rel}:{ln}] %TODO-COHERENCIA entorno '{env}' (L{ln}) sin \\caption: todo "
+                    "flotante lleva pie para el índice de figuras/tablas. "
+                    "Chequeo 'figura-tabla-sin-caption'."
+                )
+            if "\\label" not in block:
+                collector.add_inconsistency(
+                    f"[{rel}:{ln}] %TODO-COHERENCIA entorno '{env}' (L{ln}) sin \\label: no se "
+                    "podrá referenciar con \\ref. Chequeo 'figura-tabla-sin-label'."
+                )
+
+
+# ── (entrega 9) línea con nº impar de '$' (modo matemático sin cerrar) ────────
+
+
+def _check_odd_inline_math(text: str, rel: str, collector: TodoCollector) -> None:
+    """Una línea con un número IMPAR de ``$`` sin abrir en la anterior suele ser un
+    ``$`` inline sin cerrar (error catastrófico de compilación). Conservador: lleva
+    la cuenta de paridad acumulada línea a línea (un ``$...$`` que abarca dos líneas
+    es válido y no se marca); ignora comentarios y ``\\$`` escapado. Marca la línea
+    donde la paridad queda abierta al terminar un párrafo (línea en blanco)."""
+    open_math = False
+    open_line = 0
+    lines = text.split("\n")
+    for i, raw in enumerate(lines, start=1):
+        m_pct = re.search(r"(?<!\\)%", raw)
+        line = raw[: m_pct.start()] if m_pct else raw
+        n = len(re.findall(r"(?<!\\)\$", line))
+        if n % 2 == 1:
+            if not open_math:
+                open_math, open_line = True, i
+            else:
+                open_math = False  # se cerró el math multilínea
+        # Un párrafo termina en línea en blanco: si el math sigue abierto, es error.
+        if line.strip() == "" and open_math:
+            collector.add_inconsistency(
+                f"[{rel}:{open_line}] %TODO-COHERENCIA '$' de modo matemático sin cerrar "
+                f"iniciado en L{open_line} (párrafo termina en L{i} con el math abierto): "
+                "cerraría mal la compilación. Chequeo 'dolar-impar-en-linea'."
+            )
+            open_math = False
+
+
+def _check_commented_ref_to_missing_label(text: str, rel: str, collector: TodoCollector) -> None:
+    """Un ``\\ref{fig:...}`` que aparece SOLO dentro de líneas comentadas (%) y cuyo
+    label no existe en el documento: residuo comentado de una figura borrada. INFO
+    (no rompe la compilación), pero señala limpieza pendiente."""
+    labels = set(re.findall(r"\\label\{(fig:[^}]+)\}", _strip_comments_local(text)))
+    for i, line in enumerate(text.split("\n"), start=1):
+        m_pct = re.search(r"(?<!\\)%", line)
+        if not m_pct:
+            continue
+        commented = line[m_pct.start() :]
+        for m in re.finditer(r"\\(?:auto)?ref\{(fig:[^}]+)\}", commented):
+            if m.group(1) not in labels:
+                collector.add_inconsistency(
+                    f"[{rel}:{i}] INFO: \\ref{{{m.group(1)}}} en una línea comentada apunta a "
+                    "un label de figura inexistente (residuo de una figura borrada): eliminar "
+                    "el comentario. Chequeo 'ref-figura-comentada-a-inexistente'."
+                )
+
+
+# ── (nuevo 3) §3: anglicismo técnico sin cursiva/glosa en su primer uso ───────
+
+# Términos ingleses que, la primera vez que aparecen, deben ir en \emph{} (§3).
+_ANGLICISMS_FIRST_EMPH = (
+    "warm-start",
+    "pipeline",
+    "bond-resolved",
+    "quench",
+    "barren plateau",
+)
+
+
+def _check_anglicism_first_emph(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§3) Un término inglés que se conserva debe definirse la PRIMERA vez en
+    cursiva (\\emph{}). Busca la primera aparición de cada anglicismo en el cuerpo
+    (tras \\mainmatter, fuera de bibliografía) y verifica que esté dentro de un
+    \\emph{...}. Conservador: solo la primera ocurrencia; ignora comentarios."""
+    body = _strip_comments_local(text)
+    m_main = re.search(r"\\mainmatter", body)
+    corpus = body[m_main.end() :] if m_main else body
+    corpus = re.split(r"\\begin\{thebibliography\}", corpus)[0]
+    base_off = m_main.end() if m_main else 0
+    for term in _ANGLICISMS_FIRST_EMPH:
+        m = re.search(re.escape(term), corpus, re.IGNORECASE)
+        if not m:
+            continue
+        # ¿La primera aparición está dentro de un \emph{...}? Ventana de 12 chars antes.
+        pre = corpus[max(0, m.start() - 12) : m.start()]
+        in_emph = "\\emph{" in pre or "\\textit{" in pre
+        if not in_emph:
+            ln = body.count("\n", 0, base_off + m.start()) + 1
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] %TODO-EDITORIAL anglicismo '{term}' en su primer uso sin "
+                "cursiva: los términos ingleses conservados se definen la primera vez en "
+                "\\emph{} con su glosa (steering §3). Chequeo 'anglicismo-sin-cursiva'."
+            )
+
+
+# ── (nuevo 6) §11: sigla que recibe su expansión más de una vez (redefinida) ──
+
+
+def _check_acronym_redefinition(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§11) Cada sigla se define UNA sola vez. Detecta siglas que reciben su
+    expansión ('SIGLA, por Nombre' o 'Nombre (SIGLA)') en dos o más lugares del
+    cuerpo: una redefinición es ruido editorial y a veces trae grafías distintas
+    (p. ej. 'Graph Neural Network' vs '...Networks'). General: cubre cualquier sigla
+    del glosario ACRONYMS/ACRONYMS_EXTRA sin lista aparte. Ignora bibliografía e
+    índice de acrónimos (donde la expansión es legítima por diseño). Señal, no fix."""
+    body = _strip_comments_local(text)
+    # El cuerpo narrativo empieza en el capítulo de Introducción. Resumen y Abstract
+    # son autocontenidos por convención (re-introducen sus siglas), así que NO cuentan
+    # como redefinición. También se descarta el bloque 'Índice de acrónimos', cuyas
+    # expansiones son definiciones de glosario por diseño.
+    m_intro = re.search(r"\\chapter\{Introducci[oó]n\}", body)
+    base_off = m_intro.start() if m_intro else 0
+    corpus = body[base_off:]
+    corpus = re.split(r"\\begin\{thebibliography\}", corpus)[0]
+    idx = corpus.find("Índice de acrónimos")
+    if idx >= 0:
+        end_idx = corpus.find("\\end{description}", idx)
+        if end_idx >= 0:
+            corpus = corpus[:idx] + corpus[end_idx:]
+
+    # Excluir títulos de sección: poner la sigla en un encabezado ("\subsection{Ansatz
+    # ... (HVA)}") es legítimo y no cuenta como redefinición en prosa.
+    corpus = re.sub(r"\\(?:sub)*section\{[^}]*\}", " ", corpus)
+
+    def _matches_initials(name_str: str, acr: str) -> bool:
+        """True si las iniciales de las palabras significativas de name_str forman
+        la sigla acr (p. ej. 'Message-Passing Neural Network' -> MPNN). Ignora
+        preposiciones/artículos ES ('de','en','la',...). Así 'Fase 2 (VQE)' NO
+        cuenta como definición de VQE, pero 'Variational Quantum Eigensolver' sí."""
+        stop = {"de", "del", "la", "el", "en", "y", "por", "con", "los", "las"}
+        words = re.findall(r"[A-Za-zÁÉÍÓÚáéíóúñ]+", name_str)
+        initials = "".join(w[0] for w in words if w.lower() not in stop).upper()
+        # La sigla debe ser subsecuencia/coincidencia de las iniciales (tolera
+        # plurales o palabras unidas por guion que aportan >1 inicial).
+        return acr.upper() in initials or initials.startswith(acr.upper())
+
+    all_acronyms = set(ACRONYMS) | set(ACRONYMS_EXTRA)
+    name = r"[A-ZÁÉÍÓÚ][\wáéíóúñ-]+(?:\s+[\wáéíóúñ-]+){1,5}"
+    for sig in sorted(all_acronyms):
+        # Tres formas de DEFINICIÓN inequívocas, validando que el nombre expandido
+        # corresponda a las iniciales de la sigla (descarta 'Fase 2 (VQE)'):
+        #   (a) "SIGLA, por Nombre"    (b) "SIGLA (Nombre)"    (c) "Nombre (SIGLA)"
+        esc = re.escape(sig)
+        defs: list[re.Match] = []
+        for m in re.finditer(rf"\b{esc}\s*,\s*por\s+({name})", corpus):
+            if _matches_initials(m.group(1), sig):
+                defs.append(m)
+        for m in re.finditer(rf"\b{esc}\s*\(\s*({name})\s*\)", corpus):
+            if _matches_initials(m.group(1), sig):
+                defs.append(m)
+        for m in re.finditer(rf"({name})\s*\(\s*{esc}\s*\)", corpus):
+            if _matches_initials(m.group(1), sig):
+                defs.append(m)
+        if len(defs) > 1:
+            lines = sorted(body.count("\n", 0, base_off + m.start()) + 1 for m in defs)
+            collector.add_inconsistency(
+                f"[{rel}] %TODO-EDITORIAL la sigla '{sig}' recibe su expansión completa "
+                f"en {len(defs)} lugares del cuerpo (líneas ~{lines[:4]}): definir una sola "
+                "vez (primer uso) y usar la sigla a secas después; verificar además que la "
+                "grafía de la expansión sea idéntica (steering §11). Chequeo 'sigla-redefinida'."
+            )
+
+
+# ── (nuevo 4) §12/§14: cifra nueva primero en Discusión/Conclusiones ──────────
+
+
+def _check_new_data_in_discussion(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§12/§14) Un dato numérico primario (tasa 'X% (n/m)' o k̄=... por-N) cuyo
+    PRIMER lugar de aparición es Discusión o Conclusiones, sin \\ref a una tabla de
+    Resultados en la misma frase, sugiere un resultado colocado fuera de Resultados.
+    Conservador: solo patrones de dato primario claros; ignora si la frase remite
+    con \\ref o \\citep (cita a literatura)."""
+    chapters = _split_chapters(text)
+    res_body = next((b for t, b in chapters.items() if "resultado" in t.lower()), "")
+    disc_concl = " ".join(b for t, b in chapters.items() if "discusi" in t.lower() or "conclus" in t.lower())
+    if not res_body or not disc_concl:
+        return
+    # Patrón de dato primario: "NN% (n/m)" o "\bar{k} = a, b, c" (lista por-N).
+    prim = re.compile(
+        r"\\bar\{k\}\s*=\s*\d+\s*,\s*\d+\s*,\s*\d+|"  # k̄ = 85, 37, 67...
+        r"\b\d{1,3}\s*,\s*\d\s*%\s*\(\d+\s*/\s*\d+\)",  # 8,4% (5/39) forma española
+    )
+    for m in prim.finditer(disc_concl):
+        frag = m.group(0)
+        # ¿El mismo dato aparece en Resultados? Si sí, es una remisión legítima.
+        key = re.sub(r"\s+", "", frag)[:12]
+        if key and re.sub(r"\s+", "", res_body).find(key) != -1:
+            continue
+        # ¿La frase que lo contiene remite con \ref o cita? (buscar ±120 chars)
+        i = disc_concl.find(frag)
+        window = disc_concl[max(0, i - 120) : i + 120]
+        if "\\ref{" in window or "\\citep" in window or "\\citet" in window:
+            continue
+        collector.add_inconsistency(
+            f"[{rel}] %TODO-COHERENCIA dato primario '{frag.strip()}' aparece en "
+            "Discusión/Conclusiones sin estar antes en Resultados ni remitir con \\ref: "
+            "el dato va en Resultados; en Discusión, interpretarlo y remitir (steering §12/§14). "
+            "Chequeo 'dato-primario-fuera-de-resultados'."
+        )
+
+
+# ── (nuevo 5) §16 err.2: afirmación fuerte con cifra sin ancla (cita/\ref) ────
+
+
+def _check_strong_claim_unanchored(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§16 err.2) Toda afirmación fuerte va anclada (cita o \\ref). Marca frases del
+    cuerpo con un verbo de resultado + una cifra de porcentaje/factor que NO tengan
+    \\cite/\\ref/\\citep en la misma frase ni una \\ref a tabla/ecuación cercana.
+    Muy conservador: exige verbo de resultado + cifra + ausencia total de ancla en
+    la frase, para no marcar prosa expositiva."""
+    body = _strip_comments_local(text)
+    # Recortar preámbulo y bibliografía.
+    m_main = re.search(r"\\mainmatter", body)
+    corpus = body[m_main.end() :] if m_main else body
+    corpus = re.split(r"\\begin\{thebibliography\}", corpus)[0]
+    base_off = m_main.end() if m_main else 0
+    claim = re.compile(
+        r"(?:se reduce|reduce|alcanza|supera|mejora|acelera|crece hasta|"
+        r"logra|obtiene)\s+[^.]{0,40}?"
+        r"(?:\d{1,4}\s*\\?times|\d{1,3}\s*,\s*\d\s*\\?%|\d{2,4}\s*\\?%)",
+        re.IGNORECASE,
+    )
+    anchor_re = re.compile(r"\\ref\{|\\cite[pt]?\{|\\eqref\{|Tabla~|Ec\.~|Secci[oó]n~|Ap[eé]ndice~")
+    # Declarar condiciones experimentales (semillas, backend, χ, N, p, topología) es
+    # una forma de anclaje al experimento propio: no es una afirmación "al aire".
+    conditions_re = re.compile(
+        r"semillas?|backend|\\chi|MPS|StatevectorEstimator|"
+        r"\bp\s*=\s*\d|\bN\s*=\s*\d|cadena 1D|heavy-hex|escalera|cuadrada|triangular",
+        re.IGNORECASE,
+    )
+    for m in claim.finditer(corpus):
+        # Contexto = frase actual + la anterior (los resultados anclan a menudo en la
+        # frase previa: "...Tabla X. La tasa alcanza 90%").
+        prev = corpus.rfind(".", 0, corpus.rfind(".", 0, m.start()))
+        lo = prev + 1 if prev != -1 else 0
+        hi = corpus.find(".", m.end())
+        hi = hi if hi != -1 else len(corpus)
+        context = corpus[lo:hi]
+        if anchor_re.search(context) or conditions_re.search(context):
+            continue
+        ln = body.count("\n", 0, base_off + m.start()) + 1
+        collector.add_inconsistency(
+            f"[{rel}:{ln}] %TODO-COHERENCIA afirmación fuerte ('{m.group(0).strip()[:45]}') "
+            "sin ancla (cita, \\ref ni condiciones experimentales) en su contexto: toda "
+            "afirmación cuantitativa fuerte debe anclarse a una tabla/ecuación propia, a la "
+            "literatura o a las condiciones del experimento (steering §16, error 2). "
+            "Chequeo 'afirmacion-sin-ancla'."
+        )
+
+
+# ── (nuevo 8) §16: columna ΔE/gap sin declarar unidad (%) en el pie ───────────
+
+
+def _check_ratio_column_unit(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§16, grillas de h) Toda tabla con una columna ΔE/gap debe declarar en el pie
+    que es una media de cocientes por punto en %, con la unidad explícita. Detecta
+    entornos ``table`` cuya cabecera de columnas contiene un encabezado ΔE/gap y cuyo
+    ``\\caption`` no menciona ni '%' ni 'cociente' (la media de cocientes). Sin esa
+    declaración, el lector no sabe si la columna es media de cocientes o cociente de
+    medias, ni su unidad. Señal, no fix: requiere reescribir el pie."""
+    body = _strip_comments_local(text)
+    # Encabezado ΔE/gap tal como aparece en cabeceras: '$\Delta E/\text{gap}$',
+    # '$\Delta E/g$', 'ΔE/gap' o 'DE/gap'. La barra es lo distintivo.
+    ratio_header = re.compile(
+        r"\\Delta\s*E\s*/\s*(?:\\text\{gap\}|\\mathrm\{gap\}|g\b|gap)|ΔE\s*/\s*g",
+        re.IGNORECASE,
+    )
+    for m in re.finditer(r"\\begin\{table\}(.*?)\\end\{table\}", body, re.DOTALL):
+        tbl = m.group(1)
+        # Solo tablas cuya CABECERA (antes de la primera \\ tras \toprule/\hline)
+        # declara una columna ΔE/gap; así no marcamos una mención en el pie.
+        header_zone = tbl
+        cap_m = re.search(r"\\caption", tbl)
+        if cap_m:
+            header_zone = tbl[: cap_m.start()]
+        if not ratio_header.search(header_zone):
+            continue
+        caption = ""
+        cm = re.search(r"\\caption(?:\[[^\]]*\])?\{", tbl)
+        if cm:
+            # Extraer el contenido del caption equilibrando llaves.
+            depth, i = 0, cm.end() - 1
+            for j in range(cm.end() - 1, len(tbl)):
+                if tbl[j] == "{":
+                    depth += 1
+                elif tbl[j] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        i = j
+                        break
+            caption = tbl[cm.end() : i]
+        declares_unit = "%" in caption or "\\%" in caption or "cociente" in caption.lower()
+        if not declares_unit:
+            ln = body.count("\n", 0, m.start()) + 1
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] %TODO-DATOS tabla (L{ln}) con columna ΔE/gap cuyo pie no "
+                "declara la unidad: indicar que es la media de los cocientes por punto, en "
+                "% con unidad explícita (steering §16, grillas de h). "
+                "Chequeo 'columna-ratio-sin-unidad'."
+            )
+
+
+# ── (nuevo 9) §4: misma cita con tiempos verbales distintos (presente/pretérito) ─
+
+# Verbos de atribución de resultado a un autor, en presente y pretérito. Cada par
+# {presente, pretérito} del MISMO verbo aplicado a la MISMA cita es la señal.
+# Presente (3ª persona, singular/plural) vs pretérito del MISMO verbo, como formas
+# de palabra COMPLETA (se testean con fullmatch sobre el verbo contiguo extraído).
+# El presente es solo la forma activa ('confirma'/'confirman'); los participios
+# ('confirmada') son voz pasiva y van con el pretérito, no cuentan como presente.
+_CITE_VERB_TENSE = {
+    "confirmar": (r"confirman?", r"confirm[oó]|confirmaron|confirmad[oa]s?"),
+    "validar": (r"validan?", r"valid[oó]|validaron|validad[oa]s?"),
+    "demostrar": (r"demuestran?", r"demostr[oó]|demostraron|demostrad[oa]s?"),
+    "mostrar": (r"muestran?", r"mostr[oó]|mostraron|mostrad[oa]s?"),
+    "proponer": (r"proponen?", r"propuso|propusieron|propuest[oa]s?"),
+    "reportar": (r"reportan?", r"report[oó]|reportaron|reportad[oa]s?"),
+}
+
+
+def _check_citation_verb_tense(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§4) Un mismo autor citado varias veces debe conservar el tiempo verbal
+    ('Slavin confirma' / 'Slavin confirma', no 'confirma' vs 'confirmó'). Para cada
+    clave de cita repetida (\\citet/\\citep{key}), toma el verbo de atribución
+    inmediatamente contiguo (±40 chars) y, si el MISMO verbo aparece en presente en
+    una ocurrencia y en pretérito en otra, lo marca. Determinista y conservador:
+    solo verbos de ``_CITE_VERB_TENSE`` y solo cuando conviven ambos tiempos del
+    mismo verbo para la misma cita. Señal, no fix."""
+    body = _strip_comments_local(text)
+    corpus = re.split(r"\\begin\{thebibliography\}", body)[0]
+    # Atribución INEQUÍVOCA solamente: '\citet{key} <verbo>' con el verbo pegado a la
+    # cita (voz activa, orden español directo). Se descartan la voz pasiva
+    # ('fue confirmada por \citet{key}') y las citas seguidas de otra cita, porque el
+    # verbo contiguo puede pertenecer a la cita vecina (fuente de falsos positivos con
+    # citas adyacentes en una misma frase). Solo \citet (textual): en \citep el autor
+    # va entre paréntesis y no rige un verbo contiguo.
+    occ: dict[str, list[tuple[int, str]]] = {}
+    for m in re.finditer(r"\\citet\{([^}]+)\}\s*([a-zñáéíóú]+)", corpus):
+        keys = [k.strip() for k in m.group(1).split(",")]
+        if len(keys) != 1:  # cita múltiple: la atribución del verbo es ambigua
+            continue
+        verb_word = m.group(2)
+        occ.setdefault(keys[0], []).append((m.start(), verb_word))
+    for key, entries in occ.items():
+        if len(entries) < 2:
+            continue
+        for verb, (pres_re, past_re) in _CITE_VERB_TENSE.items():
+            has_pres = any(re.fullmatch(pres_re, w, re.IGNORECASE) for _, w in entries)
+            has_past = any(re.fullmatch(past_re, w, re.IGNORECASE) for _, w in entries)
+            if has_pres and has_past:
+                lines = sorted(body.count("\n", 0, off) + 1 for off, _ in entries)
+                collector.add_inconsistency(
+                    f"[{rel}] %TODO-EDITORIAL la cita '{key}' se acompaña del verbo "
+                    f"'{verb}' en tiempos distintos (presente y pretérito) en líneas ~{lines[:4]}: "
+                    "unificar el tiempo verbal de una misma atribución (steering §4). "
+                    "Chequeo 'cita-tiempo-verbal-inconsistente'."
+                )
+
+
+# ── (nuevo 10) §10/§13: dos secciones con título casi idéntico (mismo tema) ───
+
+# Palabras de encuadre (no de tema): al aparecer en muchos títulos, no distinguen
+# contenido. Se excluyen para que el solapamiento mida tema real, no plantilla.
+_TITLE_STOPWORDS = frozenset(
+    {
+        "de",
+        "del",
+        "la",
+        "el",
+        "en",
+        "y",
+        "por",
+        "con",
+        "los",
+        "las",
+        "un",
+        "una",
+        "para",
+        "a",
+        "al",
+        "su",
+        "sus",
+        "the",
+        "of",
+        "and",
+        "o",
+        "u",
+        "resultados",
+        "validacion",
+        "analisis",
+    }
+)
+# Familias de sinónimos que cuentan como una misma raíz de tema (el corrector marcó
+# 'Escalamiento con N y p' vs 'Escalado con el tamaño del sistema').
+_TITLE_SYNONYM_ROOTS = (("escalad", "escalamient"),)
+
+
+def _normalize_title_tokens(title: str) -> set[str]:
+    """Tokens de contenido de un título: sin LaTeX/matemáticas, sin tildes, en
+    minúsculas, sin stopwords ni palabras cortas, colapsando sinónimos a una raíz."""
+    t = re.sub(r"\$[^$]*\$", " ", title)
+    t = re.sub(r"\\[a-zA-Z]+", " ", t)
+    t = t.lower()
+    for a, b in (("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")):
+        t = t.replace(a, b)
+    tokens = set()
+    for w in re.findall(r"[a-z]+", t):
+        if w in _TITLE_STOPWORDS or len(w) < 4:
+            continue
+        for family in _TITLE_SYNONYM_ROOTS:
+            if any(w.startswith(root) for root in family):
+                w = family[0]
+                break
+        tokens.add(w)
+    return tokens
+
+
+def _check_near_duplicate_section_titles(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§10/§13) Dos secciones cuyos títulos, tras normalizar, comparten >=3 tokens
+    de contenido Y uno es subconjunto del otro tratan el mismo tema y rompen la regla
+    de una ubicación canónica por idea. El doble umbral (>=3 tokens comunes + relación
+    de subconjunto) es deliberadamente estricto: un solapamiento parcial por palabras
+    genéricas ('campo', 'sistemas', 'objetivos') NO basta; hace falta que un título
+    esté casi contenido en el otro (el caso 'Escalamiento con N y p' vs 'Escalado con
+    el tamaño del sistema'). Señal, no fix: fusionar o que una remita con \\ref."""
+    body = _strip_comments_local(text)
+    corpus = re.split(r"\\begin\{thebibliography\}", body)[0]
+    titles: list[tuple[int, str, set[str]]] = []
+    for m in re.finditer(r"\\(?:sub)*section\{([^}]+)\}", corpus):
+        toks = _normalize_title_tokens(m.group(1).strip())
+        if toks:
+            titles.append((m.start(), m.group(1).strip(), toks))
+    reported: set[tuple[str, str]] = set()
+    for i in range(len(titles)):
+        off_a, ta, sa = titles[i]
+        for j in range(i + 1, len(titles)):
+            _off_b, tb, sb = titles[j]
+            if ta == tb:
+                continue
+            common = sa & sb
+            is_subset = sa <= sb or sb <= sa
+            if len(common) >= 3 and is_subset:
+                pair_key = tuple(sorted((ta, tb)))
+                if pair_key in reported:
+                    continue
+                reported.add(pair_key)
+                ln = body.count("\n", 0, off_a) + 1
+                collector.add_inconsistency(
+                    f"[{rel}:{ln}] %TODO-COHERENCIA dos secciones con título casi idéntico "
+                    f"comparten tema ('{ta}' / '{tb}', tokens {sorted(common)[:5]}): fusionar o "
+                    "dejar una canónica y que la otra remita con \\ref (steering §10/§13). "
+                    "Chequeo 'secciones-titulo-casi-identico'."
+                )
+
+
+# ── (nuevo 11) §16 err.14: rango de mejora 'A×--B×' que mezcla A con R(N) ─────
+
+
+def _check_improvement_range_mixed(text: str, rel: str, collector: TodoCollector) -> None:
+    """(§16, error 14) El rango de mejora no debe darse como 'A×--B×' cruzando
+    magnitudes incompatibles (el factor de aceleración A con la razón de error R(N)):
+    el antiguo '2,5×--4400×' mezclaba las dos. Detecta rangos 'x×--y×' (o con coma
+    decimal española) donde el cociente y/x supera 3 órdenes de magnitud (>=1000):
+    un salto así en un mismo rango es el síntoma de mezclar A y R(N). Conservador:
+    exige el patrón de rango con ambos extremos marcados por '×'/'\\times'. Señal."""
+    body = _strip_comments_local(text)
+    corpus = re.split(r"\\begin\{thebibliography\}", body)[0]
+    # Normalizar la notación matemática de los factores para que el rango sea legible
+    # tras quitar los delimitadores '$' y el separador decimal LaTeX '{,}' -> ',':
+    # así '$2{,}5\times$--$4400\times$' queda como '2,5\times--4400\times'.
+    corpus = corpus.replace("{,}", " , ").replace("$", " ")  # mismos largos: offsets estables
+    # Número español: entero con coma decimal opcional (2,5 / 4400). Rango con -- o –.
+    num = r"\d{1,4}(?:\s*,\s*\d+)?"
+    times = r"(?:\\times|×)"
+    rng = re.compile(rf"({num})\s*{times}\s*(?:--|–|-|\s+a\s+)\s*({num})\s*{times}")
+
+    def _to_float(s: str) -> float:
+        return float(s.replace(" ", "").replace(",", "."))
+
+    for m in rng.finditer(corpus):
+        try:
+            lo_v, hi_v = _to_float(m.group(1)), _to_float(m.group(2))
+        except ValueError:
+            continue
+        if lo_v <= 0:
+            continue
+        if hi_v / lo_v >= 1000:
+            ln = body.count("\n", 0, m.start()) + 1
+            collector.add_inconsistency(
+                f"[{rel}:{ln}] %TODO-DATOS rango de mejora '{m.group(0).strip()}' cruza >=3 "
+                "órdenes de magnitud: probable mezcla del factor de aceleración A con la razón "
+                "de error R(N) (que no son la misma magnitud). Separar A y R(N) en cifras "
+                "distintas (steering §16, error 14). Chequeo 'magnitud-mejora-mezclada'."
+            )
+
+
+def _strip_comments_local(text: str) -> str:
+    """Quita comentarios LaTeX (% no escapado) preservando líneas, para los chequeos
+    de coherencia de este módulo (evita depender del helper de otro script)."""
+    out = []
+    for line in text.split("\n"):
+        m = re.search(r"(?<!\\)%", line)
+        out.append(line[: m.start()] if m else line)
+    return "\n".join(out)
 
 
 def _load_canonical_tfim_matrix(collector: TodoCollector) -> dict[tuple[str, int], int]:
@@ -2967,6 +4046,109 @@ def _run_block_checks(text: str, rel: str, collector: TodoCollector, block_check
                     f"'{getattr(check, '__name__', str(check))}' falló en la sección "
                     f"'{block.title[:40]}' con {type(exc).__name__}: {exc}."
                 )
+
+
+# ── Legend ↔ manifest (Tier 2): la leyenda es prosa; el manifest es el dato. ────
+# El sidecar <table_id>.meta.json (emitido por _per_h_table) es la fuente de verdad
+# estructurada de lo que la leyenda afirma. Este chequeo cruza ambas y convierte
+# "la leyenda dice h>=h_min pero el conteo dice otra cosa" de catch humano a catch
+# automático. Determinista: solo compara afirmaciones que el manifest describe.
+
+
+def _legend_of_auto_tex(auto_path: Path) -> str:
+    """Extrae el texto de la leyenda (\\footnotesize ...) de una tabla auto."""
+    try:
+        text = auto_path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    m = re.search(r"\\footnotesize\s+(.*?)\\end\{table\}", text, re.DOTALL)
+    return m.group(1) if m else ""
+
+
+def _grid_from_legend(legend: str) -> list[float] | None:
+    """Extrae la grilla de h que la leyenda declara: '$h \\in \\{2,5; ...; 5,0\\}$'."""
+    m = re.search(r"\\in\s*\\\{([^}]+)\\\}", legend)
+    if not m:
+        return None
+    vals: list[float] = []
+    for tok in re.split(r";", m.group(1)):
+        tok = tok.strip().replace("$", "").replace(",", ".")
+        try:
+            vals.append(round(float(tok), 2))
+        except ValueError:
+            return None
+    return vals or None
+
+
+def _check_legend_vs_manifest(out_dir: Path, rel: str, collector: TodoCollector) -> None:
+    """Valida cada leyenda de tabla auto contra su sidecar <label>.meta.json.
+
+    Compara (todo determinista, solo lo que el manifest describe):
+      - la grilla de h declarada en la leyenda vs manifest['h_grid'];
+      - "régimen válido (h>=h_min)" en la leyenda vs manifest['restricted_to_valid_regime'];
+      - "media de cocientes por punto" vs manifest['de_gap_aggregation'].
+    Un desacuerdo es una inconsistencia (BLOQUEANTE para la grilla, que es un dato).
+    """
+    for meta_path in sorted(out_dir.glob("*.meta.json")):
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        table_id = meta_path.stem.replace(".meta", "")
+        auto_tex = out_dir / f"{table_id}.tex"
+        if not auto_tex.exists():
+            continue
+        legend = _legend_of_auto_tex(auto_tex)
+        if not legend:
+            continue
+
+        # (1) Grilla de h: la leyenda no debe declarar una grilla distinta al dato.
+        legend_grid = _grid_from_legend(legend)
+        man_grid = meta.get("h_grid")
+        if legend_grid is not None and man_grid is not None and legend_grid != man_grid:
+            collector.add_inconsistency(
+                f"[{table_id}.tex] la leyenda declara la grilla de $h$ {legend_grid} "
+                f"pero el manifest ({meta_path.name}) tiene {man_grid}: la leyenda no "
+                "describe los datos de la tabla (BLOQUEANTE)."
+            )
+
+        # (2) Régimen válido: si el manifest restringe a h>=h_min, la leyenda debe decirlo.
+        if meta.get("restricted_to_valid_regime") and "h_{\\min}" not in legend and "h_{min}" not in legend:
+            collector.add_inconsistency(
+                f"[{table_id}.tex] los datos están restringidos al régimen válido "
+                "(h>=h_min por N) pero la leyenda no lo declara; el lector no puede "
+                "interpretar los conteos por fila."
+            )
+
+        # (3) Agregación de ΔE/gap: media de cocientes vs cociente de medias.
+        if meta.get("de_gap_aggregation") == "mean_of_ratios" and "cociente" not in legend:
+            collector.add_inconsistency(
+                f"[{table_id}.tex] la columna ΔE/gap es la media de los cocientes por "
+                "punto (manifest), pero la leyenda no lo aclara; se leería como el "
+                "cociente de las medias, que da otro valor."
+            )
+
+        # (4) Monotonía h_min ↔ nº de puntos: bajo "h>=h_min sobre una grilla común",
+        # un N con h_min MÁS alto no puede tener MÁS puntos que uno con h_min menor
+        # (menos de la grilla quedan por encima del umbral). Un contraejemplo delata
+        # que el conteo no es SOLO el recorte por h_min. Solo se marca si la leyenda
+        # atribuye el conteo EXCLUSIVAMENTE a h_min; si reconoce "cobertura de datos"
+        # como causa adicional, la no-monotonía es esperada y no es contradicción.
+        legend_blames_only_hmin = "cobertura de datos" not in legend and "disponibles" not in legend
+        if meta.get("restricted_to_valid_regime") and legend_blames_only_hmin:
+            npr = meta.get("n_points_per_row", {})
+            hmin = meta.get("h_min_per_N", {})
+            common = sorted(set(npr) & set(hmin), key=lambda k: int(k))
+            for i, na in enumerate(common):
+                for nb in common[i + 1 :]:
+                    if hmin[na] < hmin[nb] and npr[na] < npr[nb]:
+                        collector.add_inconsistency(
+                            f"[{table_id}.tex] la leyenda dice 'h>=h_min' pero N={nb} "
+                            f"(h_min={hmin[nb]}) tiene {npr[nb]} puntos, más que N={na} "
+                            f"(h_min={hmin[na]}) con {npr[na]}: incompatible con un "
+                            "recorte por h_min sobre grilla común. Corregir la leyenda "
+                            "(son puntos de test, no el recorte por h_min) o el dato."
+                        )
 
 
 # ── Consistencia tabla auto ↔ prosa (informe v3 §1.1: el texto afirma "100%" o
@@ -3828,7 +5010,7 @@ def _check_speedup_error_ratio(text: str, rel: str, collector: TodoCollector) ->
         if val < 500:
             continue  # dentro del rango plausible de A
         # ¿la cláusula aclara que es R (razón de error)? entonces es correcto.
-        ctx = prose[max(0, m.start() - 25): m.end() + 25]
+        ctx = prose[max(0, m.start() - 25) : m.end() + 25]
         if re.search(r"raz[oó]n\s+de\s+error|\bR\b\s*\\?[≈=(]|\$R", ctx):
             continue
         collector.add_inconsistency(
@@ -4974,6 +6156,13 @@ def main() -> int:
         "tablas auto no conectadas) y volcar hallazgos a tesis_todos.txt",
     )
     parser.add_argument(
+        "--check-legends",
+        action="store_true",
+        help="Validar las leyendas de las tablas auto EN DISCO contra sus "
+        "sidecar .meta.json SIN regenerar (atrapa leyendas editadas a mano que "
+        "derivaron del dato). Exit 1 si hay desacuerdo. No toca archivos.",
+    )
+    parser.add_argument(
         "--fix-decimals",
         type=Path,
         default=None,
@@ -5031,6 +6220,21 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     collector = TodoCollector()
+
+    # --check-legends (Tier 3): valida las leyendas EN DISCO contra sus sidecar
+    # .meta.json SIN regenerar (una regeneración pisaría una leyenda editada a mano
+    # antes de poder detectar el drift). Solo lectura; exit 1 si hay desacuerdo.
+    if args.check_legends:
+        _check_legend_vs_manifest(out_dir, "check-legends", collector)
+        if collector.inconsistencies:
+            print(f"  ❌ {len(collector.inconsistencies)} leyenda(s) no coinciden con su manifest:")
+            for inc in collector.inconsistencies:
+                print(f"     - {inc}")
+            return 1
+        n_meta = len(list(out_dir.glob("*.meta.json")))
+        print(f"  ✅ Leyendas coherentes con sus manifests ({n_meta} tabla(s) con sidecar).")
+        return 0
+
     only = {s.strip() for s in args.only.split(",") if s.strip()} or set(GENERATORS)
     coverage_ns: set[int] | None = None
     if args.coverage_ns:
@@ -5061,6 +6265,14 @@ def main() -> int:
             lines = gen(per_n, collector)
         out_path = out_dir / f"{table_id}.tex"
         out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        # Sidecar de datos (Tier 2): tablas por-h emiten <table_id>.meta.json con
+        # {n_points_per_row, h_grid, h_min_per_N, denominator} para validar la
+        # legend (prosa) contra los datos en vez de a ojo.
+        meta = collector.manifests.get(table_id)
+        if meta is not None:
+            (out_dir / f"{table_id}.meta.json").write_text(
+                json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
         # Registrar TODOs con su número de línea REAL en el archivo final
         collector.scan_file(out_path, f"{table_id}.tex")
         written.append(_rel(out_path))

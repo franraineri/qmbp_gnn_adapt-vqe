@@ -468,3 +468,144 @@ class TestTFIMLongitudinalHardwareViability:
         qc, _ = hva.create_tfim_longitudinal(10, 1, lattice)
         # Depth should be moderate (H + RZZ layer + RX layer + RZ layer)
         assert qc.depth() < 50
+
+
+class TestBondResolvedLongitudinalCircuit:
+    """Tests for HVACircuitBuilder.create_bond_resolved_longitudinal()."""
+
+    def test_parameter_count_chain_p1(self, hva, chain4):
+        n_edges = len(chain4.edges)
+        qc, theta = hva.create_bond_resolved_longitudinal(4, 1, chain4)
+        expected = n_edges + 2 * 4
+        assert len(theta) == expected
+        assert qc.num_parameters == expected
+
+    def test_parameter_count_chain_p2(self, hva, chain4):
+        n_edges = len(chain4.edges)
+        qc, theta = hva.create_bond_resolved_longitudinal(4, 2, chain4)
+        expected = (n_edges + 2 * 4) * 2
+        assert len(theta) == expected
+
+    @pytest.mark.parametrize("topology,n", [("chain_1d", 6), ("heavy_hex", 6), ("ladder", 6)])
+    def test_parameter_count_multiple_topologies(self, hva, topology, n):
+        lattice = make_lattice(topology, n, J=1.0, h=1.5)
+        n_edges = len(lattice.edges)
+        for p in (1, 2):
+            qc, theta = hva.create_bond_resolved_longitudinal(n, p, lattice)
+            assert len(theta) == (n_edges + 2 * n) * p
+
+    def test_gate_structure(self, hva):
+        """RZZ per-edge, RX per-site, RZ per-site, per layer."""
+        lattice = make_lattice("heavy_hex", 6, J=1.0, h=1.5)
+        n_edges = len(lattice.edges)
+        p = 2
+        qc, _ = hva.create_bond_resolved_longitudinal(6, p, lattice)
+        ops = qc.count_ops()
+        assert ops.get("rzz", 0) == n_edges * p
+        assert ops.get("rx", 0) == 6 * p
+        assert ops.get("rz", 0) == 6 * p
+
+    def test_correct_qubit_count(self, hva, chain6):
+        qc, _ = hva.create_bond_resolved_longitudinal(6, 2, chain6)
+        assert qc.num_qubits == 6
+
+    def test_qubit_mismatch_raises(self, hva, chain4):
+        with pytest.raises(ValueError, match="does not match"):
+            hva.create_bond_resolved_longitudinal(6, 1, chain4)
+
+    def test_initial_state_is_plus(self, hva, chain4):
+        """Zero params → only H gates active → |+⟩^N state."""
+        qc, theta = hva.create_bond_resolved_longitudinal(4, 1, chain4)
+        bound = qc.assign_parameters(np.zeros(len(theta)))
+        sv = Statevector(bound)
+        expected_amp = 1.0 / np.sqrt(2**4)
+        np.testing.assert_allclose(np.abs(sv.data), expected_amp, atol=1e-10)
+
+    def test_no_additional_2q_gates_vs_bond_resolved(self, hva):
+        """RZ block adds NO 2-qubit gates vs plain bond-resolved TFIM."""
+        lattice = make_lattice("heavy_hex", 6, J=1.0, h=1.5)
+        qc_long, _ = hva.create_bond_resolved_longitudinal(6, 1, lattice)
+        qc_std, _ = hva.create_bond_resolved(6, 1, lattice)
+        assert qc_long.count_ops().get("rzz", 0) == qc_std.count_ops().get("rzz", 0)
+
+
+class TestBondResolvedLongitudinalRegistry:
+    """Tests for the tfim_bond_resolved_longitudinal model in the registry."""
+
+    def test_registered_in_list(self):
+        assert "tfim_bond_resolved_longitudinal" in list_models()
+
+    def test_spec_params_per_layer_variable(self):
+        spec = get_model_spec("tfim_bond_resolved_longitudinal")
+        assert spec.params_per_layer == -1
+
+    def test_spec_hamiltonian_kwargs_default_g(self):
+        spec = get_model_spec("tfim_bond_resolved_longitudinal")
+        assert spec.hamiltonian_kwargs["g"] == 0.0
+
+    def test_spec_fidelity_threshold(self):
+        spec = get_model_spec("tfim_bond_resolved_longitudinal")
+        assert spec.fidelity_threshold == 0.90
+
+    def test_build_hamiltonian_callable(self):
+        spec = get_model_spec("tfim_bond_resolved_longitudinal")
+        lattice = make_lattice("heavy_hex", 6, J=1.0, h=1.5)
+        H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+        assert isinstance(H, SparsePauliOp)
+        assert H.num_qubits == 6
+
+    def test_create_circuit_callable(self):
+        spec = get_model_spec("tfim_bond_resolved_longitudinal")
+        lattice = make_lattice("heavy_hex", 6, J=1.0, h=1.5)
+        n_edges = len(lattice.edges)
+        qc, theta = spec.create_circuit(6, 1, lattice)
+        assert qc.num_parameters == n_edges + 2 * 6
+        assert qc.num_qubits == 6
+
+
+@pytest.mark.slow
+class TestBondResolvedLongitudinalExpressibility:
+    """The bond-resolved longitudinal HVA must reach GS of H(g>0)."""
+
+    def _vqe_fidelity(self, hva, builder, lattice, g, n_restarts=6):
+        from qiskit.primitives import StatevectorEstimator
+        from scipy.optimize import minimize
+
+        N = lattice.n_qubits
+        H = builder.build_tfim_longitudinal(lattice, g=g)
+        mat = _to_dense(H.to_matrix())
+        _, evecs = np.linalg.eigh(mat)
+        gs = evecs[:, 0]
+        qc, _ = hva.create_bond_resolved_longitudinal(N, 2, lattice)
+        estimator = StatevectorEstimator()
+
+        def cost(params):
+            bound = qc.assign_parameters(params)
+            return float(estimator.run([(bound, H)]).result()[0].data.evs)
+
+        best_fid = 0.0
+        rng = np.random.default_rng(42)
+        for _ in range(n_restarts):
+            x0 = rng.uniform(-np.pi, np.pi, qc.num_parameters)
+            result = minimize(
+                cost,
+                x0,
+                method="L-BFGS-B",
+                bounds=[(-np.pi, np.pi)] * qc.num_parameters,
+                options={"maxiter": 500, "ftol": 1e-14},
+            )
+            sv = Statevector(qc.assign_parameters(result.x))
+            best_fid = max(best_fid, float(state_fidelity(sv, Statevector(gs))))
+        return best_fid
+
+    def test_expressibility_g03_h20_n4(self, hva, builder):
+        """Bond-resolved longitudinal reaches fid≥0.99 at h=2.0, g=0.3."""
+        lattice = make_lattice("chain_1d", 4, J=1.0, h=2.0)
+        fid = self._vqe_fidelity(hva, builder, lattice, g=0.3)
+        assert fid >= 0.99, f"Expected fid≥0.99, got {fid:.4f}"
+
+    def test_expressibility_g05_h15_n6(self, hva, builder):
+        """Bond-resolved longitudinal reaches fid≥0.98 at h=1.5, g=0.5 (N=6)."""
+        lattice = make_lattice("chain_1d", 6, J=1.0, h=1.5)
+        fid = self._vqe_fidelity(hva, builder, lattice, g=0.5, n_restarts=10)
+        assert fid >= 0.98, f"Expected fid≥0.98, got {fid:.4f}"

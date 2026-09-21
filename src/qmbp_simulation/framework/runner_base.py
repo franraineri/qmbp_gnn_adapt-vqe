@@ -643,142 +643,140 @@ class ValidationRunner(ABC):
         exit_code = 1 if n_fail > 0 or interrupted else 0
 
         saved_path = None
-        if True:
-            try:
-                # Check if we're in a state where _build_envelope would spinlock.
-                # Indicator: torch is imported AND has live tensors → use minimal save.
-                _torch_loaded = "torch" in sys.modules
-                if _torch_loaded:
-                    # Minimal save path: avoid _build_envelope which triggers
-                    # mimalloc spinlock via Qiskit/PyTorch object interactions.
-                    # Pre-serialize ALL data to native Python types to avoid
-                    # json_serialize touching numpy/torch objects during json.dump.
-                    import json as _json
+        try:
+            # Check if we're in a state where _build_envelope would spinlock.
+            # Indicator: torch is imported AND has live tensors → use minimal save.
+            _torch_loaded = "torch" in sys.modules
+            if _torch_loaded:
+                # Minimal save path: avoid _build_envelope which triggers
+                # mimalloc spinlock via Qiskit/PyTorch object interactions.
+                # Pre-serialize ALL data to native Python types to avoid
+                # json_serialize touching numpy/torch objects during json.dump.
+                import json as _json
 
-                    from qmbp_simulation.framework.result_io import generate_timestamp
-                    from qmbp_simulation.utils.helpers import json_serialize
+                from qmbp_simulation.framework.result_io import generate_timestamp
+                from qmbp_simulation.utils.helpers import json_serialize
 
-                    def _deep_serialize(obj):
-                        """Recursively convert numpy/torch to JSON-safe Python."""
-                        if isinstance(obj, dict):
-                            return {k: _deep_serialize(v) for k, v in obj.items()}
-                        if isinstance(obj, (list, tuple)):
-                            return [_deep_serialize(v) for v in obj]
-                        try:
-                            return json_serialize(obj)
-                        except TypeError:
-                            return str(obj)
+                def _deep_serialize(obj):
+                    """Recursively convert numpy/torch to JSON-safe Python."""
+                    if isinstance(obj, dict):
+                        return {k: _deep_serialize(v) for k, v in obj.items()}
+                    if isinstance(obj, (list, tuple)):
+                        return [_deep_serialize(v) for v in obj]
+                    try:
+                        return json_serialize(obj)
+                    except TypeError:
+                        return str(obj)
 
-                    config = self.build_config()
-                    config.setdefault("experiment_id", self.experiment_id)
-                    results = {}
-                    for r in self._section_results:
-                        results[f"section_{r.section_id}"] = _deep_serialize(
-                            {
-                                "name": r.name,
-                                "success": r.success,
-                                "elapsed_s": round(r.elapsed_s, 2),
-                                "data": r.data,
-                                "error": r.error,
-                            }
-                        )
-                    n_pass = sum(1 for r in self._section_results if r.success)
-                    summary = {
-                        "n_sections": len(self._section_results),
-                        "n_passed": n_pass,
-                        "n_failed": len(self._section_results) - n_pass,
-                        "pass_rate": n_pass / max(len(self._section_results), 1),
-                        "total_elapsed_s": round(total_elapsed, 2),
-                        "all_passed": n_fail == 0,
-                        "metric_version": "dual_v1",
-                    }
-                    # Physics verdict + auto-validation (general funcionality).
-                    _verdict = self._compute_run_verdict(summary)
-                    if _verdict:
-                        summary["verdict"] = _verdict["verdict"]
-                        summary["verdict_criteria"] = _verdict["criteria"]
-                        if _verdict.get("physics_summary"):
-                            summary["physics_summary"] = _verdict["physics_summary"]
-                    envelope = {
-                        "schema_version": "2.0",
-                        "timestamp": generate_timestamp(),
-                        "config": _deep_serialize(config),
-                        "results": results,
-                        "summary": summary,
-                        "elapsed_s": round(total_elapsed, 2),
-                        "model_provenance": _deep_serialize(self._model_provenance) if self._model_provenance else None,
-                        "auto_validation": _deep_serialize(self._auto_validation) if self._auto_validation else None,
-                        "analysis": {
-                            "experiment_id": self.experiment_id,
-                            "summary": summary,
-                        },
-                    }
-                    if interrupted:
-                        envelope["interrupted"] = True
-                        envelope["completed_sections"] = len(self._section_results)
-                        envelope["interrupted_section"] = _current_section_id
-
-                    # Write directly (bypass save_experiment_result which calls
-                    # ResultIndex internally and uses json_serialize again)
-                    from qmbp_simulation.framework.result_io import _DEFAULT_RESULTS_ROOT
-
-                    exp_dir = _DEFAULT_RESULTS_ROOT / f"exp_{self._result_experiment_id().lower()}"
-                    exp_dir.mkdir(parents=True, exist_ok=True)
-                    saved_path = exp_dir / f"run_{generate_timestamp()}.json"
-                    with open(saved_path, "w") as _f:
-                        _json.dump(envelope, _f, indent=2, default=str)
-                    logger.info(f"  Results: {saved_path}")
-                else:
-                    # Normal path: full envelope with diagnostics
-                    envelope = self._build_envelope(total_elapsed)
-                    if interrupted:
-                        envelope["interrupted"] = True
-                        envelope["completed_sections"] = len(self._section_results)
-                        envelope["interrupted_section"] = _current_section_id
-                    saved_path = save_experiment_result(envelope, experiment_id=self._result_experiment_id())
-            except (Exception, TimeoutError):
-                # Emergency minimal save
-                try:
-                    import json as _json
-
-                    from qmbp_simulation.framework.result_io import generate_timestamp
-
-                    edir = Path("results") / "experiments" / f"exp_{self._result_experiment_id().lower()}"
-                    edir.mkdir(parents=True, exist_ok=True)
-                    saved_path = edir / f"run_{generate_timestamp()}.json"
-                    saved_path.write_text(
-                        _json.dumps(
-                            {
-                                "config": self.build_config(),
-                                "results": {
-                                    f"s{r.section_id}": {"pass": r.success, "t": r.elapsed_s}
-                                    for r in self._section_results
-                                },
-                                "elapsed_s": total_elapsed,
-                            },
-                            default=str,
-                        )
+                config = self.build_config()
+                config.setdefault("experiment_id", self.experiment_id)
+                results = {}
+                for r in self._section_results:
+                    results[f"section_{r.section_id}"] = _deep_serialize(
+                        {
+                            "name": r.name,
+                            "success": r.success,
+                            "elapsed_s": round(r.elapsed_s, 2),
+                            "data": r.data,
+                            "error": r.error,
+                        }
                     )
-                except Exception:
-                    pass
+                n_pass = sum(1 for r in self._section_results if r.success)
+                summary = {
+                    "n_sections": len(self._section_results),
+                    "n_passed": n_pass,
+                    "n_failed": len(self._section_results) - n_pass,
+                    "pass_rate": n_pass / max(len(self._section_results), 1),
+                    "total_elapsed_s": round(total_elapsed, 2),
+                    "all_passed": n_fail == 0,
+                    "metric_version": "dual_v1",
+                }
+                # Physics verdict + auto-validation (general funcionality).
+                _verdict = self._compute_run_verdict(summary)
+                if _verdict:
+                    summary["verdict"] = _verdict["verdict"]
+                    summary["verdict_criteria"] = _verdict["criteria"]
+                    if _verdict.get("physics_summary"):
+                        summary["physics_summary"] = _verdict["physics_summary"]
+                envelope = {
+                    "schema_version": "2.0",
+                    "timestamp": generate_timestamp(),
+                    "config": _deep_serialize(config),
+                    "results": results,
+                    "summary": summary,
+                    "elapsed_s": round(total_elapsed, 2),
+                    "model_provenance": _deep_serialize(self._model_provenance) if self._model_provenance else None,
+                    "auto_validation": _deep_serialize(self._auto_validation) if self._auto_validation else None,
+                    "analysis": {
+                        "experiment_id": self.experiment_id,
+                        "summary": summary,
+                    },
+                }
+                if interrupted:
+                    envelope["interrupted"] = True
+                    envelope["completed_sections"] = len(self._section_results)
+                    envelope["interrupted_section"] = _current_section_id
 
-            # Save structured log
+                # Write directly (bypass save_experiment_result which calls
+                # ResultIndex internally and uses json_serialize again)
+                from qmbp_simulation.framework.result_io import _DEFAULT_RESULTS_ROOT
+
+                exp_dir = _DEFAULT_RESULTS_ROOT / f"exp_{self._result_experiment_id().lower()}"
+                exp_dir.mkdir(parents=True, exist_ok=True)
+                saved_path = exp_dir / f"run_{generate_timestamp()}.json"
+                with open(saved_path, "w") as _f:
+                    _json.dump(envelope, _f, indent=2, default=str)
+                logger.info(f"  Results: {saved_path}")
+            else:
+                # Normal path: full envelope with diagnostics
+                envelope = self._build_envelope(total_elapsed)
+                if interrupted:
+                    envelope["interrupted"] = True
+                    envelope["completed_sections"] = len(self._section_results)
+                    envelope["interrupted_section"] = _current_section_id
+                saved_path = save_experiment_result(envelope, experiment_id=self._result_experiment_id())
+        except (Exception, TimeoutError):
+            # Emergency minimal save
             try:
-                if saved_path:
-                    log_path = saved_path.parent / f"log_{saved_path.stem.replace('run_', '')}.json"
-                    self.slog.save(log_path)
+                import json as _json
+
+                from qmbp_simulation.framework.result_io import generate_timestamp
+
+                edir = Path("results") / "experiments" / f"exp_{self._result_experiment_id().lower()}"
+                edir.mkdir(parents=True, exist_ok=True)
+                saved_path = edir / f"run_{generate_timestamp()}.json"
+                saved_path.write_text(
+                    _json.dumps(
+                        {
+                            "config": self.build_config(),
+                            "results": {
+                                f"s{r.section_id}": {"pass": r.success, "t": r.elapsed_s} for r in self._section_results
+                            },
+                            "elapsed_s": total_elapsed,
+                        },
+                        default=str,
+                    )
+                )
             except Exception:
                 pass
 
-            from qmbp_simulation.analysis.metrics import (
-                post_experiment_sync,
-                validate_gt_npz_coherence,
-            )
+        # Save structured log
+        try:
+            if saved_path:
+                log_path = saved_path.parent / f"log_{saved_path.stem.replace('run_', '')}.json"
+                self.slog.save(log_path)
+        except Exception:
+            pass
 
-            validate_gt_npz_coherence(fix=True)
-            # Regenerate the scoreboard for the p this experiment ran with, so
-            # p=1 and p=2 land in separate scoreboard files (never mixed).
-            post_experiment_sync(verbose=False, p_layers=self._resolve_p_layers())
+        from qmbp_simulation.analysis.metrics import (
+            post_experiment_sync,
+            validate_gt_npz_coherence,
+        )
+
+        validate_gt_npz_coherence(fix=True)
+        # Regenerate the scoreboard for the p this experiment ran with, so
+        # p=1 and p=2 land in separate scoreboard files (never mixed).
+        post_experiment_sync(verbose=False, p_layers=self._resolve_p_layers())
 
         # Print summary to console
         if not interrupted and saved_path:
@@ -3241,9 +3239,7 @@ class ValidationRunner(ABC):
         try:
             from qmbp_simulation.predictors.model_zoo import update_zoo_physical_metrics
 
-            updated = update_zoo_physical_metrics(
-                target_ckpt, abs_error_by_n, fidelity_by_n, de_gap_by_n
-            )
+            updated = update_zoo_physical_metrics(target_ckpt, abs_error_by_n, fidelity_by_n, de_gap_by_n)
             if updated:
                 logger.info(
                     "    📊 Zoo physical metrics updated: %s (N=%s)",

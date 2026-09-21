@@ -1,7 +1,7 @@
 # Zoo Model Evaluation Report
 
-**Generated**: 2026-09-09 14:19 UTC
-**Elapsed**: 0.4s
+**Generated**: 2026-09-21 20:52 UTC
+**Elapsed**: 0.3s
 **Models evaluated**: 20
 
 ---
@@ -117,7 +117,7 @@
 
 # MT vs ST Head-to-Head Comparison
 
-**Generated**: 2026-09-09 14:19 UTC
+**Generated**: 2026-09-21 20:52 UTC
 **Score**: MT **7** — ST **1** — Ties **7**
 **MT avg quality_score**: 0.091 | **ST avg quality_score**: 0.079
 

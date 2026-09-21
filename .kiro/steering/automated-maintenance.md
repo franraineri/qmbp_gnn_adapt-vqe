@@ -160,7 +160,6 @@ ranking genérico por pass_rate).
 .venv/bin/python -c "from qmbp_simulation.predictors.model_zoo import backfill_physical_metrics_from_evals; print(backfill_physical_metrics_from_evals())"
 
 # Warm-start advantage por-N desde un JSON de probe_warmstart_advantage.py
-.venv/bin/python -c "from qmbp_simulation.predictors.model_zoo import backfill_warmstart_from_probe; print(backfill_warmstart_from_probe('results/experiments/exp_warmstart_probe_chain_1d/warmstart_probe.json'))"
 ```
 
 | Necesidad | Import |

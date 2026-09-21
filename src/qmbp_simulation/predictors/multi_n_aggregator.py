@@ -110,9 +110,7 @@ class MultiNAggregator:
         _train_root = _PROJECT_ROOT / TRAINING_DATA_ROOT
         _seen_names: set[str] = set()
         _train_files: list[Path] = []
-        for _dir, _pattern in training_npz_read_globs(
-            self.topology, self.p_layers, model=self.model, root=_train_root
-        ):
+        for _dir, _pattern in training_npz_read_globs(self.topology, self.p_layers, model=self.model, root=_train_root):
             if not _dir.exists():
                 continue
             for _f in sorted(_dir.glob(_pattern)):
@@ -121,136 +119,118 @@ class MultiNAggregator:
                 _seen_names.add(_f.name)
                 _train_files.append(_f)
 
-        if True:
-            for npz_file in _train_files:
-                # Skip NPZ files excluded from training
-                # Check both dir-qualified path and bare filename (legacy compat)
-                qualified = f"multi_n_training/{npz_file.name}"
-                if qualified in skip_files or npz_file.name in skip_files:
-                    logger.info(
-                        f"  MultiNAggregator: SKIPPING {npz_file.name} (excluded from training)"
-                    )
+        for npz_file in _train_files:
+            # Skip NPZ files excluded from training
+            # Check both dir-qualified path and bare filename (legacy compat)
+            qualified = f"multi_n_training/{npz_file.name}"
+            if qualified in skip_files or npz_file.name in skip_files:
+                logger.info(f"  MultiNAggregator: SKIPPING {npz_file.name} (excluded from training)")
+                continue
+
+            try:
+                data = np.load(npz_file, allow_pickle=True)
+                h_values = np.asarray(data["h_values"], dtype=np.float64)
+                theta_opt = data["theta_opt"]
+                e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+
+                # Extract N from filename: topology_N10_p1.npz
+                # NOTE: must parse N BEFORE any GroundTruthCache lookup that
+                # needs `n`. Previous code used `n` in the cache lookup block
+                # above before assigning it here (NameError in runtime).
+                fname = npz_file.stem
+                n_str = fname.split("_N")[1].split("_")[0]
+                n = int(n_str)
+
+                # Skip if beyond max_n (prevents contamination from extrapolation data)
+                if self.max_n is not None and n > self.max_n:
+                    logger.info(f"  MultiNAggregator: SKIPPING {npz_file.name} (N={n} > max_n={self.max_n})")
                     continue
 
-                try:
-                    data = np.load(npz_file, allow_pickle=True)
-                    h_values = np.asarray(data["h_values"], dtype=np.float64)
-                    theta_opt = data["theta_opt"]
-                    e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+                # Compute de_gaps on-the-fly if missing from NPZ
+                if "de_gaps" in data:
+                    de_gaps = np.asarray(data["de_gaps"], dtype=np.float64)
+                else:
+                    # Fallback: compute from e_vqe/energies and e_exact + gaps
+                    e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                    gaps_arr = np.asarray(data["gaps"], dtype=np.float64) if "gaps" in data else None
 
-                    # Extract N from filename: topology_N10_p1.npz
-                    # NOTE: must parse N BEFORE any GroundTruthCache lookup that
-                    # needs `n`. Previous code used `n` in the cache lookup block
-                    # above before assigning it here (NameError in runtime).
-                    fname = npz_file.stem
-                    n_str = fname.split("_N")[1].split("_")[0]
-                    n = int(n_str)
+                    if e_key and gaps_arr is not None:
+                        e_vqe = np.asarray(data[e_key], dtype=np.float64)
+                        de_gaps = np.abs(e_vqe - e_exact) / np.maximum(gaps_arr, 1e-10)
+                    elif e_key:
+                        # No gaps in NPZ: try GroundTruthCache lookup
+                        # n is now defined above, safe to use here
+                        e_vqe = np.asarray(data[e_key], dtype=np.float64)
+                        try:
+                            from qmbp_simulation.solvers.ground_truth_cache import (
+                                GroundTruthCache,
+                            )
 
-                    # Skip if beyond max_n (prevents contamination from extrapolation data)
-                    if self.max_n is not None and n > self.max_n:
-                        logger.info(
-                            f"  MultiNAggregator: SKIPPING {npz_file.name} "
-                            f"(N={n} > max_n={self.max_n})"
-                        )
-                        continue
-
-                    # Compute de_gaps on-the-fly if missing from NPZ
-                    if "de_gaps" in data:
-                        de_gaps = np.asarray(data["de_gaps"], dtype=np.float64)
-                    else:
-                        # Fallback: compute from e_vqe/energies and e_exact + gaps
-                        e_key = (
-                            "e_vqe"
-                            if "e_vqe" in data
-                            else ("energies" if "energies" in data else None)
-                        )
-                        gaps_arr = (
-                            np.asarray(data["gaps"], dtype=np.float64) if "gaps" in data else None
-                        )
-
-                        if e_key and gaps_arr is not None:
-                            e_vqe = np.asarray(data[e_key], dtype=np.float64)
-                            de_gaps = np.abs(e_vqe - e_exact) / np.maximum(gaps_arr, 1e-10)
-                        elif e_key:
-                            # No gaps in NPZ: try GroundTruthCache lookup
-                            # n is now defined above, safe to use here
-                            e_vqe = np.asarray(data[e_key], dtype=np.float64)
-                            try:
-                                from qmbp_simulation.solvers.ground_truth_cache import (
-                                    GroundTruthCache,
+                            gt_cache = GroundTruthCache()
+                            gaps_from_cache = []
+                            for h_val in h_values:
+                                cached = gt_cache.get(self.topology, n, self.model, float(h_val))
+                                gaps_from_cache.append(cached["gap"] if cached else 0.0)
+                            gaps_from_cache = np.array(gaps_from_cache)
+                            if np.any(gaps_from_cache > 0):
+                                de_gaps = np.abs(e_vqe - e_exact) / np.maximum(gaps_from_cache, 1e-10)
+                                logger.debug(
+                                    "  MultiNAggregator: %s gaps from GroundTruthCache (%d/%d found)",
+                                    npz_file.name,
+                                    int(np.sum(gaps_from_cache > 0)),
+                                    len(gaps_from_cache),
                                 )
-
-                                gt_cache = GroundTruthCache()
-                                gaps_from_cache = []
-                                for h_val in h_values:
-                                    cached = gt_cache.get(
-                                        self.topology, n, self.model, float(h_val)
-                                    )
-                                    gaps_from_cache.append(cached["gap"] if cached else 0.0)
-                                gaps_from_cache = np.array(gaps_from_cache)
-                                if np.any(gaps_from_cache > 0):
-                                    de_gaps = np.abs(e_vqe - e_exact) / np.maximum(
-                                        gaps_from_cache, 1e-10
-                                    )
-                                    logger.debug(
-                                        "  MultiNAggregator: %s gaps from GroundTruthCache (%d/%d found)",
-                                        npz_file.name,
-                                        int(np.sum(gaps_from_cache > 0)),
-                                        len(gaps_from_cache),
-                                    )
-                                else:
-                                    # No gaps available anywhere: use absolute error as proxy
-                                    # For TFIM h>2, gap ≈ 2h - 2J ≈ 2*(h-1). Conservative: assume gap=1.
-                                    de_gaps = np.abs(e_vqe - e_exact)
-                                    logger.debug(
-                                        "  MultiNAggregator: %s no gaps found, using |ΔE| as proxy",
-                                        npz_file.name,
-                                    )
-                            except Exception:
-                                # GroundTruthCache unavailable: use absolute error
+                            else:
+                                # No gaps available anywhere: use absolute error as proxy
+                                # For TFIM h>2, gap ≈ 2h - 2J ≈ 2*(h-1). Conservative: assume gap=1.
                                 de_gaps = np.abs(e_vqe - e_exact)
-                        else:
-                            de_gaps = np.zeros(len(h_values))
+                                logger.debug(
+                                    "  MultiNAggregator: %s no gaps found, using |ΔE| as proxy",
+                                    npz_file.name,
+                                )
+                        except Exception:
+                            # GroundTruthCache unavailable: use absolute error
+                            de_gaps = np.abs(e_vqe - e_exact)
+                    else:
+                        de_gaps = np.zeros(len(h_values))
 
-                    # Compute abs_error for dual criterion filtering
-                    e_key = (
-                        "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
-                    )
-                    abs_errors = None
-                    if e_key is not None:
-                        e_vqe_arr = np.asarray(data[e_key], dtype=np.float64)
-                        abs_errors = np.abs(e_vqe_arr - e_exact)
+                # Compute abs_error for dual criterion filtering
+                e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                abs_errors = None
+                if e_key is not None:
+                    e_vqe_arr = np.asarray(data[e_key], dtype=np.float64)
+                    abs_errors = np.abs(e_vqe_arr - e_exact)
 
-                    # Load quality tier (backward compat: default "unverified")
-                    tier_arr = data["quality_tier"].tolist() if "quality_tier" in data else None
-                    method_arr = data["method"].tolist() if "method" in data else None
-                    npz_j2 = float(data["J2"]) if "J2" in data else None
+                # Load quality tier (backward compat: default "unverified")
+                tier_arr = data["quality_tier"].tolist() if "quality_tier" in data else None
+                method_arr = data["method"].tolist() if "method" in data else None
+                npz_j2 = float(data["J2"]) if "J2" in data else None
 
-                    points = []
-                    for i in range(len(h_values)):
-                        # Ensure theta is always float64 (handles legacy dtype=object NPZs)
-                        theta_i = np.asarray(theta_opt[i], dtype=np.float64)
-                        pt = {
-                            "h": float(h_values[i]),
-                            "theta": theta_i,
-                            "e_exact": float(e_exact[i]),
-                            "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
-                            "n_qubits": n,
-                            "source": "npz",
-                            "quality_tier": tier_arr[i] if tier_arr else "unverified",
-                            "method": str(method_arr[i]) if method_arr else "unknown",
-                            "j2": npz_j2,
-                        }
-                        if abs_errors is not None:
-                            pt["abs_error"] = float(abs_errors[i])
-                        points.append(pt)
+                points = []
+                for i in range(len(h_values)):
+                    # Ensure theta is always float64 (handles legacy dtype=object NPZs)
+                    theta_i = np.asarray(theta_opt[i], dtype=np.float64)
+                    pt = {
+                        "h": float(h_values[i]),
+                        "theta": theta_i,
+                        "e_exact": float(e_exact[i]),
+                        "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
+                        "n_qubits": n,
+                        "source": "npz",
+                        "quality_tier": tier_arr[i] if tier_arr else "unverified",
+                        "method": str(method_arr[i]) if method_arr else "unknown",
+                        "j2": npz_j2,
+                    }
+                    if abs_errors is not None:
+                        pt["abs_error"] = float(abs_errors[i])
+                    points.append(pt)
 
-                    if n not in self._data_by_n:
-                        self._data_by_n[n] = []
-                    self._data_by_n[n].extend(points)
-                    logger.info(f"  NPZ: {npz_file.name} -> N={n}, {len(points)} points")
-                except Exception as e:
-                    logger.debug(f"  NPZ load failed: {npz_file.name}: {e}")
+                if n not in self._data_by_n:
+                    self._data_by_n[n] = []
+                self._data_by_n[n].extend(points)
+                logger.info(f"  NPZ: {npz_file.name} -> N={n}, {len(points)} points")
+            except Exception as e:
+                logger.debug(f"  NPZ load failed: {npz_file.name}: {e}")
 
         # Source 2: Large-N extrapolation data (approximate tier, bootstrapping cycle)
         # These are MPNN predictions that passed dual criterion but haven't been
@@ -258,15 +238,15 @@ class MultiNAggregator:
         # iterative improvement cycle: predict(N=30) → train → predict(N=40) → ...
         from qmbp_simulation.framework.result_io import (
             EXTRAPOLATION_DATA_ROOT,
+        )
+        from qmbp_simulation.framework.result_io import (
             training_npz_read_globs as _npz_read_globs,
         )
 
         _extrap_root = _PROJECT_ROOT / EXTRAPOLATION_DATA_ROOT
         _seen_extrap: set[str] = set()
         _extrap_files: list[Path] = []
-        for _dir, _pattern in _npz_read_globs(
-            self.topology, self.p_layers, model=self.model, root=_extrap_root
-        ):
+        for _dir, _pattern in _npz_read_globs(self.topology, self.p_layers, model=self.model, root=_extrap_root):
             if not _dir.exists():
                 continue
             for _f in sorted(_dir.glob(_pattern)):
@@ -275,73 +255,56 @@ class MultiNAggregator:
                 _seen_extrap.add(_f.name)
                 _extrap_files.append(_f)
 
-        if True:
-            for npz_file in _extrap_files:
-                # Check both dir-qualified path and bare filename (legacy compat)
-                qualified = f"large_n_extrapolation/{npz_file.name}"
-                if qualified in skip_files or npz_file.name in skip_files:
+        for npz_file in _extrap_files:
+            # Check both dir-qualified path and bare filename (legacy compat)
+            qualified = f"large_n_extrapolation/{npz_file.name}"
+            if qualified in skip_files or npz_file.name in skip_files:
+                continue
+            try:
+                data = np.load(str(npz_file), allow_pickle=True)
+                h_values = np.asarray(data["h_values"], dtype=np.float64)
+                theta_opt = data["theta_opt"]
+                e_exact = np.asarray(data["e_exact"], dtype=np.float64)
+
+                fname = npz_file.stem
+                n_str = fname.split("_N")[1].split("_")[0]
+                n = int(n_str)
+
+                # Skip if beyond max_n
+                if self.max_n is not None and n > self.max_n:
+                    logger.info(f"  MultiNAggregator: SKIPPING extrap {npz_file.name} (N={n} > max_n={self.max_n})")
                     continue
-                try:
-                    data = np.load(str(npz_file), allow_pickle=True)
-                    h_values = np.asarray(data["h_values"], dtype=np.float64)
-                    theta_opt = data["theta_opt"]
-                    e_exact = np.asarray(data["e_exact"], dtype=np.float64)
 
-                    fname = npz_file.stem
-                    n_str = fname.split("_N")[1].split("_")[0]
-                    n = int(n_str)
+                de_gaps = (
+                    np.asarray(data["de_gaps"], dtype=np.float64) if "de_gaps" in data else np.zeros(len(h_values))
+                )
+                e_key = "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
+                abs_errors = np.abs(np.asarray(data[e_key], dtype=np.float64) - e_exact) if e_key else None
 
-                    # Skip if beyond max_n
-                    if self.max_n is not None and n > self.max_n:
-                        logger.info(
-                            f"  MultiNAggregator: SKIPPING extrap {npz_file.name} "
-                            f"(N={n} > max_n={self.max_n})"
-                        )
-                        continue
-
-                    de_gaps = (
-                        np.asarray(data["de_gaps"], dtype=np.float64)
-                        if "de_gaps" in data
-                        else np.zeros(len(h_values))
-                    )
-                    e_key = (
-                        "e_vqe" if "e_vqe" in data else ("energies" if "energies" in data else None)
-                    )
-                    abs_errors = (
-                        np.abs(np.asarray(data[e_key], dtype=np.float64) - e_exact)
-                        if e_key
-                        else None
+                npz_j2 = float(data["J2"]) if "J2" in data else None
+                points = []
+                for i in range(len(h_values)):
+                    theta_i = np.asarray(theta_opt[i], dtype=np.float64)
+                    points.append(
+                        {
+                            "h": float(h_values[i]),
+                            "theta": theta_i,
+                            "e_exact": float(e_exact[i]),
+                            "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
+                            "abs_error": float(abs_errors[i]) if abs_errors is not None else None,
+                            "n_qubits": n,
+                            "source": "large_n_extrapolation",
+                            "quality_tier": "approximate",
+                            "j2": npz_j2,
+                        }
                     )
 
-                    npz_j2 = float(data["J2"]) if "J2" in data else None
-                    points = []
-                    for i in range(len(h_values)):
-                        theta_i = np.asarray(theta_opt[i], dtype=np.float64)
-                        points.append(
-                            {
-                                "h": float(h_values[i]),
-                                "theta": theta_i,
-                                "e_exact": float(e_exact[i]),
-                                "de_gap": float(de_gaps[i]) if i < len(de_gaps) else 0.0,
-                                "abs_error": float(abs_errors[i])
-                                if abs_errors is not None
-                                else None,
-                                "n_qubits": n,
-                                "source": "large_n_extrapolation",
-                                "quality_tier": "approximate",
-                                "j2": npz_j2,
-                            }
-                        )
-
-                    if n not in self._data_by_n:
-                        self._data_by_n[n] = []
-                    self._data_by_n[n].extend(points)
-                    logger.info(
-                        f"  LargeN NPZ: {npz_file.name} -> N={n}, "
-                        f"{len(points)} points (approximate tier)"
-                    )
-                except Exception as e:
-                    logger.debug(f"  LargeN NPZ load failed: {npz_file.name}: {e}")
+                if n not in self._data_by_n:
+                    self._data_by_n[n] = []
+                self._data_by_n[n].extend(points)
+                logger.info(f"  LargeN NPZ: {npz_file.name} -> N={n}, {len(points)} points (approximate tier)")
+            except Exception as e:
+                logger.debug(f"  LargeN NPZ load failed: {npz_file.name}: {e}")
 
         # Source 3: ResultIndex JSON files (fallback if no NPZ found)
         if not self._data_by_n:
@@ -523,8 +486,7 @@ class MultiNAggregator:
                     feat_dims,
                 )
                 raise ValueError(
-                    f"Inconsistent node_features: {feat_dims}. "
-                    "Cannot mix graphs with different feature dimensions."
+                    f"Inconsistent node_features: {feat_dims}. Cannot mix graphs with different feature dimensions."
                 )
 
         return dataset
@@ -690,9 +652,7 @@ class MultiNAggregator:
                         if np.all(np.isfinite(theta_arr)) and theta_arr.size > 0:
                             # More variants for very small datasets
                             n_noise = 2 if len(filtered) < 20 else 1
-                            max_variants = (
-                                3 if len(filtered) < 20 else AUGMENTATION_MAX_VARIANTS_PER_POINT
-                            )
+                            max_variants = 3 if len(filtered) < 20 else AUGMENTATION_MAX_VARIANTS_PER_POINT
                             variants = augment_theta_symmetries(
                                 theta_arr,
                                 include_z2=True,
@@ -712,12 +672,8 @@ class MultiNAggregator:
                                     include_nnn=include_nnn,
                                     include_orbit_feature=self.include_orbit_feature,
                                 )
-                                g_aug.y = torch.tensor(
-                                    var_theta.astype(np.float32), dtype=torch.float32
-                                )
-                                g_aug.sample_weight = torch.tensor(
-                                    [QUALITY_TIER_WEIGHT_AUGMENTED], dtype=torch.float32
-                                )
+                                g_aug.y = torch.tensor(var_theta.astype(np.float32), dtype=torch.float32)
+                                g_aug.sample_weight = torch.tensor([QUALITY_TIER_WEIGHT_AUGMENTED], dtype=torch.float32)
                                 g_aug.e_exact = torch.tensor([pt["e_exact"]], dtype=torch.float32)
                                 g_aug.de_gap = torch.tensor([pt["de_gap"]], dtype=torch.float32)
                                 g_aug.phys_topology = self.topology
@@ -956,11 +912,7 @@ class MultiTopologyAggregator:
                 continue
 
             # Quality gate: check verified count
-            n_verified = sum(
-                1
-                for g in topo_dataset
-                if hasattr(g, "sample_weight") and g.sample_weight.item() >= 0.95
-            )
+            n_verified = sum(1 for g in topo_dataset if hasattr(g, "sample_weight") and g.sample_weight.item() >= 0.95)
             if n_verified < self.min_verified_points:
                 logger.warning(
                     f"  MultiTopo: {topo} has only {n_verified} verified points "

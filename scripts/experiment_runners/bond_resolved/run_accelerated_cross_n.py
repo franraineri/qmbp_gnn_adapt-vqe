@@ -169,6 +169,14 @@ class AcceleratedCrossNRunner(ValidationRunner):
             help="Number of VQE anchor points (default: %(default)s)",
         )
         parser.add_argument(
+            "--g",
+            type=float,
+            default=0.0,
+            help="Longitudinal field strength for the TFIM + longitudinal model "
+            "(H = -J·ZZ - h·X - g·Z). Only meaningful with "
+            "--model tfim_bond_resolved_longitudinal. Default 0.0 (standard TFIM).",
+        )
+        parser.add_argument(
             "--maxiter",
             type=int,
             default=DEFAULT_MAXITER,
@@ -321,10 +329,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # once here so every downstream use (main config, bootstrap, refine)
         # inherits the floor.
         if self._args.n_restarts < MIN_N_RESTARTS:
-            logger.info(
-                f"  n_restarts raised {self._args.n_restarts} → {MIN_N_RESTARTS} "
-                f"(hard floor MIN_N_RESTARTS)"
-            )
+            logger.info(f"  n_restarts raised {self._args.n_restarts} → {MIN_N_RESTARTS} (hard floor MIN_N_RESTARTS)")
             self._args.n_restarts = MIN_N_RESTARTS
         # Auto-detect h_min from valid regime if user didn't override
         # (h below the regime boundary is ansatz-limited for p=1)
@@ -334,11 +339,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
                 topo = self._args.topology
                 n_target = self._args.target_n[0] if self._args.target_n else 10
-                p = (
-                    self._args.p_layers[0]
-                    if isinstance(self._args.p_layers, list)
-                    else self._args.p_layers
-                )
+                p = self._args.p_layers[0] if isinstance(self._args.p_layers, list) else self._args.p_layers
                 threshold = get_regime_threshold(topo, n_target, p)
                 if threshold > 0 and threshold > self._args.h_min:
                     logger.info(
@@ -350,10 +351,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 pass  # Keep default if regime lookup fails
 
         # Round to 2 decimals for cache key stability (matches GroundTruthCache)
-        self._h_values = [
-            round(h, 2)
-            for h in np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)
-        ]
+        self._h_values = [round(h, 2) for h in np.linspace(self._args.h_max, self._args.h_min, self._args.h_points)]
         self._models = {}  # p_layers → trained model
         self._train_results = {}  # p_layers → AcceleratedResult
         # Default force_method to L-BFGS-B for noiseless backends.
@@ -362,10 +360,20 @@ class AcceleratedCrossNRunner(ValidationRunner):
         if self._args.force_method is None:
             self._args.force_method = "L-BFGS-B"
 
+    def model_kwargs(self) -> dict:
+        """Hamiltonian kwargs: J2 (frustrated) and g (longitudinal field)."""
+        kwargs = super().model_kwargs()
+        g = getattr(self._args, "g", 0.0) or 0.0
+        if abs(g) > 1e-15:
+            kwargs["g"] = float(g)
+        return kwargs
+
     def _build_circuit(self, n_qubits: int, p_layers: int, lattice):
         """Build the bond-resolved circuit, frustrated (NN+NNN) when --j2 != 0."""
         if self._is_frustrated:
             return self.hva.create_bond_resolved_frustrated(n_qubits, p_layers, lattice)
+        if abs(getattr(self._args, "g", 0.0) or 0.0) > 1e-15:
+            return self.hva.create_bond_resolved_longitudinal(n_qubits, p_layers, lattice)
         return self.hva.create_bond_resolved(n_qubits, p_layers, lattice)
 
     def _build_graph(self, lattice, h_value: float, p_layers: int, **kwargs):
@@ -384,9 +392,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # Prefer the value auto-derived from the loaded model (set in
         # section_cross_n_predict); fall back to the CLI flag before a model is
         # loaded. Explicit kwargs still win.
-        _orbit_default = getattr(
-            self, "_orbit_feature_effective", getattr(self._args, "orbit_feature", False)
-        )
+        _orbit_default = getattr(self, "_orbit_feature_effective", getattr(self._args, "orbit_feature", False))
         kwargs.setdefault("include_orbit_feature", _orbit_default)
         return build_unified_bond_resolved_graph(
             lattice,
@@ -411,8 +417,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 )
                 return False
         if (train_h_min is not None or train_h_max is not None) and not (
-            getattr(self._args, "multi_n_train", False)
-            or getattr(self._args, "iterative_improve", False)
+            getattr(self._args, "multi_n_train", False) or getattr(self._args, "iterative_improve", False)
         ):
             logger.warning(
                 "--train-h-min/--train-h-max only affect the training dataset "
@@ -430,8 +435,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     bad_n.append(f"target_n={n}")
             if bad_n:
                 logger.error(
-                    f"Ladder topology requires even N. Invalid: {', '.join(bad_n)}. "
-                    f"Use N=8, 10, 12, 14, 16, 20, etc."
+                    f"Ladder topology requires even N. Invalid: {', '.join(bad_n)}. Use N=8, 10, 12, 14, 16, 20, etc."
                 )
                 return False
         return True
@@ -498,10 +502,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             else:
                 return
 
-            n_fail = sum(
-                is_point_failure(de_gap=float(de_gaps[i]), abs_error=float(abs_err[i]))
-                for i in range(n_pts)
-            )
+            n_fail = sum(is_point_failure(de_gap=float(de_gaps[i]), abs_error=float(abs_err[i])) for i in range(n_pts))
             pass_dual = (n_pts - n_fail) / n_pts
             pass_simple = float((de_gaps < DE_GAP_THRESHOLD).mean())
 
@@ -528,9 +529,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     f"This run will add more data via upsert."
                 )
             else:
-                logger.info(
-                    f"  Existing NPZ: {n_pts} pts, dual_pass={pass_dual:.0%} — USEFUL for training"
-                )
+                logger.info(f"  Existing NPZ: {n_pts} pts, dual_pass={pass_dual:.0%} — USEFUL for training")
         except Exception as e:
             logger.debug(f"  NPZ utility check failed (non-blocking): {e}")
 
@@ -569,9 +568,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         # --from-zoo so no training section is added (predict-only).
         _predict_only = self._args.from_zoo or bool(getattr(self._args, "checkpoint", None))
 
-        if getattr(self._args, "multi_n_train", False) or getattr(
-            self._args, "force_retrain", False
-        ):
+        if getattr(self._args, "multi_n_train", False) or getattr(self._args, "force_retrain", False):
             sections.append(
                 Section(
                     id=2,
@@ -639,9 +636,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         topo = self._args.topology
 
         # ── Training utility gating: warn if existing NPZ is not useful ──
-        _p_check = (
-            self._args.p_layers[0] if isinstance(self._args.p_layers, list) else self._args.p_layers
-        )
+        _p_check = self._args.p_layers[0] if isinstance(self._args.p_layers, list) else self._args.p_layers
         self._check_existing_npz_utility(topo, N, p_layers=_p_check)
 
         backend = self.select_backend(N, for_vqe_loop=True)
@@ -681,8 +676,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             # mpnn_refined → verified (VQE-corrected prediction)
             # mpnn_direct → approximate (MPNN only, not VQE-verified)
             quality_tiers = [
-                "verified" if m in ("vqe_full", "vqe_refined", "mpnn_refined") else "approximate"
-                for m in result.method
+                "verified" if m in ("vqe_full", "vqe_refined", "mpnn_refined") else "approximate" for m in result.method
             ]
 
             n_upd, n_add = self.persist_theta_npz(
@@ -826,9 +820,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     "summary": agg.summary(),
                 }
 
-            logger.info(
-                f"  Combined dataset: {len(dataset)} graphs from N={agg.available_n_values()}"
-            )
+            logger.info(f"  Combined dataset: {len(dataset)} graphs from N={agg.available_n_values()}")
 
             # 3. Determine output dim from dataset (varies by graph size)
             # UnifiedMPNN uses per-node prediction so output_dim is implicit
@@ -944,9 +936,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 db = ModelRegistryDB()
                 record = db.get_model(entry.checkpoint_file)
                 if record:
-                    record.training.points_per_n = {
-                        str(k): v for k, v in agg.summary()["points_per_n"].items()
-                    }
+                    record.training.points_per_n = {str(k): v for k, v in agg.summary()["points_per_n"].items()}
                     record.training.n_values_used = agg.available_n_values()
                     db.register_model(record, overwrite=True)
             except Exception as e:
@@ -987,9 +977,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             model = self._models.get(p)
             if model is None:
                 # Respect --from-zoo / --checkpoint: never train a new model.
-                _train_if_missing = not (
-                    self._args.from_zoo or bool(getattr(self._args, "checkpoint", None))
-                )
+                _train_if_missing = not (self._args.from_zoo or bool(getattr(self._args, "checkpoint", None)))
                 model = self.load_best_mpnn_for_cross_n(
                     n_target=self._args.target_n[0],
                     model=self._physics_model,
@@ -1040,9 +1028,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 import os as _os
 
                 _prov = getattr(self, "_model_provenance", None) or {}
-                _ckpt_id = _os.path.basename(
-                    str(_prov.get("checkpoint") or self._args.checkpoint or "")
-                )
+                _ckpt_id = _os.path.basename(str(_prov.get("checkpoint") or self._args.checkpoint or ""))
                 eval_backend = self.get_cached_backend(
                     topology=topo,
                     n_qubits=n_target,
@@ -1054,8 +1040,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # Log which backend was selected (debug N>22 slowness)
                 _inner = getattr(eval_backend, "_backend", eval_backend)
                 logger.info(
-                    f"    Backend for N={n_target}: {_inner.name} "
-                    f"(wrapped in CachedBackend, cache={use_eval_cache})"
+                    f"    Backend for N={n_target}: {_inner.name} (wrapped in CachedBackend, cache={use_eval_cache})"
                 )
                 if use_eval_cache:
                     logger.info(f"    Eval cache: {len(eval_backend.cache)} entries loaded")
@@ -1085,13 +1070,10 @@ class AcceleratedCrossNRunner(ValidationRunner):
                         # Verify param count matches circuit
                         if len(theta_pred) != n_params_target:
                             logger.warning(
-                                f"    Param mismatch at h={h:.2f}: "
-                                f"predicted {len(theta_pred)}, need {n_params_target}"
+                                f"    Param mismatch at h={h:.2f}: predicted {len(theta_pred)}, need {n_params_target}"
                             )
                             if len(theta_pred) < n_params_target:
-                                theta_pred = np.pad(
-                                    theta_pred, (0, n_params_target - len(theta_pred))
-                                )
+                                theta_pred = np.pad(theta_pred, (0, n_params_target - len(theta_pred)))
                             else:
                                 theta_pred = theta_pred[:n_params_target]
 
@@ -1199,9 +1181,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                     "h": h_cold,
                                     "de_gap_cold": float(de_gap_cold),
                                     "de_gap_warm": float(r_cold["de_gap"]),
-                                    "speedup": "warm better"
-                                    if r_cold["de_gap"] < de_gap_cold
-                                    else "cold better",
+                                    "speedup": "warm better" if r_cold["de_gap"] < de_gap_cold else "cold better",
                                 }
                             )
                             logger.info(
@@ -1251,17 +1231,13 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                 theta_init = np.clip(theta_init, -np.pi, np.pi)
                                 if len(theta_init) != n_params_target:
                                     if len(theta_init) < n_params_target:
-                                        theta_init = np.pad(
-                                            theta_init, (0, n_params_target - len(theta_init))
-                                        )
+                                        theta_init = np.pad(theta_init, (0, n_params_target - len(theta_init)))
                                     else:
                                         theta_init = theta_init[:n_params_target]
 
                                 al_maxiter = 200 if n_target <= STATEVECTOR_MAX_N else 50
                                 res = _minimize(
-                                    lambda params: vqe_backend.evaluate(
-                                        circuit_target, H_ref, params
-                                    ),
+                                    lambda params: vqe_backend.evaluate(circuit_target, H_ref, params),
                                     theta_init,
                                     method="COBYLA",
                                     options={"maxiter": al_maxiter, "rhobeg": 0.1},
@@ -1294,13 +1270,9 @@ class AcceleratedCrossNRunner(ValidationRunner):
                                         **r,
                                         "de_gap": float(de_gap_new),
                                         "abs_error": float(abs(res.fun - e_exact_ref)),
-                                        "fidelity": fid_new
-                                        if fid_new is not None
-                                        else r.get("fidelity"),
+                                        "fidelity": fid_new if fid_new is not None else r.get("fidelity"),
                                         "fidelity_method": fid_info_new.get("method"),
-                                        "fidelity_is_bound": fid_info_new.get(
-                                            "is_lower_bound", False
-                                        ),
+                                        "fidelity_is_bound": fid_info_new.get("is_lower_bound", False),
                                         "e_pred": float(res.fun),
                                         "method": "refined",
                                         "de_gap_before_refine": float(r["de_gap"]),
@@ -1336,9 +1308,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     "p_layers": p,
                     "n_params": n_params_target,
                     **summary,
-                    "uncertainty_calibration": uc_report
-                    if uc_report["n_points_with_uncertainty"] >= 3
-                    else None,
+                    "uncertainty_calibration": uc_report if uc_report["n_points_with_uncertainty"] >= 3 else None,
                     "fidelity_available": n_target <= STATEVECTOR_MAX_N,
                     "active_learning_applied": n_refined > 0,
                     "n_refined": n_refined,
@@ -1346,11 +1316,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     "elapsed_s": elapsed,
                     "per_point": per_h_results,
                 }
-                fid_info = (
-                    f"F_mean={summary['mean_fidelity']:.4f}"
-                    if summary.get("mean_fidelity")
-                    else "F=N/A"
-                )
+                fid_info = f"F_mean={summary['mean_fidelity']:.4f}" if summary.get("mean_fidelity") else "F=N/A"
                 grade = summary.get("grade", "?")
                 score = summary.get("quality_score", 0)
                 logger.info(
@@ -1503,9 +1469,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 from qmbp_simulation.execution import MPSBackend
 
                 eval_backend = MPSBackend(strategy="aer_mps", chi_max=64, deterministic=True)
-                logger.info(
-                    f"  Backend: MPSBackend(aer_mps, chi=64, det=True) for N={n_target} > {STATEVECTOR_MAX_N}"
-                )
+                logger.info(f"  Backend: MPSBackend(aer_mps, chi=64, det=True) for N={n_target} > {STATEVECTOR_MAX_N}")
             except ImportError:
                 eval_backend = backend
                 logger.warning(
@@ -1519,9 +1483,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         lattice_target = self.make_lattice(topo, n_target, J=1.0, h=2.0)
         circuit_target, _ = self._build_circuit(n_target, p, lattice_target)
         n_params = circuit_target.num_parameters
-        logger.info(
-            f"  Circuit: N={n_target}, p={p}, n_params={n_params}, eval_backend={eval_backend.name}"
-        )
+        logger.info(f"  Circuit: N={n_target}, p={p}, n_params={n_params}, eval_backend={eval_backend.name}")
 
         # NPZ path for this config
         npz_dir = self._training_data_dir
@@ -1549,9 +1511,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
         for i, h in enumerate(self._h_values):
             t_gt = time.perf_counter()
             if self._is_frustrated:
-                _was_cached = self._gt_in_memory_cached(
-                    topo, n_target, float(h), self._model_kwargs
-                )
+                _was_cached = self._gt_in_memory_cached(topo, n_target, float(h), self._model_kwargs)
                 e_i, gap_i = self.exact_ground_state(
                     topo,
                     n_target,
@@ -1560,9 +1520,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     model_kwargs=self._model_kwargs,
                 )
             else:
-                _was_cached = (
-                    gt_cache.get(topo, n_target, self._physics_model, float(h)) is not None
-                )
+                _was_cached = gt_cache.get(topo, n_target, self._physics_model, float(h)) is not None
                 e_i, gap_i = gt_cache.get_or_compute(
                     topo,
                     n_target,
@@ -1628,8 +1586,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 return {
                     "pass": False,
                     "error": (
-                        f"--checkpoint '{_ckpt}' not found as a file path, exact "
-                        f"zoo name, or fuzzy match.{hint}"
+                        f"--checkpoint '{_ckpt}' not found as a file path, exact zoo name, or fuzzy match.{hint}"
                     ),
                 }
             model = _smart_load_checkpoint(str(ckpt_path))
@@ -1725,9 +1682,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 # Save bootstrap data to NPZ (atomic with anti-regression)
                 # Map method labels to quality tiers for bootstrap data
                 boot_quality_tiers = [
-                    "verified"
-                    if m in ("vqe_full", "vqe_refined", "mpnn_refined")
-                    else "approximate"
+                    "verified" if m in ("vqe_full", "vqe_refined", "mpnn_refined") else "approximate"
                     for m in boot_result.method
                 ]
                 self.persist_theta_npz(
@@ -1831,10 +1786,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 _existing = [
                     e
                     for e in _load_manifest()
-                    if e.topology == topo
-                    and e.model == self._physics_model
-                    and e.p_layers == p
-                    and e.n_qubits == 0
+                    if e.topology == topo and e.model == self._physics_model and e.p_layers == p and e.n_qubits == 0
                 ]
                 if _existing:
                     zoo_best_pass_rate = max(e.pass_rate for e in _existing)
@@ -1878,9 +1830,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 predictions.append(pred)
             predictions = np.array(predictions)
             if n_pred_invalid > 0:
-                logger.warning(
-                    f"  │ ⚠️ {n_pred_invalid}/{len(self._h_values)} predictions had NaN/Inf"
-                )
+                logger.warning(f"  │ ⚠️ {n_pred_invalid}/{len(self._h_values)} predictions had NaN/Inf")
 
             # ── 2b: Evaluate + identify failures ──────────────────────────
             # CRITICAL: On iteration 2+, ALWAYS evaluate MPNN predictions
@@ -2043,25 +1993,18 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     logger.info(f"  │ Safety net: persisted {n_safety_persisted} extra points")
 
                 iteration_reports.append(
-                    self._build_iter_report(
-                        iteration, pass_rate, 0, 0, eval_hits, time.perf_counter() - t_iter_start
-                    )
+                    self._build_iter_report(iteration, pass_rate, 0, 0, eval_hits, time.perf_counter() - t_iter_start)
                 )
                 break
 
             improvement = pass_rate - prev_pass_rate
             if iteration > 1 and improvement < improvement_threshold:
                 convergence_reason = "no_improvement"
-                logger.info(
-                    f"  │ ✓ Converged: improvement={improvement:.4f} < "
-                    f"threshold={improvement_threshold}"
-                )
+                logger.info(f"  │ ✓ Converged: improvement={improvement:.4f} < threshold={improvement_threshold}")
                 # Note: All passing predictions were already persisted immediately. No bulk save needed.
                 eval_cache.flush()
                 iteration_reports.append(
-                    self._build_iter_report(
-                        iteration, pass_rate, 0, 0, eval_hits, time.perf_counter() - t_iter_start
-                    )
+                    self._build_iter_report(iteration, pass_rate, 0, 0, eval_hits, time.perf_counter() - t_iter_start)
                 )
                 break
 
@@ -2165,8 +2108,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             if scored_failures:
                 top = scored_failures[0]
                 logger.info(
-                    f"  │ Top priority: h={float(self._h_values[top[1]]):.3f} "
-                    f"score={top[0]:.2f} reason={top[2]}"
+                    f"  │ Top priority: h={float(self._h_values[top[1]]):.3f} score={top[0]:.2f} reason={top[2]}"
                 )
 
             # ── 2d: Anti-regression + VQE refine ─────────────────────────
@@ -2193,9 +2135,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 t_refine_start = time.perf_counter()
 
                 # Adaptive VQE config: scale budget based on priority
-                fail_priority = (
-                    scored_failures[fail_idx_pos][0] if fail_idx_pos < len(scored_failures) else 0.5
-                )
+                fail_priority = scored_failures[fail_idx_pos][0] if fail_idx_pos < len(scored_failures) else 0.5
                 adaptive_cfg = compute_adaptive_vqe_config(
                     priority=fail_priority,
                     de_gap=de_gaps[idx],
@@ -2277,9 +2217,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     e_refined = float(vqe_result.energy)
                     res_x = vqe_result.theta_opt
                     t_refine_elapsed = time.perf_counter() - t_refine_start
-                    logger.info(
-                        f"    h={h:.2f}: VQE done in {t_refine_elapsed:.1f}s, E={e_refined:.6f}"
-                    )
+                    logger.info(f"    h={h:.2f}: VQE done in {t_refine_elapsed:.1f}s, E={e_refined:.6f}")
 
                     # ── Validate refined result before storing ────────────
                     # 1. Energy must be finite
@@ -2356,8 +2294,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                 except KeyboardInterrupt:
                     # Persist everything refined so far before re-raising
                     logger.warning(
-                        f"  │ ⚠️ Interrupted during refinement. "
-                        f"{len(refined_h)} points already saved to NPZ."
+                        f"  │ ⚠️ Interrupted during refinement. {len(refined_h)} points already saved to NPZ."
                     )
                     eval_cache.flush()
                     raise
@@ -2431,8 +2368,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
 
             if do_retrain and len(dataset) >= 5:
                 logger.info(
-                    f"  │ Retraining (reason={retrain_reason}, "
-                    f"{len(refined_h)} new points, {len(dataset)} total)..."
+                    f"  │ Retraining (reason={retrain_reason}, {len(refined_h)} new points, {len(dataset)} total)..."
                 )
                 sample_g = dataset[0]
                 n_node_features = sample_g.x.shape[1] if hasattr(sample_g, "x") else 4
@@ -2547,8 +2483,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
                     )
             elif not do_retrain:
                 logger.info(
-                    f"  │ Skipping retrain: {retrain_reason} "
-                    f"(refined={len(refined_h)}, dataset={len(dataset)})"
+                    f"  │ Skipping retrain: {retrain_reason} (refined={len(refined_h)}, dataset={len(dataset)})"
                 )
             else:
                 logger.warning(f"  │ Only {len(dataset)} points — skipping retrain")
@@ -2619,8 +2554,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             cross_n_report = report.to_dict()
             status = "✅" if report.overall_pass else "❌"
             logger.info(
-                f"  {status} CrossN L1: pass_rate={report.l1_pass_rate:.0%}, "
-                f"mean_ΔE/gap={report.l1_mean_de_gap:.4f}"
+                f"  {status} CrossN L1: pass_rate={report.l1_pass_rate:.0%}, mean_ΔE/gap={report.l1_mean_de_gap:.4f}"
             )
         except Exception as e:
             logger.debug(f"  Cross-N report skipped: {e}")
@@ -2650,9 +2584,7 @@ class AcceleratedCrossNRunner(ValidationRunner):
             "gt_cache_misses": gt_misses,
         }
 
-    def _build_iter_report(
-        self, iteration, pass_rate, n_refined, n_ansatz_limited, eval_hits, elapsed_s
-    ) -> dict:
+    def _build_iter_report(self, iteration, pass_rate, n_refined, n_ansatz_limited, eval_hits, elapsed_s) -> dict:
         """Build per-iteration summary dict."""
         return {
             "iteration": iteration,

@@ -492,3 +492,181 @@ class TestFeatureDimAdaptivity:
             include_orbit_feature=True,
         )
         assert g_on.x.shape[1] == g_off.x.shape[1] + 1
+
+
+class TestLongitudinalRZExtension:
+    """Bond-resolved longitudinal ansatz: RZ nodes + θ_z head (include_rz_nodes)."""
+
+    def test_tfim_graph_unchanged_by_default(self):
+        """Default include_rz_nodes=False builds an identical graph to before."""
+        lattice = make_lattice("heavy_hex", 6, h=2.0)
+        g_default = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1)
+        g_explicit = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1, include_rz_nodes=False)
+        assert g_default.x.shape[0] == g_explicit.x.shape[0]
+        assert not getattr(g_default, "has_rz_nodes", False)
+        assert g_default.n_rz_gates == 0
+        from qmbp_simulation.predictors import NODE_TYPE_RZ_GATE
+
+        assert (g_default.node_type == NODE_TYPE_RZ_GATE).sum().item() == 0
+
+    def test_longitudinal_graph_node_count(self):
+        """include_rz_nodes adds exactly N·p RZ gate nodes."""
+        from qmbp_simulation.predictors import NODE_TYPE_RZ_GATE
+
+        lattice = make_lattice("heavy_hex", 6, h=2.0)
+        N = 6
+        g_tfim = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1)
+        for p in (1, 2):
+            g = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=p, include_rz_nodes=True)
+            assert g.has_rz_nodes
+            assert g.n_rz_gates == N * p
+            assert (g.node_type == NODE_TYPE_RZ_GATE).sum().item() == N * p
+            if p == 1:
+                assert g.x.shape[0] == g_tfim.x.shape[0] + N
+
+    def test_longitudinal_theta_shape_validation(self):
+        """theta_opt must be (n_edges + 2N)·p; wrong shape raises."""
+        lattice = make_lattice("heavy_hex", 6, h=2.0)
+        N = 6
+        n_edges = len(lattice.edges)
+        good = np.random.uniform(-1, 1, (n_edges + 2 * N))
+        g = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1, theta_opt=good, include_rz_nodes=True)
+        assert len(g.y) == n_edges + 2 * N
+        with pytest.raises(ValueError, match="shape mismatch"):
+            build_unified_bond_resolved_graph(
+                lattice, 2.0, p_layers=1, theta_opt=np.zeros(n_edges + N), include_rz_nodes=True
+            )
+
+    def test_longitudinal_edge_attr_consistency(self):
+        """edge_attr length matches edge_index (RZ edges included)."""
+        lattice = make_lattice("chain_1d", 6, h=2.0)
+        g = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=2, include_rz_nodes=True)
+        assert g.edge_attr.shape[0] == g.edge_index.shape[1]
+
+    def test_model_tfim_output_shape_unchanged(self):
+        """predict_z=False model returns (n_edges + N)·p — no regression."""
+        lattice = make_lattice("heavy_hex", 6, h=2.0)
+        N = 6
+        n_edges = len(lattice.edges)
+        m = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2)
+        m.eval()
+        g = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1)
+        out = m(g)
+        assert out.shape[1] == n_edges + N
+        assert m.z_head is None
+
+    def test_model_longitudinal_output_shape(self):
+        """predict_z=True model on longitudinal graph returns (n_edges + 2N)·p."""
+        lattice = make_lattice("heavy_hex", 6, h=2.0)
+        N = 6
+        n_edges = len(lattice.edges)
+        m = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2, predict_z=True)
+        m.eval()
+        for p in (1, 2):
+            g = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=p, include_rz_nodes=True)
+            out = m(g)
+            assert out.shape[1] == (n_edges + 2 * N) * p
+
+    def test_model_graceful_degrade_on_tfim_graph(self):
+        """A longitudinal model fed a plain TFIM graph degrades to (n_edges + N)."""
+        lattice = make_lattice("heavy_hex", 6, h=2.0)
+        N = 6
+        n_edges = len(lattice.edges)
+        m = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2, predict_z=True)
+        m.eval()
+        g_tfim = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1)
+        out = m(g_tfim)
+        assert out.shape[1] == n_edges + N
+
+    def test_checkpoint_roundtrip_preserves_predict_z(self, tmp_path):
+        """save/load preserves predict_z and reproduces the prediction."""
+        from qmbp_simulation.predictors.unified_mpnn import (
+            load_unified_checkpoint,
+            save_unified_checkpoint,
+        )
+
+        lattice = make_lattice("chain_1d", 6, h=2.0)
+        m = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2, predict_z=True)
+        m.eval()
+        g = build_unified_bond_resolved_graph(lattice, 2.0, p_layers=1, include_rz_nodes=True)
+        out = m(g)
+        path = str(tmp_path / "long.pt")
+        save_unified_checkpoint(m, path)
+        m2 = load_unified_checkpoint(path)
+        assert m2.predict_z
+        assert torch.allclose(out, m2(g), atol=1e-5)
+
+    def test_tfim_checkpoint_has_no_z_head(self, tmp_path):
+        """A plain TFIM checkpoint loads back without a z_head (backward compat)."""
+        from qmbp_simulation.predictors.unified_mpnn import (
+            load_unified_checkpoint,
+            save_unified_checkpoint,
+        )
+
+        m = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2)
+        path = str(tmp_path / "tfim.pt")
+        save_unified_checkpoint(m, path)
+        m2 = load_unified_checkpoint(path)
+        assert not m2.predict_z
+        assert m2.z_head is None
+
+    def test_build_graph_for_model_adds_rz_for_longitudinal(self):
+        """build_graph_for_model auto-enables RZ nodes for a predict_z model.
+
+        Regression: without this, a longitudinal model fed through the adaptive
+        graph builder silently gets a TFIM graph and outputs θ short by the θ_z
+        block. The graph feature dim must match AND the prediction must include
+        the per-site Z block.
+        """
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        N = 6
+        n_edges = len(lattice.edges)
+        model = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2, predict_z=True)
+        model.eval()
+        g = build_graph_for_model(model, lattice, h_value=2.5, p_layers=1)
+        assert getattr(g, "has_rz_nodes", False), "RZ nodes not auto-enabled"
+        with torch.no_grad():
+            pred = model(g)
+        assert pred.shape[1] == n_edges + 2 * N
+
+    def test_build_graph_for_model_no_rz_for_tfim(self):
+        """A plain TFIM model still gets a TFIM graph (no RZ nodes)."""
+        lattice = make_lattice("chain_1d", 6, h=2.5)
+        model = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2)
+        g = build_graph_for_model(model, lattice, h_value=2.5, p_layers=1)
+        assert not getattr(g, "has_rz_nodes", False)
+
+    def test_build_unified_dataset_longitudinal(self):
+        """build_unified_dataset validates the (n_edges + 2N) column count."""
+        lattice = make_lattice("chain_1d", 4, h=2.0)
+        N = 4
+        n_edges = len(lattice.edges)
+        h_values = np.array([1.5, 2.0, 2.5])
+        theta_opts = np.random.uniform(-1, 1, (3, n_edges + 2 * N))
+        ds = build_unified_dataset(lattice, h_values, theta_opts, p_layers=1, include_rz_nodes=True)
+        assert len(ds) == 3
+        assert all(g.has_rz_nodes for g in ds)
+        with pytest.raises(ValueError, match="column count"):
+            build_unified_dataset(lattice, h_values, np.zeros((3, n_edges + N)), p_layers=1, include_rz_nodes=True)
+
+    def test_longitudinal_training_decreases_mse(self):
+        """End-to-end: 3-block training reduces MSE on a small longitudinal set."""
+        from qmbp_simulation.predictors.unified_mpnn import train_unified_mpnn
+
+        lattice = make_lattice("chain_1d", 4, h=2.0)
+        N = 4
+        n_edges = len(lattice.edges)
+        rng = np.random.default_rng(0)
+        ds = [
+            build_unified_bond_resolved_graph(
+                lattice,
+                h,
+                p_layers=1,
+                theta_opt=rng.uniform(-1, 1, (n_edges + 2 * N)),
+                include_rz_nodes=True,
+            )
+            for h in [1.0, 1.5, 2.0, 2.5, 3.0, 3.5]
+        ]
+        m = UnifiedMPNN(node_features=5, hidden_dim=32, n_layers=2, edge_dim=2, predict_z=True)
+        res = train_unified_mpnn(m, ds, n_epochs=150, lr=1e-2, val_fraction=0.0, fidelity_loss_weight=0.0)
+        assert res["final_mse"] < res["mse_history"][0]

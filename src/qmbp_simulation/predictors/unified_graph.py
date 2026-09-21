@@ -43,6 +43,7 @@ NODE_TYPE_QUBIT = 0
 NODE_TYPE_ZZ_GATE = 1
 NODE_TYPE_RX_GATE = 2
 NODE_TYPE_GLOBAL = 3
+NODE_TYPE_RZ_GATE = 4  # longitudinal-field RZ gate (opt-in, include_rz_nodes=True)
 
 # Feature dimension (5 features: added bipartite coloring)
 UNIFIED_NODE_FEATURES = 5  # [feat1, feat2, N/100, node_type, coloring]
@@ -203,6 +204,12 @@ def build_graph_for_model(
     expected = int(getattr(model, "node_features", UNIFIED_NODE_FEATURES))
     kwargs.setdefault("include_circuit_nodes", True)
     kwargs.setdefault("include_orbit_feature", expected > UNIFIED_NODE_FEATURES)
+    # A longitudinal model (predict_z=True) needs RZ gate nodes in the graph so
+    # its z_head fires and the output has the θ_z block. Match the graph to the
+    # model automatically — otherwise the forward silently degrades to [θ_zz,
+    # θ_x] and the runner gets a θ short by the per-site Z block.
+    if getattr(model, "predict_z", False):
+        kwargs.setdefault("include_rz_nodes", True)
     return build_unified_bond_resolved_graph(lattice, h_value=h_value, p_layers=p_layers, **kwargs)
 
 
@@ -217,6 +224,7 @@ def build_unified_bond_resolved_graph(
     virtual_global_node: bool = True,
     include_nnn: bool = False,
     include_orbit_feature: bool = False,
+    include_rz_nodes: bool = False,
 ) -> Data:
     """Build a unified Hamiltonian+Circuit graph for bond-resolved prediction.
 
@@ -246,6 +254,12 @@ def build_unified_bond_resolved_graph(
         If False, produce a Hamiltonian-only graph (backward compatible).
     n_feature : bool
         Include N/100 as a node feature (recommended for cross-N).
+    include_rz_nodes : bool
+        If True, add per-site RZ gate nodes (NODE_TYPE_RZ_GATE) for the
+        longitudinal ansatz H = -J·ZZ - h·X - g·Z. The target θ_opt is then
+        expected to be (n_edges + 2N)·p with layout [θ_zz, θ_x, θ_z] per
+        layer. Default False → identical graph to the plain TFIM bond-resolved
+        model (backward compatible with existing checkpoints).
 
     Returns
     -------
@@ -286,18 +300,24 @@ def build_unified_bond_resolved_graph(
     if theta_opt is not None:
         # Ensure float64 (handles legacy dtype=object arrays from NPZ)
         theta_opt = np.asarray(theta_opt, dtype=np.float64)
-        expected_params = (n_edges + N) * p_layers
+        # Longitudinal ansatz adds a per-site θ_z block → (n_edges + 2N)·p.
+        site_blocks = 2 if include_rz_nodes else 1
+        expected_params = (n_edges + site_blocks * N) * p_layers
         if theta_opt.shape != (expected_params,):
+            _blocks_desc = (
+                f"{n_edges} edges + {N} qubits (θ_x) + {N} qubits (θ_z)"
+                if include_rz_nodes
+                else f"{n_edges} edges + {N} qubits"
+            )
             raise ValueError(
                 f"theta_opt shape mismatch: expected ({expected_params},) "
-                f"= ({n_edges} edges + {N} qubits) × {p_layers} layers, "
+                f"= ({_blocks_desc}) × {p_layers} layers, "
                 f"got {theta_opt.shape}"
             )
         if not np.all(np.isfinite(theta_opt)):
             n_bad = np.sum(~np.isfinite(theta_opt))
             logger.warning(
-                "theta_opt contains %d non-finite values (NaN/Inf). "
-                "Graph will be built but training may diverge.",
+                "theta_opt contains %d non-finite values (NaN/Inf). Graph will be built but training may diverge.",
                 n_bad,
             )
 
@@ -374,12 +394,26 @@ def build_unified_bond_resolved_graph(
             rx_feat_list.append([layer_norm, qubit_norm, n_scale, 2.0, coloring[qubit_idx]])
     rx_features = np.array(rx_feat_list) if rx_feat_list else np.empty((0, 5))
 
-    # Stack all node features + optional virtual global node
-    if virtual_global_node:
-        global_features = np.array([[float(h_value), float(coord.mean()), n_scale, 3.0, 0.5]])
-        all_features = np.vstack([qubit_features, zz_features, rx_features, global_features])
+    # RZ gate nodes (longitudinal only): [layer/p, qubit/N, N/100, type=4]
+    n_rz_gates = N * p_layers if include_rz_nodes else 0
+    if include_rz_nodes:
+        rz_feat_list = []
+        for layer in range(p_layers):
+            layer_norm = (layer + 0.5) / p_layers
+            for qubit_idx in range(N):
+                qubit_norm = (qubit_idx + 0.5) / N
+                rz_feat_list.append([layer_norm, qubit_norm, n_scale, float(NODE_TYPE_RZ_GATE), coloring[qubit_idx]])
+        rz_features = np.array(rz_feat_list) if rz_feat_list else np.empty((0, 5))
     else:
-        all_features = np.vstack([qubit_features, zz_features, rx_features])
+        rz_features = np.empty((0, 5))
+
+    # Stack all node features + optional virtual global node
+    feature_blocks = [qubit_features, zz_features, rx_features]
+    if include_rz_nodes:
+        feature_blocks.append(rz_features)
+    if virtual_global_node:
+        feature_blocks.append(np.array([[float(h_value), float(coord.mean()), n_scale, 3.0, 0.5]]))
+    all_features = np.vstack(feature_blocks)
     x = torch.tensor(all_features, dtype=torch.float32)
 
     # Node type tensor
@@ -388,6 +422,8 @@ def build_unified_bond_resolved_graph(
         torch.full((n_zz_gates,), NODE_TYPE_ZZ_GATE, dtype=torch.long),
         torch.full((n_rx_gates,), NODE_TYPE_RX_GATE, dtype=torch.long),
     ]
+    if include_rz_nodes:
+        node_type_parts.append(torch.full((n_rz_gates,), NODE_TYPE_RZ_GATE, dtype=torch.long))
     if virtual_global_node:
         node_type_parts.append(torch.full((1,), NODE_TYPE_GLOBAL, dtype=torch.long))
     node_type = torch.cat(node_type_parts)
@@ -419,6 +455,15 @@ def build_unified_bond_resolved_graph(
             edge_src.extend([gate_node, qubit_idx])
             edge_dst.extend([qubit_idx, gate_node])
 
+    # 3b. Gate-qubit edges: RZ gate ↔ the qubit it acts on (longitudinal only)
+    rz_base_idx = N + n_zz_gates + n_rx_gates  # RZ gate nodes start after RX gates
+    if include_rz_nodes:
+        for layer in range(p_layers):
+            for qubit_idx in range(N):
+                gate_node = rz_base_idx + layer * N + qubit_idx
+                edge_src.extend([gate_node, qubit_idx])
+                edge_dst.extend([qubit_idx, gate_node])
+
     # 4. Intra-layer sequential edges: ZZ gates → RX gates (circuit ordering)
     #    Within each layer: after all ZZ gates execute, RX gates follow.
     #    Connect each ZZ gate to the RX gates on its qubits (data flow).
@@ -430,6 +475,16 @@ def build_unified_bond_resolved_graph(
             # ZZ → RX (unidirectional: circuit causal order)
             edge_src.extend([zz_node, zz_node])
             edge_dst.extend([rx_node_i, rx_node_j])
+
+    # 4b. Intra-layer causal edges: RX gate → RZ gate (longitudinal only)
+    #     RZ follows RX within a layer (H = -J·ZZ - h·X - g·Z ordering).
+    if include_rz_nodes:
+        for layer in range(p_layers):
+            for qubit_idx in range(N):
+                rx_node = rx_base_idx + layer * N + qubit_idx
+                rz_node = rz_base_idx + layer * N + qubit_idx
+                edge_src.append(rx_node)
+                edge_dst.append(rz_node)
 
     # 5. Inter-layer edges: RX gate (layer l) → ZZ gate (layer l+1)
     #    Connects sequential layers for deep HVA (p>1).
@@ -445,7 +500,7 @@ def build_unified_bond_resolved_graph(
 
     # 6. Virtual global node ↔ all qubit nodes (bidirectional)
     if virtual_global_node:
-        global_node_idx = N + n_zz_gates + n_rx_gates
+        global_node_idx = N + n_zz_gates + n_rx_gates + n_rz_gates
         for qubit_idx in range(N):
             edge_src.extend([global_node_idx, qubit_idx])
             edge_dst.extend([qubit_idx, global_node_idx])
@@ -477,13 +532,12 @@ def build_unified_bond_resolved_graph(
             return 0.5  # intra-layer causal (ZZ→RX)
         if ts == NODE_TYPE_RX_GATE and td == NODE_TYPE_ZZ_GATE:
             return 0.75  # inter-layer (RX→ZZ next)
-        return 0.25  # gate-qubit binding
+        if ts == NODE_TYPE_RX_GATE and td == NODE_TYPE_RZ_GATE:
+            return 0.5  # intra-layer causal (RX→RZ, longitudinal)
+        return 0.25  # gate-qubit binding (incl. RZ↔qubit)
 
     edge_type_feat = np.array(
-        [
-            _edge_type_code(int(node_type_np[s]), int(node_type_np[d]))
-            for s, d in zip(src_arr, dst_arr, strict=False)
-        ],
+        [_edge_type_code(int(node_type_np[s]), int(node_type_np[d])) for s, d in zip(src_arr, dst_arr, strict=False)],
         dtype=np.float32,
     )
     coloring_sig = np.abs(node_coloring[src_arr] - node_coloring[dst_arr]).astype(np.float32)
@@ -493,7 +547,7 @@ def build_unified_bond_resolved_graph(
     edge_list = torch.tensor(edges_unique, dtype=torch.long)
 
     n_global = 1 if virtual_global_node else 0
-    total_nodes = N + n_zz_gates + n_rx_gates + n_global
+    total_nodes = N + n_zz_gates + n_rx_gates + n_rz_gates + n_global
 
     # ── Optional: automorphism-orbit feature (opt-in, additive) ──────
     # Appends ONE column encoding the symmetry orbit of each node's underlying
@@ -518,6 +572,12 @@ def build_unified_bond_resolved_graph(
         for layer in range(p_layers):
             base = rx_start + layer * N
             orbit_col[base : base + N] = site_orbit
+        # RZ gate nodes → site orbit (longitudinal only, same as RX)
+        if include_rz_nodes:
+            rz_start = N + n_zz_gates + n_rx_gates
+            for layer in range(p_layers):
+                base = rz_start + layer * N
+                orbit_col[base : base + N] = site_orbit
         # Global node (if present) → neutral 0.5
         if virtual_global_node:
             orbit_col[-1] = 0.5
@@ -533,6 +593,8 @@ def build_unified_bond_resolved_graph(
     data.n_edges_unique = n_edges
     data.has_global_node = virtual_global_node
     data.node_feature_dim = int(x.shape[1])
+    data.has_rz_nodes = bool(include_rz_nodes)
+    data.n_rz_gates = int(n_rz_gates)
 
     if theta_opt is not None:
         data.y = torch.tensor(theta_opt, dtype=torch.float32)
@@ -548,6 +610,7 @@ def build_unified_dataset(
     include_circuit_nodes: bool = True,
     bipartite_coloring: bool = True,
     virtual_global_node: bool = True,
+    include_rz_nodes: bool = False,
 ) -> list[Data]:
     """Build a list of unified graphs for training the BondResolvedMPNN.
 
@@ -570,20 +633,23 @@ def build_unified_dataset(
         One graph per h-point, ready for train_bond_resolved_mpnn.
     """
     if len(h_values) != len(theta_opts):
-        raise ValueError(
-            f"h_values ({len(h_values)}) and theta_opts ({len(theta_opts)}) "
-            f"must have the same length."
-        )
+        raise ValueError(f"h_values ({len(h_values)}) and theta_opts ({len(theta_opts)}) must have the same length.")
 
     # Ensure float64 (handles legacy dtype=object arrays from NPZ)
     theta_opts = np.asarray(theta_opts, dtype=np.float64)
     n_edges = len(lattice.edges)
     N = lattice.n_qubits
-    expected_params = (n_edges + N) * p_layers
+    site_blocks = 2 if include_rz_nodes else 1
+    expected_params = (n_edges + site_blocks * N) * p_layers
     if theta_opts.shape[1] != expected_params:
+        _desc = (
+            f"{n_edges} edges + {N} qubits (θ_x) + {N} qubits (θ_z)"
+            if include_rz_nodes
+            else f"{n_edges} edges + {N} qubits"
+        )
         raise ValueError(
             f"theta_opts column count ({theta_opts.shape[1]}) != expected "
-            f"({expected_params}) = ({n_edges} edges + {N} qubits) × {p_layers} layers"
+            f"({expected_params}) = ({_desc}) × {p_layers} layers"
         )
 
     dataset = []
@@ -596,6 +662,7 @@ def build_unified_dataset(
             include_circuit_nodes=include_circuit_nodes,
             bipartite_coloring=bipartite_coloring,
             virtual_global_node=virtual_global_node,
+            include_rz_nodes=include_rz_nodes,
         )
         dataset.append(graph)
 
@@ -679,10 +746,7 @@ def validate_unified_graph(data: Data) -> list[str]:
     # 8. Qubit nodes must be first N nodes (layout invariant)
     first_n_types = data.node_type[:N]
     if not (first_n_types == NODE_TYPE_QUBIT).all():
-        issues.append(
-            "Qubit nodes must be the first N nodes in the graph "
-            "(layout invariant for edge_list indexing)"
-        )
+        issues.append("Qubit nodes must be the first N nodes in the graph (layout invariant for edge_list indexing)")
 
     return issues
 

@@ -38,25 +38,35 @@ WRAPPER_STANDALONE = r"""\documentclass[border=6pt]{standalone}
 \usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, calc}
-\input{%(palette)s}
+\input{__PALETTE__}
 \begin{document}
-\input{%(figure)s}
+\input{__FIGURE__}
 \end{document}
 """
 
+# Fallback sin 'standalone': se mide la figura en una \sbox y se fija el TAMAÑO DE
+# PÁGINA exactamente a la caja (+ borde), replicando el recorte de 'standalone' sin
+# ningún paquete extra. Así el PDF no queda como A3 con márgenes enormes (que hacían
+# ver la figura diminuta al escalar con \includegraphics), sino ajustado al dibujo.
 WRAPPER_ARTICLE = r"""\documentclass{article}
-\usepackage[a3paper,landscape,margin=1cm]{geometry}
 \usepackage{amsmath}
 \usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta, positioning, shapes.geometric, fit, calc}
-\input{%(palette)s}
+\input{__PALETTE__}
 \pagestyle{empty}
+\newsavebox{\figbox}
+\newlength{\figborder}\setlength{\figborder}{6pt}
 \begin{document}
-\centering
-\null\vfill
-\input{%(figure)s}
-\vfill
+\savebox{\figbox}{\input{__FIGURE__}}%
+\pdfpagewidth=\dimexpr\wd\figbox+2\figborder\relax
+\pdfpageheight=\dimexpr\ht\figbox+\dp\figbox+2\figborder\relax
+\hoffset=-1in \voffset=-1in
+\topmargin=0pt \headheight=0pt \headsep=0pt
+\oddsidemargin=0pt \evensidemargin=0pt
+\textwidth=\pdfpagewidth \textheight=\pdfpageheight
+\parindent=0pt
+\noindent\hspace{\figborder}\raisebox{\dimexpr\dp\figbox+\figborder\relax}{\usebox{\figbox}}%
 \end{document}
 """
 
@@ -91,7 +101,10 @@ def build_figure(fig_stem: str, keep_aux: bool = False) -> tuple[bool, str]:
     wrapper_name = f"_build_{fig_stem}"
     wrapper_tex = FIGURES_DIR / f"{wrapper_name}.tex"
     wrapper = WRAPPER_STANDALONE if _has_standalone() else WRAPPER_ARTICLE
-    wrapper_tex.write_text(wrapper % {"palette": PALETTE, "figure": fig_stem}, encoding="utf-8")
+    # Sustitución con marcadores propios (no %-format): el cuerpo LaTeX contiene '%'
+    # literales (fin de línea sin espacio) que romperían el formateo con '%'.
+    filled = wrapper.replace("__PALETTE__", PALETTE).replace("__FIGURE__", fig_stem)
+    wrapper_tex.write_text(filled, encoding="utf-8")
 
     try:
         with tempfile.TemporaryDirectory() as td:

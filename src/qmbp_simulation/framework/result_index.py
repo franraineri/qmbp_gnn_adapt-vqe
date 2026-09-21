@@ -221,9 +221,7 @@ class ResultIndex:
 
         Useful for baseline comparison when saving new results.
         """
-        candidates = self.query(
-            model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers
-        )
+        candidates = self.query(model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers)
         if not candidates:
             return None
         return max(candidates, key=lambda r: (r.get("pass_rate", 0), r.get("timestamp", "")))
@@ -398,8 +396,7 @@ class ResultIndex:
                     rate = best.get("pass_rate", 0)
                     if rate < 0.8:
                         suggestions.append(
-                            f"LOW PASS: {model} {topo} N={n} — best={rate:.0%}, "
-                            f"try wider h-range or more h-points"
+                            f"LOW PASS: {model} {topo} N={n} — best={rate:.0%}, try wider h-range or more h-points"
                         )
 
         return suggestions
@@ -447,9 +444,7 @@ class ResultIndex:
                         "config": key,
                         "latest_pass_rate": latest_rate,
                         "previous_pass_rate": prev_rate,
-                        "best_previous_pass_rate": max(
-                            r.get("pass_rate", 0) for r in sorted_runs[:-1]
-                        ),
+                        "best_previous_pass_rate": max(r.get("pass_rate", 0) for r in sorted_runs[:-1]),
                         "delta": latest_rate - prev_rate,
                         "latest_file": latest.get("_file", ""),
                         "latest_timestamp": latest.get("timestamp", ""),
@@ -652,9 +647,7 @@ class ResultIndex:
 
     # ── B6: Time estimation ──────────────────────────────────────────────
 
-    def estimate_time(
-        self, model: str, topology: str, n_qubits: int, p_layers: int
-    ) -> float | None:
+    def estimate_time(self, model: str, topology: str, n_qubits: int, p_layers: int) -> float | None:
         """Estimate execution time for a config based on similar previous runs.
 
         Returns estimated seconds, or None if no similar data available.
@@ -719,9 +712,7 @@ class ResultIndex:
         for (model, topo, n, _p), entry in latest_per_config.items():
             key = (model, topo)
             rate = entry.get("pass_rate", 0)
-            if rate > best[key]["pass_rate"] or (
-                rate == best[key]["pass_rate"] and n > best[key]["n"]
-            ):
+            if rate > best[key]["pass_rate"] or (rate == best[key]["pass_rate"] and n > best[key]["n"]):
                 best[key] = {
                     "pass_rate": rate,
                     "n": n,
@@ -818,11 +809,7 @@ class ResultIndex:
         # Group by (model, topology, p_layers)
         groups: dict[str, list[dict]] = defaultdict(list)
         for entry in entries:
-            key = (
-                f"{entry.get('model', '?')}|"
-                f"{entry.get('topology', '?')}|"
-                f"p={entry.get('p_layers', '?')}"
-            )
+            key = f"{entry.get('model', '?')}|{entry.get('topology', '?')}|p={entry.get('p_layers', '?')}"
             groups[key].append(entry)
 
         group_diagnoses: dict[str, dict[str, Any]] = {}
@@ -853,8 +840,7 @@ class ResultIndex:
             group_issues: list[str] = []
             if pass_rate < 0.5 and n >= 3:
                 group_issues.append(
-                    f"Consistently failing ({n_passed}/{n} pass) — "
-                    f"check h-range, maxiter, or restart count"
+                    f"Consistently failing ({n_passed}/{n} pass) — check h-range, maxiter, or restart count"
                 )
             if n == 1 and not runs[0].get("passed"):
                 group_issues.append("Single run, failed — retry with different seed")
@@ -866,10 +852,7 @@ class ResultIndex:
                 prev_run_rates = [r.get("pass_rate", 0.0) for r in sorted_runs[:-1]]
                 prev_avg = sum(prev_run_rates) / len(prev_run_rates)
                 if latest_run_rate < prev_avg - 0.2:
-                    group_issues.append(
-                        f"Latest run degraded vs history "
-                        f"({latest_run_rate:.0%} vs avg {prev_avg:.0%})"
-                    )
+                    group_issues.append(f"Latest run degraded vs history ({latest_run_rate:.0%} vs avg {prev_avg:.0%})")
 
             group_diagnoses[key] = {
                 "n_runs": n,
@@ -888,13 +871,10 @@ class ResultIndex:
         # Cross-group recommendations
         if n_failing > 0:
             recommendations.append(
-                f"{n_failing} config groups are failing — "
-                f"prioritize investigation before adding new experiments"
+                f"{n_failing} config groups are failing — prioritize investigation before adding new experiments"
             )
         if n_degraded > n_healthy:
-            recommendations.append(
-                "More groups degraded than healthy — consider batch re-run with updated params"
-            )
+            recommendations.append("More groups degraded than healthy — consider batch re-run with updated params")
 
         return {
             "groups": group_diagnoses,
@@ -978,6 +958,11 @@ class ResultIndex:
                     lines.append(f"- {s}")
                 lines.append("")
 
+            # ── Cross-N training coverage (from zoo checkpoints) ──────────
+            coverage_section = self._generate_cross_n_training_coverage()
+            if coverage_section:
+                lines.extend(coverage_section)
+
             # ── Large-N Extrapolation summary ─────────────────────────────
             extrap_section = self._generate_extrapolation_summary()
             if extrap_section:
@@ -1001,6 +986,39 @@ class ResultIndex:
         except Exception as e:
             logger.debug("Could not refresh project status: %s", e)
             return None
+
+    def _generate_cross_n_training_coverage(self) -> list[str] | None:
+        """Cross-N training coverage per topology, from the zoo checkpoints.
+
+        Single source of truth for which system sizes each topology's
+        UnifiedMPNN was jointly trained on. Reads the real multi-N checkpoints
+        (not a hand-maintained list), so the coverage never drifts. A thesis
+        table can be regenerated from this same source.
+        """
+        try:
+            from qmbp_simulation.predictors.model_zoo import training_n_by_topology
+        except Exception:
+            return None
+
+        coverage = training_n_by_topology(p_layers=1)
+        if not coverage:
+            return None
+
+        lines = [
+            "## Cross-N Training Coverage (UnifiedMPNN, p=1)",
+            "",
+            "System sizes each topology was jointly trained on (source: zoo "
+            "multi-N checkpoints; auto-derived, do not edit by hand).",
+            "",
+            "| Topology | N (joint training) | # sizes |",
+            "|----------|--------------------|:-------:|",
+        ]
+        for topo in sorted(coverage):
+            ns = coverage[topo]
+            ns_str = ", ".join(str(n) for n in ns)
+            lines.append(f"| {topo} | {ns_str} | {len(ns)} |")
+        lines.append("")
+        return lines
 
     def _generate_extrapolation_summary(self) -> list[str] | None:
         """Generate a compact Large-N Extrapolation summary for project-status.
@@ -1095,9 +1113,7 @@ class ResultIndex:
                     grade = grade_from_score(score)
                 except ImportError:
                     grade = "?"
-                lines.append(
-                    f"| {topo} | {e['n']} | {e['pts']} | {dg_str} | {e['ps']:.2e} | {grade} |"
-                )
+                lines.append(f"| {topo} | {e['n']} | {e['pts']} | {dg_str} | {e['ps']:.2e} | {grade} |")
         lines.append("")
         return lines
 
@@ -1133,9 +1149,7 @@ class ResultIndex:
                 "|----------|---|-----------|------|-------|---------|--------|---------|",
             ]
 
-            for entry in sorted(
-                multi_n, key=lambda e: (e.get("topology", ""), e.get("p_layers", 1))
-            ):
+            for entry in sorted(multi_n, key=lambda e: (e.get("topology", ""), e.get("p_layers", 1))):
                 topo = entry.get("topology", "?")
                 p_val = entry.get("p_layers", 1)
                 ckpt = entry.get("checkpoint_file", "?")
@@ -1184,11 +1198,7 @@ class ResultIndex:
                 by_n = mt.get("pass_rate_by_n", {})
                 arch = "baseline"
                 if "residual" in ckpt.lower() or "residual" in mt.get("notes", "").lower():
-                    arch = (
-                        "residual+film"
-                        if "film" in (ckpt + mt.get("notes", "")).lower()
-                        else "residual"
-                    )
+                    arch = "residual+film" if "film" in (ckpt + mt.get("notes", "")).lower() else "residual"
 
                 if by_n:
                     sorted_ns = sorted(by_n.items(), key=lambda x: int(x[0]))
@@ -1211,8 +1221,7 @@ class ResultIndex:
 
                 ckpt_short = ckpt[:35] + "..." if len(ckpt) > 38 else ckpt
                 lines.append(
-                    f"| **multi_topo** | {ckpt_short} | {arch} | {pr:.0%} | "
-                    f"{n_range} | {best_n_str} | {worst_n_str} |"
+                    f"| **multi_topo** | {ckpt_short} | {arch} | {pr:.0%} | {n_range} | {best_n_str} | {worst_n_str} |"
                 )
 
             lines.append("")

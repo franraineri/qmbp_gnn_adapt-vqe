@@ -6889,6 +6889,20 @@
         "per_h_de_gaps": {},
         "per_h_abs_errors": {},
         "per_h_h_values": {}
+      },
+      {
+        "evaluated_at": "2026-09-21T20:50:44.035576+00:00",
+        "target_n_values": [],
+        "pass_rate_5pct": 0.0,
+        "pass_rate_dual": 0.0,
+        "mean_de_gap": 0.0,
+        "mean_abs_error_per_site": 0.0,
+        "notes": "auto-deflated from 50%",
+        "pass_rate_dual_ci": [],
+        "mean_de_gap_ci": [],
+        "per_h_de_gaps": {},
+        "per_h_abs_errors": {},
+        "per_h_h_values": {}
       }
     ],
     "status": "active",

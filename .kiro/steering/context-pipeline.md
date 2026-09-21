@@ -109,7 +109,7 @@ result["diagnostics"] = collector.to_dict()
 
 ## Source Files
 
-- #[[file:src/qmbp_simulation/pipeline/runner.py]]
+- #[[file:_deprecated/pipeline/runner.py]]
 - #[[file:src/qmbp_simulation/analysis/vqe_validator.py]]
 - #[[file:src/qmbp_simulation/analysis/theta_validator.py]]
 - #[[file:src/qmbp_simulation/analysis/diagnostics.py]]

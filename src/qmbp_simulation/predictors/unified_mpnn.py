@@ -36,6 +36,7 @@ from torch_geometric.nn import GINConv, GINEConv
 from qmbp_simulation.predictors.unified_graph import (
     NODE_TYPE_QUBIT,
     NODE_TYPE_RX_GATE,
+    NODE_TYPE_RZ_GATE,
     NODE_TYPE_ZZ_GATE,
     UNIFIED_NODE_FEATURES,
 )
@@ -272,6 +273,7 @@ class UnifiedMPNN(nn.Module):
         readout_mode: str = "last",
         film_conditioning: bool = False,
         edge_dim: int = 2,
+        predict_z: bool = False,
     ) -> None:
         super().__init__()
 
@@ -293,9 +295,13 @@ class UnifiedMPNN(nn.Module):
         # edge_dim > 0 enables GINEConv (edge-feature-aware message passing).
         # edge_dim = 0 falls back to plain GINConv (backward-compatible).
         self.edge_dim = edge_dim
+        # predict_z adds a per-site θ_z head for the longitudinal ansatz
+        # (H = -J·ZZ - h·X - g·Z). Default False → plain TFIM bond-resolved
+        # (θ_zz, θ_x only), backward-compatible with existing checkpoints.
+        self.predict_z = predict_z
 
         # ── Type embedding (learned) ─────────────────────────────────
-        n_types = 4  # qubit=0, zz_gate=1, rx_gate=2, global=3
+        n_types = 5  # qubit=0, zz_gate=1, rx_gate=2, global=3, rz_gate=4
         if type_embedding_dim > 0:
             self.type_emb = nn.Embedding(n_types, type_embedding_dim)
             effective_input_dim = node_features + type_embedding_dim
@@ -388,6 +394,19 @@ class UnifiedMPNN(nn.Module):
                 nn.Linear(hidden_dim, 1),
             )
 
+        # θ_z: per-site longitudinal-field prediction from RZ gate embeddings.
+        # Only instantiated when predict_z=True (longitudinal ansatz), so plain
+        # TFIM checkpoints have no z_head.* keys and load unchanged.
+        if predict_z:
+            self.z_head = nn.Sequential(
+                nn.Linear(readout_dim, hidden_dim // 2),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim // 2, 1),
+            )
+        else:
+            self.z_head = None
+
     def forward(self, data: Data) -> torch.Tensor:
         """Predict bond-resolved θ = [θ_zz_edges, θ_x_nodes] × p_layers.
 
@@ -407,6 +426,10 @@ class UnifiedMPNN(nn.Module):
         torch.Tensor of shape [1, (n_edges + n_qubit_nodes) * p_layers]
             For p=1: [1, n_edges + N]
             For p>1: [1, (n_edges + N) * p] with layout matching theta_opt
+            When RZ gate nodes are present AND the model was built with
+            predict_z=True, a third per-site block is appended, giving
+            [1, (n_edges + 2N) * p] with layout [θ_zz, θ_x, θ_z] per grouping
+            (the longitudinal ansatz H = -J·ZZ - h·X - g·Z).
 
         Raises
         ------
@@ -513,10 +536,12 @@ class UnifiedMPNN(nn.Module):
         qubit_mask = node_type == NODE_TYPE_QUBIT
         zz_gate_mask = node_type == NODE_TYPE_ZZ_GATE
         rx_gate_mask = node_type == NODE_TYPE_RX_GATE
+        rz_gate_mask = node_type == NODE_TYPE_RZ_GATE
 
         x_qubit = x[qubit_mask]  # [N, readout_dim]
         x_zz_gates = x[zz_gate_mask]  # [n_edges * p_layers, readout_dim]
         x_rx_gates = x[rx_gate_mask]  # [N * p_layers, readout_dim]
+        x_rz_gates = x[rz_gate_mask]  # [N * p_layers, readout_dim] (longitudinal)
 
         n_edges = data.n_edges_unique
         N = data.n_qubit_nodes
@@ -543,6 +568,16 @@ class UnifiedMPNN(nn.Module):
             theta_x = self.qubit_head(x_rx_gates).squeeze(-1)  # [N * p]
         else:
             theta_x = self.qubit_head(x_qubit).squeeze(-1)  # [N]
+
+        # ── θ_z: longitudinal per-site field (only if RZ nodes present) ─
+        # Predicted from the dedicated RZ gate embeddings. Guard on both the
+        # z_head existing (predict_z=True) AND RZ nodes being in the graph, so
+        # a longitudinal model fed a plain-TFIM graph (or vice-versa) degrades
+        # gracefully to the [θ_zz, θ_x] output instead of crashing.
+        if self.z_head is not None and x_rz_gates.shape[0] > 0:
+            theta_z = self.z_head(x_rz_gates).squeeze(-1)  # [N * p]
+            # Layout: [θ_zz_all_layers, θ_x_all_layers, θ_z_all_layers]
+            return torch.cat([theta_zz, theta_x, theta_z], dim=-1).unsqueeze(0)
 
         # ── Concatenate: [θ_zz_all_layers, θ_x_all_layers] ──────────
         return torch.cat([theta_zz, theta_x], dim=-1).unsqueeze(0)
@@ -596,6 +631,51 @@ class UnifiedMPNN(nn.Module):
         theta_std_mean = float(np.mean(np.std(mc_arr, axis=0)))
 
         return theta_mean, theta_std_mean
+
+
+def _regroup_target(data: Data, target: torch.Tensor) -> tuple[torch.Tensor, int, int]:
+    """Rearrange a per-layer-interleaved θ target to the model's grouped layout.
+
+    The graph target ``y`` stores θ interleaved by layer:
+        TFIM:         [θ_zz_l1, θ_x_l1, θ_zz_l2, θ_x_l2, ...]
+        longitudinal: [θ_zz_l1, θ_x_l1, θ_z_l1, θ_zz_l2, θ_x_l2, θ_z_l2, ...]
+    The model's forward returns the blocks grouped across layers:
+        TFIM:         [θ_zz_all, θ_x_all]
+        longitudinal: [θ_zz_all, θ_x_all, θ_z_all]
+    This helper converts the target to the grouped layout so the block losses
+    line up with the prediction. It infers ``p_layers`` and the number of
+    per-site blocks (1 for TFIM, 2 for the longitudinal ansatz) from the graph
+    metadata (``has_rz_nodes``), falling back to the TFIM layout.
+
+    Returns
+    -------
+    (target_grouped, p_inferred, n_zz_total)
+        target_grouped : θ target in [θ_zz_all, θ_x_all(, θ_z_all)] layout.
+        p_inferred     : inferred number of HVA layers.
+        n_zz_total     : total number of θ_zz entries (n_edges × p) — the split
+                         point between the ZZ block and the site blocks.
+    """
+    n_e = data.n_edges_unique
+    N = data.n_qubit_nodes
+    site_blocks = 2 if getattr(data, "has_rz_nodes", False) else 1
+    params_per_layer = n_e + site_blocks * N
+    p_inferred = len(target) // params_per_layer if params_per_layer > 0 else 1
+
+    if p_inferred > 1:
+        layers = target.reshape(p_inferred, params_per_layer)
+        zz = layers[:, :n_e].reshape(-1)
+        x = layers[:, n_e : n_e + N].reshape(-1)
+        if site_blocks == 2:
+            z = layers[:, n_e + N :].reshape(-1)
+            target_grouped = torch.cat([zz, x, z])
+        else:
+            target_grouped = torch.cat([zz, x])
+    else:
+        # p=1 is already in grouped order ([zz, x] or [zz, x, z]).
+        target_grouped = target
+
+    n_zz_total = n_e * p_inferred
+    return target_grouped, p_inferred, n_zz_total
 
 
 def train_unified_mpnn(
@@ -709,14 +789,36 @@ def train_unified_mpnn(
     # HVA symmetry (θ → -θ) means the sign-flipped target is physically
     # equivalent, so we take the smaller of MSE(pred, target) and
     # MSE(pred, -target). For theta_mse we keep plain MSE.
-    def _block_loss(pred_block: torch.Tensor, target_block: torch.Tensor) -> torch.Tensor:
+    def _block_loss(
+        pred_block: torch.Tensor, target_block: torch.Tensor, *, allow_sign_flip: bool = True
+    ) -> torch.Tensor:
         if pred_block.numel() == 0:
             return pred_block.new_zeros(())
         mse_pos = F.mse_loss(pred_block, target_block)
-        if loss_type == "theta_mse":
+        if loss_type == "theta_mse" or not allow_sign_flip:
             return mse_pos
         mse_neg = F.mse_loss(pred_block, -target_block)
         return torch.minimum(mse_pos, mse_neg)
+
+    def _grouped_loss(pred: torch.Tensor, data: Data, target: torch.Tensor) -> torch.Tensor:
+        """Sum the per-block losses for a grouped prediction/target pair.
+
+        Splits into [θ_zz, θ_x] for TFIM or [θ_zz, θ_x, θ_z] for the
+        longitudinal ansatz. The Z₂ sign-flip is allowed on the ZZ and X blocks
+        (the TFIM HVA symmetry), but NOT on the θ_z block — the longitudinal
+        field breaks Z₂, so its sign is physical and a flip is a real error.
+        """
+        target_grouped, p_inferred, n_zz_total = _regroup_target(data, target)
+        N = data.n_qubit_nodes
+        loss = _block_loss(pred[:n_zz_total], target_grouped[:n_zz_total])
+        if getattr(data, "has_rz_nodes", False):
+            n_x_total = N * p_inferred
+            x_end = n_zz_total + n_x_total
+            loss = loss + _block_loss(pred[n_zz_total:x_end], target_grouped[n_zz_total:x_end])
+            loss = loss + _block_loss(pred[x_end:], target_grouped[x_end:], allow_sign_flip=False)
+        else:
+            loss = loss + _block_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
+        return loss
 
     if loss_type not in _VALID_LOSS_TYPES:
         raise ValueError(f"loss_type must be one of {_VALID_LOSS_TYPES}, got '{loss_type}'.")
@@ -882,42 +984,41 @@ def train_unified_mpnn(
             pred = model(data).squeeze(0)
             target = data.y
             n_e = data.n_edges_unique
-
-            # Infer p_layers from target size vs n_edges + N
             N = data.n_qubit_nodes
-            p_inferred = len(target) // (n_e + N) if (n_e + N) > 0 else 1
+            has_rz = bool(getattr(data, "has_rz_nodes", False))
+
+            # Rearrange target from per-layer-interleaved to the model's grouped
+            # layout ([θ_zz_all, θ_x_all(, θ_z_all)]) and infer p_layers.
+            target_grouped, p_inferred, n_zz_total = _regroup_target(data, target)
 
             # Guard: skip if predicted output length doesn't match target
-            expected_len = n_e * p_inferred + N * p_inferred
+            site_blocks = 2 if has_rz else 1
+            expected_len = (n_e + site_blocks * N) * p_inferred
             if len(pred) != expected_len:
                 logger.warning(
                     "  Skipping graph: pred len=%d ≠ expected %d "
-                    "(n_e=%d, N=%d, p=%d). Check build_unified_bond_resolved_graph.",
+                    "(n_e=%d, N=%d, p=%d, rz=%s). Check build_unified_bond_resolved_graph.",
                     len(pred),
                     expected_len,
                     n_e,
                     N,
                     p_inferred,
+                    has_rz,
                 )
                 n_skipped += 1
                 continue
 
-            # Prediction layout: [θ_zz_all_layers, θ_x_all_layers]
-            # Target layout: [θ_zz_l1, θ_x_l1, θ_zz_l2, θ_x_l2, ...]
-            # Need to rearrange target to match prediction layout
-            if p_inferred > 1:
-                # Reshape target from interleaved to grouped
-                target_layers = target.reshape(p_inferred, n_e + N)
-                target_zz = target_layers[:, :n_e].reshape(-1)  # all ZZ
-                target_x = target_layers[:, n_e:].reshape(-1)  # all X
-                target_grouped = torch.cat([target_zz, target_x])
-            else:
-                target_grouped = target
-
-            n_zz_total = n_e * p_inferred
             loss_zz = _block_loss(pred[:n_zz_total], target_grouped[:n_zz_total])
-            loss_x = _block_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
-            loss = loss_zz + loss_x
+            if has_rz:
+                # Site blocks: θ_x (sign-flippable) then θ_z (NOT — Z₂ broken).
+                n_x_total = N * p_inferred
+                x_end = n_zz_total + n_x_total
+                loss_x = _block_loss(pred[n_zz_total:x_end], target_grouped[n_zz_total:x_end])
+                loss_z = _block_loss(pred[x_end:], target_grouped[x_end:], allow_sign_flip=False)
+                loss = loss_zz + loss_x + loss_z
+            else:
+                loss_x = _block_loss(pred[n_zz_total:], target_grouped[n_zz_total:])
+                loss = loss_zz + loss_x
 
             # ── Weighted loss: scale by sample_weight (quality tier) ──────
             # verified=1.0, approximate=0.7, unverified=0.5
@@ -987,17 +1088,7 @@ def train_unified_mpnn(
                 for data in val_dataset:
                     data = data.to(device)
                     pred = model(data).squeeze(0)
-                    target = data.y
-                    n_e = data.n_edges_unique
-                    N_v = data.n_qubit_nodes
-                    p_v = len(target) // (n_e + N_v) if (n_e + N_v) > 0 else 1
-                    if p_v > 1:
-                        tl = target.reshape(p_v, n_e + N_v)
-                        tg = torch.cat([tl[:, :n_e].reshape(-1), tl[:, n_e:].reshape(-1)])
-                    else:
-                        tg = target
-                    n_zz_v = n_e * p_v
-                    loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(pred[n_zz_v:], tg[n_zz_v:])
+                    loss_v = _grouped_loss(pred, data, data.y)
                     val_loss += loss_v.item()
             val_mse_history.append(val_loss / len(val_dataset))
             model.train()
@@ -1111,17 +1202,7 @@ def train_unified_mpnn(
                     optimizer.zero_grad()
                     data_s = train_dataset[worst_idx].to(device)
                     pred_s = model(data_s).squeeze(0)
-                    target_s = data_s.y
-                    n_e_s = data_s.n_edges_unique
-                    N_s = data_s.n_qubit_nodes
-                    p_s = len(target_s) // (n_e_s + N_s) if (n_e_s + N_s) > 0 else 1
-                    if p_s > 1:
-                        tl = target_s.reshape(p_s, n_e_s + N_s)
-                        tg_s = torch.cat([tl[:, :n_e_s].reshape(-1), tl[:, n_e_s:].reshape(-1)])
-                    else:
-                        tg_s = target_s
-                    n_zz_s = n_e_s * p_s
-                    base = _block_loss(pred_s[:n_zz_s], tg_s[:n_zz_s]) + _block_loss(pred_s[n_zz_s:], tg_s[n_zz_s:])
+                    base = _grouped_loss(pred_s, data_s, data_s.y)
                     physics_loss = worst_combined * base
                     if torch.isfinite(physics_loss):
                         physics_loss.backward()
@@ -1177,17 +1258,7 @@ def train_unified_mpnn(
             for data in val_dataset:
                 data = data.to(device)
                 pred = model(data).squeeze(0)
-                target = data.y
-                n_e = data.n_edges_unique
-                N_v = data.n_qubit_nodes
-                p_v = len(target) // (n_e + N_v) if (n_e + N_v) > 0 else 1
-                if p_v > 1:
-                    tl = target.reshape(p_v, n_e + N_v)
-                    tg = torch.cat([tl[:, :n_e].reshape(-1), tl[:, n_e:].reshape(-1)])
-                else:
-                    tg = target
-                n_zz_v = n_e * p_v
-                loss_v = _block_loss(pred[:n_zz_v], tg[:n_zz_v]) + _block_loss(pred[n_zz_v:], tg[n_zz_v:])
+                loss_v = _grouped_loss(pred, data, data.y)
                 val_loss += loss_v.item()
         final_val_mse = val_loss / len(val_dataset)
 
@@ -1699,6 +1770,7 @@ def save_unified_checkpoint(
             "readout_mode": model.readout_mode,
             "film_conditioning": model.film_conditioning,
             "edge_dim": model.edge_dim,
+            "predict_z": model.predict_z,
             "training_metadata": training_metadata or {},
         },
         path,
@@ -1769,6 +1841,7 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         use_residual = data.get("use_residual", False)
         readout_mode = data.get("readout_mode", "last")
         film_conditioning = data.get("film_conditioning", False)
+        predict_z = data.get("predict_z", False)
     elif (
         "architecture" in data
         and data["architecture"] == "ginconv"
@@ -1822,6 +1895,8 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
             type_embedding_dim = 0
         # Infer gate_readout from presence of gate_head vs edge_head
         gate_readout = any("gate_head" in k for k in state_dict)
+        # Infer predict_z (longitudinal) from presence of z_head weights
+        predict_z = any(k.startswith("z_head.") for k in state_dict)
         # node_features from convs.0.nn.0.weight input dim
         if "convs.0.nn.0.weight" in state_dict:
             effective_input = state_dict["convs.0.nn.0.weight"].shape[1]
@@ -1849,6 +1924,11 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
     # Infer edge_dim: metadata first, else detect GINEConv edge-proj layer.
     # GINEConv stores an edge projection as convs.{i}.lin.weight; GINConv doesn't.
     _sd_probe = data.get("state_dict", data)
+
+    # z_head presence in the weights is authoritative for predict_z — it
+    # guarantees the reconstructed module has matching keys for load_state_dict
+    # regardless of which inference branch ran above (or missing metadata).
+    predict_z = any(k.startswith("z_head.") for k in _sd_probe)
     if "edge_dim" in data:
         edge_dim = data["edge_dim"]
     elif any(k.startswith("convs.0.lin.") for k in _sd_probe):
@@ -1871,16 +1951,22 @@ def load_unified_checkpoint(path: str, eval_mode: bool = True) -> UnifiedMPNN:
         readout_mode=readout_mode,
         film_conditioning=film_conditioning,
         edge_dim=edge_dim,
+        predict_z=predict_z,
     )
 
     state_dict = data.get("state_dict", data)
 
-    # ── Backward compat: expand type_emb 3→4 types ──────────────────
-    if "type_emb.weight" in state_dict:
+    # ── Backward compat: expand type_emb to current n_types (5) ─────
+    # Old checkpoints have 3 (qubit/zz/rx) or 4 (+global) type rows. The
+    # current model has 5 (+rz_gate). Pad missing rows with the mean of the
+    # existing ones (a neutral embedding) so load_state_dict shapes match.
+    if "type_emb.weight" in state_dict and type_embedding_dim > 0:
         old_emb = state_dict["type_emb.weight"]
-        if old_emb.shape[0] == 3 and type_embedding_dim > 0:
-            global_emb = old_emb.mean(dim=0, keepdim=True)
-            state_dict["type_emb.weight"] = torch.cat([old_emb, global_emb], dim=0)
+        n_types_current = 5
+        if old_emb.shape[0] < n_types_current:
+            n_missing = n_types_current - old_emb.shape[0]
+            pad_emb = old_emb.mean(dim=0, keepdim=True).repeat(n_missing, 1)
+            state_dict["type_emb.weight"] = torch.cat([old_emb, pad_emb], dim=0)
 
     # ── Backward compat: expand first conv for 4→5 node features ────
     first_conv_key = "convs.0.nn.0.weight"

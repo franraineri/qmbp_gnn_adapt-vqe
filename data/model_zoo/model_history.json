@@ -39071,5 +39071,18 @@
       "old_version": 2,
       "new_version": 2
     }
+  },
+  {
+    "timestamp": "2026-09-21T20:50:44.078219+00:00",
+    "event_type": "evaluated",
+    "model_id": "unified_tfim_br_heavy_hex_multiN_4+6+10+12+16+20+40_p1.pt",
+    "topology": "heavy_hex",
+    "details": {
+      "pass_rate_dual": 0.0,
+      "pass_rate_5pct": 0.0,
+      "mean_de_gap": 0.0,
+      "target_n": [],
+      "notes": "auto-deflated from 50%"
+    }
   }
 ]
