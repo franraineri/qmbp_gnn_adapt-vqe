@@ -26,18 +26,7 @@ _REGISTRY: dict[str, ModelSpec] = {}
 
 
 def register_model(spec: ModelSpec) -> None:
-    """Register a ModelSpec in the global registry.
-
-    Parameters
-    ----------
-    spec : ModelSpec
-        The model specification to register.
-
-    Raises
-    ------
-    ValueError
-        If a model with the same name is already registered.
-    """
+    """Register a ModelSpec in the global registry."""
     if spec.name in _REGISTRY:
         raise ValueError(f"Model '{spec.name}' is already registered. Use a different name or unregister first.")
     _REGISTRY[spec.name] = spec

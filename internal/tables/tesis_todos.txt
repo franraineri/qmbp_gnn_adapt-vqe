@@ -1,0 +1,33 @@
+TODOs de la tesis — generado automáticamente
+Generado: 2026-09-21 21:16 UTC
+Fuente: scripts/general_project_maintenance/generate_thesis_tables.py
+Total TODOs: 0 | Inconsistencias: 7
+========================================================================
+
+(sin TODOs pendientes)
+========================================================================
+## INCONSISTENCIAS / ERRORES DETECTADOS  (7)
+
+RESUMEN POR PRIORIDAD
+  IMPORTANTE  1
+  INFO        6
+
+RESUMEN POR ACCIÓN
+  MANUAL       7  — requieren criterio humano
+
+========================================================================
+
+### IMPORTANTE  (1)
+  [cifra-epoca]  (1)  ·  MANUAL  ·  Verificar que no se mezclen épocas de campaña.
+      1. chain_1d: resultados de campañas de distintos meses (2026-08-17..2026-09-09); verificar que no se mezclen criterios/rangos de h en una misma tabla.
+
+
+### INFO  (6)
+  [otros]  (6)  ·  MANUAL  ·  Revisar manualmente.
+      2. heavy_hex N=14: la grilla canónica de extrapolación [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] no cubre [3.5, 4.0, 4.5] en el régimen válido (h_frontier=1,99); tabla con menos puntos para ese N (INFO, no error).
+      3. heavy_hex N=18: la grilla canónica de extrapolación [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] no cubre [3.0, 3.5, 4.0, 4.5] en el régimen válido (h_frontier=2,37); tabla con menos puntos para ese N (INFO, no error).
+      4. heavy_hex N=21: la grilla canónica de extrapolación [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] no cubre [4.5] en el régimen válido (h_frontier=4,08); tabla con menos puntos para ese N (INFO, no error).
+      5. heavy_hex N=22: la grilla canónica de extrapolación [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] no cubre [4.5] en el régimen válido (h_frontier=4,08); tabla con menos puntos para ese N (INFO, no error).
+      6. heavy_hex N=32: la grilla canónica de extrapolación [2.5, 3.0, 3.5, 4.0, 4.5, 5.0] no cubre [3.0, 3.5, 4.0, 4.5] en el régimen válido (h_frontier=N/A); tabla con menos puntos para ese N (INFO, no error).
+      7. heavy_hex N=32 (tab:auto_heavy_hex_large_n): ΔE/gap medio=88.7\% es media de cocientes por punto, muy por encima del cociente de medias (27.8\%); dominado por puntos de gap estrecho. Verificar que el pie de tabla lo aclare (INFO, no error).
+

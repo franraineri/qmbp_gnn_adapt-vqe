@@ -2297,17 +2297,7 @@ def list_pretrained(
     n_qubits: int | None = None,
     p_layers: int | None = None,
 ) -> list[ZooEntry]:
-    """List available pre-trained models, optionally filtered.
-
-    Parameters
-    ----------
-    model, topology, n_qubits, p_layers : optional filters
-
-    Returns
-    -------
-    list[ZooEntry]
-        Matching entries sorted by pass_rate (descending).
-    """
+    """List available pre-trained models, optionally filtered."""
     entries = _load_manifest()
     filtered = [e for e in entries if e.matches(model=model, topology=topology, n_qubits=n_qubits, p_layers=p_layers)]
     return sorted(filtered, key=lambda e: (_sort_score(e), e.n_training_points), reverse=True)

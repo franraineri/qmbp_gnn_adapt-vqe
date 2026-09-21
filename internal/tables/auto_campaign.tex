@@ -1,0 +1,22 @@
+% ==== AUTO-GENERADA — no editar a mano (regenerar con generate_thesis_tables.py) ====
+\begin{table}[htbp]
+\centering
+\caption[Conteo de ejecuciones por modelo]{Conteo de ejecuciones del pipeline por modelo en la campaña experimental. Una \emph{ejecución} es una corrida completa de las Fases 1--3 para una (configuración, semilla). Fuente: elaboración propia.}
+\label{tab:auto_campaign}
+\begin{tabular}{lcc}
+\toprule
+Modelo & Ejecuciones & Tasa aprob. \\
+\midrule
+Heisenberg XXZ & 35 & 0/35 (0,0\%) \\
+Heisenberg transversal & 40 & 0/40 (0,0\%) \\
+Cadena de Kitaev & 7 & 0/7 (0,0\%) \\
+TFIM & 495 & 243/495 (49,1\%) \\
+TFIM por enlace & 514 & 466/514 (90,7\%) \\
+TFIM frustrado ($J_1$-$J_2$) & 21 & 6/21 (28,6\%) \\
+TFIM longitudinal & 189 & 58/189 (30,7\%) \\
+\textbf{Total} & \textbf{1301} & \textbf{773/1301 (59,4\%)} \\
+\bottomrule
+\end{tabular}
+\\[2pt]
+\footnotesize Heisenberg: 35 XXZ + 40 transversal = 75 ejecuciones. La columna \emph{Tasa aprob.} agrega \emph{todas} las ejecuciones del modelo, incluidas las de fuera del régimen operativo válido, las cinco topologías y las cuatro profundidades; por tanto \emph{no} es comparable con las tasas por configuración de las Tablas~\ref{tab:cross_topo} y \ref{tab:scaling} (restringidas al régimen válido y a la mejor profundidad). Es un indicador de cobertura de la campaña, no del rendimiento del pipeline en su régimen de operación.
+\end{table}

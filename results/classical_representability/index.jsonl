@@ -1,0 +1,1 @@
+{"method": "mps_dmrg", "topology": "chain_1d", "N_values": [4, 10], "h_values": [0.5, 1.0, 2.0], "chi_values": [2, 4, 8, 16], "path": "study_mps_dmrg_chain_1d_20260921_200235.json", "generated_utc": "2026-09-21T20:02:35.817483+00:00", "n_rows": 24}

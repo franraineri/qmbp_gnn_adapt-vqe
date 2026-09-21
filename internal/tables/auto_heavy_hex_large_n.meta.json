@@ -1,0 +1,33 @@
+{
+  "label": "tab:auto_heavy_hex_large_n",
+  "h_grid": [
+    2.5,
+    3.0,
+    3.5,
+    4.0,
+    4.5,
+    5.0
+  ],
+  "h_grid_regime": "extrapolation",
+  "n_points_per_row": {
+    "21": 1,
+    "22": 1,
+    "24": 2,
+    "26": 6,
+    "30": 2,
+    "32": 2,
+    "40": 2,
+    "50": 6,
+    "60": 6
+  },
+  "h_min_per_N": {
+    "21": 4.08,
+    "22": 4.08,
+    "24": 4.08,
+    "30": 4.08,
+    "40": 4.08
+  },
+  "denominator": "variable_per_N",
+  "de_gap_aggregation": "mean_of_ratios",
+  "restricted_to_valid_regime": true
+}

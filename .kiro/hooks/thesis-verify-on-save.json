@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Verify thesis numbers on save",
+      "trigger": "PostFileSave",
+      "description": "Al guardar tesis-v4.0.tex, corre verify_thesis_numbers (14+ chequeos de credibilidad). Si hay un hallazgo BLOQUEANTE/IMPORTANTE, el verificador sale con exit 1 y su reporte se reenvía por stderr para que el agente lo vea y corrija antes de seguir.",
+      "matcher": "internal/tesis/tesis-v4\\.0\\.tex$",
+      "action": {
+        "type": "command",
+        "command": ".venv/bin/python scripts/general_project_maintenance/verify_thesis_numbers.py internal/tesis/tesis-v4.0.tex --tables-dir internal/tesis/tables 1>&2"
+      },
+      "enabled": false
+    }
+  ]
+}

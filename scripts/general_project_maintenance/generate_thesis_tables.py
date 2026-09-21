@@ -951,10 +951,6 @@ _COMMENT_RE = re.compile(r"(?<!\\)%.*$", re.MULTILINE)
 
 def _strip_comments(text: str) -> str:
     """Quita los comentarios LaTeX de línea (todo lo que sigue a un % no escapado).
-
-    Preserva la posición de las líneas (usa MULTILINE, no borra los saltos), de modo
-    que ``_line_number_at`` sigue devolviendo el número de línea correcto. Reemplaza
-    las ~18 copias sueltas de ``re.sub(r"(?<!\\)%.*$", "", text, flags=re.MULTILINE)``.
     """
     return _COMMENT_RE.sub("", text)
 
@@ -962,10 +958,6 @@ def _strip_comments(text: str) -> str:
 def _prose_text(text: str) -> str:
     """Texto listo para buscar términos en PROSA: sin comentarios y con las zonas de
     código/matemáticas/comandos neutralizadas (\\texttt, $...$, \\ref, etc.).
-
-    Combina ``_strip_comments`` + ``_strip_protected`` en un solo paso, que es el
-    preprocesado que repetían muchos chequeos de estilo/anglicismos. Conserva la
-    longitud (índices/líneas estables).
     """
     return _strip_protected(_strip_comments(text))
 
@@ -1209,10 +1201,6 @@ def _grade_from_abs_error(abs_error: float) -> str:
 
 def _grade_es(letter: str) -> str:
     """Traduce la letra del pipeline (A/B/C/D/F) a la escala de la tesis (A--E).
-
-    La peor nota se escribe E en la tesis para no colisionar con el símbolo de
-    fidelidad F. El pipeline de datos conserva F (JSON, zoo, eval reports); la
-    traducción vive solo en la capa de presentación de la memoria.
     """
     return "E" if letter.strip() == "F" else letter
 

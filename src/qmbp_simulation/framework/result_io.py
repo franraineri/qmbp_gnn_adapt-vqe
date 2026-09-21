@@ -60,15 +60,6 @@ def build_data_dir(
 ) -> Path:
     """Resolve the WRITE data directory for a run, namespaced by model + frustration.
 
-    Every model (including the default ``tfim_bond_resolved``) is namespaced
-    under ``{root}/{model}/`` so training data for different Hamiltonians never
-    lands in the same NPZ. ``frustrated`` (--j2 != 0) adds ``frustrated/`` on
-    top, preserving the existing J2 separation.
-
-    This is the WRITE path. For reads that must still see the pre-migration
-    corpus at the root, use ``training_npz_read_dirs`` / ``training_npz_path``
-    with ``for_write=False``.
-
     Examples
     --------
     build_data_dir(ROOT)                              -> ROOT/tfim_bond_resolved
