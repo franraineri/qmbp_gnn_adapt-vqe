@@ -1,0 +1,76 @@
+{
+  "generated_utc": "2026-09-22T19:00:22.959787+00:00",
+  "topology": "square",
+  "p_layers": 1,
+  "vl_num_layers": 2,
+  "rows": [
+    {
+      "topology": "square",
+      "N": 10,
+      "h": 1.0,
+      "p_layers": 1,
+      "vl_status": "DONE",
+      "vl_fidelity": 0.9934237470759125,
+      "vl_circuit_id": "circ-0f872c4a-62ae-49cf-b751-21c460bbabe9",
+      "vl": {
+        "depth": 53,
+        "n_2q": 34,
+        "gate_counts": {
+          "rz": 121,
+          "ry": 70,
+          "cx": 34
+        },
+        "num_qubits": 10,
+        "num_parameters": 0
+      },
+      "vl_core_metrics": "<bound method CircuitModel.core_metrics of Haiqu Circuit 'VectorLoading(size:1024)'>",
+      "hva": {
+        "depth": 29,
+        "n_2q": 26,
+        "gate_counts": {
+          "rz": 63,
+          "sx": 30,
+          "cx": 26
+        },
+        "num_qubits": 10,
+        "num_parameters": 23
+      },
+      "E0": -15.088080530601593,
+      "gap": 0.012886319597178897
+    },
+    {
+      "topology": "square",
+      "N": 10,
+      "h": 2.5,
+      "p_layers": 1,
+      "vl_status": "DONE",
+      "vl_fidelity": 0.9844723755091638,
+      "vl_circuit_id": "circ-21857ee5-f2b6-465e-9031-5e29232fa148",
+      "vl": {
+        "depth": 53,
+        "n_2q": 34,
+        "gate_counts": {
+          "rz": 132,
+          "ry": 76,
+          "cx": 34
+        },
+        "num_qubits": 10,
+        "num_parameters": 0
+      },
+      "vl_core_metrics": "<bound method CircuitModel.core_metrics of Haiqu Circuit 'VectorLoading(size:1024)'>",
+      "hva": {
+        "depth": 29,
+        "n_2q": 26,
+        "gate_counts": {
+          "rz": 63,
+          "sx": 30,
+          "cx": 26
+        },
+        "num_qubits": 10,
+        "num_parameters": 23
+      },
+      "E0": -26.432061263237305,
+      "gap": 2.038436729649412
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "result_path": "results/hva_vl_study/expressivity/ansatz_expressivity_2d.json",
+  "source_script": "scripts/analysis/ansatz_expressivity_2d.py",
+  "generated_utc": "2026-09-23T02:18:57.362150+00:00",
+  "description": "Ansatz expressivity ceiling (VQE-optimal fidelity) on 2D lattices",
+  "rows": [
+    {
+      "topology": "square",
+      "N": 6,
+      "h": 2.5,
+      "p_layers": 1,
+      "n_params": 13,
+      "E0": -15.756566646356827,
+      "gap": 2.5417910824452807,
+      "ceil_E": -15.666840889372718,
+      "ceil_dE": 0.08972575698410878,
+      "ceil_de_gap": 0.03530020921223386,
+      "ceil_fidelity": 0.9882776767108713
+    }
+  ]
+}

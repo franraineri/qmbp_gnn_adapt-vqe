@@ -1,0 +1,58 @@
+{
+  "topology": "square",
+  "N": 9,
+  "p_layers": 2,
+  "h": 2.0,
+  "model": "tfim_frustrated",
+  "J2": 0.5,
+  "E0": -19.33826182601363,
+  "gap": 2.625168311226709,
+  "n_edges": 12,
+  "hva_logical": {
+    "label": "HVA p=2 (logical)",
+    "num_qubits": 9,
+    "num_parameters": 42,
+    "total_gates": 51,
+    "depth": 15,
+    "depth_2q": 12,
+    "n_2q_gates": 24,
+    "n_1q_gates": 27,
+    "gate_counts": {
+      "rzz": 24,
+      "rx": 18,
+      "h": 9
+    }
+  },
+  "hva_transpiled": {
+    "label": "HVA p=2 (transpiled cx/rz/sx/x)",
+    "num_qubits": 9,
+    "num_parameters": 42,
+    "total_gates": 189,
+    "depth": 49,
+    "depth_2q": 24,
+    "n_2q_gates": 48,
+    "n_1q_gates": 141,
+    "gate_counts": {
+      "rz": 96,
+      "cx": 48,
+      "sx": 45
+    }
+  },
+  "vl_fidelity": 0.9612953696630576,
+  "vl_status": "DONE",
+  "vl": {
+    "label": "Haiqu VL circuit",
+    "num_qubits": 9,
+    "num_parameters": 0,
+    "total_gates": 216,
+    "depth": 53,
+    "depth_2q": 13,
+    "n_2q_gates": 30,
+    "n_1q_gates": 186,
+    "gate_counts": {
+      "rz": 118,
+      "ry": 68,
+      "cx": 30
+    }
+  }
+}

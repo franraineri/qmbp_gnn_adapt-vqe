@@ -1,0 +1,42 @@
+{
+  "generated_utc": "2026-09-22T18:40:34.704306+00:00",
+  "topology": "heavy_hex",
+  "p_layers": 1,
+  "vl_num_layers": 2,
+  "rows": [
+    {
+      "topology": "heavy_hex",
+      "N": 6,
+      "h": 2.5,
+      "p_layers": 1,
+      "vl_status": "DONE",
+      "vl_fidelity": 0.9999980454927826,
+      "vl_circuit_id": "circ-a7c4c0aa-0787-4709-8291-1d38e95f4a64",
+      "vl": {
+        "depth": 33,
+        "n_2q": 14,
+        "gate_counts": {
+          "rz": 56,
+          "ry": 33,
+          "cx": 14
+        },
+        "num_qubits": 6,
+        "num_parameters": 0
+      },
+      "vl_core_metrics": "<bound method CircuitModel.core_metrics of Haiqu Circuit 'VectorLoading(size:64)'>",
+      "hva": {
+        "depth": 23,
+        "n_2q": 10,
+        "gate_counts": {
+          "rz": 35,
+          "sx": 18,
+          "cx": 10
+        },
+        "num_qubits": 6,
+        "num_parameters": 11
+      },
+      "E0": -15.503036832525517,
+      "gap": 3.268670322643649
+    }
+  ]
+}

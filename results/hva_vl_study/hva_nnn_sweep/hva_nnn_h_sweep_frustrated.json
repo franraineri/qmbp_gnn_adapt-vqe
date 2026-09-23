@@ -1,0 +1,38 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/hva_nnn_h_sweep_frustrated.json",
+  "source_script": "scripts/analysis/hva_nnn_h_sweep_frustrated.py",
+  "generated_utc": "2026-09-23T02:20:18.453946+00:00",
+  "params": {
+    "N": 9,
+    "p_layers": 2,
+    "J2": 0.5,
+    "model": "tfim_frustrated",
+    "n_random_restarts": 2,
+    "maxiter": 150
+  },
+  "description": "h-sweep of the +NNN bond-resolved HVA ansatz, frustrated 2D TFIM",
+  "schema": "hva_nnn_h_sweep_frustrated_v1",
+  "rows": [
+    {
+      "topology": "square",
+      "N": 9,
+      "p_layers": 2,
+      "model": "tfim_frustrated",
+      "J2": 0.5,
+      "h": 2.5,
+      "ansatz": "hva_nnn (create_bond_resolved_frustrated)",
+      "E0": -23.629189838759768,
+      "gap": 3.5745236561737457,
+      "n_nn_edges": 12,
+      "energy": -23.617130508218963,
+      "abs_error": 0.012059330540804325,
+      "de_gap": 0.0033736888326297764,
+      "fidelity": 0.9990058523890774,
+      "n_2q_transpiled": 104,
+      "depth_transpiled": 73,
+      "depth_2q": 40,
+      "n_params": 70,
+      "nisq_fidelity_est": 0.43030974173117376
+    }
+  ]
+}
