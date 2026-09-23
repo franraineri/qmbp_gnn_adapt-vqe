@@ -19,7 +19,6 @@ from typing import Any
 
 import numpy as np
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Config — the single place to change to explore other regimes
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,7 +38,7 @@ class PipelineConfig:
     j_coupling: float = 1.0
     h_values: tuple[float, ...] = (0.5, 1.0, 1.5, 2.0, 2.5)
     h_focus: float = 1.0  # the h-point used for single-circuit close-ups
-    vqe_maxiter: int = 300
+    vqe_maxiter: int = 1
     vqe_restarts: int = 1
     seed: int = 42
     # ── Zoo auto-selection (phase A) ──
@@ -84,6 +83,7 @@ def draw_lattice_graph(
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
     from qmbp_simulation.models import HamiltonianBuilder
 
     builder = HamiltonianBuilder()
@@ -111,10 +111,8 @@ def draw_lattice_graph(
 
     ax.scatter(xs, ys, s=650, c="#4C78A8", edgecolors="white", linewidths=2, zorder=2)
     for i in range(n):
-        ax.text(xs[i], ys[i], f"q{i}", ha="center", va="center", color="white",
-                fontsize=9, fontweight="bold", zorder=3)
-        ax.text(xs[i], ys[i] - 0.28, f"z={int(coord[i])}", ha="center", va="top",
-                fontsize=7, color="#555", zorder=3)
+        ax.text(xs[i], ys[i], f"q{i}", ha="center", va="center", color="white", fontsize=9, fontweight="bold", zorder=3)
+        ax.text(xs[i], ys[i] - 0.28, f"z={int(coord[i])}", ha="center", va="top", fontsize=7, color="#555", zorder=3)
 
     ax.set_title(title or f"{lattice.topology} lattice · N={n} · {len(drawn)} bonds")
     ax.axis("off")
@@ -141,11 +139,11 @@ def _is_chain_like(lattice: Any) -> bool:
 
 # Node-type codes used by the unified graph (qubit / ZZ gate / RX gate / global / RZ gate)
 _NODE_TYPE_COLORS = {
-    0: ("#4C78A8", "q"),    # qubit
-    1: ("#E45756", "zz"),   # ZZ gate
-    2: ("#F58518", "rx"),   # RX gate
-    3: ("#9D755D", "g"),    # global
-    4: ("#72B7B2", "rz"),   # RZ gate
+    0: ("#4C78A8", "q"),  # qubit
+    1: ("#E45756", "zz"),  # ZZ gate
+    2: ("#F58518", "rx"),  # RX gate
+    3: ("#9D755D", "g"),  # global
+    4: ("#72B7B2", "rz"),  # RZ gate
 }
 
 
@@ -213,29 +211,37 @@ def draw_mpnn_graph(
         idx = np.where(node_type == t)[0]
         if len(idx) == 0:
             continue
-        ax.scatter(xs[idx], ys[idx], s=280 if is_unified else 650, c=color,
-                   edgecolors="white", linewidths=1.5, zorder=2)
+        ax.scatter(
+            xs[idx], ys[idx], s=280 if is_unified else 650, c=color, edgecolors="white", linewidths=1.5, zorder=2
+        )
 
     if not is_unified:
         for i in range(n):
-            ax.text(xs[i], ys[i], f"q{i}", ha="center", va="center", color="white",
-                    fontsize=9, fontweight="bold", zorder=3)
+            ax.text(
+                xs[i], ys[i], f"q{i}", ha="center", va="center", color="white", fontsize=9, fontweight="bold", zorder=3
+            )
             feat = ", ".join(f"{v:.2f}" for v in x[i])
-            ax.text(xs[i], ys[i] + 0.30, f"[{feat}]", ha="center", va="bottom",
-                    fontsize=7, color="#333", zorder=3)
+            ax.text(xs[i], ys[i] + 0.30, f"[{feat}]", ha="center", va="bottom", fontsize=7, color="#333", zorder=3)
         subtitle = f"{n} nodes · features/node = {x.shape[1]} ([h, coord])"
     else:
         # legend instead of per-node labels (too many nodes)
         present = [t for t in _NODE_TYPE_COLORS if np.any(node_type == t)]
         handles = [
-            Line2D([0], [0], marker="o", color="w", markerfacecolor=_NODE_TYPE_COLORS[t][0],
-                   markersize=10, label={0: "qubit", 1: "ZZ gate", 2: "RX gate",
-                                         3: "global", 4: "RZ gate"}[t])
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor=_NODE_TYPE_COLORS[t][0],
+                markersize=10,
+                label={0: "qubit", 1: "ZZ gate", 2: "RX gate", 3: "global", 4: "RZ gate"}[t],
+            )
             for t in present
         ]
         ax.legend(handles=handles, loc="upper right", fontsize=8, framealpha=0.9)
-        counts = {name: int(np.sum(node_type == t)) for t, (_, name) in _NODE_TYPE_COLORS.items()
-                  if np.any(node_type == t)}
+        counts = {
+            name: int(np.sum(node_type == t)) for t, (_, name) in _NODE_TYPE_COLORS.items() if np.any(node_type == t)
+        }
         subtitle = f"{n} nodes · features/node = {x.shape[1]} · types: {counts}"
 
     ax.set_title(title or f"MPNN input graph · {subtitle}")

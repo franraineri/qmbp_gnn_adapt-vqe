@@ -54,7 +54,9 @@ class GNNWarmstartDemoRunner(ValidationRunner):
         parser.add_argument("--n-qubits", type=int, default=DEFAULT_N_QUBITS)
         parser.add_argument("--topology", type=str, default=DEFAULT_TOPOLOGY)
         parser.add_argument("--p-layers", type=int, default=1)
-        parser.add_argument("--model", type=str, default="tfim_bond_resolved")
+        # NOTE: --model is provided by the base parser (runner_base); redefining
+        # it here raises argparse "conflicting option string". Default is
+        # normalized to tfim_bond_resolved in setup().
         parser.add_argument("--h-test", type=float, nargs="+", default=DEFAULT_H_TEST)
         parser.add_argument("--mode", choices=["fake_backend", "hardware"], default="fake_backend")
         parser.add_argument("--shots", type=int, default=DEFAULT_SHOTS)
@@ -70,7 +72,7 @@ class GNNWarmstartDemoRunner(ValidationRunner):
             "system": {
                 "n_qubits": args.n_qubits,
                 "topology": args.topology,
-                "model": args.model,
+                "model": args.model or "tfim_bond_resolved",
                 "p_layers": args.p_layers,
             },
             "hardware": {
@@ -89,8 +91,7 @@ class GNNWarmstartDemoRunner(ValidationRunner):
                 id=1,
                 name="GNN warm-start vs cold-start convergence",
                 hypothesis=(
-                    "GNN warm-start: <10 SPSA iterations to |dE|<threshold. "
-                    "Cold-start: >50 iterations. Speedup >=5x."
+                    "GNN warm-start: <10 SPSA iterations to |dE|<threshold. Cold-start: >50 iterations. Speedup >=5x."
                 ),
                 fn=self.section_convergence_comparison,
             ),
@@ -108,6 +109,8 @@ class GNNWarmstartDemoRunner(ValidationRunner):
     def setup(self) -> None:
         self.setup_physics()
         args = self._args
+        if args.model is None:
+            args.model = "tfim_bond_resolved"
 
         if args.mode == "hardware":
             from qmbp_simulation.execution.hardware import HardwareBackend, HardwareConfig
@@ -121,9 +124,7 @@ class GNNWarmstartDemoRunner(ValidationRunner):
             self._hw_backend = HardwareBackend(config=hw_config)
             logger.info("  IBM QPU backend initialized.")
         else:
-            logger.info(
-                f"  Simulated hardware: noiseless + Gaussian shot noise ({args.shots} shots)"
-            )
+            logger.info(f"  Simulated hardware: noiseless + Gaussian shot noise ({args.shots} shots)")
 
         self._mpnn = self._load_mpnn()
 
@@ -182,17 +183,13 @@ class GNNWarmstartDemoRunner(ValidationRunner):
                 f"  theta_GNN init: E={e_gnn_noiseless:.6f}, |dE|={abs_error_init:.4f}, dE/gap={de_gap_init:.4f}"
             )
 
-            warm_trace = self._run_spsa_traced(
-                circuit, H, theta_gnn, n_params, args.spsa_maxiter_warm, warm=True
-            )
+            warm_trace = self._run_spsa_traced(circuit, H, theta_gnn, n_params, args.spsa_maxiter_warm, warm=True)
 
             cold_traces = []
             for seed in args.seeds:
                 rng = np.random.default_rng(seed)
                 theta_random = rng.uniform(-0.1, 0.1, n_params)
-                trace = self._run_spsa_traced(
-                    circuit, H, theta_random, n_params, args.spsa_maxiter_cold, warm=False
-                )
+                trace = self._run_spsa_traced(circuit, H, theta_random, n_params, args.spsa_maxiter_cold, warm=False)
                 cold_traces.append(trace)
 
             iters_warm = self._convergence_iter(warm_trace, e_exact, gap)
@@ -204,12 +201,8 @@ class GNNWarmstartDemoRunner(ValidationRunner):
             e_cold_final = float(np.mean([t[-1] for t in cold_traces]))
 
             # Feasibility metric: did warm-start reach ΔE/gap<5%?
-            warm_passes = (
-                abs(e_warm_final - e_exact) / max(gap, 1e-10) < DEFAULT_CONVERGENCE_THRESHOLD
-            )
-            cold_passes = (
-                abs(e_cold_final - e_exact) / max(gap, 1e-10) < DEFAULT_CONVERGENCE_THRESHOLD
-            )
+            warm_passes = abs(e_warm_final - e_exact) / max(gap, 1e-10) < DEFAULT_CONVERGENCE_THRESHOLD
+            cold_passes = abs(e_cold_final - e_exact) / max(gap, 1e-10) < DEFAULT_CONVERGENCE_THRESHOLD
 
             result = {
                 "h": h,
@@ -237,15 +230,9 @@ class GNNWarmstartDemoRunner(ValidationRunner):
 
             warm_sym = "✅" if warm_passes else "❌"
             cold_sym = "✅" if cold_passes else "❌"
-            logger.info(
-                f"  WARM: {iters_warm} evals → |ΔE|={result['abs_error_warm_final']:.4f} {warm_sym}"
-            )
-            logger.info(
-                f"  COLD: {iters_cold_mean:.0f} evals → |ΔE|={result['abs_error_cold_final']:.4f} {cold_sym}"
-            )
-            logger.info(
-                f"  SPEEDUP: {speedup:.1f}x | GNN enables: {result['gnn_enables_convergence']}"
-            )
+            logger.info(f"  WARM: {iters_warm} evals → |ΔE|={result['abs_error_warm_final']:.4f} {warm_sym}")
+            logger.info(f"  COLD: {iters_cold_mean:.0f} evals → |ΔE|={result['abs_error_cold_final']:.4f} {cold_sym}")
+            logger.info(f"  SPEEDUP: {speedup:.1f}x | GNN enables: {result['gnn_enables_convergence']}")
 
         mean_speedup = float(np.mean([r["speedup"] for r in per_h_results]))
         n_warm_pass = sum(1 for r in per_h_results if r["warm_passes"])
@@ -315,9 +302,7 @@ class GNNWarmstartDemoRunner(ValidationRunner):
         amortization_points = training_cost_shots / max(savings_per_point, 1)
 
         logger.info(f"\n  Total shots warm: {total_shots_warm:,} | cold: {total_shots_cold:,}")
-        logger.info(
-            f"  Cost ratio: {mean_cost_ratio:.2f} | Savings: {(1 - mean_cost_ratio) * 100:.0f}%"
-        )
+        logger.info(f"  Cost ratio: {mean_cost_ratio:.2f} | Savings: {(1 - mean_cost_ratio) * 100:.0f}%")
         logger.info(f"  Amortization: {amortization_points:.0f} points")
 
         return {

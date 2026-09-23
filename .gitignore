@@ -175,6 +175,7 @@ backup_data_*
 
 *.jpeg
 *.jpg
+*.png
 
 # ── LaTeX auxiliares (compilación de figuras/tesis) ─────────
 internal/tesis-figures/_build_*

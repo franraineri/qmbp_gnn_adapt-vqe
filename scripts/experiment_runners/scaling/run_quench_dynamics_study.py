@@ -64,8 +64,10 @@ from qmbp_simulation.analysis.observables import magnetization_x as _magnetizati
 
 # Practical limit for exact time evolution (sparse eigsh + expm_multiply)
 _ED_MAX_N = 22
-# Dense expm limit (above this, use sparse Krylov)
-_DENSE_LIMIT = 16
+# Dense expm limit (above this, use sparse Krylov). N=14 dense expm needs a
+# 16384² matrix (~4GB for U+H) and is impractically slow; sparse Krylov
+# (expm_multiply) handles N=14 in seconds.
+_DENSE_LIMIT = 12
 # Observable stride threshold — for N>14, compute expensive observables
 # every obs_stride steps and interpolate the rest (~20% speedup)
 _OBS_STRIDE_THRESHOLD = 14
@@ -150,12 +152,6 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             help="Lattice topology (default: heavy_hex).",
         )
         parser.add_argument(
-            "--model",
-            type=str,
-            default="tfim",
-            help="Hamiltonian model (default: tfim)",
-        )
-        parser.add_argument(
             "--p-layers",
             type=int,
             default=1,
@@ -218,7 +214,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             "system": {
                 "n_qubits": args.n_qubits,
                 "topology": topo,
-                "model": args.model,
+                "model": args.model or "tfim",
                 "p_layers": args.p_layers,
             },
             "quench": {
@@ -269,6 +265,8 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         """Initialize using the framework's setup_physics() for full module reuse."""
         self.setup_physics()
         args = self._args
+        if args.model is None:
+            args.model = "tfim"
         self._topology = args.topology[0] if isinstance(args.topology, list) else args.topology
 
         # In-memory ground state vector cache — avoids recomputing eigenvectors
@@ -469,9 +467,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
 
         logger.info(f"\n  Max |ΔS| GNN vs |0⟩^N: {max_diff_gnn_zero:.4f}")
         logger.info(f"  Max |ΔS| GNN vs |+⟩^N: {max_diff_gnn_plus:.4f}")
-        logger.info(
-            f"  Qualitatively different: {'YES ✅' if qualitatively_different else 'NO ❌'}"
-        )
+        logger.info(f"  Qualitatively different: {'YES ✅' if qualitatively_different else 'NO ❌'}")
 
         # ── Persist DQPT trajectory NPZ (feeds validate_dqpt_results + qpt_detection) ──
         # Compute Loschmidt echo + rate function for the GNN ground-state quench.
@@ -547,12 +543,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                 result["fidelity_threshold"] = {"f_min": None}
 
             # Persist fidelity report
-            fid_path = (
-                self._get_project_root()
-                / "results"
-                / "analysis"
-                / f"dqpt_fidelity_threshold_{topo}_N{n}.json"
-            )
+            fid_path = self._get_project_root() / "results" / "analysis" / f"dqpt_fidelity_threshold_{topo}_N{n}.json"
             save_fidelity_report(fid_report, fid_path)
         except Exception as e:
             logger.debug(f"  Fidelity threshold scan skipped: {e}")
@@ -603,10 +594,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             gnn_success.append(theta is not None)
 
         mean_gnn_time = float(np.mean(gnn_times))
-        logger.info(
-            f"  GNN inference: mean={mean_gnn_time:.4f}s, "
-            f"success={sum(gnn_success)}/{len(h_values)}"
-        )
+        logger.info(f"  GNN inference: mean={mean_gnn_time:.4f}s, success={sum(gnn_success)}/{len(h_values)}")
 
         # VQE cost estimate
         n_restarts, maxiter = 5, 500
@@ -648,19 +636,14 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             ),
             "pass": speedup > 10,
         }
-        logger.info(
-            f"\n  Speedup: {speedup:.0f}× (VQE={vqe_time_per_h:.1f}s vs "
-            f"GNN={mean_gnn_time:.4f}s per h-point)"
-        )
+        logger.info(f"\n  Speedup: {speedup:.0f}× (VQE={vqe_time_per_h:.1f}s vs GNN={mean_gnn_time:.4f}s per h-point)")
         return result
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Private helpers — Evolution
     # ═══════════════════════════════════════════════════════════════════════════
 
-    def _evolve_exact(
-        self, psi_init, U_dt, H_matrix, n_qubits, n_steps, obs_stride=1, checkpoint_fn=None
-    ):
+    def _evolve_exact(self, psi_init, U_dt, H_matrix, n_qubits, n_steps, obs_stride=1, checkpoint_fn=None):
         """Dense matrix evolution (N ≤ 16).
 
         Parameters
@@ -690,9 +673,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             mags = _interpolate_sparse_observables(mags, obs_stride, n_steps + 1)
         return energies, entropies, mags
 
-    def _evolve_sparse(
-        self, psi_init, H_sparse, n_qubits, n_steps, dt, obs_stride=1, checkpoint_fn=None
-    ):
+    def _evolve_sparse(self, psi_init, H_sparse, n_qubits, n_steps, dt, obs_stride=1, checkpoint_fn=None):
         """Sparse Krylov evolution via expm_multiply (16 < N ≤ 22).
 
         Uses chunk-based expm_multiply for ~20-30% speedup: evolves
@@ -829,13 +810,9 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                     "energies": energies_mps,
                 }
             )
-            logger.info(
-                f"    χ={chi:>3}: crossover@step={crossover_step}, max_drift={max(drifts):.4f}"
-            )
+            logger.info(f"    χ={chi:>3}: crossover@step={crossover_step}, max_drift={max(drifts):.4f}")
 
-        chi64_crossover = next(
-            (d["crossover_step"] for d in crossover_data if d["chi"] == 64), None
-        )
+        chi64_crossover = next((d["crossover_step"] for d in crossover_data if d["chi"] == 64), None)
         return {
             "n_qubits": n,
             "topology": topo,
@@ -897,9 +874,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                 "max_drift": max(drifts),
                 "elapsed_s": elapsed,
             }
-            logger.info(
-                f"    χ={chi:>3}: E₀={e0:.4f}, max_drift={max(drifts):.4f} ({elapsed:.1f}s)"
-            )
+            logger.info(f"    χ={chi:>3}: E₀={e0:.4f}, max_drift={max(drifts):.4f} ({elapsed:.1f}s)")
 
             # Checkpoint after each χ (crash-safe for multi-hour runs)
             self.save_checkpoint(cp_label, {"chi_results": chi_results})
@@ -921,15 +896,11 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                 }
             )
 
-        chi64_crossover = next(
-            (d["crossover_step"] for d in crossover_data if d["chi"] == 64), None
-        )
+        chi64_crossover = next((d["crossover_step"] for d in crossover_data if d["chi"] == 64), None)
         in_advantage = chi64_crossover is not None and chi64_crossover <= 15
 
         if in_advantage:
-            logger.info(
-                f"\n  RESULT: χ=64 fails at step {chi64_crossover} ≤ 15 — quantum advantage regime!"
-            )
+            logger.info(f"\n  RESULT: χ=64 fails at step {chi64_crossover} ≤ 15 — quantum advantage regime!")
         else:
             logger.info(f"\n  RESULT: χ=64 crossover at step {chi64_crossover}")
 
@@ -1076,7 +1047,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         e_gs = None
         gap = 0.0
 
-        if n_qubits <= 16:
+        if n_qubits <= _DENSE_LIMIT:
             # Dense diag: get 2 lowest eigenvalues for gap (negligible overhead)
             H_dense = np.asarray(H_op.to_matrix())
             eigenvalues, eigenvectors = np.linalg.eigh(H_dense)
@@ -1171,13 +1142,16 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
 
     @staticmethod
     def _half_chain_entropy(psi, n_qubits):
-        """Von Neumann entropy of half-chain bipartition via SVD."""
+        """Von Neumann entropy of half-chain bipartition via SVD, in bits (log2).
+
+        Uses log2 to match EntanglementAnalyzer and the repo-wide bit convention.
+        """
         n_a = n_qubits // 2
         psi_matrix = psi.reshape(2**n_a, 2 ** (n_qubits - n_a))
         sv = np.linalg.svd(psi_matrix, compute_uv=False)
         probs = sv**2
         probs = probs[probs > 1e-15]
-        return float(-np.sum(probs * np.log(probs)))
+        return float(-np.sum(probs * np.log2(probs)))
 
     @staticmethod
     def _magnetization_z(psi, n_qubits):
@@ -1220,12 +1194,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                     f"\n  Trajectories: {report.n_trajectories}"
                 )
                 # Persist validation report
-                out_path = (
-                    self._get_project_root()
-                    / "results"
-                    / "analysis"
-                    / f"dqpt_validation_{topo}.json"
-                )
+                out_path = self._get_project_root() / "results" / "analysis" / f"dqpt_validation_{topo}.json"
                 save_dqpt_report(report, out_path)
         except Exception as e:
             logger.debug(f"  DQPT auto-validation skipped: {e}")
@@ -1257,9 +1226,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
 
             from qmbp_simulation.utils.helpers import json_serialize
 
-            go_path = (
-                self._get_project_root() / "results" / "analysis" / f"go_no_go_{topo}_p{p}.json"
-            )
+            go_path = self._get_project_root() / "results" / "analysis" / f"go_no_go_{topo}_p{p}.json"
             go_path.parent.mkdir(parents=True, exist_ok=True)
             with open(go_path, "w") as f:
                 json.dump(go_result, f, indent=2, default=json_serialize)
@@ -1372,8 +1339,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
                 existing_steps = int(existing.get("n_steps", 0))
                 if existing_steps > n_steps:
                     logger.info(
-                        f"  Skipping NPZ write: existing {out_path.name} has "
-                        f"{existing_steps} steps > current {n_steps}"
+                        f"  Skipping NPZ write: existing {out_path.name} has {existing_steps} steps > current {n_steps}"
                     )
                     return
             except Exception:
@@ -1395,6 +1361,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
             rate_function=np.array(rate_values),
             energies=np.array(energies, dtype=float),
             entropies=np.array(entropies, dtype=float),
+            entropy_units="bits",
             magnetization_x=np.array(mx_values, dtype=float),
             critical_times=np.array(critical_times),
             method="exact_ed" if n_qubits <= _ED_MAX_N else "mps",
@@ -1504,12 +1471,7 @@ class QuenchDynamicsStudyRunner(ValidationRunner):
         t_star_shift = None
         if critical_times_gnn:
             # Load exact critical times from the trajectory we just persisted
-            traj_path = (
-                self._get_project_root()
-                / "data"
-                / "dqpt_trajectories"
-                / f"{topology}_N{n_qubits}.npz"
-            )
+            traj_path = self._get_project_root() / "data" / "dqpt_trajectories" / f"{topology}_N{n_qubits}.npz"
             if traj_path.exists():
                 try:
                     traj = np.load(traj_path, allow_pickle=True)

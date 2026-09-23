@@ -28,3 +28,4 @@
 - Hardware (QPU) backend: `src/qmbp_simulation/execution/hardware/backend.py` (`HardwareBackend`)
 - Quench study: `scripts/experiment_runners/scaling/run_quench_dynamics_study.py`
 - Hardware results: `results/ibm_pittsburgh/`, `results/ibm_boston_mitigated/`, `results/haiqu_recovered/`
+- Literature review (entanglement barrier, IBM classical-sim caveat): `internal/documentation/analysis/26_bond_dimension_classical_simulability_review.md`

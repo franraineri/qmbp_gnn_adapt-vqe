@@ -1,6 +1,6 @@
 # Project Status (Auto-Generated)
 
-**Last updated**: 2026-09-21 17:51
+**Last updated**: 2026-09-22 14:46
 **Total runs**: 527 | Pass: 151 | Fail: 376 | Rate: 29%
 **Total compute**: 347.8 hours
 **Models**: heisenberg, heisenberg_transverse, kitaev, tfim, tfim_bond_resolved, tfim_frustrated, tfim_longitudinal, xy
