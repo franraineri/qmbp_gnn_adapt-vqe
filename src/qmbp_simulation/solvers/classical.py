@@ -18,7 +18,6 @@ from qiskit.quantum_info import SparsePauliOp, Statevector
 
 from qmbp_simulation.models import (
     DMRG_QUBIT_LIMIT,
-    EXACT_DIAG_QUBIT_LIMIT,
     GroundTruthResult,
     LatticeConfig,
 )
@@ -45,6 +44,7 @@ class ClassicalSolver:
         obs_x: list[SparsePauliOp] | None = None,
         obs_zz: list[SparsePauliOp] | None = None,
         chi_max: int | None = None,
+        dmrg_from_operator: bool | None = None,
     ) -> GroundTruthResult:
         """Solve for the ground state of *hamiltonian*.
 
@@ -64,6 +64,17 @@ class ClassicalSolver:
             MPS bond dimension for DMRG. If None, uses dynamic scaling
             (200-400 for 1D, min(256, 2^(N/2)) for 2D). Useful for studying
             the effect of truncation on ground state precision.
+        dmrg_from_operator : bool | None
+            Controls how the DMRG MPO is built (only relevant for method="dmrg"):
+
+            - ``None`` (default, auto): build the MPO from the exact Hamiltonian
+              operator IFF the operator carries couplings the lattice-based path
+              would drop (e.g. NNN/frustration: more two-site ZZ terms than
+              lattice edges). Otherwise use the (faster) lattice-based path.
+            - ``True``: always build the MPO from the operator (correct for any
+              model by construction; matches exact diag where feasible).
+            - ``False``: force the legacy lattice-based path (may silently drop
+              non-nearest-neighbour couplings — use only for known-NN models).
 
         Returns
         -------
@@ -103,7 +114,48 @@ class ClassicalSolver:
         elif method == "dmrg":
             if n > DMRG_QUBIT_LIMIT:
                 raise ValueError(f"DMRG supports up to {DMRG_QUBIT_LIMIT} qubits, got {n}.")
-            result = self._solve_dmrg(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
+
+            # Decide how to build the DMRG MPO. The lattice-based paths encode
+            # only nearest-neighbour edges + scalar J/h, so any extra coupling in
+            # the operator (NNN/frustration) would be silently dropped. Detect
+            # that and build the MPO from the operator instead.
+            use_operator = dmrg_from_operator
+            _, n_zz_terms = self._pauli_op_to_tenpy_terms(hamiltonian, n)
+            n_edges = len(lattice.edges)
+            operator_has_extra_couplings = n_zz_terms > n_edges
+            if use_operator is None:
+                use_operator = operator_has_extra_couplings
+                if use_operator:
+                    logger.info(
+                        "ClassicalSolver: auto-selected operator-based DMRG for %s "
+                        "N=%d — operator has %d ZZ terms > %d lattice edges "
+                        "(non-NN couplings, e.g. frustration). Lattice-based DMRG "
+                        "would drop them.",
+                        lattice.topology,
+                        n,
+                        n_zz_terms,
+                        n_edges,
+                    )
+            elif use_operator is False and operator_has_extra_couplings:
+                # SAFETY: caller forced the legacy path on an operator that has
+                # couplings the legacy path cannot represent → warn loudly.
+                logger.warning(
+                    "⚠️ ClassicalSolver: dmrg_from_operator=False on %s N=%d, but "
+                    "the operator has %d ZZ terms vs %d lattice edges. The "
+                    "lattice-based DMRG will IGNORE the %d extra coupling(s) "
+                    "(e.g. NNN/frustration) and return a WRONG energy. Use "
+                    "dmrg_from_operator=None/True unless you know the model is NN-only.",
+                    lattice.topology,
+                    n,
+                    n_zz_terms,
+                    n_edges,
+                    n_zz_terms - n_edges,
+                )
+
+            if use_operator:
+                result = self._solve_dmrg_from_operator(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
+            else:
+                result = self._solve_dmrg(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
 
             # ── Cross-validation guard: verify DMRG vs eigsh when feasible ──
             # This catches the class of bugs where DMRG silently drops bonds
@@ -132,7 +184,9 @@ class ClassicalSolver:
                     elif delta > 1e-8:
                         logger.debug(
                             "DMRG cross-validation OK for %s N=%d: |ΔE|=%.2e",
-                            lattice.topology, n, delta,
+                            lattice.topology,
+                            n,
+                            delta,
                         )
                 except Exception as exc:
                     logger.debug("DMRG cross-validation skipped: %s", exc)
@@ -264,19 +318,13 @@ class ClassicalSolver:
         warnings_list = []
         errors_list = []
 
-        n = (
-            n_qubits or len(results[0].per_site_mag_x)
-            if results[0].per_site_mag_x is not None
-            else 0
-        )
+        n = n_qubits or len(results[0].per_site_mag_x) if results[0].per_site_mag_x is not None else 0
         n_e = n_edges or (n - 1)  # Default: open chain
 
         # 1. Gap positivity
         zero_gaps = [r for r in results if r.gap <= 0]
         if zero_gaps:
-            errors_list.append(
-                f"Gap ≤ 0 at {len(zero_gaps)} points: h={[r.h_value for r in zero_gaps[:3]]}"
-            )
+            errors_list.append(f"Gap ≤ 0 at {len(zero_gaps)} points: h={[r.h_value for r in zero_gaps[:3]]}")
 
         # 2. Energy bounds
         for r in results:
@@ -289,13 +337,9 @@ class ClassicalSolver:
                 e_upper = 3 * abs(1.0) * n_e + h_abs * n
 
             if r.ground_energy < e_lower - 1e-6:
-                errors_list.append(
-                    f"E={r.ground_energy:.6f} below lower bound {e_lower:.6f} at h={r.h_value:.3f}"
-                )
+                errors_list.append(f"E={r.ground_energy:.6f} below lower bound {e_lower:.6f} at h={r.h_value:.3f}")
             if r.ground_energy > e_upper + 1e-6:
-                errors_list.append(
-                    f"E={r.ground_energy:.6f} above upper bound {e_upper:.6f} at h={r.h_value:.3f}"
-                )
+                errors_list.append(f"E={r.ground_energy:.6f} above upper bound {e_upper:.6f} at h={r.h_value:.3f}")
 
         # 3. Observable bounds
         for r in results:
@@ -336,10 +380,7 @@ class ClassicalSolver:
                     f"(DMRG excited-state likely failed — using finite-size floor)"
                 )
             elif n_at_floor > len(results) * 0.5:
-                warnings_list.append(
-                    f"{n_at_floor}/{len(results)} gaps at finite-size floor "
-                    f"2π/N = {finite_floor:.4f}"
-                )
+                warnings_list.append(f"{n_at_floor}/{len(results)} gaps at finite-size floor 2π/N = {finite_floor:.4f}")
 
         # 6. ⟨X⟩ ≈ 0 in paramagnetic phase (symmetry breaking)
         for r in results:
@@ -361,9 +402,7 @@ class ClassicalSolver:
                 "gap_max": max(r.gap for r in results),
                 "e_min": min(r.ground_energy for r in results),
                 "e_max": max(r.ground_energy for r in results),
-                "n_at_gap_floor": sum(
-                    1 for r in results if n > 0 and abs(r.gap - 2 * np.pi / n) < 1e-6
-                ),
+                "n_at_gap_floor": sum(1 for r in results if n > 0 and abs(r.gap - 2 * np.pi / n) < 1e-6),
             },
         }
 
@@ -439,8 +478,7 @@ class ClassicalSolver:
             )
         elif gap < 1e-6:
             logger.warning(
-                "Very small gap=%.2e at h=%.4f — ΔE/gap metrics may be "
-                "numerically unstable at this point.",
+                "Very small gap=%.2e at h=%.4f — ΔE/gap metrics may be numerically unstable at this point.",
                 gap,
                 h_val,
             )
@@ -524,6 +562,140 @@ class ClassicalSolver:
         # Default: 1D chain (TFIChain, only sequential bonds)
         return self._solve_dmrg_1d(hamiltonian, lattice, obs_x, obs_zz, chi_max=chi_max)
 
+    @staticmethod
+    def _pauli_op_to_tenpy_terms(hamiltonian: SparsePauliOp, n: int):
+        """Convert a Qiskit SparsePauliOp to a TeNPy TermList (Pauli → spin-1/2).
+
+        Each Pauli term ``c·P`` becomes ``c·Π_i (2·S_axis)`` on non-identity sites
+        (Z=2·Sz, X=2·Sx, Y=2·Sy). Qiskit labels are big-endian (leftmost = highest
+        qubit index), so site ``q = n-1-pos``. Returns ``(TermList, n_zz_terms)``
+        where ``n_zz_terms`` counts two-site ZZ couplings (used for auto-detection).
+        """
+        from tenpy.networks.terms import TermList
+
+        pauli_to_spin = {"X": ("Sx", 2.0), "Y": ("Sy", 2.0), "Z": ("Sz", 2.0)}
+        terms: list[list[tuple[str, int]]] = []
+        strengths: list[complex] = []
+        n_zz_terms = 0
+        for pauli, coeff in zip(hamiltonian.paulis, hamiltonian.coeffs, strict=True):
+            label = pauli.to_label()
+            ops: list[tuple[str, int]] = []
+            factor = 1.0
+            axes: list[str] = []
+            for pos, ch in enumerate(label):
+                if ch == "I":
+                    continue
+                spin_op, scale = pauli_to_spin[ch]
+                ops.append((spin_op, n - 1 - pos))
+                factor *= scale
+                axes.append(ch)
+            if not ops:  # global identity → constant offset, skip
+                continue
+            if len(ops) == 2 and axes == ["Z", "Z"]:
+                n_zz_terms += 1
+            c = complex(coeff) * factor
+            terms.append(ops)
+            strengths.append(c.real if abs(c.imag) < 1e-12 else c)
+        return TermList(terms, strengths), n_zz_terms
+
+    def _solve_dmrg_from_operator(
+        self,
+        hamiltonian: SparsePauliOp,
+        lattice: LatticeConfig,
+        obs_x: list[SparsePauliOp],
+        obs_zz: list[SparsePauliOp],
+        *,
+        chi_max: int | None = None,
+    ) -> GroundTruthResult:
+        """DMRG built DIRECTLY from the Hamiltonian operator (model-agnostic).
+
+        Unlike the lattice-based DMRG paths (which reconstruct the model from
+        ``lattice.edges`` + scalar J/h and therefore silently drop any coupling
+        not encoded as a nearest-neighbour edge — e.g. the NNN/J2 term of the
+        frustrated TFIM), this path builds the TeNPy MPO from the exact
+        ``SparsePauliOp`` via ``MPOGraph.from_term_list``. It is therefore correct
+        for ANY model (frustrated, Heisenberg, XY, arbitrary couplings) by
+        construction, and matches exact diagonalization wherever both are feasible.
+
+        ψ_gs is None (MPS, not statevector). Gap uses exact eigsh(k=2) when
+        tractable, else the analytical TFIM estimate.
+        """
+        from tenpy.algorithms import dmrg as tenpy_dmrg
+        from tenpy.models.lattice import Chain
+        from tenpy.models.model import MPOModel
+        from tenpy.networks.mpo import MPOGraph
+        from tenpy.networks.mps import MPS
+        from tenpy.networks.site import SpinHalfSite
+
+        logging.getLogger("tenpy").setLevel(logging.WARNING)
+
+        n = lattice.n_qubits
+        h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
+        j_val = float(lattice.J) if np.isscalar(lattice.J) else float(np.mean(lattice.J))
+
+        term_list, _ = self._pauli_op_to_tenpy_terms(hamiltonian, n)
+        site = SpinHalfSite(conserve=None)
+        sites = [site] * n
+        graph = MPOGraph.from_term_list(term_list, sites, bc="finite")
+        H_mpo = graph.build_MPO()
+        chain = Chain(L=n, site=site, bc_MPS="finite")
+        model = MPOModel(chain, H_mpo)
+
+        _chi = chi_max if chi_max is not None else min(256, 2 ** (n // 2))
+        psi = MPS.from_lat_product_state(chain, [["up"]] * n)
+        eng = tenpy_dmrg.TwoSiteDMRGEngine(
+            psi,
+            model,
+            {
+                "mixer": True,
+                "max_E_err": 1e-12,
+                "trunc_params": {"chi_max": _chi, "svd_min": 1e-12, "trunc_cut": 1e-10},
+                "max_sweeps": 100,
+            },
+        )
+        e0, psi = eng.run()
+
+        # Gap: exact eigsh(k=2) when tractable, else analytical TFIM estimate.
+        from qmbp_simulation.models.constants import EXACT_GAP_QUBIT_LIMIT
+
+        gap_method = "analytical_tfim"
+        if n <= EXACT_GAP_QUBIT_LIMIT:
+            try:
+                from scipy.sparse.linalg import eigsh as _eigsh
+
+                evals_k2 = np.sort(
+                    _eigsh(hamiltonian.to_matrix(sparse=True), k=2, which="SA", return_eigenvectors=False)
+                )
+                gap = float(evals_k2[1] - evals_k2[0])
+                gap_method = "eigsh_exact"
+            except Exception:
+                gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
+        else:
+            gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
+
+        # Local observables from the MPS.
+        per_site_sx = np.real(psi.expectation_value("Sx"))
+        per_site_mx = np.abs(2.0 * per_site_sx)
+        per_bond_zz = np.zeros(len(lattice.edges))
+        try:
+            for idx, (i, j) in enumerate(lattice.edges):
+                val = psi.expectation_value_term([("Sz", i), ("Sz", j)])
+                per_bond_zz[idx] = 4.0 * float(np.real(val))
+        except Exception:
+            logger.warning("Could not compute per-bond ZZ via operator DMRG. Using zeros.")
+
+        return GroundTruthResult(
+            h_value=h_val,
+            ground_energy=float(e0),
+            gap=gap,
+            ground_state=None,
+            mag_x=float(np.mean(per_site_mx)),
+            corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
+            per_site_mag_x=per_site_mx,
+            per_bond_corr_zz=per_bond_zz,
+            gap_method=gap_method,
+        )
+
     def _solve_dmrg_graph(
         self,
         hamiltonian: SparsePauliOp,
@@ -554,9 +726,7 @@ class ClassicalSolver:
             from tenpy.networks.mps import MPS
             from tenpy.networks.site import SpinHalfSite
         except ImportError as exc:
-            raise ImportError(
-                "TeNPy is required for DMRG. Install via: pip install physics-tenpy"
-            ) from exc
+            raise ImportError("TeNPy is required for DMRG. Install via: pip install physics-tenpy") from exc
 
         n = lattice.n_qubits
         h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
@@ -564,8 +734,7 @@ class ClassicalSolver:
         edges = lattice.edges
 
         logger.info(
-            f"_solve_dmrg_graph: {lattice.topology} N={n}, {len(edges)} edges, "
-            f"h={h_val:.4f}, chi_max={chi_max}"
+            f"_solve_dmrg_graph: {lattice.topology} N={n}, {len(edges)} edges, h={h_val:.4f}, chi_max={chi_max}"
         )
 
         # Build TeNPy model with explicit edge coupling
@@ -624,14 +793,22 @@ class ClassicalSolver:
                 if attempt > 0:
                     logger.info(
                         "DMRG graph converged for %s N=%d at chi=%d (attempt %d)",
-                        lattice.topology, n, chi, attempt + 1,
+                        lattice.topology,
+                        n,
+                        chi,
+                        attempt + 1,
                     )
                 break
             except Exception as exc:  # TenpyInconsistencyError + numerical failures
                 last_exc = exc
                 logger.warning(
                     "DMRG graph attempt %d (chi=%d) failed for %s N=%d h=%.4f: %s",
-                    attempt + 1, chi, lattice.topology, n, h_val, str(exc)[:120],
+                    attempt + 1,
+                    chi,
+                    lattice.topology,
+                    n,
+                    h_val,
+                    str(exc)[:120],
                 )
         if e0 is None:
             raise RuntimeError(
@@ -676,7 +853,9 @@ class ClassicalSolver:
             corr_zz=float(np.mean(per_bond_zz)) if len(per_bond_zz) > 0 else 0.0,
             per_site_mag_x=per_site_mx,
             per_bond_corr_zz=per_bond_zz,
-            gap_method="eigsh_fallback" if n <= EXACT_GAP_QUBIT_LIMIT and gap > 2 * np.pi / n + 0.01 else "analytical_tfim",
+            gap_method="eigsh_fallback"
+            if n <= EXACT_GAP_QUBIT_LIMIT and gap > 2 * np.pi / n + 0.01
+            else "analytical_tfim",
         )
 
     def _solve_dmrg_2d(
@@ -703,9 +882,7 @@ class ClassicalSolver:
             from tenpy.models.spins import SpinModel
             from tenpy.networks.mps import MPS
         except ImportError as exc:
-            raise ImportError(
-                "TeNPy is required for DMRG. Install via: pip install physics-tenpy"
-            ) from exc
+            raise ImportError("TeNPy is required for DMRG. Install via: pip install physics-tenpy") from exc
 
         n = lattice.n_qubits
         h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))
@@ -806,8 +983,7 @@ class ClassicalSolver:
             except Exception as exc:
                 gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
                 logger.warning(
-                    "eigsh(k=2) failed for %s %dx%d N=%d at h=%.4f: %s. "
-                    "Using analytical gap=%.4f.",
+                    "eigsh(k=2) failed for %s %dx%d N=%d at h=%.4f: %s. Using analytical gap=%.4f.",
                     lattice.topology,
                     rows,
                     cols,
@@ -883,9 +1059,7 @@ class ClassicalSolver:
             from tenpy.models.tf_ising import TFIChain
             from tenpy.networks.mps import MPS
         except ImportError as exc:
-            raise ImportError(
-                "TeNPy is required for DMRG. Install via: pip install physics-tenpy"
-            ) from exc
+            raise ImportError("TeNPy is required for DMRG. Install via: pip install physics-tenpy") from exc
 
         n = lattice.n_qubits
         h_val = float(lattice.h) if np.isscalar(lattice.h) else float(np.mean(lattice.h))  # type: ignore[arg-type]
@@ -964,15 +1138,12 @@ class ClassicalSolver:
                         from scipy.sparse.linalg import eigsh as _eigsh
 
                         H_sparse = hamiltonian.to_matrix(sparse=True)
-                        evals_k2 = np.sort(
-                            _eigsh(H_sparse, k=2, which="SA", return_eigenvectors=False)
-                        )
+                        evals_k2 = np.sort(_eigsh(H_sparse, k=2, which="SA", return_eigenvectors=False))
                         gap = float(evals_k2[1] - evals_k2[0])
                         gap_method = "eigsh_exact"
                         gap_from_eigsh = True
                         logger.info(
-                            "chain_1d gap via eigsh(k=2): N=%d h=%.4f gap=%.6f "
-                            "(analytical floor would be %.6f)",
+                            "chain_1d gap via eigsh(k=2): N=%d h=%.4f gap=%.6f (analytical floor would be %.6f)",
                             n,
                             h_val,
                             gap,
@@ -988,8 +1159,7 @@ class ClassicalSolver:
                             )
                     except Exception as exc:
                         logger.warning(
-                            "eigsh(k=2) failed for chain_1d N=%d at h=%.4f: %s. "
-                            "Falling back to analytical gap.",
+                            "eigsh(k=2) failed for chain_1d N=%d at h=%.4f: %s. Falling back to analytical gap.",
                             n,
                             h_val,
                             exc,
@@ -1027,8 +1197,7 @@ class ClassicalSolver:
                         gap_method = "eigsh_fallback"
                         floor_val = 2 * np.pi / n
                         logger.info(
-                            "DMRG gap fallback: sparse eigsh(k=2) for %s N=%d → "
-                            "gap=%.6f (floor would have been %.6f)",
+                            "DMRG gap fallback: sparse eigsh(k=2) for %s N=%d → gap=%.6f (floor would have been %.6f)",
                             lattice.topology,
                             n,
                             gap,
@@ -1046,12 +1215,9 @@ class ClassicalSolver:
                             )
                     except Exception as exc:
                         # eigsh failed — use analytical estimate
-                        gap = self._estimate_tfim_gap_analytical(
-                            h_val, j_val, n, lattice.edges
-                        )
+                        gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
                         logger.warning(
-                            "eigsh(k=2) failed for %s N=%d at h=%.4f: %s. "
-                            "Using analytical gap=%.4f.",
+                            "eigsh(k=2) failed for %s N=%d at h=%.4f: %s. Using analytical gap=%.4f.",
                             lattice.topology,
                             n,
                             h_val,
@@ -1059,9 +1225,7 @@ class ClassicalSolver:
                             gap,
                         )
                 else:
-                    gap = self._estimate_tfim_gap_analytical(
-                        h_val, j_val, n, lattice.edges
-                    )
+                    gap = self._estimate_tfim_gap_analytical(h_val, j_val, n, lattice.edges)
                     warnings.warn(
                         f"DMRG excited state converged to GS (N={n}, h={h_val:.2f}, "
                         f"topology={lattice.topology}). N>{EXACT_GAP_QUBIT_LIMIT}, "
@@ -1080,10 +1244,7 @@ class ClassicalSolver:
 
         # ZZ correlations on lattice bonds
         per_bond_zz = np.array(
-            [
-                float(np.real(psi.expectation_value_term([("Sigmaz", i), ("Sigmaz", j)])))
-                for i, j in lattice.edges
-            ]
+            [float(np.real(psi.expectation_value_term([("Sigmaz", i), ("Sigmaz", j)]))) for i, j in lattice.edges]
         )
 
         return GroundTruthResult(
@@ -1099,9 +1260,7 @@ class ClassicalSolver:
         )
 
     @staticmethod
-    def _estimate_tfim_gap_analytical(
-        h: float, J: float, n: int, edges: list[tuple[int, int]] | None = None
-    ) -> float:
+    def _estimate_tfim_gap_analytical(h: float, J: float, n: int, edges: list[tuple[int, int]] | None = None) -> float:
         """Estimate TFIM spectral gap analytically for the paramagnetic regime.
 
         For TFIM H = -J·ΣZZ - h·ΣX, the gap in the paramagnetic phase (h > J·z)
@@ -1134,6 +1293,7 @@ class ClassicalSolver:
         # Compute mean coordination from edge list
         if edges:
             from collections import Counter
+
             degree = Counter()
             for i, j in edges:
                 degree[i] += 1
@@ -1154,16 +1314,22 @@ class ClassicalSolver:
             fs_correction = np.pi**2 / (n**2 * max(h, 1.0))
             gap = gap_pert + fs_correction
             logger.debug(
-                "Analytical gap: h=%.2f, J=%.2f, z=%.1f → Δ_pert=%.4f "
-                "(floor=%.4f, fs_corr=%.2e)",
-                h, J, z_mean, gap, gap_floor, fs_correction,
+                "Analytical gap: h=%.2f, J=%.2f, z=%.1f → Δ_pert=%.4f (floor=%.4f, fs_corr=%.2e)",
+                h,
+                J,
+                z_mean,
+                gap,
+                gap_floor,
+                fs_correction,
             )
             return gap
         else:
             # Near or below criticality — use conservative floor
             logger.debug(
                 "Analytical gap: h=%.2f < J*z=%.2f → near-critical, using floor=%.4f",
-                h, J * z_mean, gap_floor,
+                h,
+                J * z_mean,
+                gap_floor,
             )
             return gap_floor
 

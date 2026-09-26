@@ -1,12 +1,15 @@
 {
-  "generated_utc": "2026-09-23T02:00:29.754947+00:00",
+  "result_path": "results/hva_vl_study/vl_h_sweep/vl_h_sweep_frustrated.json",
+  "source_script": "unknown",
+  "generated_utc": "2026-09-23T21:04:21.886499+00:00",
   "params": {
-    "N": 9,
-    "p_layers": 2,
+    "topology": "square",
     "J2": 0.5,
-    "model": "tfim_frustrated"
+    "model": "tfim_frustrated",
+    "p_layers": 2,
+    "note": "consolidated square h-sweep (default VL settings num_layers=2, fine_tuning=20); |dE| for h=0.5,1.0 backfilled from quality_sweep default config"
   },
-  "description": "h-sweep of Haiqu VL vs HVA bond-resolved in frustrated 2D (J2=0.5, N=9, p=2). VL fidelity = |<GS_exact|VL>|^2 from Haiqu cloud.",
+  "description": "Consolidated square frustrated h-sweep (VL default settings), all metrics",
   "rows": [
     {
       "topology": "square",
@@ -20,17 +23,19 @@
       "n_edges": 12,
       "vl_fidelity": 0.8086485582391839,
       "vl_status": "DONE",
+      "vl_energy": -7.036677593103353,
+      "vl_abs_error": 0.7165153415285284,
       "vl_depth": 53,
       "vl_2q": 30,
       "vl_1q": 177,
+      "vl_total_gates": 207,
       "vl_gate_counts": {
         "rz": 112,
         "ry": 65,
         "cx": 30
       },
-      "hva_transpiled_2q": 48,
-      "hva_transpiled_depth": 49,
-      "hva_logical_2q": 24
+      "vl_circuit_id": null,
+      "vl_circuit_qpy": null
     },
     {
       "topology": "square",
@@ -44,17 +49,19 @@
       "n_edges": 12,
       "vl_fidelity": 0.899864957359018,
       "vl_status": "DONE",
+      "vl_energy": -10.640252890841989,
+      "vl_abs_error": 0.5399217904835627,
       "vl_depth": 53,
       "vl_2q": 30,
       "vl_1q": 185,
+      "vl_total_gates": 215,
       "vl_gate_counts": {
         "rz": 116,
         "ry": 69,
         "cx": 30
       },
-      "hva_transpiled_2q": 48,
-      "hva_transpiled_depth": 49,
-      "hva_logical_2q": 24
+      "vl_circuit_id": null,
+      "vl_circuit_qpy": null
     },
     {
       "topology": "square",
@@ -68,17 +75,19 @@
       "n_edges": 12,
       "vl_fidelity": 0.9612953696630576,
       "vl_status": "DONE",
+      "vl_energy": -18.949546660163,
+      "vl_abs_error": 0.38871516585062693,
       "vl_depth": 53,
       "vl_2q": 30,
       "vl_1q": 186,
+      "vl_total_gates": 216,
       "vl_gate_counts": {
         "rz": 118,
         "ry": 68,
         "cx": 30
       },
-      "hva_transpiled_2q": 48,
-      "hva_transpiled_depth": 49,
-      "hva_logical_2q": 24
+      "vl_circuit_id": "circ-f01b3dd1-a70c-4a13-b502-194a0f7742fa",
+      "vl_circuit_qpy": "results/hva_vl_study/circuit_comparison/circuits/tfim_frustrated_square_n9_p2_h2.00_j20.50_vl.qpy"
     },
     {
       "topology": "square",
@@ -90,115 +99,47 @@
       "E0": -27.978739159585313,
       "gap": 4.539363253052407,
       "n_edges": 12,
-      "vl_fidelity": 0.9868320550454931,
+      "vl_fidelity": 0.9869538284374668,
       "vl_status": "DONE",
+      "vl_energy": -27.80668172864357,
+      "vl_abs_error": 0.17205743094174153,
       "vl_depth": 53,
       "vl_2q": 30,
       "vl_1q": 186,
+      "vl_total_gates": 216,
       "vl_gate_counts": {
         "rz": 118,
         "ry": 68,
         "cx": 30
       },
-      "hva_transpiled_2q": 48,
-      "hva_transpiled_depth": 49,
-      "hva_logical_2q": 24
+      "vl_circuit_id": "circ-16a7c35e-978f-473c-86a3-76ec03357c02",
+      "vl_circuit_qpy": "results/hva_vl_study/circuit_comparison/circuits/tfim_frustrated_square_n9_p2_h3.00_j20.50_vl.qpy"
     },
     {
-      "topology": "triangular",
-      "N": 9,
-      "p_layers": 2,
-      "model": "tfim_frustrated",
-      "J2": 0.5,
-      "h": 0.5,
-      "E0": -11.299152302424119,
-      "gap": 0.002843276510503756,
-      "n_edges": 19,
-      "vl_fidelity": 0.9937574457277173,
-      "vl_status": "DONE",
-      "vl_depth": 53,
-      "vl_2q": 30,
-      "vl_1q": 170,
-      "vl_gate_counts": {
-        "rz": 108,
-        "ry": 62,
-        "cx": 30
-      },
-      "hva_transpiled_2q": 76,
-      "hva_transpiled_depth": 79,
-      "hva_logical_2q": 38
-    },
-    {
-      "topology": "triangular",
-      "N": 9,
+      "topology": "square",
+      "N": 10,
       "p_layers": 2,
       "model": "tfim_frustrated",
       "J2": 0.5,
       "h": 1.0,
-      "E0": -13.482973289984514,
-      "gap": 0.21580518310767083,
-      "n_edges": 19,
-      "vl_fidelity": 0.9060428965676879,
+      "E0": -12.473922068836929,
+      "gap": 0.5022763162012893,
+      "n_edges": 13,
+      "vl_fidelity": 0.8966093908768537,
       "vl_status": "DONE",
+      "vl_energy": -11.855888841925472,
+      "vl_abs_error": 0.6180332269114572,
       "vl_depth": 53,
-      "vl_2q": 30,
-      "vl_1q": 176,
+      "vl_2q": 34,
+      "vl_1q": 203,
+      "vl_total_gates": 237,
       "vl_gate_counts": {
-        "rz": 111,
-        "ry": 65,
-        "cx": 30
+        "rz": 129,
+        "ry": 74,
+        "cx": 34
       },
-      "hva_transpiled_2q": 76,
-      "hva_transpiled_depth": 79,
-      "hva_logical_2q": 38
-    },
-    {
-      "topology": "triangular",
-      "N": 9,
-      "p_layers": 2,
-      "model": "tfim_frustrated",
-      "J2": 0.5,
-      "h": 2.0,
-      "E0": -20.62611714815345,
-      "gap": 1.7729238509816412,
-      "n_edges": 19,
-      "vl_fidelity": 0.9141215561046729,
-      "vl_status": "DONE",
-      "vl_depth": 53,
-      "vl_2q": 30,
-      "vl_1q": 184,
-      "vl_gate_counts": {
-        "rz": 115,
-        "ry": 69,
-        "cx": 30
-      },
-      "hva_transpiled_2q": 76,
-      "hva_transpiled_depth": 79,
-      "hva_logical_2q": 38
-    },
-    {
-      "topology": "triangular",
-      "N": 9,
-      "p_layers": 2,
-      "model": "tfim_frustrated",
-      "J2": 0.5,
-      "h": 3.0,
-      "E0": -28.84462060146645,
-      "gap": 3.5972498284374943,
-      "n_edges": 19,
-      "vl_fidelity": 0.950398230039067,
-      "vl_status": "DONE",
-      "vl_depth": 53,
-      "vl_2q": 30,
-      "vl_1q": 186,
-      "vl_gate_counts": {
-        "rz": 118,
-        "ry": 68,
-        "cx": 30
-      },
-      "hva_transpiled_2q": 76,
-      "hva_transpiled_depth": 79,
-      "hva_logical_2q": 38
+      "vl_circuit_id": "circ-ee37e3c4-829c-45e8-922b-a105d7774732",
+      "vl_circuit_qpy": "results/hva_vl_study/circuit_comparison/circuits/tfim_frustrated_square_n10_p2_h1.00_j20.50_vl.qpy"
     }
   ]
 }

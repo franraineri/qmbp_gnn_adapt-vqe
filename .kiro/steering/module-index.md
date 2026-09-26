@@ -39,7 +39,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +19
 
 
-### qsim/analysis/ (27)
+### qsim/analysis/ (28)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +68
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
@@ -69,6 +69,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   theta_alignment            POST  C:AlignmentReport,OutlierReport,EnergyGuardReport | F:detect_jumps,align_theta_sweep,align_theta_array+3
   theta_validator            VAL   C:BoundCheckResult,NumericalSanityResult,InterpolationResult+6
   vqe_validator              VAL   C:Severity,ValidationIssue,VQEValidationReport+1
+  warmstart                  CIRC  F:first_order_warmstart_theta,second_order_warmstart_theta,second_order_correction_magnitude+2
 
 ### qsim/circuits/ (3)
   ↳ HVACircuitBuilder AQCCircuitCompressor AQCCompressionConfig AQCCompressionResult CompressionValidation AQCCompressionCache
@@ -101,7 +102,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   mps_backend                EXEC  C:MPSBackend
   noisy_utils                EXEC  C:NoisyEstimatorConfig,LayoutSelection,ZNEResult+10 | F:build_adjacency,find_layouts_bfs,compute_circuit_ces+17
 
-### qsim/framework/ (18)
+### qsim/framework/ (22)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
   __main__                   CLI  
@@ -121,6 +122,10 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   result_io                  IO    F:build_data_dir,training_npz_read_dirs,training_npz_path+25
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
+  study_artifacts                  C:StudyArtifactWriter,PathShim | F:build_artifact_name,meta_sidecar_path,git_commit+5
+  study_checkpoint                 C:StudyCheckpoint | F:atomic_write_json,read_json,resume_ordered_list
+  study_index                CIRC  F:extract_coordinates,build_entry,build_index+4
+  study_runner               PIPE  C:WarmStartResult,StudyRunner | F:make_adjoint_gradient,strategy_single,strategy_bestof+4
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
 
 ### qsim/models/ (5)
@@ -305,7 +310,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   _sanity_check_envelope     IO  
   analyze_haiqu_hva          CIRC  F:analyze_file,print_report,main
   benchmark_configs          BENCH C:BenchmarkConfig
-  rebuild_circuit_input      CIRC  F:fetch_gnn_theta,hamiltonian_to_json,build_input_json+1
+  rebuild_circuit_input      CIRC  F:fetch_gnn_theta,predict_gnn_theta,hamiltonian_to_json+2
   recover_haiqu_hva_deployment CIRC  F:main
   run_full_deployment_pipeline PIPE  F:find_latest_rehearsal_json,main
   run_gnn_warmstart_demo     VAL   C:GNNWarmstartDemoRunner
@@ -339,6 +344,25 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   compute_h_frontier_topologies DIAG  F:compute_frontier
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   quick_noisy_comparison     EXEC  F:run_comparison,main
+  analyze_hva_vs_vl_resources VIS   F:build_summary,main
+  ansatz_expressivity_2d     OPT   F:expressivity_ceiling,run,format_rows+2
+  compare_circuits_square_n10_p2 CIRC  F:compare,main
+  confirm_second_order_warmstart       F:run,build_parser,main
+  export_hva_circuit_bundle  PRED  F:main
+  hva_nnn_h_sweep_frustrated OPT   F:run,format_rows,build_parser+1
+  hva_vl_study_common        CIRC  F:study_dir,save_json,qiskit_from_qpy+22
+  mps_extraction             EXEC  C:CappedMPS | F:dmrg_mps_capped,capped_mps_vidal,mps_to_statevector+1
+  organize_results           CIRC  F:cmd_reindex,cmd_query,cmd_validate_cache+3
+  reanalyze_p2_filtered      ANAL  
+  run_hva_metropolis_point   CIRC  F:run_point,build_parser,main
+  run_hva_vs_vl_resources    IO    C:Row | F:run,save_run,main
+  run_n18_second_order       PIPE  F:main
+  run_representability_mps   SOLVE F:dmrg_chi,exact_energy,run+1
+  verify_hva_periodicity     CIRC  K:H
+  vl_circuit_characterization IO    F:characterize_vl,format_rows,build_parser+1
+  vl_h_sweep_frustrated      OPT   F:run,format_rows,build_parser+1
+  vl_mps_large_n             IO    F:run,build_parser,main
+  vl_quality_sweep_frustrated OPT   F:run,format_rows,build_parser+1
   benchmark_vqezy            VAL   F:parse_args,find_vqezy_dataset,main
   validate_vqezy_robustness  VAL   F:build_lattice_and_circuit,load_training_data,evaluate_mpnn_on_vqezy+4
   _test_dmrg_2d_heavy_hex    TEST  C:HeavyHexTFIM | F:run_dmrg_2d
@@ -360,6 +384,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   circuit_cost_check         CIRC  C:CircuitCostResult | F:compute_circuit_cost,print_cost_report,save_report+1
   compare_ablation_runs      ANAL  F:parse_args,load_runs,format_table+1
   compare_hva_std_vs_longitudinal CIRC  C:PointResult | F:run_anchor_check,main
+  compare_hva_vl_mps_fidelity PRED  F:compare_state_preparations,format_rows,build_parser+1
   compile_multiseed_report   ANAL  F:extract_metrics,main
   compute_h_frontier               F:parse_args,interpolate_frontier,main
   compute_h_frontier_all     DIAG  F:parse_args,interpolate_frontier,scan_results+4
@@ -381,17 +406,14 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   probe_warmstart_advantage  PRED  F:probe_n,main
   qpt_detection              CLI   F:main
   quick_noisy_comparison     EXEC  F:run_comparison,main
-  reanalyze_p2_filtered      ANAL  
   regenerate_eval_reports    ANAL  F:parse_args,load_npz_as_per_h_results,load_baseline_summary+3
   report_hva_std_vs_longitudinal CIRC  F:build_report,main
   representability_io        SOLVE C:Row | F:mem_estimate_mps,save_run,load_all_rows
   run_mpnn_vs_random_light   PRED  F:run_for_n,main
-  run_representability_mps   SOLVE F:dmrg_chi,exact_energy,run+1
   theta_derivative_analysis  ANAL  F:load_d1_gradients,compute_theta_derivative,compute_correlation+3
   theta_pca_phase_detection  ANAL  F:load_trajectories,analyze_trajectory,generate_figure+3
   validate_dqpt_results      VAL   C:DQPTTrajectory,ValidationCheck,DQPTValidationReport+1 | F:load_dqpt_trajectories,check_analytical_t_star,check_periodicity+10
   validate_vqezy_robustness  VAL   F:build_lattice_and_circuit,load_training_data,evaluate_mpnn_on_vqezy+4
-  verify_hva_periodicity     CIRC  K:H
   verify_mt_vs_st            ANAL  F:main
   walltime_comparison        PRED  F:extract_gt_timing,backfill_gt_timing,measure_mpnn_inference+4
   benchmark                  BENCH F:parse_args,main

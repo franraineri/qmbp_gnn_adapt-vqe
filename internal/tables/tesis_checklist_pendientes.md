@@ -1,6 +1,6 @@
 # Chequeos pendientes de la tesis
 
-Generado: 2026-09-21 21:16 UTC  
+Generado: 2026-09-26 17:01 UTC  
 Fuente: `generate_thesis_tables.py --check-tex`  
 Total pendientes: **7** (auto-arreglables 0 · manuales 7 · a verificar 0)
 

@@ -453,6 +453,16 @@ src/qmbp_simulation/framework/runner_base.py
     DOC107: Method `HardwareValidationRunner.validate_transpiled_quality`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
     DOC105: Method `HardwareValidationRunner.validate_transpiled_quality`: Argument names match, but type hints in these args do not match: transpiled_circuit
 --------------------
+src/qmbp_simulation/framework/study_artifacts.py
+    DOC105: Method `StudyArtifactWriter.__init__`: Argument names match, but type hints in these args do not match: run_dir, repo_root
+--------------------
+src/qmbp_simulation/framework/study_checkpoint.py
+    DOC105: Method `StudyCheckpoint.__init__`: Argument names match, but type hints in these args do not match: writer
+--------------------
+src/qmbp_simulation/framework/study_runner.py
+    DOC101: Method `StudyRunner.__init__`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `StudyRunner.__init__`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [J: float, j2: float, maxiter: int, model: str, n_hops: int, n_qubits: int, p_layers: int, sigma: float, topology: str, use_adjoint_grad: bool]. Arguments in the docstring but not in the function signature: [maxiter, sigma, n_hops: optimizer knobs., topology, n_qubits, p_layers, j2, model: physics config.].
+--------------------
 src/qmbp_simulation/framework/variant_runner.py
     DOC201: Method `VariantRunner.run_all` does not have a return section in docstring
     DOC105: Function `run_variant_script`: Argument names match, but type hints in these args do not match: build_noiseless, build_noisy, build_extended
@@ -550,8 +560,6 @@ src/qmbp_simulation/predictors/model_zoo.py
     DOC103: Function `compute_model_readiness`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [_db: ModelRegistryDB | None].
     DOC101: Function `auto_retrain_stale_models`: Docstring contains fewer arguments than in function signature.
     DOC103: Function `auto_retrain_stale_models`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [n_epochs: int].
-    DOC101: Function `list_pretrained`: Docstring contains fewer arguments than in function signature.
-    DOC103: Function `list_pretrained`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model: str | None, n_qubits: int | None, p_layers: int | None, topology: str | None]. Arguments in the docstring but not in the function signature: [model, topology, n_qubits, p_layers: optional filters].
     DOC101: Function `_get_contaminated_model_ids`: Docstring contains fewer arguments than in function signature.
     DOC103: Function `_get_contaminated_model_ids`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model: str, p_layers: int, topology: str].
     DOC201: Function `_get_contaminated_model_ids` does not have a return section in docstring

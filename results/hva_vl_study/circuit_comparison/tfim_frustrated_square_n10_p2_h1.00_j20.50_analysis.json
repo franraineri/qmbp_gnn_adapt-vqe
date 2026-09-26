@@ -1,4 +1,7 @@
 {
+  "result_path": "results/hva_vl_study/circuit_comparison/tfim_frustrated_square_n10_p2_h1.00_j20.50_analysis.json",
+  "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+  "generated_utc": "2026-09-23T20:55:57.370107+00:00",
   "topology": "square",
   "N": 10,
   "p_layers": 2,
@@ -9,7 +12,6 @@
   "gap": 0.5022763162012893,
   "n_edges": 13,
   "hva_logical": {
-    "label": "HVA p=2 (logical)",
     "num_qubits": 10,
     "num_parameters": 46,
     "total_gates": 56,
@@ -21,10 +23,10 @@
       "rzz": 26,
       "rx": 20,
       "h": 10
-    }
+    },
+    "label": "HVA p=2 (logical)"
   },
   "hva_transpiled": {
-    "label": "HVA p=2 (transpiled cx/rz/sx/x)",
     "num_qubits": 10,
     "num_parameters": 46,
     "total_gates": 208,
@@ -36,23 +38,28 @@
       "rz": 106,
       "cx": 52,
       "sx": 50
-    }
+    },
+    "label": "HVA p=2 (transpiled cx/rz/sx/x)"
   },
-  "vl_fidelity": 0.8968075001259684,
+  "vl_fidelity": 0.8966093908768537,
   "vl_status": "DONE",
+  "vl_circuit_id": "circ-ee37e3c4-829c-45e8-922b-a105d7774732",
   "vl": {
-    "label": "Haiqu VL circuit",
     "num_qubits": 10,
     "num_parameters": 0,
-    "total_gates": 238,
+    "total_gates": 237,
     "depth": 53,
     "depth_2q": 13,
     "n_2q_gates": 34,
-    "n_1q_gates": 204,
+    "n_1q_gates": 203,
     "gate_counts": {
       "rz": 129,
-      "ry": 75,
+      "ry": 74,
       "cx": 34
-    }
-  }
+    },
+    "label": "Haiqu VL circuit"
+  },
+  "vl_energy": -11.855888841925472,
+  "vl_abs_error": 0.6180332269114572,
+  "vl_circuit_qpy": "results/hva_vl_study/circuit_comparison/circuits/tfim_frustrated_square_n10_p2_h1.00_j20.50_vl.qpy"
 }

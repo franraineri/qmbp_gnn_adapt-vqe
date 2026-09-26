@@ -63,7 +63,9 @@ def compute_exact_fidelity(
 
             cache = EvalCache()
             hit = cache.get_fidelity(
-                cache_ctx["topology"], int(cache_ctx["n_qubits"]), float(cache_ctx["h"]),
+                cache_ctx["topology"],
+                int(cache_ctx["n_qubits"]),
+                float(cache_ctx["h"]),
                 np.asarray(theta),
                 model=cache_ctx.get("model", "tfim"),
                 p_layers=int(cache_ctx.get("p_layers", 0)),
@@ -89,8 +91,11 @@ def compute_exact_fidelity(
     if cache is not None:
         try:
             cache.put_fidelity(
-                cache_ctx["topology"], int(cache_ctx["n_qubits"]), float(cache_ctx["h"]),
-                np.asarray(theta), fid,
+                cache_ctx["topology"],
+                int(cache_ctx["n_qubits"]),
+                float(cache_ctx["h"]),
+                np.asarray(theta),
+                fid,
                 model=cache_ctx.get("model", "tfim"),
                 p_layers=int(cache_ctx.get("p_layers", 0)),
             )
@@ -304,6 +309,77 @@ def compute_fidelity_decomposition(
     return result
 
 
+def compute_state_spectral_decomposition(
+    circuit,
+    theta: np.ndarray,
+    eigvecs: np.ndarray,
+    *,
+    n_low: int = 2,
+    energy_variance: float | None = None,
+    gap: float | None = None,
+) -> dict:
+    """Decompose the prepared state's weight over the low-lying eigenvectors.
+
+    Answers "where does the missing fidelity go?" — is the infidelity carried by
+    a near-degenerate partner (subspace effect) or spread over higher excited
+    states (ansatz-expressivity signature)? Reuses the overlap-spectrum pattern
+    from ``fidelity_decomposition_diagnostic`` and, when ``energy_variance`` and
+    ``gap`` are supplied, the shared :func:`classify_infidelity_factor`.
+
+    Parameters
+    ----------
+    circuit : QuantumCircuit
+        Parameterized circuit (unbound).
+    theta : np.ndarray
+        Parameter values.
+    eigvecs : np.ndarray
+        Low eigenvectors as columns, shape ``(2**N, k)`` with ``k >= n_low``,
+        ordered by ascending eigenvalue (column 0 = ground state).
+    n_low : int
+        Size of the low subspace to project onto (default 2 — ground + first
+        excited, the near-degenerate pair).
+    energy_variance, gap : float | None
+        When both given, the dominant infidelity factor is attached via
+        ``classify_infidelity_factor`` (no recomputation of Var(H)).
+
+    Returns
+    -------
+    dict
+        ``ground_weight`` (|⟨E0|ψ⟩|²), ``subspace_fidelity`` (Σ over the low
+        n_low states), ``weight_outside_low_subspace`` (1 − subspace),
+        ``low_weights`` (per-eigvec list), and — when classifiable —
+        ``infidelity_dominant_factor`` + ``variance_over_gap2``.
+    """
+    out: dict = {
+        "ground_weight": None,
+        "subspace_fidelity": None,
+        "weight_outside_low_subspace": None,
+        "low_weights": None,
+    }
+    try:
+        from qiskit.quantum_info import Statevector
+
+        psi = np.asarray(Statevector(circuit.assign_parameters(theta)).data)
+        k = min(n_low, eigvecs.shape[1])
+        weights = [float(abs(np.vdot(eigvecs[:, i], psi)) ** 2) for i in range(k)]
+        subspace = float(sum(weights))
+        out.update(
+            ground_weight=weights[0],
+            subspace_fidelity=subspace,
+            weight_outside_low_subspace=float(max(1.0 - subspace, 0.0)),
+            low_weights=weights,
+        )
+    except (MemoryError, ValueError, AttributeError) as exc:
+        logger.debug("compute_state_spectral_decomposition failed: %s", exc)
+        return out
+
+    if energy_variance is not None and gap is not None:
+        factor = classify_infidelity_factor(energy_variance, gap)
+        out["infidelity_dominant_factor"] = factor["infidelity_dominant_factor"]
+        out["variance_over_gap2"] = factor["variance_over_gap2"]
+    return out
+
+
 def estimate_fidelity_from_primitives(
     circuit,
     theta: np.ndarray,
@@ -371,9 +447,7 @@ def estimate_fidelity_from_primitives(
                 "energy_variance": None,
             }
 
-    bound = compute_variance_fidelity_bound(
-        circuit, theta, hamiltonian, gap, chi_max=chi_max, e_pred=e_pred, e0=e0
-    )
+    bound = compute_variance_fidelity_bound(circuit, theta, hamiltonian, gap, chi_max=chi_max, e_pred=e_pred, e0=e0)
     if bound is not None:
         return bound
     return {

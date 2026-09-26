@@ -1123,6 +1123,61 @@ def assess_hardware_viability(
     }
 
 
+def compute_restart_convergence(runs: list[dict], maxiter: int) -> dict[str, Any]:
+    """Summarize per-restart optimizer convergence for a warm-start point.
+
+    Pure aggregation over the ``runs`` list every warm-start strategy produces
+    (each run carries at least ``nit``, ``energy``, ``fidelity``). A restart is
+    "converged" when the optimizer stopped before hitting the iteration cap
+    (``nit < maxiter``); hitting the cap means it was still descending. This is
+    the signal that distinguishes an optimization ceiling (all restarts capped)
+    from a genuine minimum (converged well below the cap).
+
+    Parameters
+    ----------
+    runs : list[dict]
+        Per-restart records. Each should have ``nit`` (int). ``converged`` is
+        used directly when already present, else derived as ``nit < maxiter``.
+    maxiter : int
+        The per-restart iteration cap used by the optimizer.
+
+    Returns
+    -------
+    dict[str, Any]
+        Keys: ``n_restarts``, ``converged_count``, ``all_converged``,
+        ``any_converged``, ``best_restart_converged`` (the lowest-energy run's
+        convergence), ``max_nit``, ``mean_nit``.
+    """
+    if not runs:
+        return {
+            "n_restarts": 0,
+            "converged_count": 0,
+            "all_converged": False,
+            "any_converged": False,
+            "best_restart_converged": None,
+            "max_nit": None,
+            "mean_nit": None,
+        }
+
+    def _conv(r: dict) -> bool:
+        if "converged" in r:
+            return bool(r["converged"])
+        return int(r.get("nit", maxiter)) < maxiter
+
+    nits = [int(r.get("nit", maxiter)) for r in runs]
+    n_conv = sum(1 for r in runs if _conv(r))
+    best = min(runs, key=lambda r: r.get("energy", float("inf")))
+    return {
+        "n_restarts": len(runs),
+        "converged_count": n_conv,
+        "all_converged": n_conv == len(runs),
+        "any_converged": n_conv > 0,
+        "best_restart_converged": _conv(best),
+        "max_nit": max(nits),
+        "mean_nit": float(np.mean(nits)),
+    }
+
+
 def compute_deploy_summary(
     per_h_results: list[dict],
     *,

@@ -76,9 +76,7 @@ class MitigationOptions:
 
     def __post_init__(self) -> None:
         if self.dd_enabled and self.dd_sequence not in ("XX", "XpXm", "XY4"):
-            raise ValueError(
-                f"Invalid dd_sequence '{self.dd_sequence}'. Valid values: 'XX', 'XpXm', 'XY4'"
-            )
+            raise ValueError(f"Invalid dd_sequence '{self.dd_sequence}'. Valid values: 'XX', 'XpXm', 'XY4'")
         if self.zne_noise_factors is not None:
             if len(self.zne_noise_factors) < 2:
                 raise ValueError(
@@ -86,13 +84,10 @@ class MitigationOptions:
                     f"got {len(self.zne_noise_factors)}."
                 )
             if self.zne_noise_factors != sorted(self.zne_noise_factors):
-                raise ValueError(
-                    f"zne_noise_factors must be in ascending order, got {self.zne_noise_factors}."
-                )
+                raise ValueError(f"zne_noise_factors must be in ascending order, got {self.zne_noise_factors}.")
             if self.zne_noise_factors[0] < 1.0:
                 raise ValueError(
-                    f"zne_noise_factors[0] must be >= 1.0 (base noise level), "
-                    f"got {self.zne_noise_factors[0]}."
+                    f"zne_noise_factors[0] must be >= 1.0 (base noise level), got {self.zne_noise_factors[0]}."
                 )
 
 
@@ -135,6 +130,12 @@ class ExecutionBackend(ABC):
         """Human-readable backend identifier."""
         ...
 
+    def gradient(self, circuit: QuantumCircuit, hamiltonian: SparsePauliOp):
+        """Return an exact analytic gradient callable ``grad(params)->np.ndarray``
+        for ``d<H>/dparams``, or ``None`` if this backend cannot provide one.
+        """
+        return None
+
     def compute_fidelity(
         self,
         circuit: QuantumCircuit,
@@ -164,8 +165,7 @@ class ExecutionBackend(ABC):
             )
         elif fid > 1.0 + 1e-10 or fid < -1e-10:
             logger.warning(
-                "[%s] compute_fidelity: value %.8f slightly outside [0, 1] — "
-                "numerical noise, clipping.",
+                "[%s] compute_fidelity: value %.8f slightly outside [0, 1] — numerical noise, clipping.",
                 self.name,
                 fid,
             )
@@ -257,8 +257,7 @@ class ExecutionBackend(ABC):
         if variance < 0:
             if variance < -1e-8:
                 logger.warning(
-                    "[%s] compute_energy_variance: negative variance %.2e "
-                    "(numerical issue) — returning NaN.",
+                    "[%s] compute_energy_variance: negative variance %.2e (numerical issue) — returning NaN.",
                     self.name,
                     variance,
                 )
@@ -305,10 +304,27 @@ class NoiselessBackend(ExecutionBackend):
     This is the default backend for all noiseless experiments.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cache_hamiltonian: bool = True) -> None:
         from qiskit.primitives import StatevectorEstimator
 
         self._estimator = StatevectorEstimator()
+        # When enabled, ⟨H⟩ is computed as ⟨ψ|H_sparse|ψ⟩ with H materialized
+        # to a CSR matrix ONCE per (hamiltonian object, N) and reused across
+        # calls. This avoids the StatevectorEstimator's per-call symbolic
+        # observable rebuild (SparseObservable.from_sparse_pauli_op), which
+        # dominates runtime when a gradient calls evaluate() many times.
+        # Numerically identical to the estimator path (same exact inner product).
+        self._cache_hamiltonian = cache_hamiltonian
+        self._hmat_cache: dict[int, Any] = {}
+
+    def _hmat(self, hamiltonian: SparsePauliOp):
+        """CSR matrix for ``hamiltonian``, cached by object id (materialized once)."""
+        key = id(hamiltonian)
+        cached = self._hmat_cache.get(key)
+        if cached is None:
+            cached = hamiltonian.to_matrix(sparse=True).tocsr()
+            self._hmat_cache[key] = cached
+        return cached
 
     def evaluate(
         self,
@@ -316,28 +332,34 @@ class NoiselessBackend(ExecutionBackend):
         hamiltonian: SparsePauliOp,
         params: np.ndarray,
     ) -> float:
-        """Evaluate expectation value using exact statevector simulation."""
-        logger.debug(
-            "NoiselessBackend.evaluate: n_qubits=%d, n_params=%d, H_terms=%d",
-            circuit.num_qubits,
-            len(params),
-            len(hamiltonian),
-        )
+        """Evaluate ⟨H⟩ using exact statevector simulation.
+
+        With ``cache_hamiltonian`` (default) this binds the circuit, extracts the
+        statevector, and returns ⟨ψ|H|ψ⟩ against a cached sparse H — identical to
+        the estimator result but far cheaper under repeated (gradient) calls.
+        """
         if len(params) != circuit.num_parameters:
-            raise ValueError(
-                f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
-            )
+            raise ValueError(f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}.")
         if not np.all(np.isfinite(params)):
             raise ValueError(
                 f"NoiselessBackend.evaluate: params contain NaN/Inf. "
                 f"Non-finite indices: {np.where(~np.isfinite(params))[0].tolist()}"
             )
-        bound = circuit.assign_parameters(params)
-        job = self._estimator.run([(bound, hamiltonian)])
-        energy = float(job.result()[0].data.evs)
+
+        if self._cache_hamiltonian:
+            from qiskit.quantum_info import Statevector
+
+            psi = np.asarray(Statevector(circuit.assign_parameters(params)).data)
+            hmat = self._hmat(hamiltonian)
+            energy = float(np.real(np.vdot(psi, hmat @ psi)))
+        else:
+            bound = circuit.assign_parameters(params)
+            job = self._estimator.run([(bound, hamiltonian)])
+            energy = float(job.result()[0].data.evs)
+
         if not np.isfinite(energy):
             raise RuntimeError(
-                f"Non-finite energy returned from StatevectorEstimator: {energy}. "
+                f"Non-finite energy returned from NoiselessBackend.evaluate: {energy}. "
                 f"Check circuit parameters for NaN/Inf."
             )
         return energy
@@ -345,6 +367,27 @@ class NoiselessBackend(ExecutionBackend):
     @property
     def name(self) -> str:
         return "noiseless_statevector"
+
+    def gradient(self, circuit: QuantumCircuit, hamiltonian: SparsePauliOp):
+        """Exact adjoint (reverse-mode) gradient of ⟨H⟩ for statevector sim.
+
+        Uses ``qiskit_algorithms.gradients.ReverseEstimatorGradient`` — the exact
+        adjoint method (validated to ~1e-10 vs central-difference), computed in
+        one reverse pass instead of ~n_params forward evaluations. Returns a
+        callable ``grad(params)->np.ndarray``, or ``None`` if qiskit_algorithms
+        is unavailable (caller then falls back to finite-difference).
+        """
+        try:
+            from qiskit_algorithms.gradients import ReverseEstimatorGradient
+        except Exception:
+            return None
+        rev = ReverseEstimatorGradient()
+
+        def grad(params: np.ndarray) -> np.ndarray:
+            job = rev.run([circuit], [hamiltonian], [list(params)])
+            return np.asarray(job.result().gradients[0], dtype=float)
+
+        return grad
 
 
 class NoisyBackend(ExecutionBackend):
@@ -391,10 +434,7 @@ class NoisyBackend(ExecutionBackend):
         # Emit DeprecationWarning if mitigation flags are active — they are
         # NOT applied by this backend (raw-only).
         if mitigation is not None and (
-            mitigation.zne_enabled
-            or mitigation.dd_enabled
-            or mitigation.trex_enabled
-            or mitigation.twirling_enabled
+            mitigation.zne_enabled or mitigation.dd_enabled or mitigation.trex_enabled or mitigation.twirling_enabled
         ):
             import warnings
 
@@ -417,9 +457,7 @@ class NoisyBackend(ExecutionBackend):
     ) -> float:
         """Evaluate expectation value with shot noise or full noise model."""
         if len(params) != circuit.num_parameters:
-            raise ValueError(
-                f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
-            )
+            raise ValueError(f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}.")
         if self._noise_model is None:
             # Gaussian shot noise approximation — RNG advances each call
             exact_energy = self._noiseless.evaluate(circuit, hamiltonian, params)
@@ -432,8 +470,7 @@ class NoisyBackend(ExecutionBackend):
             from qiskit_aer.noise import NoiseModel  # noqa: F401
         except ImportError as e:
             raise ImportError(
-                "qiskit-aer is required for noise model simulation. "
-                "Install with: pip install qiskit-aer"
+                "qiskit-aer is required for noise model simulation. Install with: pip install qiskit-aer"
             ) from e
 
         # Cache AerSimulator + PassManager to avoid re-creation per evaluate()
@@ -442,9 +479,7 @@ class NoisyBackend(ExecutionBackend):
             self._aer_backend = AerSimulator(noise_model=self._noise_model)
             from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
-            self._aer_pm = generate_preset_pass_manager(
-                backend=self._aer_backend, optimization_level=1
-            )
+            self._aer_pm = generate_preset_pass_manager(backend=self._aer_backend, optimization_level=1)
 
         from qiskit.primitives import BackendEstimatorV2
 
@@ -582,9 +617,7 @@ class FakeBackend(ExecutionBackend):
         self._seed_simulator = seed_simulator
 
         if self._provider_name not in self._PROVIDERS:
-            raise ValueError(
-                f"Unknown fake provider '{provider}'. Available: {list(self._PROVIDERS.keys())}"
-            )
+            raise ValueError(f"Unknown fake provider '{provider}'. Available: {list(self._PROVIDERS.keys())}")
 
         # Lazy initialization — only import when first evaluate() is called
         self._backend = None
@@ -603,8 +636,7 @@ class FakeBackend(ExecutionBackend):
             )
         except ImportError as e:
             raise ImportError(
-                "qiskit-ibm-runtime is required for FakeBackend. "
-                "Install with: pip install qiskit-ibm-runtime"
+                "qiskit-ibm-runtime is required for FakeBackend. Install with: pip install qiskit-ibm-runtime"
             ) from e
 
         provider_map = {
@@ -631,9 +663,7 @@ class FakeBackend(ExecutionBackend):
         coupling map, then runs with BackendEstimatorV2.
         """
         if len(params) != circuit.num_parameters:
-            raise ValueError(
-                f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}."
-            )
+            raise ValueError(f"Parameter count mismatch: got {len(params)}, expected {circuit.num_parameters}.")
 
         self._ensure_backend()
 
@@ -671,8 +701,7 @@ class FakeBackend(ExecutionBackend):
     ) -> float:
         """Not supported for FakeBackend (no statevector access)."""
         raise RuntimeError(
-            "compute_fidelity() not supported on FakeBackend. "
-            "Use noiseless backend for fidelity computation."
+            "compute_fidelity() not supported on FakeBackend. Use noiseless backend for fidelity computation."
         )
 
     @property

@@ -184,8 +184,7 @@ class VQEOptimizer:
     ) -> VQEResult:
         """Core optimization logic (called with GC disabled)."""
         logger.debug(
-            "VQEOptimizer.optimize: n_params=%d, method=%s, maxiter=%d, "
-            "n_restarts=%d, exact_energy=%s",
+            "VQEOptimizer.optimize: n_params=%d, method=%s, maxiter=%d, n_restarts=%d, exact_energy=%s",
             len(initial_guess),
             cfg.method,
             cfg.maxiter,
@@ -211,19 +210,11 @@ class VQEOptimizer:
         if _is_noiseless and cfg.method == "COBYLA" and n_params > 4:
             effective_method = "L-BFGS-B"
             logger.info(
-                f"    ⚙️ Auto-upgraded COBYLA → L-BFGS-B "
-                f"(noiseless backend '{backend_name}', n_params={n_params})"
+                f"    ⚙️ Auto-upgraded COBYLA → L-BFGS-B (noiseless backend '{backend_name}', n_params={n_params})"
             )
-        elif (
-            not _is_noiseless
-            and cfg.method == "L-BFGS-B"
-            and n_params > COBYLA_AUTO_SWITCH_THRESHOLD
-        ):
+        elif not _is_noiseless and cfg.method == "L-BFGS-B" and n_params > COBYLA_AUTO_SWITCH_THRESHOLD:
             effective_method = "COBYLA"
-            logger.info(
-                f"    ⚙️ Auto-switched L-BFGS-B → COBYLA "
-                f"(noisy backend '{backend_name}', n_params={n_params})"
-            )
+            logger.info(f"    ⚙️ Auto-switched L-BFGS-B → COBYLA (noisy backend '{backend_name}', n_params={n_params})")
 
         # Create effective config with possibly overridden method.
         # For L-BFGS-B: each iteration costs (2n+1) FD evals. With n=48 and
@@ -287,8 +278,24 @@ class VQEOptimizer:
 
         bounds = [cfg.bounds] * len(initial_guess)
 
+        # Exact analytic gradient (jac) from the backend when available — e.g. the
+        # statevector adjoint gradient. Used only for gradient-based L-BFGS-B; it
+        # replaces the noisy finite-difference jac with the exact one, giving the
+        # same optimum with far fewer circuit evaluations and cleaner convergence.
+        # Backends that cannot provide an exact gradient (noisy/hardware) return
+        # None, so this transparently falls back to finite-difference.
+        jac = None
+        if effective_cfg.method == "L-BFGS-B":
+            try:
+                jac = backend.gradient(circuit, hamiltonian)
+            except Exception as exc:  # never let gradient setup break optimization
+                logger.debug("backend.gradient unavailable (%s); using finite-difference.", exc)
+                jac = None
+            if jac is not None:
+                logger.info("    ⚙️ Using exact backend gradient (adjoint) as L-BFGS-B jac.")
+
         # Warm-start run
-        best = self._run_minimize(cost_fn, initial_guess, effective_cfg, bounds, effective_cb)
+        best = self._run_minimize(cost_fn, initial_guess, effective_cfg, bounds, effective_cb, jac=jac)
 
         n_restarts_used = 0
         _consecutive_no_improvement = 0
@@ -305,10 +312,7 @@ class VQEOptimizer:
                 )
                 break
 
-            logger.info(
-                f"    VQE restart {restart_idx + 1}/{effective_cfg.n_restarts}, "
-                f"best_E={best.fun:.6f}"
-            )
+            logger.info(f"    VQE restart {restart_idx + 1}/{effective_cfg.n_restarts}, best_E={best.fun:.6f}")
             for handler in logging.getLogger().handlers:
                 handler.flush()
 
@@ -318,11 +322,10 @@ class VQEOptimizer:
             # Reset iter counter for each restart
             if progress_cb is not None:
                 _iter_count[0] = 0
-            trial = self._run_minimize(cost_fn, x0, effective_cfg, bounds, effective_cb)
+            trial = self._run_minimize(cost_fn, x0, effective_cfg, bounds, effective_cb, jac=jac)
             if not trial.success:
                 logger.debug(
-                    f"VQE restart {restart_idx + 1}/{effective_cfg.n_restarts} did not converge: "
-                    f"{trial.message}"
+                    f"VQE restart {restart_idx + 1}/{effective_cfg.n_restarts} did not converge: {trial.message}"
                 )
             # Stagnation detection: meaningful improvement resets counter
             improvement = best.fun - trial.fun  # positive = trial is better
@@ -339,8 +342,7 @@ class VQEOptimizer:
         if not best.success:
             n_iters = getattr(best, "nit", getattr(best, "nfev", "?"))
             logger.warning(
-                f"VQE best result did not converge (nit={n_iters}, "
-                f"message='{best.message}'). Energy={best.fun:.6f}"
+                f"VQE best result did not converge (nit={n_iters}, message='{best.message}'). Energy={best.fun:.6f}"
             )
 
         # Compute validation metrics
@@ -362,8 +364,7 @@ class VQEOptimizer:
                     )
                 elif violation >= 1e-3:
                     logger.warning(
-                        "⚠️  Variational principle violation in optimize(): "
-                        "E_VQE=%.8f < E_exact=%.8f (Δ=%.2e).",
+                        "⚠️  Variational principle violation in optimize(): E_VQE=%.8f < E_exact=%.8f (Δ=%.2e).",
                         best.fun,
                         exact_energy,
                         violation,
@@ -448,10 +449,12 @@ class VQEOptimizer:
     # ── optimizer dispatch ──────────────────────────────────────────
 
     @staticmethod
-    def _run_minimize(cost_fn, x0, cfg, bounds, callback):
+    def _run_minimize(cost_fn, x0, cfg, bounds, callback, jac=None):
         """Dispatch to the correct scipy.optimize.minimize method.
 
-        - L-BFGS-B: gradient-based, uses bounds and ftol
+        - L-BFGS-B: gradient-based, uses bounds and ftol; ``jac`` (when provided,
+          e.g. the exact backend adjoint gradient) replaces the finite-difference
+          approximation. Only applies to L-BFGS-B; ignored by gradient-free methods.
         - COBYLA: gradient-free, no bounds/ftol (TypeError if passed)
         - Nelder-Mead: simplex, no bounds, uses fatol
 
@@ -495,6 +498,7 @@ class VQEOptimizer:
                     _interruptible_cost,
                     x0,
                     method="L-BFGS-B",
+                    jac=jac,
                     bounds=bounds,
                     callback=callback,
                     options={
@@ -735,9 +739,7 @@ class VQEOptimizer:
                     critical_restarts=self.config.n_restarts,
                     h_critical=1.0,  # TFIM QPT
                 )
-                n_restarts_adaptive = compute_adaptive_restarts(
-                    h, prev_de_gap=prev_de_gap, config=adaptive_cfg
-                )
+                n_restarts_adaptive = compute_adaptive_restarts(h, prev_de_gap=prev_de_gap, config=adaptive_cfg)
 
                 # Temporarily override config for this point
                 original_config = self.config
@@ -785,11 +787,7 @@ class VQEOptimizer:
             # Severity escalation: small violations (< 0.01) are numerical noise
             # from eigsh vs statevector mismatch. Large violations (≥ 0.1) indicate
             # a real bug in the Hamiltonian, circuit, or solver.
-            if (
-                exact_e is not None
-                and np.isfinite(result.energy)
-                and result.energy < exact_e - 1e-8
-            ):
+            if exact_e is not None and np.isfinite(result.energy) and result.energy < exact_e - 1e-8:
                 violation = exact_e - result.energy
                 if violation >= 0.1:
                     logger.error(
@@ -873,15 +871,11 @@ class VQEOptimizer:
             " (adaptive)" if adaptive else "",
         )
         logger.info("  Bidirectional sweep: running descending pass...")
-        results_desc = self.descending_sweep(
-            h_values, circuit, lattice, exact_data, adaptive=adaptive
-        )
+        results_desc = self.descending_sweep(h_values, circuit, lattice, exact_data, adaptive=adaptive)
 
         # ── Selective vs Full ascending pass ──
         if adaptive and exact_data is not None:
-            return self._selective_ascending_merge(
-                h_values, circuit, lattice, exact_data, results_desc
-            )
+            return self._selective_ascending_merge(h_values, circuit, lattice, exact_data, results_desc)
 
         # Full ascending pass (original behavior)
         h_ascending = h_values[::-1]
@@ -902,10 +896,7 @@ class VQEOptimizer:
             else:
                 merged.append(results_desc[i])
 
-        logger.info(
-            f"  Bidirectional merge: {n_improved}/{len(h_values)} points "
-            f"improved by ascending pass."
-        )
+        logger.info(f"  Bidirectional merge: {n_improved}/{len(h_values)} points improved by ascending pass.")
         return merged
 
     def _selective_ascending_merge(
@@ -949,9 +940,7 @@ class VQEOptimizer:
             # Fall back to full ascending
             h_ascending = h_values[::-1]
             exact_ascending = list(reversed(exact_data))
-            results_asc_reversed = self._ascending_sweep(
-                h_ascending, circuit, lattice, exact_ascending
-            )
+            results_asc_reversed = self._ascending_sweep(h_ascending, circuit, lattice, exact_ascending)
             results_asc = list(reversed(results_asc_reversed))
             merged = []
             n_improved = 0
@@ -1023,9 +1012,7 @@ class VQEOptimizer:
                 merged[idx] = result_asc
                 n_improved += 1
 
-        logger.info(
-            f"  Selective ascending: {n_improved}/{len(targeted_indices)} targeted points improved."
-        )
+        logger.info(f"  Selective ascending: {n_improved}/{len(targeted_indices)} targeted points improved.")
         return merged
 
     def _ascending_sweep(

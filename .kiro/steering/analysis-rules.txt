@@ -105,4 +105,4 @@ All θ_opt data from VQE MUST be canonicalized before MPNN training:
 - Data stores inspection: `scripts/maintenance/inspect_data_stores.py`
 - Cross-N coverage update: `scripts/maintenance/update_cross_n_coverage.py`
 - θ variation diagnostic: `scripts/analysis/theta_derivative_analysis.py`
-- HVA periodicity verification: `scripts/analysis/verify_hva_periodicity.py`
+- HVA periodicity verification: `scripts/analysis/vl_vs_hva/verify_hva_periodicity.py`

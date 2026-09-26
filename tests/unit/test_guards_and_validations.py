@@ -45,8 +45,7 @@ class TestMakeLatticeGuards:
         lattice = make_lattice("heavy_hex", 10, J=1.0, h=1.0)
         sequential_only = all(abs(i - j) == 1 for i, j in lattice.edges)
         assert not sequential_only, (
-            "heavy_hex N=10 has only sequential bonds — "
-            "this means bridges are missing (topology is just a chain)"
+            "heavy_hex N=10 has only sequential bonds — this means bridges are missing (topology is just a chain)"
         )
 
     def test_heavy_hex_vs_chain_different_structure(self):
@@ -55,9 +54,7 @@ class TestMakeLatticeGuards:
         lattice_ch = make_lattice("chain_1d", 10, J=1.0, h=1.0)
         edges_hh = set((min(i, j), max(i, j)) for i, j in lattice_hh.edges)
         edges_ch = set((min(i, j), max(i, j)) for i, j in lattice_ch.edges)
-        assert edges_hh != edges_ch, (
-            "heavy_hex and chain_1d produced identical edge sets!"
-        )
+        assert edges_hh != edges_ch, "heavy_hex and chain_1d produced identical edge sets!"
 
     def test_all_topologies_have_valid_edges(self):
         """All supported topologies produce edges within bounds."""
@@ -83,8 +80,7 @@ class TestHamiltonianConsistency:
         H = builder.build(lattice)
         expected_terms = len(lattice.edges) + n
         assert len(H) == expected_terms, (
-            f"{topology}: H has {len(H)} terms, expected {expected_terms} "
-            f"({len(lattice.edges)} ZZ + {n} X)"
+            f"{topology}: H has {len(H)} terms, expected {expected_terms} ({len(lattice.edges)} ZZ + {n} X)"
         )
 
     def test_hamiltonian_uses_all_edges(self):
@@ -100,8 +96,7 @@ class TestHamiltonianConsistency:
                 zz_pairs.add(tuple(sorted(z_positions)))
         expected_pairs = set(tuple(sorted(e)) for e in lattice.edges)
         assert zz_pairs == expected_pairs, (
-            f"ZZ terms don't match edges. Missing: {expected_pairs - zz_pairs}, "
-            f"Extra: {zz_pairs - expected_pairs}"
+            f"ZZ terms don't match edges. Missing: {expected_pairs - zz_pairs}, Extra: {zz_pairs - expected_pairs}"
         )
 
 
@@ -141,9 +136,67 @@ class TestDMRGCrossValidation:
         gt_exact = solver.solve(H, lattice, method="exact")
 
         delta = abs(gt_dmrg.ground_energy - gt_exact.ground_energy)
-        assert delta < 1e-4, (
-            f"DMRG vs exact mismatch for ladder N=10 h=1.5: |ΔE|={delta:.2e}"
+        assert delta < 1e-4, f"DMRG vs exact mismatch for ladder N=10 h=1.5: |ΔE|={delta:.2e}"
+
+    def test_dmrg_operator_based_matches_exact_for_frustrated(self):
+        """Auto/operator DMRG must match exact for frustrated TFIM (NNN couplings).
+
+        Regression for the bug where lattice-based DMRG dropped the NNN/J2 term
+        (built the MPO from lattice.edges only) and returned the unfrustrated
+        energy. The operator-based path (default auto for frustrated) builds the
+        MPO from the full SparsePauliOp and must match exact diagonalization.
+        """
+        from qmbp_simulation import ClassicalSolver
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        spec = get_model_spec("tfim_frustrated")
+        solver = ClassicalSolver()
+        lattice = make_lattice("square", 9, J=1.0, h=1.0)
+        H = spec.build_hamiltonian(lattice, J2=0.5)
+
+        gt_exact = solver.solve(H, lattice, method="exact")
+        gt_auto = solver.solve(H, lattice, method="dmrg")  # auto → operator-based
+        gt_op = solver.solve(H, lattice, method="dmrg", dmrg_from_operator=True)
+
+        assert abs(gt_auto.ground_energy - gt_exact.ground_energy) < 1e-4, (
+            f"auto DMRG failed to match exact for frustrated square N=9: "
+            f"E_auto={gt_auto.ground_energy:.6f} E_exact={gt_exact.ground_energy:.6f}"
         )
+        assert abs(gt_op.ground_energy - gt_exact.ground_energy) < 1e-4
+
+    def test_auto_detection_ignores_non_frustrated(self):
+        """Auto path must NOT change behavior for NN-only models (no extra ZZ).
+
+        A plain TFIM has exactly one ZZ term per lattice edge, so auto-detection
+        must not switch to operator-based; the DMRG energy must still match exact.
+        """
+        from qmbp_simulation import ClassicalSolver
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        spec = get_model_spec("tfim")
+        solver = ClassicalSolver()
+        lattice = make_lattice("square", 9, J=1.0, h=2.0)
+        H = spec.build_hamiltonian(lattice, **spec.hamiltonian_kwargs)
+
+        gt_dmrg = solver.solve(H, lattice, method="dmrg")
+        gt_exact = solver.solve(H, lattice, method="exact")
+        assert abs(gt_dmrg.ground_energy - gt_exact.ground_energy) < 1e-4
+
+    def test_operator_term_counter_detects_nnn(self):
+        """_pauli_op_to_tenpy_terms counts more ZZ terms than edges when frustrated."""
+        from qmbp_simulation import ClassicalSolver
+        from qmbp_simulation.models.model_registry import get_model_spec
+
+        solver = ClassicalSolver()
+        lattice = make_lattice("square", 9, J=1.0, h=1.0)
+        spec = get_model_spec("tfim_frustrated")
+        H_frust = spec.build_hamiltonian(lattice, J2=0.5)
+        _, n_zz_frust = solver._pauli_op_to_tenpy_terms(H_frust, 9)
+        assert n_zz_frust > len(lattice.edges), "frustrated operator must have more ZZ terms than NN edges"
+        # Non-frustrated: exactly one ZZ per edge
+        H_nn = get_model_spec("tfim").build_hamiltonian(lattice)
+        _, n_zz_nn = solver._pauli_op_to_tenpy_terms(H_nn, 9)
+        assert n_zz_nn == len(lattice.edges)
 
 
 class TestPredictThetaGuards:
@@ -151,7 +204,7 @@ class TestPredictThetaGuards:
 
     def test_rescale_h_by_j_produces_scaled_predictions(self):
         """With rescale_h_by_j=True, predictions should differ from unscaled."""
-        from qmbp_simulation.predictors import MPNNPredictor, build_graph_dataset, predict_theta
+        from qmbp_simulation.predictors import build_graph_dataset
 
         lattice = make_lattice("chain_1d", 4, J=2.0, h=1.0)
         h_vals = np.array([4.0, 3.0, 2.0, 1.5])
@@ -159,7 +212,11 @@ class TestPredictThetaGuards:
         e_exact = np.array([-8.0, -6.0, -4.0, -3.0])
 
         dataset = build_graph_dataset(
-            lattice, h_vals, theta, e_exact, fidelity_threshold=0.0,
+            lattice,
+            h_vals,
+            theta,
+            e_exact,
+            fidelity_threshold=0.0,
             rescale_h_by_j=True,
         )
         # The h-feature in the first graph should be h/J = 4.0/2.0 = 2.0
@@ -168,6 +225,7 @@ class TestPredictThetaGuards:
     def test_predict_theta_clips_to_bounds(self):
         """predict_theta must clip output to [-π, π]."""
         import torch
+
         from qmbp_simulation.predictors import MPNNPredictor, predict_theta
 
         # Create a model that outputs values > π (by design)
@@ -209,12 +267,8 @@ class TestBuildGraphDatasetQuality:
         e_exact = np.array([-4.0, -4.0, -4.0, -4.0])
 
         with caplog.at_level(logging.WARNING):
-            dataset = build_graph_dataset(
-                lattice, h_vals, theta, e_exact, fidelity_threshold=0.0
-            )
-        assert any("h-value range" in msg for msg in caplog.messages), (
-            "Expected warning about tiny h-value range"
-        )
+            dataset = build_graph_dataset(lattice, h_vals, theta, e_exact, fidelity_threshold=0.0)
+        assert any("h-value range" in msg for msg in caplog.messages), "Expected warning about tiny h-value range"
 
     def test_warns_on_constant_theta(self, caplog):
         """Constant theta targets should trigger a warning about zero inter-point variance."""
@@ -224,20 +278,20 @@ class TestBuildGraphDatasetQuality:
         h_vals = np.array([4.0, 3.5, 3.0, 2.5, 2.0])
         # All theta vectors identical across h-points → std across points = 0
         # (within each vector there's variance, but across points there isn't)
-        theta = np.array([
-            [0.1, 0.1],
-            [0.1, 0.1],
-            [0.1, 0.1],
-            [0.1, 0.1],
-            [0.1, 0.1],
-        ])
+        theta = np.array(
+            [
+                [0.1, 0.1],
+                [0.1, 0.1],
+                [0.1, 0.1],
+                [0.1, 0.1],
+                [0.1, 0.1],
+            ]
+        )
         e_exact = np.array([-8.0, -7.0, -6.0, -5.0, -4.0])
 
         with caplog.at_level(logging.WARNING):
             try:
-                build_graph_dataset(
-                    lattice, h_vals, theta, e_exact, fidelity_threshold=0.0
-                )
+                build_graph_dataset(lattice, h_vals, theta, e_exact, fidelity_threshold=0.0)
             except ValueError:
                 pass  # Basin filter may remove too many points
         # The warning checks std across ALL elements — with all [0.1, 0.1],
@@ -253,8 +307,12 @@ class TestBuildGraphDatasetQuality:
         lattice = make_lattice("chain_1d", 4, J=1.0, h=1.0)
         # Hack the lattice to have J=-1
         lattice_bad = LatticeConfig(
-            topology="chain_1d", n_qubits=4, J=-1.0, h=1.0,
-            edges=lattice.edges, coordination_numbers=lattice.coordination_numbers,
+            topology="chain_1d",
+            n_qubits=4,
+            J=-1.0,
+            h=1.0,
+            edges=lattice.edges,
+            coordination_numbers=lattice.coordination_numbers,
         )
         h_vals = np.array([3.0, 2.0, 1.5, 1.0])
         theta = np.array([[0.1, 0.2], [0.12, 0.22], [0.14, 0.24], [0.16, 0.26]])
@@ -262,6 +320,10 @@ class TestBuildGraphDatasetQuality:
 
         with pytest.raises(ValueError, match="positive J"):
             build_graph_dataset(
-                lattice_bad, h_vals, theta, e_exact,
-                fidelity_threshold=0.0, rescale_h_by_j=True,
+                lattice_bad,
+                h_vals,
+                theta,
+                e_exact,
+                fidelity_threshold=0.0,
+                rescale_h_by_j=True,
             )
