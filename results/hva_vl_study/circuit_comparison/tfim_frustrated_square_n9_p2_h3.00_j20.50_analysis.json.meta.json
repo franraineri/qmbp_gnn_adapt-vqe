@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuit_comparison",
+  "run_id": "tfim_frustrated_square_n9_p2_h3.00_j20.50_analysis",
+  "created_utc": "2026-09-25T19:15:42.938469+00:00",
+  "updated_utc": "2026-09-25T19:15:42.938469+00:00",
+  "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": "tfim_frustrated",
+    "topo": "square",
+    "N": 9,
+    "p": 2,
+    "h": 3.0,
+    "J2": 0.5,
+    "gap": 4.539363253052407,
+    "e0": -27.978739159585313
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": null,
+    "abs_error": null,
+    "de_over_gap": null,
+    "cx": null,
+    "depth_2q": null
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "circuit_comparison/tfim_frustrated_square_n9_p2_h3.00_j20.50_analysis.json"
+}

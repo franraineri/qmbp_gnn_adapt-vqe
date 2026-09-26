@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "figures",
+  "run_id": "n2q_vs_chi",
+  "created_utc": "2026-09-25T19:15:44.501667+00:00",
+  "updated_utc": "2026-09-25T19:15:44.501667+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "resources/figures/n2q_vs_chi.png"
+}

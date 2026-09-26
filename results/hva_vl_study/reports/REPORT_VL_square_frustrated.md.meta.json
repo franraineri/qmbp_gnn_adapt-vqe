@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "reports",
+  "run_id": "REPORT_VL_square_frustrated",
+  "created_utc": "2026-09-25T19:15:41.318889+00:00",
+  "updated_utc": "2026-09-25T19:15:41.318889+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "reports/REPORT_VL_square_frustrated.md"
+}

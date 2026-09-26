@@ -1,0 +1,78 @@
+{
+  "result_path": "results/hva_vl_study/vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json",
+  "source_script": "scripts/analysis/vl_mps_large_n.py",
+  "generated_utc": "2026-09-24T17:04:34.572935+00:00",
+  "params": {
+    "topology": "square",
+    "N": 18,
+    "model": "tfim_frustrated",
+    "J2": 0.5,
+    "num_layers": 8,
+    "fine_tuning_iterations": 200,
+    "chi_max": 64,
+    "truncation_cutoff": 1e-08,
+    "mps_form": "standard",
+    "loader": "mps_loading"
+  },
+  "description": "Haiqu VL via mps_loading at large N (bond-capped DMRG input)",
+  "rows": [
+    {
+      "topology": "square",
+      "N": 18,
+      "model": "tfim_frustrated",
+      "J2": 0.5,
+      "h": 0.5,
+      "num_layers": 8,
+      "fine_tuning_iterations": 200,
+      "chi_max": 64,
+      "truncation_cutoff": 1e-08,
+      "mps_form": "standard",
+      "E0_dmrg": -16.98461404279071,
+      "mps_input": {
+        "n_qubits": 18,
+        "chi_max": 64,
+        "max_bond_realized": 64,
+        "bond_saturated": true,
+        "trunc_err": 0.0,
+        "mps_energy": -16.98461404279071,
+        "mps_fidelity": null,
+        "fidelity_note": "N=18 > statevector limit (16); no exact vector \u2014 using an energy-vs-higher-\u03c7 proxy",
+        "chi_ref": 256,
+        "energy_ref": -16.985041559114922,
+        "energy_vs_chi_ref": 0.00042751632421200725,
+        "max_bond_at_chi_ref": 256
+      },
+      "max_bond_realized": 64,
+      "error": "HTTPError: 402 Client Error: Payment Required for url: https://api.haiqu.ai/data_loading"
+    },
+    {
+      "topology": "square",
+      "N": 18,
+      "model": "tfim_frustrated",
+      "J2": 0.5,
+      "h": 1.0,
+      "num_layers": 8,
+      "fine_tuning_iterations": 200,
+      "chi_max": 64,
+      "truncation_cutoff": 1e-08,
+      "mps_form": "standard",
+      "E0_dmrg": -23.026536155215155,
+      "mps_input": {
+        "n_qubits": 18,
+        "chi_max": 64,
+        "max_bond_realized": 64,
+        "bond_saturated": true,
+        "trunc_err": 0.0,
+        "mps_energy": -23.026536155215155,
+        "mps_fidelity": null,
+        "fidelity_note": "N=18 > statevector limit (16); no exact vector \u2014 using an energy-vs-higher-\u03c7 proxy",
+        "chi_ref": 256,
+        "energy_ref": -23.028003638835045,
+        "energy_vs_chi_ref": 0.001467483619890686,
+        "max_bond_at_chi_ref": 256
+      },
+      "max_bond_realized": 64,
+      "error": "HTTPError: 402 Client Error: Payment Required for url: https://api.haiqu.ai/data_loading"
+    }
+  ]
+}

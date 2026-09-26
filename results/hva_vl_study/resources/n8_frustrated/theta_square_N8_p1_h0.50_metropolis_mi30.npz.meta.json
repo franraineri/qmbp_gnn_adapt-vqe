@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "n8_frustrated",
+  "run_id": "theta_square_N8_p1_h0.50_metropolis_mi30",
+  "created_utc": "2026-09-25T19:15:44.897079+00:00",
+  "updated_utc": "2026-09-25T19:15:44.897079+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "resources/n8_frustrated/theta_square_N8_p1_h0.50_metropolis_mi30.npz"
+}

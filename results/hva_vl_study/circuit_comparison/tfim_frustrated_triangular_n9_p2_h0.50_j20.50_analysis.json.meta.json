@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuit_comparison",
+  "run_id": "tfim_frustrated_triangular_n9_p2_h0.50_j20.50_analysis",
+  "created_utc": "2026-09-25T19:15:43.322959+00:00",
+  "updated_utc": "2026-09-25T19:15:43.322959+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": "tfim_frustrated",
+    "topo": "triangular",
+    "N": 9,
+    "p": 2,
+    "h": 0.5,
+    "J2": 0.5,
+    "gap": 0.002843276510503756,
+    "e0": -11.299152302424119
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": null,
+    "abs_error": null,
+    "de_over_gap": null,
+    "cx": null,
+    "depth_2q": null
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "circuit_comparison/tfim_frustrated_triangular_n9_p2_h0.50_j20.50_analysis.json"
+}

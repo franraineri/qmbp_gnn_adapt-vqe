@@ -1,0 +1,70 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/hva_nnn_square_N8_p1_h0.50_metropolis_mi30.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_hva_metropolis_point.py",
+  "generated_utc": "2026-09-25T17:24:30.664547+00:00",
+  "params": {
+    "N": 8,
+    "p_layers": 1,
+    "J2": 0.5,
+    "model": "tfim_frustrated",
+    "maxiter": 30,
+    "sigma": 0.3,
+    "n_hops": 2,
+    "optimizer": "warmstart+metropolis_basinhop",
+    "artifacts_dir": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/hva_vl_study/resources/n8_frustrated"
+  },
+  "description": "square N=8 h=0.5 frustrated HVA nnn p=1, Metropolis basin-hopping maxiter=30, crash-safe per-hop (v3)",
+  "schema": "hva_metropolis_point_v3",
+  "point": {
+    "topology": "square",
+    "h": 0.5,
+    "n_qubits": 8,
+    "ansatz": "nnn",
+    "p_layers": 1,
+    "J2": 0.5,
+    "model": "tfim_frustrated",
+    "e_vqe": -6.40684376332578,
+    "e0_exact": -6.898624285703916,
+    "gap": 0.09229980356705081,
+    "abs_error": 0.49178052237813663,
+    "de_over_gap": 5.328077670510801,
+    "fidelity": 0.7072162670858178,
+    "n_params": 29,
+    "gs_method": "cached/exact",
+    "optimizer": "warmstart+metropolis_basinhop",
+    "maxiter": 30,
+    "sigma": 0.3,
+    "n_hops": 2,
+    "temperature": 0.09229980356705081,
+    "runs": [
+      {
+        "hop": 0,
+        "energy": -6.40684376332578,
+        "fidelity": 0.7072162670858178,
+        "accepted": true,
+        "nit": 22
+      },
+      {
+        "hop": 1,
+        "energy": -6.406843763260298,
+        "fidelity": 0.707215872751377,
+        "accepted": true,
+        "nit": 29
+      },
+      {
+        "hop": 2,
+        "energy": -6.40684376067621,
+        "fidelity": 0.7072148967187849,
+        "accepted": true,
+        "nit": 30
+      }
+    ],
+    "done": true,
+    "wall_s": 7.718707084655762,
+    "hops_dir": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/hva_vl_study/resources/n8_frustrated/hops_square_N8_p1_h0.50_metropolis_mi30",
+    "theta_npz": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/hva_vl_study/resources/n8_frustrated/theta_square_N8_p1_h0.50_metropolis_mi30.npz",
+    "cx": 42,
+    "depth_2q": 38,
+    "circuit_qpy": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/hva_vl_study/resources/n8_frustrated/circuit_square_N8_p1_h0.50_metropolis_mi30.qpy"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuit_comparison",
+  "run_id": "tfim_triangular_n10_p2_h1.00_analysis",
+  "created_utc": "2026-09-25T19:15:44.227026+00:00",
+  "updated_utc": "2026-09-25T19:15:44.227026+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": "tfim",
+    "topo": "triangular",
+    "N": 10,
+    "p": 2,
+    "h": 1.0,
+    "J2": 0.0,
+    "gap": 0.00021855642184931412,
+    "e0": -21.287062290609782
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": null,
+    "abs_error": null,
+    "de_over_gap": null,
+    "cx": null,
+    "depth_2q": null
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "circuit_comparison/tfim_triangular_n10_p2_h1.00_analysis.json"
+}

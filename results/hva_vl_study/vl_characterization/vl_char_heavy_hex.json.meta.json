@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "vl_characterization",
+  "run_id": "vl_char_heavy_hex",
+  "created_utc": "2026-09-25T19:15:45.005230+00:00",
+  "updated_utc": "2026-09-25T19:15:45.005230+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": null,
+    "topo": "heavy_hex",
+    "N": 6,
+    "p": 1,
+    "h": 1.0,
+    "J2": null,
+    "gap": 0.48214672102130507,
+    "e0": -7.296229810558761
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": null,
+    "abs_error": null,
+    "de_over_gap": null,
+    "cx": null,
+    "depth_2q": null
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "vl_characterization/vl_char_heavy_hex.json"
+}

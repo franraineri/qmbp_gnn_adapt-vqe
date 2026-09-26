@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "figures",
+  "run_id": "fidelity_vs_chi",
+  "created_utc": "2026-09-25T19:15:44.467303+00:00",
+  "updated_utc": "2026-09-25T19:15:44.467303+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "resources/figures/fidelity_vs_chi.png"
+}

@@ -1,0 +1,1319 @@
+{
+  "schema": "hva_vl_study_index_v1",
+  "generated_utc": "2026-09-25T19:16:43.591439+00:00",
+  "root": "/Users/franco.raineri/devTools/QuantumDev/qmbp_gnn_adapt-vqe/results/hva_vl_study",
+  "n_entries": 37,
+  "migration_map": {
+    "results/hva_vl_study/REPORT_HEURISTIC_warmstart_restarts.md": "results/hva_vl_study/reports/REPORT_HEURISTIC_warmstart_restarts.md",
+    "results/hva_vl_study/REPORT_HVA_square_frustrated.md": "results/hva_vl_study/reports/REPORT_HVA_square_frustrated.md",
+    "results/hva_vl_study/REPORT_VL_square_frustrated.md": "results/hva_vl_study/reports/REPORT_VL_square_frustrated.md",
+    "results/hva_vl_study/n9_confirm_multiseed_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_confirm_multiseed_frustrated/n9_confirm_multiseed_frustrated.json",
+    "results/hva_vl_study/n9_improve_bd_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_improve_bd_frustrated/n9_improve_bd_frustrated.json",
+    "results/hva_vl_study/n9_improve_efg_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_improve_efg_frustrated/n9_improve_efg_frustrated.json",
+    "results/hva_vl_study/n9_landscape_diagnostic_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_landscape_diagnostic_frustrated/n9_landscape_diagnostic_frustrated.json",
+    "results/hva_vl_study/n9_mechanism_q123_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_mechanism_q123_frustrated/n9_mechanism_q123_frustrated.json",
+    "results/hva_vl_study/n9_restart_schemes_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_restart_schemes_frustrated/n9_restart_schemes_frustrated.json",
+    "results/hva_vl_study/n9_second_order_why_frustrated.json": "results/hva_vl_study/sweeps/warmstart_heuristics/n9_second_order_why_frustrated/n9_second_order_why_frustrated.json",
+    "results/hva_vl_study/resources/SUMMARY.md": "results/hva_vl_study/reports/SUMMARY.md"
+  },
+  "entries": [
+    {
+      "run_id": "square_n10_p2_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/square_n10_p2_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 2,
+        "h": 1.0,
+        "J2": null,
+        "gap": 0.012886319597178897,
+        "e0": -15.088080530601593
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_square_n10_p2_h1.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_square_n10_p2_h1.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+      "generated_utc": "2026-09-23T20:55:57.370107+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 10,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.5022763162012893,
+        "e0": -12.473922068836929
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_square_n9_p2_h0.50_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_square_n9_p2_h0.50_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.2237803845158668,
+        "e0": -7.7531929346318815
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_square_n9_p2_h1.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_square_n9_p2_h1.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.8600838455258746,
+        "e0": -11.180174681325552
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_square_n9_p2_h2.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_square_n9_p2_h2.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+      "generated_utc": "2026-09-23T20:55:21.993095+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 2.0,
+        "J2": 0.5,
+        "gap": 2.625168311226709,
+        "e0": -19.33826182601363
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_square_n9_p2_h3.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_square_n9_p2_h3.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+      "generated_utc": "2026-09-23T20:55:30.773365+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 3.0,
+        "J2": 0.5,
+        "gap": 4.539363253052407,
+        "e0": -27.978739159585313
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_triangular_n10_p2_h1.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_triangular_n10_p2_h1.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "triangular",
+        "N": 10,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.15286860800764757,
+        "e0": -16.739112121134294
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_triangular_n9_p2_h0.50_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_triangular_n9_p2_h0.50_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "triangular",
+        "N": 9,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.002843276510503756,
+        "e0": -11.299152302424119
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_triangular_n9_p2_h1.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_triangular_n9_p2_h1.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "triangular",
+        "N": 9,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.5,
+        "gap": 0.21580518310767083,
+        "e0": -13.482973289984514
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_triangular_n9_p2_h2.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_triangular_n9_p2_h2.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "triangular",
+        "N": 9,
+        "p": 2,
+        "h": 2.0,
+        "J2": 0.5,
+        "gap": 1.7729238509816412,
+        "e0": -20.62611714815345
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_frustrated_triangular_n9_p2_h3.00_j20.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_frustrated_triangular_n9_p2_h3.00_j20.50_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "triangular",
+        "N": 9,
+        "p": 2,
+        "h": 3.0,
+        "J2": 0.5,
+        "gap": 3.5972498284374943,
+        "e0": -28.84462060146645
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_square_n4_p1_h2.50_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_square_n4_p1_h2.50_analysis.json",
+      "schema": null,
+      "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+      "generated_utc": "2026-09-23T02:30:05.075700+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim",
+        "topo": "square",
+        "N": 4,
+        "p": 1,
+        "h": 2.5,
+        "J2": 0.0,
+        "gap": 3.0376925556374044,
+        "e0": -10.42285736277191
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "tfim_triangular_n10_p2_h1.00_analysis",
+      "experiment": "circuit_comparison",
+      "status": "final",
+      "path": "circuit_comparison/tfim_triangular_n10_p2_h1.00_analysis.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": "tfim",
+        "topo": "triangular",
+        "N": 10,
+        "p": 2,
+        "h": 1.0,
+        "J2": 0.0,
+        "gap": 0.00021855642184931412,
+        "e0": -21.287062290609782
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "ansatz_expressivity_2d",
+      "experiment": "expressivity",
+      "status": "final",
+      "path": "expressivity/ansatz_expressivity_2d.json",
+      "schema": null,
+      "source_script": "scripts/analysis/ansatz_expressivity_2d.py",
+      "generated_utc": "2026-09-23T02:18:57.362150+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 6,
+        "p": 1,
+        "h": 2.5,
+        "J2": null,
+        "gap": 2.5417910824452807,
+        "e0": -15.756566646356827
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "hva_ansatze_h_sweep_frustrated",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/hva_ansatze_h_sweep_frustrated.json",
+      "schema": "hva_ansatze_h_sweep_frustrated_v1",
+      "source_script": "scripts/analysis/hva_nnn_h_sweep_frustrated.py",
+      "generated_utc": "2026-09-24T18:08:08.102606+00:00",
+      "n_points": 8,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": [
+          1,
+          2
+        ],
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.2237803845158668,
+        "e0": -7.7531929346318815
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 400,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.725279231349456,
+        "abs_error": 0.631579055028844,
+        "de_over_gap": 2.822316425969243,
+        "cx": 24,
+        "depth_2q": 16
+      }
+    },
+    {
+      "run_id": "hva_nnn_N18_frustrated_final",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/hva_nnn_N18_frustrated_final.json",
+      "schema": "hva_nnn_N18_frustrated_final_v1",
+      "source_script": "n18_final.py",
+      "generated_utc": "2026-09-25T05:14:11.337961+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 18,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": "warmstart+theta_x_perturb_bestof",
+        "maxiter": 40,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "hva_nnn_h_sweep_frustrated",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/hva_nnn_h_sweep_frustrated.json",
+      "schema": "hva_nnn_h_sweep_frustrated_v1",
+      "source_script": "scripts/analysis/hva_nnn_h_sweep_frustrated.py",
+      "generated_utc": "2026-09-23T02:20:18.453946+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 2.5,
+        "J2": 0.5,
+        "gap": 3.5745236561737457,
+        "e0": -23.629189838759768
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 150,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.9990058523890774,
+        "abs_error": 0.012059330540804325,
+        "de_over_gap": 0.0033736888326297764,
+        "cx": 104,
+        "depth_2q": 40
+      }
+    },
+    {
+      "run_id": "hva_nnn_square_N18_p2_h0.50_metropolis_mi150",
+      "experiment": "hva_nnn_sweep",
+      "status": "partial",
+      "path": "hva_nnn_sweep/hva_nnn_square_N18_p2_h0.50_metropolis_mi150.json",
+      "schema": "hva_metropolis_point_v3",
+      "source_script": "scripts/analysis/run_hva_metropolis_point.py",
+      "generated_utc": "2026-09-25T16:11:30.860376+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 18,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.005893578195966143,
+        "e0": -16.985041597883182
+      },
+      "method": {
+        "optimizer": "warmstart+metropolis_basinhop",
+        "maxiter": 150,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": 8,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.4803261637723245,
+        "abs_error": 0.7664861739442124,
+        "de_over_gap": 130.05446749969883,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "hva_nnn_square_N8_p1_h0.50_metropolis_mi30",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/hva_nnn_square_N8_p1_h0.50_metropolis_mi30.json",
+      "schema": "hva_metropolis_point_v3",
+      "source_script": "scripts/analysis/vl_vs_hva/run_hva_metropolis_point.py",
+      "generated_utc": "2026-09-25T17:24:30.664547+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 8,
+        "p": 1,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.09229980356705081,
+        "e0": -6.898624285703916
+      },
+      "method": {
+        "optimizer": "warmstart+metropolis_basinhop",
+        "maxiter": 30,
+        "sigma": 0.3,
+        "seeds": null,
+        "n_hops": 2,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.7072162670858178,
+        "abs_error": 0.49178052237813663,
+        "de_over_gap": 5.328077670510801,
+        "cx": 42,
+        "depth_2q": 38
+      }
+    },
+    {
+      "run_id": "n18_square_N8_p2_secondorder_mi30",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n18_square_N8_p2_secondorder_mi30.json",
+      "schema": "n18_second_order_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/run_n18_second_order.py",
+      "generated_utc": "2026-09-25T18:37:48.740592+00:00",
+      "n_points": 0,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 8,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 30,
+        "sigma": 0.15,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": "second_order"
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_confirm_second_order",
+      "experiment": "hva_nnn_sweep",
+      "status": "final",
+      "path": "hva_nnn_sweep/n9_confirm_second_order.json",
+      "schema": "confirm_second_order_v1",
+      "source_script": "scripts/analysis/vl_vs_hva/confirm_second_order_warmstart.py",
+      "generated_utc": "2026-09-25T18:34:36.733592+00:00",
+      "n_points": 37,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": null,
+        "N": 9,
+        "p": 2,
+        "h": null,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": 60,
+        "sigma": 0.15,
+        "seeds": 8,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_confirm_multiseed_frustrated",
+      "experiment": "n9_confirm_multiseed_frustrated",
+      "status": "deprecated",
+      "path": "sweeps/warmstart_heuristics/n9_confirm_multiseed_frustrated/n9_confirm_multiseed_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 8,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_improve_bd_frustrated",
+      "experiment": "n9_improve_bd_frustrated",
+      "status": "final",
+      "path": "sweeps/warmstart_heuristics/n9_improve_bd_frustrated/n9_improve_bd_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_improve_efg_frustrated",
+      "experiment": "n9_improve_efg_frustrated",
+      "status": "deprecated",
+      "path": "sweeps/warmstart_heuristics/n9_improve_efg_frustrated/n9_improve_efg_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_landscape_diagnostic_frustrated",
+      "experiment": "n9_landscape_diagnostic_frustrated",
+      "status": "final",
+      "path": "sweeps/warmstart_heuristics/n9_landscape_diagnostic_frustrated/n9_landscape_diagnostic_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_mechanism_q123_frustrated",
+      "experiment": "n9_mechanism_q123_frustrated",
+      "status": "final",
+      "path": "sweeps/warmstart_heuristics/n9_mechanism_q123_frustrated/n9_mechanism_q123_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_restart_schemes_frustrated",
+      "experiment": "n9_restart_schemes_frustrated",
+      "status": "final",
+      "path": "sweeps/warmstart_heuristics/n9_restart_schemes_frustrated/n9_restart_schemes_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "n9_second_order_why_frustrated",
+      "experiment": "n9_second_order_why_frustrated",
+      "status": "final",
+      "path": "sweeps/warmstart_heuristics/n9_second_order_why_frustrated/n9_second_order_why_frustrated.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": null,
+      "n_points": 0,
+      "physics": {
+        "model": null,
+        "topo": null,
+        "N": null,
+        "p": null,
+        "h": null,
+        "J2": null,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "hva_vs_vl_chain_1d_N10_20260922_144634",
+      "experiment": "resources",
+      "status": "final",
+      "path": "resources/hva_vs_vl_chain_1d_N10_20260922_144634.json",
+      "schema": "hva_vs_vl_resources_v1",
+      "source_script": null,
+      "generated_utc": "2026-09-22T14:46:34.715946+00:00",
+      "n_points": 26,
+      "physics": {
+        "model": null,
+        "topo": "chain_1d",
+        "N": 10,
+        "p": null,
+        "h": 1.0,
+        "J2": null,
+        "gap": 0.29892037434570184,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": 0.7829815874459866,
+        "abs_error": 0.5367319200237475,
+        "de_over_gap": 1.795568205073289,
+        "cx": 18,
+        "depth_2q": 18
+      }
+    },
+    {
+      "run_id": "vl_char_heavy_hex",
+      "experiment": "vl_characterization",
+      "status": "final",
+      "path": "vl_characterization/vl_char_heavy_hex.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": "2026-09-22T18:45:06.156160+00:00",
+      "n_points": 9,
+      "physics": {
+        "model": null,
+        "topo": "heavy_hex",
+        "N": 6,
+        "p": 1,
+        "h": 1.0,
+        "J2": null,
+        "gap": 0.48214672102130507,
+        "e0": -7.296229810558761
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_char_smoke",
+      "experiment": "vl_characterization",
+      "status": "final",
+      "path": "vl_characterization/vl_char_smoke.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": "2026-09-22T18:40:34.704306+00:00",
+      "n_points": 1,
+      "physics": {
+        "model": null,
+        "topo": "heavy_hex",
+        "N": 6,
+        "p": 1,
+        "h": 2.5,
+        "J2": null,
+        "gap": 3.268670322643649,
+        "e0": -15.503036832525517
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_char_square",
+      "experiment": "vl_characterization",
+      "status": "final",
+      "path": "vl_characterization/vl_char_square.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": "2026-09-22T19:00:22.959787+00:00",
+      "n_points": 2,
+      "physics": {
+        "model": null,
+        "topo": "square",
+        "N": 10,
+        "p": 1,
+        "h": 1.0,
+        "J2": null,
+        "gap": 0.012886319597178897,
+        "e0": -15.088080530601593
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_char_triangular",
+      "experiment": "vl_characterization",
+      "status": "final",
+      "path": "vl_characterization/vl_char_triangular.json",
+      "schema": null,
+      "source_script": null,
+      "generated_utc": "2026-09-22T18:58:03.002701+00:00",
+      "n_points": 2,
+      "physics": {
+        "model": null,
+        "topo": "triangular",
+        "N": 10,
+        "p": 1,
+        "h": 1.0,
+        "J2": null,
+        "gap": 0.00021855642184931412,
+        "e0": -21.287062290609782
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_h_sweep_frustrated",
+      "experiment": "vl_h_sweep",
+      "status": "final",
+      "path": "vl_h_sweep/vl_h_sweep_frustrated.json",
+      "schema": null,
+      "source_script": "unknown",
+      "generated_utc": "2026-09-23T21:04:21.886499+00:00",
+      "n_points": 5,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": 2,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.2237803845158668,
+        "e0": -7.7531929346318815
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_mps_square_N18",
+      "experiment": "vl_mps_n18",
+      "status": "final",
+      "path": "vl_mps_n18/vl_mps_square_N18.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_mps_large_n.py",
+      "generated_utc": "2026-09-24T13:51:08.583023+00:00",
+      "n_points": 2,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 18,
+        "p": null,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_mps_square_N18_L8_F200_tc1e-08_standard",
+      "experiment": "vl_mps_n18",
+      "status": "final",
+      "path": "vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_mps_large_n.py",
+      "generated_utc": "2026-09-24T17:04:34.572935+00:00",
+      "n_points": 2,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 18,
+        "p": null,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": null,
+        "e0": null
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    },
+    {
+      "run_id": "vl_quality_sweep_frustrated",
+      "experiment": "vl_quality_sweep",
+      "status": "final",
+      "path": "vl_quality_sweep/vl_quality_sweep_frustrated.json",
+      "schema": null,
+      "source_script": "scripts/analysis/vl_quality_sweep_frustrated.py",
+      "generated_utc": "2026-09-23T20:45:22.994118+00:00",
+      "n_points": 18,
+      "physics": {
+        "model": "tfim_frustrated",
+        "topo": "square",
+        "N": 9,
+        "p": null,
+        "h": 0.5,
+        "J2": 0.5,
+        "gap": 0.2237803845158668,
+        "e0": -7.7531929346318815
+      },
+      "method": {
+        "optimizer": null,
+        "maxiter": null,
+        "sigma": null,
+        "seeds": null,
+        "n_hops": null,
+        "strategy": null
+      },
+      "metrics": {
+        "fidelity": null,
+        "abs_error": null,
+        "de_over_gap": null,
+        "cx": null,
+        "depth_2q": null
+      }
+    }
+  ]
+}

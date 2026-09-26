@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "vl_mps_n18",
+  "run_id": "vl_mps_square_N18_L8_F200_tc1e-08_standard",
+  "created_utc": "2026-09-25T19:15:45.401319+00:00",
+  "updated_utc": "2026-09-25T19:15:45.401319+00:00",
+  "source_script": "scripts/analysis/vl_mps_large_n.py",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": "tfim_frustrated",
+    "topo": "square",
+    "N": 18,
+    "p": null,
+    "h": 0.5,
+    "J2": 0.5,
+    "gap": null,
+    "e0": null
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": null,
+    "abs_error": null,
+    "de_over_gap": null,
+    "cx": null,
+    "depth_2q": null
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "vl_mps_n18/vl_mps_square_N18_L8_F200_tc1e-08_standard.json"
+}

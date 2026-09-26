@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuit_comparison",
+  "run_id": "tfim_square_n4_p1_h2.50_hva_transpiled",
+  "created_utc": "2026-09-25T19:15:44.185678+00:00",
+  "updated_utc": "2026-09-25T19:15:44.185678+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "circuit_comparison/tfim_square_n4_p1_h2.50_hva_transpiled.png"
+}

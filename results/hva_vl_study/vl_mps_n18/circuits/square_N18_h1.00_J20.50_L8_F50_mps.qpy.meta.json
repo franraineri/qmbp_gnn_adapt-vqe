@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuits",
+  "run_id": "square_N18_h1.00_J20.50_L8_F50_mps",
+  "created_utc": "2026-09-25T19:15:45.276225+00:00",
+  "updated_utc": "2026-09-25T19:15:45.276225+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "vl_mps_n18/circuits/square_N18_h1.00_J20.50_L8_F50_mps.qpy"
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuit_comparison",
+  "run_id": "tfim_square_n4_p1_h2.50_analysis",
+  "created_utc": "2026-09-25T19:15:44.067706+00:00",
+  "updated_utc": "2026-09-25T19:15:44.067706+00:00",
+  "source_script": "scripts/analysis/compare_circuits_square_n10_p2.py",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": "tfim",
+    "topo": "square",
+    "N": 4,
+    "p": 1,
+    "h": 2.5,
+    "J2": 0.0,
+    "gap": 3.0376925556374044,
+    "e0": -10.42285736277191
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": null,
+    "abs_error": null,
+    "de_over_gap": null,
+    "cx": null,
+    "depth_2q": null
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "circuit_comparison/tfim_square_n4_p1_h2.50_analysis.json"
+}

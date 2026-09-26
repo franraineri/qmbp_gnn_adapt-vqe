@@ -1,0 +1,16 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "circuits",
+  "run_id": "tfim_frustrated_square_n9_p2_h2.00_j20.50_vl",
+  "created_utc": "2026-09-25T19:15:41.854400+00:00",
+  "updated_utc": "2026-09-25T19:15:41.854400+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {},
+  "method": {},
+  "metrics": {},
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "circuit_comparison/circuits/tfim_frustrated_square_n9_p2_h2.00_j20.50_vl.qpy"
+}

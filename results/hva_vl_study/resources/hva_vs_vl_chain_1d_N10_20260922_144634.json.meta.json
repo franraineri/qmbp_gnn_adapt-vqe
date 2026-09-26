@@ -1,0 +1,38 @@
+{
+  "schema": "hva_vl_study_meta_v1",
+  "status": "final",
+  "experiment": "resources",
+  "run_id": "hva_vs_vl_chain_1d_N10_20260922_144634",
+  "created_utc": "2026-09-25T19:15:44.578518+00:00",
+  "updated_utc": "2026-09-25T19:15:44.578518+00:00",
+  "source_script": "migrated",
+  "git_commit": "41c1e82",
+  "physics": {
+    "model": null,
+    "topo": "chain_1d",
+    "N": 10,
+    "p": null,
+    "h": 1.0,
+    "J2": null,
+    "gap": 0.29892037434570184,
+    "e0": null
+  },
+  "method": {
+    "optimizer": null,
+    "maxiter": null,
+    "sigma": null,
+    "seeds": null,
+    "n_hops": null,
+    "strategy": null
+  },
+  "metrics": {
+    "fidelity": 0.7829815874459866,
+    "abs_error": 0.5367319200237475,
+    "de_over_gap": 1.795568205073289,
+    "cx": 18,
+    "depth_2q": 18
+  },
+  "provenance": {},
+  "artifacts": {},
+  "result_path": "resources/hva_vs_vl_chain_1d_N10_20260922_144634.json"
+}
