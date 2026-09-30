@@ -19,11 +19,14 @@ Usage:
     .venv/bin/python scripts/analysis/hva_nnn_h_sweep_frustrated.py \
         --topologies square triangular --n 9 --p 2 --j2 0.5 --h 0.5 1.0 2.0 3.0
 """
+
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
+
+import numpy as np
 
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
@@ -38,7 +41,6 @@ from hva_vl_study_common import (  # noqa: E402 (same dir)
     transpile_hw,
     warmstart_metropolis_vqe,
 )
-
 
 # Ansatz variants under test. "nn" = nearest-neighbor bond-resolved (cheapest in
 # 2q); "nnn" = + next-nearest-neighbor RZZ (maps the J2 frustration, more 2q).
@@ -57,9 +59,16 @@ def _point(topology, n, p, j2, h, model, n_random, maxiter, ansatz="nnn") -> dic
     # Ground state + circuit via the shared StudyRunner: single source of truth
     # for the cached/exact (N<=16) vs eigsh (16<N<=22) ground state and the
     # bond-resolved (+NNN) ansatz build. Same numbers as the pre-migration path.
-    runner = StudyRunner(topology=topology, n_qubits=n, p_layers=p, j2=j2,
-                         model=model, strategy="metropolis", maxiter=maxiter,
-                         ansatz=ansatz)
+    runner = StudyRunner(
+        topology=topology,
+        n_qubits=n,
+        p_layers=p,
+        j2=j2,
+        model=model,
+        strategy="metropolis",
+        maxiter=maxiter,
+        ansatz=ansatz,
+    )
     lat = make_lattice(topology, n, J=1.0, h=h)
     psi, e0, gap, H, gs_method = runner.ground_state(h)
     qc, n_nn, n_nnn = runner.build_circuit(lat)
@@ -72,15 +81,29 @@ def _point(topology, n, p, j2, h, model, n_random, maxiter, ansatz="nnn") -> dic
     # zeros is a trivial stationary point for the bond-resolved ansätze.
     warmstart_runs = None
     if n <= STATEVECTOR_MAX_N:
-        e_best, bound, fid = robust_vqe_fidelity(
-            qc, H, psi, n_random=n_random, maxiter=maxiter, include_zeros=False
+        e_best, bound, fid, best_theta = robust_vqe_fidelity(
+            qc,
+            H,
+            psi,
+            n_random=n_random,
+            maxiter=maxiter,
+            include_zeros=False,
+            return_theta=True,
         )
         optimizer = f"robust_random_x{n_random}"
     else:
-        e_best, bound, fid, warmstart_runs, _best_theta = warmstart_metropolis_vqe(
-            qc, H, psi, n_nn=n_nn, n_nnn=(n_nnn if ansatz == "nnn" else 0),
-            n_qubits=n, p_layers=p,
-            h=h, J=1.0, J2=(j2 if ansatz == "nnn" else 0.0), maxiter=maxiter,
+        e_best, bound, fid, warmstart_runs, best_theta = warmstart_metropolis_vqe(
+            qc,
+            H,
+            psi,
+            n_nn=n_nn,
+            n_nnn=(n_nnn if ansatz == "nnn" else 0),
+            n_qubits=n,
+            p_layers=p,
+            h=h,
+            J=1.0,
+            J2=(j2 if ansatz == "nnn" else 0.0),
+            maxiter=maxiter,
             temperature=gap,
         )
         optimizer = "warmstart+metropolis_basinhop"
@@ -91,16 +114,32 @@ def _point(topology, n, p, j2, h, model, n_random, maxiter, ansatz="nnn") -> dic
     budget = compute_error_budget(t, backend=None)
 
     return {
-        "topology": topology, "N": n, "p_layers": p, "model": model, "J2": j2, "h": h,
-        "ansatz": ansatz, "ansatz_desc": ansatz_label, "gs_method": gs_method,
-        "E0": e0, "gap": gap, "n_nn_edges": len(lat.edges),
-        "energy": e_best, "abs_error": abs(e_best - e0),
+        "topology": topology,
+        "N": n,
+        "p_layers": p,
+        "model": model,
+        "J2": j2,
+        "h": h,
+        "ansatz": ansatz,
+        "ansatz_desc": ansatz_label,
+        "gs_method": gs_method,
+        "E0": e0,
+        "gap": gap,
+        "n_nn_edges": len(lat.edges),
+        "energy": e_best,
+        "abs_error": abs(e_best - e0),
         "de_gap": abs(e_best - e0) / gap if gap > 0 else None,
         "fidelity": fid,
-        "n_2q_transpiled": n2q, "depth_transpiled": stats["depth"],
-        "depth_2q": stats["depth_2q"], "n_params": qc.num_parameters,
+        "n_2q_transpiled": n2q,
+        "depth_transpiled": stats["depth"],
+        "depth_2q": stats["depth_2q"],
+        "n_params": qc.num_parameters,
         "nisq_fidelity_est": budget.get("fidelity_estimate"),
-        "optimizer": optimizer, "warmstart_runs": warmstart_runs,
+        "optimizer": optimizer,
+        "warmstart_runs": warmstart_runs,
+        # Optimal angles persisted so every sweep row is reproducible/reusable
+        # (reload θ → assign_parameters → exact state, no re-optimization).
+        "theta_final": np.asarray(best_theta, float).tolist(),
     }
 
 
@@ -114,39 +153,58 @@ def run(topologies, n, p_values, j2, h_values, model, n_random, maxiter, ansatze
             for ansatz in ansatze:
                 for p in p_values:
                     try:
-                        rows.append(_point(topo, n, p, j2, h, model, n_random, maxiter,
-                                            ansatz=ansatz))
+                        rows.append(_point(topo, n, p, j2, h, model, n_random, maxiter, ansatz=ansatz))
                         print(f"  done: {topo} h={h} {ansatz} p={p}", flush=True)
                     except Exception as exc:  # noqa: BLE001 — never abort the batch
-                        rows.append({"topology": topo, "N": n, "h": h, "J2": j2,
-                                     "ansatz": ansatz, "p_layers": p,
-                                     "error": f"{type(exc).__name__}: {exc}"})
+                        rows.append(
+                            {
+                                "topology": topo,
+                                "N": n,
+                                "h": h,
+                                "J2": j2,
+                                "ansatz": ansatz,
+                                "p_layers": p,
+                                "error": f"{type(exc).__name__}: {exc}",
+                            }
+                        )
                         print(f"  FAILED: {topo} h={h} {ansatz} p={p}: {exc}", flush=True)
                     save_json(
                         {"schema": "hva_ansatze_h_sweep_frustrated_v1", "rows": rows},
-                        "hva_nnn_sweep", _OUT_FILE,
-                        params={"N": n, "p_layers": p_values, "J2": j2, "model": model,
-                                "ansatze": ansatze, "n_random_restarts": n_random,
-                                "maxiter": maxiter},
+                        "hva_nnn_sweep",
+                        _OUT_FILE,
+                        params={
+                            "N": n,
+                            "p_layers": p_values,
+                            "J2": j2,
+                            "model": model,
+                            "ansatze": ansatze,
+                            "n_random_restarts": n_random,
+                            "maxiter": maxiter,
+                        },
                         description="h-sweep of NN and NN+NNN bond-resolved HVA ansätze, "
-                                    "frustrated 2D TFIM (analog to the VL report)",
+                        "frustrated 2D TFIM (analog to the VL report)",
                     )
     return rows
 
 
 def format_rows(rows) -> str:
-    out = ["=" * 96,
-           f"{'topo':<10}{'h':<5}{'ansatz':<6}{'p':<3}{'gap':<8}{'fidelity':<10}"
-           f"{'dE/gap':<9}{'2q':<5}{'depth2q':<8}{'NISQ':<7}{'nP':<4}",
-           "-" * 96]
+    out = [
+        "=" * 96,
+        f"{'topo':<10}{'h':<5}{'ansatz':<6}{'p':<3}{'gap':<8}{'fidelity':<10}"
+        f"{'dE/gap':<9}{'2q':<5}{'depth2q':<8}{'NISQ':<7}{'nP':<4}",
+        "-" * 96,
+    ]
     for r in rows:
         if "error" in r:
-            out.append(f"{r['topology']:<10}{r['h']:<5}{r.get('ansatz',''):<6}"
-                       f"{r.get('p_layers',''):<3}ERROR: {r['error'][:40]}")
+            out.append(
+                f"{r['topology']:<10}{r['h']:<5}{r.get('ansatz', ''):<6}"
+                f"{r.get('p_layers', ''):<3}ERROR: {r['error'][:40]}"
+            )
             continue
 
         def f(x, w=".4f"):
             return format(x, w) if isinstance(x, (int, float)) else str(x)
+
         out.append(
             f"{r['topology']:<10}{r['h']:<5}{r['ansatz']:<6}{r['p_layers']:<3}"
             f"{f(r['gap']):<8}{f(r['fidelity']):<10}{f(r['de_gap']):<9}"
@@ -158,8 +216,7 @@ def format_rows(rows) -> str:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        description="h-sweep of NN and NN+NNN HVA ansätze, frustrated TFIM (VL-report analog)")
+    p = argparse.ArgumentParser(description="h-sweep of NN and NN+NNN HVA ansätze, frustrated TFIM (VL-report analog)")
     p.add_argument("--topologies", nargs="+", default=["square"])
     p.add_argument("--n", type=int, default=9)
     p.add_argument("--p", type=int, nargs="+", default=[1, 2])
@@ -174,10 +231,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    print(f"[hva_sweep] topos={args.topologies} h={args.h} ansatze={args.ansatze} "
-          f"p={args.p} J2={args.j2} N={args.n}", flush=True)
-    rows = run(args.topologies, args.n, args.p, args.j2, args.h, args.model,
-               args.n_random, args.maxiter, args.ansatze)
+    print(
+        f"[hva_sweep] topos={args.topologies} h={args.h} ansatze={args.ansatze} p={args.p} J2={args.j2} N={args.n}",
+        flush=True,
+    )
+    rows = run(args.topologies, args.n, args.p, args.j2, args.h, args.model, args.n_random, args.maxiter, args.ansatze)
     print("\n" + format_rows(rows))
     print(f"\n→ Resultados: {study_dir('hva_nnn_sweep') / _OUT_FILE}")
     return 0

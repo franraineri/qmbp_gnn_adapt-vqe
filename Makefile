@@ -14,7 +14,7 @@ VENV := source .venv/bin/activate
 
 .PHONY: help lint format test smoke-test benchmark check check-full \
         hooks-install strip-notebooks freeze run-notebooks run-nb-12 run-nb-34 \
-        clean typecheck coverage health figures \
+        clean typecheck coverage health figures vl-hva-report vl-hva-consolidated \
         maintain maintain-full maintain-fix maintain-all-fix maintain-ci dead-code lint-docs \
         sync-all sync-all-deep diagnose-all \
         thesis-pdf thesis-overleaf thesis-verify thesis-verify-numbers thesis-verify-pdf
@@ -27,6 +27,14 @@ help:  ## Show this help
 
 lint:  ## Run ruff linter
 	.venv/bin/ruff check src/ tests/ scripts/ project_health/ --exclude "scripts/hooks/*"
+
+vl-hva-report:  ## Regenerate the VL-vs-HVA comparison (data → JSON → markdown) for square N=9 p=2
+	$(PYTHON) scripts/analysis/vl_vs_hva/compare_hva_nnn_vs_vl.py --n 9 --p 2 --h 0.5 1.0 --restarts 4 --maxiter 400
+	$(PYTHON) scripts/analysis/vl_vs_hva/generate_vl_hva_comparison_report.py --n 9 --p 2
+
+vl-hva-consolidated:  ## Regenerate the consolidated VL-vs-HVA report + best-results scoreboard from all JSON artifacts
+	$(PYTHON) scripts/analysis/vl_vs_hva/generate_vl_hva_consolidated_report.py
+	$(PYTHON) scripts/analysis/vl_vs_hva/update_scoreboard.py
 
 format:  ## Auto-format with ruff
 	.venv/bin/ruff format src/ tests/ scripts/ project_health/

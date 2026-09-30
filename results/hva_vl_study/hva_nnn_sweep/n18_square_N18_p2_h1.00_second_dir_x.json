@@ -1,0 +1,36 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/n18_square_N18_p2_h1.00_second_dir_x.json",
+  "source_script": "n18_h1_second_dir_x.py",
+  "generated_utc": "2026-09-27T21:25:53.341762+00:00",
+  "params": {
+    "experiment": "best_method_at_h1",
+    "seed": "second_dir_x",
+    "N": 18,
+    "h": 1.0,
+    "p_layers": 2,
+    "maxiter": 3000,
+    "sigma": 0.2
+  },
+  "description": "Best h=0.5 method (second_dir_x) applied once at N=18 h=1.0",
+  "row": {
+    "seed_type": "second_dir_x",
+    "h": 1.0,
+    "N": 18,
+    "p_layers": 2,
+    "fidelity": 0.9210198590287877,
+    "e_final": -22.733381726477173,
+    "e0": -23.028003818100213,
+    "gap": 0.49365776237717895,
+    "abs_error": 0.2946220916230402,
+    "de_gap": 0.5968144615093368,
+    "nit": 618,
+    "converged": true,
+    "seconds": 957.9
+  },
+  "N": 18,
+  "h": 1.0,
+  "p_layers": 2,
+  "J2": 0.5,
+  "e0": -23.028003818100213,
+  "gap": 0.49365776237717895
+}

@@ -1,0 +1,223 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/basincount_square_N12_p2_h0.50_k20.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_basin_count.py",
+  "generated_utc": "2026-09-27T22:21:03.387134+00:00",
+  "params": {
+    "experiment": "basin_count",
+    "N": 12,
+    "h": 0.5,
+    "p_layers": 2,
+    "K": 20,
+    "tol": 0.02
+  },
+  "description": "Basin-counting: K random converged starts, clustered by final fidelity to count distinguishable minima",
+  "runs": [
+    {
+      "k": 0,
+      "fidelity": 0.9492660053354894,
+      "e_final": -11.0710582195245,
+      "nit": 1499,
+      "converged": true,
+      "seconds": 154.6
+    },
+    {
+      "k": 1,
+      "fidelity": 0.9749373635248337,
+      "e_final": -11.103218560267523,
+      "nit": 813,
+      "converged": true,
+      "seconds": 74.3
+    },
+    {
+      "k": 2,
+      "fidelity": 0.9653610330538317,
+      "e_final": -11.087598375100537,
+      "nit": 1134,
+      "converged": true,
+      "seconds": 105.4
+    },
+    {
+      "k": 3,
+      "fidelity": 0.9778373702446121,
+      "e_final": -11.1074165587157,
+      "nit": 1293,
+      "converged": true,
+      "seconds": 120.8
+    },
+    {
+      "k": 4,
+      "fidelity": 0.9427458360768818,
+      "e_final": -11.071237410679988,
+      "nit": 1206,
+      "converged": true,
+      "seconds": 111.7
+    },
+    {
+      "k": 5,
+      "fidelity": 0.9781324947526795,
+      "e_final": -11.108433626938234,
+      "nit": 2500,
+      "converged": false,
+      "seconds": 231.5
+    },
+    {
+      "k": 6,
+      "fidelity": 0.8297407062545087,
+      "e_final": -10.92569008761467,
+      "nit": 909,
+      "converged": true,
+      "seconds": 85.3
+    },
+    {
+      "k": 7,
+      "fidelity": 0.979545165786446,
+      "e_final": -11.10879771760162,
+      "nit": 505,
+      "converged": true,
+      "seconds": 50.8
+    },
+    {
+      "k": 8,
+      "fidelity": 0.967367986868594,
+      "e_final": -11.09063476414236,
+      "nit": 769,
+      "converged": true,
+      "seconds": 83.3
+    },
+    {
+      "k": 9,
+      "fidelity": 0.9763329223080103,
+      "e_final": -11.104499032336397,
+      "nit": 952,
+      "converged": true,
+      "seconds": 90.9
+    },
+    {
+      "k": 10,
+      "fidelity": 0.973040701664317,
+      "e_final": -11.103259914767971,
+      "nit": 2029,
+      "converged": true,
+      "seconds": 189.4
+    },
+    {
+      "k": 11,
+      "fidelity": 0.9237792626216902,
+      "e_final": -10.99282072324305,
+      "nit": 1474,
+      "converged": true,
+      "seconds": 142.1
+    },
+    {
+      "k": 12,
+      "fidelity": 0.9768052677307363,
+      "e_final": -11.107086851689392,
+      "nit": 1820,
+      "converged": true,
+      "seconds": 168.8
+    },
+    {
+      "k": 13,
+      "fidelity": 0.954102587660766,
+      "e_final": -11.04803849440618,
+      "nit": 2252,
+      "converged": true,
+      "seconds": 211.1
+    },
+    {
+      "k": 14,
+      "fidelity": 0.2937148095813688,
+      "e_final": -10.330111101415826,
+      "nit": 1496,
+      "converged": true,
+      "seconds": 154.0
+    },
+    {
+      "k": 15,
+      "fidelity": 0.9816306774047656,
+      "e_final": -11.112244334606975,
+      "nit": 1507,
+      "converged": true,
+      "seconds": 139.4
+    },
+    {
+      "k": 16,
+      "fidelity": 0.9808068599891285,
+      "e_final": -11.110197924254106,
+      "nit": 1153,
+      "converged": true,
+      "seconds": 106.0
+    },
+    {
+      "k": 17,
+      "fidelity": 0.9790821286422371,
+      "e_final": -11.106615055954105,
+      "nit": 1426,
+      "converged": true,
+      "seconds": 131.9
+    },
+    {
+      "k": 18,
+      "fidelity": 0.7066586336214525,
+      "e_final": -10.809411077824064,
+      "nit": 966,
+      "converged": true,
+      "seconds": 90.1
+    },
+    {
+      "k": 19,
+      "fidelity": 0.6757497097330329,
+      "e_final": -10.740637234344975,
+      "nit": 1807,
+      "converged": true,
+      "seconds": 167.4
+    }
+  ],
+  "analysis": {
+    "n_converged": 19,
+    "n_starved": 1,
+    "n_basins": 5,
+    "true_ceiling": 0.9816306774047656,
+    "best_basin_attraction": 0.7894736842105263,
+    "basins": [
+      {
+        "fid_min": 0.9237792626216902,
+        "fid_max": 0.9816306774047656,
+        "size": 15,
+        "attraction": 0.7894736842105263
+      },
+      {
+        "fid_min": 0.8297407062545087,
+        "fid_max": 0.8297407062545087,
+        "size": 1,
+        "attraction": 0.05263157894736842
+      },
+      {
+        "fid_min": 0.7066586336214525,
+        "fid_max": 0.7066586336214525,
+        "size": 1,
+        "attraction": 0.05263157894736842
+      },
+      {
+        "fid_min": 0.6757497097330329,
+        "fid_max": 0.6757497097330329,
+        "size": 1,
+        "attraction": 0.05263157894736842
+      },
+      {
+        "fid_min": 0.2937148095813688,
+        "fid_max": 0.2937148095813688,
+        "size": 1,
+        "attraction": 0.05263157894736842
+      }
+    ]
+  },
+  "N": 12,
+  "h": 0.5,
+  "p_layers": 2,
+  "J2": 0.5,
+  "e0": -11.143973477628997,
+  "gap": 0.007137480495980952,
+  "maxiter": 2500,
+  "tol": 0.02
+}

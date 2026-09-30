@@ -512,3 +512,65 @@ class TestRunVQESweep:
         max_jump = np.max(np.abs(diffs))
         # With warm start, max parameter jump should be modest (< π)
         assert max_jump < np.pi, f"Warm start failed: max jump = {max_jump:.3f}"
+
+
+class TestScenarioValidation:
+    """assert_same_scenario guards comparison artifacts against N/p/h drift.
+
+    This is the anti-drift guarantee for the VL-vs-HVA comparison report: rows
+    stamp an explicit scenario key and the report generator refuses to emit a
+    comparison whose top-level fields diverge from it.
+    """
+
+    def _row(self, **overrides):
+        base = {
+            "topology": "square",
+            "N": 9,
+            "p_layers": 2,
+            "h": 0.5,
+            "J2": 0.5,
+            "model": "tfim_frustrated",
+        }
+        row = dict(base)
+        row["scenario"] = dict(base)
+        row.update(overrides)
+        return row
+
+    def test_matching_scenario_passes(self):
+        from qmbp_simulation.framework.result_io import assert_same_scenario
+
+        # Does not raise on a consistent row.
+        assert_same_scenario(self._row())
+
+    def test_missing_scenario_key_raises(self):
+        from qmbp_simulation.framework.result_io import ScenarioMismatch, assert_same_scenario
+
+        row = self._row()
+        del row["scenario"]
+        with pytest.raises(ScenarioMismatch):
+            assert_same_scenario(row)
+
+    @pytest.mark.parametrize(
+        "field,value",
+        [
+            ("N", 10),
+            ("p_layers", 1),
+            ("h", 1.0),
+            ("J2", 0.0),
+            ("topology", "triangular"),
+        ],
+    )
+    def test_drifted_field_raises(self, field, value):
+        from qmbp_simulation.framework.result_io import ScenarioMismatch, assert_same_scenario
+
+        # Top-level field drifts from the embedded scenario → must be caught.
+        row = self._row(**{field: value})
+        with pytest.raises(ScenarioMismatch):
+            assert_same_scenario(row)
+
+    def test_scenario_key_extracts_fields(self):
+        from qmbp_simulation.framework.result_io import SCENARIO_FIELDS, scenario_key
+
+        sc = scenario_key(self._row())
+        assert set(sc) == set(SCENARIO_FIELDS)
+        assert sc["N"] == 9

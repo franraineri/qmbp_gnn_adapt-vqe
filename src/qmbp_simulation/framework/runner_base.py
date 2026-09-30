@@ -237,6 +237,8 @@ class ValidationRunner(ABC):
         self._sections_cache: list[Section] | None = None
         # Cache for exact_ground_state results (avoids redundant DMRG/eigsh calls)
         self._gt_cache: dict[tuple, tuple[float, float]] = {}
+        # Per-label accumulator for incremental resumable partials (save_partial)
+        self._partial_rows: dict[str, list[dict]] = {}
         # Model provenance tracking (auto-populated by load_best_mpnn_for_cross_n)
         self._model_provenance: dict[str, Any] = {}
         # Auto-validation report (populated post-sections in run())
@@ -2733,6 +2735,173 @@ class ValidationRunner(ABC):
                 logger.debug("🗑️  Removed checkpoint: %s", cp.name)
             except OSError as e:
                 logger.debug("Could not remove checkpoint %s: %s", cp.name, e)
+
+    # ── Resumable partial results (θ-inclusive, base contract) ──────────────
+
+    def _config_fingerprint(self) -> dict[str, Any]:
+        """Config fingerprint from self._args for stale-partial detection."""
+        args = getattr(self, "_args", None)
+        if args is None:
+            return {}
+        return {
+            "n_qubits": getattr(args, "n_qubits", None),
+            "p_layers": getattr(args, "p_layers", None),
+            "model": getattr(args, "model", None),
+            "topology": getattr(args, "topology", None),
+            "h": getattr(args, "h", None),
+        }
+
+    def save_partial(
+        self,
+        label: str,
+        *,
+        rows: list[dict] | None = None,
+        append_row: dict | None = None,
+        theta: np.ndarray | list | None = None,
+        completed: int | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> Path | None:
+        """Persist a resumable partial result, angles included, crash-safely.
+
+        Base contract every runner inherits: after each unit of work (restart,
+        seed, h-point), call this to write a partial artifact that a later run
+        can continue from. Writes are atomic (tmp + rename) so an interrupt never
+        corrupts the file, and best-effort so a save failure never breaks the
+        computation.
+
+        Row accumulation
+        ----------------
+        Pass either the full ``rows`` snapshot each call, or a single
+        ``append_row`` to accumulate incrementally. With ``append_row`` the base
+        keeps the growing list in ``self._partial_rows[label]`` and the caller
+        hands over only the newest record — so a long sweep does not rebuild an
+        ever-growing list on every call. ``rows`` (when given) replaces the
+        accumulator, matching the snapshot semantics callers already rely on.
+
+        Parameters
+        ----------
+        label : str
+            Partial identifier (filename ``.partial_{label}.json``).
+        rows : list[dict] | None
+            Full completed-unit snapshot (each may carry its own ``theta_final``).
+            Replaces the internal accumulator for ``label``.
+        append_row : dict | None
+            A single new completed-unit record to append to the accumulator.
+            Mutually complementary with ``rows``; if both are given, ``rows``
+            seeds the accumulator and ``append_row`` is appended after.
+        theta : np.ndarray | list | None
+            Best-so-far angles. Stored as a plain list under ``best_theta`` so a
+            resume can warm-start from it. Non-finite θ is dropped (never
+            persisted).
+        completed : int | None
+            Count of completed units (defaults to the accumulated row count).
+        meta : dict | None
+            Extra derived fields (best_fidelity, energy, schema, …).
+
+        Returns
+        -------
+        Path | None
+            The written path, or None if persistence failed.
+        """
+        from qmbp_simulation.framework.study_checkpoint import (
+            atomic_write_json,
+            build_resumable_payload,
+        )
+
+        acc = getattr(self, "_partial_rows", None)
+        if acc is None:
+            acc = self._partial_rows = {}
+        if rows is not None:
+            acc[label] = list(rows)
+        elif label not in acc:
+            acc[label] = []
+        if append_row is not None:
+            acc[label].append(append_row)
+        _rows = acc[label]
+
+        payload = build_resumable_payload(
+            rows=_rows,
+            theta=theta,
+            fingerprint=self._config_fingerprint(),
+            completed=completed,
+            meta=meta,
+            extra={
+                "label": label,
+                "runner_id": getattr(self, "runner_id", None),
+                "experiment_id": getattr(self, "experiment_id", None),
+            },
+        )
+
+        path = self._checkpoint_dir() / f".partial_{label}.json"
+        try:
+            return atomic_write_json(path, payload)
+        except (OSError, TypeError, ValueError) as e:
+            logger.debug("Partial save failed for %s: %s", label, e)
+            return None
+
+    def load_partial(self, label: str) -> dict[str, Any] | None:
+        """Load a resumable partial if present and config-compatible.
+
+        Validates the config fingerprint against the current run so a partial
+        from a different (N, p, model, topology, h) is discarded rather than
+        resumed into an incompatible run. Returns the payload (with ``rows``,
+        ``best_theta``, ``completed``) or None.
+        """
+        from qmbp_simulation.framework.study_checkpoint import read_json
+
+        path = self._checkpoint_dir() / f".partial_{label}.json"
+        payload = read_json(path)
+        if not payload:
+            return None
+
+        saved = payload.get("config_fingerprint") or {}
+        current = self._config_fingerprint()
+        for key in ("n_qubits", "p_layers", "model"):
+            sv, cv = saved.get(key), current.get(key)
+            if sv is not None and cv is not None and sv != cv:
+                logger.warning(
+                    "⚠️  Stale partial '%s' (%s mismatch: saved=%s current=%s) — discarding.", label, key, sv, cv
+                )
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+                return None
+        return payload
+
+    def on_restart_persister(
+        self, label: str, *, meta: dict[str, Any] | None = None
+    ) -> Callable[[list[dict], dict], None]:
+        """Return an ``on_restart``-shaped callback that persists partials.
+
+        Matches the hook fired by ``study_core.optimize_bestof`` /
+        ``study_runner`` strategies: ``callback(runs, best)`` where ``runs`` is
+        the accumulated per-restart list (each with ``theta_final``) and ``best``
+        is ``{"fidelity", "energy", "restart"}``. Any runner — including the
+        standalone study scripts using ``study_core`` — can pass this to get
+        base-provided θ persistence instead of hand-rolling one.
+
+        The best restart's ``theta_final`` is surfaced as ``best_theta`` so a
+        resume warm-starts from the best angles found so far.
+        """
+
+        def _persist(runs: list[dict], best: dict) -> None:
+            best_theta = None
+            if runs:
+                idx = best.get("restart") if isinstance(best, dict) else None
+                chosen = None
+                if isinstance(idx, int) and 0 <= idx < len(runs):
+                    chosen = runs[idx]
+                else:
+                    chosen = min(runs, key=lambda r: r.get("energy", float("inf")))
+                best_theta = chosen.get("theta_final")
+            merged = dict(meta or {})
+            if isinstance(best, dict):
+                merged.setdefault("best_fidelity", best.get("fidelity"))
+                merged.setdefault("best_energy", best.get("energy"))
+            self.save_partial(label, rows=runs, theta=best_theta, meta=merged)
+
+        return _persist
 
     # ── VQE checkpoint helpers (typed contract) ────────────────────────────
 

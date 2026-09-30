@@ -154,18 +154,9 @@ def training_npz_read_globs(
     frustrated: bool = False,
     root: Path = TRAINING_DATA_ROOT,
 ) -> list[tuple[Path, str]]:
-    """List of (search_dir, glob_pattern) to READ a model's NPZs.
-
-    Includes the per-model subdir and (for the default model) the legacy root,
-    so scanning finds both migrated and un-migrated files. A file present in
-    BOTH the subdir and the root (mid-migration) is de-duplicated by the caller
-    on filename.
-    """
+    """List of (search_dir, glob_pattern) to READ a model's NPZs."""
     pattern = f"{topology}_N*_p{p_layers}.npz"
-    return [
-        (d, pattern)
-        for d in training_npz_read_dirs(root, model=model, frustrated=frustrated)
-    ]
+    return [(d, pattern) for d in training_npz_read_dirs(root, model=model, frustrated=frustrated)]
 
 
 def iter_all_training_npzs(
@@ -509,11 +500,42 @@ def load_result(path: Path) -> dict[str, Any]:
             result: dict[str, Any] = json.load(f)
     except json.JSONDecodeError as e:
         raise ValueError(
-            f"Corrupt JSON in {path} (size={file_size} bytes, "
-            f"error at line {e.lineno} col {e.colno}): {e.msg}"
+            f"Corrupt JSON in {path} (size={file_size} bytes, error at line {e.lineno} col {e.colno}): {e.msg}"
         ) from e
 
     return result
+
+
+# Fields that define an experiment "scenario". Two measurements are only
+# comparable when these all match — the guard that prevents the recurring
+# documentation bug of comparing different N / p / h / model across methods.
+SCENARIO_FIELDS = ("topology", "N", "p_layers", "h", "J2", "model")
+
+
+class ScenarioMismatch(ValueError):
+    """Raised when two records are not under the same experiment scenario."""
+
+
+def scenario_key(record: dict[str, Any]) -> dict[str, Any]:
+    """Extract the scenario sub-dict (:data:`SCENARIO_FIELDS`) from a record."""
+    return {k: record.get(k) for k in SCENARIO_FIELDS}
+
+
+def assert_same_scenario(record: dict[str, Any]) -> None:
+    """Assert a record's top-level scenario fields match its embedded ``scenario``.
+
+    Comparison artifacts stamp an explicit ``scenario`` key on every row; this
+    verifies the row's own top-level fields did not drift from it (e.g. an N or h
+    that no longer matches). Raises :class:`ScenarioMismatch` on any divergence.
+    """
+    embedded = record.get("scenario")
+    if embedded is None:
+        raise ScenarioMismatch("record has no 'scenario' key to validate against")
+    for field in SCENARIO_FIELDS:
+        if record.get(field) != embedded.get(field):
+            raise ScenarioMismatch(
+                f"scenario field {field!r} differs: top={record.get(field)!r} vs scenario={embedded.get(field)!r}"
+            )
 
 
 def _write_json(data: dict[str, Any], path: Path) -> None:
@@ -972,22 +994,15 @@ def upsert_theta_npz(
     npz_path = Path(npz_path)
 
     # ── Input validation ──────────────────────────────────────────────
-    if (
-        len(h_new) != len(theta_new)
-        or len(h_new) != len(e_vqe_new)
-        or len(h_new) != len(e_exact_new)
-    ):
+    if len(h_new) != len(theta_new) or len(h_new) != len(e_vqe_new) or len(h_new) != len(e_exact_new):
         raise ValueError(
-            f"Length mismatch: h={len(h_new)}, θ={len(theta_new)}, "
-            f"e_vqe={len(e_vqe_new)}, e_exact={len(e_exact_new)}"
+            f"Length mismatch: h={len(h_new)}, θ={len(theta_new)}, e_vqe={len(e_vqe_new)}, e_exact={len(e_exact_new)}"
         )
 
     # Filter out invalid entries (NaN/Inf in θ or energies)
     valid_mask = np.array(
         [
-            np.all(np.isfinite(theta_new[i]))
-            and np.isfinite(e_vqe_new[i])
-            and np.isfinite(e_exact_new[i])
+            np.all(np.isfinite(theta_new[i])) and np.isfinite(e_vqe_new[i]) and np.isfinite(e_exact_new[i])
             for i in range(len(h_new))
         ]
     )
@@ -1003,9 +1018,7 @@ def upsert_theta_npz(
         if method_new is not None:
             method_new = [method_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
         if quality_tier_new is not None:
-            quality_tier_new = [
-                quality_tier_new[i] for i in range(len(valid_mask)) if valid_mask[i]
-            ]
+            quality_tier_new = [quality_tier_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
         if source_ckpt_new is not None:
             source_ckpt_new = [source_ckpt_new[i] for i in range(len(valid_mask)) if valid_mask[i]]
 
@@ -1069,17 +1082,9 @@ def upsert_theta_npz(
             e_vqe_all = existing[e_key].tolist() if e_key in existing else [0.0] * len(h_all)
             e_exact_all = existing["e_exact"].tolist()
             gaps_all = existing["gaps"].tolist() if "gaps" in existing else [0.0] * len(h_all)
-            method_all = (
-                existing["method"].tolist() if "method" in existing else ["unknown"] * len(h_all)
-            )
-            tier_all = (
-                existing["quality_tier"].tolist()
-                if "quality_tier" in existing
-                else ["unverified"] * len(h_all)
-            )
-            source_all = (
-                existing["source_ckpt"].tolist() if "source_ckpt" in existing else [""] * len(h_all)
-            )
+            method_all = existing["method"].tolist() if "method" in existing else ["unknown"] * len(h_all)
+            tier_all = existing["quality_tier"].tolist() if "quality_tier" in existing else ["unverified"] * len(h_all)
+            source_all = existing["source_ckpt"].tolist() if "source_ckpt" in existing else [""] * len(h_all)
 
             # Validate existing data integrity
             n_existing_before = len(h_all)
@@ -1139,14 +1144,8 @@ def upsert_theta_npz(
         h_val = float(h)
         gap_i = float(gaps_new[i]) if gaps_new is not None and i < len(gaps_new) else 0.0
         method_i = method_new[i] if method_new is not None and i < len(method_new) else "unknown"
-        tier_i = (
-            quality_tier_new[i]
-            if quality_tier_new is not None and i < len(quality_tier_new)
-            else "unverified"
-        )
-        source_i = (
-            source_ckpt_new[i] if source_ckpt_new is not None and i < len(source_ckpt_new) else ""
-        )
+        tier_i = quality_tier_new[i] if quality_tier_new is not None and i < len(quality_tier_new) else "unverified"
+        source_i = source_ckpt_new[i] if source_ckpt_new is not None and i < len(source_ckpt_new) else ""
         e_new_i = float(e_vqe_new[i])
         e_exact_i = float(e_exact_new[i])
 
@@ -1156,8 +1155,7 @@ def upsert_theta_npz(
         # value and would otherwise overwrite a sound θ.
         if e_new_i < e_exact_i - _VARIATIONAL_TOL:
             logger.warning(
-                "upsert_theta_npz: rejecting variational violation at h=%.2f "
-                "(e_pred=%.6f < e_exact=%.6f, source=%s)",
+                "upsert_theta_npz: rejecting variational violation at h=%.2f (e_pred=%.6f < e_exact=%.6f, source=%s)",
                 h_val,
                 e_new_i,
                 e_exact_i,
@@ -1395,8 +1393,7 @@ def load_npz_as_theta_dict(
 
     if n_skipped > 0:
         logger.info(
-            f"load_npz_as_theta_dict: loaded {len(result)}, "
-            f"skipped {n_skipped} (dim mismatch, NaN, or corrupt)"
+            f"load_npz_as_theta_dict: loaded {len(result)}, skipped {n_skipped} (dim mismatch, NaN, or corrupt)"
         )
     else:
         logger.info(f"load_npz_as_theta_dict: loaded {len(result)} entries from {npz_path.name}")
@@ -1572,14 +1569,10 @@ def refresh_npz_ground_truth(
             save_dict["e_vqe"] = np.asarray(data[e_key])
         # Preserve metadata fields
         if "method" in data:
-            save_dict["method"] = (
-                data["method"].copy() if hasattr(data["method"], "copy") else data["method"]
-            )
+            save_dict["method"] = data["method"].copy() if hasattr(data["method"], "copy") else data["method"]
         if "quality_tier" in data:
             save_dict["quality_tier"] = (
-                data["quality_tier"].copy()
-                if hasattr(data["quality_tier"], "copy")
-                else data["quality_tier"]
+                data["quality_tier"].copy() if hasattr(data["quality_tier"], "copy") else data["quality_tier"]
             )
 
         np.savez(tmp_path, **save_dict)
@@ -1975,9 +1968,7 @@ def build_clean_training_dataset(
 
         # Skip not_useful
         if n_qubits in skip_n_values:
-            exclusion_reasons["not_useful_config"] = (
-                exclusion_reasons.get("not_useful_config", 0) + 1
-            )
+            exclusion_reasons["not_useful_config"] = exclusion_reasons.get("not_useful_config", 0) + 1
             continue
 
         # Load data
@@ -1995,11 +1986,7 @@ def build_clean_training_dataset(
         e_vqe = np.asarray(data[e_key], dtype=np.float64)
         e_exact = np.asarray(data["e_exact"], dtype=np.float64)
         gaps = np.asarray(data.get("gaps", np.ones(len(h_values))), dtype=np.float64)
-        tiers = (
-            data["quality_tier"].tolist()
-            if "quality_tier" in data
-            else ["unverified"] * len(h_values)
-        )
+        tiers = data["quality_tier"].tolist() if "quality_tier" in data else ["unverified"] * len(h_values)
 
         # Per-point filtering
         h_frontier = h_frontiers.get(n_qubits, 0.0) if reject_below_frontier else 0.0
@@ -2271,10 +2258,7 @@ def persist_predictions_to_training_npz(
                 continue
 
             # Also skip if energies are non-finite
-            if not (
-                np.isfinite(pt.get("e_pred", float("nan")))
-                and np.isfinite(pt.get("e_exact", float("nan")))
-            ):
+            if not (np.isfinite(pt.get("e_pred", float("nan"))) and np.isfinite(pt.get("e_exact", float("nan")))):
                 continue
 
             # Use permissive threshold for initial filter (let anti-regression
@@ -2364,24 +2348,18 @@ def persist_predictions_to_training_npz(
                     f"{n_upd} improved (✅{n_verified} ⚠️{n_approx})"
                 )
         except Exception as e:
-            logger.warning(
-                f"persist_predictions_to_training_npz: failed for {topology}_N{n_target}: {e}"
-            )
+            logger.warning(f"persist_predictions_to_training_npz: failed for {topology}_N{n_target}: {e}")
             per_n[n_target] = (0, 0)
             continue
 
         # ── Persist theta_std enrichment (non-destructive append) ─────────
         if persist_theta_std:
-            theta_std_arr = np.array(
-                [pt.get("theta_std", 0.0) for pt in valid_points], dtype=np.float64
-            )
+            theta_std_arr = np.array([pt.get("theta_std", 0.0) for pt in valid_points], dtype=np.float64)
             if np.any(theta_std_arr > 0):
                 try:
                     from qmbp_simulation.utils.helpers import atomic_savez
 
-                    existing = (
-                        dict(np.load(npz_path, allow_pickle=True)) if npz_path.exists() else {}
-                    )
+                    existing = dict(np.load(npz_path, allow_pickle=True)) if npz_path.exists() else {}
                     existing["theta_std"] = theta_std_arr
                     atomic_savez(npz_path, **existing)
                 except Exception:

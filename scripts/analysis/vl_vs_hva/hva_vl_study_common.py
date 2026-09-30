@@ -21,6 +21,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+
 def _find_repo_root(start: Path) -> Path:
     """Resolve the repo root by walking up for a marker (pyproject.toml / .git).
 
@@ -106,8 +107,35 @@ def save_json(payload: dict, subdir: str, filename: str, **meta) -> Path:
         **meta,
         **payload,
     }
-    path.write_text(json.dumps(enriched, indent=2, default=str))
+    # ``allow_nan=False`` makes json.dumps raise on a stray NaN/Inf instead of
+    # emitting a bare ``NaN`` token that standard parsers reject. We first
+    # sanitize non-finite floats to None so the write succeeds with valid JSON.
+    path.write_text(json.dumps(_json_safe(enriched), indent=2, default=str, allow_nan=False))
     return path
+
+
+def _json_safe(obj):
+    """Recursively replace non-finite floats (NaN/Inf) with None for valid JSON.
+
+    json.dump with the default ``allow_nan=True`` writes ``NaN``/``Infinity``
+    tokens that most parsers (JS, strict JSON) reject, silently corrupting the
+    artifact. This walks dicts/lists and nulls out any non-finite float so the
+    result round-trips through any conformant JSON reader.
+    """
+    import math
+
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_json_safe(v) for v in obj]
+    return obj
+
+
+# Result-query / checkpoint helpers were moved to the dedicated ``results_query``
+# module (a reusable analysis API for angles + best results per config). Import
+# from there: ``from results_query import load_best_theta, query_results, ...``.
 
 
 def qiskit_from_qpy(blob):
@@ -181,8 +209,9 @@ def circuit_stats(qc) -> dict:
     }
 
 
-def exact_ground_state_vector(topology: str, n: int, h: float, *, model: str = "tfim",
-                              j2: float = 0.0, return_hamiltonian: bool = False):
+def exact_ground_state_vector(
+    topology: str, n: int, h: float, *, model: str = "tfim", j2: float = 0.0, return_hamiltonian: bool = False
+):
     """Return (psi, e0, gap) for the exact ground state (statevector-exact only).
 
     Single source of truth for the ground-state solve duplicated across the
@@ -219,9 +248,7 @@ def exact_ground_state_vector(topology: str, n: int, h: float, *, model: str = "
         model_kwargs = {"J2": j2} if j2 else None
 
     solver = ClassicalSolver()
-    e0, gap = GroundTruthCache().get_or_compute(
-        topology, n, model, h, model_kwargs=model_kwargs, solver=solver
-    )
+    e0, gap = GroundTruthCache().get_or_compute(topology, n, model, h, model_kwargs=model_kwargs, solver=solver)
 
     lat = make_lattice(topology, n, J=1.0, h=h)
     H = spec.build_hamiltonian(lat, **ham_kwargs)
@@ -235,8 +262,7 @@ def exact_ground_state_vector(topology: str, n: int, h: float, *, model: str = "
     return psi, float(e0), float(gap)
 
 
-def eigsh_ground_state(topology: str, n: int, h: float, *, model: str = "tfim",
-                       j2: float = 0.0):
+def eigsh_ground_state(topology: str, n: int, h: float, *, model: str = "tfim", j2: float = 0.0):
     """Exact ground state via sparse Lanczos (eigsh k=2), for 16 < N ≤ 22.
 
     Complements ``exact_ground_state_vector`` (capped at STATEVECTOR_MAX_N=16 by a
@@ -295,8 +321,7 @@ def circuit_energy(circuit, hamiltonian) -> float:
 
     if circuit.num_parameters:
         raise ValueError(
-            f"circuit_energy expects a parameter-free circuit, got "
-            f"{circuit.num_parameters} free parameters."
+            f"circuit_energy expects a parameter-free circuit, got {circuit.num_parameters} free parameters."
         )
     return NoiselessBackend().evaluate(circuit, hamiltonian, np.empty(0))
 
@@ -336,9 +361,15 @@ def haiqu_session(name: str):
     yield haiqu
 
 
-def run_vl_job(psi, n_qubits: int, num_layers: int = 2, timeout_s: float = 900.0,
-               poll_s: float = 5.0, fine_tuning_iterations: int = 20,
-               truncation_cutoff: float = 1e-6):
+def run_vl_job(
+    psi,
+    n_qubits: int,
+    num_layers: int = 2,
+    timeout_s: float = 900.0,
+    poll_s: float = 5.0,
+    fine_tuning_iterations: int = 20,
+    truncation_cutoff: float = 1e-6,
+):
     """Run a Haiqu vector_loading job on ``psi``.
 
     Handles the async lifecycle: submit → poll retrieve_status until terminal →
@@ -363,8 +394,11 @@ def run_vl_job(psi, n_qubits: int, num_layers: int = 2, timeout_s: float = 900.0
     from haiqu.sdk.schemas import JobStatus
 
     job = haiqu.vector_loading(
-        psi, num_qubits=n_qubits, num_layers=num_layers,
-        fine_tuning_iterations=fine_tuning_iterations, truncation_cutoff=truncation_cutoff,
+        psi,
+        num_qubits=n_qubits,
+        num_layers=num_layers,
+        fine_tuning_iterations=fine_tuning_iterations,
+        truncation_cutoff=truncation_cutoff,
     )
     t0 = time.time()
     status = None
@@ -410,10 +444,17 @@ def _jsonable(obj):
         return str(obj)
 
 
-def run_vl_mps_job(mps_tensors, *, num_layers: int = 2, timeout_s: float | None = None,
-                   poll_s: float = 5.0, fine_tuning_iterations: int = 20,
-                   truncation_cutoff: float = 1e-6, shape: str = "plr",
-                   max_time: float = 900.0):
+def run_vl_mps_job(
+    mps_tensors,
+    *,
+    num_layers: int = 2,
+    timeout_s: float | None = None,
+    poll_s: float = 5.0,
+    fine_tuning_iterations: int = 20,
+    truncation_cutoff: float = 1e-6,
+    shape: str = "plr",
+    max_time: float = 900.0,
+):
     """Run a Haiqu ``mps_loading`` job and return the same 5-tuple as run_vl_job.
 
     ``mps_tensors`` is a list of rank-3 site tensors in ``shape`` order (default
@@ -437,8 +478,11 @@ def run_vl_mps_job(mps_tensors, *, num_layers: int = 2, timeout_s: float | None 
         timeout_s = max_time + 300.0  # poll budget must exceed Haiqu compute budget
 
     job = haiqu.mps_loading(
-        mps_tensors, shape=shape, num_layers=num_layers,
-        fine_tuning_iterations=fine_tuning_iterations, truncation_cutoff=truncation_cutoff,
+        mps_tensors,
+        shape=shape,
+        num_layers=num_layers,
+        fine_tuning_iterations=fine_tuning_iterations,
+        truncation_cutoff=truncation_cutoff,
         max_time=max_time,
     )
     t0 = time.time()
@@ -468,8 +512,7 @@ def transpile_hw(qc, optimization_level: int = 2):
     """Transpile to the shared hardware-like basis (rz, sx, x, cx) with fixed seed."""
     from qiskit import transpile
 
-    return transpile(qc, basis_gates=BASIS_GATES, optimization_level=optimization_level,
-                     seed_transpiler=TRANSPILE_SEED)
+    return transpile(qc, basis_gates=BASIS_GATES, optimization_level=optimization_level, seed_transpiler=TRANSPILE_SEED)
 
 
 def n_2q(qc) -> int:
@@ -477,14 +520,25 @@ def n_2q(qc) -> int:
     return sum(v for k, v in qc.count_ops().items() if k in TWO_Q_GATES)
 
 
-def robust_vqe_fidelity(circuit, hamiltonian, psi_exact, *, backend=None,
-                        n_random: int = 6, maxiter: int = 600, include_zeros: bool = False,
-                        seed0: int = 0):
+def robust_vqe_fidelity(
+    circuit,
+    hamiltonian,
+    psi_exact,
+    *,
+    backend=None,
+    n_random: int = 6,
+    maxiter: int = 600,
+    include_zeros: bool = False,
+    seed0: int = 0,
+    return_theta: bool = False,
+):
     """Best fidelity of an ansatz to |psi_exact| via multi-restart L-BFGS-B.
 
     Measures the ansatz *expressivity ceiling* (not predictor quality): runs
     scipy L-BFGS-B from several random inits (and optionally the zeros vector),
-    keeping the lowest-energy result. Returns (energy, bound_circuit, fidelity).
+    keeping the lowest-energy result. Returns ``(energy, bound_circuit, fidelity)``,
+    or ``(energy, bound_circuit, fidelity, best_theta)`` when ``return_theta`` is
+    True (the optimal angles, so the result can be reproduced/reused).
 
     Note: the all-zeros init is a trivial stationary point for some ansätze
     (e.g. bond-resolved +NNN) — off by default; enable with include_zeros=True.
@@ -501,33 +555,47 @@ def robust_vqe_fidelity(circuit, hamiltonian, psi_exact, *, backend=None,
         return backend.evaluate(circuit, hamiltonian, x)
 
     inits = [np.zeros(n_params)] if include_zeros else []
-    inits += [np.random.default_rng(s).uniform(-0.4, 0.4, n_params)
-              for s in range(seed0, seed0 + n_random)]
+    inits += [np.random.default_rng(s).uniform(-0.4, 0.4, n_params) for s in range(seed0, seed0 + n_random)]
 
     best_e, best_th = None, None
     for x0 in inits:
-        r = minimize(cost, x0, method="L-BFGS-B", bounds=[(-np.pi, np.pi)] * n_params,
-                     options={"maxiter": maxiter, "ftol": 1e-12})
+        r = minimize(
+            cost,
+            x0,
+            method="L-BFGS-B",
+            bounds=[(-np.pi, np.pi)] * n_params,
+            options={"maxiter": maxiter, "ftol": 1e-12},
+        )
         if best_e is None or r.fun < best_e:
             best_e, best_th = r.fun, r.x
     bound = circuit.assign_parameters(best_th)
     fid = state_fidelity_exact(circuit, best_th, psi_exact)
+    if return_theta:
+        return float(best_e), bound, fid, np.asarray(best_th, float)
     return float(best_e), bound, fid
 
 
-def analytic_warmstart_theta(n_nn: int, n_nnn: int, n_qubits: int, p_layers: int,
-                             h: float, *, J: float = 1.0, J2: float = 0.0):
-    """Leading-order Trotter/adiabatic warm-start for the frustrated bond-resolved HVA.
-    """
+def analytic_warmstart_theta(
+    n_nn: int, n_nnn: int, n_qubits: int, p_layers: int, h: float, *, J: float = 1.0, J2: float = 0.0
+):
+    """Leading-order Trotter/adiabatic warm-start for the frustrated bond-resolved HVA."""
     from qmbp_simulation.analysis.warmstart import first_order_warmstart_theta
 
     return first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
 
 
-def analytic_warmstart_theta_2nd(n_nn: int, n_nnn: int, n_qubits: int, p_layers: int,
-                                 h: float, *, J: float = 1.0, J2: float = 0.0,
-                                 shrink_coef: float | None = None,
-                                 curv_coef: float | None = None):
+def analytic_warmstart_theta_2nd(
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    shrink_coef: float | None = None,
+    curv_coef: float | None = None,
+):
     """Second-order (frustration-aware) warm-start — promoted from inline scripts.
 
     Adds the Trotter/BCH ``(J/2h)^2`` corrections to the first-order seed: a
@@ -549,7 +617,13 @@ def analytic_warmstart_theta_2nd(n_nn: int, n_nnn: int, n_qubits: int, p_layers:
     )
 
     return second_order_warmstart_theta(
-        n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2,
+        n_nn,
+        n_nnn,
+        n_qubits,
+        p_layers,
+        h,
+        J=J,
+        J2=J2,
         shrink_coef=DEFAULT_SHRINK_COEF if shrink_coef is None else shrink_coef,
         curv_coef=DEFAULT_CURV_COEF if curv_coef is None else curv_coef,
     )
@@ -568,9 +642,17 @@ def second_order_warmstart_applicable(h: float) -> bool:
     return second_order_regime_gate(h)
 
 
-def select_warmstart_theta(n_nn: int, n_nnn: int, n_qubits: int, p_layers: int,
-                           h: float, *, J: float = 1.0, J2: float = 0.0,
-                           prefer_second_order: bool = True):
+def select_warmstart_theta(
+    n_nn: int,
+    n_nnn: int,
+    n_qubits: int,
+    p_layers: int,
+    h: float,
+    *,
+    J: float = 1.0,
+    J2: float = 0.0,
+    prefer_second_order: bool = True,
+):
     """Regime-gated warm-start seed: second-order inside the window, else first.
 
     Returns ``(theta, order)`` where ``order`` is ``"second"`` when the
@@ -579,10 +661,8 @@ def select_warmstart_theta(n_nn: int, n_nnn: int, n_qubits: int, p_layers: int,
     caller gates the second-order seed identically instead of hardcoding it.
     """
     if prefer_second_order and second_order_warmstart_applicable(h):
-        return analytic_warmstart_theta_2nd(n_nn, n_nnn, n_qubits, p_layers, h,
-                                            J=J, J2=J2), "second"
-    return analytic_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h,
-                                    J=J, J2=J2), "first"
+        return analytic_warmstart_theta_2nd(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2), "second"
+    return analytic_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2), "first"
 
 
 def _adjoint_jac(circuit, hamiltonian):
@@ -605,14 +685,29 @@ def _theta_x_mask(n_nn, n_nnn, n_qubits, p_layers):
     mask = np.zeros(per * p_layers, bool)
     for layer in range(p_layers):
         o = layer * per
-        mask[o + n_nn + n_nnn:o + per] = True
+        mask[o + n_nn + n_nnn : o + per] = True
     return mask
 
 
-def warmstart_bestof_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_qubits,
-                         p_layers, h, J=1.0, J2=0.0, backend=None, maxiter=80,
-                         sigmas=(0.0, 0.1, 0.1, 0.3), seed0=7000,
-                         perturb_subspace="all", use_adjoint_grad=True):
+def warmstart_bestof_vqe(
+    circuit,
+    hamiltonian,
+    psi_exact,
+    *,
+    n_nn,
+    n_nnn,
+    n_qubits,
+    p_layers,
+    h,
+    J=1.0,
+    J2=0.0,
+    backend=None,
+    maxiter=80,
+    sigmas=(0.0, 0.1, 0.1, 0.3),
+    seed0=7000,
+    perturb_subspace="all",
+    use_adjoint_grad=True,
+):
     """Best fidelity via analytic warm-start + perturbed best-of restarts.
 
     The defensible high-dimension strategy from the restart-heuristic study: seed
@@ -668,13 +763,24 @@ def warmstart_bestof_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_qubi
             noise = np.zeros(n_params)
             noise[mask] = rng.normal(0, sigma, int(mask.sum()))
             x0 = np.clip(th_ws + noise, -np.pi, np.pi)
-        r = minimize(cost, x0, method="L-BFGS-B", jac=jac,
-                     bounds=[(-np.pi, np.pi)] * n_params,
-                     options={"maxiter": maxiter, "ftol": 1e-12})
+        r = minimize(
+            cost,
+            x0,
+            method="L-BFGS-B",
+            jac=jac,
+            bounds=[(-np.pi, np.pi)] * n_params,
+            options={"maxiter": maxiter, "ftol": 1e-12},
+        )
         fid_i = state_fidelity_exact(circuit, r.x, psi_exact)
-        runs.append({"sigma": float(sigma), "energy": float(r.fun),
-                     "fidelity": float(fid_i), "nit": int(r.nit),
-                     "theta": r.x.tolist()})
+        runs.append(
+            {
+                "sigma": float(sigma),
+                "energy": float(r.fun),
+                "fidelity": float(fid_i),
+                "nit": int(r.nit),
+                "theta": r.x.tolist(),
+            }
+        )
         if best_e is None or r.fun < best_e:
             best_e, best_th = r.fun, r.x
     bound = circuit.assign_parameters(best_th)
@@ -682,10 +788,26 @@ def warmstart_bestof_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_qubi
     return float(best_e), bound, fid, runs, np.asarray(best_th)
 
 
-def warmstart_metropolis_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_qubits,
-                             p_layers, h, J=1.0, J2=0.0, backend=None, maxiter=80,
-                             sigma=0.3, n_hops=8, temperature=None, seed0=13000,
-                             use_adjoint_grad=True):
+def warmstart_metropolis_vqe(
+    circuit,
+    hamiltonian,
+    psi_exact,
+    *,
+    n_nn,
+    n_nnn,
+    n_qubits,
+    p_layers,
+    h,
+    J=1.0,
+    J2=0.0,
+    backend=None,
+    maxiter=80,
+    sigma=0.3,
+    n_hops=8,
+    temperature=None,
+    seed0=13000,
+    use_adjoint_grad=True,
+):
     """Best fidelity via analytic warm-start + Metropolis basin-hopping.
 
     The confirmed winner of the heuristic study (8-seed confirmation): seed from
@@ -716,16 +838,26 @@ def warmstart_metropolis_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_
     jac = _adjoint_jac(circuit, hamiltonian) if use_adjoint_grad else None
 
     def opt(x0):
-        r = minimize(cost, x0, method="L-BFGS-B", jac=jac,
-                     bounds=[(-np.pi, np.pi)] * n_params,
-                     options={"maxiter": maxiter, "ftol": 1e-12})
+        r = minimize(
+            cost,
+            x0,
+            method="L-BFGS-B",
+            jac=jac,
+            bounds=[(-np.pi, np.pi)] * n_params,
+            options={"maxiter": maxiter, "ftol": 1e-12},
+        )
         return r.x, float(r.fun)
 
     x_cur, e_cur = opt(th_ws)
     x_best, e_best = x_cur.copy(), e_cur
-    runs = [{"hop": 0, "energy": float(e_cur),
-             "fidelity": float(state_fidelity_exact(circuit, x_cur, psi_exact)),
-             "accepted": True}]
+    runs = [
+        {
+            "hop": 0,
+            "energy": float(e_cur),
+            "fidelity": float(state_fidelity_exact(circuit, x_cur, psi_exact)),
+            "accepted": True,
+        }
+    ]
     for k in range(n_hops):
         x0 = np.clip(x_cur + rng.normal(0, sigma, n_params), -np.pi, np.pi)
         x_new, e_new = opt(x0)
@@ -735,9 +867,14 @@ def warmstart_metropolis_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_
             x_cur, e_cur = x_new, e_new
         if e_new < e_best:
             x_best, e_best = x_new.copy(), e_new
-        runs.append({"hop": k + 1, "energy": float(e_new),
-                     "fidelity": float(state_fidelity_exact(circuit, x_new, psi_exact)),
-                     "accepted": bool(accepted)})
+        runs.append(
+            {
+                "hop": k + 1,
+                "energy": float(e_new),
+                "fidelity": float(state_fidelity_exact(circuit, x_new, psi_exact)),
+                "accepted": bool(accepted),
+            }
+        )
     bound = circuit.assign_parameters(x_best)
     fid = state_fidelity_exact(circuit, x_best, psi_exact)
     return float(e_best), bound, fid, runs, np.asarray(x_best)
@@ -758,9 +895,13 @@ def warmstart_metropolis_vqe(circuit, hamiltonian, psi_exact, *, n_nn, n_nnn, n_
 # (atomic_write_json is intentionally NOT re-exported: callers that need it
 # import it from the framework core directly; StudyCheckpoint uses it internally.)
 from qmbp_simulation.framework.study_checkpoint import (  # noqa: E402
-    StudyCheckpoint,
-    read_json,
-    resume_ordered_list,
+    StudyCheckpoint as StudyCheckpoint,
+)
+from qmbp_simulation.framework.study_checkpoint import (
+    read_json as read_json,
+)
+from qmbp_simulation.framework.study_checkpoint import (
+    resume_ordered_list as resume_ordered_list,
 )
 
 
@@ -772,6 +913,7 @@ def save_json_writer(subdir: str, filename: str, **meta):
     while staying agnostic of the results layout. ``meta`` is forwarded to every
     write (e.g. ``params=...``, ``description=...``).
     """
+
     def _writer(payload: dict):
         return save_json(payload, subdir, filename, **meta)
 
@@ -784,20 +926,46 @@ def save_json_writer(subdir: str, filename: str, **meta):
 # in the study's results-tree LAYOUT and re-export the surface so scripts keep a
 # single import point.
 from qmbp_simulation.framework.study_artifacts import (  # noqa: E402
-    META_SCHEMA,
-    STATUS_DEPRECATED,
-    STATUS_FINAL,
-    STATUS_PARTIAL,
-    VALID_KINDS,
-    VALID_STATUS,
-    PathShim,
-    StudyArtifactWriter,
-    build_artifact_name,
-    build_meta,
-    infer_status_from_payload,
-    meta_sidecar_path,
-    promote_status,
-    write_meta_sidecar,
+    META_SCHEMA as META_SCHEMA,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    STATUS_DEPRECATED as STATUS_DEPRECATED,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    STATUS_FINAL as STATUS_FINAL,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    STATUS_PARTIAL as STATUS_PARTIAL,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    VALID_KINDS as VALID_KINDS,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    VALID_STATUS as VALID_STATUS,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    PathShim as PathShim,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    StudyArtifactWriter as StudyArtifactWriter,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    build_artifact_name as build_artifact_name,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    build_meta as build_meta,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    infer_status_from_payload as infer_status_from_payload,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    meta_sidecar_path as meta_sidecar_path,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    promote_status as promote_status,
+)
+from qmbp_simulation.framework.study_artifacts import (
+    write_meta_sidecar as write_meta_sidecar,
 )
 
 # Canonical taxonomy (Fase A defines the roots; migration in Fase D populates
@@ -826,8 +994,9 @@ def run_dir(experiment: str, run_id: str, *, kind: str = "run") -> Path:
     return d
 
 
-def study_artifact_writer(experiment: str, run_id: str, *, kind: str = "run",
-                          source_script: str | None = None) -> StudyArtifactWriter:
+def study_artifact_writer(
+    experiment: str, run_id: str, *, kind: str = "run", source_script: str | None = None
+) -> StudyArtifactWriter:
     """Build a layout-aware :class:`StudyArtifactWriter` for the study tree.
 
     Resolves ``run_dir`` under the canonical taxonomy and injects the repo root

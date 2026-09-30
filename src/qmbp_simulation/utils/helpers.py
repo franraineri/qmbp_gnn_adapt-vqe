@@ -8,6 +8,7 @@ from other qmbp_simulation submodules.
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 from collections.abc import Generator
@@ -262,6 +263,35 @@ def json_dump(obj: Any, path: Path, indent: int = 2) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(obj, f, indent=indent, default=json_serialize)
+
+
+def write_json_atomic(path: Path | str, payload: Any, *, indent: int = 2) -> Path:
+    """Canonical atomic JSON writer (tmp + rename), numpy/NaN-safe.
+
+    Single source of truth for crash-safe JSON writes across the codebase: writes
+    to a PID-tagged temp file in the same directory, then atomically renames it
+    over ``path`` (POSIX-atomic on one filesystem) so an interrupt mid-write never
+    leaves a corrupt file. Uses :func:`json_serialize` so numpy scalars/arrays,
+    dataclasses, ``Path``/``datetime`` and NaN/Inf all serialize correctly.
+
+    Framework-level wrappers (``study_checkpoint.atomic_write_json``,
+    ``study_artifacts.write_json_atomic``) and ``hardware/persistence`` delegate
+    here rather than re-implementing the tmp+rename dance.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Pre-serialize so NaN/Inf become null: json.dumps handles Python floats
+    # natively and would emit bare NaN/Infinity tokens (invalid JSON) — running
+    # json_serialize first recurses the structure and maps them to None.
+    sanitized = json_serialize(payload)
+    tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
+    try:
+        tmp.write_text(json.dumps(sanitized, indent=indent, allow_nan=False))
+        tmp.rename(path)
+    finally:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+    return path
 
 
 def merge_write_json_dict(

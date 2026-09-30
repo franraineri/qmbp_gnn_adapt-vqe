@@ -1624,7 +1624,7 @@ def enforce_h_frontier_monotonicity(configs: list[dict]) -> list[dict]:
             by_topo[c["topology"]].append(c)
 
     n_corrected = 0
-    for topo, topo_configs in by_topo.items():
+    for _topo, topo_configs in by_topo.items():
         sorted_configs = sorted(topo_configs, key=lambda c: c["n_qubits"])
         running_max = 0.0
         for c in sorted_configs:
@@ -1770,7 +1770,7 @@ def detect_pass_rate_regression(
 
     def max_dual_per_topo(by_topo_n: dict) -> dict[str, float]:
         by_topo: dict[str, list[float]] = defaultdict(list)
-        for (topo, n), val in by_topo_n.items():
+        for (topo, _n), val in by_topo_n.items():
             by_topo[topo].append(val)
         return {t: max(vals) for t, vals in by_topo.items() if vals}
 
@@ -1951,7 +1951,6 @@ def validate_training_dataset(
 
         # Count dual-criterion passing points
         n_good = 0
-        n_violations = 0
         for p in points:
             de_gap = p.get("de_gap", 1.0)
             abs_error = p.get("abs_error")
@@ -3397,7 +3396,6 @@ def validate_npz_integrity(
             h_values = np.asarray(data["h_values"], dtype=np.float64)
             theta_opt = data["theta_opt"]
             e_vqe = np.asarray(data["e_vqe"], dtype=np.float64)
-            e_exact = np.asarray(data["e_exact"], dtype=np.float64)
             n_pts = len(h_values)
             by_p[p_val]["n_points"] += n_pts
 
@@ -4206,7 +4204,9 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
         {
             "is_consistent": bool,
             "n_checks": int,
-            "n_issues": int,
+            "n_issues": int,            # aggregate real issues across all tiers
+            "n_findings_issues": int,   # real (non-informational) items in `findings`
+            "n_informational": int,     # informational items in `findings`
             "findings": list[dict],  # [{source_a, source_b, field, value_a, value_b, severity}]
             "zoo_vs_comparison": dict,  # Per-model: zoo pass_rate vs latest comparison
             "registry_vs_curves": dict,  # MSE cross-check
@@ -4643,10 +4643,18 @@ def validate_data_consistency(*, verbose: bool = False) -> dict:
     except Exception as e:
         logger.debug("validate_data_consistency: critical-ranking cross-check failed: %s", e)
 
+    # ``n_issues`` is the AGGREGATE real-issue count across every validation
+    # tier (findings + tier3 + …). ``n_findings_issues`` isolates just the
+    # ``findings`` list (real, non-informational), so callers can reason about
+    # that list independently of tiers that don't append to it.
+    n_findings_issues = len(real_findings)
+
     return {
         "is_consistent": is_consistent,
         "n_checks": n_checks,
         "n_issues": n_issues,
+        "n_findings_issues": n_findings_issues,
+        "n_informational": len(findings) - n_findings_issues,
         "findings": findings,
         "zoo_vs_comparison": zoo_vs_comparison,
         "registry_vs_curves": registry_vs_curves,

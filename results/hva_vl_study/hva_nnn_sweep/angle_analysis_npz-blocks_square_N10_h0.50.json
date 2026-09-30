@@ -1,0 +1,92 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/angle_analysis_npz-blocks_square_N10_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/analyze_angles.py",
+  "generated_utc": "2026-09-28T21:56:34.009243+00:00",
+  "params": {
+    "analysis": "npz-blocks"
+  },
+  "description": "Angle analysis: npz-blocks",
+  "rows": [
+    {
+      "file": "theta_square_N18_p2_h0.50.npz",
+      "fidelity": 0.4228025282204117,
+      "h": 0.5,
+      "gap": 0.005893578195966143,
+      "converged_note": "convergence unknown",
+      "block_stats": {
+        "theta_nn": {
+          "mean": -0.4283832417676339,
+          "std": 0.7190362238351459,
+          "absmean": 0.5191511352354022,
+          "n": 54
+        },
+        "theta_nnn": {
+          "mean": 0.015196899423689132,
+          "std": 0.33911823092113064,
+          "absmean": 0.14361497700500034,
+          "n": 78
+        },
+        "theta_x": {
+          "mean": 1.4128440551261585,
+          "std": 0.6507579766175787,
+          "absmean": 1.4128440551261585,
+          "n": 36
+        }
+      }
+    },
+    {
+      "file": "theta_square_N18_p2_h0.50_metropolis_mi150.npz",
+      "fidelity": 0.4803261637723245,
+      "h": 0.5,
+      "gap": 0.005893578195966143,
+      "converged_note": "done=False (interrupted)",
+      "block_stats": {
+        "theta_nn": {
+          "mean": -0.3639578444204352,
+          "std": 0.6539456165708311,
+          "absmean": 0.4737334680284299,
+          "n": 54
+        },
+        "theta_nnn": {
+          "mean": 0.004586045714018278,
+          "std": 0.2615609876570295,
+          "absmean": 0.12264548242364352,
+          "n": 78
+        },
+        "theta_x": {
+          "mean": 1.5488988004942703,
+          "std": 0.6321871935654148,
+          "absmean": 1.5520115636464658,
+          "n": 36
+        }
+      }
+    },
+    {
+      "file": "theta_square_N18_p2_h1.00.npz",
+      "fidelity": 0.8847041348961586,
+      "h": 1.0,
+      "gap": 0.4936577623773388,
+      "converged_note": "convergence unknown",
+      "block_stats": {
+        "theta_nn": {
+          "mean": -0.0625432276521031,
+          "std": 0.17818819456165977,
+          "absmean": 0.1685543148960663,
+          "n": 54
+        },
+        "theta_nnn": {
+          "mean": 0.02336326496081696,
+          "std": 0.07541115725337563,
+          "absmean": 0.0662190912710694,
+          "n": 78
+        },
+        "theta_x": {
+          "mean": 0.5618754610342319,
+          "std": 0.40095338930658075,
+          "absmean": 0.5618754610342319,
+          "n": 36
+        }
+      }
+    }
+  ]
+}

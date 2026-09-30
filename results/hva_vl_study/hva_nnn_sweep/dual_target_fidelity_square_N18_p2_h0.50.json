@@ -1,0 +1,40 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/dual_target_fidelity_square_N18_p2_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/dual_target_fidelity.py",
+  "generated_utc": "2026-09-29T19:30:22.195158+00:00",
+  "params": {
+    "experiment": "dual_target_fidelity",
+    "N": 18,
+    "h": 0.5,
+    "p_layers": 2
+  },
+  "description": "VL and HVA fidelity scored against BOTH the exact ground state and the MPS \u03c7=64 reference (2\u00d72 matrix), all re-simulated locally under identical conditions",
+  "topology": "square",
+  "N": 18,
+  "h": 0.5,
+  "p_layers": 2,
+  "J2": 0.5,
+  "chi_max": 64,
+  "e0_exact": -16.98504159788332,
+  "gap": 0.005893578196346283,
+  "e0_mps": -16.98461404279071,
+  "reference_overlap_exact_vs_mps": 0.9999333303102235,
+  "schema": "dual_target_fidelity_v1",
+  "methods": {
+    "VL": {
+      "source_qpy": "results/hva_vl_study/vl_mps_n18/circuits/square_N18_h0.50_J20.50_L8_F50_mps.qpy",
+      "fidelity_vs_exact": 0.8604719676239168,
+      "fidelity_vs_mps": 0.8611487572249713,
+      "energy": -16.44637657132351,
+      "de_gap_vs_exact": 91.39863909734105
+    },
+    "HVA": {
+      "source_theta": "ansatz_variants_square_N18_h0.50.json:p2_base",
+      "n_candidates": 2,
+      "fidelity_vs_exact": 0.6552000158247262,
+      "fidelity_vs_mps": 0.6554060812108463,
+      "energy": -16.644790992783435,
+      "de_gap_vs_exact": 57.73243244839339
+    }
+  }
+}

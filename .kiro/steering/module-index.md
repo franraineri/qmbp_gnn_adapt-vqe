@@ -1,3 +1,7 @@
+---
+inclusion: manual
+---
+
 # Module Index (auto-generated)
 
 Legend: C=class F=func K=const. Base import: `from qmbp_simulation.<module> import ...`
@@ -39,7 +43,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   ↳ HamiltonianBuilder make_lattice LatticeConfig GroundTruthResult VQEConfig VQEResult SUPPORTED_TOPOLOGIES MAX_P_LAYERS +19
 
 
-### qsim/analysis/ (28)
+### qsim/analysis/ (29)
   ↳ AlignmentReport BaselineComparison BaselineMetrics ClusterResult ClusterSolver ComparativeMetrics ComparisonResult DiagnosticCollector +68
 
   circuit_visualizer         VIS   F:print_circuit,save_circuit_diagram,circuit_summary+11
@@ -55,27 +59,29 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   extension_models           ANAL  C:ExtensionClassification,PrerequisiteFailedError,HardPhysicsLimitError+3
   extension_ranker           ANAL  C:ExtensionScore,ExtensionPriorityRanker
   failures_tests             TEST  C:FailureDiagnostic | F:diagnose_gap_masking,diagnose_contaminated_training,diagnose_generalization_failure+4
-  fidelity                         F:compute_exact_fidelity,energy_gap_fidelity_bound,compute_variance_fidelity_bound+3
+  fidelity                         F:compute_exact_fidelity,energy_gap_fidelity_bound,compute_variance_fidelity_bound+4
   flow_warmstart             OPT   C:FlowWarmstartManager
   gradient                   PRED  C:WeightGradientAnalyzer
   ground_truth_validator     VAL   C:GroundTruthValidationReport,GroundTruthValidator
   landscape                  CORE  F:compute_hessian,landscape_fluctuation
-  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+52
+  metrics                    CORE  C:PointClassification | F:is_point_failure,identify_failures,classify_point_failure+53
   nlce                             C:NLCEConfig,ClusterResult,NLCEResult+3 | F:tfim_analytical_energy_per_site,nlce_convergence_analysis
   normalizing_flow                 C:MaskedLinear,MAFLayer,FlowHead+1
   observables                      F:half_chain_entropy,magnetization_z,magnetization_x+6
   qpt_detection                    F:load_energy_curves,get_h_critical,compute_second_derivative+3
   quality_predictor          PRED  C:PredictionReport,QualityPredictor
+  state_prep_scoreboard      ANAL  F:config_key,make_entry,upsert+4
   theta_alignment            POST  C:AlignmentReport,OutlierReport,EnergyGuardReport | F:detect_jumps,align_theta_sweep,align_theta_array+3
   theta_validator            VAL   C:BoundCheckResult,NumericalSanityResult,InterpolationResult+6
   vqe_validator              VAL   C:Severity,ValidationIssue,VQEValidationReport+1
-  warmstart                  CIRC  F:first_order_warmstart_theta,second_order_warmstart_theta,second_order_correction_magnitude+2
+  warmstart                  CIRC  F:first_order_warmstart_theta,second_order_warmstart_theta,second_order_nn_shrink_theta+6
 
-### qsim/circuits/ (3)
+### qsim/circuits/ (4)
   ↳ HVACircuitBuilder AQCCircuitCompressor AQCCompressionConfig AQCCompressionResult CompressionValidation AQCCompressionCache
 
   aqc_compression            CIRC  C:AQCCompressionConfig,AQCCompressionResult,CompressionValidation+2
   hva                        MODEL C:HVACircuitBuilder | F:do_checks
+  hva_variants               CIRC  C:AnsatzVariant | F:build_variant
   trotter                    CIRC  F:build_trotter_step,build_trotter_step_from_topology
 
 ### qsim/execution/hardware/ (11)
@@ -102,7 +108,7 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   mps_backend                EXEC  C:MPSBackend
   noisy_utils                EXEC  C:NoisyEstimatorConfig,LayoutSelection,ZNEResult+10 | F:build_adjacency,find_layouts_bfs,compute_circuit_ces+17
 
-### qsim/framework/ (22)
+### qsim/framework/ (23)
   ↳ BaseExperiment ExperimentConfig SystemConfig VQEConfig MPNNConfig AnalysisConfig ExperimentMetrics WarmColdComparison +76
 
   __main__                   CLI  
@@ -119,11 +125,12 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   presets                    CFG   F:load_preset,list_presets,preset_to_args
   quality_profile                  C:QualityProfile | F:compute_quality_profile,format_quality_summary,format_per_h_status+2
   result_index               CACHE C:ResultIndex
-  result_io                  IO    F:build_data_dir,training_npz_read_dirs,training_npz_path+25
+  result_io                  IO    C:ScenarioMismatch | F:build_data_dir,training_npz_read_dirs,training_npz_path+27
   result_store               ANAL  C:ResultStore
   runner_base                VAL   C:Section,SectionResult,ValidationRunner+3 | F:resolve_project_root
   study_artifacts                  C:StudyArtifactWriter,PathShim | F:build_artifact_name,meta_sidecar_path,git_commit+5
-  study_checkpoint                 C:StudyCheckpoint | F:atomic_write_json,read_json,resume_ordered_list
+  study_checkpoint                 C:StudyCheckpoint | F:atomic_write_json,read_json,sanitize_theta+2
+  study_core                 CIRC  F:ground_state,make_cost_fid,diagnose_starvation+3
   study_index                CIRC  F:extract_coordinates,build_entry,build_index+4
   study_runner               PIPE  C:WarmStartResult,StudyRunner | F:make_adjoint_gradient,strategy_single,strategy_bestof+4
   variant_runner             VAL   C:PipelineVariant,RunResult,VariantRunner | F:extract_metrics_from_output,run_variant,create_variant_cli+1
@@ -176,10 +183,10 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   ground_truth_cache         CACHE C:GroundTruthCache
 
 ### qsim/utils/ (2)
-  ↳ BatchWriteMixin TimerResult atomic_savez augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize +3
+  ↳ BatchWriteMixin TimerResult atomic_savez augment_theta_symmetries canonicalize_theta filter_consistent_theta json_dump json_serialize +4
 
   h_grid                     CORE  F:generate_nonuniform_h_grid,generate_frontier_dense_h_grid
-  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,resolve_device,describe_device+19
+  helpers                    IO    C:TimerResult,BatchWriteMixin | F:set_global_seed,resolve_device,describe_device+20
 
 ## Project Health (project_health/)
 
@@ -344,20 +351,34 @@ Run `python scripts/general_project_maintenance/generate_module_index.py` to ref
   compute_h_frontier_topologies DIAG  F:compute_frontier
   noise_aware_extractor      PRED  F:find_latest_result,extract_section1,extract_section2+8
   quick_noisy_comparison     EXEC  F:run_comparison,main
+  analyze_angles             CIRC  F:cmd_blocks,cmd_basins,cmd_seed_gap+4
   analyze_hva_vs_vl_resources VIS   F:build_summary,main
+  analyze_seed_vs_optimum    CFG   F:main
   ansatz_expressivity_2d     OPT   F:expressivity_ceiling,run,format_rows+2
   compare_circuits_square_n10_p2 CIRC  F:compare,main
+  compare_hva_nnn_vs_vl      CIRC  F:main
   confirm_second_order_warmstart       F:run,build_parser,main
+  converge_to_ceiling        IO    F:main
+  diagnose_n18               CIRC  F:main
+  dual_target_fidelity       CIRC  F:main
+  eval_nn_shrink_seed              F:main
   export_hva_circuit_bundle  PRED  F:main
+  generate_vl_hva_comparison_report CIRC  F:build_markdown,main
+  generate_vl_hva_consolidated_report CIRC  C:Rec,Scenario | F:collect,build_markdown,main
   hva_nnn_h_sweep_frustrated OPT   F:run,format_rows,build_parser+1
   hva_vl_study_common        CIRC  F:study_dir,save_json,qiskit_from_qpy+22
   mps_extraction             EXEC  C:CappedMPS | F:dmrg_mps_capped,capped_mps_vidal,mps_to_statevector+1
   organize_results           CIRC  F:cmd_reindex,cmd_query,cmd_validate_cache+3
   reanalyze_p2_filtered      ANAL  
+  results_query              CIRC  C:ResultRecord | F:iter_records,query_results,best_result+5
+  run_ansatz_variants              F:run_saturation,run_variants,main
+  run_basin_count            CIRC  F:main
   run_hva_metropolis_point   CIRC  F:run_point,build_parser,main
   run_hva_vs_vl_resources    IO    C:Row | F:run,save_run,main
+  run_n18_fair_convergence   ANAL  F:main
   run_n18_second_order       PIPE  F:main
   run_representability_mps   SOLVE F:dmrg_chi,exact_energy,run+1
+  update_scoreboard                F:main
   verify_hva_periodicity     CIRC  K:H
   vl_circuit_characterization IO    F:characterize_vl,format_rows,build_parser+1
   vl_h_sweep_frustrated      OPT   F:run,format_rows,build_parser+1

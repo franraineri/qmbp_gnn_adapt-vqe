@@ -1,0 +1,59 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/angle_analysis_basin-signature_square_N18_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/analyze_angles.py",
+  "generated_utc": "2026-09-28T21:56:18.737791+00:00",
+  "params": {
+    "analysis": "basin-signature"
+  },
+  "description": "Angle analysis: basin-signature",
+  "n_converged": 5,
+  "threshold": 0.5325281822162908,
+  "groups": {
+    "high": {
+      "theta_nn": {
+        "mean": -0.08517385903420699,
+        "std": 1.1108027030200043,
+        "absmean": 0.6485929605345627,
+        "n": 162
+      },
+      "theta_nnn": {
+        "mean": -0.08118547372067232,
+        "std": 1.2092413461268459,
+        "absmean": 0.6638346414097178,
+        "n": 234
+      },
+      "theta_x": {
+        "mean": 0.7384059150743466,
+        "std": 1.16574117118155,
+        "absmean": 1.1888545567886313,
+        "n": 108
+      }
+    },
+    "low": {
+      "theta_nn": {
+        "mean": -0.25641623052647255,
+        "std": 1.7374367569574074,
+        "absmean": 1.4295789928580855,
+        "n": 108
+      },
+      "theta_nnn": {
+        "mean": 0.03067845192375127,
+        "std": 1.9534155042043888,
+        "absmean": 1.6865099309073526,
+        "n": 156
+      },
+      "theta_x": {
+        "mean": -0.033913333417400264,
+        "std": 1.9549500634180978,
+        "absmean": 1.6970366641164918,
+        "n": 72
+      }
+    }
+  },
+  "l2_best_vs_worst": {
+    "theta_nn": 19.510476659444883,
+    "theta_nnn": 28.135764111575302,
+    "theta_x": 16.98782191310666
+  },
+  "discriminating_block": "theta_nnn"
+}

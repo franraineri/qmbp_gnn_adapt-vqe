@@ -14,12 +14,10 @@ Covers all new functionality from the data integrity sessions:
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 
 import numpy as np
 import pytest
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Fixtures
@@ -59,8 +57,11 @@ def npz_dir(gt_cache_dir):
     theta_opt = np.random.randn(3, 11)
     np.savez(
         npz_path / "chain_1d_N6_p1.npz",
-        h_values=h_vals, e_exact=e_exact, e_vqe=e_vqe,
-        gaps=gaps, theta_opt=theta_opt,
+        h_values=h_vals,
+        e_exact=e_exact,
+        e_vqe=e_vqe,
+        gaps=gaps,
+        theta_opt=theta_opt,
         de_gaps=np.abs(e_vqe - e_exact) / gaps,
     )
 
@@ -72,8 +73,11 @@ def npz_dir(gt_cache_dir):
     theta_opt_10 = np.random.randn(2, 19)
     np.savez(
         npz_path / "chain_1d_N10_p1.npz",
-        h_values=h_vals_10, e_exact=e_exact_stale, e_vqe=e_vqe_10,
-        gaps=gaps_10, theta_opt=theta_opt_10,
+        h_values=h_vals_10,
+        e_exact=e_exact_stale,
+        e_vqe=e_vqe_10,
+        gaps=gaps_10,
+        theta_opt=theta_opt_10,
         de_gaps=np.abs(e_vqe_10 - e_exact_stale) / gaps_10,
     )
 
@@ -258,26 +262,40 @@ class TestValidateDataConsistency:
         assert "registry_vs_curves" in result
 
     def test_informational_findings_not_counted_as_issues(self):
-        """Findings with is_informational=True should not count as real issues."""
+        """Informational findings are excluded from the findings-derived issue count.
+
+        Deterministic contract check (no dependency on live data containing
+        informational findings): the ``findings`` list splits cleanly into real
+        vs informational, ``n_findings_issues`` equals the real count, and the
+        aggregate ``n_issues`` is never below the findings-derived count (it may
+        add issues from other tiers like tier3, which do not append to
+        ``findings``).
+        """
         from qmbp_simulation.analysis.metrics import validate_data_consistency
 
         result = validate_data_consistency()
-        # Verify informational findings exist and are separated
         informational = [f for f in result["findings"] if f.get("is_informational")]
         real = [f for f in result["findings"] if not f.get("is_informational")]
-        # n_issues should be >= real findings (may also include tier3 issues)
-        assert result["n_issues"] >= len(real)
-        # Informational findings should NOT be counted
-        assert result["n_issues"] < len(result["findings"])
-        # Total findings = real + informational
+
+        # findings partition exactly into real + informational
         assert len(result["findings"]) == len(real) + len(informational)
+
+        # findings-derived issue count excludes informational findings
+        assert result["n_findings_issues"] == len(real)
+        assert result["n_informational"] == len(informational)
+
+        # aggregate n_issues includes findings-derived issues plus other tiers
+        assert result["n_issues"] >= result["n_findings_issues"]
+
+        # is_consistent is true only when there are zero aggregate issues
+        assert result["is_consistent"] == (result["n_issues"] == 0)
 
     def test_zoo_vs_comparison_has_per_n_data(self):
         """Zoo comparison should include pass_rate_by_n breakdown."""
         from qmbp_simulation.analysis.metrics import validate_data_consistency
 
         result = validate_data_consistency()
-        for ckpt, info in result["zoo_vs_comparison"].items():
+        for _ckpt, info in result["zoo_vs_comparison"].items():
             assert "zoo_pass_rate" in info
             assert "comparison_avg" in info
             assert "comparison_by_n" in info
@@ -347,8 +365,11 @@ class TestPassRateByN:
         from qmbp_simulation.predictors.model_zoo import ZooEntry
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
         )
         assert hasattr(entry, "pass_rate_by_n")
         assert entry.pass_rate_by_n == {}
@@ -359,8 +380,11 @@ class TestPassRateByN:
         from qmbp_simulation.predictors.model_zoo import ZooEntry
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
             pass_rate_by_n={"10": 0.8, "20": 0.4},
         )
         d = asdict(entry)
@@ -378,7 +402,6 @@ class TestPassRateByN:
             pytest.skip("No zoo entries to test")
 
         entry = entries[0]
-        old_by_n = dict(entry.pass_rate_by_n)
 
         # This just verifies the function doesn't crash
         # (actual update tested via model_comparison integration)
@@ -395,6 +418,7 @@ class TestPassRateByN:
             if e.checkpoint_file == entry.checkpoint_file:
                 e.pass_rate_by_n.pop("999", None)
         from qmbp_simulation.predictors.model_zoo import _save_manifest
+
         _save_manifest(entries)
 
     def test_backfill_from_comparisons(self):
@@ -414,8 +438,11 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
         )
         assert entry.abs_error_by_n == {}
         assert entry.fidelity_by_n == {}
@@ -427,9 +454,13 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
-            abs_error_by_n={"10": 0.02}, fidelity_by_n={"10": 0.98},
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
+            abs_error_by_n={"10": 0.02},
+            fidelity_by_n={"10": 0.98},
             de_gap_by_n={"10": 0.03},
         )
         d = asdict(entry)
@@ -442,8 +473,11 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _physical_signal
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
         )
         assert _physical_signal(entry, None) is None
         assert _physical_signal(entry, 10) is None
@@ -453,9 +487,13 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _physical_signal
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
-            abs_error_by_n={"10": 0.0}, fidelity_by_n={"10": 1.0},
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
+            abs_error_by_n={"10": 0.0},
+            fidelity_by_n={"10": 1.0},
         )
         assert _physical_signal(entry, 10) == pytest.approx(1.0)
 
@@ -464,9 +502,13 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _physical_signal
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
-            abs_error_by_n={"10": 0.1}, fidelity_by_n={"10": 0.9},
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
+            abs_error_by_n={"10": 0.1},
+            fidelity_by_n={"10": 0.9},
         )
         # 0.5·(1/1.1) + 0.5·0.9 = 0.45454 + 0.45 = 0.90454
         assert _physical_signal(entry, 10) == pytest.approx(0.90454, abs=1e-4)
@@ -476,8 +518,11 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _physical_signal
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
             abs_error_by_n={"10": 0.0},  # no fidelity_by_n
         )
         # 0.5·1.0 + 0.5·0.5 = 0.75
@@ -488,8 +533,11 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _physical_signal
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d",
-            n_qubits=0, p_layers=1, checkpoint_file="test.pt",
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
+            checkpoint_file="test.pt",
             abs_error_by_n={"6": 10.0, "10": 0.0},
             fidelity_by_n={"6": 0.0, "10": 1.0},
         )
@@ -501,14 +549,22 @@ class TestPhysicalMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _physical_signal
 
         good = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="good.pt",
-            abs_error_by_n={"10": 0.01}, fidelity_by_n={"10": 0.99},
+            abs_error_by_n={"10": 0.01},
+            fidelity_by_n={"10": 0.99},
         )
         bad = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="bad.pt",
-            abs_error_by_n={"10": 2.0}, fidelity_by_n={"10": 0.10},
+            abs_error_by_n={"10": 2.0},
+            fidelity_by_n={"10": 0.10},
         )
         assert _physical_signal(good, 10) > _physical_signal(bad, 10)
 
@@ -516,9 +572,7 @@ class TestPhysicalMetrics:
         """Updating a non-existent checkpoint returns False, doesn't crash."""
         from qmbp_simulation.predictors.model_zoo import update_zoo_physical_metrics
 
-        result = update_zoo_physical_metrics(
-            "does_not_exist_xyz.pt", {"10": 0.05}, {"10": 0.95}, {"10": 0.04}
-        )
+        result = update_zoo_physical_metrics("does_not_exist_xyz.pt", {"10": 0.05}, {"10": 0.95}, {"10": 0.04})
         assert result is False
 
     def test_backfill_physical_metrics_runs(self):
@@ -555,7 +609,10 @@ class TestWarmstartMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="test.pt",
         )
         assert entry.warmstart_by_n == {}
@@ -566,10 +623,12 @@ class TestWarmstartMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="test.pt",
-            warmstart_by_n={"10": {"advantage_ratio": 85.0, "speedup": 0.9,
-                                    "zeroshot_fidelity": 0.95, "n_points": 5}},
+            warmstart_by_n={"10": {"advantage_ratio": 85.0, "speedup": 0.9, "zeroshot_fidelity": 0.95, "n_points": 5}},
         )
         d = asdict(entry)
         assert d["warmstart_by_n"]["10"]["advantage_ratio"] == 85.0
@@ -578,7 +637,10 @@ class TestWarmstartMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _warmstart_signal
 
         entry = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="test.pt",
         )
         assert _warmstart_signal(entry, 10) is None
@@ -588,12 +650,18 @@ class TestWarmstartMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _warmstart_signal
 
         strong = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="strong.pt",
             warmstart_by_n={"10": {"advantage_ratio": 85.0, "zeroshot_fidelity": 0.95}},
         )
         none_adv = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="noadv.pt",
             warmstart_by_n={"10": {"advantage_ratio": 1.0, "zeroshot_fidelity": 0.5}},
         )
@@ -624,7 +692,10 @@ class TestWarmstartMetrics:
         r = _Dummy.__new__(_Dummy)
         r._section_results = [
             SectionResult(
-                section_id=1, name="s", success=True, elapsed_s=0.0,
+                section_id=1,
+                name="s",
+                success=True,
+                elapsed_s=0.0,
                 data={
                     "results_by_n": {
                         "10": {"mean_abs_error": 0.05, "mean_fidelity": 0.99, "mean_de_gap": 0.03},
@@ -651,12 +722,18 @@ class TestWarmstartMetrics:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, _warmstart_signal
 
         better_start = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="better.pt",
             warmstart_by_n={"16": {"advantage_ratio": 21.0, "zeroshot_fidelity": 0.926}},
         )
         worse_start = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="worse.pt",
             warmstart_by_n={"16": {"advantage_ratio": 21.0, "zeroshot_fidelity": 0.874}},
         )
@@ -672,15 +749,23 @@ class TestPurposeSelection:
 
         # Model A: strong physical/fidelity, no warm-start metric (a deploy pick).
         good_physical = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="good_physical.pt",
-            abs_error_by_n={"10": 0.02}, fidelity_by_n={"10": 0.98},
+            abs_error_by_n={"10": 0.02},
+            fidelity_by_n={"10": 0.98},
         )
         # Model B: strong warm-start advantage, weak physical (a warmstart pick).
         good_warmstart = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="good_warmstart.pt",
-            abs_error_by_n={"10": 2.0}, fidelity_by_n={"10": 0.20},
+            abs_error_by_n={"10": 2.0},
+            fidelity_by_n={"10": 0.20},
             warmstart_by_n={"10": {"advantage_ratio": 80.0, "zeroshot_fidelity": 0.95}},
         )
         return good_physical, good_warmstart
@@ -706,7 +791,10 @@ class TestPurposeSelection:
         from qmbp_simulation.predictors.model_zoo import ZooEntry, compute_purpose_score
 
         empty = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="empty.pt",
         )
         r = compute_purpose_score(empty, "deploy", 10)
@@ -718,12 +806,19 @@ class TestPurposeSelection:
 
         # extrapolation: primary=physical(0.80), secondary=warmstart(0.20).
         primary = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="primary.pt",
-            abs_error_by_n={"10": 0.5}, fidelity_by_n={"10": 0.6},
+            abs_error_by_n={"10": 0.5},
+            fidelity_by_n={"10": 0.6},
         )
         secondary_only = ZooEntry(
-            model="tfim", topology="chain_1d", n_qubits=0, p_layers=1,
+            model="tfim",
+            topology="chain_1d",
+            n_qubits=0,
+            p_layers=1,
             checkpoint_file="secondary.pt",
             warmstart_by_n={"10": {"advantage_ratio": 80.0, "zeroshot_fidelity": 0.95}},
         )
@@ -754,7 +849,9 @@ class TestConfidenceLevel:
         from qmbp_simulation.analysis.metrics import _compute_confidence_level
 
         level = _compute_confidence_level(
-            n_points=200, eval_cache_density=20, pass_rate_dual=0.80,
+            n_points=200,
+            eval_cache_density=20,
+            pass_rate_dual=0.80,
         )
         assert level == "high"
 
@@ -762,7 +859,9 @@ class TestConfidenceLevel:
         from qmbp_simulation.analysis.metrics import _compute_confidence_level
 
         level = _compute_confidence_level(
-            n_points=3, eval_cache_density=0, pass_rate_dual=0.50,
+            n_points=3,
+            eval_cache_density=0,
+            pass_rate_dual=0.50,
         )
         assert level == "very_low"
 
@@ -770,7 +869,9 @@ class TestConfidenceLevel:
         from qmbp_simulation.analysis.metrics import _compute_confidence_level
 
         level = _compute_confidence_level(
-            n_points=40, eval_cache_density=3, pass_rate_dual=0.70,
+            n_points=40,
+            eval_cache_density=3,
+            pass_rate_dual=0.70,
         )
         assert level in ("medium", "high")
 

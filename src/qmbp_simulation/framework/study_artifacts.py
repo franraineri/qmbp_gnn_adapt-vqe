@@ -96,7 +96,10 @@ def git_commit(repo_root: str | Path | None = None) -> str | None:
         out = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=str(repo_root) if repo_root else None,
-            capture_output=True, text=True, timeout=5, check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
         )
         sha = out.stdout.strip()
         return sha or None
@@ -183,22 +186,15 @@ def infer_status_from_payload(payload: dict) -> str:
     return STATUS_FINAL
 
 
-import json  # noqa: E402
-import os  # noqa: E402
-
-
 def write_json_atomic(path: str | Path, payload: dict) -> Path:
-    """Atomic JSON write (tmp + rename) with PID-tagged temp file."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    try:
-        tmp.write_text(json.dumps(payload, indent=2, default=str))
-        tmp.rename(path)
-    finally:
-        if tmp.exists():
-            tmp.unlink(missing_ok=True)
-    return path
+    """Atomic JSON write — alias over the canonical utils implementation.
+
+    Delegates to :func:`qmbp_simulation.utils.helpers.write_json_atomic`
+    (numpy/NaN-safe). Kept as a name for the study artifact writer's callers.
+    """
+    from qmbp_simulation.utils.helpers import write_json_atomic as _canonical
+
+    return _canonical(path, payload)
 
 
 def write_meta_sidecar(artifact_path: str | Path, meta: dict) -> Path:
@@ -233,8 +229,15 @@ class StudyArtifactWriter:
         For git provenance.
     """
 
-    def __init__(self, *, experiment: str, run_dir: str | Path, run_id: str,
-                 source_script: str = "unknown", repo_root: str | Path | None = None):
+    def __init__(
+        self,
+        *,
+        experiment: str,
+        run_dir: str | Path,
+        run_id: str,
+        source_script: str = "unknown",
+        repo_root: str | Path | None = None,
+    ):
         self.experiment = experiment
         self.run_dir = Path(run_dir)
         self.run_id = run_id
@@ -244,9 +247,13 @@ class StudyArtifactWriter:
 
     def _meta(self, status: str, **blocks) -> dict:
         meta = build_meta(
-            experiment=self.experiment, run_id=self.run_id, status=status,
-            source_script=self.source_script, repo_root=self.repo_root,
-            created_utc=self._created_utc, **blocks,
+            experiment=self.experiment,
+            run_id=self.run_id,
+            status=status,
+            source_script=self.source_script,
+            repo_root=self.repo_root,
+            created_utc=self._created_utc,
+            **blocks,
         )
         # Preserve the original creation time across subsequent writes.
         self._created_utc = meta["created_utc"]
@@ -268,8 +275,7 @@ class StudyArtifactWriter:
         """Write the completed result (``status: final``)."""
         return self._write(filename, STATUS_FINAL, payload, blocks)
 
-    def tag_artifact(self, artifact_path: str | Path, *, status: str = STATUS_FINAL,
-                     **blocks) -> Path:
+    def tag_artifact(self, artifact_path: str | Path, *, status: str = STATUS_FINAL, **blocks) -> Path:
         """Write a ``.meta.json`` sidecar for a binary artifact (NPZ/QPY/PNG)."""
         meta = self._meta(status, **blocks)
         meta["result_path"] = str(artifact_path)

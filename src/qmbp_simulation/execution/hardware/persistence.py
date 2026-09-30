@@ -6,13 +6,10 @@ using result_io utilities and StructuredLogger for execution logs.
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-from qmbp_simulation.utils.helpers import json_serialize
 
 if TYPE_CHECKING:
     from qmbp_simulation.execution.hardware.config import HardwareConfig, HardwareRunResult
@@ -27,10 +24,14 @@ def _collect_metadata(seed: int | None = None) -> dict[str, Any]:
 
 
 def _write_json(data: Any, path: Path) -> None:
-    """Write data to JSON with numpy/Path/datetime-safe serialization."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2, default=json_serialize)
+    """Write data to JSON atomically with numpy/Path/datetime-safe serialization.
+
+    Delegates to the canonical atomic writer so a killed hardware run never
+    leaves a half-written artifact.
+    """
+    from qmbp_simulation.utils.helpers import write_json_atomic
+
+    write_json_atomic(path, data)
 
 
 def _build_mitigation_snapshot(config: HardwareConfig) -> dict[str, Any]:
@@ -70,18 +71,12 @@ def _build_mitigation_snapshot(config: HardwareConfig) -> dict[str, Any]:
             "pauli_twirling": {
                 "enabled": config.mitigation.twirling_enabled,
                 "enable_gates": config.mitigation.twirling_enabled,
-                "enable_measure": (
-                    config.mitigation.twirling_enabled and config.mitigation.trex_enabled
-                ),
+                "enable_measure": (config.mitigation.twirling_enabled and config.mitigation.trex_enabled),
                 "num_randomizations": (
-                    config.mitigation.num_randomizations
-                    if config.mitigation.zne_amplifier == "pea"
-                    else None
+                    config.mitigation.num_randomizations if config.mitigation.zne_amplifier == "pea" else None
                 ),
                 "shots_per_randomization": (
-                    config.mitigation.shots_per_randomization
-                    if config.mitigation.zne_amplifier == "pea"
-                    else None
+                    config.mitigation.shots_per_randomization if config.mitigation.zne_amplifier == "pea" else None
                 ),
                 "strategy": config.mitigation.twirling_strategy,
             },
@@ -103,9 +98,7 @@ def _build_mitigation_snapshot(config: HardwareConfig) -> dict[str, Any]:
         snapshot["techniques"]["pea_noise_learning"] = {
             "num_randomizations": config.mitigation.num_randomizations,
             "shots_per_randomization": config.mitigation.shots_per_randomization,
-            "total_learning_shots": (
-                config.mitigation.num_randomizations * config.mitigation.shots_per_randomization
-            ),
+            "total_learning_shots": (config.mitigation.num_randomizations * config.mitigation.shots_per_randomization),
             "layer_pair_depths": config.mitigation.layer_pair_depths,
         }
 
@@ -177,9 +170,7 @@ def save_run(
                     or None
                 )
             ),
-            "total_billed_seconds": (
-                qpu_metrics.get("total_billed_seconds") if qpu_metrics else None
-            ),
+            "total_billed_seconds": (qpu_metrics.get("total_billed_seconds") if qpu_metrics else None),
             "per_layout_qpu_s": (qpu_metrics.get("per_layout_qpu_s") if qpu_metrics else None),
             "running_timestamps": (qpu_metrics.get("running_timestamps") if qpu_metrics else None),
         },
@@ -278,9 +269,7 @@ def save_partial_before_error(
     run_dir = Path(config.output_dir) / f"run_{ts}_PARTIAL"
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    _write_json(
-        {"partial_results": partial_results, "error": error_msg}, run_dir / "partial_results.json"
-    )
+    _write_json({"partial_results": partial_results, "error": error_msg}, run_dir / "partial_results.json")
     _write_json(asdict(config), run_dir / "config.json")
     logger.log("execution_abort", data={"error": error_msg, "run_dir": str(run_dir)})
     logger.save(run_dir / "execution_log.json")
@@ -350,7 +339,5 @@ def save_sweep_summary(
     }
     out_path = Path(config.output_dir) / "sweep_summary.json"
     _write_json(summary, out_path)
-    logger.log(
-        "sweep_summary_saved", data={"path": str(out_path), "pass_rate": summary["pass_rate"]}
-    )
+    logger.log("sweep_summary_saved", data={"path": str(out_path), "pass_rate": summary["pass_rate"]})
     return out_path

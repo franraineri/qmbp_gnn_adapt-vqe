@@ -860,11 +860,14 @@ against the **warm-start** fidelity:
 |----|:------:|:---------:|:-------:|:------------:|
 | 8  | 0.0923 | 0.9628    | 0.9628  | +0.0000      |
 | 10 | 0.0061 | 0.9871    | 0.9871  | +0.0000      |
+| 12 | 0.0071 | 0.9449    | 0.9702  | +0.0252      |
 | 18 | 0.0059 | 0.6527    | (high)  | large        |
 
 **N=10 is the decisive control:** its gap (0.0061) is essentially identical to
 N=18's (0.0059), yet both the ceiling and the warm-start reach 0.987 (fidelity_gap
-= 0). So neither the small gap nor the p=2 depth is the cause of the N=18 collapse —
+= 0). **N=12 shows the warm-start gap starting to open** (0.945 vs ceiling 0.970,
+Δ=+0.025) while the ceiling stays high — the onset of the progressive warm-start
+degradation that reaches its extreme at N=18. So neither the small gap nor the p=2 depth is the cause of the N=18 collapse —
 the near-degeneracy is handled cleanly (the near-degenerate partner E₁ carries
 weight exactly 0 in the N=18 prepared state; the 35% deficit sits on *higher*
 states E₃+). The stuck 0.65 is an **optimization** failure specific to large N: the
@@ -926,3 +929,190 @@ distinguishes budget starvation (all capped) from genuine sub-optimal basins
   budget) — the second-order seed as one of several starts, not the only one.
 - Do **not** raise p for this point: the ceiling scan shows p=2 is expressive
   enough; the gap is in optimization.
+
+## Fair-convergence correction (N=18 h=0.5): the earlier ranking was budget-biased
+
+**This section corrects two claims made earlier in this report.** A fair-convergence
+experiment — each seed optimized with a large budget (maxiter=3000) until it
+genuinely converges (nit<cap, verified by a two-segment starvation probe) — showed
+that the previous N=18 comparisons were biased by budget starvation: seeds that hit
+the iteration cap were mislabeled "worse" when they were simply unfinished.
+
+Data: `results/hva_vl_study/hva_nnn_sweep/n18_square_N18_p2_faircov_mi3000.json`
+Script: `scripts/analysis/vl_vs_hva/run_n18_fair_convergence.py`
+
+### Fair ranking at N=18 h=0.5 (all converged, late_gain ≈ 0)
+
+| seed type          | fidelity | e_final    | ΔE from E₀ | total nit | note |
+|--------------------|:--------:|:----------:|:----------:|:---------:|------|
+| **second_dir_x**   | **0.7587** | −16.79473 | 0.19031    | 718       | best |
+| second_iso_large   | 0.7381   | −16.78525  | 0.19980    | 1089      | |
+| second_dir_zz      | 0.7349   | −16.78598  | 0.19907    | 677       | |
+| second_pure        | 0.6552   | −16.64479  | 0.34025    | 2781      | the previously "best" seed — 4th |
+| second_iso_small   | 0.4607   | −16.30349  | 0.68155    | 446       | |
+| first_pure         | 0.4379   | −16.20714  | 0.77790    | 973       | |
+
+### Corrections to earlier claims
+
+1. **`second_dir_x` (θ_x-directed perturbation) is the best at N=18 (0.759), not 0.43.**
+   In the `mixed` run (maxiter=500) it hit the cap at 0.4327 and was dismissed. With
+   a convergence budget it reaches 0.759 — the dismissal was a budget artifact, not a
+   basin verdict. This **reverses the N=9 finding** (where θ_x-directed perturbation
+   was a confirmed false positive, section "Q2"): the useful perturbation subspace is
+   N-dependent, so the N=9 mechanism does not transfer to N=18.
+
+2. **`second_pure` is 4th (0.655), not the winner**, and it needed nit=2781 (almost
+   the whole budget) while the directed seeds converged faster (nit 677–1089) to
+   higher fidelity.
+
+3. **Metropolis is REFUTED at N=18 with a per-hop budget of 500** (fid 0.4228, 0/13
+   hops converged — every hop hit nit=500). The chain-drift mechanism only helps if
+   each hop converges; at N=18 a hop needs ~700–2800 iterations, so 12 unconverged
+   hops drift to *worse*, not better. Metropolis with a convergence budget per hop
+   (≈3000×13) is impractical at this N. The earlier recommendation to use Metropolis
+   at N=18 does not hold.
+
+### What is rigorously established about the landscape
+
+- **The bottleneck is basin SELECTION, not local convergence.** With convergence
+  guaranteed (late_gain≈0 for all seeds), different seeds settle at clearly different
+  fidelities (0.44 → 0.76). This is the signature of a landscape with **multiple,
+  well-separated local minima** whose fidelities differ substantially. Each analytic
+  seed lands in a different minimum and stays there.
+
+- **These minima are well-separated in ENERGY (not near-degenerate with each other).**
+  The energy spread across the six converged minima is 0.588 — **99.7× the spectral
+  gap** (0.006). So although the target ground state is near-degenerate with its
+  first excited partner, the *variational minima* the ansatz falls into are not
+  mutually near-degenerate; they sit at ΔE = 0.19–0.78 above E₀.
+
+- **Consequently, best-of-by-energy is a VALID selector here** (verified): the
+  lowest-energy converged seed (`second_dir_x`, ΔE=0.19) is also the highest-fidelity
+  one, and the energy order matches the fidelity order monotonically. The concern
+  that a tiny (<gap) energy difference could mask a large fidelity difference does
+  **not** apply in this dataset because the minima are far apart in energy. (It would
+  only bite if two candidate minima were within ~gap of each other.)
+
+- **No seed heuristic is dominant across (N, h).** second_pure wins at N=9 h=0.5
+  (0.957) but is 4th at N=18 h=0.5 (0.655); θ_x-directed is a false positive at N=9
+  but the winner at N=18. The best-basin location moves with (N, h). Searching for a
+  universal best seed is the wrong framing — the correct framing is **multi-seed
+  sampling with guaranteed convergence and best-of selection**, which is robust to
+  the moving target.
+
+### Revised N=18 recommendation
+
+- Do **not** rely on a single analytic seed, and do **not** use Metropolis at this N.
+- Run a **multi-seed best-of with a convergence-sufficient budget** (~1000–3000 iters
+  per seed, verified by nit<cap). Include the directed perturbations (θ_x, ZZ) — they
+  were the top performers at N=18 and converge fast.
+- Best verified fidelity at N=18 h=0.5 to date: **0.759** (`second_dir_x`), up +0.10
+  from the 0.653 reported before the fair-convergence correction.
+
+### Methodological lesson (applies to every runner)
+
+Never rank restart fidelities when `nit == maxiter` (capped): a capped run may be
+starved (still descending), not stuck in a worse basin. Use a starvation probe — run
+the optimizer in two segments and measure the energy still gained in the second half
+(`late_gain`). Large late gain ⇒ raise the budget; flat ⇒ genuine local minimum.
+
+## Basin-counting (N=8/10/12) and the h=1.0 transfer — landscape structure measured
+
+Two follow-up experiments probed the *structure* of the landscape (how many basins,
+how large the good one is) and tested the best h=0.5 method at h=1.0.
+
+Scripts: `run_basin_count.py`, `/tmp/n18_h1_second_dir_x.py`
+Data: `results/hva_vl_study/hva_nnn_sweep/basincount_square_N{8,10,12}_p2_h0.50_k20.json`
+
+### Basin structure vs N (K=20 random converged starts, h=0.5, tol=0.02)
+
+| N  | gap    | # basins | dominant-basin attraction | true ceiling | corr(E, fid) |
+|----|:------:|:--------:|:-------------------------:|:------------:|:------------:|
+| 8  | 0.0923 | 5        | 75%                       | 0.9653       | −0.982       |
+| 10 | 0.0061 | 3        | **90%**                   | 0.9910       | −0.984       |
+| 12 | 0.0071 | 5        | 79%                       | 0.9816       | −0.997       |
+
+### Hypotheses tested — several REFUTED (which is the value)
+
+- **"The dominant basin shrinks with N" — REFUTED (N≤12).** Attraction is 75%→90%→79%
+  with no downward trend; N=10 has the *largest* good basin (90%), despite a gap
+  (0.006) identical to N=18's. There is no gradual shrinking in this range.
+- **"The number of basins grows with N" — REFUTED.** 5→3→5, no trend.
+- **"best-of-by-energy is a valid selector" — CONFIRMED, strongly.** corr(E, fid) =
+  −0.98 to −0.997 at all three N: lower energy ⇒ higher fidelity, near-perfectly
+  monotone. The lowest-energy converged start is the highest-fidelity one. This
+  validates the energy-based selection used by every runner in the project.
+- **"The ceiling decays with N" — REFUTED (N≤12).** True multi-seed ceiling stays
+  ~0.97–0.99; the ansatz reaches ~0.98 at all three N.
+
+### The rigorous consequence (open question, sharpened)
+
+At N≤12 the landscape is **benign**: a large dominant basin (75–90%) and a ~0.98
+ceiling. Yet at N=18 the analytic warm-start collapses to 0.65. Since gradual basin
+shrinking is refuted for N≤12, the N=18 collapse must be either:
+
+- **(a)** an *abrupt* change between N=12 and N=18 (the good basin's attraction
+  collapses suddenly), or
+- **(b)** an *analytic-seed* problem: a RANDOM start at N=18 might still land in the
+  good basin with high probability (as at N≤12), while the second-order seed
+  specifically lands in a bad one. If so, the analytic warm-start would be *worse
+  than random* at large N.
+
+**This is untested:** every N=18 run so far used analytic seeds (0.44–0.76); no
+random-start basin-count at N=18 exists. A small random basin-count at N=18 (K≈5–6)
+would decide between (a) and (b) and is the key open experiment.
+
+### h=1.0 transfer of the best h=0.5 method
+
+`second_dir_x` (second-order seed + directed θ_x perturbation, converged) applied
+once at N=18 **h=1.0**:
+
+| method                     | fidelity | note |
+|----------------------------|:--------:|------|
+| warm-start baseline (report) | ~0.885 | prior N=18 h=1.0 result |
+| **second_dir_x (converged)** | **0.921** | nit=618, +0.036 over baseline |
+
+At the easy point (gap 0.494) the directed-perturbation method with a convergence
+budget converges to a **better** state than the standard warm-start — a modest but
+real gain, and it transfers cleanly (unlike at h=0.5, where no method exceeds ~0.76).
+
+## Warm-start guardrail (when to seed from the best prior result)
+
+Reusable checkpoint API: `results_query.load_best_theta(...)` (angles) /
+`query_results` / `best_result` (analysis). Opt-in in runners via
+`--warm-from-best`; each restart's `theta_init`/`theta_final` are persisted
+(study_runner `_run_record`), and seeded runs are tagged `warm_source`.
+
+Rule: warm-start answers **"how good can I get?"** — leave it OFF for
+**"how hard is this / which seed is best?"**.
+
+| Experiment | Warm-start? | Why |
+|------------|:-----------:|-----|
+| production / refinement / transfer / scaling | ✅ | start point irrelevant; only reached fidelity matters |
+| basin-count / basin sampling | ❌ | starts must be unbiased random, else all collapse into one basin |
+| expressivity ceiling | ❌ | seeding from a prior optimum inflates the ceiling |
+| fair-convergence / seed comparison | ❌ | each seed must start from itself, else you measure the checkpoint |
+| warm-start strategy comparison | ❌ | a shared checkpoint equalizes strategies falsely |
+
+If a characterization run uses a seeded start as one extra condition, keep it
+labeled (`warm_source`) so seeded and unbiased starts are never pooled in analysis.
+
+### Homogeneous treatment in multi-variant comparisons
+
+A subtle trap surfaced in the N=18 variant comparison: `--warm-from-best`
+(best-effort) warm-started only the variants that happened to have a saved
+checkpoint of their exact param length (p2 had one; half_nn/p3 did not), so the
+comparison was NOT homogeneous — p2 got a seeded start, the others started at θ=0.
+The conclusion survived only because p2's warm-start merely reproduced its
+checkpoint (+0.0000) and p3 beat it anyway. To avoid relying on that luck,
+`run_ansatz_variants.py` now exposes `--warm-mode`:
+
+| mode | behavior | use for |
+|------|----------|---------|
+| `off` (default) | no warm-start | fair, unbiased structure comparison |
+| `all-or-none` | warm only if EVERY selected variant has a checkpoint | homogeneous comparison that still uses warm-start when possible |
+| `best-effort` | warm where available (may be MIXED — prints a loud warning) | maximizing each variant's reached fidelity, not comparing |
+
+Each row records `warm_mode` + `warm_applied` for traceability. Rule: for a
+*structure comparison*, use `off` or `all-or-none`; reserve `best-effort` for
+"how good can each get" runs, never for a like-for-like comparison.

@@ -1,0 +1,66 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/diagnose_n18_square_p2.json",
+  "source_script": "scripts/analysis/vl_vs_hva/diagnose_n18.py",
+  "generated_utc": "2026-09-29T20:39:33.537468+00:00",
+  "params": {
+    "experiment": "diagnose_n18",
+    "N": 18,
+    "p_layers": 2
+  },
+  "description": "Why HVA loses fidelity at N=18: entanglement + spectral decomposition of the prepared state, per h",
+  "topology": "square",
+  "N": 18,
+  "p_layers": 2,
+  "J2": 0.5,
+  "schema": "diagnose_n18_v1",
+  "per_h": {
+    "0.50": {
+      "gap": 0.0058935781962290434,
+      "e0": -16.985041597883225,
+      "half_chain_entropy": 1.3349913402541254,
+      "schmidt_chi_99pct": 11,
+      "schmidt_top5": [
+        0.44729125380827167,
+        0.39054822851106363,
+        0.05853025972670513,
+        0.04918232404696764,
+        0.009087301665810217
+      ],
+      "hva_fidelity": 0.65520001582473,
+      "hva_theta_source": "ansatz_variants_square_N18_h0.50.json:p2_base",
+      "hva_energy_variance": 0.8648217811237942,
+      "ground_weight": 0.6552000158247215,
+      "subspace_fidelity_E0E1": 0.6552000158247215,
+      "weight_outside_low2": 0.34479998417527846,
+      "low_weights": [
+        0.6552000158247215,
+        7.488351025604057e-22
+      ],
+      "infidelity_dominant_factor": "dirty_state"
+    },
+    "1.00": {
+      "gap": 0.49365776237732817,
+      "e0": -23.028003818100178,
+      "half_chain_entropy": 1.0416082763413228,
+      "schmidt_chi_99pct": 13,
+      "schmidt_top5": [
+        0.7626003880768872,
+        0.08193939735350733,
+        0.052935505757559835,
+        0.027019083809264054,
+        0.01742893022954068
+      ],
+      "hva_fidelity": 0.9313669921961454,
+      "hva_theta_source": "n18_square_N18_p2_faircov_mi3000.json:second_iso_large",
+      "hva_energy_variance": 1.4976388890466978,
+      "ground_weight": 0.9313669921961479,
+      "subspace_fidelity_E0E1": 0.9313669921961479,
+      "weight_outside_low2": 0.06863300780385206,
+      "low_weights": [
+        0.9313669921961479,
+        1.9593005927189443e-27
+      ],
+      "infidelity_dominant_factor": "dirty_state"
+    }
+  }
+}

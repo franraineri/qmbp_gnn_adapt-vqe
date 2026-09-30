@@ -664,3 +664,81 @@ class HVACircuitBuilder:
             _apply_single_qubit_layer(qc, theta_z, n_qubits, "rz")
 
         return qc, theta
+
+    def create_bond_resolved_frustrated_configurable(
+        self,
+        n_qubits: int,
+        lattice: LatticeConfig,
+        *,
+        blocks: list[str],
+        rx_final: bool = False,
+        rz_final: bool = False,
+    ) -> tuple[QuantumCircuit, ParameterVector]:
+        """Configurable bond-resolved frustrated HVA — the reusable engine for
+        exploring ansatz structure variants at fixed or intermediate 2q cost.
+
+        Generalizes :meth:`create_bond_resolved_frustrated`: instead of a fixed
+        ``[nn, nnn, x]`` block sequence repeated ``p`` times, the caller declares
+        the exact block sequence and optional zero-2q-cost trailing rotations.
+        Every gate is bond-resolved (an independent parameter per gate), matching
+        the frustrated ansatz convention (``rzz(2θ)``, ``rx(2θ)``, ``rz(2θ)``).
+
+        Parameters
+        ----------
+        n_qubits, lattice : system definition (NNN edges derived from topology).
+        blocks : list[str]
+            Ordered block sequence. Each entry is one of:
+            ``"nn"``  — RZZ on nearest-neighbour edges (2 CX per edge),
+            ``"nnn"`` — RZZ on next-nearest-neighbour edges (2 CX per edge),
+            ``"x"``   — RX on every site (0 CX),
+            ``"z"``   — RZ on every site (0 CX, breaks Z2 symmetry).
+            Example: ``["nn","nnn","x"]`` reproduces one standard frustrated layer;
+            ``["nn","nnn","x","nn","nnn","x","nn"]`` is p=2 plus a half-layer of nn.
+        rx_final, rz_final : bool
+            Append a final single-qubit RX / RZ block (0 CX) after the sequence.
+
+        Returns
+        -------
+        (qc, theta)
+            Bond-resolved circuit and its ParameterVector. Parameter ordering
+            follows ``blocks`` in sequence (then rx_final, then rz_final).
+        """
+        do_checks(1, n_qubits, lattice)
+        from qmbp_simulation.models.hamiltonian import HamiltonianBuilder
+
+        nn_edges = lattice.edges
+        nnn_edges = HamiltonianBuilder._generate_nnn_edges(lattice)
+        block_sizes = {"nn": len(nn_edges), "nnn": len(nnn_edges), "x": n_qubits, "z": n_qubits}
+        for b in blocks:
+            if b not in block_sizes:
+                raise ValueError(f"unknown block {b!r}; expected nn|nnn|x|z")
+
+        n_params = sum(block_sizes[b] for b in blocks)
+        n_params += n_qubits if rx_final else 0
+        n_params += n_qubits if rz_final else 0
+
+        qc, theta = _init_circuit(n_qubits, n_params)
+        off = 0
+        for b in blocks:
+            if b == "nn":
+                for k, (i, j) in enumerate(nn_edges):
+                    qc.rzz(2 * theta[off + k], i, j)
+            elif b == "nnn":
+                for k, (i, j) in enumerate(nnn_edges):
+                    qc.rzz(2 * theta[off + k], i, j)
+            elif b == "x":
+                for i in range(n_qubits):
+                    qc.rx(2 * theta[off + i], i)
+            elif b == "z":
+                for i in range(n_qubits):
+                    qc.rz(2 * theta[off + i], i)
+            off += block_sizes[b]
+        if rx_final:
+            for i in range(n_qubits):
+                qc.rx(2 * theta[off + i], i)
+            off += n_qubits
+        if rz_final:
+            for i in range(n_qubits):
+                qc.rz(2 * theta[off + i], i)
+            off += n_qubits
+        return qc, theta

@@ -113,8 +113,13 @@ def make_adjoint_gradient(circuit, hamiltonian, backend=None):
         return None
 
 
-def _lbfgsb(cost: Callable[[np.ndarray], float], x0: np.ndarray, *, maxiter: int,
-            grad: Callable[[np.ndarray], np.ndarray] | None = None):
+def _lbfgsb(
+    cost: Callable[[np.ndarray], float],
+    x0: np.ndarray,
+    *,
+    maxiter: int,
+    grad: Callable[[np.ndarray], np.ndarray] | None = None,
+):
     """Single L-BFGS-B run in the standard ``[-pi, pi]`` box. Returns (x, fun, nit).
 
     ``grad`` is an optional analytic gradient (jac). When provided (e.g. the exact
@@ -125,11 +130,34 @@ def _lbfgsb(cost: Callable[[np.ndarray], float], x0: np.ndarray, *, maxiter: int
     from scipy.optimize import minimize
 
     r = minimize(
-        cost, x0, method="L-BFGS-B", jac=grad,
+        cost,
+        x0,
+        method="L-BFGS-B",
+        jac=grad,
         bounds=[(-np.pi, np.pi)] * len(x0),
         options={"maxiter": maxiter, "ftol": 1e-12},
     )
     return r.x, float(r.fun), int(r.nit)
+
+
+def _run_record(x0, x, e, nit, fidelity, maxiter, **extra) -> dict:
+    """Build a standardized per-restart record with the HVA angles persisted.
+
+    Every StudyRunner strategy funnels its restart bookkeeping through here so
+    ``theta_init`` (seed) and ``theta_final`` (optimized) are ALWAYS saved,
+    automatically, for any current or future runner — no per-runner wiring.
+    ``extra`` carries strategy-specific fields (sigma, hop, type, ...).
+    """
+    rec = {
+        "energy": float(e),
+        "fidelity": float(fidelity(x)),
+        "nit": int(nit),
+        "converged": bool(int(nit) < maxiter),
+        "theta_init": np.asarray(x0, float).tolist(),
+        "theta_final": np.asarray(x, float).tolist(),
+    }
+    rec.update(extra)
+    return rec
 
 
 # ── Optimizer strategies (pure; operate on a cost fn + fidelity fn) ────────────
@@ -140,21 +168,42 @@ def _lbfgsb(cost: Callable[[np.ndarray], float], x0: np.ndarray, *, maxiter: int
 # This keeps them backend-agnostic and unit-testable with a stub cost function.
 
 
-def strategy_single(cost, fidelity, th_ws, *, maxiter=80, grad=None):
+def _fire_on_restart(on_restart, runs, best_e, best_x):
+    """Invoke a per-restart persistence callback, swallowing any error.
+
+    ``on_restart(runs, best)`` receives the accumulated per-restart records and
+    the current best ``{"energy", "theta"}``. Persistence must never break the
+    optimization, so exceptions are suppressed. This is the shared hook that
+    makes per-restart crash-safety a base capability of every strategy.
+    """
+    if on_restart is None:
+        return
+    try:
+        best = None
+        if best_e is not None:
+            best = {"energy": float(best_e), "theta": np.asarray(best_x, float).tolist()}
+        on_restart(runs, best)
+    except Exception:
+        pass
+
+
+def strategy_single(cost, fidelity, th_ws, *, maxiter=80, grad=None, on_restart=None):
     """One L-BFGS-B from the warm-start seed (used by first_order / second_order)."""
     x, e, nit = _lbfgsb(cost, th_ws, maxiter=maxiter, grad=grad)
-    runs = [{"restart": 0, "sigma": 0.0, "energy": e,
-             "fidelity": float(fidelity(x)), "nit": nit}]
+    runs = [_run_record(th_ws, x, e, nit, fidelity, maxiter, restart=0, sigma=0.0)]
+    _fire_on_restart(on_restart, runs, e, x)
     return e, x, runs
 
 
-def strategy_bestof(cost, fidelity, th_ws, *, maxiter=80,
-                    sigmas=(0.0, 0.1, 0.1, 0.3), seed0=7000, mask=None, grad=None):
+def strategy_bestof(
+    cost, fidelity, th_ws, *, maxiter=80, sigmas=(0.0, 0.1, 0.1, 0.3), seed0=7000, mask=None, grad=None, on_restart=None
+):
     """Perturbed best-of from the warm-start seed (isotropic by default).
 
     Reproduces ``warmstart_bestof_vqe``: sigma=0 is the pure seed floor, then
     small/large-sigma perturbations, best-of by energy. ``mask`` optionally
-    restricts perturbation to a parameter subspace.
+    restricts perturbation to a parameter subspace. ``on_restart`` persists after
+    every restart (crash-safety).
     """
     n_params = len(th_ws)
     if mask is None:
@@ -169,15 +218,16 @@ def strategy_bestof(cost, fidelity, th_ws, *, maxiter=80,
             noise[mask] = rng.normal(0, sigma, int(mask.sum()))
             x0 = np.clip(th_ws + noise, -np.pi, np.pi)
         x, e, nit = _lbfgsb(cost, x0, maxiter=maxiter, grad=grad)
-        runs.append({"sigma": float(sigma), "energy": e,
-                     "fidelity": float(fidelity(x)), "nit": nit, "theta": x.tolist()})
+        runs.append(_run_record(x0, x, e, nit, fidelity, maxiter, sigma=float(sigma)))
         if best_e is None or e < best_e:
             best_e, best_x = e, x
+        _fire_on_restart(on_restart, runs, best_e, best_x)
     return best_e, best_x, runs
 
 
-def strategy_metropolis(cost, fidelity, th_ws, *, maxiter=80, sigma=0.3, n_hops=8,
-                        temperature=1.0, seed0=13000, grad=None):
+def strategy_metropolis(
+    cost, fidelity, th_ws, *, maxiter=80, sigma=0.3, n_hops=8, temperature=1.0, seed0=13000, grad=None, on_restart=None
+):
     """Analytic warm-start + Metropolis basin-hopping (the confirmed general winner).
 
     Reproduces ``warmstart_metropolis_vqe``: seed, then hop with Gaussian
@@ -189,8 +239,7 @@ def strategy_metropolis(cost, fidelity, th_ws, *, maxiter=80, sigma=0.3, n_hops=
     rng = np.random.default_rng(seed0)
     x_cur, e_cur, nit0 = _lbfgsb(cost, th_ws, maxiter=maxiter, grad=grad)
     x_best, e_best = x_cur.copy(), e_cur
-    runs = [{"hop": 0, "energy": e_cur, "fidelity": float(fidelity(x_cur)),
-             "accepted": True, "nit": nit0}]
+    runs = [_run_record(th_ws, x_cur, e_cur, nit0, fidelity, maxiter, hop=0, accepted=True)]
     for k in range(n_hops):
         x0 = np.clip(x_cur + rng.normal(0, sigma, n_params), -np.pi, np.pi)
         x_new, e_new, nit = _lbfgsb(cost, x0, maxiter=maxiter, grad=grad)
@@ -200,9 +249,8 @@ def strategy_metropolis(cost, fidelity, th_ws, *, maxiter=80, sigma=0.3, n_hops=
             x_cur, e_cur = x_new, e_new
         if e_new < e_best:
             x_best, e_best = x_new.copy(), e_new
-        runs.append({"hop": k + 1, "energy": e_new,
-                     "fidelity": float(fidelity(x_new)),
-                     "accepted": bool(accepted), "nit": nit})
+        runs.append(_run_record(x0, x_new, e_new, nit, fidelity, maxiter, hop=k + 1, accepted=bool(accepted)))
+        _fire_on_restart(on_restart, runs, e_best, x_best)
     return e_best, x_best, runs
 
 
@@ -217,19 +265,32 @@ def _block_mask(block: str, n_nn: int, n_nnn: int, n_qubits: int, p_layers: int)
     for layer in range(p_layers):
         o = layer * per
         if block == "all":
-            mask[o:o + per] = True
+            mask[o : o + per] = True
         elif block == "x":
-            mask[o + n_nn + n_nnn:o + per] = True
+            mask[o + n_nn + n_nnn : o + per] = True
         elif block == "zz":
-            mask[o:o + n_nn + n_nnn] = True
+            mask[o : o + n_nn + n_nnn] = True
         else:
             raise ValueError(f"unknown block {block!r}; expected all|x|zz")
     return mask
 
 
-def strategy_mixed(cost, fidelity, *, seeds, n_nn, n_nnn, n_qubits, p_layers,
-                   maxiter=80, seed0=50000, grad=None,
-                   restart_types=MIXED_RESTART_TYPES, n_restarts=None):
+def strategy_mixed(
+    cost,
+    fidelity,
+    *,
+    seeds,
+    n_nn,
+    n_nnn,
+    n_qubits,
+    p_layers,
+    maxiter=80,
+    seed0=50000,
+    grad=None,
+    restart_types=MIXED_RESTART_TYPES,
+    n_restarts=None,
+    on_restart=None,
+):
     """Best-of over restarts that explore DIFFERENT basins, not just noise levels.
 
     Each restart varies the *seed* (first- vs second-order) and the perturbed
@@ -259,14 +320,24 @@ def strategy_mixed(cost, fidelity, *, seeds, n_nn, n_nnn, n_qubits, p_layers,
             noise[mask] = rng.normal(0, sigma, int(mask.sum()))
             x0 = np.clip(th_ws + noise, -np.pi, np.pi)
         x, e, nit = _lbfgsb(cost, x0, maxiter=maxiter, grad=grad)
-        runs.append({
-            "restart": i, "type": recipe["name"], "seed_order": recipe["seed_order"],
-            "sigma": sigma, "block": recipe["block"], "energy": e,
-            "fidelity": float(fidelity(x)), "nit": nit,
-            "converged": bool(nit < maxiter), "theta": x.tolist(),
-        })
+        runs.append(
+            _run_record(
+                x0,
+                x,
+                e,
+                nit,
+                fidelity,
+                maxiter,
+                restart=i,
+                type=recipe["name"],
+                seed_order=recipe["seed_order"],
+                sigma=sigma,
+                block=recipe["block"],
+            )
+        )
         if best_e is None or e < best_e:
             best_e, best_x = e, x
+        _fire_on_restart(on_restart, runs, best_e, best_x)
     return best_e, best_x, runs
 
 
@@ -305,6 +376,7 @@ def run_strategy(
     curv_coef: float | None = None,
     seed0: int | None = None,
     grad: Callable[[np.ndarray], np.ndarray] | None = None,
+    on_restart: Callable | None = None,
 ) -> WarmStartResult:
     """Dispatch to the resolved warm-start strategy and return a WarmStartResult.
 
@@ -324,7 +396,13 @@ def run_strategy(
         from qmbp_simulation.analysis.warmstart import DEFAULT_CURV_COEF, DEFAULT_SHRINK_COEF
 
         th_ws = second_order_warmstart_theta(
-            n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2,
+            n_nn,
+            n_nnn,
+            n_qubits,
+            p_layers,
+            h,
+            J=J,
+            J2=J2,
             shrink_coef=DEFAULT_SHRINK_COEF if shrink_coef is None else shrink_coef,
             curv_coef=DEFAULT_CURV_COEF if curv_coef is None else curv_coef,
         )
@@ -332,34 +410,61 @@ def run_strategy(
         th_ws = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
 
     if resolved == "first_order":
-        e, x, runs = strategy_single(cost, fidelity, th_ws, maxiter=maxiter, grad=grad)
+        e, x, runs = strategy_single(cost, fidelity, th_ws, maxiter=maxiter, grad=grad, on_restart=on_restart)
     elif resolved == "second_order":
         # Second-order seed + small perturbed best-of for genuine variation.
         e, x, runs = strategy_bestof(
-            cost, fidelity, th_ws, maxiter=maxiter,
-            sigmas=(0.0, sigma, sigma), seed0=30000 if seed0 is None else seed0,
+            cost,
+            fidelity,
+            th_ws,
+            maxiter=maxiter,
+            sigmas=(0.0, sigma, sigma),
+            seed0=30000 if seed0 is None else seed0,
             grad=grad,
+            on_restart=on_restart,
         )
     elif resolved == "bestof":
         e, x, runs = strategy_bestof(
-            cost, fidelity, th_ws, maxiter=maxiter, sigmas=bestof_sigmas,
-            seed0=7000 if seed0 is None else seed0, grad=grad,
+            cost,
+            fidelity,
+            th_ws,
+            maxiter=maxiter,
+            sigmas=bestof_sigmas,
+            seed0=7000 if seed0 is None else seed0,
+            grad=grad,
+            on_restart=on_restart,
         )
     elif resolved == "mixed":
         th_first = first_order_warmstart_theta(n_nn, n_nnn, n_qubits, p_layers, h, J=J, J2=J2)
         e, x, runs = strategy_mixed(
-            cost, fidelity, seeds={"second": th_ws, "first": th_first},
-            n_nn=n_nn, n_nnn=n_nnn, n_qubits=n_qubits, p_layers=p_layers,
-            maxiter=maxiter, seed0=50000 if seed0 is None else seed0, grad=grad,
+            cost,
+            fidelity,
+            seeds={"second": th_ws, "first": th_first},
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=n_qubits,
+            p_layers=p_layers,
+            maxiter=maxiter,
+            seed0=50000 if seed0 is None else seed0,
+            grad=grad,
+            on_restart=on_restart,
         )
     else:  # metropolis
         e, x, runs = strategy_metropolis(
-            cost, fidelity, th_ws, maxiter=maxiter, sigma=sigma, n_hops=n_hops,
+            cost,
+            fidelity,
+            th_ws,
+            maxiter=maxiter,
+            sigma=sigma,
+            n_hops=n_hops,
             temperature=1.0 if temperature is None else temperature,
-            seed0=13000 if seed0 is None else seed0, grad=grad,
+            seed0=13000 if seed0 is None else seed0,
+            grad=grad,
+            on_restart=on_restart,
         )
-    return WarmStartResult(energy=float(e), fidelity=float(fidelity(x)),
-                           best_theta=np.asarray(x), runs=runs, strategy=resolved)
+    return WarmStartResult(
+        energy=float(e), fidelity=float(fidelity(x)), best_theta=np.asarray(x), runs=runs, strategy=resolved
+    )
 
 
 class StudyRunner:
@@ -379,11 +484,22 @@ class StudyRunner:
     ansatz : ``"nnn"`` (frustration-aware, default) or ``"nn"``.
     """
 
-    def __init__(self, *, topology: str, n_qubits: int, p_layers: int = 2,
-                 j2: float = 0.5, model: str = "tfim_frustrated",
-                 strategy: str = "metropolis", maxiter: int = 150,
-                 sigma: float = 0.3, n_hops: int = 8, ansatz: str = "nnn",
-                 J: float = 1.0, use_adjoint_grad: bool = True):
+    def __init__(
+        self,
+        *,
+        topology: str,
+        n_qubits: int,
+        p_layers: int = 2,
+        j2: float = 0.5,
+        model: str = "tfim_frustrated",
+        strategy: str = "metropolis",
+        maxiter: int = 150,
+        sigma: float = 0.3,
+        n_hops: int = 8,
+        ansatz: str = "nnn",
+        J: float = 1.0,
+        use_adjoint_grad: bool = True,
+    ):
         if strategy not in STRATEGIES:
             raise ValueError(f"unknown strategy {strategy!r}; expected {STRATEGIES}")
         self.topology = topology
@@ -435,13 +551,9 @@ class StudyRunner:
         from qmbp_simulation.models.constants import STATEVECTOR_MAX_N
 
         if self.n_qubits <= STATEVECTOR_MAX_N:
-            psi, e0, gap, H = _exact_ground_state_vector(
-                self.topology, self.n_qubits, h, model=self.model, j2=self.j2
-            )
+            psi, e0, gap, H = _exact_ground_state_vector(self.topology, self.n_qubits, h, model=self.model, j2=self.j2)
             return psi, e0, gap, H, "cached/exact"
-        psi, e0, gap, H = _eigsh_ground_state(
-            self.topology, self.n_qubits, h, model=self.model, j2=self.j2
-        )
+        psi, e0, gap, H = _eigsh_ground_state(self.topology, self.n_qubits, h, model=self.model, j2=self.j2)
         return psi, e0, gap, H, "eigsh_k2"
 
     def build_circuit(self, lattice):
@@ -463,7 +575,7 @@ class StudyRunner:
         return qc, len(lattice.edges), n_nnn
 
     # ── lifecycle: optimize ──────────────────────────────────────────────────
-    def optimize_point(self, h: float) -> dict:
+    def optimize_point(self, h: float, *, on_restart=None) -> dict:
         """Run one point end-to-end: ground state → circuit → seed → optimize → score.
 
         Returns a per-h result dict (energy, abs_error, de_gap, fidelity, the
@@ -489,23 +601,45 @@ class StudyRunner:
         grad = self._make_adjoint_grad(qc, H)
 
         res = run_strategy(
-            self.strategy, cost=cost, fidelity=fidelity,
-            n_nn=n_nn, n_nnn=n_nnn, n_qubits=self.n_qubits, p_layers=self.p_layers,
-            h=h, J=self.J, J2=(self.j2 if self.ansatz == "nnn" else 0.0),
-            maxiter=self.maxiter, sigma=self.sigma, n_hops=self.n_hops,
-            temperature=gap, grad=grad,
+            self.strategy,
+            cost=cost,
+            fidelity=fidelity,
+            n_nn=n_nn,
+            n_nnn=n_nnn,
+            n_qubits=self.n_qubits,
+            p_layers=self.p_layers,
+            h=h,
+            J=self.J,
+            J2=(self.j2 if self.ansatz == "nnn" else 0.0),
+            maxiter=self.maxiter,
+            sigma=self.sigma,
+            n_hops=self.n_hops,
+            temperature=gap,
+            grad=grad,
+            on_restart=on_restart,
         )
         point = {
-            "topology": self.topology, "h": h, "n_qubits": self.n_qubits,
-            "p_layers": self.p_layers, "J2": self.j2, "model": self.model,
-            "ansatz": self.ansatz, "gs_method": gs_method,
-            "e_vqe": res.energy, "e0_exact": float(e0), "gap": float(gap),
+            "topology": self.topology,
+            "h": h,
+            "n_qubits": self.n_qubits,
+            "p_layers": self.p_layers,
+            "J2": self.j2,
+            "model": self.model,
+            "ansatz": self.ansatz,
+            "gs_method": gs_method,
+            "e_vqe": res.energy,
+            "e0_exact": float(e0),
+            "gap": float(gap),
             "abs_error": float(abs(res.energy - e0)),
             "de_gap": float(abs(res.energy - e0) / gap) if gap > 0 else None,
-            "fidelity": res.fidelity, "n_params": int(qc.num_parameters),
-            "n_nn": n_nn, "n_nnn": n_nnn,
-            "strategy_requested": self.strategy, "strategy_resolved": res.strategy,
-            "runs": res.runs, "best_theta": res.best_theta,
+            "fidelity": res.fidelity,
+            "n_params": int(qc.num_parameters),
+            "n_nn": n_nn,
+            "n_nnn": n_nnn,
+            "strategy_requested": self.strategy,
+            "strategy_resolved": res.strategy,
+            "runs": res.runs,
+            "best_theta": res.best_theta,
             "_qc": qc,
         }
         point["diagnostics"] = self._diagnostic_metrics(qc, res, H, psi, gap)
@@ -532,12 +666,20 @@ class StudyRunner:
             # Low eigenvectors: reuse psi (ground) and derive the first-excited
             # partner cheaply from H only when the statevector is tractable.
             eigvecs = self._low_eigvecs(H, psi)
+            # Sanitize Var(H): compute_energy_variance returns NaN at large N
+            # (the H² statevector path degrades). NaN must not reach the JSON —
+            # json.dump writes it as a bare ``NaN`` token that standard parsers
+            # reject. Store None instead (and skip the variance-based factor).
+            var_clean = float(var_h) if var_h is not None and np.isfinite(var_h) else None
             diag["spectral"] = compute_state_spectral_decomposition(
-                qc, theta, eigvecs, n_low=2,
-                energy_variance=var_h, gap=gap,
+                qc,
+                theta,
+                eigvecs,
+                n_low=2,
+                energy_variance=var_clean,
+                gap=gap,
             )
-            if var_h is not None:
-                diag["energy_variance"] = float(var_h)
+            diag["energy_variance"] = var_clean
         except Exception as exc:  # noqa: BLE001 - diagnostics never break a run
             diag["spectral_error"] = str(exc)
         return diag
@@ -558,8 +700,7 @@ class StudyRunner:
         return cols
 
     # ── lifecycle: persist a single point's reusable artifacts ───────────────
-    def persist_point(self, point: dict, artifact_dir, *, save_theta: bool = True,
-                      qpy_saver=None) -> dict:
+    def persist_point(self, point: dict, artifact_dir, *, save_theta: bool = True, qpy_saver=None) -> dict:
         """Write a point's reusable artifacts (θ NPZ, optional bound QPY) and
         return a JSON-safe copy of ``point`` (``_qc`` dropped, ``best_theta``
         listified, artifact paths recorded).
@@ -585,10 +726,19 @@ class StudyRunner:
 
         if save_theta:
             theta_npz = artifact_dir / f"theta_{tag}.npz"
-            np.savez(theta_npz, theta=theta, h=point["h"], e_vqe=point["e_vqe"],
-                     e0=point["e0_exact"], gap=point["gap"], fidelity=point["fidelity"],
-                     n_nn=point.get("n_nn"), n_nnn=point.get("n_nnn"),
-                     n_qubits=self.n_qubits, p_layers=self.p_layers)
+            np.savez(
+                theta_npz,
+                theta=theta,
+                h=point["h"],
+                e_vqe=point["e_vqe"],
+                e0=point["e0_exact"],
+                gap=point["gap"],
+                fidelity=point["fidelity"],
+                n_nn=point.get("n_nn"),
+                n_nnn=point.get("n_nnn"),
+                n_qubits=self.n_qubits,
+                p_layers=self.p_layers,
+            )
             out["theta_npz"] = str(theta_npz)
         if qpy_saver is not None and point.get("_qc") is not None:
             bound = point["_qc"].assign_parameters(theta)
@@ -598,8 +748,7 @@ class StudyRunner:
         return out
 
     # ── lifecycle: full sweep with built-in checkpoint / resume ──────────────
-    def run_sweep(self, h_values, checkpoint, *, artifact_dir=None,
-                  extra=None, on_point=None, qpy_saver=None) -> dict:
+    def run_sweep(self, h_values, checkpoint, *, artifact_dir=None, extra=None, on_point=None, qpy_saver=None) -> dict:
         """Run an h-sweep with crash-safe per-h checkpointing and resume.
 
         The base owns the loop; the caller supplies only *what* to sweep and
@@ -653,9 +802,7 @@ def _exact_ground_state_vector(topology, n, h, *, model="tfim", j2=0.0):
         ham_kwargs["J2"] = j2
         model_kwargs = {"J2": j2} if j2 else None
     solver = ClassicalSolver()
-    e0, gap = GroundTruthCache().get_or_compute(
-        topology, n, model, h, model_kwargs=model_kwargs, solver=solver
-    )
+    e0, gap = GroundTruthCache().get_or_compute(topology, n, model, h, model_kwargs=model_kwargs, solver=solver)
     lat = make_lattice(topology, n, J=1.0, h=h)
     H = spec.build_hamiltonian(lat, **ham_kwargs)
     gt = solver.solve(H, lat)

@@ -58,6 +58,9 @@ src/qmbp_simulation/analysis/fidelity.py
     DOC101: Function `compute_fidelity_decomposition`: Docstring contains fewer arguments than in function signature.
     DOC107: Function `compute_fidelity_decomposition`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
     DOC103: Function `compute_fidelity_decomposition`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [chi_max: int, circuit: , gap: float, hamiltonian: , theta: np.ndarray].
+    DOC101: Function `compute_state_spectral_decomposition`: Docstring contains fewer arguments than in function signature.
+    DOC107: Function `compute_state_spectral_decomposition`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
+    DOC103: Function `compute_state_spectral_decomposition`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [energy_variance: float | None, gap: float | None]. Arguments in the docstring but not in the function signature: [energy_variance, gap: float | None].
     DOC101: Function `estimate_fidelity_from_primitives`: Docstring contains fewer arguments than in function signature.
     DOC107: Function `estimate_fidelity_from_primitives`: The option `--arg-type-hints-in-signature` is `True` but not all args in the signature have type hints
     DOC103: Function `estimate_fidelity_from_primitives`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [e0: float | None, e_pred: float | None]. Arguments in the docstring but not in the function signature: [e_pred, e0: float | None].
@@ -156,6 +159,10 @@ src/qmbp_simulation/circuits/aqc_compression.py
     DOC105: Method `AQCCircuitCompressor.compress_from_mps`: Argument names match, but type hints in these args do not match: target_mps
     DOC105: Method `AQCCircuitCompressor.validate_compression`: Argument names match, but type hints in these args do not match: energy_original
     DOC105: Method `AQCCompressionCache.__init__`: Argument names match, but type hints in these args do not match: cache_dir
+--------------------
+src/qmbp_simulation/circuits/hva.py
+    DOC101: Method `HVACircuitBuilder.create_bond_resolved_frustrated_configurable`: Docstring contains fewer arguments than in function signature.
+    DOC103: Method `HVACircuitBuilder.create_bond_resolved_frustrated_configurable`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [lattice: LatticeConfig, n_qubits: int, rx_final: bool, rz_final: bool]. Arguments in the docstring but not in the function signature: [n_qubits, lattice: system definition (NNN edges derived from topology)., rx_final, rz_final: bool].
 --------------------
 src/qmbp_simulation/execution/backends.py
     DOC101: Method `NoisyBackend.__init__`: Docstring contains fewer arguments than in function signature.
@@ -385,6 +392,7 @@ src/qmbp_simulation/framework/runner_base.py
     DOC103: Method `ValidationRunner.log_budget_summary`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [n_qubits: int | None, p_layers: int | None, topology: str | None]. Arguments in the docstring but not in the function signature: [topology, n_qubits, p_layers: optional].
     DOC201: Method `ValidationRunner.get_spec` does not have a return section in docstring
     DOC105: Method `ValidationRunner.save_checkpoint`: Argument names match, but type hints in these args do not match: data
+    DOC001: Function/method `save_partial`: Potential formatting errors in docstring. Error message: Unsupported numpy docstring section: "Row accumulation" (Note: DOC001 could trigger other unrelated violations under this function/method too. Please fix the docstring formatting first.)
     DOC101: Method `ValidationRunner.load_vqe_checkpoint`: Docstring contains fewer arguments than in function signature.
     DOC103: Method `ValidationRunner.load_vqe_checkpoint`: Docstring arguments are different from function arguments. (Or could be other formatting issues: https://jsh9.github.io/pydoclint/violation_codes.html#notes-on-doc103 ). Arguments in the function signature but not in the docstring: [model: str | None, n_qubits: int | None]. Arguments in the docstring but not in the function signature: [n_qubits, model: int | str | None].
     DOC101: Method `ValidationRunner.load_mpnn_from_zoo`: Docstring contains fewer arguments than in function signature.

@@ -1,0 +1,31 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/angle_analysis_seed-gap_square_N18_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/analyze_angles.py",
+  "generated_utc": "2026-09-28T21:56:26.274768+00:00",
+  "params": {
+    "analysis": "seed-gap"
+  },
+  "description": "Angle analysis: seed-gap",
+  "rows": [
+    {
+      "fidelity": 0.5418034572357815,
+      "l2": 25.917508390315785
+    },
+    {
+      "fidelity": 0.5409963641480061,
+      "l2": 3.943733247293776
+    },
+    {
+      "fidelity": 0.5325281822162908,
+      "l2": 4.1118046440966625
+    },
+    {
+      "fidelity": 0.104488376066747,
+      "l2": 24.410574095418436
+    },
+    {
+      "fidelity": 0.00020910752176741212,
+      "l2": 25.945622579757355
+    }
+  ]
+}

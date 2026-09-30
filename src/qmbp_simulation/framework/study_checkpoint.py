@@ -24,7 +24,6 @@ Design goals:
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 from typing import Any
@@ -33,19 +32,13 @@ from typing import Any
 def atomic_write_json(path: str | Path, payload: dict) -> Path:
     """Write ``payload`` as JSON to ``path`` atomically (tmp + rename).
 
-    Parent directories are created. The temporary file carries the writer PID so
-    concurrent writers do not collide. Returns the path written.
+    Thin alias over the canonical :func:`qmbp_simulation.utils.helpers.write_json_atomic`
+    (numpy/NaN-safe via ``json_serialize``). Kept as a name so existing study
+    callers keep a stable import surface.
     """
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + f".tmp.{os.getpid()}")
-    try:
-        tmp.write_text(json.dumps(payload, indent=2, default=str))
-        tmp.rename(path)
-    finally:
-        if tmp.exists():
-            tmp.unlink(missing_ok=True)
-    return path
+    from qmbp_simulation.utils.helpers import write_json_atomic
+
+    return write_json_atomic(path, payload)
 
 
 def read_json(path: str | Path) -> dict | None:
@@ -57,6 +50,56 @@ def read_json(path: str | Path) -> dict | None:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return None
+
+
+def sanitize_theta(theta: Any) -> list | None:
+    """Coerce angles to a finite plain list, or ``None`` if unusable.
+
+    Shared θ-hygiene for resumable partials: a resume must never warm-start from
+    NaN/Inf. Returns a JSON-safe list only when every entry is finite; otherwise
+    ``None`` (the caller then persists rows without angles).
+    """
+    if theta is None:
+        return None
+    try:
+        import numpy as np
+
+        arr = np.asarray(theta, dtype=float)
+        if arr.size and np.all(np.isfinite(arr)):
+            return arr.tolist()
+    except (TypeError, ValueError):
+        return None
+    return None
+
+
+def build_resumable_payload(
+    *,
+    rows: list[dict],
+    theta: Any = None,
+    fingerprint: dict | None = None,
+    completed: int | None = None,
+    meta: dict | None = None,
+    extra: dict | None = None,
+) -> dict:
+    """Assemble the canonical resumable-partial payload (θ included).
+
+    One shared shape for both the class-based ``ValidationRunner.save_partial``
+    and the standalone study runners, so a partial written by either can be
+    resumed the same way. ``extra`` merges study-specific top-level fields
+    (topology, schema, params) without disturbing the resumable core.
+    """
+    payload: dict[str, Any] = {
+        "resumable": True,
+        "config_fingerprint": fingerprint or {},
+        "completed": completed if completed is not None else len(rows),
+        "rows": rows,
+        "best_theta": sanitize_theta(theta),
+    }
+    if meta:
+        payload["meta"] = meta
+    if extra:
+        payload.update(extra)
+    return payload
 
 
 class StudyCheckpoint:
@@ -147,9 +190,7 @@ class StudyCheckpoint:
         return atomic_write_json(self._path, payload)
 
 
-def resume_ordered_list(
-    path: str | Path, list_key: str, *, inside: str | None = None
-) -> list:
+def resume_ordered_list(path: str | Path, list_key: str, *, inside: str | None = None) -> list:
     """Resume an ordered list of records (e.g. per-hop ``runs``) from a payload.
 
     Some runners store progress as an ordered list rather than a keyed map (the

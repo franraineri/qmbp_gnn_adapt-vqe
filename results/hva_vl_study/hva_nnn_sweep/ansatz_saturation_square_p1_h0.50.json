@@ -1,0 +1,66 @@
+{
+  "result_path": "results/hva_vl_study/hva_nnn_sweep/ansatz_saturation_square_p1_h0.50.json",
+  "source_script": "scripts/analysis/vl_vs_hva/run_ansatz_variants.py",
+  "generated_utc": "2026-09-28T13:35:56.667728+00:00",
+  "params": {
+    "experiment": "ansatz_saturation",
+    "h": 0.5
+  },
+  "description": "p1_base ceiling vs N to locate expressivity saturation",
+  "rows": [
+    {
+      "N": 6,
+      "gap": 0.2506273026277741,
+      "ceiling_fid": 0.6967376634174322,
+      "e_best": -4.711130862441949,
+      "e0": -5.015840884122677,
+      "n_2q": 26,
+      "n_params": 19,
+      "de_gap": 1.2157894151431565,
+      "saturates": false,
+      "seconds": 2.3
+    },
+    {
+      "N": 8,
+      "gap": 0.0922998035669984,
+      "ceiling_fid": 0.7072171176761025,
+      "e_best": -6.406843763193547,
+      "e0": -6.898624285703899,
+      "n_2q": 42,
+      "n_params": 29,
+      "de_gap": 5.3280776719462795,
+      "saturates": false,
+      "seconds": 2.3
+    },
+    {
+      "N": 10,
+      "gap": 0.006132344786811572,
+      "ceiling_fid": 0.40885779271888156,
+      "e_best": -8.06699804034606,
+      "e0": -9.3692941644983,
+      "n_2q": 56,
+      "n_params": 38,
+      "de_gap": 212.3651179811352,
+      "saturates": false,
+      "seconds": 3.4
+    },
+    {
+      "N": 12,
+      "gap": 0.007137480495927662,
+      "ceiling_fid": 0.28367199965160783,
+      "e_best": -9.596905076949934,
+      "e0": -11.143973477628942,
+      "n_2q": 78,
+      "n_params": 51,
+      "de_gap": 216.7527325029747,
+      "saturates": false,
+      "seconds": 11.8
+    }
+  ],
+  "topology": "square",
+  "h": 0.5,
+  "restarts": 3,
+  "maxiter": 2000,
+  "sat_threshold": 0.93,
+  "schema": "ansatz_saturation_v1"
+}

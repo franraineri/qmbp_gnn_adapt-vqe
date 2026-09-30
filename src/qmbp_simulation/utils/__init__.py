@@ -12,6 +12,7 @@ from qmbp_simulation.utils.helpers import (
     set_global_seed,
     timer,
     versioned_backup,
+    write_json_atomic,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "set_global_seed",
     "timer",
     "versioned_backup",
+    "write_json_atomic",
 ]
